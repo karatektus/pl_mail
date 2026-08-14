@@ -93,6 +93,52 @@ final class AppearancePaneStateTest extends WebTestCase
         self::assertSame($expected, $this->reread()->appearancePreviewWidth);
     }
 
+    /**
+     * @return iterable<string, array{int, int}>
+     */
+    public static function storedOutOfRange(): iterable
+    {
+        // The case the widening actually creates. Nobody's stored width becomes
+        // invalid by raising a maximum, but a bag is a JSON column with no
+        // constraint behind it: a value can predate a narrower range, arrive
+        // from an import, or be written by hand.
+        yield 'stored past the maximum'  => [40_000, User::APPEARANCE_PREVIEW_MAX_WIDTH];
+        yield 'stored below the minimum' => [10, User::APPEARANCE_PREVIEW_MIN_WIDTH];
+        yield 'stored negative'          => [-500, User::APPEARANCE_PREVIEW_MIN_WIDTH];
+        // Inside the new range and outside the old one: this is the width the
+        // user gets to KEEP, which is the other half of the promise.
+        yield 'past the OLD maximum'     => [780, 780];
+    }
+
+    /**
+     * A width already in the bag, never posted through the endpoint.
+     *
+     * The endpoint's clamp above only covers what the endpoint writes. This is
+     * the reading side, and it is the one that decides what a page RENDERS —
+     * the width is served into the first paint from this property, so a stored
+     * 40000 that survived the getter would put the preview off the screen with
+     * no control left on it to drag back.
+     */
+    #[\PHPUnit\Framework\Attributes\DataProvider('storedOutOfRange')]
+    public function testAStoredWidthIsClampedWhenItIsRead(int $stored, int $expected): void
+    {
+        [$client, $user] = $this->signedIn();
+
+        $user->setSetting(User::SETTING_APPEARANCE_PREVIEW_WIDTH, $stored);
+        static::getContainer()->get(EntityManagerInterface::class)->flush();
+
+        self::assertSame($expected, $this->reread()->appearancePreviewWidth);
+
+        // …and that is the number the panel is rendered with, rather than the
+        // stored one reaching the stylesheet by another route.
+        $crawler = $client->request('GET', '/settings?section=appearance');
+
+        self::assertStringContainsString(
+            "--appearance-preview-width: {$expected}px",
+            (string) $crawler->filter('[data-controller="ui--split"]')->last()->attr('style'),
+        );
+    }
+
     /** Signed out, there is nothing to remember and nothing to attack. */
     public function testItIsBehindTheLogin(): void
     {

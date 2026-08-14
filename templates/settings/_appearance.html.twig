@@ -41,7 +41,12 @@
    has no container ancestor at all and would have pinned every query to its
    base state. One container, one set of thresholds, the same behaviour in
    both. #}
-<div class="@container"
+{# `pane-fill-rest pane-fill-stack`: above 80rem this panel takes what its host's
+   scroll port has left rather than growing it — see the block in app.css and the
+   two hosts that hand it that height (settings/index.html.twig,
+   onboarding/_wizard.html.twig). Below 80rem both classes are inert and this is
+   an ordinary block that is as tall as it is. #}
+<div class="@container pane-fill-rest pane-fill-stack"
      data-controller="settings--appearance"
      data-settings--appearance-update-url-value="{{ path('app_appearance_update') }}"
      data-settings--appearance-upload-url-value="{{ path('app_appearance_background_upload') }}"
@@ -94,7 +99,18 @@
     {% set _previewWidth = app.user ? app.user.appearancePreviewWidth
                                     : constant('App\\Entity\\User\\User::APPEARANCE_PREVIEW_DEFAULT_WIDTH') %}
 
-    <div class="grid gap-6 @3xl:grid-cols-[minmax(0,1fr)_auto]"
+    {# `@3xl:gap-gutter` — the mail shell's gutter, not this page's card spacing,
+       and that is the whole of "make the gap feel like the calendar's". The row
+       gap is half the visible space between the two cards; the handle's own
+       negative margin is the other half (see the handle below), so gutter here
+       and gutter there give a 24px channel with the grip down the middle of it,
+       pixel for pixel what sits between the message list and the calendar.
+       `gap-6` still applies BELOW @3xl, where the two cards are stacked and this
+       is vertical space between two cards rather than a boundary.
+
+       `pane-fill-host` caps the row above 80rem so both cards can be exactly as
+       tall as it is; below that it is inert. #}
+    <div class="grid gap-6 @3xl:gap-gutter @3xl:grid-cols-[minmax(0,1fr)_auto] pane-fill-host"
          style="--appearance-preview-width: {{ _previewWidth }}px"
          data-controller="ui--split"
          {# The same splitter the calendar pane uses, with its three positions
@@ -117,15 +133,39 @@
          data-ui--split-max-value="{{ constant('App\\Entity\\User\\User::APPEARANCE_PREVIEW_MAX_WIDTH') }}"
          data-ui--split-default-value="{{ constant('App\\Entity\\User\\User::APPEARANCE_PREVIEW_DEFAULT_WIDTH') }}"
          {# What the CONTROLS column is never dragged below. They are the reason
-            the page exists; the preview is the thing that can be made small. #}
-         data-ui--split-main-min-value="360"
+            the page exists; the preview is the thing that can be made small.
+
+            380, and it is a measured number rather than a round one. Two things
+            inside this card set it. The segmented groups stop clipping their
+            longest label at about 316px of card — that is the same in English
+            and in German, since `auto-cols-fr` divides the row rather than
+            summing it and only the text itself can overflow. The theme tiles
+            used to want a great deal more, because their column count was a
+            query on the PANEL and the panel does not narrow when this card
+            does: six fixed columns clipped the longest German theme name at
+            every width the drag could reach. That grid is `auto-fill` now (see
+            it below), so it answers to the card it is in and the tiles set no
+            floor at all. 380 is 316 with enough left over that the card reads
+            as a column of controls rather than as the last thing that fits.
+
+            This is the bound that actually bites at 1280: the row has 754px for
+            the two cards there, so the preview stops at 374 however far the
+            max below would let it go. That is the point of it — 900 is what the
+            boundary can reach on a screen with 900 to spare, not a promise that
+            the controls will be squeezed to make room for it. #}
+         data-ui--split-main-min-value="380"
          data-ui--split-step-value="16">
 
         {# ── Card one: the controls ───────────────────────────────────────
            A real card, so the two halves of this page are peers. `min-w-0`
            because it is the `1fr` column and its segmented groups would
            otherwise refuse to shrink below their content. #}
-        <section class="min-w-0 rounded-pane border border-line bg-surface overflow-hidden"
+        {# `pane-fill-card` above 80rem: header, then a body that scrolls inside
+           the card. This is the half that stops the preview beside it being a
+           2500px box with 500px of miniature at the top — the row is no longer
+           2500px, because this card no longer sets its own height. It is what
+           .main-pane does for the message list, for the same reason. #}
+        <section class="min-w-0 rounded-pane border border-line bg-surface overflow-hidden pane-fill-card"
                  data-ui--split-target="main">
 
             {# The card header, and the one place the preview can be reached on
@@ -151,7 +191,7 @@
                `aria-controls` names the region and `aria-expanded` carries the
                state; the label itself changes with it, so the control is
                readable without either. #}
-            <header class="flex items-center justify-between gap-3 px-4 py-3.5 border-b border-line">
+            <header class="shrink-0 flex items-center justify-between gap-3 px-4 py-3.5 border-b border-line">
                 <div class="min-w-0">
                     <h2 class="text-sm font-semibold text-ink">{{ 'settings.appearance.heading'|trans }}</h2>
                     <p class="text-xs text-ink-faint mt-0.5">{{ 'settings.appearance.subheading'|trans }}</p>
@@ -177,7 +217,11 @@
                 </button>
             </header>
 
-            <div class="px-4 py-5 space-y-8">
+            {# The card's scrolling body — the ONE scrollbar this section gains,
+               and it replaces the settings pane's rather than competing with
+               it: the panel now fills that pane exactly instead of lengthening
+               it, so there is nothing left out there to scroll. #}
+            <div class="px-4 py-5 space-y-8 pane-fill-scroll">
 
             {# ── Theme ─────────────────────────────────────────────────── #}
             <section>
@@ -186,7 +230,31 @@
                     <p class="text-xs text-ink-faint mt-0.5">{{ 'settings.appearance.theme.subheading'|trans }}</p>
                 </div>
 
-                <div class="grid grid-cols-3 @lg:grid-cols-4 @4xl:grid-cols-6 gap-3">
+                {# AUTO-FILL rather than three container-query breakpoints, and
+                   the split is what forced it. The queries were on the PANEL,
+                   and the panel's width no longer says anything about this
+                   card's: drag the preview wider and the card narrows while the
+                   panel does not, so a card dragged to 360px was still being
+                   told to draw six columns. Measured with the German
+                   catalogue's labels, six columns overflowed "Dämmerung" by
+                   18px in a 336px card and still by 10px in a 416px one — into
+                   a card that is `overflow-hidden`, so the name was cut rather
+                   than merely tight, and a theme whose name you cannot read is
+                   a theme you cannot pick.
+
+                   `minmax(5.5rem, 1fr)` is the tile the longest name fits in
+                   (88px, of which 16 is the tile's own padding), so the count
+                   falls out of the width that is actually available instead of
+                   being asserted about a different element. Seven columns —
+                   one per theme — in a card with room for them, four at 1280,
+                   three at 414, and it needs no new breakpoint the next time a
+                   theme is added.
+
+                   It costs one column on the 320px phone, which used to draw
+                   three at 78px each. Those three could not hold "Dämmerung"
+                   either: two columns of 122 is the width the label has always
+                   needed and the first arrangement that actually gives it. #}
+                <div class="grid grid-cols-[repeat(auto-fill,minmax(5.5rem,1fr))] gap-3">
                     {% for theme in enum('App\\Domain\\Enum\\Theme\\Theme').cases %}
                         {% set swatch = theme.swatch %}
                         {# data-theme-NAME. `data-theme` is the palette switch (every
@@ -856,25 +924,40 @@
            which is a disclosure that discloses nothing; first in the stack and
            pinned to the top of the scroll port, it stays on screen while the
            controls it explains scroll underneath. Above @3xl neither applies:
-           the columns are side by side and the card's own `sticky` inside the
-           stretched wrapper does that job.
+           the columns are side by side.
 
-           The wrapper stretches to the grid row so the sticky card inside it
-           has somewhere to travel. #}
+           BETWEEN @3xl and 80rem the card inside is still `sticky`, because the
+           row is still as tall as the controls card and something has to keep
+           the miniature on screen. At 80rem and up the row is capped instead
+           and the card simply fills it — `pane-fill-card` retires the sticky,
+           since a card that is already the height of the row has nowhere left
+           to travel. #}
         <aside id="appearance-preview-region"
                data-settings--appearance-target="previewRegion"
                class="hidden @3xl:flex min-w-0
                       order-first sticky top-0 z-10
                       @3xl:order-none @3xl:static @3xl:z-auto">
-            {# The handle, the same shape and the same keys as the calendar's:
-               role=separator with an orientation is what makes a boundary
-               reachable and meaningful without a mouse, arrow keys nudge it,
-               and a double-click puts it back to the default. `.split-grip` is
-               the hook app.css already styles.
+            {# The handle, and it is now the calendar's handle down to the
+               pixel: `-ml-gutter w-[calc(var(--spacing-gutter)*2)]`, the same
+               expression _calendar_pane.html.twig carries and for the reason
+               its comment gives. Two gutters wide and pulled left by one, so
+               the grip lands in the MIDDLE of the space between the two cards
+               rather than to one side of it — the row's own `gap-gutter` falls
+               to this handle's left, so a handle merely one gutter wide would
+               put its grip one and a half gutters from the controls and half a
+               gutter from the preview.
 
-               Two gaps wide and pulled left by one, so the grip sits in the
-               MIDDLE of the space between the columns rather than to one side
-               of it. #}
+               It used to be `-ml-6 w-12` against a `gap-6` row. That is the
+               same formula at twice the scale and it was centred too; what it
+               was not was the mail shell's channel. Written in the gutter
+               token, this boundary and the one between the message list and the
+               calendar are the same 24px with the same two-pixel grip down the
+               middle, and they stay that way if the token ever moves.
+
+               role=separator with an orientation is what makes a boundary
+               reachable and meaningful without a mouse; arrow keys nudge it and
+               a double-click puts it back to the default, both the same actions
+               on the same controller. #}
             <div
                 data-ui--split-target="handle"
                 data-action="pointerdown->ui--split#start keydown->ui--split#nudge dblclick->ui--split#reset"
@@ -882,21 +965,24 @@
                 aria-orientation="vertical"
                 aria-label="{{ 'settings.appearance.preview.resize'|trans }}"
                 tabindex="0"
-                class="group relative -ml-6 w-12 shrink-0 cursor-col-resize
-                       hidden @3xl:flex items-start justify-center focus:outline-none"
+                class="group relative -ml-gutter w-[calc(var(--spacing-gutter)*2)] shrink-0
+                       cursor-col-resize
+                       hidden @3xl:flex items-center justify-center
+                       focus:outline-none"
             >
-                {# STICKY, and centred on nothing.
+                {# CENTRED, like the calendar's, which is a change this became
+                   able to make rather than a preference. The grip used to be
+                   `sticky top-24` because the handle was as tall as the
+                   controls card — some 2700px — and a centred grip sat 1300px
+                   below the fold. The row is capped to the scroll port now, so
+                   the centre of the handle is on screen by construction and the
+                   workaround is exactly what it looked like.
 
-                   The calendar's grip is centred in its handle, which works
-                   there because that handle is one viewport tall. This one is
-                   as tall as the controls column — some 2700px — so a centred
-                   grip sits about 1300px below the fold and the boundary looks
-                   like it has no handle at all. Sticking it near the top of the
-                   scrollport keeps it beside whatever control is being looked
-                   at, which is also where the pointer already is. The whole
-                   48px column stays draggable either way; this is only about
-                   the two pixels that SAY so. #}
-                <span class="split-grip sticky top-24 w-0.5 h-8 rounded-full bg-line
+                   `.split-grip` is also what the strain state in app.css hooks,
+                   and the controller drives it here too: dragging past either
+                   limit flares the grip, which is the one thing that says "that
+                   is the end" on a control two pixels wide. #}
+                <span class="split-grip w-0.5 h-8 rounded-full bg-line
                              group-hover:bg-accent group-focus-visible:bg-accent" aria-hidden="true"></span>
             </div>
 
@@ -904,7 +990,8 @@
                settings card, not 304px of a 320px screen. The stored width only
                describes a boundary, and below @3xl there is no boundary. #}
             <div data-ui--split-target="pane"
-                 class="min-w-0 w-full @3xl:w-[var(--appearance-preview-width)]">
+                 class="min-w-0 w-full @3xl:w-[var(--appearance-preview-width)]
+                        pane-fill-stack">
                 {% include 'settings/_appearance_preview.html.twig' %}
             </div>
         </aside>

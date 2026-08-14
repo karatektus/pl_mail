@@ -20,6 +20,30 @@ import { seedUser } from "../support/config";
 
 const DESKTOP = { width: 1600, height: 1000 };
 
+/**
+ * The width where a wide preview squeezes hardest — the narrowest window that
+ * still puts the two cards side by side with a full-height row.
+ */
+const TIGHT = { width: 1280, height: 800 };
+
+/**
+ * Wide enough for the preview to actually REACH its maximum.
+ *
+ * 900 is a ceiling, not a promise: the boundary is clamped against what the two
+ * cards have between them minus the controls card's floor, so it is reachable
+ * on a window with 900 to spare and stops earlier on one without. At 1600 that
+ * arithmetic stops the preview at 694, which is the clamp working rather than
+ * the maximum failing — so the maximum needs its own viewport to be tested at.
+ */
+const WIDE = { width: 1920, height: 1080 };
+
+/** What the controls card is never dragged below (`main-min` on the split row). */
+const CONTROLS_FLOOR = 380;
+
+/** The preview's own bounds — User::APPEARANCE_PREVIEW_{MIN,MAX}_WIDTH. */
+const PREVIEW_MIN = 240;
+const PREVIEW_MAX = 900;
+
 /** A user of this spec's own, so the wizard can be entered without disturbing anyone. */
 const WIZARD = { email: "e2e-wizard-host@plmail.test", password: "wizard-host-password" };
 
@@ -31,9 +55,10 @@ const width = async (page: Page) => Math.round((await pane(page).boundingBox())!
 /**
  * Drag the boundary by `dx`, negative being "wider" (the pane is on the right).
  *
- * Grabbed near the TOP of the handle rather than at its centre: the handle
- * stretches the whole grid row, which on this panel is some 2700px tall, so its
- * centre is a long way below the viewport and clicking it would hit nothing.
+ * Still grabbed near the TOP of the handle rather than at its centre, and that
+ * is now belt and braces rather than necessity: the row is capped to the scroll
+ * port, so the handle's centre is on screen. It used to be some 2700px tall,
+ * which is what the grip's old `sticky` was working around.
  */
 const drag = async (page: Page, dx: number) => {
     const box = (await handle(page).boundingBox())!;
@@ -109,15 +134,139 @@ test.describe("appearance preview pane", () => {
         expect(await width(page)).toBe(304);
     });
 
+    /**
+     * TWO ceilings, and at 1600 it is the second one that stops the drag.
+     *
+     * The preview's own maximum is 900. What the boundary is actually clamped
+     * against is what the two cards have between them minus the controls
+     * card's floor — 1074 - 380 here — so it stops at 694. That is the bound
+     * that matters and the one worth pinning: a maximum that could always be
+     * reached would be a maximum that could squeeze the controls off the page.
+     */
     test("stays inside its bounds", async ({ page }) => {
         // Far past the maximum in one throw. It stops, rather than rubber-
         // banding: the band exists to reach the calendar's other two positions
         // and this boundary has none.
         await drag(page, -2000);
-        expect(await width(page)).toBe(560);
+
+        const widest = await width(page);
+        expect(widest).toBeGreaterThan(560); // wider than the old maximum
+        expect(widest).toBeLessThanOrEqual(PREVIEW_MAX);
+
+        // …and what stopped it was the controls card's floor, which is still
+        // standing. Measured with a height too: a 0px-tall box would satisfy a
+        // width assertion on its own.
+        const controls = (await page.locator('[data-ui--split-target="main"]').boundingBox())!;
+        expect(Math.round(controls.width)).toBeGreaterThanOrEqual(CONTROLS_FLOOR);
+        expect(controls.height).toBeGreaterThan(400);
 
         await drag(page, 2000);
-        expect(await width(page)).toBe(240);
+        expect(await width(page)).toBe(PREVIEW_MIN);
+    });
+
+    /**
+     * The new maximum, on a window that can afford it.
+     *
+     * 900 is the calendar pane's maximum too, deliberately: both are "a pane
+     * beside the thing the page is for". The old 560 was a sidebar's limit that
+     * outlived the sidebar.
+     */
+    test("reaches the new maximum on a window with room for it", async ({ page }) => {
+        await page.setViewportSize(WIDE);
+        await page.waitForTimeout(400);
+
+        await drag(page, -2000);
+        expect(await width(page)).toBe(PREVIEW_MAX);
+
+        // Wide as it goes, the controls are still well clear of their floor
+        // and nothing in them is clipped by the card's `overflow-hidden`.
+        const clipped = await page.evaluate(() => {
+            const card = document.querySelector('[data-ui--split-target="main"]') as HTMLElement;
+
+            return { w: Math.round(card.getBoundingClientRect().width), overflowX: card.scrollWidth - card.clientWidth };
+        });
+
+        expect(clipped.w).toBeGreaterThanOrEqual(CONTROLS_FLOOR);
+        expect(clipped.overflowX).toBe(0);
+
+        // It survives the round trip at that width, which is the part a clamp
+        // disagreeing with the server would break.
+        await page.waitForTimeout(500);
+        await page.reload();
+        expect(await width(page)).toBe(PREVIEW_MAX);
+    });
+
+    /**
+     * The squeeze, at the narrowest window that still splits.
+     *
+     * A preview dragged as far as it goes here must not take the controls with
+     * it. The clamp is what holds, and what it holds is a card wide enough that
+     * the segmented groups still read and the theme tiles are still legible —
+     * the tiles being the ones that used to break, since their column count was
+     * a query on the PANEL and the panel does not narrow when this card does.
+     */
+    test("keeps the controls usable at 1280 with the preview as wide as it goes", async ({ page }) => {
+        await page.setViewportSize(TIGHT);
+        await page.waitForTimeout(400);
+
+        await drag(page, -2000);
+
+        const measured = await page.evaluate(() => {
+            const card = document.querySelector('[data-ui--split-target="main"]') as HTMLElement;
+            const tiles = [...card.querySelectorAll("[data-theme-name]")] as HTMLElement[];
+            const segments = [...card.querySelectorAll('[role="radiogroup"] span')] as HTMLElement[];
+            const worst = (els: HTMLElement[]) =>
+                Math.max(0, ...els.map((el) => el.scrollWidth - el.clientWidth));
+
+            return {
+                cardW: Math.round(card.getBoundingClientRect().width),
+                cardH: Math.round(card.getBoundingClientRect().height),
+                cardClipX: card.scrollWidth - card.clientWidth,
+                tileClip: worst(tiles),
+                segmentClip: worst(segments),
+                docOverflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+            };
+        });
+
+        expect(measured.cardW).toBeGreaterThanOrEqual(CONTROLS_FLOOR);
+        expect(measured.cardH).toBeGreaterThan(300);
+        expect(measured.cardClipX).toBe(0);
+        expect(measured.tileClip).toBe(0);
+        expect(measured.segmentClip).toBe(0);
+        expect(measured.docOverflow).toBe(0);
+    });
+
+    /**
+     * A width stored while a wider window was in front of the user.
+     *
+     * The server renders the remembered number into the first paint, and 900 of
+     * it does not fit beside a usable controls card at 1280. ui--split
+     * re-clamps on connect and does NOT write the smaller number back — coming
+     * back to the big screen has to give back the pane that was chosen there.
+     */
+    test("a stored width the window cannot afford is brought back into range", async ({ page }) => {
+        await page.setViewportSize(WIDE);
+        await page.waitForTimeout(300);
+        await drag(page, -2000);
+        expect(await width(page)).toBe(PREVIEW_MAX);
+        await page.waitForTimeout(500);
+
+        await page.setViewportSize(TIGHT);
+        await page.goto("/settings?section=appearance");
+        await page.waitForTimeout(600);
+
+        const here = await width(page);
+        expect(here).toBeLessThan(PREVIEW_MAX);
+        expect(here).toBeGreaterThanOrEqual(PREVIEW_MIN);
+
+        const controls = (await page.locator('[data-ui--split-target="main"]').boundingBox())!;
+        expect(Math.round(controls.width)).toBeGreaterThanOrEqual(CONTROLS_FLOOR);
+
+        // Not persisted: the big screen's choice is still the stored one.
+        await page.setViewportSize(WIDE);
+        await page.goto("/settings?section=appearance");
+        await page.waitForTimeout(600);
+        expect(await width(page)).toBe(PREVIEW_MAX);
     });
 
     test("the splitter goes when the preview goes", async ({ page }) => {
@@ -196,6 +345,213 @@ test.describe("appearance preview pane", () => {
     });
 
     /**
+     * THE SAME HEIGHT, which is the thing that was asked for — and the reason
+     * it is not simply "stretch the preview" is asserted here too.
+     *
+     * Both cards are exactly as tall as the row, the row is exactly as tall as
+     * the settings pane's scroll port, and the scroll port does not scroll:
+     * whatever the controls card cannot show, IT scrolls, the way .main-pane
+     * does for the message list. Stretching the preview alone would have passed
+     * the first assertion and produced a 2500px card holding 500px of
+     * miniature, so the cap and the absence of a second scrollbar are the
+     * assertions that say which of the two happened.
+     */
+    for (const viewport of [DESKTOP, TIGHT]) {
+        test(`the preview is the same height as the controls at ${viewport.width}x${viewport.height}`, async ({ page }) => {
+            await page.setViewportSize(viewport);
+            await page.goto("/settings?section=appearance");
+            await page.waitForTimeout(500);
+
+            const measured = await page.evaluate(() => {
+                const q = (s: string) => document.querySelector(s) as HTMLElement;
+                const controls = q('[data-ui--split-target="main"]');
+                const preview = q('[data-ui--split-target="pane"] > section');
+                const port = controls.closest("[class*=overflow-y-auto]") as HTMLElement;
+                const controlsBody = q('[data-ui--split-target="main"] .pane-fill-scroll');
+                const miniature = q('[data-ui--split-target="pane"] .pane-fill-grow');
+                const h = (el: HTMLElement) => Math.round(el.getBoundingClientRect().height);
+                const w = (el: HTMLElement) => Math.round(el.getBoundingClientRect().width);
+
+                return {
+                    controlsH: h(controls), previewH: h(preview),
+                    controlsW: w(controls), previewW: w(preview),
+                    portH: h(port),
+                    portScrolls: port.scrollHeight > port.clientHeight + 1,
+                    bodyScrolls: controlsBody.scrollHeight > controlsBody.clientHeight + 1,
+                    // The card is tall; the miniature inside it grows to match,
+                    // rather than the card being mostly empty ground.
+                    miniatureH: h(miniature),
+                    previewPosition: getComputedStyle(preview).position,
+                    pageScrollsY:
+                        document.documentElement.scrollHeight - document.documentElement.clientHeight,
+                };
+            });
+
+            // Same height, and both of them real boxes.
+            expect(measured.previewH).toBe(measured.controlsH);
+            expect(measured.controlsH).toBeGreaterThan(300);
+            expect(measured.controlsW).toBeGreaterThan(CONTROLS_FLOOR);
+            expect(measured.previewW).toBeGreaterThan(200);
+
+            // Capped by the scroll port rather than by its own content: this is
+            // what stops "same height" meaning "both 2500px tall".
+            expect(measured.controlsH).toBeLessThanOrEqual(measured.portH);
+
+            // Exactly one scrollbar, and it is inside the controls card.
+            expect(measured.bodyScrolls).toBe(true);
+            expect(measured.portScrolls).toBe(false);
+            expect(measured.pageScrollsY).toBe(0);
+
+            // No sticky left over: a card that fills the row has nowhere to go.
+            expect(measured.previewPosition).toBe("static");
+
+            // And the preview is a preview, not a 500px miniature adrift in a
+            // 900px card: it fills most of what the card gives it.
+            expect(measured.miniatureH).toBeGreaterThan(measured.previewH * 0.7);
+        });
+    }
+
+    /**
+     * THE GAP, measured against the calendar's rather than described.
+     *
+     * Both boundaries are built from the same gutter token: the row's gap is
+     * one gutter, the handle is two gutters wide and pulled left by one, so the
+     * visible channel between the two panes is two gutters with the grip down
+     * the middle of it. The numbers below are read off BOTH pages in the same
+     * run, so this stays true if the token ever moves — a hardcoded 24 would
+     * only prove what the stylesheet was compiled with today.
+     */
+    test("the gap and the grip are the calendar's, to the pixel", async ({ page }) => {
+        const geometry = async () => page.evaluate(() => {
+            const handleEl = document.querySelector(
+                '[data-ui--split-target="handle"]',
+            ) as HTMLElement;
+            const grip = handleEl.querySelector(".split-grip") as HTMLElement;
+            const style = getComputedStyle(handleEl);
+            const gripStyle = getComputedStyle(grip);
+            const hb = handleEl.getBoundingClientRect();
+            const gb = grip.getBoundingClientRect();
+
+            return {
+                handleW: Math.round(hb.width),
+                marginLeft: style.marginLeft,
+                cursor: style.cursor,
+                role: handleEl.getAttribute("role"),
+                orientation: handleEl.getAttribute("aria-orientation"),
+                tabindex: handleEl.getAttribute("tabindex"),
+                gripW: Math.round(gb.width),
+                gripH: Math.round(gb.height),
+                gripPosition: gripStyle.position,
+                // Where the grip sits inside the handle, as a fraction: 0.5 is
+                // centred, which is the whole point of the negative margin.
+                gripCentre: (gb.top + gb.height / 2 - hb.top) / hb.height,
+            };
+        });
+
+        await page.setViewportSize(DESKTOP);
+        await page.goto("/settings?section=appearance");
+        await page.waitForTimeout(400);
+        const preview = await geometry();
+
+        // The reference, on the page it was written for.
+        //
+        // The calendar's position is PERSISTED per user, and this worker's user
+        // is shared with every other spec in its slot — an earlier version of
+        // this test opened the pane through the topbar switch and left it open,
+        // which handed mail.spec a message list two thirds as wide and made it
+        // fail, in a different place each run, several files away. So it is put
+        // back at the end, and put back through the same endpoint the switch
+        // writes rather than by pressing the switch again: a cycle depends on
+        // which position it started in, and a failed assertion above would skip
+        // it entirely.
+        await page.goto("/mail/inbox");
+        await page.waitForTimeout(400);
+
+        const restore = async () => {
+            const token = await page.locator("[data-ui--split-token-value]")
+                .first()
+                .getAttribute("data-ui--split-token-value");
+
+            await page.request.post("/calendar/pane-state", {
+                form: { mode: "mail", _token: token ?? "" },
+            });
+        };
+
+        const handleVisible = await page.locator('[data-ui--split-target="handle"]')
+            .first()
+            .isVisible()
+            .catch(() => false);
+
+        if (false === handleVisible) {
+            // Closed for this user; open it the way a person would.
+            await page.locator("[data-calendar-toggle]").first().click();
+            await page.waitForTimeout(800);
+        }
+
+        await expect(page.locator('[data-ui--split-target="handle"]')).toBeVisible();
+
+        let calendar: Awaited<ReturnType<typeof geometry>>;
+
+        try {
+            calendar = await geometry();
+        } finally {
+            await restore();
+        }
+
+        expect(preview.handleW).toBe(calendar.handleW);
+        expect(preview.marginLeft).toBe(calendar.marginLeft);
+        expect(preview.cursor).toBe(calendar.cursor);
+        expect(preview.gripW).toBe(calendar.gripW);
+        expect(preview.gripH).toBe(calendar.gripH);
+        expect(preview.gripPosition).toBe(calendar.gripPosition);
+        expect(preview.gripPosition).toBe("static");
+
+        // Same affordances, not only the same shape.
+        expect(preview.role).toBe(calendar.role);
+        expect(preview.orientation).toBe(calendar.orientation);
+        expect(preview.tabindex).toBe(calendar.tabindex);
+
+        // Centred in the handle on both, which is what the negative margin buys
+        // and what the appearance grip's old `sticky top-24` gave up.
+        expect(preview.gripCentre).toBeCloseTo(0.5, 1);
+        expect(calendar.gripCentre).toBeCloseTo(0.5, 1);
+    });
+
+    /**
+     * The strain state, which the appearance handle did not used to get.
+     *
+     * On the calendar the flare goes with the rubber band, and the band is
+     * there to reach the two other positions. This boundary has no other
+     * positions and no band — it stops dead — which is exactly why the flare
+     * earns its place here: it is the only thing on a two-pixel control that
+     * says "that is the end" rather than "this drag has broken".
+     */
+    test("the grip says when a drag is pushing past the end", async ({ page }) => {
+        const box = (await handle(page).boundingBox())!;
+        const x = box.x + box.width / 2;
+        const y = Math.max(box.y + 40, 100);
+
+        await page.mouse.move(x, y);
+        await page.mouse.down();
+        // Well past the limit — RUBBER_THRESHOLD is 140.
+        await page.mouse.move(x - 1400, y, { steps: 14 });
+        await page.waitForTimeout(150);
+
+        await expect(handle(page)).toHaveClass(/is-straining/);
+        // Flared, not merely classed.
+        const flared = await page.locator(".split-grip").first().evaluate(
+            (el) => getComputedStyle(el).transform,
+        );
+        expect(flared).not.toBe("none");
+
+        await page.mouse.up();
+        await page.waitForTimeout(300);
+
+        // The pointer has gone, so the message goes with it.
+        await expect(handle(page)).not.toHaveClass(/is-straining/);
+    });
+
+    /**
      * The panel's other host: the setup wizard's appearance step, which is a
      * modal with no `-mx-6` and no container ancestor of its own. A splitter
      * that overflowed it, or a negative margin that escaped it, would be
@@ -266,6 +622,26 @@ test.describe("appearance preview pane", () => {
                 (el.querySelector('[data-ui--split-target="pane"] > section') as HTMLElement)
                     .getBoundingClientRect().height,
             ),
+            controlsCardHeight: Math.round(
+                (el.querySelector('[data-ui--split-target="main"]') as HTMLElement)
+                    .getBoundingClientRect().height,
+            ),
+            // The modal's own scrolling body. The panel has to FIT it, not
+            // lengthen it — this is the host where that is easy to get wrong,
+            // because the modal is `max-h-[92vh]` with an auto height and so
+            // has no definite height for a percentage to resolve against. A
+            // first version of the fill capped the settings page and left this
+            // one at 2400px: two cards the same height, and both of them the
+            // empty box the whole arrangement exists to avoid.
+            modalBodyHeight: Math.round(
+                (el.closest("[class*=overflow-y-auto]") as HTMLElement)
+                    .getBoundingClientRect().height,
+            ),
+            modalBodyScrolls: (() => {
+                const body = el.closest("[class*=overflow-y-auto]") as HTMLElement;
+
+                return body.scrollHeight > body.clientHeight + 1;
+            })(),
         }));
 
         expect(measured.paneWidth).toBe(304);
@@ -275,6 +651,12 @@ test.describe("appearance preview pane", () => {
         // Two cards in the modal too, not one card and a stray column.
         expect(measured.cards).toBe(2);
         expect(measured.previewCardHeight).toBeGreaterThan(200);
+
+        // Same height here as well, and capped by the modal's body rather than
+        // by the controls card's content.
+        expect(measured.previewCardHeight).toBe(measured.controlsCardHeight);
+        expect(measured.controlsCardHeight).toBeLessThanOrEqual(measured.modalBodyHeight);
+        expect(measured.modalBodyScrolls).toBe(false);
 
         await context.close();
     });

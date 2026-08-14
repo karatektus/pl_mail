@@ -692,6 +692,152 @@
     :root { --pane-alpha: 1; --pane-blur: 0px; --scrim-alpha: 0; --main-alpha: 1;}
 }
 
+/* ═══ A section that FILLS its scroll port ══════════════════════════════════
+   What .main-pane does for the mail shell, for a section that lives inside
+   somebody else's scroll port: two peer cards side by side, each exactly as
+   tall as the row, each scrolling its own body. The appearance panel is the
+   only user today.
+
+   Why it is here and not eight `xl:` variants in the template. Three of the
+   pairs this needs are DIRECT conflicts with a utility already on the element
+   — `position: static` against `sticky`, `max-height: none` against
+   `max-h-[30svh]`, `overflow-y: auto` against `@3xl:overflow-visible` — and
+   which of two Tailwind variants wins is source order in the built stylesheet,
+   not specificity. That is the class of bug that reads as broken JavaScript
+   (see the note on `.hidden` and `.flex` in _appearance.html.twig). These rules
+   sit outside every layer, so they beat the utilities they are correcting no
+   matter which order the build emits, and the whole mechanism is one block to
+   read rather than a hunt through two templates.
+
+   ── Why a MEDIA query when the panel itself is @container-driven ───────────
+   The panel decides "beside" versus "stacked" from its OWN width (@3xl), which
+   is right: it is narrower than the window and the mail sidebar takes from it.
+   But the HEIGHT has to come from an ancestor — a scroll port three levels up,
+   outside the panel's container — and an element cannot query a container it
+   is not inside. So the ancestors are gated on the viewport, and the same gate
+   is used inside the panel so the two halves of the mechanism cannot disagree:
+   below it, every one of these rules is inert and the layout is exactly the
+   one that shipped, sticky preview card and all.
+
+   80rem is chosen so that `viewport >= 80rem` IMPLIES `panel >= @3xl` in both
+   hosts, which is the invariant that makes one gate legal for both. Measured:
+   the settings page crosses @3xl at a 1252px viewport and the setup wizard's
+   modal at about 914px. The band between a host's own crossover and 80rem is
+   the pre-existing layout, which is a working layout — the failure mode this
+   ordering avoids is the other one, a preview card told to fill a row nothing
+   has capped, which is the 2500px empty box this whole section exists to not
+   be.
+   ═══════════════════════════════════════════════════════════════════════════ */
+@media (min-width: 80rem) {
+    /* ── Every rule below hands height DOWN a flex chain, and not one of them
+       says `height: 100%` ────────────────────────────────────────────────────
+       That is not a stylistic preference, it is the difference between working
+       in both hosts and working in one. A percentage height needs a containing
+       block whose height is DEFINITE, and the setup wizard's modal is
+       `max-h-[92vh]` with an auto height — indefinite by construction, since it
+       shrink-wraps a short step. Every flex-1 below it still gets a real used
+       height (that is how the modal's own body scrolls), but a percentage
+       resolves to `auto` against it, so the first version of this capped the
+       settings page and left the wizard with a 2400px row: both cards the same
+       height, and both of them the empty box. The app shell has never used a
+       percentage height for this — `.main-pane` and everything above it is
+       `flex flex-col flex-1 overflow-hidden` — and this now does the same.
+
+       The scroll port becomes the column. Its one child then takes what it has
+       rather than asking it how much that is. */
+    .pane-fill-port {
+        display: flex;
+        flex-direction: column;
+    }
+
+    /* The grid that takes the port's height: one row, and the row is
+       `minmax(0, 1fr)` rather than `auto`. That is the load-bearing half — an
+       auto row is sized by its content first, so a 2500px card would set the
+       row to 2500 and overflow the port however definite the port's own height
+       was. A 1fr row takes the height it is given and hands the overflow to
+       the cards, which is where a scrollbar belongs. */
+    .pane-fill-host {
+        flex: 1 1 auto;
+        min-height: 0;
+        grid-template-rows: minmax(0, 1fr);
+    }
+
+    /* A grid item's automatic minimum size is its content, which would undo
+       the line above one level down. */
+    .pane-fill-host > * {
+        min-height: 0;
+    }
+
+    /* The settings nav is the other child of the host grid and is not a card
+       — nothing inside it scrolls. On a short window its thirteen links are
+       taller than the row, and left alone they would overflow the port and
+       give the page the second scrollbar this arrangement exists to remove. */
+    .pane-fill-host > nav {
+        overflow-y: auto;
+    }
+
+    /* Wrappers between the host and the panel that exist only to nest. They are
+       grid items of .pane-fill-host and are already stretched to its row, so
+       all they need is permission to be shorter than their content. */
+    .pane-fill {
+        min-height: 0;
+    }
+
+    /* A card: header, then a body that scrolls.
+       The controls card is a grid item of the row and is stretched to it by
+       grid; the preview card is one flex hop further down (the split's pane
+       target sits between them, carrying the dragged width), and a column flex
+       container stretches its items across, not along — so the card takes the
+       rest of that column explicitly. `flex` is simply ignored on the grid item.
+       `position: static` is what retires the sticky the preview card wears
+       below this width: a card that already fills the row has nowhere to travel
+       to. */
+    .pane-fill-card {
+        display: flex;
+        flex-direction: column;
+        flex: 1 1 auto;
+        min-height: 0;
+        position: static;
+    }
+
+    /* The part of a card that scrolls. */
+    .pane-fill-scroll {
+        flex: 1 1 auto;
+        min-height: 0;
+        max-height: none;
+        overflow-y: auto;
+    }
+
+    .pane-fill-stack {
+        display: flex;
+        flex-direction: column;
+    }
+
+    /* Takes the rest of a column, and may be shrunk to do it. `min-height: 0`
+       is the load-bearing half rather than boilerplate: a flex item's automatic
+       minimum size is its CONTENT, so a wrapper holding a 2400px card is 2400px
+       tall however definite the height above it was, and the cap arrives one
+       level short of the cards it was for. */
+    .pane-fill-rest {
+        flex: 1 1 auto;
+        min-height: 0;
+    }
+
+    /* Grows into what is left and is never shrunk below its content — which is
+       what stops a tall card being a mostly-empty one: the miniature fills the
+       preview the way the panes it is a picture of fill the app. `min-height`
+       is deliberately left at `auto` here, the one difference from the class
+       above: on a short window the scroll on .pane-fill-scroll is the right
+       answer, not a squashed sample. */
+    .pane-fill-grow {
+        flex: 1 1 auto;
+    }
+
+    .pane-fill-keep {
+        flex: 0 0 auto;
+    }
+}
+
 /* ═══ Base ═════════════════════════════════════════════════════════════════
    Tailwind v4's preflight dropped `cursor: pointer` on buttons, so anything
    clickable that isn't an <a href> looks inert unless every single tag

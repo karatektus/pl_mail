@@ -45,8 +45,28 @@
                            IMPORTANT: this grid must have exactly TWO children —
                            the nav and ONE content wrapper. A third child wraps
                            into the 180px nav column on the next grid row. #}
-                        <div class="flex-1 overflow-y-auto @container">
-                            <div class="grid grid-cols-1 md:grid-cols-[180px_1fr] gap-6 px-6 py-6">
+                        <div class="flex-1 overflow-y-auto @container
+                                    {{ 'appearance' == section ? 'pane-fill-port' : '' }}">
+                            {# `pane-fill-host` for Appearance only, and this is the
+                               one line that decides whether that section GROWS this
+                               scroll port or FILLS it.
+
+                               Every other section is a stack of cards that gets as
+                               long as it gets and scrolls here. Appearance is two
+                               peer cards beside a draggable boundary, and a boundary
+                               is only a boundary if both sides are the same height —
+                               so it takes the port's height instead of setting it,
+                               and each card scrolls its own body the way .main-pane
+                               does. See the block in app.css: above 80rem it caps
+                               the row, below it every rule is inert and this class
+                               does nothing at all.
+
+                               Naming the section here rather than letting the
+                               included template ask for it, because it is this
+                               element's height that is being given away and this is
+                               where a reader looks for what happened to it. #}
+                            <div class="grid grid-cols-1 md:grid-cols-[180px_1fr] gap-6 px-6 py-6
+                                        {{ 'appearance' == section ? 'pane-fill-host' : '' }}">
 
                                 {# Grouped by what the setting is about, not by when it was
                                    added — thirteen equal-weight links in one column is a list
@@ -115,7 +135,18 @@
                                    aria-hidden, with the same word given to the list it
                                    labels — so a screen reader hears "Mail, list, 5 items"
                                    once instead of the word twice. #}
-                                <nav class="flex md:flex-col gap-1 flex-wrap md:gap-0">
+                                {# `md:flex-nowrap` because `flex-wrap` belongs to the
+                                   MOBILE shape only. Below md this is a horizontal row
+                                   of pills that has to wrap; at md it is a column, and a
+                                   wrapping column breaks into a SECOND COLUMN the moment
+                                   anything constrains its height — thirteen links laid
+                                   out as seven and six, the second lot half-clipped by
+                                   the 180px track. Nothing constrained it while every
+                                   section grew this page as long as it liked; Appearance
+                                   fills the scroll port instead (see `pane-fill-host`
+                                   above), which is what turned a latent wrap into a
+                                   visible one. #}
+                                <nav class="flex md:flex-col gap-1 flex-wrap md:flex-nowrap md:gap-0">
                                     {% set navActive   = 'flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium bg-raised text-ink' %}
                                     {% set navInactive = 'flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-ink-muted hover:bg-hover transition-colors' %}
 
@@ -208,7 +239,8 @@
                                    window, and at md the mail sidebar appears and takes from
                                    it, so pane width and viewport width do not move
                                    together. #}
-                                <div class="min-w-0 -mx-6 @2xl:mx-0">
+                                <div class="min-w-0 -mx-6 @2xl:mx-0
+                                            {{ 'appearance' == section ? 'pane-fill pane-fill-stack' : '' }}">
                                     {% if section == 'health' %}
                                         {% include 'settings/_health.html.twig' %}
                                     {% elseif section == 'appearance' %}

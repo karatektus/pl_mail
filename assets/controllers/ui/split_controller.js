@@ -350,6 +350,24 @@ export default class extends Controller {
         }
 
         this._apply(this.paneTarget.getBoundingClientRect().width);
+
+        // TWICE, and only ever twice.
+        //
+        // _apply bounds the pane against what the two panes have BETWEEN them,
+        // measured off the two of them — which is the right thing to measure
+        // right up until the row cannot hold what it was rendered with. A
+        // stored width from a bigger window arrives in the first paint and the
+        // main pane is squeezed to nothing making room for it, so that first
+        // measurement is of a layout that does not fit, and the bound computed
+        // from it is generous by however much the row was overflowing. One pass
+        // gets the layout back inside the row; measuring again then measures a
+        // row that fits, which is the measurement the clamp wanted in the first
+        // place. It is why a pane restored from a wide screen used to settle a
+        // few pixels inside the main pane's floor rather than on it.
+        //
+        // No loop: the second pass is against a layout that already fits, so a
+        // third would measure exactly what the second did.
+        this._apply(this.paneTarget.getBoundingClientRect().width);
     }
 
     /*
@@ -574,7 +592,11 @@ export default class extends Controller {
         document.body.classList.remove("select-none", "cursor-col-resize");
 
         // No band, no threshold — just keep where it was let go, and write it.
+        // The grip's flare is cleared here as well: it says something about the
+        // pointer, and the pointer has gone.
         if (false === this.modesValue) {
+            this._strain = 0;
+            this.handleTarget?.classList.remove("is-straining");
             this._apply(this._currentWidth(), { persist: true });
 
             return;
@@ -638,11 +660,27 @@ export default class extends Controller {
 
         let drawn = bounded;
 
-        // The rubber band exists to reach the two OTHER positions. Without
-        // them there is nowhere past the limit to go, so the limit is a limit.
-        if (true === this._dragging && true === this.modesValue) {
+        // Two separate things used to be one `if`, and they are not the same
+        // thing.
+        //
+        // The rubber BAND — the pane continuing to move past its limit, and a
+        // release past the threshold landing in another position — exists to
+        // reach the two other positions. Without them there is nowhere past
+        // the limit to go, so the limit is a hard limit and the pane stops.
+        //
+        // The STRAIN, which is only the grip flaring, is about the pointer and
+        // not about the pane: it says "you are pushing past the end" on a
+        // control two pixels wide, and that is worth saying whether or not
+        // there is somewhere to land. Held back from the modeless boundary, it
+        // left the appearance preview stopping dead under a pointer still
+        // moving, with nothing on screen acknowledging it — which reads as a
+        // drag that broke rather than one that arrived.
+        if (true === this._dragging) {
             this._strain = width - bounded;
-            drawn = bounded + this._rubber(this._strain);
+
+            if (true === this.modesValue) {
+                drawn = bounded + this._rubber(this._strain);
+            }
 
             this.handleTarget?.classList.toggle(
                 "is-straining",
