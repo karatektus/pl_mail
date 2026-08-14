@@ -1,3 +1,4 @@
+{% import '_partials/_card_chrome.html.twig' as chrome %}
 {#
 The appearance preview: a mail list and a message, in miniature.
 
@@ -50,9 +51,9 @@ the stacked behaviour — which is the one the second line exists for.
    _appearance.html.twig) and the miniature grows into what is left (see
    pane-fill-grow below), so what fills is the preview, not the ground under
    it. #}
-<section class="sticky top-0 rounded-pane border border-line bg-surface overflow-hidden pane-fill-card"
+<section class="sticky top-0 {{ chrome.shell() }} pane-fill-card"
          aria-label="{{ 'settings.appearance.preview.heading'|trans }}">
-    <div class="shrink-0 flex items-start justify-between gap-3 px-4 py-3.5 border-b border-line">
+    <div class="shrink-0 flex items-start justify-between gap-3 {{ chrome.band() }}">
         <div class="min-w-0">
             <h2 class="text-sm font-semibold text-ink">{{ 'settings.appearance.preview.heading'|trans }}</h2>
             <p class="text-xs text-ink-faint mt-0.5">{{ 'settings.appearance.preview.subheading'|trans }}</p>

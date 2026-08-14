@@ -1,5 +1,7 @@
 {# The list as its own frame response — reload() target while a run is going. #}
-<turbo-frame id="settings-filter-frame" class="block rounded-pane border border-line overflow-hidden">
+{# No card chrome on the frame: it is the BODY of the section card that
+   settings/index.html.twig opens, not a card itself. #}
+<turbo-frame id="settings-filter-frame" class="block">
     <div id="settings-filter-list">
         {% include 'settings/_filters.html.twig' with { rules: rules, labels: labels } %}
     </div>

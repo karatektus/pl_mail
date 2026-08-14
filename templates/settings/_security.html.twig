@@ -10,9 +10,13 @@
 
 {# Freshly minted recovery codes, shown once. See TwoFactorController on why
    these arrive through the flash bag. #}
+{% import '_partials/_card_chrome.html.twig' as chrome %}
+
 {% if newBackupCodes %}
-    <div class="mb-4 rounded-pane border border-line overflow-hidden">
-        <div class="px-4 py-3.5 border-b border-line bg-accent-soft/40">
+    {# A card like any other, and drawn from the same chrome — but tinted and
+       transient, so it is not a section card and does not take an h2. #}
+    <div class="mb-4 {{ chrome.shell() }}">
+        <div class="{{ chrome.band() }} bg-accent-soft/40">
             <p class="text-xs font-semibold text-ink mb-1">
                 <i class="fa-solid fa-life-ring text-[11px] mr-1" aria-hidden="true"></i>
                 {{ 'settings.security.codes.copy_now'|trans }}
@@ -38,13 +42,20 @@
     </div>
 {% endif %}
 
-<section>
-    <div class="mb-4">
-        <h2 class="text-sm font-semibold text-ink">{{ 'settings.security.heading'|trans }}</h2>
-        <p class="text-xs text-ink-faint mt-0.5">{{ 'settings.security.subheading'|trans }}</p>
-    </div>
+{# ONE card, not three. Status, recovery codes, trusted devices and the disable
+   pitch are h3 bands partitioning a single subject — two-factor — rather than
+   section-grade topics of their own, which is the rule settings/index.html.twig
+   states for when a section splits into peer cards.
 
-    <div class="rounded-pane border border-line overflow-hidden">
+   The heading used to sit OUTSIDE this card, so on a narrow pane — where the
+   content wrapper's -mx-6 pulls cards to the pane edges — it had nothing to
+   inset it and sat flush against the border. In the header band it is inset by
+   the band's own px-4, like every other section. #}
+{% embed 'settings/_card.html.twig' with {
+    heading:    'settings.security.heading'|trans,
+    subheading: 'settings.security.subheading'|trans,
+} %}
+    {% block body %}
 
         {% if twoFactorEnabled %}
 
@@ -282,5 +293,5 @@
 
         {% endif %}
 
-    </div>
-</section>
+    {% endblock %}
+{% endembed %}

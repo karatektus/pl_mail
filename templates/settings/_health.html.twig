@@ -45,6 +45,21 @@
              failedAgain:  'settings.health.outcome.calendar_failed_again'|trans,
              stillWaiting: 'settings.health.outcome.calendar_still_waiting'|trans,
          }|json_encode|e('html_attr') }}">
+    {# THE ONE PAYBACK WRAPPER LEFT ON THIS PAGE, and it is the rule holding
+       rather than an exception to it.
+
+       Every other section is a single card and puts its heading in the card's
+       header band, so it is inset by the band's own px-4 and needs no payback
+       for the content wrapper's -mx-6. Health is not one card: it is a FEED of
+       cards, one per issue, each carrying its own severity tint and its own
+       indent when it is a consequence of the one above. Making this heading a
+       card header would mean putting those cards inside a card, and flattening
+       them into bands would cost the tint and the indent that stop one dead
+       sign-in reading as nine separate emergencies.
+
+       So the heading stays what the payback was written for — content that is
+       not itself a card — and pays the -mx-6 back. See the rule as stated in
+       settings/index.html.twig. #}
     <div class="mb-4 px-4 @2xl:px-0">
         <h2 class="text-sm font-semibold text-ink">{{ 'settings.health.heading'|trans }}</h2>
         <p class="text-xs text-ink-faint mt-0.5">{{ 'settings.health.subheading'|trans }}</p>
