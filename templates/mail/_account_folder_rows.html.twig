@@ -15,7 +15,7 @@
 {# No pl-3 on the nav: the indent is depth now, so the pill still reaches the
    sidebar's left edge like every other row rather than starting three units
    in. #}
-<nav class="space-y-0.5">
+<nav class="nav-rows">
     {% for label in labels %}
         {# The same .nav-item pill as the rest of the sidebar, and a sidebar
            link target so the open folder is highlighted at all — these rows had
@@ -27,7 +27,8 @@
             href="{{ path('app_mail_label', { id: label.id, account: account.id }) }}"
             data-turbo-frame="_top"
             data-turbo-prefetch="false"
-            class="nav-item flex items-center justify-between py-1.5 text-xs transition-colors text-ink-muted"
+            class="nav-item flex items-center justify-between text-xs transition-colors text-ink-muted"
+            data-nav-tier="tree"
             style="--label-depth: {{ 12 + label.depth * 12 }}px"
         >
             <span class="truncate">{{ label|label_name }}</span>

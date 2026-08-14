@@ -10,7 +10,8 @@ export default class extends Controller {
 
     static targets = ['paneAlpha', 'paneBlur', 'radius', 'scrimAlpha', 'accent', 'theme', 'importInput', 'uploadInput',
         'inkColor', 'inkColorField', 'inkDefault', 'inkDerived', 'inkMuted', 'inkMutedField', 'inkFaint', 'inkFaintField',
-        'mainTint', 'mainTintField', 'mainTintDefault', 'mainAlpha', 'mainAlphaField', 'mainAlphaMatch'];
+        'mainTint', 'mainTintField', 'mainTintDefault', 'mainAlpha', 'mainAlphaField', 'mainAlphaMatch',
+        'backgroundSolid', 'backgroundSolidSwatch'];
 
     connect() {
         this.root = document.documentElement;
@@ -78,15 +79,35 @@ export default class extends Controller {
     /* ── Per-surface density ───────────────────────────────────────────────
      *
      * Three surfaces, each either following the global density or overriding
-     * it, resolved into six variables. Recomputed whole on every change rather
-     * than patched: a surface set to "follow" has to move when the GLOBAL
-     * density moves, and the only way a patch could do that is by knowing
-     * which surfaces are following — which is the same loop, written twice.
+     * it, resolved into the variables below. Recomputed whole on every change
+     * rather than patched: a surface set to "follow" has to move when the
+     * GLOBAL density moves, and the only way a patch could do that is by
+     * knowing which surfaces are following — which is the same loop, written
+     * twice.
      *
-     * The numbers come off the global density radios (data-row-y, data-gap,
-     * data-list-row-y, data-reading-row-y), which is Density's own scale
-     * rendered by Twig. Nothing here knows what "cosy" measures.
+     * Every number comes off the global density radios, which are Density's
+     * own scales rendered by Twig. Nothing here knows what "cosy" measures.
+     *
+     * The map is `--surface-<name>-<suffix>` to the dataset key holding it.
+     * Each surface consumes a different scale — the list's row and the reading
+     * pane's message block were 10px and 16px before density reached them, and
+     * both keep those numbers at Comfortable so no existing install moves (see
+     * Density::listRowPadding()) — and the sidebar consumes five, because it is
+     * the one surface built out of rows at two tiers whose gap between rows is
+     * not the shell gutter.
      */
+    static SURFACE_VARS = {
+        sidebar: {
+            'row-y': 'rowY',
+            'tree-y': 'treeY',
+            'row-gap': 'rowGap',
+            'section-y': 'sectionY',
+            gap: 'gap',
+        },
+        list: { 'row-y': 'listRowY', gap: 'gap' },
+        reading: { 'row-y': 'readingRowY', gap: 'gap' },
+    };
+
     pickSurfaceDensity() {
         this.refreshSurfaces();
         this.queue();
@@ -99,7 +120,7 @@ export default class extends Controller {
             return;
         }
 
-        ['sidebar', 'list', 'reading'].forEach((surface) => {
+        Object.entries(this.constructor.SURFACE_VARS).forEach(([surface, variables]) => {
             const chosen = this.element.querySelector(
                 `[data-surface-density="${surface}"]:checked`,
             );
@@ -114,18 +135,9 @@ export default class extends Controller {
                 return;
             }
 
-            // Each surface consumes a different padding scale: the list's row
-            // and the reading pane's message block were 10px and 16px before
-            // density reached them, and both keep those numbers at Comfortable
-            // so no existing install moves. See Density::listRowPadding().
-            const rowY = {
-                sidebar: source.dataset.rowY,
-                list: source.dataset.listRowY,
-                reading: source.dataset.readingRowY,
-            }[surface];
-
-            this.root.style.setProperty(`--surface-${surface}-row-y`, rowY);
-            this.root.style.setProperty(`--surface-${surface}-gap`, source.dataset.gap);
+            Object.entries(variables).forEach(([suffix, key]) => {
+                this.root.style.setProperty(`--surface-${surface}-${suffix}`, source.dataset[key]);
+            });
         });
     }
 
@@ -141,6 +153,15 @@ export default class extends Controller {
         const variable = event.currentTarget.dataset.cssVariable;
         const suffix = event.currentTarget.dataset.cssSuffix || '';
         this.root.style.setProperty(variable, `${event.currentTarget.value}${suffix}`);
+
+        // Pane opacity is not the user's number alone once a background is in
+        // play — see applyAlphaFloor(). Written raw first and corrected here,
+        // rather than special-cased above, so this stays the one place that
+        // knows about the floor.
+        if (variable === '--pane-alpha') {
+            this.applyAlphaFloor();
+        }
+
         this.queue();
     }
 
@@ -338,16 +359,153 @@ export default class extends Controller {
         this.queue();
     }
 
+    /* ── Background ────────────────────────────────────────────────────────
+     *
+     * Every kind applies on the spot. Until this existed exactly one of them
+     * did — the upload, which set --app-bg from the URL it got back — so
+     * choosing a preset, choosing a colour, or going back to Theme changed
+     * nothing on screen until the next page load. The setting saved correctly
+     * the whole time, which is why it read as "backgrounds need a reload"
+     * rather than as a broken control.
+     *
+     * The rule this obeys is the one in the class docblock above: a live switch
+     * has to land EXACTLY where a reload would. So nothing here composes a CSS
+     * value. Each tile carries `data-bg-value`, which Twig filled in from
+     * BackgroundResolver — the same method AppearanceRenderer calls — and this
+     * writes whatever it finds, or removes the property when it is empty, which
+     * is how Theme is spelled server-side.
+     *
+     * The colour is the one that cannot be a fixed string, since it changes as
+     * the picker moves. It gets the FORMAT from the server instead
+     * (`data-bg-format`, rendered as `linear-gradient(%s, %s)` by
+     * BackgroundResolver::solid) and substitutes the hex into it, so the shape
+     * of the value still has one definition and it is not this file's.
+     */
     pickBackground(event) {
         if (event.currentTarget.getAttribute('data-settings--appearance-field') === 'backgroundPreset') {
-            const kindInput = this.element.querySelector('[data-settings--appearance-field="backgroundKind"][value="preset"]');
+            this.checkKind('preset');
+        }
 
-            if (kindInput) {
-                kindInput.checked = true;
+        this.applyBackground();
+        this.queue(0);
+    }
+
+    /**
+     * The colour picker: choosing a colour is choosing the Solid kind.
+     *
+     * Same move pickBackground() makes for a preset thumbnail, and for the same
+     * reason — the kind radio is sr-only and has no tile of its own, so nothing
+     * else would ever tick it.
+     */
+    pickBackgroundSolid() {
+        this.checkKind('solid');
+        this.applyBackground();
+        this.queue();
+    }
+
+    checkKind(kind) {
+        const input = this.element.querySelector(
+            `[data-settings--appearance-field="backgroundKind"][value="${kind}"]`,
+        );
+
+        if (input) {
+            input.checked = true;
+        }
+    }
+
+    /** The kind currently chosen — or `custom`, which has no tile to be checked. */
+    backgroundKind() {
+        return this.element.querySelector(
+            '[data-settings--appearance-field="backgroundKind"]:checked',
+        )?.value ?? 'custom';
+    }
+
+    /**
+     * Put the chosen background on screen, and everything that travels with it.
+     *
+     * `url` is passed only by the upload, which learns its URL from the
+     * response rather than from the DOM.
+     */
+    applyBackground(url = null) {
+        const kind = this.backgroundKind();
+
+        if (url !== null) {
+            this.root.style.setProperty('--app-bg', `url("${url}")`);
+        } else if (kind === 'solid') {
+            this.root.style.setProperty('--app-bg', this.solidValue());
+        } else {
+            const source = kind === 'preset'
+                ? this.element.querySelector('[data-settings--appearance-field="backgroundPreset"]:checked')
+                : this.element.querySelector(`[data-settings--appearance-field="backgroundKind"][value="${kind}"]`);
+
+            const value = source?.dataset.bgValue ?? '';
+
+            // Empty is not "no opinion", it is Theme: AppearanceRenderer omits
+            // --app-bg altogether there so the stylesheet's block for whichever
+            // theme is on <html> answers instead.
+            if (value === '') {
+                this.root.style.removeProperty('--app-bg');
+            } else {
+                this.root.style.setProperty('--app-bg', value);
             }
         }
 
-        this.queue(0);
+        if (this.hasBackgroundSolidSwatchTarget) {
+            // The tile shows its colour whatever the kind — it is the swatch
+            // for a choice that is still there when you look away — and shows
+            // the selection ring only while it IS the choice. The ring is
+            // toggled here rather than by `peer-checked:`, because the kind
+            // radio it would key off is not a sibling of the swatch: the
+            // <label> belongs to the colour input.
+            this.backgroundSolidSwatchTarget.style.backgroundColor = this.backgroundSolidTarget.value;
+            this.backgroundSolidSwatchTarget.classList.toggle('ring-2', kind === 'solid');
+            this.backgroundSolidSwatchTarget.classList.toggle('ring-accent', kind === 'solid');
+        }
+
+        this.applyAlphaFloor();
+    }
+
+    solidValue() {
+        const input = this.backgroundSolidTarget;
+
+        return (input.dataset.bgFormat || '').replaceAll('%s', input.value);
+    }
+
+    /**
+     * The opacity floor that comes WITH a background, and goes with it.
+     *
+     * AppearanceRenderer raises --pane-alpha (and --main-alpha, where the user
+     * has set one) to 0.45 for any kind but Theme, because panel text over a
+     * photograph is unreadable below that. It is part of what a background
+     * change means, so a live change that skipped it disagreed with the reload
+     * in the other direction: panes stayed see-through until you refreshed, and
+     * going back to Theme left them stuck at the floor.
+     */
+    applyAlphaFloor() {
+        const floor = this.backgroundKind() !== 'theme';
+        const clamp = (value) => (floor ? Math.max(0.45, value) : value);
+
+        // By field rather than by target: the glass sliders are rendered from
+        // one loop and carry the field name only.
+        const paneAlpha = this.element.querySelector('[data-settings--appearance-field="paneAlpha"]');
+
+        if (paneAlpha) {
+            this.root.style.setProperty('--pane-alpha', String(clamp(Number(paneAlpha.value))));
+        }
+
+        if (false === this.hasMainAlphaFieldTarget) {
+            return;
+        }
+
+        // Empty means "match the panes", which is an absent variable rather
+        // than a computed one — the same thing toggleMainAlphaMatch does.
+        if (this.mainAlphaFieldTarget.value === '') {
+            this.root.style.removeProperty('--main-alpha');
+
+            return;
+        }
+
+        this.root.style.setProperty('--main-alpha', String(clamp(Number(this.mainAlphaFieldTarget.value))));
     }
 
     /* ── Persistence ──────────────────────────────────────────────────────── */
@@ -420,7 +578,17 @@ export default class extends Controller {
         const result = await response.json();
 
         if (result.ok === true) {
-            this.root.style.setProperty('--app-bg', `url("${result.url}")`);
+            // The server has just set the kind to Custom, which is the one kind
+            // with no tile — so the tile that WAS ticked has to be unticked, or
+            // the next save would post it and quietly undo the upload. The
+            // template says as much about why `custom` has no radio; this is
+            // what keeps the DOM honest about it at runtime.
+            this.element
+                .querySelectorAll('[data-settings--appearance-field="backgroundKind"]')
+                .forEach((radio) => { radio.checked = false; });
+
+            this.applyBackground(result.url);
+            this.remember();
         }
     }
 
@@ -598,20 +766,19 @@ export default class extends Controller {
     slideMainAlpha(event) {
         this.mainAlphaFieldTarget.value = event.currentTarget.value;
         this.mainAlphaMatchTarget.checked = false;
-        this.root.style.setProperty('--main-alpha', event.currentTarget.value);
+        this.applyAlphaFloor();
         this.queue();
     }
 
     toggleMainAlphaMatch(event) {
         if (event.currentTarget.checked === true) {
             this.mainAlphaFieldTarget.value = '';
-            this.root.style.removeProperty('--main-alpha');
             this.mainAlphaTarget.classList.add('opacity-40', 'pointer-events-none');
         } else {
             this.mainAlphaFieldTarget.value = this.mainAlphaTarget.value;
-            this.root.style.setProperty('--main-alpha', this.mainAlphaTarget.value);
             this.mainAlphaTarget.classList.remove('opacity-40', 'pointer-events-none');
         }
+        this.applyAlphaFloor();
         this.queue();
     }
 

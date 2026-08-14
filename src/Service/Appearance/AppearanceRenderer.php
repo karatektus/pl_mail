@@ -79,8 +79,17 @@ final readonly class AppearanceRenderer
             // `var(--x, var(--x))` on the same property is a cycle, and every
             // other spelling needs the global value written literally in two
             // places. Each surface gets one concrete pair.
-            '--surface-sidebar-row-y' => $appearance->densityFor('sidebar')->rowPadding(),
-            '--surface-sidebar-gap'   => $appearance->densityFor('sidebar')->gap(),
+            // The sidebar takes five rather than two: it is the one surface
+            // made of rows at two tiers (system rows and the label tree), and
+            // the gap between its rows is not the shell gutter that
+            // `gap()` means everywhere else. Every one of them resolves to
+            // exactly what the markup hardcoded before density reached it —
+            // see Density::rowPadding().
+            '--surface-sidebar-row-y'     => $appearance->densityFor('sidebar')->rowPadding(),
+            '--surface-sidebar-tree-y'    => $appearance->densityFor('sidebar')->treeRowPadding(),
+            '--surface-sidebar-row-gap'   => $appearance->densityFor('sidebar')->rowGap(),
+            '--surface-sidebar-section-y' => $appearance->densityFor('sidebar')->sectionPadding(),
+            '--surface-sidebar-gap'       => $appearance->densityFor('sidebar')->gap(),
             '--surface-list-row-y'    => $appearance->densityFor('list')->listRowPadding(),
             '--surface-list-gap'      => $appearance->densityFor('list')->gap(),
             '--surface-reading-row-y' => $appearance->densityFor('reading')->readingBlockPadding(),

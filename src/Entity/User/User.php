@@ -460,6 +460,25 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
     public const int CALENDAR_PANE_DEFAULT_WIDTH = 380;
 
     /**
+     * How wide the live preview beside the appearance settings is.
+     *
+     * The settings bag for the same reason the calendar's width is: rendered
+     * into the first paint, and the same at every desk. It needs no migration —
+     * the bag is a JSON column, and a user who has never dragged it reads the
+     * default below.
+     *
+     * Its own key rather than sharing the calendar's: they are two boundaries
+     * on two pages with different useful ranges, and one number would mean
+     * widening the preview to read a colour narrowed the calendar next time.
+     */
+    public const string SETTING_APPEARANCE_PREVIEW_WIDTH = 'appearance.preview_width';
+
+    /** The default is 19rem — what the column was fixed at before it could move. */
+    public const int APPEARANCE_PREVIEW_MIN_WIDTH = 240;
+    public const int APPEARANCE_PREVIEW_MAX_WIDTH = 560;
+    public const int APPEARANCE_PREVIEW_DEFAULT_WIDTH = 304;
+
+    /**
      * Virtual, so there is no column behind it — the value lives in the
      * settings bag, and Doctrine refuses to map a property whose hooks do not
      * touch a backing store.
@@ -473,6 +492,22 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
             }
 
             return max(self::CALENDAR_PANE_MIN_WIDTH, min(self::CALENDAR_PANE_MAX_WIDTH, $width));
+        }
+    }
+
+    /** Virtual, out of the settings bag — see SETTING_APPEARANCE_PREVIEW_WIDTH. */
+    public int $appearancePreviewWidth {
+        get {
+            $width = $this->getSetting(
+                self::SETTING_APPEARANCE_PREVIEW_WIDTH,
+                self::APPEARANCE_PREVIEW_DEFAULT_WIDTH,
+            );
+
+            if (false === is_int($width)) {
+                return self::APPEARANCE_PREVIEW_DEFAULT_WIDTH;
+            }
+
+            return max(self::APPEARANCE_PREVIEW_MIN_WIDTH, min(self::APPEARANCE_PREVIEW_MAX_WIDTH, $width));
         }
     }
 

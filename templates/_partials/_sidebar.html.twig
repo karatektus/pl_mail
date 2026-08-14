@@ -105,8 +105,9 @@ keeps its accessible name either way.
                  data-collapse-key="{{ _treeKey }}"
                  data-action="toggle->ui--sidebar#rememberCollapse"
                  {{ sidebarCounts.isCollapsed(_treeKey) ? '' : 'open' }}>
-            <summary class="nav-item group/label flex items-center gap-1 py-1.5 cursor-pointer list-none
+            <summary class="nav-item group/label flex items-center gap-1 cursor-pointer list-none
                             transition-colors"
+                     data-nav-tier="tree"
                      aria-expanded="{{ sidebarCounts.isCollapsed(_treeKey) ? 'false' : 'true' }}"
                      data-ui--sidebar-target="collapseSummary"
                      style="--label-depth: {{ depth * 14 }}px">
@@ -131,14 +132,15 @@ keeps its accessible name either way.
                 </a>
                 {{ macros.label_edit(label) }}
             </summary>
-            <div class="space-y-0.5">
+            <div class="nav-rows">
                 {% for child in children %}
                     {{ macros.label_node(child, depth + 1, drawerClose) }}
                 {% endfor %}
             </div>
         </details>
     {% else %}
-        <div class="nav-item group/label flex items-center gap-2 py-1.5 transition-colors"
+        <div class="nav-item group/label flex items-center gap-2 transition-colors"
+             data-nav-tier="tree"
              style="--label-depth: {{ depth * 14 + 16 }}px">
             {{ macros.label_dot(label.color) }}
             <a href="{{ path('app_mail_label_path', { path: label.fullName }) }}"
@@ -229,12 +231,13 @@ controller instead — the scroll position and which trees are open.
     </div>
 
     {# Nav #}
-    <nav class="flex-1 overflow-y-auto px-2 py-2 space-y-0.5 text-sm"
+    <nav class="flex-1 overflow-y-auto px-2 py-2 nav-rows text-sm"
          data-ui--sidebar-target="scroller"
          data-action="scroll->ui--sidebar#rememberScroll">
 
         <a href="{{ path('app_mail_inbox') }}"
-           class="nav-item flex items-center justify-between gap-2 px-3 py-2 rounded-lg transition-colors"
+           class="nav-item flex items-center justify-between gap-2 px-3 rounded-lg transition-colors"
+           data-nav-tier="row"
            data-ui--sidebar-target="link"
            data-action="{{ _drawerClose }}"
            title="{{ 'sidebar.nav.inbox'|trans }}"
@@ -248,7 +251,8 @@ controller instead — the scroll position and which trees are open.
         </a>
 
         <a href="{{ path('app_mail_starred') }}"
-           class="nav-item flex items-center justify-between gap-2 px-3 py-2 rounded-lg transition-colors"
+           class="nav-item flex items-center justify-between gap-2 px-3 rounded-lg transition-colors"
+           data-nav-tier="row"
            data-ui--sidebar-target="link"
            data-action="{{ _drawerClose }}"
            title="{{ 'sidebar.nav.starred'|trans }}"
@@ -262,7 +266,8 @@ controller instead — the scroll position and which trees are open.
         </a>
 
         <a href="{{ path('app_mail_sent') }}"
-           class="nav-item flex items-center justify-between gap-2 px-3 py-2 rounded-lg transition-colors"
+           class="nav-item flex items-center justify-between gap-2 px-3 rounded-lg transition-colors"
+           data-nav-tier="row"
            data-ui--sidebar-target="link"
            data-action="{{ _drawerClose }}"
            title="{{ 'sidebar.nav.sent'|trans }}"
@@ -276,7 +281,8 @@ controller instead — the scroll position and which trees are open.
         </a>
 
         <a href="{{ path('app_mail_drafts') }}"
-           class="nav-item flex items-center justify-between gap-2 px-3 py-2 rounded-lg transition-colors"
+           class="nav-item flex items-center justify-between gap-2 px-3 rounded-lg transition-colors"
+           data-nav-tier="row"
            data-ui--sidebar-target="link"
            data-action="{{ _drawerClose }}"
            title="{{ 'sidebar.nav.drafts'|trans }}"
@@ -296,7 +302,8 @@ controller instead — the scroll position and which trees are open.
            is a plain link to the page like any other row here. #}
         {% if _drawerMode is defined and _drawerMode %}
             <a href="{{ path('app_calendar_index') }}"
-               class="nav-item flex items-center justify-between gap-2 px-3 py-2 rounded-lg transition-colors"
+               class="nav-item flex items-center justify-between gap-2 px-3 rounded-lg transition-colors"
+               data-nav-tier="row"
                data-ui--sidebar-target="link"
                data-action="{{ _drawerClose }}"
                title="{{ 'sidebar.nav.calendar'|trans }}"
@@ -329,7 +336,8 @@ controller instead — the scroll position and which trees are open.
            knows. #}
         {% set _moreRoutes = ['app_mail_snoozed', 'app_mail_archive', 'app_mail_spam', 'app_mail_trash'] %}
         <details class="rail-hide group/more" {{ app.request.attributes.get('_route') in _moreRoutes ? 'open' : '' }}>
-            <summary class="nav-item flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer list-none transition-colors text-ink-muted">
+            <summary class="nav-item flex items-center gap-2 px-3 rounded-lg cursor-pointer list-none transition-colors text-ink-muted"
+                     data-nav-tier="row">
                 {# transition-transform was here from the start, but nothing ever
                    set the open-state transform — the chevron had an animation
                    and no destination. group-open is the same recipe the label
@@ -339,7 +347,8 @@ controller instead — the scroll position and which trees are open.
             </summary>
         {% if sidebarCounts.hasSnoozed %}
             <a href="{{ path('app_mail_snoozed') }}"
-               class="nav-item flex items-center justify-between gap-2 pl-9 pr-3 py-2 rounded-lg transition-colors"
+               class="nav-item flex items-center justify-between gap-2 pl-9 pr-3 rounded-lg transition-colors"
+               data-nav-tier="row"
                data-ui--sidebar-target="link"
                data-action="{{ _drawerClose }}"
                title="{{ 'sidebar.nav.snoozed'|trans }}">
@@ -352,7 +361,8 @@ controller instead — the scroll position and which trees are open.
             </a>
         {% endif %}
             <a href="{{ path('app_mail_archive') }}"
-               class="nav-item flex items-center justify-between gap-2 pl-9 pr-3 py-2 rounded-lg transition-colors"
+               class="nav-item flex items-center justify-between gap-2 pl-9 pr-3 rounded-lg transition-colors"
+               data-nav-tier="row"
                data-ui--sidebar-target="link"
                data-action="{{ _drawerClose }}"
                title="{{ 'sidebar.nav.archive'|trans }}">
@@ -372,7 +382,8 @@ controller instead — the scroll position and which trees are open.
            where LabelRole::sortOrder() already put it. #}
         {% if sidebarCounts.hasVisibleRole(enum('App\\Domain\\Enum\\Mail\\LabelRole').Spam) %}
             <a href="{{ path('app_mail_spam') }}"
-               class="nav-item flex items-center justify-between gap-2 pl-9 pr-3 py-2 rounded-lg transition-colors"
+               class="nav-item flex items-center justify-between gap-2 pl-9 pr-3 rounded-lg transition-colors"
+               data-nav-tier="row"
                data-ui--sidebar-target="link"
                data-action="{{ _drawerClose }}"
                title="{{ 'sidebar.nav.spam'|trans }}"
@@ -387,7 +398,8 @@ controller instead — the scroll position and which trees are open.
         {% endif %}
 
         <a href="{{ path('app_mail_trash') }}"
-           class="nav-item flex items-center justify-between gap-2 pl-9 pr-3 py-2 rounded-lg transition-colors"
+           class="nav-item flex items-center justify-between gap-2 pl-9 pr-3 rounded-lg transition-colors"
+           data-nav-tier="row"
            data-ui--sidebar-target="link"
            data-action="{{ _drawerClose }}"
            title="{{ 'sidebar.nav.trash'|trans }}"
@@ -433,7 +445,7 @@ controller instead — the scroll position and which trees are open.
                "Create label" button — unnamed, it read as "Labels 3 unread
                Create label". The same string as the visible heading, so a
                voice user asking for "Labels" still gets this. #}
-            <summary class="pt-4 pb-1 px-3 flex items-center gap-2 cursor-pointer list-none rounded-lg transition-colors hover:bg-hover"
+            <summary class="nav-section-y pb-1 px-3 flex items-center gap-2 cursor-pointer list-none rounded-lg transition-colors hover:bg-hover"
                      aria-label="{{ 'sidebar.labels.heading'|trans }}"
                      aria-expanded="{{ _labelsCollapsed ? 'false' : 'true' }}"
                      data-ui--sidebar-target="collapseSummary">
@@ -467,10 +479,10 @@ controller instead — the scroll position and which trees are open.
                 </button>
             </summary>
 
-            <div id="{{ _drawerMode is defined and _drawerMode ? 'label-list-drawer' : 'label-list' }}" class="space-y-0.5">
+            <div id="{{ _drawerMode is defined and _drawerMode ? 'label-list-drawer' : 'label-list' }}" class="nav-rows">
                 {% set labelTree = sidebarCounts.userLabelTree() %}
                 {% if labelTree|length == 0 %}
-                    <p class="px-3 py-1.5 text-xs text-ink-faint">{{ 'sidebar.labels.none'|trans }}</p>
+                    <p class="px-3 text-xs text-ink-faint" data-nav-tier="tree">{{ 'sidebar.labels.none'|trans }}</p>
                 {% else %}
                     {% for node in labelTree %}
                         {{ macros.label_node(node, 0, _drawerClose) }}
@@ -500,7 +512,7 @@ controller instead — the scroll position and which trees are open.
                  data-action="toggle->ui--sidebar#rememberCollapse"
                  data-collapse-key="{{ constant('App\\Entity\\User\\User::SIDEBAR_SECTION_ACCOUNTS') }}"
                  {{ _accountsCollapsed ? '' : 'open' }}>
-            <summary class="pt-4 pb-1 px-3 flex items-center gap-2 cursor-pointer list-none rounded-lg transition-colors hover:bg-hover"
+            <summary class="nav-section-y pb-1 px-3 flex items-center gap-2 cursor-pointer list-none rounded-lg transition-colors hover:bg-hover"
                      aria-label="{{ 'sidebar.accounts.heading'|trans }}"
                      aria-expanded="{{ _accountsCollapsed ? 'false' : 'true' }}"
                      data-ui--sidebar-target="collapseSummary">
@@ -518,7 +530,7 @@ controller instead — the scroll position and which trees are open.
                 </button>
             </summary>
 
-            <div id="{{ _drawerMode is defined and _drawerMode ? 'account-list-drawer' : 'account-list' }}" class="space-y-0.5">
+            <div id="{{ _drawerMode is defined and _drawerMode ? 'account-list-drawer' : 'account-list' }}" class="nav-rows">
                 {# The same suffix the list containers either side of this use. Both
                    sidebars render this partial on every page, so without it each
                    account's folder frame and expand toggle existed twice under one

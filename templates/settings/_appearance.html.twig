@@ -59,10 +59,61 @@
        width do not move together. Below @3xl the preview is dropped outright
        rather than squeezed — a 300px-wide miniature of a mail list under a
        column of controls tells nobody anything, and the real list is one tap
-       away. #}
-    <div class="grid gap-6 @3xl:grid-cols-[minmax(0,1fr)_19rem]">
+       away.
 
-        <div class="min-w-0 space-y-8">
+       The second column is `auto` rather than the width itself, and the width
+       sits on the preview INSIDE it. That is what the calendar does, and for
+       the same reason: the handle overhangs the gap by a negative margin, so a
+       column sized to the stored number would have spent 24px of the preview
+       on the handle and the miniature would have been narrower than the number
+       says. Sized to content, the preview is exactly as wide as it is stored,
+       which is also what ui--split measures when it clamps.
+
+       The splitter is mounted HERE, on the row it splits, rather than on the
+       panel above — which is also where the calendar's lives, on the row
+       holding its two panes. The panel's own `data-controller` stays exactly
+       `settings--appearance`, so the six specs that select it by that whole
+       attribute value keep working; a controller list is a poor thing to make
+       load-bearing for a selector, but it is not this change's business to
+       rewrite them all either.
+
+       The preview's width is rendered into the first paint rather than restored
+       by JavaScript — a pane that appears at the default and jumps once the
+       controller connects is worse than one that does not remember at all. It
+       sits on this element because that is the one ui--split writes to. The
+       fallback covers the theoretical unauthenticated render; both real hosts
+       are behind a login. #}
+    {% set _previewWidth = app.user ? app.user.appearancePreviewWidth
+                                    : constant('App\\Entity\\User\\User::APPEARANCE_PREVIEW_DEFAULT_WIDTH') %}
+
+    <div class="grid gap-6 @3xl:grid-cols-[minmax(0,1fr)_auto]"
+         style="--appearance-preview-width: {{ _previewWidth }}px"
+         data-controller="ui--split"
+         {# The same splitter the calendar pane uses, with its three positions
+            switched off — see ui--split's docblock. There is nothing to switch
+            between here: the preview is either beside the controls or, below
+            @3xl, not rendered. What is shared is the part that matters — the
+            drag, the clamp against what the two columns have between them, the
+            arrow keys, the double-click reset and the coalesced write on
+            release.
+
+            `variable-value` is why two boundaries can exist on one page at all
+            — and they do, in the setup wizard, where this panel opens over the
+            mail shell: the controller writes the property it is handed and
+            knows no pane by name. #}
+         data-ui--split-modes-value="false"
+         data-ui--split-variable-value="--appearance-preview-width"
+         data-ui--split-state-url-value="{{ path('app_appearance_pane_state') }}"
+         data-ui--split-token-value="{{ csrf_token('appearance_pane_state') }}"
+         data-ui--split-min-value="{{ constant('App\\Entity\\User\\User::APPEARANCE_PREVIEW_MIN_WIDTH') }}"
+         data-ui--split-max-value="{{ constant('App\\Entity\\User\\User::APPEARANCE_PREVIEW_MAX_WIDTH') }}"
+         data-ui--split-default-value="{{ constant('App\\Entity\\User\\User::APPEARANCE_PREVIEW_DEFAULT_WIDTH') }}"
+         {# What the CONTROLS column is never dragged below. They are the reason
+            the page exists; the preview is the thing that can be made small. #}
+         data-ui--split-main-min-value="360"
+         data-ui--split-step-value="16">
+
+        <div class="min-w-0 space-y-8" data-ui--split-target="main">
 
             {# ── Theme ─────────────────────────────────────────────────── #}
             <section>
@@ -150,13 +201,20 @@
                         <div class="{{ segGroup }}" role="radiogroup" aria-labelledby="density-global-label">
                             {% for density in enum('App\\Domain\\Enum\\Theme\\Density').cases %}
                                 <label class="cursor-pointer">
-                                    {# The three padding scales travel on the radio, so the JS
+                                    {# Every padding scale travels on the radio, so the JS
                                        resolving a surface has one place to read them from and
-                                       the numbers stay in the Density enum. #}
+                                       the numbers stay in the Density enum. The four sidebar
+                                       ones are its two row tiers, the space between rows and
+                                       the band above a section heading — see
+                                       settings--appearance's SURFACE_VARS, which maps each to
+                                       the custom property it feeds. #}
                                     <input type="radio" name="density" class="peer sr-only"
                                            value="{{ density.value }}"
                                            data-settings--appearance-field="density"
                                            data-row-y="{{ density.rowPadding }}"
+                                           data-tree-y="{{ density.treeRowPadding }}"
+                                           data-row-gap="{{ density.rowGap }}"
+                                           data-section-y="{{ density.sectionPadding }}"
                                            data-gap="{{ density.gap }}"
                                            data-list-row-y="{{ density.listRowPadding }}"
                                            data-reading-row-y="{{ density.readingBlockPadding }}"
@@ -544,6 +602,19 @@
                     <h2 class="text-sm font-semibold text-ink">{{ 'settings.appearance.background.heading'|trans }}</h2>
                 </div>
 
+                {# ── How a background applies without a reload ──────────────
+                   Every tile below carries `data-bg-value`: the literal
+                   `--app-bg` the server would write for that choice, produced
+                   by BackgroundResolver itself through background_preset_css()
+                   / background_solid_css(). The controller sets what it finds
+                   and never composes a value of its own.
+
+                   An EMPTY data-bg-value means "remove the property", which is
+                   what Theme is: AppearanceRenderer omits --app-bg entirely for
+                   BackgroundKind::Theme so the stylesheet's own gradient for
+                   the current theme takes over. Writing some theme's gradient
+                   inline instead would look identical until the theme changed
+                   underneath it. #}
                 <div class="grid grid-cols-3 @lg:grid-cols-5 gap-3 mb-4">
                     {# value="theme", not "preset", and `peer` like every other radio
                        here. Both were wrong, and together they made this tile a trap.
@@ -566,6 +637,7 @@
                     <label class="cursor-pointer">
                         <input type="radio" name="backgroundKind" class="peer sr-only" value="theme"
                                data-settings--appearance-field="backgroundKind"
+                               data-bg-value=""
                                data-action="change->settings--appearance#pickBackground"
                             {{ a.backgroundKind.value == 'theme' ? 'checked' : '' }}>
                         <span class="flex items-center justify-center h-16 rounded-pane border border-line text-xs text-ink-muted peer-checked:ring-2 peer-checked:ring-accent app-bg">
@@ -591,10 +663,54 @@
                            data-action="change->settings--appearance#pickBackground"
                         {{ a.backgroundKind.value == 'preset' ? 'checked' : '' }}>
 
+                    {# A flat colour, which the domain has always supported —
+                       BackgroundKind::Solid, Appearance::backgroundSolid, and
+                       BackgroundResolver::solid() are all older than this tile
+                       — and which nothing on this page could reach. The swatch
+                       IS the tile: clicking it opens the colour picker and
+                       ticks the kind on the way past, the same move
+                       pickBackground() already makes for a preset. #}
+                    {% set _solid = a.backgroundSolid ?? constant('App\\Service\\Appearance\\BackgroundResolver::DEFAULT_SOLID') %}
+                    <input type="radio" name="backgroundKind" class="sr-only" value="solid"
+                           data-settings--appearance-field="backgroundKind"
+                           data-action="change->settings--appearance#pickBackground"
+                        {{ a.backgroundKind.value == 'solid' ? 'checked' : '' }}>
+
+                    <label class="cursor-pointer block relative">
+                        <span class="sr-only">{{ 'settings.appearance.background.solid'|trans }}</span>
+                        {# The SHAPE of the value, not the value: the colour
+                           moves as the picker moves, so the controller
+                           substitutes the hex into this rather than knowing
+                           that a flat colour is spelled as a gradient. #}
+                        <input type="color" value="{{ _solid }}"
+                               data-settings--appearance-field="backgroundSolid"
+                               data-settings--appearance-target="backgroundSolid"
+                               data-bg-format="{{ background_solid_css('%s') }}"
+                               data-action="input->settings--appearance#pickBackgroundSolid"
+                               aria-label="{{ 'settings.appearance.background.solid'|trans }}"
+                               class="peer absolute inset-0 w-full h-full opacity-0 cursor-pointer">
+                        {# The caption sits in a chip rather than on the colour.
+                           The colour is the user's and can be anything, so no
+                           fixed ink is readable on it — a dark green label on a
+                           dark green tile is the tile with no name at all. The
+                           chip is the surface colour, which is the one thing
+                           here that is guaranteed to carry the body ink. #}
+                        <span class="flex items-end justify-center h-16 pb-1.5 rounded-pane border border-line
+                                     peer-focus-visible:ring-2 peer-focus-visible:ring-accent
+                                     {{ a.backgroundKind.value == 'solid' ? 'ring-2 ring-accent' : '' }}"
+                              data-settings--appearance-target="backgroundSolidSwatch"
+                              style="background-color:{{ _solid }}">
+                            <span class="px-1.5 py-0.5 rounded bg-surface text-[10px] text-ink-soft">
+                                {{ 'settings.appearance.background.solid'|trans }}
+                            </span>
+                        </span>
+                    </label>
+
                     {% for preset in enum('App\\Domain\\Enum\\Theme\\BackgroundPreset').cases %}
                         <label class="cursor-pointer">
                             <input type="radio" name="backgroundPreset" class="peer sr-only" value="{{ preset.value }}"
                                    data-settings--appearance-field="backgroundPreset"
+                                   data-bg-value="{{ background_preset_css(preset) }}"
                                    data-action="change->settings--appearance#pickBackground"
                                 {{ a.backgroundPreset == preset ? 'checked' : '' }}>
                             <span class="block h-16 rounded-pane border border-line bg-cover bg-center peer-checked:ring-2 peer-checked:ring-accent"
@@ -658,11 +774,51 @@
            real hooks from app.css, not a copy — so a preview that looks right
            and a list that does not is a failure mode this cannot have.
 
-           `hidden @3xl:block` and nothing else: below that width the preview is
-           not rendered narrow, it is not rendered. The wrapper stretches to the
-           grid row so the sticky child inside it has somewhere to travel. #}
-        <aside class="hidden @3xl:block">
-            {% include 'settings/_appearance_preview.html.twig' %}
+           `hidden @3xl:flex` and nothing else: below that width the preview is
+           not rendered narrow, it is not rendered — and since the handle lives
+           inside this element, the splitter goes with it rather than being
+           hidden separately and having to agree about where. The wrapper
+           stretches to the grid row so the sticky child inside it has somewhere
+           to travel. #}
+        <aside class="hidden @3xl:flex min-w-0">
+            {# The handle, the same shape and the same keys as the calendar's:
+               role=separator with an orientation is what makes a boundary
+               reachable and meaningful without a mouse, arrow keys nudge it,
+               and a double-click puts it back to the default. `.split-grip` is
+               the hook app.css already styles.
+
+               Two gaps wide and pulled left by one, so the grip sits in the
+               MIDDLE of the space between the columns rather than to one side
+               of it. #}
+            <div
+                data-ui--split-target="handle"
+                data-action="pointerdown->ui--split#start keydown->ui--split#nudge dblclick->ui--split#reset"
+                role="separator"
+                aria-orientation="vertical"
+                aria-label="{{ 'settings.appearance.preview.resize'|trans }}"
+                tabindex="0"
+                class="group relative -ml-6 w-12 shrink-0 cursor-col-resize
+                       flex items-start justify-center focus:outline-none"
+            >
+                {# STICKY, and centred on nothing.
+
+                   The calendar's grip is centred in its handle, which works
+                   there because that handle is one viewport tall. This one is
+                   as tall as the controls column — some 2700px — so a centred
+                   grip sits about 1300px below the fold and the boundary looks
+                   like it has no handle at all. Sticking it near the top of the
+                   scrollport keeps it beside whatever control is being looked
+                   at, which is also where the pointer already is. The whole
+                   48px column stays draggable either way; this is only about
+                   the two pixels that SAY so. #}
+                <span class="split-grip sticky top-24 w-0.5 h-8 rounded-full bg-line
+                             group-hover:bg-accent group-focus-visible:bg-accent" aria-hidden="true"></span>
+            </div>
+
+            <div data-ui--split-target="pane"
+                 class="min-w-0 w-[var(--appearance-preview-width)]">
+                {% include 'settings/_appearance_preview.html.twig' %}
+            </div>
         </aside>
     </div>
 </div>
