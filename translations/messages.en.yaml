@@ -2081,8 +2081,8 @@ settings:
         healthy:
             body: >-
                 Your accounts are signed in, your calendars are syncing and
-                nothing is waiting on you. If mail ever stops arriving, this is
-                the page that will say why.
+                nothing is waiting on you. If mail ever stops arriving, Account
+                health comes back to the settings list and this page says why.
             title: 'Everything is working'
         issue:
             account_reconnect:

@@ -52,10 +52,21 @@ final class AccountHealthSectionTest extends WebTestCase
 
     // ── the section itself ───────────────────────────────────────────────────
 
-    public function testTheSectionRendersAndIsReachableFromTheNav(): void
+    /**
+     * The entry appears when there is something to say. This is the half that
+     * must not regress: an indicator nobody can reach is worse than none, and
+     * the nav is the only route to this page that does not start with a dot the
+     * user has to notice first.
+     */
+    public function testABrokenAccountPutsTheSectionInTheNav(): void
     {
         $client = static::createClient();
-        $this->boot($client);
+        $user   = $this->boot($client);
+
+        $account = $this->oauthAccount($user, 'broken@joder.dev');
+
+        $account->oauthLastRefreshError = 'invalid_grant';
+        $this->em->flush();
 
         $crawler = $client->request('GET', '/settings?section=accounts');
 
@@ -63,7 +74,7 @@ final class AccountHealthSectionTest extends WebTestCase
         self::assertGreaterThan(
             0,
             $crawler->filter('nav a[href*="section=health"]')->count(),
-            'the settings nav links to the health section',
+            'something is wrong, so the settings nav links to the health section',
         );
 
         $crawler = $client->request('GET', '/settings?section=health');
@@ -77,6 +88,78 @@ final class AccountHealthSectionTest extends WebTestCase
             0,
             $crawler->filter('nav a[href*="section=health"][aria-current="page"]')->count(),
             'the nav marks health as the current page',
+        );
+    }
+
+    /**
+     * And it is gone when there is not. The user asked for this directly:
+     * a standing row that says "everything is fine" spends a permanent slot in
+     * a fourteen-item list on a permanent non-answer, and the entry showing up
+     * at all is the signal.
+     */
+    public function testTheNavEntryIsAbsentWhenNothingIsWrong(): void
+    {
+        $client = static::createClient();
+        $user   = $this->boot($client);
+
+        $this->oauthAccount($user, 'working@joder.dev');
+        $this->em->flush();
+
+        $crawler = $client->request('GET', '/settings?section=accounts');
+
+        self::assertResponseIsSuccessful();
+        self::assertSame(
+            0,
+            $crawler->filter('nav a[href*="section=health"]')->count(),
+            'nothing is wrong, so the nav does not carry a health entry',
+        );
+
+        // Every other entry is untouched — the strip did not lose a group or a
+        // heading along with the one link.
+        self::assertGreaterThan(
+            10,
+            $crawler->filter('nav a[href*="section="]')->count(),
+            'the rest of the settings nav is intact',
+        );
+    }
+
+    /**
+     * Direct navigation still resolves while healthy, and this is the decision
+     * the change turns on.
+     *
+     * The link is bookmarked, it is where the OAuth reconnect returns to, and
+     * the topbar menu points at it. It renders the all-clear on demand rather
+     * than redirecting to `accounts`: somebody who followed a dot here after
+     * fixing something needs to be TOLD it is fixed, and a silent bounce to
+     * another section reads as a broken link. `health` therefore stays in
+     * SettingsController::SECTIONS — dropping it would have made this URL fall
+     * back to accounts, which is a 200 that answers a different question.
+     *
+     * The entry shows itself while the section is open, so the nav has
+     * something to mark as current.
+     */
+    public function testDirectNavigationWhileHealthyStillRendersTheAllClear(): void
+    {
+        $client = static::createClient();
+        $user   = $this->boot($client);
+
+        $this->oauthAccount($user, 'working@joder.dev');
+        $this->em->flush();
+
+        $crawler = $client->request('GET', '/settings?section=health');
+
+        self::assertResponseIsSuccessful();
+        self::assertResponseStatusCodeSame(200, 'no redirect away from a bookmarked URL');
+        self::assertSame(1, $crawler->filter('[data-health-empty]')->count(), 'the all-clear is rendered');
+        self::assertSame(
+            1,
+            $crawler->filter('nav a[href*="section=health"][aria-current="page"]')->count(),
+            'and the nav shows the entry while you are standing on it',
+        );
+        self::assertSame(
+            0,
+            $crawler->filter('nav a[href*="section=health"] span.rounded-full')->count(),
+            'without a badge',
         );
     }
 

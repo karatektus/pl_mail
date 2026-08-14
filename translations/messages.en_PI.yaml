@@ -1763,9 +1763,10 @@ settings:
         heading: 'State o'' yer crew'
         healthy:
             body: >-
-                Yer crew be signed on, yer almanacs be sailin'' true, an''
-                naught waits on ye. Should th'' post ever stop comin'' in,
-                this be th'' page that says why.
+                Yer crew be signed on, yer almanacs be sailin' true, an'
+                naught waits on ye. Should th' post ever stop comin' in,
+                th' state o' yer crew sails back into yer settin's list, an'
+                this page says why.
             title: 'All hands healthy'
         issue:
             account_reconnect:
