@@ -1533,6 +1533,7 @@ settings:
             radius: Corner radius
             scrimAlpha: Backdrop dimmin'
             subheading: How much o' the backdrop shows through yer panels.
+        heading: Look o' the ship
         import: Import theme
         layout:
             boxed: Crates
@@ -1564,16 +1565,19 @@ settings:
         preview:
             body: A short word, so the readin' deck has summat to show. None o' this be real post — the lookout fetches nary a letter.
             heading: Lookout
+            hide: Stow the lookout
             resize: Shift the lookout's width
             sender1: Ada Lovelace
             sender2: Grace Hopper
             sender3: Kathleen Booth
+            show: Show the lookout
             snippet: This be what a peek line looks like, an' how much o' one fits afore the row runs clean out o' deck fer it.
             subheading: Yer settings on a make-believe manifest. Nary a thing here be hauled from yer own post.
             subject1: Notes on the Analytical Engine
             subject2: 'Re: the compiler draft'
             subject3: Assembly notes, as promised
         reset: Back to how she came
+        subheading: Colours, crampedness, letterin' an' the backdrop — the whole look o' the ship, all in one spot.
         text:
             autoDerive: Work it out for me
             color: Text colour

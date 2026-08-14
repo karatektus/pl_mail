@@ -48,18 +48,24 @@
      data-settings--appearance-import-url-value="{{ path('app_appearance_import') }}"
      data-settings--appearance-reset-url-value="{{ path('app_appearance_reset') }}">
 
-    {# The preview is a SIDE COLUMN, not a band across the top. Sticky-at-the-top
-       cost the panel a permanent ~180px of its own height and pushed the first
-       control below the fold; beside the controls it costs width the panel has
-       and none of the height it does not.
+    {# TWO PEER CARDS with the boundary between them, not one card wearing a
+       sidebar. The controls are a card and the preview is a card, each built
+       the way every other settings section builds one (`rounded-pane border
+       border-line bg-surface`, a header rule, a padded body), and the splitter
+       is the gap between the two rather than a rail inside one of them. The
+       previous shape said "the preview belongs to the controls"; it does not —
+       it is the other half of the page.
 
        Container query, not a viewport breakpoint, for the reason settings
        index.html.twig gives: this pane is not as wide as the window, and at md
        the mail sidebar appears and takes from it, so pane width and viewport
-       width do not move together. Below @3xl the preview is dropped outright
-       rather than squeezed — a 300px-wide miniature of a mail list under a
-       column of controls tells nobody anything, and the real list is one tap
-       away.
+       width do not move together.
+
+       Below @3xl the two cards STACK and the preview starts collapsed, reached
+       through the control in the settings card's header. It used to be dropped
+       from the markup outright, which was a defensible answer while it was a
+       sidebar and is not one now: a phone is where you can least afford to
+       leave the page to find out what a knob did.
 
        The second column is `auto` rather than the width itself, and the width
        sits on the preview INSIDE it. That is what the calendar does, and for
@@ -75,7 +81,9 @@
        `settings--appearance`, so the six specs that select it by that whole
        attribute value keep working; a controller list is a poor thing to make
        load-bearing for a selector, but it is not this change's business to
-       rewrite them all either.
+       rewrite them all either. The mobile disclosure is an action on
+       `settings--appearance` for the same reason: a second controller on the
+       panel root would have broken all six.
 
        The preview's width is rendered into the first paint rather than restored
        by JavaScript — a pane that appears at the default and jumps once the
@@ -113,7 +121,63 @@
          data-ui--split-main-min-value="360"
          data-ui--split-step-value="16">
 
-        <div class="min-w-0 space-y-8" data-ui--split-target="main">
+        {# ── Card one: the controls ───────────────────────────────────────
+           A real card, so the two halves of this page are peers. `min-w-0`
+           because it is the `1fr` column and its segmented groups would
+           otherwise refuse to shrink below their content. #}
+        <section class="min-w-0 rounded-pane border border-line bg-surface overflow-hidden"
+                 data-ui--split-target="main">
+
+            {# The card header, and the one place the preview can be reached on
+               a phone.
+
+               DISCLOSURE, not a dialog and not a replacement: pressing it
+               reveals the preview card above the controls and leaves every
+               control where it was. A modal would have hidden the controls the
+               preview exists to explain, and swapping one for the other would
+               have made "change a setting and watch" impossible — which is the
+               entire reason to want a preview on a small screen.
+
+               NOT PERSISTED, and that is a deliberate difference from the pane
+               WIDTH beside it. A width is a considered choice about how this
+               page should be shaped and is worth carrying to the next visit;
+               this is a peek. Persisted, it would cost a returning phone user a
+               third of a 568px screen for a glance they took once and forgot,
+               and it would need a second settings-bag key and a second CSRF'd
+               endpoint to do it. It starts closed on every load.
+
+               `@3xl:hidden` because above that width the preview is simply
+               there and a control to reveal what is already visible is noise.
+               `aria-controls` names the region and `aria-expanded` carries the
+               state; the label itself changes with it, so the control is
+               readable without either. #}
+            <header class="flex items-center justify-between gap-3 px-4 py-3.5 border-b border-line">
+                <div class="min-w-0">
+                    <h2 class="text-sm font-semibold text-ink">{{ 'settings.appearance.heading'|trans }}</h2>
+                    <p class="text-xs text-ink-faint mt-0.5">{{ 'settings.appearance.subheading'|trans }}</p>
+                </div>
+
+                <button type="button"
+                        data-appearance-preview-toggle
+                        data-settings--appearance-target="previewToggle"
+                        data-action="click->settings--appearance#togglePreview"
+                        aria-expanded="false"
+                        aria-controls="appearance-preview-region"
+                        data-show-label="{{ 'settings.appearance.preview.show'|trans }}"
+                        data-hide-label="{{ 'settings.appearance.preview.hide'|trans }}"
+                        class="@3xl:hidden shrink-0 inline-flex items-center gap-2 px-3 min-h-9 rounded-pane
+                               border border-line text-xs font-medium text-ink-muted
+                               hover:bg-hover cursor-pointer transition-colors
+                               focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent">
+                    <i class="fa-solid fa-eye text-[11px]" aria-hidden="true"
+                       data-settings--appearance-target="previewToggleIcon"></i>
+                    <span data-settings--appearance-target="previewToggleLabel">
+                        {{ 'settings.appearance.preview.show'|trans }}
+                    </span>
+                </button>
+            </header>
+
+            <div class="px-4 py-5 space-y-8">
 
             {# ── Theme ─────────────────────────────────────────────────── #}
             <section>
@@ -755,9 +819,10 @@
                     </button>
                 </section>
             {% endif %}
-        </div>
+            </div>
+        </section>
 
-        {# ── Live preview ──────────────────────────────────────────────────
+        {# ── Card two: the live preview ────────────────────────────────────
            A mail list and a message, in miniature, wearing the settings on this
            page. In its own column so it stays on screen while the controls that
            drive it scroll past — the whole point is that nobody has to leave for
@@ -774,13 +839,33 @@
            real hooks from app.css, not a copy — so a preview that looks right
            and a list that does not is a failure mode this cannot have.
 
-           `hidden @3xl:flex` and nothing else: below that width the preview is
-           not rendered narrow, it is not rendered — and since the handle lives
-           inside this element, the splitter goes with it rather than being
-           hidden separately and having to agree about where. The wrapper
-           stretches to the grid row so the sticky child inside it has somewhere
-           to travel. #}
-        <aside class="hidden @3xl:flex min-w-0">
+           `hidden @3xl:flex` is the state the SERVER renders, and above @3xl
+           it is the whole story: the preview is beside the controls and the
+           handle, which lives inside this element, comes with it. Below @3xl
+           the class is toggled by togglePreview() — removed to show, added back
+           to hide — rather than a `flex` being switched on over the top of it,
+           because `.hidden` out-orders `.flex` in the built stylesheet and a
+           toggle written that way looks exactly like broken JavaScript.
+
+           The HANDLE carries its own `hidden @3xl:flex` now that this wrapper
+           no longer does. Left behind when the layout stacks it would be a grab
+           target for a boundary that has no second side.
+
+           ORDER-FIRST below @3xl, and sticky with it. Stacked in DOM order the
+           preview would appear some 2700px below the control that revealed it,
+           which is a disclosure that discloses nothing; first in the stack and
+           pinned to the top of the scroll port, it stays on screen while the
+           controls it explains scroll underneath. Above @3xl neither applies:
+           the columns are side by side and the card's own `sticky` inside the
+           stretched wrapper does that job.
+
+           The wrapper stretches to the grid row so the sticky card inside it
+           has somewhere to travel. #}
+        <aside id="appearance-preview-region"
+               data-settings--appearance-target="previewRegion"
+               class="hidden @3xl:flex min-w-0
+                      order-first sticky top-0 z-10
+                      @3xl:order-none @3xl:static @3xl:z-auto">
             {# The handle, the same shape and the same keys as the calendar's:
                role=separator with an orientation is what makes a boundary
                reachable and meaningful without a mouse, arrow keys nudge it,
@@ -798,7 +883,7 @@
                 aria-label="{{ 'settings.appearance.preview.resize'|trans }}"
                 tabindex="0"
                 class="group relative -ml-6 w-12 shrink-0 cursor-col-resize
-                       flex items-start justify-center focus:outline-none"
+                       hidden @3xl:flex items-start justify-center focus:outline-none"
             >
                 {# STICKY, and centred on nothing.
 
@@ -815,8 +900,11 @@
                              group-hover:bg-accent group-focus-visible:bg-accent" aria-hidden="true"></span>
             </div>
 
+            {# `w-full` below @3xl: stacked, the preview card is as wide as the
+               settings card, not 304px of a 320px screen. The stored width only
+               describes a boundary, and below @3xl there is no boundary. #}
             <div data-ui--split-target="pane"
-                 class="min-w-0 w-[var(--appearance-preview-width)]">
+                 class="min-w-0 w-full @3xl:w-[var(--appearance-preview-width)]">
                 {% include 'settings/_appearance_preview.html.twig' %}
             </div>
         </aside>

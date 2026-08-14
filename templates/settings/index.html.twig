@@ -197,22 +197,26 @@
                                     {% if section == 'health' %}
                                         {% include 'settings/_health.html.twig' %}
                                     {% elseif section == 'appearance' %}
-                                        {# The house inset, paid here rather than
-                                           inside the panel. This wrapper's `-mx-6`
-                                           exists so section CARDS can reach the pane
-                                           edges on a narrow pane, and every other
-                                           section pays it back with `px-4 @2xl:px-0`
-                                           on the content that should not. Appearance
-                                           paid nothing, so on a phone its headings and
-                                           controls sat flush against the pane border
-                                           and the segmented groups were clipped by it.
-                                           It belongs here and not in the panel because
-                                           the panel is also the setup wizard's
-                                           appearance step, where there is no `-mx-6`
-                                           to cancel. #}
-                                        <div class="px-4 @2xl:px-0">
-                                            {% include 'settings/_appearance.html.twig' %}
-                                        </div>
+                                        {# NO payback wrapper, and its absence is the
+                                           house rule rather than an exception to it.
+
+                                           This wrapper's `-mx-6` exists so section
+                                           CARDS can reach the pane edges on a narrow
+                                           pane; content that is not a card pays it
+                                           back with `px-4 @2xl:px-0`. Appearance used
+                                           to pay, and had to: it was bare headings and
+                                           segmented groups, which sat flush against
+                                           the pane border and were clipped by it.
+
+                                           It is two real cards now — the controls and
+                                           the preview — so it is exactly the case the
+                                           `-mx-6` was written for, and paying it back
+                                           would inset these two cards 16px further
+                                           than health's and security's beside them.
+                                           Their own `px-4` header and body padding is
+                                           the single inset left, which is what every
+                                           other card on this page does. #}
+                                        {% include 'settings/_appearance.html.twig' %}
                                     {% elseif section == 'profile' %}
                                         {% include 'settings/_profile.html.twig' %}
                                     {% elseif section == 'security' %}

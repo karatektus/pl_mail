@@ -1843,6 +1843,7 @@ settings:
             radius: Corner radius
             scrimAlpha: Background dimming
             subheading: How much of the background shows through your panels.
+        heading: Appearance
         import: Import theme
         layout:
             boxed: Boxed
@@ -1874,16 +1875,19 @@ settings:
         preview:
             body: A short message, so the reading pane has something to show. None of this is real mail — the preview never loads any.
             heading: Preview
+            hide: Hide preview
             resize: Resize the preview
             sender1: Ada Lovelace
             sender2: Grace Hopper
             sender3: Kathleen Booth
+            show: Show preview
             snippet: This is what a preview line looks like, and how much of one fits before the row runs out of room for it.
             subheading: Your settings, on a sample list. Nothing here is loaded from your mail.
             subject1: Notes on the Analytical Engine
             subject2: 'Re: the compiler draft'
             subject3: Assembly notes, as promised
         reset: Reset to defaults
+        subheading: Theme, density, type and background — the whole look of the app, in one place.
         text:
             autoDerive: Auto-derive
             color: Text colour

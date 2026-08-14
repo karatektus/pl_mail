@@ -124,14 +124,75 @@ test.describe("appearance preview pane", () => {
         await expect(handle(page)).toBeVisible();
         await expect(pane(page)).toBeVisible();
 
-        // Below the container query that drops the preview outright. The handle
-        // lives INSIDE the dropped element, so it cannot be left behind as a
-        // grab target for a pane that is not there.
+        // Below the container query, the preview stacks and starts collapsed,
+        // and the handle carries its own `hidden @3xl:flex` so it cannot be
+        // left behind as a grab target for a boundary with no second side.
         await page.setViewportSize({ width: 900, height: 1000 });
         await page.waitForTimeout(400);
 
         await expect(handle(page)).toBeHidden();
         await expect(pane(page)).toBeHidden();
+    });
+
+    /**
+     * TWO CARDS, not one card with a sidebar in it.
+     *
+     * The distinction is structural and worth asserting as structure: the two
+     * are SIBLINGS under the split row, each a bordered card of its own, with
+     * the handle in the gap between them rather than inside either.
+     *
+     * Every box is checked for a real width AND a real height. A containment
+     * assertion alone passes for a 0px-tall clipped element, which is exactly
+     * the failure a stacking bug produces.
+     */
+    test("renders as two peer cards with the splitter between them", async ({ page }) => {
+        const measured = await page.evaluate(() => {
+            const q = (s: string) => document.querySelector(s) as HTMLElement;
+            const main = q('[data-ui--split-target="main"]');
+            const region = q("#appearance-preview-region");
+            const handleEl = q('[data-ui--split-target="handle"]');
+            const previewCard = q('[data-ui--split-target="pane"] > section');
+
+            const box = (el: HTMLElement) => {
+                const { x, width, height } = el.getBoundingClientRect();
+
+                return { x: Math.round(x), w: Math.round(width), h: Math.round(height) };
+            };
+
+            const bordered = (el: HTMLElement) => {
+                const style = getComputedStyle(el);
+
+                return parseFloat(style.borderTopWidth) > 0 && parseFloat(style.borderRadius) > 0;
+            };
+
+            return {
+                siblings: main.parentElement === region.parentElement,
+                controlsCard: box(main),
+                previewCard: box(previewCard),
+                handle: box(handleEl),
+                controlsBordered: bordered(main),
+                previewBordered: bordered(previewCard),
+                // The handle is in the gap, inside neither card.
+                handleInsideAnyCard: main.contains(handleEl) || previewCard.contains(handleEl),
+            };
+        });
+
+        expect(measured.siblings).toBe(true);
+        expect(measured.controlsBordered).toBe(true);
+        expect(measured.previewBordered).toBe(true);
+        expect(measured.handleInsideAnyCard).toBe(false);
+
+        // Real boxes, both of them.
+        expect(measured.controlsCard.w).toBeGreaterThan(360);
+        expect(measured.controlsCard.h).toBeGreaterThan(400);
+        expect(measured.previewCard.w).toBe(304);
+        expect(measured.previewCard.h).toBeGreaterThan(200);
+
+        // …and the boundary strictly between them, touching neither.
+        const controlsRight = measured.controlsCard.x + measured.controlsCard.w;
+        expect(measured.handle.x).toBeGreaterThanOrEqual(controlsRight);
+        expect(measured.handle.x + measured.handle.w).toBeLessThanOrEqual(measured.previewCard.x);
+        expect(measured.handle.h).toBeGreaterThan(400);
     });
 
     /**
@@ -185,13 +246,160 @@ test.describe("appearance preview pane", () => {
             // this one. They coexist because each writes the property it is
             // handed, and neither knows a pane by name.
             splitters: document.querySelectorAll('[data-controller~="ui--split"]').length,
+            // Both halves are cards in the modal too. The panel has no
+            // container ancestor here, so its own `@container` is what decides
+            // — which is the whole reason it carries one.
+            cards: [
+                el.querySelector('[data-ui--split-target="main"]'),
+                el.querySelector('[data-ui--split-target="pane"] > section'),
+            ].filter((card) => {
+                if (!(card instanceof HTMLElement)) {
+                    return false;
+                }
+
+                const style = getComputedStyle(card);
+
+                return parseFloat(style.borderTopWidth) > 0
+                    && card.getBoundingClientRect().height > 0;
+            }).length,
+            previewCardHeight: Math.round(
+                (el.querySelector('[data-ui--split-target="pane"] > section') as HTMLElement)
+                    .getBoundingClientRect().height,
+            ),
         }));
 
         expect(measured.paneWidth).toBe(304);
         expect(measured.overflow).toBe(0);
         expect(measured.documentOverflow).toBe(0);
         expect(measured.splitters).toBe(2);
+        // Two cards in the modal too, not one card and a stray column.
+        expect(measured.cards).toBe(2);
+        expect(measured.previewCardHeight).toBeGreaterThan(200);
 
         await context.close();
     });
 });
+
+/**
+ * The phone, where the preview used to simply not exist.
+ *
+ * Below @3xl the two cards stack and the preview starts collapsed behind a
+ * control in the settings card's header — the user's own suggestion. What is
+ * asserted here is the part that makes it worth having: it is reachable, it is
+ * a real box when it arrives, and the controls it explains stay usable while it
+ * is on screen. A preview that covered the page would be worse than none.
+ */
+for (const phone of [
+    { name: "414x851", width: 414, height: 851 },
+    // The narrowest and SHORTEST screen the app claims to support. Height is
+    // the constraint that actually bites: a pinned preview and a scroll port of
+    // 431px have to share.
+    { name: "320x568", width: 320, height: 568 },
+]) {
+    test.describe(`appearance preview on a phone (${phone.name})`, () => {
+        test.use({ viewport: { width: phone.width, height: phone.height } });
+
+        const toggle = (page: Page) =>
+            page.locator("header [data-appearance-preview-toggle]");
+
+        test.beforeEach(async ({ page }) => {
+            await page.goto("/settings?section=appearance");
+            await expect(page.locator('[data-controller="settings--appearance"]')).toBeVisible();
+        });
+
+        test("the header control reveals it, and the controls stay usable", async ({ page }) => {
+            // Collapsed on arrival — the disclosure is deliberately NOT
+            // persisted, so this is the state on every load.
+            await expect(pane(page)).toBeHidden();
+            await expect(handle(page)).toBeHidden();
+
+            const control = toggle(page);
+            await expect(control).toBeVisible();
+            await expect(control).toHaveAttribute("aria-expanded", "false");
+            await expect(control).toHaveAttribute("aria-controls", "appearance-preview-region");
+            await expect(control).toHaveAccessibleName(/show preview/i);
+
+            // The coarse-pointer floor the sidebar work established: a target no
+            // smaller than a Comfortable sidebar row.
+            const controlBox = (await control.boundingBox())!;
+            expect(controlBox.height).toBeGreaterThanOrEqual(36);
+            expect(controlBox.width).toBeGreaterThan(80);
+
+            await control.click();
+            await page.waitForTimeout(700);
+
+            await expect(control).toHaveAttribute("aria-expanded", "true");
+            await expect(control).toHaveAccessibleName(/hide preview/i);
+            await expect(pane(page)).toBeVisible();
+
+            // The splitter does NOT come back with it: stacked, there is no
+            // boundary for it to move.
+            await expect(handle(page)).toBeHidden();
+
+            const measured = await page.evaluate(() => {
+                const q = (s: string) => document.querySelector(s) as HTMLElement;
+                const region = q("#appearance-preview-region");
+                const main = q('[data-ui--split-target="main"]');
+                const r = region.getBoundingClientRect();
+                const m = main.getBoundingClientRect();
+
+                return {
+                    regionW: Math.round(r.width),
+                    regionH: Math.round(r.height),
+                    regionTop: Math.round(r.top),
+                    regionBottom: Math.round(r.bottom),
+                    // Where the controls card sits relative to the preview: the
+                    // preview is order-first, so the controls start below it.
+                    mainTop: Math.round(m.top),
+                    viewportH: window.innerHeight,
+                    docOverflow:
+                        document.documentElement.scrollWidth
+                        - document.documentElement.clientWidth,
+                };
+            });
+
+            // A real box, not a 0px-tall clipped one.
+            expect(measured.regionW).toBeGreaterThan(240);
+            expect(measured.regionH).toBeGreaterThan(150);
+            expect(measured.docOverflow).toBe(0);
+
+            // …and it leaves the screen room for the controls. This is the
+            // assertion that would fail if the preview were allowed its natural
+            // height on a 568px screen.
+            expect(measured.viewportH - measured.regionBottom).toBeGreaterThan(150);
+            expect(measured.mainTop).toBeGreaterThanOrEqual(measured.regionBottom - 1);
+
+            // Usable, not merely present: a control below the preview still
+            // takes a click and still moves the setting.
+            const compact = page.locator('input[name="density"][value="compact"]');
+            await compact.click({ force: true });
+            await page.waitForTimeout(600);
+            await expect(compact).toBeChecked();
+        });
+
+        test("stays dismissible once the header has scrolled away", async ({ page }) => {
+            await toggle(page).click();
+            await page.waitForTimeout(700);
+
+            await page.evaluate(() => window.scrollBy(0, 900));
+            await page.waitForTimeout(400);
+
+            // Pinned: still on screen after the page moved under it.
+            const region = page.locator("#appearance-preview-region");
+            const box = (await region.boundingBox())!;
+            expect(box.height).toBeGreaterThan(150);
+            expect(box.y).toBeLessThan(phone.height / 2);
+
+            // The header's control has gone under it, which is exactly why the
+            // card carries its own way out. Scoped to the region: BOTH controls
+            // are named "Hide preview" while it is open, which is correct —
+            // they are two doors on one room — and ambiguous to a bare lookup.
+            const close = region.getByRole("button", { name: /hide preview/i });
+            await close.click();
+            await page.waitForTimeout(500);
+
+            await expect(pane(page)).toBeHidden();
+            await expect(toggle(page)).toHaveAttribute("aria-expanded", "false");
+        });
+    });
+}

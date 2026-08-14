@@ -1863,6 +1863,7 @@ settings:
             radius: Eckenradius
             scrimAlpha: Hintergrundabdunklung
             subheading: Wie viel vom Hintergrund durch deine Flächen scheint.
+        heading: Darstellung
         import: Theme importieren
         layout:
             boxed: Kacheln
@@ -1894,16 +1895,19 @@ settings:
         preview:
             body: Eine kurze Nachricht, damit der Lesebereich etwas zu zeigen hat. Nichts davon ist echte Post — die Vorschau lädt keine.
             heading: Vorschau
+            hide: Vorschau ausblenden
             resize: Vorschau in der Breite ändern
             sender1: Ada Lovelace
             sender2: Grace Hopper
             sender3: Kathleen Booth
+            show: Vorschau anzeigen
             snippet: So sieht eine Vorschauzeile aus, und so viel davon passt hinein, bevor der Platz in der Zeile ausgeht.
             subheading: Deine Einstellungen an einer Beispielliste. Hier wird nichts aus deinen Nachrichten geladen.
             subject1: Notizen zur Analytical Engine
             subject2: 'Re: Entwurf des Compilers'
             subject3: Assembler-Notizen, wie versprochen
         reset: Auf Standard zurücksetzen
+        subheading: Farbschema, Dichte, Schrift und Hintergrund — das ganze Erscheinungsbild der App an einem Ort.
         text:
             autoDerive: Automatisch ableiten
             color: Textfarbe
