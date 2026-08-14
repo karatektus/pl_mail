@@ -29,6 +29,38 @@ const MIN_REFRESH_MS = 15000;
 /** Asks the server for the list frame alone — see App\Twig\ListFragmentGlobal. */
 const FRAGMENT_HEADER = "X-List-Fragment";
 
+/**
+ * The parts of the list frame a refresh is allowed to replace.
+ *
+ * A refresh used to assign over the whole frame, and the frame contains the
+ * toolbar — so every refresh destroyed and rebuilt the bulk-action buttons.
+ * That is fine while nobody is touching them and not fine at the one moment
+ * they are certain to be touched: a refresh is fired after every bulk action
+ * (see release), so doing two bulk actions in a row put a fresh fetch in flight
+ * exactly as the second button was being pressed. The click landed on a node
+ * that was replaced underneath it and did nothing — and because the swap also
+ * rebuilt the rows, the selection it would have applied to was gone too, so the
+ * failure was silent rather than loud.
+ *
+ * So the frame is no longer replaced; the parts of it that go stale are. The
+ * toolbar's controls are not among them: they hold the selection and the
+ * pointer, and nothing the server says about them can be news — their state is
+ * derived from the checkboxes, which are right here. What IS news is the
+ * category tabs' unread numbers and the "1–4 of 4" range, neither of which any
+ * turbo-stream addresses, plus the rows themselves for a sync that brought new
+ * mail. Those three are marked `data-list-region` in the templates.
+ *
+ * Order matters on the way out: rows last, so the selection is put back after
+ * the elements holding it exist again.
+ */
+const REFRESHABLE_REGIONS = ["tabs", "pagination", "rows"];
+
+/** The row checkboxes, whose `value` is the thread id. */
+const ROW_SELECT = "input[data-thread-select]";
+
+/** Told when the rows underneath it have been replaced. */
+const TOOLBAR = "[data-controller~='mail--list-toolbar']";
+
 export default class extends Controller {
     static targets = ["list", "reading"];
     static values = { open: Boolean , mailBoxId: Number};
@@ -123,6 +155,14 @@ export default class extends Controller {
      * numbers, and marking two threads unread left "General 2" over four bold
      * rows until a reload. The frame is one fragment fetch, and a person who
      * just pressed a bulk-action button is waiting on the answer.
+     *
+     * Still unconditional, and now safe to be. What made it unsafe was not the
+     * fetch but what was done with the answer: the refresh assigned over the
+     * whole frame, so the toolbar this was fired FROM was rebuilt underneath
+     * the hand that fired it, and a second bulk action pressed straight after
+     * the first landed on a replaced button. The refresh now leaves the toolbar
+     * and the selection alone and updates only what has actually gone stale —
+     * see REFRESHABLE_REGIONS.
      */
     release() {
         this._holds = Math.max(0, this._holds - 1);
@@ -418,7 +458,7 @@ export default class extends Controller {
                 return;
             }
 
-            frame.innerHTML = fresh.innerHTML;
+            this._swapRegions(frame, fresh);
 
             // Carried over with the content: the response says whether it
             // actually rendered a list, and _listNeedsRendering() reads it back
@@ -431,5 +471,81 @@ export default class extends Controller {
         } finally {
             this._refreshing = false;
         }
+    }
+
+    /**
+     * Bring the frame up to date without rebuilding the parts being used.
+     *
+     * See REFRESHABLE_REGIONS for which parts those are and why the toolbar is
+     * not one of them.
+     *
+     * @param {Element} frame  the live frame
+     * @param {Element} fresh  the same frame as the server has just rendered it
+     */
+    _swapRegions(frame, fresh) {
+        const regions = REFRESHABLE_REGIONS.map((name) => [
+            frame.querySelector(`[data-list-region="${name}"]`),
+            fresh.querySelector(`[data-list-region="${name}"]`),
+        ]);
+
+        // Something without the regions in it — a template that has not been
+        // marked up, or a response from an older deploy mid-rollout. Replaced
+        // whole, the way this always did: a stale list is a worse answer than a
+        // rebuilt toolbar.
+        if (regions.some(([live, incoming]) => live === null || incoming === null)) {
+            frame.innerHTML = fresh.innerHTML;
+
+            return;
+        }
+
+        const selected = this._selectedRowIds(frame);
+
+        regions.forEach(([live, incoming]) => {
+            live.innerHTML = incoming.innerHTML;
+        });
+
+        this._restoreSelection(frame, selected);
+    }
+
+    /**
+     * Which threads are ticked, by id.
+     *
+     * Read before the rows are replaced and applied after, so a refresh that
+     * arrives between selecting rows and acting on them does not quietly empty
+     * the selection — which is the difference between a bulk action that does
+     * nothing and one that says it did nothing.
+     *
+     * The ids come off the checkbox `value` (see _thread_row.html.twig), so a
+     * thread that the refresh removed from the list simply has no checkbox to
+     * put the tick back on, and drops out of the selection by itself.
+     *
+     * A bulk action clearing the selection when it finishes is a separate and
+     * deliberate thing, done by the toolbar that ran it — see
+     * mail--list-toolbar#_bulkPostInner. This is only about a refresh, which is
+     * not the user's action and has no business changing what they have picked.
+     */
+    _selectedRowIds(frame) {
+        return new Set(
+            Array.from(frame.querySelectorAll(ROW_SELECT))
+                .filter((checkbox) => checkbox.checked)
+                .map((checkbox) => checkbox.value),
+        );
+    }
+
+    _restoreSelection(frame, selected) {
+        frame.querySelectorAll(ROW_SELECT).forEach((checkbox) => {
+            checkbox.checked = selected.has(checkbox.value);
+        });
+
+        // Unconditionally, even for an empty selection: the toolbar's master
+        // checkbox and its "n selected" count are derived from how many rows
+        // there are as well as how many are ticked, and a refresh can change
+        // the first without changing the second. The same event a row change
+        // sends — see mail--message-row#toggleSelect.
+        document
+            .querySelector(TOOLBAR)
+            ?.dispatchEvent(
+                new CustomEvent("mail--list-toolbar:row-changed", { bubbles: false }),
+            );
     }
 }

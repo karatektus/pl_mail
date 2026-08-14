@@ -238,7 +238,19 @@ The button itself carries `group` and `relative`.
         } only %}
     {% endif %}
 
-    {# ── Pagination ───────────────────────────────────────────────────────── #}
+    {# ── Pagination ─────────────────────────────────────────────────────────
+
+       The one part of this toolbar a background refresh replaces. The range
+       and the prev/next state are derived from a total the server owns, so
+       they go stale after a bulk action the way the category tabs do — and
+       unlike the buttons to the left, nothing here is the target of the click
+       that triggered the refresh. Everything else in this toolbar is left
+       exactly where it is: see mail--mail-pane#_swapRegions for why.
+
+       The wrapper renders whether or not there is a page to describe, because
+       a region that vanishes at zero cannot be filled again. `contents`, so it
+       adds no box to the toolbar's flex row. #}
+    <div data-list-region="pagination" class="contents">
     {% if total > 0 %}
         <div class="flex items-center gap-1 text-xs text-ink-muted shrink-0 pr-1">
             <span class="tabular-nums mr-1">
@@ -260,5 +272,6 @@ The button itself carries `group` and `relative`.
             {% endif %}
         </div>
     {% endif %}
+    </div>
 
 </div>

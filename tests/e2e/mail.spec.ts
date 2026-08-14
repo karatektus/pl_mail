@@ -341,6 +341,89 @@ test.describe("mail UI actions", () => {
         }
     });
 
+    /**
+     * Two bulk actions in a row, with the first one's refresh landing between
+     * them.
+     *
+     * Every bulk action ends by re-reading the list frame from the server
+     * (mail--mail-pane#release), so doing a second one straight after the first
+     * means pressing a button while a fetch fired by the previous press is in
+     * flight. That refresh used to assign over the whole frame — toolbar
+     * included — which took the button out of the DOM under the pointer and
+     * emptied the selection on the way past. The test above caught it only
+     * sometimes, and only in its loud form: a click that lands on a detached
+     * node throws, but a click that lands on a live button whose selection was
+     * silently cleared does not, and that one is the worse bug — the person
+     * sees the button depress and nothing happen.
+     *
+     * So the race is made deterministic rather than waited for. The refresh is
+     * held at the network until the selection for the second action has been
+     * made, then released, and only then is the second action pressed. Both
+     * halves are asserted: that the selection is still there, and that the
+     * action it was made for actually took effect.
+     */
+    test("a second bulk action survives the first one's refresh landing on it", async ({
+        page,
+    }) => {
+        await page.goto("/mail/inbox");
+        await expectSeededRows(page);
+
+        // Held, not delayed: a timer would be the same race with a longer fuse.
+        let landRefresh: () => void = () => {};
+        const refreshHeld = new Promise<void>((resolve) => {
+            landRefresh = resolve;
+        });
+
+        // The fragment header is the pane's signature — see
+        // mail_pane_controller's FRAGMENT_HEADER. Everything else goes straight
+        // through, including the page load above and the bulk POSTs.
+        await page.route("**/mail/inbox**", async (route) => {
+            if (route.request().headers()["x-list-fragment"] === undefined) {
+                return route.continue();
+            }
+
+            await refreshHeld;
+
+            return route.continue();
+        });
+
+        const rows = page.locator('#inbox-list-frame input[data-thread-select]');
+        const rowCount = await rows.count();
+        expect(rowCount, "the fixture has to seed rows to select").toBeGreaterThan(0);
+
+        // ── First action, whose refresh is now stuck at the network ──────────
+        await selectAll(page);
+        await bulkAction(page, "Mark as read").click();
+        for (const subject of Object.values(INBOX_SUBJECTS)) {
+            await expect(mailRow(page, subject)).toHaveAttribute("data-unread", "false");
+        }
+
+        // ── Select for the second action, THEN let the refresh land ──────────
+        await selectAll(page);
+
+        const refreshLanded = page.waitForResponse(
+            (response) => response.request().headers()["x-list-fragment"] !== undefined,
+        );
+        landRefresh();
+        await refreshLanded;
+
+        // A refresh is not the user's action and must not undo their selection.
+        // This is what fails first when the frame is swapped wholesale: the
+        // rebuilt toolbar comes back from the server with nothing selected.
+        await expect(
+            page.locator('[data-mail--list-toolbar-target="selectionCount"]'),
+        ).toHaveText(String(rowCount));
+        await expect(
+            page.locator('[data-mail--list-toolbar-target="actions"]'),
+        ).toBeVisible();
+
+        // ── Second action: the outcome, not the click ────────────────────────
+        await bulkAction(page, "Mark as unread").click();
+        for (const subject of Object.values(INBOX_SUBJECTS)) {
+            await expect(mailRow(page, subject)).toHaveAttribute("data-unread", "true");
+        }
+    });
+
     // ── Still pending: needs more than wiring ────────────────────────────────
 
     // Blocked: "Label as" never fires the POST from the UI. The only rendered
