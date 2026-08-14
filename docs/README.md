@@ -27,7 +27,7 @@ mechanism behind it.
 |---|---|
 | [Mail](features/mail.md) | Reading, threads, labels, search and its operators, snooze, attachments, composing, signatures, emoji and inline images, scheduled send, read receipts, drafts, undo send |
 | [Accounts and aliases](features/accounts.md) | Adding Gmail, Outlook and IMAP accounts, sending aliases, per-account settings |
-| [Account health](features/health.md) | What is broken and what fixes it, reconnecting an account without losing its mail |
+| [Account health](features/health.md) | What is broken and what fixes it, reconnecting an account without losing its mail, the two ways push breaks |
 | [Filters](features/filters.md) | Condition trees, actions, the plain-English restatement, applying a rule to mail that already arrived |
 | [Calendar](features/calendar.md) | The four views and the time grid, creating and editing events, recurrence, editing one occurrence, the docked pane |
 | [Invitations and events from mail](features/calendar-invitations.md) | RSVP, events extracted from invitations and from ordinary prose, proposals, Happening Soon |
@@ -37,7 +37,7 @@ mechanism behind it.
 | [Files and integrations](features/integrations.md) | Attaching from and saving to Drive, Photos, OneDrive, Dropbox, Nextcloud and Immich |
 | [Security](features/security.md) | Two-factor authentication, recovery codes, remembered devices, app passwords, sessions |
 | [Other clients](features/clients.md) | Connecting a JMAP client, per-app passwords, the PWA and browser notifications |
-| [Appearance](features/appearance.md) | Themes, custom colours and background, import and export, language |
+| [Appearance](features/appearance.md) | Themes, custom colours and background, the live preview, what a list row shows, typeface and text size, per-pane density, import and export, language |
 | [Administration](features/admin.md) | Users and roles, enabling integrations, monitoring, queues and the version chip |
 
 ## Installing and running

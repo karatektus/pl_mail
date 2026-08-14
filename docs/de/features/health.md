@@ -1,4 +1,4 @@
-<!-- translated-from: features/health.md sha1:f480145d40b4bb06bb19dc10c8d278e3181a0fd7 -->
+<!-- translated-from: features/health.md sha1:eabf9f7963587de2a004234659b32c18424ddf68 -->
 
 # Zustand der Konten
 
@@ -13,19 +13,37 @@ Postfach aussah. Diese Seite liest den gespeicherten Zustand zurück. Sie fragt 
 schickt eine Anfrage an einen Anbieter, um herauszufinden, wie es steht — die Seite zu öffnen kostet
 also nichts, und ihre Antworten sind so frisch wie der letzte Versuch.
 
-Ist nichts kaputt, sagt sie das — *Alles funktioniert*, mit einem Satz dazu, dass dies die Seite ist,
-die Bescheid gibt, wenn sich das ändert. Keine Wand aus grünen Haken und keine leere Seite.
+## Der Eintrag taucht auf, wenn es etwas zu sagen gibt
+
+**Zustand der Konten ist kein dauerhafter Eintrag in der Einstellungsliste.** Er ist da, wenn etwas
+Aufmerksamkeit braucht, und fehlt, wenn nichts es tut — dass der Eintrag auftaucht, ist selbst das
+Signal, statt dass eine Zeile einen Platz in einer langen Liste damit verbringt zu sagen, dass alles
+in Ordnung ist.
+
+Das ist eine Änderung. Wer eine ältere Fassung dieser Seite gelesen oder sich gemerkt hat, wo der
+Eintrag sitzt, wird an einem guten Tag danach suchen und ihn nicht finden. Es ist nichts kaputt und
+nichts entfernt worden.
+
+Die Seite selbst ist immer erreichbar. Die Adresse funktioniert weiter, sie ist der Ort, an den dich
+das Neuverbinden eines Kontos zurückbringt, und die Anzeige in der Kopfleiste zeigt auf sie — ein
+Lesezeichen oder ein Punkt, dem du nach einer Reparatur gefolgt bist, landet also auf der Seite,
+statt woandershin umgeleitet zu werden. Sie zu besuchen, während alles gesund ist, zeigt die
+Entwarnung: *Alles funktioniert*, mit einem Satz dazu, dass der Eintrag in die Einstellungsliste
+zurückkehrt, falls je keine Post mehr ankommt. Keine Wand aus grünen Haken und keine leere Seite.
+Solange du auf der Seite stehst, wird der Eintrag mit angezeigt, damit die Liste etwas hat, das sie
+als aktuell markieren kann.
 
 ## Was sie meldet
 
-Fünf Dinge können auftauchen, und jedes sagt, was es für deine Post bedeutet, statt wie der Anbieter
+Sechs Dinge können auftauchen, und jedes sagt, was es für deine Post bedeutet, statt wie der Anbieter
 es genannt hat:
 
 | Was | Was es bedeutet | Reparatur |
 |---|---|---|
 | **Ein Konto braucht eine erneute Anmeldung** | Die gespeicherte Anmeldung funktioniert nicht mehr, also läuft an diesem Konto nichts mehr — keine neue Post, keine Kalendersynchronisierung, keine Filter beim Eintreffen, kein Senden. Bereits geladene Post bleibt unangetastet. | **Konto neu verbinden** |
 | **Ein Kalender synchronisiert nicht mehr** | Dieser Kalender zeigt, was er beim letzten funktionierenden Lauf wusste. Änderungen von anderswo kommen nicht an, und deine Änderungen gehen nicht hinaus. | **Jetzt synchronisieren** |
-| **Die Sofortzustellung ist aus** | Post kommt weiter an, nur nach Zeitplan statt in dem Moment, in dem sie gesendet wird. Nichts geht verloren, und es eilt nicht. | **Sofortzustellung wieder einschalten** |
+| **Die Sofortzustellung ist abgelaufen** | Die Registrierung ist abgelaufen und niemand hat sie erneuert, es wird also gar nichts mehr gepusht. | **Push neu registrieren** |
+| **Die Sofortzustellung ist registriert, kommt aber nicht an** | Die Registrierung lebt und ist nicht abgelaufen, und es ist Post eingegangen, die sie nie angekündigt hat. Die Benachrichtigungen gehen auf dem Weg hierher verloren. | **Push neu registrieren** |
 | **Eine Verbindung muss erneuert werden** | Anhänge in einem Dateidienst zu speichern und Dateien daraus anzuhängen funktioniert nicht. Deine Post ist davon unberührt. | **Neu verbinden** |
 | **Hintergrundaufgaben wurden aufgegeben** | Arbeit, die wiederholt gescheitert ist und beiseitegelegt wurde, damit sie aufhört, es zu versuchen. Meist die Folge eines der anderen Punkte und kein eigener Fehler. | **Wieder einreihen** oder **Verwerfen** |
 
@@ -67,6 +85,40 @@ anmelden. Sich als ein anderes Google-Konto anzumelden — das zweite in der Kon
 den jeder macht — wird **rundheraus abgelehnt**, und es wird nichts verändert. plMail nennt dir, als
 welche Adresse du dich tatsächlich angemeldet hast und welche es erwartet hat. Die Adresse
 auszutauschen hieße, fremde Post in diese Konversationen einzumischen, ohne Weg zurück.
+
+## Die zwei Arten, wie die Sofortzustellung kaputtgeht
+
+Push kann auf zwei ganz verschiedene Weisen scheitern, und die Seite benennt, welche davon
+eingetreten ist — denn sie schicken dich an zwei völlig verschiedene Orte zum Nachsehen.
+
+**Abgelaufen** heißt, dass die Registrierung ihr eigenes Ablaufdatum überschritten hat. Das wird von
+einem gespeicherten Datum abgelesen und nicht erschlossen, und es stimmt zu jeder Tageszeit. Die
+Erneuerung läuft einmal täglich von selbst, eine abgelaufene Registrierung ist also eine Erneuerung,
+die nicht gelaufen ist — und ein Dienst für geplante Aufgaben, der schlicht stehen geblieben ist,
+schreibt gar nichts ins Protokoll, sonst würde es also nirgends jemand sagen. Passiert das immer
+wieder, ist der Zeitplaner das, was repariert werden muss, und nicht das Konto.
+
+**Registriert, kommt aber nicht an** heißt das Gegenteil: Die Registrierung lebt und ist nicht
+abgelaufen, und es ist Post aufgetaucht, die Push nie angekündigt hat. Das ist ein Beleg und kein
+Zeitablauf — ein Postfach, das sich verändert hat, ohne dass eine Benachrichtigung das erklärt. Die
+Benachrichtigungen gehen zwischen dem Anbieter und dieser Installation verloren. Bei Gmail deutet das
+auf die Cloud-Pub/Sub-Strecke: Das Push-Abonnement, das dein Topic an diese Adresse weiterleitet,
+fehlt womöglich oder zeigt woandershin. Dieser Teil des Weges liegt außerhalb von plMail — genau
+deshalb kann er scheitern, während hier alles richtig aussieht.
+
+Ein Postfach, das sich nie ändert, erzeugt diesen Beleg nie und meldet das nie, zu keiner Nachtstunde.
+
+Jede Karte trägt die drei Daten, nach denen geurteilt wurde — **Registrierung läuft ab**, **Letzte
+Benachrichtigung erhalten** und **Erneuerung lief zuletzt** —, sodass du einen stehen gebliebenen
+Zeitplaner von einem nie funktionierenden Zustellweg unterscheiden kannst, ohne ein Protokoll zu
+lesen. Jedes davon kann *nie*, *es ist nie etwas angekommen* oder *kein Lauf verzeichnet* lauten, und
+bei einer Registrierung, die nie etwas zugestellt hat, ist genau das der Befund und keine Lücke.
+
+Beide sind **Warnungen** und beide lassen die Anzeige in der Kopfleiste angehen. Push absichtlich
+**aus** zu haben ist etwas ganz anderes und bleibt ein leiser Hinweis — siehe die Fallstricke unten.
+
+Die Reparatur ist für beide dieselbe: **Push neu registrieren**, und das darf man mehr als einmal
+drücken.
 
 ## Kalender, die dauerhaft scheitern
 
@@ -118,7 +170,23 @@ auch ungefragt, was passiert ist.
 **Eine ausgeschaltete Sofortzustellung ist kein Fehler und lässt die Anzeige nicht aufleuchten.** Eine
 selbst gehostete Installation ohne öffentlich erreichbare HTTPS-Adresse kann sich für Push überhaupt
 nicht registrieren. Post kommt über den Durchlauf alle fünfzehn Minuten, und genau darum ist das ein
-Hinweis und keine Warnung.
+Hinweis und keine Warnung. Ein *kaputter* Push — abgelaufen oder registriert und nicht zustellend —
+ist eine Warnung und lässt sie sehr wohl aufleuchten, denn du hast um Sofortzustellung gebeten und
+bekommst sie nicht.
+
+**Ein kaputter Push hält deine Post nicht auf.** Beide Push-Fehler fallen auf den geplanten Durchlauf
+zurück, Post kommt also ein paar Minuten später an als sie sollte und nicht etwa gar nicht. Es eilt
+nicht, und es geht nichts verloren, während du herausfindest, welche Strecke kaputt ist.
+
+**„Kommt nicht an“ wird nur aus einem Beleg gemeldet.** plMail wartet darauf, dass sich ein Postfach
+ändert, ohne dass eine Benachrichtigung das ankündigt, und nicht darauf, dass eine Stille lange genug
+dauert. Ein wirklich stilles Postfach meldet also nichts, wie lange es auch still bleibt — das
+Ausbleiben von Warnungen ist kein Beweis, dass Push funktioniert, sondern nur dafür, dass noch nichts
+das Gegenteil bewiesen hat.
+
+**Zustand der Konten verlässt die Einstellungsliste, wenn nichts kaputt ist.** An einem guten Tag
+danach zu suchen und ihn nicht zu finden, ist das gewollte Verhalten und keine fehlende Seite. Die
+Adresse und die Anzeige in der Kopfleiste führen beide weiterhin dorthin.
 
 **Liegen gebliebene Aufgaben zu verwerfen lässt sich nicht rückgängig machen.** Was sie nicht
 erledigt haben, bleibt unerledigt, und nichts wird erneut versucht. **Wieder einreihen** ist der

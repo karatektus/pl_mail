@@ -81,6 +81,13 @@ Removing an account deletes its synced mail from plMail's database and nothing a
 also tries to tear down any push registration it had, so nothing is left pointing at an account
 that no longer exists.
 
+Anything else that takes a registration away now hands it back to the provider the same way —
+deleting a calendar, unticking one, disconnecting a connection, and an administrator's data reset.
+The attempt is best-effort: a provider that refuses, that has already expired the channel, or that
+cannot be reached is stepped over rather than blocking the removal, because a reset that will not run
+because Google is unreachable is a worse outcome than a channel that lapses on its own within the
+week.
+
 On the edit form, leaving the password field blank keeps the stored one.
 
 ## Per-account settings
@@ -99,16 +106,25 @@ back off, so the interface never claims push is working while nothing is being d
 reason is spelled out:
 
 - **Gmail** — Google refused the watch. Check that `GMAIL_PUBSUB_TOPIC` names a topic that exists
-  and that the topic grants `gmail-api@system.gserviceaccount.com` the Pub/Sub Publisher role.
+  and that the topic grants `gmail-api-push@system.gserviceaccount.com` the Pub/Sub Publisher role.
+  Note the `-push`: `gmail-api@system.gserviceaccount.com` is not an address Google publishes from,
+  so a topic granted exactly that will never deliver a single notification.
 - **Microsoft** — Microsoft could not reach this server over HTTPS. Check the reverse proxy and
   `APP_PUBLIC_URL`.
 
 Either way the account keeps syncing on a schedule. Push is an optimisation, never the only path.
 
-The badge next to it reads **Push** when registrations are healthy, **Push (not delivering)** when
-one is registered but nothing has arrived recently, and **Scheduled** when it is off. The middle
-state usually means the Pub/Sub push subscription is missing or pointing somewhere else for Gmail,
-or a lapsed subscription for Microsoft; **Re-register push** is the button for it.
+The badge next to it reads **Push** when registrations are healthy, **Scheduled** when it is off, and
+one of two things when it is broken:
+
+- **Push (expired)** — the registration's own expiry passed and nothing renewed it. Renewal runs
+  daily on its own, so this usually means the scheduled-task worker has stopped.
+- **Push (not delivering)** — the registration is alive and unexpired, and mail has arrived that it
+  never announced. For Gmail that points at the Pub/Sub push subscription being missing or pointing
+  somewhere else; for Microsoft, at a subscription that has lapsed.
+
+**Re-register push** is the button for both, and [Account health](health.md) explains which of the
+two you are looking at and shows the dates it decided from.
 
 Where push is not available on this server at all, the control says so rather than offering a
 switch that cannot work.

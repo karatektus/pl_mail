@@ -26,6 +26,18 @@ and the per-account list answers "what does this mailbox actually have". Which a
 expanded is remembered on the server rather than in the browser, so the sidebar renders already
 expanded instead of blinking open after the page has drawn.
 
+The **Labels** and **Accounts** headings fold away. Collapsing one is remembered against your account
+rather than the browser, so it follows you to your phone, and it is rendered already folded rather
+than opening and snapping shut a moment after the page draws. What folds is the whole section — a
+wall of labels is what pushes the accounts off the bottom of a short window — though a nested label
+tree still collapses on its own for anyone who nests them.
+
+A collapsed **Labels** heading carries the unread hidden underneath it, as a count of conversations.
+It is deliberately not the sum of the per-label numbers: a conversation filed under two labels would
+be counted twice, and the heading would promise more than expanding it could show. **Accounts** gets
+no such number, because there is no honest one to give — those counts are per account, and only the
+account you have expanded is loaded.
+
 Every list pages at fifty conversations. **Newer** and **Older** in the toolbar move between pages.
 
 ## Tabs
@@ -85,7 +97,10 @@ when a message physically moves. Mirroring structural changes — renames and de
 off unless you switch it on per account; see [Accounts and aliases](accounts.md).
 
 Deleting a label removes it from **every** account, and takes any nested labels with it. Messages
-are not deleted; they keep their other labels.
+are not deleted; they keep their other labels. You can delete one from the sidebar's own label dialog
+as well as from **Settings → Labels**, and the confirmation says plainly that the label goes from
+every account and how many nested labels are going with it — rather than asking you to agree to
+something whose reach it has not mentioned.
 
 ## Search
 
@@ -182,6 +197,10 @@ attachment has never touched plMail's disk; it is materialised on first access.
 editor at the foot of the conversation instead, on a wide screen; below that it falls back to the
 dock. Either way the window offers rich text, contact autocomplete on the address fields, and a
 **From** selector listing every active account and every sending alias on it.
+
+Autocomplete only ever offers **your own** harvested contacts. On an install with more than one
+person, nobody's correspondents are visible to anybody else, and an address belonging to another
+account cannot be put on your draft by any route.
 
 **Attach files** takes files from your machine, capped at **25 MB per file**. **Attach from a
 service** opens the file picker for any connected service plMail can download from.
@@ -332,9 +351,15 @@ Pressing send queues the message with a **ten-second** delay and answers with a 
 carrying an **Undo** button. An inline reply skips the toast: the message is appended to the thread
 straight away and the reply bar becomes a countdown you can click to cancel.
 
-Undo does not race the mail out of the door — it sets a flag the send job checks when it wakes, so
-cancelling is decided before anything is transmitted. The message goes back to being the draft it
-was, with the editor reopened where it was.
+Undo does not race the mail out of the door in the sense that matters: the cancellation and the send
+job settle it between them in one step, so the database decides who won and only one of them
+proceeds. Win, and the message goes back to being the draft it was, with the editor reopened where it
+was.
+
+Lose — press Undo in the last moments, after the job has already claimed the message — and you are
+told so plainly: *Too late — that message had already been sent.* You are not handed an editable copy
+of mail that has gone out. Because the window offered is eight seconds against a ten-second hold,
+losing is rare rather than routine.
 
 ## Where to read further
 
@@ -350,6 +375,15 @@ was, with the editor reopened where it was.
 **The Undo button disappears two seconds before the message does.** The send job is held for ten
 seconds, but the toast carrying Undo fades after eight. Nothing is wrong when a message goes out
 after the button has gone — the window really did close.
+
+**An Undo can lose, and losing is told to you.** Press it at the very edge of the window and the
+answer may be *Too late — that message had already been sent*. That is the honest outcome rather
+than a failure: the alternative would be handing back an editable draft of mail that is already on
+its way, which reads as a cancellation that worked.
+
+**Deleting a label from the sidebar is the same delete as the one in settings.** It is not a "remove
+from this view" — the dialog is a shortcut to the same operation, across every account, nested labels
+included.
 
 **A signature image cannot be an inline image.** A picture placed in a *signature* is stored as an
 ordinary image reference, not as a `cid:` part: the sanitiser every signature is written through

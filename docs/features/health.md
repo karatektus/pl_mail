@@ -10,19 +10,34 @@ gone quiet on its own. This page reads that stored state back. It never probes: 
 a request to a provider to find out how things are, so opening it is free and its answers are as
 fresh as the last time something was tried.
 
-When nothing is wrong, it says so — *Everything is working*, with a line explaining that this is the
-page that will tell you when that changes. It is not a wall of green checkmarks and it is not empty.
+## The entry appears when there is something to say
+
+**Account health is not a permanent item in the settings list.** It is there when something needs
+attention, and absent when nothing does — the entry showing up is itself the signal, rather than a
+row that spends a slot in a long list saying everything is fine.
+
+That is a change. If you have read an older version of this page, or learned where the item sits, you
+will go looking for it on a good day and not find it. Nothing is broken and nothing has been removed.
+
+The page itself is always reachable. The URL keeps working, it is where reconnecting an account
+returns you, and the topbar's own indicator points at it — so a bookmark, or a dot you followed after
+fixing something, lands on the page rather than being bounced somewhere else. Visiting it while
+everything is healthy shows the all-clear: *Everything is working*, with a line saying the entry will
+come back to the settings list if mail ever stops arriving. It is not a wall of green checkmarks and
+it is not empty. While you are standing on the page the nav entry is shown too, so there is something
+for the list to mark as current.
 
 ## What it reports
 
-Five things can appear, and each one says what it means for your mail rather than what the provider
+Six things can appear, and each one says what it means for your mail rather than what the provider
 called it:
 
 | What | What it means | Repair |
 |---|---|---|
 | **An account needs you to sign in again** | The stored sign-in no longer works, so nothing about this account is running — no new mail, no calendar syncing, no filters on delivery, no sending. Mail already downloaded is untouched. | **Reconnect this account** |
 | **A calendar has stopped syncing** | That calendar shows what it knew when it last worked. Changes made elsewhere are not arriving, and changes you make here are not going out. | **Try syncing now** |
-| **Instant delivery is off** | Mail still arrives, just on a schedule instead of the instant it is sent. Nothing is lost and there is no rush. | **Turn instant delivery back on** |
+| **Instant delivery expired** | The push registration's own expiry passed and nothing renewed it, so nothing is being pushed at all. | **Re-register push** |
+| **Instant delivery is registered but not arriving** | The registration is alive and unexpired, and mail has arrived that it never announced. The notifications are being lost on the way in. | **Re-register push** |
 | **A connection needs reconnecting** | Saving attachments to a file service, and attaching from it, will not work. Your mail is unaffected. | **Reconnect** |
 | **Background jobs were given up on** | Work that failed repeatedly and was set aside so it would stop retrying. Usually the aftermath of one of the others rather than a fault of its own. | **Put them back on the queue**, or **Discard them** |
 
@@ -61,6 +76,38 @@ in as a different Google account — the second one in the account chooser, whic
 makes — is **refused outright**, and nothing is changed. plMail tells you which address you actually
 signed in as and which one it expected. Swapping the address in would file a stranger's mail into
 these threads, with no way back.
+
+## The two ways instant delivery breaks
+
+Push can fail in two quite different ways, and the page names which one happened, because they send
+you to two different places to look.
+
+**Expired** means the registration's own expiry passed. That is read off a stored date rather than
+inferred, and it is true at any hour. Renewal runs once a day on its own, so a registration that
+expired is a renewal that did not run — and a scheduled-task worker that has simply stopped logs
+nothing at all, so nothing else on the install would ever say so. If this keeps happening, the thing
+to fix is the scheduler, not the account.
+
+**Registered but not arriving** means the opposite: the registration is alive and unexpired, and mail
+turned up that push never announced. That is evidence rather than a timer — a mailbox that changed
+without a notification to explain it. The notifications are being lost between the provider and this
+install. For Gmail that points at the Cloud Pub/Sub leg: the push subscription that forwards your
+topic to this address may be missing, or pointing somewhere else. That part of the path is outside
+plMail, which is exactly why it can fail while everything here looks correct.
+
+A mailbox that never changes never produces that evidence and never raises this, at any hour of the
+night.
+
+Each card carries the three dates it was judged from — **Registration expires**, **Last notification
+received** and **Renewal last ran** — so you can tell a scheduler that stopped from a delivery path
+that never worked without reading a log. Any of them may read *never*, *nothing has ever arrived* or
+*no run recorded*, and on a registration that never delivered anything that is the finding rather
+than a gap.
+
+Both are **warnings** and both light the topbar indicator. Push being deliberately **off** is a
+different thing entirely and stays a quiet notice — see the traps below.
+
+The repair is the same for both: **Re-register push**, which is safe to press more than once.
 
 ## Calendars that fail permanently
 
@@ -106,7 +153,22 @@ does nothing useful — the card will say what happened without being asked twic
 
 **Instant delivery being off is not an error, and will not light the indicator.** A self-hosted
 install with no publicly reachable HTTPS address can never register push at all. Mail arrives on the
-fifteen-minute sweep, which is why this is a notice rather than a warning.
+fifteen-minute sweep, which is why this is a notice rather than a warning. Push that is *broken* —
+expired, or registered and not delivering — is a warning and does light it, because you asked for
+instant delivery and are not getting it.
+
+**A broken push does not stop your mail.** Both push failures fall back to the scheduled check, so
+mail keeps arriving a few minutes later than it should rather than not at all. There is no rush, and
+nothing is lost while you work out which leg is broken.
+
+**"Not arriving" is only ever reported from evidence.** plMail waits for a mailbox to change without
+a notification announcing it, rather than for a stretch of silence to elapse. A genuinely quiet
+mailbox therefore raises nothing however long it stays quiet — an absence of warnings is not proof
+push is working, only that nothing has yet proved it is not.
+
+**Account health leaves the settings list when nothing is wrong.** Looking for the menu item on a
+good day and not finding it is the intended behaviour, not a missing page. The URL and the topbar
+indicator both still reach it.
 
 **Discarding abandoned jobs cannot be undone.** Anything they had not finished stays unfinished, and
 nothing is retried. **Put them back on the queue** is the safe one — jobs that fail again simply end
