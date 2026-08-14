@@ -194,10 +194,22 @@ which of the two is happening.
             } %}
         {% endblock %}
 
-        {# Optional tabs row (inbox only) #}
-        {% block inbox_tabs %}{% endblock %}
+        {# Optional tabs row (inbox only).
 
-        <ul class="flex-1 overflow-y-auto divide-y divide-line">
+           The wrapper is always here even when the row is not, because it is
+           what a refresh writes into: `data-list-region` marks the parts of
+           this frame a background refresh is allowed to replace, and a region
+           that disappears when it is empty cannot be filled again. Only the
+           inbox renders tabs, and only when more than one category has mail —
+           see mail/inbox.html.twig — so the empty case is the common one.
+
+           `contents`, so the wrapper adds no box of its own and the tabs stay
+           a direct child of the frame's flex column. #}
+        <div data-list-region="tabs" class="contents">{% block inbox_tabs %}{% endblock %}</div>
+
+        {# The rows are a region too. A refresh replaces them and puts the
+           selection back by thread id — see mail--mail-pane#_swapRegions. #}
+        <ul data-list-region="rows" class="flex-1 overflow-y-auto divide-y divide-line">
             {% block message_list %}{% endblock %}
         </ul>
 
