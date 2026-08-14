@@ -1,6 +1,12 @@
 import { expect } from "@playwright/test";
 import { test } from "./support/test";
-import { TEST_USER, consoleCommand } from "./support/config";
+import {
+    TEST_USER,
+    WORKER_SLOT,
+    consoleCommand,
+    login,
+    seedUser,
+} from "./support/config";
 
 /**
  * The account-health section, in a browser.
@@ -82,6 +88,9 @@ function restoreTheAccount(): void {
         `dbal:run-sql "UPDATE account SET auth_type = 'password', oauth_provider = NULL, oauth_access_token = NULL, oauth_refresh_token = NULL, oauth_last_refresh_error = NULL WHERE ${OWNED_BY_THIS_WORKER}"`,
     );
 }
+
+/** The settings nav entry that leads here. */
+const NAV_ENTRY = 'nav a[href*="section=health"]';
 
 test.describe("account health", () => {
     test.beforeAll(breakTheAccount);
@@ -165,6 +174,61 @@ test.describe("account health", () => {
         ).toBeVisible();
     });
 
+    /**
+     * The half that must not regress. The entry earns its slot by appearing,
+     * so if it ever stops appearing the feature is unreachable for anyone who
+     * did not happen to notice the topbar dot.
+     */
+    test("puts an entry in the settings nav, badged", async ({ page }) => {
+        await page.goto("/settings?section=accounts");
+
+        const entry = page.locator(NAV_ENTRY);
+
+        await expect(entry).toBeVisible();
+        await expect(entry.locator("span.rounded-full")).toBeVisible();
+
+        await entry.click();
+
+        await expect(page).toHaveURL(/section=health/);
+        await expect(page.locator("#settings-health")).toBeVisible();
+    });
+
+    /**
+     * The nav is a wrapping horizontal strip on a phone rather than a column,
+     * so an entry that comes and goes changes that layout. Here it is present:
+     * it has to sit IN the strip, not above it, and not push the page sideways.
+     */
+    test("the nav entry joins the wrapping strip at 414px", async ({ page }) => {
+        await page.setViewportSize({ width: 414, height: 851 });
+        await page.goto("/settings?section=accounts");
+
+        const entry = page.locator(NAV_ENTRY);
+
+        await expect(entry).toBeVisible();
+
+        // Same row as the first group's first link, or wrapped from it — either
+        // way it is inside the strip, which is what `.contents` on the <ul>
+        // buys. A box wider than the pane would mean it broke out of the flex.
+        // `has:` re-roots its selector inside the candidate, so it is spelled
+        // WITHOUT the leading `nav` — passing the NAV_ENTRY locator here would
+        // ask for `nav nav a[…]` and match nothing.
+        const strip = page
+            .locator("nav")
+            .filter({ has: page.locator('a[href*="section=health"]') });
+        const stripBox = (await strip.boundingBox())!;
+        const entryBox = (await entry.boundingBox())!;
+
+        expect(entryBox.width).toBeLessThanOrEqual(stripBox.width + 1);
+
+        const overflow = await page.evaluate(
+            () =>
+                document.documentElement.scrollWidth >
+                document.documentElement.clientWidth + 1,
+        );
+
+        expect(overflow).toBe(false);
+    });
+
     test("reads at 393px", async ({ page }) => {
         await page.setViewportSize({ width: 393, height: 850 });
         await page.goto("/settings?section=health");
@@ -206,6 +270,136 @@ test.describe("account health", () => {
             expect(bg).not.toBe("rgba(0, 0, 0, 0)");
 
             await testInfo.attach(`health-${theme}.png`, {
+                body: await page.screenshot({ fullPage: true }),
+                contentType: "image/png",
+            });
+        });
+    }
+});
+
+/**
+ * The other half: nothing wrong, so nothing in the nav.
+ *
+ * A SEPARATE USER, freshly seeded, rather than this worker's own restored one.
+ * The describe above documents why the badge count cannot be assumed to be 1 —
+ * integrations.spec.ts leaves a connection whose credentials deliberately fail,
+ * and `seed-save-picker` seeds two more — and "healthy" is that same problem in
+ * its harshest form: the assertion here is that the entry is ABSENT, which one
+ * leftover issue on a warm database turns into a false failure. A user created
+ * for this file owns exactly one seeded mailbox and nothing else, so healthy is
+ * a fact about them and not a hope about the stack.
+ */
+const HEALTHY_USER = {
+    email: `e2e-healthy-w${WORKER_SLOT}@plmail.test`,
+    password: TEST_USER.password,
+};
+
+test.describe("account health, when there is none to report", () => {
+    // Signed out to start: this describe logs in as somebody else, and the
+    // worker's stored cookies would put us back as the worker's own user.
+    test.use({ storageState: { cookies: [], origins: [] } });
+
+    test.beforeAll(() => {
+        seedUser({ email: HEALTHY_USER.email, password: HEALTHY_USER.password });
+        // A working password mailbox, so this is a real user with real mail and
+        // not the degenerate no-accounts case that would be healthy trivially.
+        consoleCommand(`app:test:seed-mail --email=${HEALTHY_USER.email}`);
+    });
+
+    test.beforeEach(async ({ page }) => {
+        await login(page, HEALTHY_USER.email, HEALTHY_USER.password);
+    });
+
+    test("keeps the entry out of the settings nav", async ({ page }) => {
+        await page.goto("/settings?section=accounts");
+
+        await expect(page.locator("nav a[href*='section=accounts']")).toHaveCount(
+            1,
+            // Proves the nav rendered at all — `toHaveCount(0)` on the health
+            // entry passes just as well against a blank page.
+        );
+        await expect(page.locator(NAV_ENTRY)).toHaveCount(0);
+
+        // And no dot on the avatar to send them looking for it.
+        await expect(page.locator("#user-menu-btn + span")).toHaveCount(0);
+    });
+
+    /**
+     * Direct navigation still resolves, and this is the decision the change
+     * turns on: bookmarks, the OAuth reconnect return and the topbar menu all
+     * point at this URL. It renders the all-clear rather than redirecting —
+     * somebody who followed a dot here after fixing something has to be TOLD it
+     * is fixed, and a silent bounce to `accounts` reads as a broken link.
+     */
+    test("still answers a bookmarked ?section=health with the all-clear", async ({
+        page,
+    }) => {
+        await page.goto("/settings?section=health");
+
+        await expect(page).toHaveURL(/section=health/);
+        await expect(page.locator("[data-health-empty]")).toBeVisible();
+
+        // The entry shows itself while you are standing on it, so the strip has
+        // something to mark as the current page.
+        await expect(page.locator(NAV_ENTRY)).toHaveCount(1);
+        await expect(
+            page.locator(`${NAV_ENTRY}[aria-current="page"]`),
+        ).toBeVisible();
+        await expect(page.locator(`${NAV_ENTRY} span.rounded-full`)).toHaveCount(0);
+    });
+
+    /**
+     * The topbar still leads somewhere useful with nothing wrong: the menu's
+     * Settings entry drops its `?section=health` and lands on settings-in-
+     * general, rather than on a page whose only content is "nothing to report".
+     */
+    test("the topbar menu leads to settings, not to an empty health page", async ({
+        page,
+    }) => {
+        await page.goto("/");
+
+        await page.locator("#user-menu-btn").click();
+        await page.locator("#user-menu-settings").click();
+
+        await expect(page).toHaveURL(/\/settings/);
+        await expect(page).not.toHaveURL(/section=health/);
+        await expect(page.locator("#settings-health")).toHaveCount(0);
+    });
+
+    /**
+     * The nav is a wrapping strip on a phone, so REMOVING an entry changes that
+     * layout — it is the case the desktop column cannot show. Captured in both
+     * themes at 414×851, alongside the desktop pair.
+     */
+    for (const theme of ["light", "dark"] as const) {
+        test(`the settings nav still reads without it, ${theme}`, async ({
+            page,
+        }, testInfo) => {
+            await page.setViewportSize({ width: 414, height: 851 });
+            await page.goto("/settings?section=accounts");
+
+            await page.evaluate(
+                (t) => document.documentElement.setAttribute("data-theme", t),
+                theme,
+            );
+
+            // The strip is intact: every other entry is still there and still
+            // in one flex container, and the first link has not been left
+            // stranded on a row of its own where health used to sit.
+            const links = page.locator("nav a[href*='section=']");
+
+            await expect(links.first()).toBeVisible();
+            expect(await links.count()).toBeGreaterThan(10);
+
+            const overflow = await page.evaluate(
+                () =>
+                    document.documentElement.scrollWidth >
+                    document.documentElement.clientWidth + 1,
+            );
+
+            expect(overflow).toBe(false);
+
+            await testInfo.attach(`healthy-nav-mobile-${theme}.png`, {
                 body: await page.screenshot({ fullPage: true }),
                 contentType: "image/png",
             });

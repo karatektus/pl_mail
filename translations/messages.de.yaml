@@ -2098,7 +2098,8 @@ settings:
             body: >-
                 Deine Konten sind angemeldet, deine Kalender synchronisieren,
                 und es wartet nichts auf dich. Sollte einmal keine Post mehr
-                ankommen, steht hier, woran es liegt.
+                ankommen, erscheint „Zustand der Konten“ wieder in der
+                Einstellungsliste, und hier steht dann, woran es liegt.
             title: 'Alles funktioniert'
         issue:
             account_reconnect:

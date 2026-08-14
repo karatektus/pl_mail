@@ -74,12 +74,14 @@
                                     filing it under "Mail" or "Personal" would bury the
                                     one entry that is time-sensitive.
 
-                                    It is always present, not only when something is
-                                    wrong. A nav item that appears and disappears is one
-                                    people cannot learn, and "where do I check?" has to
-                                    have an answer on a good day too. The badge is what
-                                    changes, not the link.
+                                    It appears only when there is something to say —
+                                    see the note on the entry itself.
                                 #}
+                                {# One read, memoised for the whole request by
+                                   AccountHealthGlobal, and the topbar has already
+                                   asked for it by the time this renders. Deciding
+                                   whether to show the entry therefore costs nothing
+                                   this page was not already paying. #}
                                 {% set attention = accountHealth.attention %}
 
                                 {% set navGroups = [
@@ -130,12 +132,24 @@
                                         like the group headings do, and the phone would
                                         have had no way to reach the page at all.
 
-                                        Always present, not only when something is wrong:
-                                        a nav item that comes and goes is one nobody can
-                                        learn, and "where do I check?" needs an answer on
-                                        a good day too. The badge changes, the link does
-                                        not.
+                                        Present only when there is something to say. This
+                                        reverses the original choice — the entry used to be
+                                        permanent with only the badge changing, on the
+                                        reasoning that an item which comes and goes cannot
+                                        be learned. A settings list that carries a
+                                        standing "Account health, everything is fine" row
+                                        spends a permanent slot on a permanent
+                                        non-answer, and the entry appearing IS the signal.
+
+                                        `or section == 'health'` is not a nicety: the page
+                                        is still reachable directly — bookmarks, the
+                                        topbar menu, the OAuth reconnect return — and a
+                                        nav with no entry for the page you are looking at
+                                        has nothing to mark aria-current on, so the strip
+                                        would read as though some other section were open.
+                                        The entry shows itself while you stand on it.
                                     #}
+                                    {% if attention or section == 'health' %}
                                     <a href="{{ path('app_settings_index', { section: 'health' }) }}"
                                        class="{{ section == 'health' ? navActive : navInactive }} md:mb-1"
                                        {{ section == 'health' ? 'aria-current="page"' : '' }}>
@@ -151,6 +165,7 @@
                                             </span>
                                         {% endif %}
                                     </a>
+                                    {% endif %}
 
                                     {% for group in navGroups %}
                                         {# Wraps into a row on mobile, where the nav is a
