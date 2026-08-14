@@ -11,7 +11,8 @@ export default class extends Controller {
     static targets = ['paneAlpha', 'paneBlur', 'radius', 'scrimAlpha', 'accent', 'theme', 'importInput', 'uploadInput',
         'inkColor', 'inkColorField', 'inkDefault', 'inkDerived', 'inkMuted', 'inkMutedField', 'inkFaint', 'inkFaintField',
         'mainTint', 'mainTintField', 'mainTintDefault', 'mainAlpha', 'mainAlphaField', 'mainAlphaMatch',
-        'backgroundSolid', 'backgroundSolidSwatch'];
+        'backgroundSolid', 'backgroundSolidSwatch',
+        'previewRegion', 'previewToggle', 'previewToggleLabel', 'previewToggleIcon'];
 
     connect() {
         this.root = document.documentElement;
@@ -19,6 +20,72 @@ export default class extends Controller {
 
         if (this.hasInkColorFieldTarget && this.inkColorFieldTarget.value !== '') {
             this.applyInk();
+        }
+    }
+
+    /* ── The preview, on a screen too narrow to hold it beside the controls ─
+     *
+     * Above @3xl the preview card is simply there and this never runs — the
+     * button that calls it is `@3xl:hidden`. Below it, the preview card starts
+     * collapsed and this is the only way to it.
+     *
+     * The `hidden` CLASS is what moves, and it moves by being REMOVED rather
+     * than by having a `flex` switched on over the top of it. In the built
+     * stylesheet `.hidden` is ordered after `.flex`, so adding `flex` to an
+     * element that still carries `hidden` changes precisely nothing on screen
+     * while every attribute says it worked — which is the most expensive kind
+     * of bug this file can have, because it reads as JavaScript that did not
+     * run. Both classes are toggled, so the element is `flex` when shown and
+     * `hidden` when not, and the `@3xl:flex` the server rendered keeps the
+     * desktop layout right in either state.
+     *
+     * There are TWO controls for this one state — the header's "Show preview"
+     * and the pinned card's close — so the state is read off the REGION rather
+     * than off whichever button was pressed. Two buttons each holding their own
+     * idea of `aria-expanded` is how a disclosure comes to need pressing twice.
+     *
+     * Nothing is persisted. See the note on the button in _appearance.html.twig
+     * for why a peek is not a preference.
+     */
+    togglePreview() {
+        if (false === this.hasPreviewRegionTarget) {
+            return;
+        }
+
+        const region = this.previewRegionTarget;
+        const show = region.classList.contains('hidden');
+
+        region.classList.toggle('hidden', !show);
+        region.classList.toggle('flex', show);
+
+        // Every control pointing at this region, whichever one was pressed.
+        this.element
+            .querySelectorAll('[data-appearance-preview-toggle]')
+            .forEach((button) => button.setAttribute('aria-expanded', show ? 'true' : 'false'));
+
+        // The label is the accessible name and it says what the control does
+        // NEXT, which aria-expanded alone does not tell anyone reading the
+        // button. Both strings come off the markup so they are translated once,
+        // in the catalogue, rather than a second time in here.
+        if (this.hasPreviewToggleLabelTarget && this.hasPreviewToggleTarget) {
+            const { showLabel, hideLabel } = this.previewToggleTarget.dataset;
+
+            this.previewToggleLabelTarget.textContent = (show ? hideLabel : showLabel) ?? '';
+        }
+
+        if (this.hasPreviewToggleIconTarget) {
+            this.previewToggleIconTarget.classList.toggle('fa-eye', !show);
+            this.previewToggleIconTarget.classList.toggle('fa-eye-slash', show);
+        }
+
+        // Revealed, the card is the FIRST thing in the stack — above the header
+        // that revealed it. Left where they were, the reader is looking at the
+        // controls with the preview off the top of the screen until they think
+        // to scroll up, which is a disclosure that discloses nothing. Bringing
+        // it to the top of the scroll port is also exactly where it will stick,
+        // so nothing moves again afterwards.
+        if (show) {
+            region.scrollIntoView({ block: 'start', behavior: 'smooth' });
         }
     }
 

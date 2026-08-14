@@ -1380,6 +1380,18 @@
     #sidebar-drawer-inner [data-nav-tier="tree"] {
         min-height: calc(1lh + 0.75rem);
     }
+
+    /* The appearance panel's "show preview" control, held to the SAME floor and
+       by the same expression rather than to a pixel number of its own. It is
+       drawn at `text-xs` in the settings card header, which puts `1lh + 1rem`
+       at 32px — below the 36px the utility class already gives it, so on a
+       phone the class wins and this is the guarantee underneath rather than the
+       size in force. That is the right way round: whatever the type scale does
+       to this button (and the panel it sits in can scale the whole app's type),
+       it cannot end up smaller than a Comfortable sidebar row. */
+    [data-appearance-preview-toggle] {
+        min-height: calc(1lh + 1rem);
+    }
 }
 
 /* The trail to the selected row: a label's ancestors read as "you are in
