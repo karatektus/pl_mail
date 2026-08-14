@@ -1511,6 +1511,7 @@ settings:
             heading: Accent colour
         background:
             heading: Backdrop
+            solid: One flat hue
             theme: Theme default
             upload: Hoist an image
         density:
@@ -1563,6 +1564,7 @@ settings:
         preview:
             body: A short word, so the readin' deck has summat to show. None o' this be real post — the lookout fetches nary a letter.
             heading: Lookout
+            resize: Shift the lookout's width
             sender1: Ada Lovelace
             sender2: Grace Hopper
             sender3: Kathleen Booth

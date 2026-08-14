@@ -37,19 +37,29 @@ test.describe("density", () => {
         await page.waitForTimeout(700);
     });
 
+    /*
+     * The numbers moved once, deliberately, and this is the note that says so.
+     *
+     * `--density-row-y` was 0.875rem at Comfortable and 0.375rem at Compact.
+     * Nothing measured 0.875rem: the sidebar rows it was meant for are `py-2`,
+     * and the single element that did consume the token — the Compose button —
+     * had been silently grown 6px a side by it. Density::rowPadding() is now
+     * the scale those rows actually use, so pointing fifteen more of them at it
+     * leaves every existing install exactly where it was. See the enum.
+     */
     test("applies live, and survives a reload", async ({ page }) => {
-        expect(await cssVar(page, "--density-row-y")).toBe("0.875rem");
+        expect(await cssVar(page, "--density-row-y")).toBe("0.5rem");
 
         await densityTile(page, "compact").click();
 
-        await expect.poll(() => cssVar(page, "--density-row-y")).toBe("0.375rem");
+        await expect.poll(() => cssVar(page, "--density-row-y")).toBe("0.25rem");
         expect(await cssVar(page, "--density-gap")).toBe("0.375rem");
 
         // Persisted, not just painted.
         await page.waitForTimeout(700);
         await page.reload();
 
-        expect(await cssVar(page, "--density-row-y")).toBe("0.375rem");
+        expect(await cssVar(page, "--density-row-y")).toBe("0.25rem");
         await expect(
             page.locator('input[name="density"][value="compact"]'),
         ).toBeChecked();
@@ -179,6 +189,89 @@ test.describe("density", () => {
 
         await page.goto("/settings?section=appearance");
         await densityTile(page, "comfortable").click();
-        await expect.poll(() => cssVar(page, "--density-row-y")).toBe("0.875rem");
+        await expect.poll(() => cssVar(page, "--density-row-y")).toBe("0.5rem");
+    });
+
+    /**
+     * The sidebar actually moves — which is the whole complaint this answers.
+     *
+     * Density reached the sidebar as two custom properties nothing in the
+     * partial consumed: every nav row was a hardcoded `py-2`, every label row a
+     * hardcoded `py-1.5`, and the setting was a no-op you could watch not
+     * happen. So the assertion has to be geometric, on the rows themselves.
+     * Reading the variables back would have passed against the bug the entire
+     * time it existed.
+     *
+     * Two tiers, because the sidebar has two and always did: a system row and a
+     * label row are different heights at every step, and a change that made
+     * them equal would be a redesign wearing a bug fix's clothes.
+     */
+    test("changes the sidebar's row heights, at both tiers", async ({ page }) => {
+        const rows = async () => {
+            await page.goto("/mail/inbox");
+
+            return page.evaluate(() => {
+                const h = (selector: string) => {
+                    const el = document.querySelector(selector) as HTMLElement | null;
+
+                    return el === null ? null : Math.round(el.getBoundingClientRect().height);
+                };
+
+                return {
+                    system: h('#sidebar a[href="/mail/inbox"]'),
+                    heading: h("#sidebar details.group\\/labels > summary"),
+                    compose: h("#sidebar .compose-link"),
+                };
+            });
+        };
+
+        // Comfortable is the geometry the file shipped with, to the pixel: a
+        // `py-2` row is 36px, a `pt-4 pb-1` heading is 48px, and the Compose
+        // button is a `py-2` row like the ones under it.
+        const comfortable = await rows();
+        expect(comfortable).toEqual({ system: 36, heading: 48, compose: 36 });
+
+        await page.goto("/settings?section=appearance");
+        await densityTile(page, "cosy").click();
+        await page.waitForTimeout(700);
+        expect(await rows()).toEqual({ system: 32, heading: 44, compose: 32 });
+
+        await page.goto("/settings?section=appearance");
+        await densityTile(page, "compact").click();
+        await page.waitForTimeout(700);
+
+        const compact = await rows();
+        expect(compact).toEqual({ system: 28, heading: 40, compose: 28 });
+
+        // Tighter, and still a row rather than a line of text: 28px is the
+        // number reported for Compact's tap target on a fine pointer. Touch
+        // devices never see it — see the `pointer: coarse` floor in app.css,
+        // which holds every tier at its own Comfortable height.
+        expect(compact.system!).toBeGreaterThanOrEqual(24);
+        expect(compact.system!).toBeLessThan(comfortable.system!);
+    });
+
+    /** The tighter step is genuinely tighter overall, not just per row. */
+    test("takes real height out of the sidebar", async ({ page }) => {
+        const navHeight = async () => {
+            await page.goto("/mail/inbox");
+
+            return page.evaluate(() => {
+                const nav = document.querySelector("#sidebar nav") as HTMLElement;
+                const last = nav.lastElementChild as HTMLElement;
+
+                return Math.round(
+                    last.getBoundingClientRect().bottom - nav.getBoundingClientRect().top,
+                );
+            });
+        };
+
+        const comfortable = await navHeight();
+
+        await page.goto("/settings?section=appearance");
+        await densityTile(page, "compact").click();
+        await page.waitForTimeout(700);
+
+        expect(await navHeight()).toBeLessThan(comfortable * 0.9);
     });
 });

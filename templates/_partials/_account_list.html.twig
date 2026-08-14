@@ -37,7 +37,8 @@
                 data-action="{{ _drawerClose }}"
                 aria-label="{{ 'sidebar.accounts.open'|trans({ '%account%': account.displayAddress }) }}"
                 title="{{ account.displayAddress }}"
-                class="flex items-center gap-2 py-2 flex-1 min-w-0"
+                data-nav-tier="row"
+                class="flex items-center gap-2 flex-1 min-w-0"
             >
                 {# The account's IDENTITY colour, the same tone its rows wear in
                    the unified lists — so a coloured dot on a message and this
@@ -86,7 +87,8 @@
                 aria-expanded="{{ expanded ? 'true' : 'false' }}"
                 aria-controls="{{ frameId }}"
                 data-settings--account-expand-target="toggle"
-                class="p-2 rounded-lg text-gray-400 cursor-pointer hover:text-ink"
+                data-nav-tier="row"
+                class="px-2 rounded-lg text-gray-400 cursor-pointer hover:text-ink"
                 data-action="click->settings--account-expand#toggle"
             >
                 <i data-settings--account-expand-target="chevron"
@@ -113,5 +115,5 @@
         </turbo-frame>
     </div>
 {% else %}
-    <p class="px-3 py-2 text-sm text-ink-faint italic">{{ 'sidebar.accounts.none'|trans }}</p>
+    <p class="px-3 text-sm text-ink-faint italic" data-nav-tier="row">{{ 'sidebar.accounts.none'|trans }}</p>
 {% endfor %}

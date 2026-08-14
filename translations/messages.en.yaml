@@ -1821,6 +1821,7 @@ settings:
             heading: Accent colour
         background:
             heading: Background
+            solid: Solid colour
             theme: Theme default
             upload: Upload image
         density:
@@ -1873,6 +1874,7 @@ settings:
         preview:
             body: A short message, so the reading pane has something to show. None of this is real mail — the preview never loads any.
             heading: Preview
+            resize: Resize the preview
             sender1: Ada Lovelace
             sender2: Grace Hopper
             sender3: Kathleen Booth

@@ -177,6 +177,73 @@ final class ListAndTypographyVariablesTest extends TestCase
         self::assertSame(Density::Compact->listRowPadding(), $variables['--surface-list-row-y']);
         self::assertSame(Density::Compact->rowPadding(), $variables['--surface-sidebar-row-y']);
         self::assertSame(Density::Compact->readingBlockPadding(), $variables['--surface-reading-row-y']);
+
+        // The sidebar's four, not one: it is made of rows at two tiers, the gap
+        // between its rows is not the shell gutter, and the band above a
+        // section heading is the part a reader actually perceives as "how tight
+        // is this". A surface that moved only one of them would move
+        // one-quarter of the sidebar.
+        self::assertSame(Density::Compact->treeRowPadding(), $variables['--surface-sidebar-tree-y']);
+        self::assertSame(Density::Compact->rowGap(), $variables['--surface-sidebar-row-gap']);
+        self::assertSame(Density::Compact->sectionPadding(), $variables['--surface-sidebar-section-y']);
+    }
+
+    /**
+     * Comfortable is the geometry the sidebar shipped with, stated in the units
+     * the markup used to hardcode.
+     *
+     * This is the guard on the reconciliation: `--density-row-y` read 0.875rem
+     * while every row it was meant for was `py-2`, so pointing the rows at the
+     * token would have made every install's sidebar taller on deploy. The
+     * numbers below are `py-2`, `py-1.5`, `space-y-0.5` and `pt-4` — if one of
+     * them changes, somebody's sidebar moves and it should be on purpose.
+     */
+    public function testComfortableIsTheGeometryTheSidebarAlreadyHad(): void
+    {
+        $variables = $this->render(new Appearance());
+
+        self::assertSame('0.5rem', $variables['--surface-sidebar-row-y'], 'py-2');
+        self::assertSame('0.375rem', $variables['--surface-sidebar-tree-y'], 'py-1.5');
+        self::assertSame('0.125rem', $variables['--surface-sidebar-row-gap'], 'space-y-0.5');
+        self::assertSame('1rem', $variables['--surface-sidebar-section-y'], 'pt-4');
+    }
+
+    /** Every step is tighter than the one before it, on every sidebar measure. */
+    public function testTheSidebarScaleOnlyEverTightens(): void
+    {
+        $measures = [
+            static fn (Density $d): string => $d->rowPadding(),
+            static fn (Density $d): string => $d->treeRowPadding(),
+            static fn (Density $d): string => $d->rowGap(),
+            static fn (Density $d): string => $d->sectionPadding(),
+        ];
+
+        foreach ($measures as $index => $measure) {
+            $comfortable = (float) $measure(Density::Comfortable);
+            $cosy        = (float) $measure(Density::Cosy);
+            $compact     = (float) $measure(Density::Compact);
+
+            self::assertLessThanOrEqual($comfortable, $cosy, "measure $index: cosy is not tighter");
+            self::assertLessThan($cosy, $compact, "measure $index: compact is not tighter than cosy");
+        }
+    }
+
+    /**
+     * The two tiers stay two tiers.
+     *
+     * A system row and a label row have always been different heights, and a
+     * scale that let them meet would be a redesign of the sidebar rather than a
+     * density setting.
+     */
+    public function testATreeRowIsAlwaysTighterThanASystemRow(): void
+    {
+        foreach (Density::cases() as $density) {
+            self::assertLessThan(
+                (float) $density->rowPadding(),
+                (float) $density->treeRowPadding(),
+                $density->value . ' flattened the sidebar to one tier',
+            );
+        }
     }
 
     /** The case the whole group exists for: a dense list, a comfortable read. */

@@ -33,12 +33,30 @@ import { Controller } from "@hotwired/stimulus";
  * _WIDTH) and only on release. Writing per pointermove would be a request per
  * frame, and the width is already correct locally — the round trip is for the
  * next page load and the user's other devices, not for this one.
+ *
+ * ── A boundary WITHOUT the three positions ────────────────────────────────
+ *
+ * The appearance settings' live preview is the second thing in the app that is
+ * a resizable pane, and it is only that: it has no switch, no fullscreen, no
+ * mail to get out of the way of. `modes-value="false"` turns the whole
+ * position machinery off — no handoff, no demotion listener, no data-calendar-
+ * mode attribute — and what is left is the part both boundaries actually share:
+ * the drag, the rubber-free clamp against what the two panes have between them,
+ * the arrow keys, the double-click reset and the coalesced persist.
+ *
+ * `variable-value` says which custom property the boundary moves, so the two
+ * cannot write over each other. That is the only thing in here that ever knew
+ * a pane by name.
  */
 export default class extends Controller {
     static targets = ["wrapper", "pane", "handle", "main"];
     static values = {
         stateUrl: String,
         token: String,
+        variable: { type: String, default: "--calendar-pane-width" },
+        // Whether this boundary has the three positions at all. Without them
+        // the handle is a handle and nothing else.
+        modes: { type: Boolean, default: true },
         min: { type: Number, default: 320 },
         max: { type: Number, default: 900 },
         // What the mail side is never dragged below — a phone's width, not a
@@ -74,6 +92,17 @@ export default class extends Controller {
     connect() {
         this._onMove = this._onMove.bind(this);
         this._onUp = this._onUp.bind(this);
+
+        this._onResize = () => this._reclamp();
+        window.addEventListener("resize", this._onResize);
+
+        // A plain boundary is done here: there is no position to restore, and
+        // nothing on the page for a mail click to demote.
+        if (false === this.modesValue) {
+            this._reclamp();
+
+            return;
+        }
 
         // The server renders `mail` whatever the preference says — see
         // _mailbox.html.twig — so this is where the remembered position is
@@ -118,9 +147,8 @@ export default class extends Controller {
         // pane keeps a width the row can no longer afford, and the next drag
         // starts from limits computed for a viewport that is gone, which is
         // what made the handle stop at odd places. Re-clamp as the window
-        // changes and they stay in step.
-        this._onResize = () => this._reclamp();
-        window.addEventListener("resize", this._onResize);
+        // changes and they stay in step. (The listener itself is registered at
+        // the top of connect(), so a modeless boundary gets it too.)
 
         // Capture phase, because the interesting clicks are on links whose
         // navigation must proceed untouched — this listener only decides what
@@ -156,7 +184,11 @@ export default class extends Controller {
 
     disconnect() {
         window.removeEventListener("resize", this._onResize);
-        document.removeEventListener("click", this._onMailClick, true);
+
+        if (this._onMailClick) {
+            document.removeEventListener("click", this._onMailClick, true);
+        }
+
         this._stopListening();
     }
 
@@ -301,11 +333,19 @@ export default class extends Controller {
      * outside `split`, where the pane's width is not the stored one.
      */
     _reclamp() {
-        if (true === this._dragging || this.modeValue !== "split" || true === this._isNarrow()) {
+        if (true === this._dragging || false === this.hasPaneTarget) {
             return;
         }
 
-        if (false === this.hasPaneTarget) {
+        if (true === this.modesValue && (this.modeValue !== "split" || true === this._isNarrow())) {
+            return;
+        }
+
+        // A pane that is not laid out has no width to re-clamp, and clamping
+        // its zero up to the minimum would throw away the stored width for the
+        // rest of the session. The appearance preview is `display: none` below
+        // its container query, so this is the case that needs it.
+        if (null === this.paneTarget.offsetParent && "fixed" !== getComputedStyle(this.paneTarget).position) {
             return;
         }
 
@@ -533,6 +573,13 @@ export default class extends Controller {
         this._dragging = false;
         document.body.classList.remove("select-none", "cursor-col-resize");
 
+        // No band, no threshold — just keep where it was let go, and write it.
+        if (false === this.modesValue) {
+            this._apply(this._currentWidth(), { persist: true });
+
+            return;
+        }
+
         const strain = this._strain ?? 0;
         this._strain = 0;
         this.handleTarget?.classList.remove("is-straining");
@@ -591,7 +638,9 @@ export default class extends Controller {
 
         let drawn = bounded;
 
-        if (true === this._dragging) {
+        // The rubber band exists to reach the two OTHER positions. Without
+        // them there is nowhere past the limit to go, so the limit is a limit.
+        if (true === this._dragging && true === this.modesValue) {
             this._strain = width - bounded;
             drawn = bounded + this._rubber(this._strain);
 
@@ -601,7 +650,7 @@ export default class extends Controller {
             );
         }
 
-        this.element.style.setProperty("--calendar-pane-width", `${Math.round(drawn)}px`);
+        this.element.style.setProperty(this.variableValue, `${Math.round(drawn)}px`);
 
         if (persist) {
             this._persist({ width: String(Math.round(bounded)) });

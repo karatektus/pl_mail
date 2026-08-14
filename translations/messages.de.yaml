@@ -1841,6 +1841,7 @@ settings:
             heading: Akzentfarbe
         background:
             heading: Hintergrund
+            solid: Einfarbig
             theme: Theme-Standard
             upload: Bild hochladen
         density:
@@ -1893,6 +1894,7 @@ settings:
         preview:
             body: Eine kurze Nachricht, damit der Lesebereich etwas zu zeigen hat. Nichts davon ist echte Post — die Vorschau lädt keine.
             heading: Vorschau
+            resize: Vorschau in der Breite ändern
             sender1: Ada Lovelace
             sender2: Grace Hopper
             sender3: Kathleen Booth

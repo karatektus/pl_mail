@@ -127,7 +127,7 @@
     --pane-alpha:    1;
     --pane-blur:     0px;
     --app-radius:    0.75rem;
-    --density-row-y: 0.875rem;
+    --density-row-y: 0.5rem;
     --density-gap:   0.75rem;
     --scrim-alpha:   0;
 
@@ -158,8 +158,11 @@
        concrete pair — a surface with no override of its own is emitted
        carrying the global density's values, so these defaults only ever serve
        a page rendered for nobody. */
-    --surface-sidebar-row-y: 0.875rem;
-    --surface-sidebar-gap:   0.75rem;
+    --surface-sidebar-row-y:     0.5rem;
+    --surface-sidebar-tree-y:    0.375rem;
+    --surface-sidebar-row-gap:   0.125rem;
+    --surface-sidebar-section-y: 1rem;
+    --surface-sidebar-gap:       0.75rem;
     --surface-list-row-y:    0.625rem;
     --surface-list-gap:      0.75rem;
     --surface-reading-row-y: 1rem;
@@ -1310,6 +1313,75 @@
     border-radius: 0 9999px 9999px 0;
 }
 
+/* ── Sidebar density ───────────────────────────────────────────────────────
+   What the sidebar's density setting actually moves.
+
+   Every row here declares its TIER rather than its padding. There are two, and
+   they were two before this existed: a system row is `py-2` and anything one
+   step in — the label tree at every depth, an account's folder list — is
+   `py-1.5`. Density scales each tier from its own value, so Comfortable is the
+   geometry the file already had, to the pixel, and the two tiers stay visibly
+   different at all three steps. See Density::rowPadding().
+
+   Stated as two attributes rather than one rule plus an override, so nothing
+   here depends on source order or on out-specifying a Tailwind utility.
+
+   Line box is 20px (`text-sm`), so:
+     row   36 / 32 / 28px
+     tree  32 / 28 / 24px */
+#sidebar [data-nav-tier="row"],
+#sidebar-drawer-inner [data-nav-tier="row"] {
+    padding-block: var(--surface-sidebar-row-y);
+}
+
+#sidebar [data-nav-tier="tree"],
+#sidebar-drawer-inner [data-nav-tier="tree"] {
+    padding-block: var(--surface-sidebar-tree-y);
+}
+
+/* The space BETWEEN rows, and above a section heading. `space-y-0.5` and
+   `pt-4` are what these were, and Comfortable is both of those exactly. */
+@utility nav-rows {
+    & > * + * {
+        margin-block-start: var(--surface-sidebar-row-gap);
+    }
+}
+
+@utility nav-section-y {
+    padding-block-start: var(--surface-sidebar-section-y);
+}
+
+/* A floor for fingers.
+
+   Compact's 28px row is a deliberate choice on a desktop and a bad one on a
+   phone, where the sidebar is the drawer and every row is a tap target. The
+   44px guideline is the one worth naming here, and the honest position is that
+   this sidebar has never met it: a Comfortable row is 36px and always has
+   been. So this does not invent a new size — it stops the two tighter steps
+   going BELOW the size the app already ships at Comfortable, per tier. A phone
+   therefore sees no change at Comfortable (the case that must not move) and
+   never loses target area by choosing Compact.
+
+   `pointer: coarse` rather than a width query: a small window on a desktop is
+   still a mouse, and it is the input device that decides how big a target has
+   to be.
+
+   The floor is `1lh` plus Comfortable's own padding rather than a pixel
+   number, so it IS that row's Comfortable height whatever type size the row is
+   set in — a system row at `text-sm` and an account's folder row at `text-xs`
+   are 36px and 28px, and a single literal would have grown one of them. */
+@media (pointer: coarse) {
+    #sidebar [data-nav-tier="row"],
+    #sidebar-drawer-inner [data-nav-tier="row"] {
+        min-height: calc(1lh + 1rem);
+    }
+
+    #sidebar [data-nav-tier="tree"],
+    #sidebar-drawer-inner [data-nav-tier="tree"] {
+        min-height: calc(1lh + 0.75rem);
+    }
+}
+
 /* The trail to the selected row: a label's ancestors read as "you are in
    here", not as a second selection, so they take the accent on the text and
    leave the filled pill to the row that is actually open. */
@@ -1788,9 +1860,14 @@ label:has(> input.sr-only) {
    twice.
 
    The attributes live on the wrappers in _layout/_mailbox.html.twig rather
-   than inside the panes: the sidebar partial is a file this change
-   deliberately does not touch, and hanging the attribute on the wrapper that
-   includes it gets the same cascade without editing it. */
+   than inside the panes, so a pane picks up its own gutter without every
+   include having to know it is inside one.
+
+   The SIDEBAR's rows do not come through here. They are selected by
+   `#sidebar`/`#sidebar-drawer-inner` further down, off the variables directly,
+   because that file already owns its rows' inline padding for the same reason
+   (the pill has to survive a label's tree depth) and a row whose two axes are
+   decided in two different places is a row nobody can predict. */
 [data-surface="sidebar"] {
     --density-row-y: var(--surface-sidebar-row-y);
     --density-gap:   var(--surface-sidebar-gap);
