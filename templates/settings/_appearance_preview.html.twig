@@ -41,9 +41,18 @@ the stacked behaviour — which is the one the second line exists for.
 
    `bg-surface` and a border, because this is a card in its own right and no
    longer a bare column inside somebody else's. #}
-<section class="sticky top-0 rounded-pane border border-line bg-surface overflow-hidden"
+{# `pane-fill-card` above 80rem: the card is exactly as tall as the row, which
+   is exactly as tall as the controls card beside it — the thing that was asked
+   for — and it retires the `sticky` above, which was how the card stayed on
+   screen while a 2500px row scrolled past it. Both halves matter: full height
+   ALONE, on a row still sized by the controls, is a 2500px card holding 500px
+   of miniature. The row is capped first (see pane-fill-host in
+   _appearance.html.twig) and the miniature grows into what is left (see
+   pane-fill-grow below), so what fills is the preview, not the ground under
+   it. #}
+<section class="sticky top-0 rounded-pane border border-line bg-surface overflow-hidden pane-fill-card"
          aria-label="{{ 'settings.appearance.preview.heading'|trans }}">
-    <div class="flex items-start justify-between gap-3 px-4 py-3.5 border-b border-line">
+    <div class="shrink-0 flex items-start justify-between gap-3 px-4 py-3.5 border-b border-line">
         <div class="min-w-0">
             <h2 class="text-sm font-semibold text-ink">{{ 'settings.appearance.preview.heading'|trans }}</h2>
             <p class="text-xs text-ink-faint mt-0.5">{{ 'settings.appearance.preview.subheading'|trans }}</p>
@@ -84,15 +93,23 @@ the stacked behaviour — which is the one the second line exists for.
        thing you came to watch change. The reading-pane half is still reachable
        by scrolling the card itself. Above @3xl there is a whole column for it
        and no cap at all. #}
-    <div class="px-4 py-4 max-h-[30svh] overflow-y-auto @3xl:max-h-none @3xl:overflow-visible">
+    <div class="px-4 py-4 max-h-[30svh] overflow-y-auto @3xl:max-h-none @3xl:overflow-visible
+                pane-fill-scroll pane-fill-stack">
         {# aria-hidden, and this is deliberate rather than lazy. Every control on
            this page has its own accessible name saying what it does; the preview
            adds no information a screen-reader user can act on, and read out it is
            three invented senders and a paragraph of filler between them and the
            next control. The section keeps its own label so the region is still
            announced and skippable. #}
-        <div class="rounded-pane border border-line overflow-hidden" aria-hidden="true">
-            <div data-surface="list" class="@container divide-y divide-line">
+        {# `pane-fill-grow pane-fill-stack`: in a card that is now the height of
+           the row, the miniature GROWS into it rather than sitting at the top of
+           an empty box — the list keeps its three rows and the reading half
+           takes what is left, which is what the pane it is a picture of does.
+           It grows and never shrinks (`min-height` is left at `auto`), so on a
+           short window the card's own scroll is what gives, not the sample. #}
+        <div class="rounded-pane border border-line overflow-hidden
+                    pane-fill-grow pane-fill-stack" aria-hidden="true">
+            <div data-surface="list" class="@container divide-y divide-line pane-fill-keep">
                 {% for row in [
                     { unread: true,  seed: 'ada@plmail.test',    tone: 'bg-sky-500/20 text-sky-700 dark:text-sky-300' },
                     { unread: false, seed: 'grace@plmail.test',  tone: 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-300' },
@@ -137,7 +154,7 @@ the stacked behaviour — which is the one the second line exists for.
                reading pane switches to the theme's light sheet in every theme, and
                a preview that kept the app's surface would show the setting against
                the wrong background. #}
-            <div data-surface="reading" class="mail-sheet border-t border-line px-3">
+            <div data-surface="reading" class="mail-sheet border-t border-line px-3 pane-fill-grow">
                 <div class="reading-y">
                     <div class="flex items-center gap-2">
                         <span class="w-6 h-6 rounded-full bg-sky-500/20 text-sky-700 text-[10px] font-semibold flex items-center justify-center shrink-0">

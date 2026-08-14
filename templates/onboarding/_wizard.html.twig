@@ -53,7 +53,8 @@ nothing to explain passes no aside_template and the grid collapses to one.
                 statuses: statuses,
             } only %}
 
-            <div class="flex-1 min-h-0 overflow-y-auto px-6 py-5">
+            <div class="flex-1 min-h-0 overflow-y-auto px-6 py-5
+                        {{ 'appearance' == step.value ? 'pane-fill-port' : '' }}">
                 {# min-w-0 on both children, and it is load-bearing rather than
                    defensive. A grid item's `min-width` is `auto`, which means
                    "never narrower than my content", so one long unbreakable
@@ -62,8 +63,25 @@ nothing to explain passes no aside_template and the grid collapses to one.
                    scrolled sideways. min-w-0 lets the track be the width it was
                    given and leaves the truncating to the elements that already
                    ask for it. #}
-                <div class="grid gap-6 {% if aside_template is defined %}md:grid-cols-[1fr_320px]{% endif %}">
-                    <div class="min-w-0" id="onboarding-step-{{ step.value }}">
+                {# `pane-fill-host` for the appearance step, exactly as
+                   settings/index.html.twig does it for the appearance SECTION —
+                   they are the same panel, and the panel cannot reach its own
+                   scroll port from inside. The step named here rather than a
+                   flag threaded through the include, because it is this
+                   element's height that is being given away and this is where a
+                   reader looks for what happened to it. Above 80rem it caps the
+                   grid row so the two appearance cards can be the same height
+                   and scroll their own bodies; below it the class does nothing
+                   and this step is as long as it has always been. #}
+                <div class="grid gap-6 {% if aside_template is defined %}md:grid-cols-[1fr_320px]{% endif %}
+                            {{ 'appearance' == step.value ? 'pane-fill-host' : '' }}">
+                    {# A COLUMN, not a plain block, and that is about the alerts
+                       above the step's own body: the panel takes what is LEFT
+                       after them, so a step showing an error is a shorter panel
+                       rather than a panel pushed past the port by exactly one
+                       alert. #}
+                    <div class="min-w-0 {{ 'appearance' == step.value ? 'pane-fill pane-fill-stack' : '' }}"
+                         id="onboarding-step-{{ step.value }}">
                         {% set stepError = statuses[step.value].error %}
                         {% if stepError %}
                             {# Repeated here, not only on the rail: the cross
