@@ -11,10 +11,15 @@ told "we use Nextcloud here" and finds nothing has no idea whether the feature
 is missing, broken, or waiting on an admin. Naming the reason turns a dead end
 into a message they can act on.
 #}
-<turbo-frame id="settings-integrations-frame" class="block space-y-6">
+{# The three groups are BANDS inside one section card, not three cards. They
+   partition a single list by state — connected, connectable, neither — rather
+   than being three subjects, which is the rule settings/index.html.twig states.
+   The card and its heading are opened there; this frame is only its body, so
+   nothing in here draws its own chrome. #}
+<turbo-frame id="settings-integrations-frame" class="block">
 
     {# ── Connected ──────────────────────────────────────────────────────────── #}
-    <div class="rounded-pane border border-line overflow-hidden">
+    <div>
         {% if integrations is empty %}
             <p class="px-4 py-8 text-center text-sm text-ink-faint italic">
                 {{ 'settings.integrations.empty'|trans }}
@@ -96,7 +101,7 @@ into a message they can act on.
 
     {# ── Available to connect ───────────────────────────────────────────────── #}
     {% if available is not empty %}
-        <div>
+        <div class="px-4 py-3.5 border-t border-line">
             <h3 class="text-xs font-semibold uppercase tracking-wide text-ink-faint mb-2">
                 {{ 'settings.integrations.available_heading'|trans }}
             </h3>
@@ -127,7 +132,7 @@ into a message they can act on.
     {% endfor %}
 
     {% if unavailable is not empty %}
-        <div>
+        <div class="px-4 py-3.5 border-t border-line">
             <h3 class="text-xs font-semibold uppercase tracking-wide text-ink-faint mb-2">
                 {{ 'settings.integrations.unavailable_heading'|trans }}
             </h3>

@@ -1,3 +1,4 @@
+{% import '_partials/_card_chrome.html.twig' as chrome %}
 {#
 admin/_integrations_frame.html.twig — every integration provider and its state.
 
@@ -77,7 +78,7 @@ the same screen as the field.
            the wrong one — "Google Drive" is a substring of nothing here, but
            "Nextcloud" appears in its own tutorial body too. #}
         <details id="integration-provider-{{ provider.value }}"
-                 class="group/int rounded-pane border border-line bg-pane-soft overflow-hidden">
+                 class="group/int {{ chrome.shell() }}">
 
             <summary class="flex items-center gap-3 px-5 h-14 cursor-pointer list-none hover:bg-hover transition-colors select-none">
                 <i class="fa-solid fa-chevron-right text-[9px] text-ink-faint w-3 shrink-0

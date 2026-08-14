@@ -4,10 +4,16 @@ it posts here rather than to the wizard, and the same picture picker — the
 wizard runs once, and a feature reachable only from it is one most people never
 find.
 #}
-<section>
-    <h2 class="text-sm font-semibold text-ink">{{ 'settings.profile.heading'|trans }}</h2>
-    <p class="text-xs text-ink-faint mt-0.5 mb-5">{{ 'settings.profile.subheading'|trans }}</p>
-
+{# `padded`: this body is a bare form, not a list that pads its own rows, so it
+   is one of the few cards that takes the chrome's body inset. Until now it was
+   not a card at all — a bare heading and a form, which on a narrow pane sat
+   flush against the pane border like security's heading did. #}
+{% embed 'settings/_card.html.twig' with {
+    heading:    'settings.profile.heading'|trans,
+    subheading: 'settings.profile.subheading'|trans,
+    padded:     true,
+} %}
+    {% block body %}
     <div class="max-w-md">
         {{ form_start(profileForm) }}
             {{ form_widget(profileForm) }}
@@ -32,4 +38,5 @@ find.
             >{{ 'settings.profile.save'|trans }}</button>
         {{ form_end(profileForm) }}
     </div>
-</section>
+    {% endblock %}
+{% endembed %}

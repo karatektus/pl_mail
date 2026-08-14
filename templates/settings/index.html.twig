@@ -238,177 +238,182 @@
                                    the admin page documents: this pane is not as wide as the
                                    window, and at md the mail sidebar appears and takes from
                                    it, so pane width and viewport width do not move
-                                   together. #}
+                                   together.
+
+                                   THERE ARE NO `px-4 @2xl:px-0` PAYBACK WRAPPERS LEFT IN
+                                   HERE, and that is the rule finishing rather than an
+                                   exception to it. The payback existed for content that was
+                                   not a card — a bare heading over a bordered box — which
+                                   the `-mx-6` would have pushed flush against the pane
+                                   border and clipped. Every section is a real card now, its
+                                   heading inside its own header band, so every section is
+                                   the case the `-mx-6` was written for and paying it back
+                                   would inset one card 16px further than its neighbour.
+                                   If you add a section that is NOT a card, it pays.
+
+                                   One section still does: health renders a FEED of
+                                   per-issue cards rather than a single card, so its
+                                   heading is not a card header and pays the -mx-6 back
+                                   inside settings/_health.html.twig, where the reason
+                                   is written out. #}
                                 <div class="min-w-0 -mx-6 @2xl:mx-0
                                             {{ 'appearance' == section ? 'pane-fill pane-fill-stack' : '' }}">
                                     {% if section == 'health' %}
                                         {% include 'settings/_health.html.twig' %}
                                     {% elseif section == 'appearance' %}
-                                        {# NO payback wrapper, and its absence is the
-                                           house rule rather than an exception to it.
-
-                                           This wrapper's `-mx-6` exists so section
-                                           CARDS can reach the pane edges on a narrow
-                                           pane; content that is not a card pays it
-                                           back with `px-4 @2xl:px-0`. Appearance used
-                                           to pay, and had to: it was bare headings and
-                                           segmented groups, which sat flush against
-                                           the pane border and were clipped by it.
-
-                                           It is two real cards now — the controls and
-                                           the preview — so it is exactly the case the
-                                           `-mx-6` was written for, and paying it back
-                                           would inset these two cards 16px further
-                                           than health's and security's beside them.
-                                           Their own `px-4` header and body padding is
-                                           the single inset left, which is what every
-                                           other card on this page does. #}
+                                        {# The one section that is not the generic card, and
+                                           deliberately so: it is also the setup wizard's
+                                           appearance step, it carries its own @container,
+                                           its two cards are a split pair with a resizable
+                                           handle between them, and its controls card scrolls
+                                           its own body under a capped row. It draws the same
+                                           chrome from _partials/_card_chrome.html.twig, so it
+                                           matches without being flattened into the macro. #}
                                         {% include 'settings/_appearance.html.twig' %}
                                     {% elseif section == 'profile' %}
                                         {% include 'settings/_profile.html.twig' %}
                                     {% elseif section == 'security' %}
                                         {% include 'settings/_security.html.twig' %}
                                     {% elseif section == 'general' %}
-                                        <section>
-                                            <div class="mb-4 px-4 @2xl:px-0">
-                                                <h2 class="text-sm font-semibold text-ink">{{ 'settings.language.heading'|trans }}</h2>
-                                                <p class="text-xs text-ink-faint mt-0.5">{{ 'settings.language.subheading'|trans }}</p>
-                                            </div>
+                                        {# Three peer cards, not one card with three bands:
+                                           language, zone and clock are each a section-grade
+                                           subject with its own heading AND subheading in the
+                                           catalogue. That is the rule this page follows —
+                                           groups that merely partition one subject's list
+                                           stay inside a single card as h3 bands. #}
+                                        <div class="space-y-4">
+                                            {% embed 'settings/_card.html.twig' with {
+                                                heading:    'settings.language.heading'|trans,
+                                                subheading: 'settings.language.subheading'|trans,
+                                            } %}
+                                                {% block body %}
+                                                    {% include 'settings/_language.html.twig' with {
+                                                        locales: locales,
+                                                        activeLocale: activeLocale,
+                                                    } %}
+                                                {% endblock %}
+                                            {% endembed %}
 
-                                            <div class="rounded-pane border border-line overflow-hidden">
-                                                {% include 'settings/_language.html.twig' with {
-                                                    locales: locales,
-                                                    activeLocale: activeLocale,
-                                                } %}
-                                            </div>
-
-                                            <div class="mb-4 mt-8 px-4 @2xl:px-0">
-                                                <h2 class="text-sm font-semibold text-ink">{{ 'settings.timezone.heading'|trans }}</h2>
-                                                <p class="text-xs text-ink-faint mt-0.5">{{ 'settings.timezone.subheading'|trans }}</p>
-                                            </div>
-
-                                            <div class="rounded-pane border border-line overflow-hidden">
-                                                {% include 'settings/_timezone.html.twig' with {
-                                                    timezoneGroups: timezoneGroups,
-                                                    activeTimezone: activeTimezone,
-                                                    defaultTimezone: defaultTimezone,
-                                                    currentTime: currentTime,
-                                                } %}
-                                            </div>
+                                            {% embed 'settings/_card.html.twig' with {
+                                                heading:    'settings.timezone.heading'|trans,
+                                                subheading: 'settings.timezone.subheading'|trans,
+                                            } %}
+                                                {% block body %}
+                                                    {% include 'settings/_timezone.html.twig' with {
+                                                        timezoneGroups: timezoneGroups,
+                                                        activeTimezone: activeTimezone,
+                                                        defaultTimezone: defaultTimezone,
+                                                        currentTime: currentTime,
+                                                    } %}
+                                                {% endblock %}
+                                            {% endembed %}
 
                                             {# Under the zone rather than beside the language: the two
                                                together answer "what time is it, and how is it
                                                written", and somebody fixing one has usually come to
                                                fix the other. #}
-                                            <div class="mb-4 mt-8 px-4 @2xl:px-0">
-                                                <h2 class="text-sm font-semibold text-ink">{{ 'settings.clock.heading'|trans }}</h2>
-                                                <p class="text-xs text-ink-faint mt-0.5">{{ 'settings.clock.subheading'|trans }}</p>
-                                            </div>
-
-                                            <div class="rounded-pane border border-line overflow-hidden">
-                                                {% include 'settings/_clock.html.twig' with {
-                                                    clockOptions: clockOptions,
-                                                    activeClock: activeClock,
-                                                    defaultClock: defaultClock,
-                                                } %}
-                                            </div>
-                                        </section>
+                                            {% embed 'settings/_card.html.twig' with {
+                                                heading:    'settings.clock.heading'|trans,
+                                                subheading: 'settings.clock.subheading'|trans,
+                                            } %}
+                                                {% block body %}
+                                                    {% include 'settings/_clock.html.twig' with {
+                                                        clockOptions: clockOptions,
+                                                        activeClock: activeClock,
+                                                        defaultClock: defaultClock,
+                                                    } %}
+                                                {% endblock %}
+                                            {% endembed %}
+                                        </div>
                                     {% elseif section == 'aliases' %}
-                                        <section>
-                                            <div class="mb-4 px-4 @2xl:px-0">
-                                                <h2 class="text-sm font-semibold text-ink">{{ 'settings.aliases.heading'|trans }}</h2>
-                                                <p class="text-xs text-ink-faint mt-0.5">{{ 'settings.aliases.subheading'|trans }}</p>
-                                            </div>
+                                        <div class="space-y-4">
+                                            {% embed 'settings/_card.html.twig' with {
+                                                heading:    'settings.aliases.heading'|trans,
+                                                subheading: 'settings.aliases.subheading'|trans,
+                                            } %}
+                                                {% block body %}
+                                                    <div id="settings-alias-list">
+                                                        {% include 'settings/_aliases.html.twig' with {
+                                                            manageableAccounts: manageableAccounts,
+                                                            aliasForms: aliasForms,
+                                                        } %}
+                                                    </div>
+                                                {% endblock %}
+                                            {% endembed %}
 
-                                            <div class="rounded-pane border border-line overflow-hidden">
-                                                <div id="settings-alias-list">
-                                                    {% include 'settings/_aliases.html.twig' with {
-                                                        manageableAccounts: manageableAccounts,
-                                                        aliasForms: aliasForms,
-                                                    } %}
-                                                </div>
-
-                                            </div>
-                                        </section>
-
-                                        {# Per-alias compose defaults, under the alias list
-                                           because every control in it is captioned by an
-                                           address from the list above. Signatures used to
-                                           be in here too and are their own section now —
-                                           they needed the room, and people looked for them
-                                           by name. #}
-                                        <section class="mt-8">
-                                            <div class="mb-4 px-4 @2xl:px-0">
-                                                <h2 class="text-sm font-semibold text-ink">{{ 'settings.compose_defaults.heading'|trans }}</h2>
-                                                <p class="text-xs text-ink-faint mt-0.5">{{ 'settings.compose_defaults.subheading'|trans }}</p>
-                                            </div>
-
-                                            <div class="rounded-pane border border-line overflow-hidden">
-                                                <div id="settings-compose-defaults">
-                                                    {% include 'settings/_compose_defaults.html.twig' with {
-                                                        manageableAccounts: manageableAccounts,
-                                                    } %}
-                                                </div>
-                                            </div>
-                                        </section>
+                                            {# Per-alias compose defaults, under the alias list
+                                               because every control in it is captioned by an
+                                               address from the list above. Signatures used to
+                                               be in here too and are their own section now —
+                                               they needed the room, and people looked for them
+                                               by name. #}
+                                            {% embed 'settings/_card.html.twig' with {
+                                                heading:    'settings.compose_defaults.heading'|trans,
+                                                subheading: 'settings.compose_defaults.subheading'|trans,
+                                            } %}
+                                                {% block body %}
+                                                    <div id="settings-compose-defaults">
+                                                        {% include 'settings/_compose_defaults.html.twig' with {
+                                                            manageableAccounts: manageableAccounts,
+                                                        } %}
+                                                    </div>
+                                                {% endblock %}
+                                            {% endembed %}
+                                        </div>
                                     {% elseif section == 'signature' %}
-                                        <section>
-                                            <div class="mb-4 px-4 @2xl:px-0">
-                                                <h2 class="text-sm font-semibold text-ink">{{ 'settings.signature.heading'|trans }}</h2>
-                                                <p class="text-xs text-ink-faint mt-0.5">{{ 'settings.signature.subheading'|trans }}</p>
-                                            </div>
-
-                                            <div class="rounded-pane border border-line overflow-hidden">
+                                        {% embed 'settings/_card.html.twig' with {
+                                            heading:    'settings.signature.heading'|trans,
+                                            subheading: 'settings.signature.subheading'|trans,
+                                        } %}
+                                            {% block body %}
                                                 <div id="settings-signature">
                                                     {% include 'settings/_signature.html.twig' with {
                                                         manageableAccounts: manageableAccounts,
                                                     } %}
                                                 </div>
-                                            </div>
-                                        </section>
+                                            {% endblock %}
+                                        {% endembed %}
                                     {% elseif section == 'filters' %}
-                                        <section>
-                                            <div class="mb-4 px-4 @2xl:px-0">
-                                                <h2 class="text-sm font-semibold text-ink">{{ 'settings.filters.heading'|trans }}</h2>
-                                                <p class="text-xs text-ink-faint mt-0.5">{{ 'settings.filters.subheading'|trans }}</p>
-                                            </div>
+                                        {% embed 'settings/_card.html.twig' with {
+                                            heading:    'settings.filters.heading'|trans,
+                                            subheading: 'settings.filters.subheading'|trans,
+                                        } %}
+                                            {% block body %}
+                                                {# A frame, so a run in progress can re-read itself without
+                                                   a full navigation. Its src is the same partial the stream
+                                                   replaces, so both paths render one template. The frame is
+                                                   no longer the card — it is the card's body, so the list
+                                                   and the heading above it are one surface. #}
+                                                <turbo-frame id="settings-filter-frame"
+                                                             src="{{ path('app_settings_filters_list') }}"
+                                                             class="block">
+                                                    <div id="settings-filter-list">
+                                                        {% include 'settings/_filters.html.twig' with { rules: rules, labels: labels } %}
+                                                    </div>
+                                                </turbo-frame>
+                                            {% endblock %}
+                                        {% endembed %}
 
-                                            {# A frame, so a run in progress can re-read itself without
-                                               a full navigation. Its src is the same partial the stream
-                                               replaces, so both paths render one template. #}
-                                            <turbo-frame id="settings-filter-frame"
-                                                         src="{{ path('app_settings_filters_list') }}"
-                                                         class="block rounded-pane border border-line overflow-hidden">
-                                                <div id="settings-filter-list">
-                                                    {% include 'settings/_filters.html.twig' with { rules: rules, labels: labels } %}
-                                                </div>
-                                            </turbo-frame>
-
-                                            {# The editor opens below the list rather than replacing it, so the
-                                               rule being edited stays visible next to its siblings. #}
-                                            <div class="mt-4">
-                                                {% include 'settings/filters/_editor_empty.html.twig' %}
-                                            </div>
-                                        </section>
+                                        {# The editor opens below the list rather than replacing it, so the
+                                           rule being edited stays visible next to its siblings. #}
+                                        <div class="mt-4">
+                                            {% include 'settings/filters/_editor_empty.html.twig' %}
+                                        </div>
 
                                     {% elseif section == 'notifications' %}
-                                        <section>
-                                            <div class="mb-4 px-4 @2xl:px-0">
-                                                <h2 class="text-sm font-semibold text-ink">{{ 'settings.notifications.heading'|trans }}</h2>
-                                                <p class="text-xs text-ink-faint mt-0.5">{{ 'settings.notifications.subheading'|trans }}</p>
-                                            </div>
-
-                                            <div class="rounded-pane border border-line overflow-hidden">
+                                        {# ONE card: the device list does not partition a
+                                           different subject, it is what registering this
+                                           browser has produced across every device. The
+                                           toggle registers, the list below reports. #}
+                                        {% embed 'settings/_card.html.twig' with {
+                                            heading:    'settings.notifications.heading'|trans,
+                                            subheading: 'settings.notifications.subheading'|trans,
+                                        } %}
+                                            {% block body %}
                                                 {% include 'settings/_notifications.html.twig' with {
                                                     vapidPublicKey: vapidPublicKey,
                                                 } %}
 
-                                                {# In the same pane as the
-                                                   toggle, because they are one
-                                                   subject: the toggle registers
-                                                   this browser, and the list
-                                                   below is what registering has
-                                                   produced across every device. #}
                                                 {# Wrapped in an id because removing
                                                    a device replaces the whole list
                                                    over Turbo — see
@@ -419,76 +424,85 @@
                                                         lastDeliveries: lastDeliveries,
                                                     } %}
                                                 </div>
-                                            </div>
-                                        </section>
+                                            {% endblock %}
+                                        {% endembed %}
 
                                     {% elseif section == 'app-passwords' %}
-                                        <section>
-                                            <div class="mb-4 px-4 @2xl:px-0">
-                                                <h2 class="text-sm font-semibold text-ink">{{ 'settings.app_passwords.heading'|trans }}</h2>
-                                                <p class="text-xs text-ink-faint mt-0.5">{{ 'settings.app_passwords.subheading'|trans }}</p>
-                                            </div>
+                                        <div class="space-y-4">
+                                            {% embed 'settings/_card.html.twig' with {
+                                                heading:    'settings.app_passwords.heading'|trans,
+                                                subheading: 'settings.app_passwords.subheading'|trans,
+                                            } %}
+                                                {% block body %}
+                                                    <div id="settings-app-password-list">
+                                                        {% include 'settings/_app_passwords.html.twig' with {
+                                                            apiTokens: apiTokens,
+                                                            apiTokenForm: apiTokenForm,
+                                                        } %}
+                                                    </div>
+                                                {% endblock %}
+                                            {% endembed %}
 
-                                            <div class="rounded-pane border border-line overflow-hidden">
-                                                <div id="settings-app-password-list">
-                                                    {% include 'settings/_app_passwords.html.twig' with {
-                                                        apiTokens: apiTokens,
-                                                        apiTokenForm: apiTokenForm,
-                                                    } %}
-                                                </div>
-                                            </div>
-
-                                            <div class="mt-4 rounded-pane border border-line px-4 py-3.5">
-                                                <h3 class="text-xs font-semibold text-ink mb-1">{{ 'settings.app_passwords.setup_heading'|trans }}</h3>
-                                                <p class="text-[11px] text-ink-muted leading-relaxed">
-                                                    {{ 'settings.app_passwords.setup_hint'|trans }}
-                                                </p>
-                                                <code class="mt-2 block break-all rounded-lg bg-zinc-500/10 px-3 py-2 text-[11px] font-mono text-ink select-all">{{ app.request.schemeAndHttpHost }}/jmap/session</code>
-                                            </div>
-                                        </section>
+                                            {# Its own card rather than a band in the one
+                                               above: "where do I point my client" is a
+                                               different question from "which passwords
+                                               exist", and it has its own heading in the
+                                               catalogue. Padded — it is prose, not a list. #}
+                                            {% embed 'settings/_card.html.twig' with {
+                                                heading: 'settings.app_passwords.setup_heading'|trans,
+                                                padded:  true,
+                                            } %}
+                                                {% block body %}
+                                                    <p class="text-[11px] text-ink-muted leading-relaxed">
+                                                        {{ 'settings.app_passwords.setup_hint'|trans }}
+                                                    </p>
+                                                    <code class="mt-2 block break-all rounded-lg bg-zinc-500/10 px-3 py-2 text-[11px] font-mono text-ink select-all">{{ app.request.schemeAndHttpHost }}/jmap/session</code>
+                                                {% endblock %}
+                                            {% endembed %}
+                                        </div>
 
                                     {% elseif section == 'integrations' %}
-                                        <section>
-                                            <div class="mb-4 px-4 @2xl:px-0">
-                                                <h2 class="text-sm font-semibold text-ink">{{ 'settings.integrations.heading'|trans }}</h2>
-                                                <p class="text-xs text-ink-faint mt-0.5">{{ 'settings.integrations.subheading'|trans }}</p>
-                                            </div>
-
-                                            {# Loaded through its own frame rather than rendered inline:
-                                               every mutation replaces the frame, and the connect form
-                                               posts a Turbo Stream that needs a stable target. #}
-                                            <turbo-frame id="settings-integrations-frame"
-                                                         src="{{ path('app_settings_integrations_list') }}"
-                                                         loading="lazy"
-                                                         class="block space-y-6">
-                                                <div class="py-10 text-center text-sm text-ink-faint">
-                                                    <i class="fa-solid fa-circle-notch fa-spin mr-2" aria-hidden="true"></i>{{ 'admin.loading'|trans }}
-                                                </div>
-                                            </turbo-frame>
-                                        </section>
+                                        {# ONE card. "Connected", "Available" and "Elsewhere"
+                                           partition a single list by state — they are not
+                                           three subjects — so they are h3 bands inside the
+                                           body rather than three peer cards. #}
+                                        {% embed 'settings/_card.html.twig' with {
+                                            heading:    'settings.integrations.heading'|trans,
+                                            subheading: 'settings.integrations.subheading'|trans,
+                                        } %}
+                                            {% block body %}
+                                                {# Loaded through its own frame rather than rendered inline:
+                                                   every mutation replaces the frame, and the connect form
+                                                   posts a Turbo Stream that needs a stable target. #}
+                                                <turbo-frame id="settings-integrations-frame"
+                                                             src="{{ path('app_settings_integrations_list') }}"
+                                                             loading="lazy"
+                                                             class="block">
+                                                    <div class="py-10 text-center text-sm text-ink-faint">
+                                                        <i class="fa-solid fa-circle-notch fa-spin mr-2" aria-hidden="true"></i>{{ 'admin.loading'|trans }}
+                                                    </div>
+                                                </turbo-frame>
+                                            {% endblock %}
+                                        {% endembed %}
 
                                     {% elseif section == 'labels' %}
-                                        <section>
-                                            <div class="mb-4 px-4 @2xl:px-0">
-                                                <h2 class="text-sm font-semibold text-ink">{{ 'settings.labels.heading'|trans }}</h2>
-                                                <p class="text-xs text-ink-faint mt-0.5">{{ 'settings.labels.subheading'|trans }}</p>
-                                            </div>
-
-                                            <div class="rounded-pane border border-line overflow-hidden">
+                                        {% embed 'settings/_card.html.twig' with {
+                                            heading:    'settings.labels.heading'|trans,
+                                            subheading: 'settings.labels.subheading'|trans,
+                                        } %}
+                                            {% block body %}
                                                 <div id="settings-label-list">
                                                     {% include 'settings/_labels.html.twig' with { labels: labels } %}
                                                 </div>
-                                            </div>
-                                        </section>
+                                            {% endblock %}
+                                        {% endembed %}
 
                                     {% elseif section == 'sharing' %}
-                                        <section>
-                                            <div class="mb-4 px-4 @2xl:px-0">
-                                                <h2 class="text-sm font-semibold text-ink">{{ 'settings.sharing.heading'|trans }}</h2>
-                                                <p class="text-xs text-ink-faint mt-0.5">{{ 'settings.sharing.subheading'|trans }}</p>
-                                            </div>
-
-                                            <div class="rounded-pane border border-line overflow-hidden">
+                                        {% embed 'settings/_card.html.twig' with {
+                                            heading:    'settings.sharing.heading'|trans,
+                                            subheading: 'settings.sharing.subheading'|trans,
+                                        } %}
+                                            {% block body %}
                                                 {# The stream's target, re-emitted inside its own
                                                    replacement for the reason the calendar list
                                                    below states. Both halves of the section live
@@ -503,17 +517,15 @@
                                                         mintedBookingUrl: null,
                                                     } only %}
                                                 </div>
-                                            </div>
-                                        </section>
+                                            {% endblock %}
+                                        {% endembed %}
 
                                     {% elseif section == 'calendars' %}
-                                        <section>
-                                            <div class="mb-4 px-4 @2xl:px-0">
-                                                <h2 class="text-sm font-semibold text-ink">{{ 'settings.calendars.heading'|trans }}</h2>
-                                                <p class="text-xs text-ink-faint mt-0.5">{{ 'settings.calendars.subheading'|trans }}</p>
-                                            </div>
-
-                                            <div class="rounded-pane border border-line overflow-hidden">
+                                        {% embed 'settings/_card.html.twig' with {
+                                            heading:    'settings.calendars.heading'|trans,
+                                            subheading: 'settings.calendars.subheading'|trans,
+                                        } %}
+                                            {% block body %}
                                                 {# The id is the stream's target, so it wraps the
                                                    partial here and is re-emitted inside the
                                                    replacement — a replace that dropped it would
@@ -525,36 +537,38 @@
                                                         calendarConnections: calendarConnections|default([]),
                                                     } only %}
                                                 </div>
-                                            </div>
-                                        </section>
+                                            {% endblock %}
+                                        {% endembed %}
 
                                     {% else %}
-                                        <section>
-                                            <div class="flex items-center justify-between mb-4">
-                                                <div>
-                                                    <h2 class="text-sm font-semibold text-ink">{{ 'settings.accounts.heading'|trans }}</h2>
-                                                    <p class="text-xs text-ink-faint mt-0.5">{{ 'settings.accounts.subheading'|trans }}</p>
-                                                </div>
+                                        {# The Add button rides in the header band via the
+                                           card's `actions` block — the reason this is an
+                                           embed and not a macro. #}
+                                        {% embed 'settings/_card.html.twig' with {
+                                            heading:    'settings.accounts.heading'|trans,
+                                            subheading: 'settings.accounts.subheading'|trans,
+                                        } %}
+                                            {% block actions %}
                                                 <button
                                                     type="button"
                                                     data-controller="ui--modal"
                                                     data-action="click->ui--modal#open"
                                                     data-ui--modal-title-value="{{ 'sidebar.accounts.add'|trans }}"
                                                     data-ui--modal-src-value="{{ path('app_account_new') }}"
-                                                    class="inline-flex items-center gap-2 px-3 h-9 rounded-lg text-sm font-medium
+                                                    class="shrink-0 inline-flex items-center gap-2 px-3 h-9 rounded-lg text-sm font-medium
                                                            bg-accent hover:bg-accent-strong text-accent-ink transition-colors cursor-pointer"
                                                 >
                                                     <i class="fa-solid fa-plus text-xs" aria-hidden="true"></i>
                                                     {{ 'sidebar.accounts.add'|trans }}
                                                 </button>
-                                            </div>
+                                            {% endblock %}
 
-                                            <div class="rounded-pane border border-line overflow-hidden">
+                                            {% block body %}
                                                 <div id="settings-account-list">
                                                     {% include 'settings/_accounts.html.twig' with { manageableAccounts: manageableAccounts } %}
                                                 </div>
-                                            </div>
-                                        </section>
+                                            {% endblock %}
+                                        {% endembed %}
 
                                     {% endif %}
                                 </div>

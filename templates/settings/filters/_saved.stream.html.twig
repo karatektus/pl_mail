@@ -19,7 +19,7 @@ of the rule that was just written.
     <template>
         <turbo-frame id="settings-filter-frame"
                      src="{{ path('app_settings_filters_list') }}"
-                     class="block rounded-pane border border-line overflow-hidden">
+                     class="block">
             <div id="settings-filter-list">
                 {% include 'settings/_filters.html.twig' with { rules: rules, labels: labels } %}
             </div>

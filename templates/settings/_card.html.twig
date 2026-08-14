@@ -1,0 +1,55 @@
+{#
+A settings section card.
+
+Twenty-two sections hand-rolled this shape and only three finished the job, so
+the page was a mix of real cards, headings with a bordered box under them, and
+bare content sitting flush against the pane edge. This is that shape, once.
+
+EMBED, not include or macro, because two sections need markup inside the header
+(Accounts' "Add account" button) and every section needs markup in the body.
+A macro pair can open a header but cannot let the caller put anything in it.
+
+    {% embed 'settings/_card.html.twig' with {
+        heading:    'settings.labels.heading'|trans,
+        subheading: 'settings.labels.subheading'|trans,
+    } %}
+        {% block body %}…{% endblock %}
+    {% endembed %}
+
+Params:
+    heading     required, already translated
+    subheading  optional, already translated
+    padded      body gets its own inset — see chrome.body(); default false,
+                because most bodies are lists that pad their own rows
+    class       extra classes on the <section>, for margins at the call site
+
+Blocks:
+    body        the card's content
+    actions     optional control at the right of the header band
+
+The heading is an <h2> and there is exactly one per card, so a section of four
+cards is four h2s at the same level rather than a nest. Groups INSIDE a body
+use h3.
+
+Not interactive and must not look it: no tabindex, no role, no aria-expanded.
+Admin panels collapse and carry those; a settings card is a surface, not a
+control. Both draw their chrome from _partials/_card_chrome.html.twig.
+#}
+{% import '_partials/_card_chrome.html.twig' as chrome %}
+
+<section class="{{ chrome.shell() }}{{ class|default('') ? ' ' ~ class|default('') : '' }}">
+    <header class="flex items-center justify-between gap-3 {{ chrome.band() }}">
+        <div class="min-w-0">
+            <h2 class="text-sm font-semibold text-ink">{{ heading }}</h2>
+            {% if subheading|default(null) %}
+                <p class="text-xs text-ink-faint mt-0.5">{{ subheading }}</p>
+            {% endif %}
+        </div>
+
+        {% block actions %}{% endblock %}
+    </header>
+
+    <div class="{{ padded|default(false) ? chrome.body() : '' }}">
+        {% block body %}{% endblock %}
+    </div>
+</section>

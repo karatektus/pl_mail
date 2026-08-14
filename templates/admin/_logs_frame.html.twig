@@ -1,3 +1,4 @@
+{% import '_partials/_card_chrome.html.twig' as chrome %}
 {# Opening this frame is what marks the log seen server-side, but the ring that
    clears lives on the user menu — outside this frame, and so never re-rendered
    by loading it. This announces the visit; the topbar listens. #}
@@ -8,9 +9,9 @@
        rather than on the viewport. The two are not the same thing here and not
        even monotonic: at 768px the admin section nav appears and takes 180px,
        leaving this pane narrower (266px) than it is on a 390px phone (316px). #}
-    <section class="@container rounded-pane border border-line bg-pane-soft overflow-hidden">
+    <section class="@container {{ chrome.shell() }}">
 
-        <div class="flex flex-wrap items-center gap-3 px-5 h-auto min-h-11 py-2 border-b border-line">
+        <div class="flex flex-wrap items-center gap-3 {{ chrome.band() }}">
             <i class="fa-solid fa-scroll text-xs text-zinc-400" aria-hidden="true"></i>
             <h2 class="text-sm font-semibold text-ink">{{ 'admin.logs.heading'|trans }}</h2>
             <span class="text-xs text-ink-faint">{{ total }} {{ 'admin.logs.entries'|trans }}</span>

@@ -1,3 +1,4 @@
+{% import '_partials/_card_chrome.html.twig' as chrome %}
 {#
 admin/push/_frame.html.twig — Admin → Push.
 
@@ -22,9 +23,9 @@ poll would empty a field mid-paste.
 #}
 <turbo-frame id="admin-push" class="block space-y-3">
 
-    <div class="rounded-pane border border-line bg-pane-soft overflow-hidden">
+    <div class="{{ chrome.shell() }}">
 
-        <div class="flex items-center gap-2.5 px-5 h-11 border-b border-line">
+        <div class="flex items-center gap-2.5 {{ chrome.band() }}">
             <i class="fa-solid fa-fire text-xs text-zinc-400" aria-hidden="true"></i>
             <h2 class="text-sm font-semibold text-ink">{{ 'admin.push.fcm.heading'|trans }}</h2>
 

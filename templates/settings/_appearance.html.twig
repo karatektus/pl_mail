@@ -1,4 +1,5 @@
 {% import '_partials/_select.html.twig' as select %}
+{% import '_partials/_card_chrome.html.twig' as chrome %}
 {% set a = appearance() %}
 
 {# ── One shape for every segmented control ──────────────────────────────────
@@ -165,7 +166,13 @@
            2500px box with 500px of miniature at the top — the row is no longer
            2500px, because this card no longer sets its own height. It is what
            .main-pane does for the message list, for the same reason. #}
-        <section class="min-w-0 rounded-pane border border-line bg-surface overflow-hidden pane-fill-card"
+        {# Shell and band come from _partials/_card_chrome.html.twig, the same
+           strings settings/_card.html.twig uses. This section keeps its own
+           markup rather than embedding that card — it is also the setup
+           wizard's appearance step, it owns the @container the groups query,
+           it is half of a resizable split pair, and its body scrolls inside the
+           card via pane-fill-scroll. None of that survives the generic body. #}
+        <section class="min-w-0 {{ chrome.shell() }} pane-fill-card"
                  data-ui--split-target="main">
 
             {# The card header, and the one place the preview can be reached on
@@ -191,7 +198,7 @@
                `aria-controls` names the region and `aria-expanded` carries the
                state; the label itself changes with it, so the control is
                readable without either. #}
-            <header class="shrink-0 flex items-center justify-between gap-3 px-4 py-3.5 border-b border-line">
+            <header class="shrink-0 flex items-center justify-between gap-3 {{ chrome.band() }}">
                 <div class="min-w-0">
                     <h2 class="text-sm font-semibold text-ink">{{ 'settings.appearance.heading'|trans }}</h2>
                     <p class="text-xs text-ink-faint mt-0.5">{{ 'settings.appearance.subheading'|trans }}</p>
@@ -221,12 +228,12 @@
                and it replaces the settings pane's rather than competing with
                it: the panel now fills that pane exactly instead of lengthening
                it, so there is nothing left out there to scroll. #}
-            <div class="px-4 py-5 space-y-8 pane-fill-scroll">
+            <div class="{{ chrome.body() }} space-y-8 pane-fill-scroll">
 
             {# ── Theme ─────────────────────────────────────────────────── #}
             <section>
                 <div class="mb-4">
-                    <h2 class="text-sm font-semibold text-ink">{{ 'settings.appearance.theme.heading'|trans }}</h2>
+                    <h3 class="text-sm font-semibold text-ink">{{ 'settings.appearance.theme.heading'|trans }}</h3>
                     <p class="text-xs text-ink-faint mt-0.5">{{ 'settings.appearance.theme.subheading'|trans }}</p>
                 </div>
 
@@ -296,7 +303,7 @@
                sliders below. #}
             <section>
                 <div class="mb-4">
-                    <h2 class="text-sm font-semibold text-ink">{{ 'settings.appearance.layout.heading'|trans }}</h2>
+                    <h3 class="text-sm font-semibold text-ink">{{ 'settings.appearance.layout.heading'|trans }}</h3>
                     <p class="text-xs text-ink-faint mt-0.5">{{ 'settings.appearance.layout.subheading'|trans }}</p>
                 </div>
 
@@ -321,7 +328,7 @@
             {# ── Density ───────────────────────────────────────────────── #}
             <section>
                 <div class="mb-4">
-                    <h2 class="text-sm font-semibold text-ink">{{ 'settings.appearance.density.heading'|trans }}</h2>
+                    <h3 class="text-sm font-semibold text-ink">{{ 'settings.appearance.density.heading'|trans }}</h3>
                     <p class="text-xs text-ink-faint mt-0.5">{{ 'settings.appearance.density.subheading'|trans }}</p>
                 </div>
 
@@ -426,7 +433,7 @@
                anybody who never comes here. #}
             <section>
                 <div class="mb-4">
-                    <h2 class="text-sm font-semibold text-ink">{{ 'settings.appearance.list.heading'|trans }}</h2>
+                    <h3 class="text-sm font-semibold text-ink">{{ 'settings.appearance.list.heading'|trans }}</h3>
                     <p class="text-xs text-ink-faint mt-0.5">{{ 'settings.appearance.list.subheading'|trans }}</p>
                 </div>
 
@@ -536,7 +543,7 @@
                hint below says so, because nothing on screen otherwise would. #}
             <section>
                 <div class="mb-4">
-                    <h2 class="text-sm font-semibold text-ink">{{ 'settings.appearance.typography.heading'|trans }}</h2>
+                    <h3 class="text-sm font-semibold text-ink">{{ 'settings.appearance.typography.heading'|trans }}</h3>
                     <p class="text-xs text-ink-faint mt-0.5">{{ 'settings.appearance.typography.subheading'|trans }}</p>
                 </div>
 
@@ -593,7 +600,7 @@
             {# ── Accent ────────────────────────────────────────────────── #}
             <section>
                 <div class="mb-4">
-                    <h2 class="text-sm font-semibold text-ink">{{ 'settings.appearance.accent.heading'|trans }}</h2>
+                    <h3 class="text-sm font-semibold text-ink">{{ 'settings.appearance.accent.heading'|trans }}</h3>
                 </div>
                 <div class="flex items-center gap-2 flex-wrap">
                     {% for hex in ['#2563eb', '#0d9488', '#7c3aed', '#db2777', '#ea580c', '#65a30d', '#0891b2', '#dc2626'] %}
@@ -615,7 +622,7 @@
             {# ── Main pane ─────────────────────────────────────────────── #}
             <section>
                 <div class="mb-4">
-                    <h2 class="text-sm font-semibold text-ink">{{ 'settings.appearance.main.heading'|trans }}</h2>
+                    <h3 class="text-sm font-semibold text-ink">{{ 'settings.appearance.main.heading'|trans }}</h3>
                     <p class="text-xs text-ink-faint mt-0.5">{{ 'settings.appearance.main.subheading'|trans }}</p>
                 </div>
 
@@ -654,7 +661,7 @@
             {# ── Glass ─────────────────────────────────────────────────── #}
             <section>
                 <div class="mb-4">
-                    <h2 class="text-sm font-semibold text-ink">{{ 'settings.appearance.glass.heading'|trans }}</h2>
+                    <h3 class="text-sm font-semibold text-ink">{{ 'settings.appearance.glass.heading'|trans }}</h3>
                     <p class="text-xs text-ink-faint mt-0.5">{{ 'settings.appearance.glass.subheading'|trans }}</p>
                 </div>
 
@@ -685,7 +692,7 @@
             {# ── Text ──────────────────────────────────────────────────── #}
             <section>
                 <div class="mb-4">
-                    <h2 class="text-sm font-semibold text-ink">{{ 'settings.appearance.text.heading'|trans }}</h2>
+                    <h3 class="text-sm font-semibold text-ink">{{ 'settings.appearance.text.heading'|trans }}</h3>
                     <p class="text-xs text-ink-faint mt-0.5">{{ 'settings.appearance.text.subheading'|trans }}</p>
                 </div>
 
@@ -731,7 +738,7 @@
             {# ── Background ────────────────────────────────────────────── #}
             <section>
                 <div class="mb-4">
-                    <h2 class="text-sm font-semibold text-ink">{{ 'settings.appearance.background.heading'|trans }}</h2>
+                    <h3 class="text-sm font-semibold text-ink">{{ 'settings.appearance.background.heading'|trans }}</h3>
                 </div>
 
                 {# ── How a background applies without a reload ──────────────

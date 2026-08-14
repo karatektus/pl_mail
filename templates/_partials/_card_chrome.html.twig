@@ -1,0 +1,43 @@
+{#
+The card chrome, defined once.
+
+Settings sections and admin panels are the same object visually — a bordered,
+rounded surface with a header band across the top and a body under it — and
+they were drifting apart because each side hand-wrote the classes. Admin sat on
+`bg-pane-soft` with an `h-11 px-5` summary; settings sat on `bg-surface` with a
+`px-4 py-3.5` header. Nobody chose that difference, it just accumulated.
+
+They cannot share a TEMPLATE: an admin panel is a native <details> so it can
+collapse without JavaScript, and a settings card is a plain <section> that must
+not gain button semantics. So they share the CLASSES instead. These macros
+return class strings and nothing else, which keeps one definition of what a
+card looks like while leaving each side its own element and its own behaviour.
+
+Deliberately Tailwind classes rather than a CSS @utility: `border-line` and
+`bg-surface` carry the theme's alpha vars, and hand-rolling their equivalents
+in CSS is exactly the drift this file exists to stop.
+
+Usage:
+    {% import '_partials/_card_chrome.html.twig' as chrome %}
+    <section class="{{ chrome.shell() }}">
+        <header class="{{ chrome.band() }}">…</header>
+        <div class="{{ chrome.body() }}">…</div>
+    </section>
+#}
+
+{# The card itself. `overflow-hidden` so a flush body — a divide-y list, a
+   header strip — is clipped by the radius instead of squaring off its corners. #}
+{% macro shell() %}rounded-pane border border-line bg-surface overflow-hidden{% endmacro %}
+
+{# The header band: heading, optional subtitle, optional trailing control. The
+   border-b is what separates it from the body, so a card whose body is flush
+   still reads as two parts. #}
+{% macro band() %}px-4 py-3.5 border-b border-line{% endmacro %}
+
+{# Body padding, for cards whose content does NOT bring its own inset.
+
+   Most settings bodies are lists or stacked rows that already pad themselves
+   with px-4 — those stay FLUSH, because padding them twice puts 32px between
+   the card edge and the first word. Use this only for bodies that are bare
+   content: a form, a group of controls. #}
+{% macro body() %}px-4 py-5{% endmacro %}

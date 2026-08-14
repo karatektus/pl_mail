@@ -1,3 +1,4 @@
+{% import '_partials/_card_chrome.html.twig' as chrome %}
 {#
 admin/push/_deliveries.html.twig — Admin → Push, the delivery log.
 
@@ -35,9 +36,9 @@ deliberately not stored.
     {# A container, so the rows reflow on this pane's width rather than the
        viewport's — the admin section nav takes 180px at 768px and the two are
        not monotonic. Same reasoning as the log browser. #}
-    <section class="@container rounded-pane border border-line bg-pane-soft overflow-hidden">
+    <section class="@container {{ chrome.shell() }}">
 
-        <div class="flex flex-wrap items-center gap-3 px-5 h-auto min-h-11 py-2 border-b border-line">
+        <div class="flex flex-wrap items-center gap-3 {{ chrome.band() }}">
             <i class="fa-solid fa-paper-plane text-xs text-zinc-400" aria-hidden="true"></i>
             <h2 class="text-sm font-semibold text-ink">{{ 'admin.push.deliveries.heading'|trans }}</h2>
             <span class="text-xs text-ink-faint">{{ total }} {{ 'admin.push.deliveries.attempts'|trans }}</span>

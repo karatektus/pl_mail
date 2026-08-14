@@ -1,3 +1,4 @@
+{% import '_partials/_card_chrome.html.twig' as chrome %}
 {#
 admin/backup/_frame.html.twig — Admin → Config backup.
 
@@ -33,7 +34,7 @@ is half-typed.
     {# ── Review, when there is one ─────────────────────────────────────── #}
     {% if plan is not null %}
         <div class="rounded-pane border {{ plan.applied ? 'border-emerald-500/40' : 'border-line' }} bg-pane-soft overflow-hidden">
-            <div class="flex items-center gap-2.5 px-5 h-11 border-b border-line">
+            <div class="flex items-center gap-2.5 {{ chrome.band() }}">
                 <i class="fa-solid {{ plan.applied ? 'fa-circle-check text-emerald-500' : 'fa-list-check text-zinc-400' }} text-xs" aria-hidden="true"></i>
                 <h2 class="text-sm font-semibold text-ink">
                     {{ (plan.applied ? 'admin.config_backup.review.applied' : 'admin.config_backup.review.heading')|trans }}
@@ -77,8 +78,8 @@ is half-typed.
     {% endif %}
 
     {# ── Export ────────────────────────────────────────────────────────── #}
-    <div class="rounded-pane border border-line bg-pane-soft overflow-hidden">
-        <div class="flex items-center gap-2.5 px-5 h-11 border-b border-line">
+    <div class="{{ chrome.shell() }}">
+        <div class="flex items-center gap-2.5 {{ chrome.band() }}">
             <i class="fa-solid fa-file-export text-xs text-zinc-400" aria-hidden="true"></i>
             <h2 class="text-sm font-semibold text-ink">{{ 'admin.config_backup.export.heading'|trans }}</h2>
         </div>
@@ -149,8 +150,8 @@ is half-typed.
     </div>
 
     {# ── Import ────────────────────────────────────────────────────────── #}
-    <div class="rounded-pane border border-line bg-pane-soft overflow-hidden">
-        <div class="flex items-center gap-2.5 px-5 h-11 border-b border-line">
+    <div class="{{ chrome.shell() }}">
+        <div class="flex items-center gap-2.5 {{ chrome.band() }}">
             <i class="fa-solid fa-file-import text-xs text-zinc-400" aria-hidden="true"></i>
             <h2 class="text-sm font-semibold text-ink">{{ 'admin.config_backup.import.heading'|trans }}</h2>
         </div>

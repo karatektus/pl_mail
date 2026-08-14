@@ -25,15 +25,22 @@ Usage:
 #}
 
 {% macro open(icon, title, key, collapsedPanels, status = null, tone = null) %}
+    {# Imported INSIDE the macro: a macro does not see the template's context. #}
+    {% import '_partials/_card_chrome.html.twig' as chrome %}
     <details
         {#
         Grid items stretch by default, so a collapsed card sitting beside an
         open one kept the open one's height — a 40px summary in a 400px
         outline. align-self only while shut: two open cards side by side still
         line up.
+
+        The shell comes from _partials/_card_chrome.html.twig, the same string a
+        settings section card uses, so the two surfaces cannot drift again. This
+        used to be a hand-written `bg-pane-soft` next to settings' `bg-surface`.
+        The ELEMENT stays a <details>: collapsing without JavaScript is this
+        side's whole affordance and a settings card must not have it.
         #}
-        class="group/card rounded-pane border border-line bg-pane-soft overflow-hidden
-               [&:not([open])]:self-start"
+        class="group/card {{ chrome.shell() }} [&:not([open])]:self-start"
         {% if key not in collapsedPanels %}open{% endif %}
         data-controller="admin--admin-panel"
         data-admin--admin-panel-key-value="{{ key }}"
@@ -41,7 +48,10 @@ Usage:
         data-admin--admin-panel-csrf-value="{{ csrf_token('admin_panel_' ~ key) }}"
         data-action="toggle->admin--admin-panel#persist"
     >
-        <summary class="flex items-center gap-2.5 px-5 h-11 border-b border-line cursor-pointer list-none
+        {# Same band as a settings card header — same padding, same divider — with
+           the affordances this side needs on top: a pointer, a disclosure
+           chevron, and hover feedback, none of which a settings card gets. #}
+        <summary class="flex items-center gap-2.5 {{ chrome.band() }} cursor-pointer list-none
                         hover:bg-hover transition-colors select-none">
             <i class="fa-solid fa-chevron-right text-[9px] text-ink-faint w-3 shrink-0
                       transition-transform group-open/card:rotate-90" aria-hidden="true"></i>
