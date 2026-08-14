@@ -6,6 +6,96 @@ so anything that changes the schema irreversibly is called out explicitly.
 The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, and `sha-…` pins one commit.
 
+## v0.0.36 — 2026-08-13
+
+**One migration, additive and nullable; no reset. Mostly Appearance, which
+grew a good deal and then had to be rebuilt twice because the first two
+answers were the wrong shape. Also two bugs that shipped in v0.0.35, one of
+them ours from that same release.**
+
+**Appearance is two cards with a split between them.** The controls on one
+side, a live preview on the other, resizable between 240 and 900 pixels and
+remembered per user. Both cards are the same height and the controls scroll
+their own body, the way the mail panes do, so the page does not grow a second
+scrollbar. On a phone the preview is not dropped: a button in the settings
+card header reveals it, pinned to the top with the controls still usable
+underneath. The handle between them is the calendar's, down to the grip and
+the strain it shows when a drag pushes past the limit.
+
+**The mail list can be told what to show.** The **account corner** — the
+coloured triangle in a row's lower-left saying which account a message arrived
+on — can be switched off; it stays on by default, since wanting it gone is not
+the same as nobody wanting it. Preview lines and unread emphasis are settings
+now too. Sender discs are not, and cannot be: that disc *is* the row's
+checkbox, so switching it off would take selection with it. It paints over the
+identity instead and keeps the target.
+
+**Type and density.** A font family and a text scale across the interface —
+not the compose editor, whose size is per-message formatting that ends up in
+the mail you send. Density can be set once or given separately to the sidebar,
+the list and the reading pane. Only density is per-surface: the list and the
+reading pane are one painted surface, so opacity, blur and radius cannot
+differ between them, and text size resolves against the document root.
+
+**Backgrounds apply when you pick them.** Choosing a preset, choosing a solid
+colour, or going back to the theme wrote the setting and changed nothing until
+the page was reloaded — only an uploaded image ever took effect immediately.
+A solid colour also had a setting, an enum case and a resolver arm, and no
+control anywhere on the page.
+
+**The sidebar folds.** Labels and accounts collapse, remembered per user
+rather than per browser, and rendered folded by the server so nothing snaps
+shut after the page paints. A collapsed label section says how many unread
+threads are inside — counted as threads, not summed across labels, because a
+thread under two labels would otherwise be promised twice.
+
+**Sidebar density now does something.** It had a setting, a token and one
+consumer: the Compose button. Every other row was hardcoded. Rows take their
+padding from a tier now, and Comfortable is identical to what it was, so
+nobody's sidebar moves — one stray twelve-pixel growth on the Compose button
+is undone. Compact stays finger-sized on a touch screen, which Comfortable
+was not quite either.
+
+**Account health only appears when something is wrong.** It used to sit in the
+settings nav permanently to say that everything was fine. It is a page about
+exceptions, so it now shows up when there is an exception — and while you are
+standing on it, so the page you are looking at still has an entry.
+
+**A reset hands its registrations back.** Truncating local data left Google and
+Microsoft delivering notifications for calendars and mailboxes that no longer
+existed, for up to a week, with nothing able to match them. Reset and calendar
+removal now revoke the provider-side watch first, best-effort: a failed revoke
+is logged and stepped over, because a reset that refuses to run because a
+provider is unreachable is worse than a stale channel.
+
+**A dead mail push is now found by evidence rather than by waiting.** The old
+rule was thirty-six hours of silence, which cannot tell a broken push from a
+quiet mailbox at any threshold. plMail now records when the mailbox actually
+changed: mail that arrived and was noticed by a poll, with no push announcing
+it, is one push demonstrably missed. Health also separates a watch that
+**lapsed** — renewal never ran, look at the scheduler — from one that is alive
+and silent, which is the Cloud Pub/Sub leg, and shows the three dates it judged
+from. **Note:** the second verdict needs the new column, so existing accounts
+are judged on expiry alone until their mailbox next changes.
+
+**Settings and admin share one card.** Twenty-two settings sections had three
+different shapes between them; admin had a card macro and six hand-rolled
+copies beside it. The chrome is defined once now. Nothing about admin's
+collapsing panels or their summaries changed.
+
+**Two bugs from v0.0.35, and the second is ours.** Changing any density — or
+any tile-shaped control — **blanked the whole settings pane**. `sr-only` is
+absolutely positioned and a label is not, so those radios were positioned
+against the pane rather than the box they appear in; clicking one focused it,
+the browser scrolled it into view through every scroll container above it, and
+a pane that clips its overflow scrolled its own contents out of sight. One rule
+fixes every such control in the app. And a **bulk action re-rendered the list
+under the next click** — the list toolbar lives inside the frame that was being
+replaced, so a second bulk action could land on a button that was gone, or on
+one whose selection had just been cleared, and do nothing quietly. The refresh
+now swaps rows, tabs and pagination without touching the controls you are
+using, and leaves your selection alone.
+
 ## v0.0.35 — 2026-08-13
 
 **Two migrations, both additive and defaulted; no reset. Contains a security
