@@ -1,4 +1,4 @@
-<!-- translated-from: features/mail.md sha1:70409eec06abb36afd6f98d798519e7569084ac4 -->
+<!-- translated-from: features/mail.md sha1:d47730d118a8ef6c7ae59195d3110fec98446a41 -->
 
 # Mail
 
@@ -29,6 +29,19 @@ Seitenleiste meint „über alle Konten hinweg“, die Liste pro Konto beantwort
 Postfach wirklich“. Welches Konto du aufgeklappt gelassen hast, merkt sich der Server und nicht
 der Browser — die Seitenleiste wird also bereits aufgeklappt gezeichnet, statt nach dem
 Seitenaufbau aufzuspringen.
+
+Die Überschriften **Labels** und **Konten** klappen zu. Eine davon zuzuklappen wird an deinem
+Konto gemerkt und nicht am Browser, folgt dir also auf dein Telefon, und sie wird bereits zugeklappt
+gezeichnet, statt sich kurz nach dem Seitenaufbau zuzuschnappen. Was zuklappt, ist der ganze
+Abschnitt — eine Wand aus Labels ist das, was die Konten aus einem kurzen Fenster nach unten
+drückt —, ein verschachtelter Label-Baum klappt für alle, die verschachteln, weiterhin für sich
+allein zu.
+
+Eine zugeklappte Überschrift **Labels** trägt das Ungelesene, das darunter verborgen ist, als
+Anzahl von Konversationen. Es ist bewusst nicht die Summe der einzelnen Zahlen: Eine Konversation
+unter zwei Labels würde doppelt gezählt, und die Überschrift würde mehr versprechen, als das
+Aufklappen zeigen kann. **Konten** bekommt keine solche Zahl, weil es keine ehrliche gibt — jene
+Zähler gelten je Konto, und geladen ist immer nur das eine, das du aufgeklappt hast.
 
 Jede Liste umfasst fünfzig Konversationen pro Seite. **Neuer** und **Älter** in der
 Werkzeugleiste blättern.
@@ -98,7 +111,10 @@ Strukturelle Änderungen — Umbenennen und Löschen — nach außen zu spiegeln
 solange du es nicht pro Konto einschaltest; siehe [Konten und Aliase](accounts.md).
 
 Ein Label zu löschen entfernt es aus **jedem** Konto und nimmt untergeordnete Labels mit.
-Nachrichten werden nicht gelöscht; sie behalten ihre übrigen Labels.
+Nachrichten werden nicht gelöscht; sie behalten ihre übrigen Labels. Löschen kannst du eines aus dem
+Label-Dialog der Seitenleiste ebenso wie aus **Einstellungen → Labels**, und die Bestätigung sagt
+klar, dass das Label aus jedem Konto verschwindet und wie viele untergeordnete Labels mitgehen —
+statt dich etwas bestätigen zu lassen, dessen Reichweite sie verschwiegen hat.
 
 ## Suche
 
@@ -206,6 +222,11 @@ Konversation heraus, öffnet sich der Editor auf einem breiten Bildschirm stattd
 Konversation; darunter fällt er auf das angedockte Fenster zurück. So oder so bietet das
 Fenster formatierten Text, Kontakt-Vervollständigung in den Adressfeldern und eine
 **From**-Auswahl, die jedes aktive Konto und jede Absendeadresse darauf auflistet.
+
+Die Vervollständigung bietet ausschließlich **deine eigenen** gesammelten Kontakte an. Auf einer
+Installation mit mehreren Personen sind die Korrespondenten der einen für die andere unsichtbar, und
+eine Adresse, die zu einem anderen Konto gehört, lässt sich auf keinem Weg auf deinen Entwurf
+setzen.
 
 **Dateien anhängen** nimmt Dateien von deinem Rechner, gedeckelt auf **25 MB je Datei**. **Aus
 einem Dienst anhängen** öffnet die Dateiauswahl für jeden verbundenen Dienst, aus dem plMail
@@ -374,10 +395,15 @@ direkt in der Konversation überspringt die Einblendung: die Nachricht hängt so
 Konversation, und die Antwortleiste wird zu einem Countdown, den du zum Abbrechen anklicken
 kannst.
 
-Rückgängig rennt der Mail nicht hinterher — es setzt eine Markierung, die der Sendeauftrag beim
-Aufwachen prüft, sodass über den Abbruch entschieden ist, bevor irgendetwas übertragen wird.
-Die Nachricht wird wieder zu dem Entwurf, der sie war, und der Editor öffnet sich dort wieder,
-wo er stand.
+Rückgängig rennt der Mail in dem Sinne nicht hinterher, auf den es ankommt: Der Abbruch und der
+Sendeauftrag machen es in einem Schritt unter sich aus, die Datenbank entscheidet also, wer gewonnen
+hat, und nur einer von beiden macht weiter. Gewinnst du, wird die Nachricht wieder zu dem Entwurf,
+der sie war, und der Editor öffnet sich dort wieder, wo er stand.
+
+Verlierst du — drückst du Rückgängig in den letzten Momenten, nachdem der Auftrag die Nachricht
+bereits an sich genommen hat —, wird dir das klar gesagt: *Zu spät — diese Nachricht war schon
+gesendet.* Du bekommst keine bearbeitbare Kopie von Post, die schon draußen ist. Weil das angebotene
+Fenster acht Sekunden gegen zehn Sekunden Rückhaltung ist, ist Verlieren selten und nicht die Regel.
 
 ## Wo du weiterliest
 
@@ -397,6 +423,15 @@ wo er stand.
 zehn Sekunden zurückgehalten, die Einblendung mit Rückgängig verblasst aber schon nach acht. Es
 ist nichts kaputt, wenn eine Nachricht hinausgeht, nachdem der Knopf weg ist — das Zeitfenster
 war wirklich zu.
+
+**Ein Rückgängig kann verlieren, und das Verlieren wird dir gesagt.** Drückst du es ganz am Rand des
+Fensters, kann die Antwort *Zu spät — diese Nachricht war schon gesendet* lauten. Das ist das
+ehrliche Ergebnis und kein Fehlschlag: Die Alternative wäre, dir einen bearbeitbaren Entwurf von Post
+zurückzugeben, die bereits unterwegs ist, und das liest sich wie ein Abbruch, der funktioniert hat.
+
+**Ein Label aus der Seitenleiste zu löschen ist dasselbe Löschen wie das in den Einstellungen.** Es
+ist kein „aus dieser Ansicht entfernen“ — der Dialog ist eine Abkürzung zu genau derselben Operation,
+über alle Konten hinweg, untergeordnete Labels eingeschlossen.
 
 **Ein Bild in der Signatur kann kein eingebettetes Bild sein.** Ein Bild in einer *Signatur* wird
 als gewöhnlicher Bildverweis gespeichert und nicht als `cid:`-Teil: Die Bereinigung, durch die

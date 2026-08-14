@@ -1,4 +1,4 @@
-<!-- translated-from: README.md sha1:ede915705bd513ce43fa241120d7c69d1437a003 -->
+<!-- translated-from: README.md sha1:9cebb8a0e8d6a5b6d68c807a928548fcfd74903b -->
 
 # plMail-Dokumentation
 
@@ -29,7 +29,7 @@ wo der Mechanismus dahinter steht.
 |---|---|
 | [Mail](features/mail.md) | Lesen, Konversationen, Labels, Suche und ihre Operatoren, Zurückstellen, Anhänge, Verfassen, Signaturen, Emoji und eingebettete Bilder, später senden, Lesebestätigungen, Entwürfe, Senden rückgängig machen |
 | [Konten und Aliase](features/accounts.md) | Gmail-, Outlook- und IMAP-Konten hinzufügen, Absendeadressen, Einstellungen pro Konto |
-| [Zustand der Konten](features/health.md) | Was kaputt ist und was es behebt, ein Konto neu verbinden, ohne seine Post zu verlieren |
+| [Zustand der Konten](features/health.md) | Was kaputt ist und was es behebt, ein Konto neu verbinden, ohne seine Post zu verlieren, die zwei Arten, wie Push kaputtgeht |
 | [Filter](features/filters.md) | Bedingungsbäume, Aktionen, die Rückübersetzung in einen Satz, eine Regel auf bereits eingetroffene Mail anwenden |
 | [Kalender](features/calendar.md) | Die vier Ansichten und das Zeitraster, Termine anlegen und bearbeiten, Wiederholungen, eine einzelne Termininstanz bearbeiten, der angedockte Bereich |
 | [Einladungen und Termine aus E-Mails](features/calendar-invitations.md) | Zu- und Absagen, Termine aus Einladungen und aus gewöhnlichem Fließtext, Vorschläge, „Demnächst“ |
@@ -39,7 +39,7 @@ wo der Mechanismus dahinter steht.
 | [Dateien und Integrationen](features/integrations.md) | Anhängen aus und Speichern in Drive, Photos, OneDrive, Dropbox, Nextcloud und Immich |
 | [Sicherheit](features/security.md) | Zwei-Faktor-Authentifizierung, Wiederherstellungscodes, gemerkte Geräte, App-Passwörter, Sitzungen |
 | [Andere Clients](features/clients.md) | Einen JMAP-Client verbinden, Passwörter pro App, die PWA und Browser-Benachrichtigungen |
-| [Darstellung](features/appearance.md) | Themes, eigene Farben und Hintergrund, Import und Export, Sprache |
+| [Darstellung](features/appearance.md) | Themes, eigene Farben und Hintergrund, die Live-Vorschau, was eine Listenzeile zeigt, Schriftart und Textgröße, Dichte je Bereich, Import und Export, Sprache |
 | [Administration](features/admin.md) | Benutzer und Rollen, Integrationen freischalten, Monitoring, Warteschlangen und der Versions-Chip |
 
 ## Installieren und betreiben

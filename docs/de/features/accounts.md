@@ -1,4 +1,4 @@
-<!-- translated-from: features/accounts.md sha1:bc75114bfc98ed4c250fef9b2e7ca301f19a464b -->
+<!-- translated-from: features/accounts.md sha1:6ad89a74b057dbd544fc063cc0d44711c7ba344e -->
 
 # Konten und Aliase
 
@@ -95,6 +95,13 @@ Ein Konto zu entfernen löscht dessen synchronisierte Mail aus plMails Datenbank
 Anbieter nichts. Außerdem wird versucht, jede Push-Registrierung abzubauen, die es hatte, damit
 nichts zurückbleibt, das auf ein Konto zeigt, das es nicht mehr gibt.
 
+Alles andere, was eine Registrierung wegnimmt, gibt sie dem Anbieter inzwischen genauso zurück —
+einen Kalender löschen, einen abwählen, eine Verbindung trennen und das Zurücksetzen der Daten durch
+eine Administratorin. Der Versuch ist ein Versuch nach bestem Vermögen: Ein Anbieter, der sich
+weigert, der den Kanal längst hat ablaufen lassen oder der nicht erreichbar ist, wird übergangen,
+statt das Entfernen aufzuhalten — denn ein Zurücksetzen, das nicht läuft, weil Google nicht
+erreichbar ist, ist schlimmer als ein Kanal, der binnen einer Woche von selbst abläuft.
+
 Lässt du im Bearbeitungsformular das Passwortfeld leer, bleibt das gespeicherte erhalten.
 
 ## Einstellungen pro Konto
@@ -113,19 +120,30 @@ der Schalter zurück, damit die Oberfläche nie behauptet, Push funktioniere, w�
 zugestellt wird, und der Grund wird ausgeschrieben:
 
 - **Gmail** — Google hat die Watch-Registrierung abgelehnt. Prüfe, ob `GMAIL_PUBSUB_TOPIC` ein
-  vorhandenes Topic benennt und ob dieses Topic `gmail-api@system.gserviceaccount.com` die
-  Rolle „Pub/Sub Publisher“ gewährt.
+  vorhandenes Topic benennt und ob dieses Topic `gmail-api-push@system.gserviceaccount.com` die
+  Rolle „Pub/Sub Publisher“ gewährt. Achte auf das `-push`:
+  `gmail-api@system.gserviceaccount.com` ist keine Adresse, von der aus Google veröffentlicht — ein
+  Topic, das genau dieser Adresse die Rolle gewährt, stellt also nie eine einzige Benachrichtigung
+  zu.
 - **Microsoft** — Microsoft konnte diesen Server nicht über HTTPS erreichen. Prüfe den Reverse
   Proxy und `APP_PUBLIC_URL`.
 
 So oder so synchronisiert das Konto weiter nach Zeitplan. Push ist eine Optimierung, nie der
 einzige Weg.
 
-Das Abzeichen daneben liest sich **Push**, wenn die Registrierungen gesund sind, **Push (liefert
-nicht)**, wenn eine registriert ist, in letzter Zeit aber nichts angekommen ist, und **Nach
-Zeitplan**, wenn es aus ist. Der mittlere Zustand bedeutet bei Gmail meist, dass das
-Pub/Sub-Push-Abonnement fehlt oder woandershin zeigt, bei Microsoft ein abgelaufenes Abonnement;
-**Push neu registrieren** ist der Knopf dafür.
+Das Abzeichen daneben liest sich **Push**, wenn die Registrierungen gesund sind, **Nach Zeitplan**,
+wenn es aus ist, und eines von zwei Dingen, wenn es kaputt ist:
+
+- **Push (abgelaufen)** — die Registrierung hat ihr eigenes Ablaufdatum überschritten und niemand hat
+  sie erneuert. Die Erneuerung läuft täglich von selbst, das heißt also meist, dass der Dienst für
+  geplante Aufgaben stehen geblieben ist.
+- **Push (liefert nicht)** — die Registrierung lebt und ist nicht abgelaufen, und es ist Post
+  angekommen, die sie nie angekündigt hat. Bei Gmail deutet das darauf hin, dass das
+  Pub/Sub-Push-Abonnement fehlt oder woandershin zeigt, bei Microsoft auf ein abgelaufenes
+  Abonnement.
+
+**Push neu registrieren** ist der Knopf für beide, und [Zustand der Konten](health.md) erklärt,
+welchen der beiden Fälle du vor dir hast, und zeigt die Daten, nach denen entschieden wurde.
 
 Wo Push auf diesem Server überhaupt nicht zur Verfügung steht, sagt das Bedienelement das,
 statt einen Schalter anzubieten, der nicht funktionieren kann.
