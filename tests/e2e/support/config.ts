@@ -12,6 +12,24 @@ import { execSync } from "node:child_process";
  * unbounded number of users over a long run. The parallel index is bounded by
  * the worker count, so the pool of fixture users stays small and fixed.
  */
+/**
+ * The origin the suite talks to.
+ *
+ * Exported so it has exactly one definition. playwright.config.ts puts this on
+ * `use.baseURL`, which covers the page fixture — but NOT a context a spec
+ * builds itself with `browser.newContext()`, and those have to be handed the
+ * value. preview-pane.spec.ts did that by reading `process.env.E2E_BASE_URL`
+ * raw, without the fallback the config applies, so the whole spec failed with
+ * "Cannot navigate to invalid URL" for anyone who had not exported that
+ * variable — `npx playwright test` on a stock checkout, in other words, where
+ * every other spec works fine off the default.
+ *
+ * Same default as compose.test.yaml's port mapping, from the same variable, so
+ * the two cannot drift.
+ */
+export const BASE_URL =
+    process.env.E2E_BASE_URL ?? `http://127.0.0.1:${process.env.TEST_HTTP_PORT ?? "8001"}`;
+
 export const WORKER_SLOT = process.env.TEST_PARALLEL_INDEX ?? "0";
 
 const SLOT = WORKER_SLOT;

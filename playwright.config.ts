@@ -1,4 +1,5 @@
 import { defineConfig, devices } from "@playwright/test";
+import { BASE_URL } from "./tests/e2e/support/config";
 
 /**
  * plMail end-to-end configuration.
@@ -44,10 +45,6 @@ import { defineConfig, devices } from "@playwright/test";
 process.env.E2E_COMPOSE ??= "docker compose -f compose.test.yaml";
 process.env.E2E_CONSOLE ??= `${process.env.E2E_COMPOSE} exec -T app php bin/console`;
 
-// Same default as compose.test.yaml's port mapping, from the same variable, so
-// the two cannot drift.
-const BASE_URL =
-  process.env.E2E_BASE_URL ?? `http://127.0.0.1:${process.env.TEST_HTTP_PORT ?? "8001"}`;
 // Storage state is per worker now and lives in tests/e2e/support/test.ts —
 // there is no single path for the config to name.
 

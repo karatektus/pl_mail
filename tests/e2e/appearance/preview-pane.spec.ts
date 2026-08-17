@@ -1,5 +1,5 @@
 import { test, expect, type Page } from "../support/test";
-import { seedUser } from "../support/config";
+import { BASE_URL, seedUser } from "../support/config";
 
 /**
  * The appearance preview is its own pane now, with a boundary you can move.
@@ -565,7 +565,7 @@ test.describe("appearance preview pane", () => {
         seedUser({ email: WIZARD.email, password: WIZARD.password, pendingOnboarding: true });
 
         const context = await browser.newContext({
-            baseURL: process.env.E2E_BASE_URL,
+            baseURL: BASE_URL,
             storageState: { cookies: [], origins: [] },
             viewport: DESKTOP,
         });
