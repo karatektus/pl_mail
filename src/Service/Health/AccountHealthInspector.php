@@ -169,6 +169,29 @@ final readonly class AccountHealthInspector
      * provider), so it is folded in here rather than given a kind of its own:
      * the sentence shown and the button offered would have been identical.
      */
+    /**
+     * What is wrong with one account, ignoring everything downstream of it.
+     *
+     * The account-scoped subset of [inspect], for callers that hold an Account and cannot afford a
+     * whole report. Both checks behind it read fields on the entity and issue no query, which is
+     * what makes this safe on a path that runs per request — SessionBuilder publishes it in every
+     * JMAP Session so that a phone can say *why* an account has gone quiet instead of simply
+     * receiving no mail from it.
+     *
+     * Grant before push, because they are cause and effect: an account whose OAuth grant has died
+     * has no working token, so its push is broken as a consequence and reporting both would be two
+     * cards for one problem. `push()` already declines to answer for such an account; the ordering
+     * here says the same thing where a reader will see it.
+     *
+     * Calendars, integrations and abandoned queue work are deliberately absent. None of them is a
+     * property of the mail account, and a client asking "can I still receive mail here" must not be
+     * told no because a calendar sync failed.
+     */
+    public function inspectAccount(Account $account): ?HealthIssue
+    {
+        return $this->accountGrant($account) ?? $this->push($account);
+    }
+
     private function accountGrant(Account $account): ?HealthIssue
     {
         if (AuthType::OAuth2->value !== $account->authType) {

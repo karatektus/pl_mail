@@ -22,6 +22,7 @@ use App\Jmap\Protocol\Capability;
 use App\Jmap\Push\FcmSettings;
 use App\Jmap\State\StateManager;
 use App\Service\Calendar\RecurrenceMaterialiser;
+use App\Service\Health\AccountHealthInspector;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 
 /**
@@ -51,6 +52,7 @@ final class SessionBuilder
         private readonly AppearanceMapper $appearanceMapper,
         private readonly UrlGeneratorInterface $urlGenerator,
         private readonly FcmSettings $fcmSettings,
+        private readonly AccountHealthInspector $health,
         private readonly string $vapidPublicKey,
     ) {
     }
@@ -240,14 +242,42 @@ final class SessionBuilder
      *    engine's own decision to keep walking back. It is NOT "a backfill is
      *    running this second" — nothing records that, and a client would read a
      *    running/not-running flag as progress.
+     *  - `needsAttention` / `attentionKind` / `attentionSeverity` — whether
+     *    this account has stopped working, and what kind of stopped. See
+     *    below.
+     *
+     * ## Why health is published here at all
+     *
+     * A dead OAuth grant is invisible to a JMAP client. The account stays in
+     * the session, every method keeps answering, and no mail ever arrives
+     * again — so the phone shows an inbox that has simply gone quiet, with
+     * nothing to explain it and nothing to press. The browser has had a clear
+     * "reconnect this account" affordance since v0.0.34 and clients had no way
+     * to know the same fact.
+     *
+     * The **kind and severity only**, never the rendered card. Titles, bodies
+     * and repair buttons are translated Twig with routes attached, and a JMAP
+     * client cannot use a Symfony route; what it needs is a token it can map to
+     * its own sentence and its own screen. `account_reconnect` in particular
+     * ends in an OAuth browser flow, so the honest thing for a phone to do is
+     * say what is wrong and send the user to the web UI, which it can only do
+     * if it is told.
+     *
+     * Costs nothing per request: AccountHealthInspector::inspectAccount() reads
+     * fields already hydrated on the Account and issues no query.
      *
      * @return array<string,mixed>
      */
     private function syncAccountCapabilities(Account $account): array
     {
+        $issue = $this->health->inspectAccount($account);
+
         return [
             'backfillTarget' => $account->backfillTarget,
             'backfillPending' => $account->needsBackfill(),
+            'needsAttention' => null !== $issue,
+            'attentionKind' => $issue?->kind->value,
+            'attentionSeverity' => $issue?->severity->value,
         ];
     }
 
