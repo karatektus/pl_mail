@@ -1,5 +1,6 @@
 {% import '_partials/_select.html.twig' as select %}
 {% import '_partials/_card_chrome.html.twig' as chrome %}
+{% import '_partials/_logo_mark.html.twig' as logo %}
 {% set a = appearance() %}
 
 {# ── One shape for every segmented control ──────────────────────────────────
@@ -294,6 +295,41 @@
                     {% endfor %}
                 </div>
                 <input type="hidden" data-settings--appearance-target="theme" data-settings--appearance-field="theme" value="{{ a.theme.value }}">
+            </section>
+
+            {# ── Logo ──────────────────────────────────────────────────────
+               The mark's colourway — thirty-two of them, every direction the
+               design board kept. The same tile grid as the themes above and
+               for the same reason: the preview IS the choice, and auto-fill
+               lets the card decide how many fit.
+
+               Each tile carries its stroke lists (light and dark chrome) as
+               JSON, so pickLogo can repaint the topbar's live mark without
+               the JS knowing what a stroke is — see _logo_mark.html.twig for
+               the indexing contract. #}
+            <section>
+                <div class="mb-4">
+                    <h3 class="text-sm font-semibold text-ink">{{ 'settings.appearance.logo.heading'|trans }}</h3>
+                    <p class="text-xs text-ink-faint mt-0.5">{{ 'settings.appearance.logo.subheading'|trans }}</p>
+                </div>
+
+                <div class="grid grid-cols-[repeat(auto-fill,minmax(5.5rem,1fr))] gap-3">
+                    {% for style in enum('App\\Domain\\Enum\\Theme\\LogoStyle').cases %}
+                        <button type="button"
+                                data-logo-name="{{ style.value }}"
+                                data-logo-strokes="{{ style.strokes(false)|json_encode }}"
+                                data-logo-strokes-dark="{{ style.strokes(true)|json_encode }}"
+                                data-action="click->settings--appearance#pickLogo"
+                                class="group flex flex-col items-center gap-2 p-2 rounded-pane cursor-pointer hover:bg-hover transition-colors
+                                       {{ a.logoStyle == style ? 'ring-2 ring-accent' : '' }}">
+                            <span class="w-full h-10 rounded-lg border border-line flex items-center justify-center">
+                                {{ logo.mark(style, 30, a.theme.isDark) }}
+                            </span>
+                            <span class="text-xs text-ink-soft">{{ ('settings.appearance.logo.style.' ~ style.value)|trans }}</span>
+                        </button>
+                    {% endfor %}
+                </div>
+                <input type="hidden" data-settings--appearance-target="logoStyle" data-settings--appearance-field="logoStyle" value="{{ a.logoStyle.value }}">
             </section>
 
             {# ── Layout ────────────────────────────────────────────────────

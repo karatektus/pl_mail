@@ -9,6 +9,7 @@ use App\Domain\Enum\Theme\BackgroundPreset;
 use App\Domain\Enum\Theme\Density;
 use App\Domain\Enum\Theme\FontFamily;
 use App\Domain\Enum\Theme\Layout;
+use App\Domain\Enum\Theme\LogoStyle;
 use App\Domain\Enum\Theme\Theme;
 use App\Domain\Enum\Theme\UnreadEmphasis;
 use Doctrine\ORM\Mapping as ORM;
@@ -74,6 +75,15 @@ final class Appearance
 
     #[ORM\Column(type: 'string', length: 16, enumType: Layout::class, options: ['default' => 'flat'])]
     public Layout $layout = Layout::Flat;
+
+    /**
+     * The mark's colourway — topbar and favicon both read it. Its own axis
+     * beside the theme rather than derived from it: a theme says what the
+     * chrome looks like, this says what the product's own mark looks like,
+     * and either can change without the other's consent.
+     */
+    #[ORM\Column(type: 'string', length: 16, enumType: LogoStyle::class, options: ['default' => 'berry'])]
+    public LogoStyle $logoStyle = LogoStyle::DEFAULT;
 
     #[ORM\Column(type: 'string', length: 7, options: ['default' => self::DEFAULT_ACCENT])]
     public string $accent = self::DEFAULT_ACCENT {
@@ -292,6 +302,7 @@ final class Appearance
             'version' => 1,
             'theme' => $this->theme->value,
             'layout' => $this->layout->value,
+            'logoStyle' => $this->logoStyle->value,
             'accent' => $this->accent,
             'paneAlpha' => $this->paneAlpha,
             'paneBlur' => $this->paneBlur,
@@ -330,6 +341,10 @@ final class Appearance
 
         if (true === isset($data['theme'])) {
             $this->theme = Theme::tryFrom($data['theme']) ?? $this->theme;
+        }
+
+        if (true === isset($data['logoStyle'])) {
+            $this->logoStyle = LogoStyle::tryFrom((string) $data['logoStyle']) ?? $this->logoStyle;
         }
 
         if (true === isset($data['accent'])) {

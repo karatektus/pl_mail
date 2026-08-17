@@ -1886,6 +1886,42 @@ settings:
                 strong: Stark
                 subtle: Dezent
             unreadEmphasis: Ungelesene Zeilen
+        logo:
+            heading: Logo
+            style:
+                aurora: 'Polarlicht'
+                berry: 'Beere'
+                blue-tonal: 'Blau in Blau'
+                bronze-flick: 'Bronzener Schwung'
+                bronze-ink: 'Bronze & Tinte'
+                burgundy: 'Burgunder'
+                charcoal-amber: 'Anthrazit & Bernstein'
+                cobalt-coral: 'Kobalt & Koralle'
+                copper: 'Kupfer'
+                deep-violet: 'Tiefviolett'
+                ember: 'Glut'
+                espresso-cream: 'Espresso & Sahne'
+                forest: 'Wald'
+                forest-lime: 'Wald & Limette'
+                graphite-red: 'Graphit & Rot'
+                indigo-violet: 'Indigo–Violett'
+                ink: 'Tinte'
+                midnight-gold: 'Mitternacht & Gold'
+                navy-sky: 'Marine & Himmel'
+                ocean: 'Ozean'
+                petrol-copper: 'Petrol & Kupfer'
+                plum-rose: 'Pflaume & Rosé'
+                postal: 'Post'
+                product-blue: 'Produktblau'
+                red-flick: 'Roter Schwung'
+                sky-flick: 'Blauer Schwung'
+                slate: 'Schiefer'
+                sunset: 'Abendrot'
+                teal-gold: 'Türkis & Gold'
+                tricolore: 'Tricolore'
+                twilight: 'Dämmerung'
+                violet-flick: 'Violetter Schwung'
+            subheading: 'Die Farbstimmung des pl-Zeichens. Topbar und Tab-Symbol tragen sie.'
         main:
             default: Theme-Standard
             heading: Hauptbereich

@@ -1,15 +1,21 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="plMail">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" role="img" aria-label="plMail">
     <!--
-        The same mark as icon-512.png and apple-touch-icon.png, drawn rather
-        than resampled: a favicon is rendered at 16px, and an SVG is the only
-        form of it that stays crisp at every size a browser and every pixel
-        ratio a screen might ask for.
+        The same mark as the PNG icons, drawn rather than resampled: a favicon
+        is rendered at 16px, and only an SVG of the strokes themselves stays
+        crisp at every size a browser and every pixel ratio a screen might ask
+        for.
 
-        The blue is #2563eb, which is also the theme-color meta and what the
-        PNG icons were exported from — one mark, one colour, three files that
-        agree.
+        The colourway is LogoStyle::Berry, the product default. Per-user
+        favicons are served by the dynamic branding route — this file is the
+        anonymous/fallback copy.
     -->
-    <rect width="512" height="512" fill="#2563eb"/>
-    <rect x="102" y="148" width="308" height="212" fill="#ffffff"/>
-    <path d="M102 148 L256 288 L410 148" fill="none" stroke="#2563eb" stroke-width="22"/>
+    <g transform="translate(-4.5 -0.5)" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-width="5.5">
+        <line x1="13" y1="11" x2="13" y2="42" stroke="#6d28d9"/>
+        <path d="M13 11 Q13 7 17 7 L23 7 Q29 7 29 13" stroke="#7c3aed"/>
+        <line x1="29" y1="13" x2="29" y2="22" stroke="#a21caf"/>
+        <path d="M29 22 Q29 26 23 26 L17 26 Q13 26 13 22" stroke="#c026d3"/>
+        <line x1="37" y1="7" x2="37" y2="26" stroke="#db2777"/>
+        <line x1="37" y1="26" x2="37" y2="37" stroke="#e11d48"/>
+        <path d="M37 37 Q37 42 42 42 L44 42" stroke="#f43f5e"/>
+    </g>
 </svg>

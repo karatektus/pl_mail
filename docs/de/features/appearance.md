@@ -1,4 +1,4 @@
-<!-- translated-from: features/appearance.md sha1:61e233ebde0b00ad4eb0b350d5eaf44735b85891 -->
+<!-- translated-from: features/appearance.md sha1:ac2a6d5a3594f7ec06584fff2566c1a226a25cba -->
 
 # Darstellung
 
@@ -26,6 +26,16 @@ Hintergrund und lässt nur den Hauptbereich als Karte stehen; Kacheln lässt jed
 eigene Karte schweben. Eines davon zu wählen setzt die Regler darunter auf die Zahlen dieses
 Layouts, damit die beiden nie einen Zustand beschreiben, den keines der Layouts hervorbringen
 würde. Flach ist die Vorgabe.
+
+## Das Logo
+
+Das „pl"-Zeichen hat zweiunddreißig Farbstimmungen — einfarbige, Zweiklänge, Tinte mit einem
+farbigen Schwung und Verläufe, die über die Striche laufen — und unter **Logo** suchst du deine
+aus. Die Wahl folgt dir überallhin, wo das Zeichen auftaucht: Die Kopfleiste trägt sie sofort,
+und auch das Tab-Symbol wird in deiner Farbstimmung ausgeliefert, der Browser-Tab passt also zu
+der Seite, die er öffnet. Ein neues Konto beginnt mit **Beere**, dem hauseigenen Verlauf. Dunkle
+Themes bekommen von jeder Farbstimmung die Striche für dunkle Oberflächen — ein tintendunkles
+Zeichen verschwindet so nie in einer dunklen Kopfleiste.
 
 ## Die Live-Vorschau
 

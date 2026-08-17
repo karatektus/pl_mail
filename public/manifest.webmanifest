@@ -5,8 +5,8 @@
     "start_url": "/mail/inbox",
     "scope": "/",
     "display": "standalone",
-    "background_color": "#2563eb",
-    "theme_color": "#2563eb",
+    "background_color": "#faf7f2",
+    "theme_color": "#a21caf",
     "icons": [
         {
             "src": "/icons/icon-192.png",

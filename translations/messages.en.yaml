@@ -1866,6 +1866,42 @@ settings:
                 strong: Strong
                 subtle: Subtle
             unreadEmphasis: Unread rows
+        logo:
+            heading: Logo
+            style:
+                aurora: 'Aurora'
+                berry: 'Berry'
+                blue-tonal: 'Blue tonal'
+                bronze-flick: 'Bronze flick'
+                bronze-ink: 'Bronze & ink'
+                burgundy: 'Burgundy'
+                charcoal-amber: 'Charcoal & amber'
+                cobalt-coral: 'Cobalt & coral'
+                copper: 'Copper'
+                deep-violet: 'Deep violet'
+                ember: 'Ember'
+                espresso-cream: 'Espresso & cream'
+                forest: 'Forest'
+                forest-lime: 'Forest & lime'
+                graphite-red: 'Graphite & red'
+                indigo-violet: 'Indigo–violet'
+                ink: 'Ink'
+                midnight-gold: 'Midnight & gold'
+                navy-sky: 'Navy & sky'
+                ocean: 'Ocean'
+                petrol-copper: 'Petrol & copper'
+                plum-rose: 'Plum & rose'
+                postal: 'Postal'
+                product-blue: 'Product blue'
+                red-flick: 'Red flick'
+                sky-flick: 'Sky flick'
+                slate: 'Slate'
+                sunset: 'Sunset'
+                teal-gold: 'Teal & gold'
+                tricolore: 'Tricolore'
+                twilight: 'Twilight'
+                violet-flick: 'Violet flick'
+            subheading: 'The colourway of the pl mark. The top bar and your tab icon wear it.'
         main:
             default: Theme default
             heading: Main pane

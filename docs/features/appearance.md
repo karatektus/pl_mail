@@ -22,6 +22,15 @@ and keeps only the main pane boxed; Boxed floats every panel as a card. Choosing
 sliders below it to that layout's own numbers, so the two never end up describing a state neither
 layout would produce. Flat is the default.
 
+## The logo
+
+The "pl" mark has thirty-two colourways — single colours, two-tone pairs, ink with one coloured
+flick, and gradients that sweep across the strokes — and **Logo** lets you pick yours. The choice
+follows you everywhere the mark appears: the top bar wears it at once, and the tab icon is served
+in your colourway too, so the browser tab matches the page it opens. A new account starts on
+**Berry**, the product's own sweep. Dark themes get each colourway's dark-chrome strokes, so an
+ink-dark mark never disappears into a dark top bar.
+
 ## The live preview
 
 Beside the controls sits a second card showing a sample sidebar, message list and reading pane in

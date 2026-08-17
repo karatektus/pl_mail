@@ -1,0 +1,38 @@
+{#
+The "pl" mark, geometry and nothing else — every colourway is a LogoStyle and
+every renderer of the mark goes through this macro, so the letters cannot
+drift between the topbar, the settings tiles and the favicon.
+
+The shape, for whoever tunes it next (each fix was a reviewed round):
+  - both letters start on one top line (y=7) and end on one bottom line
+    (y=42): the p's stem descends to exactly where the l's tail rests;
+  - the p's bowl ends high (y≈26) so the head reads square-ish, not tall;
+  - the l runs straight down to y=37 before its tail turns on a tight radius
+    — turned earlier, the column of ink under the l stopped visibly higher
+    than the p's and the p read as deeper, bounding boxes notwithstanding;
+  - the ink spans x 10.25–46.75 / y 4.25–44.75 raw, so the translate centres
+    the DRAWING in the 48-frame; without it every icon tile leaned right.
+
+Seven strokes, and their draw order is a contract: LogoStyle::strokes()
+returns paints for exactly this sequence, and the sweeps are built on it —
+reorder the strokes and every gradient breaks silently.
+
+`data-logo-stroke` carries the index so the appearance page can repaint a
+mark live when a style is picked, without knowing the geometry. Only marks
+rendered with `live` opt into that repaint: the settings tiles each preview
+their OWN style and must not be painted over by the choice they offer.
+#}
+{% macro mark(style, size, dark = false, live = false) %}
+    {% set c = style.strokes(dark) %}
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="{{ size }}" height="{{ size }}" aria-hidden="true" data-logo-mark{% if live %} data-logo-live{% endif %}>
+        <g transform="translate(-4.5 -0.5)" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-width="5.5">
+            <line x1="13" y1="11" x2="13" y2="42" stroke="{{ c[0] }}" data-logo-stroke="0"/>
+            <path d="M13 11 Q13 7 17 7 L23 7 Q29 7 29 13" stroke="{{ c[1] }}" data-logo-stroke="1"/>
+            <line x1="29" y1="13" x2="29" y2="22" stroke="{{ c[2] }}" data-logo-stroke="2"/>
+            <path d="M29 22 Q29 26 23 26 L17 26 Q13 26 13 22" stroke="{{ c[3] }}" data-logo-stroke="3"/>
+            <line x1="37" y1="7" x2="37" y2="26" stroke="{{ c[4] }}" data-logo-stroke="4"/>
+            <line x1="37" y1="26" x2="37" y2="37" stroke="{{ c[5] }}" data-logo-stroke="5"/>
+            <path d="M37 37 Q37 42 42 42 L44 42" stroke="{{ c[6] }}" data-logo-stroke="6"/>
+        </g>
+    </svg>
+{% endmacro %}

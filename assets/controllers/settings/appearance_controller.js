@@ -8,7 +8,7 @@ export default class extends Controller {
         resetUrl: String,
     };
 
-    static targets = ['paneAlpha', 'paneBlur', 'radius', 'scrimAlpha', 'accent', 'theme', 'importInput', 'uploadInput',
+    static targets = ['paneAlpha', 'paneBlur', 'radius', 'scrimAlpha', 'accent', 'theme', 'logoStyle', 'importInput', 'uploadInput',
         'inkColor', 'inkColorField', 'inkDefault', 'inkDerived', 'inkMuted', 'inkMutedField', 'inkFaint', 'inkFaintField',
         'mainTint', 'mainTintField', 'mainTintDefault', 'mainAlpha', 'mainAlphaField', 'mainAlphaMatch',
         'backgroundSolid', 'backgroundSolidSwatch',
@@ -276,6 +276,41 @@ export default class extends Controller {
             .forEach((key) => this.clearDefault(key));
 
         this.applyDefaults(defaults);
+
+        this.queue();
+    }
+
+    /**
+     * A logo colourway tile was clicked.
+     *
+     * The repaint targets only the marks that FOLLOW the setting —
+     * `[data-logo-live]`, today the topbar's — because the tiles beside this
+     * one each preview their OWN style and must not be painted over by the
+     * choice they offer. The strokes travel on the tile as two JSON lists
+     * (light and dark chrome), indexed the way _logo_mark.html.twig draws,
+     * so this stays geometry-blind: whichever chrome is on decides which
+     * list is painted, stroke by stroke.
+     */
+    pickLogo(event) {
+        const tile = event.currentTarget;
+        const style = tile.dataset.logoName;
+
+        this.logoStyleTarget.value = style;
+
+        this.element.querySelectorAll('[data-logo-name]').forEach((button) => {
+            button.classList.toggle('ring-2', button.dataset.logoName === style);
+            button.classList.toggle('ring-accent', button.dataset.logoName === style);
+        });
+
+        const strokes = JSON.parse(
+            this.root.classList.contains('dark')
+                ? tile.dataset.logoStrokesDark
+                : tile.dataset.logoStrokes,
+        );
+
+        document.querySelectorAll('[data-logo-live] [data-logo-stroke]').forEach((stroke) => {
+            stroke.setAttribute('stroke', strokes[Number(stroke.dataset.logoStroke)]);
+        });
 
         this.queue();
     }

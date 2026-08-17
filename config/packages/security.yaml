@@ -85,6 +85,12 @@ security:
         - { path: ^/jmap, roles: IS_AUTHENTICATED }
         - { path: ^/admin, roles: ROLE_ADMIN }
         - { path: ^/login, roles: PUBLIC_ACCESS }
+        # The tab icon. Browsers fetch it for the login page too — before any
+        # session exists — and an icon behind the login is a redirect the tab
+        # strip renders as a missing favicon. Anonymous callers get the
+        # product-default colourway; nothing user-specific leaves without a
+        # session. See App\Controller\BrandingController.
+        - { path: ^/branding/favicon\.svg$, roles: PUBLIC_ACCESS }
         # Device pairing, by necessity: a device that could authenticate here
         # would not need to pair. The gate is the code itself — 32 bytes of
         # CSPRNG, valid two minutes, burned on first use — see

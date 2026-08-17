@@ -20,22 +20,13 @@
         class="flex items-center gap-2 flex-shrink-0 md:w-52 no-underline"
         aria-label="{{ 'app.name'|trans }}"
     >
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="32" height="32" aria-hidden="true">
-            <defs>
-                <clipPath id="logo-clip">
-                    <rect width="48" height="48" rx="10"/>
-                </clipPath>
-            </defs>
-            <g clip-path="url(#logo-clip)" fill="none" stroke-linecap="round" stroke-linejoin="round">
-                <line x1="15" y1="10" x2="15" y2="38" stroke="#4285F4" stroke-width="5.5"/>
-                <path d="M15 10 Q15 6 19 6 L25 6 Q31 6 31 12" stroke="#EA4335" stroke-width="5.5"/>
-                <line x1="31" y1="12" x2="31" y2="26" stroke="#FBBC04" stroke-width="5.5"/>
-                <path d="M31 26 Q31 30 25 30 L19 30 Q15 30 15 26" stroke="#34A853" stroke-width="5.5"/>
-                <line x1="37" y1="7" x2="37" y2="26" stroke="#EA4335" stroke-width="5.5"/>
-                <line x1="37" y1="26" x2="37" y2="35" stroke="#4285F4" stroke-width="5.5"/>
-                <path d="M37 35 Q37 42 44 42" stroke="#FBBC04" stroke-width="5.5"/>
-            </g>
-        </svg>
+        {# The mark in the user's chosen colourway (Settings → Appearance →
+           Logo), dark strokes when the theme is dark. It used to be an inline
+           SVG wearing Google's literal brand hexes; both the geometry and the
+           paint live elsewhere now — see _logo_mark.html.twig and
+           LogoStyle. #}
+        {% import '_partials/_logo_mark.html.twig' as logo %}
+        {{ logo.mark(appearance().logoStyle, 32, appearance().theme.isDark, true) }}
         <span class="hidden sm:inline font-semibold text-ink text-sm tracking-wide">{{ 'app.name'|trans }}</span>
 
         {# Are live updates actually arriving? The failure is otherwise

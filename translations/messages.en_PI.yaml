@@ -1556,6 +1556,42 @@ settings:
                 strong: Loud as a cannon
                 subtle: A whisper
             unreadEmphasis: Unread rows
+        logo:
+            heading: 'Ship''s mark'
+            style:
+                aurora: 'Northern lights'
+                berry: 'Berry'
+                blue-tonal: 'Blue on blue'
+                bronze-flick: 'Bronze flourish'
+                bronze-ink: 'Bronze & ink'
+                burgundy: 'Grog'
+                charcoal-amber: 'Coal & amber'
+                cobalt-coral: 'Cobalt & coral'
+                copper: 'Copper'
+                deep-violet: 'Deep violet'
+                ember: 'Embers'
+                espresso-cream: 'Grog & cream'
+                forest: 'Kelp'
+                forest-lime: 'Kelp & lime'
+                graphite-red: 'Graphite & red'
+                indigo-violet: 'Indigo–violet'
+                ink: 'Squid ink'
+                midnight-gold: 'Midnight & doubloons'
+                navy-sky: 'Navy & sky'
+                ocean: 'The open sea'
+                petrol-copper: 'Petrol & copper'
+                plum-rose: 'Plum & rose'
+                postal: 'Mail packet'
+                product-blue: 'Ship''s blue'
+                red-flick: 'Red flourish'
+                sky-flick: 'Sky flourish'
+                slate: 'Slate'
+                sunset: 'Sunset'
+                teal-gold: 'Teal & doubloons'
+                tricolore: 'Three flags'
+                twilight: 'Twilight'
+                violet-flick: 'Violet flourish'
+            subheading: 'The colours yer mark sails under. Top bar and tab badge both fly them.'
         main:
             default: Theme default
             heading: Main deck
