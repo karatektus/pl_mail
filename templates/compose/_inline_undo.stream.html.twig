@@ -32,10 +32,13 @@ Variables: form, message, ctx (the compose context), threadEntity (MessageThread
    the empty frame the reply zone just rendered swaps the editor back in. #}
 <turbo-stream action="replace" target="{{ ctx.frame }}">
     <template>
+        {# ctx.withThread(), not ctx|merge({thread: …}): ctx is a
+           ComposeContext now, and merge is an array filter. The object answers
+           the same question — see App\Domain\DTO\Mail\ComposeContext. #}
         {% include 'compose/_window.html.twig' with {
             form:    form,
             message: message,
-            ctx:     ctx|merge({ thread: threadEntity is not null ? threadEntity.id : null }),
+            ctx:     ctx.withThread(threadEntity is not null ? threadEntity.id : null),
             pickerIntegrations: pickerIntegrations,
         } only %}
     </template>

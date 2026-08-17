@@ -28,7 +28,7 @@ final readonly class DraftAttachmentService
 {
     /**
      * Per-file ceiling for compose attachments. The compose window reads it too
-     * (via ComposeController::MAX_ATTACHMENT_BYTES) so it can refuse an
+     * (via ComposeAttachmentController::MAX_ATTACHMENT_BYTES) so it can refuse an
      * oversized file before it is uploaded.
      *
      * Must stay under upload_max_filesize (frankenphp/conf.d/10-app.ini).

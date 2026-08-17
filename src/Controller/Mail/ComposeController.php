@@ -3,34 +3,27 @@
 namespace App\Controller\Mail;
 
 use App\Controller\RendersTurboStreams;
-use App\Domain\Enum\Integration\Capability;
-use App\Domain\Helper\AddressHelper;
+use App\Domain\DTO\Mail\ComposeContext;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Message;
-use App\Entity\Mail\MessagePart;
-use App\Entity\Mail\MessageThread;
 use App\Entity\User\User;
-use App\Form\ComposeType;
 use App\Infrastructure\Messaging\Message\SendMessageMessage;
-use App\Repository\Mail\AccountRepository;
-use App\Repository\Integration\IntegrationRepository;
 use App\Repository\Mail\MessageRepository;
+use App\Security\Voter\OwnershipVoter;
 use App\Service\Label\LabelChangePropagator;
+use App\Service\Mail\ComposeFormFactory;
+use App\Service\Mail\ComposeWindow;
 use App\Service\Mail\DraftAddressFields;
-use App\Service\Mail\DraftAttachmentService;
 use App\Service\Mail\DraftPersister;
-use App\Service\Mail\InlineImageRewriter;
 use App\Service\Mail\InvalidScheduleException;
 use App\Service\Mail\MessageEraser;
 use App\Service\Mail\ReplyDraftBuilder;
 use App\Service\Mail\ScheduledSendResolver;
 use App\Service\Mail\SenderResolver;
-use App\Service\Mail\SignatureProvider;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\Form\FormError;
 use Symfony\Component\Form\FormInterface;
-use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Messenger\MessageBusInterface;
@@ -54,19 +47,6 @@ use Symfony\Contracts\Translation\TranslatorInterface;
 class ComposeController extends AbstractController
 {
     use RendersTurboStreams;
-
-    private const string DOCK_FRAME   = 'compose_dock';
-    private const string INLINE_FRAME = 'compose_inline';
-    private const string INLINE_FORM  = 'compose_inline';
-
-    /**
-     * Per-file ceiling for compose attachments. Public because the compose
-     * window reads it too, to refuse an oversized file before it is uploaded.
-     *
-     * The rule itself belongs to DraftAttachmentService, which enforces it;
-     * this is the name the window and the file picker already know it by.
-     */
-    public const int MAX_ATTACHMENT_BYTES = DraftAttachmentService::MAX_BYTES;
 
     /** Matches the DelayStamp on the send job. */
     private const int SEND_DELAY_MS = 10_000;
@@ -94,32 +74,27 @@ class ComposeController extends AbstractController
     public function __construct(
         private readonly EntityManagerInterface  $em,
         private readonly MessageRepository       $messageRepository,
-        private readonly AccountRepository       $accountRepository,
+        private readonly ComposeWindow           $window,
+        private readonly ComposeFormFactory      $formFactory,
         private readonly MessageBusInterface     $bus,
-        private readonly IntegrationRepository   $integrationRepository,
         private readonly ReplyDraftBuilder       $replyDrafts,
         private readonly DraftPersister          $drafts,
-        private readonly DraftAttachmentService  $attachments,
         private readonly DraftAddressFields      $addressFields,
         private readonly SenderResolver          $senders,
         private readonly MessageEraser           $eraser,
         private readonly LabelChangePropagator   $labelChanges,
         private readonly TranslatorInterface     $translator,
         private readonly ScheduledSendResolver   $schedules,
-        private readonly InlineImageRewriter     $inlineImages,
-        private readonly SignatureProvider       $signatures,
     )
     {
     }
 
     #[Route('/new', name: 'new', methods: ['GET'])]
     #[Route('/edit/{id}', name: 'edit', methods: ['GET'])]
-    public function compose(Request $request, ?Message $message = null): Response
+    public function compose(ComposeContext $ctx, ?Message $message = null): Response
     {
-        $ctx = $this->composeContext($request);
-
         if (null === $message) {
-            $account = $this->defaultAccount();
+            $account = $this->window->defaultAccountFor($this->currentUser());
 
             // A fresh install has no account, and Message::$account is not
             // nullable — so composing used to fatal at exactly the moment the
@@ -144,14 +119,14 @@ class ComposeController extends AbstractController
             // away by the next From switch, which replaces the block. Same
             // `<p><br></p>` ReplyDraftBuilder puts above a quote, for the same
             // reason.
-            $message->bodyHtml = $this->signatureSeed($account);
+            $message->bodyHtml = $this->window->signatureSeed($account);
 
         } else {
-            $this->assertOwnership($message);
+            $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $message);
             $account = $message->account;
         }
 
-        $form = $this->composeForm($message, $ctx);
+        $form = $this->formFactory->create($message, $ctx, $this->currentUser());
         $form->get('account')->setData($this->senders->token($account));
         $this->addressFields->hydrate($form, $message, $this->getUser());
 
@@ -159,16 +134,15 @@ class ComposeController extends AbstractController
     }
 
     #[Route('/reply/{id}', name: 'reply', methods: ['GET'])]
-    public function reply(Request $request, Message $original): Response
+    public function reply(ComposeContext $ctx, Message $original): Response
     {
-        $this->assertOwnership($original);
+        $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $original);
 
-        $ctx            = $this->composeContext($request);
-        $ctx['replyTo'] = $original->id;
-        $account        = $original->account ?? $this->defaultAccount();
-        $draft          = $this->replyDrafts->reply($original, $account);
+        $ctx     = $ctx->withReplyTo($original->id);
+        $account = $original->account ?? $this->window->defaultAccountFor($this->currentUser());
+        $draft   = $this->replyDrafts->reply($original, $account);
 
-        $form = $this->composeForm($draft, $ctx);
+        $form = $this->formFactory->create($draft, $ctx, $this->currentUser());
         $form->get('account')->setData($this->senders->token($account));
         $this->addressFields->hydrate($form, $draft, $this->getUser());
 
@@ -176,16 +150,15 @@ class ComposeController extends AbstractController
     }
 
     #[Route('/reply-all/{id}', name: 'reply_all', methods: ['GET'])]
-    public function replyAll(Request $request, Message $original): Response
+    public function replyAll(ComposeContext $ctx, Message $original): Response
     {
-        $this->assertOwnership($original);
+        $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $original);
 
-        $ctx            = $this->composeContext($request);
-        $ctx['replyTo'] = $original->id;
-        $account        = $original->account ?? $this->defaultAccount();
-        $draft          = $this->replyDrafts->reply($original, $account, replyAll: true);
+        $ctx     = $ctx->withReplyTo($original->id);
+        $account = $original->account ?? $this->window->defaultAccountFor($this->currentUser());
+        $draft   = $this->replyDrafts->reply($original, $account, replyAll: true);
 
-        $form = $this->composeForm($draft, $ctx);
+        $form = $this->formFactory->create($draft, $ctx, $this->currentUser());
         $form->get('account')->setData($this->senders->token($account));
         $this->addressFields->hydrate($form, $draft, $this->getUser());
 
@@ -193,15 +166,14 @@ class ComposeController extends AbstractController
     }
 
     #[Route('/forward/{id}', name: 'forward', methods: ['GET'])]
-    public function forwardMessage(Request $request, Message $original): Response
+    public function forwardMessage(ComposeContext $ctx, Message $original): Response
     {
-        $this->assertOwnership($original);
+        $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $original);
 
-        $ctx     = $this->composeContext($request);
-        $account = $original->account ?? $this->defaultAccount();
+        $account = $original->account ?? $this->window->defaultAccountFor($this->currentUser());
         $draft   = $this->replyDrafts->forward($original);
 
-        $form = $this->composeForm($draft, $ctx);
+        $form = $this->formFactory->create($draft, $ctx, $this->currentUser());
         $form->get('account')->setData($this->senders->token($account));
         $this->addressFields->hydrate($form, $draft, $this->getUser());
 
@@ -210,18 +182,17 @@ class ComposeController extends AbstractController
 
     #[Route('/draft', name: 'form_new', methods: ['POST'])]
     #[Route('/draft/{id}', name: 'form_edit', methods: ['POST'])]
-    public function draft(Request $request, ?Message $message = null): Response
+    public function draft(Request $request, ComposeContext $ctx, ?Message $message = null): Response
     {
         if (null === $message) {
             $message = new Message();
-            $message->account = $this->defaultAccount();
+            $message->account = $this->window->defaultAccountFor($this->currentUser());
         } else {
-            $this->assertOwnership($message);
+            $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $message);
         }
 
-        $ctx  = $this->composeContext($request);
         $this->applyReplyContext($message, $ctx);
-        $form = $this->composeForm($message, $ctx);
+        $form = $this->formFactory->create($message, $ctx, $this->currentUser());
 
         $form->handleRequest($request);
 
@@ -232,7 +203,7 @@ class ComposeController extends AbstractController
             $token   = $form->get('account')->getData();
             $account = $this->senders->accountFor($token, $this->getUser())
                 ?? $message->account
-                ?? $this->defaultAccount();
+                ?? $this->window->defaultAccountFor($this->currentUser());
 
             if (null === $account) {
                 throw $this->createNotFoundException('No active account to compose from.');
@@ -252,17 +223,16 @@ class ComposeController extends AbstractController
 
     #[Route('/send', name: 'mail_send', methods: ['POST'])]
     #[Route('/send/{id}', name: 'mail_send_draft', methods: ['POST'])]
-    public function send(Request $request, ?Message $message): Response
+    public function send(Request $request, ComposeContext $ctx, ?Message $message): Response
     {
         if (null === $message) {
             $message = new Message();
         } else {
-            $this->assertOwnership($message);
+            $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $message);
         }
 
-        $ctx  = $this->composeContext($request);
         $this->applyReplyContext($message, $ctx);
-        $form = $this->composeForm($message, $ctx, ['Default', 'send']);
+        $form = $this->formFactory->create($message, $ctx, $this->currentUser(), ['Default', 'send']);
 
         $form->handleRequest($request);
 
@@ -283,7 +253,7 @@ class ComposeController extends AbstractController
             // restore, and none of those are this form. Refusing here means
             // there is no path through the controller that dispatches a send
             // to something that is not an address.
-            $unsendable = $this->firstUnsendableAddress($message);
+            $unsendable = $this->window->firstUnsendableAddress($message);
 
             if (null !== $unsendable) {
                 $form->get('toAddresses')->addError(new FormError(
@@ -300,7 +270,7 @@ class ComposeController extends AbstractController
             $token   = $form->get('account')->getData();
             $account = $this->senders->accountFor($token, $this->getUser())
                 ?? $message->account
-                ?? $this->defaultAccount();
+                ?? $this->window->defaultAccountFor($this->currentUser());
 
             if (null === $account) {
                 throw $this->createNotFoundException('No active account to send from.');
@@ -341,17 +311,16 @@ class ComposeController extends AbstractController
      */
     #[Route('/schedule', name: 'mail_schedule', methods: ['POST'])]
     #[Route('/schedule/{id}', name: 'mail_schedule_draft', methods: ['POST'])]
-    public function schedule(Request $request, ?Message $message): Response
+    public function schedule(Request $request, ComposeContext $ctx, ?Message $message): Response
     {
         if (null === $message) {
             $message = new Message();
         } else {
-            $this->assertOwnership($message);
+            $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $message);
         }
 
-        $ctx  = $this->composeContext($request);
         $this->applyReplyContext($message, $ctx);
-        $form = $this->composeForm($message, $ctx, ['Default', 'send']);
+        $form = $this->formFactory->create($message, $ctx, $this->currentUser(), ['Default', 'send']);
 
         $form->handleRequest($request);
 
@@ -385,7 +354,7 @@ class ComposeController extends AbstractController
             return $this->renderWindow($form, $message, $ctx);
         }
 
-        $unsendable = $this->firstUnsendableAddress($message);
+        $unsendable = $this->window->firstUnsendableAddress($message);
 
         if (null !== $unsendable) {
             $form->get('toAddresses')->addError(new FormError(
@@ -402,7 +371,7 @@ class ComposeController extends AbstractController
         $token   = $form->get('account')->getData();
         $account = $this->senders->accountFor($token, $this->getUser())
             ?? $message->account
-            ?? $this->defaultAccount();
+            ?? $this->window->defaultAccountFor($this->currentUser());
 
         if (null === $account) {
             throw $this->createNotFoundException('No active account to send from.');
@@ -445,9 +414,9 @@ class ComposeController extends AbstractController
     }
 
     #[Route('/undo/{id}', name: 'mail_undo', methods: ['POST'])]
-    public function undo(Request $request, Message $message): Response
+    public function undo(ComposeContext $ctx, Message $message): Response
     {
-        $this->assertOwnership($message);
+        $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $message);
 
         // Whether the cancel arrived in time is decided in one statement, and
         // this is the answer to it. Before, nothing asked: the flag was written
@@ -460,17 +429,16 @@ class ComposeController extends AbstractController
         // form: a lost cancel means the send is in flight or done, and what the
         // user needs then is the truth, not their draft back.
         if (false === $this->callOffSend($message)) {
-            return $this->sendAlreadyGoneResponse($request, $message);
+            return $this->sendAlreadyGoneResponse($ctx, $message);
         }
 
-        $ctx  = $this->composeContext($request);
-        $form = $this->composeForm($message, $ctx);
+        $form = $this->formFactory->create($message, $ctx, $this->currentUser());
         $form->get('account')->setData($this->senders->token($message->account));
         $this->addressFields->hydrate($form, $message, $this->getUser());
 
         // Inline: pull the message back out of the thread and re-open the
         // editor where it was. Dock: the original toast + re-docked window.
-        if (true === $ctx['inline']) {
+        if (true === $ctx->inline) {
             return $this->renderTurboStream('compose/_inline_undo.stream.html.twig', [
                 'form'         => $form,
                 'message'      => $message,
@@ -482,7 +450,7 @@ class ComposeController extends AbstractController
                 // `only`, so without it the cancel flushed and then 500'd on
                 // the reopen — the same silent draft-with-no-way-back the dock
                 // undo used to leave, one frame over.
-                'pickerIntegrations' => $this->pickerIntegrations(),
+                'pickerIntegrations' => $this->window->pickerIntegrationsFor($this->currentUser()),
             ]);
         }
 
@@ -502,7 +470,7 @@ class ComposeController extends AbstractController
             'form'    => $form,
             'message' => $message,
             'ctx'     => $ctx,
-            'pickerIntegrations' => $this->pickerIntegrations(),
+            'pickerIntegrations' => $this->window->pickerIntegrationsFor($this->currentUser()),
         ]);
     }
 
@@ -526,7 +494,7 @@ class ComposeController extends AbstractController
     #[Route('/unschedule/{id}', name: 'mail_unschedule', methods: ['POST'])]
     public function unschedule(Request $request, Message $message): Response
     {
-        $this->assertOwnership($message);
+        $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $message);
 
         // Already gone: nothing is written — not even `cancelled`, which on a
         // message SendMessageHandler has finished with means nothing and reads
@@ -609,9 +577,8 @@ class ComposeController extends AbstractController
      * editable copy of a mail that has been sent on screen, and the next
      * autosave would file it as a draft beside the sent copy.
      */
-    private function sendAlreadyGoneResponse(Request $request, Message $message): Response
+    private function sendAlreadyGoneResponse(ComposeContext $ctx, Message $message): Response
     {
-        $ctx = $this->composeContext($request);
 
         return $this->renderTurboStream('compose/_undo_too_late.html.twig', [
             'message' => $message,
@@ -623,11 +590,10 @@ class ComposeController extends AbstractController
      * Inline sends skip the toast: the message is appended to the open thread
      * and the reply bar becomes a countdown the user can click to cancel.
      *
-     * @param array{inline: bool, frame: string, thread: int|null, replyTo: int|null, urlParams: array<string, int|string>} $ctx
      */
-    private function sendResponse(Message $message, array $ctx): Response
+    private function sendResponse(Message $message, ComposeContext $ctx): Response
     {
-        if (false === $ctx['inline']) {
+        if (false === $ctx->inline) {
             return $this->renderTurboStream('compose/_send_toast.html.twig', [
                 'message'     => $message,
                 'cancelWindow' => self::CANCEL_WINDOW_MS,
@@ -639,7 +605,7 @@ class ComposeController extends AbstractController
             'thread'  => $message->thread,
             'undoUrl' => $this->generateUrl(
                 'app_compose_mail_undo',
-                $ctx['urlParams'] + ['id' => $message->id],
+                $ctx->urlParams() + ['id' => $message->id],
             ),
             // The cancel window, NOT the send delay. Offering the whole delay
             // is what let a click land after the worker had already claimed
@@ -658,9 +624,8 @@ class ComposeController extends AbstractController
      * thread, and the only change on screen is the window closing and a toast
      * naming the time.
      *
-     * @param array{inline: bool, frame: string, thread: int|null, replyTo: int|null, urlParams: array<string, int|string>} $ctx
      */
-    private function scheduleResponse(Message $message, array $ctx, \DateTimeImmutable $sendAt): Response
+    private function scheduleResponse(Message $message, ComposeContext $ctx, \DateTimeImmutable $sendAt): Response
     {
         return $this->renderTurboStream('compose/_scheduled.stream.html.twig', [
             'message'   => $message,
@@ -669,7 +634,7 @@ class ComposeController extends AbstractController
             'thread'    => $message->thread,
             'cancelUrl' => $this->generateUrl(
                 'app_compose_mail_undo',
-                $ctx['urlParams'] + ['id' => $message->id],
+                $ctx->urlParams() + ['id' => $message->id],
             ),
         ]);
     }
@@ -682,7 +647,7 @@ class ComposeController extends AbstractController
     #[Route('/draft-row/{id}', name: 'draft_row', methods: ['GET'])]
     public function draftRow(Message $message): Response
     {
-        $this->assertOwnership($message);
+        $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $message);
 
         return $this->render('mail/_thread_message.html.twig', [
             'message'  => $message,
@@ -691,116 +656,18 @@ class ComposeController extends AbstractController
     }
 
     /**
-     * Attach files to a draft. The window forces a save before uploading, so
-     * there is always a Message to hang the parts off; the sending side
-     * already turns MessageParts into MIME attachments.
-     *
-     * Answers with the attachment strip for the window to swap in.
-     */
-    #[Route('/attachments/{id}', name: 'attachments_add', methods: ['POST'])]
-    public function addAttachments(Request $request, Message $message): Response
-    {
-        $this->assertDraft($message);
-
-        $files = array_values(array_filter(
-            $request->files->all('files'),
-            static fn (mixed $file): bool => $file instanceof UploadedFile,
-        ));
-
-        // Nothing arrived at all. Almost always post_max_size: PHP discards the
-        // whole body, so $_FILES is empty and there is no per-file error to
-        // read — silence here is what made an oversized upload look like a
-        // no-op instead of a refusal.
-        if (0 === count($files)) {
-            return $this->uploadError($this->translator->trans('compose.upload.post_too_large'));
-        }
-
-        $refusal = $this->attachments->attach($message, $files);
-
-        if (null !== $refusal) {
-            return $this->uploadError($refusal);
-        }
-
-        return $this->render('compose/_attachments.html.twig', ['message' => $message]);
-    }
-
-    /**
-     * Plain text so the window can show the reason as-is; the HTML answer of a
-     * successful upload is the attachment strip.
-     */
-    private function uploadError(string $message): Response
-    {
-        return new Response(
-            $message,
-            Response::HTTP_REQUEST_ENTITY_TOO_LARGE,
-            ['Content-Type' => 'text/plain; charset=utf-8'],
-        );
-    }
-
-    /**
-     * Place an image in the body rather than beside it.
-     *
-     * JSON rather than a Turbo Stream because nothing on the page is being
-     * replaced: the answer is a reference the editor drops in at the caret,
-     * which is a caret operation, not a DOM region swap. ContactController's
-     * autocomplete is the precedent.
-     *
-     * Paste and drag-drop come through here too — the alternative is a
-     * multi-megabyte data: URI inside every autosave of the draft.
-     */
-    #[Route('/inline-image/{id}', name: 'inline_image', methods: ['POST'])]
-    public function addInlineImage(Request $request, Message $message): Response
-    {
-        $this->assertDraft($message);
-
-        $file = $request->files->get('file');
-
-        if (false === $file instanceof UploadedFile) {
-            return $this->json(
-                ['error' => $this->translator->trans('compose.upload.post_too_large')],
-                Response::HTTP_REQUEST_ENTITY_TOO_LARGE,
-            );
-        }
-
-        $result = $this->attachments->attachInline($message, $file);
-
-        if (is_string($result)) {
-            return $this->json(['error' => $result], Response::HTTP_REQUEST_ENTITY_TOO_LARGE);
-        }
-
-        return $this->json([
-            'id'        => $result->id,
-            'contentId' => $result->contentId,
-            'url'       => $this->generateUrl('app_mail_attachment', ['id' => $result->id]),
-        ]);
-    }
-
-    #[Route('/attachment/{id}/remove', name: 'attachment_remove', methods: ['POST'])]
-    public function removeAttachment(MessagePart $part): Response
-    {
-        $message = $part->message;
-
-        $this->assertDraft($message);
-
-        $this->attachments->remove($part);
-
-        return $this->render('compose/_attachments.html.twig', ['message' => $message]);
-    }
-
-    /**
      * Discard: the trash button in the compose window really deletes the
      * draft instead of just closing the window on top of it.
      */
     #[Route('/discard/{id}', name: 'discard', methods: ['POST'])]
-    public function discard(Request $request, Message $message): Response
+    public function discard(Request $request, ComposeContext $ctx, Message $message): Response
     {
-        $this->assertOwnership($message);
+        $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $message);
 
         if (false === $message->isDraft() || null !== $message->sentAt) {
             throw $this->createAccessDeniedException('Only unsent drafts can be discarded.');
         }
 
-        $ctx       = $this->composeContext($request);
         $messageId = $message->id;
         $thread    = $message->thread;
 
@@ -832,146 +699,16 @@ class ComposeController extends AbstractController
         return $this->renderTurboStream('compose/_discard.stream.html.twig', [
             'messageId' => $messageId,
             'ctx'       => $ctx,
-            'threadId'  => $this->rowToDrop($thread, $messageId, $remaining, $request),
+            'threadId'  => $this->window->rowToDrop(
+                $thread,
+                $messageId,
+                $remaining,
+                'drafts' === $request->query->get('scope'),
+            ),
         ]);
     }
 
     // ── Private helpers ───────────────────────────────────────────────────────
-
-    /**
-     * The first recipient on the message that is not a usable address, or null
-     * when every one of them is.
-     *
-     * Cc and Bcc are checked as well as To: a malformed address anywhere in the
-     * envelope fails the send at the SMTP layer, and failing it here says which
-     * one rather than leaving a bounce to explain it.
-     */
-    private function firstUnsendableAddress(Message $message): ?string
-    {
-        $groups = [
-            $message->toAddresses ?? [],
-            $message->ccAddresses ?? [],
-            $message->bccAddresses ?? [],
-        ];
-
-        foreach ($groups as $addresses) {
-            foreach ($addresses as $entry) {
-                $address = (string) ($entry['address'] ?? '');
-
-                if (false === AddressHelper::isValidEmail($address)) {
-                    return '' === $address ? '—' : $address;
-                }
-            }
-        }
-
-        return null;
-    }
-
-    /**
-     * The thread whose list row the discard should take with it, or null to
-     * leave every row standing.
-     *
-     * List rows stand for threads, so an emptied thread loses its row wherever
-     * it is shown. The Drafts list is the other case: its rows are there
-     * because of a draft, so a conversation that just lost its last one drops
-     * out of that view even though the thread lives on. Which view is asking
-     * comes from the window (`scope`), because the same thread must keep its
-     * row in the Inbox.
-     */
-    private function rowToDrop(?MessageThread $thread, ?int $discardedId, int $remaining, Request $request): ?int
-    {
-        if (null === $thread) {
-            return null;
-        }
-
-        if (0 === $remaining) {
-            return $thread->id;
-        }
-
-        if ('drafts' !== $request->query->get('scope')) {
-            return null;
-        }
-
-        foreach ($thread->messages as $message) {
-            // The discarded message can still sit in the loaded collection.
-            if ($message->id === $discardedId) {
-                continue;
-            }
-
-            if (true === $message->isDraft()) {
-                return null;
-            }
-        }
-
-        return $thread->id;
-    }
-
-    /**
-     * Where this compose window lives. The dock is the default; the thread
-     * view passes ?frame=compose_inline&thread={id} on every URL it hands to
-     * the client (open, autosave, send, undo) so the round trip stays
-     * self-describing — the autosave fetch sends no Turbo-Frame header.
-     *
-     * `replyTo` is the message being answered. It has to survive the round
-     * trip because the first autosave POSTs to /compose/draft with no id, so
-     * the server builds a brand new Message that would otherwise have lost
-     * the thread and In-Reply-To the reply was created with.
-     *
-     * @return array{inline: bool, frame: string, thread: int|null, replyTo: int|null, urlParams: array<string, int|string>}
-     */
-    private function composeContext(Request $request): array
-    {
-        $frame = (string) $request->query->get('frame', self::DOCK_FRAME);
-
-        // compose_inline is the reply box at the foot of the thread;
-        // compose_draft_{id} is a draft being edited in place, in its own row.
-        $inline = 1 === preg_match('/^compose_(inline|draft_\d+)$/', $frame);
-
-        $ctx = [
-            'inline'  => $inline,
-            'frame'   => $inline ? $frame : self::DOCK_FRAME,
-            'thread'  => $request->query->has('thread') ? $request->query->getInt('thread') : null,
-            'replyTo' => $request->query->has('reply_to') ? $request->query->getInt('reply_to') : null,
-        ];
-
-        // Carried on the context rather than derived at each render: every
-        // template that opens a compose window needs the same query params
-        // back, and three call sites recomputing them is three chances to
-        // disagree about which ones matter.
-        $ctx['urlParams'] = $this->urlParams($ctx);
-
-        return $ctx;
-    }
-
-    /**
-     * Query params to bake into the draft/send URLs the window reports back.
-     *
-     * @param array{inline: bool, frame: string, thread: int|null, replyTo: int|null, urlParams: array<string, int|string>} $ctx
-     *
-     * @return array<string, int|string>
-     */
-    /** Called once, from composeContext(); the result rides on the context. */
-    private function urlParams(array $ctx): array
-    {
-        $params = [];
-
-        if (true === $ctx['inline']) {
-            $params['frame'] = $ctx['frame'];
-        }
-
-        // Not inline-only: below md a reply opens in the dock instead of in
-        // the thread (see compose--frame-target), and the window still has to
-        // know which conversation it belongs to so its draft row lands there.
-        if (null !== $ctx['thread']) {
-            $params['thread'] = $ctx['thread'];
-        }
-
-        if (null !== $ctx['replyTo']) {
-            $params['reply_to'] = $ctx['replyTo'];
-        }
-
-        return $params;
-    }
 
     /**
      * Re-attach a freshly created draft to the conversation it answers.
@@ -980,17 +717,16 @@ class ComposeController extends AbstractController
      * came back from the browser, so the message it names is only the original
      * if the user owns it.
      *
-     * @param array{inline: bool, frame: string, thread: int|null, replyTo: int|null, urlParams: array<string, int|string>} $ctx
      */
-    private function applyReplyContext(Message $message, array $ctx): void
+    private function applyReplyContext(Message $message, ComposeContext $ctx): void
     {
-        if (null !== $message->thread || null === $ctx['replyTo']) {
+        if (null !== $message->thread || null === $ctx->replyTo) {
             return;
         }
 
-        $original = $this->messageRepository->find($ctx['replyTo']);
+        $original = $this->messageRepository->find($ctx->replyTo);
 
-        if (null === $original || $original->account->usr !== $this->getUser()) {
+        if (null === $original || false === $this->isGranted(OwnershipVoter::OWN, $original)) {
             return;
         }
 
@@ -998,140 +734,30 @@ class ComposeController extends AbstractController
     }
 
     /**
-     * Inline windows get their own form name so their DOM ids can't collide
-     * with a dock window open at the same time (compose_inline_subject vs
-     * compose_subject). The CSRF token id is shared, so tokens interchange.
-     *
-     * @param array{inline: bool, frame: string, thread: int|null, replyTo: int|null, urlParams: array<string, int|string>} $ctx
-     * @param list<string>                                         $groups
      */
-    private function composeForm(Message $message, array $ctx, array $groups = ['Default']): FormInterface
-    {
-        $options = [
-            'user'              => $this->getUser(),
-            'validation_groups' => $groups,
-        ];
-
-        $form = false === $ctx['inline']
-            ? $this->createForm(ComposeType::class, $message, $options)
-            : $this->container->get('form.factory')
-                ->createNamed(self::INLINE_FORM, ComposeType::class, $message, $options);
-
-        // The stored body references its inline images as `cid:`, which is
-        // what has to go on the wire and what no browser can render. The
-        // editor gets them back as attachment URLs; a submit overwrites this
-        // with what the user actually typed, and DraftPersister turns it back.
-        $form->get('bodyHtml')->setData(
-            $this->inlineImages->toDisplay($message->bodyHtml, $message),
-        );
-
-        return $form;
-    }
-
-    /**
-     * @param array{inline: bool, frame: string, thread: int|null, replyTo: int|null, urlParams: array<string, int|string>} $ctx
-     */
-    private function renderWindow(FormInterface $form, Message $message, array $ctx, array $extra = []): Response
+    private function renderWindow(FormInterface $form, Message $message, ComposeContext $ctx, array $extra = []): Response
     {
         return $this->render('compose/_window.html.twig', $extra + [
             'form'    => $form,
             'message' => $message,
             'ctx'     => $ctx,
-            'pickerIntegrations' => $this->pickerIntegrations(),
+            'pickerIntegrations' => $this->window->pickerIntegrationsFor($this->currentUser()),
         ]);
     }
 
     /**
-     * Services this user can pull files out of. Download rather than Browse is
-     * the test that matters: a service you can list but not fetch from would
-     * open a picker that cannot attach anything.
-     *
-     * Its own method because the window is rendered from two places — here and
-     * the undo toast — and the one that forgot it was a 500.
-     *
-     * @return list<\App\Entity\Integration\Integration>
+     * The signed-in user, narrowed. Same shape as CalendarController's — the
+     * services this controller delegates to take a User, not a UserInterface,
+     * because they are about one person's mail rather than about a session.
      */
-    private function pickerIntegrations(): array
+    private function currentUser(): User
     {
-        return $this->integrationRepository->findSupportingForUser(
-            $this->getUser(),
-            Capability::Download,
-        );
-    }
+        $user = $this->getUser();
 
-    /**
-     * The body a brand-new message opens with: somewhere to write, then the
-     * signature.
-     *
-     * Empty when the sender signs with nothing — a lone `<p><br></p>` would be
-     * a body that is not empty, and the editor's placeholder ("Write your
-     * message…") only shows for a genuinely empty one.
-     */
-    private function signatureSeed(Account $account): string
-    {
-        $signature = $this->signatures->blockFor($account, $account->displayAddress);
-
-        return '' === $signature ? '' : '<p><br></p>' . $signature;
-    }
-
-    private function defaultAccount(): ?Account
-    {
-        $account = $this->accountRepository->findOneBy([
-            'usr' => $this->getUser(),
-            'isActive' => true,
-            'isPrimary' => true,
-        ]);
-
-        if (null !== $account && $account->usr !== $this->getUser()) {
+        if (false === $user instanceof User) {
             throw $this->createAccessDeniedException();
         }
 
-        if (null !== $account) {
-            return $account;
-        }
-
-        // Ordered, because this is the answer to "which account is primary" on
-        // every install where nothing carries the flag — an account created by
-        // anything other than AccountCreator::create() (a seed, an import, a
-        // restore) never gets it. Unordered, findOneBy returned whichever row
-        // the database felt like, so the From default could differ between two
-        // loads of the same window.
-        //
-        // sortOrder is the right tiebreak rather than an arbitrary one: it IS
-        // the user's own arrangement, and isPrimary is derived from position 0
-        // of exactly this ordering (AccountCreator::resequence()).
-        return $this->accountRepository->findOneBy(
-            [
-                'usr'      => $this->getUser(),
-                'isActive' => true,
-            ],
-            ['sortOrder' => 'ASC'],
-        );
-    }
-
-    /**
-     * Attachments may only be touched on a draft the user owns that has not
-     * gone out yet — a sent message's parts are a record of what was sent.
-     */
-    private function assertDraft(?Message $message): void
-    {
-        if (null === $message) {
-            throw $this->createNotFoundException();
-        }
-
-        $this->assertOwnership($message);
-
-        if (false === $message->isDraft() || null !== $message->sentAt) {
-            throw $this->createAccessDeniedException('Only unsent drafts can be edited.');
-        }
-    }
-
-    private function assertOwnership(Message $message): void
-    {
-        $account = $message->account;
-
-        if (null === $account || $account->usr !== $this->getUser()) {
-            throw $this->createAccessDeniedException();
-        }
+        return $user;
     }
 }

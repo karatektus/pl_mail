@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controller\Integration;
 
-use App\Controller\Mail\ComposeController;
+use App\Controller\Mail\ComposeAttachmentController;
 use App\Domain\Enum\Integration\Capability;
 use App\Domain\Exception\IntegrationException;
 use App\Entity\Integration\Integration;
@@ -95,7 +95,7 @@ final class FilePickerController extends AbstractController
             'folderId'    => $folderId,
             'draftId'     => $draftId,
             'query'       => $query,
-            'maxBytes'    => ComposeController::MAX_ATTACHMENT_BYTES,
+            'maxBytes'    => ComposeAttachmentController::MAX_ATTACHMENT_BYTES,
             'canLink'     => $integration->supports(Capability::ShareLink),
             'canThumb'    => $integration->supports(Capability::Thumbnail),
             'canSearch'   => $view->canSearch,
@@ -188,7 +188,7 @@ final class FilePickerController extends AbstractController
             $integration,
             $message,
             $selection,
-            ComposeController::MAX_ATTACHMENT_BYTES,
+            ComposeAttachmentController::MAX_ATTACHMENT_BYTES,
         );
 
         return new JsonResponse([
