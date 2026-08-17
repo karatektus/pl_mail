@@ -485,6 +485,16 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
     public const string SETTING_INSIGHTS_DISABLED = 'insights.disabled_extractors';
 
     /**
+     * Whether a forward opens with its quoted original folded behind the
+     * "show quoted text" pill. TRUE (fold) when unset — the pill is the
+     * default experience — and stored only when the user switches it off,
+     * so the absent key keeps meaning "default" the way every setting in
+     * this bag does. Per USER, not per account: how a person likes their
+     * compose window is about them, not about which mailbox is sending.
+     */
+    public const string SETTING_COMPOSE_FORWARD_QUOTE_COLLAPSED = 'compose.forward_quote_collapsed';
+
+    /**
      * The default is 19rem — what the column was fixed at before it could move.
      *
      * The maximum is the CALENDAR's maximum, deliberately the same number: both

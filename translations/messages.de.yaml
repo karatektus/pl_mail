@@ -1242,6 +1242,7 @@ compose:
     send: Senden
     send_options: Sendeoptionen
     sending: "Wird gesendet…"
+    sending_cancel: 'Abbrechen'
     signature: Signatur einfügen
     signature_none: Für diese Adresse ist keine Signatur hinterlegt
     subject_label: Betr
@@ -2289,6 +2290,13 @@ settings:
             Was nicht mehr funktioniert, was das für deine Post bedeutet, und
             der kleinste Schritt, der es behebt.
         technical_detail: 'Technische Einzelheiten'
+    compose_behavior:
+        folded: 'Eingeklappt'
+        forward_quote: 'Zitierter Text beim Weiterleiten'
+        forward_quote_hint: 'Öffne eine Weiterleitung mit dem Original hinter der Kapsel — oder gleich ausgeklappt.'
+        heading: 'Verfassen'
+        open: 'Ausgeklappt'
+        subheading: 'Wie sich das Verfassen-Fenster für dich verhält, über alle Konten.'
     insights:
         extractor:
             flight: Flüge

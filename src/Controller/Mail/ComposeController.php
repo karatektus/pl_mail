@@ -177,7 +177,11 @@ class ComposeController extends AbstractController
         $form->get('account')->setData($this->senders->token($account));
         $this->addressFields->hydrate($form, $draft, $this->getUser());
 
-        return $this->renderWindow($form, $draft, $ctx);
+        // The window behaves differently for a forward — the caret belongs in
+        // To (the quote IS the content; the missing piece is who gets it), and
+        // the empty-body question would be asked about a body that is not
+        // empty. The mode is how the client knows which case it is in.
+        return $this->renderWindow($form, $draft, $ctx, ['mode' => 'forward']);
     }
 
     #[Route('/draft', name: 'form_new', methods: ['POST'])]

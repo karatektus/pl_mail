@@ -1,0 +1,41 @@
+{#
+settings/_compose_behavior.html.twig
+─────────────────────────────────────────────────────────────────────────────
+How the compose window behaves for this user — today, whether a forward opens
+with its quoted original folded behind the "show quoted text" pill.
+
+A plain form that submits on change and redirects, exactly like the clock
+beside it: the choice matters on the next compose window, not on this page,
+so there is no fragment worth streaming back. The control is the two-segment
+idiom every boolean on the appearance page wears.
+#}
+{% set segText = 'flex h-full items-center justify-center px-3 py-1.5 text-center text-[11px] leading-tight text-ink-muted
+                  peer-checked:bg-accent peer-checked:text-accent-ink
+                  peer-focus-visible:ring-2 peer-focus-visible:ring-inset peer-focus-visible:ring-accent
+                  transition-colors cursor-pointer' %}
+
+<form method="post" action="{{ path('app_settings_compose_behavior_update') }}" data-turbo="false">
+    <input type="hidden" name="_token" value="{{ csrf_token('settings-compose-behavior') }}">
+
+    <div class="flex items-start justify-between gap-3">
+        <span class="min-w-0">
+            <span class="block text-xs font-medium text-ink-muted">{{ 'settings.compose_behavior.forward_quote'|trans }}</span>
+            <span class="block text-[11px] text-ink-faint mt-0.5">{{ 'settings.compose_behavior.forward_quote_hint'|trans }}</span>
+        </span>
+
+        <div class="grid grid-flow-col auto-cols-fr shrink-0 rounded-pane border border-line overflow-hidden"
+             role="radiogroup" aria-label="{{ 'settings.compose_behavior.forward_quote'|trans }}">
+            {% for folded in [true, false] %}
+                <label>
+                    <input type="radio" name="forwardQuoteCollapsed" class="peer sr-only"
+                           value="{{ folded ? '1' : '0' }}"
+                           onchange="this.form.submit()"
+                           {{ forwardQuoteCollapsed == folded ? 'checked' : '' }}>
+                    <span class="{{ segText }}">
+                        {{ (folded ? 'settings.compose_behavior.folded' : 'settings.compose_behavior.open')|trans }}
+                    </span>
+                </label>
+            {% endfor %}
+        </div>
+    </div>
+</form>

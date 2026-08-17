@@ -89,9 +89,16 @@ final class ReplyDraftBuilder
         )));
     }
 
+    /**
+     * Unsigned on purpose. A forward's content is the mail being passed on,
+     * and most forwards ship with a one-liner or nothing at all above it —
+     * a signature block would outweigh the sender's own words on nearly every
+     * one, and deleting it was the first edit most forwards started with.
+     * Anyone signing a forward is writing enough to sign, and can insert it.
+     */
     public function forward(Message $original): Message
     {
-        $draft = $this->draft($original, $original->account, 'Fwd', 'forward');
+        $draft = $this->draft($original, $original->account, 'Fwd', 'forward', signed: false);
 
         $draft->toAddresses = [];
 
@@ -121,12 +128,18 @@ final class ReplyDraftBuilder
         return $seen;
     }
 
-    private function draft(Message $original, ?Account $account, string $prefix, string $mode): Message
+    private function draft(Message $original, ?Account $account, string $prefix, string $mode, bool $signed = true): Message
     {
+        // No lead of its own when unsigned: quote() opens with the empty
+        // paragraph that is the writing space, so the unsigned body already
+        // starts with somewhere to type — a second one would render as a
+        // blank line above the caret.
+        $lead = $signed ? $this->signature($account) : '';
+
         $draft                 = new Message();
         $draft->account        = $account;
         $draft->subject        = $this->prefixSubject($prefix, $original->subject);
-        $draft->bodyHtml       = $this->signature($account) . $this->quote($original, $mode);
+        $draft->bodyHtml       = $lead . $this->quote($original, $mode);
         $draft->hasAttachments = false;
 
         return $draft;

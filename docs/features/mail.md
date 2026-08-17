@@ -294,11 +294,18 @@ The last two are both "an override"; the difference is whether the override is e
 empty box is not read as "inherit" — a personal alias that signs with nothing on a work mailbox that
 signs with a block is the whole reason the setting exists.
 
-In the compose window the signature is inserted for you, above the quoted text, on a new message, a
-reply and a forward, with an empty paragraph in front of it so the caret starts in the writing space
-rather than inside the sign-off. **Insert signature** in the toolbar replaces the block in place
-instead of adding a second one, and so does changing the **From** account: the signature block is
-swapped and a paragraph you have already typed survives the change.
+In the compose window the signature is inserted for you, above the quoted text, on a new message and
+a reply, with an empty paragraph in front of it so the caret starts in the writing space rather than
+inside the sign-off. A **forward** is deliberately unsigned — its content is the mail being passed
+on, and the caret starts in the **To** row, since the recipient is the one thing a forward cannot
+leave without; **Insert signature** adds the block when you want it. That button replaces the block
+in place instead of adding a second one, and so does changing the **From** account: the signature
+block is swapped and a paragraph you have already typed survives the change.
+
+A forward opens with the original folded behind the **show quoted text** pill. If you would rather
+see it spread out from the start, **Settings → General → Composing** has the switch — folded stays
+the default, and either way the quote counts as the message's content: sending a forward without a
+word of your own above it is not questioned as an empty mail.
 
 ### Scheduled send
 

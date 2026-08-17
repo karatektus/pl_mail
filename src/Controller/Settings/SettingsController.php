@@ -272,6 +272,10 @@ final class SettingsController extends AbstractController
                 ClockFormat::forLocale(AppLocale::tryFromRequest($user->locale)
                     ?? AppLocale::tryFromRequest($this->defaultLocale))->time(),
             ),
+
+            // Folded is the default, so anything but a stored false reads as
+            // true — the same absent-key convention the setting itself keeps.
+            'forwardQuoteCollapsed' => false !== $user->getSetting(User::SETTING_COMPOSE_FORWARD_QUOTE_COLLAPSED, true),
         ];
     }
 

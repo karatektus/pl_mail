@@ -1,4 +1,4 @@
-<!-- translated-from: features/mail.md sha1:b5a417978d22a0c6c534cef9834e6c083696758e -->
+<!-- translated-from: features/mail.md sha1:d2c1ba9b7b655869fe6f038fa0ca7406f2b2f10f -->
 
 # Mail
 
@@ -332,11 +332,18 @@ sendet, auf einem dienstlichen Postfach, das mit einem Block unterschreibt, ist 
 diese Einstellung.
 
 Im Schreibfenster wird die Signatur für dich eingesetzt, oberhalb des zitierten Textes, bei einer
-neuen Nachricht ebenso wie bei einer Antwort und einer Weiterleitung, mit einem leeren Absatz davor
-— damit der Cursor im Schreibraum steht und nicht mitten im Gruß. **Signatur einfügen** in der
-Werkzeugleiste ersetzt den Block an Ort und Stelle, statt einen zweiten anzuhängen, und dasselbe
-tut ein Wechsel des Kontos in der **From**-Auswahl: Der Signaturblock wird getauscht, ein bereits
-getippter Absatz überlebt den Wechsel.
+neuen Nachricht ebenso wie bei einer Antwort, mit einem leeren Absatz davor — damit der Cursor im
+Schreibraum steht und nicht mitten im Gruß. Eine **Weiterleitung** bleibt bewusst ohne Signatur —
+ihr Inhalt ist die Mail, die du weitergibst, und der Cursor startet in der **An**-Zeile, denn ohne
+Empfängerin geht eine Weiterleitung nirgendwohin; **Signatur einfügen** holt den Block, wenn du ihn
+willst. Dieser Knopf ersetzt den Block an Ort und Stelle, statt einen zweiten anzuhängen, und
+dasselbe tut ein Wechsel des Kontos in der **From**-Auswahl: Der Signaturblock wird getauscht, ein
+bereits getippter Absatz überlebt den Wechsel.
+
+Eine Weiterleitung öffnet mit dem Original hinter der Kapsel **Zitierten Text anzeigen**. Wenn du
+es lieber gleich ausgeklappt siehst: Der Schalter steht unter **Einstellungen → Allgemein →
+Verfassen** — eingeklappt bleibt die Vorgabe. So oder so zählt das Zitat als Inhalt der Nachricht:
+Eine Weiterleitung ohne ein eigenes Wort darüber wird nicht als leere Mail hinterfragt.
 
 ### Später senden
 

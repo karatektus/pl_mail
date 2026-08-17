@@ -1,8 +1,45 @@
 // assets/controllers/compose_controller.js
 import { Controller } from '@hotwired/stimulus'
 
+/**
+ * Presses the cancel window's own control the moment it renders.
+ *
+ * MODULE scope, not controller state, and that is the mechanism rather than a
+ * style choice: the stream that announces the cancel window REPLACES the
+ * compose element (inline reply becomes the countdown bar; the dock window
+ * closes into a toast), so a watcher held by the controller would be torn
+ * down in the same breath that renders the thing it is waiting for. Six
+ * seconds covers a slow answer; past that, the click is dropped exactly the
+ * way a late manual cancel is.
+ */
+let cancelWatcher = null;
+
+function armCancelWatcher() {
+    const deadline = Date.now() + 6_000;
+    clearInterval(cancelWatcher);
+
+    cancelWatcher = setInterval(() => {
+        const control = document.querySelector(
+            '[data-action*="compose--inline-send#cancel"], [data-action*="compose--undo-send#abort"]',
+        );
+
+        if (null !== control) {
+            clearInterval(cancelWatcher);
+            cancelWatcher = null;
+            control.click();
+
+            return;
+        }
+
+        if (Date.now() > deadline) {
+            clearInterval(cancelWatcher);
+            cancelWatcher = null;
+        }
+    }, 120);
+}
+
 export default class extends Controller {
-    static targets = ['toField', 'ccField', 'bccField', 'subject', 'body', 'saveStatus', 'toCollection', 'collapsible', 'minimizeIcon', 'expandIcon', 'ccBtn', 'bccBtn', 'title', 'accountSelect', 'fromBtn', 'fromLabel', 'fromChevron', 'fromDropdown', 'fromRow', 'fields', 'fieldsChevron', 'fileInput', 'imageInput', 'attachments', 'scroller', 'formatBar', 'formatToggle', 'sendBtn', 'errors', 'plainBody', 'plainToggle', 'plainCheck', 'plainWarning', 'plainWarningConfirm', 'sendWarning', 'sendWarningBody', 'sendWarningConfirm', 'richOnly'];
+    static targets = ['toField', 'ccField', 'bccField', 'subject', 'body', 'saveStatus', 'toCollection', 'collapsible', 'minimizeIcon', 'expandIcon', 'ccBtn', 'bccBtn', 'title', 'accountSelect', 'fromBtn', 'fromLabel', 'fromChevron', 'fromDropdown', 'fromRow', 'fields', 'fieldsChevron', 'fileInput', 'imageInput', 'attachments', 'scroller', 'formatBar', 'formatToggle', 'sendBtn', 'sendCancel', 'errors', 'plainBody', 'plainToggle', 'plainCheck', 'plainWarning', 'plainWarningConfirm', 'sendWarning', 'sendWarningBody', 'sendWarningConfirm', 'richOnly'];
 
     /** Below this the dock window is the whole screen — matches Tailwind's md. */
     static MOBILE_QUERY = '(max-width: 767px)';
@@ -27,6 +64,14 @@ export default class extends Controller {
         // because the three go stale together — see _adoptSavedUrls().
         scheduleUrl: String,
         autosaveDelay: { type: Number, default: 2000 },
+        // 'new', 'reply' or 'forward'. A forward opens with the caret in To
+        // (the quote is the content; the recipient is the missing piece),
+        // skips the empty-body question for a body that holds the quote, and
+        // is the case collapseForwardQuote is about.
+        mode:         { type: String, default: 'new' },
+        // Settings -> Compose: fold a forward's quoted original behind the
+        // "show quoted text" pill, or show it open from the start.
+        collapseForwardQuote: { type: Boolean, default: true },
         minimized:    { type: Boolean, default: false },
         expanded:     { type: Boolean, default: false },
         // Rendered inline at the bottom of a thread rather than in the
@@ -101,8 +146,19 @@ export default class extends Controller {
         this._applyMobile();
 
         if (this.hasBodyTarget) {
-            this._collapseQuotedContent();
-            this._focusCursorAtTop();
+            // A forward can opt out of the fold (Settings -> Compose); the
+            // pill is otherwise the default for anything carrying a quote.
+            if ('forward' !== this.modeValue || true === this.collapseForwardQuoteValue) {
+                this._collapseQuotedContent();
+            }
+
+            // On a forward the body is already written - the quote - and the
+            // recipient is the one thing the mail cannot leave without.
+            if ('forward' === this.modeValue) {
+                this._focusRecipients();
+            } else {
+                this._focusCursorAtTop();
+            }
 
             // Pasted and dropped images become real parts instead of data:
             // URIs — see _handleBodyPaste(). Listeners rather than
@@ -422,6 +478,7 @@ export default class extends Controller {
 
     disconnect() {
         clearTimeout(this.#autosaveTimer);
+        clearInterval(this._sendingTicker);
 
         for (const release of this._panelReleases ?? []) {
             release();
@@ -2139,7 +2196,9 @@ export default class extends Controller {
             missing.push(this._t('confirmNoSubject', 'This message has no subject.'));
         }
 
-        if (0 === this._typedLength()) {
+        // On a forward the quoted original IS the message - asking "send an
+        // empty mail?" about it told the user their content did not count.
+        if (0 === this._typedLength() && false === this._forwardCarryingQuote()) {
             missing.push(this._t('confirmNoBody', 'This message has no text.'));
         }
 
@@ -2295,21 +2354,136 @@ export default class extends Controller {
             // The icon button has no text to replace — keep its markup.
             if ('' !== button.textContent.trim()) {
                 button.dataset.sendLabel ??= button.textContent;
-                button.textContent = this._t('sending', 'Sending…');
             }
         });
 
-        setTimeout(() => {
-            this._submitting = false;
+        // "Sending" with living dots — one, two, three, over again. A static
+        // label reads as a hang; motion is what says the request is out and
+        // something is happening to it.
+        const base = this._t('sending', 'Sending…').replace(/[….]+\s*$/, '');
+        let ticks = 0;
 
+        const paint = () => {
+            const dots = '.'.repeat(1 + (ticks++ % 3));
             sendButtons.forEach((button) => {
-                button.disabled = false;
-
                 if (undefined !== button.dataset.sendLabel) {
-                    button.textContent = button.dataset.sendLabel;
+                    button.textContent = base + dots;
                 }
             });
+        };
+
+        paint();
+        clearInterval(this._sendingTicker);
+        this._sendingTicker = setInterval(paint, 400);
+
+        // The way out while the request is in flight — see _send_pill.
+        this.sendCancelTargets.forEach((button) => { button.hidden = false; });
+
+        setTimeout(() => {
+            this._submitting = false;
+            this._settleSendUi(sendButtons);
         }, 15_000);
+    }
+
+    /** Put the send pill back to rest: label, dots ticker, cancel link. */
+    _settleSendUi(sendButtons) {
+        clearInterval(this._sendingTicker);
+        this._sendingTicker = null;
+
+        (sendButtons ?? (this.hasSendBtnTarget ? this.sendBtnTargets : [])).forEach((button) => {
+            button.disabled = false;
+
+            if (undefined !== button.dataset.sendLabel) {
+                button.textContent = button.dataset.sendLabel;
+            }
+        });
+
+        if (this.hasSendCancelTarget) {
+            this.sendCancelTargets.forEach((button) => { button.hidden = true; });
+        }
+    }
+
+    /**
+     * "Cancel" pressed while the send request is still in flight.
+     *
+     * There is nothing to abort client-side that the server has not already
+     * received, but every send lands in a cancel window (CANCEL_WINDOW_MS) and
+     * announces it — the inline bar, or the toast's undo. So the click is
+     * remembered and the moment that announcement renders, its own cancel is
+     * pressed on the user's behalf. If the window never renders (network
+     * error) or is already spent, this fails exactly the way a late manual
+     * click would — honestly.
+     */
+    cancelInFlight(event) {
+        const button = event.currentTarget;
+
+        // Pressed has to look pressed: the actual cancellation lands when the
+        // server's cancel window renders and the watcher clicks it, which can
+        // be a beat away — a button that neither disables nor changes reads
+        // as a click that fell on the floor.
+        button.disabled = true;
+        button.textContent = '…';
+
+        armCancelWatcher();
+    }
+
+    /** Whether this window is a forward whose body still carries the quote. */
+    _forwardCarryingQuote() {
+        if ('forward' !== this.modeValue || false === this.hasBodyTarget) {
+            return false;
+        }
+
+        return null !== this.bodyTarget.querySelector(
+            '[data-quote-wrapped], [data-quoted], blockquote, div[style*="border-top"]',
+        );
+    }
+
+    /**
+     * A blinking caret in a typable To — a forward's first missing piece.
+     *
+     * Two obstacles stand between connect() and that caret, and both are
+     * handled here rather than hoped away. The inline zone opens with the
+     * address rows folded behind the "to …" summary, and a hidden field
+     * cannot take focus — so the rows are unfolded first, the same move
+     * toggleFields makes. And Tom Select owns the row only once its
+     * enhancement has run, which connect() can beat — so the focus retries
+     * briefly for the enhanced input and falls back to the raw widget rather
+     * than give up silently.
+     */
+    _focusRecipients() {
+        if (false === this.hasToFieldTarget) {
+            return;
+        }
+
+        if (true === this.hasFieldsTarget && this.fieldsTarget.classList.contains('hidden')) {
+            this.fieldsTarget.classList.remove('hidden');
+
+            if (this.hasFieldsChevronTarget) {
+                this.fieldsChevronTarget.classList.add('rotate-180');
+            }
+        }
+
+        const deadline = Date.now() + 1500;
+
+        const attempt = () => {
+            const input = this.toFieldTarget.querySelector('.ts-control input');
+
+            if (null !== input) {
+                input.focus();
+
+                return;
+            }
+
+            if (Date.now() > deadline) {
+                this.toFieldTarget.querySelector('select, input')?.focus();
+
+                return;
+            }
+
+            setTimeout(attempt, 80);
+        };
+
+        attempt();
     }
 
     // ── Attachments ───────────────────────────────────────────────────

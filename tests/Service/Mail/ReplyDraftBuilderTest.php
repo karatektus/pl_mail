@@ -281,18 +281,24 @@ final class ReplyDraftBuilderTest extends TestCase
         );
     }
 
-    public function testAForwardIsSignedAboveTheForwardedMessage(): void
+    /**
+     * A forward is NOT signed, even on a signed account — deliberately the
+     * opposite of the reply above. The forward's content is the mail being
+     * passed on; a signature block would outweigh the sender's own words on
+     * nearly every one, and deleting it was the first edit most forwards
+     * started with. The quote must still open with the empty writing
+     * paragraph so the caret has somewhere to land.
+     */
+    public function testAForwardCarriesNoSignatureEvenOnASignedAccount(): void
     {
         $original          = $this->original();
         $original->account = $this->signedAccount('<p>— Paul</p>');
 
         $html = (string) $this->builder->forward($original)->bodyHtml;
 
-        self::assertStringContainsString('data-pl-signature', $html);
-        self::assertLessThan(
-            (int) strpos($html, 'data-quoted'),
-            (int) strpos($html, 'data-pl-signature'),
-        );
+        self::assertStringNotContainsString('data-pl-signature', $html);
+        self::assertStringContainsString('data-quoted', $html);
+        self::assertStringStartsWith('<p><br></p>', trim($html), 'the writing space must lead the body');
     }
 
     public function testAnUnsignedAccountAddsNoSignatureBlockAtAll(): void

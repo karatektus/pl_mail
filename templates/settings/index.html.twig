@@ -325,6 +325,17 @@
                                                     } %}
                                                 {% endblock %}
                                             {% endembed %}
+
+                                            {% embed 'settings/_card.html.twig' with {
+                                                heading:    'settings.compose_behavior.heading'|trans,
+                                                subheading: 'settings.compose_behavior.subheading'|trans,
+                                            } %}
+                                                {% block body %}
+                                                    {% include 'settings/_compose_behavior.html.twig' with {
+                                                        forwardQuoteCollapsed: forwardQuoteCollapsed,
+                                                    } %}
+                                                {% endblock %}
+                                            {% endembed %}
                                         </div>
                                     {% elseif section == 'aliases' %}
                                         <div class="space-y-4">

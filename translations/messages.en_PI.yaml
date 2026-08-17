@@ -958,6 +958,7 @@ compose:
     send: Cast off
     send_options: Castin'-off orders
     sending: "Castin' off…"
+    sending_cancel: 'Belay that!'
     signature: Make yer mark
     signature_none: "This name bears no mark yet"
     subject_label: Head
@@ -1948,6 +1949,13 @@ settings:
             Aught that has stopped workin'', what it means fer yer post, an''
             th'' smallest thing that mends it.
         technical_detail: 'Th'' fine print'
+    compose_behavior:
+        folded: 'Stowed'
+        forward_quote: 'Quoted text when forwardin'''
+        forward_quote_hint: 'Open a forward with the original stowed behind the pill, or spread on deck.'
+        heading: 'Scribblin'''
+        open: 'On deck'
+        subheading: 'How yer scribble window behaves, whatever ship be sailin''.'
     insights:
         extractor:
             flight: Passages by air

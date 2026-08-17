@@ -1233,6 +1233,7 @@ compose:
     send: Send
     send_options: Send options
     sending: "Sending…"
+    sending_cancel: 'Cancel'
     signature: Insert signature
     signature_none: No signature set for this address
     subject_label: Subj
@@ -2265,6 +2266,13 @@ settings:
             Anything that has stopped working, what it means for your mail, and
             the smallest thing that fixes it.
         technical_detail: 'Technical detail'
+    compose_behavior:
+        folded: 'Folded'
+        forward_quote: 'Quoted text when forwarding'
+        forward_quote_hint: 'Open a forward with the original folded behind the pill, or laid out in full.'
+        heading: 'Composing'
+        open: 'Open'
+        subheading: 'How the compose window behaves for you, on every account.'
     insights:
         extractor:
             flight: Flights
