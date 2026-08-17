@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace App\Controller\Settings;
 
+use App\Controller\ChecksCsrf;
 use App\Domain\Enum\Mail\ReadReceiptMode;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\EmailAlias;
 use App\Repository\Mail\AccountRepository;
+use App\Security\Voter\OwnershipVoter;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
@@ -45,6 +47,8 @@ use Symfony\UX\Turbo\TurboBundle;
 #[IsGranted('ROLE_USER')]
 final class ComposeDefaultsController extends AbstractController
 {
+    use ChecksCsrf;
+
     public function __construct(
         private readonly EntityManagerInterface $em,
         private readonly AccountRepository      $accountRepository,
@@ -57,8 +61,8 @@ final class ComposeDefaultsController extends AbstractController
     #[Route('/read-receipt', name: 'read_receipt_default', methods: ['POST'])]
     public function setDefault(Request $request, Account $account): Response
     {
-        $this->assertToken($request, 'compose-defaults-receipt' . $account->id);
-        $this->denyUnlessOwner($account);
+        $this->assertCsrf($request, 'compose-defaults-receipt' . $account->id);
+        $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $account);
 
         $mode = ReadReceiptMode::tryFrom((string) $request->request->get('mode', ''));
 
@@ -84,8 +88,8 @@ final class ComposeDefaultsController extends AbstractController
     #[Route('/{aliasId}/read-receipt', name: 'read_receipt_alias', methods: ['POST'])]
     public function setForAlias(Request $request, Account $account, int $aliasId): Response
     {
-        $this->assertToken($request, 'compose-defaults-receipt-alias' . $aliasId);
-        $this->denyUnlessOwner($account);
+        $this->assertCsrf($request, 'compose-defaults-receipt-alias' . $aliasId);
+        $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $account);
 
         $alias = $this->ownedAlias($account, $aliasId);
         $raw   = (string) $request->request->get('mode', '');
@@ -121,20 +125,6 @@ final class ComposeDefaultsController extends AbstractController
         }
 
         throw $this->createNotFoundException('No such alias on this account.');
-    }
-
-    private function assertToken(Request $request, string $id): void
-    {
-        if (false === $this->isCsrfTokenValid($id, (string) $request->request->get('_token'))) {
-            throw $this->createAccessDeniedException();
-        }
-    }
-
-    private function denyUnlessOwner(Account $account): void
-    {
-        if ($account->usr !== $this->getUser()) {
-            throw $this->createAccessDeniedException();
-        }
     }
 
     /**

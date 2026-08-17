@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controller\Calendar;
 
+use App\Controller\ChecksCsrf;
 use App\Domain\DTO\Calendar\EventCopy;
 use App\Domain\Enum\Calendar\AlertAction;
 use App\Domain\Enum\Calendar\CalendarPaneMode;
@@ -13,6 +14,7 @@ use App\Entity\Calendar\CalendarEvent;
 use App\Entity\User\User;
 use App\Infrastructure\Messaging\Message\SyncCalendarMessage;
 use App\Repository\Calendar\CalendarRepository;
+use App\Security\Voter\OwnershipVoter;
 use App\Service\Calendar\Alert\AlertReader;
 use App\Service\Calendar\CalendarEventWriter;
 use App\Service\Calendar\CalendarProvisioner;
@@ -77,6 +79,8 @@ use Symfony\Contracts\Translation\TranslatorInterface;
 #[IsGranted('IS_AUTHENTICATED')]
 final class CalendarController extends AbstractController
 {
+    use ChecksCsrf;
+
     /**
      * The `scope` value that means "this one occurrence" rather than the series.
      *
@@ -194,7 +198,7 @@ final class CalendarController extends AbstractController
     #[Route('/event/{id}/edit', name: 'event_edit', requirements: ['id' => '\d+'], methods: ['GET'])]
     public function eventEdit(Request $request, CalendarEvent $event): Response
     {
-        $this->assertOwned($event);
+        $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $event);
 
         $zone     = $this->time->eventZone($event, $this->currentUser());
         $instance = $this->instances->instance($event, $request->query->getString('instance'));
@@ -674,7 +678,7 @@ final class CalendarController extends AbstractController
     #[Route('/event/{id}/delete', name: 'event_delete', requirements: ['id' => '\d+'], methods: ['POST'])]
     public function eventDelete(Request $request, CalendarEvent $event): Response
     {
-        $this->assertOwned($event);
+        $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $event);
         $this->assertCsrf($request, 'calendar_event_delete' . $event->id, '_deleteToken');
 
         $date    = $request->request->getString('date') ?: (new DateTimeImmutable())->format('Y-m-d');
@@ -732,7 +736,7 @@ final class CalendarController extends AbstractController
     #[Route('/event/{id}/dismiss', name: 'event_dismiss', requirements: ['id' => '\d+'], methods: ['POST'])]
     public function eventDismiss(Request $request, CalendarEvent $event): Response
     {
-        $this->assertOwned($event);
+        $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $event);
         $this->assertCsrf($request, 'calendar_event_dismiss' . $event->id);
 
         // The button only renders for an extracted event, so reaching this
@@ -955,7 +959,7 @@ final class CalendarController extends AbstractController
             throw $this->createNotFoundException();
         }
 
-        $this->assertOwned($event);
+        $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $event);
 
         return $event;
     }
@@ -1205,25 +1209,6 @@ final class CalendarController extends AbstractController
             $dispatched[] = $calendarId;
 
             $this->bus->dispatch(new SyncCalendarMessage($calendarId));
-        }
-    }
-
-    private function assertOwned(CalendarEvent $event): void
-    {
-        if ($event->usr !== $this->getUser()) {
-            throw $this->createAccessDeniedException();
-        }
-    }
-
-    /**
-     * $field is not always `_token`, because the editor is one form that submits
-     * to two routes: the save's token and the delete's cannot both be called
-     * `_token` inside it. See eventDelete().
-     */
-    private function assertCsrf(Request $request, string $id, string $field = '_token'): void
-    {
-        if (false === $this->isCsrfTokenValid($id, (string) $request->request->get($field))) {
-            throw $this->createAccessDeniedException('Invalid CSRF token.');
         }
     }
 

@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace App\Controller\Settings;
 
+use App\Controller\ChecksCsrf;
 use App\Entity\Calendar\Calendar;
 use App\Entity\Mail\Account;
 use App\Infrastructure\Messaging\Message\SyncCalendarMessage;
+use App\Security\Voter\OwnershipVoter;
 use App\Service\Monitoring\QueueMonitor;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -40,6 +42,8 @@ use Symfony\Contracts\Translation\TranslatorInterface;
 #[IsGranted('ROLE_USER')]
 final class AccountHealthController extends AbstractController
 {
+    use ChecksCsrf;
+
     public function __construct(
         private readonly EntityManagerInterface $em,
         private readonly MessageBusInterface    $bus,
@@ -61,7 +65,7 @@ final class AccountHealthController extends AbstractController
     #[Route('/reconnect/{id}', name: 'reconnect', methods: ['GET'])]
     public function reconnect(Account $account): RedirectResponse
     {
-        $this->denyUnlessOwner($account);
+        $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $account);
 
         $provider = $account->oauthProvider;
 
@@ -97,11 +101,9 @@ final class AccountHealthController extends AbstractController
     #[Route('/calendar/{id}/resync', name: 'calendar_resync', methods: ['POST'])]
     public function resyncCalendar(Request $request, Calendar $calendar): RedirectResponse
     {
-        if ($calendar->usr !== $this->getUser()) {
-            throw $this->createAccessDeniedException();
-        }
+        $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $calendar);
 
-        $this->assertToken($request, 'health_calendar_' . $calendar->id);
+        $this->assertCsrf($request, 'health_calendar_' . $calendar->id);
 
         $calendar->clearSyncBackoff();
         $this->em->flush();
@@ -129,7 +131,7 @@ final class AccountHealthController extends AbstractController
     #[IsGranted('ROLE_ADMIN')]
     public function retryQueue(Request $request): RedirectResponse
     {
-        $this->assertToken($request, 'health_queue_retry');
+        $this->assertCsrf($request, 'health_queue_retry');
 
         $retried = $this->queueMonitor->retryAll();
 
@@ -154,7 +156,7 @@ final class AccountHealthController extends AbstractController
     #[IsGranted('ROLE_ADMIN')]
     public function discardQueue(Request $request): RedirectResponse
     {
-        $this->assertToken($request, 'health_queue_discard');
+        $this->assertCsrf($request, 'health_queue_discard');
 
         $purged = $this->queueMonitor->purgeAll();
 
@@ -166,29 +168,6 @@ final class AccountHealthController extends AbstractController
     }
 
     // ── Private ───────────────────────────────────────────────────────────────
-
-    /**
-     * Per-action tokens, the way AliasController::assertToken() does it.
-     *
-     * One id per action per subject rather than the shared `ajax` token: these
-     * actions touch account credentials and background work, and a single token
-     * good for all of them makes any one XSS worth every one of them.
-     */
-    private function assertToken(Request $request, string $id): void
-    {
-        $token = (string) ($request->request->get('_token') ?? $request->headers->get('X-CSRF-Token') ?? '');
-
-        if (false === $this->isCsrfTokenValid($id, $token)) {
-            throw $this->createAccessDeniedException();
-        }
-    }
-
-    private function denyUnlessOwner(Account $account): void
-    {
-        if ($account->usr !== $this->getUser()) {
-            throw $this->createAccessDeniedException();
-        }
-    }
 
     private function back(): RedirectResponse
     {

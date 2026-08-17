@@ -5,8 +5,8 @@ namespace App\Controller\Mail;
 use App\Domain\Enum\Mail\LabelRole;
 use App\Domain\Enum\Mail\ListSortOrder;
 use App\Domain\Enum\Mail\MessageCategory;
-use App\Entity\Mail\Account;
 use App\Entity\Label\Label;
+use App\Entity\Mail\Account;
 use App\Entity\Mail\Message;
 use App\Entity\Mail\MessageThread;
 use App\Entity\User\User;
@@ -15,9 +15,10 @@ use App\Repository\Mail\AccountRepository;
 use App\Repository\Mail\MailboxRepository;
 use App\Repository\Mail\MessageRepository;
 use App\Repository\Mail\MessageThreadRepository;
-use App\Service\Mail\ThreadListRenderer;
+use App\Security\Voter\OwnershipVoter;
 use App\Service\Mail\NewMailMarkers;
 use App\Service\Mail\SidebarCounts;
+use App\Service\Mail\ThreadListRenderer;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -258,9 +259,7 @@ final class MailController extends AbstractController
     #[Route('/label/{id}', name: 'label', requirements: ['id' => '\d+'])]
     public function labelView(Label $label, Request $request): Response
     {
-        if ($label->usr !== $this->getUser()) {
-            throw $this->createAccessDeniedException();
-        }
+        $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $label);
 
         return $this->renderLabel($label, $request);
     }
@@ -311,9 +310,11 @@ final class MailController extends AbstractController
 
         $account = $this->accountRepository->find($id);
 
-        if (null === $account || $account->usr !== $this->getUser()) {
+        if (null === $account) {
             throw $this->createAccessDeniedException();
         }
+
+        $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $account);
 
         return $account;
     }
@@ -325,9 +326,7 @@ final class MailController extends AbstractController
     #[Route('/account/{account}', name: 'account', requirements: ['account' => '\d+'])]
     public function accountView(Account $account, Request $request): Response
     {
-        if ($account->usr !== $this->getUser()) {
-            throw $this->createAccessDeniedException();
-        }
+        $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $account);
 
         $total   = $this->threadRepository->countForAccount($account);
         $page    = $this->pageOrRedirect($request, $total);
@@ -466,9 +465,7 @@ final class MailController extends AbstractController
     {
         $this->denyAccessUnlessGranted('ROLE_USER');
 
-        if ($account->usr !== $this->getUser()) {
-            throw $this->createAccessDeniedException();
-        }
+        $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $account);
 
         // Labels materialized on this account — the per-account folder frame
         // is the one place bindings surface, since it answers "what does this
@@ -673,9 +670,7 @@ final class MailController extends AbstractController
         $thread = $message->thread;
         $account = $thread->account;
 
-        if ($account->usr !== $this->getUser()) {
-            throw $this->createAccessDeniedException();
-        }
+        $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $account);
 
         if ($request->headers->get('X-Requested-With') === 'fetch') {
             // JS fetch — return just the message content fragment
@@ -706,9 +701,7 @@ final class MailController extends AbstractController
         $this->denyAccessUnlessGranted('ROLE_USER');
 
         $account = $thread->account;
-        if ($account->usr !== $this->getUser()) {
-            throw $this->createAccessDeniedException();
-        }
+        $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $account);
 
         // In conversation order — received by arrival, sent by send time — not
         // the association's receivedAt-only order, which drops this account's

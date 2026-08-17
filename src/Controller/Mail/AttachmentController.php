@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Controller\Mail;
 
 use App\Entity\Mail\MessagePart;
+use App\Security\Voter\OwnershipVoter;
 use App\Service\Mail\AttachmentResolver;
 use App\Service\Mail\AttachmentThumbnailer;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -34,7 +35,7 @@ final class AttachmentController extends AbstractController
     #[Route('/mail/attachment/{id}/thumbnail', name: 'app_mail_attachment_thumbnail', methods: ['GET'], requirements: ['id' => '\d+'])]
     public function thumbnail(MessagePart $part): Response
     {
-        $this->assertOwned($part);
+        $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $part);
 
         $path = $this->thumbnailer->thumbnailPath($part);
 
@@ -57,7 +58,7 @@ final class AttachmentController extends AbstractController
     #[Route('/mail/attachment/{id}', name: 'app_mail_attachment', methods: ['GET'], requirements: ['id' => '\d+'])]
     public function serve(MessagePart $part, Request $request): Response
     {
-        $this->assertOwned($part);
+        $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $part);
 
         $absolutePath = $this->attachmentResolver->absolutePathFor($part);
         $contentType  = $part->contentType ?? 'application/octet-stream';
@@ -81,14 +82,4 @@ final class AttachmentController extends AbstractController
         return $response;
     }
 
-    /**
-     * Not via the mailbox: Gmail/Graph messages are label-only and have none.
-     * The message itself always carries the account.
-     */
-    private function assertOwned(MessagePart $part): void
-    {
-        if ($part->message->account->usr !== $this->getUser()) {
-            throw $this->createAccessDeniedException();
-        }
-    }
 }

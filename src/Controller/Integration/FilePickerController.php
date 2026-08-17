@@ -10,6 +10,7 @@ use App\Domain\Exception\IntegrationException;
 use App\Entity\Integration\Integration;
 use App\Entity\Mail\Message;
 use App\Entity\Mail\MessagePart;
+use App\Security\Voter\OwnershipVoter;
 use App\Service\Integration\IntegrationFilePicker;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -216,9 +217,7 @@ final class FilePickerController extends AbstractController
 
         // Same ownership rule AttachmentController uses for downloads: the
         // part belongs to a message on one of this user's accounts.
-        if ($part->message?->account?->usr !== $this->getUser()) {
-            throw $this->createAccessDeniedException();
-        }
+        $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $part);
 
         // An explicit destination from the picker wins; its absence is the
         // fire-and-forget path — save straight to the configured default, which
@@ -263,9 +262,7 @@ final class FilePickerController extends AbstractController
             throw $this->createAccessDeniedException();
         }
 
-        if ($part->message?->account?->usr !== $this->getUser()) {
-            throw $this->createAccessDeniedException();
-        }
+        $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $part);
 
         $parent = $this->blankToNull($request->request->get('parent'));
         $name = trim((string) $request->request->get('name'));
@@ -337,9 +334,7 @@ final class FilePickerController extends AbstractController
             throw $this->createNotFoundException();
         }
 
-        if ($part->message?->account?->usr !== $this->getUser()) {
-            throw $this->createAccessDeniedException();
-        }
+        $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $part);
 
         return $part;
     }
@@ -368,9 +363,7 @@ final class FilePickerController extends AbstractController
             throw $this->createNotFoundException();
         }
 
-        if ($message->account?->usr !== $this->getUser()) {
-            throw $this->createAccessDeniedException();
-        }
+        $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $message);
 
         if (false === $message->isDraft() || null !== $message->sentAt) {
             throw $this->createAccessDeniedException('Only unsent drafts can be edited.');
@@ -398,9 +391,7 @@ final class FilePickerController extends AbstractController
      */
     private function assertUsable(Integration $integration, Capability $capability): void
     {
-        if ($integration->usr !== $this->getUser()) {
-            throw $this->createAccessDeniedException();
-        }
+        $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $integration);
 
         if (false === $integration->supports($capability)) {
             throw $this->createNotFoundException();

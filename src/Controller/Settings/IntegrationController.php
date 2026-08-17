@@ -13,6 +13,7 @@ use App\Entity\User\User;
 use App\Form\Integration\IntegrationConnectType;
 use App\Repository\Integration\IntegrationProviderConfigRepository;
 use App\Repository\Integration\IntegrationRepository;
+use App\Security\Voter\OwnershipVoter;
 use App\Service\Integration\IntegrationConnector;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -77,7 +78,7 @@ final class IntegrationController extends AbstractController
     #[Route('/{id}/edit', name: 'edit', methods: ['GET', 'POST'])]
     public function edit(Integration $integration, Request $request): Response
     {
-        $this->assertOwned($integration);
+        $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $integration);
 
         return $this->handleForm(
             $request,
@@ -95,7 +96,7 @@ final class IntegrationController extends AbstractController
     #[Route('/{id}/test', name: 'test', methods: ['POST'])]
     public function test(Integration $integration, Request $request): Response
     {
-        $this->assertOwned($integration);
+        $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $integration);
 
         if (false === $this->isCsrfTokenValid('settings-integration-'.$integration->id, (string) $request->request->get('_token'))) {
             throw $this->createAccessDeniedException();
@@ -111,7 +112,7 @@ final class IntegrationController extends AbstractController
     #[Route('/{id}/toggle', name: 'toggle', methods: ['POST'])]
     public function toggle(Integration $integration, Request $request): Response
     {
-        $this->assertOwned($integration);
+        $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $integration);
 
         if (false === $this->isCsrfTokenValid('settings-integration-'.$integration->id, (string) $request->request->get('_token'))) {
             throw $this->createAccessDeniedException();
@@ -128,7 +129,7 @@ final class IntegrationController extends AbstractController
     #[Route('/{id}/delete', name: 'delete', methods: ['POST'])]
     public function delete(Integration $integration, Request $request): Response
     {
-        $this->assertOwned($integration);
+        $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $integration);
 
         if (false === $this->isCsrfTokenValid('settings-integration-'.$integration->id, (string) $request->request->get('_token'))) {
             throw $this->createAccessDeniedException();
@@ -206,13 +207,6 @@ final class IntegrationController extends AbstractController
             'providers'    => Provider::of(ServiceKind::Files),
             'configs'      => $this->configRepository->findAllIndexedByProvider(),
         ];
-    }
-
-    private function assertOwned(Integration $integration): void
-    {
-        if ($integration->usr !== $this->getUser()) {
-            throw $this->createAccessDeniedException();
-        }
     }
 
     private function user(): User

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controller\Settings;
 
+use App\Controller\ChecksCsrf;
 use App\Domain\Enum\Account\EmailAliasSource;
 use App\Domain\Enum\Account\EmailAliasStatus;
 use App\Entity\Mail\Account;
@@ -12,6 +13,7 @@ use App\Form\EmailAliasType;
 use App\Form\Factory\AliasAddFormFactory;
 use App\Repository\Mail\AccountRepository;
 use App\Repository\Mail\EmailAliasRepository;
+use App\Security\Voter\OwnershipVoter;
 use App\Service\Mail\AliasSeeder;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -25,6 +27,8 @@ use Symfony\UX\Turbo\TurboBundle;
 #[IsGranted('ROLE_USER')]
 final class AliasController extends AbstractController
 {
+    use ChecksCsrf;
+
     public function __construct(
         private readonly EntityManagerInterface $em,
         private readonly AccountRepository      $accountRepository,
@@ -36,7 +40,7 @@ final class AliasController extends AbstractController
     #[Route('/add', name: 'add', methods: ['POST'])]
     public function add(Request $request, Account $account): Response
     {
-        $this->denyUnlessOwner($account);
+        $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $account);
 
         $form = $this->createForm(EmailAliasType::class);
         $form->handleRequest($request);
@@ -74,8 +78,8 @@ final class AliasController extends AbstractController
     #[Route('/{aliasId}/primary', name: 'primary', methods: ['POST'])]
     public function makePrimary(Request $request, Account $account, int $aliasId): Response
     {
-        $this->assertToken($request, 'alias-primary' . $aliasId);
-        $this->denyUnlessOwner($account);
+        $this->assertCsrf($request, 'alias-primary' . $aliasId);
+        $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $account);
         $target = $this->ownedAlias($account, $aliasId);
 
         foreach ($account->aliases as $alias) {
@@ -93,8 +97,8 @@ final class AliasController extends AbstractController
     #[Route('/{aliasId}/status', name: 'status', methods: ['POST'])]
     public function setStatus(Request $request, Account $account, int $aliasId): Response
     {
-        $this->assertToken($request, 'alias-status' . $aliasId);
-        $this->denyUnlessOwner($account);
+        $this->assertCsrf($request, 'alias-status' . $aliasId);
+        $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $account);
         $target = $this->ownedAlias($account, $aliasId);
 
         $status = EmailAliasStatus::tryFrom((string) $request->request->get('status', ''));
@@ -113,8 +117,8 @@ final class AliasController extends AbstractController
     #[Route('/{aliasId}/delete', name: 'delete', methods: ['POST'])]
     public function delete(Request $request, Account $account, int $aliasId): Response
     {
-        $this->assertToken($request, 'alias-delete' . $aliasId);
-        $this->denyUnlessOwner($account);
+        $this->assertCsrf($request, 'alias-delete' . $aliasId);
+        $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $account);
         $target = $this->ownedAlias($account, $aliasId);
 
         if (EmailAliasStatus::Primary === $target->status) {
@@ -131,8 +135,8 @@ final class AliasController extends AbstractController
     #[Route('/refresh', name: 'refresh', methods: ['POST'])]
     public function refresh(Request $request, Account $account): Response
     {
-        $this->assertToken($request, 'alias-refresh' . $account->id);
-        $this->denyUnlessOwner($account);
+        $this->assertCsrf($request, 'alias-refresh' . $account->id);
+        $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $account);
 
         $this->aliasSeeder->seed($account);
 
@@ -150,24 +154,6 @@ final class AliasController extends AbstractController
         }
 
         throw $this->createNotFoundException('No such alias on this account.');
-    }
-
-    /**
-     * The add form gets its token from EmailAliasType; these four are single
-     * buttons, so they carry one by hand the way the label and account rows do.
-     */
-    private function assertToken(Request $request, string $id): void
-    {
-        if (false === $this->isCsrfTokenValid($id, (string) $request->request->get('_token'))) {
-            throw $this->createAccessDeniedException();
-        }
-    }
-
-    private function denyUnlessOwner(Account $account): void
-    {
-        if ($account->usr !== $this->getUser()) {
-            throw $this->createAccessDeniedException();
-        }
     }
 
     private function streamResponse(Request $request, Account $account, string $toastMessage): Response

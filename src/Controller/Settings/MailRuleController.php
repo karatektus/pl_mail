@@ -4,19 +4,21 @@ declare(strict_types=1);
 
 namespace App\Controller\Settings;
 
+use App\Controller\ChecksCsrf;
 use App\Domain\Enum\Integration\Capability;
+use App\Domain\Enum\Mail\RuleRunState;
 use App\Domain\Filter\FilterAstValidator;
 use App\Domain\Filter\InvalidFilterException;
-use App\Domain\Enum\Mail\RuleRunState;
 use App\Entity\Rule\MailRule;
-use App\Infrastructure\Messaging\Message\ApplyMailRuleMessage;
 use App\Entity\User\User;
+use App\Infrastructure\Messaging\Message\ApplyMailRuleMessage;
 use App\Jmap\Query\EmailFilterCompiler;
-use App\Repository\Mail\AccountRepository;
 use App\Repository\Integration\IntegrationRepository;
 use App\Repository\Label\LabelRepository;
-use App\Repository\Rule\MailRuleRepository;
+use App\Repository\Mail\AccountRepository;
 use App\Repository\Mail\MessageRepository;
+use App\Repository\Rule\MailRuleRepository;
+use App\Security\Voter\OwnershipVoter;
 use App\Service\Rule\FilterDescriber;
 use App\Service\Rule\RuleActionExecutor;
 use Doctrine\ORM\EntityManagerInterface;
@@ -44,6 +46,8 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 #[IsGranted('IS_AUTHENTICATED')]
 final class MailRuleController extends AbstractController
 {
+    use ChecksCsrf;
+
     public function __construct(
         private readonly MailRuleRepository     $ruleRepository,
         private readonly MessageRepository      $messageRepository,
@@ -67,7 +71,7 @@ final class MailRuleController extends AbstractController
     #[Route('/{id}/edit', name: 'edit', methods: ['GET'])]
     public function edit(MailRule $rule): Response
     {
-        $this->assertOwned($rule);
+        $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $rule);
 
         return $this->editor($rule);
     }
@@ -124,7 +128,7 @@ final class MailRuleController extends AbstractController
     #[Route('/save', name: 'save', methods: ['POST'])]
     public function save(Request $request): Response
     {
-        $this->validateCsrf($request, 'mail_rule_save');
+        $this->assertCsrf($request, 'mail_rule_save');
 
         $id = (string) $request->request->get('id', '');
         $rule = '' === $id ? new MailRule() : $this->ruleRepository->find((int) $id);
@@ -134,7 +138,7 @@ final class MailRuleController extends AbstractController
         }
 
         if (null !== $rule->id) {
-            $this->assertOwned($rule);
+            $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $rule);
         }
 
         $name = trim((string) $request->request->get('name', ''));
@@ -186,8 +190,8 @@ final class MailRuleController extends AbstractController
     #[Route('/{id}/delete', name: 'delete', methods: ['POST'])]
     public function delete(Request $request, MailRule $rule): Response
     {
-        $this->assertOwned($rule);
-        $this->validateCsrf($request, 'mail_rule_delete' . $rule->id);
+        $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $rule);
+        $this->assertCsrf($request, 'mail_rule_delete' . $rule->id);
 
         $this->em->remove($rule);
         $this->em->flush();
@@ -198,8 +202,8 @@ final class MailRuleController extends AbstractController
     #[Route('/{id}/toggle', name: 'toggle', methods: ['POST'])]
     public function toggle(Request $request, MailRule $rule): Response
     {
-        $this->assertOwned($rule);
-        $this->validateCsrf($request, 'mail_rule_toggle' . $rule->id);
+        $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $rule);
+        $this->assertCsrf($request, 'mail_rule_toggle' . $rule->id);
 
         $rule->isEnabled = false === $rule->isEnabled;
         $this->em->flush();
@@ -270,8 +274,8 @@ final class MailRuleController extends AbstractController
     #[Route('/{id}/run', name: 'run', methods: ['POST'])]
     public function run(Request $request, MailRule $rule): Response
     {
-        $this->assertOwned($rule);
-        $this->validateCsrf($request, 'mail_rule_run' . $rule->id);
+        $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $rule);
+        $this->assertCsrf($request, 'mail_rule_run' . $rule->id);
 
         // Re-running while a run is in flight would double-count progress and
         // race the handler's writes.
@@ -383,7 +387,7 @@ final class MailRuleController extends AbstractController
 
                 $label = $this->labelRepository->find($labelId);
 
-                if (null === $label || $label->usr !== $this->getUser()) {
+                if (null === $label || false === $this->isGranted(OwnershipVoter::OWN, $label)) {
                     continue;
                 }
 
@@ -402,7 +406,7 @@ final class MailRuleController extends AbstractController
                 // though the executor re-checks it again at run time.
                 $integration = $this->integrationRepository->find($integrationId);
 
-                if (null === $integration || $integration->usr !== $this->getUser()) {
+                if (null === $integration || false === $this->isGranted(OwnershipVoter::OWN, $integration)) {
                     continue;
                 }
 
@@ -429,24 +433,11 @@ final class MailRuleController extends AbstractController
 
         $account = $this->accountRepository->find((int) $id);
 
-        if (null === $account || $account->usr !== $this->getUser()) {
+        if (null === $account || false === $this->isGranted(OwnershipVoter::OWN, $account)) {
             return null;
         }
 
         return $account;
     }
 
-    private function assertOwned(MailRule $rule): void
-    {
-        if ($rule->usr !== $this->getUser()) {
-            throw $this->createAccessDeniedException();
-        }
-    }
-
-    private function validateCsrf(Request $request, string $tokenId): void
-    {
-        if (false === $this->isCsrfTokenValid($tokenId, (string) $request->request->get('_token'))) {
-            throw $this->createAccessDeniedException('Invalid CSRF token.');
-        }
-    }
 }

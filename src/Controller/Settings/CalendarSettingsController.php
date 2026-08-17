@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controller\Settings;
 
+use App\Controller\ChecksCsrf;
 use App\Domain\DTO\Calendar\CalendarSource;
 use App\Domain\Enum\Integration\Provider;
 use App\Domain\Enum\Integration\ServiceKind;
@@ -17,6 +18,7 @@ use App\Infrastructure\Messaging\Message\SyncCalendarMessage;
 use App\Repository\Calendar\CalendarRepository;
 use App\Repository\Integration\IntegrationRepository;
 use App\Repository\Mail\AccountRepository;
+use App\Security\Voter\OwnershipVoter;
 use App\Service\Calendar\Subscription\CalDavConnector;
 use App\Service\Calendar\Subscription\CalendarDiscoverer;
 use App\Service\Calendar\Subscription\CalendarSourceLister;
@@ -76,6 +78,8 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 #[IsGranted('IS_AUTHENTICATED')]
 final class CalendarSettingsController extends AbstractController
 {
+    use ChecksCsrf;
+
     public function __construct(
         private readonly CalendarRepository     $calendars,
         private readonly AccountRepository      $accounts,
@@ -116,7 +120,7 @@ final class CalendarSettingsController extends AbstractController
     #[Route('/{id}/edit', name: 'edit', requirements: ['id' => '\d+'], methods: ['GET', 'POST'])]
     public function edit(Request $request, Calendar $calendar): Response
     {
-        $this->assertOwned($calendar);
+        $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $calendar);
 
         $form = $this->createForm(CalendarType::class, $calendar, [
             'action' => $this->generateUrl('app_settings_calendar_edit', ['id' => $calendar->id]),
@@ -143,7 +147,7 @@ final class CalendarSettingsController extends AbstractController
     #[Route('/{id}/delete', name: 'delete', requirements: ['id' => '\d+'], methods: ['POST'])]
     public function delete(Request $request, Calendar $calendar): Response
     {
-        $this->assertOwned($calendar);
+        $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $calendar);
         $this->assertCsrf($request, 'calendar-delete' . $calendar->id);
 
         // Both guards are also what the list renders on, so reaching either is
@@ -175,7 +179,7 @@ final class CalendarSettingsController extends AbstractController
     #[Route('/{id}/toggle-visibility', name: 'toggle_visibility', requirements: ['id' => '\d+'], methods: ['POST'])]
     public function toggleVisibility(Request $request, Calendar $calendar): Response
     {
-        $this->assertOwned($calendar);
+        $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $calendar);
         $this->assertCsrf($request, 'calendar-visibility' . $calendar->id);
 
         // The default stays visible. Hiding it means new events disappear the
@@ -196,7 +200,7 @@ final class CalendarSettingsController extends AbstractController
     #[Route('/{id}/default', name: 'make_default', requirements: ['id' => '\d+'], methods: ['POST'])]
     public function makeDefault(Request $request, Calendar $calendar): Response
     {
-        $this->assertOwned($calendar);
+        $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $calendar);
         $this->assertCsrf($request, 'calendar-default' . $calendar->id);
 
         foreach ($this->calendars->findForUser($this->currentUser()) as $sibling) {
@@ -344,7 +348,7 @@ final class CalendarSettingsController extends AbstractController
     #[Route('/{id}/sync', name: 'sync', requirements: ['id' => '\d+'], methods: ['POST'])]
     public function sync(Request $request, Calendar $calendar): Response
     {
-        $this->assertOwned($calendar);
+        $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $calendar);
         $this->assertCsrf($request, 'calendar-sync' . $calendar->id);
 
         if (false === $calendar->isSynced()) {
@@ -543,20 +547,6 @@ final class CalendarSettingsController extends AbstractController
             'form'     => $form,
             'calendar' => $calendar,
         ], new Response(status: $status));
-    }
-
-    private function assertOwned(Calendar $calendar): void
-    {
-        if ($calendar->usr !== $this->getUser()) {
-            throw $this->createAccessDeniedException();
-        }
-    }
-
-    private function assertCsrf(Request $request, string $id): void
-    {
-        if (false === $this->isCsrfTokenValid($id, (string) $request->request->get('_token'))) {
-            throw $this->createAccessDeniedException();
-        }
     }
 
     private function currentUser(): User

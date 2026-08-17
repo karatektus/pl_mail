@@ -7,6 +7,7 @@ namespace App\Controller\Mail;
 use App\Entity\Label\Label;
 use App\Form\LabelType;
 use App\Repository\Label\LabelRepository;
+use App\Security\Voter\OwnershipVoter;
 use App\Service\Label\LabelStructurePropagator;
 use App\Service\Mail\MailChangeRecorder;
 use Doctrine\ORM\EntityManagerInterface;
@@ -161,9 +162,7 @@ final class LabelController extends AbstractController
     #[Route('/{id}/toggle-visibility', name: 'toggle_visibility', methods: ['POST'])]
     public function toggleVisibility(Request $request, Label $label): Response
     {
-        if ($label->usr !== $this->getUser()) {
-            throw $this->createAccessDeniedException();
-        }
+        $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $label);
 
         if (false === $this->isCsrfTokenValid('label-visibility' . $label->id, (string) $request->request->get('_token'))) {
             throw $this->createAccessDeniedException();
@@ -218,11 +217,18 @@ final class LabelController extends AbstractController
         ], new Response(status: $status));
     }
 
+    /**
+     * Owning it is not enough — it also has to be a label the user made.
+     *
+     * The ownership half is the voter's; what stays here is the second
+     * refusal, which is not about whose label it is but about what kind: a
+     * system label (Inbox, Sent, Trash…) belongs to the user like any other,
+     * and still must not be renamed or deleted through the custom-label routes.
+     * The eye toggle is the deliberate exception and has its own route.
+     */
     private function assertOwnedUserLabel(Label $label): void
     {
-        if ($label->usr !== $this->getUser()) {
-            throw $this->createAccessDeniedException();
-        }
+        $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $label);
 
         if (true === $label->isSystem) {
             throw $this->createAccessDeniedException();

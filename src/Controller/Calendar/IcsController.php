@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controller\Calendar;
 
+use App\Controller\ChecksCsrf;
 use App\Domain\DTO\Calendar\IcsImportResult;
 use App\Domain\Exception\CalendarSyncException;
 use App\Domain\Exception\IntegrationException;
@@ -13,6 +14,7 @@ use App\Entity\User\User;
 use App\Infrastructure\Messaging\Message\SyncCalendarMessage;
 use App\Repository\Calendar\CalendarEventRepository;
 use App\Repository\Calendar\CalendarRepository;
+use App\Security\Voter\OwnershipVoter;
 use App\Service\Calendar\Ics\IcsExporter;
 use App\Service\Calendar\Ics\IcsFeedConnector;
 use App\Service\Calendar\Ics\IcsImporter;
@@ -74,6 +76,8 @@ use Symfony\Contracts\Translation\TranslatorInterface;
 #[IsGranted('IS_AUTHENTICATED')]
 final class IcsController extends AbstractController
 {
+    use ChecksCsrf;
+
     /**
      * What an .ics is served as.
      *
@@ -121,7 +125,7 @@ final class IcsController extends AbstractController
     #[Route('/event/{id}', name: 'event', requirements: ['id' => '\d+'], methods: ['GET'])]
     public function event(CalendarEvent $event): Response
     {
-        $this->assertOwnsEvent($event);
+        $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $event);
 
         return $this->fileResponse(
             $this->exporter->one($event),
@@ -149,7 +153,7 @@ final class IcsController extends AbstractController
     #[Route('/calendar/{id}', name: 'calendar', requirements: ['id' => '\d+'], methods: ['GET'])]
     public function calendar(Calendar $calendar): Response
     {
-        $this->assertOwnsCalendar($calendar);
+        $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $calendar);
 
         $chunks = $this->exporter->document($calendar, $this->events->iterateForCalendar($calendar));
 
@@ -427,27 +431,6 @@ final class IcsController extends AbstractController
     private function disposition(string $fileName): string
     {
         return HeaderUtils::makeDisposition(HeaderUtils::DISPOSITION_ATTACHMENT, $fileName, $fileName);
-    }
-
-    private function assertOwnsEvent(CalendarEvent $event): void
-    {
-        if ($event->usr !== $this->getUser()) {
-            throw $this->createAccessDeniedException();
-        }
-    }
-
-    private function assertOwnsCalendar(Calendar $calendar): void
-    {
-        if ($calendar->usr !== $this->getUser()) {
-            throw $this->createAccessDeniedException();
-        }
-    }
-
-    private function assertCsrf(Request $request, string $id): void
-    {
-        if (false === $this->isCsrfTokenValid($id, (string) $request->request->get('_token'))) {
-            throw $this->createAccessDeniedException();
-        }
     }
 
     private function currentUser(): User

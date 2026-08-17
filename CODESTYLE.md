@@ -540,14 +540,17 @@ actions and little else"*.
 The pattern, in full:
 
 ```php
-#[Route('/status/{type}/{id}', name: 'app_status_')]
+#[Route('/status/{type}/{id}', name: 'app_status_', requirements: ['type' => 'message|thread', 'id' => '\d+'])]
 #[IsGranted('IS_AUTHENTICATED')]
 class ThreadStatusController extends AbstractController
 {
+    use ChecksCsrf;
+    use RendersTurboStreams;
+
     #[Route('/archive', name: 'archive', methods: ['POST'])]
-    public function archive(string $type, int $id): Response
+    public function archive(Request $request, string $type, int $id): Response
     {
-        $messages = $this->resolveMessages($type, $id);
+        $messages = $this->resolveMessages($request, $type, $id);
 
         $this->status->archive($messages);
 
@@ -558,10 +561,23 @@ class ThreadStatusController extends AbstractController
 ```
 
 - Route attributes on the class for the shared prefix and name prefix, on the method for the rest.
-- `methods:` always declared.
-- `#[IsGranted]` at class level; per-action overrides only when they differ.
-- Authorisation as a private helper (`assertOwnership()`), called from a single resolver so no
-  action can forget it.
+- `methods:` always declared, and `requirements:` for anything a route segment must never be — an
+  unconstrained `{type}` is a `default` arm nobody wrote.
+- `#[IsGranted]` at class level for the coarse question (is this a signed-in user, an admin);
+  per-action overrides only when they differ.
+- **Ownership is a voter, never a comparison in the controller.** `OwnershipVoter` answers
+  `own` for every entity a user owns, and controllers ask it — `$this->denyAccessUnlessGranted(
+  OwnershipVoter::OWN, $subject)` where refusing is the answer, `$this->isGranted(...)` where the
+  action skips or returns instead. This replaced nineteen private helpers across eighteen files,
+  under six different names; all of them were correct, and that was the problem — each was a fresh
+  derivation of one sentence, so the twentieth was a fresh chance to get it wrong.
+- Where several actions share a resolver, the guards go *in the resolver*, not in each action —
+  that part of the old pattern was right and is kept. `resolveMessages()` above checks CSRF and
+  ownership for all six of its callers, so an action cannot forget either.
+- Rules that are not ownership stay in the controller, because they are a different question:
+  LabelController still refuses a *system* label, ComposeController still refuses an *already sent*
+  draft. Those are about what the thing is, not whose it is.
+- CSRF as `ChecksCsrf::assertCsrf()`, one copy, taking the token from `_token` or `X-CSRF-Token`.
 - Shared response mechanics as one private method (`renderTurboStream()`).
 
 ### 5.3 Every query lives in a repository

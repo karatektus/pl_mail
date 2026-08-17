@@ -8,6 +8,11 @@ use App\Domain\Enum\Account\MailProvider;
 use App\Domain\Exception\AccountIdentityMismatch;
 use App\Entity\User\User;
 use App\Repository\Mail\AccountRepository;
+use App\Security\Voter\OwnershipVoter;
+use App\Service\OAuth\MicrosoftOAuthErrorTranslator;
+use App\Service\OAuth\OAuthAccountLinker;
+use App\Service\OAuth\OAuthProviderFactory;
+use App\Service\OAuth\OAuthStateStore;
 use App\Service\Onboarding\OnboardingFlow;
 use League\OAuth2\Client\Provider\Exception\IdentityProviderException;
 use Psr\Log\LoggerInterface;
@@ -18,10 +23,6 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 use Symfony\Contracts\Translation\TranslatorInterface;
-use App\Service\OAuth\MicrosoftOAuthErrorTranslator;
-use App\Service\OAuth\OAuthAccountLinker;
-use App\Service\OAuth\OAuthProviderFactory;
-use App\Service\OAuth\OAuthStateStore;
 
 #[IsGranted('ROLE_USER')]
 #[Route('/oauth', name: 'app_oauth_')]
@@ -82,9 +83,11 @@ class OAuthController extends AbstractController
         if (0 !== $reconnect) {
             $account = $this->accounts->find($reconnect);
 
-            if (null === $account || $account->usr !== $this->getUser()) {
+            if (null === $account) {
                 throw $this->createAccessDeniedException();
             }
+
+            $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $account);
 
             $session->set(self::SESSION_RECONNECT, (int) $account->id);
         }

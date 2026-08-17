@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Controller\Settings;
 
 use App\Entity\Mail\Account;
+use App\Security\Voter\OwnershipVoter;
 use App\Service\Push\PushStatusFactory;
 use App\Service\Push\PushSubscriptionRegistry;
 use Doctrine\ORM\EntityManagerInterface;
@@ -43,7 +44,7 @@ final class AccountPushController extends AbstractController
     #[Route('/settings/accounts/{id}/push', name: 'settings_account_push_toggle', methods: ['POST'])]
     public function toggle(Request $request, Account $account): Response
     {
-        $this->assertOwnership($account);
+        $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $account);
 
         $token = (string) $request->request->get('_token');
 
@@ -108,7 +109,7 @@ final class AccountPushController extends AbstractController
     #[Route('/settings/accounts/{id}/push/repair', name: 'settings_account_push_repair', methods: ['POST'])]
     public function repair(Request $request, Account $account): Response
     {
-        $this->assertOwnership($account);
+        $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $account);
 
         $token = (string) $request->request->get('_token');
 
@@ -166,10 +167,4 @@ final class AccountPushController extends AbstractController
         ]);
     }
 
-    private function assertOwnership(Account $account): void
-    {
-        if ($account->usr !== $this->getUser()) {
-            throw $this->createAccessDeniedException();
-        }
-    }
 }

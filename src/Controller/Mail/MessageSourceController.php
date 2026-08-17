@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Controller\Mail;
 
 use App\Entity\Mail\Message;
+use App\Security\Voter\OwnershipVoter;
 use App\Service\Mail\MessageSourceBuilder;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Response;
@@ -29,7 +30,7 @@ final class MessageSourceController extends AbstractController
     #[Route('/original', name: 'original', methods: ['GET'])]
     public function original(Message $message): Response
     {
-        $this->assertOwnership($message);
+        $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $message);
 
         return $this->render('mail/original.html.twig', [
             'message' => $message,
@@ -41,7 +42,7 @@ final class MessageSourceController extends AbstractController
     #[Route('/print', name: 'print', methods: ['GET'])]
     public function print(Message $message): Response
     {
-        $this->assertOwnership($message);
+        $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $message);
 
         return $this->render('mail/print.html.twig', [
             'message' => $message,
@@ -84,10 +85,4 @@ final class MessageSourceController extends AbstractController
         return $results;
     }
 
-    private function assertOwnership(Message $message): void
-    {
-        if ($message->account->usr !== $this->getUser()) {
-            throw $this->createAccessDeniedException();
-        }
-    }
 }

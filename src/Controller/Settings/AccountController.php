@@ -4,28 +4,29 @@ declare(strict_types=1);
 
 namespace App\Controller\Settings;
 
+use App\Domain\DTO\ConnectionTestResult;
 use App\Entity\Mail\Account;
 use App\Form\AccountType;
 use App\Repository\Mail\AccountRepository;
+use App\Security\Voter\OwnershipVoter;
+use App\Service\Graph\GraphSubscriptionManager;
 use App\Service\Mail\AccountCreator;
 use App\Service\Mail\AliasSeeder;
+use App\Service\Mail\ConnectionTester;
 use App\Service\Mail\GmailApiClient;
 use App\Service\Push\PushSubscriptionRegistry;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 use Symfony\UX\Turbo\TurboBundle;
 use Throwable;
-use App\Domain\DTO\ConnectionTestResult;
-use App\Service\Mail\ConnectionTester;
-use Symfony\Component\HttpFoundation\JsonResponse;
-use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
-use App\Service\Graph\GraphSubscriptionManager;
 
 #[Route('/account', name: 'app_account_')]
 #[IsGranted('ROLE_USER')]
@@ -65,7 +66,7 @@ final class AccountController extends AbstractController
     #[Route('/{id}/edit', name: 'edit')]
     public function edit(Request $request, Account $account): Response
     {
-        $this->denyUnlessOwner($account);
+        $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $account);
 
         // OAuth accounts have no editable password/host — they are managed
         // through connect/disconnect, not this form.
@@ -103,7 +104,7 @@ final class AccountController extends AbstractController
     #[Route('/{id}/toggle', name: 'toggle', methods: ['POST'])]
     public function toggle(Request $request, Account $account): Response
     {
-        $this->denyUnlessOwner($account);
+        $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $account);
 
         if (false === $this->isCsrfTokenValid('toggle' . $account->id, (string) $request->request->get('_token'))) {
             throw $this->createAccessDeniedException();
@@ -126,7 +127,7 @@ final class AccountController extends AbstractController
     #[Route('/{id}/delete', name: 'delete', methods: ['POST'])]
     public function delete(Request $request, Account $account): Response
     {
-        $this->denyUnlessOwner($account);
+        $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $account);
 
         if (false === $this->isCsrfTokenValid('delete' . $account->id, (string) $request->request->get('_token'))) {
             throw $this->createAccessDeniedException();
@@ -235,7 +236,7 @@ final class AccountController extends AbstractController
     #[Route('/{id}/primary', name: 'primary', methods: ['POST'])]
     public function makePrimary(Request $request, Account $account): Response
     {
-        $this->denyUnlessOwner($account);
+        $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $account);
 
         if (false === $this->isCsrfTokenValid('account-primary' . $account->id, (string) $request->request->get('_token'))) {
             throw $this->createAccessDeniedException();
@@ -283,7 +284,7 @@ final class AccountController extends AbstractController
                 throw $this->createNotFoundException();
             }
 
-            $this->denyUnlessOwner($existing);
+            $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $existing);
             $account->password = $existing->password;
         }
 
@@ -324,13 +325,6 @@ final class AccountController extends AbstractController
     private function resequence(iterable $orderedAccounts): void
     {
         $this->accountCreator->resequence($orderedAccounts);
-    }
-
-    private function denyUnlessOwner(Account $account): void
-    {
-        if ($account->usr !== $this->getUser()) {
-            throw $this->createAccessDeniedException();
-        }
     }
 
     private function streamAccountList(Request $request, string $toastMessage): Response

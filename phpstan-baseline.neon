@@ -57,18 +57,6 @@ parameters:
 
 
 		-
-			message: '#^Constant App\\Controller\\Mail\\ComposeController\:\:INLINE_FRAME is unused\.$#'
-			identifier: classConstant.unused
-			count: 1
-			path: src/Controller/Mail/ComposeController.php
-
-		-
-			message: '#^Strict comparison using \=\=\= between null and App\\Entity\\Mail\\Account will always evaluate to false\.$#'
-			identifier: identical.alwaysFalse
-			count: 1
-			path: src/Controller/Mail/ComposeController.php
-
-		-
 			message: '#^Property App\\Entity\\Label\\Label\:\:\$usr \(App\\Entity\\User\\User\|null\) does not accept Symfony\\Component\\Security\\Core\\User\\UserInterface\|null\.$#'
 			identifier: assign.propertyType
 			count: 1

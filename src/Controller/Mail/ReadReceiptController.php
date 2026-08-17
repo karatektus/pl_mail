@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace App\Controller\Mail;
 
+use App\Controller\ChecksCsrf;
 use App\Controller\RendersTurboStreams;
 use App\Entity\Mail\Message;
 use App\Entity\User\User;
+use App\Security\Voter\OwnershipVoter;
 use App\Service\Mail\ReadReceiptPolicy;
 use App\Service\Mail\ReadReceiptSender;
 use Doctrine\ORM\EntityManagerInterface;
@@ -36,6 +38,7 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 #[IsGranted('ROLE_USER')]
 final class ReadReceiptController extends AbstractController
 {
+    use ChecksCsrf;
     use RendersTurboStreams;
 
     public function __construct(
@@ -101,25 +104,25 @@ final class ReadReceiptController extends AbstractController
      */
     private function assertToken(Request $request, Message $message): void
     {
-        $valid = $this->isCsrfTokenValid(
-            'read-receipt' . $message->id,
-            (string) $request->request->get('_token'),
-        );
-
-        if (false === $valid) {
-            throw $this->createAccessDeniedException();
-        }
+        $this->assertCsrf($request, 'read-receipt' . $message->id);
     }
 
     /**
-     * Same reasoning as RemoteImageController::assertOwned — never via the
-     * mailbox, which Gmail and Graph accounts do not have.
+     * Authorises, and hands back the user the caller needs anyway.
+     *
+     * The comparison is the voter's now; what is left is the narrowing. The
+     * voter has already refused anything but a User on an owned subject, so by
+     * the time getUser() is read here it cannot be null — the instanceof is for
+     * the type checker and for the day somebody calls this without the line
+     * above it.
      */
     private function assertOwned(Message $message): User
     {
+        $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $message);
+
         $user = $this->getUser();
 
-        if (false === $user instanceof User || $message->account->usr !== $user) {
+        if (false === $user instanceof User) {
             throw $this->createAccessDeniedException();
         }
 
