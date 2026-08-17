@@ -6,6 +6,61 @@ so anything that changes the schema irreversibly is called out explicitly.
 The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, and `sha-…` pins one commit.
 
+## v0.0.37 — 2026-08-17
+
+**No migration and nothing to do on upgrade. A review of the whole codebase,
+and what it turned up: one endpoint that leaked which mail exists, a listener
+that outlived the window it belonged to, and a good deal of the same check
+written out more times than anyone had noticed.**
+
+**The status routes stop answering questions about other people's mail.** Every
+action behind `/status/{type}/{id}` — star, archive, trash, label, snooze, read
+— resolved through one helper, and that helper failed open three ways. An id
+matching no row died with a TypeError, so a *missing* id answered 500 while a
+real id belonging to *somebody else* answered 403 — and telling those two apart
+is an existence check anybody with an account could have run against every
+message and thread id on the server. Both route segments are constrained now,
+absence is a 404, and the six actions carry a CSRF token. Nothing in the
+browser changed: every caller was already sending that token and the server was
+throwing it away.
+
+**One answer to "is this yours".** The check was a private method on the
+controller — nineteen of them, in eighteen files, under six different names.
+All nineteen were correct; the trouble is that each was a fresh derivation of
+one sentence, so the twentieth was a fresh chance to get it wrong, and a
+controller that simply never grew one looked no different from outside. There
+is a voter now, it fails closed on the seven ownership links that are nullable,
+and it reaches a message's owner by the one route the schema guarantees rather
+than by a walk that could fatal on a message with no mailbox and no thread.
+
+**And one CSRF check.** Fifteen copies, two names, already drifting — one of
+them had its token prefix baked in, so the call site said one thing and the
+token was called another. The session cookie's `SameSite` is written down as
+well: it was already `lax` and stays `lax`, because the OAuth callbacks are
+cross-site navigations that read state from the session and `strict` would
+break every account connection. Two authenticated endpoints that checked no
+token now do.
+
+**A phone could be left unable to scroll.** The compose window's "no subject?"
+warning bound an Escape handler to the document and only ever released it from
+its own two buttons, so closing the window with the question unanswered left
+the handler behind holding the dead window alive. Alongside it, the one
+unguarded lookup in a teardown full of guarded ones — which, had it ever fired,
+would have skipped the line that gives the page its scrollbar back.
+
+**Things that were in the wrong place.** The topbar's sync button was a
+controller called Dev serving `/dev/sync`, a URL an operator might reasonably
+block, with inline SQL inside it. The sidebar counters lived in `src/Twig`
+despite holding no Twig and being injected into a controller. The compose
+controller gave up its uploads, its request context — an array whose shape was
+written out in eight docblocks — and the decisions that were never about HTTP.
+
+**Also:** four debug `console.log`s, one printing label activity on every use;
+an autocomplete controller whose body had been commented out and which no page
+had mounted in some time; a JavaScript dependency imported by nothing; and an
+end-to-end test that only passed if you happened to have an environment
+variable set.
+
 ## v0.0.36 — 2026-08-13
 
 **One migration, additive and nullable; no reset. Mostly Appearance, which
