@@ -6,6 +6,56 @@ so anything that changes the schema irreversibly is called out explicitly.
 The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, and `sha-…` pins one commit.
 
+## v0.0.39 — 2026-08-17
+
+**One migration, additive (a table and two defaulted columns); nothing to do
+on upgrade beyond an optional backfill. plMail grows a radar, every logo
+colourway becomes a theme worth wearing, and the compose window stops being
+taciturn.**
+
+**The radar.** plMail now reads facts out of mail as it arrives — parcels with
+their tracking numbers and delivery estimates, flights with their times,
+event tickets, GitHub issue and pull-request activity — and turns each into a
+card: dated ones in the Happening Soon panel under "On your radar", GitHub
+under "From your repos", and a strip above any conversation something was
+found in. Extraction is deterministic and local: sender domains, headers and
+fixed shapes, no cloud, no model — the radar would rather miss a parcel than
+invent one. Five carrier follow-ups are one card (upserted by the thing's own
+identity), dismissing a card outlives the carrier's next enthusiasm, and
+`app:backfill insights` walks mail that predates the feature. Every source
+has its own switch under **Settings → Insights**, and the catalogue is the
+extractor registry itself — an extractor added to a build appears there and
+starts working with no further wiring.
+
+**Themes with character.** The 32 logo colourways became full themes, each
+with a palette of its own — seven properly dark (ink is a printed page's
+negative, midnight & gold a night library, aurora a lit night sky), the rest
+each on their own paper. Every ink tier meets the contrast floors,
+computationally. The theme picker shows the seven classics and folds the
+colourways behind **More**; your current pick stays visible until you choose
+another. The logo follows the theme by default now, with "choose
+independently" bringing the full logo grid back; existing non-default logo
+picks were migrated to independent so nobody's choice moved.
+
+**The compose window answers back.** "Sending…" pulses — one dot, two dots,
+three — and carries a Cancel for the in-flight moment that presses the cancel
+window's own control the instant it renders. A forward opens unsigned, with
+the address rows unfolded and the caret blinking in a typable To field; its
+quoted original counts as content, so forwarding without a word above it is
+no longer questioned as an empty mail. The quote stays folded behind the pill
+by default, and **Settings → General → Composing** can open it out instead.
+
+**Also:** every checkbox in settings became a labelled two-segment control;
+the favicon URL is versioned so a colourway change reaches the tab without a
+hard reload; the icon set is transparent now; and a shared-calendar test that
+failed every evening after Berlin crossed midnight ahead of a UTC container
+asserts in the page's own timezone.
+
+**The migration:** `mail_insight` (new table), `user.appearance_logo_linked`
+(default true, false where a non-default colourway was already chosen). Run
+`php bin/console app:backfill insights` once if you want cards for mail that
+is already in the database.
+
 ## v0.0.38 — 2026-08-17
 
 **One migration, additive with a default; nothing to do on upgrade. The inbox
