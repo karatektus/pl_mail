@@ -604,6 +604,1714 @@
     --rgb-sheet-danger:     220  50  47;   /* red  #dc322f */
 }
 
+/* ═══ Logo-colourway themes (generated) ═════════════════════════════════════
+   One light theme per LogoStyle — Paper's block verbatim except three tokens:
+   --rgb-accent is the style's tile(), --rgb-accent-ink is measured against it
+   (white, or near-black over a very light tile), and --app-bg is the tile
+   mixed 7% into Paper's page. Everything readable on Paper stays readable
+   here, because nothing but accent and page moved.
+
+   GENERATED — do not hand-edit these blocks. The script lives in the session
+   scratchpad as generate-theme-blocks.mjs (reads LogoStyle::tile() dumped to
+   JSON); rerun it and paste, or re-derive with the rule above.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+:root[data-theme="product-blue"] {
+    color-scheme: light;
+
+    --rgb-surface:   247 245 239;
+    --rgb-border:     35  34  32;
+    --rgb-line:       35  34  32;
+    --rgb-raised:     35  34  32;
+    --rgb-sunken:     35  34  32;
+    --rgb-shadow:     35  34  32;
+
+    --rgb-ink:        35  34  32;
+    --rgb-ink-soft:   82  78  72;
+    --rgb-ink-muted: 95 91 84;
+    --rgb-ink-faint: 116 111 103;
+
+    --rgb-accent:    37 99 235;
+    --rgb-accent-ink: 255 255 255;
+
+    --rgb-field:        255 255 255;
+    --rgb-field-border: 212 212 216;
+
+    --rgb-danger:    220  38  38;
+    --rgb-warning:   217 119   6;
+    --rgb-success:    22 163  74;
+    --rgb-info:       90 106 130;
+
+    --rgb-inverse:     45  43  40;
+    --rgb-inverse-ink: 247 245 239;
+
+    --border-alpha:       0.10;
+    --line-alpha:         0.09;
+    --raised-alpha:       0.04;
+    --hover-alpha:        0.035;
+    --shadow-alpha:       0.05;
+    --sunken-alpha:       0.04;
+
+    --unread-tint-alpha:  0.4;
+    --field-alpha:        0.6;
+    --field-border-alpha: 0.4;
+    --danger-soft-alpha:  0.08;
+    --info-soft-alpha:    0.08;
+
+    --app-bg: linear-gradient(#e4e5e7, #e4e5e7);
+
+    --rgb-sheet:            247 245 239;
+    --rgb-sheet-ink:         35  34  32;
+    --rgb-sheet-ink-soft:    82  78  72;
+    --rgb-sheet-ink-muted:  95 91 84;
+    --rgb-sheet-ink-faint:  116 111 103;
+    --rgb-sheet-link:        29  78 216;
+    --rgb-sheet-danger:     185  28  28;
+}
+
+:root[data-theme="ink"] {
+    color-scheme: light;
+
+    --rgb-surface:   247 245 239;
+    --rgb-border:     35  34  32;
+    --rgb-line:       35  34  32;
+    --rgb-raised:     35  34  32;
+    --rgb-sunken:     35  34  32;
+    --rgb-shadow:     35  34  32;
+
+    --rgb-ink:        35  34  32;
+    --rgb-ink-soft:   82  78  72;
+    --rgb-ink-muted: 95 91 84;
+    --rgb-ink-faint: 116 111 103;
+
+    --rgb-accent:    43 38 32;
+    --rgb-accent-ink: 255 255 255;
+
+    --rgb-field:        255 255 255;
+    --rgb-field-border: 212 212 216;
+
+    --rgb-danger:    220  38  38;
+    --rgb-warning:   217 119   6;
+    --rgb-success:    22 163  74;
+    --rgb-info:       90 106 130;
+
+    --rgb-inverse:     45  43  40;
+    --rgb-inverse-ink: 247 245 239;
+
+    --border-alpha:       0.10;
+    --line-alpha:         0.09;
+    --raised-alpha:       0.04;
+    --hover-alpha:        0.035;
+    --shadow-alpha:       0.05;
+    --sunken-alpha:       0.04;
+
+    --unread-tint-alpha:  0.4;
+    --field-alpha:        0.6;
+    --field-border-alpha: 0.4;
+    --danger-soft-alpha:  0.08;
+    --info-soft-alpha:    0.08;
+
+    --app-bg: linear-gradient(#e4e1d9, #e4e1d9);
+
+    --rgb-sheet:            247 245 239;
+    --rgb-sheet-ink:         35  34  32;
+    --rgb-sheet-ink-soft:    82  78  72;
+    --rgb-sheet-ink-muted:  95 91 84;
+    --rgb-sheet-ink-faint:  116 111 103;
+    --rgb-sheet-link:        29  78 216;
+    --rgb-sheet-danger:     185  28  28;
+}
+
+:root[data-theme="slate"] {
+    color-scheme: light;
+
+    --rgb-surface:   247 245 239;
+    --rgb-border:     35  34  32;
+    --rgb-line:       35  34  32;
+    --rgb-raised:     35  34  32;
+    --rgb-sunken:     35  34  32;
+    --rgb-shadow:     35  34  32;
+
+    --rgb-ink:        35  34  32;
+    --rgb-ink-soft:   82  78  72;
+    --rgb-ink-muted: 95 91 84;
+    --rgb-ink-faint: 116 111 103;
+
+    --rgb-accent:    71 85 105;
+    --rgb-accent-ink: 255 255 255;
+
+    --rgb-field:        255 255 255;
+    --rgb-field-border: 212 212 216;
+
+    --rgb-danger:    220  38  38;
+    --rgb-warning:   217 119   6;
+    --rgb-success:    22 163  74;
+    --rgb-info:       90 106 130;
+
+    --rgb-inverse:     45  43  40;
+    --rgb-inverse-ink: 247 245 239;
+
+    --border-alpha:       0.10;
+    --line-alpha:         0.09;
+    --raised-alpha:       0.04;
+    --hover-alpha:        0.035;
+    --shadow-alpha:       0.05;
+    --sunken-alpha:       0.04;
+
+    --unread-tint-alpha:  0.4;
+    --field-alpha:        0.6;
+    --field-border-alpha: 0.4;
+    --danger-soft-alpha:  0.08;
+    --info-soft-alpha:    0.08;
+
+    --app-bg: linear-gradient(#e6e4de, #e6e4de);
+
+    --rgb-sheet:            247 245 239;
+    --rgb-sheet-ink:         35  34  32;
+    --rgb-sheet-ink-soft:    82  78  72;
+    --rgb-sheet-ink-muted:  95 91 84;
+    --rgb-sheet-ink-faint:  116 111 103;
+    --rgb-sheet-link:        29  78 216;
+    --rgb-sheet-danger:     185  28  28;
+}
+
+:root[data-theme="forest"] {
+    color-scheme: light;
+
+    --rgb-surface:   247 245 239;
+    --rgb-border:     35  34  32;
+    --rgb-line:       35  34  32;
+    --rgb-raised:     35  34  32;
+    --rgb-sunken:     35  34  32;
+    --rgb-shadow:     35  34  32;
+
+    --rgb-ink:        35  34  32;
+    --rgb-ink-soft:   82  78  72;
+    --rgb-ink-muted: 95 91 84;
+    --rgb-ink-faint: 116 111 103;
+
+    --rgb-accent:    22 101 52;
+    --rgb-accent-ink: 255 255 255;
+
+    --rgb-field:        255 255 255;
+    --rgb-field-border: 212 212 216;
+
+    --rgb-danger:    220  38  38;
+    --rgb-warning:   217 119   6;
+    --rgb-success:    22 163  74;
+    --rgb-info:       90 106 130;
+
+    --rgb-inverse:     45  43  40;
+    --rgb-inverse-ink: 247 245 239;
+
+    --border-alpha:       0.10;
+    --line-alpha:         0.09;
+    --raised-alpha:       0.04;
+    --hover-alpha:        0.035;
+    --shadow-alpha:       0.05;
+    --sunken-alpha:       0.04;
+
+    --unread-tint-alpha:  0.4;
+    --field-alpha:        0.6;
+    --field-border-alpha: 0.4;
+    --danger-soft-alpha:  0.08;
+    --info-soft-alpha:    0.08;
+
+    --app-bg: linear-gradient(#e3e5da, #e3e5da);
+
+    --rgb-sheet:            247 245 239;
+    --rgb-sheet-ink:         35  34  32;
+    --rgb-sheet-ink-soft:    82  78  72;
+    --rgb-sheet-ink-muted:  95 91 84;
+    --rgb-sheet-ink-faint:  116 111 103;
+    --rgb-sheet-link:        29  78 216;
+    --rgb-sheet-danger:     185  28  28;
+}
+
+:root[data-theme="burgundy"] {
+    color-scheme: light;
+
+    --rgb-surface:   247 245 239;
+    --rgb-border:     35  34  32;
+    --rgb-line:       35  34  32;
+    --rgb-raised:     35  34  32;
+    --rgb-sunken:     35  34  32;
+    --rgb-shadow:     35  34  32;
+
+    --rgb-ink:        35  34  32;
+    --rgb-ink-soft:   82  78  72;
+    --rgb-ink-muted: 95 91 84;
+    --rgb-ink-faint: 116 111 103;
+
+    --rgb-accent:    159 18 57;
+    --rgb-accent-ink: 255 255 255;
+
+    --rgb-field:        255 255 255;
+    --rgb-field-border: 212 212 216;
+
+    --rgb-danger:    220  38  38;
+    --rgb-warning:   217 119   6;
+    --rgb-success:    22 163  74;
+    --rgb-info:       90 106 130;
+
+    --rgb-inverse:     45  43  40;
+    --rgb-inverse-ink: 247 245 239;
+
+    --border-alpha:       0.10;
+    --line-alpha:         0.09;
+    --raised-alpha:       0.04;
+    --hover-alpha:        0.035;
+    --shadow-alpha:       0.05;
+    --sunken-alpha:       0.04;
+
+    --unread-tint-alpha:  0.4;
+    --field-alpha:        0.6;
+    --field-border-alpha: 0.4;
+    --danger-soft-alpha:  0.08;
+    --info-soft-alpha:    0.08;
+
+    --app-bg: linear-gradient(#ece0db, #ece0db);
+
+    --rgb-sheet:            247 245 239;
+    --rgb-sheet-ink:         35  34  32;
+    --rgb-sheet-ink-soft:    82  78  72;
+    --rgb-sheet-ink-muted:  95 91 84;
+    --rgb-sheet-ink-faint:  116 111 103;
+    --rgb-sheet-link:        29  78 216;
+    --rgb-sheet-danger:     185  28  28;
+}
+
+:root[data-theme="deep-violet"] {
+    color-scheme: light;
+
+    --rgb-surface:   247 245 239;
+    --rgb-border:     35  34  32;
+    --rgb-line:       35  34  32;
+    --rgb-raised:     35  34  32;
+    --rgb-sunken:     35  34  32;
+    --rgb-shadow:     35  34  32;
+
+    --rgb-ink:        35  34  32;
+    --rgb-ink-soft:   82  78  72;
+    --rgb-ink-muted: 95 91 84;
+    --rgb-ink-faint: 116 111 103;
+
+    --rgb-accent:    109 40 217;
+    --rgb-accent-ink: 255 255 255;
+
+    --rgb-field:        255 255 255;
+    --rgb-field-border: 212 212 216;
+
+    --rgb-danger:    220  38  38;
+    --rgb-warning:   217 119   6;
+    --rgb-success:    22 163  74;
+    --rgb-info:       90 106 130;
+
+    --rgb-inverse:     45  43  40;
+    --rgb-inverse-ink: 247 245 239;
+
+    --border-alpha:       0.10;
+    --line-alpha:         0.09;
+    --raised-alpha:       0.04;
+    --hover-alpha:        0.035;
+    --shadow-alpha:       0.05;
+    --sunken-alpha:       0.04;
+
+    --unread-tint-alpha:  0.4;
+    --field-alpha:        0.6;
+    --field-border-alpha: 0.4;
+    --danger-soft-alpha:  0.08;
+    --info-soft-alpha:    0.08;
+
+    --app-bg: linear-gradient(#e9e1e6, #e9e1e6);
+
+    --rgb-sheet:            247 245 239;
+    --rgb-sheet-ink:         35  34  32;
+    --rgb-sheet-ink-soft:    82  78  72;
+    --rgb-sheet-ink-muted:  95 91 84;
+    --rgb-sheet-ink-faint:  116 111 103;
+    --rgb-sheet-link:        29  78 216;
+    --rgb-sheet-danger:     185  28  28;
+}
+
+:root[data-theme="postal"] {
+    color-scheme: light;
+
+    --rgb-surface:   247 245 239;
+    --rgb-border:     35  34  32;
+    --rgb-line:       35  34  32;
+    --rgb-raised:     35  34  32;
+    --rgb-sunken:     35  34  32;
+    --rgb-shadow:     35  34  32;
+
+    --rgb-ink:        35  34  32;
+    --rgb-ink-soft:   82  78  72;
+    --rgb-ink-muted: 95 91 84;
+    --rgb-ink-faint: 116 111 103;
+
+    --rgb-accent:    30 58 110;
+    --rgb-accent-ink: 255 255 255;
+
+    --rgb-field:        255 255 255;
+    --rgb-field-border: 212 212 216;
+
+    --rgb-danger:    220  38  38;
+    --rgb-warning:   217 119   6;
+    --rgb-success:    22 163  74;
+    --rgb-info:       90 106 130;
+
+    --rgb-inverse:     45  43  40;
+    --rgb-inverse-ink: 247 245 239;
+
+    --border-alpha:       0.10;
+    --line-alpha:         0.09;
+    --raised-alpha:       0.04;
+    --hover-alpha:        0.035;
+    --shadow-alpha:       0.05;
+    --sunken-alpha:       0.04;
+
+    --unread-tint-alpha:  0.4;
+    --field-alpha:        0.6;
+    --field-border-alpha: 0.4;
+    --danger-soft-alpha:  0.08;
+    --info-soft-alpha:    0.08;
+
+    --app-bg: linear-gradient(#e3e2df, #e3e2df);
+
+    --rgb-sheet:            247 245 239;
+    --rgb-sheet-ink:         35  34  32;
+    --rgb-sheet-ink-soft:    82  78  72;
+    --rgb-sheet-ink-muted:  95 91 84;
+    --rgb-sheet-ink-faint:  116 111 103;
+    --rgb-sheet-link:        29  78 216;
+    --rgb-sheet-danger:     185  28  28;
+}
+
+:root[data-theme="bronze-ink"] {
+    color-scheme: light;
+
+    --rgb-surface:   247 245 239;
+    --rgb-border:     35  34  32;
+    --rgb-line:       35  34  32;
+    --rgb-raised:     35  34  32;
+    --rgb-sunken:     35  34  32;
+    --rgb-shadow:     35  34  32;
+
+    --rgb-ink:        35  34  32;
+    --rgb-ink-soft:   82  78  72;
+    --rgb-ink-muted: 95 91 84;
+    --rgb-ink-faint: 116 111 103;
+
+    --rgb-accent:    125 107 79;
+    --rgb-accent-ink: 255 255 255;
+
+    --rgb-field:        255 255 255;
+    --rgb-field-border: 212 212 216;
+
+    --rgb-danger:    220  38  38;
+    --rgb-warning:   217 119   6;
+    --rgb-success:    22 163  74;
+    --rgb-info:       90 106 130;
+
+    --rgb-inverse:     45  43  40;
+    --rgb-inverse-ink: 247 245 239;
+
+    --border-alpha:       0.10;
+    --line-alpha:         0.09;
+    --raised-alpha:       0.04;
+    --hover-alpha:        0.035;
+    --shadow-alpha:       0.05;
+    --sunken-alpha:       0.04;
+
+    --unread-tint-alpha:  0.4;
+    --field-alpha:        0.6;
+    --field-border-alpha: 0.4;
+    --danger-soft-alpha:  0.08;
+    --info-soft-alpha:    0.08;
+
+    --app-bg: linear-gradient(#eae6dc, #eae6dc);
+
+    --rgb-sheet:            247 245 239;
+    --rgb-sheet-ink:         35  34  32;
+    --rgb-sheet-ink-soft:    82  78  72;
+    --rgb-sheet-ink-muted:  95 91 84;
+    --rgb-sheet-ink-faint:  116 111 103;
+    --rgb-sheet-link:        29  78 216;
+    --rgb-sheet-danger:     185  28  28;
+}
+
+:root[data-theme="petrol-copper"] {
+    color-scheme: light;
+
+    --rgb-surface:   247 245 239;
+    --rgb-border:     35  34  32;
+    --rgb-line:       35  34  32;
+    --rgb-raised:     35  34  32;
+    --rgb-sunken:     35  34  32;
+    --rgb-shadow:     35  34  32;
+
+    --rgb-ink:        35  34  32;
+    --rgb-ink-soft:   82  78  72;
+    --rgb-ink-muted: 95 91 84;
+    --rgb-ink-faint: 116 111 103;
+
+    --rgb-accent:    15 118 110;
+    --rgb-accent-ink: 255 255 255;
+
+    --rgb-field:        255 255 255;
+    --rgb-field-border: 212 212 216;
+
+    --rgb-danger:    220  38  38;
+    --rgb-warning:   217 119   6;
+    --rgb-success:    22 163  74;
+    --rgb-info:       90 106 130;
+
+    --rgb-inverse:     45  43  40;
+    --rgb-inverse-ink: 247 245 239;
+
+    --border-alpha:       0.10;
+    --line-alpha:         0.09;
+    --raised-alpha:       0.04;
+    --hover-alpha:        0.035;
+    --shadow-alpha:       0.05;
+    --sunken-alpha:       0.04;
+
+    --unread-tint-alpha:  0.4;
+    --field-alpha:        0.6;
+    --field-border-alpha: 0.4;
+    --danger-soft-alpha:  0.08;
+    --info-soft-alpha:    0.08;
+
+    --app-bg: linear-gradient(#e2e7df, #e2e7df);
+
+    --rgb-sheet:            247 245 239;
+    --rgb-sheet-ink:         35  34  32;
+    --rgb-sheet-ink-soft:    82  78  72;
+    --rgb-sheet-ink-muted:  95 91 84;
+    --rgb-sheet-ink-faint:  116 111 103;
+    --rgb-sheet-link:        29  78 216;
+    --rgb-sheet-danger:     185  28  28;
+}
+
+:root[data-theme="midnight-gold"] {
+    color-scheme: light;
+
+    --rgb-surface:   247 245 239;
+    --rgb-border:     35  34  32;
+    --rgb-line:       35  34  32;
+    --rgb-raised:     35  34  32;
+    --rgb-sunken:     35  34  32;
+    --rgb-shadow:     35  34  32;
+
+    --rgb-ink:        35  34  32;
+    --rgb-ink-soft:   82  78  72;
+    --rgb-ink-muted: 95 91 84;
+    --rgb-ink-faint: 116 111 103;
+
+    --rgb-accent:    30 41 59;
+    --rgb-accent-ink: 255 255 255;
+
+    --rgb-field:        255 255 255;
+    --rgb-field-border: 212 212 216;
+
+    --rgb-danger:    220  38  38;
+    --rgb-warning:   217 119   6;
+    --rgb-success:    22 163  74;
+    --rgb-info:       90 106 130;
+
+    --rgb-inverse:     45  43  40;
+    --rgb-inverse-ink: 247 245 239;
+
+    --border-alpha:       0.10;
+    --line-alpha:         0.09;
+    --raised-alpha:       0.04;
+    --hover-alpha:        0.035;
+    --shadow-alpha:       0.05;
+    --sunken-alpha:       0.04;
+
+    --unread-tint-alpha:  0.4;
+    --field-alpha:        0.6;
+    --field-border-alpha: 0.4;
+    --danger-soft-alpha:  0.08;
+    --info-soft-alpha:    0.08;
+
+    --app-bg: linear-gradient(#e3e1db, #e3e1db);
+
+    --rgb-sheet:            247 245 239;
+    --rgb-sheet-ink:         35  34  32;
+    --rgb-sheet-ink-soft:    82  78  72;
+    --rgb-sheet-ink-muted:  95 91 84;
+    --rgb-sheet-ink-faint:  116 111 103;
+    --rgb-sheet-link:        29  78 216;
+    --rgb-sheet-danger:     185  28  28;
+}
+
+:root[data-theme="navy-sky"] {
+    color-scheme: light;
+
+    --rgb-surface:   247 245 239;
+    --rgb-border:     35  34  32;
+    --rgb-line:       35  34  32;
+    --rgb-raised:     35  34  32;
+    --rgb-sunken:     35  34  32;
+    --rgb-shadow:     35  34  32;
+
+    --rgb-ink:        35  34  32;
+    --rgb-ink-soft:   82  78  72;
+    --rgb-ink-muted: 95 91 84;
+    --rgb-ink-faint: 116 111 103;
+
+    --rgb-accent:    30 58 138;
+    --rgb-accent-ink: 255 255 255;
+
+    --rgb-field:        255 255 255;
+    --rgb-field-border: 212 212 216;
+
+    --rgb-danger:    220  38  38;
+    --rgb-warning:   217 119   6;
+    --rgb-success:    22 163  74;
+    --rgb-info:       90 106 130;
+
+    --rgb-inverse:     45  43  40;
+    --rgb-inverse-ink: 247 245 239;
+
+    --border-alpha:       0.10;
+    --line-alpha:         0.09;
+    --raised-alpha:       0.04;
+    --hover-alpha:        0.035;
+    --shadow-alpha:       0.05;
+    --sunken-alpha:       0.04;
+
+    --unread-tint-alpha:  0.4;
+    --field-alpha:        0.6;
+    --field-border-alpha: 0.4;
+    --danger-soft-alpha:  0.08;
+    --info-soft-alpha:    0.08;
+
+    --app-bg: linear-gradient(#e3e2e0, #e3e2e0);
+
+    --rgb-sheet:            247 245 239;
+    --rgb-sheet-ink:         35  34  32;
+    --rgb-sheet-ink-soft:    82  78  72;
+    --rgb-sheet-ink-muted:  95 91 84;
+    --rgb-sheet-ink-faint:  116 111 103;
+    --rgb-sheet-link:        29  78 216;
+    --rgb-sheet-danger:     185  28  28;
+}
+
+:root[data-theme="forest-lime"] {
+    color-scheme: light;
+
+    --rgb-surface:   247 245 239;
+    --rgb-border:     35  34  32;
+    --rgb-line:       35  34  32;
+    --rgb-raised:     35  34  32;
+    --rgb-sunken:     35  34  32;
+    --rgb-shadow:     35  34  32;
+
+    --rgb-ink:        35  34  32;
+    --rgb-ink-soft:   82  78  72;
+    --rgb-ink-muted: 95 91 84;
+    --rgb-ink-faint: 116 111 103;
+
+    --rgb-accent:    22 101 52;
+    --rgb-accent-ink: 255 255 255;
+
+    --rgb-field:        255 255 255;
+    --rgb-field-border: 212 212 216;
+
+    --rgb-danger:    220  38  38;
+    --rgb-warning:   217 119   6;
+    --rgb-success:    22 163  74;
+    --rgb-info:       90 106 130;
+
+    --rgb-inverse:     45  43  40;
+    --rgb-inverse-ink: 247 245 239;
+
+    --border-alpha:       0.10;
+    --line-alpha:         0.09;
+    --raised-alpha:       0.04;
+    --hover-alpha:        0.035;
+    --shadow-alpha:       0.05;
+    --sunken-alpha:       0.04;
+
+    --unread-tint-alpha:  0.4;
+    --field-alpha:        0.6;
+    --field-border-alpha: 0.4;
+    --danger-soft-alpha:  0.08;
+    --info-soft-alpha:    0.08;
+
+    --app-bg: linear-gradient(#e3e5da, #e3e5da);
+
+    --rgb-sheet:            247 245 239;
+    --rgb-sheet-ink:         35  34  32;
+    --rgb-sheet-ink-soft:    82  78  72;
+    --rgb-sheet-ink-muted:  95 91 84;
+    --rgb-sheet-ink-faint:  116 111 103;
+    --rgb-sheet-link:        29  78 216;
+    --rgb-sheet-danger:     185  28  28;
+}
+
+:root[data-theme="plum-rose"] {
+    color-scheme: light;
+
+    --rgb-surface:   247 245 239;
+    --rgb-border:     35  34  32;
+    --rgb-line:       35  34  32;
+    --rgb-raised:     35  34  32;
+    --rgb-sunken:     35  34  32;
+    --rgb-shadow:     35  34  32;
+
+    --rgb-ink:        35  34  32;
+    --rgb-ink-soft:   82  78  72;
+    --rgb-ink-muted: 95 91 84;
+    --rgb-ink-faint: 116 111 103;
+
+    --rgb-accent:    134 25 143;
+    --rgb-accent-ink: 255 255 255;
+
+    --rgb-field:        255 255 255;
+    --rgb-field-border: 212 212 216;
+
+    --rgb-danger:    220  38  38;
+    --rgb-warning:   217 119   6;
+    --rgb-success:    22 163  74;
+    --rgb-info:       90 106 130;
+
+    --rgb-inverse:     45  43  40;
+    --rgb-inverse-ink: 247 245 239;
+
+    --border-alpha:       0.10;
+    --line-alpha:         0.09;
+    --raised-alpha:       0.04;
+    --hover-alpha:        0.035;
+    --shadow-alpha:       0.05;
+    --sunken-alpha:       0.04;
+
+    --unread-tint-alpha:  0.4;
+    --field-alpha:        0.6;
+    --field-border-alpha: 0.4;
+    --danger-soft-alpha:  0.08;
+    --info-soft-alpha:    0.08;
+
+    --app-bg: linear-gradient(#eae0e1, #eae0e1);
+
+    --rgb-sheet:            247 245 239;
+    --rgb-sheet-ink:         35  34  32;
+    --rgb-sheet-ink-soft:    82  78  72;
+    --rgb-sheet-ink-muted:  95 91 84;
+    --rgb-sheet-ink-faint:  116 111 103;
+    --rgb-sheet-link:        29  78 216;
+    --rgb-sheet-danger:     185  28  28;
+}
+
+:root[data-theme="charcoal-amber"] {
+    color-scheme: light;
+
+    --rgb-surface:   247 245 239;
+    --rgb-border:     35  34  32;
+    --rgb-line:       35  34  32;
+    --rgb-raised:     35  34  32;
+    --rgb-sunken:     35  34  32;
+    --rgb-shadow:     35  34  32;
+
+    --rgb-ink:        35  34  32;
+    --rgb-ink-soft:   82  78  72;
+    --rgb-ink-muted: 95 91 84;
+    --rgb-ink-faint: 116 111 103;
+
+    --rgb-accent:    41 37 36;
+    --rgb-accent-ink: 255 255 255;
+
+    --rgb-field:        255 255 255;
+    --rgb-field-border: 212 212 216;
+
+    --rgb-danger:    220  38  38;
+    --rgb-warning:   217 119   6;
+    --rgb-success:    22 163  74;
+    --rgb-info:       90 106 130;
+
+    --rgb-inverse:     45  43  40;
+    --rgb-inverse-ink: 247 245 239;
+
+    --border-alpha:       0.10;
+    --line-alpha:         0.09;
+    --raised-alpha:       0.04;
+    --hover-alpha:        0.035;
+    --shadow-alpha:       0.05;
+    --sunken-alpha:       0.04;
+
+    --unread-tint-alpha:  0.4;
+    --field-alpha:        0.6;
+    --field-border-alpha: 0.4;
+    --danger-soft-alpha:  0.08;
+    --info-soft-alpha:    0.08;
+
+    --app-bg: linear-gradient(#e4e1d9, #e4e1d9);
+
+    --rgb-sheet:            247 245 239;
+    --rgb-sheet-ink:         35  34  32;
+    --rgb-sheet-ink-soft:    82  78  72;
+    --rgb-sheet-ink-muted:  95 91 84;
+    --rgb-sheet-ink-faint:  116 111 103;
+    --rgb-sheet-link:        29  78 216;
+    --rgb-sheet-danger:     185  28  28;
+}
+
+:root[data-theme="espresso-cream"] {
+    color-scheme: light;
+
+    --rgb-surface:   247 245 239;
+    --rgb-border:     35  34  32;
+    --rgb-line:       35  34  32;
+    --rgb-raised:     35  34  32;
+    --rgb-sunken:     35  34  32;
+    --rgb-shadow:     35  34  32;
+
+    --rgb-ink:        35  34  32;
+    --rgb-ink-soft:   82  78  72;
+    --rgb-ink-muted: 95 91 84;
+    --rgb-ink-faint: 116 111 103;
+
+    --rgb-accent:    68 64 60;
+    --rgb-accent-ink: 255 255 255;
+
+    --rgb-field:        255 255 255;
+    --rgb-field-border: 212 212 216;
+
+    --rgb-danger:    220  38  38;
+    --rgb-warning:   217 119   6;
+    --rgb-success:    22 163  74;
+    --rgb-info:       90 106 130;
+
+    --rgb-inverse:     45  43  40;
+    --rgb-inverse-ink: 247 245 239;
+
+    --border-alpha:       0.10;
+    --line-alpha:         0.09;
+    --raised-alpha:       0.04;
+    --hover-alpha:        0.035;
+    --shadow-alpha:       0.05;
+    --sunken-alpha:       0.04;
+
+    --unread-tint-alpha:  0.4;
+    --field-alpha:        0.6;
+    --field-border-alpha: 0.4;
+    --danger-soft-alpha:  0.08;
+    --info-soft-alpha:    0.08;
+
+    --app-bg: linear-gradient(#e6e3db, #e6e3db);
+
+    --rgb-sheet:            247 245 239;
+    --rgb-sheet-ink:         35  34  32;
+    --rgb-sheet-ink-soft:    82  78  72;
+    --rgb-sheet-ink-muted:  95 91 84;
+    --rgb-sheet-ink-faint:  116 111 103;
+    --rgb-sheet-link:        29  78 216;
+    --rgb-sheet-danger:     185  28  28;
+}
+
+:root[data-theme="cobalt-coral"] {
+    color-scheme: light;
+
+    --rgb-surface:   247 245 239;
+    --rgb-border:     35  34  32;
+    --rgb-line:       35  34  32;
+    --rgb-raised:     35  34  32;
+    --rgb-sunken:     35  34  32;
+    --rgb-shadow:     35  34  32;
+
+    --rgb-ink:        35  34  32;
+    --rgb-ink-soft:   82  78  72;
+    --rgb-ink-muted: 95 91 84;
+    --rgb-ink-faint: 116 111 103;
+
+    --rgb-accent:    29 78 216;
+    --rgb-accent-ink: 255 255 255;
+
+    --rgb-field:        255 255 255;
+    --rgb-field-border: 212 212 216;
+
+    --rgb-danger:    220  38  38;
+    --rgb-warning:   217 119   6;
+    --rgb-success:    22 163  74;
+    --rgb-info:       90 106 130;
+
+    --rgb-inverse:     45  43  40;
+    --rgb-inverse-ink: 247 245 239;
+
+    --border-alpha:       0.10;
+    --line-alpha:         0.09;
+    --raised-alpha:       0.04;
+    --hover-alpha:        0.035;
+    --shadow-alpha:       0.05;
+    --sunken-alpha:       0.04;
+
+    --unread-tint-alpha:  0.4;
+    --field-alpha:        0.6;
+    --field-border-alpha: 0.4;
+    --danger-soft-alpha:  0.08;
+    --info-soft-alpha:    0.08;
+
+    --app-bg: linear-gradient(#e3e4e6, #e3e4e6);
+
+    --rgb-sheet:            247 245 239;
+    --rgb-sheet-ink:         35  34  32;
+    --rgb-sheet-ink-soft:    82  78  72;
+    --rgb-sheet-ink-muted:  95 91 84;
+    --rgb-sheet-ink-faint:  116 111 103;
+    --rgb-sheet-link:        29  78 216;
+    --rgb-sheet-danger:     185  28  28;
+}
+
+:root[data-theme="teal-gold"] {
+    color-scheme: light;
+
+    --rgb-surface:   247 245 239;
+    --rgb-border:     35  34  32;
+    --rgb-line:       35  34  32;
+    --rgb-raised:     35  34  32;
+    --rgb-sunken:     35  34  32;
+    --rgb-shadow:     35  34  32;
+
+    --rgb-ink:        35  34  32;
+    --rgb-ink-soft:   82  78  72;
+    --rgb-ink-muted: 95 91 84;
+    --rgb-ink-faint: 116 111 103;
+
+    --rgb-accent:    15 118 110;
+    --rgb-accent-ink: 255 255 255;
+
+    --rgb-field:        255 255 255;
+    --rgb-field-border: 212 212 216;
+
+    --rgb-danger:    220  38  38;
+    --rgb-warning:   217 119   6;
+    --rgb-success:    22 163  74;
+    --rgb-info:       90 106 130;
+
+    --rgb-inverse:     45  43  40;
+    --rgb-inverse-ink: 247 245 239;
+
+    --border-alpha:       0.10;
+    --line-alpha:         0.09;
+    --raised-alpha:       0.04;
+    --hover-alpha:        0.035;
+    --shadow-alpha:       0.05;
+    --sunken-alpha:       0.04;
+
+    --unread-tint-alpha:  0.4;
+    --field-alpha:        0.6;
+    --field-border-alpha: 0.4;
+    --danger-soft-alpha:  0.08;
+    --info-soft-alpha:    0.08;
+
+    --app-bg: linear-gradient(#e2e7df, #e2e7df);
+
+    --rgb-sheet:            247 245 239;
+    --rgb-sheet-ink:         35  34  32;
+    --rgb-sheet-ink-soft:    82  78  72;
+    --rgb-sheet-ink-muted:  95 91 84;
+    --rgb-sheet-ink-faint:  116 111 103;
+    --rgb-sheet-link:        29  78 216;
+    --rgb-sheet-danger:     185  28  28;
+}
+
+:root[data-theme="graphite-red"] {
+    color-scheme: light;
+
+    --rgb-surface:   247 245 239;
+    --rgb-border:     35  34  32;
+    --rgb-line:       35  34  32;
+    --rgb-raised:     35  34  32;
+    --rgb-sunken:     35  34  32;
+    --rgb-shadow:     35  34  32;
+
+    --rgb-ink:        35  34  32;
+    --rgb-ink-soft:   82  78  72;
+    --rgb-ink-muted: 95 91 84;
+    --rgb-ink-faint: 116 111 103;
+
+    --rgb-accent:    55 65 81;
+    --rgb-accent-ink: 255 255 255;
+
+    --rgb-field:        255 255 255;
+    --rgb-field-border: 212 212 216;
+
+    --rgb-danger:    220  38  38;
+    --rgb-warning:   217 119   6;
+    --rgb-success:    22 163  74;
+    --rgb-info:       90 106 130;
+
+    --rgb-inverse:     45  43  40;
+    --rgb-inverse-ink: 247 245 239;
+
+    --border-alpha:       0.10;
+    --line-alpha:         0.09;
+    --raised-alpha:       0.04;
+    --hover-alpha:        0.035;
+    --shadow-alpha:       0.05;
+    --sunken-alpha:       0.04;
+
+    --unread-tint-alpha:  0.4;
+    --field-alpha:        0.6;
+    --field-border-alpha: 0.4;
+    --danger-soft-alpha:  0.08;
+    --info-soft-alpha:    0.08;
+
+    --app-bg: linear-gradient(#e5e3dd, #e5e3dd);
+
+    --rgb-sheet:            247 245 239;
+    --rgb-sheet-ink:         35  34  32;
+    --rgb-sheet-ink-soft:    82  78  72;
+    --rgb-sheet-ink-muted:  95 91 84;
+    --rgb-sheet-ink-faint:  116 111 103;
+    --rgb-sheet-link:        29  78 216;
+    --rgb-sheet-danger:     185  28  28;
+}
+
+:root[data-theme="red-flick"] {
+    color-scheme: light;
+
+    --rgb-surface:   247 245 239;
+    --rgb-border:     35  34  32;
+    --rgb-line:       35  34  32;
+    --rgb-raised:     35  34  32;
+    --rgb-sunken:     35  34  32;
+    --rgb-shadow:     35  34  32;
+
+    --rgb-ink:        35  34  32;
+    --rgb-ink-soft:   82  78  72;
+    --rgb-ink-muted: 95 91 84;
+    --rgb-ink-faint: 116 111 103;
+
+    --rgb-accent:    200 64 47;
+    --rgb-accent-ink: 255 255 255;
+
+    --rgb-field:        255 255 255;
+    --rgb-field-border: 212 212 216;
+
+    --rgb-danger:    220  38  38;
+    --rgb-warning:   217 119   6;
+    --rgb-success:    22 163  74;
+    --rgb-info:       90 106 130;
+
+    --rgb-inverse:     45  43  40;
+    --rgb-inverse-ink: 247 245 239;
+
+    --border-alpha:       0.10;
+    --line-alpha:         0.09;
+    --raised-alpha:       0.04;
+    --hover-alpha:        0.035;
+    --shadow-alpha:       0.05;
+    --sunken-alpha:       0.04;
+
+    --unread-tint-alpha:  0.4;
+    --field-alpha:        0.6;
+    --field-border-alpha: 0.4;
+    --danger-soft-alpha:  0.08;
+    --info-soft-alpha:    0.08;
+
+    --app-bg: linear-gradient(#efe3da, #efe3da);
+
+    --rgb-sheet:            247 245 239;
+    --rgb-sheet-ink:         35  34  32;
+    --rgb-sheet-ink-soft:    82  78  72;
+    --rgb-sheet-ink-muted:  95 91 84;
+    --rgb-sheet-ink-faint:  116 111 103;
+    --rgb-sheet-link:        29  78 216;
+    --rgb-sheet-danger:     185  28  28;
+}
+
+:root[data-theme="sky-flick"] {
+    color-scheme: light;
+
+    --rgb-surface:   247 245 239;
+    --rgb-border:     35  34  32;
+    --rgb-line:       35  34  32;
+    --rgb-raised:     35  34  32;
+    --rgb-sunken:     35  34  32;
+    --rgb-shadow:     35  34  32;
+
+    --rgb-ink:        35  34  32;
+    --rgb-ink-soft:   82  78  72;
+    --rgb-ink-muted: 95 91 84;
+    --rgb-ink-faint: 116 111 103;
+
+    --rgb-accent:    2 132 199;
+    --rgb-accent-ink: 255 255 255;
+
+    --rgb-field:        255 255 255;
+    --rgb-field-border: 212 212 216;
+
+    --rgb-danger:    220  38  38;
+    --rgb-warning:   217 119   6;
+    --rgb-success:    22 163  74;
+    --rgb-info:       90 106 130;
+
+    --rgb-inverse:     45  43  40;
+    --rgb-inverse-ink: 247 245 239;
+
+    --border-alpha:       0.10;
+    --line-alpha:         0.09;
+    --raised-alpha:       0.04;
+    --hover-alpha:        0.035;
+    --shadow-alpha:       0.05;
+    --sunken-alpha:       0.04;
+
+    --unread-tint-alpha:  0.4;
+    --field-alpha:        0.6;
+    --field-border-alpha: 0.4;
+    --danger-soft-alpha:  0.08;
+    --info-soft-alpha:    0.08;
+
+    --app-bg: linear-gradient(#e1e8e5, #e1e8e5);
+
+    --rgb-sheet:            247 245 239;
+    --rgb-sheet-ink:         35  34  32;
+    --rgb-sheet-ink-soft:    82  78  72;
+    --rgb-sheet-ink-muted:  95 91 84;
+    --rgb-sheet-ink-faint:  116 111 103;
+    --rgb-sheet-link:        29  78 216;
+    --rgb-sheet-danger:     185  28  28;
+}
+
+:root[data-theme="bronze-flick"] {
+    color-scheme: light;
+
+    --rgb-surface:   247 245 239;
+    --rgb-border:     35  34  32;
+    --rgb-line:       35  34  32;
+    --rgb-raised:     35  34  32;
+    --rgb-sunken:     35  34  32;
+    --rgb-shadow:     35  34  32;
+
+    --rgb-ink:        35  34  32;
+    --rgb-ink-soft:   82  78  72;
+    --rgb-ink-muted: 95 91 84;
+    --rgb-ink-faint: 116 111 103;
+
+    --rgb-accent:    125 107 79;
+    --rgb-accent-ink: 255 255 255;
+
+    --rgb-field:        255 255 255;
+    --rgb-field-border: 212 212 216;
+
+    --rgb-danger:    220  38  38;
+    --rgb-warning:   217 119   6;
+    --rgb-success:    22 163  74;
+    --rgb-info:       90 106 130;
+
+    --rgb-inverse:     45  43  40;
+    --rgb-inverse-ink: 247 245 239;
+
+    --border-alpha:       0.10;
+    --line-alpha:         0.09;
+    --raised-alpha:       0.04;
+    --hover-alpha:        0.035;
+    --shadow-alpha:       0.05;
+    --sunken-alpha:       0.04;
+
+    --unread-tint-alpha:  0.4;
+    --field-alpha:        0.6;
+    --field-border-alpha: 0.4;
+    --danger-soft-alpha:  0.08;
+    --info-soft-alpha:    0.08;
+
+    --app-bg: linear-gradient(#eae6dc, #eae6dc);
+
+    --rgb-sheet:            247 245 239;
+    --rgb-sheet-ink:         35  34  32;
+    --rgb-sheet-ink-soft:    82  78  72;
+    --rgb-sheet-ink-muted:  95 91 84;
+    --rgb-sheet-ink-faint:  116 111 103;
+    --rgb-sheet-link:        29  78 216;
+    --rgb-sheet-danger:     185  28  28;
+}
+
+:root[data-theme="violet-flick"] {
+    color-scheme: light;
+
+    --rgb-surface:   247 245 239;
+    --rgb-border:     35  34  32;
+    --rgb-line:       35  34  32;
+    --rgb-raised:     35  34  32;
+    --rgb-sunken:     35  34  32;
+    --rgb-shadow:     35  34  32;
+
+    --rgb-ink:        35  34  32;
+    --rgb-ink-soft:   82  78  72;
+    --rgb-ink-muted: 95 91 84;
+    --rgb-ink-faint: 116 111 103;
+
+    --rgb-accent:    139 92 246;
+    --rgb-accent-ink: 255 255 255;
+
+    --rgb-field:        255 255 255;
+    --rgb-field-border: 212 212 216;
+
+    --rgb-danger:    220  38  38;
+    --rgb-warning:   217 119   6;
+    --rgb-success:    22 163  74;
+    --rgb-info:       90 106 130;
+
+    --rgb-inverse:     45  43  40;
+    --rgb-inverse-ink: 247 245 239;
+
+    --border-alpha:       0.10;
+    --line-alpha:         0.09;
+    --raised-alpha:       0.04;
+    --hover-alpha:        0.035;
+    --shadow-alpha:       0.05;
+    --sunken-alpha:       0.04;
+
+    --unread-tint-alpha:  0.4;
+    --field-alpha:        0.6;
+    --field-border-alpha: 0.4;
+    --danger-soft-alpha:  0.08;
+    --info-soft-alpha:    0.08;
+
+    --app-bg: linear-gradient(#ebe5e8, #ebe5e8);
+
+    --rgb-sheet:            247 245 239;
+    --rgb-sheet-ink:         35  34  32;
+    --rgb-sheet-ink-soft:    82  78  72;
+    --rgb-sheet-ink-muted:  95 91 84;
+    --rgb-sheet-ink-faint:  116 111 103;
+    --rgb-sheet-link:        29  78 216;
+    --rgb-sheet-danger:     185  28  28;
+}
+
+:root[data-theme="tricolore"] {
+    color-scheme: light;
+
+    --rgb-surface:   247 245 239;
+    --rgb-border:     35  34  32;
+    --rgb-line:       35  34  32;
+    --rgb-raised:     35  34  32;
+    --rgb-sunken:     35  34  32;
+    --rgb-shadow:     35  34  32;
+
+    --rgb-ink:        35  34  32;
+    --rgb-ink-soft:   82  78  72;
+    --rgb-ink-muted: 95 91 84;
+    --rgb-ink-faint: 116 111 103;
+
+    --rgb-accent:    30 58 110;
+    --rgb-accent-ink: 255 255 255;
+
+    --rgb-field:        255 255 255;
+    --rgb-field-border: 212 212 216;
+
+    --rgb-danger:    220  38  38;
+    --rgb-warning:   217 119   6;
+    --rgb-success:    22 163  74;
+    --rgb-info:       90 106 130;
+
+    --rgb-inverse:     45  43  40;
+    --rgb-inverse-ink: 247 245 239;
+
+    --border-alpha:       0.10;
+    --line-alpha:         0.09;
+    --raised-alpha:       0.04;
+    --hover-alpha:        0.035;
+    --shadow-alpha:       0.05;
+    --sunken-alpha:       0.04;
+
+    --unread-tint-alpha:  0.4;
+    --field-alpha:        0.6;
+    --field-border-alpha: 0.4;
+    --danger-soft-alpha:  0.08;
+    --info-soft-alpha:    0.08;
+
+    --app-bg: linear-gradient(#e3e2df, #e3e2df);
+
+    --rgb-sheet:            247 245 239;
+    --rgb-sheet-ink:         35  34  32;
+    --rgb-sheet-ink-soft:    82  78  72;
+    --rgb-sheet-ink-muted:  95 91 84;
+    --rgb-sheet-ink-faint:  116 111 103;
+    --rgb-sheet-link:        29  78 216;
+    --rgb-sheet-danger:     185  28  28;
+}
+
+:root[data-theme="indigo-violet"] {
+    color-scheme: light;
+
+    --rgb-surface:   247 245 239;
+    --rgb-border:     35  34  32;
+    --rgb-line:       35  34  32;
+    --rgb-raised:     35  34  32;
+    --rgb-sunken:     35  34  32;
+    --rgb-shadow:     35  34  32;
+
+    --rgb-ink:        35  34  32;
+    --rgb-ink-soft:   82  78  72;
+    --rgb-ink-muted: 95 91 84;
+    --rgb-ink-faint: 116 111 103;
+
+    --rgb-accent:    79 70 229;
+    --rgb-accent-ink: 255 255 255;
+
+    --rgb-field:        255 255 255;
+    --rgb-field-border: 212 212 216;
+
+    --rgb-danger:    220  38  38;
+    --rgb-warning:   217 119   6;
+    --rgb-success:    22 163  74;
+    --rgb-info:       90 106 130;
+
+    --rgb-inverse:     45  43  40;
+    --rgb-inverse-ink: 247 245 239;
+
+    --border-alpha:       0.10;
+    --line-alpha:         0.09;
+    --raised-alpha:       0.04;
+    --hover-alpha:        0.035;
+    --shadow-alpha:       0.05;
+    --sunken-alpha:       0.04;
+
+    --unread-tint-alpha:  0.4;
+    --field-alpha:        0.6;
+    --field-border-alpha: 0.4;
+    --danger-soft-alpha:  0.08;
+    --info-soft-alpha:    0.08;
+
+    --app-bg: linear-gradient(#e7e3e7, #e7e3e7);
+
+    --rgb-sheet:            247 245 239;
+    --rgb-sheet-ink:         35  34  32;
+    --rgb-sheet-ink-soft:    82  78  72;
+    --rgb-sheet-ink-muted:  95 91 84;
+    --rgb-sheet-ink-faint:  116 111 103;
+    --rgb-sheet-link:        29  78 216;
+    --rgb-sheet-danger:     185  28  28;
+}
+
+:root[data-theme="sunset"] {
+    color-scheme: light;
+
+    --rgb-surface:   247 245 239;
+    --rgb-border:     35  34  32;
+    --rgb-line:       35  34  32;
+    --rgb-raised:     35  34  32;
+    --rgb-sunken:     35  34  32;
+    --rgb-shadow:     35  34  32;
+
+    --rgb-ink:        35  34  32;
+    --rgb-ink-soft:   82  78  72;
+    --rgb-ink-muted: 95 91 84;
+    --rgb-ink-faint: 116 111 103;
+
+    --rgb-accent:    249 115 22;
+    --rgb-accent-ink: 255 255 255;
+
+    --rgb-field:        255 255 255;
+    --rgb-field-border: 212 212 216;
+
+    --rgb-danger:    220  38  38;
+    --rgb-warning:   217 119   6;
+    --rgb-success:    22 163  74;
+    --rgb-info:       90 106 130;
+
+    --rgb-inverse:     45  43  40;
+    --rgb-inverse-ink: 247 245 239;
+
+    --border-alpha:       0.10;
+    --line-alpha:         0.09;
+    --raised-alpha:       0.04;
+    --hover-alpha:        0.035;
+    --shadow-alpha:       0.05;
+    --sunken-alpha:       0.04;
+
+    --unread-tint-alpha:  0.4;
+    --field-alpha:        0.6;
+    --field-border-alpha: 0.4;
+    --danger-soft-alpha:  0.08;
+    --info-soft-alpha:    0.08;
+
+    --app-bg: linear-gradient(#f2e6d8, #f2e6d8);
+
+    --rgb-sheet:            247 245 239;
+    --rgb-sheet-ink:         35  34  32;
+    --rgb-sheet-ink-soft:    82  78  72;
+    --rgb-sheet-ink-muted:  95 91 84;
+    --rgb-sheet-ink-faint:  116 111 103;
+    --rgb-sheet-link:        29  78 216;
+    --rgb-sheet-danger:     185  28  28;
+}
+
+:root[data-theme="ocean"] {
+    color-scheme: light;
+
+    --rgb-surface:   247 245 239;
+    --rgb-border:     35  34  32;
+    --rgb-line:       35  34  32;
+    --rgb-raised:     35  34  32;
+    --rgb-sunken:     35  34  32;
+    --rgb-shadow:     35  34  32;
+
+    --rgb-ink:        35  34  32;
+    --rgb-ink-soft:   82  78  72;
+    --rgb-ink-muted: 95 91 84;
+    --rgb-ink-faint: 116 111 103;
+
+    --rgb-accent:    14 116 144;
+    --rgb-accent-ink: 255 255 255;
+
+    --rgb-field:        255 255 255;
+    --rgb-field-border: 212 212 216;
+
+    --rgb-danger:    220  38  38;
+    --rgb-warning:   217 119   6;
+    --rgb-success:    22 163  74;
+    --rgb-info:       90 106 130;
+
+    --rgb-inverse:     45  43  40;
+    --rgb-inverse-ink: 247 245 239;
+
+    --border-alpha:       0.10;
+    --line-alpha:         0.09;
+    --raised-alpha:       0.04;
+    --hover-alpha:        0.035;
+    --shadow-alpha:       0.05;
+    --sunken-alpha:       0.04;
+
+    --unread-tint-alpha:  0.4;
+    --field-alpha:        0.6;
+    --field-border-alpha: 0.4;
+    --danger-soft-alpha:  0.08;
+    --info-soft-alpha:    0.08;
+
+    --app-bg: linear-gradient(#e2e6e1, #e2e6e1);
+
+    --rgb-sheet:            247 245 239;
+    --rgb-sheet-ink:         35  34  32;
+    --rgb-sheet-ink-soft:    82  78  72;
+    --rgb-sheet-ink-muted:  95 91 84;
+    --rgb-sheet-ink-faint:  116 111 103;
+    --rgb-sheet-link:        29  78 216;
+    --rgb-sheet-danger:     185  28  28;
+}
+
+:root[data-theme="aurora"] {
+    color-scheme: light;
+
+    --rgb-surface:   247 245 239;
+    --rgb-border:     35  34  32;
+    --rgb-line:       35  34  32;
+    --rgb-raised:     35  34  32;
+    --rgb-sunken:     35  34  32;
+    --rgb-shadow:     35  34  32;
+
+    --rgb-ink:        35  34  32;
+    --rgb-ink-soft:   82  78  72;
+    --rgb-ink-muted: 95 91 84;
+    --rgb-ink-faint: 116 111 103;
+
+    --rgb-accent:    13 148 136;
+    --rgb-accent-ink: 255 255 255;
+
+    --rgb-field:        255 255 255;
+    --rgb-field-border: 212 212 216;
+
+    --rgb-danger:    220  38  38;
+    --rgb-warning:   217 119   6;
+    --rgb-success:    22 163  74;
+    --rgb-info:       90 106 130;
+
+    --rgb-inverse:     45  43  40;
+    --rgb-inverse-ink: 247 245 239;
+
+    --border-alpha:       0.10;
+    --line-alpha:         0.09;
+    --raised-alpha:       0.04;
+    --hover-alpha:        0.035;
+    --shadow-alpha:       0.05;
+    --sunken-alpha:       0.04;
+
+    --unread-tint-alpha:  0.4;
+    --field-alpha:        0.6;
+    --field-border-alpha: 0.4;
+    --danger-soft-alpha:  0.08;
+    --info-soft-alpha:    0.08;
+
+    --app-bg: linear-gradient(#e2e9e0, #e2e9e0);
+
+    --rgb-sheet:            247 245 239;
+    --rgb-sheet-ink:         35  34  32;
+    --rgb-sheet-ink-soft:    82  78  72;
+    --rgb-sheet-ink-muted:  95 91 84;
+    --rgb-sheet-ink-faint:  116 111 103;
+    --rgb-sheet-link:        29  78 216;
+    --rgb-sheet-danger:     185  28  28;
+}
+
+:root[data-theme="berry"] {
+    color-scheme: light;
+
+    --rgb-surface:   247 245 239;
+    --rgb-border:     35  34  32;
+    --rgb-line:       35  34  32;
+    --rgb-raised:     35  34  32;
+    --rgb-sunken:     35  34  32;
+    --rgb-shadow:     35  34  32;
+
+    --rgb-ink:        35  34  32;
+    --rgb-ink-soft:   82  78  72;
+    --rgb-ink-muted: 95 91 84;
+    --rgb-ink-faint: 116 111 103;
+
+    --rgb-accent:    162 28 175;
+    --rgb-accent-ink: 255 255 255;
+
+    --rgb-field:        255 255 255;
+    --rgb-field-border: 212 212 216;
+
+    --rgb-danger:    220  38  38;
+    --rgb-warning:   217 119   6;
+    --rgb-success:    22 163  74;
+    --rgb-info:       90 106 130;
+
+    --rgb-inverse:     45  43  40;
+    --rgb-inverse-ink: 247 245 239;
+
+    --border-alpha:       0.10;
+    --line-alpha:         0.09;
+    --raised-alpha:       0.04;
+    --hover-alpha:        0.035;
+    --shadow-alpha:       0.05;
+    --sunken-alpha:       0.04;
+
+    --unread-tint-alpha:  0.4;
+    --field-alpha:        0.6;
+    --field-border-alpha: 0.4;
+    --danger-soft-alpha:  0.08;
+    --info-soft-alpha:    0.08;
+
+    --app-bg: linear-gradient(#ece0e3, #ece0e3);
+
+    --rgb-sheet:            247 245 239;
+    --rgb-sheet-ink:         35  34  32;
+    --rgb-sheet-ink-soft:    82  78  72;
+    --rgb-sheet-ink-muted:  95 91 84;
+    --rgb-sheet-ink-faint:  116 111 103;
+    --rgb-sheet-link:        29  78 216;
+    --rgb-sheet-danger:     185  28  28;
+}
+
+:root[data-theme="ember"] {
+    color-scheme: light;
+
+    --rgb-surface:   247 245 239;
+    --rgb-border:     35  34  32;
+    --rgb-line:       35  34  32;
+    --rgb-raised:     35  34  32;
+    --rgb-sunken:     35  34  32;
+    --rgb-shadow:     35  34  32;
+
+    --rgb-ink:        35  34  32;
+    --rgb-ink-soft:   82  78  72;
+    --rgb-ink-muted: 95 91 84;
+    --rgb-ink-faint: 116 111 103;
+
+    --rgb-accent:    220 38 38;
+    --rgb-accent-ink: 255 255 255;
+
+    --rgb-field:        255 255 255;
+    --rgb-field-border: 212 212 216;
+
+    --rgb-danger:    220  38  38;
+    --rgb-warning:   217 119   6;
+    --rgb-success:    22 163  74;
+    --rgb-info:       90 106 130;
+
+    --rgb-inverse:     45  43  40;
+    --rgb-inverse-ink: 247 245 239;
+
+    --border-alpha:       0.10;
+    --line-alpha:         0.09;
+    --raised-alpha:       0.04;
+    --hover-alpha:        0.035;
+    --shadow-alpha:       0.05;
+    --sunken-alpha:       0.04;
+
+    --unread-tint-alpha:  0.4;
+    --field-alpha:        0.6;
+    --field-border-alpha: 0.4;
+    --danger-soft-alpha:  0.08;
+    --info-soft-alpha:    0.08;
+
+    --app-bg: linear-gradient(#f0e1d9, #f0e1d9);
+
+    --rgb-sheet:            247 245 239;
+    --rgb-sheet-ink:         35  34  32;
+    --rgb-sheet-ink-soft:    82  78  72;
+    --rgb-sheet-ink-muted:  95 91 84;
+    --rgb-sheet-ink-faint:  116 111 103;
+    --rgb-sheet-link:        29  78 216;
+    --rgb-sheet-danger:     185  28  28;
+}
+
+:root[data-theme="twilight"] {
+    color-scheme: light;
+
+    --rgb-surface:   247 245 239;
+    --rgb-border:     35  34  32;
+    --rgb-line:       35  34  32;
+    --rgb-raised:     35  34  32;
+    --rgb-sunken:     35  34  32;
+    --rgb-shadow:     35  34  32;
+
+    --rgb-ink:        35  34  32;
+    --rgb-ink-soft:   82  78  72;
+    --rgb-ink-muted: 95 91 84;
+    --rgb-ink-faint: 116 111 103;
+
+    --rgb-accent:    109 40 217;
+    --rgb-accent-ink: 255 255 255;
+
+    --rgb-field:        255 255 255;
+    --rgb-field-border: 212 212 216;
+
+    --rgb-danger:    220  38  38;
+    --rgb-warning:   217 119   6;
+    --rgb-success:    22 163  74;
+    --rgb-info:       90 106 130;
+
+    --rgb-inverse:     45  43  40;
+    --rgb-inverse-ink: 247 245 239;
+
+    --border-alpha:       0.10;
+    --line-alpha:         0.09;
+    --raised-alpha:       0.04;
+    --hover-alpha:        0.035;
+    --shadow-alpha:       0.05;
+    --sunken-alpha:       0.04;
+
+    --unread-tint-alpha:  0.4;
+    --field-alpha:        0.6;
+    --field-border-alpha: 0.4;
+    --danger-soft-alpha:  0.08;
+    --info-soft-alpha:    0.08;
+
+    --app-bg: linear-gradient(#e9e1e6, #e9e1e6);
+
+    --rgb-sheet:            247 245 239;
+    --rgb-sheet-ink:         35  34  32;
+    --rgb-sheet-ink-soft:    82  78  72;
+    --rgb-sheet-ink-muted:  95 91 84;
+    --rgb-sheet-ink-faint:  116 111 103;
+    --rgb-sheet-link:        29  78 216;
+    --rgb-sheet-danger:     185  28  28;
+}
+
+:root[data-theme="copper"] {
+    color-scheme: light;
+
+    --rgb-surface:   247 245 239;
+    --rgb-border:     35  34  32;
+    --rgb-line:       35  34  32;
+    --rgb-raised:     35  34  32;
+    --rgb-sunken:     35  34  32;
+    --rgb-shadow:     35  34  32;
+
+    --rgb-ink:        35  34  32;
+    --rgb-ink-soft:   82  78  72;
+    --rgb-ink-muted: 95 91 84;
+    --rgb-ink-faint: 116 111 103;
+
+    --rgb-accent:    180 83 9;
+    --rgb-accent-ink: 255 255 255;
+
+    --rgb-field:        255 255 255;
+    --rgb-field-border: 212 212 216;
+
+    --rgb-danger:    220  38  38;
+    --rgb-warning:   217 119   6;
+    --rgb-success:    22 163  74;
+    --rgb-info:       90 106 130;
+
+    --rgb-inverse:     45  43  40;
+    --rgb-inverse-ink: 247 245 239;
+
+    --border-alpha:       0.10;
+    --line-alpha:         0.09;
+    --raised-alpha:       0.04;
+    --hover-alpha:        0.035;
+    --shadow-alpha:       0.05;
+    --sunken-alpha:       0.04;
+
+    --unread-tint-alpha:  0.4;
+    --field-alpha:        0.6;
+    --field-border-alpha: 0.4;
+    --danger-soft-alpha:  0.08;
+    --info-soft-alpha:    0.08;
+
+    --app-bg: linear-gradient(#eee4d7, #eee4d7);
+
+    --rgb-sheet:            247 245 239;
+    --rgb-sheet-ink:         35  34  32;
+    --rgb-sheet-ink-soft:    82  78  72;
+    --rgb-sheet-ink-muted:  95 91 84;
+    --rgb-sheet-ink-faint:  116 111 103;
+    --rgb-sheet-link:        29  78 216;
+    --rgb-sheet-danger:     185  28  28;
+}
+
+:root[data-theme="blue-tonal"] {
+    color-scheme: light;
+
+    --rgb-surface:   247 245 239;
+    --rgb-border:     35  34  32;
+    --rgb-line:       35  34  32;
+    --rgb-raised:     35  34  32;
+    --rgb-sunken:     35  34  32;
+    --rgb-shadow:     35  34  32;
+
+    --rgb-ink:        35  34  32;
+    --rgb-ink-soft:   82  78  72;
+    --rgb-ink-muted: 95 91 84;
+    --rgb-ink-faint: 116 111 103;
+
+    --rgb-accent:    37 99 235;
+    --rgb-accent-ink: 255 255 255;
+
+    --rgb-field:        255 255 255;
+    --rgb-field-border: 212 212 216;
+
+    --rgb-danger:    220  38  38;
+    --rgb-warning:   217 119   6;
+    --rgb-success:    22 163  74;
+    --rgb-info:       90 106 130;
+
+    --rgb-inverse:     45  43  40;
+    --rgb-inverse-ink: 247 245 239;
+
+    --border-alpha:       0.10;
+    --line-alpha:         0.09;
+    --raised-alpha:       0.04;
+    --hover-alpha:        0.035;
+    --shadow-alpha:       0.05;
+    --sunken-alpha:       0.04;
+
+    --unread-tint-alpha:  0.4;
+    --field-alpha:        0.6;
+    --field-border-alpha: 0.4;
+    --danger-soft-alpha:  0.08;
+    --info-soft-alpha:    0.08;
+
+    --app-bg: linear-gradient(#e4e5e7, #e4e5e7);
+
+    --rgb-sheet:            247 245 239;
+    --rgb-sheet-ink:         35  34  32;
+    --rgb-sheet-ink-soft:    82  78  72;
+    --rgb-sheet-ink-muted:  95 91 84;
+    --rgb-sheet-ink-faint:  116 111 103;
+    --rgb-sheet-link:        29  78 216;
+    --rgb-sheet-danger:     185  28  28;
+}
+
 /* ═══ The calendar switch ═══════════════════════════════════════════════════
    Three positions — mail, split, calendar — driven entirely by one attribute
    on the shell. Rules rather than classes toggled onto .main-pane from two

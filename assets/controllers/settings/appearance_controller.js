@@ -8,9 +8,9 @@ export default class extends Controller {
         resetUrl: String,
     };
 
-    static targets = ['paneAlpha', 'paneBlur', 'radius', 'scrimAlpha', 'accent', 'theme', 'logoStyle', 'importInput', 'uploadInput',
-        'inkColor', 'inkColorField', 'inkDefault', 'inkDerived', 'inkMuted', 'inkMutedField', 'inkFaint', 'inkFaintField',
-        'mainTint', 'mainTintField', 'mainTintDefault', 'mainAlpha', 'mainAlphaField', 'mainAlphaMatch',
+    static targets = ['paneAlpha', 'paneBlur', 'radius', 'scrimAlpha', 'accent', 'theme', 'logoStyle', 'logoLinked', 'logoGrid', 'importInput', 'uploadInput',
+        'inkColor', 'inkColorField', 'inkDefault', 'inkCustom', 'inkDerived', 'inkMuted', 'inkMutedField', 'inkFaint', 'inkFaintField',
+        'mainTint', 'mainTintField', 'mainTintDefault', 'mainTintCustom', 'mainAlpha', 'mainAlphaField', 'mainAlphaMatch', 'mainAlphaCustom',
         'backgroundSolid', 'backgroundSolidSwatch',
         'previewRegion', 'previewToggle', 'previewToggleLabel', 'previewToggleIcon'];
 
@@ -124,22 +124,24 @@ export default class extends Controller {
     }
 
     /**
-     * An on/off list setting.
+     * An on/off list setting, as a two-segment radio group.
      *
-     * The checkbox is not the field. save() collects `input.value`, which for
-     * a checkbox is "on" whether or not it is ticked, so the value that gets
-     * posted lives in a hidden input beside it and this keeps the two in step
-     * — the same shape as the ink and main-pane "theme default" boxes.
+     * The radios are not the field: they carry no field attribute, so save()
+     * never reads them. Each change writes the hidden input named by
+     * `data-toggle-field`, which is what gets posted as '1'/'0' — the same
+     * contract the checkbox kept, with the radio's own value ('1' = shown)
+     * standing in for `checked`.
      */
     toggleListOption(event) {
-        const box = event.currentTarget;
-        const field = this.element.querySelector(`[data-toggle-field="${box.dataset.toggles}"]`);
+        const input = event.currentTarget;
+        const on = input.value === '1';
+        const field = this.element.querySelector(`[data-toggle-field="${input.dataset.toggles}"]`);
 
         if (field) {
-            field.value = box.checked ? '1' : '0';
+            field.value = on ? '1' : '0';
         }
 
-        this.setVars(box.checked ? box.dataset.cssVarsOn : box.dataset.cssVarsOff);
+        this.setVars(on ? input.dataset.cssVarsOn : input.dataset.cssVarsOff);
         this.queue();
     }
 
@@ -277,6 +279,19 @@ export default class extends Controller {
 
         this.applyDefaults(defaults);
 
+        // While the mark is linked, the theme dresses it too: repaint the
+        // topbar and the tab icon from the logo tile that shares this theme's
+        // name — the grid is hidden but still in the DOM, which is exactly why
+        // it stays there. The classic seven have no namesake tile and fall
+        // back to the product default, mirroring effectiveLogoStyle().
+        if (this.hasLogoLinkedTarget && this.logoLinkedTarget.value === '1') {
+            const tile = this.linkedLogoTile(theme);
+
+            if (tile) {
+                this.repaintLogo(tile);
+            }
+        }
+
         this.queue();
     }
 
@@ -302,6 +317,60 @@ export default class extends Controller {
             button.classList.toggle('ring-accent', button.dataset.logoName === style);
         });
 
+        this.repaintLogo(tile);
+
+        this.queue();
+    }
+
+    /**
+     * The linked/independent switch above the logo grid.
+     *
+     * Linked hides the grid (a choice the theme is making for you is not a
+     * grid to pick from) and dresses the mark for the current theme;
+     * independent reveals the grid and puts the mark back into the style it
+     * holds — logoStyle is stored either way, so nothing is lost by flipping
+     * back and forth.
+     */
+    toggleLogoLinked(event) {
+        const linked = event.currentTarget.value === '1';
+
+        this.logoLinkedTarget.value = linked ? '1' : '0';
+
+        if (this.hasLogoGridTarget) {
+            this.logoGridTarget.classList.toggle('hidden', linked);
+        }
+
+        const tile = linked
+            ? this.linkedLogoTile(this.themeTarget.value)
+            : this.element.querySelector(`[data-logo-name="${this.logoStyleTarget.value}"]`);
+
+        if (tile) {
+            this.repaintLogo(tile);
+        }
+
+        this.queue();
+    }
+
+    /**
+     * The tile a linked mark paints from: the one sharing the theme's name,
+     * or the product default for the classic seven themes that have none —
+     * the same answer Appearance::effectiveLogoStyle() gives on the server.
+     */
+    linkedLogoTile(theme) {
+        return this.element.querySelector(`[data-logo-name="${theme}"]`)
+            ?? this.element.querySelector('[data-logo-name="berry"]');
+    }
+
+    /**
+     * Paint one tile's colourway onto everything that follows the setting:
+     * the topbar's live mark, stroke by stroke, and the tab icon.
+     *
+     * The favicon link is URL-versioned by style (see _favicon.html.twig)
+     * because browsers keep a favicon cache that ignores ordinary
+     * revalidation — a new style means a NEW href, which is also what makes
+     * the tab repaint right now instead of after a hard reload.
+     */
+    repaintLogo(tile) {
         const strokes = JSON.parse(
             this.root.classList.contains('dark')
                 ? tile.dataset.logoStrokesDark
@@ -312,7 +381,11 @@ export default class extends Controller {
             stroke.setAttribute('stroke', strokes[Number(stroke.dataset.logoStroke)]);
         });
 
-        this.queue();
+        document.querySelectorAll('link[rel="icon"][type="image/svg+xml"]').forEach((link) => {
+            const url = new URL(link.href, window.location.origin);
+            url.searchParams.set('v', tile.dataset.logoName);
+            link.href = url.toString();
+        });
     }
 
     /*
@@ -784,7 +857,10 @@ export default class extends Controller {
 
     pickInk(event) {
         this.inkColorFieldTarget.value = event.currentTarget.value;
-        this.inkDefaultTarget.checked = false;
+        // Choosing a colour is choosing Custom: ticking the custom radio
+        // unchecks Default through the shared name, the way unticking the old
+        // checkbox did.
+        this.inkCustomTarget.checked = true;
         this.inkDerivedTarget.classList.remove('opacity-40', 'pointer-events-none');
         this.applyInk();
         this.queue();
@@ -809,8 +885,14 @@ export default class extends Controller {
         this.queue();
     }
 
+    /*
+     * The Default/Custom segments. `change` fires on whichever radio was just
+     * selected, so the radio's own value says which side was picked — Default
+     * clears and disables exactly as checking the old box did, Custom seeds
+     * the field from the picker exactly as unchecking did.
+     */
     toggleInkDefault(event) {
-        if (event.currentTarget.checked === true) {
+        if (event.currentTarget.value === 'default') {
             this.inkColorFieldTarget.value = '';
             this.inkMutedFieldTarget.value = '';
             this.inkFaintFieldTarget.value = '';
@@ -849,13 +931,13 @@ export default class extends Controller {
 
     pickMainTint(event) {
         this.mainTintFieldTarget.value = event.currentTarget.value;
-        this.mainTintDefaultTarget.checked = false;
+        this.mainTintCustomTarget.checked = true;
         this.root.style.setProperty('--rgb-main', this.channels(event.currentTarget.value));
         this.queue();
     }
 
     toggleMainTintDefault(event) {
-        if (event.currentTarget.checked === true) {
+        if (event.currentTarget.value === 'default') {
             this.mainTintFieldTarget.value = '';
             this.root.style.removeProperty('--rgb-main');
         } else {
@@ -867,13 +949,13 @@ export default class extends Controller {
 
     slideMainAlpha(event) {
         this.mainAlphaFieldTarget.value = event.currentTarget.value;
-        this.mainAlphaMatchTarget.checked = false;
+        this.mainAlphaCustomTarget.checked = true;
         this.applyAlphaFloor();
         this.queue();
     }
 
     toggleMainAlphaMatch(event) {
-        if (event.currentTarget.checked === true) {
+        if (event.currentTarget.value === 'follow') {
             this.mainAlphaFieldTarget.value = '';
             this.mainAlphaTarget.classList.add('opacity-40', 'pointer-events-none');
         } else {

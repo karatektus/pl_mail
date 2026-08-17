@@ -383,7 +383,9 @@ test.describe("appearance — screenshots and contrast", () => {
 
                 // And the list wearing the settings the user asked about.
                 await page.goto("/settings?section=appearance");
-                await page.locator(`${PANEL} input[type="checkbox"][data-toggles="accountCorner"]`).click();
+                await page
+                    .locator(`${PANEL} input[type="radio"][data-toggles="accountCorner"][value="0"]`)
+                    .check({ force: true });
                 await page.waitForTimeout(700);
                 await page.goto("/mail/inbox");
                 await page.screenshot({ path: `${OUT}/${label}-${theme}-list-no-corner.png` });

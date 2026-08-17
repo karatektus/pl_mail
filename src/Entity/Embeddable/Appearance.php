@@ -85,6 +85,33 @@ final class Appearance
     #[ORM\Column(type: 'string', length: 16, enumType: LogoStyle::class, options: ['default' => 'berry'])]
     public LogoStyle $logoStyle = LogoStyle::DEFAULT;
 
+    /**
+     * Whether the mark follows the theme rather than $logoStyle.
+     *
+     * Every logo colourway is also a theme now (their enum values are
+     * identical), so the natural default is that picking a theme dresses the
+     * mark to match — that is what linked means. Unlinking is for the person
+     * who wants the ocean chrome with the berry mark; their $logoStyle then
+     * speaks for itself again. Readers go through effectiveLogoStyle() so the
+     * two states cannot be confused.
+     */
+    #[ORM\Column(type: 'boolean', options: ['default' => true])]
+    public bool $logoLinked = true;
+
+    /**
+     * The colourway the mark actually wears: the theme's namesake style while
+     * linked (the classic seven have none and fall back to the product
+     * default), the user's own $logoStyle otherwise.
+     */
+    public function effectiveLogoStyle(): LogoStyle
+    {
+        if (false === $this->logoLinked) {
+            return $this->logoStyle;
+        }
+
+        return LogoStyle::tryFrom($this->theme->value) ?? LogoStyle::DEFAULT;
+    }
+
     #[ORM\Column(type: 'string', length: 7, options: ['default' => self::DEFAULT_ACCENT])]
     public string $accent = self::DEFAULT_ACCENT {
         set {
@@ -303,6 +330,7 @@ final class Appearance
             'theme' => $this->theme->value,
             'layout' => $this->layout->value,
             'logoStyle' => $this->logoStyle->value,
+            'logoLinked' => $this->logoLinked,
             'accent' => $this->accent,
             'paneAlpha' => $this->paneAlpha,
             'paneBlur' => $this->paneBlur,
@@ -345,6 +373,10 @@ final class Appearance
 
         if (true === isset($data['logoStyle'])) {
             $this->logoStyle = LogoStyle::tryFrom((string) $data['logoStyle']) ?? $this->logoStyle;
+        }
+
+        if (true === isset($data['logoLinked'])) {
+            $this->logoLinked = self::boolean($data['logoLinked']);
         }
 
         if (true === isset($data['accent'])) {

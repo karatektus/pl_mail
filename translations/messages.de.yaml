@@ -1303,6 +1303,27 @@ header:
 inbox:
     empty: Keine Nachrichten in diesem Tab.
 
+insights:
+    card:
+        heading: In dieser Konversation gefunden
+    kind:
+        flight: Flug
+        github-issue: Issue
+        github-pr: Pull Request
+        parcel: Paket
+        ticket: Ticket
+    panel:
+        dismiss: Ausblenden
+        heading: Auf deinem Radar
+        open_mail: Zur Mail
+        track: Verfolgen
+        undated_heading: Aus deinen Repos
+    status:
+        announced: Angekündigt
+        delivered: Zugestellt
+        in_transit: Unterwegs
+        out_for_delivery: In Zustellung
+
 integration:
     save_failed: 'Speichern fehlgeschlagen: %reason%'
     saved_to: 'In %name% gespeichert'
@@ -1888,6 +1909,8 @@ settings:
             unreadEmphasis: Ungelesene Zeilen
         logo:
             heading: Logo
+            independent: 'Selbst wählen'
+            linked: 'Dem Theme folgen'
             style:
                 aurora: 'Polarlicht'
                 berry: 'Beere'
@@ -1944,6 +1967,11 @@ settings:
             subject3: Assembler-Notizen, wie versprochen
         reset: Auf Standard zurücksetzen
         subheading: Farbschema, Dichte, Schrift und Hintergrund — das ganze Erscheinungsbild der App an einem Ort.
+        seg:
+            custom: 'Eigene'
+            default: 'Theme-Vorgabe'
+            hidden: 'Ausgeblendet'
+            shown: 'Sichtbar'
         text:
             autoDerive: Automatisch ableiten
             color: Textfarbe
@@ -2260,6 +2288,25 @@ settings:
             Was nicht mehr funktioniert, was das für deine Post bedeutet, und
             der kleinste Schritt, der es behebt.
         technical_detail: 'Technische Einzelheiten'
+    insights:
+        extractor:
+            flight: Flüge
+            flight_hint: Flugnummern und Abflüge aus Airline-Buchungen und Check-in-Mails.
+            github: GitHub
+            github_hint: Issues und Pull Requests aus GitHub-Benachrichtigungen.
+            parcel: Pakete
+            parcel_hint: Sendungsnummern und Zustellstatus aus Versandbestätigungen.
+            ticket: Tickets
+            ticket_hint: Veranstaltungstickets und Buchungen mit Datum.
+        heading: Radar
+        seg:
+            'off': 'Aus'
+            'on': 'An'
+        subheading: >-
+            Was plMail aus deinen Mails herausliest — Pakete, Flüge, Tickets,
+            GitHub-Aktivität — lokal und nach festen Regeln statt Cloud oder
+            Modell; schaltest du eine Quelle aus, entstehen daraus keine neuen
+            Karten mehr.
     integrations:
         ask_admin: 'Deine Administration hat diesen Dienst nicht freigeschaltet.'
         auth:
@@ -2444,6 +2491,7 @@ settings:
             mail: E-Mail
             personal: Persönlich
         health: 'Zustand der Konten'
+        insights: Radar
         profile: Profil
         filters: Filter
         integrations: Integrationen

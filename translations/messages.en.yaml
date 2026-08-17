@@ -1294,6 +1294,27 @@ header:
 inbox:
     empty: No messages in this tab.
 
+insights:
+    card:
+        heading: Found in this conversation
+    kind:
+        flight: Flight
+        github-issue: Issue
+        github-pr: Pull request
+        parcel: Parcel
+        ticket: Ticket
+    panel:
+        dismiss: Dismiss
+        heading: On your radar
+        open_mail: Open mail
+        track: Track
+        undated_heading: From your repos
+    status:
+        announced: Announced
+        delivered: Delivered
+        in_transit: On its way
+        out_for_delivery: Out for delivery
+
 integration:
     save_failed: 'Could not save: %reason%'
     saved_to: 'Saved to %name%'
@@ -1868,6 +1889,8 @@ settings:
             unreadEmphasis: Unread rows
         logo:
             heading: Logo
+            independent: 'Choose independently'
+            linked: 'Follow the theme'
             style:
                 aurora: 'Aurora'
                 berry: 'Berry'
@@ -1924,6 +1947,11 @@ settings:
             subject3: Assembly notes, as promised
         reset: Reset to defaults
         subheading: Theme, density, type and background — the whole look of the app, in one place.
+        seg:
+            custom: 'Custom'
+            default: 'Theme default'
+            hidden: 'Hidden'
+            shown: 'Shown'
         text:
             autoDerive: Auto-derive
             color: Text colour
@@ -2236,6 +2264,24 @@ settings:
             Anything that has stopped working, what it means for your mail, and
             the smallest thing that fixes it.
         technical_detail: 'Technical detail'
+    insights:
+        extractor:
+            flight: Flights
+            flight_hint: Flight numbers and departures from airline bookings and check-in mail.
+            github: GitHub
+            github_hint: Issues and pull requests from GitHub notification mail.
+            parcel: Parcels
+            parcel_hint: Tracking numbers and delivery progress from shipping confirmations.
+            ticket: Tickets
+            ticket_hint: Event tickets and bookings with a date attached.
+        heading: Insights
+        seg:
+            'off': 'Off'
+            'on': 'On'
+        subheading: >-
+            Facts plMail reads out of your mail — parcels, flights, tickets,
+            GitHub activity — locally and by fixed rules rather than a cloud or
+            a model, and switching one off stops new cards from that source.
     integrations:
         ask_admin: 'Your administrator has not enabled this service.'
         auth:
@@ -2418,6 +2464,7 @@ settings:
             mail: Mail
             personal: Personal
         health: 'Account health'
+        insights: Insights
         profile: Profile
         filters: Filters
         integrations: Integrations
