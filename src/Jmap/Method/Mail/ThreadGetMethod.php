@@ -16,6 +16,9 @@ use App\Repository\Mail\MessageThreadRepository;
  * "Thread/get" (RFC 8621 §3.1). A Thread is just an id plus its Emails in
  * receivedAt order, which is exactly how MessageThread::$messages is mapped
  * (#[ORM\OrderBy] on receivedAt then id), so no re-sorting is needed here.
+ *
+ * Three plMail extensions ride along: `snoozedUntil`, `category` and `isNew`.
+ * Standard clients ignore all three.
  */
 final class ThreadGetMethod implements JmapMethod
 {
@@ -56,6 +59,13 @@ final class ThreadGetMethod implements JmapMethod
             static fn (mixed $id): string => $context->resolveId((string) $id) ?? (string) $id,
             $requestedIds,
         ));
+
+        // One clock reading for the whole response, and that is not tidiness.
+        // `isNew` below is time-dependent, so two threads resolved a few
+        // milliseconds apart could straddle the NEW_WINDOW boundary and come
+        // back disagreeing about a boundary that is supposed to be one line.
+        // NewMailMarkers holds a per-request reading for exactly this reason.
+        $now = new \DateTimeImmutable('now', new \DateTimeZone('UTC'));
 
         $threads = $this->threadRepository->findByAccountAndIds(
             $accountId,
@@ -107,6 +117,20 @@ final class ThreadGetMethod implements JmapMethod
                 // own inbox query does not, so folding would put mail on the
                 // phone's Primary tab that the browser's does not have.
                 'category' => $thread->category?->value,
+                // plMail extension, and the one that had no wire surface at
+                // all until a client needed it. Newness is
+                // MessageThread::isNewAt(): never put in front of the user AND
+                // arrived inside NEW_WINDOW. It is deliberately NOT "unread" —
+                // see the property's own note — and the two are allowed to
+                // disagree, which is the entire feature.
+                //
+                // Computed here rather than exposing `listedAt` raw, because
+                // the window is half the rule and a client applying it itself
+                // would be a second implementation of NEW_WINDOW that drifts
+                // the day somebody changes it. A client that wants the badge
+                // asks this; a client that wants to retire it sends
+                // `isNew: false` to Thread/set.
+                'isNew' => $thread->isNewAt($now),
             ];
         }
 

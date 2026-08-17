@@ -521,12 +521,6 @@ parameters:
 			path: src/Jmap/Method/Mail/MailboxSetMethod.php
 
 		-
-			message: '#^Property App\\Jmap\\Method\\Mail\\ThreadSetMethod\:\:\$entityManager is never read, only written\.$#'
-			identifier: property.onlyWritten
-			count: 1
-			path: src/Jmap/Method/Mail/ThreadSetMethod.php
-
-		-
 			message: '#^Method App\\Jmap\\Push\\PushDispatcher\:\:groupByUser\(\) should return array\<int, array\<string, array\<string, string\>\>\> but returns array\<int, array\<int, array\<string, string\>\>\>\.$#'
 			identifier: return.type
 			count: 1
