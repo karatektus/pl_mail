@@ -1,4 +1,5 @@
 import { Controller } from "@hotwired/stimulus";
+import { jsonCsrfHeaders } from "../../csrf.js";
 
 // `is-active` carries no colour of its own — it is the hook the sidebar's
 // Gmail-style pill shape hangs off in app.css.
@@ -247,10 +248,7 @@ export default class extends Controller {
 
         fetch(this.collapseUrlValue, {
             method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "X-CSRF-Token": document.querySelector('meta[name="csrf-token"]')?.content ?? "",
-            },
+            headers: jsonCsrfHeaders(),
             body: JSON.stringify({ key, collapsed }),
             keepalive: true,
         }).catch(() => {});

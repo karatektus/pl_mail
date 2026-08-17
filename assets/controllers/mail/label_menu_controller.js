@@ -1,4 +1,5 @@
 import { Controller } from "@hotwired/stimulus";
+import { jsonCsrfHeaders } from "../../csrf.js";
 
 /**
  * "Label as" dropdown. Toggles a label on the target thread/message via the
@@ -47,7 +48,7 @@ export default class extends Controller {
         const attach = button.dataset.attached !== "true";
 
         const targets = this._resolveTargets();
-        console.log(targets, labelId, attach);
+
         for (const target of targets) {
             await this._post(
                 `/status/${target.type}/${target.id}/label`,
@@ -84,10 +85,7 @@ export default class extends Controller {
     async _post(url, body) {
         const response = await fetch(url, {
             method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "X-CSRF-Token": document.querySelector('meta[name="csrf-token"]')?.content ?? "",
-            },
+            headers: jsonCsrfHeaders(),
             body: JSON.stringify(body),
         });
 

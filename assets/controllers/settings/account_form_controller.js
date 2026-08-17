@@ -4,9 +4,6 @@ export default class extends Controller {
     static targets = ["tab", "panel", "submitBtn"];
 
     connect() {
-        console.log('panels:', this.panelTargets.length);
-        console.log('tabs:', this.tabTargets.length);
-        console.log('submitBtn:', this.hasSubmitBtnTarget);
         this._activate("imap");
     }
 

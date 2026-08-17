@@ -21,6 +21,13 @@ import { seed } from "./support/config";
  * key. The invalid address is the whole test.
  */
 
+declare global {
+    interface Window {
+        /** The `document` keydown handlers currently registered, for the teardown test below. */
+        __keydownFns?: Set<EventListenerOrEventListenerObject>;
+    }
+}
+
 const DOCK = "#compose_dock";
 const GARBAGE = "keine-gueltige-adresse";
 const VALID = "safety-valid@example.test";
@@ -272,6 +279,89 @@ test.describe("compose safety", () => {
         await expect(panel).toBeVisible();
         await expect(panel).toContainText(/no subject/i);
         await expect(panel).toContainText(/no text/i);
+    });
+
+    /**
+     * Closing the window with the question still on screen takes its Escape
+     * handler with it.
+     *
+     * The panel binds a keydown listener to `document` so Escape can decline
+     * it, and unbound it only from its two answer buttons — so a window torn
+     * down with the question unanswered left the listener behind, holding the
+     * dead controller and its whole DOM subtree alive and swallowing Escape
+     * (the handler calls stopPropagation) for whatever came next. Its sibling,
+     * the plain-text warning, was already closed in disconnect(); this one was
+     * not, which is exactly why it was easy to miss.
+     *
+     * Asserted by counting `document` keydown registrations rather than by a
+     * visible symptom, because there is not much of one: cancelSendAnyway() on
+     * a detached controller quietly does nothing. The leak IS the bug, so the
+     * leak is what is measured. Net zero across the window's whole life —
+     * anything this test's own actions add and remove cancels out, so the
+     * number only moves if something is genuinely left behind.
+     */
+    test("a window discarded with the send question open leaves no listener behind", async ({ page }) => {
+        // A Set of handler functions, not a counter, and addInitScript rather
+        // than evaluate(). Both are load-bearing. A counter went to -10 here,
+        // because this codebase removes listeners defensively — _closeSendWarning
+        // and _closePlainWarning both unbind whether or not they ever bound, so
+        // "removals minus additions" measures coding style, not leaks. Set
+        // membership is immune: deleting a function that was never added is a
+        // no-op. And the probe has to predate every page script, or handlers
+        // registered during load are deleted at teardown from a Set that never
+        // saw them added.
+        await page.addInitScript(() => {
+            const live = new Set<EventListenerOrEventListenerObject>();
+            window.__keydownFns = live;
+
+            const add = document.addEventListener.bind(document);
+            const remove = document.removeEventListener.bind(document);
+
+            document.addEventListener = ((...args: Parameters<typeof add>) => {
+                if ("keydown" === args[0] && args[1]) { live.add(args[1]); }
+
+                return add(...args);
+            }) as typeof document.addEventListener;
+
+            document.removeEventListener = ((...args: Parameters<typeof remove>) => {
+                if ("keydown" === args[0] && args[1]) { live.delete(args[1]); }
+
+                return remove(...args);
+            }) as typeof document.removeEventListener;
+        });
+
+        await page.goto("/mail/inbox");
+        await expect(page.getByRole("link", { name: "Compose" }).first()).toBeVisible();
+
+        const balance = () => page.evaluate(() => window.__keydownFns?.size ?? 0);
+        const before = await balance();
+
+        await page.getByRole("link", { name: "Compose" }).first().click();
+        await expect(page.locator(`${DOCK} .ts-control`).first()).toBeVisible();
+
+        await toInput(page).fill(VALID);
+        await toInput(page).press("Enter");
+
+        await page.locator(DOCK).getByRole("button", { name: "Send", exact: true }).click();
+
+        const panel = page.locator(`${DOCK} [data-compose--compose-target="sendWarning"]`);
+        await expect(panel).toBeVisible();
+
+        // The question is up and its handler is bound: strictly more listeners
+        // than before the window existed, or the rest of this proves nothing.
+        expect(await balance()).toBeGreaterThan(before);
+
+        // Close it with the question unanswered. The dock's own close button,
+        // not a navigation: a dock window deliberately SURVIVES a Turbo visit,
+        // so navigating away never tears the controller down and would have
+        // proved nothing.
+        await page.locator(DOCK).getByRole("button", { name: /close/i }).first().click();
+        await expect(page.locator(`${DOCK} .compose-window`)).toHaveCount(0);
+
+        expect(
+            await balance(),
+            "the send-warning Escape handler outlived the window it belonged to",
+        ).toBe(before);
     });
 
     /**

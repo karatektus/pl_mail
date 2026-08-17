@@ -1,4 +1,5 @@
 import { Controller } from "@hotwired/stimulus";
+import { jsonCsrfHeaders } from "../../csrf.js";
 
 export default class extends Controller {
     static values = {
@@ -21,10 +22,7 @@ export default class extends Controller {
     async #markRead() {
         const response = await fetch(this.markUrlValue, {
             method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "X-CSRF-Token": document.querySelector('meta[name="csrf-token"]')?.content ?? "",
-            },
+            headers: jsonCsrfHeaders(),
             body: JSON.stringify({ read: true }),
         });
 

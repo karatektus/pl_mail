@@ -9,6 +9,7 @@
 // reach it.
 
 import { Controller } from "@hotwired/stimulus";
+import { csrfToken } from "../../csrf.js";
 
 // Classes applied to the checkbox button in each state
 const CB_BASE   = "border-field bg-field";
@@ -187,7 +188,7 @@ export default class extends Controller {
      * @param {object}   body    - optional JSON body (e.g. { read: true })
      */
     async _bulkPost(ids, action, body = {}) {
-        const csrf = document.querySelector('meta[name="csrf-token"]')?.content ?? "";
+        const csrf = csrfToken();
 
         // Hold the list refresh for the whole run. Each of these posts makes the
         // server publish a sync, and a refresh answering one of them mid-run

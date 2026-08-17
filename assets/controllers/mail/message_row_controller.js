@@ -1,4 +1,5 @@
 import { Controller } from "@hotwired/stimulus";
+import { jsonCsrfHeaders } from "../../csrf.js";
 
 /**
  * Handles per-row status actions in the message list.
@@ -103,10 +104,7 @@ export default class extends Controller {
     async #post(url, body = {}) {
         const response = await fetch(url, {
             method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "X-CSRF-Token": document.querySelector('meta[name="csrf-token"]')?.content ?? "",
-            },
+            headers: jsonCsrfHeaders(),
             body: JSON.stringify(body),
         });
 

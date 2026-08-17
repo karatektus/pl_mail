@@ -36,6 +36,5 @@ return [
     'tom-select/dist/css/tom-select.bootstrap4.css' => ['version' => '2.6.2', 'type' => 'css'],
     'tom-select/dist/css/tom-select.bootstrap5.css' => ['version' => '2.6.2', 'type' => 'css'],
     'sortablejs' => ['version' => '1.15.6'],
-    '@rails/request.js' => ['version' => '0.0.12'],
     'emoji-picker-element' => ['version' => '1.29.1'],
 ];

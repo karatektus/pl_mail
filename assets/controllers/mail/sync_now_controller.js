@@ -1,4 +1,5 @@
 import { Controller } from "@hotwired/stimulus";
+import { jsonCsrfHeaders } from "../../csrf.js";
 
 /**
  * TEMPORARY: topbar button that fires the same account syncs as
@@ -33,10 +34,7 @@ export default class extends Controller {
         try {
             const response = await fetch(this.urlValue, {
                 method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    "X-CSRF-Token": document.querySelector('meta[name="csrf-token"]')?.content ?? "",
-                },
+                headers: jsonCsrfHeaders(),
             });
 
             if (false === response.ok) {

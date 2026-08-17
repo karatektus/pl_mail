@@ -70,11 +70,18 @@ export default class extends Controller {
         this._boundIntegrationAttached = this._handleIntegrationAttached.bind(this);
         window.addEventListener('plmail:integration-attached', this._boundIntegrationAttached);
 
+        // Guarded like every other lookup of it in this file. The form is
+        // unconditional in _window.html.twig, so this is belt and braces —
+        // but the two lifecycle methods were the only places that assumed it,
+        // and they are the two where the element is most likely to be
+        // mid-teardown.
         const form = this.element.querySelector('form');
 
-        form.action = this.sendUrlValue;
-        form.addEventListener('submit', this._boundHandleSubmit);
-        form.addEventListener('input', this._boundAutosave);
+        if (null !== form) {
+            form.action = this.sendUrlValue;
+            form.addEventListener('submit', this._boundHandleSubmit);
+            form.addEventListener('input', this._boundAutosave);
+        }
 
         // Mirror subject into header title
         const subjectInput = this.element.querySelector('[name$="[subject]"]');
@@ -437,10 +444,31 @@ export default class extends Controller {
         window.removeEventListener('beforeunload', this._boundBeforeUnload);
         window.removeEventListener('plmail:integration-attached', this._boundIntegrationAttached);
         const form = this.element.querySelector('form');
+
+        // Guarded, and the indentation above is what gave it away: an `if` had
+        // been lost here, leaving the one unguarded lookup in a method full of
+        // guarded ones. Nothing could reach it — the form is unconditional in
+        // the template — but everything below runs AFTER it, so a TypeError
+        // here would have skipped the listener removals, the overflow reset
+        // and the zone class, leaving a phone with a body stuck at
+        // `overflow: hidden` and no way to scroll.
+        if (null !== form) {
             form.removeEventListener('input', this._boundAutosave);
             form.removeEventListener('submit', this._boundHandleSubmit);
+        }
+
         document.removeEventListener('click', this._boundCloseDropdown, { capture: true });
         this._closePlainWarning();
+
+        // Both warnings, not just one. This popover binds its own Escape
+        // handler to `document` and only ever unbound it from its two answer
+        // buttons — so navigating away with "send without a subject?" still on
+        // screen left a keydown listener holding this controller alive, and an
+        // Escape afterwards called cancelSendAnyway() on a detached instance.
+        // Its sibling above was already handled here, which is the whole
+        // reason this was easy to miss.
+        this._closeSendWarning();
+
         this._mq?.removeEventListener('change', this._boundBreakpoint);
         this._unwatchViewport();
         document.body.style.overflow = '';

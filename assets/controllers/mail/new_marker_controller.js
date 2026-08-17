@@ -1,4 +1,5 @@
 import { Controller } from "@hotwired/stimulus";
+import { jsonCsrfHeaders } from "../../csrf.js";
 
 /**
  * Tells the server which "New" rows actually reached the screen.
@@ -82,11 +83,7 @@ export default class extends Controller {
         try {
             await fetch(this.urlValue, {
                 method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    "X-CSRF-Token":
-                        document.querySelector('meta[name="csrf-token"]')?.content ?? "",
-                },
+                headers: jsonCsrfHeaders(),
                 body: JSON.stringify({ ids }),
             });
         } catch {

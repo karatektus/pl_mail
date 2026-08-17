@@ -1,4 +1,5 @@
 import { Controller } from "@hotwired/stimulus";
+import { jsonCsrfHeaders } from "../../csrf.js";
 
 /**
  * Expands an account's folder list in the sidebar.
@@ -96,10 +97,7 @@ export default class extends Controller {
 
         fetch(this.persistUrlValue, {
             method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "X-CSRF-Token": document.querySelector('meta[name="csrf-token"]')?.content ?? "",
-            },
+            headers: jsonCsrfHeaders(),
             body: JSON.stringify({ account: accountId }),
             keepalive: true,
         }).catch(() => {});
