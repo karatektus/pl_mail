@@ -474,6 +474,17 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
     public const string SETTING_APPEARANCE_PREVIEW_WIDTH = 'appearance.preview_width';
 
     /**
+     * Insight extractors this user has switched OFF, as a list of extractor
+     * keys. Disabled rather than enabled, so an extractor shipped next
+     * release starts working without every user finding a new toggle — the
+     * same rule SETTING_ADMIN_COLLAPSED_PANELS records. The catalogue of
+     * legal keys is the extractor registry, not this class; an unknown key in
+     * the list is inert rather than an error, which is what lets an extractor
+     * be removed from a build without a data migration.
+     */
+    public const string SETTING_INSIGHTS_DISABLED = 'insights.disabled_extractors';
+
+    /**
      * The default is 19rem — what the column was fixed at before it could move.
      *
      * The maximum is the CALENDAR's maximum, deliberately the same number: both
