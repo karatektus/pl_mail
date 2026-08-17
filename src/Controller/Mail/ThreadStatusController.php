@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace App\Controller\Mail;
 
+use App\Controller\ChecksCsrf;
 use App\Controller\RendersTurboStreams;
 use App\Entity\Mail\Message;
 use App\Repository\Label\LabelRepository;
 use App\Repository\Mail\MessageRepository;
 use App\Repository\Mail\MessageThreadRepository;
+use App\Security\Voter\OwnershipVoter;
 use App\Service\Mail\ThreadSnoozeService;
 use App\Service\Mail\ThreadStatusUpdater;
 use DateTimeImmutable;
@@ -27,10 +29,11 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
  * or a whole thread through the same `{type}` segment, so the only thing that
  * differs per action below is which template and which subject it renders.
  */
-#[Route('/status/{type}/{id}', name: 'app_status_')]
+#[Route('/status/{type}/{id}', name: 'app_status_', requirements: ['type' => 'message|thread', 'id' => '\d+'])]
 #[IsGranted('IS_AUTHENTICATED')]
 class ThreadStatusController extends AbstractController
 {
+    use ChecksCsrf;
     use RendersTurboStreams;
 
     public function __construct(
@@ -42,9 +45,9 @@ class ThreadStatusController extends AbstractController
     ) {}
 
     #[Route('/star', name: 'star', methods: ['POST'])]
-    public function star(string $type, int $id): Response
+    public function star(Request $request, string $type, int $id): Response
     {
-        $messages = $this->resolveMessages($type, $id);
+        $messages = $this->resolveMessages($request, $type, $id);
         $message  = $messages[0];
 
         $this->status->star($messages);
@@ -55,9 +58,9 @@ class ThreadStatusController extends AbstractController
     }
 
     #[Route('/archive', name: 'archive', methods: ['POST'])]
-    public function archive(string $type, int $id): Response
+    public function archive(Request $request, string $type, int $id): Response
     {
-        $messages = $this->resolveMessages($type, $id);
+        $messages = $this->resolveMessages($request, $type, $id);
 
         $this->status->archive($messages);
 
@@ -67,9 +70,9 @@ class ThreadStatusController extends AbstractController
     }
 
     #[Route('/trash', name: 'trash', methods: ['POST'])]
-    public function trash(string $type, int $id): Response
+    public function trash(Request $request, string $type, int $id): Response
     {
-        $messages = $this->resolveMessages($type, $id);
+        $messages = $this->resolveMessages($request, $type, $id);
 
         $this->status->trash($messages);
 
@@ -85,7 +88,7 @@ class ThreadStatusController extends AbstractController
     #[Route('/label', name: 'label', methods: ['POST'])]
     public function label(Request $request, string $type, int $id): Response
     {
-        $messages = $this->resolveMessages($type, $id);
+        $messages = $this->resolveMessages($request, $type, $id);
 
         $body    = json_decode($request->getContent(), true);
         $labelId = (int) ($body['labelId'] ?? 0);
@@ -93,9 +96,11 @@ class ThreadStatusController extends AbstractController
 
         $label = $this->labelRepository->find($labelId);
 
-        if (null === $label || $label->usr !== $this->getUser()) {
+        if (null === $label) {
             throw $this->createAccessDeniedException();
         }
+
+        $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $label);
 
         if (true === $label->isSystem) {
             // System state is mutated via the dedicated actions only.
@@ -114,7 +119,7 @@ class ThreadStatusController extends AbstractController
     #[Route('/snooze', name: 'snooze', methods: ['POST'])]
     public function snooze(Request $request, string $type, int $id): Response
     {
-        $messages = $this->resolveMessages($type, $id);
+        $messages = $this->resolveMessages($request, $type, $id);
         $thread   = $messages[0]->thread;
 
         // Expects JSON body: { "until": "2026-07-10T08:00:00Z" }
@@ -159,7 +164,7 @@ class ThreadStatusController extends AbstractController
     #[Route('/read', name: 'mark_read', methods: ['POST'])]
     public function markRead(Request $request, string $type, int $id): Response
     {
-        $messages = $this->resolveMessages($type, $id);
+        $messages = $this->resolveMessages($request, $type, $id);
         $thread   = $messages[0]->thread;
 
         $body       = json_decode($request->getContent(), true);
@@ -176,18 +181,53 @@ class ThreadStatusController extends AbstractController
     // ---------------------------------------------------------------- helpers
 
     /**
-     * @return Message[]
+     * The messages an action addresses, authorised before they are returned.
+     *
+     * The CSRF check lives here rather than in each action for the reason the
+     * ownership check does: six actions all mutate, and a seventh that forgot
+     * one of the two guards would look exactly like the six that did not. Every
+     * caller of these routes is a Stimulus controller that already sends the
+     * `ajax` token from the `csrf-token` meta tag in X-CSRF-Token — see
+     * message_row, list_toolbar, thread_read, label_menu and message_actions —
+     * so this pins down a token the frontend was already sending and the server
+     * was throwing away. Nothing in assets/ had to change to turn it on.
+     *
+     * The shared `ajax` id, not one per action: that is what the meta tag mints
+     * and what MailController and DevSyncController already check for the same
+     * kind of fetch-driven list action. Per-action ids would be stronger — see
+     * ChecksCsrf — but they buy little where all six live on one page behind one
+     * token, and they cannot be adopted here without reissuing tokens per row.
+     *
+     * Fails closed on every path that is not a hit, because none of the three
+     * used to. An id matching no row reached accountOf(), whose parameter is
+     * not nullable, and died there with a TypeError — so a missing id answered
+     * 500 while a real id belonging to somebody else answered 403, and the
+     * difference between the two was an existence check anybody could run
+     * against every id on the server. A `{type}` outside the two below left
+     * $messages empty, which walked the ownership loop without entering it and
+     * failed afterwards on $messages[0]; the route requirement now rejects it
+     * first, and the `default` arm keeps the guarantee if that ever loosens.
+     *
+     * Absence and an empty thread are both 404 here rather than an empty list,
+     * so the non-empty return type every caller relies on for $messages[0]
+     * holds by construction.
+     *
+     * @return non-empty-list<Message>
      */
-    private function resolveMessages(string $type, int $id): array
+    private function resolveMessages(Request $request, string $type, int $id): array
     {
-        $messages = [];
+        $this->assertCsrf($request, 'ajax');
 
-        if ('message' === $type) {
-            $messages = [$this->messageRepository->find($id)];
-        }
+        $messages = match ($type) {
+            // array_filter drops the null that find() returns for a missing
+            // row, so the [] === check below catches it with the rest.
+            'message' => array_filter([$this->messageRepository->find($id)]),
+            'thread'  => $this->threadRepository->find($id)?->messages->toArray() ?? [],
+            default   => [],
+        };
 
-        if ('thread' === $type) {
-            $messages = $this->threadRepository->find($id)->messages->toArray();
+        if ([] === $messages) {
+            throw $this->createNotFoundException();
         }
 
         $this->assertOwnership($messages);
@@ -196,15 +236,25 @@ class ThreadStatusController extends AbstractController
     }
 
     /**
+     * Every message in the set, not just the first.
+     *
+     * A thread's messages all belong to one account today, so checking one
+     * would pass the same test — but "today" is a data invariant rather than a
+     * schema one, and the cost of checking all of them is a field comparison
+     * per row already in memory.
+     *
+     * Through the voter, which reaches the owner by `Message::$account`. This
+     * used to ask ThreadStatusUpdater::accountOf(), whose mailbox-then-thread
+     * walk exists for Gmail-API messages that carry no mailbox and ends at the
+     * NULLABLE `$message->thread` — an ownership check that could fatal on a
+     * message with neither. The direct link is required by the schema.
+     *
      * @param iterable<Message> $messages
      */
     private function assertOwnership(iterable $messages): void
     {
         foreach ($messages as $message) {
-            if ($this->status->accountOf($message)->usr !== $this->getUser()) {
-                throw $this->createAccessDeniedException();
-            }
+            $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $message);
         }
     }
-
 }

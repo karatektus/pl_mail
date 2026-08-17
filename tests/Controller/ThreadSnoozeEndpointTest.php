@@ -54,7 +54,7 @@ final class ThreadSnoozeEndpointTest extends WebTestCase
         $client->request(
             'POST',
             sprintf('/status/thread/%d/snooze', $threadId),
-            server: ['CONTENT_TYPE' => 'application/json'],
+            server: $this->jsonPost($client),
             content: json_encode(['until' => (new \DateTimeImmutable('+1 day'))->format(DATE_ATOM)]),
         );
 
@@ -96,14 +96,14 @@ final class ThreadSnoozeEndpointTest extends WebTestCase
         $client->request(
             'POST',
             $path,
-            server: ['CONTENT_TYPE' => 'application/json'],
+            server: $this->jsonPost($client),
             content: json_encode(['until' => (new \DateTimeImmutable('+1 day'))->format(DATE_ATOM)]),
         );
 
         $client->request(
             'POST',
             $path,
-            server: ['CONTENT_TYPE' => 'application/json'],
+            server: $this->jsonPost($client),
             content: json_encode(['until' => null]),
         );
 
@@ -122,6 +122,29 @@ final class ThreadSnoozeEndpointTest extends WebTestCase
     }
 
     // ── Fixtures ──────────────────────────────────────────────────────────
+
+    /**
+     * The `ajax` token, read the way the real callers read it.
+     *
+     * Scraped from the layout's `csrf-token` meta tag rather than minted from
+     * the token manager: the manager stores session-backed tokens and there is
+     * no session until a request has been made, so asking it first throws
+     * SessionNotFoundException. Rendering a page is also the honest version of
+     * what the Stimulus controllers do — they read this same tag — so a change
+     * that broke the tag would fail here instead of passing against a token the
+     * browser never sees.
+     *
+     * @return array<string, string>
+     */
+    private function jsonPost(KernelBrowser $client): array
+    {
+        $crawler = $client->request('GET', '/mail/inbox');
+
+        return [
+            'CONTENT_TYPE'      => 'application/json',
+            'HTTP_X_CSRF_TOKEN' => (string) $crawler->filter('meta[name="csrf-token"]')->attr('content'),
+        ];
+    }
 
     /**
      * Re-read the thread from the container's current EntityManager.
