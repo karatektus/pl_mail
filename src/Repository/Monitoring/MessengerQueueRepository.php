@@ -98,6 +98,61 @@ final readonly class MessengerQueueRepository
         );
     }
 
+    /**
+     * Sync work still queued for one user's accounts — what the topbar's sync
+     * button polls so it can stop spinning.
+     *
+     * Matched on the serialised envelope rather than a column, because the
+     * transport's table has no user and no account: every message in the sync
+     * chain is keyed either by accountId (SyncAccount, HarvestContacts, the
+     * Gmail and Graph batches) or by mailboxId (SyncImapMailbox), and both are
+     * scalars PHP serialisation writes into `body` as plain text. The caller
+     * passes mailbox ids re-read on each poll, so folders discovered part-way
+     * through a sync are counted too.
+     *
+     * POSITION, not LIKE: the body is quote-escaped (…\";i:4;) and Postgres
+     * LIKE would read those backslashes as escapes. Both the escaped and the
+     * plain spelling are probed, so the count does not depend on how the driver
+     * happened to write the row.
+     *
+     * The failed queue is excluded — those rows never drain on their own, and
+     * counting them would leave the button spinning forever.
+     *
+     * @param list<int> $accountIds
+     * @param list<int> $mailboxIds
+     */
+    public function countPendingSyncWork(array $accountIds, array $mailboxIds): int
+    {
+        $needles = [];
+
+        foreach ($accountIds as $id) {
+            $needles[] = 'accountId";i:' . $id . ';';
+        }
+
+        foreach ($mailboxIds as $id) {
+            $needles[] = 'mailboxId";i:' . $id . ';';
+        }
+
+        if ([] === $needles) {
+            return 0;
+        }
+
+        $clauses    = [];
+        $parameters = [];
+
+        foreach ($needles as $i => $needle) {
+            $clauses[]             = 'POSITION(:pe' . $i . ' IN body) > 0 OR POSITION(:pp' . $i . ' IN body) > 0';
+            $parameters['pe' . $i] = str_replace('"', '\\"', $needle);
+            $parameters['pp' . $i] = $needle;
+        }
+
+        return (int) $this->connection->fetchOne(
+            "SELECT COUNT(*) FROM messenger_messages
+             WHERE queue_name <> 'failed' AND (" . implode(' OR ', $clauses) . ')',
+            $parameters,
+        );
+    }
+
     // ── Private ───────────────────────────────────────────────────────────────
 
     /**

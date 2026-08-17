@@ -28,7 +28,7 @@ use Traversable;
  * instead of counting an iterator — and so a template asking only for the
  * count never builds one.
  *
- * ResetInterface for the same worker-mode hygiene SidebarCounts has: a
+ * ResetInterface for the same worker-mode hygiene App\Service\Mail\SidebarCounts has: a
  * long-running process serves more than one user, and a list of accounts held
  * across requests would be somebody else's.
  *

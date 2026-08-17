@@ -4,11 +4,11 @@ twig:
         - '_layout/form/modal_form_theme.html.twig'
     globals:
         accounts: '@App\Twig\AccountsGlobal'
-        sidebarCounts: '@App\Twig\SidebarCounts'
+        sidebarCounts: '@App\Service\Mail\SidebarCounts'
         # Where new mail is sitting, for the "something arrived here" dots.
         # Its own global beside sidebarCounts because new and unread are
-        # different questions — see App\Twig\NewMailMarkers.
-        newMail: '@App\Twig\NewMailMarkers'
+        # different questions — see App\Service\Mail\NewMailMarkers.
+        newMail: '@App\Service\Mail\NewMailMarkers'
         ruleDescriber: '@App\Service\Rule\FilterDescriber'
         integrations: '@App\Twig\IntegrationsGlobal'
         calendar: '@App\Twig\CalendarGlobal'

@@ -20,7 +20,7 @@ use Symfony\Contracts\Service\ResetInterface;
  * message, and quietly break whichever one was missed. A global keeps the
  * dependency where it is used.
  *
- * Per-request memoised, like SidebarCounts: a thread renders one chip per
+ * Per-request memoised, like App\Service\Mail\SidebarCounts: a thread renders one chip per
  * attachment, and each would otherwise be a query.
  */
 class IntegrationsGlobal implements ResetInterface
