@@ -88,11 +88,22 @@ async function open(page: Page): Promise<void> {
 
 /** Click a theme and wait for the debounced save to actually land. */
 async function pick(page: Page, theme: string): Promise<void> {
+    const tile = page.locator(`${PANEL} [data-theme-name="${theme}"]`);
+
+    // The logo themes sit behind the "More" tile until it is pressed once per
+    // page visit (the currently selected one is rendered visible). A hidden
+    // tile cannot be clicked, so reveal the full set first.
+    if (!(await tile.isVisible())) {
+        await page
+            .locator(`${PANEL} [data-settings--appearance-target="moreThemesButton"]`)
+            .click();
+    }
+
     const saved = page.waitForResponse(
         (response) => response.url().includes("/appearance") && response.request().method() === "POST",
     );
 
-    await page.locator(`${PANEL} [data-theme-name="${theme}"]`).click();
+    await tile.click();
     await saved;
 }
 

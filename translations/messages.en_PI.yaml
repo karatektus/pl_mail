@@ -1654,6 +1654,7 @@ settings:
             dark: Dark
             dusk: Dusk
             heading: Theme
+            more: 'More flags'
             light: Light
             nord: Nord
             solar: Solar

@@ -12,7 +12,8 @@ export default class extends Controller {
         'inkColor', 'inkColorField', 'inkDefault', 'inkCustom', 'inkDerived', 'inkMuted', 'inkMutedField', 'inkFaint', 'inkFaintField',
         'mainTint', 'mainTintField', 'mainTintDefault', 'mainTintCustom', 'mainAlpha', 'mainAlphaField', 'mainAlphaMatch', 'mainAlphaCustom',
         'backgroundSolid', 'backgroundSolidSwatch',
-        'previewRegion', 'previewToggle', 'previewToggleLabel', 'previewToggleIcon'];
+        'previewRegion', 'previewToggle', 'previewToggleLabel', 'previewToggleIcon',
+        'moreThemes', 'moreThemesButton'];
 
     connect() {
         this.root = document.documentElement;
@@ -232,6 +233,27 @@ export default class extends Controller {
         }
 
         this.queue();
+    }
+
+    /* ── The "More" tile in the theme picker ────────────────────────────────
+     *
+     * The seven classics are always on the page; the logo themes wait in a
+     * hidden grid (hidden by the CONTAINER — the tiles themselves stay in the
+     * DOM, which pickTheme's ring sweep and the linked-logo repaint rely on).
+     * This reveals them for the rest of the page visit and retires the button:
+     * a one-way disclosure, not a toggle, because "fold them away again" is
+     * what the next page load does by itself — the server renders only the
+     * chosen logo theme among the visible tiles.
+     */
+    showMoreThemes() {
+        if (this.hasMoreThemesTarget) {
+            this.moreThemesTarget.classList.remove('hidden');
+        }
+
+        if (this.hasMoreThemesButtonTarget) {
+            this.moreThemesButtonTarget.setAttribute('aria-expanded', 'true');
+            this.moreThemesButtonTarget.classList.add('hidden');
+        }
     }
 
     /**
