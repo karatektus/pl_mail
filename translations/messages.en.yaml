@@ -2557,6 +2557,7 @@ sidebar:
         heading: Labels
         none: No labels yet
     new_mail_here: 'New mail in %where%'
+    new_mail_here_count: '%count% new in %where%'
     nav:
         calendar: Calendar
         archive: Archive
@@ -2589,6 +2590,7 @@ starred:
 
 tabs:
     forums: Forums
+    new_count: '%count% new'
     primary: Primary
     promotions: Promotions
     social: Social

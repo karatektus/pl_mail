@@ -1,16 +1,17 @@
 {#
-The "something arrived here" dot — the category/label/role half of the new-mail
-marker.
+The "something arrived here" marks — the category/label/role half of the
+new-mail marker.
 
-One macro, two very different surfaces: the Gmail category tabs above the inbox
-list and the sidebar's roles and labels. They are the same statement about the
-same state, so they are the same mark; a dot invented twice would drift the
-moment one of them was restyled.
-
-Quiet on purpose. It says a conversation arrived in here that has never been put
-in front of you, and it says nothing about how many — the number beside it is
-the unread badge and means something else entirely. Two numbers on one row is
-two demands with nothing to tell them apart.
+Two macros, one statement, two volumes. Both say that conversations arrived in
+here that have never been put in front of you; they differ only in whether they
+say how many. The sidebar's dot stays quiet because its rows already carry an
+unread badge, and a second bare number one gap along would be two demands with
+nothing to tell them apart. The tab pill DOES carry the number, Gmail-style —
+"3 new" — and gets away with it because the word is the disambiguator: the bare
+grey figure on a tab is unread, the filled pill that says "new" is arrivals,
+the same vocabulary split the thread rows use (a "New" pill against an unread
+dot). Both live in this file so the two halves of one marker cannot drift when
+one of them is restyled.
 
 Rendered at every count and hidden at zero rather than omitted, which is the
 idiom every patched marker in this app follows (see the unread_badge macro in
@@ -44,4 +45,48 @@ has new mail is the only form of this marker that carries its meaning.
           data-count-key="{{ key }}">
         <span class="sr-only">{{ 'sidebar.new_mail_here'|trans({ '%where%': where }) }}</span>
     </span>
+{% endmacro %}
+
+{#
+The loud variant: a filled pill that says "3 new". The inbox's category tabs
+render this one — see the header comment for why they may carry a number when
+the sidebar must not.
+
+Same `data-new-dot`, same key namespace, same render-always-hide-at-zero idiom
+as the dot above, so every invariant that holds the dots together (the counts
+endpoint must emit every rendered key — BadgeSemanticsTest) holds this without
+a second rule. What is new is that the patcher writes into it, and the two
+`data-*-template` attributes are how: the count arrives over JSON long after
+the page's translator is gone, so the pill carries its own translated strings
+with the placeholder still in them and the patcher stays string-blind. See
+patchNewDots in sidebar_controller.js.
+
+`|trans` without a %count% parameter is deliberate on the template attributes:
+Symfony leaves unfilled placeholders in place, which is exactly the form the
+patcher needs.
+
+aria-label rather than the dot's sr-only child, following unread_badge in
+_sidebar.html.twig — the visible text is a fragment ("3 new" of what?), and a
+label naming the place is the announcement that carries the meaning. Keeping
+the element childless is also what lets the patcher assign textContent without
+knowing what a pill contains.
+
+`tone` is the caller's colour, background and text together, and its default
+is the accent pair every other patched marker wears. The category tabs pass
+their own — Gmail colours these hints per category, and that identity colour
+is the label_dot idiom rather than the theme-token one: a fixed colour that
+means "this place", the same in light and dark.
+
+No display utility of its own, unlike the dot — a span is inline already, and
+the dot's own comment explains what a display class in the wrong Tailwind
+layer order does to `hidden`. The tab's wrapper handles alignment.
+#}
+{% macro new_pill(count, key, where, tone = null) %}
+    <span class="new-pill text-xs font-semibold px-1.5 py-0.5 rounded-full shrink-0 {{ tone ?? 'bg-accent text-accent-ink' }}{{ count > 0 ? '' : ' hidden' }}"
+          data-new-dot
+          data-count-key="{{ key }}"
+          data-count-template="{{ 'tabs.new_count'|trans }}"
+          data-label-template="{{ 'sidebar.new_mail_here_count'|trans({ '%where%': where }) }}"
+          aria-label="{{ 'sidebar.new_mail_here_count'|trans({ '%count%': count, '%where%': where }) }}"
+    >{{ 'tabs.new_count'|trans({ '%count%': count }) }}</span>
 {% endmacro %}

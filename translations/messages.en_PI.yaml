@@ -2212,6 +2212,7 @@ sidebar:
         heading: Flags
         none: No flags yet
     new_mail_here: 'Fresh bottles washed up in %where%'
+    new_mail_here_count: '%count% fresh bottles washed up in %where%'
     nav:
         calendar: Almanac
         archive: The hold
@@ -2244,6 +2245,7 @@ starred:
 
 tabs:
     forums: Taverns
+    new_count: '%count% fresh'
     primary: Main deck
     promotions: Peddlers
     social: Shipmates

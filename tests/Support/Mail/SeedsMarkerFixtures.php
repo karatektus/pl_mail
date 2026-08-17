@@ -50,6 +50,7 @@ trait SeedsMarkerFixtures
         string           $lastMessageAt = 'now',
         int              $unread = 0,
         bool             $flush = true,
+        ?string          $fromName = null,
     ): MessageThread {
         $thread                    = new MessageThread();
         $thread->account           = $this->account;
@@ -69,6 +70,7 @@ trait SeedsMarkerFixtures
         $message->thread      = $thread;
         $message->subject     = $subject;
         $message->fromAddress = 'sender@example.test';
+        $message->fromName    = $fromName;
         $message->receivedAt  = new DateTimeImmutable($lastMessageAt);
         $message->sentAt      = $message->receivedAt;
         $message->seenAt         = $unread > 0 ? null : new DateTimeImmutable($lastMessageAt);

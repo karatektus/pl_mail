@@ -43,9 +43,16 @@ Every list pages at fifty conversations. **Newer** and **Older** in the toolbar 
 ## Tabs
 
 The inbox is split into the five Gmail categories — **Primary**, **Social**, **Promotions**,
-**Updates** and **Forums** — with an unread count on each. For a Gmail account plMail trusts
-Gmail's own `CATEGORY_*` labels. For everything else it works the category out from headers that
-were already stored, which is why re-categorisation never needs a resync.
+**Updates** and **Forums**. For a Gmail account plMail trusts Gmail's own `CATEGORY_*` labels.
+For everything else it works the category out from headers that were already stored, which is why
+re-categorisation never needs a resync.
+
+Each tab reads the way Gmail's do: an icon — filled in on the tab you are on — and, while a
+category holds mail you have never been shown, a **"3 new"** pill in that category's colour with
+a second line naming who that new mail is from, newest arrival first. That is deliberately the
+only number on a tab: unread already has the sidebar badge and the bold rows, so the tab keeps
+the one thing only it can say. The strip is live — pill and sender names update in place when
+mail arrives, without waiting for a reload, and a hint is retired the moment you look at its tab.
 
 There is one override worth knowing: a sender you have written to yourself is pulled back into
 Primary regardless of any bulk-mail header on the message. Open a message's **Details** panel and
@@ -58,9 +65,10 @@ something in the inbox and never click it and the badge goes, because you have s
 surprised by it; the conversation is still unread, because you still have not read it. The two are
 different questions and plMail keeps both answers.
 
-It shows as a filled **New** pill beside the sender on the row, and as a quiet dot — no number — on
-the inbox category tabs, on the sidebar's labels and roles, and on Starred. The dot means "something
-arrived here", which is what the unread counts beside it do not say.
+It shows as a filled **New** pill beside the sender on the row, as a **"3 new"** count pill on the
+inbox category tabs — the Gmail hint — and as a quiet dot, no number, on the sidebar's labels and
+roles and on Starred. Pill and dot both mean "something arrived here", which is what an unread
+count does not say.
 
 Nothing stays new for longer than **24 hours** after its last message, whether or not you ever saw
 the row. A marker you can only clear by looking at every row is a debt rather than a marker, so it

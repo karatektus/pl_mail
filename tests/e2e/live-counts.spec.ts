@@ -87,9 +87,9 @@ test.describe("counters after a bulk action", () => {
      * The other half of the report, and the half no turbo-stream covers.
      *
      * A bulk action's response redraws the ROWS it touched. Everything else in
-     * the list frame — the category tabs with their own unread numbers, the
-     * "1–4 of 4" range — is addressed by nothing, so it kept whatever the last
-     * full render had said. The frame is re-read after a write now
+     * the list frame — the category tabs with their pills and sender hints,
+     * the "1–4 of 4" range — is addressed by nothing, so it kept whatever the
+     * last full render had said. The frame is re-read after a write now
      * (mail--mail-pane#release), which is what this pins.
      */
     test("the whole list frame is re-read, not just the rows the streams touched", async ({

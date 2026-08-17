@@ -9,6 +9,7 @@ use App\Domain\Enum\Mail\MessageCategory;
 use App\Domain\Enum\Mail\SearchSortOrder;
 use App\Entity\Mail\Account;
 use App\Entity\Label\Label;
+use App\Entity\Mail\Message;
 use App\Entity\Mail\MessageThread;
 use App\Service\Search\FreeTextCompiler;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
@@ -129,10 +130,10 @@ class MessageThreadRepository extends ServiceEntityRepository
      * query per tab on every page load.
      */
     /**
-     * Threads per category regardless of read state, same grouped shape as the
-     * unread count below. This one decides which tabs exist at all: a category
-     * with fifty read promotions still deserves its tab, so visibility cannot
-     * be derived from the unread numbers.
+     * Threads per category regardless of read state, same grouped shape as
+     * countNewByCategoryForUnifiedInbox(). This one decides which tabs exist
+     * at all: a category with fifty read promotions still deserves its tab,
+     * so visibility cannot be derived from the new-mail numbers.
      *
      * @return array<string, int>
      */
@@ -161,37 +162,6 @@ class MessageThreadRepository extends ServiceEntityRepository
             }
 
             $counts[$categoryValue] = (int) $row['threadCount'];
-        }
-
-        return $counts;
-    }
-
-    public function countUnreadByCategoryForUnifiedInbox(UserInterface $user): array
-    {
-        $rows = $this->createQueryBuilder('t')
-            ->select('t.category AS category', 'COUNT(DISTINCT t.id) AS unreadCount')
-            ->join('t.account', 'a')
-            ->join('t.labels', 'l')
-            ->where('a.usr = :user')
-            ->andWhere('a.isActive = true')
-            ->andWhere('l.role = :inbox')
-            ->andWhere('t.unreadCount > 0')
-            ->groupBy('t.category')
-            ->setParameter('user', $user)
-            ->setParameter('inbox', LabelRole::Inbox)
-            ->getQuery()
-            ->getResult();
-
-        $counts = [];
-
-        foreach ($rows as $row) {
-            $categoryValue = $row['category'];
-
-            if ($categoryValue instanceof MessageCategory) {
-                $categoryValue = $categoryValue->value;
-            }
-
-            $counts[$categoryValue] = (int) $row['unreadCount'];
         }
 
         return $counts;
@@ -684,7 +654,7 @@ class MessageThreadRepository extends ServiceEntityRepository
     /**
      * New threads per inbox category — what puts the dot on a Gmail tab.
      *
-     * The same shape as countUnreadByCategoryForUnifiedInbox() and for the same
+     * The same shape as countByCategoryForUnifiedInbox() and for the same
      * reason: a GROUP BY with an aggregate, which is one query rather than one
      * per tab on every page load.
      *
@@ -719,6 +689,112 @@ class MessageThreadRepository extends ServiceEntityRepository
         }
 
         return $counts;
+    }
+
+    /**
+     * Who the new mail on each tab is from — the names behind the Gmail-style
+     * sender hint under a category tab.
+     *
+     * One query for every category, like the counts above, but this one has to
+     * look INSIDE the threads: the hint names the newest message's sender, and
+     * the thread row does not carry one. So every message of every new thread
+     * comes back flat — bounded, because "new" is capped at the 24-hour window
+     * — and the newest-per-thread pick happens in PHP, where it is a
+     * comparison rather than a correlated subquery per row.
+     *
+     * Newest thread first, one name per sender, capped: the hint is a teaser,
+     * not a roster, and the count beside it already says how much the names
+     * stand in for.
+     *
+     * @return array<string, list<string>> category value → sender display
+     *         names, newest arrival first, at most $perCategory
+     */
+    public function newSendersByCategoryForUnifiedInbox(
+        UserInterface $user,
+        \DateTimeImmutable $now,
+        int $perCategory = 3,
+    ): array {
+        $qb = $this->createQueryBuilder('t')
+            ->select(
+                't.id AS threadId',
+                't.category AS category',
+                't.lastMessageAt AS arrivedAt',
+                'm.fromName AS fromName',
+                'm.fromAddress AS fromAddress',
+                // The same chain ThreadParticipants::newest() walks: createdAt
+                // closes it, so every message has an instant to compare on.
+                'COALESCE(m.receivedAt, m.sentAt, m.createdAt) AS messageAt',
+            )
+            ->join('t.account', 'a')
+            ->join('t.labels', 'l')
+            ->join(Message::class, 'm', 'WITH', 'm.thread = t')
+            ->where('a.usr = :user')
+            ->andWhere('a.isActive = true')
+            ->andWhere('l.role = :inbox')
+            ->setParameter('user', $user)
+            ->setParameter('inbox', LabelRole::Inbox);
+
+        $this->restrictToNew($qb, $now);
+        $this->excludeTrashed($qb);
+
+        // Newest message per thread. COALESCE hydrates as a "Y-m-d H:i:s"
+        // string, which orders chronologically as a plain string compare.
+        /** @var array<int, array{category: string, arrivedAt: \DateTimeImmutable|null, name: string, at: string}> $threads */
+        $threads = [];
+
+        foreach ($qb->getQuery()->getResult() as $row) {
+            $id = (int) $row['threadId'];
+            $at = (string) $row['messageAt'];
+
+            if (true === isset($threads[$id]) && $threads[$id]['at'] >= $at) {
+                continue;
+            }
+
+            $category = $row['category'];
+
+            if ($category instanceof MessageCategory) {
+                $category = $category->value;
+            }
+
+            $name = trim((string) ($row['fromName'] ?? ''));
+
+            if ('' === $name) {
+                $name = trim((string) ($row['fromAddress'] ?? ''));
+            }
+
+            $threads[$id] = [
+                'category'  => (string) $category,
+                'arrivedAt' => $row['arrivedAt'],
+                'name'      => $name,
+                'at'        => $at,
+            ];
+        }
+
+        $entries = array_values(array_filter(
+            $threads,
+            static fn (array $entry): bool => '' !== $entry['name'],
+        ));
+
+        usort(
+            $entries,
+            static fn (array $a, array $b): int => $b['arrivedAt'] <=> $a['arrivedAt'],
+        );
+
+        $senders = [];
+
+        foreach ($entries as $entry) {
+            $list = $senders[$entry['category']] ?? [];
+
+            if (count($list) >= $perCategory || true === in_array($entry['name'], $list, true)) {
+                continue;
+            }
+
+            $list[] = $entry['name'];
+
+            $senders[$entry['category']] = $list;
+        }
+
+        return $senders;
     }
 
     /**

@@ -207,7 +207,10 @@ final class MailController extends AbstractController
 
         $sort       = $this->listSort($request);
         $threads    = $this->threadRepository->findForUnifiedInbox($user, $tab, $page, self::PER_PAGE, $sort);
-        $tabCounts  = $this->threadRepository->countUnreadByCategoryForUnifiedInbox($user);
+        // The unread numbers on the tabs come from the sidebarCounts global in
+        // the template — the same memoised read the counts endpoint answers
+        // with, so the two cannot disagree. Only which tabs EXIST is decided
+        // here.
         $tabTotals  = $this->threadRepository->countByCategoryForUnifiedInbox($user);
 
         // A tab nobody's mail lands in is a door to an empty room — Gmail
@@ -227,7 +230,6 @@ final class MailController extends AbstractController
         return $this->renderList($request, 'mail/inbox.html.twig', $threads, [
             'tab'        => $tab,
             'tabs'       => $tabs,
-            'tabCounts'  => $tabCounts,
             'page'       => $page,
             'total'      => $total,
             'per_page'   => self::PER_PAGE,
@@ -613,15 +615,23 @@ final class MailController extends AbstractController
             'labels:unread'               => $counts->unreadInLabels(),
         ];
 
-        // The new-mail dots ride on this same payload rather than on an
+        // The new-mail marks ride on this same payload rather than on an
         // endpoint of their own. They are patched by the same controller on the
         // same sync event, and two requests answering one question would let
-        // the badge and the dot beside it disagree for a moment about the same
+        // the badge and the mark beside it disagree for a moment about the same
         // mail. The keys are namespaced "new:" so nothing here can collide with
-        // an unread key — the dot means something different and must never be
+        // an unread key — the mark means something different and must never be
         // fed to a badge that would print it as a number.
+        //
+        // A category tab makes two statements, so two families go out per
+        // category: its new-arrivals count ("new:category:") and the senders
+        // of those arrivals ("senders:category:" — the one whose values are
+        // strings, which is exactly why it has a namespace of its own). No
+        // unread count: the tabs deliberately do not show one — new is the
+        // only number a tab can say that nothing else already says.
         foreach (MessageCategory::cases() as $category) {
-            $payload[NewMailMarkers::categoryKey($category)] = $newMail->forCategory($category);
+            $payload[NewMailMarkers::categoryKey($category)]        = $newMail->forCategory($category);
+            $payload[NewMailMarkers::categorySendersKey($category)] = implode(', ', $newMail->sendersForCategory($category));
         }
 
         // forRoleBadge(), not forRole(): Trash and Drafts show a total rather

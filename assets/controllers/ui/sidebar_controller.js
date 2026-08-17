@@ -99,19 +99,24 @@ async function fetchCounts(url, fresh = false) {
 }
 
 /**
- * Show or hide the "something arrived here" dots from the same payload.
+ * Show or hide the "something arrived here" marks from the same payload.
  *
  * Document-wide rather than over this controller's targets, and that is the
- * point: the dots are not all in the sidebar. The inbox's category tabs carry
+ * point: the marks are not all in the sidebar. The inbox's category tabs carry
  * them too, they live inside the list frame — outside every sidebar element —
  * and they are the primary surface for this marker. Scoping to targets would
  * have left the tabs waiting for the next list refresh to learn that mail had
  * arrived, which is up to MIN_REFRESH_MS later than the sidebar beside them.
  *
- * Only toggled, never written into. A dot says a thing happened, not how often;
- * the badges are what carry numbers, and putting a count inside a 6px circle
- * would render as a smear. Keys are namespaced "new:" server-side precisely so
- * the two families cannot be fed to each other's patcher.
+ * Two shapes under one attribute. The sidebar's mark is a bare 6px dot and is
+ * only toggled — a count written into it would render as a smear. The tabs'
+ * mark is a Gmail-style pill that says "3 new", and it announces itself by
+ * carrying its templates: translated server-side with the %count% placeholder
+ * left in, so this patcher fills numbers into sentences it cannot read. The
+ * label template is patched alongside the text for the same reason _nameBadge
+ * exists — a count and the name it is read out with are one statement. Keys
+ * are namespaced "new:" server-side so neither shape can be fed the unread
+ * badges' numbers.
  *
  * Idempotent, which matters because the sidebar partial is on the page twice
  * (drawer and column) and both instances run this over the same elements.
@@ -125,6 +130,36 @@ function patchNewDots(counts) {
         }
 
         dot.classList.toggle("hidden", count === 0);
+
+        // Nothing is written at zero: the pill is hidden then, and "0 new" is
+        // not a sentence it ever says — the next non-zero pass rewrites both
+        // strings anyway.
+        if (dot.dataset.countTemplate !== undefined && count > 0) {
+            dot.textContent = dot.dataset.countTemplate.replace("%count%", String(count));
+            dot.setAttribute("aria-label", dot.dataset.labelTemplate.replace("%count%", String(count)));
+        }
+    });
+}
+
+/**
+ * The sender hints on the category tabs, from the same payload.
+ *
+ * The "senders:" family holds the one value in the payload that is a STRING —
+ * sender names, joined and localised server-side; it hides when it has
+ * nothing to say, so a hintless tab centres its label — the tab's own
+ * min-height is what keeps the strip from changing size around it. Outside
+ * every sidebar element, hence document-wide, same as patchNewDots.
+ */
+function patchTabMarks(counts) {
+    document.querySelectorAll("[data-tab-senders]").forEach((hint) => {
+        const senders = counts[hint.dataset.countKey];
+
+        if (senders === undefined) {
+            return;
+        }
+
+        hint.textContent = senders;
+        hint.classList.toggle("hidden", senders === "");
     });
 }
 
@@ -302,6 +337,7 @@ export default class extends Controller {
         });
 
         patchNewDots(counts);
+        patchTabMarks(counts);
 
         this._updateTitle(counts);
     }

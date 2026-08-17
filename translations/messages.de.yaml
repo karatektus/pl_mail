@@ -2589,6 +2589,7 @@ sidebar:
         heading: Labels
         none: Noch keine Labels
     new_mail_here: 'Neue Nachrichten in %where%'
+    new_mail_here_count: '%count% neu in %where%'
     nav:
         calendar: Kalender
         archive: Archiv
@@ -2621,6 +2622,7 @@ starred:
 
 tabs:
     forums: Foren
+    new_count: '%count% neu'
     primary: Allgemein
     promotions: Werbung
     social: Soziale Netzwerke

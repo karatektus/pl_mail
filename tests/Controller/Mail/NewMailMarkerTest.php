@@ -294,6 +294,90 @@ final class NewMailMarkerTest extends WebTestCase
     }
 
     /**
+     * The tab's marker says how many — "2 new", the Gmail hint — where the
+     * sidebar's stays a wordless dot. The word matters as much as the number:
+     * it is what tells this figure apart from the unread count sitting on the
+     * same tab, so the assertion is on the whole rendered phrase rather than
+     * on a digit being present somewhere.
+     */
+    public function testTheCategoryTabPillSaysHowMany(): void
+    {
+        $this->thread('a promo', category: MessageCategory::Promotions);
+        $this->thread('another promo', category: MessageCategory::Promotions);
+        $this->thread('a normal one');
+
+        $this->client->request('GET', '/mail/inbox');
+
+        $pill = $this->client->getCrawler()
+            ->filter('[data-new-dot][data-count-key="new:category:promotions"]');
+
+        self::assertGreaterThan(0, $pill->count());
+        self::assertSame('2 new', trim($pill->first()->text()));
+        self::assertSame('2 new in Promotions', $pill->first()->attr('aria-label'));
+
+        // The templates the live patcher fills numbers into, placeholder still
+        // in place — a template that arrived pre-filled would freeze the pill
+        // at the page-load count. See patchNewDots in sidebar_controller.js.
+        self::assertSame('%count% new', $pill->first()->attr('data-count-template'));
+        self::assertSame(
+            '%count% new in Promotions',
+            $pill->first()->attr('data-label-template'),
+        );
+    }
+
+    /**
+     * The Gmail hint's second half: WHO the new mail is from, newest arrival
+     * first. Only categories the user is not currently looking at keep their
+     * hints — the promo threads are unlisted because the render below shows
+     * the Primary tab, which is exactly the situation the hint exists for.
+     */
+    public function testTheTabSenderHintNamesWhoTheNewMailIsFrom(): void
+    {
+        $this->thread('older promo', category: MessageCategory::Promotions, lastMessageAt: 'now -2 hours', fromName: 'Old Shop');
+        $this->thread('newer promo', category: MessageCategory::Promotions, lastMessageAt: 'now -1 hour', fromName: 'New Shop');
+        $this->thread('a normal one');
+
+        $this->client->request('GET', '/mail/inbox');
+
+        $hint = $this->client->getCrawler()
+            ->filter('[data-tab-senders][data-count-key="senders:category:promotions"]');
+
+        self::assertGreaterThan(0, $hint->count());
+        self::assertSame('New Shop, Old Shop', trim($hint->first()->text()));
+    }
+
+    /**
+     * The sender hints are a live family of their own — the payload's one
+     * STRING — and the payload the sidebar controller patches from has to
+     * emit every key the strip renders, or the first sync freezes whichever
+     * hint it cannot find. The same invariant the dots established, extended
+     * to the mark the tabs added. (The tabs deliberately carry no unread
+     * count, so there is no third family to hold this for.)
+     */
+    public function testEveryTabMarkIsPatchableFromTheCountsPayload(): void
+    {
+        $this->thread('a promo', category: MessageCategory::Promotions, unread: 2, fromName: 'Acme');
+        $this->thread('a normal one');
+
+        $counts = $this->countsPayload();
+
+        self::assertSame(1, $counts['new:category:promotions']);
+        self::assertSame('Acme', $counts['senders:category:promotions']);
+
+        $this->client->request('GET', '/mail/inbox');
+
+        $keys = $this->client->getCrawler()->filter('[data-tab-senders]')->each(
+            static fn (Crawler $mark): string => (string) $mark->attr('data-count-key'),
+        );
+
+        self::assertNotEmpty($keys, 'the tab hints are always rendered — an omitted one cannot be patched');
+
+        foreach ($keys as $key) {
+            self::assertArrayHasKey($key, $counts, sprintf('the endpoint emits no "%s"', $key));
+        }
+    }
+
+    /**
      * The invariant BadgeSemanticsTest holds for the unread badges, extended to
      * the new-mail dots: the endpoint the sidebar patches from has to say what
      * the server-rendered markup said, or the first sync moves a marker the
@@ -735,7 +819,7 @@ final class NewMailMarkerTest extends WebTestCase
         return false === str_contains((string) $dots->first()->attr('class'), 'hidden');
     }
 
-    /** @return array<string,int> */
+    /** @return array<string,int|string> ints, except the "senders:" family */
     private function countsPayload(): array
     {
         $this->client->request('GET', '/mail/sidebar/counts');

@@ -36,6 +36,9 @@ class NewMailMarkers implements ResetInterface
     /** @var array<string,int>|null category value => new thread count */
     private ?array $byCategory = null;
 
+    /** @var array<string,list<string>>|null category value => sender names of new threads */
+    private ?array $sendersByCategory = null;
+
     /** @var array<string,int>|null role value => new thread count */
     private ?array $byRole = null;
 
@@ -75,11 +78,12 @@ class NewMailMarkers implements ResetInterface
      */
     public function reset(): void
     {
-        $this->byCategory = null;
-        $this->byRole     = null;
-        $this->byLabel    = null;
-        $this->starred    = null;
-        $this->now        = null;
+        $this->byCategory        = null;
+        $this->sendersByCategory = null;
+        $this->byRole            = null;
+        $this->byLabel           = null;
+        $this->starred           = null;
+        $this->now               = null;
     }
 
     /**
@@ -110,6 +114,29 @@ class NewMailMarkers implements ResetInterface
         }
 
         return $this->byCategory[$category->value] ?? 0;
+    }
+
+    /**
+     * Who the new mail in a category is from — the sender hint on its tab.
+     *
+     * Reads the same clock as forCategory() so the names and the number they
+     * sit beside describe the same instant; a thread that ages out of the
+     * window between two reads would otherwise be counted by one and named by
+     * the other.
+     *
+     * @return list<string> newest arrival first, at most three
+     */
+    public function sendersForCategory(MessageCategory $category): array
+    {
+        if (null === $this->sendersByCategory) {
+            $user = $this->security->getUser();
+
+            $this->sendersByCategory = null === $user
+                ? []
+                : $this->threadRepository->newSendersByCategoryForUnifiedInbox($user, $this->now());
+        }
+
+        return $this->sendersByCategory[$category->value] ?? [];
     }
 
     /**
@@ -180,6 +207,16 @@ class NewMailMarkers implements ResetInterface
     public static function categoryKey(MessageCategory $category): string
     {
         return 'new:category:' . $category->value;
+    }
+
+    /**
+     * The sender-hint keys, namespaced away from both the "new:" counts and
+     * the unread badge keys: their values are STRINGS — joined sender names —
+     * and a patcher expecting a number must never be able to reach one.
+     */
+    public static function categorySendersKey(MessageCategory $category): string
+    {
+        return 'senders:category:' . $category->value;
     }
 
     public static function roleKey(LabelRole $role): string

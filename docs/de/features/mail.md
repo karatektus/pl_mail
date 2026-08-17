@@ -1,4 +1,4 @@
-<!-- translated-from: features/mail.md sha1:d47730d118a8ef6c7ae59195d3110fec98446a41 -->
+<!-- translated-from: features/mail.md sha1:e534edbc88e7ce4cc773c6744455b929c099b965 -->
 
 # Mail
 
@@ -49,10 +49,19 @@ Werkzeugleiste blättern.
 ## Tabs
 
 Der Posteingang ist in die fünf Gmail-Kategorien aufgeteilt — **Allgemein**, **Soziale
-Netzwerke**, **Werbung**, **Updates** und **Foren** — jede mit einem Zähler für Ungelesenes.
-Bei einem Gmail-Konto vertraut plMail Gmails eigenen `CATEGORY_*`-Labels. Bei allem anderen
-leitet es die Kategorie aus Headern ab, die ohnehin schon gespeichert sind — darum braucht eine
-Neukategorisierung nie eine erneute Synchronisierung.
+Netzwerke**, **Werbung**, **Updates** und **Foren**. Bei einem Gmail-Konto vertraut plMail
+Gmails eigenen `CATEGORY_*`-Labels. Bei allem anderen leitet es die Kategorie aus Headern ab,
+die ohnehin schon gespeichert sind — darum braucht eine Neukategorisierung nie eine erneute
+Synchronisierung.
+
+Jeder Tab liest sich wie bei Gmail: ein Symbol — ausgefüllt auf dem Tab, auf dem du gerade bist
+— und, solange in einer Kategorie Post liegt, die dir nie gezeigt wurde, ein Fähnchen **„3 neu”**
+in der Farbe der Kategorie, mit einer zweiten Zeile, die nennt, von wem diese neue Post ist,
+neueste zuerst. Das ist mit Absicht die einzige Zahl auf einem Tab: Ungelesenes hat schon den
+Badge in der Seitenleiste und die fetten Zeilen selbst, also behält der Tab das eine, das nur er
+sagen kann. Die Leiste ist live — Fähnchen und Absendernamen aktualisieren sich an Ort und
+Stelle, wenn Post eintrifft, ohne auf ein Neuladen zu warten, und ein Hinweis verschwindet in
+dem Moment, in dem du seinen Tab anschaust.
 
 Eine Ausnahme lohnt sich zu kennen: Ein Absender, dem du selbst geschrieben hast, wird zurück
 nach Allgemein geholt, ganz gleich, welcher Massenmail-Header auf der Nachricht steht. Öffne
@@ -66,10 +75,11 @@ Scrollst du im Posteingang an etwas vorbei und klickst es nie an, verschwindet d
 es überrascht dich nicht mehr; die Konversation bleibt ungelesen, denn gelesen hast du sie immer
 noch nicht. Das sind zwei verschiedene Fragen, und plMail behält beide Antworten.
 
-Sie erscheint als gefülltes Fähnchen **Neu** neben dem Absender in der Zeile und als stiller Punkt
-— ohne Zahl — auf den Kategorie-Tabs des Posteingangs, auf den Labels und Rollen der Seitenleiste
-und auf Markiert. Der Punkt bedeutet „hier ist etwas angekommen“, und genau das sagen die
-Ungelesen-Zähler daneben nicht.
+Sie erscheint als gefülltes Fähnchen **Neu** neben dem Absender in der Zeile, als Zähler-Fähnchen
+**„3 neu”** auf den Kategorie-Tabs des Posteingangs — der Hinweis, den du aus Gmail kennst — und
+als stiller Punkt, ohne Zahl, auf den Labels und Rollen der Seitenleiste und auf Markiert.
+Fähnchen wie Punkt bedeuten „hier ist etwas angekommen”, und genau das sagt ein
+Ungelesen-Zähler nicht.
 
 Nichts bleibt länger als **24 Stunden** nach seiner letzten Nachricht neu, ob du die Zeile je zu
 sehen bekommen hast oder nicht. Eine Markierung, die sich nur abtragen lässt, indem man jede Zeile
