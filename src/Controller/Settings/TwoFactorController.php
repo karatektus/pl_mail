@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controller\Settings;
 
+use App\Controller\ChecksCsrf;
 use App\Entity\User\User;
 use App\Repository\User\TrustedDeviceRepository;
 use App\Security\TwoFactor\TrustedDeviceCookieJar;
@@ -37,6 +38,8 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 #[IsGranted('ROLE_USER')]
 final class TwoFactorController extends AbstractController
 {
+    use ChecksCsrf;
+
     /** Flash key carrying freshly minted recovery codes across the redirect. */
     public const string FLASH_BACKUP_CODES = 'two_factor_backup_codes';
 
@@ -167,13 +170,6 @@ final class TwoFactorController extends AbstractController
         $this->addFlash('success', 'two_factor.flash.devices_revoked');
 
         return $this->redirectToSection();
-    }
-
-    private function assertCsrf(Request $request, string $id): void
-    {
-        if (false === $this->isCsrfTokenValid($id, (string) $request->request->get('_token'))) {
-            throw $this->createAccessDeniedException();
-        }
     }
 
     /**

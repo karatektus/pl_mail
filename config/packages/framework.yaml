@@ -3,7 +3,26 @@ framework:
     secret: '%env(APP_SECRET)%'
 
     # Note that the session will be started ONLY if you read or write from it.
-    session: true
+    session:
+        # Stated rather than inherited. `lax` is already Symfony's default and
+        # already what every current browser assumes for a cookie that says
+        # nothing, so this changes no behaviour — the point is that it stops
+        # being a default. Several state-changing POSTs are protected by a CSRF
+        # token AND by the browser refusing to attach this cookie to a
+        # cross-site request, and the second half of that sentence was true only
+        # by accident: nothing in the repo said so, and a future `session: true`
+        # edit or a browser that read the spec differently would have removed it
+        # silently.
+        #
+        # NOT `strict`, and this is load-bearing. The OAuth callbacks are
+        # top-level cross-site navigations — Google and Microsoft redirect the
+        # browser back to /{provider}/callback — and OAuthController::callback()
+        # verifies the handshake against a state value it stored in the session
+        # (OAuthStateStore, via $request->getSession()). Under `strict` the
+        # cookie would not ride along on that redirect, the session would be a
+        # fresh empty one, and every account connection would fail its own state
+        # check with "Invalid OAuth state."
+        cookie_samesite: lax
     trusted_proxies: '%env(TRUSTED_PROXIES)%'
     trusted_headers: ['x-forwarded-for', 'x-forwarded-proto', 'x-forwarded-host', 'x-forwarded-port']
 

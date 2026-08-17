@@ -4,14 +4,15 @@ declare(strict_types=1);
 
 namespace App\Controller\Settings;
 
+use App\Controller\ChecksCsrf;
 use App\Domain\Enum\Calendar\ShareDetail;
 use App\Domain\Enum\Calendar\ShareWindow;
+use App\Domain\Helper\TimezoneHelper;
 use App\Entity\Calendar\BookingPage;
 use App\Entity\Calendar\Calendar;
 use App\Entity\User\User;
 use App\Repository\Calendar\BookingPageRepository;
 use App\Repository\Calendar\CalendarRepository;
-use App\Domain\Helper\TimezoneHelper;
 use App\Repository\Calendar\CalendarShareLinkRepository;
 use App\Service\Calendar\Booking\BookingPageWriter;
 use App\Service\Calendar\Sharing\ShareLinkWriter;
@@ -66,6 +67,8 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 #[IsGranted('IS_AUTHENTICATED')]
 final class CalendarSharingController extends AbstractController
 {
+    use ChecksCsrf;
+
     /** One CSRF id for every mutation in this section — they are one form family. */
     private const string CSRF_ID = 'calendar-sharing';
 
@@ -95,7 +98,7 @@ final class CalendarSharingController extends AbstractController
             ]);
         }
 
-        $this->assertCsrf($request);
+        $this->assertCsrf($request, self::CSRF_ID);
 
         $token = $this->linkWriter->create(
             $user,
@@ -141,7 +144,7 @@ final class CalendarSharingController extends AbstractController
             ]);
         }
 
-        $this->assertCsrf($request);
+        $this->assertCsrf($request, self::CSRF_ID);
 
         $this->linkWriter->update(
             $link,
@@ -163,7 +166,7 @@ final class CalendarSharingController extends AbstractController
     #[Route('/link/{id}/revoke', name: 'link_revoke', requirements: ['id' => '\d+'], methods: ['POST'])]
     public function linkRevoke(Request $request, int $id): Response
     {
-        $this->assertCsrf($request);
+        $this->assertCsrf($request, self::CSRF_ID);
 
         $link = $this->links->findOneForUser($this->currentUser(), $id);
 
@@ -188,7 +191,7 @@ final class CalendarSharingController extends AbstractController
     #[Route('/link/{id}/regenerate', name: 'link_regenerate', requirements: ['id' => '\d+'], methods: ['POST'])]
     public function linkRegenerate(Request $request, int $id): Response
     {
-        $this->assertCsrf($request);
+        $this->assertCsrf($request, self::CSRF_ID);
 
         $link = $this->links->findOneForUser($this->currentUser(), $id);
 
@@ -209,7 +212,7 @@ final class CalendarSharingController extends AbstractController
     #[Route('/link/{id}/delete', name: 'link_delete', requirements: ['id' => '\d+'], methods: ['POST'])]
     public function linkDelete(Request $request, int $id): Response
     {
-        $this->assertCsrf($request);
+        $this->assertCsrf($request, self::CSRF_ID);
 
         $link = $this->links->findOneForUser($this->currentUser(), $id);
 
@@ -234,7 +237,7 @@ final class CalendarSharingController extends AbstractController
             return $this->renderBookingForm($user, null);
         }
 
-        $this->assertCsrf($request);
+        $this->assertCsrf($request, self::CSRF_ID);
 
         $page = new BookingPage();
 
@@ -279,7 +282,7 @@ final class CalendarSharingController extends AbstractController
             return $this->renderBookingForm($user, $page);
         }
 
-        $this->assertCsrf($request);
+        $this->assertCsrf($request, self::CSRF_ID);
 
         $this->fill($page, $request);
 
@@ -303,7 +306,7 @@ final class CalendarSharingController extends AbstractController
     #[Route('/booking/{id}/toggle', name: 'booking_toggle', requirements: ['id' => '\d+'], methods: ['POST'])]
     public function bookingToggle(Request $request, int $id): Response
     {
-        $this->assertCsrf($request);
+        $this->assertCsrf($request, self::CSRF_ID);
 
         $page = $this->pages->findOneForUser($this->currentUser(), $id);
 
@@ -323,7 +326,7 @@ final class CalendarSharingController extends AbstractController
     #[Route('/booking/{id}/regenerate', name: 'booking_regenerate', requirements: ['id' => '\d+'], methods: ['POST'])]
     public function bookingRegenerate(Request $request, int $id): Response
     {
-        $this->assertCsrf($request);
+        $this->assertCsrf($request, self::CSRF_ID);
 
         $page = $this->pages->findOneForUser($this->currentUser(), $id);
 
@@ -345,7 +348,7 @@ final class CalendarSharingController extends AbstractController
     #[Route('/booking/{id}/delete', name: 'booking_delete', requirements: ['id' => '\d+'], methods: ['POST'])]
     public function bookingDelete(Request $request, int $id): Response
     {
-        $this->assertCsrf($request);
+        $this->assertCsrf($request, self::CSRF_ID);
 
         $page = $this->pages->findOneForUser($this->currentUser(), $id);
 
@@ -452,13 +455,6 @@ final class CalendarSharingController extends AbstractController
         $parsed = DateTimeImmutable::createFromFormat('!Y-m-d', $value);
 
         return false === $parsed ? null : $parsed;
-    }
-
-    private function assertCsrf(Request $request): void
-    {
-        if (false === $this->isCsrfTokenValid(self::CSRF_ID, (string) $request->request->get('_token'))) {
-            throw $this->createAccessDeniedException();
-        }
     }
 
     private function currentUser(): User

@@ -20,6 +20,7 @@ export default class extends Controller {
         subscribeUrl: String,
         unsubscribeUrl: String,
         statusUrl: String,
+        csrfToken: String,
         // state name -> human text, translated server-side so this controller
         // carries no copy of its own.
         labels: Object,
@@ -86,7 +87,10 @@ export default class extends Controller {
             const response = await fetch(this.subscribeUrlValue, {
                 method: "POST",
                 credentials: "same-origin",
-                headers: { "Content-Type": "application/json" },
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRF-Token": this.csrfTokenValue,
+                },
                 body: JSON.stringify({
                     endpoint: json.endpoint,
                     keys: json.keys,
@@ -122,7 +126,10 @@ export default class extends Controller {
             await fetch(this.unsubscribeUrlValue, {
                 method: "POST",
                 credentials: "same-origin",
-                headers: { "Content-Type": "application/json" },
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRF-Token": this.csrfTokenValue,
+                },
                 body: JSON.stringify({ deviceClientId: this.deviceClientId }),
             });
 

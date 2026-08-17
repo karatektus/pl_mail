@@ -7,6 +7,10 @@
      data-settings--web-push-subscribe-url-value="{{ path('app_web_push_subscribe') }}"
      data-settings--web-push-unsubscribe-url-value="{{ path('app_web_push_unsubscribe') }}"
      data-settings--web-push-status-url-value="{{ url('app_web_push_status', {deviceClientId: '_'})|slice(0, -2) }}"
+     {# Its own token id rather than the layout's shared `ajax` one: enabling
+        push is a durable per-device change, and WebPushController mints this
+        pair under `web-push`. #}
+     data-settings--web-push-csrf-token-value="{{ csrf_token('web-push') }}"
      data-settings--web-push-labels-value="{{ {
          on:            'settings.notifications.state_on'|trans,
          off:           'settings.notifications.state_off'|trans,

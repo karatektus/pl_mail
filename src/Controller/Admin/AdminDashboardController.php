@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controller\Admin;
 
+use App\Controller\ChecksCsrf;
 use App\Entity\User\User;
 use App\Repository\Monitoring\LogEntryRepository;
 use App\Repository\Monitoring\PostgresStatusRepository;
@@ -23,6 +24,8 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 #[IsGranted('ROLE_ADMIN')]
 final class AdminDashboardController extends AbstractController
 {
+    use ChecksCsrf;
+
     private const array SECTIONS = ['system', 'database', 'logs', 'integrations', 'push', 'users', 'backup', 'reset'];
     private const int LOGS_PER_PAGE = 100;
 
@@ -167,11 +170,7 @@ final class AdminDashboardController extends AbstractController
     #[Route('/logs/clear', name: 'logs_clear', methods: ['POST'])]
     public function clearLogs(Request $request): Response
     {
-        $token = (string) $request->request->get('_token', '');
-
-        if (false === $this->isCsrfTokenValid('admin_logs_clear', $token)) {
-            throw $this->createAccessDeniedException('Invalid CSRF token.');
-        }
+        $this->assertCsrf($request, 'admin_logs_clear');
 
         $minLevel = (int) $request->request->get('level', 300);
 
@@ -204,11 +203,7 @@ final class AdminDashboardController extends AbstractController
     #[Route('/db/reset-stats', name: 'db_reset', methods: ['POST'])]
     public function resetDbStats(Request $request): Response
     {
-        $token = (string) $request->request->get('_token', '');
-
-        if (false === $this->isCsrfTokenValid('admin_db_reset', $token)) {
-            throw $this->createAccessDeniedException('Invalid CSRF token.');
-        }
+        $this->assertCsrf($request, 'admin_db_reset');
 
         $this->dbPerformance->resetStatStatements();
 
@@ -226,11 +221,7 @@ final class AdminDashboardController extends AbstractController
     #[Route('/db/stat-statements/enable', name: 'db_stat_statements_enable', methods: ['POST'])]
     public function enableStatStatements(Request $request): Response
     {
-        $token = (string) $request->request->get('_token', '');
-
-        if (false === $this->isCsrfTokenValid('admin_db_stat_statements_enable', $token)) {
-            throw $this->createAccessDeniedException('Invalid CSRF token.');
-        }
+        $this->assertCsrf($request, 'admin_db_stat_statements_enable');
 
         if (false === $this->statistics->enableStatStatements()) {
             $this->addFlash('error', 'admin.db.extension_enable_failed');
@@ -242,7 +233,7 @@ final class AdminDashboardController extends AbstractController
     #[Route('/failed/{id}/retry', name: 'failed_retry', methods: ['POST'])]
     public function retryFailed(Request $request, string $id): Response
     {
-        $this->validateCsrf($request, $id);
+        $this->assertCsrf($request, 'admin_failed_' . $id);
 
         $this->queueMonitor->retry($id);
 
@@ -252,7 +243,7 @@ final class AdminDashboardController extends AbstractController
     #[Route('/failed/{id}/delete', name: 'failed_delete', methods: ['POST'])]
     public function deleteFailed(Request $request, string $id): Response
     {
-        $this->validateCsrf($request, $id);
+        $this->assertCsrf($request, 'admin_failed_' . $id);
 
         $this->queueMonitor->remove($id);
 
@@ -276,12 +267,4 @@ final class AdminDashboardController extends AbstractController
         return $user->collapsedAdminPanels;
     }
 
-    private function validateCsrf(Request $request, string $id): void
-    {
-        $token = (string) $request->request->get('_token', '');
-
-        if (false === $this->isCsrfTokenValid('admin_failed_' . $id, $token)) {
-            throw $this->createAccessDeniedException('Invalid CSRF token.');
-        }
-    }
 }

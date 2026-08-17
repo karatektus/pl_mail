@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controller\Settings;
 
+use App\Controller\ChecksCsrf;
 use App\Domain\Enum\PushTransport;
 use App\Entity\User\PushSubscription;
 use App\Entity\User\User;
@@ -34,6 +35,8 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 #[IsGranted('ROLE_USER')]
 final class WebPushController extends AbstractController
 {
+    use ChecksCsrf;
+
     public function __construct(
         private readonly PushSubscriptionRepository $subscriptions,
         private readonly WebPushSender $sender,
@@ -44,6 +47,8 @@ final class WebPushController extends AbstractController
     #[Route('/subscribe', name: 'subscribe', methods: ['POST'])]
     public function subscribe(Request $request): JsonResponse
     {
+        $this->assertCsrf($request, 'web-push');
+
         /** @var User $user */
         $user = $this->getUser();
 
@@ -109,6 +114,19 @@ final class WebPushController extends AbstractController
 
     /**
      * Called by the service worker, not by a page.
+     *
+     * The one POST here with no CSRF token, and deliberately: a service worker
+     * runs outside any document, so it cannot read the layout's `csrf-token`
+     * meta tag and has no page-scoped token to send. Requiring one would only
+     * break verification.
+     *
+     * It is not unauthenticated for that. The caller must already know
+     * `verificationCode` — a per-subscription secret this server generated and
+     * delivered by pushing it to the device, so possessing it IS the proof that
+     * the endpoint reaches this user's browser — and the subscription is looked
+     * up with findOneOwnedBy(), so another user's id resolves to nothing. A
+     * cross-site page has neither the code nor the id, and forging the call
+     * would at most re-verify a subscription its owner had just made.
      */
     #[Route('/verify', name: 'verify', methods: ['POST'])]
     public function verify(Request $request): JsonResponse
@@ -140,6 +158,8 @@ final class WebPushController extends AbstractController
     #[Route('/unsubscribe', name: 'unsubscribe', methods: ['POST'])]
     public function unsubscribe(Request $request): JsonResponse
     {
+        $this->assertCsrf($request, 'web-push');
+
         $payload = $this->decode($request);
         $deviceClientId = $payload['deviceClientId'] ?? null;
 

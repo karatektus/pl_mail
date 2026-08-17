@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controller\Admin;
 
+use App\Controller\ChecksCsrf;
 use App\Service\Monitoring\ProcessHeartbeatService;
 use App\Service\Monitoring\QueueMonitor;
 use App\Service\Monitoring\WebProcessRestart;
@@ -39,6 +40,8 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 #[IsGranted('ROLE_ADMIN')]
 final class SystemActionController extends AbstractController
 {
+    use ChecksCsrf;
+
     /**
      * Slug => console command line. A whitelist, not a passthrough: the value
      * reaches a command runner, so request input must never build it.
@@ -71,7 +74,7 @@ final class SystemActionController extends AbstractController
     #[Route('/restart-workers', name: 'restart_workers', methods: ['POST'])]
     public function restartWorkers(Request $request): Response
     {
-        $this->validateCsrf($request, 'admin_restart_workers');
+        $this->assertCsrf($request, 'admin_restart_workers');
 
         $this->restartSignal->request();
 
@@ -94,7 +97,7 @@ final class SystemActionController extends AbstractController
     #[Route('/restart-app', name: 'restart_app', methods: ['POST'])]
     public function restartApp(Request $request): Response
     {
-        $this->validateCsrf($request, 'admin_restart_app');
+        $this->assertCsrf($request, 'admin_restart_app');
 
         return $this->render('admin/restarting.html.twig', [
             // False means nothing was scheduled and nothing will happen, and
@@ -107,7 +110,7 @@ final class SystemActionController extends AbstractController
     #[Route('/run/{task}', name: 'run', methods: ['POST'])]
     public function run(Request $request, string $task): Response
     {
-        $this->validateCsrf($request, 'admin_run_' . $task);
+        $this->assertCsrf($request, 'admin_run_' . $task);
 
         $command = self::RUNNABLE[$task] ?? null;
 
@@ -125,7 +128,7 @@ final class SystemActionController extends AbstractController
     #[Route('/failed/retry-all', name: 'failed_retry_all', methods: ['POST'])]
     public function retryAllFailed(Request $request): Response
     {
-        $this->validateCsrf($request, 'admin_failed_retry_all');
+        $this->assertCsrf($request, 'admin_failed_retry_all');
 
         $this->queueMonitor->retryAll();
 
@@ -135,7 +138,7 @@ final class SystemActionController extends AbstractController
     #[Route('/failed/purge', name: 'failed_purge', methods: ['POST'])]
     public function purgeFailed(Request $request): Response
     {
-        $this->validateCsrf($request, 'admin_failed_purge');
+        $this->assertCsrf($request, 'admin_failed_purge');
 
         $this->queueMonitor->purgeAll();
 
@@ -150,7 +153,7 @@ final class SystemActionController extends AbstractController
     #[Route('/heartbeats/prune', name: 'heartbeats_prune', methods: ['POST'])]
     public function pruneHeartbeats(Request $request): Response
     {
-        $this->validateCsrf($request, 'admin_heartbeats_prune');
+        $this->assertCsrf($request, 'admin_heartbeats_prune');
 
         $this->heartbeats->pruneStale();
 
@@ -159,12 +162,4 @@ final class SystemActionController extends AbstractController
 
     // ── Private ───────────────────────────────────────────────────────────────
 
-    private function validateCsrf(Request $request, string $tokenId): void
-    {
-        $token = (string) $request->request->get('_token', '');
-
-        if (false === $this->isCsrfTokenValid($tokenId, $token)) {
-            throw $this->createAccessDeniedException('Invalid CSRF token.');
-        }
-    }
 }

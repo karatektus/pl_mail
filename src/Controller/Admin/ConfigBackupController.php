@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controller\Admin;
 
+use App\Controller\ChecksCsrf;
 use App\Domain\DTO\Backup\ConfigBackupPlan;
 use App\Domain\Enum\Backup\ConfigBackupFailure;
 use App\Domain\Exception\ConfigBackupException;
@@ -47,6 +48,8 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 #[IsGranted('ROLE_ADMIN')]
 final class ConfigBackupController extends AbstractController
 {
+    use ChecksCsrf;
+
     /**
      * Largest upload accepted, before anything is decoded.
      *
@@ -109,7 +112,7 @@ final class ConfigBackupController extends AbstractController
     #[Route('/export', name: 'export', methods: ['POST'])]
     public function export(Request $request): Response
     {
-        $this->validateCsrf($request, 'config_backup_export');
+        $this->assertCsrf($request, 'config_backup_export');
 
         $password = (string) $request->request->get('password', '');
         $repeated = (string) $request->request->get('password_repeat', '');
@@ -145,7 +148,7 @@ final class ConfigBackupController extends AbstractController
     #[Route('/import', name: 'import', methods: ['POST'])]
     public function import(Request $request): Response
     {
-        $this->validateCsrf($request, 'config_backup_import');
+        $this->assertCsrf($request, 'config_backup_import');
 
         return $this->review($request, apply: false);
     }
@@ -154,7 +157,7 @@ final class ConfigBackupController extends AbstractController
     #[Route('/apply', name: 'apply', methods: ['POST'])]
     public function apply(Request $request): Response
     {
-        $this->validateCsrf($request, 'config_backup_apply');
+        $this->assertCsrf($request, 'config_backup_apply');
 
         return $this->review($request, apply: true);
     }
@@ -274,10 +277,4 @@ final class ConfigBackupController extends AbstractController
         return $this->redirectToRoute('app_admin_dashboard', ['section' => 'backup', 'error' => $error]);
     }
 
-    private function validateCsrf(Request $request, string $tokenId): void
-    {
-        if (false === $this->isCsrfTokenValid($tokenId, (string) $request->request->get('_token', ''))) {
-            throw $this->createAccessDeniedException('Invalid CSRF token.');
-        }
-    }
 }

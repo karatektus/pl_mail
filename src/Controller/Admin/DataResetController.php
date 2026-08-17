@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controller\Admin;
 
+use App\Controller\ChecksCsrf;
 use App\Service\Maintenance\DataResetter;
 use App\Service\Maintenance\ResetReport;
 use App\Service\Maintenance\ResetStage;
@@ -42,6 +43,8 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 #[IsGranted('ROLE_ADMIN')]
 final class DataResetController extends AbstractController
 {
+    use ChecksCsrf;
+
     /** Sent back on the redirect when the typed confirmation did not match. */
     public const string ERROR_CONFIRMATION_MISMATCH = 'confirmation-mismatch';
 
@@ -81,7 +84,7 @@ final class DataResetController extends AbstractController
 
         // Per stage, not one shared id: a token minted for "clear synced mail"
         // must not be replayable against "delete everything".
-        $this->validateCsrf($request, $resetStage->csrfTokenId());
+        $this->assertCsrf($request, $resetStage->csrfTokenId());
 
         if (true === $resetStage->needsTypedConfirmation() && false === $this->confirmationMatches($request)) {
             return $this->redirectToPanel(self::ERROR_CONFIRMATION_MISMATCH);
@@ -182,12 +185,4 @@ final class DataResetController extends AbstractController
         ]));
     }
 
-    private function validateCsrf(Request $request, string $tokenId): void
-    {
-        $token = (string) $request->request->get('_token', '');
-
-        if (false === $this->isCsrfTokenValid($tokenId, $token)) {
-            throw $this->createAccessDeniedException('Invalid CSRF token.');
-        }
-    }
 }

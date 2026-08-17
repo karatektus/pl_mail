@@ -277,6 +277,7 @@ Variables:
                     action="{{ path('app_mail_images_trust', {'id': message.id}) }}"
                     data-turbo="true"
                 >
+                    <input type="hidden" name="_token" value="{{ csrf_token('images-trust' ~ message.id) }}">
                     <button
                         type="submit"
                         data-testid="always-show-images"
@@ -294,6 +295,7 @@ Variables:
                 {{ 'message.images.trusted'|trans({'%sender%': message.fromAddress}) }}
             </span>
             <form method="post" action="{{ path('app_mail_images_distrust', {'id': message.id}) }}" data-turbo="true">
+                <input type="hidden" name="_token" value="{{ csrf_token('images-distrust' ~ message.id) }}">
                 <button type="submit" class="font-medium text-link hover:underline">
                     {{ 'message.images.stop_trusting'|trans }}
                 </button>

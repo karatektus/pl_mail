@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controller\Setup;
 
+use App\Controller\ChecksCsrf;
 use App\Domain\DTO\Backup\ConfigBackupPlan;
 use App\Domain\Enum\AppLocale;
 use App\Domain\Enum\Backup\ConfigBackupFailure;
@@ -68,6 +69,8 @@ use Symfony\Component\Translation\LocaleSwitcher;
  */
 final class ConfigRestoreController extends AbstractController
 {
+    use ChecksCsrf;
+
     /** The same ceiling the admin page applies; see ConfigBackupController. */
     private const int MAX_UPLOAD_BYTES = 1048576;
 
@@ -88,7 +91,7 @@ final class ConfigRestoreController extends AbstractController
             return $this->renderPage();
         }
 
-        $this->validateCsrf($request, 'install_restore');
+        $this->assertCsrf($request, 'install_restore');
 
         return $this->openAndShow($request, $this->envelopeFromUpload($request), apply: false);
     }
@@ -102,7 +105,7 @@ final class ConfigRestoreController extends AbstractController
     {
         $this->guard->assertAvailable();
         $this->honourTheLanguageSelector($request);
-        $this->validateCsrf($request, 'install_restore_apply');
+        $this->assertCsrf($request, 'install_restore_apply');
 
         return $this->openAndShow($request, $this->envelopeFromField($request), apply: true);
     }
@@ -213,10 +216,4 @@ final class ConfigRestoreController extends AbstractController
         ]);
     }
 
-    private function validateCsrf(Request $request, string $tokenId): void
-    {
-        if (false === $this->isCsrfTokenValid($tokenId, (string) $request->request->get('_token', ''))) {
-            throw $this->createAccessDeniedException('Invalid CSRF token.');
-        }
-    }
 }
