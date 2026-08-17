@@ -1,0 +1,69 @@
+{#
+settings/_insights.html.twig
+─────────────────────────────────────────────────────────────────────────────
+One row per insight extractor, straight off the registry.
+
+The list is SettingsController::insightsSectionData() mapping
+InsightExtractorRegistry::all(), which is the whole point: an extractor added
+next release appears here without this template changing. Name and hint are
+resolved from the key — `settings.insights.extractor.<key>` and `…<key>_hint`,
+the contract InsightExtractorInterface::icon() documents — so shipping an
+extractor means shipping its two catalogue lines, nothing here. An extractor
+whose lines are missing falls back to its capitalised key rather than showing
+the raw catalogue path: the test container registers one such, and a raw key
+on a settings page reads as a broken build.
+
+An On/Off SEGMENT rather than a checkbox — the appearance page's idiom, where
+every boolean wears the same two-segment control with words on it. Each change
+POSTs on its own (settings--insights) and the page never reloads; on a failed
+POST the controller puts the previous segment back, because a control showing
+a state the server refused is a settings page lying about the setting.
+
+Variables:
+  insightExtractors  list of { key, icon, enabled } — enabled is THIS user's
+                     answer, from InsightExtractorRegistry::isEnabledFor()
+#}
+{% set segGroup = 'grid grid-flow-col auto-cols-fr w-28 shrink-0 rounded-pane border border-line overflow-hidden' %}
+{% set segText  = 'flex h-full items-center justify-center px-2 py-1.5 text-center text-[11px] leading-tight text-ink-muted
+                   peer-checked:bg-accent peer-checked:text-accent-ink
+                   peer-focus-visible:ring-2 peer-focus-visible:ring-inset peer-focus-visible:ring-accent
+                   transition-colors' %}
+
+<div class="px-4 py-3 space-y-3"
+     data-controller="settings--insights"
+     data-settings--insights-url-value="{{ path('app_settings_insights_toggle') }}"
+     data-settings--insights-token-value="{{ csrf_token('insights_toggle') }}">
+
+    {% for extractor in insightExtractors %}
+        {% set nameKey = 'settings.insights.extractor.' ~ extractor.key %}
+        {% set name = nameKey|trans %}
+        <div class="flex items-start justify-between gap-3"
+             data-insight-extractor="{{ extractor.key }}">
+            <span class="flex items-start gap-3 min-w-0">
+                <i class="{{ extractor.icon }} w-4 text-zinc-400 mt-0.5 shrink-0" aria-hidden="true"></i>
+                <span class="min-w-0">
+                    <span class="block text-xs font-medium text-ink-muted">{{ name == nameKey ? extractor.key|capitalize : name }}</span>
+                    {% set hint = (nameKey ~ '_hint')|trans %}
+                    {% if hint != nameKey ~ '_hint' %}
+                        <span class="block text-[11px] text-ink-faint mt-0.5">{{ hint }}</span>
+                    {% endif %}
+                </span>
+            </span>
+            <div class="{{ segGroup }}" role="radiogroup" aria-label="{{ name == nameKey ? extractor.key|capitalize : name }}">
+                {% for on in [true, false] %}
+                    <label class="cursor-pointer">
+                        <input type="radio" name="insight-{{ extractor.key }}" class="peer sr-only"
+                               value="{{ on ? '1' : '0' }}"
+                               data-key="{{ extractor.key }}"
+                               data-action="change->settings--insights#toggle"
+                               aria-label="{{ (on ? 'settings.insights.seg.on' : 'settings.insights.seg.off')|trans }}"
+                            {{ extractor.enabled == on ? 'checked' : '' }}>
+                        <span class="{{ segText }}">
+                            {{ (on ? 'settings.insights.seg.on' : 'settings.insights.seg.off')|trans }}
+                        </span>
+                    </label>
+                {% endfor %}
+            </div>
+        </div>
+    {% endfor %}
+</div>

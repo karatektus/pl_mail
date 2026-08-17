@@ -1,4 +1,4 @@
-<!-- translated-from: features/mail.md sha1:e534edbc88e7ce4cc773c6744455b929c099b965 -->
+<!-- translated-from: features/mail.md sha1:b5a417978d22a0c6c534cef9834e6c083696758e -->
 
 # Mail
 
@@ -87,6 +87,31 @@ anschaut, ist eine Schuld und keine Markierung — also läuft sie von selbst ab
 
 Auch Suchergebnisse räumen das Fähnchen ab: Eine Zeile, deren Absender und Betreff du gerade in
 einer Trefferliste gelesen hast, ist dir gezeigt worden, in welcher Liste auch immer.
+
+## Das Radar
+
+plMail liest bestimmte Fakten aus Mails heraus, während sie ankommen: Sendungsnummern aus
+Versandbestätigungen, Flüge aus Airline-Buchungen und Check-in-Mails, Veranstaltungstickets sowie
+Issue- und Pull-Request-Aktivität aus GitHub-Benachrichtigungen. Jeder Fund wird eine kleine Karte.
+Was ein Datum trägt, reiht sich im Kalender-Panel **Demnächst** ein, unter **Auf deinem Radar**;
+eine Konversation, in der etwas gefunden wurde, zeigt ihre Karten außerdem in einer Leiste
+**In dieser Konversation gefunden** über den Nachrichten.
+
+Das Auslesen ist deterministisch und lokal. Es läuft auf deinem eigenen Server, gegen
+Absender-Domains, Header und feste Muster — Sendungsnummern, Flugcodes, `#123` —, ohne
+Cloud-Dienst und ohne Modell: Nichts rät, und eine Mail, die auf kein bekanntes Muster passt,
+ergibt schlicht nichts. Das ist ein bewusster Tausch — das Radar übersieht lieber ein Paket, als
+eines zu erfinden.
+
+Jede Quelle hat ihren eigenen Schalter unter **Einstellungen → Radar**. Schaltest du eine aus,
+entstehen aus ihr keine neuen Karten mehr; was sie schon gefunden hat, bleibt, bis du es
+ausblendest. Die Menge der Quellen ist absichtlich erweiterbar — ein Extraktor, der zu einem Build
+hinzukommt, trägt sich selbst auf dieser Einstellungsseite ein und läuft los, ohne dass sich sonst
+etwas ändert.
+
+Neue Extraktoren lesen alte Mails nicht von allein noch einmal. `app:backfill insights` geht die
+Mails, die schon in der Datenbank liegen, einmal durch und reicht sie jedem eingeschalteten
+Extraktor — derselbe Durchlauf, den auch die anderen Backfill-Aufgaben machen.
 
 ## Konversationen
 
