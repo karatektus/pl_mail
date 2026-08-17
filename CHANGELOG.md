@@ -6,6 +6,47 @@ so anything that changes the schema irreversibly is called out explicitly.
 The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, and `sha-…` pins one commit.
 
+## v0.0.38 — 2026-08-17
+
+**One migration, additive with a default; nothing to do on upgrade. The inbox
+tabs learn everything Gmail's know, and the logo stops pretending to be
+Google's — it is redrawn, recoloured, and handed to the user as a setting.**
+
+**The category tabs carry the whole Gmail hint now.** Each tab wears its
+category's icon — outline at rest, filled on the tab you are on — and, while a
+category holds conversations you have never been shown, a "3 new" pill in that
+category's colour with a second line naming who the new mail is from, newest
+arrival first. That pill is deliberately the only number on a tab: the unread
+counter that used to sit beside it said something the sidebar badge and the
+bold rows already say, and two numbers in one glance was two demands with
+nothing to tell them apart. The whole strip is live — pill, sender names and
+tab set update in place on the same sync the sidebar badges ride, without a
+reload, and a hint retires the moment you look at its tab.
+
+**The pl mark is redrawn and de-Googled.** The topbar monogram was painted in
+Google's literal brand hexes; that colourway is gone and cannot be picked
+back. The mark itself was tuned on the way — the two letters now share a top
+line and a bottom line, the p's bowl is square-ish rather than tall, the l
+runs lower before its tail turns so neither letter reads deeper than the
+other, and the ink is centred in its frame so icon tiles no longer lean.
+
+**And its colourway is yours to choose.** Thirty-two of them under
+**Settings → Appearance → Logo** — single colours, two-tone pairs, ink with
+one coloured flick, and gradient sweeps — applied to the topbar as you click
+and saved like every other appearance knob. Dark themes get each colourway's
+dark-chrome strokes, so an ink-dark mark never vanishes into a dark topbar.
+New accounts start on **Berry**, the product's own sweep.
+
+**The favicon follows the person.** The blue envelope is retired; the tab icon
+is the mark, served by a route in the viewer's own colourway and revalidated
+so a change in settings reaches the tab strip on the next page, not whenever a
+cache expired. Anonymous pages get the product default, the static icon set
+and PWA tiles are repainted in Berry as the sessionless fallback, and the
+manifest and theme-colour follow.
+
+**The migration:** one new column, `user.appearance_logo_style`, defaulted to
+`berry` — every existing account simply wakes up wearing the new mark.
+
 ## v0.0.37 — 2026-08-17
 
 **No migration and nothing to do on upgrade. A review of the whole codebase,
