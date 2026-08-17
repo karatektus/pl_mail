@@ -47,6 +47,9 @@
             </p>
         </div>
 
+        {# What plMail read out of this conversation, before the conversation. #}
+        {% include 'mail/_insight_strip.html.twig' with { insights: insights|default([]) } only %}
+
         {# Attachments above the body (H-13) — see _thread_message for why. #}
         {% if message.hasAttachments %}
             <div class="flex flex-wrap items-center gap-2 mb-4">
