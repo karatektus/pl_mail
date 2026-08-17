@@ -203,13 +203,15 @@ list and clamps:
 `Appearance::toArray()` is the export format (versioned, `version: 1`), and `applyArray()` the
 import. The web UI lets users export/import this as a file.
 
-> **None of this is reachable over JMAP today.** `Appearance` hangs off the `User` entity and is
-> served only to the web UI; there is no JMAP method that returns it. So a client cannot literally
-> honour the user's server-side theme yet — see [§4](#feature-parity-checklist). What it *can* do,
-> and should, is model the same two-axis Theme×Layout shape with the same semantic tokens and drive
-> it from local settings, so that when a `UserPreferences`-style vendor method lands it changes
-> where the values come from and nothing else. The rule being enforced is "don't hardcode a
-> palette", and that rule bites with or without the network fetch. If you need this, ask — the
+> **This IS reachable over JMAP.** `Appearance/get` and `Appearance/set` serve the singleton object
+> (id `"singleton"`, no `accountId` — it hangs off the `User`), and the Session's appearance
+> capability publishes the vocabularies and ranges: `themes`, `layouts`, `densities`,
+> `backgroundKinds`, `backgroundPresets`, `unreadEmphases`, `fontFamilies`, `ranges.previewLines`,
+> `ranges.fontScale`. Model the same two-axis Theme×Layout shape with the same semantic tokens and
+> read the server's values into it. Two things to know before writing: booleans are validated
+> strictly, so `"1"` and `"0"` are refused rather than coerced; and the three per-surface densities
+> take an explicit JSON `null` to mean "follow the global density", which is a different instruction
+> from leaving the key out. The rule being enforced is "don't hardcode a palette". The
 > export format already exists, so it is a small addition.
 
 > **Radius applies to panes, not controls.** Modals, the compose window, dropdowns, menus and toasts
@@ -604,8 +606,8 @@ Everything registered in [`src/Jmap/Method/`](../src/Jmap/Method/):
 | `PushSubscription/get` / `PushSubscription/set` | No `accountId`; per-user. |
 | `Mailbox/get` / `Mailbox/query` / `Mailbox/changes` / `Mailbox/set` | |
 | `Email/get` / `Email/query` / `Email/changes` / `Email/set` | |
-| `Thread/get` / `Thread/changes` | |
-| `Thread/set` | plMail extension. One property, `snoozedUntil` — see §4. |
+| `Thread/get` / `Thread/changes` | `/get` carries three plMail extensions: `snoozedUntil`, `category`, `isNew`. |
+| `Thread/set` | plMail extension. Two properties, `snoozedUntil` and `isNew` — see §4. |
 | `SearchSnippet/get` | |
 | `Calendar/get` | `urn:plmail:params:jmap:calendars`. One account serves calendars. |
 | `CalendarEvent/get` / `CalendarEvent/query` / `CalendarEvent/set` | An id is the series, not an occurrence; `/query` requires a date window, and `expandRecurrences: true` makes it answer per occurrence. |
@@ -707,6 +709,37 @@ keywords for your own state; they will not round-trip.
 Address shape is translated at the boundary: plMail stores `{name, address}`, JMAP emits
 `{name, email}`. `messageId` / `inReplyTo` / `references` are emitted as bare ids with angle brackets
 stripped.
+
+### The New marker: `Thread.isNew`
+
+plMail marks a conversation **new** until its row has actually been put in front of the user, and
+then for no longer than 24 hours whatever happens. That is what the web's "New" badges, its category
+tabs and its sidebar dots are drawn from, and it is deliberately **not** the same axis as unread:
+
+> new = never displayed to this user **AND** arrived inside `MessageThread::NEW_WINDOW` (`PT24H`)
+
+A conversation you read on your laptop is still new to a client that has never drawn its row, and
+retiring the marker does not mark anything read. The two are allowed to disagree — that is the
+feature, not a bug in it. See [`MessageThread::isNewAt()`](../src/Entity/Mail/MessageThread.php).
+
+**Reading it.** `Thread/get` returns `isNew` (boolean) on every thread, always present. The window
+is applied server-side against one clock reading per response, so two threads in one answer cannot
+straddle the boundary. Do not re-implement the 24 hours client-side: it would be a second copy of
+`NEW_WINDOW` that drifts the day somebody changes it.
+
+**Retiring it.** `Thread/set` accepts `isNew: false`, and nothing else — `true` is refused with
+`invalidProperties`. Send it for the rows you have actually shown the user, after you have shown
+them. It is idempotent: a repeat does not move the recorded timestamp, so the record keeps saying
+when the row was *first* displayed, and you may safely send it for every row on every draw.
+
+**Why this matters more than it looks.** Before this existed, a mailbox triaged entirely on a phone
+opened in the browser with every conversation from the last day still badged and every category tab
+still dotted, because only the web could retire a marker. If your client draws mail lists, report
+the displays — otherwise you are leaving the user's other clients wrong.
+
+Retirement is deliberately **not** reported as a `Thread` state change. A client drawing a page of
+mail would otherwise push dozens of state changes to every other device the user owns, for a column
+none of them needs told about urgently; the next ordinary `Thread/get` carries the new value.
 
 ### Email/query filters
 
@@ -1084,7 +1117,7 @@ Ordered roughly by how much users will miss them.
   still on the server roadmap, so flat-with-paths is acceptable.
 - Archive = remove Inbox label. Trash = `destroy`. Both undoable.
 - Snooze — bring a conversation back later. A **thread-level** property (`MessageThread.snoozedUntil`),
-  exposed as `Thread/set`, which is a plMail extension accepting that one property and nothing else.
+  exposed as `Thread/set`, which is a plMail extension accepting it and `isNew` and nothing else.
   It goes through the same `ThreadSnoozeService` the web UI does, so a snooze set from a client and
   one set in the browser mean the same thing — which is the point, and why a locally-tracked snooze
   is still the wrong idea: it would disagree with the web UI and break on reinstall. This section
@@ -1093,8 +1126,10 @@ Ordered roughly by how much users will miss them.
 - Mark read/unread, star.
 
 **Settings**
-- Appearance (theme, layout, density, accent) — build the token system and drive it from local
-  settings for now; the server does not expose `Appearance` over JMAP yet (see [§2](#2-look-and-feel)).
+- Appearance — `Appearance/get` and `Appearance/set` serve the whole object, including `fontFamily`,
+  `fontScale`, `previewLines`, `unreadEmphasis`, `accountCorner`, `listAvatars` and the three
+  per-surface densities (see [§2](#2-look-and-feel)). Build the token system regardless; read the
+  server's values into it rather than inventing your own defaults.
 - Account list and order.
 - Notification preferences.
 - App password management is web-only today; link out to the web UI rather than reimplementing.

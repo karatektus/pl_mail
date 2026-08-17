@@ -1,4 +1,4 @@
-<!-- translated-from: CLIENT_DEVELOPMENT.md sha1:9c48646c1642ff33633366f8005a8818a87919c9 -->
+<!-- translated-from: CLIENT_DEVELOPMENT.md sha1:b45ad1ad243d02e4682680854e4efd4c757ed4a6 -->
 # Einen Client für plMail bauen
 
 Alles, was eine Entwicklerin (oder ein Agent) braucht, um einen *neuen* plMail-Client zu schreiben
@@ -226,15 +226,16 @@ Ein Layout auszuwählen *setzt* die Regler unten vor; danach kann die Nutzerin j
 `Appearance::toArray()` ist das Exportformat (versioniert, `version: 1`), `applyArray()` der
 Import. Die Web-Oberfläche lässt Nutzerinnen das als Datei exportieren und importieren.
 
-> **Nichts davon ist heute über JMAP erreichbar.** `Appearance` hängt an der `User`-Entität und
-> wird nur an die Web-Oberfläche ausgeliefert; es gibt keine JMAP-Methode, die es zurückgibt. Ein
-> Client kann das serverseitige Theme der Nutzerin also noch nicht wörtlich einhalten — siehe
-> [§4](#checkliste-zur-funktionsgleichheit). Was er *kann* und tun sollte: dieselbe Form mit zwei
-> Achsen aus Theme × Layout mit denselben semantischen Tokens modellieren und aus lokalen
-> Einstellungen speisen, damit sich, wenn eine Herstellermethode im Stil von `UserPreferences`
-> landet, nur ändert, woher die Werte kommen, und sonst nichts. Durchgesetzt wird die Regel
-> „verdrahte keine Palette fest", und die gilt mit oder ohne Netzabruf. Wenn du das brauchst,
-> frag — das Exportformat gibt es bereits, es ist also eine kleine Ergänzung.
+> **Das ist über JMAP erreichbar.** `Appearance/get` und `Appearance/set` liefern das
+> Singleton-Objekt (Id `"singleton"`, kein `accountId` — es hängt an der `User`-Entität), und die
+> Appearance-Capability der Session veröffentlicht die Vokabulare und Wertebereiche: `themes`,
+> `layouts`, `densities`, `backgroundKinds`, `backgroundPresets`, `unreadEmphases`, `fontFamilies`,
+> `ranges.previewLines`, `ranges.fontScale`. Modelliere dieselbe Form mit zwei Achsen aus
+> Theme × Layout mit denselben semantischen Tokens und lies die Werte des Servers hinein. Zwei
+> Dinge solltest du vor dem ersten Schreiben wissen: Booleans werden streng geprüft, `"1"` und
+> `"0"` werden also abgelehnt statt umgewandelt; und die drei Dichten pro Oberfläche brauchen ein
+> ausdrückliches JSON-`null` für „folge der globalen Dichte" — das ist eine andere Anweisung als
+> ein weggelassener Schlüssel. Durchgesetzt wird die Regel „verdrahte keine Palette fest".
 
 > **Der Radius gilt für Flächen, nicht für Bedienelemente.** Modale, das Verfassen-Fenster,
 > Dropdowns, Menüs und Toasts nehmen `--app-radius`. Buttons, Eingabefelder, Chips und
@@ -664,8 +665,8 @@ Alles, was in [`src/Jmap/Method/`](../src/Jmap/Method/) registriert ist:
 | `PushSubscription/get` / `PushSubscription/set` | Keine `accountId`; je Nutzerin. |
 | `Mailbox/get` / `Mailbox/query` / `Mailbox/changes` / `Mailbox/set` | |
 | `Email/get` / `Email/query` / `Email/changes` / `Email/set` | |
-| `Thread/get` / `Thread/changes` | |
-| `Thread/set` | plMail-Erweiterung. Eine Eigenschaft, `snoozedUntil` — siehe §4. |
+| `Thread/get` / `Thread/changes` | `/get` trägt drei plMail-Erweiterungen: `snoozedUntil`, `category`, `isNew`. |
+| `Thread/set` | plMail-Erweiterung. Zwei Eigenschaften, `snoozedUntil` und `isNew` — siehe §4. |
 | `SearchSnippet/get` | |
 | `Calendar/get` | `urn:plmail:params:jmap:calendars`. Kalender liefert genau ein Konto. |
 | `CalendarEvent/get` / `CalendarEvent/query` / `CalendarEvent/set` | Eine ID ist die Serie, nicht eine Termininstanz; `/query` verlangt einen Zeitraum, und `expandRecurrences: true` lässt sie je Termininstanz antworten. |
@@ -776,6 +777,43 @@ Erfinde keine eigenen Keywords für deinen eigenen Zustand; sie werden nicht zur
 Die Form von Adressen wird an der Grenze übersetzt: plMail speichert `{name, address}`, JMAP gibt
 `{name, email}` aus. `messageId` / `inReplyTo` / `references` werden als nackte IDs ohne spitze
 Klammern ausgegeben.
+
+### Der Neu-Marker: `Thread.isNew`
+
+plMail markiert eine Konversation als **neu**, bis ihre Zeile der Nutzerin tatsächlich vorgelegt
+wurde — und danach höchstens noch 24 Stunden, was auch geschieht. Daraus zeichnet das Web seine
+„Neu"-Abzeichen, seine Kategorie-Tabs und seine Punkte in der Seitenleiste, und es ist bewusst
+**nicht** dieselbe Achse wie ungelesen:
+
+> neu = der Nutzerin nie angezeigt **UND** innerhalb von `MessageThread::NEW_WINDOW` (`PT24H`)
+> eingetroffen
+
+Eine Konversation, die du am Laptop gelesen hast, ist für einen Client, der ihre Zeile nie
+gezeichnet hat, weiterhin neu; und den Marker zurückzuziehen markiert nichts als gelesen. Die
+beiden dürfen sich widersprechen — das ist das Feature, nicht ein Fehler darin. Siehe
+[`MessageThread::isNewAt()`](../src/Entity/Mail/MessageThread.php).
+
+**Lesen.** `Thread/get` liefert `isNew` (Boolean) auf jedem Thread, immer vorhanden. Das Zeitfenster
+wird serverseitig gegen *eine* Uhrzeitablesung pro Antwort angewendet, zwei Threads einer Antwort
+können die Grenze also nicht unterschiedlich sehen. Bau die 24 Stunden nicht im Client nach: das
+wäre eine zweite Kopie von `NEW_WINDOW`, die auseinanderläuft, sobald jemand den Wert ändert.
+
+**Zurückziehen.** `Thread/set` nimmt `isNew: false` an und sonst nichts — `true` wird mit
+`invalidProperties` abgelehnt. Sende es für die Zeilen, die du der Nutzerin wirklich gezeigt hast,
+nachdem du sie gezeigt hast. Es ist idempotent: eine Wiederholung verschiebt den gespeicherten
+Zeitstempel nicht, der Eintrag sagt also weiterhin, wann die Zeile *zuerst* angezeigt wurde — du
+darfst es gefahrlos bei jedem Zeichnen für jede Zeile senden.
+
+**Warum das wichtiger ist, als es aussieht.** Vorher öffnete sich ein Postfach, das vollständig am
+Telefon aufgeräumt worden war, im Browser mit jeder Konversation des letzten Tages noch immer als
+„Neu" markiert und allen fünf Kategorie-Tabs noch immer bepunktet, weil nur das Web einen Marker
+zurückziehen konnte. Wenn dein Client Nachrichtenlisten zeichnet, melde die Anzeigen zurück — sonst
+lässt du die anderen Clients der Nutzerin falsch dastehen.
+
+Das Zurückziehen wird bewusst **nicht** als `Thread`-Statusänderung gemeldet. Ein Client, der eine
+Seite Post zeichnet, würde sonst dutzende Statusänderungen an jedes andere Gerät der Nutzerin
+schicken, für eine Spalte, von der keines davon dringend erfahren muss; das nächste gewöhnliche
+`Thread/get` trägt den neuen Wert.
 
 ### Filter für Email/query
 
@@ -1189,7 +1227,7 @@ Grob danach geordnet, wie sehr Nutzerinnen sie vermissen werden.
 - Archivieren = Posteingangs-Label entfernen. Papierkorb = `destroy`. Beides rückgängig zu machen.
 - Zurückstellen — eine Konversation später zurückholen. Eine Eigenschaft **auf
   Konversationsebene** (`MessageThread.snoozedUntil`), offengelegt als `Thread/set`, einer
-  plMail-Erweiterung, die genau diese eine Eigenschaft annimmt und sonst nichts. Sie läuft über
+  plMail-Erweiterung, die sie und `isNew` annimmt und sonst nichts. Sie läuft über
   denselben `ThreadSnoozeService` wie die Web-Oberfläche, ein aus einem Client gesetztes
   Zurückstellen bedeutet also dasselbe wie eines im Browser — genau darum geht es, und genau
   deshalb ist ein lokal geführtes Zurückstellen weiterhin die falsche Idee: Es widerspräche der
@@ -1199,9 +1237,10 @@ Grob danach geordnet, wie sehr Nutzerinnen sie vermissen werden.
 - Gelesen/ungelesen markieren, mit Stern versehen.
 
 **Einstellungen**
-- Erscheinungsbild (Theme, Layout, Dichte, Akzent) — bau das Token-System und speise es vorerst
-  aus lokalen Einstellungen; der Server legt `Appearance` noch nicht über JMAP offen (siehe
-  [§2](#2-aussehen-und-verhalten)).
+- Erscheinungsbild — `Appearance/get` und `Appearance/set` liefern das gesamte Objekt, samt
+  `fontFamily`, `fontScale`, `previewLines`, `unreadEmphasis`, `accountCorner`, `listAvatars` und
+  den drei Dichten pro Oberfläche (siehe [§2](#2-aussehen-und-verhalten)). Bau das Token-System
+  trotzdem; lies die Werte des Servers hinein, statt eigene Vorgaben zu erfinden.
 - Kontoliste und -reihenfolge.
 - Benachrichtigungseinstellungen.
 - Die Verwaltung von App-Passwörtern gibt es heute nur im Web; verlinke dorthin, statt sie
