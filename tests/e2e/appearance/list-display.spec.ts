@@ -47,15 +47,17 @@ const pick = async (page: Page, name: string, value: string) => {
     ).toBeChecked();
 };
 
-/** The checkbox for one of the on/off list settings. */
-const toggle = (page: Page, field: string) =>
-    page.locator(`${PANEL} input[type="checkbox"][data-toggles="${field}"]`);
+/** One side of the on/off segmented control for a list setting. */
+const toggle = (page: Page, field: string, on = true) =>
+    page.locator(`${PANEL} input[type="radio"][data-toggles="${field}"][value="${on ? "1" : "0"}"]`);
 
 const setToggle = async (page: Page, field: string, on: boolean) => {
-    const box = toggle(page, field);
+    const segment = toggle(page, field, on);
 
-    if ((await box.isChecked()) !== on) {
-        await box.click();
+    if (false === (await segment.isChecked())) {
+        // sr-only radio: the visible segment is its sibling label text, so the
+        // input is checked directly, the way the row-select checkbox is.
+        await segment.check({ force: true });
         // The panel debounces its POST; wait for the write, not for a timeout.
         await page.waitForResponse(
             (r) => r.url().includes("/settings/appearance") && r.request().method() === "POST",

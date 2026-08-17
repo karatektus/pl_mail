@@ -32,7 +32,8 @@ final class BrandingFaviconTest extends WebTestCase
         // put the seed user back on the default rather than leaking one
         // test's ink into the next suite's screenshots.
         if (null !== $user = $this->find()) {
-            $user->appearance->logoStyle = LogoStyle::DEFAULT;
+            $user->appearance->logoStyle  = LogoStyle::DEFAULT;
+            $user->appearance->logoLinked = true;
             static::getContainer()->get(EntityManagerInterface::class)->flush();
         }
 
@@ -59,7 +60,10 @@ final class BrandingFaviconTest extends WebTestCase
     {
         [$client, $user] = $this->signedIn();
 
-        $user->appearance->logoStyle = LogoStyle::Postal;
+        // Unlinked, so the colourway set here is the one that answers — while
+        // linked the theme would dress the mark instead (LogoLinkedTest).
+        $user->appearance->logoStyle  = LogoStyle::Postal;
+        $user->appearance->logoLinked = false;
         static::getContainer()->get(EntityManagerInterface::class)->flush();
 
         $client->request('GET', '/branding/favicon.svg');
@@ -82,7 +86,8 @@ final class BrandingFaviconTest extends WebTestCase
     {
         [$client, $user] = $this->signedIn();
 
-        $user->appearance->logoStyle = LogoStyle::MidnightGold;
+        $user->appearance->logoStyle  = LogoStyle::MidnightGold;
+        $user->appearance->logoLinked = false;
         static::getContainer()->get(EntityManagerInterface::class)->flush();
 
         $crawler = $client->request('GET', '/mail/inbox');

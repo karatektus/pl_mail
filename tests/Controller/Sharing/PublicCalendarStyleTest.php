@@ -151,14 +151,21 @@ final class PublicCalendarStyleTest extends WebTestCase
         // arranged the one way PHP arranges it for every language, which is the
         // defect |intl_date exists to remove — and this page is public, so its
         // reader's locale is the least predictable in the app.
+        // In the SHARE OWNER's timezone, because that is the zone the page
+        // renders the window in. Composed in the runner's default zone this
+        // asserted "today" about a page whose today can already be tomorrow —
+        // Europe/Berlin runs ahead of a UTC container, so every evening run
+        // after 22:00 UTC failed on a date that was correct on the page.
+        $zone = new \DateTimeZone('Europe/Berlin');
+
         $expected = (new \IntlDateFormatter(
             'en',
             \IntlDateFormatter::NONE,
             \IntlDateFormatter::NONE,
-            new DateTimeImmutable('today')->getTimezone(),
+            $zone,
             \IntlDateFormatter::GREGORIAN,
             (new \IntlDatePatternGenerator('en'))->getBestPattern('dMMMy'),
-        ))->format(new DateTimeImmutable('today'));
+        ))->format(new DateTimeImmutable('today', $zone));
 
         self::assertStringContainsString((string) $expected, $body);
     }

@@ -62,6 +62,7 @@ Variables: form, message, ctx (an App\Domain\DTO\Mail\ComposeContext)
              tooLarge:         'compose.attach_too_large'|trans({ '%name%': '%s', '%limit%': '%d' }),
              imageFailed:      'compose.image_insert_failed'|trans,
              noSignature:      'compose.signature_none'|trans,
+             cancelSend:       'compose.sending_cancel'|trans,
          }|json_encode|e('html_attr') }}"
          {# The toolbar controller's own vocabulary. Same arrangement and same
             reason as compose--compose's above: the link popover writes words
@@ -80,6 +81,11 @@ Variables: form, message, ctx (an App\Domain\DTO\Mail\ComposeContext)
             a spinner where a signature should be. See signature_map(). #}
          data-compose--compose-signatures-value="{{ signature_map()|json_encode|e('html_attr') }}"
          data-compose--compose-inline-value="{{ inline ? 'true' : 'false' }}"
+         {# 'forward' moves the caret to To, spares the quote-only body the
+            empty-mail question, and is the case the quote-collapse setting
+            below is about. See ComposeController::forwardMessage(). #}
+         data-compose--compose-mode-value="{{ mode|default('new') }}"
+         data-compose--compose-collapse-forward-quote-value="{{ app.user and false == app.user.getSetting(constant('App\\Entity\\User\\User::SETTING_COMPOSE_FORWARD_QUOTE_COLLAPSED'), true) ? 'false' : 'true' }}"
          data-compose--compose-min-chars-value="{{ min_chars|default(5) }}"
          data-compose--compose-max-attachment-bytes-value="{{ constant('App\\Controller\\Mail\\ComposeAttachmentController::MAX_ATTACHMENT_BYTES') }}"
          {% if thread is not null %}data-compose--compose-thread-value="{{ thread }}"{% endif %}

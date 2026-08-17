@@ -78,6 +78,21 @@ Variables: message, params (from the including context); placement.
          }),
      }|json_encode|e('html_attr') }}">
 
+    {# Hidden until a send is in flight. While the request is out the pill
+       says "Sending" with living dots, and this is the way out: a click here
+       marks the send as unwanted, and the moment the server answers with its
+       cancel window (every send gets one — see CANCEL_WINDOW_MS) the undo is
+       fired on the user's behalf. Honest about the race: if the window is
+       already gone the cancel simply fails the way a late click on the
+       countdown bar does. #}
+    <button type="button" hidden
+            data-compose--compose-target="sendCancel"
+            data-action="click->compose--compose#cancelInFlight"
+            class="flex items-center justify-center text-xs text-ink-muted underline
+                   px-2 py-1.5 max-md:min-h-11 hover:text-ink transition-colors">
+        {{ 'compose.sending_cancel'|trans }}
+    </button>
+
     <div class="flex items-center rounded-full overflow-hidden bg-accent">
         <button type="submit"
                 data-compose--compose-target="sendBtn"

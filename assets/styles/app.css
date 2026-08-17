@@ -604,6 +604,1753 @@
     --rgb-sheet-danger:     220  50  47;   /* red  #dc322f */
 }
 
+/* ═══ Logo-colourway themes (generated) ═════════════════════════════════════
+   One theme per LogoStyle, each with a palette of its own rather than Paper
+   plus a tinted accent. Seven are proper dark themes (ink, midnight-gold,
+   charcoal-amber, espresso-cream, aurora, ember, twilight), built on the
+   dark/dusk/nord model: full dark token sets, a light reading sheet in the
+   theme's own hue. The other twenty-five are light papers whose background,
+   surfaces and hairlines all carry the style's mood — the accent is a colour
+   of the style (its tile or one of its strokes), with --rgb-accent-ink chosen
+   by the same WCAG algorithm AppearanceRenderer and appearance_controller
+   use, so the block agrees with the inline value both of them write.
+
+   GENERATED — do not hand-edit these blocks. The script lives in the session
+   scratchpad as generate-theme-blocks.mjs; it derives every ink ramp and
+   verifies the contrast floors (body ink >= 7:1 and soft ink >= 7:1 against
+   page and surface, muted >= 4.5:1, faint >= 3.6:1, accent-ink >= 4.5:1)
+   before it will emit anything. Theme::swatch()'s logo arms and isDark() are
+   emitted by the same script and must move with these blocks.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* ink — a printed page, in negative: warm charcoal, paper-white ink, the paper tone itself as accent */
+:root[data-theme="ink"] {
+    color-scheme: dark;
+
+    --rgb-surface:   33 30 26;
+    --rgb-border:    255 255 255;
+    --rgb-line:      255 255 255;
+    --rgb-raised:    255 255 255;
+    --rgb-sunken:    255 255 255;
+    --rgb-shadow:      0   0   0;
+
+    --rgb-ink:       232 226 217;
+    --rgb-ink-soft:  184 179 171;
+    --rgb-ink-muted: 152 148 141;
+    --rgb-ink-faint: 141 136 129;
+
+    --rgb-accent:    232 226 217;
+    --rgb-accent-ink: 24 24 27;
+
+    --rgb-field:        255 255 255;
+    --rgb-field-border: 255 255 255;
+
+    --rgb-danger:    226 128 128;
+    --rgb-warning:   219 175 95;
+    --rgb-success:   118 192 150;
+    --rgb-info:      130 166 204;
+
+    --rgb-inverse:     236 231 224;
+    --rgb-inverse-ink: 33 30 26;
+
+    --border-alpha:       0.12;
+    --line-alpha:         0.09;
+    --raised-alpha:       0.06;
+    --hover-alpha:        0.05;
+    --shadow-alpha:       0.45;
+    --sunken-alpha:       0.07;
+
+    --unread-tint-alpha:  0.03;
+    --field-alpha:        0.04;
+    --field-border-alpha: 0.10;
+    --danger-soft-alpha:  0.12;
+    --info-soft-alpha:    0.12;
+
+    --app-bg: linear-gradient(#171512, #171512);
+
+    --rgb-sheet:            242 239 231;
+    --rgb-sheet-ink:        35 34 32;
+    --rgb-sheet-ink-soft:   79 77 74;
+    --rgb-sheet-ink-muted:  108 106 103;
+    --rgb-sheet-ink-faint:  109 107 103;
+    --rgb-sheet-link:        29  78 216;
+    --rgb-sheet-danger:     185  28  28;
+}
+
+/* midnight-gold — a night library: deep slate-navy shelves, old gold picking things out */
+:root[data-theme="midnight-gold"] {
+    color-scheme: dark;
+
+    --rgb-surface:   26 35 51;
+    --rgb-border:    255 255 255;
+    --rgb-line:      255 255 255;
+    --rgb-raised:    255 255 255;
+    --rgb-sunken:    255 255 255;
+    --rgb-shadow:      0   0   0;
+
+    --rgb-ink:       229 227 218;
+    --rgb-ink-soft:  180 181 178;
+    --rgb-ink-muted: 148 150 151;
+    --rgb-ink-faint: 136 139 142;
+
+    --rgb-accent:    217 119 6;
+    --rgb-accent-ink: 24 24 27;
+
+    --rgb-field:        255 255 255;
+    --rgb-field-border: 255 255 255;
+
+    --rgb-danger:    226 128 128;
+    --rgb-warning:   219 175 95;
+    --rgb-success:   118 192 150;
+    --rgb-info:      148 163 184;
+
+    --rgb-inverse:     234 232 225;
+    --rgb-inverse-ink: 26 35 51;
+
+    --border-alpha:       0.12;
+    --line-alpha:         0.09;
+    --raised-alpha:       0.06;
+    --hover-alpha:        0.05;
+    --shadow-alpha:       0.45;
+    --sunken-alpha:       0.07;
+
+    --unread-tint-alpha:  0.03;
+    --field-alpha:        0.04;
+    --field-border-alpha: 0.10;
+    --danger-soft-alpha:  0.12;
+    --info-soft-alpha:    0.12;
+
+    --app-bg: linear-gradient(to bottom right, #0d1526, #111c30);
+
+    --rgb-sheet:            246 242 230;
+    --rgb-sheet-ink:        36 46 63;
+    --rgb-sheet-ink-soft:   73 81 93;
+    --rgb-sheet-ink-muted:  106 111 118;
+    --rgb-sheet-ink-faint:  104 110 118;
+    --rgb-sheet-link:        29  78 216;
+    --rgb-sheet-danger:     185  28  28;
+}
+
+/* charcoal-amber — industrial: true charcoal, amber signal lights */
+:root[data-theme="charcoal-amber"] {
+    color-scheme: dark;
+
+    --rgb-surface:   32 30 28;
+    --rgb-border:    255 255 255;
+    --rgb-line:      255 255 255;
+    --rgb-raised:    255 255 255;
+    --rgb-sunken:    255 255 255;
+    --rgb-shadow:      0   0   0;
+
+    --rgb-ink:       219 215 209;
+    --rgb-ink-soft:  174 171 166;
+    --rgb-ink-muted: 144 141 137;
+    --rgb-ink-faint: 138 135 131;
+
+    --rgb-accent:    245 158 11;
+    --rgb-accent-ink: 24 24 27;
+
+    --rgb-field:        255 255 255;
+    --rgb-field-border: 255 255 255;
+
+    --rgb-danger:    226 128 128;
+    --rgb-warning:   219 175 95;
+    --rgb-success:   118 192 150;
+    --rgb-info:      130 166 204;
+
+    --rgb-inverse:     225 222 217;
+    --rgb-inverse-ink: 32 30 28;
+
+    --border-alpha:       0.12;
+    --line-alpha:         0.09;
+    --raised-alpha:       0.06;
+    --hover-alpha:        0.05;
+    --shadow-alpha:       0.45;
+    --sunken-alpha:       0.07;
+
+    --unread-tint-alpha:  0.03;
+    --field-alpha:        0.04;
+    --field-border-alpha: 0.10;
+    --danger-soft-alpha:  0.12;
+    --info-soft-alpha:    0.12;
+
+    --app-bg: linear-gradient(#141312, #141312);
+
+    --rgb-sheet:            244 241 236;
+    --rgb-sheet-ink:        41 37 36;
+    --rgb-sheet-ink-soft:   84 80 78;
+    --rgb-sheet-ink-muted:  112 109 107;
+    --rgb-sheet-ink-faint:  112 108 106;
+    --rgb-sheet-link:        29  78 216;
+    --rgb-sheet-danger:     185  28  28;
+}
+
+/* espresso-cream — cozy: deep coffee brown, cream poured over it */
+:root[data-theme="espresso-cream"] {
+    color-scheme: dark;
+
+    --rgb-surface:   37 27 19;
+    --rgb-border:    255 255 255;
+    --rgb-line:      255 255 255;
+    --rgb-raised:    255 255 255;
+    --rgb-sunken:    255 255 255;
+    --rgb-shadow:      0   0   0;
+
+    --rgb-ink:       232 220 196;
+    --rgb-ink-soft:  185 174 154;
+    --rgb-ink-muted: 154 143 125;
+    --rgb-ink-faint: 143 132 114;
+
+    --rgb-accent:    214 199 174;
+    --rgb-accent-ink: 24 24 27;
+
+    --rgb-field:        255 255 255;
+    --rgb-field-border: 255 255 255;
+
+    --rgb-danger:    226 128 128;
+    --rgb-warning:   219 175 95;
+    --rgb-success:   118 192 150;
+    --rgb-info:      211 182 138;
+
+    --rgb-inverse:     236 226 207;
+    --rgb-inverse-ink: 37 27 19;
+
+    --border-alpha:       0.12;
+    --line-alpha:         0.09;
+    --raised-alpha:       0.06;
+    --hover-alpha:        0.05;
+    --shadow-alpha:       0.45;
+    --sunken-alpha:       0.07;
+
+    --unread-tint-alpha:  0.03;
+    --field-alpha:        0.04;
+    --field-border-alpha: 0.10;
+    --danger-soft-alpha:  0.12;
+    --info-soft-alpha:    0.12;
+
+    --app-bg: linear-gradient(#1a120c, #1a120c);
+
+    --rgb-sheet:            245 236 220;
+    --rgb-sheet-ink:        47 36 24;
+    --rgb-sheet-ink-soft:   86 75 63;
+    --rgb-sheet-ink-muted:  113 103 89;
+    --rgb-sheet-ink-faint:  113 103 90;
+    --rgb-sheet-link:        29  78 216;
+    --rgb-sheet-danger:     185  28  28;
+}
+
+/* aurora — northern lights: blue-green night sky, a luminous green-teal ribbon */
+:root[data-theme="aurora"] {
+    color-scheme: dark;
+
+    --rgb-surface:   15 32 39;
+    --rgb-border:    255 255 255;
+    --rgb-line:      255 255 255;
+    --rgb-raised:    255 255 255;
+    --rgb-sunken:    255 255 255;
+    --rgb-shadow:      0   0   0;
+
+    --rgb-ink:       216 232 230;
+    --rgb-ink-soft:  167 185 186;
+    --rgb-ink-muted: 135 154 157;
+    --rgb-ink-faint: 119 139 144;
+
+    --rgb-accent:    16 185 129;
+    --rgb-accent-ink: 24 24 27;
+
+    --rgb-field:        255 255 255;
+    --rgb-field-border: 255 255 255;
+
+    --rgb-danger:    226 128 128;
+    --rgb-warning:   219 175 95;
+    --rgb-success:   118 192 150;
+    --rgb-info:      108 196 224;
+
+    --rgb-inverse:     223 236 235;
+    --rgb-inverse-ink: 15 32 39;
+
+    --border-alpha:       0.12;
+    --line-alpha:         0.09;
+    --raised-alpha:       0.06;
+    --hover-alpha:        0.05;
+    --shadow-alpha:       0.45;
+    --sunken-alpha:       0.07;
+
+    --unread-tint-alpha:  0.03;
+    --field-alpha:        0.04;
+    --field-border-alpha: 0.10;
+    --danger-soft-alpha:  0.12;
+    --info-soft-alpha:    0.12;
+
+    --app-bg: linear-gradient(to bottom right, #081418, #0a1b21, #0d2430);
+
+    --rgb-sheet:            236 246 244;
+    --rgb-sheet-ink:        18 48 54;
+    --rgb-sheet-ink-soft:   61 87 92;
+    --rgb-sheet-ink-muted:  90 114 117;
+    --rgb-sheet-ink-faint:  91 115 119;
+    --rgb-sheet-link:        29  78 216;
+    --rgb-sheet-danger:     185  28  28;
+}
+
+/* ember — fireside: warm near-black, an ember orange-red glow */
+:root[data-theme="ember"] {
+    color-scheme: dark;
+
+    --rgb-surface:   34 23 19;
+    --rgb-border:    255 255 255;
+    --rgb-line:      255 255 255;
+    --rgb-raised:    255 255 255;
+    --rgb-sunken:    255 255 255;
+    --rgb-shadow:      0   0   0;
+
+    --rgb-ink:       236 223 215;
+    --rgb-ink-soft:  188 175 168;
+    --rgb-ink-muted: 155 143 137;
+    --rgb-ink-faint: 140 128 122;
+
+    --rgb-accent:    234 88 12;
+    --rgb-accent-ink: 24 24 27;
+
+    --rgb-field:        255 255 255;
+    --rgb-field-border: 255 255 255;
+
+    --rgb-danger:    226 128 128;
+    --rgb-warning:   219 175 95;
+    --rgb-success:   118 192 150;
+    --rgb-info:      130 166 204;
+
+    --rgb-inverse:     239 229 222;
+    --rgb-inverse-ink: 34 23 19;
+
+    --border-alpha:       0.12;
+    --line-alpha:         0.09;
+    --raised-alpha:       0.06;
+    --hover-alpha:        0.05;
+    --shadow-alpha:       0.45;
+    --sunken-alpha:       0.07;
+
+    --unread-tint-alpha:  0.03;
+    --field-alpha:        0.04;
+    --field-border-alpha: 0.10;
+    --danger-soft-alpha:  0.12;
+    --info-soft-alpha:    0.12;
+
+    --app-bg: linear-gradient(#150f0c, #150f0c);
+
+    --rgb-sheet:            247 239 231;
+    --rgb-sheet-ink:        51 36 28;
+    --rgb-sheet-ink-soft:   90 76 68;
+    --rgb-sheet-ink-muted:  103  89  81;
+    --rgb-sheet-ink-faint:  119 107 99;
+    --rgb-sheet-link:        29  78 216;
+    --rgb-sheet-danger:     185  28  28;
+}
+
+/* twilight — dusk going indigo-violet, the last pink of the sky as accent */
+:root[data-theme="twilight"] {
+    color-scheme: dark;
+
+    --rgb-surface:   32 27 56;
+    --rgb-border:    255 255 255;
+    --rgb-line:      255 255 255;
+    --rgb-raised:    255 255 255;
+    --rgb-sunken:    255 255 255;
+    --rgb-shadow:      0   0   0;
+
+    --rgb-ink:       233 228 247;
+    --rgb-ink-soft:  185 180 201;
+    --rgb-ink-muted: 153 148 171;
+    --rgb-ink-faint: 137 132 156;
+
+    --rgb-accent:    244 114 182;
+    --rgb-accent-ink: 24 24 27;
+
+    --rgb-field:        255 255 255;
+    --rgb-field-border: 255 255 255;
+
+    --rgb-danger:    226 128 128;
+    --rgb-warning:   219 175 95;
+    --rgb-success:   118 192 150;
+    --rgb-info:      165 180 252;
+
+    --rgb-inverse:     237 233 248;
+    --rgb-inverse-ink: 32 27 56;
+
+    --border-alpha:       0.12;
+    --line-alpha:         0.09;
+    --raised-alpha:       0.06;
+    --hover-alpha:        0.05;
+    --shadow-alpha:       0.45;
+    --sunken-alpha:       0.07;
+
+    --unread-tint-alpha:  0.03;
+    --field-alpha:        0.04;
+    --field-border-alpha: 0.10;
+    --danger-soft-alpha:  0.12;
+    --info-soft-alpha:    0.12;
+
+    --app-bg: linear-gradient(to bottom right, #120e24, #191434, #241740);
+
+    --rgb-sheet:            245 242 252;
+    --rgb-sheet-ink:        38 32 71;
+    --rgb-sheet-ink-soft:   82 76 109;
+    --rgb-sheet-ink-muted:  111 106 135;
+    --rgb-sheet-ink-faint:  112 107 136;
+    --rgb-sheet-link:        29  78 216;
+    --rgb-sheet-danger:     185  28  28;
+}
+
+/* product-blue — crisp product blue on a cool blue-white */
+:root[data-theme="product-blue"] {
+    color-scheme: light;
+
+    --rgb-surface:   245 248 252;
+    --rgb-border:    31 42 61;
+    --rgb-line:      31 42 61;
+    --rgb-raised:    31 42 61;
+    --rgb-sunken:    31 42 61;
+    --rgb-shadow:    31 42 61;
+
+    --rgb-ink:       31 42 61;
+    --rgb-ink-soft:  68 78 95;
+    --rgb-ink-muted: 98 106 120;
+    --rgb-ink-faint: 106 113 128;
+
+    --rgb-accent:    37 99 235;
+    --rgb-accent-ink: 255 255 255;
+
+    --rgb-field:        255 255 255;
+    --rgb-field-border: 206 208 212;
+
+    --rgb-danger:    220 38 38;
+    --rgb-warning:   217 119 6;
+    --rgb-success:   22 163 74;
+    --rgb-info:      74 111 165;
+
+    --rgb-inverse:     42 53 71;
+    --rgb-inverse-ink: 245 248 252;
+
+    --border-alpha:       0.10;
+    --line-alpha:         0.09;
+    --raised-alpha:       0.04;
+    --hover-alpha:        0.035;
+    --shadow-alpha:       0.05;
+    --sunken-alpha:       0.04;
+
+    --unread-tint-alpha:  0.4;
+    --field-alpha:        0.6;
+    --field-border-alpha: 0.4;
+    --danger-soft-alpha:  0.08;
+    --info-soft-alpha:    0.08;
+
+    --app-bg: linear-gradient(#e9eef6, #e9eef6);
+
+    --rgb-sheet:            245 248 252;
+    --rgb-sheet-ink:        31 42 61;
+    --rgb-sheet-ink-soft:   68 78 95;
+    --rgb-sheet-ink-muted:  98 106 120;
+    --rgb-sheet-ink-faint:  106 113 128;
+    --rgb-sheet-link:        29  78 216;
+    --rgb-sheet-danger:     185  28  28;
+}
+
+/* slate — a cool grey-blue study, nothing louder than slate */
+:root[data-theme="slate"] {
+    color-scheme: light;
+
+    --rgb-surface:   242 244 246;
+    --rgb-border:    38 46 58;
+    --rgb-line:      38 46 58;
+    --rgb-raised:    38 46 58;
+    --rgb-sunken:    38 46 58;
+    --rgb-shadow:    38 46 58;
+
+    --rgb-ink:       38 46 58;
+    --rgb-ink-soft:  70 77 87;
+    --rgb-ink-muted: 98 104 113;
+    --rgb-ink-faint: 105 111 120;
+
+    --rgb-accent:    71 85 105;
+    --rgb-accent-ink: 255 255 255;
+
+    --rgb-field:        255 255 255;
+    --rgb-field-border: 207 209 212;
+
+    --rgb-danger:    220 38 38;
+    --rgb-warning:   217 119 6;
+    --rgb-success:   22 163 74;
+    --rgb-info:      90 106 130;
+
+    --rgb-inverse:     49 56 68;
+    --rgb-inverse-ink: 242 244 246;
+
+    --border-alpha:       0.10;
+    --line-alpha:         0.09;
+    --raised-alpha:       0.04;
+    --hover-alpha:        0.035;
+    --shadow-alpha:       0.05;
+    --sunken-alpha:       0.04;
+
+    --unread-tint-alpha:  0.4;
+    --field-alpha:        0.6;
+    --field-border-alpha: 0.4;
+    --danger-soft-alpha:  0.08;
+    --info-soft-alpha:    0.08;
+
+    --app-bg: linear-gradient(#e6e9ed, #e6e9ed);
+
+    --rgb-sheet:            242 244 246;
+    --rgb-sheet-ink:        38 46 58;
+    --rgb-sheet-ink-soft:   70 77 87;
+    --rgb-sheet-ink-muted:  98 104 113;
+    --rgb-sheet-ink-faint:  105 111 120;
+    --rgb-sheet-link:        29  78 216;
+    --rgb-sheet-danger:     185  28  28;
+}
+
+/* forest — sage paper, deep forest green accent */
+:root[data-theme="forest"] {
+    color-scheme: light;
+
+    --rgb-surface:   243 247 238;
+    --rgb-border:    36 48 31;
+    --rgb-line:      36 48 31;
+    --rgb-raised:    36 48 31;
+    --rgb-sunken:    36 48 31;
+    --rgb-shadow:    36 48 31;
+
+    --rgb-ink:       36 48 31;
+    --rgb-ink-soft:  69 79 64;
+    --rgb-ink-muted: 97 107 92;
+    --rgb-ink-faint: 104 113 99;
+
+    --rgb-accent:    22 101 52;
+    --rgb-accent-ink: 255 255 255;
+
+    --rgb-field:        255 255 255;
+    --rgb-field-border: 207 209 206;
+
+    --rgb-danger:    220 38 38;
+    --rgb-warning:   217 119 6;
+    --rgb-success:   22 163 74;
+    --rgb-info:      79 117 102;
+
+    --rgb-inverse:     47 58 42;
+    --rgb-inverse-ink: 243 247 238;
+
+    --border-alpha:       0.10;
+    --line-alpha:         0.09;
+    --raised-alpha:       0.04;
+    --hover-alpha:        0.035;
+    --shadow-alpha:       0.05;
+    --sunken-alpha:       0.04;
+
+    --unread-tint-alpha:  0.4;
+    --field-alpha:        0.6;
+    --field-border-alpha: 0.4;
+    --danger-soft-alpha:  0.08;
+    --info-soft-alpha:    0.08;
+
+    --app-bg: linear-gradient(#e8ede2, #e8ede2);
+
+    --rgb-sheet:            243 247 238;
+    --rgb-sheet-ink:        36 48 31;
+    --rgb-sheet-ink-soft:   69 79 64;
+    --rgb-sheet-ink-muted:  97 107 92;
+    --rgb-sheet-ink-faint:  104 113 99;
+    --rgb-sheet-link:        29  78 216;
+    --rgb-sheet-danger:     185  28  28;
+}
+
+/* burgundy — blushed parchment, burgundy wine accent */
+:root[data-theme="burgundy"] {
+    color-scheme: light;
+
+    --rgb-surface:   250 243 241;
+    --rgb-border:    56 36 42;
+    --rgb-line:      56 36 42;
+    --rgb-raised:    56 36 42;
+    --rgb-sunken:    56 36 42;
+    --rgb-shadow:    56 36 42;
+
+    --rgb-ink:       56 36 42;
+    --rgb-ink-soft:  91 73 77;
+    --rgb-ink-muted: 117 101 105;
+    --rgb-ink-faint: 121 106 109;
+
+    --rgb-accent:    159 18 57;
+    --rgb-accent-ink: 255 255 255;
+
+    --rgb-field:        255 255 255;
+    --rgb-field-border: 211 207 208;
+
+    --rgb-danger:    220 38 38;
+    --rgb-warning:   217 119 6;
+    --rgb-success:   22 163 74;
+    --rgb-info:      140 90 104;
+
+    --rgb-inverse:     66 47 53;
+    --rgb-inverse-ink: 250 243 241;
+
+    --border-alpha:       0.10;
+    --line-alpha:         0.09;
+    --raised-alpha:       0.04;
+    --hover-alpha:        0.035;
+    --shadow-alpha:       0.05;
+    --sunken-alpha:       0.04;
+
+    --unread-tint-alpha:  0.4;
+    --field-alpha:        0.6;
+    --field-border-alpha: 0.4;
+    --danger-soft-alpha:  0.08;
+    --info-soft-alpha:    0.08;
+
+    --app-bg: linear-gradient(#f4eae8, #f4eae8);
+
+    --rgb-sheet:            250 243 241;
+    --rgb-sheet-ink:        56 36 42;
+    --rgb-sheet-ink-soft:   91 73 77;
+    --rgb-sheet-ink-muted:  117 101 105;
+    --rgb-sheet-ink-faint:  121 106 109;
+    --rgb-sheet-link:        29  78 216;
+    --rgb-sheet-danger:     185  28  28;
+}
+
+/* deep-violet — pale lavender-grey paper, deep violet accent */
+:root[data-theme="deep-violet"] {
+    color-scheme: light;
+
+    --rgb-surface:   246 244 250;
+    --rgb-border:    43 36 64;
+    --rgb-line:      43 36 64;
+    --rgb-raised:    43 36 64;
+    --rgb-sunken:    43 36 64;
+    --rgb-shadow:    43 36 64;
+
+    --rgb-ink:       43 36 64;
+    --rgb-ink-soft:  79 73 97;
+    --rgb-ink-muted: 106 101 122;
+    --rgb-ink-faint: 114 108 128;
+
+    --rgb-accent:    109 40 217;
+    --rgb-accent-ink: 255 255 255;
+
+    --rgb-field:        255 255 255;
+    --rgb-field-border: 208 207 213;
+
+    --rgb-danger:    220 38 38;
+    --rgb-warning:   217 119 6;
+    --rgb-success:   22 163 74;
+    --rgb-info:      109 90 150;
+
+    --rgb-inverse:     54 47 74;
+    --rgb-inverse-ink: 246 244 250;
+
+    --border-alpha:       0.10;
+    --line-alpha:         0.09;
+    --raised-alpha:       0.04;
+    --hover-alpha:        0.035;
+    --shadow-alpha:       0.05;
+    --sunken-alpha:       0.04;
+
+    --unread-tint-alpha:  0.4;
+    --field-alpha:        0.6;
+    --field-border-alpha: 0.4;
+    --danger-soft-alpha:  0.08;
+    --info-soft-alpha:    0.08;
+
+    --app-bg: linear-gradient(#ece9f2, #ece9f2);
+
+    --rgb-sheet:            246 244 250;
+    --rgb-sheet-ink:        43 36 64;
+    --rgb-sheet-ink-soft:   79 73 97;
+    --rgb-sheet-ink-muted:  106 101 122;
+    --rgb-sheet-ink-faint:  114 108 128;
+    --rgb-sheet-link:        29  78 216;
+    --rgb-sheet-danger:     185  28  28;
+}
+
+/* postal — an envelope: cream paper, navy ink, the postal red kept for danger */
+:root[data-theme="postal"] {
+    color-scheme: light;
+
+    --rgb-surface:   250 245 233;
+    --rgb-border:    36 48 78;
+    --rgb-line:      36 48 78;
+    --rgb-raised:    36 48 78;
+    --rgb-sunken:    36 48 78;
+    --rgb-shadow:    36 48 78;
+
+    --rgb-ink:       36 48 78;
+    --rgb-ink-soft:  69 79 102;
+    --rgb-ink-muted: 99 106 124;
+    --rgb-ink-faint: 104 110 127;
+
+    --rgb-accent:    30 58 110;
+    --rgb-accent-ink: 255 255 255;
+
+    --rgb-field:        255 255 255;
+    --rgb-field-border: 207 209 216;
+
+    --rgb-danger:    200 64 47;
+    --rgb-warning:   217 119 6;
+    --rgb-success:   22 163 74;
+    --rgb-info:      78 98 133;
+
+    --rgb-inverse:     47 58 87;
+    --rgb-inverse-ink: 250 245 233;
+
+    --border-alpha:       0.10;
+    --line-alpha:         0.09;
+    --raised-alpha:       0.04;
+    --hover-alpha:        0.035;
+    --shadow-alpha:       0.05;
+    --sunken-alpha:       0.04;
+
+    --unread-tint-alpha:  0.4;
+    --field-alpha:        0.6;
+    --field-border-alpha: 0.4;
+    --danger-soft-alpha:  0.08;
+    --info-soft-alpha:    0.08;
+
+    --app-bg: linear-gradient(#f3eddd, #f3eddd);
+
+    --rgb-sheet:            250 245 233;
+    --rgb-sheet-ink:        36 48 78;
+    --rgb-sheet-ink-soft:   69 79 102;
+    --rgb-sheet-ink-muted:  99 106 124;
+    --rgb-sheet-ink-faint:  104 110 127;
+    --rgb-sheet-link:        29  78 216;
+    --rgb-sheet-danger:     185  28  28;
+}
+
+/* bronze-ink — deep warm stone, bronze accent — the heaviest of the warm papers */
+:root[data-theme="bronze-ink"] {
+    color-scheme: light;
+
+    --rgb-surface:   245 240 228;
+    --rgb-border:    50 44 34;
+    --rgb-line:      50 44 34;
+    --rgb-raised:    50 44 34;
+    --rgb-sunken:    50 44 34;
+    --rgb-shadow:    50 44 34;
+
+    --rgb-ink:       50 44 34;
+    --rgb-ink-soft:  79 73 63;
+    --rgb-ink-muted: 107 101 91;
+    --rgb-ink-faint: 113 108 97;
+
+    --rgb-accent:    125 107 79;
+    --rgb-accent-ink: 255 255 255;
+
+    --rgb-field:        255 255 255;
+    --rgb-field-border: 210 209 206;
+
+    --rgb-danger:    220 38 38;
+    --rgb-warning:   217 119 6;
+    --rgb-success:   22 163 74;
+    --rgb-info:      90 106 130;
+
+    --rgb-inverse:     60 55 45;
+    --rgb-inverse-ink: 245 240 228;
+
+    --border-alpha:       0.10;
+    --line-alpha:         0.09;
+    --raised-alpha:       0.04;
+    --hover-alpha:        0.035;
+    --shadow-alpha:       0.05;
+    --sunken-alpha:       0.04;
+
+    --unread-tint-alpha:  0.4;
+    --field-alpha:        0.6;
+    --field-border-alpha: 0.4;
+    --danger-soft-alpha:  0.08;
+    --info-soft-alpha:    0.08;
+
+    --app-bg: linear-gradient(#ece5d6, #ece5d6);
+
+    --rgb-sheet:            245 240 228;
+    --rgb-sheet-ink:        50 44 34;
+    --rgb-sheet-ink-soft:   79 73 63;
+    --rgb-sheet-ink-muted:  107 101 91;
+    --rgb-sheet-ink-faint:  113 108 97;
+    --rgb-sheet-link:        29  78 216;
+    --rgb-sheet-danger:     185  28  28;
+}
+
+/* petrol-copper — cool teal-washed paper, petrol accent, copper in the warning */
+:root[data-theme="petrol-copper"] {
+    color-scheme: light;
+
+    --rgb-surface:   241 247 245;
+    --rgb-border:    30 51 48;
+    --rgb-line:      30 51 48;
+    --rgb-raised:    30 51 48;
+    --rgb-sunken:    30 51 48;
+    --rgb-shadow:    30 51 48;
+
+    --rgb-ink:       30 51 48;
+    --rgb-ink-soft:  61 80 77;
+    --rgb-ink-muted: 92 108 106;
+    --rgb-ink-faint: 100 115 112;
+
+    --rgb-accent:    15 118 110;
+    --rgb-accent-ink: 255 255 255;
+
+    --rgb-field:        255 255 255;
+    --rgb-field-border: 206 210 209;
+
+    --rgb-danger:    220 38 38;
+    --rgb-warning:   194 112 61;
+    --rgb-success:   22 163 74;
+    --rgb-info:      71 117 111;
+
+    --rgb-inverse:     41 61 58;
+    --rgb-inverse-ink: 241 247 245;
+
+    --border-alpha:       0.10;
+    --line-alpha:         0.09;
+    --raised-alpha:       0.04;
+    --hover-alpha:        0.035;
+    --shadow-alpha:       0.05;
+    --sunken-alpha:       0.04;
+
+    --unread-tint-alpha:  0.4;
+    --field-alpha:        0.6;
+    --field-border-alpha: 0.4;
+    --danger-soft-alpha:  0.08;
+    --info-soft-alpha:    0.08;
+
+    --app-bg: linear-gradient(#e4edeb, #e4edeb);
+
+    --rgb-sheet:            241 247 245;
+    --rgb-sheet-ink:        30 51 48;
+    --rgb-sheet-ink-soft:   61 80 77;
+    --rgb-sheet-ink-muted:  92 108 106;
+    --rgb-sheet-ink-faint:  100 115 112;
+    --rgb-sheet-link:        29  78 216;
+    --rgb-sheet-danger:     185  28  28;
+}
+
+/* navy-sky — airy sky-tinted white, navy accent */
+:root[data-theme="navy-sky"] {
+    color-scheme: light;
+
+    --rgb-surface:   243 248 252;
+    --rgb-border:    27 43 77;
+    --rgb-line:      27 43 77;
+    --rgb-raised:    27 43 77;
+    --rgb-sunken:    27 43 77;
+    --rgb-shadow:    27 43 77;
+
+    --rgb-ink:       27 43 77;
+    --rgb-ink-soft:  65 79 108;
+    --rgb-ink-muted: 94 107 132;
+    --rgb-ink-faint: 100 112 137;
+
+    --rgb-accent:    30 58 138;
+    --rgb-accent-ink: 255 255 255;
+
+    --rgb-field:        255 255 255;
+    --rgb-field-border: 205 208 216;
+
+    --rgb-danger:    220 38 38;
+    --rgb-warning:   217 119 6;
+    --rgb-success:   22 163 74;
+    --rgb-info:      42 124 176;
+
+    --rgb-inverse:     38 54 86;
+    --rgb-inverse-ink: 243 248 252;
+
+    --border-alpha:       0.10;
+    --line-alpha:         0.09;
+    --raised-alpha:       0.04;
+    --hover-alpha:        0.035;
+    --shadow-alpha:       0.05;
+    --sunken-alpha:       0.04;
+
+    --unread-tint-alpha:  0.4;
+    --field-alpha:        0.6;
+    --field-border-alpha: 0.4;
+    --danger-soft-alpha:  0.08;
+    --info-soft-alpha:    0.08;
+
+    --app-bg: linear-gradient(#e7f0f8, #e7f0f8);
+
+    --rgb-sheet:            243 248 252;
+    --rgb-sheet-ink:        27 43 77;
+    --rgb-sheet-ink-soft:   65 79 108;
+    --rgb-sheet-ink-muted:  94 107 132;
+    --rgb-sheet-ink-faint:  100 112 137;
+    --rgb-sheet-link:        29  78 216;
+    --rgb-sheet-danger:     185  28  28;
+}
+
+/* forest-lime — lime-tinted paper, the lime itself as accent over near-ink text */
+:root[data-theme="forest-lime"] {
+    color-scheme: light;
+
+    --rgb-surface:   244 248 234;
+    --rgb-border:    38 49 28;
+    --rgb-line:      38 49 28;
+    --rgb-raised:    38 49 28;
+    --rgb-sunken:    38 49 28;
+    --rgb-shadow:    38 49 28;
+
+    --rgb-ink:       38 49 28;
+    --rgb-ink-soft:  72 82 62;
+    --rgb-ink-muted: 98 108 88;
+    --rgb-ink-faint: 105 114 95;
+
+    --rgb-accent:    132 204 22;
+    --rgb-accent-ink: 24 24 27;
+
+    --rgb-field:        255 255 255;
+    --rgb-field-border: 207 210 205;
+
+    --rgb-danger:    220 38 38;
+    --rgb-warning:   217 119 6;
+    --rgb-success:   22 163 74;
+    --rgb-info:      95 124 58;
+
+    --rgb-inverse:     49 59 39;
+    --rgb-inverse-ink: 244 248 234;
+
+    --border-alpha:       0.10;
+    --line-alpha:         0.09;
+    --raised-alpha:       0.04;
+    --hover-alpha:        0.035;
+    --shadow-alpha:       0.05;
+    --sunken-alpha:       0.04;
+
+    --unread-tint-alpha:  0.4;
+    --field-alpha:        0.6;
+    --field-border-alpha: 0.4;
+    --danger-soft-alpha:  0.08;
+    --info-soft-alpha:    0.08;
+
+    --app-bg: linear-gradient(#eaf1dd, #eaf1dd);
+
+    --rgb-sheet:            244 248 234;
+    --rgb-sheet-ink:        38 49 28;
+    --rgb-sheet-ink-soft:   72 82 62;
+    --rgb-sheet-ink-muted:  98 108 88;
+    --rgb-sheet-ink-faint:  105 114 95;
+    --rgb-sheet-link:        29  78 216;
+    --rgb-sheet-danger:     185  28  28;
+}
+
+/* plum-rose — rosy paper, plum accent */
+:root[data-theme="plum-rose"] {
+    color-scheme: light;
+
+    --rgb-surface:   250 242 246;
+    --rgb-border:    55 34 46;
+    --rgb-line:      55 34 46;
+    --rgb-raised:    55 34 46;
+    --rgb-sunken:    55 34 46;
+    --rgb-shadow:    55 34 46;
+
+    --rgb-ink:       55 34 46;
+    --rgb-ink-soft:  90 71 81;
+    --rgb-ink-muted: 116 99 109;
+    --rgb-ink-faint: 123 106 116;
+
+    --rgb-accent:    134 25 143;
+    --rgb-accent-ink: 255 255 255;
+
+    --rgb-field:        255 255 255;
+    --rgb-field-border: 211 206 209;
+
+    --rgb-danger:    220 38 38;
+    --rgb-warning:   217 119 6;
+    --rgb-success:   22 163 74;
+    --rgb-info:      150 83 124;
+
+    --rgb-inverse:     65 45 56;
+    --rgb-inverse-ink: 250 242 246;
+
+    --border-alpha:       0.10;
+    --line-alpha:         0.09;
+    --raised-alpha:       0.04;
+    --hover-alpha:        0.035;
+    --shadow-alpha:       0.05;
+    --sunken-alpha:       0.04;
+
+    --unread-tint-alpha:  0.4;
+    --field-alpha:        0.6;
+    --field-border-alpha: 0.4;
+    --danger-soft-alpha:  0.08;
+    --info-soft-alpha:    0.08;
+
+    --app-bg: linear-gradient(#f4e8ee, #f4e8ee);
+
+    --rgb-sheet:            250 242 246;
+    --rgb-sheet-ink:        55 34 46;
+    --rgb-sheet-ink-soft:   90 71 81;
+    --rgb-sheet-ink-muted:  116 99 109;
+    --rgb-sheet-ink-faint:  123 106 116;
+    --rgb-sheet-link:        29  78 216;
+    --rgb-sheet-danger:     185  28  28;
+}
+
+/* cobalt-coral — cool white with cobalt accent — the hairlines and hovers carry the coral warmth */
+:root[data-theme="cobalt-coral"] {
+    color-scheme: light;
+
+    --rgb-surface:   245 247 252;
+    --rgb-border:    181 73 60;
+    --rgb-line:      181 73 60;
+    --rgb-raised:    181 73 60;
+    --rgb-sunken:    181 73 60;
+    --rgb-shadow:    28 37 66;
+
+    --rgb-ink:       28 37 66;
+    --rgb-ink-soft:  71 78 103;
+    --rgb-ink-muted: 100 107 128;
+    --rgb-ink-faint: 106 113 132;
+
+    --rgb-accent:    29 78 216;
+    --rgb-accent-ink: 255 255 255;
+
+    --rgb-field:        255 255 255;
+    --rgb-field-border: 205 207 213;
+
+    --rgb-danger:    220 38 38;
+    --rgb-warning:   217 119 6;
+    --rgb-success:   22 163 74;
+    --rgb-info:      90 106 130;
+
+    --rgb-inverse:     39 48 75;
+    --rgb-inverse-ink: 245 247 252;
+
+    --border-alpha:       0.10;
+    --line-alpha:         0.09;
+    --raised-alpha:       0.04;
+    --hover-alpha:        0.035;
+    --shadow-alpha:       0.05;
+    --sunken-alpha:       0.04;
+
+    --unread-tint-alpha:  0.4;
+    --field-alpha:        0.6;
+    --field-border-alpha: 0.4;
+    --danger-soft-alpha:  0.08;
+    --info-soft-alpha:    0.08;
+
+    --app-bg: linear-gradient(#eaeef8, #eaeef8);
+
+    --rgb-sheet:            245 247 252;
+    --rgb-sheet-ink:        28 37 66;
+    --rgb-sheet-ink-soft:   71 78 103;
+    --rgb-sheet-ink-muted:  100 107 128;
+    --rgb-sheet-ink-faint:  106 113 132;
+    --rgb-sheet-link:        29  78 216;
+    --rgb-sheet-danger:     185  28  28;
+}
+
+/* teal-gold — golden paper, teal accent, the gold already in the warning */
+:root[data-theme="teal-gold"] {
+    color-scheme: light;
+
+    --rgb-surface:   249 244 230;
+    --rgb-border:    35 53 50;
+    --rgb-line:      35 53 50;
+    --rgb-raised:    35 53 50;
+    --rgb-sunken:    35 53 50;
+    --rgb-shadow:    35 53 50;
+
+    --rgb-ink:       35 53 50;
+    --rgb-ink-soft:  66 81 76;
+    --rgb-ink-muted: 98 108 103;
+    --rgb-ink-faint: 103 113 107;
+
+    --rgb-accent:    15 118 110;
+    --rgb-accent-ink: 255 255 255;
+
+    --rgb-field:        255 255 255;
+    --rgb-field-border: 207 211 210;
+
+    --rgb-danger:    220 38 38;
+    --rgb-warning:   217 119 6;
+    --rgb-success:   22 163 74;
+    --rgb-info:      71 117 111;
+
+    --rgb-inverse:     46 63 60;
+    --rgb-inverse-ink: 249 244 230;
+
+    --border-alpha:       0.10;
+    --line-alpha:         0.09;
+    --raised-alpha:       0.04;
+    --hover-alpha:        0.035;
+    --shadow-alpha:       0.05;
+    --sunken-alpha:       0.04;
+
+    --unread-tint-alpha:  0.4;
+    --field-alpha:        0.6;
+    --field-border-alpha: 0.4;
+    --danger-soft-alpha:  0.08;
+    --info-soft-alpha:    0.08;
+
+    --app-bg: linear-gradient(#f3ecd7, #f3ecd7);
+
+    --rgb-sheet:            249 244 230;
+    --rgb-sheet-ink:        35 53 50;
+    --rgb-sheet-ink-soft:   66 81 76;
+    --rgb-sheet-ink-muted:  98 108 103;
+    --rgb-sheet-ink-faint:  103 113 107;
+    --rgb-sheet-link:        29  78 216;
+    --rgb-sheet-danger:     185  28  28;
+}
+
+/* graphite-red — neutral graphite greys, one red accent */
+:root[data-theme="graphite-red"] {
+    color-scheme: light;
+
+    --rgb-surface:   244 244 245;
+    --rgb-border:    35 39 46;
+    --rgb-line:      35 39 46;
+    --rgb-raised:    35 39 46;
+    --rgb-sunken:    35 39 46;
+    --rgb-shadow:    35 39 46;
+
+    --rgb-ink:       35 39 46;
+    --rgb-ink-soft:  72 75 81;
+    --rgb-ink-muted: 101 103 109;
+    --rgb-ink-faint: 108 110 116;
+
+    --rgb-accent:    220 38 38;
+    --rgb-accent-ink: 255 255 255;
+
+    --rgb-field:        255 255 255;
+    --rgb-field-border: 207 207 209;
+
+    --rgb-danger:    220 38 38;
+    --rgb-warning:   217 119 6;
+    --rgb-success:   22 163 74;
+    --rgb-info:      90 106 130;
+
+    --rgb-inverse:     46 50 56;
+    --rgb-inverse-ink: 244 244 245;
+
+    --border-alpha:       0.10;
+    --line-alpha:         0.09;
+    --raised-alpha:       0.04;
+    --hover-alpha:        0.035;
+    --shadow-alpha:       0.05;
+    --sunken-alpha:       0.04;
+
+    --unread-tint-alpha:  0.4;
+    --field-alpha:        0.6;
+    --field-border-alpha: 0.4;
+    --danger-soft-alpha:  0.08;
+    --info-soft-alpha:    0.08;
+
+    --app-bg: linear-gradient(#e8e8ea, #e8e8ea);
+
+    --rgb-sheet:            244 244 245;
+    --rgb-sheet-ink:        35 39 46;
+    --rgb-sheet-ink-soft:   72 75 81;
+    --rgb-sheet-ink-muted:  101 103 109;
+    --rgb-sheet-ink-faint:  108 110 116;
+    --rgb-sheet-link:        29  78 216;
+    --rgb-sheet-danger:     185  28  28;
+}
+
+/* red-flick — quiet near-monochrome warm paper; the flick red is the only colour */
+:root[data-theme="red-flick"] {
+    color-scheme: light;
+
+    --rgb-surface:   249 245 240;
+    --rgb-border:    43 38 32;
+    --rgb-line:      43 38 32;
+    --rgb-raised:    43 38 32;
+    --rgb-sunken:    43 38 32;
+    --rgb-shadow:    43 38 32;
+
+    --rgb-ink:       43 38 32;
+    --rgb-ink-soft:  81 77 71;
+    --rgb-ink-muted: 111 107 101;
+    --rgb-ink-faint: 114 110 104;
+
+    --rgb-accent:    200 64 47;
+    --rgb-accent-ink: 255 255 255;
+
+    --rgb-field:        255 255 255;
+    --rgb-field-border: 208 207 206;
+
+    --rgb-danger:    220 38 38;
+    --rgb-warning:   217 119 6;
+    --rgb-success:   22 163 74;
+    --rgb-info:      90 106 130;
+
+    --rgb-inverse:     54 49 43;
+    --rgb-inverse-ink: 249 245 240;
+
+    --border-alpha:       0.10;
+    --line-alpha:         0.09;
+    --raised-alpha:       0.04;
+    --hover-alpha:        0.035;
+    --shadow-alpha:       0.05;
+    --sunken-alpha:       0.04;
+
+    --unread-tint-alpha:  0.4;
+    --field-alpha:        0.6;
+    --field-border-alpha: 0.4;
+    --danger-soft-alpha:  0.08;
+    --info-soft-alpha:    0.08;
+
+    --app-bg: linear-gradient(#f2ede7, #f2ede7);
+
+    --rgb-sheet:            249 245 240;
+    --rgb-sheet-ink:        43 38 32;
+    --rgb-sheet-ink-soft:   81 77 71;
+    --rgb-sheet-ink-muted:  111 107 101;
+    --rgb-sheet-ink-faint:  114 110 104;
+    --rgb-sheet-link:        29  78 216;
+    --rgb-sheet-danger:     185  28  28;
+}
+
+/* sky-flick — quiet near-monochrome cool paper; the flick sky is the only colour */
+:root[data-theme="sky-flick"] {
+    color-scheme: light;
+
+    --rgb-surface:   245 248 250;
+    --rgb-border:    38 43 46;
+    --rgb-line:      38 43 46;
+    --rgb-raised:    38 43 46;
+    --rgb-sunken:    38 43 46;
+    --rgb-shadow:    38 43 46;
+
+    --rgb-ink:       38 43 46;
+    --rgb-ink-soft:  77 81 84;
+    --rgb-ink-muted: 103 107 110;
+    --rgb-ink-faint: 108 112 115;
+
+    --rgb-accent:    2 132 199;
+    --rgb-accent-ink: 0 0 0;
+
+    --rgb-field:        255 255 255;
+    --rgb-field-border: 207 208 209;
+
+    --rgb-danger:    220 38 38;
+    --rgb-warning:   217 119 6;
+    --rgb-success:   22 163 74;
+    --rgb-info:      90 106 130;
+
+    --rgb-inverse:     49 54 56;
+    --rgb-inverse-ink: 245 248 250;
+
+    --border-alpha:       0.10;
+    --line-alpha:         0.09;
+    --raised-alpha:       0.04;
+    --hover-alpha:        0.035;
+    --shadow-alpha:       0.05;
+    --sunken-alpha:       0.04;
+
+    --unread-tint-alpha:  0.4;
+    --field-alpha:        0.6;
+    --field-border-alpha: 0.4;
+    --danger-soft-alpha:  0.08;
+    --info-soft-alpha:    0.08;
+
+    --app-bg: linear-gradient(#ecf1f4, #ecf1f4);
+
+    --rgb-sheet:            245 248 250;
+    --rgb-sheet-ink:        38 43 46;
+    --rgb-sheet-ink-soft:   77 81 84;
+    --rgb-sheet-ink-muted:  103 107 110;
+    --rgb-sheet-ink-faint:  108 112 115;
+    --rgb-sheet-link:        29  78 216;
+    --rgb-sheet-danger:     185  28  28;
+}
+
+/* bronze-flick — quiet near-monochrome paper; the flick bronze is the only colour */
+:root[data-theme="bronze-flick"] {
+    color-scheme: light;
+
+    --rgb-surface:   248 244 238;
+    --rgb-border:    43 38 32;
+    --rgb-line:      43 38 32;
+    --rgb-raised:    43 38 32;
+    --rgb-sunken:    43 38 32;
+    --rgb-shadow:    43 38 32;
+
+    --rgb-ink:       43 38 32;
+    --rgb-ink-soft:  83 78 72;
+    --rgb-ink-muted: 111 106 100;
+    --rgb-ink-faint: 114 109 103;
+
+    --rgb-accent:    125 107 79;
+    --rgb-accent-ink: 255 255 255;
+
+    --rgb-field:        255 255 255;
+    --rgb-field-border: 208 207 206;
+
+    --rgb-danger:    220 38 38;
+    --rgb-warning:   217 119 6;
+    --rgb-success:   22 163 74;
+    --rgb-info:      90 106 130;
+
+    --rgb-inverse:     54 49 43;
+    --rgb-inverse-ink: 248 244 238;
+
+    --border-alpha:       0.10;
+    --line-alpha:         0.09;
+    --raised-alpha:       0.04;
+    --hover-alpha:        0.035;
+    --shadow-alpha:       0.05;
+    --sunken-alpha:       0.04;
+
+    --unread-tint-alpha:  0.4;
+    --field-alpha:        0.6;
+    --field-border-alpha: 0.4;
+    --danger-soft-alpha:  0.08;
+    --info-soft-alpha:    0.08;
+
+    --app-bg: linear-gradient(#f1ece4, #f1ece4);
+
+    --rgb-sheet:            248 244 238;
+    --rgb-sheet-ink:        43 38 32;
+    --rgb-sheet-ink-soft:   83 78 72;
+    --rgb-sheet-ink-muted:  111 106 100;
+    --rgb-sheet-ink-faint:  114 109 103;
+    --rgb-sheet-link:        29  78 216;
+    --rgb-sheet-danger:     185  28  28;
+}
+
+/* violet-flick — quiet near-monochrome paper; the flick violet is the only colour */
+:root[data-theme="violet-flick"] {
+    color-scheme: light;
+
+    --rgb-surface:   247 246 251;
+    --rgb-border:    39 36 46;
+    --rgb-line:      39 36 46;
+    --rgb-raised:    39 36 46;
+    --rgb-sunken:    39 36 46;
+    --rgb-shadow:    39 36 46;
+
+    --rgb-ink:       39 36 46;
+    --rgb-ink-soft:  80 77 86;
+    --rgb-ink-muted: 108 106 114;
+    --rgb-ink-faint: 114 112 120;
+
+    --rgb-accent:    139 92 246;
+    --rgb-accent-ink: 0 0 0;
+
+    --rgb-field:        255 255 255;
+    --rgb-field-border: 207 207 209;
+
+    --rgb-danger:    220 38 38;
+    --rgb-warning:   217 119 6;
+    --rgb-success:   22 163 74;
+    --rgb-info:      90 106 130;
+
+    --rgb-inverse:     50 47 56;
+    --rgb-inverse-ink: 247 246 251;
+
+    --border-alpha:       0.10;
+    --line-alpha:         0.09;
+    --raised-alpha:       0.04;
+    --hover-alpha:        0.035;
+    --shadow-alpha:       0.05;
+    --sunken-alpha:       0.04;
+
+    --unread-tint-alpha:  0.4;
+    --field-alpha:        0.6;
+    --field-border-alpha: 0.4;
+    --danger-soft-alpha:  0.08;
+    --info-soft-alpha:    0.08;
+
+    --app-bg: linear-gradient(#efedf4, #efedf4);
+
+    --rgb-sheet:            247 246 251;
+    --rgb-sheet-ink:        39 36 46;
+    --rgb-sheet-ink-soft:   80 77 86;
+    --rgb-sheet-ink-muted:  108 106 114;
+    --rgb-sheet-ink-faint:  114 112 120;
+    --rgb-sheet-link:        29  78 216;
+    --rgb-sheet-danger:     185  28  28;
+}
+
+/* tricolore — stamp-paper cream, stamp-navy ink, the red franked on; gold in the warning */
+:root[data-theme="tricolore"] {
+    color-scheme: light;
+
+    --rgb-surface:   251 246 232;
+    --rgb-border:    35 44 71;
+    --rgb-line:      35 44 71;
+    --rgb-raised:    35 44 71;
+    --rgb-sunken:    35 44 71;
+    --rgb-shadow:    35 44 71;
+
+    --rgb-ink:       35 44 71;
+    --rgb-ink-soft:  73 79 100;
+    --rgb-ink-muted: 102 107 121;
+    --rgb-ink-faint: 108 112 125;
+
+    --rgb-accent:    200 64 47;
+    --rgb-accent-ink: 255 255 255;
+
+    --rgb-field:        255 255 255;
+    --rgb-field-border: 207 209 215;
+
+    --rgb-danger:    220 38 38;
+    --rgb-warning:   180 137 8;
+    --rgb-success:   22 163 74;
+    --rgb-info:      30 58 110;
+
+    --rgb-inverse:     46 55 80;
+    --rgb-inverse-ink: 251 246 232;
+
+    --border-alpha:       0.10;
+    --line-alpha:         0.09;
+    --raised-alpha:       0.04;
+    --hover-alpha:        0.035;
+    --shadow-alpha:       0.05;
+    --sunken-alpha:       0.04;
+
+    --unread-tint-alpha:  0.4;
+    --field-alpha:        0.6;
+    --field-border-alpha: 0.4;
+    --danger-soft-alpha:  0.08;
+    --info-soft-alpha:    0.08;
+
+    --app-bg: linear-gradient(#f6f0dc, #f6f0dc);
+
+    --rgb-sheet:            251 246 232;
+    --rgb-sheet-ink:        35 44 71;
+    --rgb-sheet-ink-soft:   73 79 100;
+    --rgb-sheet-ink-muted:  102 107 121;
+    --rgb-sheet-ink-faint:  108 112 125;
+    --rgb-sheet-link:        29  78 216;
+    --rgb-sheet-danger:     185  28  28;
+}
+
+/* indigo-violet — periwinkle paper, indigo accent */
+:root[data-theme="indigo-violet"] {
+    color-scheme: light;
+
+    --rgb-surface:   244 244 251;
+    --rgb-border:    35 34 68;
+    --rgb-line:      35 34 68;
+    --rgb-raised:    35 34 68;
+    --rgb-sunken:    35 34 68;
+    --rgb-shadow:    35 34 68;
+
+    --rgb-ink:       35 34 68;
+    --rgb-ink-soft:  74 73 103;
+    --rgb-ink-muted: 105 104 129;
+    --rgb-ink-faint: 108 107 131;
+
+    --rgb-accent:    79 70 229;
+    --rgb-accent-ink: 255 255 255;
+
+    --rgb-field:        255 255 255;
+    --rgb-field-border: 207 206 214;
+
+    --rgb-danger:    220 38 38;
+    --rgb-warning:   217 119 6;
+    --rgb-success:   22 163 74;
+    --rgb-info:      104 102 196;
+
+    --rgb-inverse:     46 45 77;
+    --rgb-inverse-ink: 244 244 251;
+
+    --border-alpha:       0.10;
+    --line-alpha:         0.09;
+    --raised-alpha:       0.04;
+    --hover-alpha:        0.035;
+    --shadow-alpha:       0.05;
+    --sunken-alpha:       0.04;
+
+    --unread-tint-alpha:  0.4;
+    --field-alpha:        0.6;
+    --field-border-alpha: 0.4;
+    --danger-soft-alpha:  0.08;
+    --info-soft-alpha:    0.08;
+
+    --app-bg: linear-gradient(#eaeaf8, #eaeaf8);
+
+    --rgb-sheet:            244 244 251;
+    --rgb-sheet-ink:        35 34 68;
+    --rgb-sheet-ink-soft:   74 73 103;
+    --rgb-sheet-ink-muted:  105 104 129;
+    --rgb-sheet-ink-faint:  108 107 131;
+    --rgb-sheet-link:        29  78 216;
+    --rgb-sheet-danger:     185  28  28;
+}
+
+/* sunset — warm peach drifting toward rose, sunset red accent */
+:root[data-theme="sunset"] {
+    color-scheme: light;
+
+    --rgb-surface:   253 246 236;
+    --rgb-border:    59 42 28;
+    --rgb-line:      59 42 28;
+    --rgb-raised:    59 42 28;
+    --rgb-sunken:    59 42 28;
+    --rgb-shadow:    59 42 28;
+
+    --rgb-ink:       59 42 28;
+    --rgb-ink-soft:  90 74 61;
+    --rgb-ink-muted: 116 102 89;
+    --rgb-ink-faint: 122 109 96;
+
+    --rgb-accent:    225 29 72;
+    --rgb-accent-ink: 255 255 255;
+
+    --rgb-field:        255 255 255;
+    --rgb-field-border: 212 208 205;
+
+    --rgb-danger:    220 38 38;
+    --rgb-warning:   217 119 6;
+    --rgb-success:   22 163 74;
+    --rgb-info:      178 90 65;
+
+    --rgb-inverse:     69 53 39;
+    --rgb-inverse-ink: 253 246 236;
+
+    --border-alpha:       0.10;
+    --line-alpha:         0.09;
+    --raised-alpha:       0.04;
+    --hover-alpha:        0.035;
+    --shadow-alpha:       0.05;
+    --sunken-alpha:       0.04;
+
+    --unread-tint-alpha:  0.4;
+    --field-alpha:        0.6;
+    --field-border-alpha: 0.4;
+    --danger-soft-alpha:  0.08;
+    --info-soft-alpha:    0.08;
+
+    --app-bg: linear-gradient(to bottom right, #fcefdf, #f9e7de);
+
+    --rgb-sheet:            253 246 236;
+    --rgb-sheet-ink:        59 42 28;
+    --rgb-sheet-ink-soft:   90 74 61;
+    --rgb-sheet-ink-muted:  116 102 89;
+    --rgb-sheet-ink-faint:  122 109 96;
+    --rgb-sheet-link:        29  78 216;
+    --rgb-sheet-danger:     185  28  28;
+}
+
+/* ocean — airy aqua-white drifting toward seafoam, deep ocean accent */
+:root[data-theme="ocean"] {
+    color-scheme: light;
+
+    --rgb-surface:   241 248 249;
+    --rgb-border:    20 48 56;
+    --rgb-line:      20 48 56;
+    --rgb-raised:    20 48 56;
+    --rgb-sunken:    20 48 56;
+    --rgb-shadow:    20 48 56;
+
+    --rgb-ink:       20 48 56;
+    --rgb-ink-soft:  59 83 90;
+    --rgb-ink-muted: 89 111 116;
+    --rgb-ink-faint: 94 116 121;
+
+    --rgb-accent:    14 116 144;
+    --rgb-accent-ink: 255 255 255;
+
+    --rgb-field:        255 255 255;
+    --rgb-field-border: 203 209 211;
+
+    --rgb-danger:    220 38 38;
+    --rgb-warning:   217 119 6;
+    --rgb-success:   22 163 74;
+    --rgb-info:      43 127 118;
+
+    --rgb-inverse:     32 58 66;
+    --rgb-inverse-ink: 241 248 249;
+
+    --border-alpha:       0.10;
+    --line-alpha:         0.09;
+    --raised-alpha:       0.04;
+    --hover-alpha:        0.035;
+    --shadow-alpha:       0.05;
+    --sunken-alpha:       0.04;
+
+    --unread-tint-alpha:  0.4;
+    --field-alpha:        0.6;
+    --field-border-alpha: 0.4;
+    --danger-soft-alpha:  0.08;
+    --info-soft-alpha:    0.08;
+
+    --app-bg: linear-gradient(to bottom right, #e4f1f3, #e8f3ef);
+
+    --rgb-sheet:            241 248 249;
+    --rgb-sheet-ink:        20 48 56;
+    --rgb-sheet-ink-soft:   59 83 90;
+    --rgb-sheet-ink-muted:  89 111 116;
+    --rgb-sheet-ink-faint:  94 116 121;
+    --rgb-sheet-link:        29  78 216;
+    --rgb-sheet-danger:     185  28  28;
+}
+
+/* berry — berry-tinted white, magenta accent */
+:root[data-theme="berry"] {
+    color-scheme: light;
+
+    --rgb-surface:   250 242 248;
+    --rgb-border:    53 32 47;
+    --rgb-line:      53 32 47;
+    --rgb-raised:    53 32 47;
+    --rgb-sunken:    53 32 47;
+    --rgb-shadow:    53 32 47;
+
+    --rgb-ink:       53 32 47;
+    --rgb-ink-soft:  90 71 84;
+    --rgb-ink-muted: 119 102 114;
+    --rgb-ink-faint: 122 105 117;
+
+    --rgb-accent:    162 28 175;
+    --rgb-accent-ink: 255 255 255;
+
+    --rgb-field:        255 255 255;
+    --rgb-field-border: 211 206 209;
+
+    --rgb-danger:    220 38 38;
+    --rgb-warning:   217 119 6;
+    --rgb-success:   22 163 74;
+    --rgb-info:      144 88 138;
+
+    --rgb-inverse:     63 43 57;
+    --rgb-inverse-ink: 250 242 248;
+
+    --border-alpha:       0.10;
+    --line-alpha:         0.09;
+    --raised-alpha:       0.04;
+    --hover-alpha:        0.035;
+    --shadow-alpha:       0.05;
+    --sunken-alpha:       0.04;
+
+    --unread-tint-alpha:  0.4;
+    --field-alpha:        0.6;
+    --field-border-alpha: 0.4;
+    --danger-soft-alpha:  0.08;
+    --info-soft-alpha:    0.08;
+
+    --app-bg: linear-gradient(#f4e9f2, #f4e9f2);
+
+    --rgb-sheet:            250 242 248;
+    --rgb-sheet-ink:        53 32 47;
+    --rgb-sheet-ink-soft:   90 71 84;
+    --rgb-sheet-ink-muted:  119 102 114;
+    --rgb-sheet-ink-faint:  122 105 117;
+    --rgb-sheet-link:        29  78 216;
+    --rgb-sheet-danger:     185  28  28;
+}
+
+/* copper — terracotta paper, copper accent */
+:root[data-theme="copper"] {
+    color-scheme: light;
+
+    --rgb-surface:   250 241 231;
+    --rgb-border:    58 43 29;
+    --rgb-line:      58 43 29;
+    --rgb-raised:    58 43 29;
+    --rgb-sunken:    58 43 29;
+    --rgb-shadow:    58 43 29;
+
+    --rgb-ink:       58 43 29;
+    --rgb-ink-soft:  88 74 60;
+    --rgb-ink-muted: 114 101 88;
+    --rgb-ink-faint: 120 108 95;
+
+    --rgb-accent:    180 83 9;
+    --rgb-accent-ink: 255 255 255;
+
+    --rgb-field:        255 255 255;
+    --rgb-field-border: 212 208 205;
+
+    --rgb-danger:    220 38 38;
+    --rgb-warning:   217 119 6;
+    --rgb-success:   22 163 74;
+    --rgb-info:      90 106 130;
+
+    --rgb-inverse:     68 54 40;
+    --rgb-inverse-ink: 250 241 231;
+
+    --border-alpha:       0.10;
+    --line-alpha:         0.09;
+    --raised-alpha:       0.04;
+    --hover-alpha:        0.035;
+    --shadow-alpha:       0.05;
+    --sunken-alpha:       0.04;
+
+    --unread-tint-alpha:  0.4;
+    --field-alpha:        0.6;
+    --field-border-alpha: 0.4;
+    --danger-soft-alpha:  0.08;
+    --info-soft-alpha:    0.08;
+
+    --app-bg: linear-gradient(#f4e8da, #f4e8da);
+
+    --rgb-sheet:            250 241 231;
+    --rgb-sheet-ink:        58 43 29;
+    --rgb-sheet-ink-soft:   88 74 60;
+    --rgb-sheet-ink-muted:  114 101 88;
+    --rgb-sheet-ink-faint:  120 108 95;
+    --rgb-sheet-link:        29  78 216;
+    --rgb-sheet-danger:     185  28  28;
+}
+
+/* blue-tonal — a blue-grey tonal study: everything is the same blue at a different depth */
+:root[data-theme="blue-tonal"] {
+    color-scheme: light;
+
+    --rgb-surface:   242 245 250;
+    --rgb-border:    29 43 69;
+    --rgb-line:      29 43 69;
+    --rgb-raised:    29 43 69;
+    --rgb-sunken:    29 43 69;
+    --rgb-shadow:    29 43 69;
+
+    --rgb-ink:       29 43 69;
+    --rgb-ink-soft:  66 78 101;
+    --rgb-ink-muted: 96 106 125;
+    --rgb-ink-faint: 102 111 130;
+
+    --rgb-accent:    30 64 175;
+    --rgb-accent-ink: 255 255 255;
+
+    --rgb-field:        255 255 255;
+    --rgb-field-border: 205 208 214;
+
+    --rgb-danger:    220 38 38;
+    --rgb-warning:   217 119 6;
+    --rgb-success:   22 163 74;
+    --rgb-info:      74 111 165;
+
+    --rgb-inverse:     40 54 78;
+    --rgb-inverse-ink: 242 245 250;
+
+    --border-alpha:       0.10;
+    --line-alpha:         0.09;
+    --raised-alpha:       0.04;
+    --hover-alpha:        0.035;
+    --shadow-alpha:       0.05;
+    --sunken-alpha:       0.04;
+
+    --unread-tint-alpha:  0.4;
+    --field-alpha:        0.6;
+    --field-border-alpha: 0.4;
+    --danger-soft-alpha:  0.08;
+    --info-soft-alpha:    0.08;
+
+    --app-bg: linear-gradient(#e7ecf4, #e7ecf4);
+
+    --rgb-sheet:            242 245 250;
+    --rgb-sheet-ink:        29 43 69;
+    --rgb-sheet-ink-soft:   66 78 101;
+    --rgb-sheet-ink-muted:  96 106 125;
+    --rgb-sheet-ink-faint:  102 111 130;
+    --rgb-sheet-link:        29  78 216;
+    --rgb-sheet-danger:     185  28  28;
+}
+
 /* ═══ The calendar switch ═══════════════════════════════════════════════════
    Three positions — mail, split, calendar — driven entirely by one attribute
    on the shell. Rules rather than classes toggled onto .main-pane from two

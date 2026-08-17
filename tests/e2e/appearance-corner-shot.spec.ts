@@ -19,10 +19,12 @@ const setCorner = async (page: Page, on: boolean) => {
     await page.goto("/settings?section=appearance");
     await expect(page.locator(PANEL)).toBeVisible();
 
-    const box = page.locator(`${PANEL} input[type="checkbox"][data-toggles="accountCorner"]`);
+    const segment = page.locator(
+        `${PANEL} input[type="radio"][data-toggles="accountCorner"][value="${on ? "1" : "0"}"]`,
+    );
 
-    if ((await box.isChecked()) !== on) {
-        await box.click();
+    if (false === (await segment.isChecked())) {
+        await segment.check({ force: true });
         await page.waitForResponse(
             (r) => r.url().includes("/settings/appearance") && r.request().method() === "POST",
         );

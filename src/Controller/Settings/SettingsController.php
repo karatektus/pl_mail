@@ -25,6 +25,8 @@ use App\Repository\Label\LabelRepository;
 use App\Repository\Rule\MailRuleRepository;
 use App\Service\Calendar\Subscription\CalendarSourceLister;
 use App\Service\Health\AccountHealthInspector;
+use App\Service\Insight\InsightExtractorInterface;
+use App\Service\Insight\InsightExtractorRegistry;
 use App\Service\Push\PushSubscriptionRegistry;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -49,7 +51,7 @@ final class SettingsController extends AbstractController
      * the top of the accounts pane would push the actual account controls below
      * the fold on exactly the installs that have something wrong.
      */
-    private const array SECTIONS = ['health', 'accounts', 'profile', 'security', 'labels', 'calendars', 'sharing', 'filters', 'integrations', 'appearance', 'aliases', 'signature', 'app-passwords', 'notifications', 'general'];
+    private const array SECTIONS = ['health', 'accounts', 'profile', 'security', 'labels', 'calendars', 'sharing', 'filters', 'insights', 'integrations', 'appearance', 'aliases', 'signature', 'app-passwords', 'notifications', 'general'];
 
     public function __construct(
         private readonly AccountRepository $accountRepository,
@@ -73,6 +75,7 @@ final class SettingsController extends AbstractController
         private readonly UserTimezoneResolver $timezones,
         private readonly ClockFormatResolver $clocks,
         private readonly AccountHealthInspector $healthInspector,
+        private readonly InsightExtractorRegistry $insightExtractors,
     ) {
     }
 
@@ -117,6 +120,7 @@ final class SettingsController extends AbstractController
                 ?? AppLocale::English,
             ...$this->timezoneSectionData($section),
             ...$this->healthSectionData($section),
+            ...$this->insightsSectionData($section),
         ]);
     }
 
@@ -267,6 +271,44 @@ final class SettingsController extends AbstractController
             'defaultClock'    => $now->format(
                 ClockFormat::forLocale(AppLocale::tryFromRequest($user->locale)
                     ?? AppLocale::tryFromRequest($this->defaultLocale))->time(),
+            ),
+
+            // Folded is the default, so anything but a stored false reads as
+            // true — the same absent-key convention the setting itself keeps.
+            'forwardQuoteCollapsed' => false !== $user->getSetting(User::SETTING_COMPOSE_FORWARD_QUOTE_COLLAPSED, true),
+        ];
+    }
+
+    /**
+     * The insight extractors as the settings card renders them, and only when
+     * that section is on screen — the rule every method around this one
+     * follows.
+     *
+     * Rendered FROM THE REGISTRY, which is the promise
+     * InsightExtractorInterface makes: an extractor added next release appears
+     * here without this method, the template, or anything else changing. The
+     * rows are plain arrays rather than the extractor objects so the template
+     * touches presentation only — key, icon, and whether this user has left it
+     * on.
+     *
+     * @return array<string, mixed>
+     */
+    private function insightsSectionData(string $section): array
+    {
+        $user = $this->getUser();
+
+        if ('insights' !== $section || false === $user instanceof User) {
+            return [];
+        }
+
+        return [
+            'insightExtractors' => array_map(
+                fn (InsightExtractorInterface $extractor): array => [
+                    'key'     => $extractor::key(),
+                    'icon'    => $extractor->icon(),
+                    'enabled' => $this->insightExtractors->isEnabledFor($user, $extractor::key()),
+                ],
+                $this->insightExtractors->all(),
             ),
         ];
     }

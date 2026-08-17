@@ -43,3 +43,13 @@ services:
         public: true
         tags:
             - { name: 'app.calendar_push_manager', priority: 100 }
+
+    # One guaranteed insight extractor, so the settings page and the toggle
+    # endpoint can be tested against a registry that is never empty — the
+    # production catalogue is free to grow and shrink without those tests
+    # noticing. Inert by construction: its supports() never says yes. No
+    # priority override needed; it claims no mail, so its place in the order
+    # is cosmetic and it sorts itself last.
+    App\Tests\Support\Insight\ScriptedInsightExtractor:
+        tags:
+            - 'app.insight_extractor'

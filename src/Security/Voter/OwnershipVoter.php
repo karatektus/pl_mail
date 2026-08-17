@@ -6,6 +6,7 @@ namespace App\Security\Voter;
 
 use App\Entity\Calendar\Calendar;
 use App\Entity\Calendar\CalendarEvent;
+use App\Entity\Insight\MailInsight;
 use App\Entity\Integration\Integration;
 use App\Entity\Label\Label;
 use App\Entity\Mail\Account;
@@ -35,10 +36,11 @@ use Symfony\Component\Security\Core\Authorization\Voter\Voter;
  *
  * ── Why one voter and not one per entity ─────────────────────────────────────
  * The idiomatic shape is a voter per entity, and it was rejected here because
- * the rule genuinely does not vary: owning is `$owner === $user` for all nine
- * types. Nine classes would have been nine copies of that comparison with nine
- * different ways to reach `$owner`, which is the duplication this replaces
- * wearing a different hat. What varies is only how the owner is REACHED, so
+ * the rule genuinely does not vary: owning is `$owner === $user` for every
+ * type below. A class per type would have been that many copies of the same
+ * comparison with as many different ways to reach `$owner`, which is the
+ * duplication this replaces wearing a different hat. What varies is only how
+ * the owner is REACHED, so
  * that — and only that — is the match below.
  *
  * Rules that are not ownership stay with their controller, because they are not
@@ -77,6 +79,7 @@ final class OwnershipVoter extends Voter
             || $subject instanceof CalendarEvent
             || $subject instanceof Integration
             || $subject instanceof Label
+            || $subject instanceof MailInsight
             || $subject instanceof MailRule
             || $subject instanceof Message
             || $subject instanceof MessagePart
@@ -131,6 +134,10 @@ final class OwnershipVoter extends Voter
             $subject instanceof CalendarEvent => $subject->usr,
             $subject instanceof Integration   => $subject->usr,
             $subject instanceof Label         => $subject->usr,
+            // Through the account, like Message: an insight belongs to whoever
+            // owns the mailbox it was read out of, and its $account is the one
+            // link the mapping declares non-nullable.
+            $subject instanceof MailInsight   => $subject->account->usr,
             $subject instanceof MailRule      => $subject->usr,
             $subject instanceof Message       => $subject->account->usr,
             $subject instanceof MessagePart   => $subject->message?->account->usr,

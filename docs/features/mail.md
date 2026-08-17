@@ -77,6 +77,28 @@ expires on its own.
 Search results retire the badge too: a row whose sender and subject you have just read in a result
 list has been shown, whichever list it was.
 
+## The radar
+
+plMail reads certain facts out of mail as it arrives: parcel tracking numbers from shipping
+confirmations, flights from airline bookings and check-in mail, event tickets, and issue and
+pull-request activity from GitHub notifications. Each find becomes a small card. Dated ones queue
+up in the calendar's **Happening Soon** panel, under **On your radar**; a conversation that yielded
+something also shows its cards in a **Found in this conversation** strip above the messages.
+
+Extraction is deterministic and local. It runs on your own server against sender domains, headers
+and regular shapes — tracking numbers, flight codes, `#123` — with no cloud service and no model:
+nothing guesses, and a mail that matches no known shape simply yields nothing. That is a deliberate
+trade — the radar would rather miss a parcel than invent one.
+
+Every source has its own switch under **Settings → Insights**. Switching one off stops new cards
+from that source; what it already found stays until dismissed. The set of sources is extendable by
+design — an extractor added to a build lists itself on that settings page and starts running,
+without anything else changing.
+
+New extractors do not re-read old mail on their own. `app:backfill insights` walks the mail already
+in the database once and hands it to every enabled extractor, the same sweep the other backfill
+tasks run.
+
 ## Threads
 
 Replies collapse into one conversation, ordered oldest to newest with the latest message
@@ -272,11 +294,18 @@ The last two are both "an override"; the difference is whether the override is e
 empty box is not read as "inherit" — a personal alias that signs with nothing on a work mailbox that
 signs with a block is the whole reason the setting exists.
 
-In the compose window the signature is inserted for you, above the quoted text, on a new message, a
-reply and a forward, with an empty paragraph in front of it so the caret starts in the writing space
-rather than inside the sign-off. **Insert signature** in the toolbar replaces the block in place
-instead of adding a second one, and so does changing the **From** account: the signature block is
-swapped and a paragraph you have already typed survives the change.
+In the compose window the signature is inserted for you, above the quoted text, on a new message and
+a reply, with an empty paragraph in front of it so the caret starts in the writing space rather than
+inside the sign-off. A **forward** is deliberately unsigned — its content is the mail being passed
+on, and the caret starts in the **To** row, since the recipient is the one thing a forward cannot
+leave without; **Insert signature** adds the block when you want it. That button replaces the block
+in place instead of adding a second one, and so does changing the **From** account: the signature
+block is swapped and a paragraph you have already typed survives the change.
+
+A forward opens with the original folded behind the **show quoted text** pill. If you would rather
+see it spread out from the start, **Settings → General → Composing** has the switch — folded stays
+the default, and either way the quote counts as the message's content: sending a forward without a
+word of your own above it is not questioned as an empty mail.
 
 ### Scheduled send
 

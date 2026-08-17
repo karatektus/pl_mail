@@ -23,5 +23,11 @@
     from the same route; /icons/favicon.svg still exists, painted in that
     default, for anything that fetches icons without a session.
 #}
-<link rel="icon" type="image/svg+xml" href="{{ path('app_branding_favicon') }}">
+{# The style value rides in the URL as a cache-buster. Browsers keep a
+   favicon cache of their own that ignores ordinary revalidation until a hard
+   reload — the ETag alone left people staring at the old colourway. A new
+   style is a new URL, and the appearance page swaps this link's href live on
+   pick (see pickLogo), so the tab follows the click. The server ignores the
+   parameter: the session decides the colourway, v only names it. #}
+<link rel="icon" type="image/svg+xml" href="{{ path('app_branding_favicon', { v: appearance().effectiveLogoStyle.value }) }}">
 <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png">

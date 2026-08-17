@@ -116,6 +116,7 @@
                                         { section: 'signature',     icon: 'fa-solid fa-signature' },
                                         { section: 'labels',        icon: 'fa-solid fa-tag' },
                                         { section: 'filters',       icon: 'fa-solid fa-filter' },
+                                        { section: 'insights',      icon: 'fa-solid fa-satellite-dish' },
                                         { section: 'notifications', icon: 'fa-solid fa-bell' },
                                     ] },
                                     { label: 'settings.nav.group.calendar', items: [
@@ -324,6 +325,17 @@
                                                     } %}
                                                 {% endblock %}
                                             {% endembed %}
+
+                                            {% embed 'settings/_card.html.twig' with {
+                                                heading:    'settings.compose_behavior.heading'|trans,
+                                                subheading: 'settings.compose_behavior.subheading'|trans,
+                                            } %}
+                                                {% block body %}
+                                                    {% include 'settings/_compose_behavior.html.twig' with {
+                                                        forwardQuoteCollapsed: forwardQuoteCollapsed,
+                                                    } %}
+                                                {% endblock %}
+                                            {% endembed %}
                                         </div>
                                     {% elseif section == 'aliases' %}
                                         <div class="space-y-4">
@@ -482,6 +494,18 @@
                                                         <i class="fa-solid fa-circle-notch fa-spin mr-2" aria-hidden="true"></i>{{ 'admin.loading'|trans }}
                                                     </div>
                                                 </turbo-frame>
+                                            {% endblock %}
+                                        {% endembed %}
+
+                                    {% elseif section == 'insights' %}
+                                        {% embed 'settings/_card.html.twig' with {
+                                            heading:    'settings.insights.heading'|trans,
+                                            subheading: 'settings.insights.subheading'|trans,
+                                        } %}
+                                            {% block body %}
+                                                {% include 'settings/_insights.html.twig' with {
+                                                    insightExtractors: insightExtractors,
+                                                } %}
                                             {% endblock %}
                                         {% endembed %}
 

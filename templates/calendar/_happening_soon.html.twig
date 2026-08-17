@@ -6,9 +6,13 @@ out of mail and what the owner put in the calendar themselves — loaded into th
 app's body-level modal frame.
 
 Accepts:
-  rows  list<HappeningSoonRow> — already windowed, ordered, COLLAPSED and capped
-        by HappeningSoonReader; this template windows nothing, sorts nothing and
-        merges nothing
+  rows             list<HappeningSoonRow> — already windowed, ordered, COLLAPSED
+                   and capped by HappeningSoonReader; this template windows
+                   nothing, sorts nothing and merges nothing
+  insights         list<MailInsight> — the radar's dated cards, windowed and
+                   ordered by MailInsightRepository::upcomingForUser()
+  undatedInsights  list<MailInsight> — the undated family (GitHub activity),
+                   from recentUndatedForUser()
 
 One meeting is one row. A meeting that reached plMail twice — extracted from its
 invitation onto the account's calendar, mirrored from the provider onto a Remote
@@ -29,109 +33,309 @@ is unfalsifiable. That link is the whole reason extracted events are marked as
 extracted, and its absence on a hand-made row is the correct answer — nothing
 made that one but the person reading it.
 
+Below the calendar list sits THE RADAR: the mail insights (MailInsight) whose
+whole point is that they are NOT calendar events — a parcel has an ETA days
+wide, a pull request has no date at all, and forcing either into an occurrence
+row would put fake times on real things (see InsightKind's doc). They share
+this panel rather than growing one of their own for the reason the controller
+records about pages: both answer "what is coming up?" and nobody would open two
+dialogs to ask it once. Cards rather than lines, because an insight carries
+verbs — track the parcel, open the mail, wave it away — and a line has nowhere
+to put them. An empty radar renders NOTHING, not an empty state: the calendar
+list above is the panel's answer, and a second "nothing here" under a real list
+would read as a fault.
+
 The provenance link carries `data-turbo-frame="_top"`. Without it Turbo reads a
 link inside a <turbo-frame> as a navigation OF that frame, so clicking "from
 this email" would load the whole mailbox page into the dialog and leave the user
 inside a modal with no way back to their mail. The event editor's form documents
-the same trap from the other direction.
+the same trap from the other direction. The radar's "open the mail" link carries
+it for the same reason.
 
 A row whose message is gone renders without the link rather than with a dead
 one. An event keeps its kind after the mail behind it is expunged
 provider-side, and a link to a message that is not there is worse than no link.
+The radar handles a thread gone the same way — MailInsight::$thread is SET NULL
+on delete, and the card simply loses its mail link.
 
 The empty state is written as an answer, not as an absence. "Nothing coming up"
 plus a line saying what would appear here — a panel that opens on blank space
 reads as a panel that failed to load, and this one is empty for most people on
-most days, which is the normal case and must not look like a fault.
+most days, which is the normal case and must not look like a fault. It shows
+only when EVERYTHING is empty: an empty calendar over a live radar is not an
+empty panel.
 #}
 
 {% set rows = rows|default([]) %}
+{% set insights = insights|default([]) %}
+{% set undatedInsights = undatedInsights|default([]) %}
 
 <turbo-frame id="modal" class="flex-1 min-h-0 flex flex-col">
 
-    {% if rows is empty %}
+    {% if rows is empty and insights is empty and undatedInsights is empty %}
         <div class="flex flex-col items-center justify-center gap-2 px-6 pb-8 pt-4 text-center">
             <i class="fa-regular fa-calendar-check text-2xl text-ink-faint" aria-hidden="true"></i>
             <p class="text-sm text-ink">{{ 'calendar.soon.empty'|trans }}</p>
             <p class="text-xs text-ink-faint max-w-xs">{{ 'calendar.soon.empty_hint'|trans }}</p>
         </div>
     {% else %}
-        <ul class="flex-1 min-h-0 overflow-y-auto px-6 pb-5 divide-y divide-line">
-            {% for row in rows %}
-                {# Both fall back rather than rendering empty: a booking mail
-                   with no Subject: header is rare and a blank line where the
-                   provenance should be reads as a bug. #}
-                {% set row_title = row.event.title ?: 'calendar.soon.untitled'|trans %}
-                {% set row_from = 'calendar.soon.from'|trans({
-                    '%subject%': row.source ? (row.source.subject ?: 'calendar.soon.untitled'|trans) : '',
-                }) %}
+        {# One scroller for list and radar together — two nested scroll regions
+           in a modal is the "why won't this move" bug in waiting. #}
+        <div class="flex-1 min-h-0 overflow-y-auto px-6 pb-5">
 
-                {# Equal slices in the members' order, the same construction and
-                   the same reading as the merged chip's dot — one affordance
-                   learned once. Built only for a merged row: a cluster of one
-                   has a single calendar and a plain coloured dot would add a
-                   mark to every line for no information. #}
-                {% if row.cluster.isMerged %}
-                    {% set slices = [] %}
-                    {% for color in row.cluster.colors %}
-                        {% set slices = slices|merge([
-                            color
-                                ~ ' ' ~ (loop.index0 * 100 / row.cluster.colors|length)|round(3) ~ '%'
-                                ~ ' ' ~ (loop.index * 100 / row.cluster.colors|length)|round(3) ~ '%',
-                        ]) %}
-                    {% endfor %}
-                    {% set row_on = 'calendar.chip.on_calendars'|trans({
-                        '%calendars%': row.cluster.calendarNames|join(', '),
-                    }) %}
-                {% endif %}
+            {% if rows is not empty %}
+                <ul class="divide-y divide-line">
+                    {% for row in rows %}
+                        {# Both fall back rather than rendering empty: a booking mail
+                           with no Subject: header is rare and a blank line where the
+                           provenance should be reads as a bug. #}
+                        {% set row_title = row.event.title ?: 'calendar.soon.untitled'|trans %}
+                        {% set row_from = 'calendar.soon.from'|trans({
+                            '%subject%': row.source ? (row.source.subject ?: 'calendar.soon.untitled'|trans) : '',
+                        }) %}
 
-                <li class="flex items-start gap-3 py-3">
-
-                    {# The icon carries the kind's name as text for anyone who
-                       cannot see it, so the row still says "Flight" rather than
-                       leaving the shape to do all the work. #}
-                    <span class="relative mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center
-                                 rounded-lg bg-sunken text-ink-muted">
-                        <i class="{{ row.icon }} text-sm" aria-hidden="true"></i>
-
+                        {# Equal slices in the members' order, the same construction and
+                           the same reading as the merged chip's dot — one affordance
+                           learned once. Built only for a merged row: a cluster of one
+                           has a single calendar and a plain coloured dot would add a
+                           mark to every line for no information. #}
                         {% if row.cluster.isMerged %}
-                            <span class="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full
-                                         ring-2 ring-surface"
-                                  style="background: conic-gradient({{ slices|join(', ') }})"
-                                  title="{{ row_on }}"></span>
-                            <span class="sr-only">{{ row_on }}</span>
+                            {% set slices = [] %}
+                            {% for color in row.cluster.colors %}
+                                {% set slices = slices|merge([
+                                    color
+                                        ~ ' ' ~ (loop.index0 * 100 / row.cluster.colors|length)|round(3) ~ '%'
+                                        ~ ' ' ~ (loop.index * 100 / row.cluster.colors|length)|round(3) ~ '%',
+                                ]) %}
+                            {% endfor %}
+                            {% set row_on = 'calendar.chip.on_calendars'|trans({
+                                '%calendars%': row.cluster.calendarNames|join(', '),
+                            }) %}
                         {% endif %}
-                    </span>
 
-                    <div class="min-w-0 flex-1">
-                        <p class="truncate text-sm font-medium text-ink" title="{{ row_title }}">
-                            {{ row_title }}
-                        </p>
+                        <li class="flex items-start gap-3 py-3">
 
-                        <p class="mt-0.5 text-xs text-ink-muted">
-                            <span class="sr-only">{{ row.transKey|trans }} · </span>
-                            {# An all-day row is floating — a wall date at
-                               midnight with no zone — so `false` keeps it in
-                               its own, and the reader's clock does not move it
-                               onto the day before. #}
-                            {{ row.startsAt|intl_date('EEEdMMM', row.event.isAllDay ? false : null) }}
-                            {%- if not row.event.isAllDay %} · {{ row.startsAt|date(clock.time) }}{% endif %}
-                        </p>
+                            {# The icon carries the kind's name as text for anyone who
+                               cannot see it, so the row still says "Flight" rather than
+                               leaving the shape to do all the work. #}
+                            <span class="relative mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center
+                                         rounded-lg bg-sunken text-ink-muted">
+                                <i class="{{ row.icon }} text-sm" aria-hidden="true"></i>
 
-                        {% if row.source is not null %}
-                            <a href="{{ path('app_mail_message', { id: row.source.id }) }}"
-                               data-turbo-frame="_top"
-                               class="mt-1 inline-flex max-w-full items-center gap-1.5
-                                      text-xs text-ink-faint hover:text-accent hover:underline"
-                               title="{{ row_from }}">
-                                <i class="fa-regular fa-envelope text-[10px] shrink-0" aria-hidden="true"></i>
-                                <span class="truncate">{{ row_from }}</span>
-                            </a>
-                        {% endif %}
-                    </div>
-                </li>
-            {% endfor %}
-        </ul>
+                                {% if row.cluster.isMerged %}
+                                    <span class="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full
+                                                 ring-2 ring-surface"
+                                          style="background: conic-gradient({{ slices|join(', ') }})"
+                                          title="{{ row_on }}"></span>
+                                    <span class="sr-only">{{ row_on }}</span>
+                                {% endif %}
+                            </span>
+
+                            <div class="min-w-0 flex-1">
+                                <p class="truncate text-sm font-medium text-ink" title="{{ row_title }}">
+                                    {{ row_title }}
+                                </p>
+
+                                <p class="mt-0.5 text-xs text-ink-muted">
+                                    <span class="sr-only">{{ row.transKey|trans }} · </span>
+                                    {# An all-day row is floating — a wall date at
+                                       midnight with no zone — so `false` keeps it in
+                                       its own, and the reader's clock does not move it
+                                       onto the day before. #}
+                                    {{ row.startsAt|intl_date('EEEdMMM', row.event.isAllDay ? false : null) }}
+                                    {%- if not row.event.isAllDay %} · {{ row.startsAt|date(clock.time) }}{% endif %}
+                                </p>
+
+                                {% if row.source is not null %}
+                                    <a href="{{ path('app_mail_message', { id: row.source.id }) }}"
+                                       data-turbo-frame="_top"
+                                       class="mt-1 inline-flex max-w-full items-center gap-1.5
+                                              text-xs text-ink-faint hover:text-accent hover:underline"
+                                       title="{{ row_from }}">
+                                        <i class="fa-regular fa-envelope text-[10px] shrink-0" aria-hidden="true"></i>
+                                        <span class="truncate">{{ row_from }}</span>
+                                    </a>
+                                {% endif %}
+                            </div>
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% endif %}
+
+            {# ── The radar ─────────────────────────────────────────────────
+               One Stimulus scope over both sections, so the per-action
+               dismiss token is minted once rather than once per card. #}
+            {% if insights is not empty or undatedInsights is not empty %}
+                <div data-controller="insight--radar"
+                     data-insight--radar-token-value="{{ csrf_token('insight-dismiss') }}"
+                     class="{{ rows is not empty ? 'mt-3 border-t border-line pt-4' : 'pt-1' }}">
+
+                    {% if insights is not empty %}
+                        <section data-insight-section>
+                            <h3 class="text-[11px] font-semibold uppercase tracking-wider text-ink-faint">
+                                {{ 'insights.panel.heading'|trans }}
+                            </h3>
+
+                            <ul class="mt-2 space-y-2" data-insight-list>
+                                {% for insight in insights %}
+                                    {% set trackingUrl = insight.payload.trackingUrl|default(null) %}
+                                    {% set status = insight.payload.status|default(null) %}
+                                    {# Only the vocabulary the catalogue knows. An
+                                       extractor's stray status must not print a raw
+                                       translation key onto a card. #}
+                                    {% set statusTone = {
+                                        'announced':        'border-ink-faint/40 text-ink-muted',
+                                        'in_transit':       'border-sky-500/40 text-sky-700 dark:text-sky-300',
+                                        'out_for_delivery': 'border-amber-500/40 text-amber-700 dark:text-amber-300',
+                                        'delivered':        'border-green-500/40 text-green-700 dark:text-green-300',
+                                    }[status] ?? null %}
+
+                                    <li data-insight-card
+                                        data-insight-id="{{ insight.id }}"
+                                        data-insight-kind="{{ insight.kind.value }}"
+                                        class="rounded-pane border border-line bg-surface p-3 shadow-sm">
+                                        <div class="flex items-start gap-3">
+                                            {% include 'insight/_kind_chip.html.twig' with { kind: insight.kind } only %}
+
+                                            <div class="min-w-0 flex-1">
+                                                <div class="flex items-start justify-between gap-2">
+                                                    <p class="truncate text-sm font-semibold text-ink" title="{{ insight.title }}">
+                                                        {{ insight.title }}
+                                                    </p>
+                                                    <button type="button"
+                                                            data-action="click->insight--radar#dismiss"
+                                                            data-insight--radar-url-param="{{ path('app_insight_dismiss', { id: insight.id }) }}"
+                                                            aria-label="{{ 'insights.panel.dismiss'|trans }}"
+                                                            title="{{ 'insights.panel.dismiss'|trans }}"
+                                                            class="-mr-1.5 -mt-1 flex h-6 w-6 shrink-0 items-center justify-center rounded-full
+                                                                   text-ink-faint hover:bg-hover hover:text-ink transition-colors">
+                                                        <i class="fa-solid fa-xmark text-xs" aria-hidden="true"></i>
+                                                    </button>
+                                                </div>
+
+                                                <p class="mt-0.5 text-xs text-ink-faint">
+                                                    {{ insight.happensAt|intl_date('EEEdMMM') }}
+                                                    {#- A parcel's ETA is a day, not an hour — its
+                                                        midnight is a placeholder, not a time. -#}
+                                                    {%- if insight.happensAt|date('His') != '000000' %} · {{ insight.happensAt|date(clock.time) }}{% endif %}
+                                                    {% if statusTone is not null %}
+                                                        <span data-insight-status="{{ status }}"
+                                                              class="ml-1 inline-flex items-center rounded-full border px-2 py-px
+                                                                     text-[11px] leading-[1.35] font-medium {{ statusTone }}">
+                                                            {{ ('insights.status.' ~ status)|trans }}
+                                                        </span>
+                                                    {% endif %}
+                                                </p>
+
+                                                {% if trackingUrl is not empty or insight.thread is not null %}
+                                                    <div class="mt-2 flex flex-wrap items-center gap-1.5">
+                                                        {% if trackingUrl is not empty %}
+                                                            <a href="{{ trackingUrl }}"
+                                                               target="_blank" rel="noopener noreferrer"
+                                                               data-insight-track
+                                                               class="inline-flex items-center gap-1.5 rounded-full bg-accent px-2.5 py-1
+                                                                      text-xs font-medium text-accent-ink hover:bg-accent-strong transition-colors">
+                                                                <i class="fa-solid fa-location-arrow text-[10px]" aria-hidden="true"></i>
+                                                                {{ 'insights.panel.track'|trans }}
+                                                            </a>
+                                                        {% endif %}
+                                                        {% if insight.thread is not null %}
+                                                            <a href="{{ path('app_mail_thread', { id: insight.thread.id }) }}"
+                                                               data-turbo-frame="_top"
+                                                               data-insight-open-mail
+                                                               class="inline-flex items-center gap-1.5 rounded-full border border-line px-2.5 py-1
+                                                                      text-xs font-medium text-ink-muted hover:bg-hover hover:text-ink transition-colors">
+                                                                <i class="fa-regular fa-envelope text-[10px]" aria-hidden="true"></i>
+                                                                {{ 'insights.panel.open_mail'|trans }}
+                                                            </a>
+                                                        {% endif %}
+                                                    </div>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </li>
+                                {% endfor %}
+                            </ul>
+                        </section>
+                    {% endif %}
+
+                    {% if undatedInsights is not empty %}
+                        <section data-insight-section class="{{ insights is not empty ? 'mt-4' : '' }}">
+                            <h3 class="text-[11px] font-semibold uppercase tracking-wider text-ink-faint">
+                                {{ 'insights.panel.undated_heading'|trans }}
+                            </h3>
+
+                            <ul class="mt-2 space-y-2" data-insight-list>
+                                {% for insight in undatedInsights %}
+                                    {% set repo = insight.payload.repo|default(null) %}
+                                    {% set number = insight.payload.number|default(null) %}
+                                    {% set action = insight.payload.action|default(null) %}
+                                    {% set url = insight.payload.url|default(null) %}
+
+                                    <li data-insight-card
+                                        data-insight-id="{{ insight.id }}"
+                                        data-insight-kind="{{ insight.kind.value }}"
+                                        class="rounded-pane border border-line bg-surface p-3 shadow-sm">
+                                        <div class="flex items-start gap-3">
+                                            {% include 'insight/_kind_chip.html.twig' with { kind: insight.kind } only %}
+
+                                            <div class="min-w-0 flex-1">
+                                                <div class="flex items-start justify-between gap-2">
+                                                    <p class="truncate text-sm font-semibold text-ink" title="{{ insight.title }}">
+                                                        {{ insight.title }}
+                                                    </p>
+                                                    <button type="button"
+                                                            data-action="click->insight--radar#dismiss"
+                                                            data-insight--radar-url-param="{{ path('app_insight_dismiss', { id: insight.id }) }}"
+                                                            aria-label="{{ 'insights.panel.dismiss'|trans }}"
+                                                            title="{{ 'insights.panel.dismiss'|trans }}"
+                                                            class="-mr-1.5 -mt-1 flex h-6 w-6 shrink-0 items-center justify-center rounded-full
+                                                                   text-ink-faint hover:bg-hover hover:text-ink transition-colors">
+                                                        <i class="fa-solid fa-xmark text-xs" aria-hidden="true"></i>
+                                                    </button>
+                                                </div>
+
+                                                {% if repo is not empty or number is not null or action is not empty %}
+                                                    <p class="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs text-ink-faint">
+                                                        {% if repo is not empty %}<span class="truncate">{{ repo }}</span>{% endif %}
+                                                        {% if number is not null %}<span class="shrink-0">#{{ number }}</span>{% endif %}
+                                                        {% if action is not empty %}
+                                                            <span data-insight-action="{{ action }}"
+                                                                  class="inline-flex items-center rounded-full border border-ink-faint/40 px-2 py-px
+                                                                         text-[11px] leading-[1.35] font-medium text-ink-muted">
+                                                                {{ action }}
+                                                            </span>
+                                                        {% endif %}
+                                                    </p>
+                                                {% endif %}
+
+                                                {% if url is not empty %}
+                                                    <div class="mt-2">
+                                                        {# The brand's own name rather than a
+                                                           catalogue key — "GitHub" is not a word
+                                                           any locale translates. #}
+                                                        <a href="{{ url }}"
+                                                           target="_blank" rel="noopener noreferrer"
+                                                           data-insight-open-url
+                                                           class="inline-flex items-center gap-1.5 rounded-full border border-line px-2.5 py-1
+                                                                  text-xs font-medium text-ink-muted hover:bg-hover hover:text-ink transition-colors">
+                                                            <i class="fa-brands fa-github text-[11px]" aria-hidden="true"></i>
+                                                            GitHub
+                                                            <i class="fa-solid fa-arrow-up-right-from-square text-[9px]" aria-hidden="true"></i>
+                                                        </a>
+                                                    </div>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </li>
+                                {% endfor %}
+                            </ul>
+                        </section>
+                    {% endif %}
+                </div>
+            {% endif %}
+
+        </div>
     {% endif %}
 
 </turbo-frame>

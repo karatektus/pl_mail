@@ -1,0 +1,109 @@
+{#
+mail/_insight_strip.html.twig
+─────────────────────────────────────────────────────────────────────────────
+The insights a conversation carries, as a compact strip above the message
+body: icon tile, title, when, and the one action worth a button — tracking the
+parcel, opening the thing on GitHub. The mail below states these facts in
+prose; the strip states them in a glance, which is the whole trade of an
+insight (see MailInsight).
+
+Included from both reading panes — _message_content and _thread_content — with
+`only`, so it names its whole contract:
+
+Accepts:
+  insights  list<MailInsight>  MailInsightRepository::forThread(), and possibly
+            containing DISMISSED rows on purpose: dismissal hides a card from
+            the radar panel, not from the mail that plainly states the fact —
+            the repository documents that choice.
+
+Renders nothing when the thread carries nothing, which is almost every thread:
+the include must stay free for the common case, and an empty "insights" box
+over an ordinary mail would claim the extractor looked and found this mail
+wanting.
+
+No dismiss button here, deliberately. Dismissal means "stop showing this in
+the panel", and this is not the panel — a card that vanished from the mail
+that produced it would make the extraction unfalsifiable, the same reasoning
+the Happening Soon rows give for their provenance link.
+#}
+
+{% set insights = insights|default([]) %}
+
+{% if insights is not empty %}
+    <div class="mb-4" data-insight-strip>
+        <p class="mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-ink-faint">
+            {{ 'insights.card.heading'|trans }}
+        </p>
+
+        <div class="flex flex-wrap gap-2">
+            {% for insight in insights %}
+                {% set trackingUrl = insight.payload.trackingUrl|default(null) %}
+                {% set externalUrl = insight.payload.url|default(null) %}
+                {% set status = insight.payload.status|default(null) %}
+                {% set statusTone = {
+                    'announced':        'border-ink-faint/40 text-ink-muted',
+                    'in_transit':       'border-sky-500/40 text-sky-700 dark:text-sky-300',
+                    'out_for_delivery': 'border-amber-500/40 text-amber-700 dark:text-amber-300',
+                    'delivered':        'border-green-500/40 text-green-700 dark:text-green-300',
+                }[status] ?? null %}
+
+                <div data-insight-card
+                     data-insight-kind="{{ insight.kind.value }}"
+                     class="flex min-w-0 max-w-full items-center gap-2.5 rounded-pane border border-line
+                            bg-surface py-2 pl-2 pr-3 shadow-sm">
+
+                    {% include 'insight/_kind_chip.html.twig' with { kind: insight.kind, size: 'h-8 w-8' } only %}
+
+                    <div class="min-w-0">
+                        <p class="truncate text-sm font-semibold text-ink" title="{{ insight.title }}">
+                            {{ insight.title }}
+                        </p>
+                        <p class="truncate text-xs text-ink-faint">
+                            {% if insight.happensAt is not null %}
+                                {{ insight.happensAt|intl_date('EEEdMMM') }}
+                                {#- A parcel's ETA is a day, not an hour — its midnight
+                                    is a placeholder, not a time. -#}
+                                {%- if insight.happensAt|date('His') != '000000' %} · {{ insight.happensAt|date(clock.time) }}{% endif %}
+                            {% elseif insight.payload.repo|default(null) is not empty %}
+                                {{ insight.payload.repo }}{% if insight.payload.number|default(null) is not null %} · #{{ insight.payload.number }}{% endif %}
+                            {% else %}
+                                {{ insight.kind.transKey|trans }}
+                            {% endif %}
+                            {% if statusTone is not null %}
+                                <span data-insight-status="{{ status }}"
+                                      class="ml-1 inline-flex items-center rounded-full border px-2 py-px
+                                             text-[11px] leading-[1.35] font-medium {{ statusTone }}">
+                                    {{ ('insights.status.' ~ status)|trans }}
+                                </span>
+                            {% endif %}
+                        </p>
+                    </div>
+
+                    {# One primary action per card: the tracking page where there
+                       is one, else the thing on GitHub. Never both — a compact
+                       card with two buttons is a wide card with none pressed. #}
+                    {% if trackingUrl is not empty %}
+                        <a href="{{ trackingUrl }}"
+                           target="_blank" rel="noopener noreferrer"
+                           data-insight-track
+                           class="ml-1 inline-flex shrink-0 items-center gap-1.5 rounded-full bg-accent px-2.5 py-1
+                                  text-xs font-medium text-accent-ink hover:bg-accent-strong transition-colors">
+                            <i class="fa-solid fa-location-arrow text-[10px]" aria-hidden="true"></i>
+                            {{ 'insights.panel.track'|trans }}
+                        </a>
+                    {% elseif externalUrl is not empty %}
+                        <a href="{{ externalUrl }}"
+                           target="_blank" rel="noopener noreferrer"
+                           data-insight-open-url
+                           class="ml-1 inline-flex shrink-0 items-center gap-1.5 rounded-full border border-line px-2.5 py-1
+                                  text-xs font-medium text-ink-muted hover:bg-hover hover:text-ink transition-colors">
+                            <i class="fa-brands fa-github text-[11px]" aria-hidden="true"></i>
+                            GitHub
+                            <i class="fa-solid fa-arrow-up-right-from-square text-[9px]" aria-hidden="true"></i>
+                        </a>
+                    {% endif %}
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+{% endif %}

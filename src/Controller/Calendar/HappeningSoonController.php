@@ -5,7 +5,10 @@ declare(strict_types=1);
 namespace App\Controller\Calendar;
 
 use App\Entity\User\User;
+use App\Repository\Insight\MailInsightRepository;
 use App\Service\Calendar\HappeningSoonReader;
+use DateTimeImmutable;
+use DateTimeZone;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
@@ -53,6 +56,7 @@ final class HappeningSoonController extends AbstractController
 {
     public function __construct(
         private readonly HappeningSoonReader $reader,
+        private readonly MailInsightRepository $insights,
     ) {
     }
 
@@ -68,8 +72,23 @@ final class HappeningSoonController extends AbstractController
     #[Route('/soon', name: 'soon', methods: ['GET'])]
     public function panel(): Response
     {
+        $user = $this->currentUser();
+        $now  = new DateTimeImmutable('now', new DateTimeZone('UTC'));
+
+        // The radar reads straight off MailInsightRepository rather than
+        // growing a reader of its own or moving into HappeningSoonReader. That
+        // reader earns its layer by deciding things before a template may look
+        // — windows counted in occurrences, clustering, provenance resolved in
+        // one query — and its class doc is entirely about calendar rows. An
+        // insight arrives already shaped: windowed, ordered, capped and
+        // one-row-per-parcel by construction in the repository, so a service
+        // between here and there would be a pass-through with no decision in
+        // it, and folding it into the reader would make that class about two
+        // families it keeps apart on purpose (see InsightKind's doc).
         return $this->render('calendar/_happening_soon.html.twig', [
-            'rows' => $this->reader->read($this->currentUser()),
+            'rows'            => $this->reader->read($user),
+            'insights'        => $this->insights->upcomingForUser($user, $now),
+            'undatedInsights' => $this->insights->recentUndatedForUser($user, $now),
         ]);
     }
 

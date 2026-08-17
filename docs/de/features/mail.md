@@ -1,4 +1,4 @@
-<!-- translated-from: features/mail.md sha1:e534edbc88e7ce4cc773c6744455b929c099b965 -->
+<!-- translated-from: features/mail.md sha1:d2c1ba9b7b655869fe6f038fa0ca7406f2b2f10f -->
 
 # Mail
 
@@ -87,6 +87,31 @@ anschaut, ist eine Schuld und keine Markierung — also läuft sie von selbst ab
 
 Auch Suchergebnisse räumen das Fähnchen ab: Eine Zeile, deren Absender und Betreff du gerade in
 einer Trefferliste gelesen hast, ist dir gezeigt worden, in welcher Liste auch immer.
+
+## Das Radar
+
+plMail liest bestimmte Fakten aus Mails heraus, während sie ankommen: Sendungsnummern aus
+Versandbestätigungen, Flüge aus Airline-Buchungen und Check-in-Mails, Veranstaltungstickets sowie
+Issue- und Pull-Request-Aktivität aus GitHub-Benachrichtigungen. Jeder Fund wird eine kleine Karte.
+Was ein Datum trägt, reiht sich im Kalender-Panel **Demnächst** ein, unter **Auf deinem Radar**;
+eine Konversation, in der etwas gefunden wurde, zeigt ihre Karten außerdem in einer Leiste
+**In dieser Konversation gefunden** über den Nachrichten.
+
+Das Auslesen ist deterministisch und lokal. Es läuft auf deinem eigenen Server, gegen
+Absender-Domains, Header und feste Muster — Sendungsnummern, Flugcodes, `#123` —, ohne
+Cloud-Dienst und ohne Modell: Nichts rät, und eine Mail, die auf kein bekanntes Muster passt,
+ergibt schlicht nichts. Das ist ein bewusster Tausch — das Radar übersieht lieber ein Paket, als
+eines zu erfinden.
+
+Jede Quelle hat ihren eigenen Schalter unter **Einstellungen → Radar**. Schaltest du eine aus,
+entstehen aus ihr keine neuen Karten mehr; was sie schon gefunden hat, bleibt, bis du es
+ausblendest. Die Menge der Quellen ist absichtlich erweiterbar — ein Extraktor, der zu einem Build
+hinzukommt, trägt sich selbst auf dieser Einstellungsseite ein und läuft los, ohne dass sich sonst
+etwas ändert.
+
+Neue Extraktoren lesen alte Mails nicht von allein noch einmal. `app:backfill insights` geht die
+Mails, die schon in der Datenbank liegen, einmal durch und reicht sie jedem eingeschalteten
+Extraktor — derselbe Durchlauf, den auch die anderen Backfill-Aufgaben machen.
 
 ## Konversationen
 
@@ -307,11 +332,18 @@ sendet, auf einem dienstlichen Postfach, das mit einem Block unterschreibt, ist 
 diese Einstellung.
 
 Im Schreibfenster wird die Signatur für dich eingesetzt, oberhalb des zitierten Textes, bei einer
-neuen Nachricht ebenso wie bei einer Antwort und einer Weiterleitung, mit einem leeren Absatz davor
-— damit der Cursor im Schreibraum steht und nicht mitten im Gruß. **Signatur einfügen** in der
-Werkzeugleiste ersetzt den Block an Ort und Stelle, statt einen zweiten anzuhängen, und dasselbe
-tut ein Wechsel des Kontos in der **From**-Auswahl: Der Signaturblock wird getauscht, ein bereits
-getippter Absatz überlebt den Wechsel.
+neuen Nachricht ebenso wie bei einer Antwort, mit einem leeren Absatz davor — damit der Cursor im
+Schreibraum steht und nicht mitten im Gruß. Eine **Weiterleitung** bleibt bewusst ohne Signatur —
+ihr Inhalt ist die Mail, die du weitergibst, und der Cursor startet in der **An**-Zeile, denn ohne
+Empfängerin geht eine Weiterleitung nirgendwohin; **Signatur einfügen** holt den Block, wenn du ihn
+willst. Dieser Knopf ersetzt den Block an Ort und Stelle, statt einen zweiten anzuhängen, und
+dasselbe tut ein Wechsel des Kontos in der **From**-Auswahl: Der Signaturblock wird getauscht, ein
+bereits getippter Absatz überlebt den Wechsel.
+
+Eine Weiterleitung öffnet mit dem Original hinter der Kapsel **Zitierten Text anzeigen**. Wenn du
+es lieber gleich ausgeklappt siehst: Der Schalter steht unter **Einstellungen → Allgemein →
+Verfassen** — eingeklappt bleibt die Vorgabe. So oder so zählt das Zitat als Inhalt der Nachricht:
+Eine Weiterleitung ohne ein eigenes Wort darüber wird nicht als leere Mail hinterfragt.
 
 ### Später senden
 

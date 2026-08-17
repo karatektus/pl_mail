@@ -3,6 +3,44 @@
 {% import '_partials/_logo_mark.html.twig' as logo %}
 {% set a = appearance() %}
 
+{# ── One theme tile ──────────────────────────────────────────────────────────
+   A macro because the picker renders the same tile from two places now: the
+   visible row of classics (plus the currently chosen logo theme) and the
+   "More" grid the rest wait in.
+
+   data-theme-NAME. `data-theme` is the palette switch (every theme block in
+   app.css is selected by it), so a tile wearing it declared that theme's
+   whole palette on itself and the label below inherited it — "Nord" written
+   in Nord's ink on Solar's cream, 1.22:1. The swatch still previews the
+   theme, because those are inline colours on that element alone and preview
+   is its whole job.
+
+   The theme's name is the only thing that says which tile is which, so it is
+   primary content, not a caption: it gets the soft ink (7:1 or better in
+   every theme) at 12px rather than muted ink at 11px. The 32 logo-colourway
+   themes are named by the logo style they mirror — those keys exist in every
+   locale already, and a theme called anything but its colourway's name would
+   break the link the linked-logo toggle promises. #}
+{% macro theme_tile(theme, selected) %}
+    {% set swatch = theme.swatch %}
+    <button type="button"
+            data-theme-name="{{ theme.value }}"
+            data-dark="{{ theme.isDark ? '1' : '0' }}"
+            data-theme-defaults="{{ theme.defaults|json_encode }}"
+            data-action="click->settings--appearance#pickTheme"
+            class="group flex flex-col items-center gap-2 p-2 rounded-pane cursor-pointer hover:bg-hover transition-colors
+                   {{ selected ? 'ring-2 ring-accent' : '' }}">
+        <span class="w-full h-10 rounded-lg border border-line flex items-end p-1 gap-1"
+              style="background:{{ swatch[0] }}">
+            <span class="w-2 h-2 rounded-full" style="background:{{ swatch[1] }}"></span>
+            <span class="w-2 h-2 rounded-full" style="background:{{ swatch[2] }}"></span>
+        </span>
+        <span class="text-xs text-ink-soft">{{ (theme.logoStyle is not null
+            ? 'settings.appearance.logo.style.' ~ theme.value
+            : 'settings.appearance.theme.' ~ theme.value)|trans }}</span>
+    </button>
+{% endmacro %}
+
 {# ── One shape for every segmented control ──────────────────────────────────
    Density (global and all three surfaces), preview lines, unread emphasis and
    the typeface are the same control — pick one of a short list — and before
@@ -262,36 +300,50 @@
                    three at 78px each. Those three could not hold "Dämmerung"
                    either: two columns of 122 is the width the label has always
                    needed and the first arrangement that actually gives it. #}
+                {# The seven classics stay on the page; the thirty-two logo
+                   themes wait behind "More" — except the one currently chosen,
+                   which is rendered among the visible tiles so the selection
+                   is never hidden from its owner. The split is server-side
+                   state, so the extras fold away again on the next load. #}
+                {% set _visibleThemes = [] %}
+                {% set _moreThemes = [] %}
+                {% for theme in enum('App\\Domain\\Enum\\Theme\\Theme').cases %}
+                    {% if theme.logoStyle is null or theme == a.theme %}
+                        {% set _visibleThemes = _visibleThemes|merge([theme]) %}
+                    {% else %}
+                        {% set _moreThemes = _moreThemes|merge([theme]) %}
+                    {% endif %}
+                {% endfor %}
+
                 <div class="grid grid-cols-[repeat(auto-fill,minmax(5.5rem,1fr))] gap-3">
-                    {% for theme in enum('App\\Domain\\Enum\\Theme\\Theme').cases %}
-                        {% set swatch = theme.swatch %}
-                        {# data-theme-NAME. `data-theme` is the palette switch (every
-                           theme block in app.css is selected by it), so a tile wearing
-                           it declared that theme's whole palette on itself and the
-                           label below inherited it — "Nord" written in Nord's ink on
-                           Solar's cream, 1.22:1. The swatch above still previews the
-                           theme, because those are inline colours on that element
-                           alone and preview is its whole job. #}
-                        <button type="button"
-                                data-theme-name="{{ theme.value }}"
-                                data-dark="{{ theme.isDark ? '1' : '0' }}"
-                                data-theme-defaults="{{ theme.defaults|json_encode }}"
-                                data-action="click->settings--appearance#pickTheme"
-                                class="group flex flex-col items-center gap-2 p-2 rounded-pane cursor-pointer hover:bg-hover transition-colors
-                                       {{ a.theme == theme ? 'ring-2 ring-accent' : '' }}">
-                            <span class="w-full h-10 rounded-lg border border-line flex items-end p-1 gap-1"
-                                  style="background:{{ swatch[0] }}">
-                                <span class="w-2 h-2 rounded-full" style="background:{{ swatch[1] }}"></span>
-                                <span class="w-2 h-2 rounded-full" style="background:{{ swatch[2] }}"></span>
-                            </span>
-                            {# The theme's name is the only thing that says which tile
-                               is which, so it is primary content, not a caption: it
-                               gets the soft ink (7.5:1 or better in every theme) at
-                               12px rather than muted ink at 11px. It was the lowest
-                               contrast text on the page and it is the text a person
-                               reads most carefully here. #}
-                            <span class="text-xs text-ink-soft">{{ ('settings.appearance.theme.' ~ theme.value)|trans }}</span>
-                        </button>
+                    {% for theme in _visibleThemes %}
+                        {{ _self.theme_tile(theme, a.theme == theme) }}
+                    {% endfor %}
+
+                    {# A tile-shaped disclosure, not a tile: it reveals the
+                       hidden grid below and retires itself — the full set then
+                       stays out for the rest of the page visit. The hidden
+                       tiles are in the DOM either way (pickTheme's ring sweep
+                       and the linked-logo repaint both query them), so this is
+                       purely a class toggle on the container. #}
+                    <button type="button"
+                            data-action="click->settings--appearance#showMoreThemes"
+                            data-settings--appearance-target="moreThemesButton"
+                            aria-expanded="false"
+                            aria-controls="appearance-more-themes"
+                            class="group flex flex-col items-center gap-2 p-2 rounded-pane cursor-pointer hover:bg-hover transition-colors">
+                        <span class="w-full h-10 rounded-lg border border-dashed border-line flex items-center justify-center text-ink-muted">
+                            <i class="fa-solid fa-ellipsis" aria-hidden="true"></i>
+                        </span>
+                        <span class="text-xs text-ink-soft">{{ 'settings.appearance.theme.more'|trans }}</span>
+                    </button>
+                </div>
+
+                <div id="appearance-more-themes"
+                     class="hidden grid grid-cols-[repeat(auto-fill,minmax(5.5rem,1fr))] gap-3 mt-3"
+                     data-settings--appearance-target="moreThemes">
+                    {% for theme in _moreThemes %}
+                        {{ _self.theme_tile(theme, false) }}
                     {% endfor %}
                 </div>
                 <input type="hidden" data-settings--appearance-target="theme" data-settings--appearance-field="theme" value="{{ a.theme.value }}">
@@ -313,7 +365,37 @@
                     <p class="text-xs text-ink-faint mt-0.5">{{ 'settings.appearance.logo.subheading'|trans }}</p>
                 </div>
 
-                <div class="grid grid-cols-[repeat(auto-fill,minmax(5.5rem,1fr))] gap-3">
+                {# Linked or independent. While linked the mark is the theme's —
+                   picking a theme above repaints it live (see pickTheme) — and
+                   the tile grid below is hidden rather than removed: pickTheme
+                   still reads the strokes off the matching tile, and choosing
+                   Independent reveals the grid exactly as it was left. #}
+                <div class="mb-4">
+                    <span class="block text-xs font-medium text-ink-muted mb-1.5" id="logo-linked-label">
+                        {{ 'settings.appearance.logo.heading'|trans }}
+                    </span>
+                    <div class="{{ segGroup }}" role="radiogroup" aria-labelledby="logo-linked-label">
+                        <label class="cursor-pointer">
+                            <input type="radio" name="logoLinkedMode" class="peer sr-only" value="1"
+                                   data-action="change->settings--appearance#toggleLogoLinked"
+                                   aria-label="{{ 'settings.appearance.logo.linked'|trans }}"
+                                {{ a.logoLinked ? 'checked' : '' }}>
+                            <span class="{{ segText }}">{{ 'settings.appearance.logo.linked'|trans }}</span>
+                        </label>
+                        <label class="cursor-pointer">
+                            <input type="radio" name="logoLinkedMode" class="peer sr-only" value="0"
+                                   data-action="change->settings--appearance#toggleLogoLinked"
+                                   aria-label="{{ 'settings.appearance.logo.independent'|trans }}"
+                                {{ a.logoLinked ? '' : 'checked' }}>
+                            <span class="{{ segText }}">{{ 'settings.appearance.logo.independent'|trans }}</span>
+                        </label>
+                    </div>
+                    <input type="hidden" data-settings--appearance-field="logoLinked"
+                           data-settings--appearance-target="logoLinked" value="{{ a.logoLinked ? '1' : '0' }}">
+                </div>
+
+                <div class="grid grid-cols-[repeat(auto-fill,minmax(5.5rem,1fr))] gap-3 {{ a.logoLinked ? 'hidden' : '' }}"
+                     data-settings--appearance-target="logoGrid">
                     {% for style in enum('App\\Domain\\Enum\\Theme\\LogoStyle').cases %}
                         <button type="button"
                                 data-logo-name="{{ style.value }}"
@@ -491,21 +573,38 @@
                         },
                     ] %}
 
+                    {# Segmented like every other short choice on this page. The
+                       radios are UI only — they carry no field attribute, so
+                       save() never reads them; each change writes the hidden
+                       field beside the group, which is what travels. #}
                     {% for toggle in toggles %}
-                        <label class="flex items-start justify-between gap-3 cursor-pointer">
-                            <span class="min-w-0">
-                                <span class="block text-xs font-medium text-ink-muted">{{ ('settings.appearance.list.' ~ toggle.field)|trans }}</span>
-                                <span class="block text-[11px] text-ink-faint mt-0.5">{{ ('settings.appearance.list.' ~ toggle.field ~ 'Hint')|trans }}</span>
+                        <div>
+                            <span class="block text-xs font-medium text-ink-muted" id="list-toggle-{{ toggle.field }}">
+                                {{ ('settings.appearance.list.' ~ toggle.field)|trans }}
                             </span>
-                            <input type="checkbox" class="accent-accent cursor-pointer mt-0.5 shrink-0"
-                                   data-toggles="{{ toggle.field }}"
-                                   data-css-vars-on="{{ toggle.vars.on|json_encode }}"
-                                   data-css-vars-off="{{ toggle.vars.off|json_encode }}"
-                                   data-action="change->settings--appearance#toggleListOption"
-                                {{ toggle.on ? 'checked' : '' }}>
+                            <span class="block text-[11px] text-ink-faint mt-0.5 mb-1.5">
+                                {{ ('settings.appearance.list.' ~ toggle.field ~ 'Hint')|trans }}
+                            </span>
+                            <div class="{{ segGroup }}" role="radiogroup" aria-labelledby="list-toggle-{{ toggle.field }}">
+                                {% for shown in [true, false] %}
+                                    <label class="cursor-pointer">
+                                        <input type="radio" name="{{ toggle.field }}Mode" class="peer sr-only"
+                                               value="{{ shown ? '1' : '0' }}"
+                                               data-toggles="{{ toggle.field }}"
+                                               data-css-vars-on="{{ toggle.vars.on|json_encode }}"
+                                               data-css-vars-off="{{ toggle.vars.off|json_encode }}"
+                                               data-action="change->settings--appearance#toggleListOption"
+                                               aria-label="{{ ('settings.appearance.list.' ~ toggle.field)|trans }} — {{ (shown ? 'settings.appearance.seg.shown' : 'settings.appearance.seg.hidden')|trans }}"
+                                            {{ toggle.on == shown ? 'checked' : '' }}>
+                                        <span class="{{ segText }}">
+                                            {{ (shown ? 'settings.appearance.seg.shown' : 'settings.appearance.seg.hidden')|trans }}
+                                        </span>
+                                    </label>
+                                {% endfor %}
+                            </div>
                             <input type="hidden" data-settings--appearance-field="{{ toggle.field }}"
                                    data-toggle-field="{{ toggle.field }}" value="{{ toggle.on ? '1' : '0' }}">
-                        </label>
+                        </div>
                     {% endfor %}
 
                     {# Preview lines. The values are the CSS the row needs rather than the
@@ -663,31 +762,67 @@
                 </div>
 
                 <div class="space-y-4">
-                    <label class="flex items-center justify-between gap-3">
-                        <span class="text-xs font-medium text-ink-muted">{{ 'settings.appearance.main.tint'|trans }}</span>
-                        <span class="flex items-center gap-2">
-                            <label class="flex items-center gap-1.5 text-[11px] text-ink-faint cursor-pointer">
-                                <input type="checkbox" data-settings--appearance-target="mainTintDefault"
-                                       data-action="change->settings--appearance#toggleMainTintDefault"
-                                       {{ a.mainTint is null ? 'checked' : '' }} class="accent-accent cursor-pointer">
-                                {{ 'settings.appearance.main.default'|trans }}
-                            </label>
+                    {# Default/custom is a two-segment choice now, like every
+                       other either/or on this page. The colour picker stays
+                       live in both states: choosing a colour IS choosing
+                       Custom, and pickMainTint flips the segment on the way
+                       past — the exact behaviour the checkbox had. #}
+                    <div>
+                        <div class="flex items-center justify-between gap-3 mb-1.5">
+                            <span class="text-xs font-medium text-ink-muted" id="main-tint-label">{{ 'settings.appearance.main.tint'|trans }}</span>
                             <input type="color" value="{{ a.mainTint ?? '#ffffff' }}"
                                    data-settings--appearance-target="mainTint" data-action="input->settings--appearance#pickMainTint"
+                                   aria-label="{{ 'settings.appearance.main.tint'|trans }}"
                                    class="w-7 h-7 rounded-full bg-transparent border border-line cursor-pointer">
-                        </span>
+                        </div>
+                        <div class="{{ segGroup }}" role="radiogroup" aria-labelledby="main-tint-label">
+                            <label class="cursor-pointer">
+                                <input type="radio" name="mainTintMode" class="peer sr-only" value="default"
+                                       data-settings--appearance-target="mainTintDefault"
+                                       data-action="change->settings--appearance#toggleMainTintDefault"
+                                       aria-label="{{ 'settings.appearance.main.tint'|trans }} — {{ 'settings.appearance.seg.default'|trans }}"
+                                    {{ a.mainTint is null ? 'checked' : '' }}>
+                                <span class="{{ segText }}">{{ 'settings.appearance.seg.default'|trans }}</span>
+                            </label>
+                            <label class="cursor-pointer">
+                                <input type="radio" name="mainTintMode" class="peer sr-only" value="custom"
+                                       data-settings--appearance-target="mainTintCustom"
+                                       data-action="change->settings--appearance#toggleMainTintDefault"
+                                       aria-label="{{ 'settings.appearance.main.tint'|trans }} — {{ 'settings.appearance.seg.custom'|trans }}"
+                                    {{ a.mainTint is null ? '' : 'checked' }}>
+                                <span class="{{ segText }}">{{ 'settings.appearance.seg.custom'|trans }}</span>
+                            </label>
+                        </div>
                         <input type="hidden" data-settings--appearance-field="mainTint" data-settings--appearance-target="mainTintField" value="{{ a.mainTint ?? '' }}">
-                    </label>
+                    </div>
 
+                    {# Follow the glass, or carry an opacity of its own. The
+                       'Follow' label is density's — the same word for the same
+                       relationship — and the slider still disables while
+                       following, exactly as it did under the checkbox. #}
                     <div>
-                        <label class="flex items-center gap-1.5 text-[11px] text-ink-faint cursor-pointer mb-2">
-                            <input type="checkbox" data-settings--appearance-target="mainAlphaMatch"
-                                   data-action="change->settings--appearance#toggleMainAlphaMatch"
-                                {{ a.mainAlpha is null ? 'checked' : '' }} class="accent-accent cursor-pointer">
-                            {{ 'settings.appearance.main.matchGlass'|trans }}
-                        </label>
+                        <span class="block text-xs font-medium text-ink-muted mb-1.5" id="main-alpha-label">{{ 'settings.appearance.main.matchGlass'|trans }}</span>
+                        <div class="{{ segGroup }} mb-2" role="radiogroup" aria-labelledby="main-alpha-label">
+                            <label class="cursor-pointer">
+                                <input type="radio" name="mainAlphaMode" class="peer sr-only" value="follow"
+                                       data-settings--appearance-target="mainAlphaMatch"
+                                       data-action="change->settings--appearance#toggleMainAlphaMatch"
+                                       aria-label="{{ 'settings.appearance.main.matchGlass'|trans }} — {{ 'settings.appearance.density.follow'|trans }}"
+                                    {{ a.mainAlpha is null ? 'checked' : '' }}>
+                                <span class="{{ segText }}">{{ 'settings.appearance.density.follow'|trans }}</span>
+                            </label>
+                            <label class="cursor-pointer">
+                                <input type="radio" name="mainAlphaMode" class="peer sr-only" value="custom"
+                                       data-settings--appearance-target="mainAlphaCustom"
+                                       data-action="change->settings--appearance#toggleMainAlphaMatch"
+                                       aria-label="{{ 'settings.appearance.main.matchGlass'|trans }} — {{ 'settings.appearance.seg.custom'|trans }}"
+                                    {{ a.mainAlpha is null ? '' : 'checked' }}>
+                                <span class="{{ segText }}">{{ 'settings.appearance.seg.custom'|trans }}</span>
+                            </label>
+                        </div>
                         <input type="range" min="0.15" max="1" step="0.01" value="{{ a.mainAlpha ?? a.paneAlpha }}"
                                data-settings--appearance-target="mainAlpha" data-action="input->settings--appearance#slideMainAlpha"
+                               aria-label="{{ 'settings.appearance.main.matchGlass'|trans }}"
                                class="w-full accent-accent cursor-pointer {{ a.mainAlpha is null ? 'opacity-40 pointer-events-none' : '' }}">
                         <input type="hidden" data-settings--appearance-field="mainAlpha" data-settings--appearance-target="mainAlphaField" value="{{ a.mainAlpha ?? '' }}">
                     </div>
@@ -733,21 +868,37 @@
                 </div>
 
                 <div class="space-y-4">
-                    <label class="flex items-center justify-between gap-3">
-                        <span class="text-xs font-medium text-ink-muted">{{ 'settings.appearance.text.color'|trans }}</span>
-                        <span class="flex items-center gap-2">
-                            <label class="flex items-center gap-1.5 text-[11px] text-ink-faint cursor-pointer">
-                                <input type="checkbox" data-settings--appearance-target="inkDefault"
-                                       data-action="change->settings--appearance#toggleInkDefault"
-                                       {{ a.inkColor is null ? 'checked' : '' }} class="accent-accent cursor-pointer">
-                                {{ 'settings.appearance.text.default'|trans }}
-                            </label>
+                    {# Same shape as the main-pane tint above: the segments say
+                       default or custom, the picker stays live, and choosing a
+                       colour flips the segment to Custom (see pickInk). #}
+                    <div>
+                        <div class="flex items-center justify-between gap-3 mb-1.5">
+                            <span class="text-xs font-medium text-ink-muted" id="ink-mode-label">{{ 'settings.appearance.text.color'|trans }}</span>
                             <input type="color" value="{{ a.inkColor ?? '#27272a' }}"
                                    data-settings--appearance-target="inkColor" data-action="input->settings--appearance#pickInk"
+                                   aria-label="{{ 'settings.appearance.text.color'|trans }}"
                                    class="w-7 h-7 rounded-full bg-transparent border border-line cursor-pointer">
-                        </span>
+                        </div>
+                        <div class="{{ segGroup }}" role="radiogroup" aria-labelledby="ink-mode-label">
+                            <label class="cursor-pointer">
+                                <input type="radio" name="inkMode" class="peer sr-only" value="default"
+                                       data-settings--appearance-target="inkDefault"
+                                       data-action="change->settings--appearance#toggleInkDefault"
+                                       aria-label="{{ 'settings.appearance.text.color'|trans }} — {{ 'settings.appearance.seg.default'|trans }}"
+                                    {{ a.inkColor is null ? 'checked' : '' }}>
+                                <span class="{{ segText }}">{{ 'settings.appearance.seg.default'|trans }}</span>
+                            </label>
+                            <label class="cursor-pointer">
+                                <input type="radio" name="inkMode" class="peer sr-only" value="custom"
+                                       data-settings--appearance-target="inkCustom"
+                                       data-action="change->settings--appearance#toggleInkDefault"
+                                       aria-label="{{ 'settings.appearance.text.color'|trans }} — {{ 'settings.appearance.seg.custom'|trans }}"
+                                    {{ a.inkColor is null ? '' : 'checked' }}>
+                                <span class="{{ segText }}">{{ 'settings.appearance.seg.custom'|trans }}</span>
+                            </label>
+                        </div>
                         <input type="hidden" data-settings--appearance-field="inkColor" data-settings--appearance-target="inkColorField" value="{{ a.inkColor ?? '' }}">
-                    </label>
+                    </div>
 
                     <div data-settings--appearance-target="inkDerived" class="space-y-2 {{ a.inkColor is null ? 'opacity-40 pointer-events-none' : '' }}">
                         <div class="flex items-center justify-between">

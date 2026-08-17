@@ -1,0 +1,33 @@
+{#
+insight/_kind_chip.html.twig
+─────────────────────────────────────────────────────────────────────────────
+The kind's icon on its coloured tile, shared by the radar panel and the
+reading-pane strip so a parcel is the same amber square everywhere it appears.
+
+Accepts:
+  kind  InsightKind
+  size  optional Tailwind sizing classes, default 'h-9 w-9'
+
+One colour per kind, filled at 600 weight with white iconography, and
+deliberately NOT the theme tokens: a 600-weight fill reads identically on both
+themes, where a tokened tint would drift with whichever surface it lands on.
+Both GitHub kinds share slate on purpose — issue and pull request are told
+apart by their icon, and two greys nobody can name apart would only pretend to
+say more. Full class names, spelled out per kind, because Tailwind's scanner
+reads this file as text and a composed 'bg-' ~ colour would compile to nothing.
+
+The kind's name rides along for anyone who cannot see the tile, so a card
+still says "Parcel" rather than leaving the colour to do all the work.
+#}
+{% set tone = {
+    'parcel':       'bg-amber-600',
+    'flight':       'bg-sky-600',
+    'ticket':       'bg-violet-600',
+    'github-issue': 'bg-slate-600',
+    'github-pr':    'bg-slate-600',
+}[kind.value] ?? 'bg-slate-600' %}
+
+<span class="flex {{ size|default('h-9 w-9') }} shrink-0 items-center justify-center rounded-lg {{ tone }} text-white shadow-sm">
+    <i class="{{ kind.icon }} text-sm" aria-hidden="true"></i>
+    <span class="sr-only">{{ kind.transKey|trans }}</span>
+</span>

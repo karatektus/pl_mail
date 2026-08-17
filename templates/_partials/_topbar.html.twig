@@ -26,7 +26,7 @@
            paint live elsewhere now — see _logo_mark.html.twig and
            LogoStyle. #}
         {% import '_partials/_logo_mark.html.twig' as logo %}
-        {{ logo.mark(appearance().logoStyle, 32, appearance().theme.isDark, true) }}
+        {{ logo.mark(appearance().effectiveLogoStyle, 32, appearance().theme.isDark, true) }}
         <span class="hidden sm:inline font-semibold text-ink text-sm tracking-wide">{{ 'app.name'|trans }}</span>
 
         {# Are live updates actually arriving? The failure is otherwise

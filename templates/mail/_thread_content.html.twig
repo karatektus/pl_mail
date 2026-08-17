@@ -68,6 +68,9 @@ self-contained: no {% extends %}, no block dependencies.
             {% endif %}
         </div>
 
+        {# What plMail read out of this conversation, before the conversation. #}
+        {% include 'mail/_insight_strip.html.twig' with { insights: insights|default([]) } only %}
+
         {# `messages` is the controller's conversation-ordered list; the raw
            association is the fallback for any include that has not been given
            it (its receivedAt-only order is why the list is passed at all). #}

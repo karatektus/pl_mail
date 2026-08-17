@@ -958,6 +958,7 @@ compose:
     send: Cast off
     send_options: Castin'-off orders
     sending: "Castin' off…"
+    sending_cancel: 'Belay that!'
     signature: Make yer mark
     signature_none: "This name bears no mark yet"
     subject_label: Head
@@ -1018,6 +1019,27 @@ header:
 
 inbox:
     empty: No bottles in this here tab.
+
+insights:
+    card:
+        heading: Spied in this here parley
+    kind:
+        flight: Passage by air
+        github-issue: Issue
+        github-pr: Pull request
+        parcel: Cargo
+        ticket: Passage papers
+    panel:
+        dismiss: Wave it off
+        heading: Through the spyglass
+        open_mail: To the bottle
+        track: Chart its course
+        undated_heading: From yer repos
+    status:
+        announced: Word be given
+        delivered: Come ashore
+        in_transit: On the high seas
+        out_for_delivery: "Rowin' the last stretch"
 
 integration:
     save_failed: 'Could not stow: %reason%'
@@ -1558,6 +1580,8 @@ settings:
             unreadEmphasis: Unread rows
         logo:
             heading: 'Ship''s mark'
+            independent: 'Chart yer own'
+            linked: 'Sail with the theme'
             style:
                 aurora: 'Northern lights'
                 berry: 'Berry'
@@ -1614,6 +1638,11 @@ settings:
             subject3: Assembly notes, as promised
         reset: Back to how she came
         subheading: Colours, crampedness, letterin' an' the backdrop — the whole look o' the ship, all in one spot.
+        seg:
+            custom: 'Yer own'
+            default: "Theme's pick"
+            hidden: 'Stowed'
+            shown: 'Shown'
         text:
             autoDerive: Work it out for me
             color: Text colour
@@ -1626,6 +1655,7 @@ settings:
             dark: Dark
             dusk: Dusk
             heading: Theme
+            more: 'More flags'
             light: Light
             nord: Nord
             solar: Solar
@@ -1919,6 +1949,31 @@ settings:
             Aught that has stopped workin'', what it means fer yer post, an''
             th'' smallest thing that mends it.
         technical_detail: 'Th'' fine print'
+    compose_behavior:
+        folded: 'Stowed'
+        forward_quote: 'Quoted text when forwardin'''
+        forward_quote_hint: 'Open a forward with the original stowed behind the pill, or spread on deck.'
+        heading: 'Scribblin'''
+        open: 'On deck'
+        subheading: 'How yer scribble window behaves, whatever ship be sailin''.'
+    insights:
+        extractor:
+            flight: Passages by air
+            flight_hint: "Flight numbers an' departures from airline bookin's an' boardin' mail."
+            github: GitHub
+            github_hint: "Issues an' pull requests from GitHub's messenger birds."
+            parcel: Cargo
+            parcel_hint: "Trackin' numbers an' where yer cargo be, read from shippin' letters."
+            ticket: Passage papers
+            ticket_hint: "Tickets an' bookin's with a date writ on them."
+        heading: The spyglass
+        seg:
+            'off': 'Nay'
+            'on': 'Aye'
+        subheading: >-
+            Facts plMail spies in yer post — cargo, flights, tickets, GitHub
+            doin's — aboard yer own ship by fixed rules, no cloud an' no
+            guessin', an' droppin' the glass on one stops new cards from it.
     integrations:
         ask_admin: 'Th'' quartermaster has not opened this port.'
         auth:
@@ -2101,6 +2156,7 @@ settings:
             mail: "Th' post"
             personal: Yerself
         health: "State o' yer crew"
+        insights: The spyglass
         profile: Yer colours
         filters: Sieves
         integrations: 'Friendly ports'

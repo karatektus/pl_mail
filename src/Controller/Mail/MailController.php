@@ -10,6 +10,7 @@ use App\Entity\Mail\Account;
 use App\Entity\Mail\Message;
 use App\Entity\Mail\MessageThread;
 use App\Entity\User\User;
+use App\Repository\Insight\MailInsightRepository;
 use App\Repository\Label\LabelRepository;
 use App\Repository\Mail\AccountRepository;
 use App\Repository\Mail\MailboxRepository;
@@ -37,6 +38,7 @@ final class MailController extends AbstractController
         private readonly LabelRepository $labelRepository,
         private readonly AccountRepository $accountRepository,
         private readonly ThreadListRenderer $listRenderer,
+        private readonly MailInsightRepository $insightRepository,
     )
     {
     }
@@ -682,10 +684,15 @@ final class MailController extends AbstractController
 
         $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $account);
 
+        // The conversation's insight cards, drawn above the body — one indexed
+        // read by thread, empty for almost every thread and cheap when it is.
+        $insights = $this->insightRepository->forThread($thread);
+
         if ($request->headers->get('X-Requested-With') === 'fetch') {
             // JS fetch — return just the message content fragment
             return $this->render('mail/_message_content.html.twig', [
-                'message' => $message,
+                'message'  => $message,
+                'insights' => $insights,
             ]);
         }
 
@@ -695,6 +702,7 @@ final class MailController extends AbstractController
             'thread' => $thread,
             'account' => $account,
             'selectedMessage' => $message,
+            'insights' => $insights,
         ]);
     }
 
@@ -721,11 +729,15 @@ final class MailController extends AbstractController
         $messages = $this->messageRepository->forThreadInConversationOrder($thread);
         $latest   = [] === $messages ? null : $messages[array_key_last($messages)];
 
+        // Same read as message() above, for the same card in the same place.
+        $insights = $this->insightRepository->forThread($thread);
+
         if ($request->headers->get('X-Requested-With') === 'fetch') {
             return $this->render('mail/_thread_content.html.twig', [
                 'thread'   => $thread,
                 'messages' => $messages,
                 'latest'   => $latest,
+                'insights' => $insights,
             ]);
         }
 
@@ -734,6 +746,7 @@ final class MailController extends AbstractController
             'account'  => $account,
             'messages' => $messages,
             'latest'   => $latest,
+            'insights' => $insights,
         ]);
     }
 }

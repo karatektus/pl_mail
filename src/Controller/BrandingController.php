@@ -24,10 +24,12 @@ use Symfony\Component\Routing\Attribute\Route;
  *
  * Cache-Control private: the answer depends on the session, and a shared
  * cache holding one user's berry for another's ink is exactly the bug a
- * favicon cannot visibly report. Revalidated by ETag rather than aged out —
- * the tag IS the style value, so an unchanged choice costs a 304 and a
- * changed one is visible on the very next page, instead of whenever a
- * max-age happened to expire.
+ * favicon cannot visibly report. The real freshness mechanism is the URL:
+ * _favicon.html.twig versions the link with the style value, so a changed
+ * choice is a different URL and the browser's own favicon cache — which
+ * ignores ordinary revalidation until a hard reload — never needs to be
+ * argued with. The ETag stays for the one same-URL case (two tabs, one
+ * switch), where it turns the refetch into a 304.
  */
 final class BrandingController extends AbstractController
 {
@@ -37,12 +39,12 @@ final class BrandingController extends AbstractController
         $user = $this->getUser();
 
         $style = $user instanceof User
-            ? $user->appearance->logoStyle
+            ? $user->appearance->effectiveLogoStyle()
             : LogoStyle::DEFAULT;
 
         $response = new Response(headers: [
             'Content-Type' => 'image/svg+xml',
-            'Cache-Control' => 'private, no-cache',
+            'Cache-Control' => 'private, max-age=604800',
         ]);
         $response->setEtag($style->value);
 
