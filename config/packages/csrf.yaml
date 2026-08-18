@@ -9,3 +9,29 @@ framework:
             - submit
             - authenticate
             - logout
+            # The compose window's own id (ComposeType::configureOptions), and
+            # it has to be listed here or it is the ONE form in the app still
+            # protected by a session-stored token.
+            #
+            # That is not a tidiness argument. A stateful token is minted into
+            # the session when the window renders and has to survive there until
+            # the window is done with it — which for compose means minutes of
+            # autosaves, not the seconds an ordinary form is on screen. Anything
+            # that writes the session in the meantime and did not see the token
+            # takes it away again, and Symfony's own session storages differ on
+            # whether that can happen: the native handler flocks the file, so
+            # concurrent requests queue; MockFileSessionStorage (what `when@test`
+            # serves the E2E stack with) and every non-locking store a scaled
+            # deployment would reach for (Redis, memcached) write the whole bag
+            # back and let the last response win.
+            #
+            # It cost a day as an E2E flake. Opening the inline reply box mints
+            # this token; the browser fires POST /mail/threads/listed at the same
+            # instant; whichever response finished last stamped its copy of the
+            # session over the other's. When threads/listed won, the token was
+            # simply gone and the autosave two seconds later was refused with
+            # "The CSRF token is invalid" — and since a refused form still
+            # renders the window with HTTP 200, the composer said "Draft saved"
+            # about a draft the server had thrown away. Stateless, the token is
+            # derived rather than stored, so there is nothing left to lose.
+            - compose
