@@ -859,29 +859,70 @@ class MessageRepository extends ServiceEntityRepository
     }
 
     /**
-     * Every addressable row this mailbox holds, as UID => Message.
+     * What this mailbox's rows currently say about their flags, and nothing
+     * else about them.
      *
-     * Hydrated, unlike findLocatedUidsById(), and keyed the other way round,
-     * because the caller's question is the other way round: the flag pass holds
-     * the server's answer keyed by UID and needs the row that answer is about,
-     * in order to change it. There is no bulk-update shortcut available to it —
-     * applying a flag means seenAt, starredAt, the thread's unread count and a
-     * JMAP change-log row, which is ThreadStatusUpdater's job and needs
-     * entities.
+     * The flag pass compares a folder listing against these five values and
+     * changes, in the ordinary case, none of them. It used to reach for the
+     * whole entity to find that out — `SELECT m.* FROM message WHERE
+     * mailbox_id = ? AND imap_uid IS NOT NULL`, hydrated — which means every
+     * body, every stored HTML part, the headers and the tsvector, for a
+     * comparison that touches a boolean, a boolean and a small JSON array. In
+     * the slow-query panel of a real install that one statement was the
+     * largest single cost in the database: 262 seconds over 1,187 calls,
+     * 698,517 rows, because it runs per folder per sweep for ever.
      *
-     * The cost is bounded by the same thing that bounds the sweep: this runs
-     * once per folder per SWEEP_INTERVAL_MINUTES, against the folder's located
-     * rows, and the listing it is compared with is the expensive half.
+     * So the comparison reads this, and only the rows that turn out to differ
+     * are hydrated (see ImapFlagReconciler). Array hydration on purpose: the
+     * caller wants values to compare, and an entity it does not intend to
+     * change is an entity the UnitOfWork has to track and check anyway.
      *
-     * @return array<int,Message> imapUid => Message
+     * @return array<int,array{id:int,flags:list<string>,seen:bool,flagged:bool,pending:bool}>
+     *         imapUid => its current flag state
      */
-    public function findLocatedByUid(Mailbox $mailbox): array
+    public function findFlagStateByUid(Mailbox $mailbox): array
     {
-        /** @var list<Message> $rows */
+        /** @var list<array{id:int,imapUid:int,flags:list<string>|null,seenAt:?\DateTimeInterface,starredAt:?\DateTimeInterface,flagsTouchedAt:?\DateTimeInterface}> $rows */
         $rows = $this->createQueryBuilder('m')
+            ->select('m.id', 'm.imapUid', 'm.flags', 'm.seenAt', 'm.starredAt', 'm.flagsTouchedAt')
             ->where('m.mailbox = :mailbox')
             ->andWhere('m.imapUid IS NOT NULL')
             ->setParameter('mailbox', $mailbox)
+            ->getQuery()
+            ->getArrayResult();
+
+        $state = [];
+
+        foreach ($rows as $row) {
+            $state[(int) $row['imapUid']] = [
+                'id'      => (int) $row['id'],
+                'flags'   => $row['flags'] ?? [],
+                'seen'    => null !== $row['seenAt'],
+                'flagged' => null !== $row['starredAt'],
+                'pending' => null !== $row['flagsTouchedAt'],
+            ];
+        }
+
+        return $state;
+    }
+
+    /**
+     * The rows a flag pass has decided it actually needs to change.
+     *
+     * @param list<int> $ids
+     *
+     * @return array<int,Message> imapUid => Message
+     */
+    public function findByIdsKeyedByUid(array $ids): array
+    {
+        if ([] === $ids) {
+            return [];
+        }
+
+        /** @var list<Message> $rows */
+        $rows = $this->createQueryBuilder('m')
+            ->where('m.id IN (:ids)')
+            ->setParameter('ids', $ids)
             ->getQuery()
             ->getResult();
 

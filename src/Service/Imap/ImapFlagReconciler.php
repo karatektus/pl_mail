@@ -92,15 +92,22 @@ final readonly class ImapFlagReconciler
             return 0;
         }
 
-        $located = $this->messages->findLocatedByUid($mailbox);
+        // Values first, entities second. Almost every UID in a folder listing
+        // agrees with what is already stored — a sweep that changes nothing is
+        // the normal outcome — and this used to find that out by loading every
+        // row in the mailbox as a full entity: bodies, stored HTML, headers and
+        // the search vector, to compare two booleans and a small array. It was
+        // the single largest cost in a real install's database. See
+        // MessageRepository::findFlagStateByUid().
+        $state = $this->messages->findFlagStateByUid($mailbox);
 
-        if ([] === $located) {
+        if ([] === $state) {
             return 0;
         }
 
-        $states = [];
+        $wanted = [];
 
-        foreach ($located as $uid => $message) {
+        foreach ($state as $uid => $current) {
             $flags = $flagsByUid[$uid] ?? null;
 
             if (null === $flags) {
@@ -111,12 +118,51 @@ final readonly class ImapFlagReconciler
                 continue;
             }
 
-            $states[] = new RemoteFlagState(
-                $message,
-                $this->hasFlag($flags, 'seen'),
-                $this->hasFlag($flags, 'flagged'),
-                MessageFlag::canonicalList($flags),
-            );
+            $seen     = $this->hasFlag($flags, 'seen');
+            $flagged  = $this->hasFlag($flags, 'flagged');
+            $canonical = MessageFlag::canonicalList($flags);
+
+            // A PRE-FILTER, and deliberately a conservative one: it decides
+            // which rows are worth loading, and ThreadStatusUpdater still makes
+            // the real decision about each of them. The rule here must never be
+            // narrower than the one there — a row it drops is a row that will
+            // never be looked at again this pass — so `pending` is included
+            // whatever it says, because a pending mark means the updater has
+            // something to do (honour the guard, or clear an expired one) and
+            // the grace period that decides which is its business, not ours.
+            //
+            // Both sides canonicalised for the same reason applyRemoteFlags()
+            // canonicalises: a mirror captured from a server that writes `Seen`
+            // must not read as differing from a listing that writes `\Seen`.
+            if (
+                false === $current['pending']
+                && $seen === $current['seen']
+                && $flagged === $current['flagged']
+                && MessageFlag::canonicalList($current['flags']) === $canonical
+            ) {
+                continue;
+            }
+
+            $wanted[$current['id']] = [$seen, $flagged, $canonical];
+        }
+
+        if ([] === $wanted) {
+            return 0;
+        }
+
+        $messages = $this->messages->findByIdsKeyedByUid(array_keys($wanted));
+        $states   = [];
+
+        foreach ($messages as $message) {
+            $answer = $wanted[(int) $message->id] ?? null;
+
+            if (null === $answer) {
+                continue;
+            }
+
+            [$seen, $flagged, $canonical] = $answer;
+
+            $states[] = new RemoteFlagState($message, $seen, $flagged, $canonical);
         }
 
         // The read time goes with the states rather than being taken there,
