@@ -1105,16 +1105,14 @@ class MessageThreadRepository extends ServiceEntityRepository
     ): array {
         $offset = ($page - 1) * $perPage;
 
-        [$sql, $params, $types] = $this->buildSearchSql($user, $query, false);
+        $rows = $this->searchRows($user, $query, $sort, $perPage, $offset, false);
 
-        $sql .= ' ORDER BY ' . $sort->orderBy() . ' LIMIT :limit OFFSET :offset';
-        $params['limit']  = $perPage;
-        $params['offset'] = $offset;
-        $types['limit']   = ParameterType::INTEGER;
-        $types['offset']  = ParameterType::INTEGER;
-
-        $conn = $this->getEntityManager()->getConnection();
-        $rows = $conn->fetchAllAssociative($sql, $params, $types);
+        // Thin, so the expensive pass earns its keep — see the rescue note in
+        // buildSearchSql(). Only ever reached on a page that did not fill,
+        // which is the same condition the pass exists to serve.
+        if (count($rows) < self::SEARCH_RESCUE_BELOW) {
+            $rows = $this->searchRows($user, $query, $sort, $perPage, $offset, true);
+        }
 
         if (empty($rows)) {
             return [];
@@ -1143,6 +1141,30 @@ class MessageThreadRepository extends ServiceEntityRepository
         return $ordered;
     }
 
+    /**
+     * One page of thread ids, ranked.
+     *
+     * @return list<array<string,mixed>>
+     */
+    private function searchRows(
+        UserInterface     $user,
+        ParsedSearchQuery $query,
+        SearchSortOrder   $sort,
+        int               $perPage,
+        int               $offset,
+        bool              $withBodyRescue,
+    ): array {
+        [$sql, $params, $types] = $this->buildSearchSql($user, $query, false, $withBodyRescue);
+
+        $sql .= ' ORDER BY ' . $sort->orderBy() . ' LIMIT :limit OFFSET :offset';
+        $params['limit']  = $perPage;
+        $params['offset'] = $offset;
+        $types['limit']   = ParameterType::INTEGER;
+        $types['offset']  = ParameterType::INTEGER;
+
+        return $this->getEntityManager()->getConnection()->fetchAllAssociative($sql, $params, $types);
+    }
+
     /** The same SQL as search(), counted — see that method for why it is SQL. */
     public function countSearch(
         UserInterface     $user,
@@ -1158,10 +1180,40 @@ class MessageThreadRepository extends ServiceEntityRepository
     /**
      * @return array{string, array<string,mixed>, array<string,mixed>}
      */
+    /**
+     * Below this many cheap hits, the body substring pass is worth its 3
+     * seconds; at or above it, it is not.
+     *
+     * One page. If full-text and the sender/subject passes have already filled
+     * the screen, scanning every body for an infix is work whose results the
+     * reader will not reach — and since the tokenizer split
+     * (Version20260818120000) the case that pass exists for is answered by the
+     * index anyway, so what is given up is a genuine edge rather than the
+     * feature.
+     */
+    private const int SEARCH_RESCUE_BELOW = 50;
+
+    /**
+     * The ids the search may look at, read once and bound as values.
+     *
+     * @return list<int>
+     */
+    private function activeAccountIdsFor(UserInterface $user): array
+    {
+        /** @var list<int> $ids */
+        $ids = $this->getEntityManager()->getConnection()->fetchFirstColumn(
+            'SELECT id FROM account WHERE usr_id = ? AND is_active = true',
+            [$user->id],
+        );
+
+        return array_map(intval(...), $ids);
+    }
+
     private function buildSearchSql(
         UserInterface     $user,
         ParsedSearchQuery $query,
         bool              $countOnly,
+        bool              $withBodyRescue = false,
     ): array {
         $params = [];
         $types  = [];
@@ -1170,51 +1222,117 @@ class MessageThreadRepository extends ServiceEntityRepository
         $params['userId'] = $user->id;
         $types['userId']  = ParameterType::INTEGER;
 
-        // ── Free-text: three passes, OR-ed ────────────────────────────────
-        // websearch_to_tsquery alone answers only the question "does this mail
-        // contain exactly these words", which is not the question anyone types
-        // into a search box. The other two passes are additive — nothing that
-        // matched before stops matching — and each costs something:
-        //
-        //   websearch  index-only, GIN on search_vector. Free.
-        //   prefix     the same GIN index; `:*` makes it a range over the
-        //              lexeme dictionary rather than a point lookup, so it
-        //              reads more index entries but no more heap.
-        //   substring  ILIKE '%needle%'. Sequential without help, which is why
-        //              Version20260811... installs pg_trgm and GIN trigram
-        //              indexes over the four columns it touches. Restricted to
-        //              a single term of 3+ characters — see FreeTextCompiler,
-        //              which is also where the safety of the tsquery text is
-        //              established.
         $rankExpr = '0';
 
+        // ── Free-text ─────────────────────────────────────────────────────
+        // Four passes over one question, and how they are COMBINED is the
+        // whole performance story of this method.
+        //
+        // They used to be OR-ed into the WHERE clause. One OR spanning two
+        // index families — GIN over the tsvector, GIN trigram over four text
+        // columns — is a shape Postgres answers by abandoning both: measured on
+        // 300,000 messages it drove from message_thread, walked all 100,000
+        // threads, and applied the whole thing as a row filter. Every index sat
+        // unused, and the query cost the same 9-10 SECONDS whether the term was
+        // in 0.25% of the mail or 8% of it. Cost independent of selectivity is
+        // the signature of an index doing nothing.
+        //
+        // As a UNION each branch is its own scan and picks its own index:
+        // websearch 89ms, prefix 111ms, subject 4ms, the two sender columns
+        // 0.2ms.
+        //
+        // The body substring pass is kept OUT of that union and run only as a
+        // rescue — see below.
         if ($query->freeText !== '') {
             $free = $this->freeText->compile($query->freeText);
 
-            $matches            = ["m.search_vector @@ websearch_to_tsquery('english', :freeText)"];
-            $ranks              = ["ts_rank(m.search_vector, websearch_to_tsquery('english', :freeText))"];
             $params['freeText'] = $free->websearch;
 
+            // Scoped to the searcher's own accounts. The outer query filters
+            // by user anyway, so this is not what makes the answer correct — it
+            // is what stops one person's search reading another person's mail
+            // off the disk on a shared install, and what keeps the cost
+            // proportional to the mailbox being searched.
+            //
+            // The ids are resolved HERE and bound as a list, rather than left
+            // as `account_id IN (SELECT id FROM account WHERE usr_id = …)`, and
+            // that is not a style preference — it is worth 18x. With the
+            // subquery the planner cannot know how many accounts come back, so
+            // it reaches for the account_id index, which on a single-user
+            // install selects everything: 2,326ms per branch, the GIN index
+            // untouched. Given the ids it costs them properly and uses the
+            // tsvector index: 126ms.
+            $accountIds = $this->activeAccountIdsFor($user);
+
+            // No accounts, no mail — and `IN ()` is not valid SQL. Answered as
+            // a false predicate inside the normal statement rather than by
+            // returning a different one: the callers append ORDER BY and LIMIT
+            // to whatever comes back, so a short-circuit SQL string here is a
+            // syntax error one frame later. It was: /mail/search 500'd for any
+            // user who had not connected a mailbox yet.
+            if ([] === $accountIds) {
+                $where[]  = 'false';
+                $rankExpr = '0';
+
+                $mine = 'false';
+            } else {
+                $params['searchAccounts'] = $accountIds;
+                $types['searchAccounts']  = ArrayParameterType::INTEGER;
+
+                $mine = 'm.account_id IN (:searchAccounts)';
+            }
+
+            $cheap = ["SELECT m.id FROM message m WHERE {$mine} AND m.search_vector @@ websearch_to_tsquery('english', :freeText)"];
+            $ranks = ["ts_rank(m.search_vector, websearch_to_tsquery('english', :freeText))"];
+
             if (null !== $free->prefix) {
-                $matches[]            = "m.search_vector @@ to_tsquery('english', :freePrefix)";
+                $cheap[]              = "SELECT m.id FROM message m WHERE {$mine} AND m.search_vector @@ to_tsquery('english', :freePrefix)";
                 $ranks[]              = "ts_rank(m.search_vector, to_tsquery('english', :freePrefix))";
                 $params['freePrefix'] = $free->prefix;
             }
 
             if (null !== $free->substring) {
-                // from_name and from_address as well as the body: a search for
-                // part of a sender's domain is the same gesture as a search for
-                // part of a word in the text, and fails the same way without it.
-                $matches[] = '('
-                    . 'm.subject ILIKE :freeLike'
-                    . ' OR m.body_text ILIKE :freeLike'
-                    . ' OR m.from_name ILIKE :freeLike'
-                    . ' OR m.from_address ILIKE :freeLike'
-                    . ')';
+                // Subject and the two sender columns, but NOT the body: those
+                // three are narrow, so the trigram index's recheck reads almost
+                // nothing and they cost microseconds.
+                foreach (['subject', 'from_name', 'from_address'] as $column) {
+                    $cheap[] = "SELECT m.id FROM message m WHERE {$mine} AND m.{$column} ILIKE :freeLike";
+                }
+
                 $params['freeLike'] = $this->freeText->likePattern($free->substring);
             }
 
-            $where[] = '(' . implode(' OR ', $matches) . ')';
+            // ── The rescue ────────────────────────────────────────────
+            // `body_text ILIKE '%needle%'` is the one branch that cannot be
+            // made cheap. The trigram index is not the problem — it hands back
+            // 32,440 candidates out of 300,000 in 7.6ms — the recheck is:
+            // `%needle%` is lossy on trigrams, so every candidate body has to
+            // be fetched and matched for real, and for a common needle that is
+            // 131MB of text and 3.1 seconds. Storage layout does not move it
+            // (MAIN 2.9s, EXTERNAL 3.1s), and a parallel sequential scan of
+            // every body takes 2.26s — the index path is slower than reading
+            // everything. There is no better index for `%needle%`.
+            //
+            // So it is only run when the cheap passes came back thin, which is
+            // the case it was added for: a needle full-text cannot see, like
+            // "wirhub" inside "help.wirhub.de". Since the tokenizer split
+            // (Version20260818120000) the index answers that one directly, so
+            // this is a genuine last resort rather than a trade.
+            //
+            // A SECOND QUERY rather than one clever statement. The single-query
+            // form — a CTE counting the cheap hits and a `(SELECT few …)`
+            // InitPlan gating the body scan — worked beautifully with literal
+            // values, printing `One-Time Filter` and skipping the scan
+            // entirely. Through DBAL's bind parameters it planned differently
+            // and one term went from 13 seconds to a 30-second PHP timeout.
+            // Two predictable queries beat one whose plan depends on how the
+            // values arrived, and the second only runs when the first came up
+            // short.
+            if (true === $withBodyRescue && null !== $free->substring) {
+                $cheap[] = "SELECT m.id FROM message m WHERE {$mine} AND m.body_text ILIKE :freeLike";
+            }
+
+            $where[] = 'm.id IN (' . implode(' UNION ', $cheap) . ')';
 
             // A row reached only by the substring pass has no ts_rank to give;
             // GREATEST over what did match keeps relevance ordering meaningful
