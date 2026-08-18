@@ -64,9 +64,14 @@ final class SearchController extends AbstractController
             ]);
         }
 
-        $user    = $this->getUser();
-        $threads = $this->threadRepository->search($user, $parsed, $page, sort: $sort);
-        $total   = $this->threadRepository->countSearch($user, $parsed);
+        $user = $this->getUser();
+
+        // One call for the rows AND the total: the pager's "1–50 of N" used to
+        // be a second query re-running the whole search, and on a large mailbox
+        // it was a third of the wait for a number nobody navigates by. See
+        // MessageThreadRepository::searchRows().
+        $results = $this->threadRepository->searchPage($user, $parsed, $page, sort: $sort);
+        $threads = $results->threads;
 
         // The list views have always preloaded and search never did, which is
         // why a full page of results measured 167 queries against the inbox's
@@ -82,7 +87,7 @@ final class SearchController extends AbstractController
         // implementation — see the service.
         return $this->listRenderer->render($request, 'search/search.html.twig', $threads, [
             'q'        => $raw,
-            'total'    => $total,
+            'total'    => $results->total,
             'page'     => $page,
             'per_page' => 50,
             'parsed'   => $parsed,

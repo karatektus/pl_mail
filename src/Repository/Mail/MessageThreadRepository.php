@@ -2,6 +2,7 @@
 
 namespace App\Repository\Mail;
 
+use App\Domain\DTO\Mail\SearchPage;
 use App\Domain\DTO\ParsedSearchQuery;
 use App\Domain\Enum\Mail\LabelRole;
 use App\Domain\Enum\Mail\ListSortOrder;
@@ -1085,8 +1086,8 @@ class MessageThreadRepository extends ServiceEntityRepository
     }
 
     /**
-     * Full-text + operator search across messages for a given user.
-     * Returns hydrated MessageThread entities in the order $sort asks for.
+     * Full-text + operator search across messages for a given user — one page
+     * of hydrated MessageThread entities, and how many threads match in all.
      *
      * Uses raw DBAL SQL because:
      *  - websearch_to_tsquery / @@ / ts_rank are not native DQL functions
@@ -1095,14 +1096,20 @@ class MessageThreadRepository extends ServiceEntityRepository
      * The ORDER BY comes from the enum rather than being spelled here, because
      * it has to stay in step with the tiebreaker every order needs to survive
      * pagination — see SearchSortOrder::orderBy().
+     *
+     * The total arrives WITH the page rather than from a countSearch() beside
+     * it, and that is the whole reason this returns an object. See searchRows()
+     * for the measurement; the short version is that the second statement
+     * repeated every scan the first had already done, for a number rendered in
+     * the corner of the toolbar.
      */
-    public function search(
+    public function searchPage(
         UserInterface     $user,
         ParsedSearchQuery $query,
         int               $page = 1,
         int               $perPage = 50,
         SearchSortOrder   $sort = SearchSortOrder::Recent,
-    ): array {
+    ): SearchPage {
         $offset = ($page - 1) * $perPage;
 
         $rows = $this->searchRows($user, $query, $sort, $perPage, $offset, false);
@@ -1114,9 +1121,12 @@ class MessageThreadRepository extends ServiceEntityRepository
             $rows = $this->searchRows($user, $query, $sort, $perPage, $offset, true);
         }
 
-        if (empty($rows)) {
-            return [];
+        if ([] === $rows) {
+            return new SearchPage([], $this->totalForEmptyPage($user, $query, $sort, $page));
         }
+
+        // Every row carries the same window count, so the first one will do.
+        $total = (int) $rows[0]['total_threads'];
 
         $ids = array_column($rows, 'thread_id');
 
@@ -1138,11 +1148,60 @@ class MessageThreadRepository extends ServiceEntityRepository
             }
         }
 
-        return $ordered;
+        return new SearchPage($ordered, $total);
     }
 
     /**
-     * One page of thread ids, ranked.
+     * How many results there are when the requested page has none of them.
+     *
+     * The window count rides on the rows, so a page past the end comes back
+     * with nothing to read it from — and answering zero there would tell
+     * somebody who followed a stale `?page=12` link that their query matches
+     * nothing at all, with the pager gone and no way back to page 1. One row
+     * off the front of the same result set says how many there really are.
+     *
+     * Page 1 needs no such rescue: an empty first page IS an empty result.
+     */
+    private function totalForEmptyPage(
+        UserInterface     $user,
+        ParsedSearchQuery $query,
+        SearchSortOrder   $sort,
+        int               $page,
+    ): int {
+        if (1 === $page) {
+            return 0;
+        }
+
+        $rows = $this->searchRows($user, $query, $sort, 1, 0, false);
+
+        // Spelled as "nothing at all" rather than searchPage()'s "fewer than a
+        // screenful": with a limit of one, that test would fire on every
+        // query and put the body scan back on a path that does not need it.
+        if ([] === $rows) {
+            $rows = $this->searchRows($user, $query, $sort, 1, 0, true);
+        }
+
+        return [] === $rows ? 0 : (int) $rows[0]['total_threads'];
+    }
+
+    /**
+     * One page of thread ids, ranked, each carrying the size of the whole
+     * result set.
+     *
+     * `COUNT(*) OVER ()` instead of a second `SELECT COUNT(DISTINCT t.id)` with
+     * the same WHERE, which is what the pager used to cost. Measured on the
+     * 300,000-message corpus: 620ms on its own and 450-830ms in the request,
+     * because it re-ran the whole UNION and the join over it to answer a
+     * question this statement was already in a position to answer. The window
+     * runs over the grouped rows the GROUP BY has produced anyway — the sort
+     * above it already materialises them — and measured 35ms, three per cent.
+     *
+     * Bounding the count instead (`SELECT count(*) FROM (SELECT … LIMIT 1001)`,
+     * rendered as "1000+") was the obvious cheaper move and does not work here:
+     * the LIMIT sits above a DISTINCT, Postgres answers that with a
+     * HashAggregate, and a HashAggregate has to read all of its input before it
+     * emits its first row. Measured at 717ms against the unbounded 620ms —
+     * bounding it made it slower AND made the number a lie.
      *
      * @return list<array<string,mixed>>
      */
@@ -1154,7 +1213,7 @@ class MessageThreadRepository extends ServiceEntityRepository
         int               $offset,
         bool              $withBodyRescue,
     ): array {
-        [$sql, $params, $types] = $this->buildSearchSql($user, $query, false, $withBodyRescue);
+        [$sql, $params, $types] = $this->buildSearchSql($user, $query, $withBodyRescue);
 
         $sql .= ' ORDER BY ' . $sort->orderBy() . ' LIMIT :limit OFFSET :offset';
         $params['limit']  = $perPage;
@@ -1165,21 +1224,6 @@ class MessageThreadRepository extends ServiceEntityRepository
         return $this->getEntityManager()->getConnection()->fetchAllAssociative($sql, $params, $types);
     }
 
-    /** The same SQL as search(), counted — see that method for why it is SQL. */
-    public function countSearch(
-        UserInterface     $user,
-        ParsedSearchQuery $query,
-    ): int {
-        [$sql, $params, $types] = $this->buildSearchSql($user, $query, true);
-
-        $conn = $this->getEntityManager()->getConnection();
-
-        return (int) $conn->fetchOne($sql, $params, $types);
-    }
-
-    /**
-     * @return array{string, array<string,mixed>, array<string,mixed>}
-     */
     /**
      * Below this many cheap hits, the body substring pass is worth its 3
      * seconds; at or above it, it is not.
@@ -1196,23 +1240,32 @@ class MessageThreadRepository extends ServiceEntityRepository
     /**
      * The ids the search may look at, read once and bound as values.
      *
+     * Takes the id rather than the user, because the caller has already put it
+     * in the parameter bag and UserInterface does not declare `$id` — a second
+     * `$user->id` in this file is a second thing for static analysis to be told
+     * to ignore, for a value that was right there.
+     *
      * @return list<int>
      */
-    private function activeAccountIdsFor(UserInterface $user): array
+    private function activeAccountIdsFor(int $userId): array
     {
         /** @var list<int> $ids */
         $ids = $this->getEntityManager()->getConnection()->fetchFirstColumn(
             'SELECT id FROM account WHERE usr_id = ? AND is_active = true',
-            [$user->id],
+            [$userId],
         );
 
         return array_map(intval(...), $ids);
     }
 
+    /**
+     * The statement both the page and its total come out of.
+     *
+     * @return array{string, array<string,mixed>, array<string,mixed>}
+     */
     private function buildSearchSql(
         UserInterface     $user,
         ParsedSearchQuery $query,
-        bool              $countOnly,
         bool              $withBodyRescue = false,
     ): array {
         $params = [];
@@ -1262,7 +1315,7 @@ class MessageThreadRepository extends ServiceEntityRepository
             // install selects everything: 2,326ms per branch, the GIN index
             // untouched. Given the ids it costs them properly and uses the
             // tsvector index: 126ms.
-            $accountIds = $this->activeAccountIdsFor($user);
+            $accountIds = $this->activeAccountIdsFor((int) $params['userId']);
 
             // No accounts, no mail — and `IN ()` is not valid SQL. Answered as
             // a false predicate inside the normal statement rather than by
@@ -1426,25 +1479,12 @@ class MessageThreadRepository extends ServiceEntityRepository
 
         $whereClause = implode(' AND ', $where);
 
-        if ($countOnly) {
-            $sql = <<<SQL
-                SELECT COUNT(DISTINCT t.id)
-                FROM message_thread t
-                JOIN message m ON m.thread_id = t.id
-                JOIN account a ON a.id = t.account_id
-                LEFT JOIN thread_label tl ON tl.message_thread_id = t.id
-                LEFT JOIN label lbl ON lbl.id = tl.label_id
-                WHERE {$whereClause}
-            SQL;
-
-            return [$sql, $params, $types];
-        }
-
         $sql = <<<SQL
             SELECT
                 t.id                                              AS thread_id,
                 MAX({$rankExpr})                                  AS rank,
-                MAX(t.last_message_at)                            AS last_message_at
+                MAX(t.last_message_at)                            AS last_message_at,
+                COUNT(*) OVER ()                                  AS total_threads
             FROM message_thread t
             JOIN message m ON m.thread_id = t.id
            JOIN account a ON a.id = t.account_id

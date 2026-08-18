@@ -301,7 +301,7 @@ final class MessageSearchTest extends KernelTestCase
         );
 
         self::assertSame(['Mine'], $this->search('from:billing@acme.test'));
-        self::assertSame(1, $this->repository->countSearch($this->user, $this->parser->parse('from:billing@acme.test')));
+        self::assertSame(1, $this->repository->searchPage($this->user, $this->parser->parse('from:billing@acme.test'))->total);
     }
 
     // ── Order ────────────────────────────────────────────────────────────────
@@ -414,7 +414,7 @@ final class MessageSearchTest extends KernelTestCase
     {
         return array_map(
             static fn (MessageThread $thread): string => (string) $thread->subject,
-            $this->repository->search($this->user, $this->parser->parse($query), sort: $sort),
+            $this->repository->searchPage($this->user, $this->parser->parse($query), sort: $sort)->threads,
         );
     }
 
@@ -427,7 +427,7 @@ final class MessageSearchTest extends KernelTestCase
     ): array {
         return array_map(
             static fn (MessageThread $thread): int => (int) $thread->id,
-            $this->repository->search($this->user, $parsed, $page, $perPage, $sort),
+            $this->repository->searchPage($this->user, $parsed, $page, $perPage, $sort)->threads,
         );
     }
 
