@@ -1004,7 +1004,17 @@ header:
         heading: Flags
         none: No flags yet
     search:
+        live:
+            status: "%count% matchin' parleys"
+            status_none: Nary a matchin' letter
+            status_one: 1 matchin' parley
+            title: Post
         placeholder: Search the hold…
+        recents:
+            clear: Scuttle
+            title: Lately hunted
+        suggestions:
+            title: Notions
     user_menu:
         account_attention: "%count% things about yer crew be needin' an eye"
         admin: Cap'n's quarters

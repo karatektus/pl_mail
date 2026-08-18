@@ -47,9 +47,19 @@
 
     {# ── Search + calendar ─────────────────────────────────────────────── #}
     <div class="flex-1 max-w-2xl mx-auto flex items-center gap-2 min-w-0">
+    {# The search box is a combobox in the ARIA sense — a text field with a
+       popup list attached — and the parts of that live in three places: the
+       input carries the state, the listbox carries the options, and the
+       controller keeps aria-activedescendant pointing at whichever one the
+       arrow keys landed on. The section titles are values rather than strings
+       in the JavaScript because they are shown to people and therefore
+       translated. #}
     <div
         class="flex-1 relative min-w-0"
         data-controller="mail--search"
+        data-mail--search-suggest-url-value="{{ path('app_mail_search_suggest') }}"
+        data-mail--search-recents-title-value="{{ 'header.search.recents.title'|trans }}"
+        data-mail--search-operators-title-value="{{ 'header.search.suggestions.title'|trans }}"
     >
         <div class="relative">
             <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-gray-400 text-sm pointer-events-none" aria-hidden="true"></i>
@@ -59,6 +69,20 @@
                 value="{{ app.request.query.get('q', '') }}"
                 placeholder="{{ 'header.search.placeholder'|trans }}"
                 autocomplete="off"
+                {# role="combobox" and not the input's own type, which says
+                   nothing about the list underneath it. aria-expanded starts
+                   false and is written on every open and close: a combobox
+                   whose aria-expanded never changes announces a popup that is
+                   never there. #}
+                role="combobox"
+                aria-expanded="false"
+                aria-controls="search-listbox"
+                aria-haspopup="listbox"
+                {# "list", not "both": nothing is ever written into the box on
+                   the user's behalf, and claiming inline completion would have
+                   a screen reader expect selected text that is not there. #}
+                aria-autocomplete="list"
+                aria-label="{{ 'header.search.placeholder'|trans }}"
                 data-mail--search-target="input"
                 data-action="keydown->mail--search#onKeydown focus->mail--search#onFocus input->mail--search#onInput"
                 class="w-full pl-10 pr-4 py-2 text-sm
@@ -72,8 +96,16 @@
             >
         </div>
 
-        {# Recent searches, and operator/contact suggestions while typing —
-           one list, since only one of the two is ever relevant. #}
+        {# Three kinds of row, one popup. Recent searches and operator
+           suggestions never appear together — an empty box has no operator to
+           complete — but live results do appear alongside the operator list,
+           so the popup is one listbox with the two lists inside it and the
+           arrow keys run through both in document order.
+
+           The header sits OUTSIDE the listbox on purpose: it holds a real
+           button, and a button inside a listbox is a control a keyboard user
+           can reach and then cannot use, since the arrow keys belong to the
+           options. #}
         <div
             data-mail--search-target="dropdown"
             class="hidden absolute left-0 right-0 top-full mt-1 z-50
@@ -81,20 +113,58 @@
                    border border-line
                    rounded-pane shadow-xl overflow-hidden"
         >
-            <div class="flex items-center justify-between px-3 py-1.5 border-b border-line">
-                <span data-mail--search-target="dropdownTitle"
-                      class="text-[11px] font-semibold uppercase tracking-wider text-ink-faint">Recent searches</span>
+            <div data-mail--search-target="header"
+                 class="flex items-center justify-between px-3 py-1.5 border-b border-line">
+                <span id="search-dropdown-title"
+                      data-mail--search-target="dropdownTitle"
+                      class="text-[11px] font-semibold uppercase tracking-wider text-ink-faint">{{ 'header.search.recents.title'|trans }}</span>
                 <button
                     type="button"
                     data-mail--search-target="clear"
                     data-action="click->mail--search#clearRecents"
                     class="text-[11px] text-gray-400 hover:text-ink-soft transition-colors"
                 >
-                    Clear
+                    {{ 'header.search.recents.clear'|trans }}
                 </button>
             </div>
-            <ul data-mail--search-target="recentsList" class="py-1 max-h-56 overflow-y-auto"></ul>
+
+            <div id="search-listbox"
+                 role="listbox"
+                 aria-labelledby="search-dropdown-title"
+                 class="max-h-96 overflow-y-auto">
+                {# `role="presentation"` on the lists, because an option has to
+                   be a descendant of the listbox and a plain <ul> in between
+                   would put a second list role in the way. The <li>s carry it
+                   too — see the rows themselves. #}
+                <ul role="presentation" data-mail--search-target="recentsList" class="py-1"></ul>
+
+                {# A group so the heading below labels the rows it belongs to
+                   rather than floating between two lists as unattached text.
+                   Hidden as a whole when there is nothing live to show, which
+                   is most of the time. #}
+                <div role="group"
+                     aria-labelledby="search-results-heading"
+                     data-mail--search-target="resultsGroup"
+                     class="hidden border-t border-line">
+                    <div id="search-results-heading"
+                         role="presentation"
+                         class="px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-ink-faint">
+                        {{ 'header.search.live.title'|trans }}
+                    </div>
+                    <ul role="presentation" data-mail--search-target="resultsList" class="py-1"></ul>
+                </div>
+            </div>
         </div>
+
+        {# How many conversations the last keystroke turned up, for someone who
+           cannot see the list appear. It stays in the document rather than
+           being rendered with the rows, so that changing its text is an
+           announcement; a live region inserted together with its own content
+           usually announces nothing at all. #}
+        <span class="sr-only"
+              role="status"
+              aria-live="polite"
+              data-mail--search-target="status"></span>
     </div>
 
     {# ── Happening soon ────────────────────────────────────────────────

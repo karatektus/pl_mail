@@ -1279,7 +1279,17 @@ header:
         heading: Labels
         none: No labels yet
     search:
+        live:
+            status: '%count% matching conversations'
+            status_none: No matching mail
+            status_one: 1 matching conversation
+            title: Mail
         placeholder: Search mail…
+        recents:
+            clear: Clear
+            title: Recent searches
+        suggestions:
+            title: Suggestions
     user_menu:
         account_attention: '%count% things about your accounts need attention'
         admin: Admin

@@ -1,0 +1,73 @@
+{#
+    The conversations under the search box, one row each, rendered while the
+    query is still being typed.
+
+    Server-rendered rather than assembled in the controller: the subject
+    fallback, the date and the count below are translated, and mail--search has
+    no translations. It receives this markup and inserts it — what it adds is
+    the highlight and the ids the combobox needs, which is the part that has to
+    be JavaScript because it changes with every arrow key.
+
+    Rows are `role="option"` on the anchor itself, inside a list marked
+    presentational, so the option is what the listbox sees while the browser
+    still sees a link — middle-click and "copy link" keep working, which a
+    button pretending to be a row would have quietly cost.
+#}
+{% for hit in hits %}
+    <li role="presentation">
+        <a
+            href="{{ path('app_mail_thread', { id: hit.threadId }) }}"
+            role="option"
+            aria-selected="false"
+            data-search-result
+            data-action="click->mail--search#selectResult"
+            class="w-full flex items-center gap-2.5 px-3 py-2 text-sm no-underline
+                   text-ink-soft hover:bg-hover transition-colors"
+        >
+            <i class="fa-regular fa-envelope text-ink-faint w-3.5 flex-shrink-0" aria-hidden="true"></i>
+
+            <span class="flex-1 min-w-0">
+                <span class="block truncate text-ink">
+                    {{ (hit.subject ?? '')|trim is empty ? 'thread_row.no_subject'|trans : hit.subject }}
+                </span>
+                {# The sender under the subject rather than beside it: at this
+                   width one line holding both truncates them both, and a
+                   subject cut off after four words is what the row is for. #}
+                <span class="block truncate text-xs text-ink-faint">{{ hit.sender }}</span>
+            </span>
+
+            {% if hit.receivedAt %}
+                {# Same three-way date as the mail list — time today, day and
+                   month this year, year before that — because a suggestion is
+                   read next to those rows and a second date format would read
+                   as a different kind of thing. #}
+                <span class="text-xs text-ink-faint flex-shrink-0">
+                    {% if hit.receivedAt|date('Y-m-d') == 'now'|date('Y-m-d') %}
+                        {{ hit.receivedAt|date(clock.time) }}
+                    {% elseif hit.receivedAt|date('Y') == 'now'|date('Y') %}
+                        {{ hit.receivedAt|intl_date('dMMM') }}
+                    {% else %}
+                        {{ hit.receivedAt|intl_date('dMMMy') }}
+                    {% endif %}
+                </span>
+            {% endif %}
+        </a>
+    </li>
+{% endfor %}
+
+{#
+    What the screen reader is told, written here so it can be pluralised and
+    translated. The controller lifts this line out and puts it in the live
+    region that lives beside the box — a status element rendered fresh with
+    each response is a status element that is often not announced at all,
+    because it was not in the document when its content "changed".
+#}
+<template data-search-status>
+    {% if hits|length == 0 %}
+        {{ 'header.search.live.status_none'|trans }}
+    {% elseif hits|length == 1 %}
+        {{ 'header.search.live.status_one'|trans }}
+    {% else %}
+        {{ 'header.search.live.status'|trans({ '%count%': hits|length }) }}
+    {% endif %}
+</template>

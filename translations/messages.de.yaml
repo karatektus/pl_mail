@@ -1288,7 +1288,17 @@ header:
         heading: Labels
         none: Noch keine Labels
     search:
+        live:
+            status: '%count% passende Unterhaltungen'
+            status_none: Keine passende Mail
+            status_one: 1 passende Unterhaltung
+            title: Mail
         placeholder: E-Mails durchsuchen…
+        recents:
+            clear: Leeren
+            title: Zuletzt gesucht
+        suggestions:
+            title: Vorschläge
     user_menu:
         account_attention: '%count% Dinge an deinen Konten brauchen Aufmerksamkeit'
         admin: Administration
