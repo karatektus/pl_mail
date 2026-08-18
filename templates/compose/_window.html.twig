@@ -37,6 +37,19 @@ Variables: form, message, ctx (an App\Domain\DTO\Mail\ComposeContext)
 
 <turbo-frame id="{{ frame }}">
     <div data-controller="compose--compose compose--compose-toolbar"
+         {# The server's statement that this render followed a save that was
+            actually ACCEPTED. ComposeController::draft() has always passed
+            `saved` and this template has never rendered it, which left the
+            client with no way to tell an accepted autosave from a refused one:
+            a refusal re-renders the window with the errors on it and HTTP 200,
+            the fetch saw `response.ok`, and the composer printed "Draft saved"
+            about a draft the server had thrown away.
+
+            That is how a session-lost CSRF token (see config/packages/csrf.yaml)
+            stayed invisible until a browser test caught it. Any future refusal
+            would have been just as silent, which for an autosave means losing
+            what somebody wrote. #}
+         {% if saved|default(false) %}data-compose-saved="1"{% endif %}
          {# Every word the controller puts on screen, translated here rather
             than spelled in JavaScript — same arrangement as ui--select's
             i18n value. A string baked into the controller is a string that

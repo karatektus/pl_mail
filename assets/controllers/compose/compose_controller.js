@@ -1941,6 +1941,17 @@ export default class extends Controller {
                 // things. A window without one still needs to know its own id.
                 const html = await response.text();
                 const doc  = new DOMParser().parseFromString(html, 'text/html');
+
+                // `response.ok` is not the question. A form the server REFUSED
+                // — a stale CSRF token, a validation failure — comes back as a
+                // re-rendered window carrying the errors, with HTTP 200, and
+                // this used to read that as success and say "Draft saved" about
+                // writing that had just been discarded. The marker is the
+                // server saying it accepted the save; see _window.html.twig.
+                if (null === doc.querySelector('[data-compose-saved]')) {
+                    throw new Error('Draft refused');
+                }
+
                 this._adoptSavedUrls(doc);
 
                 if (status) {
