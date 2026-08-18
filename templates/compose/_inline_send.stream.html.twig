@@ -1,8 +1,15 @@
 {#
 compose/_inline_send.stream.html.twig
 ─────────────────────────────────────────────────────────────────────────────
-Response to sending from the inline reply card. No toast: the message joins
-the open conversation and the reply bar turns into a cancel countdown.
+Response to sending from the inline reply card. **NOT RENDERED ANY MORE.**
+
+The other half of the pair the send rewrite replaced — where the dock got a
+toast, the thread got a countdown bar in its reply zone, and both took the
+composer away to do it. One surface now: the window stays and its Send pill is
+the cancel. What this did on send, compose/_sent.stream.html.twig now does
+when the cancel window runs out.
+
+Kept, unwired, while that is reviewed. compose--inline-send goes with it.
 
 Variables: message, thread (MessageThread|null), undoUrl, delay
 #}

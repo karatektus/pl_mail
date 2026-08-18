@@ -330,6 +330,47 @@ test.describe("the To field's feedback", () => {
  *     target, which is exactly the condition under test, so it would have
  *     reported this bug as a timeout instead of as the wrong recipient.
  */
+/**
+ * A panel nobody asked for is not a suggestion.
+ *
+ * Tom Select reopens its dropdown on every focus, and after Enter it refreshes
+ * it against the query it has just turned into a chip — so the window used to
+ * grow an empty panel over the Subject row whenever the field was touched,
+ * offering "No results found" about nothing. The dock is the calmer of the two
+ * cases (the inline forward opens with the caret already in To, which is where
+ * this was loudest — see compose-inline-header.spec.ts), and the rule is the
+ * same in both: the panel opens on a query, and a query means typing.
+ */
+test.describe("the suggestion panel opens on typing and nothing else", () => {
+    function toInput(page: Page) {
+        return page.locator(`${DOCK} .ts-control input`).first();
+    }
+
+    test("focusing the field does not open it", async ({ page }) => {
+        await openCompose(page);
+
+        await toInput(page).click();
+        await expect(toInput(page)).toBeFocused();
+        await page.waitForTimeout(500);
+
+        await expect(page.locator(TO_PANEL)).toBeHidden();
+    });
+
+    test("typing opens it, and committing the chip closes it again", async ({ page }) => {
+        await openCompose(page);
+
+        await toInput(page).pressSequentially(OTHER, { delay: 20 });
+        await expect(page.locator(TO_PANEL)).toBeVisible();
+
+        await toInput(page).press("Enter");
+        await expect(chips(page)).toHaveCount(1);
+
+        // The query that produced the chip is spent, and the field still has
+        // focus — which is precisely when the panel used to spring back.
+        await expect(page.locator(TO_PANEL)).toBeHidden();
+    });
+});
+
 test.describe("clicking out of the To field", () => {
     const SUBJECT = `${DOCK} input[id$="subject"]`;
 

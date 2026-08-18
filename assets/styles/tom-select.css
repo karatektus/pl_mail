@@ -339,6 +339,17 @@
     right: -1rem;
 }
 
+/* Except in the inline composer's header, where there is no gutter to bleed
+   into. The bleed is measured against the dock's `w-10 text-right` label
+   column; the reduced header puts a plain "To" in front of the field instead,
+   so -4rem hangs the panel a good 20px off the left edge of the window. Same
+   attribute the controller reads to leave the panel overlaying rather than
+   reserving room for it — see compose/_to_row.html.twig. */
+[data-compose-overlay-panel] .ts-wrapper.multi .ts-dropdown {
+    left: 0;
+    right: 0;
+}
+
 /* Anchored to <body> instead of to the control, because every place ui--select
  * is used clips: the modal body scrolls, the settings pane scrolls, the
  * calendar event sheet scrolls, and a panel that is a child of any of them is

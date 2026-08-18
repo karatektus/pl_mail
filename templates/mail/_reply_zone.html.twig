@@ -9,7 +9,11 @@ outer #reply_zone_{id} element is part of this template.
 
 Variables:
   thread   MessageThread
-  sending  null | { messageId, undoUrl, delay }  — post-send countdown state
+  sending  null | { messageId, undoUrl, delay }  — post-send countdown state.
+           **Nothing passes this any more.** A send no longer replaces the
+           composer with a countdown bar here; the composer stays open and its
+           Send pill is the cancel (see compose/_sending.stream.html.twig).
+           The block is left in place, unreached, while that is reviewed.
 
 The action buttons hide themselves while a compose card is open; see the
 [data-reply-zone] rule in assets/styles/app.css.

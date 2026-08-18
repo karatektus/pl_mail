@@ -1,8 +1,15 @@
 {#
-compose/_undo_toast.html.twig
+compose/_dock_undo.stream.html.twig
 ─────────────────────────────────────────────────────────────────────────────
-Cancelling a send from the dock: say so, and put the window back exactly as it
-was — recipients, subject, body and attachments included.
+Cancelling a send from the dock: put the window back exactly as it was —
+recipients, subject, body and attachments included.
+
+**No toast.** There was one — "Send cancelled — back to your draft" — and it
+was the last asymmetry left between the two composers: the inline cancel never
+had one, because there the draft reappearing in the thread was the answer. It
+is the answer in the dock too. The window coming back with everything in it
+says more than a line of text can, and the button that was clicked has already
+said the rest.
 
 `replace` rather than `append`, and `only` rather than an inherited context:
 
@@ -19,15 +26,6 @@ was — recipients, subject, body and attachments included.
 
 Variables: form, message, ctx, pickerIntegrations
 #}
-<turbo-stream action="append" target="toast-region">
-    <template>
-        {% include '_partials/_toast.html.twig' with {
-            type: 'info',
-            message: 'toast.send_cancelled'|trans,
-        } only %}
-    </template>
-</turbo-stream>
-
 <turbo-stream action="replace" target="{{ ctx.frame }}">
     <template>
         {% include 'compose/_window.html.twig' with {

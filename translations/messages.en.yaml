@@ -1207,6 +1207,7 @@ compose:
         url_label: Web address
         url_placeholder: "example.com"
     minimize: Minimize
+    more_fields: Show From, Cc, Bcc and subject
     more_options: More options
     new_message: New Message
     no_recipients: No recipients
@@ -1294,6 +1295,7 @@ header:
 
 inbox:
     empty: No messages in this tab.
+    empty_account: Nothing has arrived in this account yet.
 
 insights:
     card:
@@ -2725,6 +2727,7 @@ toast:
     # message has gone and nothing here can bring it back, and the previous
     # behaviour — claiming it was cancelled — was worse than saying nothing.
     send_too_late: Too late — that message had already been sent.
+    sent: Message sent.
     undo: Undo
     error:
         no_archive_mailbox: There is no archive mailbox.

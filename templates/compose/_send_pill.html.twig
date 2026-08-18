@@ -78,27 +78,68 @@ Variables: message, params (from the including context); placement.
          }),
      }|json_encode|e('html_attr') }}">
 
-    {# Hidden until a send is in flight. While the request is out the pill
-       says "Sending" with living dots, and this is the way out: a click here
-       marks the send as unwanted, and the moment the server answers with its
-       cancel window (every send gets one — see CANCEL_WINDOW_MS) the undo is
-       fired on the user's behalf. Honest about the race: if the window is
-       already gone the cancel simply fails the way a late click on the
-       countdown bar does. #}
-    <button type="button" hidden
-            data-compose--compose-target="sendCancel"
-            data-action="click->compose--compose#cancelInFlight"
-            class="flex items-center justify-center text-xs text-ink-muted underline
-                   px-2 py-1.5 max-md:min-h-11 hover:text-ink transition-colors">
-        {{ 'compose.sending_cancel'|trans }}
-    </button>
+    {# ── Send, and while a send is in flight, the way out of it ──────────
 
+       ONE control, two faces. The window used to grow a second button beside
+       the pill while a send was out ("Cancel"), and the dock answered a send
+       by closing itself and putting an Undo in a toast — so at any moment
+       there were two different places a cancel might live and neither was
+       where the user had just clicked. The pill IS the cancel now: it says
+       "Sending" with living dots, "click to cancel" under it, and a click on
+       it calls the send off. Nothing else appears anywhere.
+
+       **The two faces are stacked in one grid cell, and that is the whole
+       sizing story.** Both spans sit at `col-start-1 row-start-1`, so the cell
+       — and therefore the button — is as wide and as tall as the LARGER of
+       them, at rest and in flight alike. Switching between them toggles
+       `invisible` (visibility, which keeps the box) rather than `hidden`
+       (display, which does not), so the button cannot change size when a send
+       starts, when it ends, or on any frame of the animation in between. The
+       dots are three real characters that are always there and only change
+       opacity, for the same reason: a label that grows a character per tick is
+       a button that jitters four times a second.
+
+       The resting pill is a few pixels taller than it was, because it now
+       reserves the two-line face it will need. Below md that is invisible
+       anyway — `min-h-11` was already taller than both. #}
     <div class="flex items-center rounded-full overflow-hidden bg-accent">
         <button type="submit"
                 data-compose--compose-target="sendBtn"
-                class="flex items-center justify-center text-white text-sm font-semibold
+                data-action="click->compose--compose#sendOrCancel"
+                class="grid items-center justify-items-center cursor-pointer
+                       text-white text-sm font-semibold
                        px-4 py-1.5 max-md:min-h-11 hover:bg-white/10 transition-colors">
-            {{ 'compose.send'|trans }}
+            <span data-compose--compose-target="sendLabel"
+                  class="col-start-1 row-start-1 leading-5 whitespace-nowrap">
+                {{- 'compose.send'|trans -}}
+            </span>
+
+            {# `invisible`, not `hidden` — see above. Kept out of the
+               accessibility tree while it is invisible by visibility:hidden
+               itself, so the button reads "Send" at rest and "Sending… click
+               to cancel" in flight, with no aria juggling. #}
+            <span data-compose--compose-target="sendProgress"
+                  class="col-start-1 row-start-1 invisible text-center leading-tight">
+                <span class="block whitespace-nowrap">
+                    {# The word without its ellipsis: the three dots after it
+                       are the animation, and a label that already ended in one
+                       would make four. #}
+                    {{- 'compose.sending'|trans|replace({'…': '', '...': ''})|trim -}}
+                    {#- Three dots that never leave; only their opacity moves.
+                        Whitespace-trimmed on both sides, or the template's own
+                        indentation lands between the word and them and the
+                        button reads "Sending ." -#}
+                    <span data-compose--compose-target="sendDots" aria-hidden="true"
+                    ><span>.</span><span>.</span><span>.</span></span>
+                </span>
+                {# The instruction, not a second button. Hidden (again by
+                   visibility) for a scheduled send, which has nothing to call
+                   off from here — the menu owns that. #}
+                <span data-compose--compose-target="sendCancelHint"
+                      class="block text-[10px] font-normal opacity-80 whitespace-nowrap">
+                    {{- 'compose.click_to_cancel'|trans -}}
+                </span>
+            </span>
         </button>
         <button type="button"
                 data-action="click->ui--dropdown#toggle"

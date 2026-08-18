@@ -4,7 +4,7 @@ compose/_undo_too_late.html.twig
 The cancel arrived after SendMessageHandler had already claimed the message.
 
 This template exists because the alternative was lying. Every undo used to
-answer with _undo_toast.html.twig — "send cancelled", window restored — whether
+answer with the dock-undo stream — "send cancelled", window restored — whether
 or not the cancel had actually taken, and a cancel clicked in the last fraction
 of the hold does not take. The user was told the one thing that was not true
 about the one action that cannot be reversed.
@@ -14,10 +14,17 @@ not happen; and no window, because there is no draft to reopen. Restoring the
 composer here would put an editable copy of an already-sent mail on screen, and
 the next autosave would file it as a draft standing beside the sent copy.
 
-The dock is emptied for the same reason the send toast empties it — whatever
-window this cancel came from is describing a message that has gone.
+And the page is left exactly as a send that ran its course leaves it, by
+including the very same partial: whatever window this cancel came from is
+describing a message that has gone, so it closes, and the message takes its
+place in the conversation. That used to be a bare "empty the dock", which was
+right only because the inline composer had already been replaced by a
+countdown bar before this could be reached. It is not any more — the window is
+still open, still holding a copy of a mail that is on the wire — so saying
+"too late" without also closing it would leave the user an editable draft of
+something already sent.
 
-Variables: message, ctx
+Variables: message, thread (MessageThread|null), ctx
 #}
 <turbo-stream action="append" target="toast-region">
     <template>
@@ -29,8 +36,12 @@ Variables: message, ctx
     </template>
 </turbo-stream>
 
-{% if false == ctx.inline %}
-    <turbo-stream action="update" target="compose_dock">
-        <template></template>
-    </turbo-stream>
-{% endif %}
+{# `notify: false` — the error above IS this send's notification, and a
+   "Message sent" toast stacked under "too late to stop it" tells the same
+   news twice with the reassuring half on top. #}
+{% include 'compose/_sent.stream.html.twig' with {
+    message: message,
+    thread:  thread,
+    ctx:     ctx,
+    notify:  false,
+} only %}

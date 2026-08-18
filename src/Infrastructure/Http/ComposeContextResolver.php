@@ -42,6 +42,7 @@ final readonly class ComposeContextResolver implements ValueResolverInterface
                 $request->query->get('frame'),
                 $request->query->has('thread') ? $request->query->getInt('thread') : null,
                 $request->query->has('reply_to') ? $request->query->getInt('reply_to') : null,
+                $request->query->get('mode'),
             ),
         ];
     }

@@ -1,6 +1,11 @@
 import { Controller } from "@hotwired/stimulus";
 
 /**
+ * **UNWIRED.** Nothing renders the bar this drives any more: the composer now
+ * stays open through the cancel window and its own Send pill is the cancel, in
+ * the thread and in the dock alike. See compose--compose#armSendHold and
+ * compose/_sent.stream.html.twig. Kept while that is reviewed.
+ *
  * The "Sending… Ns — click to cancel" bar that replaces the reply buttons
  * after an inline send. Mirrors the fetch shape of undo_send_controller, but
  * lives in the thread instead of a toast.

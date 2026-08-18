@@ -1,5 +1,12 @@
 import { Controller } from "@hotwired/stimulus"
 
+/**
+ * **UNWIRED.** The dock's "Sending… — Undo" toast that this drives is no
+ * longer rendered — the window stays open and its Send pill is the cancel.
+ * See compose/_send_toast.html.twig, which is kept alongside it while the
+ * replacement is reviewed.
+ */
+
 export default class extends Controller {
     static values = {
         url:       String,

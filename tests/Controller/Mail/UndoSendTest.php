@@ -72,10 +72,24 @@ final class UndoSendTest extends WebTestCase
         $client->request('POST', '/compose/undo/' . $id);
 
         self::assertResponseIsSuccessful();
+
+        // The composer coming back IS the confirmation. There used to be a
+        // "Send cancelled" toast beside it, and this asserted on that string —
+        // but only the dock ever raised one, the inline cancel answered with
+        // the draft alone, and the window returning with everything in it says
+        // more than the line did. So the assertion is on the thing that
+        // matters: a cancel that won hands the composer back.
+        $body = (string) $client->getResponse()->getContent();
+
         self::assertStringContainsString(
-            'Send cancelled',
-            (string) $client->getResponse()->getContent(),
-            'the cancel won, so the composer should confirm it',
+            'compose-window',
+            $body,
+            'the cancel won, so the composer should come back',
+        );
+        self::assertStringNotContainsString(
+            'Too late',
+            $body,
+            'the cancel won — it must not be reported as having lost',
         );
 
         // The envelope still comes due — cancelling does not unqueue anything.

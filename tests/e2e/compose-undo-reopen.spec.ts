@@ -19,6 +19,14 @@ import { INBOX_SUBJECTS, mailRow, seed } from "./support/config";
  * A window "reopened" is not enough to assert with toBeVisible(): an element in
  * normal flow below the fold is still visible to Playwright. These check where
  * it actually is.
+ *
+ * ── What "undo" means now ────────────────────────────────────────────────────
+ * There is no toast and no countdown bar to find. A send leaves the window
+ * exactly where it was and turns its Send pill into "Sending… click to cancel"
+ * for the cancel window; clicking that pill is the undo, in the dock and in the
+ * thread alike. sendThenCancel() below is that gesture, and the reopen it has
+ * to survive is the same one it always was — the frame is still replaced
+ * wholesale by the undo response.
  */
 
 const DOCK = "#compose_dock";
@@ -41,6 +49,31 @@ async function openCompose(page: Page): Promise<void> {
     await page.goto("/mail/inbox");
     await page.getByRole("link", { name: "Compose" }).first().click();
     await expect(page.locator(`${DOCK} .ts-control`).first()).toBeVisible();
+}
+
+/**
+ * The desktop Send pill. Addressed by its placement rather than by role,
+ * deliberately: its accessible name is "Send" at rest and "Sending… click to
+ * cancel" in flight — that IS the feature — so a getByRole("Send") locator
+ * stops matching the button halfway through the very gesture being tested.
+ * `bar` is the desktop copy; the `header` one is display:none above md.
+ */
+function sendPill(page: Page, scope: string) {
+    return page.locator(`${scope} [data-compose-send-pill="bar"] [data-compose--compose-target="sendBtn"]`);
+}
+
+/**
+ * Send, then call it back — both clicks on the same button.
+ *
+ * The wait between them is an assertion, not a sleep: until the pill says it
+ * has become the cancel, a second click would be a second send.
+ */
+async function sendThenCancel(page: Page, scope: string): Promise<void> {
+    const send = sendPill(page, scope);
+
+    await send.click();
+    await expect(send).toContainText("click to cancel", { timeout: 10_000 });
+    await send.click();
 }
 
 async function fillDock(page: Page): Promise<void> {
@@ -83,11 +116,7 @@ test.describe("compose undo reopens where it was sent from", () => {
         expect(await dockWindowPlacement(page)).toMatchObject({ onScreen: true, atBottomRight: true });
 
         await fillDock(page);
-        await page.locator(DOCK).getByRole("button", { name: "Send", exact: true }).click();
-
-        const undo = page.locator("[data-controller='compose--undo-send']");
-        await expect(undo).toBeVisible({ timeout: 10_000 });
-        await undo.click();
+        await sendThenCancel(page, DOCK);
 
         // The window is back…
         await expect(page.locator(`${DOCK} .compose-window`)).toBeVisible({ timeout: 10_000 });
@@ -109,11 +138,7 @@ test.describe("compose undo reopens where it was sent from", () => {
     test("the dock survives an undo — the next Compose still opens on screen", async ({ page }) => {
         await openCompose(page);
         await fillDock(page);
-        await page.locator(DOCK).getByRole("button", { name: "Send", exact: true }).click();
-
-        const undo = page.locator("[data-controller='compose--undo-send']");
-        await expect(undo).toBeVisible({ timeout: 10_000 });
-        await undo.click();
+        await sendThenCancel(page, DOCK);
         await expect(page.locator(`${DOCK} .compose-window`)).toBeVisible({ timeout: 10_000 });
 
         // Close, then open a fresh Compose — WITHOUT a reload. This is the second
@@ -140,14 +165,8 @@ test.describe("compose undo reopens where it was sent from", () => {
             .locator(`${INLINE} [data-compose--compose-toolbar-target="editor"]`)
             .fill("Inline reply body, long enough to save.");
 
-        // Inline send: the reply bar becomes a "click to cancel" countdown.
-        // getByRole skips the display:none mobile Send button, leaving the
-        // desktop pill.
-        await page.locator(INLINE).getByRole("button", { name: "Send", exact: true }).click();
-
-        const cancel = page.locator("[data-controller='compose--inline-send']");
-        await expect(cancel).toBeVisible({ timeout: 10_000 });
-        await cancel.getByRole("button").click();
+        // Inline send: the window stays put and its own pill becomes the cancel.
+        await sendThenCancel(page, INLINE);
 
         // Reopened where it was written — inline, in the thread…
         await expect(page.locator(`${INLINE} .compose-window`)).toBeVisible({ timeout: 10_000 });

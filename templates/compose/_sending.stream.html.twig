@@ -1,0 +1,36 @@
+{#
+compose/_sending.stream.html.twig
+─────────────────────────────────────────────────────────────────────────────
+The answer to a send, and it changes nothing on screen.
+
+That is the point of it. Every earlier version of this response took the
+window away — the dock's closed into a toast carrying an Undo link, the
+inline one was replaced by a countdown bar in the thread — so the cancel was
+always offered somewhere other than where the user had just clicked, and the
+window had to be rebuilt from scratch to get it back. The window now stays,
+its Send pill reads "Sending… click to cancel" for the whole cancel window,
+and this stream's only job is to hand it the two things it cannot know by
+itself:
+
+  • `undoUrl`   — how to call the send off. Addressed by the message id, which
+                  for a message composed and sent without an autosave is
+                  minted by the send itself, so it cannot be baked into the
+                  window at render time.
+  • `settleUrl` — how to tidy up when the offer expires: put the sent message
+                  in the conversation and take the window away. See
+                  ComposeController::sent().
+
+Appended into the frame rather than replacing anything, and it takes itself
+back out as soon as it has spoken — see compose--send-hold.
+
+Variables: ctx, undoUrl, settleUrl, cancelWindow
+#}
+<turbo-stream action="append" target="{{ ctx.frame }}">
+    <template>
+        <div hidden
+             data-controller="compose--send-hold"
+             data-compose--send-hold-undo-url-value="{{ undoUrl }}"
+             data-compose--send-hold-settle-url-value="{{ settleUrl }}"
+             data-compose--send-hold-delay-value="{{ cancelWindow }}"></div>
+    </template>
+</turbo-stream>

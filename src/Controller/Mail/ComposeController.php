@@ -173,15 +173,24 @@ class ComposeController extends AbstractController
         $account = $original->account ?? $this->window->defaultAccountFor($this->currentUser());
         $draft   = $this->replyDrafts->forward($original);
 
-        $form = $this->formFactory->create($draft, $ctx, $this->currentUser());
-        $form->get('account')->setData($this->senders->token($account));
-        $this->addressFields->hydrate($form, $draft, $this->getUser());
-
         // The window behaves differently for a forward — the caret belongs in
         // To (the quote IS the content; the missing piece is who gets it), and
         // the empty-body question would be asked about a body that is not
         // empty. The mode is how the client knows which case it is in.
-        return $this->renderWindow($form, $draft, $ctx, ['mode' => 'forward']);
+        //
+        // On the CONTEXT rather than as a render-time extra, and that is the
+        // fix for a real bug: an extra is set by this action and lost by every
+        // other render of the same window. Cancel a forward and the window
+        // that came back was a plain new message, so sending it again asked
+        // whether you meant to send an empty mail — about the forward in it.
+        // The context rides in the URL, so it survives the trip.
+        $ctx = $ctx->withMode(ComposeContext::MODE_FORWARD);
+
+        $form = $this->formFactory->create($draft, $ctx, $this->currentUser());
+        $form->get('account')->setData($this->senders->token($account));
+        $this->addressFields->hydrate($form, $draft, $this->getUser());
+
+        return $this->renderWindow($form, $draft, $ctx);
     }
 
     #[Route('/draft', name: 'form_new', methods: ['POST'])]
@@ -470,7 +479,7 @@ class ComposeController extends AbstractController
         // faded and the draft was filed with no way back to it — while the
         // cancel above had already gone through. Cancelling a send has to
         // *reopen* what was being written, which is the whole point of it.
-        return $this->renderTurboStream('compose/_undo_toast.html.twig', [
+        return $this->renderTurboStream('compose/_dock_undo.stream.html.twig', [
             'form'    => $form,
             'message' => $message,
             'ctx'     => $ctx,
@@ -586,35 +595,72 @@ class ComposeController extends AbstractController
 
         return $this->renderTurboStream('compose/_undo_too_late.html.twig', [
             'message' => $message,
+            'thread'  => $message->thread,
             'ctx'     => $ctx,
         ]);
     }
 
     /**
-     * Inline sends skip the toast: the message is appended to the open thread
-     * and the reply bar becomes a countdown the user can click to cancel.
+     * A send changes nothing on screen — the window stays put and becomes its
+     * own cancel.
      *
+     * This used to branch: the dock got a toast with an Undo link and had its
+     * window closed underneath it, the inline composer was replaced by a
+     * countdown bar in the thread. Two surfaces, two lifetimes, and in both
+     * cases the button the user had just pressed was gone by the time they
+     * looked for a way back. Now there is one answer for both, and it only
+     * hands the live window the URLs it cannot address by itself — see
+     * compose/_sending.stream.html.twig.
+     *
+     * The toast is not deleted, only unused: compose/_send_toast.html.twig and
+     * compose--undo-send are still here while this shape is reviewed.
      */
     private function sendResponse(Message $message, ComposeContext $ctx): Response
     {
-        if (false === $ctx->inline) {
-            return $this->renderTurboStream('compose/_send_toast.html.twig', [
-                'message'     => $message,
-                'cancelWindow' => self::CANCEL_WINDOW_MS,
-            ]);
-        }
-
-        return $this->renderTurboStream('compose/_inline_send.stream.html.twig', [
-            'message' => $message,
-            'thread'  => $message->thread,
+        return $this->renderTurboStream('compose/_sending.stream.html.twig', [
+            'ctx'     => $ctx,
             'undoUrl' => $this->generateUrl(
                 'app_compose_mail_undo',
                 $ctx->urlParams() + ['id' => $message->id],
             ),
-            // The cancel window, NOT the send delay. Offering the whole delay
+            'settleUrl' => $this->generateUrl(
+                'app_compose_mail_sent',
+                $ctx->urlParams() + ['id' => $message->id],
+            ),
+            // The CANCEL window, not the send delay. Offering the whole delay
             // is what let a click land after the worker had already claimed
             // the message — see CANCEL_WINDOW_MS.
-            'delay'   => self::CANCEL_WINDOW_MS,
+            'cancelWindow' => self::CANCEL_WINDOW_MS,
+        ]);
+    }
+
+    /**
+     * The cancel window has run out: file the message and close the window.
+     *
+     * Deliberately a separate request rather than something the send response
+     * could have done, because it happens eight seconds after that response
+     * and the difference between the two moments is the entire feature. Until
+     * it runs, the composer is still on screen with the message in it and one
+     * click calls the send off.
+     *
+     * Nothing here writes. It is a POST because it is an instruction and not a
+     * resource — nothing should replay it out of a cache or a prefetch — and
+     * it answers the same streams a too-late cancel does, because "this
+     * message has gone" is the same fact either way.
+     *
+     * Safe to lose. If the browser is closed inside the window the mail still
+     * goes; only the tidying is skipped, and the next render of the thread
+     * shows the message where this would have put it.
+     */
+    #[Route('/sent/{id}', name: 'mail_sent', methods: ['POST'])]
+    public function sent(ComposeContext $ctx, Message $message): Response
+    {
+        $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $message);
+
+        return $this->renderTurboStream('compose/_sent.stream.html.twig', [
+            'message' => $message,
+            'thread'  => $message->thread,
+            'ctx'     => $ctx,
         ]);
     }
 

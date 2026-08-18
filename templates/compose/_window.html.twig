@@ -19,7 +19,7 @@ Variables: form, message, ctx (an App\Domain\DTO\Mail\ComposeContext)
    fallbacks had drifted from the ones the controller used, which is how a
    window could render against 'compose_dock' while the server thought it was
    inline. It is a value object now: all three renders of this template
-   (renderWindow, _undo_toast, _inline_undo) construct one, so the fields are
+   (renderWindow, _dock_undo, _inline_undo) construct one, so the fields are
    there by type. #}
 {% set inline = ctx.inline %}
 {% set frame  = ctx.frame %}
@@ -46,7 +46,6 @@ Variables: form, message, ctx (an App\Domain\DTO\Mail\ComposeContext)
              saved:            'compose.status.saved'|trans,
              saveFailed:       'compose.status.save_failed'|trans,
              uploading:        'compose.status.uploading'|trans,
-             sending:          'compose.sending'|trans,
              newMessage:       'compose.new_message'|trans,
              attachFailed:     'compose.attach_failed'|trans,
              attachRemoveFailed: 'compose.attach_remove_failed'|trans,
@@ -62,7 +61,6 @@ Variables: form, message, ctx (an App\Domain\DTO\Mail\ComposeContext)
              tooLarge:         'compose.attach_too_large'|trans({ '%name%': '%s', '%limit%': '%d' }),
              imageFailed:      'compose.image_insert_failed'|trans,
              noSignature:      'compose.signature_none'|trans,
-             cancelSend:       'compose.sending_cancel'|trans,
          }|json_encode|e('html_attr') }}"
          {# The toolbar controller's own vocabulary. Same arrangement and same
             reason as compose--compose's above: the link popover writes words
@@ -83,8 +81,14 @@ Variables: form, message, ctx (an App\Domain\DTO\Mail\ComposeContext)
          data-compose--compose-inline-value="{{ inline ? 'true' : 'false' }}"
          {# 'forward' moves the caret to To, spares the quote-only body the
             empty-mail question, and is the case the quote-collapse setting
-            below is about. See ComposeController::forwardMessage(). #}
-         data-compose--compose-mode-value="{{ mode|default('new') }}"
+            below is about. See ComposeController::forwardMessage().
+
+            From the CONTEXT, not from a render-time `mode` variable. It was
+            the latter, passed by the forward action alone, so every other
+            render of this window — the undo reopen, a server-side refusal —
+            forgot what it was looking at and started asking a forward whether
+            it was an empty mail. ctx travels in the URL. #}
+         data-compose--compose-mode-value="{{ ctx.mode }}"
          data-compose--compose-collapse-forward-quote-value="{{ app.user and false == app.user.getSetting(constant('App\\Entity\\User\\User::SETTING_COMPOSE_FORWARD_QUOTE_COLLAPSED'), true) ? 'false' : 'true' }}"
          data-compose--compose-min-chars-value="{{ min_chars|default(5) }}"
          data-compose--compose-max-attachment-bytes-value="{{ constant('App\\Controller\\Mail\\ComposeAttachmentController::MAX_ATTACHMENT_BYTES') }}"
@@ -144,23 +148,27 @@ Variables: form, message, ctx (an App\Domain\DTO\Mail\ComposeContext)
             </button>
 
             {% if inline %}
-                {# Replying rarely means retargeting: the address and subject
-                   rows stay folded behind this summary. #}
-                {% set recipients = [] %}
-                {% for entry in message.toAddresses ?? [] %}
-                    {% set recipients = recipients|merge([entry.name|default('') ?: entry.address]) %}
-                {% endfor %}
+                {# A REDUCED header, not a summary of one. What stood here was
+                   a button reading "to Someone" that unfolded the address
+                   block when clicked — fine for a reply, wrong for a forward,
+                   which opens with no recipient and needs exactly one thing
+                   typed before it can go anywhere. The line that said "No
+                   recipients" was a label in front of the field that would
+                   have fixed it. It is that field now. Everything else —
+                   From, Cc, Bcc, Subject — stays folded behind the chevron,
+                   because retargeting the rest really is the rare case.
+
+                   See compose/_to_row.html.twig; the dock renders the same
+                   partial in its address block. #}
+                {{ include('compose/_to_row.html.twig', { compact: true }) }}
 
                 <button type="button"
                         data-action="click->compose--compose#toggleFields"
-                        class="flex items-center gap-2 min-w-0 flex-1 md:flex-none text-sm text-ink-soft
-                               hover:text-ink transition-colors cursor-pointer">
-                    <span class="text-xs text-ink-faint shrink-0">{{ 'message.details.to_label'|trans }}</span>
-                    <span class="truncate max-w-[420px]">
-                        {{- recipients is empty ? ('compose.no_recipients'|trans) : recipients|join(', ') -}}
-                    </span>
+                        title="{{ 'compose.more_fields'|trans }}"
+                        aria-label="{{ 'compose.more_fields'|trans }}"
+                        class="{{ hc }}">
                     <i data-compose--compose-target="fieldsChevron"
-                       class="fa-solid fa-chevron-down text-[10px] text-ink-faint shrink-0 transition-transform duration-150"></i>
+                       class="fa-solid fa-chevron-down text-[10px] text-ink-faint transition-transform duration-150"></i>
                 </button>
                 <span class="hidden" data-compose--compose-target="title"></span>
             {% else %}
@@ -342,55 +350,12 @@ Variables: form, message, ctx (an App\Domain\DTO\Mail\ComposeContext)
             </div>
 
             {# ── To ───────────────────────────────────────────────── #}
-            {# A real <label for>, not a <span>: it is what gives the recipient
-               combobox an accessible name. Tom Select hides the <select> and
-               builds its own text input, and copies the name across only when
-               there is a label bound to the select's id — so the label is
-               load-bearing rather than decoration. The controller mirrors it
-               onto the generated input as well, for the same reason a belt
-               goes with braces. #}
-            <div data-compose--compose-target="toField"
-                 class="flex items-center gap-3 px-4 py-1.5 shrink-0 min-h-[36px]">
-                <label for="{{ form.toAddresses.vars.id }}"
-                       id="{{ form.toAddresses.vars.id }}_label"
-                       class="text-xs font-medium text-ink-faint w-10 shrink-0 text-right">{{ 'compose.to'|trans }}</label>
-                <div class="flex-1 min-w-0">
-                    {{ form_widget(form.toAddresses) }}
-                </div>
-                <div class="flex gap-2 shrink-0">
-                    <button type="button"
-                            data-compose--compose-target="ccBtn"
-                            data-action="click->compose--compose#showCc"
-                            {# title, not aria-label: the button already has an
-                               accessible name — the word "Cc" on its face — and
-                               an aria-label would replace it rather than add to
-                               it, leaving the visible label and the spoken one
-                               saying different things (WCAG 2.5.3). #}
-                            title="{{ 'compose.add_cc'|trans }}"
-                            class="text-xs text-ink-faint hover:text-accent transition-colors">
-                        {{ 'compose.cc'|trans }}
-                    </button>
-                    <button type="button"
-                            data-compose--compose-target="bccBtn"
-                            data-action="click->compose--compose#showBcc"
-                            title="{{ 'compose.add_bcc'|trans }}"
-                            class="text-xs text-ink-faint hover:text-accent transition-colors">
-                        {{ 'compose.bcc'|trans }}
-                    </button>
-                </div>
-            </div>
-
-            {# Why a send was refused. Rendered from the form rather than from a
-               toast so it sits with the field it is about, and so a refusal
-               that came from the server reads the same as one the window
-               caught itself. #}
-            <div data-compose--compose-target="errors"
-                 class="px-4 {{ form.toAddresses.vars.errors|length > 0 ? 'py-1' : 'hidden' }}"
-                 role="alert" aria-live="polite">
-                <p class="text-xs text-danger">
-                    {%- for error in form.toAddresses.vars.errors %}{{ error.message }}{% endfor -%}
-                </p>
-            </div>
+            {# The dock only. An inline window renders the same partial in its
+               header — one To row per window, wherever it sits, because every
+               target the controller reaches for is on it. #}
+            {% if not inline %}
+                {{ include('compose/_to_row.html.twig', { compact: false }) }}
+            {% endif %}
 
             {# ── Cc ───────────────────────────────────────────────── #}
             <div data-compose--compose-target="ccField"

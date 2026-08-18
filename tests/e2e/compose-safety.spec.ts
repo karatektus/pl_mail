@@ -405,16 +405,27 @@ test.describe("compose safety", () => {
      * `pickerIntegrations`, and the cancel flag was already flushed by then —
      * so the send was called off, the toast faded, and the draft was filed with
      * no way back to it.
+     *
+     * There is no toast to wait for any more. The window stays open through
+     * the cancel window and its own Send pill becomes the way out — one
+     * surface, in every editor — so the cancel is a second click on the button
+     * that was just pressed.
      */
     test("undo reopens the window with the recipient intact", async ({ page }) => {
         await openCompose(page);
         await fillMessage(page, VALID);
 
-        await page.locator(DOCK).getByRole("button", { name: "Send", exact: true }).click();
+        // Addressed by placement, not by role: the pill's accessible name
+        // changes to "Sending… click to cancel" as it changes jobs, which is
+        // exactly what a getByRole("Send") locator would stop matching.
+        const send = page.locator(
+            `${DOCK} [data-compose-send-pill="bar"] [data-compose--compose-target="sendBtn"]`,
+        );
+        await send.click();
 
-        const undo = page.locator("[data-controller='compose--undo-send']");
-        await expect(undo).toBeVisible({ timeout: 10_000 });
-        await undo.click();
+        // The same button, now offering the way back.
+        await expect(send).toContainText("click to cancel", { timeout: 10_000 });
+        await send.click();
 
         // The window is back…
         await expect(page.locator(`${DOCK} .compose-window`)).toBeVisible({ timeout: 10_000 });

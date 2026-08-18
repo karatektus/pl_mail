@@ -16,7 +16,7 @@ use Twig\TwigFunction;
  *
  * A function rather than a controller variable, for the reason
  * `read_receipt_decision` is one: compose/_window.html.twig is included from
- * three places (the two routes that render it, plus _undo_toast and
+ * three places (the two routes that render it, plus _dock_undo.stream and
  * _inline_undo, both of which include it `only`), and threading one more
  * variable through all of them means the next caller has to remember to. Here
  * forgetting would mean the From switch quietly stops changing the signature

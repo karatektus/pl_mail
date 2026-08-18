@@ -1218,6 +1218,7 @@ compose:
         url_label: Webadresse
         url_placeholder: "beispiel.de"
     minimize: Minimieren
+    more_fields: Absender, Cc, Bcc und Betreff anzeigen
     more_options: Weitere Optionen
     new_message: Neue Nachricht
     no_recipients: Keine Empfänger
@@ -1303,6 +1304,7 @@ header:
 
 inbox:
     empty: Keine Nachrichten in diesem Tab.
+    empty_account: In diesem Konto ist noch nichts angekommen.
 
 insights:
     card:
@@ -2752,6 +2754,7 @@ toast:
     schedule_cancelled: Geplanter Versand abgebrochen.
     send_cancelled: Senden abgebrochen — zurück zu deinem Entwurf.
     send_too_late: Zu spät — diese Nachricht wurde bereits gesendet.
+    sent: Nachricht gesendet.
     undo: Rückgängig
     error:
         no_archive_mailbox: Es gibt kein Archiv-Postfach.

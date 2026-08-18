@@ -2,44 +2,20 @@
 import { Controller } from '@hotwired/stimulus'
 
 /**
- * Presses the cancel window's own control the moment it renders.
+ * The compose window is the only place a send is announced, and the only place
+ * one is called off.
  *
- * MODULE scope, not controller state, and that is the mechanism rather than a
- * style choice: the stream that announces the cancel window REPLACES the
- * compose element (inline reply becomes the countdown bar; the dock window
- * closes into a toast), so a watcher held by the controller would be torn
- * down in the same breath that renders the thing it is waiting for. Six
- * seconds covers a slow answer; past that, the click is dropped exactly the
- * way a late manual cancel is.
+ * There used to be a module-scope watcher here that clicked whatever cancel
+ * control the server's answer happened to render — a countdown bar in the
+ * thread, or an Undo link in a toast — because the send response REPLACED the
+ * window, so the thing that had been clicked no longer existed to finish the
+ * job. That is the shape this round removes. The window now stays on screen
+ * for the whole cancel window with its own pill as the cancel surface, the
+ * server's answer only hands it the two URLs it needs (see
+ * compose--send-hold), and nothing has to hunt the DOM for a button to press.
  */
-let cancelWatcher = null;
-
-function armCancelWatcher() {
-    const deadline = Date.now() + 6_000;
-    clearInterval(cancelWatcher);
-
-    cancelWatcher = setInterval(() => {
-        const control = document.querySelector(
-            '[data-action*="compose--inline-send#cancel"], [data-action*="compose--undo-send#abort"]',
-        );
-
-        if (null !== control) {
-            clearInterval(cancelWatcher);
-            cancelWatcher = null;
-            control.click();
-
-            return;
-        }
-
-        if (Date.now() > deadline) {
-            clearInterval(cancelWatcher);
-            cancelWatcher = null;
-        }
-    }, 120);
-}
-
 export default class extends Controller {
-    static targets = ['toField', 'ccField', 'bccField', 'subject', 'body', 'saveStatus', 'toCollection', 'collapsible', 'minimizeIcon', 'expandIcon', 'ccBtn', 'bccBtn', 'title', 'accountSelect', 'fromBtn', 'fromLabel', 'fromChevron', 'fromDropdown', 'fromRow', 'fields', 'fieldsChevron', 'fileInput', 'imageInput', 'attachments', 'scroller', 'formatBar', 'formatToggle', 'sendBtn', 'sendCancel', 'errors', 'plainBody', 'plainToggle', 'plainCheck', 'plainWarning', 'plainWarningConfirm', 'sendWarning', 'sendWarningBody', 'sendWarningConfirm', 'richOnly'];
+    static targets = ['toField', 'ccField', 'bccField', 'subject', 'body', 'saveStatus', 'toCollection', 'collapsible', 'minimizeIcon', 'expandIcon', 'ccBtn', 'bccBtn', 'title', 'accountSelect', 'fromBtn', 'fromLabel', 'fromChevron', 'fromDropdown', 'fromRow', 'fields', 'fieldsChevron', 'fileInput', 'imageInput', 'attachments', 'scroller', 'formatBar', 'formatToggle', 'sendBtn', 'sendLabel', 'sendProgress', 'sendDots', 'sendCancelHint', 'errors', 'plainBody', 'plainToggle', 'plainCheck', 'plainWarning', 'plainWarningConfirm', 'sendWarning', 'sendWarningBody', 'sendWarningConfirm', 'richOnly'];
 
     /** Below this the dock window is the whole screen — matches Tailwind's md. */
     static MOBILE_QUERY = '(max-width: 767px)';
@@ -154,7 +130,12 @@ export default class extends Controller {
 
             // On a forward the body is already written - the quote - and the
             // recipient is the one thing the mail cannot leave without.
-            if ('forward' === this.modeValue) {
+            //
+            // Unless it already has one. A forward is re-rendered whenever it
+            // comes back from something — a cancelled send, a refusal — and by
+            // then the recipient is usually the part that IS done, so putting
+            // the caret back in To would be taking it away from the writing.
+            if ('forward' === this.modeValue && false === this._alreadyAddressed()) {
                 this._focusRecipients();
             } else {
                 this._focusCursorAtTop();
@@ -334,6 +315,22 @@ export default class extends Controller {
         select.plmailTamed = true;
         select.settings.openOnFocus = false;
 
+        // And the same rule enforced where it cannot be raced. `openOnFocus`
+        // is a setting read at focus time, so it only holds if this ran before
+        // the field was focused — and on a forward it does not: connect()
+        // moves the caret into To immediately (see _focusRecipients), while
+        // this arrives with the `autocomplete:connect` event that Tom Select
+        // fires when the bundle has finished building the widget. Whichever
+        // wins, an empty panel is not something anyone asked for, so it is
+        // refused at the moment it opens rather than at the moment it is
+        // asked to. Typing still opens it — the query is non-empty by then,
+        // which is the whole distinction the user is after.
+        select.on('dropdown_open', () => {
+            if ('' === (select.control_input?.value ?? '').trim()) {
+                select.close();
+            }
+        });
+
         // Remember what is being typed, because by the time Send is handled it
         // is already gone. Clicking the button blurs the field, and Tom Select
         // empties its textbox on blur when the contents cannot become an item —
@@ -408,6 +405,18 @@ export default class extends Controller {
             return;
         }
 
+        // The inline window's To row is its HEADER, and everything above is
+        // about a panel covering the field that comes next. In the header
+        // nothing comes next — the row is followed by the message body, not by
+        // Subject — so there is no click to protect, and reserving the room
+        // anyway grew the header by the panel's height and pushed the whole
+        // editor down every time a result arrived or left. It overlays there,
+        // the way a combobox popover normally does. See
+        // compose/_to_row.html.twig.
+        if (true === row.hasAttribute('data-compose-overlay-panel')) {
+            return;
+        }
+
         const panel = select.dropdown;
 
         if (null === panel || undefined === panel) {
@@ -438,6 +447,15 @@ export default class extends Controller {
 
         const reserve = () => {
             if (true === panel.classList.contains('ts-dropdown-floating')) {
+                return;
+            }
+
+            // The empty-query guard in _tameAddressField closes the panel from
+            // inside the same `dropdown_open` it opened on, and handlers run in
+            // registration order — so this one can be reached with the panel
+            // already shut. Reserving room for a panel nobody will see would
+            // leave a gap under the row until the next pointerup.
+            if (false === select.isOpen) {
                 return;
             }
 
@@ -479,6 +497,8 @@ export default class extends Controller {
     disconnect() {
         clearTimeout(this.#autosaveTimer);
         clearInterval(this._sendingTicker);
+        clearTimeout(this._sendHoldTimer);
+        clearTimeout(this._sendFallback);
 
         for (const release of this._panelReleases ?? []) {
             release();
@@ -740,8 +760,13 @@ export default class extends Controller {
     // ── Address / subject fields ──────────────────────────────────────
 
     /**
-     * Inline replies keep From/To/Cc/Bcc/Subject folded away — you rarely
-     * retarget a reply — behind the recipient summary in the header.
+     * Inline replies keep From/Cc/Bcc/Subject folded away behind the chevron
+     * in the header — you rarely retarget a reply.
+     *
+     * To is NOT in there any more. It sits in the header itself, typable, and
+     * that is the point of the reduced header: a forward opens needing exactly
+     * one thing, and it used to open with a label where that thing goes. See
+     * compose/_to_row.html.twig.
      */
     toggleFields() {
         if (false === this.hasFieldsTarget) {
@@ -752,6 +777,26 @@ export default class extends Controller {
 
         if (this.hasFieldsChevronTarget) {
             this.fieldsChevronTarget.classList.toggle('rotate-180', false === hidden);
+        }
+    }
+
+    /**
+     * Unfold the address block, if it is folded.
+     *
+     * Cc and Bcc are asked for from the To row, and in an inline window that
+     * row is in the HEADER while the fields they reveal are in the block below
+     * it — so without this, pressing "Cc" un-hid a row inside something still
+     * hidden and looked like a button that did nothing.
+     */
+    _revealFields() {
+        if (false === this.hasFieldsTarget || false === this.fieldsTarget.classList.contains('hidden')) {
+            return;
+        }
+
+        this.fieldsTarget.classList.remove('hidden');
+
+        if (this.hasFieldsChevronTarget) {
+            this.fieldsChevronTarget.classList.add('rotate-180');
         }
     }
 
@@ -1846,6 +1891,16 @@ export default class extends Controller {
     async saveDraft(event = null, { force = false, allowEmpty = false } = {}) {
         event?.preventDefault();
 
+        // Not while a send is out. What is on screen during the cancel window
+        // is a copy of a message that has already left, and the header is
+        // still live — so "save and close" is reachable, and without this it
+        // would write the sent message back over itself as a draft. The body
+        // is `inert` for the same reason; this is the half of it that a click
+        // on the chrome can still reach.
+        if (true === this._sending) {
+            return;
+        }
+
         const form = this.element.querySelector('form');
         if (!form) { return; }
 
@@ -2150,6 +2205,23 @@ export default class extends Controller {
             .reduce((total, row) => total + row.querySelectorAll('.ts-control .item').length, 0);
     }
 
+    /**
+     * Does this window arrive with a recipient already on it?
+     *
+     * Read off the <select> rather than off the chips, and that is timing
+     * rather than taste: this is asked from connect(), and the chips are
+     * Tom Select's — they do not exist until the autocomplete bundle has built
+     * the widget, which connect() can beat. The selected options are in the
+     * server's markup from the first byte.
+     */
+    _alreadyAddressed() {
+        if (false === this.hasToFieldTarget) {
+            return false;
+        }
+
+        return null !== this.toFieldTarget.querySelector('select option:checked');
+    }
+
     /** Ask the form to submit, going through every guard in _handleSubmit. */
     _requestSend() {
         this.element.querySelector('form')?.requestSubmit();
@@ -2318,6 +2390,19 @@ export default class extends Controller {
         this._pendingSubmitter = null;
     }
 
+    /**
+     * A send has left the window. Everything from here to `_settleSend()` is
+     * one state, and the pill is the only thing that shows it.
+     *
+     * The old shape closed the window the moment the server answered and put
+     * the way back somewhere else — a toast in the dock, a countdown bar in
+     * the thread — which is how the app came to have two cancel surfaces that
+     * disagreed, plus a hidden button beside the pill that made a third. The
+     * window now stays exactly where it is, with the pill reading "Sending…
+     * click to cancel", until one of two things happens: the user clicks it,
+     * or the cancel window runs out and `_settleSend()` asks the server to
+     * tidy up. See _send_pill.html.twig for why that costs no layout shift.
+     */
     _handleSubmit(event) {
         if (true === this._submitting) {
             event.preventDefault();
@@ -2337,94 +2422,345 @@ export default class extends Controller {
         // happens next, nothing is being abandoned.
         this._unsaved = false;
 
-        // TWO in the DOM, one on screen: the send pill is rendered twice from
-        // one partial — `md:hidden` in the window header for phones, `hidden
-        // md:flex` in the action bar for the desktop — and only ever one of
-        // them is displayed. A target LIST rather than a single target is what
-        // makes that safe: both get disabled and relabelled, so the copy the
-        // user cannot see can never come back armed. The fallback below covers
-        // the settings signature editor, which renders this toolbar with no
-        // pill at all.
-        const sendButtons = this.hasSendBtnTarget
-            ? this.sendBtnTargets
-            : Array.from(this.element.querySelectorAll('[type="submit"]'));
+        // A scheduled send comes through this same handler — the menu's items
+        // are real submit buttons with a `formaction` — and it has no cancel
+        // window to offer: the hold itself is the affordance, called off from
+        // the menu or the row for as long as it lasts. So it gets the sending
+        // face without the invitation to click it.
+        const scheduling = true === event.submitter?.hasAttribute('formaction');
 
-        sendButtons.forEach((button) => {
-            button.disabled = true;
-            // The icon button has no text to replace — keep its markup.
-            if ('' !== button.textContent.trim()) {
-                button.dataset.sendLabel ??= button.textContent;
-            }
-        });
-
-        // "Sending" with living dots — one, two, three, over again. A static
-        // label reads as a hang; motion is what says the request is out and
-        // something is happening to it.
-        const base = this._t('sending', 'Sending…').replace(/[….]+\s*$/, '');
-        let ticks = 0;
-
-        const paint = () => {
-            const dots = '.'.repeat(1 + (ticks++ % 3));
-            sendButtons.forEach((button) => {
-                if (undefined !== button.dataset.sendLabel) {
-                    button.textContent = base + dots;
-                }
-            });
-        };
-
-        paint();
-        clearInterval(this._sendingTicker);
-        this._sendingTicker = setInterval(paint, 400);
-
-        // The way out while the request is in flight — see _send_pill.
-        this.sendCancelTargets.forEach((button) => { button.hidden = false; });
-
-        setTimeout(() => {
-            this._submitting = false;
-            this._settleSendUi(sendButtons);
-        }, 15_000);
+        this._beginSending(false === scheduling);
     }
 
-    /** Put the send pill back to rest: label, dots ticker, cancel link. */
-    _settleSendUi(sendButtons) {
-        clearInterval(this._sendingTicker);
-        this._sendingTicker = null;
+    /**
+     * Put the pill into its sending face and start the dots.
+     *
+     * TWO pills in the DOM, one on screen: the partial is rendered twice —
+     * `md:hidden` in the header for phones, `hidden md:flex` in the action bar
+     * for the desktop — so every one of these is a target LIST. The copy the
+     * user cannot see has to be in the same state as the one they can, or a
+     * resize mid-send would reveal a button still saying "Send".
+     *
+     * The fallback covers the settings signature editor, which renders this
+     * toolbar with no pill at all: there is nothing there to animate and
+     * nothing to cancel, so its submit buttons are simply disabled the way
+     * they always were.
+     */
+    _beginSending(cancellable) {
+        this._sending         = true;
+        this._cancellable     = cancellable;
+        this._cancelRequested = false;
+        this._undoUrl         = null;
+        this._settleUrl       = null;
 
-        (sendButtons ?? (this.hasSendBtnTarget ? this.sendBtnTargets : [])).forEach((button) => {
-            button.disabled = false;
+        if (false === this.hasSendProgressTarget) {
+            this._plainSubmitButtons().forEach((button) => { button.disabled = true; });
+        }
 
-            if (undefined !== button.dataset.sendLabel) {
-                button.textContent = button.dataset.sendLabel;
-            }
+        this.sendLabelTargets.forEach((span)   => { span.classList.add('invisible'); });
+        this.sendProgressTargets.forEach((span) => { span.classList.remove('invisible'); });
+        this.sendCancelHintTargets.forEach((span) => {
+            span.classList.toggle('invisible', false === cancellable);
         });
 
-        if (this.hasSendCancelTarget) {
-            this.sendCancelTargets.forEach((button) => { button.hidden = true; });
+        this.sendBtnTargets.forEach((button) => {
+            button.setAttribute('aria-busy', 'true');
+            // Not disabled: while a send is in flight this button IS the
+            // cancel, and a disabled button takes no clicks. Re-submission is
+            // stopped by `_submitting` in the handler above and by
+            // sendOrCancel() swallowing the click, not by the attribute.
+            button.disabled = false === cancellable;
+        });
+
+        this._dotTick = 0;
+        this._paintDots();
+        clearInterval(this._sendingTicker);
+        this._sendingTicker = setInterval(() => this._paintDots(), 400);
+
+        // The message is gone; what is on screen is a copy of it. Editing it
+        // would be writing into something already sent, and the next autosave
+        // would file those edits against the sent row — so the body goes out of
+        // reach, keyboard included, for as long as the send is out.
+        this._freeze();
+
+        // If the answer never comes — a dropped connection, a 500 that Turbo
+        // renders somewhere else — the window must not sit there animating for
+        // ever. The hold, when it arrives, clears this.
+        clearTimeout(this._sendFallback);
+        this._sendFallback = setTimeout(() => {
+            this._submitting = false;
+            this._settleSendUi();
+        }, 20_000);
+    }
+
+    /** One, two, three dots, over again — by opacity, never by width. */
+    _paintDots() {
+        const lit = 1 + (this._dotTick++ % 3);
+
+        for (const group of this.sendDotsTargets) {
+            Array.from(group.children).forEach((dot, index) => {
+                dot.style.opacity = index < lit ? '1' : '0';
+            });
+        }
+    }
+
+    /** Submit buttons in a window that has no send pill (the signature editor). */
+    _plainSubmitButtons() {
+        return this.hasSendBtnTarget
+            ? this.sendBtnTargets
+            : Array.from(this.element.querySelectorAll('[type="submit"]'));
+    }
+
+    /**
+     * The send pill was clicked. Which of its two jobs that is depends on
+     * whether a send is already out.
+     *
+     * At rest this does nothing at all and the button submits the form the way
+     * a submit button does. In flight it is the cancel, and the click must not
+     * also reach the form — hence preventDefault on the click itself rather
+     * than a guard in the submit handler, which would fire after the browser
+     * had already begun the submission.
+     */
+    sendOrCancel(event) {
+        if (true !== this._sending) {
+            return;
+        }
+
+        event.preventDefault();
+        event.stopPropagation();
+
+        if (false === this._cancellable || true === this._cancelRequested) {
+            return;
+        }
+
+        this._cancelRequested = true;
+
+        // Pressed has to look pressed. The cancel may not be sendable yet —
+        // the undo URL only exists once the server has answered with the
+        // message's id — so this is often a beat ahead of the request, and a
+        // button that showed nothing would read as a click that fell on the
+        // floor. Deliberately no text change: the label is what the button is
+        // sized to, and this round is about a button that never resizes.
+        this.sendBtnTargets.forEach((button) => {
+            button.classList.add('opacity-60', 'pointer-events-none');
+        });
+
+        if (null !== this._undoUrl) {
+            this._cancelSend();
         }
     }
 
     /**
-     * "Cancel" pressed while the send request is still in flight.
+     * The server has answered the send: here is how to call it off, here is
+     * how to tidy up, and here is how long the offer stands.
      *
-     * There is nothing to abort client-side that the server has not already
-     * received, but every send lands in a cancel window (CANCEL_WINDOW_MS) and
-     * announces it — the inline bar, or the toast's undo. So the click is
-     * remembered and the moment that announcement renders, its own cancel is
-     * pressed on the user's behalf. If the window never renders (network
-     * error) or is already spent, this fails exactly the way a late manual
-     * click would — honestly.
+     * Called by compose--send-hold, which rides in on the send response — see
+     * compose/_sending.stream.html.twig. A cancel clicked BEFORE this arrives
+     * is not lost: `_cancelRequested` is standing, and it is honoured the
+     * moment there is a URL to send it to.
      */
-    cancelInFlight(event) {
-        const button = event.currentTarget;
+    armSendHold({ undoUrl, settleUrl, delay }) {
+        clearTimeout(this._sendFallback);
 
-        // Pressed has to look pressed: the actual cancellation lands when the
-        // server's cancel window renders and the watcher clicks it, which can
-        // be a beat away — a button that neither disables nor changes reads
-        // as a click that fell on the floor.
-        button.disabled = true;
-        button.textContent = '…';
+        this._undoUrl   = undoUrl;
+        this._settleUrl = settleUrl;
 
-        armCancelWatcher();
+        if (true === this._cancelRequested) {
+            this._cancelSend();
+
+            return;
+        }
+
+        clearTimeout(this._sendHoldTimer);
+        this._sendHoldTimer = setTimeout(() => this._settleSend(), delay);
+    }
+
+    /**
+     * Call the send off.
+     *
+     * Honest about the race it can lose: the window closes a couple of seconds
+     * before the worker picks the envelope up (CANCEL_WINDOW_MS against
+     * SEND_DELAY_MS), but a slow request inside those seconds can still arrive
+     * late — and the server says so rather than confirming a cancel it did not
+     * make. Either answer is a stream: the draft reopened where it was, or an
+     * error toast and the window settled as sent.
+     */
+    async _cancelSend() {
+        clearTimeout(this._sendHoldTimer);
+
+        let response;
+
+        try {
+            response = await fetch(this._undoUrl, {
+                method:  'POST',
+                headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            });
+        } catch (error) {
+            console.error('[compose] cancel failed', error);
+            this._cancelFailed();
+
+            return;
+        }
+
+        if (false === response.ok) {
+            console.error('[compose] cancel refused', response.status);
+            this._cancelFailed();
+
+            return;
+        }
+
+        Turbo.renderStreamMessage(await response.text());
+    }
+
+    /**
+     * The cancel never reached the server. The send is still going, so the
+     * window goes back to sending rather than pretending to be an editor
+     * again — and the hold is restarted so the message still gets tidied out
+     * of the window when its time is up.
+     */
+    _cancelFailed() {
+        this._cancelRequested = false;
+
+        this.sendBtnTargets.forEach((button) => {
+            button.classList.remove('opacity-60', 'pointer-events-none');
+        });
+
+        this._sendHoldTimer = setTimeout(() => this._settleSend(), 2_000);
+    }
+
+    /**
+     * The cancel window is over. Ask the server to put the sent message where
+     * it belongs and take this window away.
+     *
+     * A POST rather than a GET: it changes nothing on the server, but it is a
+     * one-shot instruction rather than a resource, and nothing should ever
+     * replay it out of a cache or a prefetch.
+     */
+    async _settleSend() {
+        if (null === this._settleUrl || undefined === this._settleUrl) {
+            return;
+        }
+
+        try {
+            const response = await fetch(this._settleUrl, {
+                method:  'POST',
+                headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            });
+
+            if (true === response.ok) {
+                Turbo.renderStreamMessage(await response.text());
+
+                return;
+            }
+
+            console.error('[compose] settle failed', response.status);
+        } catch (error) {
+            console.error('[compose] settle failed', error);
+        }
+
+        // The mail has gone either way; only the tidying failed. Give the
+        // window back rather than leaving a frozen editor on screen.
+        this._submitting = false;
+        this._settleSendUi();
+    }
+
+    /** Put the pill back to rest: faces, dots, and the body's editability. */
+    _settleSendUi() {
+        clearInterval(this._sendingTicker);
+        clearTimeout(this._sendHoldTimer);
+        clearTimeout(this._sendFallback);
+
+        this._sendingTicker   = null;
+        this._sending         = false;
+        this._cancelRequested = false;
+
+        this._plainSubmitButtons().forEach((button) => { button.disabled = false; });
+
+        this.sendLabelTargets.forEach((span)      => { span.classList.remove('invisible'); });
+        this.sendProgressTargets.forEach((span)   => { span.classList.add('invisible'); });
+        this.sendCancelHintTargets.forEach((span) => { span.classList.remove('invisible'); });
+
+        this.sendBtnTargets.forEach((button) => {
+            button.removeAttribute('aria-busy');
+            button.classList.remove('opacity-60', 'pointer-events-none');
+        });
+
+        this._thaw();
+    }
+
+    /**
+     * Take the window's body out of reach while a send is in flight — every
+     * part of it EXCEPT the send pill, which is the one live control left.
+     *
+     * `inert` on the whole collapsible region was the obvious move and the
+     * wrong one: on the desktop the pill lives IN that region, first in the
+     * action bar, so inerting its ancestor made the cancel unclickable —
+     * pointer events land on the form behind it and nothing happens. Inert
+     * cannot be lifted again on a descendant, so the exception has to be made
+     * on the way down: anything containing the send button is descended into
+     * rather than frozen, and only the button itself is left alone.
+     *
+     * The BUTTON, not the pill it sits in. The chevron beside it and the whole
+     * send-later menu behind that are frozen with everything else, because
+     * scheduling a message that has already gone out would post the draft a
+     * second time — a hold set on a sent mail is not a feature, it is a
+     * duplicate.
+     *
+     * The elements are remembered rather than re-derived, because what has to
+     * be thawed is exactly what was frozen — a second walk after the DOM has
+     * moved on would miss some and un-freeze things that were never ours. The
+     * dimming is remembered separately for the same reason: some of these
+     * elements are already greyed for their own reasons (the rich-only
+     * affordances in plain-text mode), and un-dimming those on the way out
+     * would leave the window looking wrong about something else entirely.
+     */
+    _freeze() {
+        this._frozen = [];
+        this._dimmed = [];
+
+        if (false === this.hasCollapsibleTarget) {
+            return;
+        }
+
+        const live = '[data-compose--compose-target="sendBtn"]';
+
+        const walk = (root) => {
+            for (const child of root.children) {
+                if (true === child.matches(live)) {
+                    continue;
+                }
+
+                if (null !== child.querySelector(live)) {
+                    walk(child);
+
+                    continue;
+                }
+
+                child.inert = true;
+                this._frozen.push(child);
+
+                if (false === child.classList.contains('opacity-60')) {
+                    child.classList.add('opacity-60', 'transition-opacity');
+                    this._dimmed.push(child);
+                }
+            }
+        };
+
+        walk(this.collapsibleTarget);
+    }
+
+    /** Give the body back. */
+    _thaw() {
+        for (const element of this._frozen ?? []) {
+            element.inert = false;
+        }
+
+        for (const element of this._dimmed ?? []) {
+            element.classList.remove('opacity-60');
+        }
+
+        this._frozen = [];
+        this._dimmed = [];
     }
 
     /** Whether this window is a forward whose body still carries the quote. */
@@ -2441,26 +2777,30 @@ export default class extends Controller {
     /**
      * A blinking caret in a typable To — a forward's first missing piece.
      *
-     * Two obstacles stand between connect() and that caret, and both are
-     * handled here rather than hoped away. The inline zone opens with the
-     * address rows folded behind the "to …" summary, and a hidden field
-     * cannot take focus — so the rows are unfolded first, the same move
-     * toggleFields makes. And Tom Select owns the row only once its
-     * enhancement has run, which connect() can beat — so the focus retries
-     * briefly for the enhanced input and falls back to the raw widget rather
-     * than give up silently.
+     * One obstacle is left between connect() and that caret. Tom Select owns
+     * the row only once its enhancement has run, and connect() can beat it —
+     * so the focus retries briefly for the enhanced input and falls back to
+     * the raw widget rather than give up silently.
+     *
+     * The other used to be the fold: the inline window kept every address row
+     * behind a "to …" summary, and a hidden field cannot take focus, so this
+     * had to unfold the lot on the way past. The To row is in the header now
+     * and needs no unfolding — the guard below is what is left of that, and it
+     * is still needed for a dock window, where the block is the only place the
+     * row lives.
      */
     _focusRecipients() {
         if (false === this.hasToFieldTarget) {
             return;
         }
 
-        if (true === this.hasFieldsTarget && this.fieldsTarget.classList.contains('hidden')) {
-            this.fieldsTarget.classList.remove('hidden');
-
-            if (this.hasFieldsChevronTarget) {
-                this.fieldsChevronTarget.classList.add('rotate-180');
-            }
+        // Only when the field is actually behind the fold. It no longer is in
+        // an inline window — the To row moved into the header precisely so a
+        // forward opens with a typable recipient and nothing else unfolded —
+        // and unfolding From, Cc, Bcc and Subject on the way to it would undo
+        // the reduced header on every forward.
+        if (true === this.hasFieldsTarget && this.fieldsTarget.contains(this.toFieldTarget)) {
+            this._revealFields();
         }
 
         const deadline = Date.now() + 1500;
@@ -2867,6 +3207,7 @@ export default class extends Controller {
     // ── Cc / Bcc ──────────────────────────────────────────────────────
 
     showCc() {
+        this._revealFields();
         this.ccFieldTarget.classList.remove('hidden');
         if (this.hasCcBtnTarget) {
             this.ccBtnTarget.classList.add('hidden');
@@ -2874,6 +3215,7 @@ export default class extends Controller {
     }
 
     showBcc() {
+        this._revealFields();
         this.bccFieldTarget.classList.remove('hidden');
         if (this.hasBccBtnTarget) {
             this.bccBtnTarget.classList.add('hidden');

@@ -1,0 +1,96 @@
+{#
+compose/_to_row.html.twig
+─────────────────────────────────────────────────────────────────────────────
+The To row, and directly under it the refusal that belongs to it.
+
+Rendered in ONE of two places, never both, and which one depends on where the
+window lives:
+
+  • `compact: true`  — in an inline window's HEADER, where the recipient
+    summary used to be. That summary was a button reading "to Someone" (or
+    "No recipients") that unfolded the whole address block, and on a forward —
+    which opens with no recipient at all and needs exactly one thing typed
+    into it — it was a label standing in front of the only field that
+    mattered. It IS the field now: same widget, same target, same everything
+    below, just laid out for a header row. The chevron beside it still unfolds
+    From/Cc/Bcc/Subject for the rarer case.
+
+  • `compact: false` — first in the address block of a dock window, where it
+    has always been.
+
+One partial rather than two markups because everything that reads this row
+addresses it by target — the Tom Select taming, the panel-room reservation,
+the tab order, the aria wiring, the invalid marking — and a second copy is a
+second thing for those to drift out of step with.
+
+The <label for> is load-bearing, not decoration: Tom Select hides the <select>
+and builds its own text input, and copies the accessible name across only when
+a label is bound to the select's id. The controller mirrors it onto the
+generated input as well, belt with braces.
+
+Variables: form, compact (default false)
+#}
+{% set compact = compact|default(false) %}
+
+<div class="{{ compact ? 'min-w-0 flex-1' : 'shrink-0' }}">
+    <div data-compose--compose-target="toField"
+         {# The suggestion panel OVERLAYS from here rather than pushing the
+            window about. In the dock the panel is given real room — it hangs
+            over the Subject row otherwise, and a click aimed at Subject
+            commits a contact nobody chose (see
+            compose--compose#_reserveRoomForPanel). Here there is no Subject
+            below to cover: the row is the header, and reserving room for the
+            panel grew the header and shoved the whole editor down every time
+            a result arrived. This attribute is what tells the controller which
+            of the two rows it is looking at. #}
+         {% if compact %}data-compose-overlay-panel{% endif %}
+         {# `select-text`: the inline header carries `select-none` so the
+            window chrome cannot be dragged into a text selection, and it is
+            inherited — which in a header that now contains a typing surface
+            would fight the caret. #}
+         class="flex items-center gap-3 min-h-[36px] select-text
+                {{ compact ? '' : 'px-4 py-1.5' }}">
+        <label for="{{ form.toAddresses.vars.id }}"
+               id="{{ form.toAddresses.vars.id }}_label"
+               class="text-xs font-medium text-ink-faint shrink-0
+                      {{ compact ? '' : 'w-10 text-right' }}">{{ 'compose.to'|trans }}</label>
+        <div class="flex-1 min-w-0">
+            {{ form_widget(form.toAddresses) }}
+        </div>
+        <div class="flex gap-2 shrink-0">
+            <button type="button"
+                    data-compose--compose-target="ccBtn"
+                    data-action="click->compose--compose#showCc"
+                    {# title, not aria-label: the button already has an
+                       accessible name — the word "Cc" on its face — and
+                       an aria-label would replace it rather than add to
+                       it, leaving the visible label and the spoken one
+                       saying different things (WCAG 2.5.3). #}
+                    title="{{ 'compose.add_cc'|trans }}"
+                    class="text-xs text-ink-faint hover:text-accent transition-colors">
+                {{ 'compose.cc'|trans }}
+            </button>
+            <button type="button"
+                    data-compose--compose-target="bccBtn"
+                    data-action="click->compose--compose#showBcc"
+                    title="{{ 'compose.add_bcc'|trans }}"
+                    class="text-xs text-ink-faint hover:text-accent transition-colors">
+                {{ 'compose.bcc'|trans }}
+            </button>
+        </div>
+    </div>
+
+    {# Why a send was refused. Rendered from the form rather than from a
+       toast so it sits with the field it is about, and so a refusal
+       that came from the server reads the same as one the window
+       caught itself. It travels WITH the row: in a compact header the
+       address block below is folded away, and a refusal nobody can see is
+       the oldest bug in this window. #}
+    <div data-compose--compose-target="errors"
+         class="{{ compact ? '' : 'px-4' }} {{ form.toAddresses.vars.errors|length > 0 ? 'py-1' : 'hidden' }}"
+         role="alert" aria-live="polite">
+        <p class="text-xs text-danger">
+            {%- for error in form.toAddresses.vars.errors %}{{ error.message }}{% endfor -%}
+        </p>
+    </div>
+</div>

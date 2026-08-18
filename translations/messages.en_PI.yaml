@@ -934,6 +934,7 @@ compose:
         url_label: Web berth
         url_placeholder: "example.com"
     minimize: Batten down
+    more_fields: Show the rest o' the manifest
     more_options: More riggin'
     new_message: A Fresh Scroll
     no_recipients: Nobody to send it to
@@ -1019,6 +1020,7 @@ header:
 
 inbox:
     empty: No bottles in this here tab.
+    empty_account: Nothin' has washed ashore for this account yet.
 
 insights:
     card:
@@ -2374,6 +2376,7 @@ toast:
     schedule_cancelled: The castin' off be belayed.
     send_cancelled: Castin' off belayed — back to yer scroll.
     send_too_late: Too late, matey — that message has already sailed.
+    sent: Message away!
     undo: Belay that
     error:
         no_archive_mailbox: There be no hold on this ship.

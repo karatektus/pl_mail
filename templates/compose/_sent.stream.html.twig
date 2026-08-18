@@ -1,0 +1,86 @@
+{#
+compose/_sent.stream.html.twig
+─────────────────────────────────────────────────────────────────────────────
+The cancel window is over: the message is where it belongs, the composer is
+gone, and a toast says so.
+
+Rendered when the composer asks for it (ComposeController::sent(), driven by
+compose--compose#_settleSend) and when a cancel arrives too late to take —
+both are the same fact, "this message has gone", and they must leave the same
+page behind.
+
+Everything here used to happen the instant the send was accepted, which is
+what made the window's own pill useless as a cancel surface: it was not on
+screen any more. Deferring it by the cancel window is the whole shape of this
+round.
+
+**The conversation is only touched when it is the conversation on screen**,
+and that condition is not decoration — it is the forward bug. A reply is
+filed in the thread it answers, so `ctx.thread` (the thread the composer was
+opened against) and the sent message's thread are the same and the message can
+simply join the conversation below. A FORWARD starts a new conversation: the
+sent message lands in a thread that is nowhere on the page, so the three
+streams below addressed `thread_messages_…` and `reply_zone_…` ids that did
+not exist, every one of them was silently dropped, and the composer sat there
+saying "Sending…" for ever. Closing the frame is therefore unconditional and
+comes first; the conversation is updated only when there is one to update.
+
+A forward's mail is not shown anywhere on this page as a result, because it is
+not part of this conversation — it is in Sent, and the toast is what says it
+went.
+
+Variables: message, thread (MessageThread|null), ctx, notify (default true)
+#}
+{# The too-late answer includes this template for the tidying and brings its
+   own toast — an error one, which is the news that matters there. Two toasts
+   stacked, one saying the send failed to stop and one saying it went, is the
+   same fact told twice with the second half burying the first. #}
+{% set notify = notify|default(true) %}
+{# Is the sent message part of the conversation this composer was opened in?
+   Both halves are needed: the dock carries `thread` too (a reply opened below
+   md lands there), and a message can have no thread at all. #}
+{% set inConversation = thread is not null and ctx.thread is not null and thread.id == ctx.thread %}
+
+{# The composer goes, wherever it was. For an inline window that frame IS the
+   window's root; for the dock it is the dock. Emptying it disconnects
+   compose--compose, which is what gives a thread its Reply / Forward buttons
+   back — see the `composing` class in app.css. #}
+<turbo-stream action="update" target="{{ ctx.frame }}">
+    <template></template>
+</turbo-stream>
+
+{% if inConversation %}
+    {# The draft's row is already in the conversation — hidden while the editor
+       was open — so it is dropped and the sent message re-appended at the end,
+       which is where it now belongs. #}
+    <turbo-stream action="remove" target="thread_message_{{ message.id }}">
+    </turbo-stream>
+
+    <turbo-stream action="append" target="thread_messages_{{ thread.id }}">
+        <template>
+            {% include 'mail/_thread_message.html.twig' with { message: message, expanded: true, draft: false } only %}
+        </template>
+    </turbo-stream>
+
+    {# Redrawn without the composer and without the countdown bar this used to
+       carry: the pill was the only cancel there was, and it is spent. #}
+    <turbo-stream action="replace" target="reply_zone_{{ thread.id }}">
+        <template>
+            {% include 'mail/_reply_zone.html.twig' with { thread: thread } only %}
+        </template>
+    </turbo-stream>
+{% endif %}
+
+{# The one piece of feedback the send gets that is not the button itself.
+   Without it a mail sent from the dock was a window that simply vanished, and
+   a forward was a composer that closed with nothing said at all. #}
+{% if notify %}
+    <turbo-stream action="append" target="toast-region">
+        <template>
+            {% include '_partials/_toast.html.twig' with {
+                type: 'success',
+                message: 'toast.sent'|trans,
+            } only %}
+        </template>
+    </turbo-stream>
+{% endif %}
