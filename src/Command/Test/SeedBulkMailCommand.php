@@ -403,6 +403,16 @@ final class SeedBulkMailCommand extends Command
             $words[] = $this->word();
         }
 
+        // Real mail is full of compound tokens — link hosts, footer addresses,
+        // unsubscribe URLs — and they are the whole reason the search index
+        // splits them (see Version20260818120000). A corpus of bare words would
+        // measure the tokenizer change against text it never has to handle.
+        for ($i = 0, $n = mt_rand(1, 4); $i < $n; ++$i) {
+            $words[] = mt_rand(0, 1) === 0
+                ? sprintf('%s.%s.de', $this->word(), $this->word())
+                : sprintf('%s.%s@%s-corp.co.uk', $this->word(), $this->word(), $this->word());
+        }
+
         return implode(' ', $words);
     }
 
