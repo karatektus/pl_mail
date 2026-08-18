@@ -113,9 +113,25 @@ export default class extends Controller {
         // three grids share one width and the columns line up with their own
         // headings. Read off the scroller's own height, 7/24 of it would land
         // past 07:00 by however tall those two happen to be.
+        //
+        // `offsetTop` used to be added to this, and it was wrong twice over.
+        // It is not measured against the scroller at all — neither is the
+        // scroller the offsetParent — so what went in was the grid's distance
+        // from the PAGE, and the day opened at about 11:00 with the whole
+        // morning scrolled off the top. And even a correct content offset does
+        // not belong here: the rows above the hours grid are exactly the ones
+        // that stay PINNED, so they occupy the same distance twice — once in
+        // the scrolled content and once as a band across the top of the
+        // viewport — and the two cancel. 7/24 of the grid's own height is the
+        // whole answer, and it puts 07:00 immediately under the pinned rows
+        // rather than behind them.
+        //
+        // Behind them is not a cosmetic difference: a sticky row painted over
+        // the grid takes the pointer as well as the view, so an event sitting
+        // under it could not be dragged at all — which is how
+        // calendar-timegrid.spec.ts found this.
         if (this.hasScrollerTarget && this.hasHoursTarget) {
-            this.scrollerTarget.scrollTop =
-                this.hoursTarget.offsetTop + (this.hoursTarget.offsetHeight * 7) / 24;
+            this.scrollerTarget.scrollTop = (this.hoursTarget.offsetHeight * 7) / 24;
         }
     }
 
