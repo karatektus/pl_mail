@@ -1,4 +1,4 @@
-<!-- translated-from: features/mail.md sha1:356d3d9cce7f06fc0b6d5d40ffaa396e3c45c706 -->
+<!-- translated-from: features/mail.md sha1:0577947b1cc9df3129c962991659b3e6e23238cb -->
 
 # Mail
 
@@ -160,7 +160,9 @@ statt dich etwas bestätigen zu lassen, dessen Reichweite sie verschwiegen hat.
 
 Das Suchfeld steht auf jeder Seite oben und antwortet unter `/mail/search`. Freier Text läuft
 als echte Volltextabfrage gegen Postgres — mit Stammformen und Rangfolge, nicht als Suche nach
-Teilzeichenketten — und lässt sich mit allen Operatoren kombinieren, die du eintippst.
+Teilzeichenketten — und lässt sich mit allen Operatoren kombinieren, die du eintippst. Hostnamen
+und Adressen werden nach ihren Bestandteilen indiziert: `wirhub` findet also auch eine Mail, in
+deren Text nur `help.wirhub.de` steht.
 
 | Operator | Nimmt | Trifft |
 |---|---|---|
@@ -179,7 +181,17 @@ Teilzeichenketten — und lässt sich mit allen Operatoren kombinieren, die du e
 `junk` (oder `spam`), `archive` (oder `archived`) und `snoozed`. Werte in Anführungszeichen
 bleiben zusammen, `from:"Ada Lovelace"` funktioniert also.
 
-Vorschläge erscheinen beim Tippen. Operatoren werden aus der Liste oben vervollständigt;
+Vorschläge erscheinen beim Tippen — und **echte Treffer** ebenfalls: die zehn neuesten passenden
+Konversationen, unter den Operator-Vorschlägen, etwa ab dem dritten Zeichen. Sie sind eine Vorschau
+und nicht die Antwort: Es laufen nur die Durchgänge, die schnell genug für jeden Tastendruck sind.
+Ein Treffer, den es nur als Bruchstück mitten in einem Wort in einem langen Text gibt, ist deshalb
+nicht dabei. Die Eingabetaste startet die vollständige Suche — dort steckt er.
+
+Sobald deine Anfrage einen Operator trägt, tritt die Vorschau ganz zurück. Sie kann `is:unread`
+oder `label:` nicht einlösen, und zehn ungefilterte Zeilen unter einer gefilterten Anfrage sehen
+aus wie zehn eingelöste — das wäre schlimmer, als gar nichts zu zeigen.
+
+Operatoren werden aus der Liste oben vervollständigt;
 `from:`, `to:` und `cc:` vervollständigen gegen deine gesammelten Kontakte, denn sich nicht zu
 erinnern, wie ein Absender sich schreibt, ist meistens der Grund, warum du das Suchfeld
 geöffnet hast. Die Eingabetaste übernimmt den hervorgehobenen Vorschlag, solange die Liste

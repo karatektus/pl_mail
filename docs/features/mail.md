@@ -140,7 +140,8 @@ something whose reach it has not mentioned.
 
 The search box is at the top of every page and answers at `/mail/search`. Free text runs as a real
 full-text query against Postgres — stemmed and ranked, not a substring scan — and combines with
-any operators you type.
+any operators you type. Hostnames and addresses are indexed by their parts, so `wirhub` finds a mail
+whose body only ever says `help.wirhub.de`.
 
 | Operator | Takes | Matches |
 |---|---|---|
@@ -159,7 +160,17 @@ any operators you type.
 `spam`), `archive` (or `archived`) and `snoozed`. Quoted values are kept together, so
 `from:"Ada Lovelace"` works.
 
-Suggestions appear as you type. Operators are completed from the list above; `from:`, `to:` and
+Suggestions appear as you type, and so do **actual results** — the ten most recent matching
+conversations, under the operator suggestions, from about the third character. They are a preview
+rather than the answer: they run only the passes that are fast enough to spend on every keystroke,
+so a match that exists only as a fragment in the middle of a word in a long body will not be among
+them. Pressing Enter runs the complete search, which is where those live.
+
+The preview steps aside entirely once your query carries an operator. It cannot honour `is:unread`
+or `label:`, and ten unfiltered rows under a filtered query look exactly like ten honoured ones,
+which would be worse than showing nothing.
+
+Operators are completed from the list above; `from:`, `to:` and
 `cc:` complete against your own harvested contacts, because remembering how a sender spells their
 name is usually the reason you opened the search box. Enter takes the highlighted suggestion when
 the list is open and submits otherwise, Tab takes it, arrow keys move through it, and the first
