@@ -1,24 +1,31 @@
 {#
-mail/account.html.twig — every thread in one account, whatever it is labelled.
+mail/account.html.twig — one account's INBOX.
 
-Reached by clicking the account itself in the sidebar. Its labels sit
-underneath it there and narrow this further, to that account's copy of the
-label rather than the label across the whole mailbox.
+Reached by clicking the account itself in the sidebar. It used to be every
+thread in the account whatever it was labelled, which meant your own sent mail
+interleaved through what had arrived, with drafts and spam among it — an
+archive, where a person clicking their address means "show me what came in".
+Everything else in the account is a folder row one click below it.
+
+The heading names the account AND says Inbox, because those two facts together
+are the only thing that distinguishes this screen from the unified inbox above
+it and from the account's other folders beside it.
 #}
 {% extends '_layout/_mailbox.html.twig' %}
 
 {% block title %}{{ account.displayAddress }} — {{ 'app.name'|trans }}{% endblock %}
 
 {% block inbox_tabs %}
-    <div class="px-4 py-2.5 border-b border-line">
-        <h2 class="text-sm font-semibold text-ink-soft">{{ account.displayAddress }}</h2>
+    <div class="px-4 py-2.5 border-b border-line flex items-center gap-2">
+        <h2 class="text-sm font-semibold text-ink-soft">{{ 'sidebar.nav.inbox'|trans }}</h2>
+        <span class="text-xs text-ink-faint truncate">{{ account.displayAddress }}</span>
     </div>
 {% endblock %}
 
 {% block message_list %}
     {% if threads is empty %}
         <li class="px-4 py-8 text-center text-sm text-ink-faint">
-            {{ 'label.empty'|trans }}
+            {{ 'inbox.empty_account'|trans }}
         </li>
     {% else %}
         {% for thread in threads %}

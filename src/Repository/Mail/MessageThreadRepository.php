@@ -283,22 +283,38 @@ class MessageThreadRepository extends ServiceEntityRepository
     }
 
     /**
-     * Everything in one account, whatever it is labelled — except what has been
-     * thrown away.
+     * One account's inbox — findForUnifiedInbox() narrowed to a single account
+     * and widened across every category.
      *
-     * QueryBuilder rather than findBy() now, and that is the whole reason for
-     * the change: "not in the bin" is a condition on a to-many, which findBy()
-     * cannot state. This is the account row in the sidebar, and it was the
-     * loudest version of the bug — an "everything" list is exactly where a
-     * month of deleted mail piles up.
+     * This is the account row in the sidebar, and it used to list EVERYTHING in
+     * the account whatever it was labelled. That is not what clicking a mailbox
+     * means to anybody: the list opened with your own sent mail interleaved
+     * through it, plus drafts and spam, and the one thing a person clicking
+     * their address is looking for — what has arrived — was buried in it. The
+     * bin was already excluded, which was the first half of this same
+     * realisation.
+     *
+     * Deliberately NOT filtered by category, unlike the unified inbox above.
+     * The tabs are a property of that one screen; here the account's Inbox
+     * FOLDER is what is being shown, and it is the same list the account's own
+     * "Inbox" row in the expanded folder tree gives — which is exactly what a
+     * reader comparing the two would expect.
+     *
+     * No `isActive` filter either, again unlike the unified list. A switched-off
+     * account is still in the sidebar and still clickable; answering with an
+     * empty list because it is asleep would read as lost mail.
      */
-    public function findForAccount(Account $account, int $page = 1, int $perPage = 50, ListSortOrder $sort = ListSortOrder::Newest): array
+    public function findForAccountInbox(Account $account, int $page = 1, int $perPage = 50, ListSortOrder $sort = ListSortOrder::Newest): array
     {
         $qb = $this->createQueryBuilder('t')
+            ->join('t.labels', 'l')
             ->where('t.account = :account')
+            ->andWhere('l.role = :inbox')
             ->setParameter('account', $account)
+            ->setParameter('inbox', LabelRole::Inbox)
             ->setFirstResult(($page - 1) * $perPage)
-            ->setMaxResults($perPage);
+            ->setMaxResults($perPage)
+            ->distinct();
 
         $this->excludeTrashed($qb);
 
@@ -307,12 +323,21 @@ class MessageThreadRepository extends ServiceEntityRepository
         return $qb->getQuery()->getResult();
     }
 
-    public function countForAccount(Account $account): int
+    /** Same two conditions as findForAccountInbox(), so the same reason to keep it. */
+    public function countForAccountInbox(Account $account): int
     {
+        // COUNT(DISTINCT t.id) for the reason countForUnifiedInbox() spells
+        // out: the label join is to-many, and a thread carrying two labels of
+        // the inbox role would otherwise be counted twice while the listing
+        // returns it once — and the paginator would offer a page that is not
+        // there.
         $qb = $this->createQueryBuilder('t')
-            ->select('COUNT(t.id)')
+            ->select('COUNT(DISTINCT t.id)')
+            ->join('t.labels', 'l')
             ->where('t.account = :account')
-            ->setParameter('account', $account);
+            ->andWhere('l.role = :inbox')
+            ->setParameter('account', $account)
+            ->setParameter('inbox', LabelRole::Inbox);
 
         $this->excludeTrashed($qb);
 

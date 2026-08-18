@@ -48,7 +48,20 @@ test.describe("account scoping", () => {
         await expect(toggle).toHaveAttribute("aria-expanded", "true");
     };
 
-    test("clicking an account shows that account rather than expanding it", async ({ page }) => {
+    /**
+     * And what it shows is that account's INBOX.
+     *
+     * It used to be everything the account held, whatever it was labelled —
+     * so the list opened with your own sent mail interleaved through the mail
+     * you had received, drafts and spam among it. Clicking a mailbox means
+     * "show me what came in"; everything else in the account is a folder row
+     * one click below. The heading carries both facts, because "Inbox" alone
+     * would not distinguish this from the unified inbox and the address alone
+     * would not say which of the account's folders you are looking at.
+     */
+    test("clicking an account shows that account's inbox rather than expanding it", async ({
+        page,
+    }) => {
         await page.goto("/mail/inbox");
 
         const link = accountLink(page);
@@ -58,7 +71,10 @@ test.describe("account scoping", () => {
         await link.click();
 
         await page.waitForURL(new RegExp(href!.replace(/[/]/g, "\\/")));
-        await expect(page.locator("h2").first()).toHaveText("E2E Mailbox");
+
+        const header = page.locator("h2").first().locator("..");
+        await expect(page.locator("h2").first()).toHaveText(/Inbox|Posteingang/);
+        await expect(header).toContainText("E2E Mailbox");
     });
 
     /**

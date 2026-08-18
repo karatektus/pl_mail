@@ -324,15 +324,26 @@ final class MailController extends AbstractController
     }
 
     /**
-     * Everything in one account — what clicking the account itself in the
-     * sidebar now does. Its labels sit underneath for narrowing further.
+     * One account's INBOX — what clicking the account itself in the sidebar
+     * does. Its labels sit underneath for going anywhere else in it.
+     *
+     * It used to be everything in the account, whatever it was labelled, and
+     * that is the bug this fixes. Clicking your own address opened a list with
+     * your sent mail interleaved through the mail you had received, drafts and
+     * spam among it — an archive, when what a person means by clicking a
+     * mailbox is "show me what came in". The sidebar's top-level Inbox is that
+     * question across every account; this is the same question about one.
+     *
+     * Nothing is hidden by it: Sent, Drafts, Spam and the bin are all folder
+     * rows under the account, one click further, which is where mail that is
+     * not incoming has always been reachable.
      */
     #[Route('/account/{account}', name: 'account', requirements: ['account' => '\d+'])]
     public function accountView(Account $account, Request $request): Response
     {
         $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $account);
 
-        $total   = $this->threadRepository->countForAccount($account);
+        $total   = $this->threadRepository->countForAccountInbox($account);
         $page    = $this->pageOrRedirect($request, $total);
 
         if ($page instanceof RedirectResponse) {
@@ -340,7 +351,7 @@ final class MailController extends AbstractController
         }
 
         $sort    = $this->listSort($request);
-        $threads = $this->threadRepository->findForAccount($account, $page, self::PER_PAGE, $sort);
+        $threads = $this->threadRepository->findForAccountInbox($account, $page, self::PER_PAGE, $sort);
 
         $this->threadRepository->preloadForRows($threads);
 

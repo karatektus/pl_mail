@@ -149,7 +149,7 @@ final class ThreadListQueryBudgetTest extends WebTestCase
         self::assertLessThanOrEqual(self::BUDGET, $queries, sprintf('the label view spent %d queries', $queries));
     }
 
-    /** findForAccount(). */
+    /** findForAccountInbox(). */
     public function testAFullAccountListStaysWithinItsQueryBudget(): void
     {
         $this->seedPage(MessageCategory::Primary);

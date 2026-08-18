@@ -23,7 +23,7 @@ use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
  * The thread reads that are not simply "give me rows".
  *
  * Two of these encode a decision that is invisible in the code and expensive to
- * get wrong. The account listing is newest-first, which is the one thing a mail
+ * get wrong. The account's inbox is newest-first, which is the one thing a mail
  * list may never lose. And the rethread backfill's carry-over is a COALESCE, not
  * an assignment — several old conversations can collapse into one rebuilt
  * thread, so a later snapshot that happens to be empty must not blank what an
@@ -62,45 +62,102 @@ final class MessageThreadRepositoryTest extends KernelTestCase
         parent::tearDown();
     }
 
-    // ── the account listing ──────────────────────────────────────────────────
+    // ── the account's inbox ──────────────────────────────────────────────────
 
-    public function testTheAccountListingIsNewestFirst(): void
+    public function testTheAccountInboxIsNewestFirst(): void
     {
-        $this->thread('older', '2026-01-01 09:00');
-        $this->thread('newest', '2026-03-01 09:00');
-        $this->thread('middle', '2026-02-01 09:00');
+        $inbox = $this->seedSystemLabel(LabelRole::Inbox);
+
+        $this->inboxThread('older', '2026-01-01 09:00', $inbox);
+        $this->inboxThread('newest', '2026-03-01 09:00', $inbox);
+        $this->inboxThread('middle', '2026-02-01 09:00', $inbox);
 
         self::assertSame(
             ['newest', 'middle', 'older'],
-            $this->subjectsOf($this->repository->findForAccount($this->account)),
+            $this->subjectsOf($this->repository->findForAccountInbox($this->account)),
         );
     }
 
     public function testPagingWalksThatOrderWithoutRepeatingOrSkipping(): void
     {
-        $this->thread('one', '2026-03-01 09:00');
-        $this->thread('two', '2026-02-01 09:00');
-        $this->thread('three', '2026-01-01 09:00');
+        $inbox = $this->seedSystemLabel(LabelRole::Inbox);
+
+        $this->inboxThread('one', '2026-03-01 09:00', $inbox);
+        $this->inboxThread('two', '2026-02-01 09:00', $inbox);
+        $this->inboxThread('three', '2026-01-01 09:00', $inbox);
 
         self::assertSame(
             ['one', 'two'],
-            $this->subjectsOf($this->repository->findForAccount($this->account, page: 1, perPage: 2)),
+            $this->subjectsOf($this->repository->findForAccountInbox($this->account, page: 1, perPage: 2)),
         );
         self::assertSame(
             ['three'],
-            $this->subjectsOf($this->repository->findForAccount($this->account, page: 2, perPage: 2)),
+            $this->subjectsOf($this->repository->findForAccountInbox($this->account, page: 2, perPage: 2)),
         );
     }
 
     public function testTheCountIsScopedToTheAccount(): void
     {
+        $inbox = $this->seedSystemLabel(LabelRole::Inbox);
         $other = $this->seedAccount($this->user, 'other@example.test');
 
-        $this->thread('mine', '2026-03-01 09:00');
-        $this->thread('theirs', '2026-03-01 09:00', account: $other);
+        $this->inboxThread('mine', '2026-03-01 09:00', $inbox);
+        $this->inboxThread('theirs', '2026-03-01 09:00', $inbox, account: $other);
 
-        self::assertSame(1, $this->repository->countForAccount($this->account));
-        self::assertSame(1, $this->repository->countForAccount($other));
+        self::assertSame(1, $this->repository->countForAccountInbox($this->account));
+        self::assertSame(1, $this->repository->countForAccountInbox($other));
+    }
+
+    /**
+     * The whole point of the change: clicking an account in the sidebar means
+     * "show me what came in", and it used to answer with everything the account
+     * held — your own sent mail interleaved through it, drafts and spam among
+     * it. Sent is the one this test names because it is the one that made the
+     * list unreadable: every conversation you had ever replied to appeared
+     * twice over, once as it arrived and once as you answered it.
+     */
+    public function testTheAccountInboxLeavesOutEverythingThatIsNotInIt(): void
+    {
+        $inbox  = $this->seedSystemLabel(LabelRole::Inbox);
+        $sent   = $this->seedSystemLabel(LabelRole::Sent);
+        $drafts = $this->seedSystemLabel(LabelRole::Drafts);
+
+        $this->inboxThread('arrived', '2026-03-01 09:00', $inbox);
+        $this->inboxThread('i sent this', '2026-02-01 09:00', $sent);
+        $this->inboxThread('half written', '2026-01-01 09:00', $drafts);
+
+        self::assertSame(
+            ['arrived'],
+            $this->subjectsOf($this->repository->findForAccountInbox($this->account)),
+        );
+        self::assertSame(1, $this->repository->countForAccountInbox($this->account));
+    }
+
+    /**
+     * A thread wearing the inbox label twice — which a provider can produce, and
+     * which is exactly what countForUnifiedInbox()'s COUNT(DISTINCT …) exists
+     * for — is one row in the list and one in the count. Counted twice, the
+     * paginator offers a page that is not there.
+     */
+    public function testATwiceLabelledThreadIsListedAndCountedOnce(): void
+    {
+        $inbox = $this->seedSystemLabel(LabelRole::Inbox);
+
+        $second       = $this->seedSystemLabel(LabelRole::Inbox);
+        $second->name = 'Inbox (second binding)';
+        $this->em->flush();
+
+        $thread  = $this->thread('arrived', '2026-03-01 09:00');
+        $message = $this->message($thread, '2026-03-01 09:00');
+        $message->addLabel($inbox);
+        $message->addLabel($second);
+        $this->syncThreadLabels($thread);
+
+        self::assertSame(
+            ['arrived'],
+            $this->subjectsOf($this->repository->findForAccountInbox($this->account)),
+        );
+        self::assertSame(1, $this->repository->countForAccountInbox($this->account));
     }
 
     // ── rethread carry-over ──────────────────────────────────────────────────
@@ -327,20 +384,30 @@ final class MessageThreadRepositoryTest extends KernelTestCase
         self::assertSame(1, $this->repository->countForLabel($receipts));
     }
 
-    /** The "everything in this account" row, where deleted mail piled up most. */
-    public function testTheAccountListingHidesTrashedThreads(): void
+    /**
+     * The account row, where deleted mail used to pile up most. Trashing
+     * normally takes the inbox label off, but a provider that leaves both on
+     * must not put the thread back in the account's inbox either — the same
+     * belt-and-braces the unified list gets below.
+     */
+    public function testTheAccountInboxHidesTrashedThreads(): void
     {
+        $inbox = $this->seedSystemLabel(LabelRole::Inbox);
         $trash = $this->seedSystemLabel(LabelRole::Trash);
 
-        $this->thread('kept', '2026-03-01 09:00');
+        $this->inboxThread('kept', '2026-03-01 09:00', $inbox);
 
         $binned  = $this->thread('binned', '2026-02-01 09:00');
         $message = $this->message($binned, '2026-02-01 09:00');
+        $message->addLabel($inbox);
         $message->addLabel($trash);
         $this->syncThreadLabels($binned);
 
-        self::assertSame(['kept'], $this->subjectsOf($this->repository->findForAccount($this->account)));
-        self::assertSame(1, $this->repository->countForAccount($this->account));
+        self::assertSame(
+            ['kept'],
+            $this->subjectsOf($this->repository->findForAccountInbox($this->account)),
+        );
+        self::assertSame(1, $this->repository->countForAccountInbox($this->account));
     }
 
     public function testTheInboxHidesTrashedThreads(): void
@@ -418,6 +485,29 @@ final class MessageThreadRepositoryTest extends KernelTestCase
         $this->em->flush();
 
         return $label;
+    }
+
+    /**
+     * A thread that is actually IN a folder.
+     *
+     * The plain thread() helper makes a thread with no labels at all, which was
+     * enough while the account listing meant "everything in this account". It
+     * means the account's inbox now, so a thread has to be labelled to appear
+     * in it — and labels are derived from the messages, so the label goes on a
+     * message and the synchroniser does the rest.
+     */
+    private function inboxThread(
+        string $subject,
+        string $lastMessageAt,
+        Label $label,
+        ?Account $account = null,
+    ): MessageThread {
+        $thread  = $this->thread($subject, $lastMessageAt, $account);
+        $message = $this->message($thread, $lastMessageAt);
+        $message->addLabel($label);
+        $this->syncThreadLabels($thread);
+
+        return $thread;
     }
 
     private function subjectsOf(array $threads): array
