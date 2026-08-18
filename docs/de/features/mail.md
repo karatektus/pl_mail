@@ -1,4 +1,4 @@
-<!-- translated-from: features/mail.md sha1:d2c1ba9b7b655869fe6f038fa0ca7406f2b2f10f -->
+<!-- translated-from: features/mail.md sha1:356d3d9cce7f06fc0b6d5d40ffaa396e3c45c706 -->
 
 # Mail
 
@@ -21,7 +21,12 @@ gleich, wo es angekommen ist.
 | **Zurückgestellt** | Konversationen, die auf ihre Weckzeit warten |
 | **Gesendet**, **Entwürfe**, **Papierkorb** | Das jeweilige Systemlabel, über alle Konten hinweg |
 | **Archiv** | Standardmäßig ausgeblendet — schalte das Archiv-Label unter **Einstellungen → Labels** sichtbar, um es zu bekommen |
-| **Konten** | Eine Zeile je Konto; ein Klick darauf listet nur dieses Konto |
+| **Konten** | Eine Zeile je Konto; ein Klick darauf öffnet den Posteingang dieses Kontos |
+
+Ein Klick auf ein Konto öffnet **dessen Posteingang** — dieselbe Frage, die der Posteingang ganz
+oben stellt, nur über ein Postfach statt über alle. Gesendet, Entwürfe, Spam und Papierkorb dieses
+Kontos stehen als Ordnerzeilen darunter, einen Klick weiter; die Kontozeile ist kein Archiv über
+alles, was das Konto je enthalten hat.
 
 Klappst du unter **Konten** ein Konto auf, siehst du die Labels, die es dort tatsächlich gibt.
 Diese Liste ist absichtlich schmaler als die Label-Liste der Seitenleiste selbst: die
@@ -340,6 +345,12 @@ willst. Dieser Knopf ersetzt den Block an Ort und Stelle, statt einen zweiten an
 dasselbe tut ein Wechsel des Kontos in der **From**-Auswahl: Der Signaturblock wird getauscht, ein
 bereits getippter Absatz überlebt den Wechsel.
 
+Schreibst du direkt in der Konversation, bekommst du eine **verkürzte Kopfzeile**: das
+**An**-Feld selbst, tippbar, und dahinter — hinter dem Pfeil daneben — eingeklappt Absender, Cc,
+Bcc und Betreff. Bei einer Antwort änderst du die Empfängerin selten, bei einer Weiterleitung
+immer, und genau sie fehlt einer Weiterleitung ja noch. Also steht dort das Feld und nicht eine
+Zeile, die davon erzählt.
+
 Eine Weiterleitung öffnet mit dem Original hinter der Kapsel **Zitierten Text anzeigen**. Wenn du
 es lieber gleich ausgeklappt siehst: Der Schalter steht unter **Einstellungen → Allgemein →
 Verfassen** — eingeklappt bleibt die Vorgabe. So oder so zählt das Zitat als Inhalt der Nachricht:
@@ -431,11 +442,22 @@ Zwei Dinge engen das weiter ein, beide in dieselbe Richtung:
 
 ## Senden rückgängig machen
 
-Auf Senden zu drücken reiht die Nachricht mit **zehn Sekunden** Verzögerung ein und antwortet
-mit einer Einblendung **Wird gesendet…**, die einen Knopf **Rückgängig** trägt. Eine Antwort
-direkt in der Konversation überspringt die Einblendung: die Nachricht hängt sofort an der
-Konversation, und die Antwortleiste wird zu einem Countdown, den du zum Abbrechen anklicken
-kannst.
+Auf Senden zu drücken reiht die Nachricht mit **zehn Sekunden** Verzögerung ein und lässt das
+Fenster genau dort, wo es ist. Der Senden-Knopf wird selbst zum Weg zurück: Er liest sich
+**Wird gesendet…** mit *zum Abbrechen klicken* darunter, und ein zweiter Klick auf denselben Knopf
+sagt das Senden ab. Mehr Abbruch gibt es nicht — keine Einblendung, keine Leiste am Fuß der
+Konversation — und es geht im schwebenden Fenster genauso wie in einer Antwort, die du direkt in
+der Konversation schreibst.
+
+Solange das Senden läuft, ist die Nachricht selbst nicht mehr erreichbar: Das Fenster zeigt eine
+Kopie von Post, die schon weg ist, die Felder sind also eingefroren statt bearbeitbar. Läuft das
+Zeitfenster ab, schließt sich das Fenster von allein, eine Einblendung **Nachricht gesendet**
+bestätigt es, und die Nachricht nimmt ihren Platz in der Konversation ein — außer es war eine
+**Weiterleitung**: Die beginnt eine eigene Konversation und steht darum unter **Gesendet** und
+nicht unter der Mail, aus der du sie weitergeleitet hast.
+
+Ein Abbruch sagt nichts. Der Entwurf, der mit allem darin zurückkommt — Empfänger, Betreff, Text,
+Anhänge —, ist die Bestätigung, und das ist in beiden Fenstern gleich.
 
 Rückgängig rennt der Mail in dem Sinne nicht hinterher, auf den es ankommt: Der Abbruch und der
 Sendeauftrag machen es in einem Schritt unter sich aus, die Datenbank entscheidet also, wer gewonnen
@@ -461,13 +483,17 @@ Fenster acht Sekunden gegen zehn Sekunden Rückhaltung ist, ist Verlieren selten
 
 ## Fallstricke
 
-**Der Knopf Rückgängig verschwindet zwei Sekunden vor der Nachricht.** Der Sendeauftrag wird
-zehn Sekunden zurückgehalten, die Einblendung mit Rückgängig verblasst aber schon nach acht. Es
-ist nichts kaputt, wenn eine Nachricht hinausgeht, nachdem der Knopf weg ist — das Zeitfenster
-war wirklich zu.
+**Der Abbruch verschwindet zwei Sekunden vor der Nachricht.** Der Sendeauftrag wird zehn Sekunden
+zurückgehalten, das Fenster bietet *zum Abbrechen klicken* aber nur acht Sekunden lang an und
+schließt sich dann. Es ist nichts kaputt, wenn eine Nachricht hinausgeht, nachdem das Angebot weg
+ist — das Zeitfenster war wirklich zu.
 
-**Ein Rückgängig kann verlieren, und das Verlieren wird dir gesagt.** Drückst du es ganz am Rand des
-Fensters, kann die Antwort *Zu spät — diese Nachricht war schon gesendet* lauten. Das ist das
+**Das Fenster in diesen Sekunden zu schließen hält das Senden nicht auf.** Der Senden-Knopf ist der
+Abbruch; der Schließen-Knopf bleibt bloß ein Schließen. Machst du das Fenster oder den Tab zu, geht
+die Mail hinaus.
+
+**Ein Rückgängig kann verlieren, und das Verlieren wird dir gesagt.** Klickst du den Abbruch ganz am
+Rand des Fensters, kann die Antwort *Zu spät — diese Nachricht war schon gesendet* lauten. Das ist das
 ehrliche Ergebnis und kein Fehlschlag: Die Alternative wäre, dir einen bearbeitbaren Entwurf von Post
 zurückzugeben, die bereits unterwegs ist, und das liest sich wie ein Abbruch, der funktioniert hat.
 

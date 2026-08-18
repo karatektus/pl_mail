@@ -18,7 +18,11 @@ label you made shows everything carrying it, wherever it arrived.
 | **Snoozed** | Conversations waiting for their wake time |
 | **Sent**, **Drafts**, **Trash** | The corresponding system label, across accounts |
 | **Archive** | Hidden by default — switch the Archive label visible in **Settings → Labels** to get it |
-| **Accounts** | One row per account; clicking it lists that account alone |
+| **Accounts** | One row per account; clicking it opens that account's inbox |
+
+Clicking an account opens **its inbox** — the same question the top-level Inbox asks, about one
+mailbox instead of all of them. Its Sent, Drafts, Spam and Trash are folder rows underneath it, one
+click further; the account row is not an archive of everything the account has ever held.
 
 Under **Accounts**, expanding an account shows the labels that actually exist on it. That list is
 narrower than the sidebar's own label list on purpose: the sidebar means "across every account",
@@ -302,6 +306,11 @@ leave without; **Insert signature** adds the block when you want it. That button
 in place instead of adding a second one, and so does changing the **From** account: the signature
 block is swapped and a paragraph you have already typed survives the change.
 
+Writing inside a conversation gets a **reduced header**: the **To** field itself, typable, with
+From, Cc, Bcc and the subject folded away behind the chevron beside it. Replying rarely means
+retargeting — but forwarding always does, and the recipient is the one thing a forward is missing,
+so the field is the first thing under the caret rather than a line of text describing it.
+
 A forward opens with the original folded behind the **show quoted text** pill. If you would rather
 see it spread out from the start, **Settings → General → Composing** has the switch — folded stays
 the default, and either way the quote counts as the message's content: sending a forward without a
@@ -384,9 +393,20 @@ Two things narrow it further, both in the same direction:
 
 ## Undo send
 
-Pressing send queues the message with a **ten-second** delay and answers with a **Sending…** toast
-carrying an **Undo** button. An inline reply skips the toast: the message is appended to the thread
-straight away and the reply bar becomes a countdown you can click to cancel.
+Pressing send queues the message with a **ten-second** delay and leaves the composer exactly where
+it is. The Send button becomes the way back: it reads **Sending…** with *click to cancel* under it,
+and a second click on that same button calls the send off. That is the only cancel there is — no
+toast, no bar at the foot of the thread — and it works the same in the floating composer and in a
+reply written inside a conversation.
+
+While the send is out the message itself is out of reach: the window is showing a copy of mail that
+has left, so the fields are frozen rather than editable. When the window expires the composer closes
+on its own, a **Message sent** toast confirms it, and the message takes its place in the
+conversation — unless it was a **forward**, which starts a conversation of its own and is therefore
+found in **Sent** rather than under the mail it was forwarded from.
+
+Cancelling says nothing. The draft coming back with everything in it — recipients, subject, body,
+attachments — is the confirmation, and it is the same in both composers.
 
 Undo does not race the mail out of the door in the sense that matters: the cancellation and the send
 job settle it between them in one step, so the database decides who won and only one of them
@@ -409,12 +429,15 @@ losing is rare rather than routine.
 
 ## Things that bite
 
-**The Undo button disappears two seconds before the message does.** The send job is held for ten
-seconds, but the toast carrying Undo fades after eight. Nothing is wrong when a message goes out
-after the button has gone — the window really did close.
+**The cancel disappears two seconds before the message does.** The send job is held for ten seconds,
+but the composer stops offering *click to cancel* after eight and closes itself. Nothing is wrong
+when a message goes out after the window has gone — the offer really did expire.
 
-**An Undo can lose, and losing is told to you.** Press it at the very edge of the window and the
-answer may be *Too late — that message had already been sent*. That is the honest outcome rather
+**Closing the composer during those seconds does not stop the send.** The Send button is the cancel;
+the close button is still just a close. Shut the window, or the tab, and the mail goes.
+
+**An Undo can lose, and losing is told to you.** Click the cancel at the very edge of the window and
+the answer may be *Too late — that message had already been sent*. That is the honest outcome rather
 than a failure: the alternative would be handing back an editable draft of mail that is already on
 its way, which reads as a cancellation that worked.
 
