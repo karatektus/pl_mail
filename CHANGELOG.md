@@ -6,6 +6,76 @@ so anything that changes the schema irreversibly is called out explicitly.
 The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, and `sha-…` pins one commit.
 
+## v0.1.0 — 2026-08-18
+
+**One migration, and it REWRITES the message table — minutes of exclusive lock
+on a large mailbox, so take the backup first. Search stops being slow, the
+compose window stops losing replies, and the sidebar stops answering a question
+nobody asked.**
+
+**Search.** Free text was taking nine to ten seconds on a 300,000-message
+mailbox — and taking the same nine seconds whether the word was in a quarter of
+a per cent of the mail or eight per cent of it, which is what an index doing
+nothing looks like. One `OR` spanning two index families is a shape Postgres
+answers by abandoning both, so it walked all 100,000 threads and filtered them
+row by row. Split into a `UNION`, every branch picks its own index. The pager's
+"1–50 of N" was a second query re-running the whole search for a number in the
+corner of the toolbar; it rides along with the page now as a window count, 35ms
+instead of 450–830ms. Hostnames and addresses are indexed by their parts, so
+`wirhub` finds a mail whose body only says `help.wirhub.de` — Postgres reads
+that as one token, and chasing it with a substring scan over every body was
+what the slow branch was for. That branch survives as a last resort, run only
+when a page comes back thin. End to end: **12.3s → 1.6s, 13.1s → 2.7s,
+11.0s → 0.7s.**
+
+**Search while you type.** Results now appear under the suggestions from about
+the third character — the ten most recent matches, in 57–88ms for a rare term.
+It is a preview and says so: it runs only the passes fast enough for a
+keystroke, and steps aside entirely once your query carries an operator,
+because ten unfiltered rows under `is:unread` look exactly like ten honoured
+ones.
+
+**A reply could be silently thrown away.** The compose form was the only one in
+the app still using a session-stored CSRF token, which had to survive in the
+session for the whole life of the window — minutes of autosaves. Any concurrent
+request that wrote the session first took it away, and the storages differ on
+whether that can happen: the file handler locks, but **Redis and memcached do
+not**, so a scaled deployment lost replies. Worse, a refused form re-renders
+with HTTP 200, so the composer said "Draft saved" about a draft the server had
+discarded and cleared the unsaved-changes guard. Both halves fixed.
+
+**Sending, and the way out of it.** A send used to close the window and put the
+cancel somewhere else — a toast in the dock, a countdown bar in the thread —
+so the way back was never where you had just clicked. The Send button is the
+cancel now: it reads "Sending… click to cancel", a second click calls it off,
+and it cannot change size at any point. A toast confirms the message went.
+Forwarding an inline message closed with no feedback at all, for ever; it
+files itself properly now.
+
+**The inline composer** gets a reduced header: the To field itself, typable,
+with everything else behind the chevron. A forward opens needing exactly one
+thing and used to open with a label where that thing goes. The suggestion panel
+opens on typing rather than on focus, and overlays the body rather than shoving
+the editor down the page.
+
+**An account in the sidebar opens its inbox.** It used to list everything the
+account held, whatever it was labelled — your sent mail interleaved through
+what you had received, drafts and spam among it.
+
+**The calendar day grid** opened at about 11:00 with the morning scrolled off,
+and an event under the sticky all-day band could not be dragged at all, because
+a pinned row takes the pointer as well as the view.
+
+**Also:** the IMAP flag pass no longer loads every body in a mailbox to compare
+two booleans — it was the single largest cost in a real install's database, 262
+seconds over 1,187 calls. `/mail/search` no longer 500s for a user with no
+account connected. The README is 101 lines instead of 318.
+
+**The migration:** `message.search_vector` is dropped and re-added with the
+token-splitting pass, and its GIN index rebuilt. Two minutes on 300,000
+messages, exclusive — nothing else to do, but do not run it during a working
+hour.
+
 ## v0.0.39 — 2026-08-17
 
 **One migration, additive (a table and two defaulted columns); nothing to do
