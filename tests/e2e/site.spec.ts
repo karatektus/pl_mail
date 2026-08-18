@@ -169,6 +169,23 @@ test("the landing page is not hijacked by a remembered language", async ({ page 
     await expect(page).toHaveURL(`${BASE}/index.html`);
 });
 
+/**
+ * Every theme the app has, read out of the enum that defines them.
+ *
+ * Restated as a literal list once — the seven classics — and it went stale the
+ * day the 32 logo colourways became themes of their own: the picker offered 41
+ * and the assertion still named 7, which reads as "the build dropped 34
+ * themes" and was nothing of the sort. The enum is the source of truth on both
+ * sides of this comparison, so the test reads it rather than repeating it, and
+ * a theme added tomorrow is covered without touching this file. Same move as
+ * inventory() in theme-switch-parity.spec.ts, for the same reason.
+ */
+function themeCatalogue(): string[] {
+    const php = readFileSync("src/Domain/Enum/Theme/Theme.php", "utf8");
+
+    return [...php.matchAll(/^\s*case\s+\w+\s*=\s*'([a-z0-9-]+)'\s*;/gm)].map((m) => m[1]);
+}
+
 test("the theme picker offers plMail's own themes and remembers one", async ({ page }) => {
     await page.goto(`${BASE}/docs/`);
 
@@ -176,9 +193,15 @@ test("the theme picker offers plMail's own themes and remembers one", async ({ p
         (options) => options.map((option) => (option as HTMLOptionElement).value),
     );
 
+    const expected = themeCatalogue();
+
+    // Sanity on the reader itself: an enum that stopped matching would make the
+    // comparison below trivially true against an empty list.
+    expect(expected.length, "the Theme enum should declare the classics at least").toBeGreaterThan(6);
+
     // Generated from Theme::swatch(), so this is the app's list or the build is
     // wrong. Solar is the default and must be selected before anything is picked.
-    expect(themes).toEqual(["system", "light", "paper", "dark", "nord", "dusk", "solar"]);
+    expect(themes).toEqual(expected);
     await expect(page.locator("#theme")).toHaveValue("solar");
 
     await page.selectOption("#theme", "nord");

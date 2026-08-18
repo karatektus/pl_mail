@@ -59,6 +59,16 @@ async function openMessage(page: Page, subject: string) {
     await page.goto("/mail/inbox");
     await mailRow(page, subject).click();
 
+    // The row click is a Turbo navigation, and this waits for it to LAND
+    // rather than for a body to appear. Those are not the same moment: the
+    // previous page's body is still in the document while the new one is on
+    // its way, so `.mail-message-body` was satisfied mid-swap and the caller
+    // went on to click a button inside a body that the arriving navigation
+    // then replaced — taking the Turbo Stream the click had asked for with
+    // it. Under load that is a lost click and an assertion timing out on a
+    // testid that never rendered.
+    await page.waitForURL(/\/mail\/thread\/\d+/);
+
     const body = page.locator(".mail-message-body").first();
     await expect(body).toBeVisible();
 

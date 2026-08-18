@@ -139,6 +139,23 @@ async function themeNames(page: Page): Promise<string[]> {
 }
 
 test.describe("appearance — a switched theme equals a loaded one", () => {
+    /**
+     * These are matrix tests, and the matrix is the theme catalogue: every one
+     * of them walks all 41 themes twice — once through the picker and once
+     * through a cold reload — which is ~40 full page loads and ~80 saves each.
+     * They measure a little over 45s apiece locally against Playwright's 30s
+     * default, and the way that failed was misleading: the budget expired
+     * mid-navigation and the error read `page.reload: net::ERR_ABORTED; maybe
+     * frame was detached?`, which looks like a bug in the app rather than a
+     * stopwatch running out.
+     *
+     * The breadth is the point — a theme is covered here the day it is added,
+     * and that is what caught the remnants these tests exist for — so the
+     * budget moves rather than the coverage. Generous enough for CI, which
+     * runs on two vCPUs.
+     */
+    test.describe.configure({ timeout: 150_000 });
+
     test.afterEach(async ({ page }) => {
         await open(page);
         await page.locator(PANEL).getByRole("button", { name: /reset/i }).first().click();

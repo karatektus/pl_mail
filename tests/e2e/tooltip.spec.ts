@@ -175,6 +175,14 @@ test.describe("tooltips", () => {
      * document click, so it only survived when the window closed WITHOUT one.
      * Hence Ctrl+Enter here rather than the Send button: the keyboard send is
      * the path that has no click to paper over it.
+     *
+     * The window no longer closes ON the send — it stays put for the cancel
+     * window with its pill reading "Sending… click to cancel", and closes when
+     * that runs out (ComposeController::CANCEL_WINDOW_MS, eight seconds). So
+     * the trigger leaves the page several seconds after the keystroke, which is
+     * what the timeouts below are for. Nothing about the bug changed: there is
+     * still no click anywhere in the sequence, which is the whole point of
+     * choosing this path.
      */
     test("hides when its trigger leaves the page without a click", async ({ page }) => {
         await page.goto("/mail/inbox");
@@ -205,7 +213,9 @@ test.describe("tooltips", () => {
 
         await page.keyboard.press("Control+Enter");
 
-        await expect(dock.locator(".ts-control").first()).toBeHidden();
+        // Long enough to cover the cancel window the composer holds itself open
+        // for, plus the settle request that closes it.
+        await expect(dock.locator(".ts-control").first()).toBeHidden({ timeout: 20_000 });
         await expect(tip, "the bubble must not outlive the button it describes").toBeHidden();
     });
 });
