@@ -174,9 +174,31 @@ stop, and a double-click is not a gesture a keyboard has.
            the same question — see EventMover. A <dialog> rather than the app's
            modal frame: this one is built from data already on the page and needs
            no fetch, and showModal() puts it in the top layer, which is the one
-           kind of dialog backdrop-filter on an ancestor cannot clip. #}
+           kind of dialog backdrop-filter on an ancestor cannot clip.
+
+           `pop`, the same entrance _partials/_modal.html.twig gives the app's
+           dialog shell, because this is the same kind of object: a modal that
+           takes the screen and asks one question. The one dialog in plMail that
+           snapped into place would read as a different application's, and this
+           one appears at the worst possible moment for a jump cut — the instant
+           somebody lets go of a meeting they have just dragged.
+
+           Safe to declare on markup that is in the document from first paint
+           for exactly the reason the modal partial gives: a <dialog> is
+           display:none until showModal(), and a display:none element has no
+           running animation, so the entrance starts when the drag opens it and
+           again on every drag after that. motion.js marks it played at load,
+           which stops the OBSERVER replaying it on a Turbo swap and has no
+           bearing on the CSS animation.
+
+           It is on the dialog and not on anything the drag touches: the
+           positioned blocks carry no entrance at all — see _grid.html.twig for
+           why a CSS animation on one of those would fight
+           calendar--time-grid's inline transform. Nothing waits for this
+           either; both buttons are pressable from the first frame. #}
         <dialog data-calendar--time-grid-target="scopePrompt"
                 data-action="cancel->calendar--time-grid#cancelPending"
+                data-enter="pop"
                 class="rounded-pane border border-line bg-surface p-0 text-ink backdrop:bg-black/40">
             <div class="px-6 py-4 space-y-3 min-w-[18rem]">
                 <p class="text-sm text-ink-muted">{{ 'calendar.event.scope.legend'|trans }}</p>

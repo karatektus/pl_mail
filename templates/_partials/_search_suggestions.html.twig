@@ -12,6 +12,13 @@
     presentational, so the option is what the listbox sees while the browser
     still sees a link — middle-click and "copy link" keep working, which a
     button pretending to be a row would have quietly cost.
+
+    No `data-enter` on these rows, on purpose. This partial is re-rendered and
+    re-inserted on every keystroke, so an entrance here would not be "a list
+    arrived" — it would be the same eight rows fading in from nothing on every
+    character typed, under a pointer and a pair of eyes that are still reading
+    them. Motion is for things that appear; these do not appear, they update.
+    The popup that holds them animates once, when it opens — see _topbar.
 #}
 {% for hit in hits %}
     <li role="presentation">

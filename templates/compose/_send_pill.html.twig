@@ -154,8 +154,16 @@ Variables: message, params (from the including context); placement.
 
     {# See the note at the top for why the direction and the anchor both flip
        with the placement. compose-scheduled-send.spec.ts measures the box that
-       comes out of it at 393px and at 320px. #}
+       comes out of it at 393px and at 320px.
+
+       The ENTRANCE flips with them, for the same reason: a menu should travel
+       away from the pill it came out of. The bar pill opens UPWARD, so the menu
+       rises into place from where the pill is; the header pill opens DOWNWARD,
+       so it comes down from above. A menu that slides the wrong way reads as a
+       second, unrelated thing appearing beside the one that was asked for.
+       Six pixels at Full and none at all at Minimal. #}
     <div data-ui--dropdown-target="menu" hidden
+         data-enter="{{ header ? 'slide-down' : 'rise' }}"
          class="absolute z-20 w-64 max-w-[calc(100vw-2rem)] popover py-1
                 {{ header ? 'top-full mt-1 right-0 left-auto' : 'bottom-full mb-1 left-0 right-auto' }}">
 

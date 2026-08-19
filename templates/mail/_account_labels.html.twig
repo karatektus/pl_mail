@@ -6,5 +6,8 @@
    to wear whichever one asked. MailController::folderFrameId() decides, and
    only ever returns one of the two. #}
 <turbo-frame id="{{ frameId|default('account-folders-' ~ account.id) }}">
-    {% include 'mail/_account_folder_rows.html.twig' with { account: account, labels: labels } only %}
+    {# `entering`: this is the copy that arrives over the network, after a click
+       and a wait, so it fades in. The sidebar's own inline render of the same
+       partial does not — see the note there. #}
+    {% include 'mail/_account_folder_rows.html.twig' with { account: account, labels: labels, entering: true } only %}
 </turbo-frame>

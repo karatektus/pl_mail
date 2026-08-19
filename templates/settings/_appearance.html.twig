@@ -457,12 +457,17 @@
                values live. See App\Domain\Enum\Theme\MotionLevel. #}
             <section>
                 <div class="mb-4">
-                    <h3 class="text-sm font-semibold text-ink">{{ 'settings.appearance.motion.heading'|trans }}</h3>
+                    {# The heading IS the group's accessible name — pointed at
+                       rather than repeated. An `sr-only` span inside the
+                       radiogroup would say the same word twice to a screen
+                       reader, and it is also 1px-clipped by definition, which
+                       preview-pane.spec.ts reads as 53px of overflow when it
+                       checks that nothing in the controls column is cut off. #}
+                    <h3 class="text-sm font-semibold text-ink" id="motion-label">{{ 'settings.appearance.motion.heading'|trans }}</h3>
                     <p class="text-xs text-ink-faint mt-0.5">{{ 'settings.appearance.motion.subheading'|trans }}</p>
                 </div>
 
                 <div class="{{ segGroup }}" role="radiogroup" aria-labelledby="motion-label">
-                    <span class="sr-only" id="motion-label">{{ 'settings.appearance.motion.heading'|trans }}</span>
                     {% for motion in enum('App\\Domain\\Enum\\Theme\\MotionLevel').cases %}
                         <label class="cursor-pointer">
                             <input type="radio" name="motion" class="peer sr-only"

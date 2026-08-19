@@ -14,13 +14,27 @@
  *   data-enter="pop"         appears, growing very slightly into place
  *   data-enter="slide-down"  appears from above (dropdowns, panels)
  *
- * That is the entire API. Elements already in the document at first paint
- * animate on their own, from CSS alone. Elements that ARRIVE later — a row
- * pushed in by a Turbo Stream, a dropdown built in JavaScript — need someone to
- * notice them, which is assets/motion.js, the only JavaScript in this feature.
+ * Elements already in the document at first paint animate on their own, from
+ * CSS alone. Elements that ARRIVE later — a row pushed in by a Turbo Stream, a
+ * dropdown built in JavaScript — need someone to notice them, which is
+ * assets/motion.js, the only JavaScript in this feature.
  *
  * Add `data-enter-stagger` to a CONTAINER and its children come in one after
  * another rather than together.
+ *
+ * There is a second attribute, and this file deliberately says nothing about
+ * it beyond that it exists:
+ *
+ *   data-enter-new="rise"    animate, but only the first time this id is seen
+ *
+ * It carries no rule here because it must not. A CSS animation starts the
+ * instant an element carrying one is inserted, which is what makes everything
+ * above free — and also means an observer cannot call one off after the fact.
+ * Anything whose entrance is CONDITIONAL therefore has to arrive with no
+ * animation attached at all and be given one afterwards, which is a decision
+ * only JavaScript can take. See assets/motion.js. The mail list is why this
+ * exists: it is re-rendered wholesale every fifteen seconds, so a row keyed on
+ * the node would pulse at rest.
  *
  * ── The three tiers ─────────────────────────────────────────────────────────
  *
@@ -99,7 +113,14 @@
 [data-enter="pop"]        { animation-name: plmail-pop; }
 [data-enter="slide-down"] { animation-name: plmail-slide-down; }
 
-/* The window-sized things — compose, modals — earn the slow token. */
+/* The window-sized things earn the slow token — in practice the modal and the
+   calendar's scope prompt, both of which are most of the screen.
+
+   NOT the compose window, which uses `fade`. It is the screen below md, so
+   scaling it draws a hairline of the mail list around all four edges and reads
+   as the window peeling off the viewport; and a transform on it is inherited by
+   everything measured inside it while it runs, which the emoji picker's
+   fit-to-window pass would read mid-flight. */
 [data-enter="pop"] { animation-duration: var(--motion-slow); }
 
 @keyframes plmail-fade {

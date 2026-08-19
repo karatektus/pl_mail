@@ -75,7 +75,15 @@ self-contained: no {% extends %}, no block dependencies.
            association is the fallback for any include that has not been given
            it (its receivedAt-only order is why the list is passed at all). #}
         {% set messages = messages|default(thread.messages) %}
-        <div id="thread_messages_{{ thread.id }}">
+        {# The messages are the one thing in this pane that ARRIVES, so they
+           are what animates, and the toolbar and subject above deliberately do
+           not: chrome that flinched every time a conversation opened would be
+           movement that says nothing, on the surface a reader opens forty times
+           a day. Each message rises in on its own — see _thread_message — and
+           the stagger turns "a conversation opened" into a conversation being
+           laid out. It costs nothing on the common single-message thread, and
+           motion.css caps it at eight so a long one still finishes at once. #}
+        <div id="thread_messages_{{ thread.id }}" data-enter-stagger>
             {% for message in messages %}
                 {% include 'mail/_thread_message.html.twig' with {
                     message:  message,

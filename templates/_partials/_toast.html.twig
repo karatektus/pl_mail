@@ -24,6 +24,11 @@ reporting on.
 <div
     data-controller="ui--toast"
     data-ui--toast-duration-value="{{ extra.hide_after ?? 4000 }}"
+    {# It travels up into place rather than merely fading: the dock is at the
+       bottom edge, so "rise" is the direction the toast actually came from, and
+       a thing that moves the way it appears to have moved is a thing the eye
+       tracks instead of noticing. #}
+    data-enter="rise"
     role="status"
     class="relative pane-flat shadow-float overflow-hidden min-w-[280px] max-w-sm
            border-l-4 {{ tone.edge }}"

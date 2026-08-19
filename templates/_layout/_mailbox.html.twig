@@ -208,8 +208,25 @@ which of the two is happening.
         <div data-list-region="tabs" class="contents">{% block inbox_tabs %}{% endblock %}</div>
 
         {# The rows are a region too. A refresh replaces them and puts the
-           selection back by thread id — see mail--mail-pane#_swapRegions. #}
-        <ul data-list-region="rows" class="flex-1 overflow-y-auto divide-y divide-line">
+           selection back by thread id — see mail--mail-pane#_swapRegions.
+
+           The fade here is the whole-list gesture, and it is what keeps a
+           folder change from being fifty separate ones. This element is only
+           ever FILLED by a background refresh, never replaced — the refresh
+           assigns over its innerHTML — so it animates on exactly the thing a
+           fade should mean: a genuinely different list arriving, from the
+           sidebar, a category tab, the next page or a search. The rows inside
+           ask for an entrance of their own (see _partials/_thread_row.html.twig)
+           and motion.js suppresses each of them while this one is playing,
+           because they arrived inside it; a row only animates by itself when it
+           turns up in a list already on screen, which is new mail.
+
+           No stagger, deliberately: it would stagger the rows of every list
+           that has ever been opened twice, and there is nothing to lay out —
+           the list arrives as one thing and reads as one. #}
+        <ul data-list-region="rows"
+            data-enter="fade"
+            class="flex-1 overflow-y-auto divide-y divide-line">
             {% block message_list %}{% endblock %}
         </ul>
 

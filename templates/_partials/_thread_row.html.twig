@@ -149,7 +149,35 @@ Threads only. A bare Message row is a message, and only a conversation arrives.
     {% set rowId = item.id %}
 {% endif %}
 
+{# `data-enter-NEW`, not `data-enter`, and the difference is the whole reason
+   this can exist at all.
+
+   A row is not automatically an arrival. The list it sits in is re-rendered
+   from server state on every sync — as often as every fifteen seconds — and
+   after every bulk action: mail--mail-pane#_swapRegions assigns over the rows
+   region's innerHTML, so every row becomes a brand new node carrying the same
+   mail. An entrance keyed on the NODE would therefore fire four times a minute
+   on an inbox nobody is touching, and a list that shimmers at rest is
+   unreadable.
+
+   What tells the two apart is the id: `thread_1234` is the same conversation
+   whoever rendered it. motion.js animates an element the first time it sees a
+   given id and never again, so this plays for mail that has actually just
+   arrived and stays silent through every redraw of mail that has not.
+
+   It has to be a separate attribute because a CSS animation starts the instant
+   an element carrying one is inserted — before any observer can object. A row
+   that might not deserve an entrance must therefore arrive with no animation
+   attached, and be given one only once its id has proved to be new. That is
+   what motion.js does with this attribute, and it is why the stylesheet knows
+   nothing about it.
+
+   Arriving as part of a whole new list — a folder change, a search, the next
+   page — is silent too: those rows are new ids, but they come inside the <ul>
+   playing its own fade, and motion.js suppresses a child whose ancestor is
+   announcing it. One arrival, one gesture. #}
 <li
+    data-enter-new="rise"
     id="thread_{{ rowId }}"
     class="group relative hover:shadow-sm"
     data-controller="mail--message-row"

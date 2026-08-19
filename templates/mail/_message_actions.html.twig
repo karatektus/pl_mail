@@ -34,8 +34,13 @@ Variables:
         <i class="fa-solid fa-ellipsis-vertical text-sm" aria-hidden="true"></i>
     </button>
 
+    {# The same entrance every menu in the app gets. This one has its own
+       controller rather than ui--dropdown, so it says so itself; it is `hidden`
+       until opened, which is what keeps a first-paint element from animating
+       until the moment it is actually shown. #}
     <div
         data-mail--message-actions-target="panel"
+        data-enter="slide-down"
         class="hidden absolute right-0 top-full mt-1 z-30 w-56
                rounded-pane bg-pane-soft backdrop-blur-sm
                border border-line shadow-pop py-1 text-sm"

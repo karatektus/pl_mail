@@ -85,8 +85,14 @@ Variables: form, compact (default false)
        that came from the server reads the same as one the window
        caught itself. It travels WITH the row: in a compact header the
        address block below is folded away, and a refusal nobody can see is
-       the oldest bug in this window. #}
+       the oldest bug in this window.
+
+       It is shown and hidden by a `hidden` class, and nothing else on screen
+       moves when it is — press Send with no recipient and a line of red simply
+       is there. A fade rather than a travel: the row above it does not shift,
+       so there is no edge for the refusal to have come from. #}
     <div data-compose--compose-target="errors"
+         data-enter="fade"
          class="{{ compact ? '' : 'px-4' }} {{ form.toAddresses.vars.errors|length > 0 ? 'py-1' : 'hidden' }}"
          role="alert" aria-live="polite">
         <p class="text-xs text-danger">

@@ -15,7 +15,15 @@
 {# No pl-3 on the nav: the indent is depth now, so the pill still reaches the
    sidebar's left edge like every other row rather than starting three units
    in. #}
-<nav class="nav-rows">
+
+{# An entrance only on the fetched path, and this is why the flag exists rather
+   than a plain `data-enter` on the nav. These rows have two lives: rendered
+   into the sidebar for the already-expanded account, where they are simply part
+   of the page and animating them would mean the sidebar blinking on every
+   navigation; and fetched into a frame when somebody expands a different
+   account, where they genuinely do arrive out of nowhere a request later. Only
+   the second one is an arrival, and only the second one is told so. #}
+<nav class="nav-rows"{% if entering|default(false) %} data-enter="fade"{% endif %}>
     {% for label in labels %}
         {# The same .nav-item pill as the rest of the sidebar, and a sidebar
            link target so the open folder is highlighted at all — these rows had

@@ -13,6 +13,18 @@ Variables:
 {% set expanded = expanded|default(false) %}
 {% set isDraft  = draft is defined ? draft : message.isDraft %}
 
+{# Both roots below carry `data-enter="rise"`, and this partial is the one place
+   in the mail views where an entrance is unambiguously honest: a message in a
+   conversation is only ever inserted because something happened. Opening the
+   thread lays out the conversation (the container staggers them — see
+   _thread_content), and after that every insertion is a single deliberate
+   event: a reply of yours joining the thread when the cancel window runs out
+   (compose/_sent.stream), a scheduled one taking its place, a draft row coming
+   back from an undo. None of them repeat, none of them fire on a poll — nothing
+   re-renders this pane in the background — so there is no version of this that
+   flickers at rest. `rise` rather than `fade` because the new message comes
+   from below, which is where the reader's attention already is. #}
+
 {# A draft has no body worth reading — clicking it opens the editor in the
    reply zone, which then hides this row for as long as it is open. #}
 {% if isDraft %}
@@ -28,7 +40,9 @@ Variables:
        longer note in _partials/_thread_row.html.twig. #}
     {% set snippet = message.bodyText ? message.bodyText|trim : '' %}
 
-    <div id="thread_message_{{ message.id }}" class="border-b border-line last:border-b-0 reading-y first:pt-0">
+    <div id="thread_message_{{ message.id }}"
+         data-enter="rise"
+         class="border-b border-line last:border-b-0 reading-y first:pt-0">
         <turbo-frame id="{{ draftFrame }}">
             <a
                 href="{{ path('app_compose_edit', composeParams|merge({ id: message.id })) }}"
@@ -76,6 +90,7 @@ Variables:
 
 <div
     id="thread_message_{{ message.id }}"
+    data-enter="rise"
     class="border-b border-line last:border-b-0 reading-y first:pt-0"
     data-controller="mail--thread-message"
     data-mail--thread-message-expanded-value="{{ expanded ? 'true' : 'false' }}"

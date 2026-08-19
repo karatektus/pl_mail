@@ -18,7 +18,13 @@
 </div>
 
 <div class="flex-1 overflow-y-auto">
-    <div class="w-full px-4 md:px-6 py-5">
+    {# The same division the conversation view makes: the bar above holds still
+       and the mail arrives. This pane is swapped in wholesale by
+       mail--mail-pane#_loadMessage every time a row is opened, so the fade is
+       exactly one per click — and it is a fade rather than the conversation's
+       rise because there is only one thing here, and a page-sized surface that
+       travels reads as the pane sliding rather than as a mail appearing. #}
+    <div data-enter="fade" class="w-full px-4 md:px-6 py-5">
 
         <h1 class="text-xl font-semibold text-ink mb-4">
             {{ message.subject ?: ('thread.no_subject'|trans) }}

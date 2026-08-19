@@ -147,8 +147,15 @@ The button itself carries `group` and `relative`.
             </button>
 
             {# Dropdown #}
+            {# The same entrance as every other menu in the app — spelt out
+               because this one is opened by the toolbar controller rather than
+               by ui--dropdown, and a menu that behaves differently from the ten
+               beside it for no reason is worse than one that does not move at
+               all. Safe on first-paint markup: it is `hidden`, and a
+               display:none element has no running animation. #}
             <div
                 data-mail--list-toolbar-target="selectMenu"
+                data-enter="slide-down"
                 class="hidden absolute left-0 top-full mt-1 z-30 w-36
                        bg-surface
                        border border-line

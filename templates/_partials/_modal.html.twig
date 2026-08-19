@@ -35,6 +35,14 @@ still while only the results move.
     role="dialog"
     aria-modal="true"
     aria-labelledby="modal-title"
+    {# The dim comes up rather than snapping on. It is safe to declare here even
+       though this element is in the document from first paint: it is `hidden`,
+       and a display:none element has no running animation — the entrance starts
+       when the controller unhides it, and again on every open after that. That
+       is also why the sidebar's disclosures do NOT carry one of these: markup
+       that is visible at first paint replays its entrance on every Turbo body
+       swap, which is a flinch rather than an arrival. #}
+    data-enter="fade"
     {# Above the compose window's z-50. The modal is rendered *before* the
        compose dock in the body, so at equal z-index compose wins on document
        order — and the integration picker, which opens from inside compose,
@@ -53,6 +61,17 @@ still while only the results move.
     <div
         data-ui--modal-panel
         data-ui--modal-sizes='{"form":"max-w-lg","wide":"max-w-3xl","full":"max-w-6xl"}'
+        {# `pop`, and one of the few things allowed the slow token: the dialog is
+           the largest thing that ever appears in this app, and the whole screen
+           changing state in one frame is the jump cut motion exists to answer.
+           It starts at 0.985 — near enough to one that it reads as the panel
+           catching up with itself rather than as a zoom.
+
+           Nothing waits for it. The panel is interactive from the first frame
+           (only opacity and transform move, so its box is never in question),
+           and _focusWhenLoaded() puts the keyboard in the dialog the moment the
+           frame has content, entirely independently of this. #}
+        data-enter="pop"
         class="
             relative w-full max-w-lg
             pane-flat
