@@ -1,4 +1,4 @@
-<!-- translated-from: features/appearance.md sha1:ac2a6d5a3594f7ec06584fff2566c1a226a25cba -->
+<!-- translated-from: features/appearance.md sha1:456e91c88d50567bd44b3a13567c437b4331fcfc -->
 
 # Darstellung
 
@@ -100,6 +100,24 @@ und Größe, was du hier auch einstellst, denn eine im Verfassen-Fenster gewähl
 *Formatierung* je Nachricht: Sie wird in das HTML der Nachricht geschrieben und geht an die
 Empfängerin hinaus. Wer eine Nachricht schreibt, muss sehen, was er verschickt, und nicht, was er auf
 dieser Seite eingestellt hat.
+
+## Bewegung
+
+**Bewegung** ist **Voll**, **Dezent** oder **Keine** und legt fest, wie stark sich die Oberfläche
+bewegt, wenn etwas erscheint — eine Nachricht, die in der Liste ankommt, das Schreibfenster, das
+aufgeht, ein Menü, das herunterklappt.
+
+- **Voll** — Dinge kommen von irgendwoher und setzen sich. Nichts dauert länger als eine
+  Viertelsekunde, und nichts wartet auf eine Animation, bevor du es benutzen darfst: Eine Zeile ist
+  anklickbar, während sie noch einblendet.
+- **Dezent** — dieselben Hinweise, nur als Einblendung: Nichts bewegt sich, nichts verschiebt sich.
+  Etwas schneller als Voll, denn ohne Weg gibt es für das Auge weniger zu verfolgen, und dieselbe
+  Dauer fängt an, sich wie eine Verzögerung anzufühlen.
+- **Keine** — genau das, was plMail getan hat, bevor es das alles gab.
+
+**Verlangt dein System weniger Bewegung, gewinnt das** — egal, was hier steht, und ohne
+Rückfrage. Wer seinem Rechner gesagt hat, dass Bewegung ihm schlecht bekommt, hat plMail nicht nach
+seiner Meinung gefragt.
 
 ## Dichte, und wie ein Bereich seine eigene bekommt
 

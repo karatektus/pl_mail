@@ -91,6 +91,23 @@ you set here, because a size chosen in the compose window is per-message *format
 into the message's HTML and goes out to the recipient. Someone writing a message needs to see what
 they are sending, not what they set on this page.
 
+## Motion
+
+**Motion** is **Full**, **Minimal** or **None**, and it decides how much the interface moves when
+something appears — a message arriving in the list, the compose window opening, a menu dropping down.
+
+- **Full** — things arrive from somewhere and settle. Nothing takes longer than a quarter of a
+  second, and nothing waits for an animation before you can use it: a row is clickable while it is
+  still fading in.
+- **Minimal** — the same cues, as a fade, with nothing moving and nothing displaced. Slightly faster
+  than Full, because without travel there is less for the eye to follow and the same duration starts
+  to read as a lag.
+- **None** — exactly what plMail did before any of this existed.
+
+**If your system asks for reduced motion, that wins** — whatever is set here, and without asking.
+Somebody who has told their operating system that movement makes them ill has not asked plMail for
+its opinion.
+
 ## Density, and giving a pane its own
 
 **Density** is **Comfortable**, **Cosy** or **Compact**, and it sets row height and spacing across
