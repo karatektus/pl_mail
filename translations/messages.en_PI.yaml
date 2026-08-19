@@ -1559,6 +1559,13 @@ settings:
                 list: Manifest
                 reading: Readin' deck
                 sidebar: Side riggin'
+        motion:
+            full: Full sail
+            heading: Sway
+            minimal: Gentle swell
+            none: Becalmed
+            reduced: If yer machine asks for calmer seas, plMail obeys it — whatever ye picked here.
+            subheading: How much the deck shifts when somethin' appears. Gentle swell fades without movin' the cargo.
         export: Export theme
         glass:
             heading: Spyglass

@@ -34,6 +34,7 @@ final class AppearanceExtension extends AbstractExtension
             new TwigFunction('appearance', $this->appearance(...)),
             new TwigFunction('appearance_class', $this->appearanceClass(...)),
             new TwigFunction('appearance_theme', $this->appearanceTheme(...)),
+            new TwigFunction('appearance_motion', $this->appearanceMotion(...)),
             new TwigFunction('appearance_vars', $this->appearanceVars(...)),
             new TwigFunction('background_preset_css', $this->backgrounds->preset(...)),
             new TwigFunction('background_solid_css', $this->backgrounds->solid(...)),
@@ -59,6 +60,19 @@ final class AppearanceExtension extends AbstractExtension
     public function appearanceTheme(): string
     {
         return $this->appearance()->theme->value;
+    }
+
+    /**
+     * The motion tier, for `data-motion` on <html>.
+     *
+     * Server-rendered like the theme and for the same reason: a class the
+     * browser only learns about once JavaScript has run is a first paint with
+     * the wrong one, and for motion that means every element on the page
+     * playing its entrance the instant the setting arrives.
+     */
+    public function appearanceMotion(): string
+    {
+        return $this->appearance()->motion->value;
     }
 
     public function appearanceVars(): string

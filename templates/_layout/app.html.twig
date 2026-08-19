@@ -12,6 +12,12 @@
 <html lang="{{ app.request.locale|replace({'_': '-'}) }}"
       class="{{ appearance_class() }}"
       data-theme="{{ appearance_theme() }}"
+      {# How much the interface may move. Server-rendered beside the theme and
+         for the same reason: a tier the browser learns only after JavaScript
+         has run is a first paint at the wrong one, which for motion means
+         every element on the page playing its entrance at once the moment the
+         setting arrives. See assets/styles/motion.css. #}
+      data-motion="{{ appearance_motion() }}"
       {# The RUNTIME debug flag, read by stimulus_bootstrap.js. The Stimulus
          bundle bakes its own debug flag into the compiled asset at build time,
          so an asset built in a debug context ships ~1000 console log lines to a

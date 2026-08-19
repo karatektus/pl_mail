@@ -1869,6 +1869,13 @@ settings:
                 list: Message list
                 reading: Reading pane
                 sidebar: Sidebar
+        motion:
+            full: Full
+            heading: Motion
+            minimal: Minimal
+            none: None
+            reduced: If your system asks for reduced motion, plMail follows that instead — whatever is chosen here.
+            subheading: How much the interface moves when something appears. Minimal fades without shifting anything.
         export: Export theme
         glass:
             heading: Glass

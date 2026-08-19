@@ -1,0 +1,187 @@
+/*
+ * motion.css — everything in plMail that moves.
+ *
+ * One file, on purpose. Animation sprayed across forty component stylesheets
+ * is animation nobody can audit: you cannot answer "how long does this app
+ * spend animating" or "what happens at reduced motion" without reading all
+ * forty. Here the whole motion budget is one screenful of keyframes and one
+ * table of gates, and a surface opts in with a single attribute.
+ *
+ * ── How a surface opts in ───────────────────────────────────────────────────
+ *
+ *   data-enter="fade"        appears
+ *   data-enter="rise"        appears, travelling up a little
+ *   data-enter="pop"         appears, growing very slightly into place
+ *   data-enter="slide-down"  appears from above (dropdowns, panels)
+ *
+ * That is the entire API. Elements already in the document at first paint
+ * animate on their own, from CSS alone. Elements that ARRIVE later — a row
+ * pushed in by a Turbo Stream, a dropdown built in JavaScript — need someone to
+ * notice them, which is assets/motion.js, the only JavaScript in this feature.
+ *
+ * Add `data-enter-stagger` to a CONTAINER and its children come in one after
+ * another rather than together.
+ *
+ * ── The three tiers ─────────────────────────────────────────────────────────
+ *
+ * `data-motion` on <html> is written by the server from the user's setting.
+ * The durations and distances behind it come from the MotionLevel enum via
+ * AppearanceRenderer, so this file declares no timings of its own — there is
+ * exactly one place to change how fast the app feels.
+ *
+ * At `none` every duration is 0s, which is what makes the tier honest: the
+ * rules below still apply, they simply complete within the same frame, so
+ * there is no second code path that can rot.
+ *
+ * ── Reduced motion is not a preference ──────────────────────────────────────
+ *
+ * `prefers-reduced-motion: reduce` overrules the setting entirely, in both
+ * directions, without asking. Somebody who has told their operating system that
+ * movement makes them ill has not asked plMail for its opinion, and a setting
+ * that could override that would be a setting that hurts people. It is written
+ * as a hard reset of the tokens rather than as `animation: none`, so a surface
+ * added later inherits the protection without knowing it exists.
+ */
+
+/* ── Tokens ──────────────────────────────────────────────────────────────────
+   Fallbacks, for the two moments the server's values are not there: the login
+   and setup pages, which render before there is a user to have a preference,
+   and any page fetched by a test harness that skips the shell. They match the
+   Full tier, so those pages animate like everything else. */
+:root {
+    --motion-fast: 120ms;
+    --motion-base: 180ms;
+    --motion-slow: 260ms;
+    --motion-lift: 6px;
+    --motion-scale: 0.985;
+    --motion-stagger: 22ms;
+    --motion-ease: cubic-bezier(0.22, 0.68, 0.32, 1);
+}
+
+/* The tier the server asked for. Belt and braces with the inline custom
+   properties: those come from AppearanceRenderer for a signed-in user, and
+   this covers a page rendered without one. */
+[data-motion="minimal"] {
+    --motion-fast: 90ms;
+    --motion-base: 120ms;
+    --motion-slow: 150ms;
+    --motion-lift: 0px;
+    --motion-scale: 1;
+    --motion-stagger: 0ms;
+}
+
+[data-motion="none"] {
+    --motion-fast: 0s;
+    --motion-base: 0s;
+    --motion-slow: 0s;
+    --motion-lift: 0px;
+    --motion-scale: 1;
+    --motion-stagger: 0ms;
+}
+
+/* ── Entrances ───────────────────────────────────────────────────────────────
+   `backwards` fill so the element is already in its start state during any
+   stagger delay. Without it a delayed row paints fully opaque, waits, and then
+   fades in from nothing — a flicker, which is worse than no animation at all.
+
+   Only `opacity` and `transform` are ever animated. Both are composited, so
+   none of this touches layout: a list of fifty arriving rows does not cost
+   fifty reflows, and a row is clickable throughout because nothing about its
+   box is in question. */
+[data-enter] {
+    animation-duration: var(--motion-base);
+    animation-timing-function: var(--motion-ease);
+    animation-fill-mode: backwards;
+}
+
+[data-enter="fade"]       { animation-name: plmail-fade; }
+[data-enter="rise"]       { animation-name: plmail-rise; }
+[data-enter="pop"]        { animation-name: plmail-pop; }
+[data-enter="slide-down"] { animation-name: plmail-slide-down; }
+
+/* The window-sized things — compose, modals — earn the slow token. */
+[data-enter="pop"] { animation-duration: var(--motion-slow); }
+
+@keyframes plmail-fade {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+}
+
+@keyframes plmail-rise {
+    from { opacity: 0; transform: translate3d(0, var(--motion-lift), 0); }
+    to   { opacity: 1; transform: none; }
+}
+
+@keyframes plmail-pop {
+    from { opacity: 0; transform: scale(var(--motion-scale)); }
+    to   { opacity: 1; transform: none; }
+}
+
+@keyframes plmail-slide-down {
+    from { opacity: 0; transform: translate3d(0, calc(var(--motion-lift) * -1), 0); }
+    to   { opacity: 1; transform: none; }
+}
+
+/* ── Stagger ─────────────────────────────────────────────────────────────────
+   A list arriving as a list rather than as a slab. Written with nth-child so
+   it costs no JavaScript, and CAPPED at eight: twelve rows at 22ms is a
+   quarter of a second before the last is legible, and a hundred rows would be
+   two seconds of an inbox assembling itself while somebody waits to click the
+   first one. Past the cap every row shares the eighth delay, so a long list
+   still reads as one gesture and still finishes on time. */
+[data-enter-stagger] > * {
+    animation-delay: calc(var(--motion-stagger) * 8);
+}
+
+[data-enter-stagger] > *:nth-child(1) { animation-delay: 0ms; }
+[data-enter-stagger] > *:nth-child(2) { animation-delay: calc(var(--motion-stagger) * 1); }
+[data-enter-stagger] > *:nth-child(3) { animation-delay: calc(var(--motion-stagger) * 2); }
+[data-enter-stagger] > *:nth-child(4) { animation-delay: calc(var(--motion-stagger) * 3); }
+[data-enter-stagger] > *:nth-child(5) { animation-delay: calc(var(--motion-stagger) * 4); }
+[data-enter-stagger] > *:nth-child(6) { animation-delay: calc(var(--motion-stagger) * 5); }
+[data-enter-stagger] > *:nth-child(7) { animation-delay: calc(var(--motion-stagger) * 6); }
+[data-enter-stagger] > *:nth-child(8) { animation-delay: calc(var(--motion-stagger) * 7); }
+
+/* ── Leaving ─────────────────────────────────────────────────────────────────
+   Deliberately rare. An exit animation is time between asking for something
+   and getting it, every single time, and it is the one kind of motion people
+   genuinely come to resent — which is why archiving a mail does not play one.
+   Reserved for surfaces where the thing leaving is the thing you were looking
+   at, so that its absence would otherwise be a jump cut: a modal, a toast
+   dismissing itself. Driven by motion.js, which waits for it before removing
+   the node. */
+[data-leaving] {
+    animation-name: plmail-leave;
+    animation-duration: var(--motion-fast);
+    animation-timing-function: var(--motion-ease);
+    animation-fill-mode: forwards;
+    pointer-events: none;
+}
+
+@keyframes plmail-leave {
+    from { opacity: 1; transform: none; }
+    to   { opacity: 0; transform: scale(var(--motion-scale)); }
+}
+
+/* ── Reduced motion ──────────────────────────────────────────────────────────
+   The floor, and it wins over every tier above. Written as a token reset so
+   that anything added to this file later is covered without remembering to
+   come back here — the animations still "run", at zero duration, which is the
+   same trick the `none` tier uses and for the same reason: one code path.
+
+   `!important` because the tokens above arrive on <html> as an inline style
+   from AppearanceRenderer, and inline styles beat a stylesheet. This is the one
+   place in plMail where that is the correct tool. */
+@media (prefers-reduced-motion: reduce) {
+    :root,
+    [data-motion="full"],
+    [data-motion="minimal"],
+    [data-motion="none"] {
+        --motion-fast: 0s !important;
+        --motion-base: 0s !important;
+        --motion-slow: 0s !important;
+        --motion-lift: 0px !important;
+        --motion-scale: 1 !important;
+        --motion-stagger: 0ms !important;
+    }
+}

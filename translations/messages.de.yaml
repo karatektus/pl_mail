@@ -1889,6 +1889,13 @@ settings:
                 list: Nachrichtenliste
                 reading: Lesebereich
                 sidebar: Seitenleiste
+        motion:
+            full: Voll
+            heading: Bewegung
+            minimal: Dezent
+            none: Keine
+            reduced: Wenn dein System weniger Bewegung verlangt, hält sich plMail daran — egal, was hier steht.
+            subheading: Wie stark sich die Oberfläche bewegt, wenn etwas erscheint. Dezent blendet ein, ohne etwas zu verschieben.
         export: Theme exportieren
         glass:
             heading: Glas
