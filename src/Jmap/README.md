@@ -725,12 +725,32 @@ statement that creates the need for it.
   cannot draw" from "this value is broken". Echoing the current value back is
   accepted — get → edit one field → set is how a client is supposed to work —
   and a different one is refused. `id` is treated the same way.
+- **`Appearance.logoStyle` is reported, derived, and not settable.** What goes
+  over the wire is `Appearance::effectiveLogoStyle()` — the colourway the "pl"
+  mark actually wears — not the stored column, because the mark follows the
+  theme unless the user has unlinked it (`logoLinked`), and every colourway is
+  also a theme name. Publishing the column instead would have a client draw a
+  different mark from the web for the same account, which is the disagreement
+  this object exists to end. It is derived from three stored fields, two of
+  which are not on the wire at all, so a patch naming it says nothing this
+  server could act on: a *different* value is refused like `backgroundFile`'s,
+  and an *echo* is accepted — and then **dropped before it reaches
+  `applyArray()`**, which is the one place the two read-only properties differ.
+  `applyArray()` knows the key `logoStyle` and would write the echoed effective
+  value onto the stored colourway, silently replacing an unlinked user's choice
+  with a copy of their theme's name. Setting `theme` moves the mark, and the
+  new colourway comes back in that call's `updated` map.
 - **The appearance in the Session is a hint, not the read.** The Session's
   `state` is a hash of the user's account ids and does not move when a theme
   changes, so a client holding an old Session holds an old theme.
   `Appearance/get` is authoritative; the compact copy exists so the chrome can
   be painted in the right palette on the first frame instead of flashing the
-  wrong one.
+  wrong one. `logoStyle` is deliberately kept OUT of that compact copy: the
+  Android client turns it into a launcher icon, and a hint that can be stale
+  for the life of a cached Session is the wrong source for something committed
+  to outside the app. The *vocabulary* `logoStyles` is published there, because
+  a list of enum cases cannot go stale — and because a read-only vocabulary,
+  unlike a settable one, can never be discovered by being refused.
 - `urn:plmail:params:jmap:sync` has no methods, and is in `Capability::SUPPORTED`
   anyway. A client that lists a capability it depends on in `using` — the
   obvious thing to do — would otherwise have its whole request refused with
