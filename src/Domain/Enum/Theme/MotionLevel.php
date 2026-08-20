@@ -32,10 +32,11 @@ namespace App\Domain\Enum\Theme;
  * off. That ceiling covers the animations you meet constantly — a menu, a
  * toast, a panel — and it is not negotiable for them.
  *
- * The mail list is outside it on purpose, in both of its gestures: one new mail
- * arriving (rowBase) and a whole list arriving (listBase) each run 600ms. They
- * are rare, they are the two moments in this app where movement is carrying
- * information rather than reassurance, and they are worth the time.
+ * ONE thing is outside it: a new mail arriving, at 600ms (rowBase). It is the
+ * rarest animation here and the only one carrying information rather than
+ * reassurance, and it is worth the time. A whole list arriving is the other
+ * exception in the other direction — 30ms a row (listBase), under two frames,
+ * far below the ceiling rather than above it.
  *
  * ── What that costs, stated plainly ─────────────────────────────────────────
  *
@@ -44,6 +45,9 @@ namespace App\Domain\Enum\Theme;
  * the opposite — "a row is clickable while it is still fading in" — and that
  * promise was written when nothing moved more than six pixels. At 48px of
  * travel it is no longer true, so it is withdrawn rather than quietly broken.
+ *
+ * This is about the new-mail row alone. The list gesture is over before a hand
+ * has moved.
  *
  * The exposure is narrower than it sounds, and worth knowing exactly:
  *
@@ -281,24 +285,34 @@ enum MotionLevel: string
      * ── A whole list arriving ────────────────────────────────────────────
      *
      * A folder change, a search, the next page, a category tab. Sibling to the
-     * new-mail gesture above and deliberately not the same one: that says "this
-     * one is new", this says "all of these are". Same length and same distance,
-     * because they are the same size of event; a different direction and a
-     * different curve, because they are different events.
+     * new-mail gesture above and the opposite shape of it, which is the point:
+     * that one is a single object taking its time, this one is fifty objects
+     * taking none. Each row is in place almost before it has moved; what the
+     * eye follows is the ORDER, not any individual row's journey.
      *
-     * The rows do this one, not the list. A list that fades as a grey rectangle
+     * Thirty milliseconds is under two frames, and that is not a mistake to be
+     * rounded up. At this duration the travel below is not a slide, it is the
+     * row being drawn slightly displaced on the one frame it is displaced for —
+     * and the gesture people actually see is the sixteen-millisecond cascade
+     * running down the list. Lengthening it would not make that clearer; it
+     * would turn a list unrolling into fifty things sliding.
+     *
+     * The rows do this, not the list. A list that fades as a grey rectangle
      * tells you a rectangle changed; fifty rows entering tells you what changed.
      */
     public function listBase(): string
     {
         return match ($this) {
-            self::Full    => '600ms',
-            self::Minimal => $this->base(),
-            self::None    => '0s',
+            // Not base(), and not scaled: Full is already shorter than the
+            // ordinary duration, and a Minimal tier that took LONGER than Full
+            // would be a tier that means nothing. It drops the travel and the
+            // cascade instead, which is what Minimal means everywhere else.
+            self::Full, self::Minimal => '30ms',
+            self::None                => '0s',
         };
     }
 
-    /** How far each row travels in from, on a whole-list arrival. */
+    /** How far each row is displaced from, on a whole-list arrival. */
     public function listLift(): string
     {
         return match ($this) {
@@ -308,18 +322,24 @@ enum MotionLevel: string
     }
 
     /**
-     * The gap between one arriving row and the next.
+     * The gap between one arriving row and the next — and here, the whole of
+     * the effect rather than a garnish on it.
      *
-     * The house stagger, not a number of its own: this is exactly the effect
-     * stagger() describes, applied to the one list big enough to need it. It is
-     * capped in CSS at eight rows, which matters more here than anywhere else —
-     * fifty rows at 22ms would be a second of list assembling itself before the
-     * last one is legible, and the cap turns that into a fixed 176ms however
-     * long the list is.
+     * Its own number rather than the house stagger(), because it is doing a
+     * different job. Twenty-two milliseconds is a grace note on an animation
+     * you can already see; sixteen is the animation.
+     *
+     * Capped in CSS at eight rows, which matters more here than anywhere else:
+     * fifty rows would otherwise take four fifths of a second to finish
+     * arriving. Capped, a list of fifty and a list of six both finish in about
+     * 150ms, and a long list reads as one cascade rather than a slow fill.
      */
     public function listStagger(): string
     {
-        return $this->stagger();
+        return match ($this) {
+            self::Full                => '16ms',
+            self::Minimal, self::None => '0ms',
+        };
     }
 
     /** Whether anything animates at all — the escape hatch JS reads. */

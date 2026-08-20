@@ -103,11 +103,11 @@ something appears — a message arriving in the list, the compose window opening
   to read as a lag.
 - **None** — exactly what plMail did before any of this existed.
 
-Opening a folder, running a search or turning a page is the same size of event and gets the same
-length of gesture, but a different one: the rows come in from the left, each a fraction after the one
-above it. The list itself does not animate — a grey rectangle fading tells you a rectangle changed.
-The stagger is capped at eight rows, so a list of fifty and a list of six both finish spreading in
-about a sixth of a second.
+Opening a folder, running a search or turning a page is the other one, and it is the opposite shape.
+Each row drops into place in about two frames — far too fast to watch — but they do it one after
+another, so what you see is a cascade running down the list rather than any single row moving. The
+list itself does not animate: a grey rectangle fading tells you a rectangle changed. It is capped at
+eight rows, so a list of fifty and a list of six both finish in about a sixth of a second.
 
 ### New mail is the exception
 
@@ -123,15 +123,16 @@ At **Minimal** it collapses to the same short fade as everything else: no drop, 
 
 ### The one thing it costs
 
-While either of those is playing, the list is moving, and something moving can be reached for and
-missed. A row keeps its full width and stays on its own line the whole way, so clicking the middle of
-one does what it looks like it does — but the select box at the far left and the hover actions at the
-far right are travelling, and for about half a second they are not quite where they will be.
+New mail takes about half a second to land, and something moving can be reached for and missed. The
+row keeps its full width and stays on its own line the whole way, so clicking the middle of it does
+what it looks like it does — but the select box at the far left and the hover actions at the far
+right are travelling, and until it settles they are not quite where they will be.
 
 Nothing is ever frozen and no click is ever thrown away. It is simply possible, in that half second,
-to click a piece of empty list rather than the control on its way to that spot.
+to click a piece of empty list rather than the control on its way to that spot. Opening a folder does
+not have this problem: that one is over before a hand has moved.
 
-If that bothers you, the setting above is the answer, and it is why the setting exists: **Minimal**
+If it bothers you, the setting above is the answer, and it is why the setting exists: **Minimal**
 keeps the cues and removes every pixel of travel, and **None** removes the animation.
 
 **If your system asks for reduced motion, that wins** — whatever is set here, and without asking.

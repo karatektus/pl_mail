@@ -77,9 +77,9 @@
     --motion-row-ease: cubic-bezier(0.34, 1.56, 0.64, 1);
     --motion-room: 200ms;
     --motion-room-handoff: 200ms;
-    --motion-list-base: 600ms;
+    --motion-list-base: 30ms;
     --motion-list-lift: 48px;
-    --motion-list-stagger: 22ms;
+    --motion-list-stagger: 16ms;
 }
 
 /* The tier the server asked for. Belt and braces with the inline custom
@@ -98,7 +98,7 @@
     --motion-row-ease: cubic-bezier(0.22, 0.68, 0.32, 1);
     --motion-room: 120ms;
     --motion-room-handoff: 0ms;
-    --motion-list-base: 120ms;
+    --motion-list-base: 30ms;
     --motion-list-lift: 0px;
     --motion-list-stagger: 0ms;
 }

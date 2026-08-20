@@ -199,6 +199,17 @@ test.describe("mail UI actions", () => {
         const subject = INBOX_SUBJECTS.read;
         const readEndpoint = /\/status\/thread\/\d+\/read$/;
 
+        // Both steps wait for the list to stop moving before hovering, and the
+        // reason is specific to a VERTICAL entrance. Each row is parked 48px
+        // above its place while it waits its turn in the cascade — see
+        // MotionLevel::listStagger() — and a parked row is a still row, so
+        // hover() is happy to aim at it. A moment later the row drops into
+        // place and the pointer is over its neighbour, group-hover stops
+        // matching, and the action that hover was meant to reveal never becomes
+        // visible. The horizontal entrance this replaced could not do that: a
+        // row moving sideways keeps its own band of the screen.
+        await settled(page);
+
         // Step 1 — mark read.
         let row = mailRow(page, subject);
         await expect(row).toHaveAttribute("data-unread", "true");
@@ -209,6 +220,7 @@ test.describe("mail UI actions", () => {
         await row.getByRole("button", { name: "Mark as read", exact: true }).click();
         await post;
         await page.reload();
+        await settled(page);
 
         // Step 2 — the same row now offers "Mark as unread".
         row = mailRow(page, subject);
@@ -510,6 +522,7 @@ test.describe("mail UI actions", () => {
      */
     test("a sync refresh leaves an open row menu open", async ({ page }) => {
         await page.goto("/mail/inbox");
+        await settled(page);
 
         const row = mailRow(page, INBOX_SUBJECTS.read);
         await row.hover();
@@ -560,7 +573,7 @@ test.describe("mail UI actions", () => {
         await expect
             .poll(() => page.evaluate(() =>
                 (window as unknown as { __played: string[] }).__played
-                    .filter((name) => name === "plmail-slide-right").length,
+                    .filter((name) => name === "plmail-slide-down").length,
             ))
             .toBeGreaterThan(1);
 
@@ -586,7 +599,9 @@ test.describe("mail UI actions", () => {
 
         expect(rows.length).toBeGreaterThan(1);
         expect(rows.every((row) => row.scope === "list")).toBe(true);
-        expect(rows.every((row) => row.duration === "0.6s")).toBe(true);
+        // The list's own duration, not the row's 0.6s — under two frames, so
+        // what is seen is the cascade below rather than any row's journey.
+        expect(rows.every((row) => row.duration === "0.03s")).toBe(true);
         expect(rows[0].delay).toBe("0s");
         expect(rows[1].delay).not.toBe("0s");
     });
