@@ -56,25 +56,47 @@ async function fillDock(page: Page, subject = SUBJECT): Promise<void> {
  * 393px than at 1280px. Everything below names which one it means.
  */
 /**
- * A wall clock `seconds` from now, in the spelling `datetime-local` uses.
+ * A wall clock `seconds` from now, in the spelling `datetime-local` uses — read
+ * on the SAME clock the code under test reads.
  *
- * The browser's own zone, deliberately: these tests run with the container's
- * timezone as the configured one, so the two agree, and the point of the
- * exercise is the distance from now rather than the zone arithmetic (which
- * ScheduledSendResolverTest covers against real instants).
+ * This used to be Node's `new Date()`, with a comment claiming the runner's
+ * timezone and the app's configured one are the same thing. They are not, and
+ * CI is where that shows: the controller compares the field against
+ * `zoneNow(this.timezoneValue)`, which formats the browser's instant into the
+ * USER's configured zone. A test writing UTC into a field that is read as
+ * Berlin is two hours in the past before anything slow has happened, and the
+ * app answers "That time has already passed" — correctly, to a question the
+ * test did not mean to ask.
+ *
+ * So the arithmetic happens in the page, through the zone the pill itself
+ * carries. Whatever the runner is set to stops mattering, which is the only
+ * version of this that cannot rot.
  */
-function wallClockIn(seconds: number): string {
-    return stamp(new Date(Date.now() + seconds * 1000));
-}
+async function wallClockIn(page: Page, seconds: number): Promise<string> {
+    return page.evaluate((offset) => {
+        const carrier = document.querySelector("[data-compose--schedule-timezone-value]");
+        const timeZone = carrier?.getAttribute("data-compose--schedule-timezone-value") || undefined;
 
-/** A Date in the spelling `datetime-local` uses. Minute precision, like the field. */
-function stamp(at: Date): string {
-    const pad = (value: number) => String(value).padStart(2, "0");
+        const parts: Record<string, string> = {};
 
-    return (
-        `${at.getFullYear()}-${pad(at.getMonth() + 1)}-${pad(at.getDate())}` +
-        `T${pad(at.getHours())}:${pad(at.getMinutes())}`
-    );
+        for (const part of new Intl.DateTimeFormat("en-GB", {
+            timeZone,
+            hour12: false,
+            year: "numeric",
+            month: "2-digit",
+            day: "2-digit",
+            hour: "2-digit",
+            minute: "2-digit",
+        }).formatToParts(new Date(Date.now() + offset * 1000))) {
+            parts[part.type] = part.value;
+        }
+
+        // hour12:false still yields "24" for midnight in some engines — the same
+        // guard schedule_options.js#zoneNow carries, for the same reason.
+        const hour = String(Number(parts.hour) % 24).padStart(2, "0");
+
+        return `${parts.year}-${parts.month}-${parts.day}T${hour}:${parts.minute}`;
+    }, seconds);
 }
 
 /**
@@ -90,31 +112,28 @@ function stamp(at: Date): string {
  *
  * `_floor()` is `now + 60 + 59` seconds truncated, not `now + 60` — the extra
  * 59 make a minute-granularity field comparable to a second-granularity rule.
- * So the floor is effectively two minutes out, and the NEXT whole minute is
+ * So the floor is effectively two minutes out, and the next whole minute — which
+ * is what `wallClockIn(page, 60)` truncates to at any second of the minute — is
  * comfortably below it.
  *
  * The next whole minute is also the choice with the most headroom against the
- * other check: it only becomes "already passed" once the clock reaches the
- * minute after it, which is at least sixty seconds away. The current minute —
- * the obvious choice, and the one this reached for first — has whatever is left
- * of the current minute and no more, which on a slow runner is exactly the race
- * that produced "already passed" where CI wanted the floor's wording.
+ * other check: it only reads as past once the clock reaches the minute after it,
+ * which is at least sixty seconds away. The current minute — the obvious choice,
+ * and the one tried here first — has whatever is left of the current minute and
+ * no more.
  *
  * The one second that does not work is second zero: `now + 119s` then truncates
  * to the same minute as the choice, and equal is not below. Two seconds of
  * waiting removes it.
  */
 async function insideTheFloor(page: Page): Promise<string> {
-    if (new Date().getSeconds() < 2) {
+    const second = await page.evaluate(() => new Date().getSeconds());
+
+    if (second < 2) {
         await page.waitForTimeout(2_000);
     }
 
-    const at = new Date();
-
-    at.setSeconds(0, 0);
-    at.setMinutes(at.getMinutes() + 1);
-
-    return stamp(at);
+    return wallClockIn(page, 60);
 }
 
 function pill(page: Page, placement: "bar" | "header" = "bar") {
@@ -419,7 +438,7 @@ test.describe("scheduled send", () => {
         const field = options.locator('input[type="datetime-local"]');
         await expect(field).toBeVisible();
 
-        await field.fill(wallClockIn(10 * 60));
+        await field.fill(await wallClockIn(page, 10 * 60));
 
         // The toast is on a four-second fuse, so the assertion below is racing
         // it the moment anything slows down between the click and the render.
