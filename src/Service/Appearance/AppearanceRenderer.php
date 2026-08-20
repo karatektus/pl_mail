@@ -40,6 +40,34 @@ final readonly class AppearanceRenderer
             '--app-radius'    => sprintf('%srem', rtrim(rtrim(number_format($appearance->radius, 3, '.', ''), '0'), '.')),
             '--density-row-y' => $appearance->density->rowPadding(),
             '--density-gap'   => $appearance->density->gap(),
+
+            // ── Motion ────────────────────────────────────────────────────
+            // The whole vocabulary, from the enum rather than from a
+            // stylesheet, so the three tiers are one `match` a reviewer can
+            // read end to end — see MotionLevel. assets/styles/motion.css
+            // consumes these and declares no durations of its own.
+            '--motion-fast'    => $appearance->motion->fast(),
+            '--motion-base'    => $appearance->motion->base(),
+            '--motion-slow'    => $appearance->motion->slow(),
+            '--motion-lift'    => $appearance->motion->lift(),
+            '--motion-scale'   => $appearance->motion->scaleFrom(),
+            '--motion-stagger' => $appearance->motion->stagger(),
+            '--motion-ease'    => $appearance->motion->ease(),
+
+            // New mail arriving: the one surface with numbers of its own, and
+            // the room the list makes for it. See MotionLevel::rowBase() for
+            // why this is allowed to be the exception to everything above.
+            '--motion-row-base'    => $appearance->motion->rowBase(),
+            '--motion-row-lift'    => $appearance->motion->rowLift(),
+            '--motion-row-ease'    => $appearance->motion->rowEase(),
+            '--motion-room'         => $appearance->motion->room(),
+            '--motion-room-handoff' => $appearance->motion->roomHandoff(),
+
+            // And a whole list arriving, which is the rows' job rather than the
+            // list's — see MotionLevel::listBase().
+            '--motion-list-base'    => $appearance->motion->listBase(),
+            '--motion-list-lift'    => $appearance->motion->listLift(),
+            '--motion-list-stagger' => $appearance->motion->listStagger(),
             '--rgb-accent'    => self::channels($appearance->accent),
             '--rgb-accent-ink' => self::contrastChannels($appearance->accent),
             '--scrim-alpha'   => rtrim(rtrim(number_format($appearance->scrimAlpha, 3, '.', ''), '0'), '.') ?: '0',

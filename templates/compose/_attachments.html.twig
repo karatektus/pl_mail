@@ -5,15 +5,28 @@ The attachment strip of a compose window. Rendered with the window and again
 on its own after every upload/removal — compose_controller swaps it into the
 "attachments" target — so it must stay a standalone fragment.
 
-Variables: message
+`live` says whether this render is an UPDATE — the answer to an upload or a
+removal, swapped in by compose_controller — or the copy that ships inside a
+window that is itself arriving. Only the first animates. The window carries its
+own entrance, and a staggered strip playing inside it is two animations for one
+arrival; the three controller renders take the default and get the chips one
+after another, which is the case that needed marking. An attachment that
+appears with no sign it arrived is an attachment people upload twice.
+
+Variables: message, live (default true)
 #}
 {% set parts = message.messageParts|filter(part => not part.isInline) %}
+{% set live  = live|default(true) %}
 
 {% if parts|length > 0 %}
-    <div class="flex flex-wrap gap-2 px-4 pb-2">
+    {# Stagger, so three files dropped at once read as a list arriving rather
+       than as a slab appearing. motion.css caps the delay at eight, which is
+       well past the point where a compose window has other problems. #}
+    <div class="flex flex-wrap gap-2 px-4 pb-2" {% if live %}data-enter-stagger{% endif %}>
         {% for part in parts %}
             {% set kb = (part.size ?: 0) / 1024 %}
-            <span class="inline-flex items-center gap-2 pl-2.5 pr-1.5 py-1 rounded-lg text-xs
+            <span {% if live %}data-enter="rise"{% endif %}
+                  class="inline-flex items-center gap-2 pl-2.5 pr-1.5 py-1 rounded-lg text-xs
                          bg-sunken border border-line text-ink-soft">
                 <i class="fa-solid fa-paperclip text-[10px] text-ink-faint" aria-hidden="true"></i>
                 {# `download` for the same reason as in mail/_attachment_chip:

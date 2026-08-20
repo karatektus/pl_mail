@@ -1,4 +1,5 @@
 import { test, expect, type Page } from "../support/test";
+import { settled } from "../support/motion";
 
 /**
  * The mail-list display settings, and the one the user actually asked for.
@@ -200,6 +201,10 @@ test.describe("appearance — mail list display", () => {
         expect(box!.width).toBeGreaterThanOrEqual(30);
         expect(box!.height).toBeGreaterThanOrEqual(30);
 
+        // The row has to have arrived. A forced click goes to the element's
+        // box wherever that currently is, and a row still sliding in has its
+        // left edge — where this checkbox lives — off the side of the list.
+        await settled(page);
         await row.locator("[data-thread-select]").check({ force: true });
         await expect(row.locator("[data-thread-select]")).toBeChecked();
         await row.locator("[data-thread-select]").uncheck({ force: true });

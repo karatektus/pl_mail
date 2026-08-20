@@ -7,6 +7,7 @@ namespace App\Entity\Embeddable;
 use App\Domain\Enum\Theme\BackgroundKind;
 use App\Domain\Enum\Theme\BackgroundPreset;
 use App\Domain\Enum\Theme\Density;
+use App\Domain\Enum\Theme\MotionLevel;
 use App\Domain\Enum\Theme\FontFamily;
 use App\Domain\Enum\Theme\Layout;
 use App\Domain\Enum\Theme\LogoStyle;
@@ -148,6 +149,25 @@ final class Appearance
 
     #[ORM\Column(type: 'string', length: 16, enumType: Density::class, options: ['default' => 'comfortable'])]
     public Density $density = Density::Comfortable;
+
+    /**
+     * How much the interface moves. See {@see MotionLevel} for the vocabulary.
+     *
+     * Defaults to Full for everyone, including existing installs, and that is a
+     * deliberate choice rather than an oversight about not moving somebody's
+     * furniture. Motion here is additive — nothing lands in a different place,
+     * nothing takes longer to become usable — so the upgrade is a interface
+     * that explains itself slightly better, and the two people in ten who would
+     * rather it did not have a setting one click away. Defaulting to None would
+     * mean shipping a feature switched off, which nobody discovers.
+     *
+     * An operating system asking for reduced motion overrules this without
+     * consulting it — see assets/styles/motion.css. That is not a preference to
+     * be merged with another preference; it is somebody telling their machine
+     * that movement makes them ill.
+     */
+    #[ORM\Column(type: 'string', length: 16, enumType: MotionLevel::class, options: ['default' => 'full'])]
+    public MotionLevel $motion = MotionLevel::Full;
 
     #[ORM\Column(type: 'string', length: 16, enumType: BackgroundKind::class, options: ['default' => 'theme'])]
     public BackgroundKind $backgroundKind = BackgroundKind::Theme;
@@ -336,6 +356,7 @@ final class Appearance
             'paneBlur' => $this->paneBlur,
             'radius' => $this->radius,
             'density' => $this->density->value,
+            'motion' => $this->motion->value,
             'backgroundKind' => BackgroundKind::Custom === $this->backgroundKind
                 ? BackgroundKind::Theme->value
                 : $this->backgroundKind->value,
@@ -397,6 +418,10 @@ final class Appearance
 
         if (true === isset($data['density'])) {
             $this->density = Density::tryFrom($data['density']) ?? $this->density;
+        }
+
+        if (true === isset($data['motion'])) {
+            $this->motion = MotionLevel::tryFrom((string) $data['motion']) ?? $this->motion;
         }
 
         if (true === isset($data['backgroundKind'])) {

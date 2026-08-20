@@ -443,6 +443,59 @@
                 </select>
             </section>
 
+            {# ── Motion ────────────────────────────────────────────────────
+               Three steps rather than a checkbox, because the two complaints
+               about animation are separate dials: things appearing out of
+               nowhere with nothing to say they arrived, and waiting for the
+               interface to finish talking before you may use it. Minimal fades
+               without moving anything, which answers the first and costs
+               nothing against the second.
+
+               The tier travels on the radio as `data-motion-value` for the same
+               reason every density scale does: the live switch has to land
+               exactly where a reload would, and the enum is the one place the
+               values live. See App\Domain\Enum\Theme\MotionLevel. #}
+            <section>
+                <div class="mb-4">
+                    {# The heading IS the group's accessible name — pointed at
+                       rather than repeated. An `sr-only` span inside the
+                       radiogroup would say the same word twice to a screen
+                       reader, and it is also 1px-clipped by definition, which
+                       preview-pane.spec.ts reads as 53px of overflow when it
+                       checks that nothing in the controls column is cut off. #}
+                    <h3 class="text-sm font-semibold text-ink" id="motion-label">{{ 'settings.appearance.motion.heading'|trans }}</h3>
+                    <p class="text-xs text-ink-faint mt-0.5">{{ 'settings.appearance.motion.subheading'|trans }}</p>
+                </div>
+
+                <div class="{{ segGroup }}" role="radiogroup" aria-labelledby="motion-label">
+                    {% for motion in enum('App\\Domain\\Enum\\Theme\\MotionLevel').cases %}
+                        <label class="cursor-pointer">
+                            <input type="radio" name="motion" class="peer sr-only"
+                                   value="{{ motion.value }}"
+                                   data-settings--appearance-field="motion"
+                                   data-motion-value="{{ motion.value }}"
+                                   data-motion-fast="{{ motion.fast }}"
+                                   data-motion-base="{{ motion.base }}"
+                                   data-motion-slow="{{ motion.slow }}"
+                                   data-motion-lift="{{ motion.lift }}"
+                                   data-motion-scale="{{ motion.scaleFrom }}"
+                                   data-motion-stagger="{{ motion.stagger }}"
+                                   data-action="change->settings--appearance#pickMotion"
+                                   aria-label="{{ ('settings.appearance.motion.' ~ motion.value)|trans }}"
+                                {{ a.motion == motion ? 'checked' : '' }}>
+                            <span class="{{ segText }}">
+                                {{ ('settings.appearance.motion.' ~ motion.value)|trans }}
+                            </span>
+                        </label>
+                    {% endfor %}
+                </div>
+
+                {# Said once, here, because it is the only place somebody would
+                   look for it and be confused not to find it: the setting is
+                   overruled by the operating system, not merged with it. #}
+                <p class="text-xs text-ink-faint mt-2">{{ 'settings.appearance.motion.reduced'|trans }}</p>
+            </section>
+
             {# ── Density ───────────────────────────────────────────────── #}
             <section>
                 <div class="mb-4">

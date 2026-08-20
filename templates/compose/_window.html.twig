@@ -123,6 +123,25 @@ Variables: form, message, ctx (an App\Domain\DTO\Mail\ComposeContext)
             data-compose--compose-send-url-value="{{ path('app_compose_mail_send_draft', params|merge({'id': message.id})) }}"
             data-compose--compose-schedule-url-value="{{ path('app_compose_mail_schedule_draft', params|merge({'id': message.id})) }}"
         {% endif %}
+         {# ── The window arriving ──────────────────────────────────
+            In the dock, at the foot of a thread, or back again after a
+            cancelled send — every one of those inserts this element into a
+            page that painted long ago, which is what motion.js is for.
+
+            FADE, not the `pop` motion.css reserves for window-sized things,
+            and the departure is deliberate. Below md this element IS the
+            screen (see the max-md rules just below), so scaling it from 0.985
+            draws a hairline of the mail list around all four edges for a
+            quarter of a second — the window reads as peeling off the viewport
+            rather than as arriving in it. A transform here is also inherited
+            by everything inside the window while it runs, including the caret
+            the user is already typing into and every box the mobile specs
+            measure against the viewport.
+
+            It does not gate anything: opacity is composited, connect() moves
+            focus on the same frame it always did, and the window takes
+            keystrokes for the whole 180ms. #}
+         data-enter="fade"
          class="compose-window flex flex-col
        {% if inline %}
        w-full rounded-pane border border-line bg-surface shadow-sm mt-3
@@ -337,7 +356,14 @@ Variables: form, message, ctx (an App\Domain\DTO\Mail\ComposeContext)
                     </button>
                 </div>
 
+                {# Comes down out of the row above it, which is where it is
+                   anchored (`top-full`). The `hidden` class is display, and a
+                   CSS animation starts afresh every time an element stops being
+                   display:none — so this replays on each open with no
+                   JavaScript, and never fires on window open, where it is
+                   folded away. #}
                 <div data-compose--compose-target="fromDropdown"
+                     data-enter="slide-down"
                      class="hidden absolute left-4 right-4 top-full z-20 rounded-pane overflow-hidden
                             bg-pane-soft
                             backdrop-blur-sm
@@ -465,7 +491,12 @@ Variables: form, message, ctx (an App\Domain\DTO\Mail\ComposeContext)
 
             {# ── Attachments ──────────────────────────────────────── #}
             <div data-compose--compose-target="attachments" class="shrink-0">
-                {{ include('compose/_attachments.html.twig', { message: message }) }}
+                {# `live: false` — the chips are already part of the window
+                   that is arriving, and animating them here would play a
+                   staggered entrance inside an element playing its own. The
+                   strip animates when it is REPLACED, which is the case worth
+                   marking; see the partial. #}
+                {{ include('compose/_attachments.html.twig', { message: message, live: false }) }}
             </div>
 
             {# ── Toolbar ──────────────────────────────────────────── #}
@@ -492,10 +523,16 @@ Variables: form, message, ctx (an App\Domain\DTO\Mail\ComposeContext)
                    hosts disagree about: here it is anchored to the toolbar
                    BLOCK, which spans the window — the link button itself sits
                    in a row that wraps, and a popover anchored to it would hang
-                   off whichever edge the button wrapped to. #}
+                   off whichever edge the button wrapped to.
+
+                   `enter: 'rise'` for the same reason it is anchored upwards:
+                   the popover should travel away from the toolbar it is pinned
+                   above. The signature editor pins it the other way up and takes
+                   the partial's direction-neutral default. #}
                 {{ include('compose/_link_popover.html.twig', {
                     id:    form.vars.id,
                     class: 'absolute bottom-full mb-2 left-2 right-2 md:left-auto md:right-3 md:w-80',
+                    enter: 'rise',
                 }, with_context = false) }}
 
                 {# ── Plain-text warning ───────────────────────────────
@@ -506,7 +543,12 @@ Variables: form, message, ctx (an App\Domain\DTO\Mail\ComposeContext)
                    _setPlainText) — but a native dialog is the one thing in this
                    window the theme never reached, and on a phone it is a
                    system sheet over an app that was mid-sentence. #}
+                {# Rises out of the toolbar it is pinned above, because this
+                   panel is the whole answer to pressing "Plain text": with
+                   nothing to say it arrived, a question simply is there over
+                   the message, connected to no button anybody pressed. #}
                 <div data-compose--compose-target="plainWarning" hidden
+                     data-enter="rise"
                      role="alertdialog"
                      aria-labelledby="{{ form.vars.id }}_plain_warning_title"
                      aria-describedby="{{ form.vars.id }}_plain_warning_body"
@@ -551,7 +593,11 @@ Variables: form, message, ctx (an App\Domain\DTO\Mail\ComposeContext)
                    second dialog appeared after the first had been dismissed with
                    no way back. The reasons are listed together and answered
                    once. #}
+                {# Same entrance and same reason as the panel above, at a worse
+                   moment: the user has just pressed Send and the mail did not
+                   go, so this panel is the only thing that happened. #}
                 <div data-compose--compose-target="sendWarning" hidden
+                     data-enter="rise"
                      role="alertdialog"
                      aria-labelledby="{{ form.vars.id }}_send_warning_title"
                      aria-describedby="{{ form.vars.id }}_send_warning_body"
@@ -830,7 +876,16 @@ Variables: form, message, ctx (an App\Domain\DTO\Mail\ComposeContext)
                            window minus the 8px gutter the phone version used to
                            set with left-2/right-2; `.emoji-panel`'s max-width
                            caps it at 22rem above md and releases it below. #}
+                        {# FADE, where every other menu in this bar rises, and the
+                           exception is load-bearing: compose--emoji-picker
+                           measures this panel's own bottom edge against the
+                           window's top on the frame after it opens, to work out
+                           the height cap. A 6px travel is 6px of extra room in
+                           that sum, and the panel would be capped to overhang
+                           the window it belongs to — the exact bug _fitToWindow
+                           exists to fix. Opacity is measured by nobody. #}
                         <div data-ui--dropdown-target="menu" hidden
+                             data-enter="fade"
                              data-compose--emoji-picker-target="panel"
                              class="emoji-panel absolute bottom-full mb-2
                                     left-1/2 -translate-x-1/2 w-[calc(100%-1rem)]
@@ -931,8 +986,16 @@ Variables: form, message, ctx (an App\Domain\DTO\Mail\ComposeContext)
                            left-2/right-2 the link popover uses, anchored to the
                            toolbar block, is on screen at every width without
                            leaving the flow. compose-mobile.spec.ts measures the
-                           box against the viewport at 393px and at 320px. #}
+                           box against the viewport at 393px and at 320px.
+
+                           `rise`, not the `slide-down` ui--dropdown gives a menu
+                           that does not name its own: this one is pinned
+                           `bottom-full` and comes UP out of the action bar, and
+                           a menu sliding down into the button that opened it
+                           reads as the wrong thing arriving. Same for the
+                           service picker below. #}
                         <div data-ui--dropdown-target="menu" hidden
+                             data-enter="rise"
                              class="absolute bottom-full mb-2 left-2 right-2
                                     md:left-auto md:right-3 md:w-64 z-30 popover py-1">
 
@@ -1013,6 +1076,7 @@ Variables: form, message, ctx (an App\Domain\DTO\Mail\ComposeContext)
                                button is in the wrapping row too, and a menu
                                anchored to it lands wherever the row wrapped. #}
                             <div data-ui--dropdown-target="menu" hidden
+                                 data-enter="rise"
                                  class="absolute bottom-full mb-2 left-2 right-2
                                         md:left-auto md:right-3 md:w-64 z-30 popover py-1">
                                 {% for integration in pickerIntegrations %}

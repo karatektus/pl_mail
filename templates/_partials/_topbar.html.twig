@@ -106,8 +106,23 @@
            button, and a button inside a listbox is a control a keyboard user
            can reach and then cannot use, since the arrow keys belong to the
            options. #}
+        {# The popup arrives; its ROWS do not.
+
+           This is the one surface in the chrome where an entrance had to be
+           argued down rather than up. The rows in here are replaced on every
+           keystroke — see _search_suggestions.html.twig, which is re-inserted
+           whole for each character — and they are largely the SAME rows each
+           time, reordered. Animating them would mean a list that flickers under
+           somebody who is only still typing, at the exact moment they are
+           reading it to decide whether to stop. So the entrance is on the popup,
+           which appears exactly once per search, and there is deliberately no
+           `data-enter` on anything inside it.
+
+           No exit either: this closes on Escape, on a pick and on a click
+           elsewhere, and all three are somebody saying "go away". #}
         <div
             data-mail--search-target="dropdown"
+            data-enter="slide-down"
             class="hidden absolute left-0 right-0 top-full mt-1 z-50
                    bg-surface
                    border border-line
@@ -380,7 +395,11 @@
                       aria-hidden="true">{{ attention.count }}</span>
             {% endif %}
 
-            <div id="user-menu" data-ui--user-menu-target="menu"  class="hidden absolute right-0 mt-2 w-56 bg-surface border border-line rounded-pane shadow-lg py-1 z-[200]">
+            {# The same entrance every other menu in the app gets, spelt out here
+               because this one predates ui--dropdown and has its own controller.
+               Safe on markup that is in the page from first paint: it is
+               `hidden`, so the animation cannot run until the menu is shown. #}
+            <div id="user-menu" data-enter="slide-down" data-ui--user-menu-target="menu"  class="hidden absolute right-0 mt-2 w-56 bg-surface border border-line rounded-pane shadow-lg py-1 z-[200]">
                 <div class="px-4 py-2.5 border-b border-line">
                     {% set displayName = (app.user.nameFirst ~ ' ' ~ app.user.nameLast)|trim %}
                     {% if displayName is not empty %}

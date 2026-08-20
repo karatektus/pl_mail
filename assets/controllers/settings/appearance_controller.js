@@ -545,6 +545,31 @@ export default class extends Controller {
         this.queue();
     }
 
+    /**
+     * Switch how much the interface moves, on the spot.
+     *
+     * Writes the tier AND the tokens, which looks redundant and is not. The
+     * attribute is what motion.css keys its own token block off and what
+     * motion.js reads to decide whether to bother observing at all; the inline
+     * custom properties are what AppearanceRenderer writes on a page load, and
+     * they beat the stylesheet. Setting only the attribute would leave the old
+     * tier's inline values winning and nothing would appear to change.
+     */
+    pickMotion(event) {
+        const radio = event.currentTarget;
+
+        this.root.dataset.motion = radio.dataset.motionValue;
+
+        this.root.style.setProperty('--motion-fast', radio.dataset.motionFast);
+        this.root.style.setProperty('--motion-base', radio.dataset.motionBase);
+        this.root.style.setProperty('--motion-slow', radio.dataset.motionSlow);
+        this.root.style.setProperty('--motion-lift', radio.dataset.motionLift);
+        this.root.style.setProperty('--motion-scale', radio.dataset.motionScale);
+        this.root.style.setProperty('--motion-stagger', radio.dataset.motionStagger);
+
+        this.queue();
+    }
+
     pickDensity(event) {
         const rowY = event.currentTarget.dataset.rowY;
         const gap = event.currentTarget.dataset.gap;

@@ -35,16 +35,46 @@ around it.
 
 `isPane` survives as context rather than as a branch here: _view_month reads it
 to keep its "N more" link inside the pane's frame.
+
+── The calendar's entrance, and why it is here and nowhere below ─────────────
+
+`data-enter="fade"` on the wrapper, so that changing the date or the view
+crossfades the grid instead of cutting to it. Paging a week and switching
+day/week/month are the two things people do repeatedly in here, and a hard cut
+between two grids that look almost alike is the case animation is actually for:
+the eye cannot tell "this redrew" from "this never changed" without it.
+
+**On the WRAPPER, and never on what is inside it.** One element fading is one
+gesture at one duration however many events are on screen — the alternative,
+marking every chip or every month cell, is forty-two animations on a month and
+a list that assembles itself while somebody is already reaching for the tenth
+switch of the afternoon. It also keeps every entrance off the time-grid's
+positioned blocks, which is not a stylistic preference: calendar--time-grid
+writes `style.transform` and `style.height` on a block during a drag and reads
+its geometry back with getBoundingClientRect(), and a CSS animation on that
+element wins over the inline transform in the cascade — the block would lag the
+pointer and the controller would measure a half-finished frame. Opacity on an
+ancestor changes no box and no transform, so the drag cannot see this at all.
+
+**fade, not rise.** A grid that slid into place would move every hour line and
+every block a few pixels on every navigation, over a view whose whole job is
+that a thing is drawn exactly where it is. Nothing here should appear to be at
+07:14 for a sixth of a second.
+
+Deliberately NOT in the three shells. _month_shell, _agenda_shell and
+_time_grid_shell are rendered by the public shared-calendar page too, and that
+page's layout writes no `data-motion` — it would take the Full-tier fallbacks
+whatever the reader asked for. Motion opts in from the caller that has a tier.
 #}
 
 {% set days = range.days %}
 
 {% if view.isTimeGrid %}
-    <div class="flex-1 min-h-0 flex flex-col" data-controller="calendar--grid">
+    <div class="flex-1 min-h-0 flex flex-col" data-controller="calendar--grid" data-enter="fade">
         {% include 'calendar/_view_timegrid.html.twig' %}
     </div>
 {% else %}
-    <div class="flex-1 min-h-0 overflow-y-auto" data-controller="calendar--grid">
+    <div class="flex-1 min-h-0 overflow-y-auto" data-controller="calendar--grid" data-enter="fade">
         {% if view.value == 'month' %}
             {% include 'calendar/_view_month.html.twig' %}
         {% else %}

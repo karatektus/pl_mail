@@ -1,4 +1,5 @@
 import { Controller } from "@hotwired/stimulus"
+import { leave } from "../../motion.js"
 
 /**
  * Modal controller
@@ -40,6 +41,20 @@ let pristineFrame = null
  */
 let returnFocusTo = null
 let pendingFocus = null
+
+/**
+ * Which close the pending exit animation belongs to.
+ *
+ * The dialog is on screen for the length of its fade-out, and it can be
+ * REOPENED during it — click a chip, press Escape, click the next chip is an
+ * ordinary sequence at speed. Without a token the first close's callback would
+ * land a moment later and hide the dialog somebody had just opened, and the
+ * only trace would be a modal that occasionally refuses to appear.
+ *
+ * Module-level for the same reason returnFocusTo is: the instance that opens
+ * the dialog is almost never the instance that closes it.
+ */
+let closeToken = 0
 
 export default class extends Controller {
     static values = {
@@ -106,7 +121,13 @@ export default class extends Controller {
         // open() is also called from other controllers with no event at all.
         returnFocusTo = event?.currentTarget ?? document.activeElement
 
-        // Show the modal
+        // Show the modal. Any exit still playing is abandoned here — both its
+        // callback (via the token) and the attribute that would otherwise hold
+        // the freshly opened panel at the end of a fade-out, since the leave
+        // animation fills forwards.
+        closeToken++
+        dialog.removeAttribute("data-leaving")
+        dialog.removeAttribute("inert")
         dialog.removeAttribute("hidden")
         document.body.classList.add("overflow-hidden")
         document.addEventListener("keydown", this._onKeydown)
@@ -122,8 +143,14 @@ export default class extends Controller {
 
         if (!dialog) return
 
-        dialog.setAttribute("hidden", "")
-        document.body.classList.remove("overflow-hidden")
+        // Nothing to close, or a close already under way. Without this a second
+        // Escape during the fade-out would start a second exit — and, once the
+        // dialog is hidden, an exit on a display:none element, which never
+        // fires `animationend` and would sit on the 400ms safety net.
+        if (dialog.hasAttribute("hidden") || dialog.hasAttribute("data-leaving")) {
+            return
+        }
+
         document.removeEventListener("keydown", this._onKeydown)
 
         // A dialog that opened while this one was still waiting for its content
@@ -131,10 +158,32 @@ export default class extends Controller {
         pendingFocus?.disconnect()
         pendingFocus = null
 
-        // Back where it came from. Without this the keyboard is left on <body>
-        // and the next Tab starts at the top of the page — for a user who
-        // pressed Escape on a dialog they opened from a chip halfway down a
-        // month grid, that is the whole grid to walk back down.
+        // `inert` before anything else, because a dialog that is leaving must
+        // not be able to take the keyboard back — and one of them tried.
+        //
+        // The exit animation is the reason this is needed at all. Closing used
+        // to hide the dialog in the same tick, and `display: none` makes a
+        // focus() call on anything inside it a silent no-op; now the panel is
+        // still on screen for the length of a fade, and anything that focuses
+        // into it during those milliseconds succeeds. Turbo does exactly that:
+        // a frame render calls focusFirstAutofocusableElement(), the event
+        // editor's title field carries `autofocus`, and a render landing just
+        // after Escape pulled the keyboard off the trigger and into a dialog
+        // the user had already dismissed — then onto <body> when the frame was
+        // cleared a moment later. The calendar's "returns focus to the trigger
+        // on close" test is what caught it.
+        //
+        // `inert` is the keyboard half of what [data-leaving] already does with
+        // pointer-events: this thing is on its way out, and it is not a target
+        // for anything any more.
+        dialog.setAttribute("inert", "")
+
+        // Back where it came from, NOW — never behind the animation. Without
+        // this the keyboard is left on <body> and the next Tab starts at the
+        // top of the page; delayed by a fade, it would be worse than either,
+        // because the keystroke someone types in that gap goes to the wrong
+        // place. The dialog is `pointer-events: none` while it leaves, so
+        // focusing something behind it is safe.
         //
         // Skipped when the trigger has left the document, which is the ordinary
         // case after a successful save: the page behind has been replaced, and
@@ -143,26 +192,67 @@ export default class extends Controller {
             returnFocusTo.focus()
         }
 
+        // Kept for the length of the exit, for the guard in finish() below.
+        const restoreTo = returnFocusTo
+
         returnFocusTo = null
-
-        // Clear the frame so the next open always fetches fresh — and put the
-        // spinner back, because clearing only the src left the CLOSED dialog's
-        // form sitting in the frame. The next open then showed the previous
-        // dialog until its own fetch landed, and anything typed into that
-        // window was thrown away when the real form replaced it: an edit form
-        // opened straight after a create one is pre-filled and looks live, so
-        // the typing goes somewhere convincing and then silently does not
-        // save.
-        if (frame) {
-            frame.src = ""
-
-            if (pristineFrame !== null) frame.innerHTML = pristineFrame
-        }
 
         // Announced on document, not on this.element: whoever cares about a
         // dialog closing is rarely inside the dialog. The onboarding wizard
         // treats a close as "finished", since it only ever opens by itself once.
+        // Dispatched immediately too — a dialog that has been dismissed has
+        // been dismissed, whatever its pixels are still doing.
         this.dispatch("closed", { target: document })
+
+        const token = ++closeToken
+
+        // The one exit animation in the shared chrome besides the toast. A
+        // dialog is most of the screen and its backdrop is all of it, so
+        // removing both between two frames is the jump cut at its largest —
+        // this is exactly the case motion.css keeps `leave()` for.
+        leave(dialog, () => {
+            // Reopened while this one was fading. Everything below belongs to a
+            // dialog that is now on screen again, and doing it would empty it.
+            if (token !== closeToken) return
+
+            dialog.removeAttribute("data-leaving")
+            dialog.removeAttribute("inert")
+            dialog.setAttribute("hidden", "")
+
+            // Held until the end on purpose: releasing the scroll lock returns
+            // the page's scrollbar, and doing that under a backdrop that is
+            // still visible shifts the whole page sideways while it fades.
+            document.body.classList.remove("overflow-hidden")
+
+            // Clear the frame so the next open always fetches fresh — and put
+            // the spinner back, because clearing only the src left the CLOSED
+            // dialog's form sitting in the frame. The next open then showed the
+            // previous dialog until its own fetch landed, and anything typed
+            // into that window was thrown away when the real form replaced it:
+            // an edit form opened straight after a create one is pre-filled and
+            // looks live, so the typing goes somewhere convincing and then
+            // silently does not save.
+            //
+            // Also the reason this waits for the animation rather than running
+            // with the rest: swapping the form back to the spinner while the
+            // dialog is still on screen would show a spinner flashing inside a
+            // dialog that is closing.
+            if (frame) {
+                frame.src = ""
+
+                if (pristineFrame !== null) frame.innerHTML = pristineFrame
+            }
+
+            // Belt and braces. `inert` stops the dialog taking focus, but the
+            // line above DELETES whatever is in the frame, and if anything at
+            // all still held the keyboard in there the browser drops it on
+            // <body> — where the next Tab starts at the top of the document.
+            // Only ever a correction, never the mechanism: the focus call that
+            // matters happened before the animation, above.
+            if (document.body === document.activeElement && true === restoreTo?.isConnected) {
+                restoreTo.focus()
+            }
+        })
     }
 
     /**

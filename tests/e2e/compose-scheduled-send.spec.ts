@@ -1,5 +1,7 @@
-import { test, expect, type Page } from "./support/test";
+import { test, expect, type Locator, type Page } from "./support/test";
 import { seed } from "./support/config";
+// Aliased: this spec already has a `settled` for a single locator.
+import { settled as nothingMoving } from "./support/motion";
 
 /**
  * Send later, from the send pill's chevron.
@@ -84,6 +86,27 @@ async function openSendOptions(page: Page, placement: "bar" | "header" = "bar") 
     await expect(menu(page, placement)).toBeVisible();
 
     return menu(page, placement);
+}
+
+/**
+ * Wait for a thing that has just been shown to stop moving.
+ *
+ * Every menu in the app plays an entrance now (assets/styles/motion.css), and
+ * the boxes measured below are about where a menu comes to REST: which side of
+ * the pill it opens on, and whether it fits the phone. Measured mid-flight the
+ * header menu is still the six pixels above its anchor that `slide-down` starts
+ * it at, and the spec fails describing an animation rather than the layout it
+ * is actually about.
+ *
+ * `getAnimations()` rather than a wait: it resolves within the frame when there
+ * is nothing running, which is every tier but Full and anyone with reduced
+ * motion switched on — so this costs nothing where there is nothing to wait
+ * for, and never guesses a duration.
+ */
+async function settled(locator: Locator) {
+    await locator.evaluate((element) =>
+        Promise.all(element.getAnimations().map((animation) => animation.finished)),
+    );
 }
 
 test.describe("scheduled send", () => {
@@ -527,6 +550,7 @@ test.describe("scheduled send on a phone", () => {
             const options = menu(page, "header");
 
             await expect(options).toBeVisible();
+            await settled(options);
 
             const box = (await options.boundingBox())!;
 
@@ -632,6 +656,10 @@ test.describe("scheduled send on a phone", () => {
 
         await expect(badge).toBeVisible();
         await expect(cancel).toBeVisible();
+
+        // Measured at rest. Mid-entrance a badge reports a negative x for
+        // something that fits perfectly well once it has stopped moving.
+        await nothingMoving(page);
 
         const badgeBox = await badge.boundingBox();
         const cancelBox = await cancel.boundingBox();

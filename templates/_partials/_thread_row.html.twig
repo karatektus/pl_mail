@@ -149,7 +149,38 @@ Threads only. A bare Message row is a message, and only a conversation arrives.
     {% set rowId = item.id %}
 {% endif %}
 
+{# `data-enter-NEW`, not `data-enter`, and the difference is the whole reason
+   this can exist at all.
+
+   A row is not automatically an arrival. This template is re-rendered for mail
+   that has been on screen for an hour every time somebody stars it, archives it
+   or snoozes it — the turbo-streams under thread/status/ hand the page a brand
+   new node carrying the same mail. An entrance keyed on the NODE would fire
+   every time, and a list that shimmers at rest is unreadable.
+
+   The list's own sync refresh used to be the worst of these and no longer is:
+   mail--mail-pane#_morphRows morphs the rows region rather than assigning over
+   it, so a row that survives a sync keeps its node. What remains is everything
+   that legitimately rebuilds one row, which is what the id rule below is for.
+
+   What tells the two apart is the id: `thread_1234` is the same conversation
+   whoever rendered it. motion.js animates an element the first time it sees a
+   given id and never again, so this plays for mail that has actually just
+   arrived and stays silent through every redraw of mail that has not.
+
+   It has to be a separate attribute because a CSS animation starts the instant
+   an element carrying one is inserted — before any observer can object. A row
+   that might not deserve an entrance must therefore arrive with no animation
+   attached, and be given one only once its id has proved to be new. That is
+   what motion.js does with this attribute, and it is why the stylesheet knows
+   nothing about it.
+
+   Arriving as part of a whole new list — a folder change, a search, the next
+   page — is silent too: those rows are new ids, but they come inside the <ul>
+   playing its own fade, and motion.js suppresses a child whose ancestor is
+   announcing it. One arrival, one gesture. #}
 <li
+    data-enter-new="slide-down"
     id="thread_{{ rowId }}"
     class="group relative hover:shadow-sm"
     data-controller="mail--message-row"

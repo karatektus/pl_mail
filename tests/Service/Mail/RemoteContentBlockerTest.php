@@ -44,8 +44,101 @@ final class RemoteContentBlockerTest extends TestCase
 
         self::assertSame(1, $result->blocked);
         self::assertStringNotContainsString('tracker.example/pixel.gif', $result->html);
-        self::assertStringContainsString('data:image/gif;base64,', $result->html);
+        self::assertStringContainsString('src="data:image/', $result->html);
         self::assertStringContainsString('data-plmail-blocked="1"', $result->html);
+    }
+
+    /**
+     * The placeholder is shaped like the image it stands in for, and this is
+     * the case that made it necessary.
+     *
+     * The reading frame styles images `height: auto`, so the rendered height is
+     * computed from the placeholder's own intrinsic ratio — CSS beats the
+     * `height` attribute, which is only a presentational hint. With a 1×1 GIF
+     * standing in for everything, that ratio was always 1:1, and a banner
+     * declared six hundred wide and eighty tall was drawn six hundred tall. A
+     * square. On a newsletter that is several screens of hatching.
+     *
+     * An SVG with a viewBox and no dimensions has a ratio and no size, which is
+     * exactly and only what is wanted here.
+     */
+    public function testTheBlockedBoxKeepsTheShapeTheSenderDeclared(): void
+    {
+        $result = $this->blocker->rewrite(
+            '<img src="https://cdn.example/banner.png" width="600" height="80">',
+            false,
+        );
+
+        self::assertStringContainsString('viewBox="0 0 600 80"', self::placeholderIn($result->html));
+        self::assertStringContainsString('data-plmail-box="1"', $result->html);
+    }
+
+    /** An inline style is the more specific statement and is taken over the attribute. */
+    public function testAnInlineStyleOutranksTheAttributeForTheShape(): void
+    {
+        $result = $this->blocker->rewrite(
+            '<img src="https://cdn.example/b.png" width="600" height="80" style="width:300px;height:100px">',
+            false,
+        );
+
+        self::assertStringContainsString('viewBox="0 0 300 100"', self::placeholderIn($result->html));
+    }
+
+    /**
+     * Half a shape is not a shape.
+     *
+     * Nothing here can know what a 600px-wide image is supposed to be tall, and
+     * inventing a number would put a made-up box on somebody's screen. It gets
+     * the blank placeholder and no `data-plmail-box`, which is what the
+     * stylesheet's "never taller than this" backstop keys off.
+     */
+    public function testAnImageWithOnlyAWidthIsNotShaped(): void
+    {
+        $result = $this->blocker->rewrite(
+            '<img src="https://cdn.example/b.png" width="600">',
+            false,
+        );
+
+        self::assertStringContainsString('data:image/gif;base64,', $result->html);
+        self::assertStringNotContainsString('data-plmail-box', $result->html);
+    }
+
+    /**
+     * A ratio needs two numbers in the same unit. "Half the width, eighty
+     * pixels tall" is two facts about different things.
+     */
+    public function testPercentagesDoNotMakeAShape(): void
+    {
+        $result = $this->blocker->rewrite(
+            '<img src="https://cdn.example/b.png" width="50%" height="80">',
+            false,
+        );
+
+        self::assertStringContainsString('data:image/gif;base64,', $result->html);
+        self::assertStringNotContainsString('data-plmail-box', $result->html);
+    }
+
+    /** The numbers reach a viewBox, so their magnitude is not the sender's to choose. */
+    public function testAnAbsurdDimensionIsRefusedRatherThanEmbedded(): void
+    {
+        $result = $this->blocker->rewrite(
+            '<img src="https://cdn.example/b.png" width="99999999" height="80">',
+            false,
+        );
+
+        self::assertStringNotContainsString('data-plmail-box', $result->html);
+    }
+
+    /** The decoded placeholder, for asserting on what is actually in it. */
+    private static function placeholderIn(string $html): string
+    {
+        self::assertSame(
+            1,
+            preg_match('/src="data:image\/svg\+xml;base64,([^"]+)"/', $html, $found),
+            'no shaped placeholder in: '.$html,
+        );
+
+        return base64_decode($found[1], true) ?: '';
     }
 
     /**

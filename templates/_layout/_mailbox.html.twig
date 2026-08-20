@@ -207,9 +207,31 @@ which of the two is happening.
            a direct child of the frame's flex column. #}
         <div data-list-region="tabs" class="contents">{% block inbox_tabs %}{% endblock %}</div>
 
-        {# The rows are a region too. A refresh replaces them and puts the
-           selection back by thread id — see mail--mail-pane#_swapRegions. #}
-        <ul data-list-region="rows" class="flex-1 overflow-y-auto divide-y divide-line">
+        {# The rows are a region too. A refresh brings them up to date by
+           morphing rather than replacing — see mail--mail-pane#_morphRows.
+
+           `data-enter-children`, not `data-enter`: the whole-list gesture is
+           the ROWS arriving, not this element. A list that fades as one block
+           tells you a grey rectangle changed; fifty rows dropping in, each one
+           a frame behind the one above it, tells you what changed. motion.js
+           gives each row the entrance named here and marks it as spoken for, so
+           the entrance the row carries for itself — the long drop that means
+           one new mail, see _partials/_thread_row.html.twig — cannot fire on
+           top. Same direction as that one, and nothing else in common: this is
+           30ms a row, and what is seen is the cascade rather than the fall.
+
+           This element is only ever FILLED by a refresh, never replaced, so it
+           fires on exactly the thing it should mean: a genuinely different list
+           arriving, from the sidebar, a category tab, the next page or a search.
+
+           The stagger is capped in CSS at eight rows and that cap is doing real
+           work here. Fifty rows at 16ms would be four fifths of a second before
+           the last one was legible; capped, a list of fifty and a list of six
+           both finish in about 150ms and read as one cascade. #}
+        <ul data-list-region="rows"
+            data-enter-children="slide-down"
+            data-enter-stagger
+            class="flex-1 overflow-y-auto divide-y divide-line">
             {% block message_list %}{% endblock %}
         </ul>
 

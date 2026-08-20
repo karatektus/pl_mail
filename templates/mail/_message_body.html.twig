@@ -99,6 +99,21 @@ Variables:
         outline: 1px dashed #a1a1aa;
         outline-offset: -1px;
     }
+    /* Two ceilings, because a placeholder's job is to say an image was here,
+       not to reserve every pixel of one.
+
+       The generous one applies to a box we shaped from the sender's own
+       numbers: those are honest, and the only thing wrong with an honest
+       1200px box is that it is 1200px of hatching. It can grow to a screenful
+       and no further. The cost is a jump when such an image is un-blocked,
+       paid only by images already too tall to take in at once.
+
+       The tight one is for an image whose shape nobody declared. `height:auto`
+       needs an intrinsic ratio to compute from and the blank placeholder's is
+       1:1, so a width and no height makes a square — 600px of hatching for a
+       banner. There is nothing to be faithful to there, so it stays small. */
+    img[data-plmail-blocked] { max-height: 24rem; }
+    img[data-plmail-blocked]:not([data-plmail-box]) { max-height: 8rem; }
 </style>
 </head><body>
 {{ render.content.html|raw }}
@@ -190,6 +205,12 @@ Variables:
                 img.src = img.getAttribute("data-plmail-src");
                 img.removeAttribute("data-plmail-src");
                 img.removeAttribute("data-plmail-blocked");
+                // The shaped placeholder has done its job; the real image
+                // brings its own ratio. Left behind, this attribute is inert —
+                // every rule that reads it is scoped to data-plmail-blocked,
+                // which has just gone — but a stale claim about a box is the
+                // kind of thing that is true until somebody writes one rule.
+                img.removeAttribute("data-plmail-box");
             });
             document.querySelectorAll("[data-plmail-style]").forEach(function (element) {
                 element.setAttribute("style", element.getAttribute("data-plmail-style"));

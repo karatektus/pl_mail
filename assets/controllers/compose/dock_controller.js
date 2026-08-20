@@ -77,6 +77,13 @@ export default class extends Controller {
 
         const card = document.createElement('div');
         card.setAttribute('role', 'alert');
+        // The same entrance the window it stands in for would have played.
+        // This card is the answer to a click that otherwise did nothing at all,
+        // which is the failure this whole controller exists for — appearing
+        // without a sound is how it got missed in the first place. Set as an
+        // attribute rather than animated here because motion.css owns every
+        // duration in the app; the observer in motion.js picks it up on append.
+        card.setAttribute('data-enter', 'fade');
         card.className =
             'w-80 rounded-xl border border-line bg-surface shadow-lg px-4 py-3 ' +
             'text-sm text-ink flex items-start gap-3';

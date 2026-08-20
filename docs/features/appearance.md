@@ -91,6 +91,54 @@ you set here, because a size chosen in the compose window is per-message *format
 into the message's HTML and goes out to the recipient. Someone writing a message needs to see what
 they are sending, not what they set on this page.
 
+## Motion
+
+**Motion** is **Full**, **Minimal** or **None**, and it decides how much the interface moves when
+something appears — a message arriving in the list, the compose window opening, a menu dropping down.
+
+- **Full** — things arrive from somewhere and settle. Almost everything is done inside a quarter of
+  a second. The mail list is the exception, twice over, and the two sections below are about that.
+- **Minimal** — the same cues, as a fade, with nothing moving and nothing displaced. Slightly faster
+  than Full, because without travel there is less for the eye to follow and the same duration starts
+  to read as a lag.
+- **None** — exactly what plMail did before any of this existed.
+
+Opening a folder, running a search or turning a page is the other one, and it is the opposite shape.
+Each row drops into place in about two frames — far too fast to watch — but they do it one after
+another, so what you see is a cascade running down the list rather than any single row moving. The
+list itself does not animate: a grey rectangle fading tells you a rectangle changed. It is capped at
+eight rows, so a list of fifty and a list of six both finish in about a sixth of a second.
+
+### New mail is the exception
+
+One thing takes noticeably longer than everything else, and it is deliberate: a conversation that has
+genuinely just arrived drops into the list from above, the rows below it moving down to let it in.
+The whole gesture runs about eight hundred milliseconds — several times anything else in plMail.
+
+It is affordable because it is *rare*. The list is redrawn constantly, after every star, archive,
+bulk action and sync, and none of that plays this. Only mail that has never been on your screen
+before does, which on a normal mailbox is a handful of times an hour.
+
+At **Minimal** it collapses to the same short fade as everything else: no drop, no travel, no wait.
+
+### The one thing it costs
+
+New mail takes about half a second to land, and something moving can be reached for and missed. The
+row keeps its full width and stays on its own line the whole way, so clicking the middle of it does
+what it looks like it does — but the select box at the far left and the hover actions at the far
+right are travelling, and until it settles they are not quite where they will be.
+
+Nothing is ever frozen and no click is ever thrown away. It is simply possible, in that half second,
+to click a piece of empty list rather than the control on its way to that spot. Opening a folder does
+not have this problem: that one is over before a hand has moved.
+
+If it bothers you, the setting above is the answer, and it is why the setting exists: **Minimal**
+keeps the cues and removes every pixel of travel, and **None** removes the animation.
+
+**If your system asks for reduced motion, that wins** — whatever is set here, and without asking.
+Somebody who has told their operating system that movement makes them ill has not asked plMail for
+its opinion.
+
 ## Density, and giving a pane its own
 
 **Density** is **Comfortable**, **Cosy** or **Compact**, and it sets row height and spacing across

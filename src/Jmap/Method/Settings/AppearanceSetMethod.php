@@ -7,6 +7,7 @@ namespace App\Jmap\Method\Settings;
 use App\Domain\Enum\Theme\BackgroundKind;
 use App\Domain\Enum\Theme\BackgroundPreset;
 use App\Domain\Enum\Theme\Density;
+use App\Domain\Enum\Theme\MotionLevel;
 use App\Domain\Enum\Theme\FontFamily;
 use App\Domain\Enum\Theme\Layout;
 use App\Domain\Enum\Theme\Theme;
@@ -194,6 +195,7 @@ final class AppearanceSetMethod implements JmapMethod
                 'theme' => $this->requireEnum(Theme::class, $value, $property, false),
                 'layout' => $this->requireEnum(Layout::class, $value, $property, false),
                 'density' => $this->requireEnum(Density::class, $value, $property, false),
+                'motion' => $this->requireEnum(MotionLevel::class, $value, $property, false),
                 'backgroundKind' => $this->requireEnum(BackgroundKind::class, $value, $property, false),
                 'backgroundPreset' => $this->requireEnum(BackgroundPreset::class, $value, $property, true),
                 'accent' => $this->requireHex($value, $property, false),

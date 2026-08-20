@@ -24,11 +24,24 @@ anchors it above a toolbar block that spans the window and never scrolls (the
 button itself lives in a sideways scroller and would drag the popover off
 screen with it); the signature editor anchors it under its own small bar.
 
+The ENTRANCE is the caller's too, and for exactly the same reason as the
+positioning: a popover should travel away from the edge it is pinned to, and
+the two hosts pin it to opposite ones. The compose window hangs it above the
+toolbar and passes `rise`; the signature editor drops it under its own bar and
+takes the default, which is the direction-neutral fade rather than a guess that
+would be wrong half the time.
+
+Only the popover itself is marked. The two faces below toggle `hidden` as well,
+and marking them would play an entrance every time Change flips between them —
+which is one object changing what it says, not a second one arriving.
+
 Variables:
   id     string  unique suffix for the two field ids
   class  string  positioning and width classes for the popover box
+  enter  string  motion.css entrance name (default 'fade')
 #}
 <div data-compose--compose-toolbar-target="linkPopover" hidden
+     data-enter="{{ enter|default('fade') }}"
      role="dialog"
      aria-label="{{ 'compose.link.dialog'|trans }}"
      data-action="keydown->compose--compose-toolbar#linkKeydown"

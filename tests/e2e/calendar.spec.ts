@@ -134,8 +134,17 @@ test.describe("calendar", () => {
             }
 
             await submit(page, modal, "Delete");
-            await expect(chipsOf(page)).toHaveCount(0);
         }
+
+        // Asserted after the loop, not inside it. Inside, the first pass that
+        // left anything behind threw — out of the hook, past the two remaining
+        // attempts — so the retry the comment above describes never happened
+        // and the loop was decoration. Worse, the throw is attributed to the
+        // test whose hook it is, so a leak left by one case is reported as a
+        // failure of the case that just passed. That is a bad half-hour for
+        // whoever reads the report.
+        await page.goto("/calendar/agenda");
+        await expect(chipsOf(page), "cleanup left chips behind").toHaveCount(0);
     });
 
     test("creates an event and shows it in the week", async ({ page }) => {
