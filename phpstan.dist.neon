@@ -19,12 +19,31 @@ includes:
 parameters:
     level: 5
 
-    # The whole project, minus the exclusions below, rather than just src/ and
-    # tests/. bin/, config/ and public/ hold real PHP that can break the same
-    # way anything else does — config/bootstrap_generated_secrets.php is loaded
-    # into every process through composer's autoload.files.
+    # The whole project rather than just src/ and tests/: bin/, config/ and
+    # public/ hold real PHP that can break the same way anything else does —
+    # config/bootstrap_generated_secrets.php is loaded into every process
+    # through composer's autoload.files.
+    #
+    # Listed explicitly rather than as `./`, and that is not a style
+    # preference. PHPStan walks the tree with a RecursiveDirectoryIterator
+    # *before* it applies excludePaths, so a directory it cannot read is a hard
+    # crash rather than a skip — and no exclusion can prevent it, because the
+    # crash happens during enumeration. `.claude/worktrees` holds entire git
+    # worktrees of this repository (37 of them at the time of writing), several
+    # containing a root-owned `var/secrets` left by a container. With `./` the
+    # gate could not be run at all from a working checkout: it died on a
+    # directory belonging to a different checkout of itself.
+    #
+    # Everything with PHP in it is named below. A new top-level directory that
+    # holds code has to be added here, which is the cost of this; the previous
+    # arrangement's cost was that the command did not run.
     paths:
-        - ./
+        - bin
+        - config
+        - public
+        - src
+        - tests
+        - importmap.php
 
     excludePaths:
         analyseAndScan:
