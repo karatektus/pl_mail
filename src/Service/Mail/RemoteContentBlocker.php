@@ -37,11 +37,20 @@ use Psr\Log\LoggerInterface;
 final readonly class RemoteContentBlocker
 {
     /**
-     * A 1×1 transparent GIF. Blocked images keep their `width`/`height`
-     * attributes, so substituting real bytes rather than dropping `src` holds
-     * the sender's layout together and avoids a page of broken-image icons.
+     * A 1×1 transparent GIF, for a blocked image whose proportions nobody
+     * declared. Real bytes rather than a dropped `src`, so a catalogue reads as
+     * a page of neat boxes rather than a page of broken-image icons.
+     *
+     * Only for the unknown case, and that distinction was a bug for as long as
+     * this was the only placeholder. A 1×1 image has an intrinsic ratio of 1:1,
+     * the reading frame styles images `height: auto` so a wide table cannot
+     * force a scrollbar, and CSS beats the `height` ATTRIBUTE — so a banner
+     * declared `width="600" height="80"` was drawn six hundred pixels tall. A
+     * square. Every blocked image in a newsletter, several screens of hatching.
+     *
+     * @see placeholderFor() for what a declared image gets instead
      */
-    private const string PLACEHOLDER =
+    private const string BLANK =
         'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
 
     public function __construct(
@@ -127,7 +136,17 @@ final readonly class RemoteContentBlocker
                 continue;
             }
 
-            $img->setAttribute('src', self::PLACEHOLDER);
+            [$width, $height] = self::declaredSize($img);
+
+            $img->setAttribute('src', self::placeholderFor($width, $height));
+
+            // Says the box above is the sender's own, so the stylesheet knows
+            // not to apply its "never taller than this" backstop to it. See
+            // _message_body.html.twig.
+            if (null !== $width && null !== $height) {
+                $img->setAttribute('data-plmail-box', '1');
+            }
+
             // The proxy URL, not the sender's — so that un-blocking in the
             // browser cannot accidentally reintroduce a direct connection, no
             // matter what the client-side code does with this attribute.
@@ -142,6 +161,81 @@ final readonly class RemoteContentBlocker
         }
 
         return $touched;
+    }
+
+    /**
+     * A placeholder shaped like the image it stands in for.
+     *
+     * An SVG with a viewBox and no width or height has exactly one property
+     * worth having here: an intrinsic RATIO and no intrinsic size. So
+     * `height: auto` computes the sender's own height from the sender's own
+     * width, at whatever size the pane has room for, and the box is the box the
+     * mail asked for rather than a square.
+     *
+     * Base64 rather than percent-encoded: this goes into an attribute in a
+     * document assembled from a stranger's HTML, and base64 has no characters
+     * that can end one.
+     */
+    private static function placeholderFor(?int $width, ?int $height): string
+    {
+        if (null === $width || null === $height || $width < 1 || $height < 1) {
+            return self::BLANK;
+        }
+
+        return 'data:image/svg+xml;base64,'.base64_encode(
+            sprintf('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 %d %d"/>', $width, $height),
+        );
+    }
+
+    /**
+     * What the sender said this image measures, in pixels, or nulls.
+     *
+     * Attributes first because that is how mail is written — a `width="600"`
+     * on the `<img>` outlives every mail client that ever mangled a stylesheet.
+     * The inline style is consulted second and wins when present, being the
+     * more specific statement.
+     *
+     * Percentages and other units answer null on purpose. A ratio can only be
+     * built from two numbers in the SAME unit, and "50% wide, 80px tall" is not
+     * a shape, it is two facts about different things.
+     *
+     * @return array{0: ?int, 1: ?int}
+     */
+    private static function declaredSize(\Dom\Element $img): array
+    {
+        $width  = self::pixels($img->getAttribute('width') ?? '');
+        $height = self::pixels($img->getAttribute('height') ?? '');
+
+        $style = $img->getAttribute('style') ?? '';
+
+        if ('' !== $style) {
+            foreach (['width' => &$width, 'height' => &$height] as $property => &$target) {
+                if (1 === preg_match('/(?:^|;)\s*'.$property.'\s*:\s*([^;]+)/i', $style, $found)) {
+                    $target = self::pixels($found[1]) ?? $target;
+                }
+            }
+        }
+
+        return [$width, $height];
+    }
+
+    /**
+     * A bare number or a `px` length, as an int. Anything else — a percentage,
+     * `auto`, an em, a calc — is not a pixel count and says so.
+     *
+     * Capped well above any real image: the number reaches a viewBox, and a
+     * viewBox is arithmetic somebody else's mail should not get to choose the
+     * magnitude of.
+     */
+    private static function pixels(string $value): ?int
+    {
+        if (1 !== preg_match('/^\s*(\d{1,5})(?:\.\d+)?\s*(?:px)?\s*$/i', $value, $found)) {
+            return null;
+        }
+
+        $number = (int) $found[1];
+
+        return $number >= 1 ? $number : null;
     }
 
     /**

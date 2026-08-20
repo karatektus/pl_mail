@@ -1,4 +1,4 @@
-<!-- translated-from: features/appearance.md sha1:456e91c88d50567bd44b3a13567c437b4331fcfc -->
+<!-- translated-from: features/appearance.md sha1:a1b8d3fb220de4397af2ae30aac351ee3a0451da -->
 
 # Darstellung
 
@@ -107,13 +107,50 @@ dieser Seite eingestellt hat.
 bewegt, wenn etwas erscheint — eine Nachricht, die in der Liste ankommt, das Schreibfenster, das
 aufgeht, ein Menü, das herunterklappt.
 
-- **Voll** — Dinge kommen von irgendwoher und setzen sich. Nichts dauert länger als eine
-  Viertelsekunde, und nichts wartet auf eine Animation, bevor du es benutzen darfst: Eine Zeile ist
-  anklickbar, während sie noch einblendet.
+- **Voll** — Dinge kommen von irgendwoher und setzen sich. Fast alles ist innerhalb einer
+  Viertelsekunde erledigt. Die Nachrichtenliste ist die Ausnahme, gleich doppelt, und darum gehen die
+  beiden folgenden Abschnitte.
 - **Dezent** — dieselben Hinweise, nur als Einblendung: Nichts bewegt sich, nichts verschiebt sich.
   Etwas schneller als Voll, denn ohne Weg gibt es für das Auge weniger zu verfolgen, und dieselbe
   Dauer fängt an, sich wie eine Verzögerung anzufühlen.
 - **Keine** — genau das, was plMail getan hat, bevor es das alles gab.
+
+Einen Ordner öffnen, suchen oder umblättern ist die andere Ausnahme, und sie hat die umgekehrte
+Form. Jede Zeile ist in etwa zwei Bildern an ihrem Platz — viel zu schnell, um ihr zuzusehen — aber
+sie tun es nacheinander. Was du siehst, ist also eine Welle, die durch die Liste läuft, und nicht
+eine einzelne Zeile, die sich bewegt. Die Liste selbst animiert nicht: Ein graues Rechteck, das
+einblendet, sagt dir, dass sich ein Rechteck geändert hat. Gedeckelt ist das bei acht Zeilen, also
+sind eine Liste mit fünfzig und eine mit sechs nach etwa einer Sechstelsekunde fertig.
+
+### Neue Post ist die Ausnahme
+
+Eines dauert deutlich länger als alles andere, und das ist Absicht: Eine Unterhaltung, die gerade
+wirklich angekommen ist, fällt von oben in die Liste, und die Zeilen darunter rücken nach, um ihr
+Platz zu machen. Die ganze Geste dauert etwa achthundert Millisekunden — ein Vielfaches von allem
+anderen in plMail.
+
+Bezahlbar ist das, weil es *selten* ist. Die Liste wird ständig neu gezeichnet, nach jedem Stern,
+jedem Archivieren, jeder Sammelaktion und jedem Abgleich, und nichts davon spielt diese Geste. Nur
+Post, die noch nie auf deinem Bildschirm war, tut das — bei einem normalen Postfach ein paar Mal in
+der Stunde.
+
+Bei **Dezent** fällt das auf dieselbe kurze Einblendung zusammen wie alles andere: kein Fallen, kein
+Weg, kein Warten.
+
+### Das Einzige, was es kostet
+
+Neue Post braucht etwa eine halbe Sekunde, bis sie liegt, und nach etwas, das sich bewegt, kann man
+danebengreifen. Die Zeile behält die ganze Zeit ihre volle Breite und ihre eigene Zeile, ein Klick in
+die Mitte tut also, wonach er aussieht — aber das Auswahlkästchen ganz links und die Aktionen ganz
+rechts sind unterwegs und bis zum Stillstand nicht ganz dort, wo sie sein werden.
+
+Nichts wird dabei eingefroren und kein Klick weggeworfen. Es ist nur möglich, in dieser halben
+Sekunde ein Stück leere Liste zu treffen statt das Bedienelement, das gerade dorthin unterwegs ist.
+Beim Öffnen eines Ordners gibt es dieses Problem nicht: Das ist vorbei, bevor eine Hand sich bewegt
+hat.
+
+Wenn dich das stört, ist die Einstellung oben die Antwort, und genau dafür gibt es sie: **Dezent**
+behält die Hinweise und nimmt jeden Pixel Weg heraus, **Keine** nimmt die Animation heraus.
 
 **Verlangt dein System weniger Bewegung, gewinnt das** — egal, was hier steht, und ohne
 Rückfrage. Wer seinem Rechner gesagt hat, dass Bewegung ihm schlecht bekommt, hat plMail nicht nach
