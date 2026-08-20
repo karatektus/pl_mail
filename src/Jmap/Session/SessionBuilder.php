@@ -9,6 +9,7 @@ use App\Domain\Enum\Theme\BackgroundPreset;
 use App\Domain\Enum\Theme\Density;
 use App\Domain\Enum\Theme\FontFamily;
 use App\Domain\Enum\Theme\Layout;
+use App\Domain\Enum\Theme\LogoStyle;
 use App\Domain\Enum\Theme\Theme;
 use App\Domain\Enum\Theme\UnreadEmphasis;
 use App\Entity\Embeddable\Appearance;
@@ -301,6 +302,17 @@ final class SessionBuilder
      * entry; `layoutDefaults` is the knob preset each layout seeds, so a
      * client's sliders can sit where the web pane's do.
      *
+     * `logoStyles` is the exception to that sentence and is published for the
+     * stronger version of the same reason. `Appearance.logoStyle` is read-only
+     * (see AppearanceMapper), so there is no refusal for a client to learn the
+     * set from — it simply receives a word, and a word it does not recognise
+     * is indistinguishable from a bug. A client that maps the colourways onto
+     * assets of its own needs the whole list to know when it is holding one it
+     * has nothing for. It is published here rather than in the compact hint
+     * beside it because a vocabulary is the same for every user and every
+     * release of the server, so it cannot go stale in a cached Session the way
+     * a current value can.
+     *
      * @return array<string,mixed>
      */
     private function appearanceCapabilities(User $user): array
@@ -308,6 +320,7 @@ final class SessionBuilder
         return [
             'appearance' => $this->appearanceMapper->compact($user->appearance),
             'themes' => array_column(Theme::cases(), 'value'),
+            'logoStyles' => array_column(LogoStyle::cases(), 'value'),
             'layouts' => array_column(Layout::cases(), 'value'),
             'densities' => array_column(Density::cases(), 'value'),
             'backgroundKinds' => array_column(BackgroundKind::cases(), 'value'),

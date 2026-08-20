@@ -8,6 +8,7 @@ use App\Domain\Enum\Theme\BackgroundKind;
 use App\Domain\Enum\Theme\BackgroundPreset;
 use App\Domain\Enum\Theme\Density;
 use App\Domain\Enum\Theme\Layout;
+use App\Domain\Enum\Theme\LogoStyle;
 use App\Domain\Enum\Theme\Theme;
 use App\Jmap\Mapper\AppearanceMapper;
 use App\Jmap\Method\Settings\AppearanceGetMethod;
@@ -72,6 +73,67 @@ final class AppearanceGetMethodTest extends JmapTestCase
 
         foreach (AppearanceMapper::PROPERTIES as $property) {
             self::assertArrayHasKey($property, $object);
+        }
+    }
+
+    /**
+     * The mark's colourway, which had no wire representation at all until now:
+     * the web read it from the embeddable directly, so a phone could not know
+     * which of the thirty-two the user was looking at.
+     *
+     * What is published is the EFFECTIVE style — what the topbar and the
+     * favicon actually draw — not the stored column. The two differ for
+     * everybody whose theme is one of the colourway themes, which is the
+     * common case, because the mark follows the theme unless it is unlinked.
+     */
+    public function testItReportsTheColourwayTheMarkActuallyWears(): void
+    {
+        $this->user->appearance->theme = Theme::PetrolCopper;
+        $this->em->flush();
+
+        self::assertSame('petrol-copper', $this->get()['list'][0]['logoStyle']);
+    }
+
+    /**
+     * Unlinked, the stored choice speaks for itself again — and that is the
+     * only state in which the column and the wire agree by accident rather
+     * than by derivation.
+     */
+    public function testAnUnlinkedMarkReportsTheUsersOwnChoiceInsteadOfTheThemes(): void
+    {
+        $this->user->appearance->theme = Theme::PetrolCopper;
+        $this->user->appearance->logoLinked = false;
+        $this->user->appearance->logoStyle = LogoStyle::Tricolore;
+        $this->em->flush();
+
+        self::assertSame('tricolore', $this->get()['list'][0]['logoStyle']);
+    }
+
+    /**
+     * A user who has never opened the appearance pane. The answer has to be a
+     * colourway — the product default — rather than null or "", because a
+     * client picking an asset from this value has nothing to fall back on and
+     * would draw no mark at all.
+     */
+    public function testAUserWhoNeverChoseOneGetsTheProductDefault(): void
+    {
+        $object = $this->get()['list'][0];
+
+        self::assertSame(LogoStyle::DEFAULT->value, $object['logoStyle']);
+        self::assertSame('berry', $object['logoStyle']);
+    }
+
+    /** Whatever comes out is a colourway the enum knows, for all seven themes. */
+    public function testTheReportedStyleIsAlwaysOneOfTheKnownSet(): void
+    {
+        foreach (Theme::cases() as $theme) {
+            $this->user->appearance->theme = $theme;
+            $this->em->flush();
+
+            self::assertNotNull(
+                LogoStyle::tryFrom($this->get()['list'][0]['logoStyle']),
+                sprintf('the %s theme reported a colourway the enum does not have', $theme->value),
+            );
         }
     }
 

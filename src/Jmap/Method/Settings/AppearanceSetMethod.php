@@ -40,6 +40,9 @@ use Doctrine\ORM\EntityManagerInterface;
  *    The Mailbox.color precedent, for the same reason.
  *  - **Malformed colours are refused**, since the setter's fallback (the
  *    default accent, or null) is a value the client never asked for.
+ *  - **Derived and server-set properties are refused a *change* and allowed
+ *    an *echo*** — `id`, `backgroundFile` and `logoStyle`. See below, and
+ *    AppearanceMapper for why the mark is derived rather than stored.
  *  - **Numeric ranges are clamped, not refused** — 1.4 for an alpha is a
  *    client being sloppy about a continuum, not a client meaning something
  *    this server cannot represent. Nothing is dropped silently: a clamp lands
@@ -165,14 +168,18 @@ final class AppearanceSetMethod implements JmapMethod
         foreach ($patch as $property => $value) {
             $property = (string) $property;
 
-            // `id` and `backgroundFile` are server-set. Echoing the current
-            // value back is allowed, because get → edit one field → set is how
-            // a client is *supposed* to work and refusing the untouched
-            // remainder of its own read would make that impossible; changing
-            // either is refused. backgroundFile is uploaded through the web
-            // settings pane and served from behind the session firewall, so a
-            // JMAP client cannot produce one — see AppearanceMapper.
-            if ('id' === $property || 'backgroundFile' === $property) {
+            // `id`, `backgroundFile` and `logoStyle` are server-set. Echoing
+            // the current value back is allowed, because get → edit one field
+            // → set is how a client is *supposed* to work and refusing the
+            // untouched remainder of its own read would make that impossible;
+            // changing any of them is refused. backgroundFile is uploaded
+            // through the web settings pane and served from behind the session
+            // firewall, so a JMAP client cannot produce one. logoStyle is not
+            // a stored field: it is derived from `theme`, `logoLinked` and the
+            // stored colourway, none of which a patch naming `logoStyle` says
+            // anything about — see AppearanceMapper for the whole argument.
+            // Change the theme to change the mark.
+            if ('id' === $property || 'backgroundFile' === $property || 'logoStyle' === $property) {
                 if (($current[$property] ?? null) === $value) {
                     continue;
                 }
@@ -234,6 +241,19 @@ final class AppearanceSetMethod implements JmapMethod
                 $appearance->applyLayout($layout);
             }
         }
+
+        // Dropped rather than left to validate()'s echo check, which is the
+        // one place the read-only three differ from each other. `id` and
+        // `backgroundFile` are keys `applyArray()` has never heard of, so an
+        // echo of them falls on the floor by itself; `logoStyle` is a key it
+        // knows, and it writes it onto the STORED colourway. What the wire
+        // reports is the *effective* one, so a client doing get → edit theme →
+        // set — the flow the echo check exists to permit — would hand back the
+        // theme's own name and quietly overwrite the choice sitting behind a
+        // `logoLinked: false`. That user's mark would change the first time
+        // any client touched any other property, from an edit they did not
+        // make to a field they cannot see.
+        unset($patch['logoStyle']);
 
         // Everything else goes through the entity's own applier, so JMAP and
         // the web settings pane write appearance the same way. It ignores what

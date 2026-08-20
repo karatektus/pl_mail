@@ -1,4 +1,4 @@
-<!-- translated-from: CLIENT_DEVELOPMENT.md sha1:b45ad1ad243d02e4682680854e4efd4c757ed4a6 -->
+<!-- translated-from: CLIENT_DEVELOPMENT.md sha1:cda359b99fb9079c655c41519cb35052b0ec82b5 -->
 # Einen Client für plMail bauen
 
 Alles, was eine Entwicklerin (oder ein Agent) braucht, um einen *neuen* plMail-Client zu schreiben
@@ -222,6 +222,7 @@ Ein Layout auszuwählen *setzt* die Regler unten vor; danach kann die Nutzerin j
 | `mainTint` / `mainAlpha` | hex\|null / float\|null | — | Tönung und Deckkraft speziell der Hauptinhaltsfläche. |
 | `backgroundKind` | enum | `theme` \| `preset` \| `solid` \| `custom` | Woher der App-Hintergrund kommt. |
 | `backgroundPreset` / `backgroundSolid` / `backgroundFile` | — | — | Der gewählte Hintergrund. |
+| `logoStyle` | enum, **nur lesbar** | eines aus `logoStyles` | Die Farbgebung, in der die „pl"-Marke erscheint. |
 
 `Appearance::toArray()` ist das Exportformat (versioniert, `version: 1`), `applyArray()` der
 Import. Die Web-Oberfläche lässt Nutzerinnen das als Datei exportieren und importieren.
@@ -229,13 +230,32 @@ Import. Die Web-Oberfläche lässt Nutzerinnen das als Datei exportieren und imp
 > **Das ist über JMAP erreichbar.** `Appearance/get` und `Appearance/set` liefern das
 > Singleton-Objekt (Id `"singleton"`, kein `accountId` — es hängt an der `User`-Entität), und die
 > Appearance-Capability der Session veröffentlicht die Vokabulare und Wertebereiche: `themes`,
-> `layouts`, `densities`, `backgroundKinds`, `backgroundPresets`, `unreadEmphases`, `fontFamilies`,
-> `ranges.previewLines`, `ranges.fontScale`. Modelliere dieselbe Form mit zwei Achsen aus
-> Theme × Layout mit denselben semantischen Tokens und lies die Werte des Servers hinein. Zwei
-> Dinge solltest du vor dem ersten Schreiben wissen: Booleans werden streng geprüft, `"1"` und
-> `"0"` werden also abgelehnt statt umgewandelt; und die drei Dichten pro Oberfläche brauchen ein
-> ausdrückliches JSON-`null` für „folge der globalen Dichte" — das ist eine andere Anweisung als
-> ein weggelassener Schlüssel. Durchgesetzt wird die Regel „verdrahte keine Palette fest".
+> `logoStyles`, `layouts`, `densities`, `backgroundKinds`, `backgroundPresets`, `unreadEmphases`,
+> `fontFamilies`, `ranges.previewLines`, `ranges.fontScale`. Modelliere dieselbe Form mit zwei
+> Achsen aus Theme × Layout mit denselben semantischen Tokens und lies die Werte des Servers
+> hinein. Zwei Dinge solltest du vor dem ersten Schreiben wissen: Booleans werden streng geprüft,
+> `"1"` und `"0"` werden also abgelehnt statt umgewandelt; und die drei Dichten pro Oberfläche
+> brauchen ein ausdrückliches JSON-`null` für „folge der globalen Dichte" — das ist eine andere
+> Anweisung als ein weggelassener Schlüssel. Durchgesetzt wird die Regel „verdrahte keine Palette
+> fest".
+
+> **`logoStyle` ist nur lesbar — und es ist die Marke, die die Nutzerin tatsächlich vor sich hat.**
+> Der Wert stammt aus der festen Menge, die die Session als `logoStyles` veröffentlicht: `"berry"`
+> (die Produktvorgabe), `"product-blue"`, `"petrol-copper"` und neunundzwanzig weitere. Ein Client,
+> der sie auf eigene Grafiken abbildet, kann die Liste beim Discovery abholen und erkennt so, wann
+> er einen Wert in der Hand hält, für den er nichts hat. Behandle einen unbekannten Wert als die
+> Vorgabe und nicht als Fehler; die Menge wächst.
+>
+> Setzen lässt er sich nicht. Das ist weder ein Versehen noch eine Frage der Berechtigung: auf dem
+> Server ist der Wert *abgeleitet* — aus dem Theme, daraus, ob die Nutzerin die Marke vom Theme
+> gelöst hat, und erst dann aus einer gespeicherten Farbgebung. Jede der zweiunddreißig ist auch ein
+> Theme-Name, und standardmäßig kleidet die Wahl eines Themes die Marke passend ein. Deshalb liest
+> du hier die Marke so zurück, wie das Web sie in der Kopfleiste und im Favicon zeichnet, und nicht
+> eine Datenbankspalte. `logoStyle` mit einem *anderen* Wert zu senden wird mit `invalidProperties`
+> abgelehnt; mit genau dem eben gelesenen Wert wird es angenommen und ignoriert, damit
+> get → ein Feld ändern → set genauso funktioniert wie bei jeder anderen Eigenschaft. **Um die
+> Marke zu bewegen, setze `theme`** — die neue Farbgebung kommt in der `updated`-Map desselben
+> Aufrufs zurück. Die Marke vom Theme zu lösen ist heute eine reine Web-Einstellung.
 
 > **Der Radius gilt für Flächen, nicht für Bedienelemente.** Modale, das Verfassen-Fenster,
 > Dropdowns, Menüs und Toasts nehmen `--app-radius`. Buttons, Eingabefelder, Chips und
@@ -1238,8 +1258,9 @@ Grob danach geordnet, wie sehr Nutzerinnen sie vermissen werden.
 
 **Einstellungen**
 - Erscheinungsbild — `Appearance/get` und `Appearance/set` liefern das gesamte Objekt, samt
-  `fontFamily`, `fontScale`, `previewLines`, `unreadEmphasis`, `accountCorner`, `listAvatars` und
-  den drei Dichten pro Oberfläche (siehe [§2](#2-aussehen-und-verhalten)). Bau das Token-System
+  `fontFamily`, `fontScale`, `previewLines`, `unreadEmphasis`, `accountCorner`, `listAvatars`,
+  den drei Dichten pro Oberfläche und dem nur lesbaren `logoStyle`
+  (siehe [§2](#2-aussehen-und-verhalten)). Bau das Token-System
   trotzdem; lies die Werte des Servers hinein, statt eigene Vorgaben zu erfinden.
 - Kontoliste und -reihenfolge.
 - Benachrichtigungseinstellungen.

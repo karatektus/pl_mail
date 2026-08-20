@@ -6,6 +6,7 @@ namespace App\Tests\Jmap\Method\Settings;
 
 use App\Domain\Enum\Theme\Density;
 use App\Domain\Enum\Theme\Layout;
+use App\Domain\Enum\Theme\LogoStyle;
 use App\Domain\Enum\Theme\Theme;
 use App\Entity\Embeddable\Appearance;
 use App\Entity\User\User;
@@ -233,6 +234,67 @@ final class AppearanceSetMethodTest extends JmapTestCase
 
         self::assertSame('invalidProperties', $error['type']);
         self::assertStringContainsString('backgroundFile', $error['description']);
+    }
+
+    /**
+     * The mark is read-only, and asking for one is refused rather than
+     * accepted-and-ignored — the same bargain every other closed vocabulary
+     * here strikes. A client told "ok" and then shown the old mark forever has
+     * nothing to debug against.
+     */
+    public function testTheLogoStyleIsNotSettable(): void
+    {
+        $error = $this->updateError(['logoStyle' => 'tricolore']);
+
+        self::assertSame('invalidProperties', $error['type']);
+        self::assertStringContainsString('logoStyle', $error['description']);
+        self::assertSame(LogoStyle::DEFAULT->value, $this->read()['logoStyle']);
+    }
+
+    /**
+     * The one that would have bitten somebody. An echo of `logoStyle` is
+     * accepted, because get → edit → set has to work — but it must not be
+     * WRITTEN, because the value reported is the effective mark and the column
+     * behind it may be a different, deliberately unlinked choice. Assigning
+     * the echo would replace that choice with a copy of the theme's name, from
+     * an edit the user never made to a field no client can see.
+     */
+    public function testEchoingTheEffectiveMarkBackDoesNotOverwriteAnUnlinkedChoice(): void
+    {
+        $this->user->appearance->theme = Theme::Ocean;
+        $this->user->appearance->logoLinked = false;
+        $this->user->appearance->logoStyle = LogoStyle::Tricolore;
+        $this->em->flush();
+
+        $object = $this->read();
+
+        self::assertSame('tricolore', $object['logoStyle'], 'unlinked: the stored choice is what is reported');
+
+        // The whole object straight back, one unrelated field changed — the
+        // flow the echo allowance exists for.
+        $object['paneBlur'] = 12;
+
+        $result = $this->update($object);
+
+        self::assertSame([], (array) $result['notUpdated']);
+        self::assertSame(LogoStyle::Tricolore, $this->user->appearance->logoStyle);
+        self::assertFalse($this->user->appearance->logoLinked);
+        self::assertSame('tricolore', $this->read()['logoStyle']);
+    }
+
+    /**
+     * Changing the theme changes the mark, and the `updated` map says so. This
+     * is the only way to move it over the wire, and RFC 8620 §5.3 asks for
+     * exactly this: a property the server changed beyond what was asked for.
+     */
+    public function testChangingTheThemeMovesTheMarkAndReportsIt(): void
+    {
+        $result = $this->update(['theme' => 'petrol-copper']);
+
+        $changes = (array) $result['updated'][AppearanceMapper::SINGLETON_ID];
+
+        self::assertSame('petrol-copper', $changes['logoStyle']);
+        self::assertSame('petrol-copper', $this->read()['logoStyle']);
     }
 
     public function testCreateAndDestroyAreRefusedAsASingleton(): void

@@ -199,13 +199,14 @@ list and clamps:
 | `mainTint` / `mainAlpha` | hex\|null / float\|null | — | Tint and opacity of the main content pane specifically. |
 | `backgroundKind` | enum | `theme` \| `preset` \| `solid` \| `custom` | Where the app background comes from. |
 | `backgroundPreset` / `backgroundSolid` / `backgroundFile` | — | — | The chosen background. |
+| `logoStyle` | enum, **read-only** | one of `logoStyles` | The colourway the "pl" mark wears. |
 
 `Appearance::toArray()` is the export format (versioned, `version: 1`), and `applyArray()` the
 import. The web UI lets users export/import this as a file.
 
 > **This IS reachable over JMAP.** `Appearance/get` and `Appearance/set` serve the singleton object
 > (id `"singleton"`, no `accountId` — it hangs off the `User`), and the Session's appearance
-> capability publishes the vocabularies and ranges: `themes`, `layouts`, `densities`,
+> capability publishes the vocabularies and ranges: `themes`, `logoStyles`, `layouts`, `densities`,
 > `backgroundKinds`, `backgroundPresets`, `unreadEmphases`, `fontFamilies`, `ranges.previewLines`,
 > `ranges.fontScale`. Model the same two-axis Theme×Layout shape with the same semantic tokens and
 > read the server's values into it. Two things to know before writing: booleans are validated
@@ -213,6 +214,22 @@ import. The web UI lets users export/import this as a file.
 > take an explicit JSON `null` to mean "follow the global density", which is a different instruction
 > from leaving the key out. The rule being enforced is "don't hardcode a palette". The
 > export format already exists, so it is a small addition.
+
+> **`logoStyle` is read-only, and it is the mark the user is actually looking at.** The value is one
+> of the fixed set the Session publishes as `logoStyles` — `"berry"` (the product default),
+> `"product-blue"`, `"petrol-copper"` and twenty-nine more — so a client that maps them onto assets
+> of its own can check the list at discovery time and know when it is holding one it has nothing
+> for. Treat an unrecognised value as the default rather than as an error; the set grows.
+>
+> It cannot be set. Not an oversight and not a permission: on the server it is *derived*, from the
+> theme, from whether the user has unlinked the mark from the theme, and only then from a stored
+> colourway. Every one of the thirty-two is also a theme name, and by default picking a theme
+> dresses the mark to match — which is why what you read back is the mark as the web draws it in the
+> topbar and the favicon, not a column. Sending `logoStyle` with a *different* value is refused with
+> `invalidProperties`; sending it with the value you just read is accepted and ignored, so
+> get → change one field → set works as it does for every other property. **To move the mark, set
+> `theme`** — the new colourway comes back in that call's `updated` map. Unlinking the mark from the
+> theme is a web-only setting today.
 
 > **Radius applies to panes, not controls.** Modals, the compose window, dropdowns, menus and toasts
 > take `--app-radius`. Buttons, inputs, chips and list rows keep a *fixed* small radius — they must
@@ -1127,8 +1144,8 @@ Ordered roughly by how much users will miss them.
 
 **Settings**
 - Appearance — `Appearance/get` and `Appearance/set` serve the whole object, including `fontFamily`,
-  `fontScale`, `previewLines`, `unreadEmphasis`, `accountCorner`, `listAvatars` and the three
-  per-surface densities (see [§2](#2-look-and-feel)). Build the token system regardless; read the
+  `fontScale`, `previewLines`, `unreadEmphasis`, `accountCorner`, `listAvatars`, the three
+  per-surface densities and the read-only `logoStyle` (see [§2](#2-look-and-feel)). Build the token system regardless; read the
   server's values into it rather than inventing your own defaults.
 - Account list and order.
 - Notification preferences.

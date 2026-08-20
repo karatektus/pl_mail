@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Jmap\Session;
 
 use App\Domain\Enum\Theme\Layout;
+use App\Domain\Enum\Theme\LogoStyle;
 use App\Domain\Enum\Theme\Theme;
 use App\Entity\Embeddable\Appearance;
 use App\Jmap\Method\MethodRegistry;
@@ -76,6 +77,36 @@ final class AppearanceCapabilityTest extends JmapTestCase
         self::assertContains('comfortable', $capability['densities']);
         self::assertContains('preset', $capability['backgroundKinds']);
         self::assertContains('dunes', $capability['backgroundPresets']);
+    }
+
+    /**
+     * The colourways are published even though `Appearance.logoStyle` is
+     * read-only, and *because* it is: a settable vocabulary can be discovered
+     * by being refused, a read-only one cannot be discovered at all. A client
+     * mapping the thirty-two onto assets of its own needs the list to know
+     * when it is holding a word it has nothing for.
+     */
+    public function testTheColourwaysArePublishedEvenThoughTheMarkIsReadOnly(): void
+    {
+        self::assertSame(array_column(LogoStyle::cases(), 'value'), $this->capability()['logoStyles']);
+    }
+
+    /**
+     * The mark itself is NOT in the compact hint, and that is the decision
+     * worth pinning rather than a property nobody got round to adding.
+     *
+     * The Session's `state` is a hash of account ids and does not move when an
+     * appearance changes, so everything in this hint can be stale for as long
+     * as a client keeps its Session. That is the right trade for a palette,
+     * which is repainted the moment Appearance/get lands; it is the wrong
+     * trade for the mark, which the client this was added for turns into a
+     * launcher icon — something committed to outside the app, where being
+     * wrong is not one frame but somebody's home screen. The vocabulary above
+     * is early because it cannot go stale. This value is not, because it can.
+     */
+    public function testTheMarkIsNotInTheHintBecauseTheHintCanBeStale(): void
+    {
+        self::assertArrayNotHasKey('logoStyle', $this->capability()['appearance']);
     }
 
     /**
