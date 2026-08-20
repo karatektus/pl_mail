@@ -1,4 +1,6 @@
 import { Controller } from "@hotwired/stimulus";
+import { Idiomorph } from "idiomorph";
+import { leave, motionIsOff } from "../../motion.js";
 
 // MailboxSpecialUse values (see App\Domain\Enum\MailboxSpecialUse) mapped to
 // the data-sync-scope tokens used by the list templates.
@@ -54,6 +56,55 @@ const FRAGMENT_HEADER = "X-List-Fragment";
  * the elements holding it exist again.
  */
 const REFRESHABLE_REGIONS = ["tabs", "pagination", "rows"];
+
+/**
+ * The one region that is morphed rather than assigned over, and why it is the
+ * only one.
+ *
+ * `live.innerHTML = incoming.innerHTML` throws away the one thing the response
+ * is richest in. The server sends the complete list — all fifty rows, freshly
+ * rendered — so the difference between what is on screen and what should be is
+ * sitting right there in the two trees, and assigning discards it. Every row
+ * becomes a new node, which means the browser cannot tell one new mail from
+ * fifty redrawn ones, an open row menu is destroyed, and focus inside the list
+ * is lost.
+ *
+ * Morphing computes that difference instead, keyed on the row ids the templates
+ * already emit (`id="thread_1234"`). Surviving rows keep their nodes; only what
+ * actually changed is touched. Nothing about the server changes — it still
+ * renders page one of fifty, still statelessly, and the response is still the
+ * whole truth rather than a delta. That last part is the safety property: a
+ * missed Mercure event costs a LATE redraw, never a wrong list, because there
+ * is no accumulated client state to drift out of step.
+ *
+ * Tabs and pagination stay plain assignment. They hold no state, no focus and
+ * no identity, and morphing them would be machinery bought for nothing.
+ */
+const MORPHED_REGION = "rows";
+
+/**
+ * Attributes the morph must not touch, because the client owns them.
+ *
+ * `data-entered` and `data-enter` are written onto a row by motion.js when it
+ * plays that row's entrance; `data-leaving` is written by the same file when
+ * one is on its way out. None of them appear in the markup the server sends,
+ * and Idiomorph removes attributes the incoming node does not have — so
+ * without this, every morph would strip a row's record of what it is doing.
+ */
+const CLIENT_OWNED = new Set(["data-entered", "data-enter", "data-leaving"]);
+
+/**
+ * A menu whose open-or-closed state belongs to whoever opened it.
+ *
+ * ui--dropdown shows a menu by clearing `hidden`, and the server always renders
+ * it set. Preserving the node is therefore not enough on its own: the morph
+ * would faithfully put `hidden` back and close a menu somebody is reading, in
+ * the same breath as fixing the older bug where the whole thing was destroyed.
+ *
+ * Scoped to the menu element rather than made a global exception for `hidden`,
+ * which the server does legitimately own nearly everywhere else.
+ */
+const OPEN_STATE_IS_THEIRS = '[data-ui--dropdown-target="menu"]';
 
 /** The row checkboxes, whose `value` is the thread id. */
 const ROW_SELECT = "input[data-thread-select]";
@@ -484,6 +535,7 @@ export default class extends Controller {
      */
     _swapRegions(frame, fresh) {
         const regions = REFRESHABLE_REGIONS.map((name) => [
+            name,
             frame.querySelector(`[data-list-region="${name}"]`),
             fresh.querySelector(`[data-list-region="${name}"]`),
         ]);
@@ -492,7 +544,7 @@ export default class extends Controller {
         // marked up, or a response from an older deploy mid-rollout. Replaced
         // whole, the way this always did: a stale list is a worse answer than a
         // rebuilt toolbar.
-        if (regions.some(([live, incoming]) => live === null || incoming === null)) {
+        if (regions.some(([, live, incoming]) => live === null || incoming === null)) {
             frame.innerHTML = fresh.innerHTML;
 
             return;
@@ -500,11 +552,106 @@ export default class extends Controller {
 
         const selected = this._selectedRowIds(frame);
 
-        regions.forEach(([live, incoming]) => {
+        regions.forEach(([name, live, incoming]) => {
+            if (MORPHED_REGION === name) {
+                this._morphRows(live, incoming);
+
+                return;
+            }
+
             live.innerHTML = incoming.innerHTML;
         });
 
         this._restoreSelection(frame, selected);
+    }
+
+    /**
+     * Bring the rows up to date by difference rather than by replacement.
+     *
+     * See MORPHED_REGION for why this region and no other.
+     *
+     * What comes out of it, for free, is the vocabulary the animation layer
+     * wanted and could not have: a row that is genuinely new is a genuinely new
+     * node, so motion.js's observer sees it and plays its entrance without any
+     * id bookkeeping being consulted; a row that survived is the same node it
+     * was, so it plays nothing; and a row that fell off the end is a removal we
+     * can hold onto long enough to animate.
+     *
+     * The selection is still read before and restored after. Morphing preserves
+     * the checkbox NODE but not its checked state — Idiomorph syncs `checked`
+     * from the incoming input like any other attribute, and the incoming input
+     * is the server's, which knows nothing about what is ticked.
+     */
+    _morphRows(live, incoming) {
+        Idiomorph.morph(live, incoming, {
+            morphStyle: "innerHTML",
+            callbacks: {
+                beforeAttributeUpdated: (name, node) => this._serverOwns(name, node),
+                beforeNodeRemoved: (node) => this._rowLeaving(node, live),
+            },
+        });
+    }
+
+    /**
+     * Whether the morph may write this attribute, or whether the client is
+     * holding something in it that the server cannot know about.
+     *
+     * See CLIENT_OWNED and OPEN_STATE_IS_THEIRS.
+     */
+    _serverOwns(name, node) {
+        if (CLIENT_OWNED.has(name)) {
+            return false;
+        }
+
+        return "hidden" !== name || false === node.matches?.(OPEN_STATE_IS_THEIRS);
+    }
+
+    /**
+     * A row the refresh dropped: the fifty-first after new mail arrived, or one
+     * that no longer matches the open folder.
+     *
+     * Returning false keeps the node, which makes this controller responsible
+     * for removing it — so it hands it to motion.js, which fades it and then
+     * takes it out. At the `none` tier and under reduced motion that fade has
+     * zero duration and the node goes immediately, which is exactly what this
+     * did before there was an animation at all.
+     *
+     * The marker is what stops a second refresh, arriving while the first
+     * fade is still running, from starting the same departure twice.
+     */
+    _rowLeaving(node, live) {
+        // Only a row, and only a row of THIS list. The hook fires for every
+        // node the morph discards, most of which are fragments inside a row
+        // being brought up to date — a span whose text changed, a star that is
+        // no longer there. Holding one of those back would leave the shrapnel
+        // of an edit on screen for as long as the animation lasts.
+        if (node.parentElement !== live || undefined === node.dataset) {
+            return true;
+        }
+
+        // Nothing to animate, so nothing to take responsibility for: let the
+        // morph remove it itself. Calling leave() here would finish inside this
+        // callback and delete the node the morph is standing on.
+        if (motionIsOff()) {
+            return true;
+        }
+
+        // A second refresh landing while the first fade is still running finds
+        // the same row still in the list. It is already on its way out.
+        if (undefined !== node.dataset.leaving) {
+            return false;
+        }
+
+        // The id goes first, and it matters. A row held back for its fade is
+        // still a child of the list, so the NEXT morph can match it by id — and
+        // a thread that left the page and came straight back (a reply landing
+        // in it moments later) would be morphed into a node that is mid-exit:
+        // fading, inert, and about to delete itself. Anonymous, it can only be
+        // discarded, and the returning thread arrives as the new row it is.
+        node.removeAttribute("id");
+        leave(node);
+
+        return false;
     }
 
     /**

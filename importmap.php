@@ -37,4 +37,5 @@ return [
     'tom-select/dist/css/tom-select.bootstrap5.css' => ['version' => '2.6.2', 'type' => 'css'],
     'sortablejs' => ['version' => '1.15.6'],
     'emoji-picker-element' => ['version' => '1.29.1'],
+    'idiomorph' => ['version' => '0.7.4'],
 ];

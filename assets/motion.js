@@ -64,19 +64,18 @@ const PLAYED = "data-entered";
 /**
  * Ids this page has already shown, so a re-render is not mistaken for news.
  *
- * The mail list is replaced WHOLESALE — `live.innerHTML = incoming.innerHTML`
- * in mail--mail-pane#_swapRegions — every time a sync reports on a mailbox the
- * open view shows. That is not on a clock: IMAP IDLE and Gmail push make it
- * whenever mail moves, the scheduled sweep makes it every fifteen minutes
- * regardless, and every bulk action makes it too. Fifteen SECONDS is only the
- * floor mail--mail-pane keeps between two refreshes, so that one sync across
- * several accounts arrives as one redraw instead of eight.
+ * Plenty of things rebuild a row that is not new. A star, an archive or a
+ * snooze sends a turbo-stream that re-renders that row; a bulk action refreshes
+ * the list; a template without the region markers falls back to replacing the
+ * whole frame. Each of those hands the page a brand new node carrying mail that
+ * has been on screen for an hour, and an entrance keyed on the NODE would fire
+ * every time. A list that shimmers at rest is unreadable, and it is the single
+ * fastest way to make somebody switch this feature off.
  *
- * Every row is therefore a brand new node carrying the same mail, and an
- * entrance keyed on the node would fire on all fifty of them every time a
- * single unrelated mail lands in a folder nobody is looking at. A list that
- * shimmers at rest is unreadable, and it is the single fastest way to make
- * somebody switch this feature off.
+ * The list's own refresh is no longer one of those cases — mail--mail-pane
+ * MORPHS the rows region, so a row that survives a sync keeps the node it had
+ * and never reaches this code. That is the better fix, and it is why the ones
+ * above are now the whole job rather than the tail of it.
  *
  * What distinguishes the two cases is not the DOM node, which is new either
  * way, but the id on it: `thread_1234` is the same mail whoever rendered it. So
@@ -114,8 +113,15 @@ function remember(element) {
     return true;
 }
 
-/** Whether the tier or the operating system has ruled motion out entirely. */
-function motionIsOff() {
+/**
+ * Whether the tier or the operating system has ruled motion out entirely.
+ *
+ * Exported because a caller sometimes needs to know BEFORE calling leave(): at
+ * zero duration leave() finishes synchronously, and a caller in the middle of
+ * walking the DOM — mail--mail-pane morphing the list — cannot have a node
+ * vanish underneath it mid-traversal.
+ */
+export function motionIsOff() {
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
         return true;
     }

@@ -424,6 +424,101 @@ test.describe("mail UI actions", () => {
         }
     });
 
+    // ── What a refresh is allowed to destroy ─────────────────────────────────
+
+    /**
+     * Ask the pane to refresh the way a sync does, without touching the page.
+     *
+     * The bulk-action route into a refresh is no good for these two: it needs a
+     * click, and a click anywhere is exactly what closes a menu. This is the
+     * event the body already routes to the pane — see the data-action in
+     * _layout/app.html.twig — carrying the same `poll` flag the connection
+     * fallback sends, which means "refresh whatever view is open".
+     */
+    const syncFired = async (page: Page) => {
+        const landed = page.waitForResponse(
+            (response) => response.request().headers()["x-list-fragment"] !== undefined,
+        );
+
+        await page.evaluate(() => {
+            document.body.dispatchEvent(
+                new CustomEvent("core--mercure:mailbox-synced", {
+                    detail: { poll: true },
+                    bubbles: true,
+                }),
+            );
+        });
+
+        await landed;
+    };
+
+    /**
+     * The rows survive a refresh as the same DOM nodes.
+     *
+     * Marked with a PROPERTY, which is the only marker that proves anything
+     * here: the morph syncs attributes from the server's markup, so an
+     * attribute surviving would say nothing about whether the node did. A
+     * property can only still be there if nobody rebuilt the element.
+     *
+     * This is what the whole morph is for. While the rows region was assigned
+     * over, every refresh made fifty new nodes carrying the same mail — which
+     * is why "new mail" could not be told from "the list redrew", and why the
+     * two tests below had nothing to stand on.
+     */
+    test("a sync refresh keeps the rows it is not changing", async ({ page }) => {
+        await page.goto("/mail/inbox");
+        await expectSeededRows(page);
+
+        const before = await allRows(page).count();
+        expect(before, "the fixture has to seed rows").toBeGreaterThan(0);
+
+        await page.evaluate(() => {
+            document
+                .querySelectorAll('#message-list li[data-controller="mail--message-row"]')
+                .forEach((row, index) => {
+                    Object.assign(row, { __probe: index });
+                });
+        });
+
+        await syncFired(page);
+
+        const probes = await page.evaluate(() =>
+            Array.from(
+                document.querySelectorAll('#message-list li[data-controller="mail--message-row"]'),
+                (row) => (row as unknown as { __probe?: number }).__probe,
+            ),
+        );
+
+        expect(probes).toEqual(Array.from({ length: before }, (_, index) => index));
+    });
+
+    /**
+     * A menu somebody is reading is not the refresh's to close.
+     *
+     * Two separate ways this used to fail and now does not: the whole menu was
+     * destroyed with the row it hangs off, and — once the row survived — the
+     * morph would have put back the `hidden` the server always renders. The
+     * second is why mail_pane_controller#_serverOwns exists.
+     */
+    test("a sync refresh leaves an open row menu open", async ({ page }) => {
+        await page.goto("/mail/inbox");
+
+        const row = mailRow(page, INBOX_SUBJECTS.read);
+        await row.hover();
+        await row.getByRole("button", { name: "Snooze" }).click();
+
+        const menu = row.locator('[data-ui--dropdown-target="menu"]');
+        await expect(menu).toBeVisible();
+
+        await syncFired(page);
+
+        await expect(menu).toBeVisible();
+
+        // And still a working menu, not just a visible one — the controller
+        // instance survived with its element.
+        await expect(menu.getByText("Later today")).toBeVisible();
+    });
+
     // ── Still pending: needs more than wiring ────────────────────────────────
 
     // Blocked: "Label as" never fires the POST from the UI. The only rendered

@@ -152,13 +152,16 @@ Threads only. A bare Message row is a message, and only a conversation arrives.
 {# `data-enter-NEW`, not `data-enter`, and the difference is the whole reason
    this can exist at all.
 
-   A row is not automatically an arrival. The list it sits in is re-rendered
-   from server state on every sync — which IDLE and push make as often as mail
-   actually moves — and after every bulk action: mail--mail-pane#_swapRegions
-   assigns over the rows region's innerHTML, so every row becomes a brand new
-   node carrying the same mail. An entrance keyed on the NODE would therefore
-   fire on all fifty rows every time one unrelated mail lands, and a list that
-   shimmers at rest is unreadable.
+   A row is not automatically an arrival. This template is re-rendered for mail
+   that has been on screen for an hour every time somebody stars it, archives it
+   or snoozes it — the turbo-streams under thread/status/ hand the page a brand
+   new node carrying the same mail. An entrance keyed on the NODE would fire
+   every time, and a list that shimmers at rest is unreadable.
+
+   The list's own sync refresh used to be the worst of these and no longer is:
+   mail--mail-pane#_morphRows morphs the rows region rather than assigning over
+   it, so a row that survives a sync keeps its node. What remains is everything
+   that legitimately rebuilds one row, which is what the id rule below is for.
 
    What tells the two apart is the id: `thread_1234` is the same conversation
    whoever rendered it. motion.js animates an element the first time it sees a
