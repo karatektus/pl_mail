@@ -70,6 +70,12 @@
     --motion-scale: 0.985;
     --motion-stagger: 22ms;
     --motion-ease: cubic-bezier(0.22, 0.68, 0.32, 1);
+
+    --motion-row-base: 600ms;
+    --motion-row-lift: 48px;
+    --motion-row-ease: cubic-bezier(0.34, 1.56, 0.64, 1);
+    --motion-room: 200ms;
+    --motion-room-handoff: 200ms;
 }
 
 /* The tier the server asked for. Belt and braces with the inline custom
@@ -82,6 +88,12 @@
     --motion-lift: 0px;
     --motion-scale: 1;
     --motion-stagger: 0ms;
+
+    --motion-row-base: 120ms;
+    --motion-row-lift: 0px;
+    --motion-row-ease: cubic-bezier(0.22, 0.68, 0.32, 1);
+    --motion-room: 120ms;
+    --motion-room-handoff: 0ms;
 }
 
 [data-motion="none"] {
@@ -91,6 +103,12 @@
     --motion-lift: 0px;
     --motion-scale: 1;
     --motion-stagger: 0ms;
+
+    --motion-row-base: 0s;
+    --motion-row-lift: 0px;
+    --motion-row-ease: cubic-bezier(0.22, 0.68, 0.32, 1);
+    --motion-room: 0s;
+    --motion-room-handoff: 0ms;
 }
 
 /* ── Entrances ───────────────────────────────────────────────────────────────
@@ -204,5 +222,65 @@
         --motion-lift: 0px !important;
         --motion-scale: 1 !important;
         --motion-stagger: 0ms !important;
+
+        --motion-row-base: 0s !important;
+        --motion-row-lift: 0px !important;
+        --motion-room: 0s !important;
+        --motion-room-handoff: 0ms !important;
     }
+}
+
+/* ── New mail arriving ───────────────────────────────────────────────────────
+ * The mail list is the only surface with numbers of its own, and everything
+ * that makes it different is in this block.
+ *
+ * The tokens are redefined on the ROWS rather than on the list, and the
+ * distinction is not cosmetic: the <ul> plays its own fade when a whole new
+ * list arrives — a folder, a search, the next page — and that fade is an
+ * ordinary 180ms one. Redefining --motion-base on the list itself would give
+ * the list six hundred milliseconds too, which is a folder change that takes
+ * most of a second to admit it happened.
+ *
+ * Three things happen when new mail lands, in this order:
+ *
+ *   1  the rows below travel down to where they now are   --motion-room
+ *   2  nothing, while that finishes                       --motion-room-handoff
+ *   3  the new row falls into the gap                     --motion-row-base
+ *
+ * Step 1 is the one that needs explaining. Nothing is ever inserted into this
+ * list: mail--mail-pane fetches the whole list and morphs it, so by the time
+ * anything could animate, the new row is already in place and everything below
+ * it is already one row lower. There is no gap to open. So the survivors are
+ * put BACK where they were and released — see motion.js#makeRoom — which is
+ * the only honest way to show a list making room it never made. */
+[data-list-region="rows"] {
+    /* The containing block for a row on its way out. See below. */
+    position: relative;
+}
+
+[data-list-region="rows"] > * {
+    --motion-base: var(--motion-row-base);
+    --motion-lift: var(--motion-row-lift);
+    --motion-ease: var(--motion-row-ease);
+}
+
+/* Step 2. Written by mail--mail-pane on the rows a morph actually inserted,
+   and only those: a row present at first paint has no gap to wait for, and a
+   delay there would just be the list appearing late. `backwards` fill (set on
+   [data-enter] above) is what keeps the row invisible rather than fully drawn
+   while it waits. */
+[data-list-region="rows"] > [data-enter-delay] {
+    animation-delay: var(--motion-room-handoff);
+}
+
+/* A row that fell off the end — the fifty-first after new mail arrived, or one
+   that no longer belongs in the open folder.
+   Taken out of flow so the list closes over it while it fades, rather than
+   holding its space open for the length of the fade and then snapping shut.
+   `top` is written inline by motion.js, because only JavaScript knows where the
+   row was standing before the morph took it out of the list. */
+[data-list-region="rows"] > [data-leaving] {
+    position: absolute;
+    left: 0;
+    right: 0;
 }

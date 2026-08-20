@@ -53,6 +53,15 @@ final readonly class AppearanceRenderer
             '--motion-scale'   => $appearance->motion->scaleFrom(),
             '--motion-stagger' => $appearance->motion->stagger(),
             '--motion-ease'    => $appearance->motion->ease(),
+
+            // New mail arriving: the one surface with numbers of its own, and
+            // the room the list makes for it. See MotionLevel::rowBase() for
+            // why this is allowed to be the exception to everything above.
+            '--motion-row-base'    => $appearance->motion->rowBase(),
+            '--motion-row-lift'    => $appearance->motion->rowLift(),
+            '--motion-row-ease'    => $appearance->motion->rowEase(),
+            '--motion-room'         => $appearance->motion->room(),
+            '--motion-room-handoff' => $appearance->motion->roomHandoff(),
             '--rgb-accent'    => self::channels($appearance->accent),
             '--rgb-accent-ink' => self::contrastChannels($appearance->accent),
             '--scrim-alpha'   => rtrim(rtrim(number_format($appearance->scrimAlpha, 3, '.', ''), '0'), '.') ?: '0',

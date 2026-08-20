@@ -239,6 +239,126 @@ export function leave(element, done) {
 }
 
 /**
+ * Milliseconds from a CSS duration, for the two places JS has to out-wait one.
+ *
+ * Both `ms` and `s` are legal in a custom property and the browser hands back
+ * whichever was written, so neither can be assumed.
+ */
+function milliseconds(value) {
+    const number = Number.parseFloat(value);
+
+    if (Number.isNaN(number)) {
+        return 0;
+    }
+
+    return value.trim().endsWith("ms") ? number : number * 1000;
+}
+
+/**
+ * Make room in a list that was never inserted into.
+ *
+ * The mail list is not built up row by row. mail--mail-pane fetches the whole
+ * list and morphs it, so by the time anything can be animated the new mail is
+ * already in place and every row below it is already one row lower. There is no
+ * moment at which a gap opens, and no gap to animate.
+ *
+ * So the gap is played backwards. Measure where every row is BEFORE the morph;
+ * afterwards, put the survivors back where they were with a transform and then
+ * release them. What the eye sees is rows travelling down to make space — which
+ * is a true account of what happened, arrived at from the wrong end.
+ *
+ * Used like this, because the measuring has to bracket the morph:
+ *
+ *     const room = makeRoom(list);
+ *     ...morph, calling room.holding(row) for each row being dropped...
+ *     room.play();
+ *
+ * Transform only. Nothing here touches layout, so fifty rows travelling costs
+ * no reflows and every one of them stays clickable the whole way — a row is
+ * hit-tested where it is drawn, not where it started.
+ */
+export function makeRoom(container) {
+    if (motionIsOff()) {
+        return { holding: () => {}, play: () => {} };
+    }
+
+    // Anything still travelling from a previous refresh is finished now, so
+    // that the positions below are read from one settled layout rather than
+    // from a list in two states at once.
+    settle(container);
+
+    const was = new Map();
+
+    for (const row of container.children) {
+        if ("" !== row.id) {
+            was.set(row.id, row.offsetTop);
+        }
+    }
+
+    return {
+        /**
+         * A row that is leaving, caught before the morph takes it out.
+         *
+         * Pinned where it was standing and taken out of flow, so the list can
+         * close over it while it fades. Its id goes with it — see
+         * mail--mail-pane#_rowLeaving for why a departing row must stop being
+         * addressable.
+         */
+        holding(row) {
+            row.style.top = `${was.get(row.id) ?? row.offsetTop}px`;
+        },
+
+        play() {
+            const styles = getComputedStyle(container);
+            const duration = styles.getPropertyValue("--motion-room").trim();
+            const ease = styles.getPropertyValue("--motion-row-ease").trim();
+            const moved = [];
+
+            for (const row of container.children) {
+                const before = was.get(row.id);
+
+                if (undefined === before) {
+                    continue;
+                }
+
+                const travelled = before - row.offsetTop;
+
+                if (0 !== travelled) {
+                    row.style.transform = `translateY(${travelled}px)`;
+                    moved.push(row);
+                }
+            }
+
+            if (0 === moved.length) {
+                return;
+            }
+
+            // Two frames, not one. A single frame lets the browser coalesce the
+            // transform above with the one below and transition nothing at all,
+            // which is the oldest bug in this technique.
+            requestAnimationFrame(() => requestAnimationFrame(() => {
+                moved.forEach((row) => {
+                    row.style.transition = `transform ${duration} ${ease}`;
+                    row.style.transform = "";
+                });
+            }));
+
+            setTimeout(() => settle(container), milliseconds(duration) + 120);
+        },
+    };
+}
+
+/** Take the inline remains of a finished journey back off. */
+function settle(container) {
+    for (const row of container.children) {
+        if ("" !== row.style.transform || "" !== row.style.transition) {
+            row.style.transform = "";
+            row.style.transition = "";
+        }
+    }
+}
+
+/**
  * Watch for arrivals.
  *
  * `subtree: true` from documentElement, which sounds expensive and is not: the

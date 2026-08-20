@@ -96,13 +96,26 @@ they are sending, not what they set on this page.
 **Motion** is **Full**, **Minimal** or **None**, and it decides how much the interface moves when
 something appears — a message arriving in the list, the compose window opening, a menu dropping down.
 
-- **Full** — things arrive from somewhere and settle. Nothing takes longer than a quarter of a
-  second, and nothing waits for an animation before you can use it: a row is clickable while it is
+- **Full** — things arrive from somewhere and settle. Almost nothing takes longer than a quarter of
+  a second, and nothing waits for an animation before you can use it: a row is clickable while it is
   still fading in.
 - **Minimal** — the same cues, as a fade, with nothing moving and nothing displaced. Slightly faster
   than Full, because without travel there is less for the eye to follow and the same duration starts
   to read as a lag.
 - **None** — exactly what plMail did before any of this existed.
+
+### New mail is the exception
+
+One thing takes noticeably longer than everything else, and it is deliberate: a conversation that has
+genuinely just arrived drops into the list from above, the rows below it moving down to let it in.
+The whole gesture runs about eight hundred milliseconds — several times anything else in plMail.
+
+It is affordable because it is *rare*. The list is redrawn constantly, after every star, archive,
+bulk action and sync, and none of that plays this. Only mail that has never been on your screen
+before does, which on a normal mailbox is a handful of times an hour. And it gates nothing — the row
+can be read, clicked and selected from its first frame.
+
+At **Minimal** it collapses to the same short fade as everything else: no drop, no travel, no wait.
 
 **If your system asks for reduced motion, that wins** — whatever is set here, and without asking.
 Somebody who has told their operating system that movement makes them ill has not asked plMail for

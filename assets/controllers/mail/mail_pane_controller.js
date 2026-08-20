@@ -1,6 +1,6 @@
 import { Controller } from "@hotwired/stimulus";
 import { Idiomorph } from "idiomorph";
-import { leave, motionIsOff } from "../../motion.js";
+import { leave, makeRoom, motionIsOff } from "../../motion.js";
 
 // MailboxSpecialUse values (see App\Domain\Enum\MailboxSpecialUse) mapped to
 // the data-sync-scope tokens used by the list templates.
@@ -94,17 +94,39 @@ const MORPHED_REGION = "rows";
 const CLIENT_OWNED = new Set(["data-entered", "data-enter", "data-leaving"]);
 
 /**
- * A menu whose open-or-closed state belongs to whoever opened it.
+ * A menu, which stops being the server's business the moment it is opened.
  *
- * ui--dropdown shows a menu by clearing `hidden`, and the server always renders
- * it set. Preserving the node is therefore not enough on its own: the morph
- * would faithfully put `hidden` back and close a menu somebody is reading, in
- * the same breath as fixing the older bug where the whole thing was destroyed.
+ * Preserving the node is not enough on its own. ui--dropdown shows a menu by
+ * clearing `hidden`, and the server always renders it set, so a faithful morph
+ * closes a menu somebody is reading in the same breath as fixing the older bug
+ * where the whole thing was destroyed.
  *
- * Scoped to the menu element rather than made a global exception for `hidden`,
- * which the server does legitimately own nearly everywhere else.
+ * `hidden` on the menu itself was the obvious exception to make and the wrong
+ * one: the snooze menu ALSO hides individual entries and un-hides them on open,
+ * so exempting one attribute on one element left the menu standing with its
+ * contents blanked. The rule that holds is the broader one — an open menu is
+ * under somebody's pointer, and nothing a background sync has to say about it
+ * can be more important than that. It is skipped whole, children included, and
+ * becomes the server's again the moment it closes.
  */
-const OPEN_STATE_IS_THEIRS = '[data-ui--dropdown-target="menu"]';
+const MENU = '[data-ui--dropdown-target="menu"]';
+
+/**
+ * One row of the list, as opposed to any of the hundreds of nodes inside one.
+ *
+ * The morph's add and remove hooks fire for every node they touch, most of
+ * which are fragments being brought up to date — a span whose text changed, a
+ * star that is no longer there. Both hooks below act only on whole rows, and
+ * this is how they tell.
+ *
+ * Matched by selector rather than by asking whether the node's parent is the
+ * list. That test looks equivalent and is not: Idiomorph inserts and morphs
+ * through a proxy parent, so a node can be handed to a callback before it is
+ * where it will end up, and `parentElement === live` is false for a row that is
+ * unmistakably a row. Found the hard way, by an entrance that never got its
+ * delay.
+ */
+const ROW = 'li[data-controller="mail--message-row"]';
 
 /** The row checkboxes, whose `value` is the thread id. */
 const ROW_SELECT = "input[data-thread-select]";
@@ -583,27 +605,62 @@ export default class extends Controller {
      * is the server's, which knows nothing about what is ticked.
      */
     _morphRows(live, incoming) {
-        Idiomorph.morph(live, incoming, {
+        // Brackets the morph: the measuring has to happen while the old list is
+        // still standing, and the playing after the new one has been laid out.
+        // See motion.js#makeRoom — a list that is replaced rather than inserted
+        // into has no other moment at which a gap could be shown opening.
+        const room = makeRoom(live);
+
+        // `incoming.innerHTML`, not `incoming`. The second argument is the new
+        // CONTENT, and an element handed over whole is content — so passing the
+        // fresh <ul> asks for a list containing a list, and gets one: a
+        // duplicate <ul data-list-region="rows"> nested inside the live one,
+        // one level deeper on every refresh. It hid well, because the rows
+        // still morphed correctly and kept their identity; they simply lived
+        // one level further down than anything looking for them expected.
+        Idiomorph.morph(live, incoming.innerHTML, {
             morphStyle: "innerHTML",
             callbacks: {
-                beforeAttributeUpdated: (name, node) => this._serverOwns(name, node),
-                beforeNodeRemoved: (node) => this._rowLeaving(node, live),
+                beforeAttributeUpdated: (name) => false === CLIENT_OWNED.has(name),
+                beforeNodeMorphed: (node) => this._mayMorph(node),
+                beforeNodeRemoved: (node) => this._rowLeaving(node, room),
+                afterNodeAdded: (node) => this._rowArrived(node),
             },
         });
+
+        room.play();
     }
 
     /**
-     * Whether the morph may write this attribute, or whether the client is
-     * holding something in it that the server cannot know about.
+     * A row the morph actually inserted — new mail, or the first sight of a
+     * thread that has moved onto this page.
      *
-     * See CLIENT_OWNED and OPEN_STATE_IS_THEIRS.
+     * Marked, and only marked. What the mark buys is the pause between the gap
+     * finishing opening and the row falling into it, which lives in motion.css
+     * as an animation-delay. It has to be an attribute rather than a call
+     * because the entrance has not started yet: motion.js gives this row its
+     * `data-enter` on the next microtask, and a delay applied after that would
+     * be applied to an animation already running.
+     *
+     * Whole rows only — see ROW.
      */
-    _serverOwns(name, node) {
-        if (CLIENT_OWNED.has(name)) {
-            return false;
+    _rowArrived(node) {
+        if (true === node.matches?.(ROW)) {
+            node.dataset.enterDelay = "";
+        }
+    }
+
+    /**
+     * Whether this node and everything inside it may be brought up to date.
+     *
+     * Only one thing says no, and see MENU for why: a dropdown that is open.
+     */
+    _mayMorph(node) {
+        if (true !== node.matches?.(MENU)) {
+            return true;
         }
 
-        return "hidden" !== name || false === node.matches?.(OPEN_STATE_IS_THEIRS);
+        return node.hidden;
     }
 
     /**
@@ -619,13 +676,10 @@ export default class extends Controller {
      * The marker is what stops a second refresh, arriving while the first
      * fade is still running, from starting the same departure twice.
      */
-    _rowLeaving(node, live) {
-        // Only a row, and only a row of THIS list. The hook fires for every
-        // node the morph discards, most of which are fragments inside a row
-        // being brought up to date — a span whose text changed, a star that is
-        // no longer there. Holding one of those back would leave the shrapnel
-        // of an edit on screen for as long as the animation lasts.
-        if (node.parentElement !== live || undefined === node.dataset) {
+    _rowLeaving(node, room) {
+        // Whole rows only — see ROW. Holding back a fragment of an edit would
+        // leave the shrapnel of it on screen for as long as the fade lasts.
+        if (true !== node.matches?.(ROW)) {
             return true;
         }
 
@@ -642,7 +696,12 @@ export default class extends Controller {
             return false;
         }
 
-        // The id goes first, and it matters. A row held back for its fade is
+        // Pinned where it was standing before it is taken out of flow, so
+        // the rows below can close over it while it fades rather than waiting
+        // for it to go. This reads the id, so it goes before the id is dropped.
+        room.holding(node);
+
+        // The id goes second, and it matters. A row held back for its fade is
         // still a child of the list, so the NEXT morph can match it by id — and
         // a thread that left the page and came straight back (a reply landing
         // in it moments later) would be morphed into a node that is mid-exit:

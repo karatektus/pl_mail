@@ -26,12 +26,16 @@ namespace App\Domain\Enum\Theme;
  * hardcoded milliseconds — and so a reviewer can see the whole motion budget
  * of the application in one screenful.
  *
- * **Nothing here exceeds 260ms.** Past roughly a quarter second a transition
- * stops reading as "this moved" and starts reading as "I am waiting for this",
- * which is the failure mode that makes people turn animation off. Enter
- * animations are also never allowed to gate interaction: a row is clickable
- * while it is still fading in, because the alternative is a beautiful
+ * **Nothing in the general vocabulary exceeds 260ms.** Past roughly a quarter
+ * second a transition stops reading as "this moved" and starts reading as "I am
+ * waiting for this", which is the failure mode that makes people turn animation
+ * off. Enter animations are also never allowed to gate interaction: a row is
+ * clickable while it is still fading in, because the alternative is a beautiful
  * interface that feels slower than the one it replaced.
+ *
+ * The mail row breaks that ceiling on purpose, and it is the only thing that
+ * does — see rowBase(). The rule above is about animations you meet constantly.
+ * A genuinely new mail arriving is not one of those.
  */
 enum MotionLevel: string
 {
@@ -138,6 +142,114 @@ enum MotionLevel: string
     public function ease(): string
     {
         return 'cubic-bezier(0.22, 0.68, 0.32, 1)';
+    }
+
+    /**
+     * ── New mail arriving ────────────────────────────────────────────────
+     *
+     * The one surface with its own numbers rather than the shared ones, and
+     * the reason is that it is the only animation in plMail carrying
+     * INFORMATION. Every other entrance says "this is here now", which the eye
+     * needs for a fraction of a second and then resents. This one says "this
+     * one is new" — a thing worth taking a moment over, because it fires only
+     * when mail genuinely arrives, which on a real mailbox is a handful of
+     * times an hour and not once a second.
+     *
+     * It is affordable at this length for two reasons and they both have to
+     * hold. It is rare: nothing in a redraw plays it, which is what the id rule
+     * in motion.js exists to guarantee. And it gates nothing: the row is
+     * clickable, selectable and readable from its first frame, so the six
+     * hundred milliseconds are never six hundred milliseconds of waiting.
+     *
+     * Minimal does not scale this down proportionally, it opts out: the row
+     * takes the ordinary base and travels nowhere, like everything else at that
+     * tier. A shortened version of a gesture whose whole point is its length is
+     * not a smaller gesture, it is a worse one.
+     */
+    public function rowBase(): string
+    {
+        return match ($this) {
+            self::Full    => '600ms',
+            self::Minimal => $this->base(),
+            self::None    => '0s',
+        };
+    }
+
+    /**
+     * How far a new row falls.
+     *
+     * Eight times the general lift, because it is doing a different job. Six
+     * pixels is a hint that something moved; forty-eight is a distance the eye
+     * can follow from somewhere to somewhere, which is what makes the row read
+     * as having ARRIVED rather than as having been redrawn slightly wrong.
+     *
+     * The list clips it, so the row is seen entering from beyond the top edge
+     * rather than materialising inside the list and sliding.
+     */
+    public function rowLift(): string
+    {
+        return match ($this) {
+            self::Full                => '48px',
+            self::Minimal, self::None => '0px',
+        };
+    }
+
+    /**
+     * The one curve in plMail that overshoots.
+     *
+     * ease() argues against a spring, and that argument stands for everything
+     * ease() covers: a fortieth-time interface should not bounce. This is the
+     * exception the argument makes room for — the overshoot is what separates
+     * "a row appeared at the top" from "a row DROPPED IN at the top", and being
+     * unmistakable is the entire job here.
+     *
+     * At Minimal there is nowhere to overshoot from, so it falls back rather
+     * than bouncing a zero-length travel.
+     */
+    public function rowEase(): string
+    {
+        return match ($this) {
+            self::Full                => 'cubic-bezier(0.34, 1.56, 0.64, 1)',
+            self::Minimal, self::None => $this->ease(),
+        };
+    }
+
+    /**
+     * How long the rows below take to get out of the way.
+     *
+     * The list is not inserted into, it is replaced wholesale and then morphed
+     * — see mail--mail-pane#_morphRows — so by the time anything can be
+     * animated the new row is already in place and everything below it is
+     * already one row lower. This is the duration of putting the survivors back
+     * where they were and letting them travel to where they now are, which is
+     * the only way to show a gap opening in a list nobody inserted into.
+     */
+    public function room(): string
+    {
+        return match ($this) {
+            self::Full    => '200ms',
+            self::Minimal => $this->base(),
+            self::None    => '0s',
+        };
+    }
+
+    /**
+     * How long the new row waits before dropping into the gap.
+     *
+     * Sequential rather than simultaneous, and deliberately the full length of
+     * the room: the gap finishes opening and only then does anything fall into
+     * it. Overlapping the two is cheaper in wall-clock time and reads as one
+     * blurred event; separating them reads as cause and effect, which is what
+     * the whole gesture is claiming.
+     *
+     * Zero at Minimal, where there is no gap to wait for.
+     */
+    public function roomHandoff(): string
+    {
+        return match ($this) {
+            self::Full                => '200ms',
+            self::Minimal, self::None => '0ms',
+        };
     }
 
     /** Whether anything animates at all — the escape hatch JS reads. */

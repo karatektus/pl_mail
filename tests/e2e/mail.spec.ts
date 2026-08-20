@@ -490,6 +490,13 @@ test.describe("mail UI actions", () => {
         );
 
         expect(probes).toEqual(Array.from({ length: before }, (_, index) => index));
+
+        // Still one list. Handing the morph the fresh <ul> whole rather than
+        // its children nests a duplicate inside the live one, a level deeper
+        // every refresh — and every other assertion here still passes, because
+        // the rows morph correctly and simply live further down. Cheap to
+        // check, and it is the shape of the mistake, not one instance of it.
+        await expect(page.locator('[data-list-region="rows"]')).toHaveCount(1);
     });
 
     /**
@@ -517,6 +524,210 @@ test.describe("mail UI actions", () => {
         // And still a working menu, not just a visible one — the controller
         // instance survived with its element.
         await expect(menu.getByText("Later today")).toBeVisible();
+    });
+
+    /**
+     * New mail arriving, staged.
+     *
+     * There is no way to make real mail land mid-test, so the refresh the pane
+     * asks for on its own is answered with a list that has one more row in it
+     * than the one on screen — which is precisely what a sync that found
+     * something looks like from the browser's side.
+     *
+     * The row is copied rather than composed, so it carries every attribute the
+     * real template emits and the test cannot drift away from it. Only the id
+     * changes, because the id is the entire question: it is what tells the page
+     * this is an arrival and not a redraw.
+     */
+    const arrivingMail = async (page: Page) => {
+        await page.route("**/mail/inbox**", async (route) => {
+            if (route.request().headers()["x-list-fragment"] === undefined) {
+                return route.continue();
+            }
+
+            const response = await route.fetch();
+            const body = await response.text();
+
+            // `<li` with the boundary, or this finds `<link>` in the head —
+            // which produced a fixture that duplicated half the document and
+            // sent a morph bug hunt after a bug that was in the test.
+            const opens = body.search(/<li[\s>]/);
+            const closes = body.indexOf("</li>", opens) + "</li>".length;
+            const row = body.slice(opens, closes);
+
+            return route.fulfill({
+                response,
+                body:
+                    body.slice(0, opens) +
+                    row.replace(/id="thread_\d+"/, 'id="thread_99000001"') +
+                    body.slice(opens),
+            });
+        });
+    };
+
+    /**
+     * Records the movement rather than catching it mid-flight.
+     *
+     * Sampling a transform after the fact is a race with the animation it is
+     * trying to observe, and a test that has to be quick enough is a test that
+     * fails on a loaded machine. These listeners fire when the browser starts
+     * the work, whenever that is, and the assertions read the tally afterwards.
+     */
+    const recordMotion = (page: Page) =>
+        page.evaluate(() => {
+            const seen = { moved: 0, entered: [] as string[] };
+
+            Object.assign(window, { __motion: seen });
+
+            document.addEventListener(
+                "transitionrun",
+                (event) => {
+                    if ((event as TransitionEvent).propertyName === "transform") seen.moved++;
+                },
+                true,
+            );
+            document.addEventListener(
+                "animationstart",
+                (event) => {
+                    seen.entered.push((event as AnimationEvent).animationName);
+                },
+                true,
+            );
+        });
+
+    /**
+     * The list makes room for mail it was handed already in place.
+     *
+     * Nothing is ever inserted into this list — the whole thing is refetched
+     * and morphed, so the new row arrives with every row below it already one
+     * row lower. The rows below therefore have to be put BACK and released, and
+     * that is what `transitionrun` on `transform` is evidence of: they moved,
+     * which they could only do if something replayed the gap.
+     */
+    test("new mail arrives into a gap the list opens for it", async ({ page }) => {
+        await page.goto("/mail/inbox");
+        await expectSeededRows(page);
+
+        await recordMotion(page);
+        await arrivingMail(page);
+        await syncFired(page);
+
+        const arrival = page.locator("#thread_99000001");
+        await expect(arrival).toHaveCount(1);
+
+        // Its entrance, and the pause before it. The delay attribute is written
+        // only onto rows a morph actually inserted, which is what keeps a plain
+        // page load from starting late.
+        await expect(arrival).toHaveAttribute("data-enter", "slide-down");
+        await expect(arrival).toHaveAttribute("data-enter-delay", "");
+
+        await expect
+            .poll(() => page.evaluate(() =>
+                (window as unknown as { __motion: { entered: string[] } }).__motion.entered,
+            ))
+            .toContain("plmail-slide-down");
+
+        // And the rows below travelled to let it in.
+        await expect
+            .poll(() => page.evaluate(() =>
+                (window as unknown as { __motion: { moved: number } }).__motion.moved,
+            ))
+            .toBeGreaterThan(0);
+
+        // Nothing left behind: the inline transform and transition a FLIP needs
+        // are cleared once it lands, so the next one measures a settled list.
+        await expect
+            .poll(() => page.evaluate(() =>
+                Array.from(
+                    document.querySelectorAll('#message-list li[data-controller="mail--message-row"]'),
+                ).filter((row) => (row as HTMLElement).style.transform !== "").length,
+            ))
+            .toBe(0);
+    });
+
+    /**
+     * A row falling off the end.
+     *
+     * On a real page this is the fifty-first conversation after new mail
+     * pushed it over, or a thread that no longer belongs in the open folder.
+     * Either way the server simply does not send it, so the browser learns
+     * about the departure by its absence — and the row has to be held back
+     * long enough to be seen leaving, because a node cannot animate after it
+     * has been removed.
+     */
+    test("a row that falls off the end fades where it stood", async ({ page }) => {
+        await page.goto("/mail/inbox");
+        await expectSeededRows(page);
+
+        const doomed = await page.evaluate(
+            () => document.querySelector('#message-list li[data-controller="mail--message-row"]')?.id,
+        );
+        expect(doomed).toBeTruthy();
+
+        await recordMotion(page);
+
+        // The same surgery as an arrival, in reverse: the refresh comes back
+        // one row shorter than the list on screen.
+        await page.route("**/mail/inbox**", async (route) => {
+            if (route.request().headers()["x-list-fragment"] === undefined) {
+                return route.continue();
+            }
+
+            const response = await route.fetch();
+            const body = await response.text();
+            const opens = body.search(/<li[\s>]/);
+            const closes = body.indexOf("</li>", opens) + "</li>".length;
+
+            return route.fulfill({
+                response,
+                body: body.slice(0, opens) + body.slice(closes),
+            });
+        });
+
+        await syncFired(page);
+
+        await expect
+            .poll(() => page.evaluate(() =>
+                (window as unknown as { __motion: { entered: string[] } }).__motion.entered,
+            ))
+            .toContain("plmail-leave");
+
+        // And it is gone afterwards, not merely invisible — a row left behind
+        // at opacity zero still takes clicks away from the row beneath it.
+        await expect(page.locator(`#${doomed}`)).toHaveCount(0);
+        await expect
+            .poll(() => page.evaluate(() =>
+                document.querySelectorAll('#message-list li[data-leaving]').length,
+            ))
+            .toBe(0);
+    });
+
+    /**
+     * None means none, and it means it here too.
+     *
+     * The tier is the one place this whole feature can be turned off, so the
+     * expensive path — measuring, inverting, holding a row back for its fade —
+     * has to be genuinely skipped rather than merely run at zero duration.
+     */
+    test("the arrival gesture is skipped entirely at the none tier", async ({ page }) => {
+        await page.goto("/mail/inbox");
+        await expectSeededRows(page);
+
+        await page.evaluate(() => {
+            document.documentElement.dataset.motion = "none";
+        });
+
+        await recordMotion(page);
+        await arrivingMail(page);
+        await syncFired(page);
+
+        await expect(page.locator("#thread_99000001")).toHaveCount(1);
+
+        expect(
+            await page.evaluate(() =>
+                (window as unknown as { __motion: { moved: number } }).__motion.moved,
+            ),
+        ).toBe(0);
     });
 
     // ── Still pending: needs more than wiring ────────────────────────────────
