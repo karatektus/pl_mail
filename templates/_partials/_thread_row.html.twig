@@ -153,12 +153,12 @@ Threads only. A bare Message row is a message, and only a conversation arrives.
    this can exist at all.
 
    A row is not automatically an arrival. The list it sits in is re-rendered
-   from server state on every sync — as often as every fifteen seconds — and
-   after every bulk action: mail--mail-pane#_swapRegions assigns over the rows
-   region's innerHTML, so every row becomes a brand new node carrying the same
-   mail. An entrance keyed on the NODE would therefore fire four times a minute
-   on an inbox nobody is touching, and a list that shimmers at rest is
-   unreadable.
+   from server state on every sync — which IDLE and push make as often as mail
+   actually moves — and after every bulk action: mail--mail-pane#_swapRegions
+   assigns over the rows region's innerHTML, so every row becomes a brand new
+   node carrying the same mail. An entrance keyed on the NODE would therefore
+   fire on all fifty rows every time one unrelated mail lands, and a list that
+   shimmers at rest is unreadable.
 
    What tells the two apart is the id: `thread_1234` is the same conversation
    whoever rendered it. motion.js animates an element the first time it sees a

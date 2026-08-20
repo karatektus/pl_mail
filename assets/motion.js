@@ -65,11 +65,18 @@ const PLAYED = "data-entered";
  * Ids this page has already shown, so a re-render is not mistaken for news.
  *
  * The mail list is replaced WHOLESALE — `live.innerHTML = incoming.innerHTML`
- * in mail--mail-pane#_swapRegions — on every background sync, as often as every
- * fifteen seconds. Every row is therefore a brand new node carrying the same
- * mail, and an entrance on the row would fire four times a minute on an inbox
- * nobody is touching. A list that shimmers at rest is unreadable, and it is the
- * single fastest way to make somebody switch this feature off.
+ * in mail--mail-pane#_swapRegions — every time a sync reports on a mailbox the
+ * open view shows. That is not on a clock: IMAP IDLE and Gmail push make it
+ * whenever mail moves, the scheduled sweep makes it every fifteen minutes
+ * regardless, and every bulk action makes it too. Fifteen SECONDS is only the
+ * floor mail--mail-pane keeps between two refreshes, so that one sync across
+ * several accounts arrives as one redraw instead of eight.
+ *
+ * Every row is therefore a brand new node carrying the same mail, and an
+ * entrance keyed on the node would fire on all fifty of them every time a
+ * single unrelated mail lands in a folder nobody is looking at. A list that
+ * shimmers at rest is unreadable, and it is the single fastest way to make
+ * somebody switch this feature off.
  *
  * What distinguishes the two cases is not the DOM node, which is new either
  * way, but the id on it: `thread_1234` is the same mail whoever rendered it. So

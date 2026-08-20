@@ -33,8 +33,8 @@
  * Anything whose entrance is CONDITIONAL therefore has to arrive with no
  * animation attached at all and be given one afterwards, which is a decision
  * only JavaScript can take. See assets/motion.js. The mail list is why this
- * exists: it is re-rendered wholesale every fifteen seconds, so a row keyed on
- * the node would pulse at rest.
+ * exists: it is re-rendered wholesale whenever a sync touches the folder on
+ * screen, so a row keyed on the node would pulse at rest.
  *
  * ── The three tiers ─────────────────────────────────────────────────────────
  *
