@@ -96,13 +96,18 @@ they are sending, not what they set on this page.
 **Motion** is **Full**, **Minimal** or **None**, and it decides how much the interface moves when
 something appears — a message arriving in the list, the compose window opening, a menu dropping down.
 
-- **Full** — things arrive from somewhere and settle. Almost nothing takes longer than a quarter of
-  a second, and nothing waits for an animation before you can use it: a row is clickable while it is
-  still fading in.
+- **Full** — things arrive from somewhere and settle. Almost everything is done inside a quarter of
+  a second. The mail list is the exception, twice over, and the two sections below are about that.
 - **Minimal** — the same cues, as a fade, with nothing moving and nothing displaced. Slightly faster
   than Full, because without travel there is less for the eye to follow and the same duration starts
   to read as a lag.
 - **None** — exactly what plMail did before any of this existed.
+
+Opening a folder, running a search or turning a page is the same size of event and gets the same
+length of gesture, but a different one: the rows come in from the left, each a fraction after the one
+above it. The list itself does not animate — a grey rectangle fading tells you a rectangle changed.
+The stagger is capped at eight rows, so a list of fifty and a list of six both finish spreading in
+about a sixth of a second.
 
 ### New mail is the exception
 
@@ -112,10 +117,22 @@ The whole gesture runs about eight hundred milliseconds — several times anythi
 
 It is affordable because it is *rare*. The list is redrawn constantly, after every star, archive,
 bulk action and sync, and none of that plays this. Only mail that has never been on your screen
-before does, which on a normal mailbox is a handful of times an hour. And it gates nothing — the row
-can be read, clicked and selected from its first frame.
+before does, which on a normal mailbox is a handful of times an hour.
 
 At **Minimal** it collapses to the same short fade as everything else: no drop, no travel, no wait.
+
+### The one thing it costs
+
+While either of those is playing, the list is moving, and something moving can be reached for and
+missed. A row keeps its full width and stays on its own line the whole way, so clicking the middle of
+one does what it looks like it does — but the select box at the far left and the hover actions at the
+far right are travelling, and for about half a second they are not quite where they will be.
+
+Nothing is ever frozen and no click is ever thrown away. It is simply possible, in that half second,
+to click a piece of empty list rather than the control on its way to that spot.
+
+If that bothers you, the setting above is the answer, and it is why the setting exists: **Minimal**
+keeps the cues and removes every pixel of travel, and **None** removes the animation.
 
 **If your system asks for reduced motion, that wins** — whatever is set here, and without asking.
 Somebody who has told their operating system that movement makes them ill has not asked plMail for

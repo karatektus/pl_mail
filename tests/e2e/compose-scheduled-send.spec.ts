@@ -1,5 +1,7 @@
 import { test, expect, type Locator, type Page } from "./support/test";
 import { seed } from "./support/config";
+// Aliased: this spec already has a `settled` for a single locator.
+import { settled as nothingMoving } from "./support/motion";
 
 /**
  * Send later, from the send pill's chevron.
@@ -654,6 +656,10 @@ test.describe("scheduled send on a phone", () => {
 
         await expect(badge).toBeVisible();
         await expect(cancel).toBeVisible();
+
+        // Measured at rest. Mid-entrance a badge reports a negative x for
+        // something that fits perfectly well once it has stopped moving.
+        await nothingMoving(page);
 
         const badgeBox = await badge.boundingBox();
         const cancelBox = await cancel.boundingBox();

@@ -29,13 +29,38 @@ namespace App\Domain\Enum\Theme;
  * **Nothing in the general vocabulary exceeds 260ms.** Past roughly a quarter
  * second a transition stops reading as "this moved" and starts reading as "I am
  * waiting for this", which is the failure mode that makes people turn animation
- * off. Enter animations are also never allowed to gate interaction: a row is
- * clickable while it is still fading in, because the alternative is a beautiful
- * interface that feels slower than the one it replaced.
+ * off. That ceiling covers the animations you meet constantly — a menu, a
+ * toast, a panel — and it is not negotiable for them.
  *
- * The mail row breaks that ceiling on purpose, and it is the only thing that
- * does — see rowBase(). The rule above is about animations you meet constantly.
- * A genuinely new mail arriving is not one of those.
+ * The mail list is outside it on purpose, in both of its gestures: one new mail
+ * arriving (rowBase) and a whole list arriving (listBase) each run 600ms. They
+ * are rare, they are the two moments in this app where movement is carrying
+ * information rather than reassurance, and they are worth the time.
+ *
+ * ── What that costs, stated plainly ─────────────────────────────────────────
+ *
+ * A surface that is arriving is somewhere other than where it will end up, and
+ * for those 600ms it can be reached for and missed. This file used to promise
+ * the opposite — "a row is clickable while it is still fading in" — and that
+ * promise was written when nothing moved more than six pixels. At 48px of
+ * travel it is no longer true, so it is withdrawn rather than quietly broken.
+ *
+ * The exposure is narrower than it sounds, and worth knowing exactly:
+ *
+ *   - A row keeps its full width and its vertical position throughout, so a
+ *     click anywhere in the middle of it lands on the row it looks like.
+ *   - What moves out from under a pointer is the two ends: the select checkbox
+ *     at the left edge, and the hover actions at the right.
+ *   - Nothing is ever made inert and no click is ever swallowed. A click during
+ *     an entrance does what a click at that spot does; it is simply possible
+ *     for that spot to be list background rather than the control that is on
+ *     its way to it.
+ *
+ * And it is bounded by something better than a promise: noticing a list has
+ * changed and deciding where to click takes longer than the animation does, and
+ * for anyone it does bother, Minimal removes every pixel of travel and None
+ * removes the animation. That is what the setting is FOR — a motion budget
+ * nobody can opt out of has to be timid, and one they can opt out of does not.
  */
 enum MotionLevel: string
 {
@@ -155,11 +180,11 @@ enum MotionLevel: string
      * when mail genuinely arrives, which on a real mailbox is a handful of
      * times an hour and not once a second.
      *
-     * It is affordable at this length for two reasons and they both have to
-     * hold. It is rare: nothing in a redraw plays it, which is what the id rule
-     * in motion.js exists to guarantee. And it gates nothing: the row is
-     * clickable, selectable and readable from its first frame, so the six
-     * hundred milliseconds are never six hundred milliseconds of waiting.
+     * It is affordable at this length because it is RARE: nothing in a redraw
+     * plays it, which is what the id rule in motion.js exists to guarantee. It
+     * is not free — see the note in the class comment about what a moving
+     * surface costs — but a handful of times an hour is a price worth paying
+     * for the one animation here that tells you something you did not know.
      *
      * Minimal does not scale this down proportionally, it opts out: the row
      * takes the ordinary base and travels nowhere, like everything else at that
@@ -250,6 +275,51 @@ enum MotionLevel: string
             self::Full                => '200ms',
             self::Minimal, self::None => '0ms',
         };
+    }
+
+    /**
+     * ── A whole list arriving ────────────────────────────────────────────
+     *
+     * A folder change, a search, the next page, a category tab. Sibling to the
+     * new-mail gesture above and deliberately not the same one: that says "this
+     * one is new", this says "all of these are". Same length and same distance,
+     * because they are the same size of event; a different direction and a
+     * different curve, because they are different events.
+     *
+     * The rows do this one, not the list. A list that fades as a grey rectangle
+     * tells you a rectangle changed; fifty rows entering tells you what changed.
+     */
+    public function listBase(): string
+    {
+        return match ($this) {
+            self::Full    => '600ms',
+            self::Minimal => $this->base(),
+            self::None    => '0s',
+        };
+    }
+
+    /** How far each row travels in from, on a whole-list arrival. */
+    public function listLift(): string
+    {
+        return match ($this) {
+            self::Full                => '48px',
+            self::Minimal, self::None => '0px',
+        };
+    }
+
+    /**
+     * The gap between one arriving row and the next.
+     *
+     * The house stagger, not a number of its own: this is exactly the effect
+     * stagger() describes, applied to the one list big enough to need it. It is
+     * capped in CSS at eight rows, which matters more here than anywhere else —
+     * fifty rows at 22ms would be a second of list assembling itself before the
+     * last one is legible, and the cap turns that into a fixed 176ms however
+     * long the list is.
+     */
+    public function listStagger(): string
+    {
+        return $this->stagger();
     }
 
     /** Whether anything animates at all — the escape hatch JS reads. */

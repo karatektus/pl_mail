@@ -1,5 +1,6 @@
 import { test, expect, type Page } from "./support/test";
 import { seed } from "./support/config";
+import { settled } from "./support/motion";
 
 /**
  * The twelve-or-twenty-four-hour setting, honoured by the JAVASCRIPT clocks.
@@ -97,6 +98,7 @@ test.describe("the clock setting reaches the browser", () => {
         // selected — and which is the surface neither compose nor the thread
         // row owns, so this spec measures the shared module rather than one
         // caller's markup.
+        await settled(page);
         await page.locator("[data-thread-select]").first().check({ force: true });
         await page.getByRole("button", { name: "Snooze" }).first().click();
 

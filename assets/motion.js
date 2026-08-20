@@ -53,6 +53,32 @@ const ENTER = "data-enter";
 const ENTER_IF_NEW = "data-enter-new";
 
 /**
+ * "Do not animate me. Animate my children, like this."
+ *
+ * For a container whose arrival IS its contents arriving. The mail list is the
+ * case: a folder change, a search, the next page — the <ul> is replaced and
+ * fifty rows come with it, and what should be seen is fifty rows entering
+ * together, not one grey rectangle fading.
+ *
+ * It has to be JavaScript, and the reason is the same one behind ENTER_IF_NEW:
+ * the rows already carry an entrance of their own, for the entirely different
+ * event of ONE new mail landing in a list that is already on screen. They
+ * cannot carry both in the markup, because the markup is written once and the
+ * two cases are told apart at runtime. So the container names the entrance its
+ * children get when they arrive as a group, and whoever gets there first wins:
+ * a row reached this way is marked as having played, so its own entrance never
+ * fires on top.
+ *
+ * A child animated on behalf of its container is marked with SCOPE, because the
+ * two entrances have different timings and the stylesheet has to tell which one
+ * a given row is doing.
+ */
+const ENTER_CHILDREN = "data-enter-children";
+
+/** Written on a child animated by its container. See ENTER_CHILDREN. */
+const SCOPE = "data-enter-scope";
+
+/**
  * Marks an element as having already played, so it cannot play twice.
  *
  * Turbo re-parents nodes rather than always rebuilding them — a frame swap can
@@ -169,6 +195,16 @@ function play(element, batch) {
         return;
     }
 
+    // A container announcing its children rather than itself. Reached before
+    // its own children are, because entrances() collects in document order, so
+    // by the time each row is offered its own entrance it has already been
+    // given the list's.
+    if (element.hasAttribute(ENTER_CHILDREN)) {
+        playChildren(element);
+
+        return;
+    }
+
     // The conditional kind arrives inert and is given its entrance here, which
     // is the act that starts it. Nothing further is needed — and nothing
     // further would work, since the restart below only rewinds an animation the
@@ -190,9 +226,30 @@ function play(element, batch) {
     element.style.animation = "";
 }
 
+/**
+ * Give a container's children the entrance the container named for them.
+ *
+ * Marked as played BEFORE the entrance is written, so that the pass over the
+ * rest of the batch — which will reach these same rows a moment later, since
+ * they carry an entrance of their own — finds them already spoken for. And
+ * remembered, because being shown inside a list is still being shown: without
+ * it the next background sync would find fifty unseen ids and announce a
+ * redrawn list as fifty separate arrivals.
+ */
+function playChildren(container) {
+    const style = container.getAttribute(ENTER_CHILDREN);
+
+    for (const child of container.children) {
+        child.setAttribute(PLAYED, "");
+        remember(child);
+        child.setAttribute(SCOPE, "list");
+        child.setAttribute(ENTER, style);
+    }
+}
+
 /** Every element in a freshly inserted subtree that wants an entrance. */
 function entrances(node) {
-    const selector = `[${ENTER}], [${ENTER_IF_NEW}]`;
+    const selector = `[${ENTER}], [${ENTER_IF_NEW}], [${ENTER_CHILDREN}]`;
     const found = [];
 
     if (node.matches?.(selector)) {
@@ -276,6 +333,13 @@ function milliseconds(value) {
  * Transform only. Nothing here touches layout, so fifty rows travelling costs
  * no reflows and every one of them stays clickable the whole way — a row is
  * hit-tested where it is drawn, not where it started.
+ *
+ * Quietly does nothing for a row that is still playing its own entrance: a CSS
+ * animation owns the property it animates and beats an inline style, so a
+ * transform written here would not apply. That is the right outcome rather than
+ * a case to handle — a sync landing within a few hundred milliseconds of a
+ * folder change finds rows that are already moving, and adding a second reason
+ * for them to move would not read as anything.
  */
 export function makeRoom(container) {
     if (motionIsOff()) {
@@ -368,6 +432,16 @@ function settle(container) {
  * observe, is a list that goes stale the first time somebody adds a surface.
  */
 function watch() {
+    // Containers first, and they are the exception to the sentence below: a
+    // children-entrance is the one kind that does NOT come free from CSS,
+    // because nothing in the markup carries an animation until this writes one.
+    // A list on the page you landed on would otherwise be the only list that
+    // never animates.
+    document.querySelectorAll(`[${ENTER_CHILDREN}]`).forEach((container) => {
+        container.setAttribute(PLAYED, "");
+        playChildren(container);
+    });
+
     // Elements present at first paint animate from CSS alone; marking them
     // stops the observer replaying them if Turbo later moves them about.
     document.querySelectorAll(`[${ENTER}], [${ENTER_IF_NEW}]`).forEach((element) => {

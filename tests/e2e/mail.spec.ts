@@ -1,5 +1,6 @@
 import { test, expect, type Page } from "./support/test";
 import { INBOX_SUBJECTS, mailRow, seed } from "./support/config";
+import { settled } from "./support/motion";
 
 /**
  * Runs authenticated as this worker's own user, signed in by the worker
@@ -527,6 +528,70 @@ test.describe("mail UI actions", () => {
     });
 
     /**
+     * A whole list is its rows arriving, not a rectangle fading.
+     *
+     * The <ul> names the entrance and motion.js hands it to each row — see
+     * ENTER_CHILDREN — which is also what stops the row's OWN entrance, the
+     * long drop that means one new mail, from firing fifty times on a folder
+     * change. The two gestures share a template and are told apart at runtime,
+     * so the thing worth asserting is which one actually played.
+     *
+     * The listener is installed before any of the page's own scripts, because
+     * this animation starts during load and there is no later moment to catch
+     * it from.
+     */
+    test("a whole list arrives as its rows, one after another", async ({ page }) => {
+        await page.addInitScript(() => {
+            const played: string[] = [];
+
+            Object.assign(window, { __played: played });
+            document.addEventListener(
+                "animationstart",
+                (event) => played.push((event as AnimationEvent).animationName),
+                true,
+            );
+        });
+
+        await page.goto("/mail/inbox");
+        await expectSeededRows(page);
+
+        // Polled, not read once: the rows are staggered, so the later ones have
+        // not started yet at the moment the first one is on screen.
+        await expect
+            .poll(() => page.evaluate(() =>
+                (window as unknown as { __played: string[] }).__played
+                    .filter((name) => name === "plmail-slide-right").length,
+            ))
+            .toBeGreaterThan(1);
+
+        const played = await page.evaluate(
+            () => (window as unknown as { __played: string[] }).__played,
+        );
+
+        expect(played, "the list itself must not animate as a block").not.toContain("plmail-fade");
+
+        // Staggered, and from the list's vocabulary rather than the row's: the
+        // rows are marked as having been animated on the list's behalf, which
+        // is what the stylesheet keys the timings off.
+        const rows = await page.evaluate(() =>
+            Array.from(
+                document.querySelectorAll('[data-list-region="rows"] > li'),
+                (row) => ({
+                    scope: row.getAttribute("data-enter-scope"),
+                    delay: getComputedStyle(row).animationDelay,
+                    duration: getComputedStyle(row).animationDuration,
+                }),
+            ),
+        );
+
+        expect(rows.length).toBeGreaterThan(1);
+        expect(rows.every((row) => row.scope === "list")).toBe(true);
+        expect(rows.every((row) => row.duration === "0.6s")).toBe(true);
+        expect(rows[0].delay).toBe("0s");
+        expect(rows[1].delay).not.toBe("0s");
+    });
+
+    /**
      * New mail arriving, staged.
      *
      * There is no way to make real mail land mid-test, so the refresh the pane
@@ -608,6 +673,7 @@ test.describe("mail UI actions", () => {
         await page.goto("/mail/inbox");
         await expectSeededRows(page);
 
+        await settled(page);
         await recordMotion(page);
         await arrivingMail(page);
         await syncFired(page);
@@ -620,6 +686,11 @@ test.describe("mail UI actions", () => {
         // page load from starting late.
         await expect(arrival).toHaveAttribute("data-enter", "slide-down");
         await expect(arrival).toHaveAttribute("data-enter-delay", "");
+
+        // Its OWN entrance, not the list's. One row landing in a list already
+        // on screen is a different event from fifty arriving together, and the
+        // absence of the scope marker is what says so.
+        await expect(arrival).not.toHaveAttribute("data-enter-scope", "list");
 
         await expect
             .poll(() => page.evaluate(() =>
@@ -664,6 +735,7 @@ test.describe("mail UI actions", () => {
         );
         expect(doomed).toBeTruthy();
 
+        await settled(page);
         await recordMotion(page);
 
         // The same surgery as an arrival, in reverse: the refresh comes back

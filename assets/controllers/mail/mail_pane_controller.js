@@ -86,12 +86,18 @@ const MORPHED_REGION = "rows";
  * Attributes the morph must not touch, because the client owns them.
  *
  * `data-entered` and `data-enter` are written onto a row by motion.js when it
- * plays that row's entrance; `data-leaving` is written by the same file when
- * one is on its way out. None of them appear in the markup the server sends,
- * and Idiomorph removes attributes the incoming node does not have — so
- * without this, every morph would strip a row's record of what it is doing.
+ * plays that row's entrance, `data-enter-scope` says WHICH entrance that was,
+ * and `data-leaving` is written by the same file when one is on its way out.
+ * None of them appear in the markup the server sends, and Idiomorph removes
+ * attributes the incoming node does not have — so without this, every morph
+ * would strip a row's record of what it is doing. The scope matters even
+ * though the row is usually finished animating by the time a refresh lands:
+ * a sync arriving mid-entrance would otherwise swap the row's timings under a
+ * running animation.
  */
-const CLIENT_OWNED = new Set(["data-entered", "data-enter", "data-leaving"]);
+const CLIENT_OWNED = new Set([
+    "data-entered", "data-enter", "data-enter-scope", "data-leaving",
+]);
 
 /**
  * A menu, which stops being the server's business the moment it is opened.

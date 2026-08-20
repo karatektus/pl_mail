@@ -62,6 +62,12 @@ final readonly class AppearanceRenderer
             '--motion-row-ease'    => $appearance->motion->rowEase(),
             '--motion-room'         => $appearance->motion->room(),
             '--motion-room-handoff' => $appearance->motion->roomHandoff(),
+
+            // And a whole list arriving, which is the rows' job rather than the
+            // list's — see MotionLevel::listBase().
+            '--motion-list-base'    => $appearance->motion->listBase(),
+            '--motion-list-lift'    => $appearance->motion->listLift(),
+            '--motion-list-stagger' => $appearance->motion->listStagger(),
             '--rgb-accent'    => self::channels($appearance->accent),
             '--rgb-accent-ink' => self::contrastChannels($appearance->accent),
             '--scrim-alpha'   => rtrim(rtrim(number_format($appearance->scrimAlpha, 3, '.', ''), '0'), '.') ?: '0',
