@@ -6,6 +6,55 @@ so anything that changes the schema irreversibly is called out explicitly.
 The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, and `sha-…` pins one commit.
 
+## v0.1.2 — 2026-08-20
+
+**One small migration — a new table, nothing rewritten and nothing locked. The
+radar can be told what it missed, what you tell it collects somewhere an
+administrator can download, and it learns three more shapes on its own.**
+
+**The radar can be told what it missed.** Extraction is deterministic, which is
+the whole reason it can be trusted — nothing guesses, so nothing invents a
+parcel. The cost is that a mail in a shape nobody has written a parser for yields
+nothing, and looks exactly like a mail with nothing in it. **Report a missed
+insight**, in a message's `⋮` menu, is how you say which of the two it was: a
+short dialog asks what plMail should have spotted, and files it. Reporting the
+same mail again corrects your first report rather than filing a second.
+
+**Reporting hands over a copy of the mail, and says so first.** The report keeps
+the sender, the subject, when the mail arrived and the first stretch of its text,
+along with your note — a snapshot rather than a link, because the mail gets
+archived or deleted and a report that resolves to nothing says only that
+something was missed once. That copy is readable and downloadable by your
+administrator, and the dialog opens with that fact rather than with a field to
+fill in. On an installation you do not run yourself, report the mail whose shape
+you want recognised, not one whose contents you would rather keep.
+
+**Admin gains Reported mail.** The pile, with a count of what is still waiting,
+and one JSON file holding every snapshot in the order the mails arrived — which
+is what a new extractor actually gets written from. The download is a POST rather
+than a link, for the reason the config backup export is: what comes back is other
+people's mail. **Unlike the config backup, that file is not encrypted** — keep it
+where you would keep the mailbox itself. Exporting deliberately marks nothing
+handled; a report is done when you say so, not when it has been downloaded,
+because otherwise a second export comes back empty and the work is recorded as
+finished by somebody who had not started.
+
+**Three more things the radar reads.** One-time login codes, invoices with an
+amount and a due date, and subscriptions about to renew or trials about to run
+out. Each has its own switch under Settings → Insights, like every source before
+them.
+
+**A one-time code expires instead of happening.** It is the one insight whose
+time says when the fact stops being true, so the card carries the moment the mail
+says the code dies — "valid for 10 minutes", "gültig bis 09:30" — and leaves the
+radar then, rather than sitting there looking usable. When the mail states no
+lifetime the card carries no time at all: a default ten minutes would either
+retire a code that still works or keep a dead one looking fresh.
+
+**Also.** New extractors do not read old mail on their own — `app:backfill
+insights` is still what walks what is already in the database, so an established
+mailbox shows nothing from the three new sources until it runs.
+
 ## v0.1.1 — 2026-08-20
 
 **One small migration — a column with a default, no rewrite and no lock worth
