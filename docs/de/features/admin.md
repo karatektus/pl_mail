@@ -1,4 +1,4 @@
-<!-- translated-from: features/admin.md sha1:e81ff942864ab3ec30ef141055262b8f349ba57a -->
+<!-- translated-from: features/admin.md sha1:bfaa81ffb9da7112b487539553d795b962e5884a -->
 
 # Administration
 
@@ -129,6 +129,30 @@ Alarm über etwas, das sie gar nicht ansehen dürfen.
 
 Anders als die System-Panels aktualisiert sich dieser Abschnitt nicht von selbst — beim Lesen
 eines Stacktrace soll einem nicht mitten im Scrollen alles weggerissen werden.
+
+## Gemeldete Mails
+
+Hier landet **Fehlendes Insight melden**. Jede Zeile ist eine Mail, bei der jemand fand, das Radar
+hätte sie verstehen müssen — festgehalten als Momentaufnahme statt als Verweis: Absender, Betreff,
+Ankunftszeit, der Anfang des Textes und die Notiz, was plMail hätte erkennen sollen. Die
+Momentaufnahme ist der Punkt — die Mail selbst wird archiviert, gelöscht oder verschwindet vom
+Server, und eine Meldung, die auf nichts mehr zeigt, sagt nur noch, dass irgendwann etwas übersehen
+wurde.
+
+Der Eintrag in der Navigation trägt die Zahl dessen, was noch wartet.
+
+**Exportieren** gibt dir den Stapel als eine JSON-Datei zurück: ein Kopf, der sagt, wann sie
+gezogen wurde, aus welchem Build, und ob sie alles enthält oder nur das Unerledigte, danach jede
+Momentaufnahme in der Reihenfolge, in der die Mails ankamen. Aus dieser Datei wird ein neuer
+Extraktor geschrieben. Es ist ein POST und kein Link, aus demselben Grund wie beim Export unter
+[Sicherung](#sicherung): Zurück kommen fremde Mails, und eine URL, die das liefert, ließe sich von
+einer Seite anderswo mit deinen eigenen Cookies abrufen.
+
+**Herunterladen ändert hier nichts.** Eine Meldung gilt als erledigt, wenn du *Als erledigt
+markieren* drückst, nicht wenn sie exportiert wurde — sonst käme der zweite Export leer zurück und
+die Arbeit wäre als getan verbucht von jemandem, der nicht damit angefangen hat. *Erledigte
+Meldungen löschen* räumt den erledigten Stapel dann weg; die Karte erscheint nur, wenn etwas darin
+liegt, und nennt, wie viel.
 
 ## Integrationen
 
@@ -369,6 +393,11 @@ Monitoring-Daten bleiben auf jeder Stufe erhalten. Die Protokolle leerst du unte
   sind.
 
 ## Fallstricke
+
+**Der Export der gemeldeten Mails sind fremde Mails.** Es ist eine schlichte, unverschlüsselte
+JSON-Datei mit dem Text von Nachrichten, die deine Leute weitergegeben haben — anders als die
+Konfigurationssicherung, die mit einem Passwort deiner Wahl verschlüsselt ist. Bewahre die Datei
+dort auf, wo du auch das Postfach aufbewahren würdest, und lösche sie, wenn die Arbeit getan ist.
 
 **Die Geheimnisse zu erneuern, ohne den ganzen Stack neu zu starten, macht die Hälfte davon
 kaputt.** Jeder andere Dienst hält den alten `APP_ENCRYPTION_KEY` im Speicher, bis er neu
