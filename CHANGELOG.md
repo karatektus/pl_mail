@@ -6,6 +6,59 @@ so anything that changes the schema irreversibly is called out explicitly.
 The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, and `sha-…` pins one commit.
 
+## v0.1.1 — 2026-08-20
+
+**One small migration — a column with a default, no rewrite and no lock worth
+mentioning. The interface stops appearing out of nowhere, the mail list stops
+being thrown away and rebuilt fifty times a minute, and a blocked image stops
+being a square.**
+
+**Things arrive from somewhere now.** A new setting under Appearance —
+**Motion**, as **Full**, **Minimal** or **None** — decides how much the
+interface moves when something appears. Full is movement and fade, Minimal is
+the same cues with nothing travelling and nothing displaced, and None is exactly
+what plMail did before any of this existed. Every duration and distance in the
+app comes from one enum, so the whole motion budget is one screenful a reviewer
+can read end to end. **If your system asks for reduced motion, that overrules
+the setting, in both directions and without asking.**
+
+**The mail list is brought up to date by difference now, not by replacement.**
+A refresh used to assign over the rows wholesale, which threw away the one thing
+the response was richest in: the server sends the complete list, so what changed
+was sitting right there in the two trees. Three things that cost, all fixed by
+computing the difference instead — an open row menu is no longer destroyed under
+whoever is reading it, focus inside the list survives a background sync, and the
+browser can finally tell one new mail from fifty redrawn ones. There is no delta
+protocol and no sequence number behind this: every refresh is still the whole
+truth from the server, so a missed live update costs a late redraw and never a
+wrong list.
+
+**New mail arrives.** A conversation that has genuinely just landed drops into
+the list from above and the rows below it move down to let it in — about eight
+hundred milliseconds, several times anything else in plMail, and deliberate.
+Nothing in a redraw plays it: a star, an archive, a bulk action or a sync that
+found nothing leaves the list still. A conversation pushed off the end of the
+page fades where it stood instead of vanishing between frames.
+
+**Opening a folder** is the opposite shape: each row lands in about two frames,
+but one after another, so what you see is a cascade running down the list rather
+than any single row moving. Searching, turning a page and switching category
+tabs are the same gesture. The list itself does not animate — a grey rectangle
+fading tells you a rectangle changed.
+
+**A blocked remote image is no longer a square.** The placeholder was a 1×1
+transparent GIF, and a 1×1 has an intrinsic ratio of 1:1 — which the reading
+frame then used instead of the height the sender declared. A 600×80 banner was
+drawn six hundred pixels tall, so a newsletter with images blocked was several
+screens of hatching. Placeholders now keep the shape the mail asked for, and no
+placeholder can grow past a screenful.
+
+**Also.** The handbook gains a Motion section, including the one thing the new
+gestures cost: while a new mail is landing, the select box and the hover actions
+at either end of the row are travelling, so for about half a second they are not
+quite where they will be. Nothing is frozen and no click is thrown away — and
+Minimal removes every pixel of travel if it bothers you.
+
 ## v0.1.0 — 2026-08-18
 
 **One migration, and it REWRITES the message table — minutes of exclusive lock
