@@ -64,13 +64,57 @@ async function fillDock(page: Page, subject = SUBJECT): Promise<void> {
  * ScheduledSendResolverTest covers against real instants).
  */
 function wallClockIn(seconds: number): string {
-    const at = new Date(Date.now() + seconds * 1000);
+    return stamp(new Date(Date.now() + seconds * 1000));
+}
+
+/** A Date in the spelling `datetime-local` uses. Minute precision, like the field. */
+function stamp(at: Date): string {
     const pad = (value: number) => String(value).padStart(2, "0");
 
     return (
         `${at.getFullYear()}-${pad(at.getMonth() + 1)}-${pad(at.getDate())}` +
         `T${pad(at.getHours())}:${pad(at.getMinutes())}`
     );
+}
+
+/**
+ * A time the one-minute floor must refuse, chosen so that it always is one and
+ * stays one for as long as the click takes.
+ *
+ * Two checks in the controller stand between this value and the assertion, both
+ * comparing minute-precision wall clocks as strings, and the choice has to sit
+ * between them:
+ *
+ *   chosen < zoneNow()   "That time has already passed."
+ *   chosen < _floor()    "Pick a time at least a minute from now."   ← wanted
+ *
+ * `_floor()` is `now + 60 + 59` seconds truncated, not `now + 60` — the extra
+ * 59 make a minute-granularity field comparable to a second-granularity rule.
+ * So the floor is effectively two minutes out, and the NEXT whole minute is
+ * comfortably below it.
+ *
+ * The next whole minute is also the choice with the most headroom against the
+ * other check: it only becomes "already passed" once the clock reaches the
+ * minute after it, which is at least sixty seconds away. The current minute —
+ * the obvious choice, and the one this reached for first — has whatever is left
+ * of the current minute and no more, which on a slow runner is exactly the race
+ * that produced "already passed" where CI wanted the floor's wording.
+ *
+ * The one second that does not work is second zero: `now + 119s` then truncates
+ * to the same minute as the choice, and equal is not below. Two seconds of
+ * waiting removes it.
+ */
+async function insideTheFloor(page: Page): Promise<string> {
+    if (new Date().getSeconds() < 2) {
+        await page.waitForTimeout(2_000);
+    }
+
+    const at = new Date();
+
+    at.setSeconds(0, 0);
+    at.setMinutes(at.getMinutes() + 1);
+
+    return stamp(at);
 }
 
 function pill(page: Page, placement: "bar" | "header" = "bar") {
@@ -376,7 +420,18 @@ test.describe("scheduled send", () => {
         await expect(field).toBeVisible();
 
         await field.fill(wallClockIn(10 * 60));
+
+        // The toast is on a four-second fuse, so the assertion below is racing
+        // it the moment anything slows down between the click and the render.
+        // Waiting for the server's answer first takes the network out of that
+        // race — what remains is the toast's own life, which is the thing being
+        // asserted rather than a thing being waited through.
+        const scheduled = page.waitForResponse(
+            (response) => response.url().includes("/compose/schedule"),
+        );
+
         await options.getByRole("button", { name: "Schedule send" }).click();
+        await scheduled;
 
         // The same three consequences a preset has. Not "a request was made":
         // the broken version made a request too, and that is precisely why the
@@ -442,8 +497,10 @@ test.describe("scheduled send", () => {
         const field = options.locator('input[type="datetime-local"]');
         await expect(field).toBeVisible();
 
-        // Forty seconds out, which is what "the next whole minute" usually is.
-        await field.fill(wallClockIn(40));
+        // The next whole minute — below the floor, and far enough from being
+        // past that a slow click cannot turn it into the other refusal. See
+        // insideTheFloor().
+        await field.fill(await insideTheFloor(page));
         await options.getByRole("button", { name: "Schedule send" }).click();
 
         // Said, in the menu, in words that are true of the time chosen — the old

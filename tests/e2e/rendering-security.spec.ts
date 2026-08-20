@@ -1,5 +1,6 @@
 import { test, expect, type Page } from "./support/test";
 import { mailRow, seed } from "./support/config";
+import { settled } from "./support/motion";
 
 /**
  * The rendering-security guarantees, checked in a real browser — because every
@@ -57,6 +58,15 @@ async function watchRemoteHost(page: Page): Promise<string[]> {
 /** Opens a seeded conversation from the inbox and returns its body container. */
 async function openMessage(page: Page, subject: string) {
     await page.goto("/mail/inbox");
+
+    // The list arrives as a cascade — see MotionLevel::listStagger() — and a row
+    // waiting its turn is parked above where it will sit, held there by the
+    // backwards fill. A parked row is a STILL row, so a click aims at it happily
+    // and can land on its neighbour, or land twice; either way a second visit to
+    // a thread lands while this test is already acting inside the first one, and
+    // the Turbo Stream the click asked for is swapped away before it renders.
+    // Waiting for stillness costs milliseconds and removes the whole family.
+    await settled(page);
     await mailRow(page, subject).click();
 
     // The row click is a Turbo navigation, and this waits for it to LAND
