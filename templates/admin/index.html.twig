@@ -57,7 +57,7 @@
                                 </span>
                             {% endif %}
 
-                            {% if section not in ['logs', 'integrations', 'push', 'backup', 'reset'] %}
+                            {% if section not in ['logs', 'insight-reports', 'integrations', 'push', 'backup', 'reset'] %}
                                 <span class="ml-auto text-xs text-ink-faint">{{ 'admin.refresh_hint'|trans }}</span>
                             {% endif %}
                         </div>
@@ -89,6 +89,27 @@
                                        class="{{ section == 'logs' ? navActive : navInactive }}">
                                         <i class="fa-solid fa-scroll w-4 {{ section == 'logs' ? 'text-zinc-400' : '' }}" aria-hidden="true"></i>
                                         {{ 'admin.nav.logs'|trans }}
+                                    </a>
+                                    {# After logs and before integrations. It is
+                                       the other queue that fills up on its own and
+                                       is emptied by reading it — the log is what the
+                                       machine reported, this is what the people using
+                                       it reported — and both belong above the entries
+                                       that configure something, because those are
+                                       opened to change a setting rather than to work
+                                       through a pile. #}
+                                    <a href="{{ path('app_admin_dashboard', { section: 'insight-reports' }) }}"
+                                       class="{{ section == 'insight-reports' ? navActive : navInactive }}">
+                                        <i class="fa-solid fa-flag w-4 {{ section == 'insight-reports' ? 'text-zinc-400' : '' }}" aria-hidden="true"></i>
+                                        {{ 'admin.nav.insight_reports'|trans }}
+                                        {# Only when there is something waiting. A badge
+                                           reading 0 beside every other entry would be
+                                           furniture, the way the version chip is absent
+                                           on an unbuilt checkout. #}
+                                        {% if pendingInsightReports > 0 %}
+                                            <span class="ml-auto text-xs font-semibold px-1.5 py-0.5 rounded-full bg-accent text-accent-ink"
+                                                  aria-label="{{ 'admin.insight_reports.pending'|trans({ '%count%': pendingInsightReports }) }}">{{ pendingInsightReports }}</span>
+                                        {% endif %}
                                     </a>
                                     <a href="{{ path('app_admin_dashboard', { section: 'integrations' }) }}"
                                        class="{{ section == 'integrations' ? navActive : navInactive }}">
@@ -156,6 +177,20 @@
                                                         would swap their pre-write markup back in. #}
                                                      data-action="admin--admin-panel:persisting->mail--auto-refresh#hold admin--admin-panel:persisted->mail--auto-refresh#release"
                                                      data-mail--auto-refresh-interval-value="20000">
+                                            <div class="py-10 text-center text-sm text-ink-faint">
+                                                <i class="fa-solid fa-circle-notch fa-spin mr-2" aria-hidden="true"></i>{{ 'admin.loading'|trans }}
+                                            </div>
+                                        </turbo-frame>
+
+                                    {% elseif section == 'insight-reports' %}
+
+                                        {# No auto-refresh: this is a worklist,
+                                           and a poll would swap the list out
+                                           from under a <details> somebody has
+                                           opened to read a mail body inside. #}
+                                        <turbo-frame id="admin-insight-reports"
+                                                     src="{{ path('app_admin_insight_reports_panel') }}"
+                                                     loading="lazy">
                                             <div class="py-10 text-center text-sm text-ink-faint">
                                                 <i class="fa-solid fa-circle-notch fa-spin mr-2" aria-hidden="true"></i>{{ 'admin.loading'|trans }}
                                             </div>

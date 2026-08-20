@@ -1,0 +1,252 @@
+{% import '_partials/_card_chrome.html.twig' as chrome %}
+{% import '_partials/_select.html.twig' as select %}
+{#
+admin/insight_reports/_frame.html.twig — Admin → Reported mail.
+
+Accepts:
+  reports      — list<App\Entity\Insight\InsightReport>, newest first
+  pendingCount — how many of the whole table are unhandled, not how many of the list
+
+Three cards, in the order the work happens: the pile first, because an admin
+who opened this section came to read it, and the export under it, because that
+is what you do once you have seen there is something worth writing a parser
+for. The card that empties the done pile is last and tinted, the way the reset
+section puts its irreversible half below its recoverable one.
+
+Every row is a native <details>, exactly as the log browser's rows are. An
+admin here is triaging — deciding which of forty mails is a shape worth an
+extractor — and forty mail bodies rendered flat is a page nobody scrolls to the
+bottom of. The summary carries everything that decision needs (when, who,
+sender, subject, and the user's own words); the body is one click away.
+
+No auto-refresh wraps this frame — see the note where it is embedded in
+index.html.twig. The mutating forms post into this frame and get the re-rendered
+list back, so nothing here navigates the page.
+#}
+<turbo-frame id="admin-insight-reports" class="block space-y-3">
+
+    {# ── The pile ──────────────────────────────────────────────────────── #}
+    <section class="@container {{ chrome.shell() }}">
+
+        <div class="flex flex-wrap items-center gap-3 {{ chrome.band() }}">
+            <i class="fa-solid fa-flag text-xs text-zinc-400" aria-hidden="true"></i>
+            <h2 class="text-sm font-semibold text-ink">{{ 'admin.insight_reports.heading'|trans }}</h2>
+            <span class="text-xs text-ink-faint">{{ 'admin.insight_reports.pending'|trans({ '%count%': pendingCount }) }}</span>
+        </div>
+
+        {% if reports|length == 0 %}
+            {# Calmly, and not as a table with no rows in it: nothing being
+               reported is the ordinary state of a working install, not an
+               empty result somebody should go looking for. #}
+            <div class="px-5 py-6">
+                <p class="text-sm text-ink-soft">{{ 'admin.insight_reports.empty'|trans }}</p>
+                <p class="mt-1 text-xs text-ink-faint leading-relaxed">{{ 'admin.insight_reports.empty_hint'|trans }}</p>
+            </div>
+        {% else %}
+            <div class="divide-y divide-line">
+                {% for report in reports %}
+                    {# The row is a <details> beside its buttons, not around
+                       them: a <form> is flow content and may not live inside a
+                       <summary>, and a button that did would toggle the fold on
+                       its way to being pressed. #}
+                    <div class="flex flex-wrap items-start gap-3 px-5 py-3">
+
+                        <details class="min-w-0 flex-1 text-sm group">
+                            <summary class="flex items-start gap-3 cursor-pointer list-none">
+                                <i class="fa-solid fa-chevron-right mt-1 shrink-0 text-[9px] text-ink-faint w-3
+                                          transition-transform group-open:rotate-90" aria-hidden="true"></i>
+
+                                <div class="min-w-0 flex-1">
+                                    <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
+                                        <span class="text-xs text-ink-faint font-mono">{{ report.createdAt|date('Y-m-d H:i') }}</span>
+
+                                        {# Handled state on the row rather than
+                                           only in a filter: the list is read top
+                                           to bottom and "is this one still mine
+                                           to do" has to be answerable without
+                                           looking anywhere else. #}
+                                        {% if report.handledAt is not null %}
+                                            <span class="text-[10px] font-semibold uppercase tracking-wide rounded-md px-1.5 py-0.5 badge-neutral"
+                                                  title="{{ 'admin.insight_reports.handled_at'|trans({ '%when%': report.handledAt|date('Y-m-d H:i') }) }}">
+                                                {{ 'admin.insight_reports.handled'|trans }}
+                                            </span>
+                                        {% else %}
+                                            <span class="text-[10px] font-semibold uppercase tracking-wide rounded-md px-1.5 py-0.5 badge-warning">
+                                                {{ 'admin.insight_reports.pending_badge'|trans }}
+                                            </span>
+                                        {% endif %}
+
+                                        <span class="min-w-0 truncate text-xs text-ink-muted">
+                                            {{ 'admin.insight_reports.reported_by'|trans({
+                                                '%who%': report.reportedBy ? report.reportedBy.email : 'admin.insight_reports.reporter_gone'|trans,
+                                            }) }}
+                                        </span>
+                                    </div>
+
+                                    <p class="mt-1 truncate text-sm text-ink">
+                                        {{ report.subject|default('') ?: 'admin.insight_reports.no_subject'|trans }}
+                                    </p>
+
+                                    <p class="mt-0.5 truncate text-xs text-ink-muted">
+                                        {% if report.fromName %}{{ report.fromName }} {% endif %}
+                                        <span class="font-mono text-ink-faint">{{ report.fromAddress|default('') ?: 'admin.insight_reports.no_sender'|trans }}</span>
+                                    </p>
+
+                                    {# The user's own words, on the summary and
+                                       not inside the fold. InsightReport calls
+                                       it the single most valuable column in the
+                                       export, and it is the single most valuable
+                                       line here for the same reason: it names
+                                       the fact a reader would otherwise guess
+                                       at. #}
+                                    {% if report.note %}
+                                        <p class="mt-1.5 text-xs text-ink-soft leading-relaxed">
+                                            <i class="fa-solid fa-quote-left mr-1 text-[9px] text-ink-faint" aria-hidden="true"></i>{{ report.note }}
+                                        </p>
+                                    {% endif %}
+                                </div>
+                            </summary>
+
+                            <div class="mt-3 space-y-2 pl-6">
+                                {% if report.receivedAt is not null %}
+                                    <p class="text-xs text-ink-faint">
+                                        {{ 'admin.insight_reports.received_at'|trans({ '%when%': report.receivedAt|date('Y-m-d H:i') }) }}
+                                    </p>
+                                {% endif %}
+
+                                {# The body, and the only wall of text on the
+                                   page — behind the fold, scrolling inside its
+                                   own box, so a sixteen-kilobyte newsletter
+                                   cannot push the next report off the screen. #}
+                                {% if report.bodyText %}
+                                    <pre class="max-h-72 overflow-auto rounded-lg bg-zinc-500/10 px-3 py-2 text-xs text-ink-soft whitespace-pre-wrap break-words">{{ report.bodyText }}</pre>
+                                {% else %}
+                                    <p class="text-xs text-ink-faint">{{ 'admin.insight_reports.no_body'|trans }}</p>
+                                {% endif %}
+                            </div>
+                        </details>
+
+                        <div class="flex shrink-0 items-center gap-1.5">
+                            {% if report.handledAt is null %}
+                                <form method="post"
+                                      action="{{ path('app_admin_insight_reports_handled', { id: report.id }) }}"
+                                      data-turbo-frame="admin-insight-reports">
+                                    <input type="hidden" name="_token" value="{{ csrf_token('insight_report_handled_' ~ report.id) }}">
+                                    <button type="submit"
+                                            class="inline-flex items-center gap-1.5 px-2.5 h-8 rounded-lg text-xs font-medium btn-quiet transition-colors cursor-pointer">
+                                        <i class="fa-solid fa-check" aria-hidden="true"></i>
+                                        {{ 'admin.insight_reports.mark_handled'|trans }}
+                                    </button>
+                                </form>
+                            {% endif %}
+
+                            <form method="post"
+                                  action="{{ path('app_admin_insight_reports_delete', { id: report.id }) }}"
+                                  data-turbo-frame="admin-insight-reports"
+                                  data-turbo-confirm="{{ 'admin.insight_reports.delete_confirm'|trans }}">
+                                <input type="hidden" name="_token" value="{{ csrf_token('insight_report_delete_' ~ report.id) }}">
+                                <button type="submit"
+                                        aria-label="{{ 'admin.insight_reports.delete'|trans }}"
+                                        class="inline-flex items-center gap-1.5 px-2.5 h-8 rounded-lg text-xs font-medium btn-quiet hover:text-danger hover:bg-danger-soft transition-colors cursor-pointer">
+                                    <i class="fa-solid fa-trash" aria-hidden="true"></i>
+                                </button>
+                            </form>
+                        </div>
+
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+    </section>
+
+    {# ── Export ────────────────────────────────────────────────────────── #}
+    <div class="{{ chrome.shell() }}">
+        <div class="flex items-center gap-2.5 {{ chrome.band() }}">
+            <i class="fa-solid fa-file-arrow-down text-xs text-zinc-400" aria-hidden="true"></i>
+            <h2 class="text-sm font-semibold text-ink">{{ 'admin.insight_reports.export.heading'|trans }}</h2>
+        </div>
+
+        <div class="px-5 py-4 space-y-3">
+            <p class="text-sm text-ink-soft leading-relaxed">{{ 'admin.insight_reports.export.intro'|trans }}</p>
+            <p class="text-xs text-ink-faint leading-relaxed">
+                <i class="fa-solid fa-triangle-exclamation mr-1 text-warning" aria-hidden="true"></i>
+                {{ 'admin.insight_reports.export.warning'|trans }}
+            </p>
+
+            {#
+                data-turbo="false", so the browser performs this submission
+                itself. Turbo cannot render a download — it would swap the JSON
+                into the frame and leave a blank panel. Every other form here
+                posts into the frame as usual.
+            #}
+            <form method="post"
+                  action="{{ path('app_admin_insight_reports_export') }}"
+                  data-turbo="false"
+                  class="flex flex-col gap-2 sm:flex-row sm:items-end">
+                <input type="hidden" name="_token" value="{{ csrf_token('insight_reports_export') }}">
+
+                <div class="flex-1 min-w-0">
+                    <label for="insight-reports-scope" class="block text-xs text-ink-muted">
+                        {{ 'admin.insight_reports.export.scope'|trans }}
+                    </label>
+                    {# Unhandled first, and so the default the browser preselects:
+                       that is the pile with work left in it. #}
+                    <select id="insight-reports-scope" name="scope"
+                            {{ select.enhance() }}
+                            class="select-field mt-1 h-9 text-sm">
+                        <option value="pending">{{ 'admin.insight_reports.export.scope_pending'|trans }}</option>
+                        <option value="all">{{ 'admin.insight_reports.export.scope_all'|trans }}</option>
+                    </select>
+                </div>
+
+                <button type="submit" id="insight-reports-export"
+                        class="shrink-0 inline-flex items-center gap-2 h-9 px-4 rounded-lg text-sm font-medium
+                               text-accent-ink bg-accent hover:bg-accent-strong transition-colors cursor-pointer">
+                    <i class="fa-solid fa-file-arrow-down text-xs" aria-hidden="true"></i>
+                    {{ 'admin.insight_reports.export.submit'|trans }}
+                </button>
+            </form>
+
+            {# Said on the page and not only in the controller: an admin who
+               expected the download to clear the pile would otherwise discover
+               the opposite by exporting twice. #}
+            <p class="text-xs text-ink-faint leading-relaxed">{{ 'admin.insight_reports.export.not_handled'|trans }}</p>
+        </div>
+    </div>
+
+    {# ── Clearing what is done ───────────────────────────────────────────
+       Absent entirely while nothing is handled, rather than present and
+       disabled: a delete button that cannot delete anything is furniture, and
+       this card is tinted precisely to say "something irreversible lives
+       here". The count travels into the lead and the confirm, because a
+       confirm that names no number asks the admin to take this panel's word
+       for what is about to go — and what goes is the only surviving copy of
+       mail somebody took the trouble to report. #}
+    {% if handledCount > 0 %}
+    <div class="rounded-pane border border-danger/40 bg-pane-soft overflow-hidden">
+        <div class="flex items-center gap-2.5 px-4 py-3.5 border-b border-danger/40 alert-danger">
+            <i class="fa-solid fa-broom text-xs text-danger" aria-hidden="true"></i>
+            <h2 class="text-sm font-semibold text-danger">{{ 'admin.insight_reports.clear_handled.heading'|trans }}</h2>
+        </div>
+
+        <div class="px-5 py-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <p class="text-sm text-ink-soft leading-relaxed">{{ 'admin.insight_reports.clear_handled.lead'|trans({ '%count%': handledCount }) }}</p>
+
+            <form method="post"
+                  action="{{ path('app_admin_insight_reports_clear_handled') }}"
+                  data-turbo-frame="admin-insight-reports"
+                  data-turbo-confirm="{{ 'admin.insight_reports.clear_handled.confirm'|trans({ '%count%': handledCount }) }}"
+                  class="shrink-0">
+                <input type="hidden" name="_token" value="{{ csrf_token('insight_reports_clear_handled') }}">
+                <button type="submit"
+                        class="inline-flex items-center gap-1.5 px-3 h-9 rounded-lg text-xs font-medium
+                               bg-danger-soft text-danger hover:bg-danger hover:text-white transition-colors cursor-pointer">
+                    <i class="fa-solid fa-trash" aria-hidden="true"></i>
+                    {{ 'admin.insight_reports.clear_handled.button'|trans }}
+                </button>
+            </form>
+        </div>
+    </div>
+    {% endif %}
+
+</turbo-frame>

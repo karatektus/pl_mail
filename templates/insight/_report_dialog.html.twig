@@ -1,0 +1,115 @@
+{#
+insight/_report_dialog.html.twig
+─────────────────────────────────────────────────────────────────────────────
+"This mail should have produced an insight." The consent moment for a feature
+that copies a mail into a table an administrator can export.
+
+The disclosure paragraph is the reason this is a dialog at all. Reporting could
+have been one click in the overflow menu — the note is optional and the server
+needs nothing else — and it is not, because there is no honest way to hand
+somebody's mail to their administration behind a menu entry that says only
+"Report". So the sentence sits above the field, at full body size and in the
+body's own colour, rather than as fine print under the buttons: it is what the
+button does, not a footnote to it. InsightReport's class doc says the same
+thing from the other end.
+
+Hand-written and wrapped in the modal frame directly rather than going through
+_partials/_modal_form.html.twig, for the reason calendar/_ics_subscribe gives:
+that shell needs a FormView, and there is no form type behind one optional
+textarea posted as JSON.
+
+Not a <form>. The endpoint answers JSON so that the reading pane behind the
+dialog is left exactly as it was — the same argument InsightActionsController
+makes for dismissal — and a form submission would want a frame to navigate.
+
+Variables:
+  message  Message being reported
+  report   InsightReport|null — what this person already filed about this mail.
+           Present means the dialog is a correction: it says so, and the field
+           opens holding the note as it stands rather than blank, which would
+           read as though the old one had been thrown away.
+#}
+{% extends '_layout/app.html.twig' %}
+
+{% block body %}
+<turbo-frame id="modal">
+    <template data-ui--modal-frame-title>{{ 'insights.report.heading'|trans }}</template>
+
+    <div data-controller="insight--report"
+         data-insight--report-url-value="{{ path('app_insight_report_submit', { id: message.id }) }}"
+         data-insight--report-token-value="{{ csrf_token('insight-report') }}"
+         class="flex-1 min-h-0 flex flex-col">
+
+        <div class="flex-1 min-h-0 px-6 pb-6 space-y-4 overflow-y-auto">
+            <p class="text-sm text-ink-soft leading-relaxed">
+                {{ 'insights.report.disclosure'|trans }}
+            </p>
+
+            {% if report is not null %}
+                <p class="flex items-start gap-2.5 text-xs text-ink-muted leading-relaxed">
+                    <i class="fa-solid fa-circle-check mt-0.5 shrink-0 text-success" aria-hidden="true"></i>
+                    {{ 'insights.report.already_reported'|trans }}
+                </p>
+            {% endif %}
+
+            <div class="space-y-1.5">
+                <label for="insight-report-note" class="block text-xs font-medium text-ink-soft">
+                    {{ 'insights.report.note_label'|trans }}
+                </label>
+                {# maxlength is the same number the endpoint truncates to, so
+                   the field cannot promise to keep more than the column does.
+                   The server still cuts: a maxlength is a statement to a
+                   browser, not a guarantee to a database. #}
+                <textarea id="insight-report-note"
+                          data-insight--report-target="note"
+                          rows="3"
+                          maxlength="{{ constant('App\\Entity\\Insight\\InsightReport::MAX_NOTE_CHARS') }}"
+                          autofocus
+                          placeholder="{{ 'insights.report.note_placeholder'|trans }}"
+                          class="w-full px-3 py-2 rounded-lg text-sm bg-field border border-field text-ink
+                                 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent">{{ report ? report.note : '' }}</textarea>
+            </div>
+        </div>
+
+        <div class="flex items-center justify-end gap-2 px-6 pb-6 pt-3 shrink-0">
+            <button type="button"
+                    data-action="click->ui--modal#close"
+                    class="inline-flex items-center justify-center h-8 px-3.5 rounded-lg text-sm font-medium
+                           text-ink-soft bg-field border border-field hover:bg-hover
+                           focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-1
+                           transition-colors duration-100">{{ 'insights.report.cancel'|trans }}</button>
+
+            <button type="button"
+                    data-action="click->insight--report#submit"
+                    class="inline-flex items-center justify-center h-8 px-3.5 rounded-lg text-sm font-medium text-accent-ink
+                           bg-accent hover:bg-accent-strong active:bg-blue-800
+                           focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-1
+                           transition-colors duration-100">{{ 'insights.report.submit'|trans }}</button>
+        </div>
+
+        {# The confirmations, rendered here and cloned by the controller rather
+           than assembled in JavaScript: a toast built by hand in a controller
+           is a second copy of _partials/_toast.html.twig that drifts from it —
+           mail/sync_now_controller carries one, and it is already a theme
+           behind. Cloned BEFORE the dialog closes, so it does not matter that
+           closing empties the frame.
+
+           Two of them, because a report and a correction are different news:
+           "we have it" reads as a lie to somebody who reported this mail last
+           week and has just added a sentence to what they said then. #}
+        <template data-insight--report-target="successToast">
+            {% include '_partials/_toast.html.twig' with {
+                message: 'insights.report.success'|trans,
+                type: 'success',
+            } only %}
+        </template>
+
+        <template data-insight--report-target="alreadyToast">
+            {% include '_partials/_toast.html.twig' with {
+                message: 'insights.report.already_reported'|trans,
+                type: 'info',
+            } only %}
+        </template>
+    </div>
+</turbo-frame>
+{% endblock %}
