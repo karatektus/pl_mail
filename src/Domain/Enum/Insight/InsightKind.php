@@ -22,6 +22,9 @@ enum InsightKind: string
     case Ticket = 'ticket';
     case GithubIssue = 'github-issue';
     case GithubPullRequest = 'github-pr';
+    case Otp = 'otp';
+    case Invoice = 'invoice';
+    case Subscription = 'subscription';
 
     /** Font Awesome icon, so a card or a chip can render without a match arm. */
     public function icon(): string
@@ -32,6 +35,9 @@ enum InsightKind: string
             self::Ticket => 'fa-solid fa-ticket',
             self::GithubIssue => 'fa-solid fa-circle-dot',
             self::GithubPullRequest => 'fa-solid fa-code-pull-request',
+            self::Otp => 'fa-solid fa-key',
+            self::Invoice => 'fa-solid fa-file-invoice',
+            self::Subscription => 'fa-solid fa-arrows-rotate',
         };
     }
 

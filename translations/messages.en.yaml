@@ -198,6 +198,37 @@ admin:
         retry: 'Retry'
         retry_all: 'Retry all'
         retry_all_confirm: 'Re-dispatch every failed message?'
+    insight_reports:
+        clear_handled:
+            button: 'Delete handled reports'
+            confirm: 'Delete %count% report(s) already marked handled? The copies of the mails go with them.'
+            heading: 'Clear the handled pile'
+            lead: '%count% report(s) are marked handled. Deleting them leaves anything still waiting alone.'
+        delete: 'Delete this report'
+        delete_confirm: 'Delete this report? The copy of the mail it carries goes with it.'
+        empty: 'Nothing has been reported.'
+        empty_hint: 'Reports land here when someone tells plMail that a mail should have produced an insight and did not.'
+        export:
+            heading: 'Export for offline work'
+            intro: 'One JSON file holding every snapshot: sender, subject, when the mail arrived, the text, and what the person reporting it expected to see. That is what a new extractor gets written from.'
+            not_handled: 'Downloading changes nothing here. A report counts as handled when you say so, not when it has been exported.'
+            scope: 'What to include'
+            scope_all: 'Every report, handled or not'
+            scope_pending: 'Only what is still waiting'
+            submit: 'Download'
+            warning: 'This file contains other people''s mail. Keep it where you would keep the mailbox itself.'
+        handled: 'Handled'
+        handled_at: 'Marked handled %when%'
+        heading: 'Reported mail'
+        mark_handled: 'Mark handled'
+        no_body: 'This report carries no message text.'
+        no_sender: 'no sender recorded'
+        no_subject: '(no subject)'
+        pending: '{0}Nothing waiting|{1}1 waiting|]1,Inf[ %count% waiting'
+        pending_badge: 'Waiting'
+        received_at: 'Mail arrived %when%'
+        reported_by: 'Reported by %who%'
+        reporter_gone: 'a deleted account'
     integrations:
         base_url_per_user: 'Each user enters their own server address.'
         base_url_pinned: 'pinned for all users'
@@ -355,6 +386,7 @@ admin:
     nav:
         backup: Backup
         database: Database
+        insight_reports: Reported mail
         integrations: Integrations
         logs: Logs
         push: Push
@@ -1314,7 +1346,10 @@ insights:
         flight: Flight
         github-issue: Issue
         github-pr: Pull request
+        invoice: Invoice
+        otp: Login code
         parcel: Parcel
+        subscription: Subscription
         ticket: Ticket
     panel:
         dismiss: Dismiss
@@ -1322,6 +1357,15 @@ insights:
         open_mail: Open mail
         track: Track
         undated_heading: From your repos
+    report:
+        already_reported: You have already reported this mail.
+        cancel: Cancel
+        disclosure: "You are reporting this mail so that plMail can read an insight from it in future. The mail's content and sender are passed on to your administration."
+        heading: Report a missed insight
+        note_label: What should plMail have spotted here?
+        note_placeholder: "For example: this is an invoice, due on the 3rd."
+        submit: Report mail
+        success: "Thank you — your report is with your administration."
     status:
         announced: Announced
         delivered: Delivered
@@ -1429,6 +1473,7 @@ message:
         mark_unread: Mark as unread
         more: More
         print: Print
+        report_insight: Report a missed insight
         show_original: Show original
         star: Star
         unstar: Remove star
@@ -2298,8 +2343,14 @@ settings:
             flight_hint: Flight numbers and departures from airline bookings and check-in mail.
             github: GitHub
             github_hint: Issues and pull requests from GitHub notification mail.
+            invoice: Invoices
+            invoice_hint: Amounts owed and due dates, read from bills and payment reminders.
+            otp: Login codes
+            otp_hint: One-time codes from sign-in and verification mail, with the expiry the mail states.
             parcel: Parcels
             parcel_hint: Tracking numbers and delivery progress from shipping confirmations.
+            subscription: Subscriptions
+            subscription_hint: Automatic renewals and ending trials, with the day they take effect.
             ticket: Tickets
             ticket_hint: Event tickets and bookings with a date attached.
         heading: Insights

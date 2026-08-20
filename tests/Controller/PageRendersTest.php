@@ -71,6 +71,11 @@ final class PageRendersTest extends WebTestCase
         yield 'admin queue backlog, filtered' => ['/admin/queues/waiting?q=sync&offset=25'];
         yield 'admin integrations' => ['/admin/integrations'];
         yield 'admin push' => ['/admin/push'];
+        yield 'admin insight reports' => ['/admin/insight-reports'];
+        // The section wrapper as well as the frame, because the nav entry
+        // renders a pending-count badge that the frame itself never draws —
+        // a badge that 500s on an empty pile would break only this URL.
+        yield 'admin insight reports section' => ['/admin?section=insight-reports'];
         yield 'admin push deliveries' => ['/admin/push/deliveries'];
         // Every filter at once, and each one spelled wrong: the delivery
         // browser is reached by editing a query string, so an unparseable

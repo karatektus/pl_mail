@@ -204,6 +204,37 @@ admin:
         retry: 'Wiederholen'
         retry_all: 'Alle wiederholen'
         retry_all_confirm: 'Alle fehlgeschlagenen Nachrichten erneut zustellen?'
+    insight_reports:
+        clear_handled:
+            button: 'Erledigte Meldungen löschen'
+            confirm: '%count% als erledigt markierte Meldung(en) löschen? Die Kopien der Mails verschwinden mit ihnen.'
+            heading: 'Erledigtes aufräumen'
+            lead: '%count% Meldung(en) hast du als erledigt markiert. Was noch wartet, bleibt liegen.'
+        delete: 'Diese Meldung löschen'
+        delete_confirm: 'Diese Meldung löschen? Die Kopie der Mail verschwindet mit ihr.'
+        empty: 'Es wurde noch nichts gemeldet.'
+        empty_hint: 'Hier landen Meldungen, wenn jemand plMail sagt, dass eine Mail eine Info hätte liefern sollen und es nicht getan hat.'
+        export:
+            heading: 'Für die Arbeit außerhalb exportieren'
+            intro: 'Eine JSON-Datei mit allen Kopien: Absender, Betreff, Eingangszeitpunkt, Text und das, was die meldende Person erwartet hat. Daraus schreibst du eine neue Auswertung.'
+            not_handled: 'Der Download ändert hier nichts. Erledigt ist eine Meldung, wenn du das sagst — nicht, wenn sie heruntergeladen wurde.'
+            scope: 'Was soll rein'
+            scope_all: 'Alle Meldungen, erledigt oder nicht'
+            scope_pending: 'Nur was noch wartet'
+            submit: 'Herunterladen'
+            warning: 'Diese Datei enthält fremde Mails. Bewahre sie so auf, wie du das Postfach selbst aufbewahren würdest.'
+        handled: 'Erledigt'
+        handled_at: 'Erledigt seit %when%'
+        heading: 'Gemeldete Mails'
+        mark_handled: 'Als erledigt markieren'
+        no_body: 'Zu dieser Meldung gibt es keinen Mailtext.'
+        no_sender: 'kein Absender gespeichert'
+        no_subject: '(kein Betreff)'
+        pending: '{0}Nichts offen|{1}1 offen|]1,Inf[ %count% offen'
+        pending_badge: 'Offen'
+        received_at: 'Mail kam am %when%'
+        reported_by: 'Gemeldet von %who%'
+        reporter_gone: 'einem gelöschten Konto'
     integrations:
         base_url_per_user: 'Jede Person gibt ihre eigene Serveradresse ein.'
         base_url_pinned: 'für alle festgelegt'
@@ -361,6 +392,7 @@ admin:
     nav:
         backup: Sicherung
         database: Datenbank
+        insight_reports: Gemeldete Mails
         integrations: Integrationen
         logs: Protokolle
         push: Push
@@ -1323,7 +1355,10 @@ insights:
         flight: Flug
         github-issue: Issue
         github-pr: Pull Request
+        invoice: Rechnung
+        otp: Anmeldecode
         parcel: Paket
+        subscription: Abo
         ticket: Ticket
     panel:
         dismiss: Ausblenden
@@ -1331,6 +1366,15 @@ insights:
         open_mail: Zur Mail
         track: Verfolgen
         undated_heading: Aus deinen Repos
+    report:
+        already_reported: Du hast diese Mail bereits gemeldet.
+        cancel: Abbrechen
+        disclosure: "Du meldest diese Mail, damit plMail daraus künftig ein Insight lesen kann. Inhalt und Absender der Mail werden dabei an deine Administration weitergegeben."
+        heading: Fehlendes Insight melden
+        note_label: Was hätte hier stehen sollen?
+        note_placeholder: "Zum Beispiel: Das ist eine Rechnung, fällig am 3."
+        submit: Mail melden
+        success: "Danke — deine Meldung liegt bei deiner Administration."
     status:
         announced: Angekündigt
         delivered: Zugestellt
@@ -1438,6 +1482,7 @@ message:
         mark_unread: Als ungelesen markieren
         more: Mehr
         print: Drucken
+        report_insight: Fehlendes Insight melden
         show_original: Original anzeigen
         star: Markieren
         unstar: Markierung entfernen
@@ -2322,8 +2367,14 @@ settings:
             flight_hint: Flugnummern und Abflüge aus Airline-Buchungen und Check-in-Mails.
             github: GitHub
             github_hint: Issues und Pull Requests aus GitHub-Benachrichtigungen.
+            invoice: Rechnungen
+            invoice_hint: Beträge und Fälligkeiten aus Rechnungen und Zahlungserinnerungen.
+            otp: Anmeldecodes
+            otp_hint: Einmalcodes aus Anmelde- und Bestätigungsmails, mit der Gültigkeit, die die Mail nennt.
             parcel: Pakete
             parcel_hint: Sendungsnummern und Zustellstatus aus Versandbestätigungen.
+            subscription: Abos
+            subscription_hint: Automatische Verlängerungen und endende Testphasen, mit dem Datum dazu.
             ticket: Tickets
             ticket_hint: Veranstaltungstickets und Buchungen mit Datum.
         heading: Radar

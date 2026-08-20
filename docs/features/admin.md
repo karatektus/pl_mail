@@ -114,6 +114,27 @@ they are not allowed to look at.
 Unlike the System panels this section does not auto-refresh — reading a stack trace should not get
 yanked away mid-scroll.
 
+## Reported mail
+
+Where **Report a missed insight** ends up. Each row is a mail somebody thought the radar should have
+understood, kept as a snapshot rather than a link: sender, subject, when the mail arrived, the
+beginning of its text, and the reporter's own note about what plMail should have spotted. The
+snapshot is the point — the mail itself gets archived, deleted or vanishes from the server, and a
+report that resolves to nothing is a report saying only that something was missed once.
+
+The nav entry carries a count of what is still waiting.
+
+**Export** hands the pile back as one JSON file: a header saying when it was taken, off which build,
+and whether it holds everything or only the unhandled part, then every snapshot in the order the
+mails arrived. That file is what a new extractor gets written from. It is a POST rather than a
+link, for the reason the [Backup](#backup) export is: what comes back is other people's mail, and a
+URL that produced it could be fetched with your own cookies from a page somewhere else.
+
+**Downloading changes nothing.** A report counts as handled when you press *Mark handled*, not when
+it has been exported — otherwise a second export would come back empty and the work would be
+recorded as done by somebody who had not started it. *Delete handled reports* then sweeps the done
+pile; it appears only when there is something in it, and names how many.
+
 ## Integrations
 
 Two things live here: which file services this installation offers, and the OAuth applications users
@@ -328,6 +349,11 @@ Monitoring data is kept by every stage. Clear the logs from **Logs**, and stale 
 - [Architecture](../internals/architecture.md) — what the workers, scheduler and supervisor are.
 
 ## Things that bite
+
+**The reported-mail export is other people's mail.** It is a plain, unencrypted JSON file holding
+the text of messages your users decided to hand over — unlike the config backup, which is encrypted
+with a password you choose. Keep the file where you would keep the mailbox itself, and delete it
+when the work is done.
 
 **Rotating the secrets without restarting the whole stack breaks half of it.** Every other service
 keeps the old `APP_ENCRYPTION_KEY` in process memory until it restarts, so anything saved in the

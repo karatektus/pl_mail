@@ -80,6 +80,37 @@ admin:
         retry: 'Try again'
         retry_all: 'Try the lot again'
         retry_all_confirm: 'Cast every lost bottle back out to sea?'
+    insight_reports:
+        clear_handled:
+            button: 'Sink th'' settled reports'
+            confirm: 'Sink %count% report(s) already struck off? Th'' copies o'' th'' letters go down with ''em.'
+            heading: 'Clear th'' settled pile'
+            lead: '%count% report(s) ye have struck off. Whatever still waits stays put.'
+        delete: 'Sink this report'
+        delete_confirm: 'Sink this report? Th'' copy o'' th'' letter goes down with it.'
+        empty: 'Naught has been reported.'
+        empty_hint: 'Reports wash up here when a hand tells plMail a letter should have yielded a findin'' an'' did not.'
+        export:
+            heading: 'Haul it ashore'
+            intro: 'One JSON chest holdin'' every copy: who sent it, th'' heading, when it made port, th'' text, an'' what th'' hand reportin'' it expected to see. That be what a new spyglass gets built from.'
+            not_handled: 'Haulin'' it ashore changes naught here. A report be settled when ye say so, not when it has been copied.'
+            scope: 'What to load aboard'
+            scope_all: 'Every report, settled or not'
+            scope_pending: 'Only what still waits'
+            submit: 'Haul it down'
+            warning: 'This chest holds other hands'' letters. Stow it where ye''d stow th'' mailbag itself.'
+        handled: 'Settled'
+        handled_at: 'Struck off %when%'
+        heading: 'Reported letters'
+        mark_handled: 'Strike it off'
+        no_body: 'This report carries no text at all.'
+        no_sender: 'no sender logged'
+        no_subject: '(no heading)'
+        pending: '{0}Naught waitin''|{1}1 waitin''|]1,Inf[ %count% waitin'''
+        pending_badge: 'Waitin'''
+        received_at: 'Letter made port %when%'
+        reported_by: 'Reported by %who%'
+        reporter_gone: 'a hand put ashore'
     integrations:
         base_url_per_user: 'Every hand names their own port.'
         base_url_pinned: 'set fast for all hands'
@@ -227,6 +258,7 @@ admin:
         refresh: 'Refresh'
     nav:
         database: Database
+        insight_reports: 'Reported letters'
         integrations: 'Friendly ports'
         logs: Ship's log
         system: Ship
@@ -1039,7 +1071,10 @@ insights:
         flight: Passage by air
         github-issue: Issue
         github-pr: Pull request
+        invoice: "The reckonin'"
+        otp: "Secret word"
         parcel: Cargo
+        subscription: "Standin' order"
         ticket: Passage papers
     panel:
         dismiss: Wave it off
@@ -1047,6 +1082,15 @@ insights:
         open_mail: To the bottle
         track: Chart its course
         undated_heading: From yer repos
+    report:
+        already_reported: "Ye've already reported this here bottle."
+        cancel: Belay that
+        disclosure: "Ye be reportin' this bottle so plMail may spy somethin' in the likes of it hereafter. The bottle's contents and whoever sent it be handed to yer admiralty."
+        heading: "Report what the spyglass missed"
+        note_label: "What should the spyglass have spied here?"
+        note_placeholder: "Fer instance: this be a bill, due on the third."
+        submit: Send the report
+        success: "Much obliged — yer report be with the admiralty."
     status:
         announced: Word be given
         delivered: Come ashore
@@ -1153,6 +1197,7 @@ message:
         mark_unread: Mark as unread
         more: More
         print: Print
+        report_insight: "Report what the spyglass missed"
         show_original: Show the original scroll
         star: Mark with an X
         unstar: Rub out the X
@@ -1981,8 +2026,14 @@ settings:
             flight_hint: "Flight numbers an' departures from airline bookin's an' boardin' mail."
             github: GitHub
             github_hint: "Issues an' pull requests from GitHub's messenger birds."
+            invoice: "Reckonin's"
+            invoice_hint: "What ye owe an' by when, read from bills an' duns."
+            otp: "Secret words"
+            otp_hint: "One-time words from sign-in post, good only 'til the glass runs out."
             parcel: Cargo
             parcel_hint: "Trackin' numbers an' where yer cargo be, read from shippin' letters."
+            subscription: "Standin' orders"
+            subscription_hint: "Renewals that sail on by themselves, an' trials about to run aground."
             ticket: Passage papers
             ticket_hint: "Tickets an' bookin's with a date writ on them."
         heading: The spyglass

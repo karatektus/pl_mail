@@ -84,8 +84,10 @@ list has been shown, whichever list it was.
 ## The radar
 
 plMail reads certain facts out of mail as it arrives: parcel tracking numbers from shipping
-confirmations, flights from airline bookings and check-in mail, event tickets, and issue and
-pull-request activity from GitHub notifications. Each find becomes a small card. Dated ones queue
+confirmations, flights from airline bookings and check-in mail, event tickets, issue and
+pull-request activity from GitHub notifications, one-time login codes, invoices with an amount and
+a due date, and subscriptions about to renew or trials about to run out. Each find becomes a small
+card. Dated ones queue
 up in the calendar's **Happening Soon** panel, under **On your radar**; a conversation that yielded
 something also shows its cards in a **Found in this conversation** strip above the messages.
 
@@ -102,6 +104,29 @@ without anything else changing.
 New extractors do not re-read old mail on their own. `app:backfill insights` walks the mail already
 in the database once and hands it to every enabled extractor, the same sweep the other backfill
 tasks run.
+
+One-time codes are the one source with an expiry rather than an occurrence. A code's card carries
+the moment the mail says the code stops working — "valid for 10 minutes", "gültig bis 09:30" — so
+it drops off the radar when it goes dead instead of sitting there looking usable. When the mail
+states no lifetime, the card carries no time at all: guessing ten minutes would either retire a
+code that still works or, worse, keep a dead one looking fresh.
+
+### Reporting a mail the radar missed
+
+Because nothing guesses, a mail in a shape nobody has written a parser for yields nothing at all,
+and it looks exactly like a mail with nothing in it. **Report a missed insight**, in a message's
+`⋮` menu, is how you say which of the two it was. A short dialog asks what plMail should have
+spotted — "this is an invoice, due on the 3rd" — and files the report.
+
+**Reporting passes the mail on.** The report carries a copy of the mail: sender, subject, arrival
+time and the first stretch of its text, along with your note. That copy lands in an area your
+administrator can read and download, and the dialog says so before you send it, because a parser
+can only be written from the shape of a real mail. Report the mail whose shape you want recognised,
+and not one whose contents you would not hand over.
+
+Reporting the same mail again does not file a second report — it corrects the first, with your
+note as it stands ready to edit. What the administrator does with the pile is under
+[Admin → Reported mail](admin.md#reported-mail).
 
 ## Threads
 
@@ -501,3 +526,13 @@ file caused it.
 
 **Marking a message read in another client does not come back.** Flag changes travel outward only;
 incoming IMAP flag sync over the IDLE stream is not implemented.
+
+**Reporting a mail hands over a copy of it.** *Report a missed insight* is not a vote or a
+thumbs-down: it stores the sender, the subject and the beginning of the message text where an
+administrator can read and download it. That is what makes a new extractor writable, and it is why
+the dialog says so before you send. On an installation you do not run yourself, report the mail
+whose shape you want recognised — not one whose contents you would rather keep.
+
+**A one-time code with no stated lifetime gets no expiry.** The card shows the code and no time,
+and it stays until you dismiss it. plMail will not invent ten minutes, so the card cannot tell you
+whether the code still works — the mail it came from is the only thing that can.

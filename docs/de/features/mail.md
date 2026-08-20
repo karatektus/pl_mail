@@ -1,4 +1,4 @@
-<!-- translated-from: features/mail.md sha1:0577947b1cc9df3129c962991659b3e6e23238cb -->
+<!-- translated-from: features/mail.md sha1:c64080d2ebfae626662189cf6dfffefa8f90cd15 -->
 
 # Mail
 
@@ -96,8 +96,10 @@ einer Trefferliste gelesen hast, ist dir gezeigt worden, in welcher Liste auch i
 ## Das Radar
 
 plMail liest bestimmte Fakten aus Mails heraus, während sie ankommen: Sendungsnummern aus
-Versandbestätigungen, Flüge aus Airline-Buchungen und Check-in-Mails, Veranstaltungstickets sowie
-Issue- und Pull-Request-Aktivität aus GitHub-Benachrichtigungen. Jeder Fund wird eine kleine Karte.
+Versandbestätigungen, Flüge aus Airline-Buchungen und Check-in-Mails, Veranstaltungstickets,
+Issue- und Pull-Request-Aktivität aus GitHub-Benachrichtigungen, Einmalcodes zum Anmelden,
+Rechnungen mit Betrag und Fälligkeit sowie Abos, die sich demnächst verlängern, und Testphasen, die
+auslaufen. Jeder Fund wird eine kleine Karte.
 Was ein Datum trägt, reiht sich im Kalender-Panel **Demnächst** ein, unter **Auf deinem Radar**;
 eine Konversation, in der etwas gefunden wurde, zeigt ihre Karten außerdem in einer Leiste
 **In dieser Konversation gefunden** über den Nachrichten.
@@ -117,6 +119,31 @@ etwas ändert.
 Neue Extraktoren lesen alte Mails nicht von allein noch einmal. `app:backfill insights` geht die
 Mails, die schon in der Datenbank liegen, einmal durch und reicht sie jedem eingeschalteten
 Extraktor — derselbe Durchlauf, den auch die anderen Backfill-Aufgaben machen.
+
+Einmalcodes sind die einzige Quelle, deren Zeitpunkt ein Ablauf ist und kein Termin. Die Karte
+trägt den Moment, an dem der Code laut Mail nicht mehr gilt — "gültig für 10 Minuten", "gültig bis
+09:30" —, und verschwindet damit vom Radar, wenn er tot ist, statt dort weiter benutzbar
+auszusehen. Nennt die Mail keine Gültigkeit, trägt die Karte gar keine Zeit: Zehn Minuten zu raten
+würde entweder einen Code zurückziehen, der noch geht, oder schlimmer, einen toten frisch
+aussehen lassen.
+
+### Eine Mail melden, die das Radar übersehen hat
+
+Weil nichts rät, ergibt eine Mail in einer Form, für die noch niemand einen Parser geschrieben hat,
+schlicht nichts — und das sieht genauso aus wie eine Mail, in der nichts drinsteht. **Fehlendes
+Insight melden** im `⋮`-Menü einer Nachricht ist der Weg zu sagen, welches von beidem es war. Ein
+kurzer Dialog fragt, was plMail hier hätte erkennen sollen — "Das ist eine Rechnung, fällig am 3."
+— und legt die Meldung ab.
+
+**Melden gibt die Mail weiter.** Die Meldung nimmt eine Kopie der Mail mit: Absender, Betreff,
+Ankunftszeit und den Anfang des Textes, dazu deine Notiz. Diese Kopie landet in einem Bereich, den
+deine Administration lesen und herunterladen kann, und der Dialog sagt dir das, bevor du
+abschickst — denn ein Parser lässt sich nur an der Form einer echten Mail schreiben. Melde die
+Mail, deren Form erkannt werden soll, und nicht eine, deren Inhalt du lieber für dich behältst.
+
+Meldest du dieselbe Mail noch einmal, entsteht keine zweite Meldung — du korrigierst die erste,
+deine Notiz steht dabei zum Ändern bereit. Was die Administration mit dem Stapel macht, steht unter
+[Administration → Gemeldete Mails](admin.md#gemeldete-mails).
 
 ## Konversationen
 
@@ -564,3 +591,14 @@ zu schweigen, kann dir aber nicht sagen, welche Datei schuld war.
 **Eine Nachricht in einem anderen Client als gelesen zu markieren kommt nicht zurück.**
 Statusänderungen wandern nur nach außen; ein eingehender Abgleich der IMAP-Flags über den
 IDLE-Strom ist nicht umgesetzt.
+
+**Eine Mail zu melden gibt eine Kopie von ihr weiter.** *Fehlendes Insight melden* ist keine Stimme
+und kein Daumen nach unten: Absender, Betreff und der Anfang des Nachrichtentextes werden dort
+abgelegt, wo eine Administration sie lesen und herunterladen kann. Genau das macht einen neuen
+Extraktor schreibbar, und deshalb sagt der Dialog es, bevor du abschickst. Auf einer Installation,
+die du nicht selbst betreibst, melde die Mail, deren Form erkannt werden soll — nicht eine, deren
+Inhalt du lieber behältst.
+
+**Ein Einmalcode ohne genannte Gültigkeit bekommt keinen Ablauf.** Die Karte zeigt den Code und
+keine Zeit, und sie bleibt, bis du sie ausblendest. plMail erfindet keine zehn Minuten, also kann
+die Karte dir nicht sagen, ob der Code noch geht — das kann nur die Mail, aus der er stammt.

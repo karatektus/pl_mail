@@ -125,5 +125,24 @@ Variables:
             <i class="fa-solid fa-print w-4 text-ink-faint" aria-hidden="true"></i>
             {{ 'message.actions.print'|trans }}
         </a>
+
+        {# In this group and not with Archive or Delete: it does nothing to the
+           mail. It is a statement ABOUT the mail — the same kind of thing as
+           "Show original" — and the only entry here that sends anything
+           anywhere, which is why the dialog behind it opens with what it sends
+           rather than with a field to fill in.
+
+           Both actions on the click, in this order: the dialog is a body-level
+           frame and the menu is not part of it, so a menu left open would sit
+           over the backdrop for as long as the dialog does. #}
+        <button type="button"
+                data-controller="ui--modal"
+                data-action="click->ui--modal#open click->mail--message-actions#dismiss"
+                data-ui--modal-src-value="{{ path('app_insight_report_dialog', { id: message.id }) }}"
+                data-ui--modal-title-value="{{ 'insights.report.heading'|trans }}"
+                class="w-full flex items-center gap-2 px-4 py-2 text-left text-ink-soft hover:bg-hover transition-colors cursor-pointer">
+            <i class="fa-regular fa-lightbulb w-4 text-ink-faint" aria-hidden="true"></i>
+            {{ 'message.actions.report_insight'|trans }}
+        </button>
     </div>
 </div>

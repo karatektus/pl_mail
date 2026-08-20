@@ -6,6 +6,7 @@ namespace App\Controller\Admin;
 
 use App\Controller\ChecksCsrf;
 use App\Entity\User\User;
+use App\Repository\Insight\InsightReportRepository;
 use App\Repository\Monitoring\LogEntryRepository;
 use App\Repository\Monitoring\PostgresStatusRepository;
 use App\Service\Monitoring\AdminMonitoringService;
@@ -26,7 +27,7 @@ final class AdminDashboardController extends AbstractController
 {
     use ChecksCsrf;
 
-    private const array SECTIONS = ['system', 'database', 'logs', 'integrations', 'push', 'users', 'backup', 'reset'];
+    private const array SECTIONS = ['system', 'database', 'logs', 'insight-reports', 'integrations', 'push', 'users', 'backup', 'reset'];
     private const int LOGS_PER_PAGE = 100;
 
     /**
@@ -53,6 +54,7 @@ final class AdminDashboardController extends AbstractController
         private readonly WorkerRestartSignal    $restartSignal,
         private readonly PostgresStatusRepository $statistics,
         private readonly EntityManagerInterface $entityManager,
+        private readonly InsightReportRepository $insightReports,
     ) {}
 
     #[Route('', name: 'dashboard')]
@@ -65,7 +67,12 @@ final class AdminDashboardController extends AbstractController
         }
 
         return $this->render('admin/index.html.twig', [
-            'section' => $section,
+            'section'               => $section,
+            // The nav badge, counted here rather than inside the reported-mail
+            // frame: the badge has to be right on every section, and the frame
+            // that knows the number is the one section that is not loaded.
+            // One indexed count on a page that already runs several.
+            'pendingInsightReports' => $this->insightReports->countPending(),
         ]);
     }
 
