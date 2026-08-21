@@ -4,12 +4,48 @@ sidebar controller can patch its text in place after a Mercure sync without
 having to re-render the markup. `key` must match a key from
 app_mail_sidebar_counts.
 #}
-{% macro unread_badge(count, key) %}
-    <span class="rail-hide text-xs font-semibold px-1.5 py-0.5 rounded-full bg-accent text-accent-ink{{ count > 0 ? '' : ' hidden' }}"
-          data-ui--sidebar-target="badge"
-          data-badge-kind="unread"
-          aria-label="{{ 'sidebar.badge.unread'|trans({ '%count%': count }) }}"
-          data-count-key="{{ key }}">{{ count }}</span>
+{% macro unread_badge(count, key, href = null) %}
+    {#
+    A LINK when the row it sits in has an unread view to open, and a plain span
+    otherwise — the LABELS heading's roll-up is the only badge with no single
+    list behind it, so it stays a span rather than pointing somewhere
+    approximate.
+
+    The link is a sibling of the row's own anchor, never a child of it: an <a>
+    inside an <a> is not markup a browser will keep, and the row would have kept
+    whichever one the parser decided to drop. That is why the system rows are a
+    .nav-item DIV wrapping their anchor now, the shape the custom label rows and
+    the account folder rows were already built in — the CSS above says as much,
+    "the pill hangs off .nav-item, not off the anchor".
+
+    Deliberately a real link rather than a span with a click handler. It can be
+    tabbed to, middle-clicked into a new tab and opened from the keyboard, and
+    the alternative — a control that only answers a mouse — would have been a
+    new feature that keyboard users simply do not have.
+
+    `data-count-key` and the badge target stay exactly as they were, so
+    ui--sidebar patches the number in place whichever element it lands on, and
+    the aria-label keeps the spelling _nameBadge rewrites it with. No title:
+    nothing patches one, so it would be the one part of the badge still showing
+    a count from two minutes ago.
+    #}
+    {% set _classes = 'rail-hide text-xs font-semibold px-1.5 py-0.5 rounded-full bg-accent text-accent-ink' ~ (count > 0 ? '' : ' hidden') %}
+
+    {% if href is null %}
+        <span class="{{ _classes }}"
+              data-ui--sidebar-target="badge"
+              data-badge-kind="unread"
+              aria-label="{{ 'sidebar.badge.unread'|trans({ '%count%': count }) }}"
+              data-count-key="{{ key }}">{{ count }}</span>
+    {% else %}
+        <a href="{{ href }}"
+           class="{{ _classes }} shrink-0 transition-opacity hover:opacity-80
+                  focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+           data-ui--sidebar-target="badge"
+           data-badge-kind="unread"
+           aria-label="{{ 'sidebar.badge.unread'|trans({ '%count%': count }) }}"
+           data-count-key="{{ key }}">{{ count }}</a>
+    {% endif %}
 {% endmacro %}
 
 {#
@@ -128,8 +164,9 @@ keeps its accessible name either way.
                         <span class="truncate">{{ label|label_name }}</span>
                         {{ macros.label_new_dot(label) }}
                     </span>
-                    {{ macros.unread_badge(sidebarCounts.forLabel(label), 'label:' ~ label.id) }}
                 </a>
+                {{ macros.unread_badge(sidebarCounts.forLabel(label), 'label:' ~ label.id,
+                    path('app_mail_label_path', { path: label.fullName, unread: 1 })) }}
                 {{ macros.label_edit(label) }}
             </summary>
             <div class="nav-rows">
@@ -148,8 +185,9 @@ keeps its accessible name either way.
                data-ui--sidebar-target="link"
                data-action="{{ drawerClose }}">
                 <span class="truncate">{{ label|label_name }}</span>
-                {{ macros.unread_badge(sidebarCounts.forLabel(label), 'label:' ~ label.id) }}
             </a>
+            {{ macros.unread_badge(sidebarCounts.forLabel(label), 'label:' ~ label.id,
+                path('app_mail_label_path', { path: label.fullName, unread: 1 })) }}
             {{ macros.label_edit(label) }}
         </div>
     {% endif %}
@@ -235,35 +273,51 @@ controller instead — the scroll position and which trees are open.
          data-ui--sidebar-target="scroller"
          data-action="scroll->ui--sidebar#rememberScroll">
 
-        <a href="{{ path('app_mail_inbox') }}"
-           class="nav-item flex items-center justify-between gap-2 px-3 rounded-lg transition-colors"
-           data-nav-tier="row"
-           data-ui--sidebar-target="link"
-           data-action="{{ _drawerClose }}"
-           title="{{ 'sidebar.nav.inbox'|trans }}"
-        >
-            <span class="flex items-center gap-2">
-                <i class="fa-solid fa-inbox w-4" aria-hidden="true"></i>
-                <span class="rail-hide">{{ 'sidebar.nav.inbox'|trans }}</span>
-                {{ macros.role_dot(enum('App\\Domain\\Enum\\Mail\\LabelRole').Inbox) }}
-            </span>
-            {{ macros.unread_badge(sidebarCounts.forRoleBadge(enum('App\\Domain\\Enum\\Mail\\LabelRole').Inbox), 'role:inbox') }}
-        </a>
+        <div class="nav-item flex items-center justify-between gap-2 px-3 rounded-lg transition-colors">
+            {# The tier rides on the LINK, not on the pill around it. The pill is
+               what you see — .nav-item draws it — but the row's height comes from
+               padding-block, and padding on the wrapper is area the anchor does not
+               cover: the row would look 36px tall and answer a click on 20 of them.
+               The wrapper then takes its height from the link, so the geometry is
+               the same to the pixel as when the anchor WAS the row. #}
+            <a class="flex-1 min-w-0 flex items-center gap-2"
+               data-nav-tier="row"
+               href="{{ path('app_mail_inbox') }}"
+               data-ui--sidebar-target="link"
+               data-action="{{ _drawerClose }}"
+               title="{{ 'sidebar.nav.inbox'|trans }}"
+            >
+                <span class="flex items-center gap-2">
+                    <i class="fa-solid fa-inbox w-4" aria-hidden="true"></i>
+                    <span class="rail-hide">{{ 'sidebar.nav.inbox'|trans }}</span>
+                    {{ macros.role_dot(enum('App\\Domain\\Enum\\Mail\\LabelRole').Inbox) }}
+                </span>
+            </a>
+            {{ macros.unread_badge(sidebarCounts.forRoleBadge(enum('App\\Domain\\Enum\\Mail\\LabelRole').Inbox), 'role:inbox', path('app_mail_inbox', { unread: 1 })) }}
+        </div>
 
-        <a href="{{ path('app_mail_starred') }}"
-           class="nav-item flex items-center justify-between gap-2 px-3 rounded-lg transition-colors"
-           data-nav-tier="row"
-           data-ui--sidebar-target="link"
-           data-action="{{ _drawerClose }}"
-           title="{{ 'sidebar.nav.starred'|trans }}"
-        >
-            <span class="flex items-center gap-2">
-                <i class="fa-solid fa-star w-4" aria-hidden="true"></i>
-                <span class="rail-hide">{{ 'sidebar.nav.starred'|trans }}</span>
-                {{ macros.starred_new_dot() }}
-            </span>
-            {{ macros.unread_badge(sidebarCounts.forStarred(), 'starred') }}
-        </a>
+        <div class="nav-item flex items-center justify-between gap-2 px-3 rounded-lg transition-colors">
+            {# The tier rides on the LINK, not on the pill around it. The pill is
+               what you see — .nav-item draws it — but the row's height comes from
+               padding-block, and padding on the wrapper is area the anchor does not
+               cover: the row would look 36px tall and answer a click on 20 of them.
+               The wrapper then takes its height from the link, so the geometry is
+               the same to the pixel as when the anchor WAS the row. #}
+            <a class="flex-1 min-w-0 flex items-center gap-2"
+               data-nav-tier="row"
+               href="{{ path('app_mail_starred') }}"
+               data-ui--sidebar-target="link"
+               data-action="{{ _drawerClose }}"
+               title="{{ 'sidebar.nav.starred'|trans }}"
+            >
+                <span class="flex items-center gap-2">
+                    <i class="fa-solid fa-star w-4" aria-hidden="true"></i>
+                    <span class="rail-hide">{{ 'sidebar.nav.starred'|trans }}</span>
+                    {{ macros.starred_new_dot() }}
+                </span>
+            </a>
+            {{ macros.unread_badge(sidebarCounts.forStarred(), 'starred', path('app_mail_starred', { unread: 1 })) }}
+        </div>
 
         <a href="{{ path('app_mail_sent') }}"
            class="nav-item flex items-center justify-between gap-2 px-3 rounded-lg transition-colors"
@@ -346,33 +400,51 @@ controller instead — the scroll position and which trees are open.
                 <span>{{ 'sidebar.nav.more'|trans }}</span>
             </summary>
         {% if sidebarCounts.hasSnoozed %}
-            <a href="{{ path('app_mail_snoozed') }}"
-               class="nav-item flex items-center justify-between gap-2 pl-9 pr-3 rounded-lg transition-colors"
-               data-nav-tier="row"
-               data-ui--sidebar-target="link"
-               data-action="{{ _drawerClose }}"
-               title="{{ 'sidebar.nav.snoozed'|trans }}">
-                <span class="flex items-center gap-2">
-                    <i class="fa-solid fa-clock w-4" aria-hidden="true"></i>
-                    <span class="rail-hide">{{ 'sidebar.nav.snoozed'|trans }}</span>
-                    {{ macros.role_dot(enum('App\\Domain\\Enum\\Mail\\LabelRole').Snoozed) }}
-                </span>
-                {{ macros.unread_badge(sidebarCounts.forRoleBadge(enum('App\\Domain\\Enum\\Mail\\LabelRole').Snoozed), 'role:snoozed') }}
-            </a>
+            <div class="nav-item flex items-center justify-between gap-2 pl-9 pr-3 rounded-lg transition-colors">
+                {# The tier rides on the LINK, not on the pill around it. The pill is
+                   what you see — .nav-item draws it — but the row's height comes from
+                   padding-block, and padding on the wrapper is area the anchor does not
+                   cover: the row would look 36px tall and answer a click on 20 of them.
+                   The wrapper then takes its height from the link, so the geometry is
+                   the same to the pixel as when the anchor WAS the row. #}
+                <a class="flex-1 min-w-0 flex items-center gap-2"
+                   data-nav-tier="row"
+                   href="{{ path('app_mail_snoozed') }}"
+                   data-ui--sidebar-target="link"
+                   data-action="{{ _drawerClose }}"
+                   title="{{ 'sidebar.nav.snoozed'|trans }}"
+                >
+                    <span class="flex items-center gap-2">
+                        <i class="fa-solid fa-clock w-4" aria-hidden="true"></i>
+                        <span class="rail-hide">{{ 'sidebar.nav.snoozed'|trans }}</span>
+                        {{ macros.role_dot(enum('App\\Domain\\Enum\\Mail\\LabelRole').Snoozed) }}
+                    </span>
+                </a>
+                {{ macros.unread_badge(sidebarCounts.forRoleBadge(enum('App\\Domain\\Enum\\Mail\\LabelRole').Snoozed), 'role:snoozed', path('app_mail_snoozed', { unread: 1 })) }}
+            </div>
         {% endif %}
-            <a href="{{ path('app_mail_archive') }}"
-               class="nav-item flex items-center justify-between gap-2 pl-9 pr-3 rounded-lg transition-colors"
-               data-nav-tier="row"
-               data-ui--sidebar-target="link"
-               data-action="{{ _drawerClose }}"
-               title="{{ 'sidebar.nav.archive'|trans }}">
-                <span class="flex items-center gap-2">
-                    <i class="fa-solid fa-box-archive w-4" aria-hidden="true"></i>
-                    <span class="rail-hide">{{ 'sidebar.nav.archive'|trans }}</span>
-                    {{ macros.role_dot(enum('App\\Domain\\Enum\\Mail\\LabelRole').Archive) }}
-                </span>
-                {{ macros.unread_badge(sidebarCounts.forRoleBadge(enum('App\\Domain\\Enum\\Mail\\LabelRole').Archive), 'role:archive') }}
-            </a>
+            <div class="nav-item flex items-center justify-between gap-2 pl-9 pr-3 rounded-lg transition-colors">
+                {# The tier rides on the LINK, not on the pill around it. The pill is
+                   what you see — .nav-item draws it — but the row's height comes from
+                   padding-block, and padding on the wrapper is area the anchor does not
+                   cover: the row would look 36px tall and answer a click on 20 of them.
+                   The wrapper then takes its height from the link, so the geometry is
+                   the same to the pixel as when the anchor WAS the row. #}
+                <a class="flex-1 min-w-0 flex items-center gap-2"
+                   data-nav-tier="row"
+                   href="{{ path('app_mail_archive') }}"
+                   data-ui--sidebar-target="link"
+                   data-action="{{ _drawerClose }}"
+                   title="{{ 'sidebar.nav.archive'|trans }}"
+                >
+                    <span class="flex items-center gap-2">
+                        <i class="fa-solid fa-box-archive w-4" aria-hidden="true"></i>
+                        <span class="rail-hide">{{ 'sidebar.nav.archive'|trans }}</span>
+                        {{ macros.role_dot(enum('App\\Domain\\Enum\\Mail\\LabelRole').Archive) }}
+                    </span>
+                </a>
+                {{ macros.unread_badge(sidebarCounts.forRoleBadge(enum('App\\Domain\\Enum\\Mail\\LabelRole').Archive), 'role:archive', path('app_mail_archive', { unread: 1 })) }}
+            </div>
 
         {# Behind the same eye toggle in label settings that Archive is behind,
            and for the same reason: plenty of installs have no junk folder
@@ -381,20 +453,28 @@ controller instead — the scroll position and which trees are open.
            did nothing observable anywhere. Sits above Trash because that is
            where LabelRole::sortOrder() already put it. #}
         {% if sidebarCounts.hasVisibleRole(enum('App\\Domain\\Enum\\Mail\\LabelRole').Spam) %}
-            <a href="{{ path('app_mail_spam') }}"
-               class="nav-item flex items-center justify-between gap-2 pl-9 pr-3 rounded-lg transition-colors"
-               data-nav-tier="row"
-               data-ui--sidebar-target="link"
-               data-action="{{ _drawerClose }}"
-               title="{{ 'sidebar.nav.spam'|trans }}"
-            >
-                <span class="flex items-center gap-2">
-                    <i class="fa-solid fa-ban w-4" aria-hidden="true"></i>
-                    <span class="rail-hide">{{ 'sidebar.nav.spam'|trans }}</span>
-                    {{ macros.role_dot(enum('App\\Domain\\Enum\\Mail\\LabelRole').Spam) }}
-                </span>
-                {{ macros.unread_badge(sidebarCounts.forRoleBadge(enum('App\\Domain\\Enum\\Mail\\LabelRole').Spam), 'role:spam') }}
-            </a>
+            <div class="nav-item flex items-center justify-between gap-2 pl-9 pr-3 rounded-lg transition-colors">
+                {# The tier rides on the LINK, not on the pill around it. The pill is
+                   what you see — .nav-item draws it — but the row's height comes from
+                   padding-block, and padding on the wrapper is area the anchor does not
+                   cover: the row would look 36px tall and answer a click on 20 of them.
+                   The wrapper then takes its height from the link, so the geometry is
+                   the same to the pixel as when the anchor WAS the row. #}
+                <a class="flex-1 min-w-0 flex items-center gap-2"
+                   data-nav-tier="row"
+                   href="{{ path('app_mail_spam') }}"
+                   data-ui--sidebar-target="link"
+                   data-action="{{ _drawerClose }}"
+                   title="{{ 'sidebar.nav.spam'|trans }}"
+                >
+                    <span class="flex items-center gap-2">
+                        <i class="fa-solid fa-ban w-4" aria-hidden="true"></i>
+                        <span class="rail-hide">{{ 'sidebar.nav.spam'|trans }}</span>
+                        {{ macros.role_dot(enum('App\\Domain\\Enum\\Mail\\LabelRole').Spam) }}
+                    </span>
+                </a>
+                {{ macros.unread_badge(sidebarCounts.forRoleBadge(enum('App\\Domain\\Enum\\Mail\\LabelRole').Spam), 'role:spam', path('app_mail_spam', { unread: 1 })) }}
+            </div>
         {% endif %}
 
         <a href="{{ path('app_mail_trash') }}"

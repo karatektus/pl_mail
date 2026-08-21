@@ -15,7 +15,7 @@ use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
  * The number the collapsed LABELS heading shows.
  *
  * Worth its own file because the obvious implementation is wrong in a way that
- * only shows up on data the default seed does not have. Summing
+ * only shows up on data the default seed does not have. Adding up
  * countUnreadPerUserLabel() is one line and reads correctly — but those counts
  * are per label, a conversation may carry several, and adding them reports it
  * once per label. The heading would then promise more unread than expanding the
@@ -23,8 +23,15 @@ use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
  * believed.
  *
  * So the fixtures here are built to contain exactly that: one thread under two
- * labels. A SUM implementation passes every other test in the suite and fails
- * the first assertion below.
+ * labels. An adding implementation passes every other test in the suite and
+ * fails the first assertion below.
+ *
+ * Every number here counts CONVERSATIONS holding unread mail, not unread
+ * messages — the badges became clickable, and a badge you click to see the mail
+ * it counted has to say how many rows you will get. The fixtures deliberately
+ * give their threads several unread messages each, so the old message-summing
+ * implementation would produce a visibly different number rather than the same
+ * one by luck.
  */
 final class UnreadInUserLabelsTest extends KernelTestCase
 {
@@ -73,16 +80,17 @@ final class UnreadInUserLabelsTest extends KernelTestCase
         $thread->addLabel($clients);
         $this->em->flush();
 
-        // The per-label rows say 3 and 3 — six between them, over one
-        // conversation that has three unread messages in it.
+        // One conversation under each label, so each row says 1 — not 3, which
+        // is how many unread MESSAGES are in it. Both rows open a list holding
+        // exactly the one thread they counted.
         $perLabel = static::getContainer()->get(MessageThreadRepository::class)
             ->countUnreadPerUserLabel($this->user);
 
-        self::assertSame(3, $perLabel[(int) $work->id]);
-        self::assertSame(3, $perLabel[(int) $clients->id]);
+        self::assertSame(1, $perLabel[(int) $work->id]);
+        self::assertSame(1, $perLabel[(int) $clients->id]);
 
         self::assertSame(
-            3,
+            1,
             $this->countUnreadInUserLabels(),
             'the roll-up counted the same conversation once per label on it',
         );
@@ -117,11 +125,12 @@ final class UnreadInUserLabelsTest extends KernelTestCase
         $label = $this->seedLabel('Work');
         $trash = $this->seedLabel('Trash', LabelRole::Trash);
 
+        // One conversation, two unread messages in it: the heading says 1.
         $thread = $this->thread('Binned', unread: 2);
         $thread->addLabel($label);
         $this->em->flush();
 
-        self::assertSame(2, $this->countUnreadInUserLabels());
+        self::assertSame(1, $this->countUnreadInUserLabels());
 
         $thread->addLabel($trash);
         $this->em->flush();
@@ -143,7 +152,10 @@ final class UnreadInUserLabelsTest extends KernelTestCase
         $this->em->flush();
 
         // De-duplicating must not turn into under-counting: these are two
-        // different conversations and both belong in the total.
-        self::assertSame(6, $this->countUnreadInUserLabels());
+        // different conversations and both belong in the total. Two, not the
+        // six unread messages they hold between them — and the two numbers are
+        // deliberately different so this cannot pass under either rule by
+        // accident.
+        self::assertSame(2, $this->countUnreadInUserLabels());
     }
 }

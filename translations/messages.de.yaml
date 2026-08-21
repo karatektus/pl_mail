@@ -2835,6 +2835,9 @@ toolbar:
         mark_read: Als gelesen markieren
         mark_unread: Als ungelesen markieren
         snooze: Zurückstellen
+    filter:
+        show_all: Alle anzeigen
+        unread_only: Nur ungelesene
     pagination:
         next: Älter
         of: von

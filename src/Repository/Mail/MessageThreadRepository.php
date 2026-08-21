@@ -73,7 +73,7 @@ class MessageThreadRepository extends ServiceEntityRepository
      * entity, so none of the two joins — nor the DISTINCT they make necessary —
      * is available to it.
      */
-    public function findForUnifiedInbox(UserInterface $user, MessageCategory $category, int $page = 1, int $perPage = 50, ListSortOrder $sort = ListSortOrder::Newest): array
+    public function findForUnifiedInbox(UserInterface $user, MessageCategory $category, int $page = 1, int $perPage = 50, ListSortOrder $sort = ListSortOrder::Newest, bool $unreadOnly = false): array
     {
         $offset = ($page - 1) * $perPage;
 
@@ -92,6 +92,7 @@ class MessageThreadRepository extends ServiceEntityRepository
             ->distinct();
 
         $this->excludeTrashed($qb);
+        $this->narrowToUnread($qb, $unreadOnly);
 
         $sort->applyTo($qb);
 
@@ -99,7 +100,7 @@ class MessageThreadRepository extends ServiceEntityRepository
     }
 
     /** Same two joins as findForUnifiedInbox(), so the same reason to keep it. */
-    public function countForUnifiedInbox(UserInterface $user, MessageCategory $category): int
+    public function countForUnifiedInbox(UserInterface $user, MessageCategory $category, bool $unreadOnly = false): int
     {
         // COUNT(DISTINCT t.id), not select-DISTINCT: the label join is to-many,
         // and ->distinct() would put the DISTINCT on the aggregate rather than
@@ -108,7 +109,7 @@ class MessageThreadRepository extends ServiceEntityRepository
         // -- which dedupes properly -- returns it once, and the paginator would
         // offer a page that does not exist. countForRole() below has always
         // spelled it this way.
-        return $this->createQueryBuilder('t')
+        $qb = $this->createQueryBuilder('t')
             ->select('COUNT(DISTINCT t.id)')
             ->join('t.account', 'a')
             ->join('t.labels', 'l')
@@ -118,9 +119,11 @@ class MessageThreadRepository extends ServiceEntityRepository
             ->andWhere('t.category = :category')
             ->setParameter('user', $user)
             ->setParameter('inbox', LabelRole::Inbox)
-            ->setParameter('category', $category)
-            ->getQuery()
-            ->getSingleScalarResult();
+            ->setParameter('category', $category);
+
+        $this->narrowToUnread($qb, $unreadOnly);
+
+        return (int) $qb->getQuery()->getSingleScalarResult();
     }
 
     /**
@@ -173,7 +176,7 @@ class MessageThreadRepository extends ServiceEntityRepository
      * reason findForUnifiedInbox() is: the role lives on a Label the thread
      * reaches through a to-many, and the owner on the Account.
      */
-    public function findForRole(UserInterface $user, LabelRole $role, int $page = 1, int $perPage = 50, ListSortOrder $sort = ListSortOrder::Newest): array
+    public function findForRole(UserInterface $user, LabelRole $role, int $page = 1, int $perPage = 50, ListSortOrder $sort = ListSortOrder::Newest, bool $unreadOnly = false): array
     {
         $offset = ($page - 1) * $perPage;
 
@@ -196,12 +199,14 @@ class MessageThreadRepository extends ServiceEntityRepository
             $this->excludeTrashed($qb);
         }
 
+        $this->narrowToUnread($qb, $unreadOnly);
+
         $sort->applyTo($qb);
 
         return $qb->getQuery()->getResult();
     }
     /** Same joins as findForRole(). */
-    public function countForRole(UserInterface $user, LabelRole $role): int
+    public function countForRole(UserInterface $user, LabelRole $role, bool $unreadOnly = false): int
     {
         $qb = $this->createQueryBuilder('t')
             ->select('COUNT(DISTINCT t.id)')
@@ -217,6 +222,8 @@ class MessageThreadRepository extends ServiceEntityRepository
             $this->excludeTrashed($qb);
         }
 
+        $this->narrowToUnread($qb, $unreadOnly);
+
         return (int) $qb->getQuery()->getSingleScalarResult();
     }
     /**
@@ -231,7 +238,7 @@ class MessageThreadRepository extends ServiceEntityRepository
      * QueryBuilder because the label is a to-many association: findBy() has no
      * way to say "carries this label".
      */
-    public function findForLabel(Label $label, ?Account $account = null, int $page = 1, int $perPage = 50, ListSortOrder $sort = ListSortOrder::Newest): array
+    public function findForLabel(Label $label, ?Account $account = null, int $page = 1, int $perPage = 50, ListSortOrder $sort = ListSortOrder::Newest, bool $unreadOnly = false): array
     {
         $offset = ($page - 1) * $perPage;
 
@@ -244,6 +251,7 @@ class MessageThreadRepository extends ServiceEntityRepository
 
         $this->narrowToAccount($qb, $account);
         $this->excludeTrashedUnlessBin($qb, $label);
+        $this->narrowToUnread($qb, $unreadOnly);
 
         $sort->applyTo($qb);
 
@@ -251,7 +259,7 @@ class MessageThreadRepository extends ServiceEntityRepository
     }
 
     /** Same to-many filter as findForLabel(). */
-    public function countForLabel(Label $label, ?Account $account = null): int
+    public function countForLabel(Label $label, ?Account $account = null, bool $unreadOnly = false): int
     {
         $qb = $this->createQueryBuilder('t')
             ->select('COUNT(t.id)')
@@ -261,6 +269,7 @@ class MessageThreadRepository extends ServiceEntityRepository
 
         $this->narrowToAccount($qb, $account);
         $this->excludeTrashedUnlessBin($qb, $label);
+        $this->narrowToUnread($qb, $unreadOnly);
 
         return (int) $qb->getQuery()->getSingleScalarResult();
     }
@@ -378,6 +387,27 @@ class MessageThreadRepository extends ServiceEntityRepository
      * Trash folder row — see the callers, each of which decides. Applying it
      * everywhere would empty the one list that is supposed to be full.
      */
+    /**
+     * Narrow a thread list to the conversations a badge counted.
+     *
+     * `unreadCount` is per-thread and counts MESSAGES, so "> 0" is "this
+     * conversation holds something unread" — which is exactly what the badges
+     * count now (see countUnreadPerRole). One predicate shared by every list
+     * that can be filtered, so a badge and the list it opens cannot drift into
+     * two different ideas of unread.
+     *
+     * A no-op when the flag is false, so every caller passes it unconditionally
+     * rather than branching around it.
+     */
+    private function narrowToUnread(QueryBuilder $qb, bool $unreadOnly): void
+    {
+        if (false === $unreadOnly) {
+            return;
+        }
+
+        $qb->andWhere('t.unreadCount > 0');
+    }
+
     private function excludeTrashed(QueryBuilder $qb): void
     {
         $qb->andWhere(
@@ -393,7 +423,7 @@ class MessageThreadRepository extends ServiceEntityRepository
      * QueryBuilder for the join to Account: both the owner and whether the
      * account is still active live there, and neither is a field of the thread.
      */
-    public function findForStarred(UserInterface $user, int $page = 1, int $perPage = 50, ListSortOrder $sort = ListSortOrder::Newest): array
+    public function findForStarred(UserInterface $user, int $page = 1, int $perPage = 50, ListSortOrder $sort = ListSortOrder::Newest, bool $unreadOnly = false): array
     {
         $offset = ($page - 1) * $perPage;
 
@@ -407,6 +437,7 @@ class MessageThreadRepository extends ServiceEntityRepository
             ->setMaxResults($perPage);
 
         $this->excludeTrashed($qb);
+        $this->narrowToUnread($qb, $unreadOnly);
 
         $sort->applyTo($qb);
 
@@ -414,7 +445,7 @@ class MessageThreadRepository extends ServiceEntityRepository
     }
 
     /** Same join as findForStarred(). */
-    public function countForStarred(UserInterface $user): int
+    public function countForStarred(UserInterface $user, bool $unreadOnly = false): int
     {
         $qb = $this->createQueryBuilder('t')
             ->select('COUNT(t.id)')
@@ -425,24 +456,39 @@ class MessageThreadRepository extends ServiceEntityRepository
             ->setParameter('user', $user);
 
         $this->excludeTrashed($qb);
+        $this->narrowToUnread($qb, $unreadOnly);
 
         return (int) $qb->getQuery()->getSingleScalarResult();
     }
     /**
-     * Grouped SUM per system role — an aggregate over a join, which is two
+     * Grouped COUNT per system role — an aggregate over a join, which is two
      * things Doctrine's API cannot do and one query instead of a role's worth.
      *
-     * @return array<string,int> role value → unread thread-message sum
+     * CONVERSATIONS with unread mail, not unread messages. It used to be
+     * SUM(t.unreadCount), which answered a question the list beside it could
+     * not: the badge said how many unread MESSAGES a role held, the list under
+     * it draws one row per conversation, and a thread holding three unread
+     * replies made those two numbers differ by two. Harmless while the badge
+     * was only ever read, and not harmless once it became the thing you click
+     * to see exactly that mail — a "4" that opens three rows is the Trash
+     * "188 unread against a list of 193" all over again.
+     *
+     * countUnreadForStarred() had already been written this way, so this also
+     * ends a disagreement between the badges themselves: Starred counted
+     * conversations while every other badge counted messages.
+     *
+     * @return array<string,int> role value → conversations holding unread mail
      */
     public function countUnreadPerRole(UserInterface $user): array
     {
         $qb = $this->createQueryBuilder('t')
-            ->select('l.role AS role', 'SUM(t.unreadCount) AS unreadCount')
+            ->select('l.role AS role', 'COUNT(DISTINCT t.id) AS unreadCount')
             ->join('t.account', 'a')
             ->join('t.labels', 'l')
             ->where('a.usr = :user')
             ->andWhere('a.isActive = true')
             ->andWhere('l.role IS NOT NULL')
+            ->andWhere('t.unreadCount > 0')
             ->setParameter('user', $user)
             ->groupBy('l.role');
 
@@ -480,19 +526,21 @@ class MessageThreadRepository extends ServiceEntityRepository
     }
 
     /**
-     * The same grouped SUM for custom labels.
+     * The same grouped COUNT for custom labels — conversations holding unread
+     * mail, for the reason countUnreadPerRole() gives.
      *
-     * @return array<int,int> label id → unread thread-message sum
+     * @return array<int,int> label id → conversations holding unread mail
      */
     public function countUnreadPerUserLabel(UserInterface $user, ?Account $account = null): array
     {
         $qb = $this->createQueryBuilder('t')
-            ->select('l.id AS labelId', 'SUM(t.unreadCount) AS unreadCount')
+            ->select('l.id AS labelId', 'COUNT(DISTINCT t.id) AS unreadCount')
             ->join('t.account', 'a')
             ->join('t.labels', 'l')
             ->where('a.usr = :user')
             ->andWhere('a.isActive = true')
             ->andWhere('l.role IS NULL')
+            ->andWhere('t.unreadCount > 0')
             ->setParameter('user', $user)
             ->groupBy('l.id');
 
@@ -531,11 +579,16 @@ class MessageThreadRepository extends ServiceEntityRepository
      *
      * Stated as "threads carrying at least one custom label" via a subquery
      * instead, so each is counted once however many labels are on it.
+     *
+     * A COUNT of those threads rather than a SUM over them, matching the
+     * per-label badges it stands in for: the heading has to be the number of
+     * rows expanding the section would show you, and those rows are
+     * conversations.
      */
     public function countUnreadInUserLabels(UserInterface $user): int
     {
         $qb = $this->createQueryBuilder('t')
-            ->select('COALESCE(SUM(t.unreadCount), 0)')
+            ->select('COUNT(DISTINCT t.id)')
             ->join('t.account', 'a')
             ->where('a.usr = :user')
             ->andWhere('a.isActive = true')

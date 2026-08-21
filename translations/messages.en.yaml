@@ -2808,6 +2808,9 @@ toolbar:
         mark_read: Mark as read
         mark_unread: Mark as unread
         snooze: Snooze
+    filter:
+        show_all: Show all
+        unread_only: Unread only
     pagination:
         next: Older
         of: of

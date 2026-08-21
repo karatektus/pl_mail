@@ -219,6 +219,45 @@ The button itself carries `group` and `relative`.
         ></span>
     </div>
 
+    {# ── "You are looking at unread only" ──────────────────────────────────
+
+       Said out loud, and with a way back out — the same rule the label view's
+       account narrowing follows, and for the same reason: a filtered list and
+       a genuinely quiet one look identical, so a filter that does not announce
+       itself reads as mail having gone missing.
+
+       Here rather than in each view's header because six lists can be narrowed
+       this way — the inbox, Starred, Archive, Spam, Snoozed and any label,
+       under an account or across all of them — and they have six templates
+       between them. The toolbar is the one part every one of them already
+       shares.
+
+       The way out is this route again without `unread`, rebuilt from the
+       request rather than named: the views reached like this carry route
+       parameters (a label id) AND query parameters (?account=, ?tab=, ?sort=),
+       and dropping either on the way back would answer "show all" with a
+       different list than the one being filtered. Only `unread` and `page` are
+       removed — page, because page four of the unread threads is not a page
+       that need exist once the filter is gone. #}
+    {% if unread_only|default(false) %}
+        {% set _back = path(
+            app.request.attributes.get('_route'),
+            app.request.attributes.get('_route_params')|default({})|merge(
+                app.request.query.all|filter((v, k) => k not in ['unread', 'page'])
+            )
+        ) %}
+        <span class="flex items-center gap-1.5 text-xs shrink-0">
+            <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full
+                         bg-accent-soft text-accent font-medium">
+                <i class="fa-solid fa-envelope text-[9px]" aria-hidden="true"></i>
+                {{ 'toolbar.filter.unread_only'|trans }}
+            </span>
+            <a href="{{ _back }}" class="text-ink-muted hover:text-ink hover:underline">
+                {{ 'toolbar.filter.show_all'|trans }}
+            </a>
+        </span>
+    {% endif %}
+
     {# Spacer #}
     <div class="flex-1"></div>
 

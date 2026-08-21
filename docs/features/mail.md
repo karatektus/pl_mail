@@ -36,6 +36,21 @@ than opening and snapping shut a moment after the page draws. What folds is the 
 wall of labels is what pushes the accounts off the bottom of a short window — though a nested label
 tree still collapses on its own for anyone who nests them.
 
+An unread badge is a link. Clicking one opens that same view with everything already read filtered
+out — the inbox, **Starred**, **Archive**, **Spam**, **Snoozed**, or a label, under one account or
+across all of them — so the number on the pill is the number of rows you land on. That is the point
+of it being a count of conversations rather than of unread messages: a conversation holding three
+unread replies is one row, and a badge you click has to say how many rows it will give you.
+
+While a list is narrowed it says **Unread only**, with **Show all** beside it, because a filtered
+list and a genuinely quiet one look identical otherwise. Everything else about the view survives the
+filter — the account it was narrowed to, the sort order, the tab — so **Show all** puts you back
+where you were rather than somewhere adjacent.
+
+**Trash** and **Drafts** are not links, and neither is the **Labels** roll-up. The first two carry a
+total rather than an unread count, so there is no unread question being asked there; the roll-up
+stands in for several lists at once and has no single one to open.
+
 A collapsed **Labels** heading carries the unread hidden underneath it, as a count of conversations.
 It is deliberately not the sum of the per-label numbers: a conversation filed under two labels would
 be counted twice, and the heading would promise more than expanding it could show. **Accounts** gets
