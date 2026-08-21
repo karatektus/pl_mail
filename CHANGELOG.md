@@ -6,6 +6,33 @@ so anything that changes the schema irreversibly is called out explicitly.
 The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, and `sha-…` pins one commit.
 
+## v0.1.8 — 2026-08-21
+
+**No migration. Two pieces of polish, both of them a few pixels, both of them
+the kind you cannot stop seeing once you have.**
+
+**The mail pane sat slightly too low when the insight strip was gone.** The
+column spaced its children by a gutter, and the strip's frame counts as a child
+even when it is empty — before it has fetched, on a day with nothing upcoming,
+and after you dismiss it. So a gap was being paid for something that was not on
+screen. The gutter belongs to the strip now and exists exactly when the strip
+does: dismiss it, reload, and the mail pane sits flush with the top of the row.
+
+**The panes wore a hard little arc under each bottom corner in the dark
+themes.** The shell clips at the window edge and leaves one gutter of room, so
+a pane running to the bottom has 12px beneath it — while the shadow reached
+22px, and the bottom half of it was cut off by that edge. At a rounded corner
+the cut ran across the shadow's own curve, which is what made it read as a
+smudge rather than as a shadow. It only ever showed on the three panes that
+touch the bottom — the sidebar, the mail pane and the calendar — and never on
+the insight strip, whose shadow lands on the mail pane and is never clipped.
+
+**It had been there a long time and was invisible in the light themes**, where
+shadows are drawn at five percent. The dark themes use thirty to forty-five,
+where a clipped shadow is not subtle at all. The shadow now stays inside the
+gutter, and the arithmetic is written down beside it so that changing the
+gutter without revisiting it does not quietly bring the arc back.
+
 ## v0.1.7 — 2026-08-21
 
 **No migration. The insight strip becomes a pane in its own right, and a dialog
