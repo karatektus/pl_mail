@@ -6,6 +6,41 @@ so anything that changes the schema irreversibly is called out explicitly.
 The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, and `sha-…` pins one commit.
 
+## v0.1.4 — 2026-08-21
+
+**No migration. The unread badge is a link now: click it and you get the mail it
+was counting. The numbers themselves changed to make that honest — they count
+conversations, which is what the lists they open are made of.**
+
+**The unread badge opens the mail it counted.** Click one and that same view
+comes back with everything already read filtered out — the inbox, **Starred**,
+**Archive**, **Spam**, **Snoozed**, or a label, under one account or across all
+of them. While a list is narrowed it says **Unread only**, with **Show all**
+beside it, because a filtered list and a genuinely quiet one look identical
+otherwise. Everything else about the view survives the filter — the account it
+was narrowed to, the sort order, the tab — so **Show all** puts you back where
+you were rather than somewhere next to it.
+
+**The badges now count conversations, so some of your numbers will drop.** This
+is the part worth knowing before you upgrade. They used to count unread
+*messages*: a conversation holding three unread replies added three. Every list
+in plMail draws one row per conversation, so "Inbox 4" could open four rows or
+two, and there was no way to tell which from the badge. That was tolerable while
+the number was only ever read. It is not tolerable when the number is a link —
+so the badge now says how many rows clicking it will give you. Nothing about
+your mail changed; only what the pill is counting. **Starred** already worked
+this way and nothing said so, so this also ends a quiet disagreement between the
+badges themselves.
+
+**Trash and Drafts are not links, and neither is the Labels roll-up.** The first
+two carry a total rather than an unread count — nobody triages a bin — so there
+is no unread question being asked there. The roll-up over a collapsed **Labels**
+heading stands in for several lists at once and has no single one to open.
+
+**The badge is a real link.** It can be tabbed to, opened with the keyboard and
+middle-clicked into a new tab, rather than being a decoration that only answers
+a mouse.
+
 ## v0.1.3 — 2026-08-21
 
 **No migration. Fixes throughout: the unread counters keep up with mail you
