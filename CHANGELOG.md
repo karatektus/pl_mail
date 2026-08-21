@@ -6,6 +6,57 @@ so anything that changes the schema irreversibly is called out explicitly.
 The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, and `sha-…` pins one commit.
 
+## v0.1.3 — 2026-08-21
+
+**No migration. Fixes throughout: the unread counters keep up with mail you
+read, a scheduled send stops quietly refusing itself for one hour a year, mail
+Gmail re-files reaches the tab it was moved to, and Amazon parcels are read as
+the parcels they are.**
+
+**The unread counters keep up with mail you read.** Reported as the counter
+updating unreliably, and it was worse than that — it never corrected itself at
+all. The badges were told about bulk actions from the list toolbar and about
+nothing else, so reading a mail the ordinary way, by opening it, left "Inbox 4"
+sitting beside three unread conversations until you navigated somewhere or
+reloaded. That is what made it look intermittent rather than broken: moving
+between folders redraws the badges anyway, so whether it looked wrong depended
+on whether you happened to click away afterwards. Opening a conversation, the
+envelope button on a row, and mark-unread in the reading pane all move the
+numbers now. Re-opening mail you have already read still asks the server for
+nothing, because nothing can have changed.
+
+**A scheduled send no longer refuses itself in silence.** Once a year, in the
+hour a clock goes back, the send-later picker compared two wall clocks that are
+no longer in order — 02:00 happens twice — accepted a time it should have
+refused, and then did nothing at all when the server refused it instead. If you
+have ever had "send later" appear to ignore a click, this was one way it could.
+The picker's bounds are compared as moments in time now rather than as clock
+readings, and a time that happens twice is resolved the way the server resolves
+it.
+
+**Mail Gmail re-files reaches the tab it was moved to.** Gmail sorts mail after
+it has been delivered, and re-sorts it every time you drag a message between its
+tabs. plMail re-reads exactly those messages, but it kept the category it worked
+out on the day the mail first arrived — so a message you had moved to Promotions
+explained itself as a promotion when you opened it while still sitting in
+Primary in the list, until the next `app:backfill category`. The two now agree
+without waiting for that.
+
+**Amazon parcels are read as parcels.** Amazon names no tracking number
+anywhere, states its stages in a progress bar that lists every stage in every
+mail, and promises delivery in words rather than digits. All three defeated the
+reader: dispatched parcels were called delivered, English "Dispatched:" mails
+were not recognised at all, and "Arriving Monday" produced no date. A parcel is
+now identified by its order number and which package of the order it is, so a
+second package no longer overwrites the first. Days named in words resolve
+against the mail's own arrival rather than against today, so `app:backfill
+insights` lands where it would have landed at the time.
+
+**Also.** Two browser tests that failed the last two release tags were fixed:
+both were the suite reading the wall clock rather than anything wrong with the
+app, and both failed only at particular times of day, which is why they survived
+a retry and blocked a tag.
+
 ## v0.1.2 — 2026-08-20
 
 **One small migration — a new table, nothing rewritten and nothing locked. The
