@@ -2457,6 +2457,9 @@ toolbar:
         mark_read: Mark as read
         mark_unread: Mark as unread
         snooze: Let it drift
+    filter:
+        show_all: Show every last one
+        unread_only: Unread only
     pagination:
         next: Saltier
         of: of

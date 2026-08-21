@@ -200,15 +200,16 @@ final class MailController extends AbstractController
         $tab = MessageCategory::tryFrom((string) $request->query->get('tab', ''))
             ?? MessageCategory::Primary;
 
-        $total = $this->threadRepository->countForUnifiedInbox($user, $tab);
-        $page  = $this->pageOrRedirect($request, $total);
+        $unreadOnly = $this->unreadOnly($request);
+        $total      = $this->threadRepository->countForUnifiedInbox($user, $tab, $unreadOnly);
+        $page       = $this->pageOrRedirect($request, $total);
 
         if ($page instanceof RedirectResponse) {
             return $page;
         }
 
         $sort       = $this->listSort($request);
-        $threads    = $this->threadRepository->findForUnifiedInbox($user, $tab, $page, self::PER_PAGE, $sort);
+        $threads    = $this->threadRepository->findForUnifiedInbox($user, $tab, $page, self::PER_PAGE, $sort, $unreadOnly);
         // The unread numbers on the tabs come from the sidebarCounts global in
         // the template — the same memoised read the counts endpoint answers
         // with, so the two cannot disagree. Only which tabs EXIST is decided
@@ -230,12 +231,13 @@ final class MailController extends AbstractController
         $this->threadRepository->preloadForRows($threads);
 
         return $this->renderList($request, 'mail/inbox.html.twig', $threads, [
-            'tab'        => $tab,
-            'tabs'       => $tabs,
-            'page'       => $page,
-            'total'      => $total,
-            'per_page'   => self::PER_PAGE,
-            'list_sort'  => $sort,
+            'tab'         => $tab,
+            'tabs'        => $tabs,
+            'page'        => $page,
+            'total'       => $total,
+            'per_page'    => self::PER_PAGE,
+            'list_sort'   => $sort,
+            'unread_only' => $unreadOnly,
         ]);
     }
 
@@ -270,27 +272,49 @@ final class MailController extends AbstractController
 
     private function renderLabel(Label $label, Request $request): Response
     {
-        $account = $this->requestedAccount($request);
-        $total   = $this->threadRepository->countForLabel($label, $account);
-        $page    = $this->pageOrRedirect($request, $total);
+        $account    = $this->requestedAccount($request);
+        $unreadOnly = $this->unreadOnly($request);
+        $total      = $this->threadRepository->countForLabel($label, $account, $unreadOnly);
+        $page       = $this->pageOrRedirect($request, $total);
 
         if ($page instanceof RedirectResponse) {
             return $page;
         }
 
         $sort    = $this->listSort($request);
-        $threads = $this->threadRepository->findForLabel($label, $account, $page, self::PER_PAGE, $sort);
+        $threads = $this->threadRepository->findForLabel($label, $account, $page, self::PER_PAGE, $sort, $unreadOnly);
 
         $this->threadRepository->preloadForRows($threads);
 
         return $this->renderList($request, 'mail/label.html.twig', $threads, [
-            'label'     => $label,
-            'account'   => $account,
-            'page'      => $page,
-            'total'     => $total,
-            'per_page'  => self::PER_PAGE,
-            'list_sort' => $sort,
+            'label'       => $label,
+            'account'     => $account,
+            'page'        => $page,
+            'total'       => $total,
+            'per_page'    => self::PER_PAGE,
+            'list_sort'   => $sort,
+            'unread_only' => $unreadOnly,
         ]);
+    }
+
+    /**
+     * Whether this view was opened from an unread badge.
+     *
+     * `?unread=1`, a query parameter on the same view rather than a route of
+     * its own, for the reason `?account=` is one: it is a filter, the view is
+     * otherwise identical, and every link that already exists — a sort, a page,
+     * the account narrowing — has to keep working underneath it.
+     *
+     * Read as a boolean rather than compared to "1", so `?unread`, `?unread=1`
+     * and `?unread=true` all mean the same thing; anything falsy, including the
+     * parameter being absent, is the ordinary unfiltered view. A URL is
+     * something people edit and hand to each other, and the failure mode of
+     * being strict here is a link that silently shows everything while claiming
+     * to show unread.
+     */
+    private function unreadOnly(Request $request): bool
+    {
+        return $request->query->getBoolean('unread');
     }
 
     /**
@@ -367,24 +391,26 @@ final class MailController extends AbstractController
     #[Route('/starred', name: 'starred')]
     public function starred(Request $request): Response
     {
-        $user  = $this->getUser();
-        $total   = $this->threadRepository->countForStarred($user);
-        $page    = $this->pageOrRedirect($request, $total);
+        $user       = $this->getUser();
+        $unreadOnly = $this->unreadOnly($request);
+        $total      = $this->threadRepository->countForStarred($user, $unreadOnly);
+        $page       = $this->pageOrRedirect($request, $total);
 
         if ($page instanceof RedirectResponse) {
             return $page;
         }
 
         $sort    = $this->listSort($request);
-        $threads = $this->threadRepository->findForStarred($user, $page, self::PER_PAGE, $sort);
+        $threads = $this->threadRepository->findForStarred($user, $page, self::PER_PAGE, $sort, $unreadOnly);
 
         $this->threadRepository->preloadForRows($threads);
 
         return $this->renderList($request, 'mail/starred.html.twig', $threads, [
-            'page'      => $page,
-            'total'     => $total,
-            'per_page'  => self::PER_PAGE,
-            'list_sort' => $sort,
+            'page'        => $page,
+            'total'       => $total,
+            'per_page'    => self::PER_PAGE,
+            'list_sort'   => $sort,
+            'unread_only' => $unreadOnly,
         ]);
     }
 
@@ -454,24 +480,26 @@ final class MailController extends AbstractController
      */
     private function renderRole(Request $request, LabelRole $role, string $template): Response
     {
-        $user  = $this->getUser();
-        $total = $this->threadRepository->countForRole($user, $role);
-        $page  = $this->pageOrRedirect($request, $total);
+        $user       = $this->getUser();
+        $unreadOnly = $this->unreadOnly($request);
+        $total      = $this->threadRepository->countForRole($user, $role, $unreadOnly);
+        $page       = $this->pageOrRedirect($request, $total);
 
         if ($page instanceof RedirectResponse) {
             return $page;
         }
 
         $sort    = $this->listSort($request);
-        $threads = $this->threadRepository->findForRole($user, $role, $page, self::PER_PAGE, $sort);
+        $threads = $this->threadRepository->findForRole($user, $role, $page, self::PER_PAGE, $sort, $unreadOnly);
 
         $this->threadRepository->preloadForRows($threads);
 
         return $this->renderList($request, $template, $threads, [
-            'page'      => $page,
-            'total'     => $total,
-            'per_page'  => self::PER_PAGE,
-            'list_sort' => $sort,
+            'page'        => $page,
+            'total'       => $total,
+            'per_page'    => self::PER_PAGE,
+            'list_sort'   => $sort,
+            'unread_only' => $unreadOnly,
         ]);
     }
 

@@ -30,27 +30,36 @@
            a rounded-lg hover box and no active state whatsoever. Depth rides in
            --label-depth, which the pill adds to, rather than an inline
            padding-left the pill would know nothing about. #}
-        <a
-            data-ui--sidebar-target="link"
-            href="{{ path('app_mail_label', { id: label.id, account: account.id }) }}"
-            data-turbo-frame="_top"
-            data-turbo-prefetch="false"
-            class="nav-item flex items-center justify-between text-xs transition-colors text-ink-muted"
-            data-nav-tier="tree"
-            style="--label-depth: {{ 12 + label.depth * 12 }}px"
-        >
-            <span class="truncate">{{ label|label_name }}</span>
+        {# The row is the pill and the anchor is what fills it, rather than the
+           anchor being both — the badge beside it is a link of its own now, and
+           an <a> inside an <a> is not markup that survives parsing. Same shape
+           the system rows and the label tree use. #}
+        <div class="nav-item flex items-center justify-between text-xs transition-colors text-ink-muted"
+             data-nav-tier="tree"
+             style="--label-depth: {{ 12 + label.depth * 12 }}px">
+            <a
+                data-ui--sidebar-target="link"
+                href="{{ path('app_mail_label', { id: label.id, account: account.id }) }}"
+                data-turbo-frame="_top"
+                data-turbo-prefetch="false"
+                class="flex-1 min-w-0 truncate"
+            >{{ label|label_name }}</a>
             {% if not label.isSystem %}
                 {# Counted within this account, and keyed that way too: the
                    sidebar's own label rows carry `label:<id>` and mean every
                    account, so sharing the key would have the counts endpoint
-                   patch the account's badge with the total. #}
+                   patch the account's badge with the total.
+
+                   The unread view it opens carries the same `account=`, so the
+                   list matches the number that was clicked — the whole reason
+                   this count is account-scoped in the first place. #}
                 {% import '_partials/_sidebar.html.twig' as sidebar %}
                 {{ sidebar.unread_badge(
                     sidebarCounts.forLabelInAccount(label, account),
                     'label:' ~ label.id ~ ':account:' ~ account.id,
+                    path('app_mail_label', { id: label.id, account: account.id, unread: 1 }),
                 ) }}
             {% endif %}
-        </a>
+        </div>
     {% endfor %}
 </nav>

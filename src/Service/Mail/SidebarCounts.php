@@ -137,13 +137,13 @@ class SidebarCounts implements ResetInterface
      * The roles that carry no badge at all.
      *
      * Sent, and the reason is arithmetic rather than taste. countUnreadPerRole()
-     * sums a THREAD's unread count into every role the thread carries, and a
-     * thread's labels are the union of its messages' (see
-     * ThreadLabelSynchronizer) — so the moment you answer a conversation, the
-     * thread gains Sent while the unread message in it is still the incoming
-     * one, sitting in the Inbox. "Gesendet 1" was counting a mail that is not in
-     * Sent and never will be. Reported as exactly that: mark one inbox thread
-     * unread, and Sent grows a badge.
+     * counts a THREAD towards every role the thread carries, and a thread's
+     * labels are the union of its messages' (see ThreadLabelSynchronizer) — so
+     * the moment you answer a conversation, the thread gains Sent while the
+     * unread message in it is still the incoming one, sitting in the Inbox.
+     * "Gesendet 1" was counting a mail that is not in Sent and never will be.
+     * Reported as exactly that: mark one inbox thread unread, and Sent grows a
+     * badge.
      *
      * Sent is the only role this can happen to. Trash and Drafts are totals
      * (below) and so are not summed this way; Archive and Spam are MOVES — the

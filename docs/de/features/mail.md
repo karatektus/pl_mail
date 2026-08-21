@@ -1,4 +1,4 @@
-<!-- translated-from: features/mail.md sha1:f540bf8d9c7246eeb9c4505819ca0f99f566a420 -->
+<!-- translated-from: features/mail.md sha1:86cafc80aa868a2ed9981e09d2a87cc256d4a744 -->
 
 # Mail
 
@@ -41,6 +41,23 @@ gezeichnet, statt sich kurz nach dem Seitenaufbau zuzuschnappen. Was zuklappt, i
 Abschnitt — eine Wand aus Labels ist das, was die Konten aus einem kurzen Fenster nach unten
 drückt —, ein verschachtelter Label-Baum klappt für alle, die verschachteln, weiterhin für sich
 allein zu.
+
+Ein Ungelesen-Badge ist ein Link. Ein Klick öffnet dieselbe Ansicht ohne alles bereits Gelesene —
+Posteingang, **Markiert**, **Archiv**, **Spam**, **Zurückgestellt** oder ein Label, unter einem
+Konto oder über alle hinweg —, sodass die Zahl auf der Pille genau die Anzahl der Zeilen ist, auf
+denen du landest. Genau darum zählt sie Konversationen und nicht ungelesene Nachrichten: Eine
+Konversation mit drei ungelesenen Antworten ist eine Zeile, und ein Badge, den du anklickst, muss
+sagen, wie viele Zeilen er dir gibt.
+
+Solange eine Liste eingegrenzt ist, sagt sie **Nur ungelesene**, mit **Alle anzeigen** daneben —
+sonst sieht eine gefilterte Liste aus wie eine, in der wirklich nichts liegt. Alles andere an der
+Ansicht übersteht den Filter: das Konto, auf das sie eingegrenzt war, die Sortierung, der Tab. So
+bringt dich **Alle anzeigen** dorthin zurück, wo du warst, und nicht irgendwohin daneben.
+
+**Papierkorb** und **Entwürfe** sind keine Links, die Sammelzahl über **Labels** ebenfalls nicht.
+Die ersten beiden tragen eine Gesamtzahl statt eines Ungelesen-Zählers, dort wird also gar nicht
+nach Ungelesenem gefragt; die Sammelzahl steht für mehrere Listen auf einmal und hat keine einzelne,
+die sie öffnen könnte.
 
 Eine zugeklappte Überschrift **Labels** trägt das Ungelesene, das darunter verborgen ist, als
 Anzahl von Konversationen. Es ist bewusst nicht die Summe der einzelnen Zahlen: Eine Konversation
