@@ -6,6 +6,19 @@ so anything that changes the schema irreversibly is called out explicitly.
 The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, and `sha-…` pins one commit.
 
+## v0.1.9 — 2026-08-21
+
+**No migration, and nothing to see in the app. A test was left behind by the
+layout change two releases ago, and the build has been red since.**
+
+When the insight strip became its own pane it moved out of the mail pane
+entirely — and the test asserting where its frame lives was still looking for
+it inside the message list. v0.1.7 shipped with that assertion failing and
+v0.1.8 was tagged on top of it. The selector now describes the layout as it is,
+and adds the claim that actually matters: the frame is NOT inside the mail
+card. That is the one that fails if the strip is ever nested back into the pane
+it is meant to sit beside.
+
 ## v0.1.8 — 2026-08-21
 
 **No migration. Two pieces of polish, both of them a few pixels, both of them
