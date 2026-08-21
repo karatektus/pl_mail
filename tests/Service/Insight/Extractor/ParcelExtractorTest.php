@@ -127,7 +127,12 @@ final class ParcelExtractorTest extends TestCase
                         'carrier'        => 'amazon',
                         'trackingNumber' => null,
                         'orderNumber'    => '303-1114330-8516368',
-                        'trackingUrl'    => 'https://www.amazon.de/progress-tracker/package?orderId=303-1114330-8516368&packageIndex=0',
+                        'shipmentId'     => 'TcDh28yqB',
+                        // The id is what makes the tracker resolve at all —
+                        // without it Amazon answers with an apology and
+                        // bounces to the order. The campaign parameters that
+                        // sat beside it in the mail are still dropped.
+                        'trackingUrl'    => 'https://www.amazon.de/progress-tracker/package?orderId=303-1114330-8516368&packageIndex=0&shipmentId=TcDh28yqB',
                         'merchant'       => 'Amazon.de',
                         'status'         => 'out_for_delivery',
                     ],
@@ -161,7 +166,8 @@ final class ParcelExtractorTest extends TestCase
                         'carrier'        => 'amazon',
                         'trackingNumber' => null,
                         'orderNumber'    => '303-5155019-3892367',
-                        'trackingUrl'    => 'https://www.amazon.de/progress-tracker/package?orderId=303-5155019-3892367&packageIndex=0',
+                        'shipmentId'     => 'TVvVxMyXB',
+                        'trackingUrl'    => 'https://www.amazon.de/progress-tracker/package?orderId=303-5155019-3892367&packageIndex=0&shipmentId=TVvVxMyXB',
                         'merchant'       => 'Amazon.de',
                         // in_transit, NOT delivered: the body's progress bar
                         // spells out all four stages in every mail of the
@@ -193,7 +199,11 @@ final class ParcelExtractorTest extends TestCase
                         'carrier'        => 'amazon',
                         'trackingNumber' => null,
                         'orderNumber'    => '303-1114330-8516368',
-                        'trackingUrl'    => 'https://www.amazon.de/progress-tracker/package?orderId=303-1114330-8516368&packageIndex=1',
+                        // This mail's link carries no shipmentId, so there is
+                        // no tracker to reach and the button goes to the order
+                        // — a page that always resolves.
+                        'shipmentId'     => null,
+                        'trackingUrl'    => 'https://www.amazon.de/gp/your-account/order-details?orderID=303-1114330-8516368',
                         'merchant'       => 'Amazon.de',
                         'status'         => 'in_transit',
                     ],

@@ -50,7 +50,19 @@ pane-wide token the ✕ needs.
              data-insight--pane-token-value="{{ csrf_token('insight-dismiss') }}"
              data-insight--pane-pane-token-value="{{ csrf_token('insight-pane-dismiss') }}"
              data-insight--pane-pane-url-value="{{ path('app_insight_pane_dismiss') }}"
-             class="shrink-0 rounded-pane border border-line bg-surface px-3 py-2 mb-gutter shadow-sm">
+             {# Inset on every side rather than flush, and a material of its own.
+
+                It sits INSIDE the mail card — the list pane is a child of
+                .main-pane, and only a shell restructure would change that — so
+                the separation has to be drawn rather than inherited. Flush
+                against the card's top and sides it read as the card's own
+                header; a gutter of air all round, the pane-soft surface the
+                app's menus wear, and shadow-pop instead of shadow-sm make it a
+                thing LYING ON the mail pane instead of part of it. The bottom
+                gutter is the one that does the most work: it is what puts a
+                visible break between the strip and the list toolbar. #}
+             class="shrink-0 m-gutter rounded-pane border border-line bg-pane-soft
+                    backdrop-blur-sm px-3 py-2 shadow-pop">
 
             <div class="flex items-center justify-between gap-2">
                 <p class="text-[11px] font-semibold uppercase tracking-wider text-ink-faint">

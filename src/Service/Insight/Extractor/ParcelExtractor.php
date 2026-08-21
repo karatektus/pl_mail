@@ -295,6 +295,7 @@ final readonly class ParcelExtractor implements InsightExtractorInterface
 
         $order = $matches[0];
         $index = $this->packageIndex($whole, $order);
+        $shipment = $this->shipmentId($whole, $order);
         $fromName = trim((string) $message->fromName);
 
         return [new InsightDraft(
@@ -309,7 +310,8 @@ final readonly class ParcelExtractor implements InsightExtractorInterface
                 // ever heard of. The order number has its own key.
                 'trackingNumber' => null,
                 'orderNumber'    => $order,
-                'trackingUrl'    => $this->merchantTrackingUrl($domain, $order, $index),
+                'shipmentId'     => $shipment,
+                'trackingUrl'    => $this->merchantTrackingUrl($domain, $order, $index, $shipment),
                 'merchant'       => '' === $fromName ? null : $fromName,
                 'status'         => $this->status($subject, $whole),
             ],
@@ -329,16 +331,57 @@ final readonly class ParcelExtractor implements InsightExtractorInterface
         return 0;
     }
 
-    /** The merchant's own tracking page, in its bare form — see merchantDrafts(). */
-    private function merchantTrackingUrl(string $domain, string $order, int $index): string
+    /**
+     * The opaque shipment id from the mail's own tracking link, when it
+     * carries one.
+     *
+     * Anchored to THIS order, so a mail that happens to mention two shipments
+     * cannot hand the second one's id to the first one's card.
+     */
+    private function shipmentId(string $text, string $order): ?string
+    {
+        $pattern = '~orderId=' . preg_quote($order, '~') . '\S*?shipmentId=([A-Za-z0-9_-]+)~';
+
+        if (1 === preg_match($pattern, $text, $matches)) {
+            return $matches[1];
+        }
+
+        return null;
+    }
+
+    /**
+     * Where the card's button goes, and the shipment id is not optional
+     * decoration.
+     *
+     * The first version of this built the progress-tracker URL from the order
+     * number and the package index alone, on the reasoning that the rest of
+     * what Amazon puts in the link — `vt=NOTIFICATIONS`, `ref_=…` — is campaign
+     * tracking that a card has no business carrying. That was right about the
+     * campaign parameters and wrong about `shipmentId`: without it the tracker
+     * answers "Leider können wir die Informationen zur Sendungsverfolgung
+     * gerade nicht abrufen" and bounces to the order after seven seconds. The
+     * id identifies the parcel, not the reader, so it is kept and the campaign
+     * parameters are still dropped.
+     *
+     * With no id in the mail there is no tracker to reach, so the button goes
+     * to the order instead — a page that always resolves and that states the
+     * delivery status itself. A button that lands somewhere useful beats one
+     * that lands on an apology.
+     */
+    private function merchantTrackingUrl(string $domain, string $order, int $index, ?string $shipment): string
     {
         $root = true === $this->domainIs($domain, 'amazon.com') ? 'amazon.com' : 'amazon.de';
 
+        if (null === $shipment) {
+            return sprintf('https://www.%s/gp/your-account/order-details?orderID=%s', $root, $order);
+        }
+
         return sprintf(
-            'https://www.%s/progress-tracker/package?orderId=%s&packageIndex=%d',
+            'https://www.%s/progress-tracker/package?orderId=%s&packageIndex=%d&shipmentId=%s',
             $root,
             $order,
             $index,
+            $shipment,
         );
     }
 
