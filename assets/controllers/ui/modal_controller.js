@@ -109,6 +109,37 @@ export default class extends Controller {
             event?.currentTarget?.dataset?.modalSizeValue ?? this.sizeValue,
         )
 
+        // Blank the frame back to its spinner BEFORE pointing it anywhere, so
+        // the previous dialog's form cannot be seen — or typed into — while
+        // this one is still in flight.
+        //
+        // close() already does this and explains why at length. What it cannot
+        // cover is this exact path: its cleanup runs behind the exit animation
+        // and is cancelled outright when a dialog is reopened during the fade
+        // (`token !== closeToken`), which is correct — running it then would
+        // empty the dialog now on screen. The consequence is that opening a
+        // second dialog quickly enough leaves the FIRST one's content sitting
+        // in the frame until the fetch lands, which is the very window that was
+        // supposed to have been closed.
+        //
+        // It bites hardest where the stale form is a convincing one. Save a new
+        // calendar and the POST response renders that calendar's own form back
+        // into the frame; press Edit on it a moment later and the dialog shows
+        // a form already filled in with the right name — indistinguishable from
+        // the edit form still being fetched. Type a new name into those
+        // milliseconds and Turbo replaces the field under the cursor when the
+        // real form arrives, so the rename posts the OLD name and reads as a
+        // save that silently did nothing. Caught by calendar-settings.spec.ts,
+        // whose "renames it" case failed roughly one run in three.
+        //
+        // The src is removed rather than just reassigned: Turbo does not
+        // re-fetch when a frame's src is set to what it already holds, and
+        // reopening the same dialog twice would otherwise leave the spinner
+        // above with nothing on its way to replace it.
+        if (pristineFrame !== null) frame.innerHTML = pristineFrame
+
+        frame.removeAttribute("src")
+
         // Point the turbo-frame at the form URL and let Turbo do the fetch
         frame.src = triggerSrc
 
