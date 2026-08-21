@@ -1,4 +1,4 @@
-<!-- translated-from: internals/mail-ingest.md sha1:5a4807b66f1ada556577389e8e30fe3923003cef -->
+<!-- translated-from: internals/mail-ingest.md sha1:0c095f9f207803c75806b4b3b7d645ae471f24db -->
 # Mail-Ingest
 
 Vom Anbieter in die Datenbank: wie aus Bytes eine Zeile `Message` wird, was mit ihr geschieht,
@@ -194,6 +194,23 @@ persistierte Daten gelesen werden, kostet die Erklärung einen Durchgang über H
 ohnehin im Speicher liegen, und sie kann nicht von einer Spalte abweichen, die eine ältere
 Fassung dieser Regeln geschrieben hat. Das ist es, was die „Warum ist das hier?"-Auskunft in der
 Nachrichtenansicht rendert.
+
+Die Tabs lesen das nicht. Sie filtern auf `MessageThread::$category`, eine gespeicherte Spalte,
+die aus den Nachrichten des Threads nach dem Jüngsten aufgelöst wird — die Live-Erklärung und der
+Tab können also auseinanderlaufen, und was sie zusammenhält, ist, wer die Spalte zuletzt
+geschrieben hat. Drei Stellen tun das: der Sync über `PostIngestPipeline`, noch vor dem
+Threading; `app:backfill category` mit einem `DISTINCT ON` je Konto; und
+`SyncGmailMessageBatchHandler::enrichExisting()`, wo eine **Neubeschriftung** durch Gmail
+ankommt.
+
+Die letzte wiegt schwerer, als sie klingt. Gmail sortiert nach der Zustellung ein und sortiert
+neu ein, sooft du Post zwischen den Tabs verschiebst — `CATEGORY_*` kommt und geht also auf
+Zeilen, die plMail seit Monaten hält, und genau die noch einmal zu lesen ist der Zweck des
+Relabel-Abrufs. Die Anreicherung überschreibt `gmailLabelIds`, also das einzige Signal, das die
+Kaskade auf einer Gmail-Zeile überhaupt befragt, und berechnet die Kategorie deshalb im selben
+Atemzug neu und übernimmt sie über `MessageThreader::refreshCategory()` auf den Thread. Ohne
+diesen Schritt stand in der Nachrichtenansicht „Werbung — sagt Gmail" über Post, die der
+Posteingang bis zum nächsten Backfill unter Allgemein ließ.
 
 ## Labels sind der eine Mechanismus
 

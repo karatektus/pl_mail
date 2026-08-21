@@ -173,6 +173,21 @@ message costs one pass over headers already in memory and cannot drift from a co
 by an older version of these rules. That is what the "why is this here?" affordance in the
 message view renders.
 
+The tabs do not read that. They filter on `MessageThread::$category`, a stored column resolved
+from the thread's messages most-recent-wins — so the live explanation and the tab can drift,
+and the join between them is whoever last wrote the column. Three places do: ingest, via
+`PostIngestPipeline` before threading; `app:backfill category`, in one `DISTINCT ON` statement
+per account; and `SyncGmailMessageBatchHandler::enrichExisting()`, which is where a Gmail
+**relabel** lands.
+
+That last one matters more than it sounds. Gmail classifies after delivery and re-classifies
+every time the user moves mail between tabs, so `CATEGORY_*` comes and goes on rows plMail has
+held for months — and re-reading exactly those rows is what the relabel re-fetch is *for*.
+Enrichment overwrites `gmailLabelIds`, i.e. the only signal the cascade consults on a Gmail
+row, so it recomputes the category in the same breath and re-adopts it onto the thread through
+`MessageThreader::refreshCategory()`. Without that step the reading pane said "Promotions —
+Gmail said so" over a message the inbox kept in Primary until the next backfill.
+
 ## Labels are the single mechanism
 
 `App\Entity\Label\Label` belongs to the **user**, not to an account. Where a label is
