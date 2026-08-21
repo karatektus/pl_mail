@@ -6,6 +6,36 @@ so anything that changes the schema irreversibly is called out explicitly.
 The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, and `sha-…` pins one commit.
 
+## v0.1.7 — 2026-08-21
+
+**No migration. The insight strip becomes a pane in its own right, and a dialog
+opened in a hurry stops showing the last one's form.**
+
+**Two cards, not a band inside one.** The strip above the mail list was drawn
+inside the mail pane, and no amount of styling could stop it reading as that
+pane's header — a child of a card looks like part of it. The mail side is now a
+column: the insight pane, a gutter, then the mail pane. Same width, top edge
+level with the sidebar, and the strip wears the same surface, border, radius
+and shadow as every other pane in the app, because it now uses the same rule
+they do rather than a lookalike of its own. It had been reaching for the MENU
+shadow, which is why it sat on the page like a dropdown that had lost its way.
+
+**It still costs nothing when there is nothing to say.** Lazy, and absent
+entirely on a day with no upcoming insight — the strip does not reserve a gap,
+and the mail pane simply starts at the top.
+
+**A dialog opened in a hurry showed the previous one's form.** Save a new
+calendar, press Edit on it a moment later, and the dialog opened already filled
+in with the right name — indistinguishable from the edit form having arrived,
+because for that one case the stale content and the real content say the same
+thing. Type a new name into those few hundred milliseconds and Turbo replaced
+the field under the cursor when the real form landed, so the rename posted the
+OLD name: a save that silently did nothing. The frame is blanked back to its
+spinner when a dialog OPENS now, not only when one closes — closing does its
+cleanup behind the exit animation and abandons it, correctly, when a new dialog
+interrupts the fade, which left exactly this gap. Every dialog in the app is
+covered by the same change.
+
 ## v0.1.6 — 2026-08-21
 
 **No migration. The Track button on a parcel card reaches the parcel now, and
