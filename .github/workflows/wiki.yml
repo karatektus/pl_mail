@@ -36,7 +36,7 @@ jobs:
         runs-on: ubuntu-latest
 
         steps:
-            - uses: actions/checkout@v4
+            - uses: actions/checkout@v7
 
             # No Composer step anywhere in this job, deliberately:
             # bin/mirror-wiki.php requires no autoloader and no package. It

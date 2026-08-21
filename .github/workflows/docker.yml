@@ -65,13 +65,13 @@ jobs:
 
         steps:
             - name: Checkout
-              uses: actions/checkout@v4
+              uses: actions/checkout@v7
 
             - name: Set up Buildx
-              uses: docker/setup-buildx-action@v3
+              uses: docker/setup-buildx-action@v4
 
             - name: Log in to GitHub Container Registry
-              uses: docker/login-action@v3
+              uses: docker/login-action@v4
               with:
                   registry: ${{ env.REGISTRY }}
                   username: ${{ github.actor }}
@@ -81,13 +81,13 @@ jobs:
             # exist until the merge job runs.
             - name: Extract metadata
               id: meta
-              uses: docker/metadata-action@v5
+              uses: docker/metadata-action@v6
               with:
                   images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
 
             - name: Build and push by digest
               id: build
-              uses: docker/build-push-action@v6
+              uses: docker/build-push-action@v7
               with:
                   context: .
                   target: frankenphp_prod
@@ -118,7 +118,7 @@ jobs:
 
             - name: Upload digest
               if: github.event_name != 'pull_request'
-              uses: actions/upload-artifact@v4
+              uses: actions/upload-artifact@v7
               with:
                   name: digests-${{ matrix.arch }}
                   path: ${{ runner.temp }}/digests/*
@@ -138,17 +138,17 @@ jobs:
 
         steps:
             - name: Download digests
-              uses: actions/download-artifact@v4
+              uses: actions/download-artifact@v8
               with:
                   path: ${{ runner.temp }}/digests
                   pattern: digests-*
                   merge-multiple: true
 
             - name: Set up Buildx
-              uses: docker/setup-buildx-action@v3
+              uses: docker/setup-buildx-action@v4
 
             - name: Log in to GitHub Container Registry
-              uses: docker/login-action@v3
+              uses: docker/login-action@v4
               with:
                   registry: ${{ env.REGISTRY }}
                   username: ${{ github.actor }}
@@ -156,7 +156,7 @@ jobs:
 
             - name: Extract metadata
               id: meta
-              uses: docker/metadata-action@v5
+              uses: docker/metadata-action@v6
               with:
                   images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
                   # `latest` used to follow the default branch, so every push
