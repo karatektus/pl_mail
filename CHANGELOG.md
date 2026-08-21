@@ -6,6 +6,37 @@ so anything that changes the schema irreversibly is called out explicitly.
 The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, and `sha-…` pins one commit.
 
+## v0.1.6 — 2026-08-21
+
+**No migration. The Track button on a parcel card reaches the parcel now, and
+the strip above the mail list looks like something lying on the mail pane
+rather than part of it.**
+
+**Track led to an apology.** The link a parcel card built for an Amazon
+shipment carried the order number and the package index and nothing else — on
+the reasoning that everything else Amazon appends to that URL is campaign
+tracking a card has no business carrying. That was right about `vt` and `ref_`
+and wrong about one parameter: without `shipmentId` the progress tracker
+answers "Leider können wir die Informationen zur Sendungsverfolgung gerade
+nicht abrufen" and bounces you to the order seven seconds later. The id names
+the parcel rather than the reader, so it is kept; the campaign parameters are
+still dropped.
+
+**A mail that states no shipment id now points at the order** instead of at a
+tracker that cannot resolve. The order page always loads and states the
+delivery status itself, and a button that lands somewhere useful beats one that
+lands on an apology.
+
+**Cards already on your radar keep the old link** until `app:backfill insights`
+re-reads the mail behind them. The sweep overwrites the payload, so running it
+once is the whole fix — nothing has to be deleted.
+
+**The strip reads as its own surface.** It sat flush against the top and sides
+of the mail pane, which made it look like that pane's header. It now has a
+gutter of air on every side, the soft surface the app's menus wear, and a
+lifted shadow — with the gutter beneath it doing most of the work, since that
+is what breaks it away from the list toolbar.
+
 ## v0.1.5 — 2026-08-21
 
 **No migration. The facts plMail already reads out of your mail now say
