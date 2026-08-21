@@ -11,6 +11,19 @@ import { execSync } from "node:child_process";
  * counting up when a worker is replaced after a crash, which would seed an
  * unbounded number of users over a long run. The parallel index is bounded by
  * the worker count, so the pool of fixture users stays small and fixed.
+ *
+ * E2E_SLOT exists because TEST_PARALLEL_INDEX cannot be borrowed from outside:
+ * Playwright SETS it in every worker, so exporting it in the shell is silently
+ * overwritten and a second concurrent run of the suite lands on `e2e-w0` — the
+ * same fixture user, whose mailbox `seed-mail` wipes. That is not theoretical.
+ * It cost three separate investigations a round of results each: rows vanishing
+ * mid-click, tests failing in one run and passing seconds later, all of it one
+ * run deleting another's mail rather than any defect in the app.
+ *
+ * So the override goes FIRST, and it is the one thing Playwright does not
+ * assign. Two suites can then share a stack — `E2E_SLOT=9 npx playwright test
+ * ...` — without sharing a mailbox. Unset, which is every ordinary run and all
+ * of CI, nothing changes: the parallel index still decides.
  */
 /**
  * The origin the suite talks to.
@@ -30,7 +43,7 @@ import { execSync } from "node:child_process";
 export const BASE_URL =
     process.env.E2E_BASE_URL ?? `http://127.0.0.1:${process.env.TEST_HTTP_PORT ?? "8001"}`;
 
-export const WORKER_SLOT = process.env.TEST_PARALLEL_INDEX ?? "0";
+export const WORKER_SLOT = process.env.E2E_SLOT ?? process.env.TEST_PARALLEL_INDEX ?? "0";
 
 const SLOT = WORKER_SLOT;
 

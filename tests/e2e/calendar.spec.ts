@@ -89,22 +89,48 @@ function localValue(when: Date) {
 }
 
 /**
- * Push both ends of the editor's times out by a couple of hours.
+ * Push both ends of the editor's times out by a couple of hours, and leave the
+ * event exactly as long as it was.
  *
  * Relative to whatever the fields already hold rather than to a literal clock:
  * the two fields are read in the calendar's zone and the chips are rendered in
  * the reader's, so the only assertion that holds in every install is that the
  * chip moved, not that it moved to 11:00.
+ *
+ * **Both values are read BEFORE either is written, and that is the whole point
+ * of the shape below.** The editor moves the end by itself when the start moves
+ * — calendar--event-form#shiftEnd, bound to the start field's `change`, which is
+ * the behaviour every other calendar has and which Playwright's `fill` triggers
+ * exactly as a person does. A loop that read each field just before writing it
+ * therefore read an end the browser had ALREADY pushed out by `hours` and pushed
+ * it out by `hours` again: a one-hour event asked to move two hours came out
+ * three hours long, moved by two at the start and by four at the end.
+ *
+ * That silent lengthening is what made "moves one occurrence" fail in CI for two
+ * hours out of every day, deterministically enough to survive the retry. A new
+ * event starts at the next full hour on the calendar's clock, so the tripled
+ * occurrence ran from 22:00 or 23:00 to 01:00 or 02:00 — across local midnight —
+ * and an occurrence that touches two days is drawn on both of them by
+ * CalendarRangeReader::groupByLocalDay, which is correct and is why the agenda
+ * then held thirty-one chips for thirty occurrences. Writing the end from the
+ * value it had before anything touched the start keeps the duration, and a
+ * one-hour event that begins on the hour cannot reach the next day.
  */
 async function shiftTimesBy(modal: Locator, hours: number) {
-    for (const field of ["Starts", "Ends"]) {
-        const input = modal.getByLabel(field);
-        const moved = new Date(await input.inputValue());
+    const starts = modal.getByLabel("Starts");
+    const ends   = modal.getByLabel("Ends");
 
-        moved.setHours(moved.getHours() + hours);
+    const movedStart = new Date(await starts.inputValue());
+    const movedEnd   = new Date(await ends.inputValue());
 
-        await input.fill(localValue(moved));
-    }
+    movedStart.setHours(movedStart.getHours() + hours);
+    movedEnd.setHours(movedEnd.getHours() + hours);
+
+    // The start first, so the end written after it is the one that stands: the
+    // order the other way round would have shiftEnd overwrite the end that was
+    // just filled in.
+    await starts.fill(localValue(movedStart));
+    await ends.fill(localValue(movedEnd));
 }
 
 test.describe("calendar", () => {

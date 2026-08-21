@@ -518,7 +518,8 @@ test.describe("mail UI actions", () => {
      * Two separate ways this used to fail and now does not: the whole menu was
      * destroyed with the row it hangs off, and — once the row survived — the
      * morph would have put back the `hidden` the server always renders. The
-     * second is why mail_pane_controller#_serverOwns exists.
+     * second is why mail_pane_controller#_mayMorph, and the MENU selector it
+     * reads, exist.
      */
     test("a sync refresh leaves an open row menu open", async ({ page }) => {
         await page.goto("/mail/inbox");
@@ -536,8 +537,27 @@ test.describe("mail UI actions", () => {
         await expect(menu).toBeVisible();
 
         // And still a working menu, not just a visible one — the controller
-        // instance survived with its element.
-        await expect(menu.getByText("Later today")).toBeVisible();
+        // instance survived with its element. Two things say so, and neither is
+        // the menu's own `hidden`: the option is still un-hidden, which only
+        // mail--snooze-menu ever does because the server renders every option
+        // `hidden`, and it still carries the wake time that controller wrote
+        // into it, which the server renders empty. A morph that reached inside
+        // the open menu would have put both of those back.
+        //
+        // "Tomorrow" rather than "Later today", and the difference is not
+        // cosmetic: "Later today" is the one option that comes and goes.
+        // snooze_options.js drops it once 18:00 has passed, so a menu opened in
+        // the evening correctly has no such entry, and this test — which is
+        // about the refresh and not about the clock — failed for that reason
+        // alone. It is what took down the v0.1.2 release run: the browser's
+        // clock in CI is UTC, the tag was pushed at 17:48Z, and the suite
+        // reached this test after 18:00Z, so it failed on the retry too. The
+        // other three options are offered at every hour of the day and prove
+        // exactly the same thing about the morph.
+        const tomorrow = menu.locator('[data-snooze-key="tomorrow"]');
+
+        await expect(tomorrow).toBeVisible();
+        await expect(tomorrow.locator("[data-snooze-when]")).not.toBeEmpty();
     });
 
     /**
