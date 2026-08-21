@@ -59,9 +59,21 @@ pane-wide token the ✕ needs.
                 own (see _layout/_mailbox.html.twig), so the chrome here is the
                 chrome of a PANE — the same border, radius and soft surface the
                 sidebar and the calendar pane wear, on the app background,
-                with the column's gutter doing the separating. #}
-             class="shrink-0 rounded-pane border border-line bg-pane-soft
-                    backdrop-blur-sm px-3 py-2 shadow-pop">
+                with the column's gutter doing the separating.
+
+                `pane` and not a hand-assembled lookalike: it is the utility
+                the topbar and the sidebar already wear, so the surface, the
+                blur, the border, the radius and the two-layer shadow are the
+                app's one definition of what a pane looks like rather than a
+                second opinion that drifts. The first version reached for
+                shadow-pop, which is the MENU shadow — built for something
+                floating over the page — and the strip read as a dropdown
+                parked above the mail instead of as a pane beside it.
+
+                No `shell-chrome`: that marks furniture, and the flat layout
+                strips its card so only the mail pane keeps a box. This is
+                content sitting beside that box and keeps its own. #}
+             class="shrink-0 pane px-3 py-2">
 
             <div class="flex items-center justify-between gap-2">
                 <p class="text-[11px] font-semibold uppercase tracking-wider text-ink-faint">
