@@ -64,15 +64,19 @@ final readonly class ParcelExtractor implements InsightExtractorInterface
 
     /**
      * Subject words that make a mail about a shipment, EN and DE, lowercase.
-     * Substring matching on purpose: "Versandbestätigung" contains none of
-     * these but "versandt" catches the phrasing shops actually use, and
-     * "Sendungsnummer" is caught by "sendung".
+     * Substring matching on purpose, and the stems are deliberately short:
+     * "versand" catches Versandbestätigung and versandt, "versend" catches
+     * versendet, "dispatch" catches Amazon's "Dispatched:" and "dispatch",
+     * and "Sendungsnummer" is caught by "sendung". A shop whose subject the
+     * gate does not recognise is a shop whose parcels are invisible — the
+     * whole mail is refused before a tracking number is ever looked for.
      *
      * @var list<string>
      */
     private const array SHIPPING_WORDS = [
-        'versandt', 'shipped', 'unterwegs', 'delivery', 'lieferung',
-        'zustellung', 'package', 'paket', 'parcel', 'tracking', 'sendung',
+        'versand', 'versend', 'shipped', 'dispatch', 'unterwegs', 'delivery',
+        'lieferung', 'zustellung', 'package', 'paket', 'parcel', 'tracking',
+        'sendung',
     ];
 
     /** @var array<string, string> carrier id to the name a card wears */
@@ -84,6 +88,7 @@ final readonly class ParcelExtractor implements InsightExtractorInterface
         'hermes'        => 'Hermes',
         'gls'           => 'GLS',
         'deutsche-post' => 'Deutsche Post',
+        'amazon'        => 'Amazon',
     ];
 
     /**
@@ -91,6 +96,35 @@ final readonly class ParcelExtractor implements InsightExtractorInterface
      * digest re-stated as many cards is noise, not facts.
      */
     private const int MAX_DRAFTS = 2;
+
+    /**
+     * Amazon's order number — 303-1114330-8516368 — and the only identity its
+     * shipping mail states.
+     *
+     * Distinctive enough to need no chaperone, unlike the bare digit runs: three
+     * digits, seven, seven, hyphenated in that exact shape is not something an
+     * invoice number or a customer id looks like. It is still only consulted for
+     * a merchant sender, because the shape's safety is not the point — the
+     * number means "a parcel" only because Amazon is the one saying it.
+     */
+    private const string MERCHANT_ORDER = '~\b\d{3}-\d{7}-\d{7}\b~';
+
+    /**
+     * Weekday names, spelled out, EN and DE, ISO numbering — written out for
+     * the reason MONTHS is written out: the parse must give the same answer on
+     * every machine, whatever locale data it happens to carry.
+     *
+     * @var array<string, int>
+     */
+    private const array WEEKDAYS = [
+        'monday' => 1, 'montag' => 1,
+        'tuesday' => 2, 'dienstag' => 2,
+        'wednesday' => 3, 'mittwoch' => 3,
+        'thursday' => 4, 'donnerstag' => 4,
+        'friday' => 5, 'freitag' => 5,
+        'saturday' => 6, 'samstag' => 6, 'sonnabend' => 6,
+        'sunday' => 7, 'sonntag' => 7,
+    ];
 
     /**
      * How far past an ETA context word a date may sit and still be the date
@@ -178,13 +212,30 @@ final readonly class ParcelExtractor implements InsightExtractorInterface
             $found = $this->trackingNumbersIn($subject, $message, $whole);
         }
 
+        $senderDomain = $this->senderDomain($message);
+
+        // A shop that hands the parcel over to a carrier it never names states
+        // no tracking number anywhere, and Amazon — which ships more parcels
+        // than every carrier in CARRIER_DOMAINS puts together — is the loudest
+        // example: its mail carries an order number and a link into its own
+        // progress tracker, and nothing a carrier would recognise. Read that
+        // way it is still a parcel with a status and an ETA, which is the whole
+        // fact the card exists to state.
+        //
+        // Only when the carrier hunt came back empty. A merchant mail that DOES
+        // quote a real tracking number is the better reading of the same parcel,
+        // and taking both would put the same shipment on the radar twice under
+        // two identities.
+        if ([] === $found && null !== $senderDomain && true === $this->isMerchantDomain($senderDomain)) {
+            return $this->merchantDrafts($message, $senderDomain, $subject, $whole);
+        }
+
         if ([] === $found) {
             return [];
         }
 
-        $senderDomain = $this->senderDomain($message);
         $senderCarrier = null === $senderDomain ? null : $this->carrierForDomain($senderDomain);
-        $status = $this->status($whole);
+        $status = $this->status($subject, $whole);
         $eta = $this->eta($whole, $message->receivedAt);
         $fromName = trim((string) $message->fromName);
 
@@ -219,6 +270,77 @@ final readonly class ParcelExtractor implements InsightExtractorInterface
     }
 
     // ── Private ───────────────────────────────────────────────────────────────
+
+    /**
+     * The parcel a merchant mail states without ever naming a carrier.
+     *
+     * Identity is the order number plus WHICH package of that order this is:
+     * one order shipped in three boxes is three parcels, and keying on the
+     * order alone would collapse them into one card that keeps overwriting
+     * itself. The package index comes out of the tracking link, and defaults to
+     * the first — a mail with no link is a mail about a single shipment.
+     *
+     * The link is rebuilt rather than lifted out of the body, because the one
+     * in the mail is loaded with campaign parameters (`vt=NOTIFICATIONS`,
+     * `ref_=…`) that identify the mail it came from; a card is not a click
+     * tracker, and the bare form works.
+     *
+     * @return list<InsightDraft>
+     */
+    private function merchantDrafts(Message $message, string $domain, string $subject, string $whole): array
+    {
+        if (1 !== preg_match(self::MERCHANT_ORDER, $whole, $matches)) {
+            return [];
+        }
+
+        $order = $matches[0];
+        $index = $this->packageIndex($whole, $order);
+        $fromName = trim((string) $message->fromName);
+
+        return [new InsightDraft(
+            kind: InsightKind::Parcel,
+            title: $this->carrierName('amazon', $domain) . ' · ' . $order,
+            dedupeKey: $order . '#' . $index,
+            payload: [
+                'carrier' => 'amazon',
+                // Null, and deliberately not the order number wearing the
+                // field's name: a card that offers this to a carrier's
+                // tracking box would be offering something no carrier has
+                // ever heard of. The order number has its own key.
+                'trackingNumber' => null,
+                'orderNumber'    => $order,
+                'trackingUrl'    => $this->merchantTrackingUrl($domain, $order, $index),
+                'merchant'       => '' === $fromName ? null : $fromName,
+                'status'         => $this->status($subject, $whole),
+            ],
+            happensAt: $this->eta($whole, $message->receivedAt),
+        )];
+    }
+
+    /** Which package of the order this mail is about; the first, when unsaid. */
+    private function packageIndex(string $text, string $order): int
+    {
+        $pattern = '~orderId=' . preg_quote($order, '~') . '\S*?packageIndex=(\d+)~';
+
+        if (1 === preg_match($pattern, $text, $matches)) {
+            return (int) $matches[1];
+        }
+
+        return 0;
+    }
+
+    /** The merchant's own tracking page, in its bare form — see merchantDrafts(). */
+    private function merchantTrackingUrl(string $domain, string $order, int $index): string
+    {
+        $root = true === $this->domainIs($domain, 'amazon.com') ? 'amazon.com' : 'amazon.de';
+
+        return sprintf(
+            'https://www.%s/progress-tracker/package?orderId=%s&packageIndex=%d',
+            $root,
+            $order,
+            $index,
+        );
+    }
 
     /**
      * Tracking numbers in this text, in reading order, each with the carrier
@@ -306,13 +428,29 @@ final readonly class ParcelExtractor implements InsightExtractorInterface
     /**
      * Where in its life the mail says the parcel is.
      *
-     * Order matters: "wird zugestellt" contains "zugestellt", so out-for-
-     * delivery has to be asked before delivered or every DHL "arrives today"
-     * mail would claim the parcel already landed.
+     * **The subject is asked first, and its answer is final.** A shop's
+     * progress bar renders into plain text as every step it has — "Ordered /
+     * Dispatched / Out for delivery / Delivered", all four, in every mail of
+     * the series — so a body scan answers with the LAST stage the parcel will
+     * ever reach rather than the one it is at, and reports a parcel delivered
+     * while it is still in a depot. The subject carries one stage because a
+     * subject line has room for one: "Dispatched: …", "Out for delivery: …".
+     * Only a subject that names no stage at all falls through to the body,
+     * which is the case the carriers' own mail is usually in.
+     *
+     * Order matters within each pass: "wird zugestellt" contains "zugestellt",
+     * so out-for-delivery has to be asked before delivered or every DHL
+     * "arrives today" mail would claim the parcel already landed.
      */
-    private function status(string $whole): string
+    private function status(string $subject, string $whole): string
     {
-        $text = mb_strtolower($whole);
+        return $this->statusIn($subject) ?? $this->statusIn($whole) ?? 'announced';
+    }
+
+    /** The stage this text names, or null when it names none. */
+    private function statusIn(string $text): ?string
+    {
+        $text = mb_strtolower($text);
 
         foreach (['out for delivery', 'wird zugestellt', 'in zustellung'] as $phrase) {
             if (true === str_contains($text, $phrase)) {
@@ -326,13 +464,13 @@ final readonly class ParcelExtractor implements InsightExtractorInterface
             }
         }
 
-        foreach (['shipped', 'versandt', 'unterwegs', 'on its way'] as $phrase) {
+        foreach (['shipped', 'dispatched', 'versandt', 'versendet', 'unterwegs', 'on its way'] as $phrase) {
             if (true === str_contains($text, $phrase)) {
                 return 'in_transit';
             }
         }
 
-        return 'announced';
+        return null;
     }
 
     /**
@@ -406,7 +544,88 @@ final readonly class ParcelExtractor implements InsightExtractorInterface
             );
         }
 
-        return null;
+        // "Arriving today", "Ankunft morgen", "Arriving Monday" — a day named
+        // in words. Asked last, so a mail that states a real date is never
+        // resolved against the clock instead.
+        return $this->relativeDayIn($window, $receivedAt);
+    }
+
+    /**
+     * A day named relative to the mail itself, resolved against the MAIL and
+     * never against now — the rule dateFrom() already follows, for the same
+     * reason: a backfill re-reading this mail next year has to land on the day
+     * it always did.
+     *
+     * Without a receivedAt there is nothing to be relative TO, and a refusal is
+     * the only honest answer.
+     */
+    private function relativeDayIn(string $window, ?DateTimeImmutable $receivedAt): ?DateTimeImmutable
+    {
+        if (null === $receivedAt) {
+            return null;
+        }
+
+        $text = mb_strtolower($window);
+        $day = $receivedAt->setTimezone(new DateTimeZone('UTC'));
+
+        if (1 === preg_match('~\b(today|heute)\b~', $text)) {
+            return $this->noonOn($day);
+        }
+
+        if (true === str_contains($text, 'übermorgen')) {
+            return $this->noonOn($day->modify('+2 days'));
+        }
+
+        // "morgen" is tomorrow, and "der Morgen" is a time of day. Only the
+        // second is ever introduced by "am", so that is the single thing worth
+        // telling apart: "Zustellung am Morgen" is a part of today and putting
+        // it on tomorrow would move a parcel a day into the future.
+        if (0 === preg_match('~\bam\s+morgen\b~', $text)
+            && 1 === preg_match('~\b(tomorrow|morgen)\b~', $text)) {
+            return $this->noonOn($day->modify('+1 day'));
+        }
+
+        return $this->nextWeekdayIn($text, $day);
+    }
+
+    /**
+     * The soonest day on or after the mail that falls on the weekday it names.
+     *
+     * On or after, not strictly after: a mail sent Monday morning promising
+     * "Arriving Monday" means the day it was sent, and pushing that a week out
+     * would be the one reading nobody meant.
+     *
+     * The EARLIEST weekday word in the window wins rather than the first one
+     * the table happens to list, so a sentence naming two days is read in the
+     * order it was written.
+     */
+    private function nextWeekdayIn(string $text, DateTimeImmutable $day): ?DateTimeImmutable
+    {
+        $bestOffset = null;
+        $bestWeekday = null;
+
+        foreach (self::WEEKDAYS as $name => $iso) {
+            if (1 !== preg_match('~\b' . $name . '\b~', $text, $m, PREG_OFFSET_CAPTURE)) {
+                continue;
+            }
+
+            if (null === $bestOffset || $m[0][1] < $bestOffset) {
+                $bestOffset = $m[0][1];
+                $bestWeekday = $iso;
+            }
+        }
+
+        if (null === $bestWeekday) {
+            return null;
+        }
+
+        return $this->noonOn($day->modify(sprintf('+%d days', ($bestWeekday - (int) $day->format('N') + 7) % 7)));
+    }
+
+    /** That calendar day at noon UTC — see noon() on why noon. */
+    private function noonOn(DateTimeImmutable $day): DateTimeImmutable
+    {
+        return $this->noon((int) $day->format('d'), (int) $day->format('m'), (int) $day->format('Y'));
     }
 
     /**

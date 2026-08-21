@@ -91,6 +91,12 @@ card. Dated ones queue
 up in the calendar's **Happening Soon** panel, under **On your radar**; a conversation that yielded
 something also shows its cards in a **Found in this conversation** strip above the messages.
 
+A shop that never names a carrier still yields a parcel. Amazon states an order number and a link
+into its own tracker and no tracking number anywhere, so that is what the card carries — and a
+delivery day promised in words rather than digits ("arriving today", "Arriving Monday") is resolved
+against the mail's own arrival, never against the clock, so re-reading an old mail lands on the day
+it always did.
+
 Extraction is deterministic and local. It runs on your own server against sender domains, headers
 and regular shapes — tracking numbers, flight codes, `#123` — with no cloud service and no model:
 nothing guesses, and a mail that matches no known shape simply yields nothing. That is a deliberate
