@@ -1351,6 +1351,14 @@ insights:
         parcel: Parcel
         subscription: Subscription
         ticket: Ticket
+    pane:
+        dismiss: Dismiss
+        dismiss_all: Hide this strip
+        heading: Happening soon
+        more: More actions
+        when:
+            today: Today
+            tomorrow: Tomorrow
     panel:
         dismiss: Dismiss
         heading: On your radar
@@ -2354,6 +2362,12 @@ settings:
             ticket: Tickets
             ticket_hint: Event tickets and bookings with a date attached.
         heading: Insights
+        pane: Strip above the mail list
+        pane_hint: >-
+            Shows the next parcel, flight or ticket in a band above your
+            inbox. Switching it off hides that band and nothing else —
+            plMail still reads those facts out of your mail, and they stay
+            in the radar panel and on the mail itself.
         seg:
             'off': 'Off'
             'on': 'On'

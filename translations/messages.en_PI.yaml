@@ -1076,6 +1076,14 @@ insights:
         parcel: Cargo
         subscription: "Standin' order"
         ticket: Passage papers
+    pane:
+        dismiss: Wave it off
+        dismiss_all: Strike the whole banner
+        heading: Soon upon ye
+        more: More doings
+        when:
+            today: This very day
+            tomorrow: On the morrow
     panel:
         dismiss: Wave it off
         heading: Through the spyglass
@@ -2037,6 +2045,12 @@ settings:
             ticket: Passage papers
             ticket_hint: "Tickets an' bookin's with a date writ on them."
         heading: The spyglass
+        pane: "Banner o'er the mail list"
+        pane_hint: >-
+            Hoists yer next cargo, passage or ticket on a banner above the
+            inbox. Strikin' it lowers the banner an' nothin' else — plMail
+            still spies those facts in yer post, an' they bide in the
+            spyglass an' on the mail itself.
         seg:
             'off': 'Nay'
             'on': 'Aye'
