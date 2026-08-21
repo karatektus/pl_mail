@@ -2364,7 +2364,12 @@
    in the DOM, so coming back is a class change rather than a navigation —
    which is the whole reason this is a third position of the pane and not a
    link to /calendar. */
-[data-calendar-mode="calendar"] .main-pane:not([data-ui--split-target="pane"]) {
+[data-calendar-mode="calendar"] .main-pane:not([data-ui--split-target="pane"]),
+/* …and the column that carries it. The insight strip is a sibling of the mail
+   card rather than a box inside it, so the two share a wrapper — and a wrapper
+   that survived this rule would leave an insight card floating beside the
+   calendar with the mail it introduces nowhere on screen. */
+[data-calendar-mode="calendar"] [data-mail-column] {
     display: none;
 }
 
@@ -2389,7 +2394,8 @@
    both under their minimums the calendar takes over — the same behaviour the
    boolean version had, kept because it is right. */
 @media (max-width: 1023px) {
-    [data-calendar-mode="split"] .main-pane:not([data-ui--split-target="pane"]) {
+    [data-calendar-mode="split"] .main-pane:not([data-ui--split-target="pane"]),
+    [data-calendar-mode="split"] [data-mail-column] {
         display: none;
     }
 }

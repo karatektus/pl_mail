@@ -50,18 +50,17 @@ pane-wide token the ✕ needs.
              data-insight--pane-token-value="{{ csrf_token('insight-dismiss') }}"
              data-insight--pane-pane-token-value="{{ csrf_token('insight-pane-dismiss') }}"
              data-insight--pane-pane-url-value="{{ path('app_insight_pane_dismiss') }}"
-             {# Inset on every side rather than flush, and a material of its own.
+             {# Its own card, beside the mail card rather than on it.
 
-                It sits INSIDE the mail card — the list pane is a child of
-                .main-pane, and only a shell restructure would change that — so
-                the separation has to be drawn rather than inherited. Flush
-                against the card's top and sides it read as the card's own
-                header; a gutter of air all round, the pane-soft surface the
-                app's menus wear, and shadow-pop instead of shadow-sm make it a
-                thing LYING ON the mail pane instead of part of it. The bottom
-                gutter is the one that does the most work: it is what puts a
-                visible break between the strip and the list toolbar. #}
-             class="shrink-0 m-gutter rounded-pane border border-line bg-pane-soft
+                This was a box drawn inside .main-pane for two releases, and
+                drawing separation was never going to be enough: a child of the
+                mail card reads as that card's header however it is styled. The
+                layout now gives the strip and the mail card a column of their
+                own (see _layout/_mailbox.html.twig), so the chrome here is the
+                chrome of a PANE — the same border, radius and soft surface the
+                sidebar and the calendar pane wear, on the app background,
+                with the column's gutter doing the separating. #}
+             class="shrink-0 rounded-pane border border-line bg-pane-soft
                     backdrop-blur-sm px-3 py-2 shadow-pop">
 
             <div class="flex items-center justify-between gap-2">
