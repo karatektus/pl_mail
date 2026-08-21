@@ -56,6 +56,11 @@ self-contained: no {% extends %}, no block dependencies.
      data-mail--thread-read-mark-url-value="{{ path('app_status_mark_read', {'type': 'thread', 'id': thread.id}) }}"
      data-mail--thread-read-id-value="{{ thread.id }}"
      data-mail--thread-read-delay-value="0"
+     {# Whether this conversation still counted towards a badge when the page
+        was rendered, so the controller knows whether reading it moved a
+        number. Re-opening mail you have already read must not fire a counts
+        request per click. #}
+     data-mail--thread-read-was-unread-value="{{ thread.unreadCount > 0 ? 'true' : 'false' }}"
 >
     <div class="w-full px-4 md:px-6 py-5">
 

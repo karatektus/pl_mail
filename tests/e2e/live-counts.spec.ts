@@ -19,6 +19,17 @@ import { INBOX_SUBJECTS, mailRow, seed } from "./support/config";
  * These are live-UI tests on purpose. A controller test would have passed
  * throughout: the counts endpoint and the server-rendered badge were never
  * wrong, and the whole defect lived in the seconds after a click.
+ *
+ * The second describe below is the same defect reported a second time, and the
+ * reason the fix above was not enough: the badges were wired to the BULK
+ * toolbar's announcement specifically, so they kept up with the one path
+ * almost nobody uses and with none of the paths people actually read mail
+ * through. Reported as the counter updating "nicht zuverlässig" — unreliably
+ * rather than never — because navigating between folders re-renders the badges
+ * server-side, so whether it looked broken depended on whether you happened to
+ * click away after reading. Measured before the fix: a full minute on the
+ * inbox after reading a mail, with no sync event, no counts request, and the
+ * badge still one too high while the server had the right number all along.
  */
 
 const INBOX_BADGE = '[data-count-key="role:inbox"]';
@@ -113,5 +124,98 @@ test.describe("counters after a bulk action", () => {
         await expect
             .poll(() => fragmentFetches, { timeout: 5000 })
             .toBeGreaterThan(0);
+    });
+});
+
+/**
+ * How a person actually reads mail. None of these go through the toolbar.
+ */
+test.describe("counters after reading one mail", () => {
+    test("opening an unread conversation drops the sidebar badge", async ({ page }) => {
+        await page.goto("/mail/inbox");
+        await expect(mailRow(page, INBOX_SUBJECTS.read)).toBeVisible();
+        expect(await inboxBadge(page), "the fixture has to start with a badge").toBe("4");
+
+        // Read it the way a person does: open it. mail--thread-read marks the
+        // conversation read on connect.
+        await mailRow(page, INBOX_SUBJECTS.star).click();
+
+        // The row losing its unread state first is what makes the badge
+        // assertion below a statement about the COUNTER: the write landed, the
+        // stream redrew the row, and the only thing left that could be wrong
+        // is the number beside it.
+        await expect(mailRow(page, INBOX_SUBJECTS.star))
+            .toHaveAttribute("data-unread", "false", { timeout: 5000 });
+
+        await expect(page.locator(INBOX_BADGE).first()).toHaveText("3", { timeout: 5000 });
+    });
+
+    /**
+     * The envelope button on the row, which is a different controller
+     * (mail--message-row) posting to the same endpoint — and was equally
+     * silent. Both directions, because a badge that simply stopped moving
+     * would pass the read case alone.
+     */
+    test("the row's own mark-read button moves the badge, and back again", async ({ page }) => {
+        // The row action strip is `hidden @xl:flex` — a container query on the
+        // list pane — so it does not exist at all in a narrow window.
+        await page.setViewportSize({ width: 1600, height: 900 });
+        await page.goto("/mail/inbox");
+        await expect(mailRow(page, INBOX_SUBJECTS.read)).toBeVisible();
+        expect(await inboxBadge(page)).toBe("4");
+
+        // `invisible group-hover:visible`, hence the hover.
+        await mailRow(page, INBOX_SUBJECTS.star).hover();
+        await mailRow(page, INBOX_SUBJECTS.star)
+            .getByRole("button", { name: "Mark as read" })
+            .click();
+
+        await expect(mailRow(page, INBOX_SUBJECTS.star))
+            .toHaveAttribute("data-unread", "false", { timeout: 5000 });
+        await expect(page.locator(INBOX_BADGE).first()).toHaveText("3", { timeout: 5000 });
+
+        // The same button, now the other way round.
+        await mailRow(page, INBOX_SUBJECTS.star).hover();
+        await mailRow(page, INBOX_SUBJECTS.star)
+            .getByRole("button", { name: "Mark as unread" })
+            .click();
+
+        await expect(page.locator(INBOX_BADGE).first()).toHaveText("4", { timeout: 5000 });
+    });
+
+    /**
+     * Re-opening mail that was ALREADY read must not fire a counts request.
+     *
+     * mail--thread-read marks read on every open, so the naive fix put a
+     * request behind every click on a mail — including the commonest click
+     * there is, which cannot change a single number. The sidebar's whole
+     * rate-limiting apparatus exists because this endpoint was once being
+     * asked thirty-two times in ten seconds; this keeps that honest.
+     */
+    test("re-opening an already-read conversation asks for nothing", async ({ page }) => {
+        await page.goto("/mail/inbox");
+        await expect(mailRow(page, INBOX_SUBJECTS.read)).toBeVisible();
+
+        // Every seeded thread starts unread, so this one has to be read first
+        // — which is also the honest shape of the case: the second time you
+        // open a mail is when nothing can have changed.
+        await mailRow(page, INBOX_SUBJECTS.archive).click();
+        await expect(mailRow(page, INBOX_SUBJECTS.archive))
+            .toHaveAttribute("data-unread", "false", { timeout: 5000 });
+        await expect(page.locator(INBOX_BADGE).first()).toHaveText("3", { timeout: 5000 });
+
+        // Counting starts only now, with the mail already read.
+        let countsRequests = 0;
+        page.on("request", (request) => {
+            if (request.url().includes("/sidebar/counts")) {
+                countsRequests++;
+            }
+        });
+
+        await page.goto("/mail/inbox");
+        await mailRow(page, INBOX_SUBJECTS.archive).click();
+        await page.waitForTimeout(2000);
+
+        expect(countsRequests, "re-reading read mail moves no number").toBe(0);
     });
 });

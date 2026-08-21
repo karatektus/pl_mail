@@ -10,6 +10,7 @@
 
 import { Controller } from "@hotwired/stimulus";
 import { csrfToken } from "../../csrf.js";
+import { announceWrite } from "../../mail_writes.js";
 
 // Classes applied to the checkbox button in each state
 const CB_BASE   = "border-field bg-field";
@@ -202,7 +203,15 @@ export default class extends Controller {
         try {
             await this._bulkPostInner(ids, action, body, csrf);
         } finally {
+            // Releases the mail pane's hold on the list frame — a statement
+            // about THIS run of posts, and still the toolbar's own.
             this.dispatch("written");
+
+            // And the separate, general one the badges listen for. The sidebar
+            // used to listen to the line above; it no longer does, so a bulk
+            // action has to make both statements. See assets/mail_writes.js
+            // for why they stayed two events rather than becoming one.
+            announceWrite();
         }
     }
 
