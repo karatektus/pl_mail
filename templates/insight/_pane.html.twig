@@ -73,7 +73,9 @@ pane-wide token the ✕ needs.
                 No `shell-chrome`: that marks furniture, and the flat layout
                 strips its card so only the mail pane keeps a box. This is
                 content sitting beside that box and keeps its own. #}
-             class="shrink-0 pane px-3 py-2">
+             {# The gutter to the mail pane belongs to this element and not
+                to the column, so an absent strip leaves no gap behind it. #}
+             class="shrink-0 pane px-3 py-2 mb-gutter">
 
             <div class="flex items-center justify-between gap-2">
                 <p class="text-[11px] font-semibold uppercase tracking-wider text-ink-faint">

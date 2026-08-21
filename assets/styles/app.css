@@ -2763,14 +2763,34 @@
 }
 
 /* ═══ Composed utilities ═══════════════════════════════════════════════════ */
+/*
+   Why these shadows are shallower than they look like they should be.
+
+   The shell is `h-screen overflow-hidden` and pads itself by one gutter, so a
+   pane that runs to the bottom of the window — the sidebar, the mail pane, the
+   calendar — ends 12px above the clip. The first version of this reached
+   10 + 15 - 3 = 22px below the element, so its lower half was cut off by that
+   edge, and at a rounded corner the cut ran across the shadow's own curve and
+   left a hard little arc sitting under each bottom corner.
+
+   It was invisible for a year because --shadow-alpha is 0.05 in the light
+   themes. The dark themes put it at 0.3–0.45, where a clipped shadow is not
+   subtle at all, and every dark theme showed the artifact on exactly the three
+   panes that touch the bottom — never on the insight strip, whose shadow falls
+   on the mail pane and is never clipped.
+
+   So the reach is kept inside the gutter: 6 + 12 - 6 = 12px, and 2 + 4 - 2 = 4px
+   for the contact layer. Changing the gutter without revisiting these numbers
+   brings the arc back.
+*/
 @utility pane {
     background-color: rgb(var(--rgb-surface) / var(--pane-alpha));
     backdrop-filter: blur(var(--pane-blur));
     -webkit-backdrop-filter: blur(var(--pane-blur));
     border: 1px solid rgb(var(--rgb-border) / var(--border-alpha));
     border-radius: var(--app-radius);
-    box-shadow: 0 10px 15px -3px rgb(var(--rgb-shadow) / var(--shadow-alpha)),
-    0 4px 6px -4px rgb(var(--rgb-shadow) / var(--shadow-alpha));
+    box-shadow: 0 6px 12px -6px rgb(var(--rgb-shadow) / var(--shadow-alpha)),
+    0 2px 4px -2px rgb(var(--rgb-shadow) / var(--shadow-alpha));
 }
 
 @utility pane-flat {
@@ -2803,8 +2823,8 @@
     -webkit-backdrop-filter: blur(var(--pane-blur));
     border: 1px solid rgb(var(--rgb-border) / var(--border-alpha));
     border-radius: var(--app-radius);
-    box-shadow: 0 10px 15px -3px rgb(var(--rgb-shadow) / var(--shadow-alpha)),
-    0 4px 6px -4px rgb(var(--rgb-shadow) / var(--shadow-alpha));
+    box-shadow: 0 6px 12px -6px rgb(var(--rgb-shadow) / var(--shadow-alpha)),
+    0 2px 4px -2px rgb(var(--rgb-shadow) / var(--shadow-alpha));
 }
 
 /*

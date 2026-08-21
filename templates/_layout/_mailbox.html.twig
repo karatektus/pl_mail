@@ -127,8 +127,16 @@ Pagination variables expected from the controller (all optional, fallback to 0/1
                    The strip is still LAZY and still renders nothing when there
                    is nothing to say — being its own card costs the mailbox no
                    more than being a band did. #}
+                {# No `gap-gutter` here, and that is load-bearing. A gap is
+                   paid between CHILDREN, and the frame below is a child even
+                   with nothing in it — before its lazy fetch lands, on a day
+                   with no insight, and after the strip is dismissed. The mail
+                   pane then sat a gutter lower than the sidebar beside it, for
+                   a strip that was not on screen. The separation is the
+                   STRIP's margin instead (see insight/_pane.html.twig), so it
+                   exists exactly when the strip does. #}
                 <div data-mail-column
-                     class="flex flex-col flex-1 min-w-0 gap-gutter overflow-hidden">
+                     class="flex flex-col flex-1 min-w-0 overflow-hidden">
 
                     <turbo-frame id="insight_pane"
                                  class="shrink-0"
