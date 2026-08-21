@@ -6,6 +6,46 @@ so anything that changes the schema irreversibly is called out explicitly.
 The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, and `sha-…` pins one commit.
 
+## v0.1.5 — 2026-08-21
+
+**No migration. The facts plMail already reads out of your mail now say
+themselves above the list, instead of waiting in a panel you had to know to
+open.**
+
+**A strip of what is coming, over the mail list.** Up to three dated insights,
+soonest first — a parcel out for delivery, a flight tomorrow, a ticket on
+Thursday — each with what it is, when it is, and the one button worth having:
+**Track package**, or the thing on GitHub. It sits directly above the list and
+narrows with it when you open a mail, and it is the same set the calendar's
+radar panel holds. The difference is who it is for: the panel answers "what is
+coming up?" for somebody who went looking, the strip tells you a parcel is out
+for delivery when you did not.
+
+**It keeps itself current.** A sync that finds something new refreshes the band
+where it stands — no reload, and no page you have to be sitting on for it to
+reach you.
+
+**The ✕ means "not now", not "never".** Dismissing the band hides it until an
+insight it has never shown you is extracted: a parcel that ships tomorrow
+brings it back, the one you just waved away stays gone. That is measured
+against when a fact was first read and not when it was last touched, so a
+carrier revising its estimate — which rewrites a row you already dismissed —
+does not drag the strip back for the whole of a parcel's journey. Dismissing a
+single card from its `⋮` menu is the permanent one, and when the last card goes
+the band goes with it.
+
+**And a switch, under Settings → Insights.** It hides the band and nothing
+else: the facts are still read, and still reach the radar panel and the strip
+inside a conversation. Switching a SOURCE off is the other control, one row
+further up, and it always was.
+
+**It costs nothing on a day with nothing to say.** The band takes height and
+never width, so no pane gives up a pixel for it; it is fetched only after the
+mail is on screen, so opening a mailbox does not wait for it; and when there is
+nothing upcoming it is not there at all — no heading, no empty box, no gap.
+Those were the three objections on record against ever putting this in the
+mailbox, and they are answered rather than repealed.
+
 ## v0.1.4 — 2026-08-21
 
 **No migration. The unread badge is a link now: click it and you get the mail it
