@@ -32,6 +32,16 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
  * with the calendar docking into that row; a fourth region would have to take
  * width from panes that have none to give, and it would render — and query — on
  * every mailbox load for a list that is empty for most users on most days.
+ * Those two costs are still the reason THIS list is not in the mailbox, and
+ * nothing below repeals them.
+ *
+ * What has since been built in the mailbox is not this list in another place.
+ * The insight strip takes height rather than width, arrives in a lazy frame so
+ * a mailbox render pays nothing for it, and renders nothing at all when there
+ * is nothing to say — which answers both objections above without weakening
+ * either, and it answers a different question for a different person besides.
+ * {@see \App\Service\Insight\InsightPane} makes that argument in full; it is
+ * the place to read before concluding that this doc and that feature disagree.
  *
  * So it opens from the topbar, into the app's shared body-level modal frame.
  * The indicator beside the calendar button already answers "is there a reason to

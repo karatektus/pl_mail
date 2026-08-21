@@ -367,9 +367,15 @@ export default class extends Controller {
         }
     }
 
-    // Update types come from App\Service\Mail\SyncNotifier. Both are dispatched
-    // on <body>, so listeners nested deeper (the sidebar) catch them bubbling
-    // up to document rather than via a data-action.
+    // Update types come from the notifier services on the PHP side. All are
+    // dispatched on <body>, so listeners nested deeper (the sidebar, the
+    // insight strip) catch them bubbling up to document rather than via a
+    // data-action.
+    //
+    // A type with no branch here is silently dropped, which is the one thing
+    // to remember when adding a publisher: the hub delivers it, this method
+    // ignores it, and the feature waiting for it simply never hears anything.
+    // Nothing fails and nothing is logged.
     _handleUpdate(data) {
         if (data.type === "mailbox.synced") {
             this.dispatch("mailbox-synced", {detail: data});
@@ -388,6 +394,13 @@ export default class extends Controller {
             // lives on the MailRule row, so a missed message costs a stale
             // panel until the next load, never a wrong answer.
             this.dispatch("rule-run", {detail: data});
+        } else if (data.type === "insights.changed") {
+            // Published by App\Service\Insight\InsightNotifier when a sync
+            // actually landed insights for this user. The strip above the mail
+            // list reloads its frame on it — a hint to re-read and nothing
+            // more, so a missed message costs a strip that is one sync stale
+            // rather than a wrong one.
+            this.dispatch("insights-changed", {detail: data});
         }
     }
 }

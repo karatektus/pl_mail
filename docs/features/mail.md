@@ -112,6 +112,27 @@ delivery day promised in words rather than digits ("arriving today", "Arriving M
 against the mail's own arrival, never against the clock, so re-reading an old mail lands on the day
 it always did.
 
+### The strip above the mail list
+
+Dated insights also appear as a band directly above the mail list — up to three of them, soonest
+first, each with what it is, when it is, and the one button worth having (**Track package**, or the
+thing on GitHub). It is the same set the radar panel holds, said where you already are: the panel
+answers "what is coming up?" for someone who went looking, the strip tells you a parcel is out for
+delivery when you did not.
+
+The band updates itself. A sync that finds something new refreshes it in place, with no reload and
+no page you have to be on.
+
+**The ✕ on the band means "not now", not "never".** Dismissing it hides the strip until an insight
+it has never shown you is extracted — a parcel that ships tomorrow brings it back, while the one
+you just waved away stays gone. Dismissing a single card through its `⋮` menu is the permanent
+one, and when the last card goes the band goes with it. To be rid of it altogether there is a
+switch under **Settings → Insights**; switching it off hides the band only — the facts are still
+read, and still reach the radar panel and the conversation strip.
+
+The band takes height and never width: no pane gives up a pixel for it, it is only fetched after
+the mail is on screen, and on the ordinary day when there is nothing to say it is not there at all.
+
 Extraction is deterministic and local. It runs on your own server against sender domains, headers
 and regular shapes — tracking numbers, flight codes, `#123` — with no cloud service and no model:
 nothing guesses, and a mail that matches no known shape simply yields nothing. That is a deliberate

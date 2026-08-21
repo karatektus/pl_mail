@@ -34,6 +34,53 @@ Variables:
      data-settings--insights-url-value="{{ path('app_settings_insights_toggle') }}"
      data-settings--insights-token-value="{{ csrf_token('insights_toggle') }}">
 
+    {#
+    The strip above the mail list. Not an extractor and not in the loop below,
+    because it is not a SOURCE — it is a region. Its own row rather than a
+    section of its own, so the one page about insights holds every insight
+    switch; the hint carries the distinction, since a reader who has just read
+    eight rows that each stop a kind of card being found would otherwise read
+    this one the same way.
+
+    The state is read straight off the user rather than passed in like
+    insightExtractors: SettingsController::insightsSectionData() maps the
+    extractor registry, and there is no registry entry to map for this. Adding
+    one variable there to carry one boolean the template can already see would
+    be a hop with no decision in it.
+
+    It posts through the same controller and the same token as every row below,
+    with the reserved key InsightSettingsController::PANE_KEY.
+    #}
+    {% set paneKey = constant('App\\Controller\\Settings\\InsightSettingsController::PANE_KEY') %}
+    {% set paneOn  = app.user.getSetting(constant('App\\Entity\\User\\User::SETTING_INSIGHT_PANE_DISABLED'), false) != true %}
+    {# NOT `data-insight-extractor` — that attribute is the registry's census,
+       and InsightSettingsTest counts it against InsightExtractorRegistry::all().
+       This row is a region, not a source, and must not be counted as one. #}
+    <div class="flex items-start justify-between gap-3" data-insight-pane-switch>
+        <span class="flex items-start gap-3 min-w-0">
+            <i class="fa-regular fa-rectangle-list w-4 text-zinc-400 mt-0.5 shrink-0" aria-hidden="true"></i>
+            <span class="min-w-0">
+                <span class="block text-xs font-medium text-ink-muted">{{ 'settings.insights.pane'|trans }}</span>
+                <span class="block text-[11px] text-ink-faint mt-0.5">{{ 'settings.insights.pane_hint'|trans }}</span>
+            </span>
+        </span>
+        <div class="{{ segGroup }}" role="radiogroup" aria-label="{{ 'settings.insights.pane'|trans }}">
+            {% for on in [true, false] %}
+                <label class="cursor-pointer">
+                    <input type="radio" name="insight-{{ paneKey }}" class="peer sr-only"
+                           value="{{ on ? '1' : '0' }}"
+                           data-key="{{ paneKey }}"
+                           data-action="change->settings--insights#toggle"
+                           aria-label="{{ (on ? 'settings.insights.seg.on' : 'settings.insights.seg.off')|trans }}"
+                        {{ paneOn == on ? 'checked' : '' }}>
+                    <span class="{{ segText }}">
+                        {{ (on ? 'settings.insights.seg.on' : 'settings.insights.seg.off')|trans }}
+                    </span>
+                </label>
+            {% endfor %}
+        </div>
+    </div>
+
     {% for extractor in insightExtractors %}
         {% set nameKey = 'settings.insights.extractor.' ~ extractor.key %}
         {% set name = nameKey|trans %}

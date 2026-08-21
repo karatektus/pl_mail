@@ -139,6 +139,40 @@ Pagination variables expected from the controller (all optional, fallback to 0/1
                            every row stayed on one line and truncated to nothing. #}
                         class="@container flex flex-col flex-1 overflow-hidden {% block list_hidden %}{% endblock %}"
                     >
+                        {# ── The insight strip ─────────────────────────────
+                           A band of up to three cards — a parcel out for
+                           delivery, a flight tomorrow — above the list rather
+                           than beside it.
+
+                           HEIGHT, not width, and that is the whole reason it is
+                           allowed to be here at all. HappeningSoonController
+                           turned this panel down because a fourth REGION would
+                           take width from panes that have none to give; a band
+                           takes a little of the list's own vertical run and
+                           leaves the sidebar, the reading pane and the calendar
+                           at exactly the widths they had. InsightPane's class
+                           doc records both halves of that trade.
+
+                           Inside the list pane rather than above the whole
+                           content column, so it spans the LIST's width and
+                           narrows when the reading pane opens. Deliberate: the
+                           strip introduces the inbox, and a band still running
+                           the full width over an open mail would be a header
+                           for something the reader has already left.
+
+                           Outside `list_frame`, so a background list refresh
+                           re-renders fifty rows without touching it — the strip
+                           has its own refresh, on its own event.
+
+                           LAZY, and that is not an optimisation. The query is
+                           empty for most people on most days and a mailbox
+                           render must not pay for it: the frame fetches after
+                           the mail is on screen, and renders nothing when there
+                           is nothing to say. #}
+                        <turbo-frame id="insight_pane"
+                                     src="{{ path('app_insight_pane') }}"
+                                     loading="lazy"></turbo-frame>
+
                         {{ block('list_frame') }}
                     </div>
 

@@ -1360,6 +1360,14 @@ insights:
         parcel: Paket
         subscription: Abo
         ticket: Ticket
+    pane:
+        dismiss: Ausblenden
+        dismiss_all: Leiste ausblenden
+        heading: Steht bald an
+        more: Weitere Aktionen
+        when:
+            today: Heute
+            tomorrow: Morgen
     panel:
         dismiss: Ausblenden
         heading: Auf deinem Radar
@@ -2378,6 +2386,13 @@ settings:
             ticket: Tickets
             ticket_hint: Veranstaltungstickets und Buchungen mit Datum.
         heading: Radar
+        pane: Streifen über der Mailliste
+        pane_hint: >-
+            Zeigt dein nächstes Paket, deinen nächsten Flug oder dein
+            nächstes Ticket in einem Band über dem Posteingang. Schaltest
+            du ihn aus, verschwindet nur das Band — plMail liest diese
+            Angaben weiterhin aus deinen Mails, und du findest sie im
+            Radar und an der Mail selbst.
         seg:
             'off': 'Aus'
             'on': 'An'

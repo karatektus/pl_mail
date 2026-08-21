@@ -485,6 +485,33 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
     public const string SETTING_INSIGHTS_DISABLED = 'insights.disabled_extractors';
 
     /**
+     * Whether the insight strip above the mail list is switched off.
+     *
+     * Absent means ON, the rule every switch in this bag follows and the same
+     * one SETTING_INSIGHTS_DISABLED gives its reasons for: a feature that
+     * shipped switched off is a feature nobody finds. Distinct from that key
+     * on purpose — that one silences a SOURCE everywhere, including the strip
+     * inside a conversation and the radar panel, while this one is only about
+     * whether the mail list wears a strip above it. Somebody who wants parcels
+     * found but does not want a band over their inbox is asking for this key,
+     * and squeezing both meanings into one switch would make that unsayable.
+     */
+    public const string SETTING_INSIGHT_PANE_DISABLED = 'insights.pane_disabled';
+
+    /**
+     * When the strip was last waved away, as an ATOM string.
+     *
+     * A timestamp rather than a boolean, because "dismiss" here means "not
+     * now" and not "never": the strip returns the moment an insight it has
+     * never shown is extracted, which is decided by comparing that insight's
+     * createdAt against this instant. A boolean could only have meant "hidden
+     * forever", which is what the setting above is for — and a dismissal that
+     * silently retired the feature would be a mis-click nobody could undo
+     * without finding a settings page they have no reason to suspect.
+     */
+    public const string SETTING_INSIGHT_PANE_DISMISSED_AT = 'insights.pane_dismissed_at';
+
+    /**
      * Whether a forward opens with its quoted original folded behind the
      * "show quoted text" pill. TRUE (fold) when unset — the pill is the
      * default experience — and stored only when the user switches it off,

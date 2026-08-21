@@ -1,4 +1,4 @@
-<!-- translated-from: features/mail.md sha1:86cafc80aa868a2ed9981e09d2a87cc256d4a744 -->
+<!-- translated-from: features/mail.md sha1:77ce738f1d94b302130b86d0166418bf6add39ce -->
 
 # Mail
 
@@ -126,6 +126,28 @@ einen Link in den eigenen Tracker und nirgends eine Sendungsnummer — genau das
 Und ein Liefertag, der in Worten statt in Ziffern steht ("Arriving today", "Ankunft Montag"), wird
 gegen den Eingang der Mail aufgelöst und nie gegen die Uhr: Wer eine alte Mail noch einmal liest,
 landet auf demselben Tag wie beim ersten Mal.
+
+### Die Leiste über der Mailliste
+
+Datierte Insights erscheinen außerdem als Band direkt über der Mailliste — höchstens drei, das
+Nächste zuerst, jeweils mit dem, was es ist, wann es ist, und der einen Schaltfläche, die sich
+lohnt (**Verfolgen**, oder die Sache auf GitHub). Es ist dieselbe Menge, die auch das Radar-Panel
+führt, nur dort gesagt, wo du ohnehin bist: Das Panel beantwortet "Was steht an?", wenn du danach
+suchst — das Band sagt dir, dass ein Paket in Zustellung ist, wenn du nicht gesucht hast.
+
+Das Band hält sich selbst aktuell. Findet ein Durchlauf etwas Neues, aktualisiert es sich an Ort
+und Stelle, ohne Neuladen und ohne dass du auf einer bestimmten Seite sein musst.
+
+**Das ✕ am Band heißt "gerade nicht", nicht "nie".** Blendest du es aus, bleibt es weg, bis ein
+Insight auftaucht, das es dir noch nie gezeigt hat — ein Paket, das morgen losgeht, holt es zurück,
+das eben Weggewischte bleibt fort. Dauerhaft ist das Ausblenden einer einzelnen Karte über ihr
+`⋮`-Menü, und wenn die letzte Karte geht, geht das Band mit. Ganz loswerden kannst du es mit einem
+Schalter unter **Einstellungen → Radar**; der blendet nur das Band aus — die Fakten werden weiter
+gelesen und landen weiter im Radar-Panel und in der Konversation.
+
+Das Band nimmt Höhe und nie Breite: Keine Spalte gibt dafür ein Pixel her, es wird erst geholt,
+wenn die Mail schon auf dem Schirm ist, und an einem gewöhnlichen Tag, an dem es nichts zu sagen
+gibt, ist es gar nicht da.
 
 Das Auslesen ist deterministisch und lokal. Es läuft auf deinem eigenen Server, gegen
 Absender-Domains, Header und feste Muster — Sendungsnummern, Flugcodes, `#123` —, ohne

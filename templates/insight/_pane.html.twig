@@ -1,0 +1,215 @@
+{#
+insight/_pane.html.twig
+─────────────────────────────────────────────────────────────────────────────
+The insight strip: a band of up to three cards above the mail list, saying the
+thing before the mail that carries it does — a parcel out for delivery, a
+flight tomorrow, a pull request waiting on eyes.
+
+Rendered alone, as the whole response of the lazy `app_insight_pane` fragment,
+into the frame the mailbox layout leaves for it.
+
+Accepts:
+  rows  list<MailInsight>  from InsightPane::rowsFor(), soonest first, already
+        capped at InsightPane::MAX_ROWS and already EMPTY for all three of the
+        reasons the strip may not exist — switched off, nothing upcoming, waved
+        away. This template applies none of those rules and re-checks none of
+        them; it renders what it is given.
+
+An empty `rows` renders NOTHING — no heading, no empty state, no bordered box.
+That is not politeness, it is the deal InsightPane's class doc strikes with
+HappeningSoonController: this band is allowed above the list only because it
+costs nothing on the days it has nothing to say, and those are most days for
+most people. An "on your radar" box saying it looked and found nothing would
+spend attention above the inbox every morning to report an absence.
+
+The frame element itself is still rendered in that case, and has to be: it is
+what Turbo swaps the lazy load into, and a response without it is a frame that
+never finishes loading. Empty, it has no content and therefore no height.
+
+HEIGHT, not width. The strip is a band above the list rather than a column
+beside it, so no pane loses a pixel it had — that is the answer InsightPane
+gives to the objection on the record against a fourth region, and it is why
+everything below is sized by its content and nothing here grows.
+
+The card vocabulary is _insight_strip's and the radar panel's, deliberately:
+the same kind chip, the same status tones, the same one primary action. Three
+visual languages for one object would make a parcel look like three different
+things depending on where the user met it.
+
+One Stimulus scope over the whole band, so both CSRF tokens are minted once
+rather than once per row — the split radar_controller documents, plus the
+pane-wide token the ✕ needs.
+#}
+
+{% set rows = rows|default([]) %}
+
+<turbo-frame id="insight_pane">
+    {% if rows is not empty %}
+        <div data-insight-pane
+             data-controller="insight--pane"
+             data-insight--pane-token-value="{{ csrf_token('insight-dismiss') }}"
+             data-insight--pane-pane-token-value="{{ csrf_token('insight-pane-dismiss') }}"
+             data-insight--pane-pane-url-value="{{ path('app_insight_pane_dismiss') }}"
+             class="shrink-0 rounded-pane border border-line bg-surface px-3 py-2 mb-gutter shadow-sm">
+
+            <div class="flex items-center justify-between gap-2">
+                <p class="text-[11px] font-semibold uppercase tracking-wider text-ink-faint">
+                    {{ 'insights.pane.heading'|trans }}
+                </p>
+
+                <button type="button"
+                        data-action="click->insight--pane#dismissPane"
+                        data-insight-pane-dismiss
+                        aria-label="{{ 'insights.pane.dismiss_all'|trans }}"
+                        title="{{ 'insights.pane.dismiss_all'|trans }}"
+                        class="-mr-1 flex h-6 w-6 shrink-0 items-center justify-center rounded-full
+                               text-ink-faint hover:bg-hover hover:text-ink transition-colors">
+                    <i class="fa-solid fa-xmark text-xs" aria-hidden="true"></i>
+                </button>
+            </div>
+
+            <ul class="mt-1.5 divide-y divide-line" data-insight-list>
+                {% for insight in rows %}
+                    {% set trackingUrl = insight.payload.trackingUrl|default(null) %}
+                    {% set externalUrl = insight.payload.url|default(null) %}
+                    {% set status      = insight.payload.status|default(null) %}
+                    {# Only the vocabulary the catalogue knows — an extractor's
+                       stray status must not print a raw key onto a card. The
+                       one place raw colours are spelled out, and the same five
+                       lines the radar and the reading-pane strip use. #}
+                    {% set statusTone = {
+                        'announced':        'border-ink-faint/40 text-ink-muted',
+                        'in_transit':       'border-sky-500/40 text-sky-700 dark:text-sky-300',
+                        'out_for_delivery': 'border-amber-500/40 text-amber-700 dark:text-amber-300',
+                        'delivered':        'border-green-500/40 text-green-700 dark:text-green-300',
+                    }[status] ?? null %}
+
+                    <li data-insight-card
+                        data-insight-id="{{ insight.id }}"
+                        data-insight-kind="{{ insight.kind.value }}"
+                        class="flex items-center gap-2.5 py-1.5">
+
+                        {% include 'insight/_kind_chip.html.twig' with { kind: insight.kind, size: 'h-8 w-8' } only %}
+
+                        <div class="min-w-0 flex-1">
+                            <p class="truncate text-sm font-semibold text-ink" title="{{ insight.title }}">
+                                {{ insight.title }}
+                            </p>
+
+                            <p class="truncate text-xs text-ink-faint">
+                                {% if insight.happensAt is not null %}
+                                    {# The near-date ladder the message list already
+                                       uses (see _partials/_thread_row.html.twig):
+                                       compare whole days as the reader's clock has
+                                       them, then hand the wording to `intl_date` so
+                                       German gets its own field order rather than an
+                                       English pattern with German words in it.
+
+                                       A week is the width of the ladder because that
+                                       is how long a weekday name stays unambiguous —
+                                       "Thursday" nine days out is a puzzle, not a
+                                       date. #}
+                                    {% set day     = insight.happensAt|date('Y-m-d') %}
+                                    {% set today   = 'now'|date('Y-m-d') %}
+                                    {% set nextDay = 'now'|date_modify('+1 day')|date('Y-m-d') %}
+
+                                    {% if day == today %}
+                                        {{ 'insights.pane.when.today'|trans }}
+                                    {% elseif day == nextDay %}
+                                        {{ 'insights.pane.when.tomorrow'|trans }}
+                                    {% elseif day > today and day <= 'now'|date_modify('+6 days')|date('Y-m-d') %}
+                                        {{ insight.happensAt|intl_date('EEE') }}
+                                    {% elseif insight.happensAt|date('Y') == 'now'|date('Y') %}
+                                        {{ insight.happensAt|intl_date('dMMM') }}
+                                    {% else %}
+                                        {{ insight.happensAt|intl_date('dMMMy') }}
+                                    {% endif %}
+
+                                    {#- A parcel's ETA is a day, not an hour — its
+                                        midnight is a placeholder, not a time. -#}
+                                    {%- if insight.happensAt|date('His') != '000000' %} · {{ insight.happensAt|date(clock.time) }}{% endif %}
+                                {% else %}
+                                    {# A guard, not a feature. InsightPane hands
+                                       this template only DATED rows — the radar
+                                       panel is where the undated family lives, and
+                                       a strip about what is coming up has nothing
+                                       to say about a row with no when. The column
+                                       is nullable all the same, and a blank line
+                                       under a title reads as a render that failed,
+                                       so the kind speaks instead. #}
+                                    {{ insight.kind.transKey|trans }}
+                                {% endif %}
+
+                                {% if statusTone is not null %}
+                                    <span data-insight-status="{{ status }}"
+                                          class="ml-1 inline-flex items-center rounded-full border px-2 py-px
+                                                 text-[11px] leading-[1.35] font-medium {{ statusTone }}">
+                                        {{ ('insights.status.' ~ status)|trans }}
+                                    </span>
+                                {% endif %}
+                            </p>
+                        </div>
+
+                        {# One primary action per row: the tracking page where there
+                           is one, else the thing on GitHub. Never both — the strip's
+                           whole claim is that it costs less attention than the mail
+                           under it, and a row with two buttons has neither pressed. #}
+                        {% if trackingUrl is not empty %}
+                            <a href="{{ trackingUrl }}"
+                               target="_blank" rel="noopener noreferrer"
+                               data-insight-track
+                               class="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-accent px-2.5 py-1
+                                      text-xs font-medium text-accent-ink hover:bg-accent-strong transition-colors">
+                                <i class="fa-solid fa-location-arrow text-[10px]" aria-hidden="true"></i>
+                                {{ 'insights.panel.track'|trans }}
+                            </a>
+                        {% elseif externalUrl is not empty %}
+                            {# The brand's own name rather than a catalogue key —
+                               "GitHub" is not a word any locale translates. #}
+                            <a href="{{ externalUrl }}"
+                               target="_blank" rel="noopener noreferrer"
+                               data-insight-open-url
+                               class="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-line px-2.5 py-1
+                                      text-xs font-medium text-ink-muted hover:bg-hover hover:text-ink transition-colors">
+                                <i class="fa-brands fa-github text-[11px]" aria-hidden="true"></i>
+                                GitHub
+                                <i class="fa-solid fa-arrow-up-right-from-square text-[9px]" aria-hidden="true"></i>
+                            </a>
+                        {% endif %}
+
+                        {# The row's own overflow menu. A second bare ✕ beside the
+                           strip's would be two identical marks a pixel apart meaning
+                           two different scopes — "this one" and "all of them" — which
+                           is the press nobody can take back. Behind a `⋮` the item
+                           can say which it is. #}
+                        <div class="relative shrink-0" data-controller="ui--dropdown">
+                            <button type="button"
+                                    data-action="click->ui--dropdown#toggle"
+                                    aria-label="{{ 'insights.pane.more'|trans }}"
+                                    title="{{ 'insights.pane.more'|trans }}"
+                                    class="flex h-7 w-7 items-center justify-center rounded-full
+                                           text-ink-faint hover:bg-hover hover:text-ink transition-colors">
+                                <i class="fa-solid fa-ellipsis-vertical text-xs" aria-hidden="true"></i>
+                            </button>
+
+                            <div data-ui--dropdown-target="menu" hidden
+                                 class="absolute right-0 top-full mt-1 z-30 w-44
+                                        rounded-pane bg-pane-soft backdrop-blur-sm
+                                        border border-line shadow-pop py-1 text-sm">
+                                <button type="button"
+                                        data-action="click->insight--pane#dismiss click->ui--dropdown#close"
+                                        data-insight--pane-url-param="{{ path('app_insight_dismiss', { id: insight.id }) }}"
+                                        data-insight-dismiss
+                                        class="flex w-full items-center gap-2 px-4 py-2 text-left text-ink-soft
+                                               hover:bg-hover transition-colors">
+                                    <i class="fa-solid fa-xmark w-4 text-ink-faint" aria-hidden="true"></i>
+                                    {{ 'insights.pane.dismiss'|trans }}
+                                </button>
+                            </div>
+                        </div>
+                    </li>
+                {% endfor %}
+            </ul>
+        </div>
+    {% endif %}
+</turbo-frame>
