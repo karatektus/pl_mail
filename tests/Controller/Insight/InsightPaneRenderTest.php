@@ -168,9 +168,14 @@ final class InsightPaneRenderTest extends WebTestCase
         self::assertSame('lazy', $frame->attr('loading'));
         self::assertCount(0, $crawler->filter('[data-insight-card]'), 'the mailbox rendered the strip inline');
 
-        // Inside the list pane, so the band spans the list's width and narrows
-        // when the reading pane opens — the placement the layout comments.
-        self::assertCount(1, $crawler->filter('#message-list > turbo-frame#insight_pane'));
+        // A SIBLING of the mail card, not a child of the list pane: the strip
+        // is its own pane, and a frame inside .main-pane could only ever be a
+        // box drawn on the mail card's surface. Asserted as a direct child of
+        // the column and as absent from the mail card, because those are two
+        // different claims and only the second one fails if the strip is ever
+        // nested back inside the pane it is supposed to sit beside.
+        self::assertCount(1, $crawler->filter('[data-mail-column] > turbo-frame#insight_pane'));
+        self::assertCount(0, $crawler->filter('.main-pane turbo-frame#insight_pane'));
     }
 
     // ── Fixtures ──────────────────────────────────────────────────────────
