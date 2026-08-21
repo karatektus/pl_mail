@@ -18,7 +18,9 @@ use App\Service\Gmail\GmailAddressFilter;
 use App\Service\Gmail\GmailMessageBuilder;
 use App\Service\HarvestContactsService;
 use App\Service\Label\ThreadLabelSynchronizer;
+use App\Service\Imap\MessageThreader;
 use App\Service\Mail\GmailApiClient;
+use App\Service\Mail\MessageCategorizer;
 use App\Service\Mail\PostIngestPipeline;
 use App\Service\Mail\SyncNotifier;
 use App\Service\Mail\ThreadStatusUpdater;
@@ -49,6 +51,8 @@ final readonly class SyncGmailMessageBatchHandler
         private LoggerInterface        $logger,
         private ThreadLabelSynchronizer $threadLabels,
         private ThreadStatusUpdater     $status,
+        private MessageCategorizer      $categorizer,
+        private MessageThreader         $messageThreader,
     ) {}
 
     public function __invoke(SyncGmailMessageBatchMessage $message): void
@@ -251,9 +255,9 @@ final readonly class SyncGmailMessageBatchHandler
 
     /**
      * Merge the Gmail copy's knowledge onto an existing row: gmailId (covers it
-     * under the user-scoped dedup from now on), gmailLabelIds, and the
-     * carrier's labels translated onto the target account, propagated to the
-     * thread.
+     * under the user-scoped dedup from now on), gmailLabelIds, the inbox
+     * category those labels decide, and the carrier's labels translated onto
+     * the target account, propagated to the thread.
      *
      * Deliberately outside PostIngestPipeline: the row already went through it
      * on the IMAP side, so re-running would record a second create for an id
@@ -292,6 +296,26 @@ final readonly class SyncGmailMessageBatchHandler
 
         $this->messageBuilder->applyTranslatedLabels($existing, $labelIds, $target, $carrier);
 
+        // ## Recategorise, because the line above changed the only signal
+        //
+        // On a Gmail row the categorizer reads nothing but the CATEGORY_*
+        // labels, and those have just been overwritten with Gmail's current
+        // answer. Without this, category keeps whatever ingest computed —
+        // and Gmail re-classifies after delivery, as well as every time the
+        // user moves mail between tabs, so that answer goes stale on exactly
+        // the mail this re-fetch exists to keep current.
+        //
+        // The drift was visible: the message view explains the category live
+        // from the labels, while the inbox tabs filter on the thread's stored
+        // column. A relabelled promotion said "Gmail said so: CATEGORY_
+        // PROMOTIONS" in the reading pane and sat in Primary in the list,
+        // until the next `app:backfill category` run.
+        //
+        // Empty correspondent map on purpose: gmailLabelIds is non-null by the
+        // line above, so the categorizer takes its Gmail branch and never
+        // reaches the correspondence override that map feeds.
+        $existing->category = $this->categorizer->categorize($existing, []);
+
         if (true === $ownsFlags) {
             // One row at a time because enrichment is one row at a time, and
             // this is the call that recounts the thread, updates the unread
@@ -325,6 +349,11 @@ final readonly class SyncGmailMessageBatchHandler
             // of everything its messages had *ever* carried would go on showing
             // in the inbox after the last of them was archived.
             $this->threadLabels->sync($thread);
+
+            // Most-recent-wins, the same rule ingest and the backfill apply.
+            // The tabs read the thread, not the message, so recategorising the
+            // row above only reaches the inbox through here.
+            $this->messageThreader->refreshCategory($existing, $thread);
 
             $this->stateManager->recordThreadsTouched((int) $target->id, [(int) $thread->id]);
         }

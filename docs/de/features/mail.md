@@ -1,4 +1,4 @@
-<!-- translated-from: features/mail.md sha1:c64080d2ebfae626662189cf6dfffefa8f90cd15 -->
+<!-- translated-from: features/mail.md sha1:f540bf8d9c7246eeb9c4505819ca0f99f566a420 -->
 
 # Mail
 
@@ -103,6 +103,12 @@ auslaufen. Jeder Fund wird eine kleine Karte.
 Was ein Datum trägt, reiht sich im Kalender-Panel **Demnächst** ein, unter **Auf deinem Radar**;
 eine Konversation, in der etwas gefunden wurde, zeigt ihre Karten außerdem in einer Leiste
 **In dieser Konversation gefunden** über den Nachrichten.
+
+Auch ein Shop, der nie einen Zusteller nennt, ergibt ein Paket. Amazon nennt eine Bestellnummer und
+einen Link in den eigenen Tracker und nirgends eine Sendungsnummer — genau das trägt dann die Karte.
+Und ein Liefertag, der in Worten statt in Ziffern steht ("Arriving today", "Ankunft Montag"), wird
+gegen den Eingang der Mail aufgelöst und nie gegen die Uhr: Wer eine alte Mail noch einmal liest,
+landet auf demselben Tag wie beim ersten Mal.
 
 Das Auslesen ist deterministisch und lokal. Es läuft auf deinem eigenen Server, gegen
 Absender-Domains, Header und feste Muster — Sendungsnummern, Flugcodes, `#123` —, ohne

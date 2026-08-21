@@ -1,5 +1,6 @@
 import { Controller } from "@hotwired/stimulus";
 import { jsonCsrfHeaders } from "../../csrf.js";
+import { announceWrite } from "../../mail_writes.js";
 
 /**
  * Handles per-row status actions in the message list.
@@ -118,5 +119,13 @@ export default class extends Controller {
         if (html.trim() !== "") {
             Turbo.renderStreamMessage(html);
         }
+
+        // Here rather than in markRead() alone, because every action on this
+        // row moves a number in the sidebar: archive and trash take the mail
+        // out of Inbox, snooze takes it out and puts it back later, star moves
+        // the Starred count. The row redraws itself from the stream; nothing
+        // else does. Announced after the render so the badges and the row do
+        // not disagree in between.
+        announceWrite();
     }
 }

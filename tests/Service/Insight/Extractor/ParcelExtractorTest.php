@@ -97,6 +97,144 @@ final class ParcelExtractorTest extends TestCase
                 ]],
             ],
 
+            // ── Reported as missed, 2026-08-21 ─────────────────────────────
+            // Both mails below were filed through "Report a missed insight"
+            // against a build that read neither, and each failed for its own
+            // reason: the first passed the gate and found no tracking number
+            // because Amazon states none, the second never reached extract()
+            // at all because "Dispatched" was not a shipping word. They are
+            // kept verbatim enough to still be the mails that were reported.
+            'amazon out for delivery: an order number is the only identity stated' => [
+                [
+                    'from'       => 'shipment-tracking@amazon.de',
+                    'fromName'   => 'Amazon.de',
+                    'subject'    => 'Out for delivery: ‘Fokky Resistance Bands Set...’',
+                    'body'       => "Your Orders\n\n"
+                        . "    Your package is out for delivery!\n"
+                        . "Ordered\n\nDispatched\n\nOut for delivery\n\nDelivered\n\n"
+                        . "Arriving today 12:30 pm - 3:30 pm\n\n"
+                        . "Paul – Haibach, Germany\n\n"
+                        . "Order #\n303-1114330-8516368\n\n"
+                        . "Track package\n"
+                        . 'https://www.amazon.de/progress-tracker/package?_encoding=UTF8&orderId=303-1114330-8516368&packageIndex=0&shipmentId=TcDh28yqB&vt=NOTIFICATIONS',
+                    'receivedAt' => '2026-08-21 08:37:18',
+                ],
+                true,
+                [[
+                    'title'     => 'Amazon · 303-1114330-8516368',
+                    'dedupeKey' => '303-1114330-8516368#0',
+                    'payload'   => [
+                        'carrier'        => 'amazon',
+                        'trackingNumber' => null,
+                        'orderNumber'    => '303-1114330-8516368',
+                        'trackingUrl'    => 'https://www.amazon.de/progress-tracker/package?orderId=303-1114330-8516368&packageIndex=0',
+                        'merchant'       => 'Amazon.de',
+                        'status'         => 'out_for_delivery',
+                    ],
+                    // "Arriving today", resolved against the mail and not the
+                    // clock — the day it was received, at noon.
+                    'happensAt' => '2026-08-21 12:00',
+                ]],
+            ],
+
+            'amazon dispatched: the subject beats a progress bar that lists every stage' => [
+                [
+                    'from'       => 'versandbestaetigung@amazon.de',
+                    'fromName'   => 'Amazon.de',
+                    'subject'    => 'Dispatched: ‘Martermühle I Kaffee...’',
+                    'body'       => "Your Orders\n\n"
+                        . "    Your package was dispatched!\n"
+                        . "Ordered\n\nDispatched\n\nOut for delivery\n\nDelivered\n\n"
+                        . "Arriving Monday\n\n"
+                        . "Paul – Haibach, Germany\n\n"
+                        . "Order #\n303-5155019-3892367\n\n"
+                        . "Track package\n"
+                        . "https://www.amazon.de/progress-tracker/package?_encoding=UTF8&orderId=303-5155019-3892367&packageIndex=0&shipmentId=TVvVxMyXB&vt=NOTIFICATIONS\n\n"
+                        . "* Martermühle I Kaffee Aßlinger Mischung\n  Quantity: 1\n  35.2 EUR\n\nTotal\n31.679999999999996 EUR",
+                    'receivedAt' => '2026-08-20 20:00:01',
+                ],
+                true,
+                [[
+                    'title'     => 'Amazon · 303-5155019-3892367',
+                    'dedupeKey' => '303-5155019-3892367#0',
+                    'payload'   => [
+                        'carrier'        => 'amazon',
+                        'trackingNumber' => null,
+                        'orderNumber'    => '303-5155019-3892367',
+                        'trackingUrl'    => 'https://www.amazon.de/progress-tracker/package?orderId=303-5155019-3892367&packageIndex=0',
+                        'merchant'       => 'Amazon.de',
+                        // in_transit, NOT delivered: the body's progress bar
+                        // spells out all four stages in every mail of the
+                        // series, so only the subject knows which one this is.
+                        'status'         => 'in_transit',
+                    ],
+                    // Thursday's "Arriving Monday" is the Monday after it.
+                    'happensAt' => '2026-08-24 12:00',
+                ]],
+            ],
+
+            'a second package of the same order is a second parcel' => [
+                [
+                    'from'       => 'shipment-tracking@amazon.de',
+                    'fromName'   => 'Amazon.de',
+                    'subject'    => 'Dispatched: ‘Second box’',
+                    'body'       => "Order #\n303-1114330-8516368\n\n"
+                        . 'https://www.amazon.de/progress-tracker/package?orderId=303-1114330-8516368&packageIndex=1&vt=NOTIFICATIONS',
+                    'receivedAt' => '2026-08-21 08:37:18',
+                ],
+                true,
+                [[
+                    'title'     => 'Amazon · 303-1114330-8516368',
+                    // The order alone would collapse this onto the card the
+                    // first box already owns, and the two would overwrite each
+                    // other on every status change.
+                    'dedupeKey' => '303-1114330-8516368#1',
+                    'payload'   => [
+                        'carrier'        => 'amazon',
+                        'trackingNumber' => null,
+                        'orderNumber'    => '303-1114330-8516368',
+                        'trackingUrl'    => 'https://www.amazon.de/progress-tracker/package?orderId=303-1114330-8516368&packageIndex=1',
+                        'merchant'       => 'Amazon.de',
+                        'status'         => 'in_transit',
+                    ],
+                    'happensAt' => null,
+                ]],
+            ],
+
+            'an amazon mail with a real tracking number is read as that parcel, not as an order' => [
+                [
+                    'from'       => 'shipment-tracking@amazon.de',
+                    'fromName'   => 'Amazon.de',
+                    'subject'    => 'Dispatched: ‘A thing’',
+                    'body'       => "Order #\n303-1114330-8516368\n\nTracking Number: 1Z999AA10123456784",
+                    'receivedAt' => '2026-08-21 08:37:18',
+                ],
+                true,
+                [[
+                    'title'     => 'UPS · 1Z999AA10123456784',
+                    'dedupeKey' => '1Z999AA10123456784',
+                    'payload'   => [
+                        'carrier'        => 'ups',
+                        'trackingNumber' => '1Z999AA10123456784',
+                        'trackingUrl'    => 'https://www.ups.com/track?tracknum=1Z999AA10123456784',
+                        'merchant'       => 'Amazon.de',
+                        'status'         => 'in_transit',
+                    ],
+                    'happensAt' => null,
+                ]],
+            ],
+
+            'an order number from a sender who is not a shop stays an order number' => [
+                [
+                    'from'     => 'noreply@random-shop.example',
+                    'fromName' => 'Some Shop',
+                    'subject'  => 'Your delivery is on its way',
+                    'body'     => "Order #\n303-1114330-8516368\n\nThanks for shopping with us.",
+                ],
+                true,
+                [],
+            ],
+
             'ups mail: the 1Z shape needs no context words' => [
                 [
                     'from'     => 'pkginfo@ups.com',

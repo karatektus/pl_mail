@@ -348,13 +348,7 @@ final class MessageThreader
      */
     public function recordActivity(Message $message, MessageThread $thread): void
     {
-        // createdAt closes the chain: every Message sets it in its constructor
-        // and the column is NOT NULL, so there is always an instant to order by
-        // even for a draft that has neither been received nor sent.
-        $occurredAt = $message->receivedAt
-            ?? $message->sentAt
-            ?? $message->createdAt;
-
+        $occurredAt           = $this->occurredAt($message);
         $currentLastMessageAt = $thread->lastMessageAt;
 
         if (null === $currentLastMessageAt) {
@@ -372,6 +366,44 @@ final class MessageThreader
             $thread->lastMessageAt = $occurredAt;
             $this->adoptCategory($message, $thread);
         }
+    }
+
+    /**
+     * Re-adopt a message's category onto its thread after that message has been
+     * recategorised in place — the Gmail re-read path, where new CATEGORY_*
+     * labels land on a row the thread has held for months.
+     *
+     * recordActivity() cannot do this job. It adopts only while moving
+     * lastMessageAt forward, and a message being re-read is already counted in
+     * that key, so its gate never opens. Most-recent-wins here is therefore the
+     * other half of the same test: adopt when this message IS the newest the
+     * thread has, which is to say the one lastMessageAt was last set from. Ties
+     * adopt, matching the backfill's DISTINCT ON — it picks between two rows of
+     * equal received_at without ceremony either.
+     */
+    public function refreshCategory(Message $message, MessageThread $thread): void
+    {
+        $lastMessageAt = $thread->lastMessageAt;
+
+        if (null !== $lastMessageAt && $this->occurredAt($message) < $lastMessageAt) {
+            return;
+        }
+
+        $this->adoptCategory($message, $thread);
+    }
+
+    /**
+     * The instant a message counts as having happened, for ordering purposes.
+     *
+     * createdAt closes the chain: every Message sets it in its constructor and
+     * the column is NOT NULL, so there is always an instant to order by even
+     * for a draft that has neither been received nor sent.
+     */
+    private function occurredAt(Message $message): \DateTimeImmutable
+    {
+        return $message->receivedAt
+            ?? $message->sentAt
+            ?? $message->createdAt;
     }
 
     /**

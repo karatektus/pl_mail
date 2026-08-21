@@ -1,5 +1,5 @@
 import { Controller } from "@hotwired/stimulus";
-import { formatWallClock, scheduleOptions, zoneHorizon, zoneNow } from "../../schedule_options.js";
+import { formatWallClock, instantOf, scheduleOptions, zoneHorizon, zoneNow } from "../../schedule_options.js";
 
 /**
  * The send pill's chevron: send later.
@@ -25,6 +25,19 @@ import { formatWallClock, scheduleOptions, zoneHorizon, zoneNow } from "../../sc
  * assets/schedule_options.js — this posts a wall clock and lets the server
  * turn it into an instant.
  */
+/**
+ * The instant the containing whole minute began.
+ *
+ * The field has minute granularity, so every bound has to be compared at that
+ * granularity or a time typed in the current minute reads as already past.
+ * Whole minutes are safe to take with modulo: every real zone offset is a whole
+ * number of minutes, so a minute boundary is a minute boundary everywhere at
+ * once, DST transitions included.
+ */
+function minuteOf(ms) {
+    return Math.floor(ms / 60_000) * 60_000;
+}
+
 export default class extends Controller {
     static targets = ["option", "field", "custom", "input", "error", "toggle"];
 
@@ -145,8 +158,14 @@ export default class extends Controller {
             return;
         }
 
-        // Wall clocks in one zone compare as strings; see zoneNow().
-        if (chosen < zoneNow(this.timezoneValue)) {
+        // As instants, not as strings. The three bounds below are all still
+        // computed as wall clocks — that is what the field holds and what the
+        // server is sent — but comparing them is a question about TIME, and for
+        // the hour a fall-back repeats the two orderings disagree. See
+        // instantOf(), which also explains what that cost.
+        const chosenAt = this._instant(chosen);
+
+        if (chosenAt < minuteOf(Date.now())) {
             this._refuse(event, this._t("schedulePast", "That time has already passed."));
 
             return;
@@ -160,13 +179,13 @@ export default class extends Controller {
         // was refused by the resolver, and came back as a root-level form error
         // the compose window had nowhere to render — no toast, no message, no
         // schedule. Refusing it here is what makes the common case legible.
-        if (chosen < this._floor()) {
+        if (chosenAt < this._floor()) {
             this._refuse(event, this._t("scheduleTooSoon", "Pick a time at least a minute from now."));
 
             return;
         }
 
-        if (chosen > zoneHorizon(this.timezoneValue, this.maxDaysValue)) {
+        if (chosenAt > this._instant(zoneHorizon(this.timezoneValue, this.maxDaysValue))) {
             this._refuse(
                 event,
                 this._t("scheduleTooFar", "Mail can be held for at most %days% days.")
@@ -210,20 +229,44 @@ export default class extends Controller {
     // ── Private ───────────────────────────────────────────────────────────
 
     /**
-     * The earliest wall-clock MINUTE the server will still accept.
+     * The earliest MINUTE the server will still accept, as an instant.
      *
-     * `zoneNow` already takes the instant to read, so the floor is just "now,
-     * plus the minimum hold" read in the configured zone. The extra 59 seconds
-     * are what makes a minute-granularity field comparable to a second-
-     * granularity rule: at 11:43:20 the minimum instant is 11:44:20, and the
-     * earliest *minute* every second of which clears it is 11:45. Rounding the
-     * other way would put 11:44 back on the accepted side of a browser check
-     * and on the refused side of the server's — which is the bug this exists to
-     * close. Erring strict costs the user one minute; erring loose costs them
-     * the whole feature, silently.
+     * "Now, plus the minimum hold", truncated to the minute the field can
+     * actually express. The extra 59 seconds are what makes a minute-
+     * granularity field comparable to a second-granularity rule: at 11:43:20
+     * the minimum instant is 11:44:20, and the earliest *minute* every second
+     * of which clears it is 11:45. Rounding the other way would put 11:44 back
+     * on the accepted side of a browser check and on the refused side of the
+     * server's — which is the bug this exists to close. Erring strict costs the
+     * user one minute; erring loose costs them the whole feature, silently.
+     *
+     * An instant rather than the wall clock this used to return, and that is
+     * the DST fix: during a fall-back "02:00" names two moments an hour apart,
+     * so a floor expressed that way could be — and was — read back as the
+     * earlier of the two, landing a whole hour below where it belonged. Nothing
+     * about the rounding changed; only what the number is.
      */
     _floor() {
-        return zoneNow(this.timezoneValue, new Date(Date.now() + (this.minSecondsValue + 59) * 1000));
+        return minuteOf(Date.now() + (this.minSecondsValue + 59) * 1000);
+    }
+
+    /**
+     * A wall clock in the configured zone as an instant, for comparing.
+     *
+     * Only the horizon goes through here now. The other two bounds are derived
+     * from `Date.now()` and so are instants already — and it matters that they
+     * never become wall clocks on the way, because a wall clock inside a
+     * fall-back cannot say WHICH of its two occurrences it meant. Reading the
+     * floor back through instantOf() was the first version of this fix and it
+     * changed nothing: `zoneNow()` rendered "02:00" for the second, CET pass,
+     * instantOf() resolved that string to the first, CEST one, and the bound
+     * landed an hour early exactly as before. The horizon is safe because it is
+     * genuinely a statement about the clock — "this time of day, N days out" —
+     * and because resolving it to the earlier occurrence errs strict, which is
+     * the side a ceiling should err on.
+     */
+    _instant(at) {
+        return instantOf(at, this.timezoneValue);
     }
 
     /**

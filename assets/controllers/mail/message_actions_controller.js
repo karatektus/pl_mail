@@ -1,5 +1,6 @@
 import { Controller } from "@hotwired/stimulus";
 import { jsonCsrfHeaders } from "../../csrf.js";
+import { announceWrite } from "../../mail_writes.js";
 
 /**
  * Status actions for the reading pane: the per-message overflow menu and the
@@ -126,6 +127,12 @@ export default class extends Controller {
         if (html.trim() !== "") {
             Turbo.renderStreamMessage(html);
         }
+
+        // Star, mark-unread, archive and trash all move a sidebar number, and
+        // the streams these endpoints answer with address the list row only —
+        // see the class docblock. Mark-unread is the one that shows up in the
+        // report as "the counter does not go back up".
+        announceWrite();
     }
 
     /** mail-pane lives on <body> (see _layout/app.html.twig). */

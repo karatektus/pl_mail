@@ -1,5 +1,6 @@
 import { Controller } from "@hotwired/stimulus";
 import { jsonCsrfHeaders } from "../../csrf.js";
+import { WRITE_EVENT } from "../../mail_writes.js";
 
 // `is-active` carries no colour of its own — it is the hook the sidebar's
 // Gmail-style pill shape hangs off in app.css.
@@ -10,7 +11,7 @@ const ANCESTOR_CLASS   = "is-active-ancestor";
 const INACTIVE_CLASSES = ["text-ink-muted", "hover:bg-hover"];
 const SYNC_EVENTS      = ["core--mercure:mailbox-synced", "core--mercure:account-synced"];
 /**
- * A bulk action from the list toolbar finished writing.
+ * A write to this user's mail finished — from anywhere.
  *
  * Kept apart from SYNC_EVENTS rather than added to them, because the two want
  * opposite treatment. A sync is the server volunteering that something changed
@@ -18,13 +19,14 @@ const SYNC_EVENTS      = ["core--mercure:mailbox-synced", "core--mercure:account
  * person having just pressed a button and watching the number they changed, so
  * it skips the limit — see refreshCounts({ immediate }).
  *
- * The toolbar already dispatches it (bubbling, so it reaches this document
- * listener from inside the list frame) and the mail pane already holds its list
- * refresh on the matching `:writing`. Nothing was listening on behalf of the
- * badges, which is why marking two threads unread turned the rows bold and left
- * "Inbox 5" sitting next to seven bold rows until a reload.
+ * This used to be `mail--list-toolbar:written`, listened for on the reasoning
+ * that the toolbar was already announcing itself and nothing was listening on
+ * behalf of the badges. True, and too narrow: the toolbar was the ONLY writer
+ * making the announcement, so the badges kept up with bulk actions and with
+ * nothing else — including the ordinary act of opening a mail and reading it.
+ * The announcement is now everyone's, and lives in assets/mail_writes.js.
  */
-const WRITTEN_EVENT    = "mail--list-toolbar:written";
+const WRITTEN_EVENT    = WRITE_EVENT;
 /**
  * Where the nav was scrolled to.
  *

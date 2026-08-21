@@ -20,11 +20,16 @@
  * Which means the arithmetic is done on the wall clock and never on an
  * instant. What comes out is a "YYYY-MM-DDTHH:MM" string, which is exactly
  * what <input type="datetime-local"> produces, and the server turns it into an
- * instant with the tz database in hand (ScheduledSendResolver). No offsets are
- * computed here at all — Intl is asked what time it is over there, and the
- * rest is calendar arithmetic. That is why there is no DST special case: the
- * only place a zone rule can bite is the conversion, and the conversion is
- * PHP's.
+ * instant with the tz database in hand (ScheduledSendResolver). Intl is asked
+ * what time it is over there, and the rest is calendar arithmetic.
+ *
+ * That held for the VALUE and, for a while, was wrongly assumed to hold for the
+ * BOUNDS as well — "the only place a zone rule can bite is the conversion, and
+ * the conversion is PHP's". Comparing two wall clocks is a second place it can
+ * bite, because wall clocks stop being monotonic for the hour a fall-back
+ * repeats. instantOf() below is the one function here that computes an offset,
+ * and it exists for the comparisons alone: the value this file produces is
+ * still a wall clock, still resolved by PHP.
  */
 
 import { prefersHour12 } from "./clock_format.js";
@@ -69,11 +74,11 @@ export function zoneToday(timeZone, now = new Date()) {
  * Right now, in that zone, as a wall clock.
  *
  * The bounds the custom picker enforces are expressed in the same spelling as
- * the value it produces, so "is this in the past" and "is this beyond the
- * ceiling" are string comparisons — "YYYY-MM-DDTHH:MM" sorts
- * chronologically, which is the one thing ISO 8601 was designed for. The
- * server checks both again against real instants; this is only so the refusal
- * arrives before the round trip.
+ * the value it produces. They are no longer COMPARED as strings, though —
+ * "YYYY-MM-DDTHH:MM" sorts chronologically only while the clock is monotonic,
+ * which it is not through a fall-back; both sides go through instantOf() first.
+ * The server checks both again against real instants; this is only so the
+ * refusal arrives before the round trip.
  *
  * @param {string} timeZone
  * @param {Date} now
@@ -99,6 +104,102 @@ export function zoneNow(timeZone, now = new Date()) {
         Number(parts.hour) % 24,
         Number(parts.minute),
     );
+}
+
+/**
+ * The instant a wall clock in a given zone actually falls on.
+ *
+ * The one place in this file that computes an offset, and it exists because
+ * the comment at the top of the file — "the only place a zone rule can bite is
+ * the conversion, and the conversion is PHP's" — was true of the VALUE and
+ * false of the BOUNDS. Producing "2026-10-25T02:30" and letting the server
+ * resolve it is still right. Deciding whether that string is in the past by
+ * comparing it to another string is not, because wall clocks are not monotonic
+ * across a fall-back: Berlin runs 02:00–02:59 twice on 25 October 2026, so for
+ * those 3600 seconds "later on the clock" and "later in time" disagree.
+ *
+ * What that cost, concretely: at 02:58 CEST the floor (now + the minimum hold)
+ * lands at 02:00 CET — a LOWER string than the 02:59 the user typed — so
+ * `chosen < floor` read false, the browser accepted, and ScheduledSendResolver
+ * refused it against real instants. The compose window has nowhere to render a
+ * root-level form error, so the click did nothing at all: exactly the silent
+ * failure `_floor()` was written to prevent, returning for one hour a year.
+ *
+ * Ambiguity is resolved the way PHP resolves it, because PHP is the one that
+ * decides: a wall clock that happens twice means the FIRST of the two, and one
+ * that never happens (the spring-forward gap) shifts forward. Hence the two
+ * candidates and the choice between them — the offset a day either side of the
+ * guess brackets any single transition, and only a candidate that reads back as
+ * the very wall clock asked for is a real answer.
+ *
+ * @param {string} at wall clock, "YYYY-MM-DDTHH:MM"
+ * @param {string} timeZone
+ * @returns {number} epoch milliseconds
+ */
+export function instantOf(at, timeZone) {
+    const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/.exec(at);
+
+    if (null === match) {
+        return NaN;
+    }
+
+    const [, year, month, day, hour, minute] = match.map(Number);
+
+    // The wall clock read as though it were UTC. Not an instant yet — it is the
+    // left-hand side of "wall = instant + offset", and the offset is what the
+    // two probes below supply.
+    const guess = Date.UTC(year, month - 1, day, hour, minute);
+    const DAY   = 86_400_000;
+
+    const candidates = [
+        guess - offsetAt(guess - DAY, timeZone),
+        guess - offsetAt(guess + DAY, timeZone),
+    ];
+
+    const real = candidates.filter(
+        (instant) => zoneNow(timeZone, new Date(instant)) === at,
+    );
+
+    // Ambiguous (both candidates are genuinely this wall clock): the earlier,
+    // as PHP does. Nonexistent (neither is): the later, which is where PHP
+    // pushes a time that the clock skipped over.
+    return 0 === real.length
+        ? Math.max(...candidates)
+        : Math.min(...real);
+}
+
+/**
+ * The zone's offset from UTC at a given instant, in milliseconds.
+ *
+ * Read rather than tabulated: formatting the instant in the zone and reading
+ * the result back as UTC gives "instant + offset", so subtracting the instant
+ * leaves the offset — no DST table, and correct for zones whose rules have
+ * changed historically.
+ */
+function offsetAt(instant, timeZone) {
+    const parts = {};
+
+    for (const part of new Intl.DateTimeFormat("en-GB", {
+        timeZone,
+        hour12: false,
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+    }).formatToParts(new Date(instant))) {
+        parts[part.type] = part.value;
+    }
+
+    return Date.UTC(
+        Number(parts.year),
+        Number(parts.month) - 1,
+        Number(parts.day),
+        Number(parts.hour) % 24,
+        Number(parts.minute),
+        Number(parts.second),
+    ) - instant;
 }
 
 /**
