@@ -325,6 +325,43 @@ export default class extends Controller {
         select.plmailTamed = true;
         select.settings.openOnFocus = false;
 
+        // The panel belongs to <body>, not to the window it opens in.
+        //
+        // Tom Select renders its dropdown as a sibling of the field by default,
+        // in flow — so the compose window GREW to make room for it, pushing
+        // Subject and the body down the page every time a recipient was typed,
+        // and back up again when the panel closed. Reported as the dropdown
+        // shifting the dialog rather than overlaying it.
+        //
+        // Moving it to <body> is Tom Select's own answer (`dropdownParent`),
+        // and it is the same fix ui--select already applies for the same
+        // reason. It has to be the body specifically: the compose window sits
+        // inside a pane, the panes carry backdrop-filter, and that makes each
+        // pane a stacking context AND the containing block for position:fixed
+        // — so a panel anchored anywhere inside one is trapped there whatever
+        // its z-index says. See assets/popout.js, which solves the same trap
+        // for the menus that cannot be reparented.
+        //
+        // Applied after the widget exists rather than through the bundle's
+        // options, because this widget is built by the UX Autocomplete bundle
+        // and the settings object is the only seam it offers afterwards.
+        select.settings.dropdownParent = 'body';
+
+        if (select.dropdown && document.body !== select.dropdown.parentElement) {
+            document.body.appendChild(select.dropdown);
+
+            // The class matters as much as the move. tom-select.css anchors a
+            // normal panel to its wrapper (`left/right: 0; top: 100%`) at
+            // z-index 40; a reparented one is positioned from the inline
+            // coordinates Tom Select writes, and has to outrank the compose
+            // dock (z-50) it is opening over. `.ts-dropdown-floating` is that
+            // rule, and ui--select already adds it for the same reason — the
+            // panel was on <body> and still painted underneath the window
+            // without it, which looks exactly like the reparenting not having
+            // worked.
+            select.dropdown.classList.add('ts-dropdown-floating');
+        }
+
         // And the same rule enforced where it cannot be raced. `openOnFocus`
         // is a setting read at focus time, so it only holds if this ran before
         // the field was focused — and on a forward it does not: connect()

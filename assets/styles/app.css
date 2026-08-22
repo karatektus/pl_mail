@@ -3991,3 +3991,26 @@ label:has(> input.sr-only) {
     text-decoration: underline;
     text-underline-offset: 2px;
 }
+
+/* Menus rendered in the top layer.
+ *
+ * The popover API is what gets a menu out of a pane it can otherwise never
+ * leave — see assets/popout.js — and it arrives with a UA stylesheet of its
+ * own: a border, padding, a background, and `inset: 0` with `margin: auto`,
+ * all of which fight the panel's own styling and the coordinates popout.js
+ * computes for it.
+ *
+ * Reset rather than restyled: these elements already carry the app's classes,
+ * and the only thing needed here is to stop the browser adding a second,
+ * unstyled box around them. `inset: auto` is the load-bearing one — without it
+ * the UA centres the panel in the viewport and the computed top/left are
+ * ignored.
+ */
+[popover]:popover-open {
+    inset: auto;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    overflow: visible;
+}

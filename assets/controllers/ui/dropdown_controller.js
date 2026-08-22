@@ -1,4 +1,5 @@
 import { Controller } from "@hotwired/stimulus";
+import { pinToTopLayer, releaseFromTopLayer } from "../../popout.js";
 
 /**
  * A small click-to-open menu.
@@ -54,11 +55,24 @@ export default class extends Controller {
     toggle(event) {
         event?.preventDefault();
 
-        this.menuTarget.hidden ? this.open() : this.close();
+        this.menuTarget.hidden ? this.open(event?.currentTarget) : this.close();
     }
 
-    open() {
+    /**
+     * @param {HTMLElement} [trigger] the control the menu should hang under.
+     *        Defaults to this controller's element, which is the wrapper the
+     *        menu was anchored to when it positioned itself with CSS.
+     */
+    open(trigger) {
         this.menuTarget.hidden = false;
+
+        // Into the top layer, because CSS cannot get it out of the pane. The
+        // panes carry backdrop-filter, which makes each one a stacking context
+        // AND the containing block for position:fixed, and everything from
+        // there down is overflow:hidden — so an absolutely positioned menu is
+        // both painted under the chrome and clipped by the pane, and no
+        // z-index changes either. See assets/popout.js.
+        pinToTopLayer(trigger ?? this.element, this.menuTarget);
 
         // For menus whose contents go stale while closed — the snooze menu
         // recomputes its wake times here, so one left open across midnight
@@ -73,6 +87,10 @@ export default class extends Controller {
         if (true === this.menuTarget.hidden) {
             return;
         }
+
+        // Before hiding: a popover that is display:none but never dismissed
+        // keeps the scroll and resize listeners that follow its trigger.
+        releaseFromTopLayer(this.menuTarget);
 
         this.menuTarget.hidden = true;
         this._detach();
