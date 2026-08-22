@@ -6,6 +6,110 @@ so anything that changes the schema irreversibly is called out explicitly.
 The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, and `sha-…` pins one commit.
 
+## v0.1.11 — 2026-08-22
+
+**A security release with a lot of interface work behind it. One critical fix,
+one high, and a class of E2E flake that turned out not to be a flake at all.
+Nothing to do before upgrading; no migration.**
+
+### The one that matters
+
+**Answering a mail ran what the sender put in it.** `Message` carries two body
+fields, and the difference between them is the whole security boundary:
+`bodyHtml` is the sender's raw HTML, `bodyHtmlSafe` is what the sanitiser made
+of it. The reading path used the safe one and rendered it in a sandboxed frame.
+The *reply* path reached for the raw one — and the draft it builds is written
+into plMail's own document, with `|raw`, into a contenteditable, outside every
+protection the reading path has.
+
+So a mail containing `<img src=x onerror=…>` was inert while you read it and ran
+the moment you pressed Reply, in a session that can read the mailbox, mint an
+app password that survives a password change, and add a forwarding rule. Reply,
+reply-all and forward were all affected.
+
+Fixed at the quote, and again where drafts are saved — which covers paste, a
+hand-written POST, and every non-browser client. **If you run plMail on the open
+internet, this is the reason to upgrade today.**
+
+**An SVG attachment was served inline.** The rule was "does the type start with
+`image/`", and `image/svg+xml` passes it while executing script as a top-level
+document. The type comes from the sender's own MIME headers, and the path was
+reachable from the mail itself: the sanitiser rewrites *every* `cid:` reference,
+links included, so `<a href="cid:logo">Rechnung ansehen</a>` had the attachment
+id filled in by plMail and opened without the `?download=1` the interface adds.
+Now an allow-list, with a sandbox policy on the response as well.
+
+**The application now sends a Content-Security-Policy, and enforces it.** The
+reading frame had one and the image proxy had one; the page holding your session
+had none, which is what turned both findings above from "script in a text box"
+into "take the account". Getting there meant removing the violations rather than
+allowing them — the last of which was plMail's own stylesheets, which AssetMapper
+was loading as `data:` JavaScript.
+
+**A stock install now sends security headers of its own** (HSTS,
+X-Frame-Options, nosniff, Referrer-Policy, Permissions-Policy). Before this they
+came from the operator's reverse proxy, if they had one, while the README's own
+instructions are `docker compose up -d` and "open https://localhost".
+
+### Sending mail
+
+**Send gives you the screen back.** The composer used to stay open for the whole
+undo window and act as its own cancel. It closes immediately now, the mail is
+already where it belongs, and the undo moves to a toast that counts down. The
+old behaviour is still there under **Settings → General → When you press Send**,
+because the trade is real in both directions — but waiting is what people
+notice, and the undo is what they rarely need.
+
+### Deleting mail
+
+**Delete forever, and a way back out of the bin.** Deleting a mail that was
+already in the trash took the row off the list and left the mail exactly where
+it was — because trashing is "add the Trash label", and adding one twice does
+nothing. In the bin and in spam you now get **Delete forever**, which removes
+the message, its attachments and its raw source here and at your provider, and
+**Move to inbox**, which the bin has never had.
+
+Archive and Snooze no longer appear on mail in the bin or in spam, where they
+never meant anything.
+
+### Smaller things you will notice
+
+- **Menus stop hiding behind the chrome.** The label menu in a conversation
+  disappeared under the navbar. Not a z-index problem — the panes use
+  `backdrop-filter`, which traps anything positioned inside them however high
+  you set the number.
+- **Confirmations are part of plMail now**, not the browser's grey box with the
+  address at the top. Twenty-eight places used the old one, including "reset the
+  database".
+- **Signing out is a full page load**, so nothing survives it, and a session that
+  ends while you have a window open says so in a bar instead of replacing the app
+  with a login form. If you are mid-way through writing something, it offers a
+  new tab rather than throwing the page away.
+- **Signing in no longer lands you on your own profile picture.** plMail
+  remembered the last thing the browser asked for while signed out — and that is
+  usually an image, not a page.
+- **Pasting from Word or a web page** brings the text, the lists and the links,
+  and leaves that document's fonts, colours and tables behind.
+- **Hovering Reply no longer rebuilds the whole compose window** on the server.
+- **The sidebar counts are fetched once per change**, not twice.
+
+### For contributors
+
+The browser suite's "flakes" were one bug. `APP_ENV=test` brought the Symfony
+skeleton's `MockFileSessionStorage`, which does not lock — and the test stack
+*serves* that environment, so two overlapping requests in one session lost each
+other's writes and a CSRF token could vanish between the page render and the
+submit. It landed on a different spec every run, which is why it read as several
+unrelated problems. Three consecutive full runs are now green, and a green run
+reports 563 tests rather than 517: the exclusive project depends on the main
+one, so every flake was also skipping 19 specs.
+
+`npm run test:unit:docker` brings the stack up like the other `:docker:`
+scripts. Against a stopped stack it used to block forever with no output.
+
+An app-less container now says so instead of trying to create a Symfony project
+and failing with `Invalid stability string ""`.
+
 ## v0.1.10 — 2026-08-22
 
 **No migration, and nothing to see in the app. `git clone && docker compose up
