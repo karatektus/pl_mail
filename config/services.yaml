@@ -32,6 +32,12 @@ services:
     App\Infrastructure\Encryption\Encryptor:
         public: true
 
+    # The policy is enforced in production and reported under debug, because the
+    # profiler toolbar and VarDumper inject inline scripts nothing can nonce.
+    App\Security\Csp\ContentSecurityPolicyListener:
+        arguments:
+            $debug: '%kernel.debug%'
+
     App\Domain\Helper\AttachmentStorageHelper:
         arguments:
             $projectDir: '%kernel.project_dir%'

@@ -77,19 +77,57 @@ if [ "$1" = 'frankenphp' ] || [ "$1" = 'php' ] || [ "$1" = 'bin/console' ]; then
 		export DATABASE_URL="postgresql://${POSTGRES_USER:-app}:${POSTGRES_PASSWORD}@${POSTGRES_HOST:-database}:5432/${POSTGRES_DB:-app}?serverVersion=${POSTGRES_VERSION:-18}&charset=${POSTGRES_CHARSET:-utf8}"
 	fi
 
-	# Install the project the first time PHP is started
-	# After the installation, the following block can be deleted
+	# No application here. Say so, rather than trying to invent one.
+	#
+	# This used to be the Symfony skeleton's scaffolding block —
+	# `composer create-project symfony/skeleton tmp`, under a comment saying it
+	# could be deleted once the project existed. It never was. plMail HAS a
+	# composer.json in every image and every checkout, so the branch could only
+	# ever fire when something had gone wrong, and what it did then was try to
+	# create a fresh Symfony project on top of the user's install.
+	#
+	# It did not even get that far. $SYMFONY_VERSION and $STABILITY are unset in
+	# this image, so the command ran as `composer create-project
+	# "symfony/skeleton " --stability=""` and died with
+	#
+	#     Invalid stability string "", expected one of stable, RC, beta, alpha or dev
+	#
+	# repeated by six containers in a restart loop. Nothing in that mentions the
+	# actual problem, and a person reading it has no reason to suspect their
+	# mount rather than their install.
+	#
+	# There are two ways to get here, and the message names both:
+	#
+	#   - `docker compose up` with compose.override.yaml present but run from a
+	#     directory that is not the checkout. The override bind-mounts `./:/app`,
+	#     so an empty directory becomes an empty application.
+	#   - a local `pl_mail-dev:latest` left behind by an earlier `--build` while
+	#     the override has since gone missing. compose finds the local tag, does
+	#     not pull, and boots the dev image — which deliberately carries no
+	#     application code, because in dev the code arrives through the mount.
+	#     compose.override.yaml.dist documents this at its `image:` line.
 	if [ ! -f composer.json ]; then
-		rm -Rf tmp/
-		composer create-project "symfony/skeleton $SYMFONY_VERSION" tmp --stability="$STABILITY" --prefer-dist --no-progress --no-interaction --no-install
+		cat >&2 <<-'ERROR'
+			plMail: there is no application at /app — no composer.json.
 
-		cd tmp
-		composer require "php:>=$PHP_VERSION" runtime/frankenphp-symfony
-		composer config --json extra.symfony.docker 'true'
+			This container has nothing to run. Two things cause it:
 
-		cp -Rp . ..
-		cd -
-		rm -Rf tmp/
+			  1. You are using compose.override.yaml (the development stack) and
+			     ran `docker compose up` somewhere other than the checkout. That
+			     file bind-mounts ./ to /app, so an empty directory gives an
+			     empty application. cd to the cloned repository and try again.
+
+			  2. A local `pl_mail-dev:latest` image is being used without the
+			     override that builds it. The development image carries no
+			     application code on purpose. Restore compose.override.yaml, or
+			     `docker image rm pl_mail-dev:latest` and let compose pull the
+			     published image.
+
+			To run plMail rather than develop it, delete compose.override.yaml
+			and use compose.yaml alone.
+		ERROR
+
+		exit 1
 	fi
 
 	# Dependencies are baked into the prod image, so none of this runs for the

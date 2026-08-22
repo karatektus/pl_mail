@@ -89,7 +89,11 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="plMail">
 
-    <script>
+    {# nonce, not 'unsafe-inline': this script has to run before first paint, so
+       it cannot move into a file, and a policy that allowed every inline script
+       in order to permit this one would not be worth sending. Same value as the
+       header — see App\Security\Csp\CspNonce. #}
+    <script nonce="{{ csp_nonce() }}">
         // The appearance is rendered onto <html>, and the server only knows it
         // once the user is authenticated. Mirror it into localStorage so the
         // logged-out screens (login above all) already paint in the theme the
@@ -138,10 +142,20 @@
     </script>
 
     {% block stylesheets %}
+        {# Linked here rather than imported from assets/app.js. That import is
+           implemented by AssetMapper as a data: JavaScript module which appends
+           this very tag at runtime — which delays the fetch until the module
+           graph has run, and, more importantly, forces `script-src … data:` on
+           any CSP worth having. See the note at the top of assets/app.js. #}
+        <link rel="stylesheet" href="{{ asset('styles/app.css') }}">
+        <link rel="stylesheet" href="{{ asset('vendor/@fortawesome/fontawesome-free/css/all.css') }}">
     {% endblock %}
 
     {% block javascripts %}
-        {% block importmap %}{{ importmap('app') }}{% endblock %}
+        {# The import map and its preloads are inline scripts too, and the
+           whole application is loaded through them — an unnonced import map
+           under an enforced script-src is a blank page. #}
+        {% block importmap %}{{ importmap('app', { nonce: csp_nonce() }) }}{% endblock %}
     {% endblock %}
 
     {% set frankenphpHotReload = app.request.server.get('FRANKENPHP_HOT_RELOAD') %}
