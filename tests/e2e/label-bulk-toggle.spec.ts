@@ -25,12 +25,29 @@ test.beforeEach(() => {
     seed("seed-mail", "seed-label");
 });
 
-/** Opens the selection toolbar's label menu for whatever is selected. */
+/**
+ * Opens the selection toolbar's label menu for whatever is selected.
+ *
+ * Scoped to the toolbar rather than `.first()` on the controller: a thread pane
+ * renders its own single-target instance of this menu, and which of the two
+ * comes first in the document depends on what is open. Picking the wrong one
+ * tests the case that was never broken.
+ *
+ * Waits for the toolbar to appear first, because it is revealed by the
+ * selection it is being asked about — clicking into it before then finds a
+ * button that is still hidden.
+ */
 async function openBulkLabelMenu(page: import("@playwright/test").Page) {
-    const menu = page.locator('[data-controller="mail--label-menu"]').first();
+    const toolbar = page.locator("[data-controller='mail--list-toolbar']").first();
+    await expect(toolbar).toBeVisible();
+
+    const menu = toolbar.locator('[data-controller="mail--label-menu"]').first();
     await menu.locator("button").first().click();
 
-    return menu.locator('[data-mail--label-menu-target="panel"]');
+    const panel = menu.locator('[data-mail--label-menu-target="panel"]');
+    await expect(panel).toBeVisible();
+
+    return panel;
 }
 
 test("a label assigned from the list can be removed from the list", async ({ page }) => {

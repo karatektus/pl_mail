@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Controller\Mail;
 
+use App\Tests\Support\Mail\OpensComposeWindow;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Message;
 use App\Entity\User\User;
@@ -37,6 +38,8 @@ use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;
  */
 final class ScheduledSendTest extends WebTestCase
 {
+    use OpensComposeWindow;
+
     private const string ADMIN_EMAIL = 'e2e-admin@plmail.test';
 
     /** Deliberately far from anything a container would default to. */
@@ -397,7 +400,7 @@ final class ScheduledSendTest extends WebTestCase
         $this->account($user, 'menu@joder.dev');
         $this->em->flush();
 
-        $crawler = $client->request('GET', '/compose/new');
+        $crawler = $client->request('GET', '/compose/new', server: self::DOCK_FRAME);
 
         self::assertResponseIsSuccessful();
 
@@ -444,7 +447,7 @@ final class ScheduledSendTest extends WebTestCase
         $this->account($user, 'pills@joder.dev');
         $this->em->flush();
 
-        $crawler = $client->request('GET', '/compose/new');
+        $crawler = $client->request('GET', '/compose/new', server: self::DOCK_FRAME);
 
         self::assertResponseIsSuccessful();
 
@@ -489,7 +492,7 @@ final class ScheduledSendTest extends WebTestCase
         string $wallClock,
         string $recipient = 'rike@example.test',
     ): void {
-        $crawler = $client->request('GET', '/compose/new');
+        $crawler = $client->request('GET', '/compose/new', server: self::DOCK_FRAME);
         $token   = $crawler->filter('input[name="compose[_token]"]')->attr('value');
 
         $client->request('POST', '/compose/schedule', [

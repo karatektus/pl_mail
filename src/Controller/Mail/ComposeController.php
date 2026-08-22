@@ -25,6 +25,7 @@ use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\Form\FormError;
 use Symfony\Component\Form\FormInterface;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Messenger\Stamp\DelayStamp;
@@ -85,6 +86,7 @@ class ComposeController extends AbstractController
         private readonly LabelChangePropagator   $labelChanges,
         private readonly TranslatorInterface     $translator,
         private readonly ScheduledSendResolver   $schedules,
+        private readonly RequestStack            $requestStack,
     )
     {
     }
@@ -811,6 +813,53 @@ class ComposeController extends AbstractController
      */
     private function renderWindow(FormInterface $form, Message $message, ComposeContext $ctx, array $extra = []): Response
     {
+        $request = $this->requestStack->getCurrentRequest();
+
+        // A window is a FRAGMENT — it has no <html>, no stylesheet and no
+        // JavaScript, because it is meant to land inside the dock frame that
+        // already has all three. Reached as a page it rendered as raw HTML:
+        // system font, native buttons, and every state of the send pill
+        // visible at once as a single run of text.
+        //
+        // That is not an exotic path. It is a bookmark, a middle-click into a
+        // new tab, the back button after a session expired, and any Turbo
+        // fallback without JavaScript.
+        //
+        // So a request with no frame behind it is sent to the mailbox, which is
+        // asked to open this same URL into its dock. The frame's own fetch then
+        // arrives with the header and gets the fragment, so there is one code
+        // path for the window itself and nothing here has to know how to render
+        // a whole page.
+        // GET only. A POST reaches this method too — the autosave and the send
+        // re-render the window to show validation errors, with a 422 — and
+        // those are not navigations: nobody bookmarks them, and answering one
+        // with a redirect turns "your recipient is invalid" into a page load
+        // that loses what was typed.
+        if (null !== $request && true === $request->isMethod('GET') && false === $request->headers->has('Turbo-Frame')) {
+            // Without `frame`, so the window opens in the DOCK.
+            //
+            // The frame id travels in the URL — a reply's link carries
+            // `?frame=compose_inline&thread=…` — and that frame only exists on
+            // the thread page it was rendered from. Carried through to the
+            // mailbox it names a frame that is not there, Turbo has nowhere to
+            // put the response, and the composer silently never appears.
+            //
+            // The dock is the right home for a bookmarked composer anyway: it
+            // is the one surface every page has, and it is what any other mail
+            // client opens a compose URL into. The thread and reply-to
+            // parameters are kept, so the draft is still the reply it was.
+            $query = $request->query->all();
+            unset($query['frame']);
+
+            $target = $request->getPathInfo();
+
+            if ([] !== $query) {
+                $target .= '?' . http_build_query($query);
+            }
+
+            return $this->redirectToRoute('app_mail_inbox', ['compose' => $target]);
+        }
+
         return $this->render('compose/_window.html.twig', $extra + [
             'form'    => $form,
             'message' => $message,

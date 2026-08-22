@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Controller\Settings;
 
+use App\Tests\Support\Mail\OpensComposeWindow;
 use App\Entity\Mail\Account;
 use App\Entity\User\User;
 use App\Repository\User\UserRepository;
@@ -22,6 +23,8 @@ use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
  */
 final class ComposeBehaviorTest extends WebTestCase
 {
+    use OpensComposeWindow;
+
     private const string ADMIN_EMAIL = 'e2e-admin@plmail.test';
     private const string PATH = '/settings/compose-behavior';
 
@@ -103,7 +106,7 @@ final class ComposeBehaviorTest extends WebTestCase
         $em->persist($this->account);
         $em->flush();
 
-        $crawler = $client->request('GET', '/compose/new');
+        $crawler = $client->request('GET', '/compose/new', server: self::DOCK_FRAME);
 
         self::assertResponseIsSuccessful();
         self::assertSame(

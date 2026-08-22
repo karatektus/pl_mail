@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Controller\Mail;
 
+use App\Tests\Support\Mail\OpensComposeWindow;
 use App\Domain\Enum\Account\EmailAliasSource;
 use App\Domain\Enum\Account\EmailAliasStatus;
 use App\Domain\Enum\Mail\MessagePriority;
@@ -39,6 +40,8 @@ use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
  */
 final class ComposeSignatureAndOptionsTest extends WebTestCase
 {
+    use OpensComposeWindow;
+
     private const string ADMIN_EMAIL = 'e2e-admin@plmail.test';
 
     private EntityManagerInterface $em;
@@ -64,7 +67,7 @@ final class ComposeSignatureAndOptionsTest extends WebTestCase
         $account->setSetting(Account::SETTING_SIGNATURE, '<p>Ada Lovelace</p>');
         $this->em->flush();
 
-        $crawler = $client->request('GET', '/compose/new');
+        $crawler = $client->request('GET', '/compose/new', server: self::DOCK_FRAME);
 
         self::assertResponseIsSuccessful();
         self::assertCount(
@@ -89,7 +92,7 @@ final class ComposeSignatureAndOptionsTest extends WebTestCase
         $account->setSetting(Account::signatureAliasSetting((int) $alias->id), '<p>ada</p>');
         $this->em->flush();
 
-        $crawler = $client->request('GET', '/compose/new');
+        $crawler = $client->request('GET', '/compose/new', server: self::DOCK_FRAME);
         $raw     = $crawler->filter('[data-compose--compose-signatures-value]')
             ->attr('data-compose--compose-signatures-value');
 
@@ -116,7 +119,7 @@ final class ComposeSignatureAndOptionsTest extends WebTestCase
         $this->account($user, 'encrypt@joder.dev');
         $this->em->flush();
 
-        $crawler = $client->request('GET', '/compose/new');
+        $crawler = $client->request('GET', '/compose/new', server: self::DOCK_FRAME);
         $button  = $crawler->filter('button[disabled] .fa-lock')->closest('button');
 
         self::assertNotNull($button, 'the encrypt button is present and disabled');
@@ -138,7 +141,7 @@ final class ComposeSignatureAndOptionsTest extends WebTestCase
         $this->account($user, 'options@joder.dev');
         $this->em->flush();
 
-        $crawler = $client->request('GET', '/compose/new');
+        $crawler = $client->request('GET', '/compose/new', server: self::DOCK_FRAME);
 
         self::assertCount(1, $crawler->filter('select[name="compose[priority]"]'));
         self::assertCount(1, $crawler->filter('input[name="compose[readReceiptRequested]"]'));
@@ -231,7 +234,7 @@ final class ComposeSignatureAndOptionsTest extends WebTestCase
         ]);
 
         $draft   = $this->lastDraft($account);
-        $crawler = $client->request('GET', '/compose/edit/' . $draft->id);
+        $crawler = $client->request('GET', '/compose/edit/' . $draft->id, server: self::DOCK_FRAME);
 
         self::assertResponseIsSuccessful();
 
@@ -271,7 +274,7 @@ final class ComposeSignatureAndOptionsTest extends WebTestCase
      */
     private function post(KernelBrowser $client, string $url, Account $account, array $fields): void
     {
-        $crawler = $client->request('GET', '/compose/new');
+        $crawler = $client->request('GET', '/compose/new', server: self::DOCK_FRAME);
         $token   = $crawler->filter('input[name="compose[_token]"]')->attr('value');
 
         $client->request('POST', $url, ['compose' => $fields + [

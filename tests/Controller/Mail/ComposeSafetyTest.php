@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Controller\Mail;
 
+use App\Tests\Support\Mail\OpensComposeWindow;
 use App\Entity\Mail\Account;
 use App\Entity\User\User;
 use App\Repository\User\UserRepository;
@@ -22,6 +23,8 @@ use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
  */
 final class ComposeSafetyTest extends WebTestCase
 {
+    use OpensComposeWindow;
+
     private const string ADMIN_EMAIL = 'e2e-admin@plmail.test';
 
     private EntityManagerInterface $em;
@@ -57,7 +60,7 @@ final class ComposeSafetyTest extends WebTestCase
 
         $this->em->flush();
 
-        $crawler = $client->request('GET', '/compose/new');
+        $crawler = $client->request('GET', '/compose/new', server: self::DOCK_FRAME);
 
         self::assertResponseIsSuccessful();
 
@@ -92,7 +95,7 @@ final class ComposeSafetyTest extends WebTestCase
         $addresses = [];
 
         for ($i = 0; $i < 2; $i++) {
-            $crawler = $client->request('GET', '/compose/new');
+            $crawler = $client->request('GET', '/compose/new', server: self::DOCK_FRAME);
 
             self::assertResponseIsSuccessful();
 
@@ -125,7 +128,7 @@ final class ComposeSafetyTest extends WebTestCase
 
         $this->em->flush();
 
-        $crawler = $client->request('GET', '/compose/new');
+        $crawler = $client->request('GET', '/compose/new', server: self::DOCK_FRAME);
 
         self::assertResponseIsSuccessful();
 
@@ -169,7 +172,7 @@ final class ComposeSafetyTest extends WebTestCase
 
         $this->em->flush();
 
-        $crawler = $client->request('GET', '/compose/new');
+        $crawler = $client->request('GET', '/compose/new', server: self::DOCK_FRAME);
         $token   = $crawler->filter('input[name="compose[_token]"]')->attr('value');
 
         $client->request('POST', '/compose/draft', [

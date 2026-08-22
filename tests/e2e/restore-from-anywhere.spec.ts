@@ -69,7 +69,11 @@ test.describe("getting mail back", () => {
         await page.goto("/mail/inbox");
 
         const row = await actionsFor(page, INBOX_SUBJECTS.read);
-        await row.getByRole("button", { name: /delete|trash|papierkorb/i }).first().click();
+
+        // `exact` on the label rather than a regex: "Delete forever" also
+        // matches /delete/i, and a locator that can resolve to either of two
+        // buttons — one reversible, one not — is not one to leave in a suite.
+        await row.getByRole("button", { name: "Delete", exact: true }).click();
         await expect(mailRow(page, INBOX_SUBJECTS.read)).toHaveCount(0, { timeout: 10_000 });
 
         await page.goto("/mail/trash");

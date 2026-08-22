@@ -223,7 +223,21 @@
              offline:   'compose.open_failed.offline'|trans,
              dismiss:   'compose.open_failed.dismiss'|trans,
          }|json_encode }}">
-        <turbo-frame id="compose_dock"></turbo-frame>
+        {# Normally empty — the dock is filled by whatever link targets this
+           frame. The `compose` parameter is the one exception: a compose URL
+           reached as a PAGE rather than as a frame (a bookmark, a middle-click,
+           the back button after a session expired) is redirected to the mailbox
+           carrying the URL it was trying to open, and the frame fetches it from
+           here. Its request then has the Turbo-Frame header, so the controller
+           answers with the fragment exactly as it does for every other route
+           into the window.
+
+           Only our own compose paths, and only paths — the value ends up as a
+           `src` this page fetches, so anything else would be an open redirect
+           with our session attached. #}
+        {% set composeSrc = app.request.query.get('compose') %}
+        {% set composeSrc = composeSrc starts with '/compose/' and '//' not in composeSrc ? composeSrc : null %}
+        <turbo-frame id="compose_dock"{% if composeSrc %} src="{{ composeSrc }}" loading="eager"{% endif %}></turbo-frame>
     </div>
     {#
         The toast region, and the flashes waiting in it.
