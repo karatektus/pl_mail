@@ -55,6 +55,32 @@ const SCROLL_KEY = "sidebar_scroll";
 let inFlight = null;
 let lastFetchAt = 0;
 
+/**
+ * The post-write request every listener of one write shares.
+ *
+ * Separate from `inFlight` because the two answer different questions.
+ * `inFlight` is "a request is on the wire"; this is "a request has been asked
+ * for on behalf of this write and has not gone out yet". Only the second can
+ * dedupe callers who all heard the same announcement, and that is what there
+ * always are: the sidebar partial is on the page twice, so every write is
+ * announced to both instances in one tick.
+ *
+ * The previous attempt at this deduped on `inFlight` and could not work. The
+ * second caller waited for the first one's request, and the thing it was
+ * waiting for cleared `inFlight` in its own `finally` on the way out — so the
+ * re-check that followed the await was looking for a request that, by the only
+ * route that reaches that line, is guaranteed to be gone. Every write made two
+ * requests for the same numbers, which is what opening a mail was measured
+ * doing.
+ *
+ * Released the moment the request is DISPATCHED rather than when it settles.
+ * That is the whole distinction between coalescing and staleness: everyone who
+ * announced a write before it went out is served by it and is correct to be,
+ * while a write announced afterwards finds this null and gets a request of its
+ * own — which is the entire point of the `fresh` flag.
+ */
+let freshPending = null;
+
 /** The floor between two counts requests. */
 const MIN_COUNTS_MS = 15000;
 
@@ -72,22 +98,55 @@ async function fetchCounts(url, fresh = false) {
     // badges back to exactly the values the user just changed. Such a caller
     // waits for it to settle (so the two do not race to write the same badges)
     // and then asks again for itself.
-    if (inFlight !== null) {
-        if (false === fresh) {
-            return inFlight;
+    if (true === fresh) {
+        // Somebody else already asked for a post-write request on behalf of
+        // this same write. One is enough, and it is exactly as fresh as the one
+        // this call was about to make.
+        if (freshPending !== null) {
+            return freshPending;
         }
 
-        await inFlight.catch(() => null);
+        freshPending = (async () => {
+            // Yields even when there is nothing on the wire, and that is
+            // load-bearing rather than incidental: an async function body runs
+            // SYNCHRONOUSLY up to its first await, so without one the line
+            // below would clear `freshPending` before the assignment this
+            // promise is being given to has happened — and the stale promise
+            // left behind would then be handed to every later write, which
+            // would never ask for anything again. `await undefined` costs a
+            // microtask and buys the guarantee. It cost two red tests to
+            // learn, both of them a badge that went down and never came back.
+            //
+            // When there IS a request on the wire, waiting it out also stops
+            // the two racing. Its numbers are the pre-write ones — it was sent
+            // before this write committed — so letting them land in either
+            // order would decide the badges by which response was quicker.
+            await inFlight?.catch(() => null);
 
-        // The sidebar partial is on the page twice and both instances hear the
-        // same write, so the other one may have started the post-write request
-        // while this one waited. One is enough, and it is exactly as fresh as
-        // the one this call was about to make.
-        if (inFlight !== null) {
-            return inFlight;
-        }
+            // Released here, not in a `finally`: the request below is about to
+            // go out, so it answers for every write announced up to this
+            // instant and none announced after it. Releasing on settle instead
+            // would fold a write that arrived mid-flight into an answer the
+            // server composed before it existed.
+            freshPending = null;
+
+            return request(url);
+        })();
+
+        return freshPending;
     }
 
+    // Already asking, and this caller has not written anything: it waits for
+    // that answer rather than starting a second request for the same numbers.
+    if (inFlight !== null) {
+        return inFlight;
+    }
+
+    return request(url);
+}
+
+/** The fetch itself, and the bookkeeping that says one is on the wire. */
+function request(url) {
     lastFetchAt = Date.now();
 
     inFlight = fetch(url, { headers: { Accept: "application/json" } })

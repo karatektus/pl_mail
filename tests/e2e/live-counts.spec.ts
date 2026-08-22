@@ -218,4 +218,50 @@ test.describe("counters after reading one mail", () => {
 
         expect(countsRequests, "re-reading read mail moves no number").toBe(0);
     });
+
+    /**
+     * One write, one request — however many sidebars are listening.
+     *
+     * The sidebar partial is on the page twice, once for the mobile drawer and
+     * once for the desktop column, so every write is announced to two
+     * controller instances in the same tick. Both then asked for the counts
+     * separately: the dedupe they shared keyed on "a request is on the wire",
+     * and the second caller reached it by awaiting the first one's request —
+     * which cleared that flag in its own `finally` on the way out. The re-check
+     * was therefore looking for something that, by the only route that reaches
+     * it, is guaranteed to be gone.
+     *
+     * So opening a mail — the commonest action in the app — asked the server
+     * for the same numbers twice, every time. Reported as exactly that.
+     *
+     * Two is what this catches; the assertion is written as "exactly one"
+     * rather than "at most one" so that dropping the refresh altogether fails
+     * it too. The test above covers the other side, that a click which changes
+     * nothing asks for nothing.
+     */
+    test("one write asks for the counts once, not once per sidebar", async ({ page }) => {
+        await page.goto("/mail/inbox");
+        await expect(mailRow(page, INBOX_SUBJECTS.read)).toBeVisible();
+
+        let countsRequests = 0;
+        page.on("request", (request) => {
+            if (request.url().includes("/sidebar/counts")) {
+                countsRequests++;
+            }
+        });
+
+        // Unread, so opening it is a real write: the row un-bolds and the
+        // badge has to come down with it.
+        await mailRow(page, INBOX_SUBJECTS.archive).click();
+        await expect(mailRow(page, INBOX_SUBJECTS.archive))
+            .toHaveAttribute("data-unread", "false", { timeout: 5000 });
+        await expect(page.locator(INBOX_BADGE).first()).toHaveText("3", { timeout: 5000 });
+
+        // Long enough that a second request would have been made by now — the
+        // duplicate went out immediately after the first one settled, not on a
+        // timer.
+        await page.waitForTimeout(2000);
+
+        expect(countsRequests, "one write, one counts request").toBe(1);
+    });
 });
