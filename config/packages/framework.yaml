@@ -32,5 +32,41 @@ framework:
 when@test:
     framework:
         test: true
-        session:
-            storage_factory_id: session.storage.factory.mock_file
+        # No storage_factory_id here, and its absence is the point.
+        #
+        # The Symfony skeleton puts `session.storage.factory.mock_file` in this
+        # block, and it is right for what the skeleton means by a test: PHPUnit,
+        # one CLI process, one request at a time. This project's test
+        # environment is also served — compose.test.yaml runs the real
+        # FrankenPHP under APP_ENV=test so the browser suite exercises the app
+        # as shipped rather than a second serving path — and that stack
+        # inherited the mock along with the environment.
+        #
+        # MockFileSessionStorage reads the session with file_get_contents and
+        # writes it back with file_put_contents, whole bag, no lock. Two
+        # overlapping requests in one session therefore read the same bag and
+        # the later writer stamps the earlier one out. The native handler locks
+        # the file and the requests queue, which is what production has always
+        # done.
+        #
+        # That difference manufactured a test failure no user could hit. A page
+        # render mints a stateful CSRF token into the session; the JavaScript on
+        # that same page fires its own requests while the response is still
+        # being written; whichever finishes last writes its copy of the bag; and
+        # when one of those won, the token the form was holding had never
+        # existed as far as the next request could tell. The POST came back
+        # "Invalid CSRF token", on a different spec every run — twofactor.spec.ts
+        # is where it was finally pinned, failing to enrol with a code the server
+        # never got as far as checking.
+        #
+        # csrf.yaml tells the other half of this story: `compose` was moved to a
+        # stateless token id because of the same race, seen from the
+        # application's side, and it cost a day. Several dozen stateful token
+        # ids remain, many with per-entity ids that a stateless list cannot
+        # name. They are now tested under the concurrency semantics they ship
+        # with.
+        #
+        # PHPUnit does not need the mock: the full suite passes on the native
+        # storage, which is the only reason this can simply be deleted rather
+        # than switched per process. Both would share var/cache/test and the
+        # last one to compile the container would decide for both.
