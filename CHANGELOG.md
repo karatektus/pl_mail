@@ -6,6 +6,78 @@ so anything that changes the schema irreversibly is called out explicitly.
 The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, and `sha-…` pins one commit.
 
+## v0.1.12 — 2026-08-22
+
+**No migration. A round of fixes from two write-throughs of a running instance
+— the ones where an action could be taken and not taken back.**
+
+### Getting mail back
+
+**A label put on from the list could never be taken off.** The bulk label menu
+is shared by every row, so it rendered with nothing ticked — and it decides
+attach-or-detach from the tick. A label that WAS attached showed as unticked, so
+the next click attached it again. Clicking looked like a toggle and was an
+idempotent attach.
+
+**Archived mail had no way back.** Not from the row, the thread toolbar, the
+overflow menu or the label menu. The one plausible candidate, Archive, was
+offered ON already-archived mail, where it does nothing and says nothing about
+having done nothing. There is a **Move to inbox** anywhere that is not the
+inbox now, and Archive, Delete and Snooze are gone from the places they meant
+nothing.
+
+**Delete forever**, in the bin and in spam only — it removes the message, its
+attachments and its raw source here and at your provider. Not offered from the
+archive: that is ordinary filing, and a delete-forever one click away from it
+has no undo to catch the mistake.
+
+### Select all really means all
+
+Selecting the page and then asking for the rest now works: a whole folder, a
+whole label, a whole inbox tab, or every starred mail. It is one request rather
+than one per conversation — the old shape would have opened two hundred
+connections on a bin that size.
+
+That also fixes the pager. Bulk actions used to take rows off the list while it
+went on saying "1–5 of 5", and an emptied list never showed its empty state.
+
+### Reading a list
+
+- **The preview line** was the sender's own plain-text part, which is whatever
+  they chose to put in the half nobody reads. Most rows in one inbox previewed
+  as "Email is only available as html" — a real sentence, written by a bulk
+  sender — and one showed raw `<p style="…">`. The preview is made from the
+  rendered body now.
+- **Sent lists who the mail went to**, not you. It said your own name on every
+  row, and not even consistently — the same person appeared under two spellings
+  in one list.
+- **The Snoozed list says when each conversation comes back.** It showed the
+  arrival time, which every other list shows and which is the one thing that
+  list is not about.
+- **The snooze menu is in chronological order and names its dates.** On a
+  Saturday "this weekend" is the following Saturday, correctly — but it was
+  listed above "next week" and labelled only "Sa., 08:00", which reads as this
+  morning.
+
+### Elsewhere
+
+- **A compose URL opened directly** — a bookmark, a middle-click, the back
+  button after a session expired — no longer renders as unstyled HTML.
+- **The suggestion panel stops moving the compose window.** Typing a recipient
+  made the dock grow and climb the screen.
+- **The 404 page is in your language and your theme.** It was English in beige
+  for everybody, because a 404 is thrown before anything authenticates.
+- **The German interface duzt everywhere.** Seven strings addressed the reader
+  as *Sie*.
+
+### Known, and not fixed here
+
+The label dropdown in a conversation is still painted under the navbar. The
+cause is understood — the panes use `backdrop-filter`, which traps anything
+positioned inside them — and the fix attempted for it broke clicking in that
+menu and in the snooze menu, so it was reverted rather than shipped. It is
+recorded in the test suite rather than forgotten.
+
 ## v0.1.11 — 2026-08-22
 
 **A security release with a lot of interface work behind it. One critical fix,
