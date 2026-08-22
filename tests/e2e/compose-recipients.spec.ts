@@ -1,4 +1,5 @@
 import { test, expect, type Page } from "./support/test";
+import { settled } from "./support/motion";
 import { seed } from "./support/config";
 
 /**
@@ -393,6 +394,47 @@ test.describe("clicking out of the To field", () => {
             return top === null ? null : top.tagName;
         });
     }
+
+    /**
+     * The reported one: the suggestion list must not move the window.
+     *
+     * The dock is anchored bottom-right and the window used to be
+     * content-sized, so the list appearing grew it and the whole thing climbed
+     * the screen — then dropped back when the list closed. Typing a recipient
+     * made the dialog jump.
+     *
+     * The obvious fix is to take the list out of the flow, and it is wrong: the
+     * test below this one says why, and it cost a mis-addressed mail the first
+     * time. So the list stays in the flow and the window stops resizing, which
+     * is what this pins.
+     *
+     * Both halves are asserted together on purpose. Either one alone is
+     * satisfiable by breaking the other — a fixed window with an overlaid list
+     * passes this and covers Subject; an in-flow list in a growing window
+     * passes the next test and moves the dialog.
+     */
+    test("the suggestion panel does not move the compose window", async ({ page }) => {
+        await openCompose(page);
+
+        // After the entrance: a box measured mid-animation is not the settled
+        // one, and every later comparison would inherit the difference.
+        await settled(page);
+
+        const window_ = page.locator(`${DOCK} .compose-window`);
+        const before = await window_.boundingBox();
+
+        const input = toInput(page);
+        await input.click();
+        await input.pressSequentially(OTHER, { delay: 20 });
+
+        await expect(page.locator(TO_PANEL)).toBeVisible();
+
+        const after = await window_.boundingBox();
+
+        expect(after, "the window vanished").not.toBeNull();
+        expect(after!.height, "the window grew to make room for the panel").toBe(before!.height);
+        expect(after!.y, "the window moved up the screen").toBe(before!.y);
+    });
 
     /**
      * The root cause, asserted on its own: whatever else the panel does, it may

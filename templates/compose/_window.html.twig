@@ -146,7 +146,32 @@ Variables: form, message, ctx (an App\Domain\DTO\Mail\ComposeContext)
        {% if inline %}
        w-full rounded-pane border border-line bg-surface shadow-sm mt-3
        {% else %}
-       max-h-[90vh] w-[520px] rounded-pane shadow-float
+       {# A fixed height, and that is the fix for "the recipient dropdown moves
+          the dialog instead of overlaying it".
+
+          The window used to be content-sized, capped at 90vh — so anything that
+          appeared inside it grew it, and the dock is anchored bottom-right, so
+          growing means the whole window climbs the screen. Typing a recipient
+          made it jump up by the height of the suggestion list and back down
+          when the list closed.
+
+          The obvious fix is to take the list out of the flow —
+          `dropdownParent: 'body'` is one line — and it is wrong. Subject sits
+          directly under To, so an overlaid list covers it, and a click aimed at
+          Subject lands on whichever suggestion is under the pointer and enrols
+          it. That is a real report: it silently added a third party to a
+          message addressed to someone else, and three specs in
+          compose-recipients.spec.ts exist to keep it fixed.
+
+          So the list stays in the flow and the WINDOW stops resizing. The
+          scrollable region below absorbs it: the list pushes the body down
+          inside a window whose outline does not move, which is what the report
+          was actually about. Gmail's dock window is a fixed size for the same
+          reason.
+
+          90vh still caps it on a short screen, and the height is under that on
+          anything taller than about 670px. #}
+       h-[600px] max-h-[90vh] w-[520px] rounded-pane shadow-float
        pane-flat border border-line mb-4
        {% endif %}
        {# Below md *both* variants are the whole screen, Gmail-app style —
