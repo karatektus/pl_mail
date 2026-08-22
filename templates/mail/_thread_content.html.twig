@@ -33,8 +33,19 @@ self-contained: no {% extends %}, no block dependencies.
         data-mail--message-actions-entity-id-value="{{ thread.id }}"
         data-mail--message-actions-entity-type-value="thread"
     >
-        {{ tbtn('click->mail--message-actions#archive', 'fa-solid fa-box-archive', 'toolbar.actions.archive'|trans) }}
-        {{ tbtn('click->mail--message-actions#trash', 'fa-solid fa-trash', 'toolbar.actions.delete'|trans) }}
+        {# Archive and Delete are hidden where they would do nothing.
+           Trashing something already in the trash adds a label it already
+           carries — a no-op that nonetheless took the row off the list, so the
+           mail appeared to be deleted twice and was still there both times. And
+           archiving out of the bin is not a thing anyone means. See
+           App\Twig\MailPlacementExtension. #}
+        {% set placement = mail_placement(thread) %}
+
+        {% if placement == 'normal' %}
+            {{ tbtn('click->mail--message-actions#archive', 'fa-solid fa-box-archive', 'toolbar.actions.archive'|trans) }}
+            {{ tbtn('click->mail--message-actions#trash', 'fa-solid fa-trash', 'toolbar.actions.delete'|trans) }}
+        {% endif %}
+
         {{ tbtn('click->mail--message-actions#markUnread', 'fa-regular fa-envelope', 'toolbar.actions.mark_unread'|trans) }}
     </div>
 

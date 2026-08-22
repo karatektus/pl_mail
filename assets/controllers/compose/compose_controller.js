@@ -14,6 +14,16 @@ import { Controller } from '@hotwired/stimulus'
  * server's answer only hands it the two URLs it needs (see
  * compose--send-hold), and nothing has to hunt the DOM for a button to press.
  */
+/**
+ * Markup that never belongs in a mail body, removed with its contents.
+ *
+ * <style> is the one that matters: pasting from a page brings its stylesheet
+ * along, and it would restyle the whole composer rather than only the pasted
+ * text. <meta> and <link> are how Word announces itself. The rest cannot do
+ * anything useful in mail and can do plenty elsewhere.
+ */
+const DROPPED_ON_PASTE = 'style, script, link, meta, iframe, object, embed, form, input, button, textarea, select';
+
 export default class extends Controller {
     static targets = ['toField', 'ccField', 'bccField', 'subject', 'body', 'saveStatus', 'toCollection', 'collapsible', 'minimizeIcon', 'expandIcon', 'ccBtn', 'bccBtn', 'title', 'accountSelect', 'fromBtn', 'fromLabel', 'fromChevron', 'fromDropdown', 'fromRow', 'fields', 'fieldsChevron', 'fileInput', 'imageInput', 'attachments', 'scroller', 'formatBar', 'formatToggle', 'sendBtn', 'sendLabel', 'sendProgress', 'sendDots', 'sendCancelHint', 'errors', 'plainBody', 'plainToggle', 'plainCheck', 'plainWarning', 'plainWarningConfirm', 'sendWarning', 'sendWarningBody', 'sendWarningConfirm', 'richOnly'];
 
@@ -3086,6 +3096,8 @@ export default class extends Controller {
             .filter((file) => file.type.startsWith('image/'));
 
         if (0 === files.length) {
+            this._pasteMarkup(event);
+
             return;
         }
 
@@ -3094,6 +3106,63 @@ export default class extends Controller {
         event.preventDefault();
 
         this._placeImages(files);
+    }
+
+    /**
+     * HTML from the clipboard, reduced to the markup a mail should carry.
+     *
+     * The browser's own paste keeps everything: three sentences out of Word or
+     * a web page bring that document's fonts, its background colours, its
+     * nested tables and its class names into the body. That is the whole "why
+     * does my mail look like this" effect, and the recipient sees it in full,
+     * because this goes on the wire.
+     *
+     * Whitelisted rather than flattened to plain text, and that is the choice
+     * worth defending. Normalising to text/plain is what several clients do and
+     * it is simpler — it also throws away the thing people are usually pasting
+     * FOR. A list stays a list, a link stays a link, bold stays bold. What goes
+     * is everything presentational: style, class, id, width, bgcolor, font,
+     * every alignment attribute.
+     *
+     * Shift-paste is left alone. The browser's own "paste as plain text" is
+     * already the escape hatch, and reimplementing it would take it away from
+     * the people who know it.
+     *
+     * This is a convenience, not a security boundary. The server sanitises
+     * every composed body on save (MailBodySanitizer::sanitizeComposedBody),
+     * which is what actually stops a paste carrying script onto the wire — and
+     * it has to, because nothing here can be relied on to have run.
+     */
+    _pasteMarkup(event) {
+        const html = event.clipboardData?.getData('text/html');
+
+        if (!html) {
+            return;
+        }
+
+        event.preventDefault();
+
+        const doc = new DOMParser().parseFromString(html, 'text/html');
+
+        doc.body.querySelectorAll(DROPPED_ON_PASTE).forEach((node) => node.remove());
+
+        doc.body.querySelectorAll('*').forEach((node) => {
+            for (const name of [...node.attributes].map((attribute) => attribute.name)) {
+                // href, src and alt survive on the elements that mean them. The
+                // server has the final say on the schemes.
+                const keep = ('href' === name && 'A' === node.tagName)
+                    || (('src' === name || 'alt' === name) && 'IMG' === node.tagName);
+
+                if (false === keep) {
+                    node.removeAttribute(name);
+                }
+            }
+        });
+
+        // insertHTML rather than writing to the node: it keeps this a single
+        // undoable step, so ctrl+z after a paste undoes the paste rather than
+        // the last thing typed before it.
+        document.execCommand('insertHTML', false, doc.body.innerHTML);
     }
 
     /** Same again for a file dragged onto the body. */

@@ -97,19 +97,24 @@ Variables:
             {{ 'message.actions.mark_unread'|trans }}
         </button>
 
-        <button type="button"
-                data-action="click->mail--message-actions#archive"
-                class="w-full flex items-center gap-2 px-4 py-2 text-left text-ink-soft hover:bg-hover transition-colors cursor-pointer">
-            <i class="fa-solid fa-box-archive w-4 text-ink-faint" aria-hidden="true"></i>
-            {{ 'message.actions.archive'|trans }}
-        </button>
+        {# Not in spam or the trash: archiving out of the bin means nothing, and
+           deleting something already deleted is a no-op the list used to
+           report as a change. See App\Twig\MailPlacementExtension. #}
+        {% if mail_placement(message) == 'normal' %}
+            <button type="button"
+                    data-action="click->mail--message-actions#archive"
+                    class="w-full flex items-center gap-2 px-4 py-2 text-left text-ink-soft hover:bg-hover transition-colors cursor-pointer">
+                <i class="fa-solid fa-box-archive w-4 text-ink-faint" aria-hidden="true"></i>
+                {{ 'message.actions.archive'|trans }}
+            </button>
 
-        <button type="button"
-                data-action="click->mail--message-actions#trash"
-                class="w-full flex items-center gap-2 px-4 py-2 text-left text-danger hover:bg-hover transition-colors cursor-pointer">
-            <i class="fa-solid fa-trash w-4" aria-hidden="true"></i>
-            {{ 'message.actions.delete'|trans }}
-        </button>
+            <button type="button"
+                    data-action="click->mail--message-actions#trash"
+                    class="w-full flex items-center gap-2 px-4 py-2 text-left text-danger hover:bg-hover transition-colors cursor-pointer">
+                <i class="fa-solid fa-trash w-4" aria-hidden="true"></i>
+                {{ 'message.actions.delete'|trans }}
+            </button>
+        {% endif %}
 
         <div class="border-t border-line my-1"></div>
 

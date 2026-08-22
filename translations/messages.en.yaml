@@ -1305,6 +1305,17 @@ form:
     cancel: Cancel
     submit: Save
 
+confirm_dialog:
+    # The in-app replacement for window.confirm(). Turbo's data-turbo-confirm
+    # calls the browser dialog by default; setConfirmMethod points it here.
+    heading: Are you sure?
+    cancel: Cancel
+    confirm: Continue
+discarded:
+    actions:
+        purge: Delete forever
+        purge_confirm: 'Delete this conversation for good? It cannot be brought back, and it is removed from the mail server too.'
+        restore: Move to inbox
 header:
     labels:
         add: Create label

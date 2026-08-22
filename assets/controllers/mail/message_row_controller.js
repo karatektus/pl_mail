@@ -1,6 +1,7 @@
 import { Controller } from "@hotwired/stimulus";
 import { jsonCsrfHeaders } from "../../csrf.js";
 import { announceWrite } from "../../mail_writes.js";
+import { askConfirm } from "../../confirm.js";
 
 /**
  * Handles per-row status actions in the message list.
@@ -51,6 +52,33 @@ export default class extends Controller {
         const { trashUrl } = event.params;
         event.stopPropagation();
         await this.#post(trashUrl);
+    }
+
+    /**
+     * Delete for good — offered only on mail already in the trash or in spam.
+     *
+     * Asks here rather than through `data-turbo-confirm`, which Turbo only
+     * consults for links and form submissions. This posts with fetch(), so the
+     * attribute would have sat on the button looking like a confirmation and
+     * never been read — the row would simply have vanished for good on the
+     * first click.
+     */
+    async purge(event) {
+        const { purgeUrl, purgeConfirm } = event.params;
+        event.stopPropagation();
+
+        if (false === await askConfirm(purgeConfirm)) {
+            return;
+        }
+
+        await this.#post(purgeUrl);
+    }
+
+    /** Back to the inbox from the trash or from spam. */
+    async restore(event) {
+        const { restoreUrl } = event.params;
+        event.stopPropagation();
+        await this.#post(restoreUrl);
     }
 
     /**

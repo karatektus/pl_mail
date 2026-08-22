@@ -96,6 +96,11 @@ framework:
             App\Infrastructure\Messaging\Message\SyncAccountMessage: ingest
             App\Infrastructure\Messaging\Message\SendMessageMessage: export
             App\Infrastructure\Messaging\Message\ApplyImapFlagsMessage: export
+            # Onto export with every other outbound push, and that placement is
+            # load-bearing rather than tidy: a purge must not overtake a
+            # relabel already queued for the same mail, and one queue is what
+            # guarantees the order.
+            App\Infrastructure\Messaging\Message\PurgeRemoteMessagesMessage: export
             # Unrouted until now, which meant every Gmail label change — archive,
             # trash, star, mark read, attach a label — made a live Google API
             # call inside the HTTP request the user was waiting on. Its IMAP and

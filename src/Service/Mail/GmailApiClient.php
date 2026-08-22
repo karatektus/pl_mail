@@ -649,6 +649,41 @@ final class GmailApiClient
         $this->assertSuccess($response, 'messages.batchModify');
     }
 
+    /**
+     * Destroy these messages at Google, for good.
+     *
+     * `messages.batchDelete` is not `messages.trash`: there is no undo, the mail
+     * does not appear in Bin, and Gmail's own interface warns before offering
+     * it. plMail only reaches this from an explicit "delete forever", never
+     * from the ordinary Delete — see MessagePurger.
+     *
+     * It needs the full https://mail.google.com/ scope. An account connected
+     * before that scope was requested, or one where the user declined it, gets
+     * a 403 with reason `insufficientPermissions`, which assertSuccess()
+     * classifies as unrecoverable — so it fails loudly into the log rather than
+     * retrying forever, and the caller decides what to tell the user. Quietly
+     * falling back to trash() would be worse than either: the message would
+     * still be at Google while plMail had already destroyed its own copy and
+     * told the user it was gone.
+     *
+     * @param list<string> $gmailMessageIds
+     */
+    public function batchDelete(Account $account, array $gmailMessageIds): void
+    {
+        if (count($gmailMessageIds) === 0) {
+            return;
+        }
+
+        $token = $this->tokenManager->getValidAccessToken($account);
+
+        $response = $this->httpClient->request('POST', self::BASE . '/messages/batchDelete', [
+            'auth_bearer' => $token,
+            'json'        => ['ids' => $gmailMessageIds],
+        ]);
+
+        $this->assertSuccess($response, 'messages.batchDelete');
+    }
+
     // ── Failure handling ──────────────────────────────────────────────────────
 
     /**

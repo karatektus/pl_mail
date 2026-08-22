@@ -187,6 +187,54 @@ final readonly class ThreadStatusUpdater
     }
 
     /**
+     * Out of the trash or spam and back into the inbox.
+     *
+     * The counterpart the bin never had. Trash and Spam could be reached and
+     * not left: an over-eager delete, or a real mail the filter got wrong,
+     * could only be rescued by finding it and attaching Inbox by hand through
+     * the label menu — which is not something a person looking at a wrongly
+     * binned mail would think to do.
+     *
+     * Both roles are removed rather than only the one it was found under. A
+     * message that carries Trash AND Spam — a spam mail somebody then deleted —
+     * would otherwise come back into the inbox still marked as spam, and
+     * disappear again on the next rule run.
+     *
+     * @param list<Message> $messages
+     */
+    public function restore(array $messages): void
+    {
+        $account = $this->accountOf($messages[0]);
+
+        $inboxLabel = $this->labelResolver->systemLabel(LabelRole::Inbox, $account);
+        $trashLabel = $this->labels->findOneByRoleForUser(LabelRole::Trash, $account->usr);
+        $spamLabel  = $this->labels->findOneByRoleForUser(LabelRole::Spam, $account->usr);
+
+        // Before the mailbox is re-pointed, so the IMAP job still knows which
+        // folder to move the message out of — the same ordering archive() and
+        // trash() rely on, and for the same reason.
+        $this->propagator->restore($messages);
+
+        $inboxMailbox = $inboxLabel->bindingFor($account)?->mailbox;
+
+        foreach ($messages as $message) {
+            $message->addLabel($inboxLabel);
+
+            foreach ([$trashLabel, $spamLabel] as $label) {
+                if (null !== $label) {
+                    $message->removeLabel($label);
+                }
+            }
+
+            if (null !== $message->imapUid && null !== $inboxMailbox) {
+                $message->relocateTo($inboxMailbox);
+            }
+        }
+
+        $this->finish($messages);
+    }
+
+    /**
      * Attach or detach a custom label across the set.
      *
      * @param list<Message> $messages

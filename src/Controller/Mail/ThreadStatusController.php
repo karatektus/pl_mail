@@ -12,6 +12,8 @@ use App\Repository\Mail\MessageRepository;
 use App\Repository\Mail\MessageThreadRepository;
 use App\Security\Voter\OwnershipVoter;
 use App\Service\Mail\ThreadSnoozeService;
+use App\Service\Mail\MailPlacement;
+use App\Service\Mail\MessagePurger;
 use App\Service\Mail\ThreadStatusUpdater;
 use DateTimeImmutable;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -42,6 +44,8 @@ class ThreadStatusController extends AbstractController
         private readonly LabelRepository         $labelRepository,
         private readonly ThreadStatusUpdater     $status,
         private readonly ThreadSnoozeService     $snoozeService,
+        private readonly MessagePurger          $purger,
+        private readonly MailPlacement          $placement,
     ) {}
 
     #[Route('/star', name: 'star', methods: ['POST'])]
@@ -78,6 +82,64 @@ class ThreadStatusController extends AbstractController
 
         return $this->renderTurboStream('thread/status/_delete.stream.html.twig', [
             $type => 'message' === $type ? $messages[0] : $messages[0]->thread,
+        ]);
+    }
+
+    /**
+     * Out of the trash or spam, back into the inbox.
+     *
+     * The bin could be reached and not left. An over-eager delete, or a real
+     * mail the spam filter got wrong, could only be rescued by finding it and
+     * attaching Inbox by hand from the label menu — which is not something
+     * somebody looking at a wrongly binned mail would think to try.
+     */
+    #[Route('/restore', name: 'restore', methods: ['POST'])]
+    public function restore(Request $request, string $type, int $id): Response
+    {
+        $messages = $this->resolveMessages($request, $type, $id);
+
+        $this->status->restore($messages);
+
+        return $this->renderTurboStream('thread/status/_delete.stream.html.twig', [
+            $type => 'message' === $type ? $messages[0] : $messages[0]->thread,
+        ]);
+    }
+
+    /**
+     * Delete for good. The only route in plMail that destroys mail.
+     *
+     * Separate from /trash rather than a flag on it, because they are different
+     * promises: trash moves a conversation and can be undone by moving it back,
+     * this ends it. A caller that reaches the wrong one of the two by fumbling
+     * a boolean is a caller that deletes somebody's mail by accident.
+     *
+     * Only reachable for mail already in the trash or in spam. Not because the
+     * operation could not work elsewhere, but because "delete forever" on an
+     * inbox conversation is a click away from "archive" and there is no undo to
+     * catch the mistake. The bin is the confirmation step the interface already
+     * has; this route enforces what the templates already show.
+     */
+    #[Route('/purge', name: 'purge', methods: ['POST'])]
+    public function purge(Request $request, string $type, int $id): Response
+    {
+        $messages = $this->resolveMessages($request, $type, $id);
+
+        foreach ($messages as $message) {
+            if (false === $this->placement->isDiscarded($message)) {
+                throw $this->createAccessDeniedException(
+                    'Only mail already in the trash or in spam can be deleted for good.',
+                );
+            }
+        }
+
+        // Captured before the purge: the row is about to stop existing, and the
+        // stream that removes it from the list is addressed by its id.
+        $target = 'message' === $type ? $messages[0]->id : $messages[0]->thread?->id;
+
+        $this->purger->purge($messages);
+
+        return $this->renderTurboStream('thread/status/_purge.stream.html.twig', [
+            'targetId' => $target,
         ]);
     }
 

@@ -101,7 +101,7 @@ a state change was delivered and can never say which mail it was about.
                     <form method="post"
                           action="{{ path('app_push_device_remove', { id: device.id }) }}"
                           data-turbo-stream class="ml-auto shrink-0"
-                          onsubmit="return confirm('{{ 'settings.notifications.devices.remove_confirm'|trans({ '%device%': device.deviceClientId })|e('js') }}')">
+                          data-turbo-confirm="{{ 'settings.notifications.devices.remove_confirm'|trans({ '%device%': device.deviceClientId }) }}">
                         <input type="hidden" name="_token" value="{{ csrf_token('push-device-remove' ~ device.id) }}">
                         <button type="submit"
                                 class="text-[11px] text-ink-faint hover:text-red-400 transition-colors cursor-pointer">

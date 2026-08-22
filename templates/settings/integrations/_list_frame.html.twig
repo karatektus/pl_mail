@@ -86,7 +86,7 @@ into a message they can act on.
 
                             <form method="post" action="{{ path('app_settings_integrations_delete', { id: integration.id }) }}"
                                   data-turbo-stream
-                                  onsubmit="return confirm('{{ 'settings.integrations.disconnect_confirm'|trans({ '%name%': integration.name })|e('js') }}')">
+                                  data-turbo-confirm="{{ 'settings.integrations.disconnect_confirm'|trans({ '%name%': integration.name }) }}">
                                 <input type="hidden" name="_token" value="{{ csrf_token('settings-integration-' ~ integration.id) }}">
                                 <button type="submit" class="text-[11px] text-ink-faint hover:text-red-400 transition-colors cursor-pointer">
                                     {{ 'settings.integrations.disconnect'|trans }}

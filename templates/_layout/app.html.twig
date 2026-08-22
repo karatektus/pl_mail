@@ -245,7 +245,14 @@
         with. Reading `app.flashes` here also CLEARS the bag, which is what stops
         the message reappearing on the next navigation.
     #}
-    {% include '_partials/_session_expired.html.twig' %}
+    {# Only for somebody who HAS a session to lose. Besides being meaningless
+       on the login and install screens, the bar carries a link to /login — and
+       the install flow asserts that a freshly restored instance with no users
+       offers no way to sign in, because there is nobody to sign in as. #}
+    {% if app.user %}
+        {% include '_partials/_session_expired.html.twig' %}
+    {% endif %}
+    {% include '_partials/_confirm_dialog.html.twig' %}
 
     <div id="toast-region" class="fixed bottom-4 left-4 z-[60] flex flex-col gap-2 items-end">
         {% for type, messages in app.flashes(['success', 'error', 'info']) %}

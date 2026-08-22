@@ -1,0 +1,93 @@
+{#
+The dialog behind every `data-turbo-confirm` in the application.
+
+Turbo's confirmation calls `window.confirm()` unless something says otherwise,
+and the browser dialog is the one piece of UI the app cannot style, cannot
+translate consistently, cannot theme, and which announces the origin at the top
+as though the page were doing something suspicious. Twenty-two places used it —
+deleting a label, running a filter over existing mail, resetting the database —
+and each looked like a security prompt rather than part of plMail.
+
+One dialog for all of them, and it is `Turbo.setConfirmMethod` that connects the
+two (assets/confirm.js), so this is not twenty-two changes: any
+`data-turbo-confirm` written after today gets it for free, which is the only
+version of this fix that stays fixed.
+
+`<dialog>` rather than a div. showModal() puts the element in the browser's top
+layer, which is above every stacking context on the page — so this cannot be
+trapped behind a pane the way the app's other popovers can be (the panes use
+backdrop-filter, which makes them a containing block for fixed positioning too).
+It also brings focus trapping, restoring focus to the trigger on close, the
+Escape key, and inertness of the rest of the page, all of which would otherwise
+be hand-written.
+
+It looks like the app's modal (_modal.html.twig) because it is the same kind of
+object: one continuous surface, spacing rather than rules to separate the title
+from the question, actions bottom-right, and the two footer buttons copied from
+_modal_form.html.twig rather than re-invented a fifth time.
+
+What it CANNOT borrow from the modal is the box itself. The modal draws its own
+backdrop element and centres its panel with flexbox inside it; a <dialog> has
+neither — the browser paints ::backdrop, and the centring is the UA's
+`margin: auto`, which Tailwind's preflight zeroes along with every other margin
+in the document. That is why the geometry and the dim live in app.css under
+`#confirm-dialog` and not in the class list here: see the block there.
+#}
+<dialog id="confirm-dialog"
+        data-controller="ui--confirm"
+        aria-labelledby="confirm-dialog-title"
+        {# Same entrance as the modal panel, for the same reason: this is the
+           largest thing that ever appears over the page, and a whole screen
+           changing state in one frame is the jump cut motion exists to answer.
+           Safe to declare on markup that is in the document from first paint,
+           because a closed <dialog> is display:none and a display:none element
+           has no running animation — the entrance starts at showModal() and
+           again on every open after that. Reduced motion is handled where it
+           is handled for everything else, by motion.css zeroing the tokens. #}
+        data-enter="pop"
+        class="pane-flat shadow-float text-ink">
+    <form method="dialog" class="flex flex-col gap-4 p-6">
+        <h2 id="confirm-dialog-title" class="text-base font-semibold text-ink">
+            {{ 'confirm_dialog.heading'|trans }}
+        </h2>
+
+        {# `whitespace-pre-line` because the question is plain text written into
+           a `data-turbo-confirm` attribute, and several of them are two
+           sentences with a line break between them. #}
+        <p class="text-sm leading-relaxed text-ink-soft whitespace-pre-line"
+           data-ui--confirm-target="message"></p>
+
+        <div class="flex items-center justify-end gap-2 pt-1">
+            {# `value` is what <form method="dialog"> hands back as returnValue,
+               which is how the controller learns which button was pressed
+               without a listener on either. #}
+            <button type="submit" value="cancel"
+                    data-ui--confirm-target="cancel"
+                    class="inline-flex items-center justify-center h-8 px-3.5 rounded-lg text-sm font-medium
+                           text-ink-soft
+                           bg-field
+                           border border-field
+                           hover:bg-hover
+                           focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-1
+                           transition-colors duration-100">
+                {{ 'confirm_dialog.cancel'|trans }}
+            </button>
+
+            {# Accent rather than red, even though every caller is destructive.
+               The red belongs to the control that OPENED this — the delete
+               button on the row — and repeating it here would leave the two
+               weightiest colours on screen sitting beside a quiet Cancel, which
+               is how a confirmation stops being read at all. The safety is that
+               Cancel holds the focus, not that Continue is frightening. #}
+            <button type="submit" value="confirm"
+                    data-ui--confirm-target="confirm"
+                    class="inline-flex items-center justify-center h-8 px-3.5 rounded-lg text-sm font-medium
+                           text-accent-ink
+                           bg-accent hover:bg-accent-strong active:bg-accent-strong
+                           focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-1
+                           transition-colors duration-100">
+                {{ 'confirm_dialog.confirm'|trans }}
+            </button>
+        </div>
+    </form>
+</dialog>

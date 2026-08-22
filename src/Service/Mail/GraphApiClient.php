@@ -410,6 +410,24 @@ final class GraphApiClient
     }
 
     /**
+     * Destroy a message, for good.
+     *
+     * Graph's DELETE is a permanent delete — it is not the same as moving to
+     * the Deleted Items folder, which is what moveMessage() into the
+     * Trash-role folder does. plMail only reaches this from an explicit
+     * "delete forever"; see MessagePurger.
+     *
+     * A 404 is left to the caller rather than swallowed here: for a purge it
+     * means somebody else already deleted it, which is a success, but this
+     * client has no way to know that is the context.
+     */
+    public function deleteMessage(Account $account, string $messageId): void
+    {
+        $this->request($account, 'DELETE', self::ME . '/messages/' . rawurlencode($messageId))
+            ->getContent();
+    }
+
+    /**
      * Move a message to another folder. Returns the moved resource — whose id
      * is unchanged when immutable ids are in play, and different when they
      * are not, which is exactly why callers must re-read it.

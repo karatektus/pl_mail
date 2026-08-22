@@ -1314,6 +1314,15 @@ form:
     cancel: Abbrechen
     submit: Speichern
 
+confirm_dialog:
+    heading: Bist du sicher?
+    cancel: Abbrechen
+    confirm: Weiter
+discarded:
+    actions:
+        purge: Endgültig löschen
+        purge_confirm: 'Diese Unterhaltung endgültig löschen? Sie lässt sich nicht zurückholen und wird auch vom Mailserver entfernt.'
+        restore: In den Posteingang
 header:
     labels:
         add: Label erstellen

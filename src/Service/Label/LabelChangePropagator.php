@@ -112,11 +112,48 @@ final readonly class LabelChangePropagator
     /**
      * @param iterable<Message> $messages
      */
+    /**
+     * Out of the bin (or out of spam) and back into the inbox.
+     *
+     * The counterpart trash() never had. Every provider expresses it as the
+     * inverse of what put the mail there: Gmail attaches INBOX and drops both
+     * TRASH and SPAM, IMAP moves the message back into the account's inbox
+     * folder, Graph moves it into the inbox.
+     *
+     * Both Gmail labels are removed rather than only the one it was found
+     * under, because a spam mail somebody then deleted carries both — and one
+     * that came back to the inbox still marked SPAM would be filed away again
+     * by Gmail without plMail doing anything.
+     *
+     * @param iterable<Message> $messages
+     */
+    public function restore(iterable $messages): void
+    {
+        $this->dispatchFlags($messages, 'restore');
+        $this->dispatchGmail($messages, ['add' => ['INBOX'], 'remove' => ['TRASH', 'SPAM']]);
+        $this->dispatchGraph($messages, fn (Account $account): ?int => $this->graphDestinationLabelId($account, LabelRole::Inbox));
+    }
+
+    /**
+     * Discarding a draft — get rid of this copy wherever it exists.
+     *
+     * Named delete() and reached only from ComposeController::discard(). It is
+     * NOT plMail's permanent delete: that is MessagePurger, which cannot use
+     * this and says why. The difference is that a discard leaves the local row
+     * to be removed by its own caller, so a handler here can still look the
+     * message up — a purge removes it first, and a handler that looked it up
+     * would find nothing and leave the mail on the server forever.
+     *
+     * Gmail gets TRASH rather than a real delete, and for a discarded draft
+     * that is right rather than a compromise: the draft was never sent, Gmail's
+     * bin is where its own client puts a discarded one, and it is recoverable
+     * for the user who did not mean it.
+     *
+     * @param iterable<Message> $messages
+     */
     public function delete(iterable $messages): void
     {
         $this->dispatchFlags($messages, 'delete');
-        // Gmail: permanent delete requires the full mail scope; TRASH is the
-        // Gmail-native equivalent of what the UI exposes.
         $this->dispatchGmail($messages, ['add' => ['TRASH'], 'remove' => []]);
         $this->dispatchGraph($messages, fn (Account $account): ?int => $this->graphDestinationLabelId($account, LabelRole::Trash));
     }

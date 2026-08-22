@@ -95,7 +95,11 @@ use Webklex\PHPIMAP\Message as ImapMessage;
 #[AsMessageHandler]
 final class ApplyImapFlagsHandler
 {
-    private const array MOVE_ACTIONS = ['archive', 'trash', 'move'];
+    // 'restore' is a move like the other two, and it is spelled out here
+    // rather than folded into 'move' because the destination is resolved from
+    // the account's special-use folders below rather than named by the caller
+    // — the same reason 'archive' and 'trash' are their own actions.
+    private const array MOVE_ACTIONS = ['archive', 'trash', 'restore', 'move'];
 
     public function __construct(
         private readonly MessageRepository      $messageRepository,
@@ -182,7 +186,7 @@ final class ApplyImapFlagsHandler
         $action          = $envelope->action;
         $destinationPath = $envelope->destinationPath;
 
-        if ('archive' === $action || 'trash' === $action) {
+        if (true === in_array($action, ['archive', 'trash', 'restore'], true)) {
             $destinationPath = $this->resolveDestinationPath($client, $account, $action);
         }
 
@@ -512,11 +516,11 @@ final class ApplyImapFlagsHandler
      */
     private function resolveDestinationPath(Client $client, Account $account, string $action): ?string
     {
-        $specialUse = MailboxSpecialUse::TRASH;
-
-        if ('archive' === $action) {
-            $specialUse = MailboxSpecialUse::ARCHIVE;
-        }
+        $specialUse = match ($action) {
+            'archive' => MailboxSpecialUse::ARCHIVE,
+            'restore' => MailboxSpecialUse::INBOX,
+            default   => MailboxSpecialUse::TRASH,
+        };
 
         $mailbox = $this->mailboxRepository->findOneBy([
             'account'    => $account,

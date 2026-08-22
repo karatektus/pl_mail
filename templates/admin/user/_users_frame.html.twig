@@ -96,7 +96,7 @@ not a way into a mailbox.
                     <form method="post"
                           action="{{ path('app_admin_user_default_delete', { id: user.id }) }}"
                           data-turbo-frame="_top"
-                          onsubmit="return confirm('{{ 'admin.users.delete_confirm'|trans({'%name%': user.name})|e('js') }}')">
+                          data-turbo-confirm="{{ 'admin.users.delete_confirm'|trans({'%name%': user.name}) }}">
                         <input type="hidden" name="_token" value="{{ csrf_token('admin-user-delete-' ~ user.id) }}">
                         <button type="submit"
                                 class="shrink-0 h-8 w-8 flex items-center justify-center rounded-lg text-ink-faint

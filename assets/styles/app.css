@@ -3694,6 +3694,66 @@ emoji-picker {
     font-family: 'Noto Color Emoji', ui-sans-serif, system-ui, sans-serif;
 }
 
+/* ── The confirmation dialog ───────────────────────────────────────────────
+   The box and the dim behind templates/_partials/_confirm_dialog.html.twig.
+
+   Here rather than in the class list on the element, because none of it is
+   something a utility can say.
+
+   The geometry first. A <dialog> is centred by the UA stylesheet with
+   `margin: auto` against `inset: 0`, and Tailwind's preflight zeroes the margin
+   of every element in the document — including this one. What is left is a
+   dialog pinned to the top-left corner, sized to fit its content, which is
+   exactly what it looked like: a browser artefact sitting on the page rather
+   than a panel in the app. `m-auto` in the template would have put it back, but
+   it would also have read as decoration rather than as the repair of a reset,
+   and the next person to tidy the class list would have removed it.
+
+   Then the dim. `::backdrop` is painted by the browser and belongs to no parent
+   in the document, so the modal's `bg-black/50 backdrop-blur-sm` cannot simply
+   be repeated on it: Tailwind's blur utilities are assembled from custom
+   properties, and a browser that does not inherit those into ::backdrop (before
+   Chrome 122 none did) would paint the dim without the blur. Both values are
+   therefore written out, and they are the modal's own two numbers so the two
+   surfaces dim the page by the same amount.
+
+   NOT --scrim-alpha and --pane-blur. Those are the user's wallpaper knobs — the
+   scrim is 0 by default, so a dialog dimming the page with it would frequently
+   not dim the page at all. What a modal does to the page behind it is the app's
+   decision, not a preference.
+   ───────────────────────────────────────────────────────────────────────── */
+#confirm-dialog {
+    position: fixed;
+    inset: 0;
+    margin: auto;
+
+    /* Never edge to edge: 2rem of gutter is what keeps it a panel at 390px
+       instead of a bar across the phone. */
+    width: min(28rem, calc(100vw - 2rem));
+    max-height: calc(100dvh - 2rem);
+
+    /* The form owns the padding, so the surface can round without the corners
+       cutting into it. Scrolls rather than overflows, for the two or three
+       questions long enough to need it on a short window. */
+    padding: 0;
+    overflow-y: auto;
+}
+
+#confirm-dialog::backdrop {
+    background-color: rgb(0 0 0 / 0.5);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+
+    /* The dim comes up with the panel rather than snapping on. Deliberately
+       without a fallback: on a browser that does not inherit the motion tokens
+       into ::backdrop the duration is invalid and resolves to 0s, so the dim
+       simply appears — which is the same thing reduced motion asks for, and the
+       right way round to fail. */
+    animation-name: plmail-fade;
+    animation-duration: var(--motion-base);
+    animation-timing-function: var(--motion-ease);
+}
+
 /* ═══ Appearance: typography, the mail list, and per-surface density ════════
    Everything below is driven by custom properties AppearanceRenderer writes
    inline on <html>. That is not a decoration of the existing scheme, it IS the

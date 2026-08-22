@@ -1,0 +1,6 @@
+{# The row is gone for good, so it goes from the list the same way a trashed one
+   does — the difference is that nothing will bring this one back. Addressed by
+   an id captured before the purge, because by now the row it named does not
+   exist. #}
+<turbo-stream action="remove" target="thread_{{ targetId }}">
+</turbo-stream>
