@@ -6,6 +6,42 @@ so anything that changes the schema irreversibly is called out explicitly.
 The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, and `sha-…` pins one commit.
 
+## v0.1.10 — 2026-08-22
+
+**No migration, and nothing to see in the app. `git clone && docker compose up
+-d` — the install the README documents — has never worked. Every service
+crash-looped, and the log said the database was unreachable.**
+
+`docker compose` reads the `.env` file next to `compose.yaml` to resolve
+`${VAR}`, and the `.env` next to ours is Symfony's: committed, full of
+development defaults, and never written with compose in mind. So
+`APP_ENV: ${APP_ENV:-prod}` was not a default at all. `.env` says `APP_ENV=dev`,
+and that is what won — for everyone who installed the documented way.
+
+The published image is built `--no-dev`, so it does not contain DebugBundle,
+which `config/bundles.php` loads in dev. Every `bin/console` call died on the
+missing class before it could do anything, including the entrypoint's database
+probe — which reported the failure as **"The database is not up or not
+reachable"** while the database container sat there healthy. Six services in a
+restart loop, and the one message pointing at the cause was the one nobody
+reads past.
+
+`APP_ENV` is hardcoded to `prod` in `compose.yaml` now. Running the stack in dev
+is what `compose.override.yaml.dist` is for, and it still wins where it is used.
+
+Nothing was wrong with any release; the image never had to change. **Upgrading
+is `git pull` and `docker compose up -d --force-recreate`** — you need the new
+`compose.yaml`, not a new image.
+
+It survived this long because neither path a maintainer uses touches that file:
+`truenas.compose.yaml` hardcodes prod and is pasted into an appliance with no
+`.env` anywhere near it, and a development checkout has an override that builds
+an image which does have the dev dependencies. A test now holds every `${VAR}`
+in the shipped compose files to the rule the whole thing turned on — interpolate
+only what `.env` leaves alone, or leaves at exactly the value written here — so
+the next variable to drift is caught by the build instead of by somebody's
+install.
+
 ## v0.1.9 — 2026-08-21
 
 **No migration, and nothing to see in the app. A test was left behind by the
