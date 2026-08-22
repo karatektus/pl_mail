@@ -1,5 +1,5 @@
 import { test, expect, type Page } from "./support/test";
-import { seed } from "./support/config";
+import { TEST_USER, consoleCommand, seed } from "./support/config";
 
 /**
  * The compose window's accidental-send guards, and the window's own manners.
@@ -75,6 +75,13 @@ async function fillMessage(page: Page, address: string): Promise<void> {
         .locator(`${DOCK} [data-compose--compose-toolbar-target="editor"]`)
         .fill("Safety body text, long enough to save.");
 }
+
+// Unconditional, and not an afterAll: a failure inside the held test would
+// otherwise leave this worker's user on a setting every later spec in the file
+// does not expect.
+test.afterEach(() => {
+    consoleCommand(`app:test:send-feedback optimistic --email=${TEST_USER.email}`);
+});
 
 test.describe("compose safety", () => {
     // ── K-01 ──────────────────────────────────────────────────────────
@@ -412,6 +419,14 @@ test.describe("compose safety", () => {
      * that was just pressed.
      */
     test("undo reopens the window with the recipient intact", async ({ page }) => {
+        // This one describes the HELD shape — the pill becoming the cancel —
+        // which is now one of two settings rather than the only behaviour. The
+        // default closes the window and puts the undo in a toast, so without
+        // this the pill it clicks below is not on screen. See
+        // User::SETTING_COMPOSE_SEND_FEEDBACK, and compose-send-optimistic for
+        // the same claim about the default.
+        consoleCommand(`app:test:send-feedback hold --email=${TEST_USER.email}`);
+
         await openCompose(page);
         await fillMessage(page, VALID);
 

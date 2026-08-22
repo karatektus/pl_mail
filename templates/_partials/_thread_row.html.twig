@@ -575,7 +575,14 @@ Threads only. A bare Message row is a message, and only a conversation arrives.
                        there is no defensible default wake time, and the one
                        this had (none at all) cleared the snooze instead of
                        setting it. #}
-                    <div class="relative z-10" data-controller="ui--dropdown">
+                    {# escapes: the snooze menu opens from a row inside the mail
+                       pane, and the pane's backdrop-filter traps anything
+                       anchored within it — so without this it is clipped at the
+                       pane's edge and painted under the chrome. See
+                       assets/popout.js. #}
+                    <div class="relative z-10"
+                         data-controller="ui--dropdown"
+                         data-ui--dropdown-escapes-value="true">
                         <button type="button"
                                 data-action="click->ui--dropdown#toggle click->mail--message-row#stop"
                                 aria-label="{{ 'thread_row.actions.snooze'|trans }}"

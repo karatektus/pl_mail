@@ -1,4 +1,4 @@
-<!-- translated-from: install/docker.md sha1:5382118760ac4e687b2aebee31c9d4910c6e6f65 -->
+<!-- translated-from: install/docker.md sha1:76b39de6d79bca245417628dafa8d329a76f4ba7 -->
 # Installation mit Docker Compose
 
 Der unterstützte Weg, von Anfang bis Ende: was du brauchst, was `docker compose up` tatsächlich tut,
@@ -54,6 +54,13 @@ docker compose up -d
 ```
 
 Öffne dann [https://localhost](https://localhost).
+
+**Schließe die Einrichtung ab, bevor du irgendetwas anderes machst.** Solange es noch keinen Nutzer
+gibt, steht `/install` jedem offen, der die Instanz erreicht — genau so legst du dein eigenes Konto
+an, und genau so wird jemand anderes zum Administrator, wenn er schneller da ist. Das ist der
+übliche Handel bei selbst gehosteter Software, und das Fenster ist real: die README empfiehlt einen
+Reverse-Proxy davor, und TrueNAS gibt Port `30080` nach außen. Leg das Konto an, dann ist das
+Fenster zu.
 
 Der erste Start dauert länger als spätere, und er führt eine bestimmte Abfolge von Schritten aus,
 die du kennen solltest:

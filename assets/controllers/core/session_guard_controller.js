@@ -71,10 +71,22 @@ export default class extends Controller {
 
         const landedOnLogin = url.length > 0 && new URL(url, window.location.origin).pathname === this.loginUrlValue;
 
-        if (true === landedOnLogin || 401 === status || 403 === status) {
-            // Turbo must not swap a login form into the shell behind the bar.
+        if (false === landedOnLogin && 401 !== status && 403 !== status) {
+            return;
+        }
+
+        this.show();
+
+        // Only the redirect is cancelled, and only because Turbo would
+        // otherwise swap a login form into the application shell behind the
+        // bar. A bare 401 or 403 is left to travel: the controller that made
+        // that request usually has something better to say about it than this
+        // does — the compose dock answers one with "your session has expired,
+        // reload and sign in", in the place the user just clicked. Cancelling
+        // those too made the bar the only feedback and took the specific
+        // message away, which the specs caught.
+        if (true === landedOnLogin) {
             event.preventDefault();
-            this.show();
         }
     }
 

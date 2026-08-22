@@ -34,20 +34,82 @@ ohne Test heißt hier „behoben, bis es jemand versehentlich zurückdreht".
 
 | ID | Stand | Commit | Anmerkung |
 |---|---|---|---|
-| **S-01** | ✅ behoben | `016d9f3` | Alle drei empfohlenen Stellen, plus ein Sanitizer-Profil fürs Verfassen, das der Review nicht vorgesehen hatte — siehe unten. |
-| **S-02** | ⬜ offen | | |
-| **S-03** | ⬜ offen | | |
-| **S-04** | ⬜ offen | | |
-| **S-05** | ⬜ offen | | |
-| **S-06** | ⬜ offen | | |
-| **S-07** | ⬜ offen | | |
-| **S-08** | ⬜ offen | | |
-| **S-09** | ⬜ offen | | |
-| **S-10** | ⬜ offen | | |
-| **U-01** | ⬜ offen | | |
-| **U-02** | ⬜ offen | | Sicherheitshälfte ist mit S-01 Punkt 2 erledigt; offen ist die UX-Hälfte (Paste-Normalisierung). |
-| **U-03** | ⬜ offen | | |
-| **U-04** | ⬜ offen | | |
+| **S-01** | ✅ behoben | `016d9f3` | Alle drei empfohlenen Stellen, plus ein Sanitizer-Profil fürs Verfassen, das die Review nicht vorgesehen hatte — siehe unten. |
+| **S-02** | ✅ behoben | `8c3080d` | Positivliste statt Präfix-Test (`InlineDisposition`), plus `sandbox`-CSP auf der Antwort. |
+| **S-03** | ✅ behoben | `a4d09b8` | In Produktion **erzwungen**, nicht nur Report-Only — siehe unten, warum das möglich wurde. |
+| **S-04** | ✅ behoben | `8c3080d` | Nicht-Bilder fallen auf den selbst erzeugten Platzhalter zurück, nicht auf einen Download. |
+| **S-05** | ✅ behoben | `8c3080d` | Header-Block im Caddyfile, mit `defer`, damit die strengeren Per-Response-Policies gewinnen. |
+| **S-06** | ✅ behoben | `8c3080d` | `subscribe: []`. |
+| **S-07** | ⚪️ bewusst so | — | Siehe „Bewusst so belassen" unten. |
+| **S-08** | ✅ behoben | `8c3080d` | Mit S-02 mitgezogen. |
+| **S-09** | ⚪️ bewusst so | — | Siehe unten. |
+| **S-10** | ⚪️ bewusst so | — | Siehe unten. |
+| **U-01** | ✅ behoben | `0f80d2c` | Ein echter Fund von vieren — die anderen drei sind Fehlbefunde, siehe unten. |
+| **U-02** | ✅ behoben | `016d9f3`, `59cbbc9` | Sicherheitshälfte mit S-01 Punkt 2; UX-Hälfte (Paste-Normalisierung) in `59cbbc9`. |
+| **U-03** | ⚪️ kein Fund | — | Alle neun sind korrekt identisch, siehe unten. |
+| **U-04** | ⚪️ bewusst so | — | Novelty-Locale, Fallback funktioniert. |
+
+### Nachtrag zu S-03 — warum „erzwungen" statt „Report-Only"
+
+Die Review empfiehlt einen Rollout über `Content-Security-Policy-Report-Only`,
+und das war richtig als Vorgehen und nicht als Endzustand: ein Report-Only-Header
+schützt vor nichts. Der Weg dorthin war, die Verstöße zu **beseitigen** statt sie
+zu erlauben.
+
+Der letzte davon waren die eigenen Stylesheets der Anwendung. AssetMapper setzt
+`import './app.css'` als `data:application/javascript,`-Modul um, das zur Laufzeit
+ein `<link>` anhängt — jedes Stylesheet war für den Browser also ein Skript, und
+der einzige Weg, sie zuzulassen, wäre `script-src … data:` gewesen. Das lässt
+einen der ältesten Injektionsvektoren wieder herein und gibt den größten Teil des
+Werts der Direktive her. Beide Stylesheets werden jetzt aus dem Layout
+ge`<link>`t, was AssetMapper für CSS ohnehin empfiehlt und nebenbei ein
+Flash-of-unstyled-content beseitigt.
+
+Ergebnis: `script-src 'self' 'nonce-…'` wird in Produktion erzwungen. Unter Debug
+läuft die volle Policy als Report-Only mit, weil Profiler-Toolbar und VarDumper
+Inline-Skripte einfügen, die niemand noncen kann — `csp.spec.ts` hält fest, dass
+die Anwendungsflächen null Verstöße erzeugen.
+
+### Nachtrag zu U-01 und U-03 — drei bzw. neun Fehlbefunde
+
+Nachgeprüft, statt sie zu „beheben":
+
+**U-01.** Von vier Treffern ist einer echt: der Schließen-Button des Composers
+hatte nur `title` und ist oberhalb `md` der einzige Ausgang — er hat jetzt ein
+`aria-label`. Die anderen drei nicht. Der Avatar-Picker-Button bezieht seinen
+Namen bereits aus dem `alt` seines Bildes, was korrekte Praxis ist; und die
+beiden „`<img>` ohne `alt`" liegen beide in **Twig-Kommentaren** — die Zeilen
+`_thread_row.html.twig:77` und `_attachment_chip.html.twig:17` sind Prosa, die
+`<img src=x …>` erwähnt. Das Anhang-Thumbnail trägt längst `alt=""`.
+
+**U-03.** Alle neun Werte sind zu Recht identisch: `Administrator` ist deutsch,
+`%from% – %to%` und `%date%, %time%` bestehen nur aus Platzhaltern, `in` ist in
+beiden Sprachen dasselbe Wort, `Firebase Cloud Messaging` und
+`google-services.json` sind Produkt- bzw. Dateinamen, und `Kathleen Booth` ist
+ein Personenname in Demodaten. Eine „Übersetzung" hätte die deutsche Oberfläche
+schlechter gemacht.
+
+### Bewusst so belassen — S-07, S-09, S-10
+
+Die Review schlägt für diese drei „bewusst entscheiden und dokumentieren" vor.
+Hiermit:
+
+**S-07 — signierte Image-Proxy-URLs laufen nicht ab.** Bleibt so. Die Zieladresse
+steht in der Signatur, und `ImageProxyFetcher` führt bei jedem Abruf sämtliche
+SSRF-Prüfungen erneut durch: eine geleakte URL erlaubt, den Server *diese eine*
+feste, öffentliche HTTPS-Ressource abrufen zu lassen. Ein `exp` würde die
+Signatur um einen Zustand erweitern, den sonst nichts an diesem Pfad hat.
+
+**S-09 — Trust-on-first-use bei `/install`.** Bleibt so, aber das Handbuch sagt
+es jetzt: die Ersteinrichtung gehört unmittelbar nach dem ersten Start erledigt.
+Ein Einmal-Token aus `generated.env` wäre für selbst gehostete Software
+unverhältnismäßig — wer den Container startet, hat ohnehin Dateizugriff.
+
+**S-10 — kein Rate-Limit auf der JMAP-Authentifizierung.** Bleibt vorerst so.
+Brute-Force ist chancenlos (32 Byte CSPRNG, SHA-256, indizierter Vergleich); was
+fehlt, ist ein Schutz gegen Ressourcenverbrauch, und das ist eine
+Verfügbarkeitsfrage für eine Instanz, die ihre JMAP-Schnittstelle öffentlich
+exponiert. Notiert als Aufgabe, nicht als Befund.
 
 ### Nachtrag zu S-01 — zwei Fallen, die die empfohlene Behebung so nicht überlebt hätte
 

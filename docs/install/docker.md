@@ -51,6 +51,12 @@ docker compose up -d
 
 Then open [https://localhost](https://localhost).
 
+**Finish the setup screen before you go anywhere else.** Until the first user exists, `/install` is
+open to whoever reaches it — that is how you create your own account, and it means anybody who
+reaches the instance first becomes its administrator instead. This is the usual bargain for
+self-hosted software and it is a real window, because the README also suggests putting a reverse
+proxy in front and TrueNAS exposes port `30080`. Create the account, and the window closes.
+
 The first boot takes longer than later ones, and it does a specific sequence of things worth
 knowing about:
 
