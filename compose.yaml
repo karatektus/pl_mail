@@ -2,14 +2,34 @@ x-app-image: &app-image ghcr.io/karatektus/pl_mail:latest
 
 # Every secret below is blank by default and generated on first start by the
 # secrets-init service, into the shared app_secrets volume. Set any of them in
-# your shell or a .env beside this file and yours is used instead — nothing is
-# ever generated over the top of a value you supplied.
+# your environment and yours is used instead — nothing is ever generated over
+# the top of a value you supplied.
+#
+# "In your environment" and not "in a .env beside this file", because the .env
+# beside this file is Symfony's — committed, full of development defaults, and
+# read by compose for ${VAR} interpolation whether anyone meant it to be or not.
+# A default written here only applies when that file is silent about the
+# variable, so anything it does set is what a cloned repo actually runs with.
+# ComposeEnvironmentTest holds every ${VAR} below to that: interpolate only what
+# .env leaves alone, or leaves at exactly the value written here.
+#
+# APP_ENV is hardcoded for that reason. It was `${APP_ENV:-prod}` and .env says
+# `APP_ENV=dev`, so every `git clone && docker compose up -d` — the install the
+# README documents — booted the prod image in dev mode, where bundles.php loads
+# DebugBundle, which `composer install --no-dev` never put in the image. Six
+# services crash-looped on a missing class, and the entrypoint reported it as
+# "the database is not up or not reachable". Running this stack in dev is what
+# compose.override.yaml.dist is for; it sets APP_ENV per service and merges over
+# this one.
 #
 # DATABASE_URL is deliberately absent: the app entrypoint assembles it from the
 # generated POSTGRES_PASSWORD. Set it explicitly to point at a database of your
-# own, and the entrypoint leaves it alone.
+# own, and the entrypoint leaves it alone. It is the one exemption from the rule
+# above — .env sets a credential-less DSN on purpose (a blank one has no driver
+# and breaks the image's cache warmup), and the entrypoint tests for the missing
+# password rather than for emptiness.
 x-app-env: &app-env
-  APP_ENV: ${APP_ENV:-prod}
+  APP_ENV: prod
   APP_SECRET: ${APP_SECRET:-}
   APP_ENCRYPTION_KEY: ${APP_ENCRYPTION_KEY:-}
   DATABASE_URL: ${DATABASE_URL:-}
