@@ -9,10 +9,12 @@ use Doctrine\ORM\EntityManagerInterface;
 use JetBrains\PhpStorm\ArrayShape;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\RedirectResponse;
+use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Component\Security\Core\Authentication\Token\TokenInterface;
+use Symfony\Component\Security\Core\Exception\AuthenticationException;
 use Symfony\Component\Security\Core\Exception\CustomUserMessageAuthenticationException;
 use Symfony\Component\Security\Core\Exception\InvalidCsrfTokenException;
 use Symfony\Component\Security\Csrf\CsrfToken;
@@ -153,6 +155,58 @@ class LoginFormAuthenticator extends AbstractLoginFormAuthenticator
     public function supports(Request $request): bool
     {
         return (self::LOGIN_ROUTE === $request->attributes->get('_route') && $request->isMethod(Request::METHOD_POST));
+    }
+
+    /**
+     * Send an unauthenticated caller to the login form — and only remember
+     * where they were going if they were going anywhere a person can look at.
+     *
+     * Symfony saves the target path in ExceptionListener::setTargetPath(),
+     * whose test is `isMethodSafe() && !isXmlHttpRequest()`. An `<img
+     * src="/settings/avatar/…">` passes both: it is a GET, and it is not an
+     * XMLHttpRequest. So the last unauthenticated subresource the browser
+     * happened to request became the place login sent you.
+     *
+     * Reported as landing on your own profile picture after signing in, and
+     * that is exactly the shape of it: the session ends, the page is still on
+     * screen, the browser re-requests the avatar, that 302 saves the avatar's
+     * URL, and the next successful login redirects to an image. Whichever
+     * subresource lost the race decided where you went, which is why it looked
+     * intermittent.
+     *
+     * The entry point is the right place to undo it because it runs after the
+     * save — ExceptionListener calls setTargetPath() and then start(). Anything
+     * that is not a document navigation gets the saved path removed again, so
+     * the login falls back to the default.
+     *
+     * The test is deliberately two-sided rather than a list of file
+     * extensions. `Sec-Fetch-Dest: document` is what a browser says about a
+     * real navigation, and every browser that has shipped in years sends it;
+     * an Accept header mentioning text/html covers a Turbo visit (which is a
+     * fetch, and says `Sec-Fetch-Dest: empty`) and anything older that sends no
+     * Sec-Fetch headers at all. An image, a stylesheet, a script or a JSON
+     * fetch matches neither.
+     */
+    public function start(Request $request, ?AuthenticationException $authException = null): Response
+    {
+        if (false === $this->isDocumentNavigation($request) && true === $request->hasSession()) {
+            $this->removeTargetPath($request->getSession(), 'main');
+        }
+
+        return parent::start($request, $authException);
+    }
+
+    /**
+     * Something a person could be looking at, as opposed to something the page
+     * they were already looking at went and fetched.
+     */
+    private function isDocumentNavigation(Request $request): bool
+    {
+        if ('document' === $request->headers->get('Sec-Fetch-Dest')) {
+            return true;
+        }
+
+        return str_contains((string) $request->headers->get('Accept'), 'text/html');
     }
 
 

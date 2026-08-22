@@ -1780,6 +1780,18 @@ setup:
         sign_in: 'Sign in'
         submit: 'Open the backup'
 
+session:
+    # Shown when Turbo notices the session has ended — a logout in another tab,
+    # an expired cookie, a restarted worker. Turbo's own answer is to render the
+    # login page inside the application shell, which looks like the app has come
+    # apart.
+    expired:
+        heading: You have been signed out
+        body: Your session ended somewhere else. Sign in again to carry on.
+        body_writing: Your session ended somewhere else. Sign in again in a new tab, then come back — what you have written here is still on screen.
+        sign_in: Sign in again
+        sign_in_new_tab: Sign in in a new tab
+        reload: Reload this page
 settings:
     accounts:
         delete: Remove account

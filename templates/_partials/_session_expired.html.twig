@@ -1,0 +1,46 @@
+{#
+The bar that appears when the session ends underneath a page that is still open.
+
+Rendered on every page and hidden, rather than built in JavaScript, because
+every string in it needs translating and translation is a server-side concern
+here. The controller only unhides it and chooses which of the two sentences to
+show.
+
+Two sentences, and the difference is the whole point of the feature. With
+nothing being written, ending up on the login page is what the user wants and
+the bar just says so. With a half-written mail on screen, a redirect would throw
+away everything since the last autosave — so the offer is to sign in in a new
+tab and come back to a page that still has the text in it.
+#}
+<div id="session-expired"
+     data-controller="core--session-guard"
+     data-core--session-guard-login-url-value="{{ path('app_login') }}"
+     class="hidden fixed inset-x-0 top-0 z-[300] px-4 py-3
+            bg-surface border-b-2 border-danger shadow-float"
+     role="alert"
+     aria-live="assertive">
+    <div class="mx-auto flex max-w-3xl items-center gap-3 text-sm">
+        <i class="fa-solid fa-circle-exclamation shrink-0 text-danger" aria-hidden="true"></i>
+
+        <div class="min-w-0 flex-1">
+            <p class="font-medium text-ink">{{ 'session.expired.heading'|trans }}</p>
+            <p class="text-ink-soft"
+               data-core--session-guard-target="body"
+               data-body="{{ 'session.expired.body'|trans }}"
+               data-body-writing="{{ 'session.expired.body_writing'|trans }}"></p>
+        </div>
+
+        <a href="{{ path('app_login') }}"
+           data-turbo="false"
+           data-core--session-guard-target="signIn"
+           data-label="{{ 'session.expired.sign_in'|trans }}"
+           data-label-new-tab="{{ 'session.expired.sign_in_new_tab'|trans }}"
+           class="shrink-0 rounded-full bg-accent px-4 py-2 font-medium text-on-accent"></a>
+
+        <button type="button"
+                data-action="click->core--session-guard#reload"
+                class="shrink-0 rounded-full border border-line px-4 py-2 font-medium text-ink-soft hover:bg-hover">
+            {{ 'session.expired.reload'|trans }}
+        </button>
+    </div>
+</div>

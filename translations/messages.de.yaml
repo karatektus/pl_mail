@@ -1792,6 +1792,14 @@ setup:
         sign_in: 'Anmelden'
         submit: 'Sicherung öffnen'
 
+session:
+    expired:
+        heading: Du bist abgemeldet worden
+        body: Deine Sitzung wurde woanders beendet. Melde dich erneut an, um weiterzumachen.
+        body_writing: Deine Sitzung wurde woanders beendet. Melde dich in einem neuen Tab an und komm zurück — was du hier geschrieben hast, steht noch da.
+        sign_in: Erneut anmelden
+        sign_in_new_tab: In neuem Tab anmelden
+        reload: Seite neu laden
 settings:
     accounts:
         delete: Konto entfernen

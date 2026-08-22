@@ -259,10 +259,18 @@ Variables: form, message, ctx (an App\Domain\DTO\Mail\ComposeContext)
                 {% endif %}
 
                 {# Below md the back arrow at the left is the way out instead. #}
-                <button type="button" title="{{ 'compose.save_and_close'|trans }}"
+                {# aria-label as well as title, and it is not belt-and-braces.
+                   The button's only content is an <i>, so with `title` alone the
+                   accessible name depends on a screen reader choosing to fall
+                   back to it — which they do inconsistently — and on a touch
+                   device `title` is not reachable at all. Above md this is the
+                   only way out of the window; the comment above says so. #}
+                <button type="button"
+                        title="{{ 'compose.save_and_close'|trans }}"
+                        aria-label="{{ 'compose.save_and_close'|trans }}"
                         data-action="compose--compose#saveDraft compose--compose#close"
                         class="hidden md:flex {{ hc }}">
-                    <i class="fa-solid fa-xmark text-sm"></i>
+                    <i class="fa-solid fa-xmark text-sm" aria-hidden="true"></i>
                 </button>
             </div>
         </div>

@@ -473,7 +473,17 @@
                     <i class="fa-solid fa-wand-magic-sparkles w-4 text-gray-400" aria-hidden="true"></i>
                     {{ 'header.user_menu.rerun_setup'|trans }}
                 </button>
-                <a href="{{ path('app_logout') }}" class="flex items-center gap-2 px-4 py-2 text-sm text-ink-soft hover:bg-hover">
+                {# data-turbo="false", which is not a detail. Logging out through
+                   Turbo means the app's own JavaScript, its Mercure subscription
+                   and its cached pages all survive into a session that no longer
+                   exists: the shell stays mounted, controllers keep polling with
+                   a dead cookie, and Turbo's page cache can put a signed-in
+                   snapshot back on screen with the back button. A full page load
+                   is the only way to be sure nothing is left holding a session
+                   that was just thrown away. #}
+                <a href="{{ path('app_logout') }}"
+                   data-turbo="false"
+                   class="flex items-center gap-2 px-4 py-2 text-sm text-ink-soft hover:bg-hover">
                     <i class="fa-solid fa-right-from-bracket w-4 text-gray-400" aria-hidden="true"></i>
                     {{ 'header.user_menu.sign_out'|trans }}
                 </a>
