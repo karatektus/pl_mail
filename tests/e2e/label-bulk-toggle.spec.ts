@@ -26,6 +26,26 @@ test.beforeEach(() => {
 });
 
 /**
+ * Selects a row.
+ *
+ * Set-and-dispatch rather than `check()`. The checkbox is `peer sr-only` — a
+ * 1px clipped input behind its own styled label — and a forced click on it
+ * lands without changing its state, which Playwright reports as "clicking the
+ * checkbox did not change its state" on roughly one full run in three. Chasing
+ * the visible label instead would make this test about the checkbox, and the
+ * subject here is the label menu.
+ *
+ * The change event is what the row controller listens for
+ * (`change->mail--message-row#toggleSelect`), so the same code path runs.
+ */
+async function select(row: import("@playwright/test").Locator) {
+    await row.locator("[data-thread-select]").evaluate((box) => {
+        (box as HTMLInputElement).checked = true;
+        box.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+}
+
+/**
  * Opens the selection toolbar's label menu for whatever is selected.
  *
  * Scoped to the toolbar rather than `.first()` on the controller: a thread pane
@@ -56,7 +76,7 @@ test("a label assigned from the list can be removed from the list", async ({ pag
     const row = mailRow(page, INBOX_SUBJECTS.read);
     await expect(row).toBeVisible();
 
-    await row.locator("[data-thread-select]").check({ force: true });
+    await select(row);
 
     const panel = await openBulkLabelMenu(page);
     const entry = panel.locator("[data-label-id]", { hasText: LABEL_NAME }).first();
@@ -69,7 +89,7 @@ test("a label assigned from the list can be removed from the list", async ({ pag
     // Fresh render of the menu — the state the bug lived in.
     await page.reload();
     await expect(mailRow(page, INBOX_SUBJECTS.read)).toContainText(LABEL_NAME);
-    await mailRow(page, INBOX_SUBJECTS.read).locator("[data-thread-select]").check({ force: true });
+    await select(mailRow(page, INBOX_SUBJECTS.read));
 
     const reopened = await openBulkLabelMenu(page);
     const again = reopened.locator("[data-label-id]", { hasText: LABEL_NAME }).first();

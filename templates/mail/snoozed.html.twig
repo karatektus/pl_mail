@@ -12,8 +12,14 @@
         </li>
     {% else %}
         {% for thread in threads %}
+            {# snooze_scope: the one thing this list is about is WHEN each
+               conversation comes back, and the row showed the time it arrived
+               instead — so every row said something true and useless, and there
+               was no way to tell a mail returning in an hour from one returning
+               in a fortnight. #}
             {% include "_partials/_thread_row.html.twig" with {
-                thread: thread,
+                thread:        thread,
+                snooze_scope:  true,
             } %}
         {% endfor %}
     {% endif %}

@@ -66,5 +66,16 @@ export function snoozeOptions(now = new Date()) {
     options.push({ key: "this_weekend", at: at(addDays(now, daysUntilSaturday(now)), MORNING_HOUR) });
     options.push({ key: "next_week", at: at(addDays(now, daysUntilMonday(now)), MORNING_HOUR) });
 
+    // Sorted, because the declaration order above is only the order these are
+    // usually in. On a Saturday or a Sunday "this weekend" has already rolled
+    // to the NEXT one — a snooze to a weekend that has started is not a snooze
+    // — so it lands after "next week", and the menu listed a later time above
+    // an earlier one. A person reading down the list and picking the first
+    // acceptable option would have got the furthest away.
+    //
+    // This is also what makes the "soonest first" in the docblock true rather
+    // than aspirational, which is what it was.
+    options.sort((a, b) => a.at - b.at);
+
     return options;
 }

@@ -20,6 +20,9 @@ the conversation it answers.
    every row is from you, so naming the sender fills the column with your own
    name and says nothing. See the `sent_scope` block further down. #}
 {% set sent_scope = sent_scope|default(false) %}
+{# The Snoozed list. Its rows answer "when does this come back", which is the
+   only question that list is asked. #}
+{% set snooze_scope = snooze_scope|default(false) %}
 {% set item = thread ?? message %}
 {% set isThread = item.messages is defined %}
 
@@ -541,13 +544,27 @@ Threads only. A bare Message row is a message, and only a conversation arrives.
                             <i class="fa-solid fa-paperclip text-[11px]"></i>
                         </span>
                     {% endif %}
-                    {% if date %}
-                        {% if date|date('Y-m-d') == 'now'|date('Y-m-d') %}
-                            {{ date|date(clock.time) }}
-                        {% elseif date|date('Y') == 'now'|date('Y') %}
-                            {{ date|intl_date('dMMM') }}
+                    {# In the Snoozed list the column answers "when does this
+                       come back" instead of "when did it arrive". The arrival
+                       time is on every other list and is the one thing this one
+                       is not about — without this there was no way to tell a
+                       conversation returning in an hour from one returning in a
+                       fortnight. #}
+                    {% set shown = snooze_scope and item.snoozedUntil is defined and item.snoozedUntil
+                        ? item.snoozedUntil
+                        : date %}
+
+                    {% if shown %}
+                        {% if snooze_scope and shown is not same as(date) %}
+                            <span class="text-accent">
+                                {{ shown|intl_date('dMMM') }}, {{ shown|date(clock.time) }}
+                            </span>
+                        {% elseif shown|date('Y-m-d') == 'now'|date('Y-m-d') %}
+                            {{ shown|date(clock.time) }}
+                        {% elseif shown|date('Y') == 'now'|date('Y') %}
+                            {{ shown|intl_date('dMMM') }}
                         {% else %}
-                            {{ date|intl_date('dMMMy') }}
+                            {{ shown|intl_date('dMMMy') }}
                         {% endif %}
                     {% endif %}
                 </span>
@@ -621,14 +638,25 @@ Threads only. A bare Message row is a message, and only a conversation arrives.
                        there is no defensible default wake time, and the one
                        this had (none at all) cleared the snooze instead of
                        setting it. #}
-                    {# escapes: the snooze menu opens from a row inside the mail
-                       pane, and the pane's backdrop-filter traps anything
-                       anchored within it — so without this it is clipped at the
-                       pane's edge and painted under the chrome. See
-                       assets/popout.js. #}
-                    <div class="relative z-10"
-                         data-controller="ui--dropdown"
-                         data-ui--dropdown-escapes-value="true">
+                    {# NOT opted into the top layer, and that is a finding
+                       rather than an oversight.
+
+                       Sending this menu to the top layer stops its options
+                       working: the button is still the hit-target at its own
+                       coordinates, no console error is raised, and the POST
+                       simply never goes out. The label menu is pinned the same
+                       way and its options fire normally, so it is not the
+                       popover API on its own — something about this menu's
+                       route through ui--dropdown does not survive it, and I
+                       have not found what.
+
+                       This menu was never reported as trapped; it was opted in
+                       speculatively while fixing the label menu, which WAS. So
+                       it goes back to what worked, and the escape stays opt-in
+                       precisely so one menu's fix cannot quietly break another.
+                       Worth returning to with a reproduction rather than a
+                       guess. #}
+                    <div class="relative z-10" data-controller="ui--dropdown">
                         <button type="button"
                                 data-action="click->ui--dropdown#toggle click->mail--message-row#stop"
                                 aria-label="{{ 'thread_row.actions.snooze'|trans }}"

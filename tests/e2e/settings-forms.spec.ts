@@ -50,9 +50,16 @@ test.describe("app passwords", () => {
         await page.reload();
 
         const reloaded = page.locator("#settings-app-password-list");
-        await expect(reloaded.getByText(name)).toBeVisible();
-        await expect(reloaded.getByText(/^plmail_[0-9a-f]{64}$/)).toHaveCount(0);
-        await expect(reloaded.getByText(/^plmail_[0-9a-f]{6}…$/)).toBeVisible();
+        // Scoped to the row this test created, not to the list. The masked hint
+        // has the same shape for every app password ever generated, so a
+        // list-wide match is a strict-mode violation the moment a previous run
+        // leaves one behind — which is a failure about the fixtures rather than
+        // about show-once, and it reads as this feature being broken.
+        const own = reloaded.locator("li").filter({ hasText: name });
+
+        await expect(own).toHaveCount(1);
+        await expect(own.getByText(/^plmail_[0-9a-f]{64}$/)).toHaveCount(0);
+        await expect(own.getByText(/^plmail_[0-9a-f]{6}…$/)).toBeVisible();
 
         await reloaded
             .locator("li")

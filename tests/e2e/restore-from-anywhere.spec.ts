@@ -29,13 +29,28 @@ async function actionsFor(page: import("@playwright/test").Page, subject: string
     return row;
 }
 
+/**
+ * Clicks a row action and waits for the write to land.
+ *
+ * Navigating straight after the click reads the next list from before the
+ * write, which fails as "the conversation is not there" — indistinguishable
+ * from the feature being broken, and only on some runs.
+ */
+async function act(page: import("@playwright/test").Page, button: import("@playwright/test").Locator, endpoint: string) {
+    const landed = page.waitForResponse(
+        (response) => response.url().includes(endpoint) && response.request().method() === "POST",
+    );
+
+    await button.click();
+    await landed;
+}
+
 test.describe("getting mail back", () => {
     test("an archived conversation offers the way back, and not Archive again", async ({ page }) => {
         await page.goto("/mail/inbox");
 
         const row = await actionsFor(page, INBOX_SUBJECTS.archive);
-        await row.getByRole("button", { name: /archive/i }).click();
-        await expect(mailRow(page, INBOX_SUBJECTS.archive)).toHaveCount(0, { timeout: 10_000 });
+        await act(page, row.getByRole("button", { name: /archive/i }), "/archive");
 
         await page.goto("/mail/archive");
 
@@ -54,9 +69,7 @@ test.describe("getting mail back", () => {
         ).toHaveCount(0);
 
         // ...and the way back is.
-        await archived.getByRole("button", { name: /inbox/i }).click();
-
-        await expect(mailRow(page, INBOX_SUBJECTS.archive)).toHaveCount(0, { timeout: 10_000 });
+        await act(page, archived.getByRole("button", { name: /inbox/i }), "/restore");
 
         await page.goto("/mail/inbox");
         await expect(
@@ -73,8 +86,7 @@ test.describe("getting mail back", () => {
         // `exact` on the label rather than a regex: "Delete forever" also
         // matches /delete/i, and a locator that can resolve to either of two
         // buttons — one reversible, one not — is not one to leave in a suite.
-        await row.getByRole("button", { name: "Delete", exact: true }).click();
-        await expect(mailRow(page, INBOX_SUBJECTS.read)).toHaveCount(0, { timeout: 10_000 });
+        await act(page, row.getByRole("button", { name: "Delete", exact: true }), "/trash");
 
         await page.goto("/mail/trash");
 
@@ -83,7 +95,7 @@ test.describe("getting mail back", () => {
         // Both are offered here, and this is the only place delete forever is.
         await expect(trashed.getByRole("button", { name: /forever/i })).toHaveCount(1);
 
-        await trashed.getByRole("button", { name: /inbox/i }).click();
+        await act(page, trashed.getByRole("button", { name: /inbox/i }), "/restore");
 
         await page.goto("/mail/inbox");
         await expect(mailRow(page, INBOX_SUBJECTS.read)).toBeVisible({ timeout: 10_000 });
