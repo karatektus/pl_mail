@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Jmap\Controller;
 
+use App\Domain\Helper\InlineDisposition;
 use App\Entity\User\User;
 use App\Jmap\Account\AccountResolver;
 use App\Jmap\Blob\BlobId;
@@ -80,7 +81,13 @@ final class JmapDownloadController extends AbstractController
 
     private function serve(ResolvedBlob $blob, string $filename): Response
     {
-        $inlineAllowed = true === str_starts_with($blob->contentType, 'image/');
+        // Same allow-list as AttachmentController, and listed as a
+        // consistency finding rather than an exploitable one: the jmap
+        // firewall is stateless and wants an Authorization header a top-level
+        // browser navigation does not send, so a direct hit ends at 401. That
+        // is a property of a firewall documented somewhere else, which is a
+        // thin thing for this to depend on.
+        $inlineAllowed = InlineDisposition::allows($blob->contentType);
 
         $disposition = true === $inlineAllowed
             ? ResponseHeaderBag::DISPOSITION_INLINE
@@ -93,6 +100,7 @@ final class JmapDownloadController extends AbstractController
         }
 
         $response->headers->set('Content-Type', $blob->contentType);
+        $response->headers->set('Content-Security-Policy', InlineDisposition::SANDBOX_CSP);
         $response->headers->set('X-Content-Type-Options', 'nosniff');
 
         if ($response instanceof BinaryFileResponse) {

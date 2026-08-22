@@ -19,7 +19,7 @@ Development setup, test suites and console reference. For installing and running
 | Runtime | FrankenPHP |
 | Credentials | libsodium secretbox via the `encrypted_string` Doctrine type |
 | Auth | Session login, TOTP two-factor (`scheb/2fa`), database-backed trusted devices |
-| Dev tooling | Docker Compose, Adminer, Mailpit |
+| Dev tooling | Docker Compose, Adminer |
 | Architectures | `linux/amd64` and `linux/arm64` |
 
 ## Development setup

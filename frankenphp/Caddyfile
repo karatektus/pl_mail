@@ -21,6 +21,48 @@
 
         encode zstd br gzip
 
+        # The headers a plMail install gets whether or not anyone put a proxy in
+        # front of it.
+        #
+        # None of these existed anywhere in the repository — not here, not in
+        # config/, not in a listener — so the ones a running instance showed
+        # were its operator's reverse proxy, and the README's own install
+        # instructions are `docker compose up -d` and "open https://localhost".
+        # An instance set up the documented way ran with no clickjacking
+        # defence, no HSTS and a full Referer going out to every link a mail
+        # points at. The operator had nothing telling them to fix that.
+        #
+        # `defer` so an application response that sets one of these itself wins:
+        # the attachment and image-proxy routes send their own, stricter,
+        # per-response policies and must not have them overwritten from here.
+        header {
+                defer
+
+                # Two years, and includeSubDomains, is the usual answer. It is
+                # only sent over HTTPS — Caddy omits it on plaintext — so an
+                # instance reached over http on a LAN is unaffected rather than
+                # locked out of its own hostname.
+                Strict-Transport-Security "max-age=63072000; includeSubDomains"
+
+                # SAMEORIGIN rather than DENY: the reading frame is our own
+                # document embedding our own route, and DENY would break it.
+                X-Frame-Options "SAMEORIGIN"
+                X-Content-Type-Options "nosniff"
+
+                # A mail client sends its users to other people's links all day.
+                # Without this the full URL of the page they were on goes with
+                # them; with it, the origin does, and only to https.
+                Referrer-Policy "strict-origin-when-cross-origin"
+
+                # Nothing here asks for any of them, and a compromised page
+                # should not be able to start.
+                Permissions-Policy "geolocation=(), microphone=(), camera=(), payment=(), usb=(), interest-cohort=()"
+
+                # The version banner. Not a vulnerability, just free
+                # reconnaissance.
+                -Server
+        }
+
         # Mercure hub — proxy to the mercure container
         handle /.well-known/mercure* {
                 reverse_proxy mercure:80

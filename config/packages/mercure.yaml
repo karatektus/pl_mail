@@ -6,4 +6,17 @@ mercure:
             jwt:
                 secret: '%env(MERCURE_JWT_SECRET)%'
                 publish: '*'
-                subscribe: '*'
+                # Empty, not '*'.
+                #
+                # Nothing server-side subscribes — the application only
+                # publishes — and both places that mint a subscriber cookie pass
+                # their topics explicitly (MercureCookieSubscriber and
+                # MercureAuthController, each `mail/user/<id>`), so this default
+                # was never reached and the isolation held.
+                #
+                # It is still the wrong default to leave lying about. A future
+                # createCookie($request) written without a topic argument would
+                # silently issue a subscription to EVERY topic — which here means
+                # every user's mail events — and would look entirely ordinary in
+                # review. Empty makes that mistake fail instead of succeed.
+                subscribe: []

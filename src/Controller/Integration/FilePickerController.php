@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controller\Integration;
 
+use App\Domain\Helper\InlineDisposition;
 use App\Controller\Mail\ComposeAttachmentController;
 use App\Domain\Enum\Integration\Capability;
 use App\Domain\Exception\IntegrationException;
@@ -127,13 +128,34 @@ final class FilePickerController extends AbstractController
         // preview — a zip, a person Immich never generated a face crop for — and
         // answering 404 for each one filled the browser console with failed
         // requests that looked like breakage and buried real errors.
-        [$body, $mime] = null === $preview
+        // A preview is always an image, so anything the provider answers that
+        // is not one is treated as no preview at all rather than passed on.
+        //
+        // The type here comes from Nextcloud, Immich, Dropbox, OneDrive or
+        // Drive, and this response carried no Content-Disposition — so it was
+        // implicitly inline, in the app's own origin, with a type chosen
+        // elsewhere. `text/html` or `image/svg+xml` coming back from a file an
+        // attacker dropped in a shared folder would have rendered here. That is
+        // a realistic shape for exactly the setups these integrations exist
+        // for.
+        //
+        // Falling back to the placeholder rather than to a download, because a
+        // download prompt fired by a thumbnail loading is worse than a grey
+        // box, and the placeholder is built by placeholderSvg() below — our own
+        // bytes, no remote input in them.
+        $usable = null !== $preview && InlineDisposition::allows($preview->mime);
+
+        [$body, $mime] = false === $usable
             ? [$this->placeholderSvg($fileId), 'image/svg+xml']
             : [$preview->contents, $preview->mime];
 
         $response = new Response($body, Response::HTTP_OK, [
             'Content-Type'           => $mime,
             'X-Content-Type-Options' => 'nosniff',
+            // The placeholder is an SVG and has to stay inline to render in an
+            // <img>, so the response carries the sandbox instead: no scripts,
+            // no forms, opaque origin, even on a direct navigation.
+            'Content-Security-Policy' => InlineDisposition::SANDBOX_CSP,
         ]);
         $response->setPrivate();
         $response->setMaxAge(3600);

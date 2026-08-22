@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controller\Mail;
 
+use App\Domain\Helper\InlineDisposition;
 use App\Entity\Mail\MessagePart;
 use App\Security\Voter\OwnershipVoter;
 use App\Service\Mail\AttachmentResolver;
@@ -63,15 +64,21 @@ final class AttachmentController extends AbstractController
         $absolutePath = $this->attachmentResolver->absolutePathFor($part);
         $contentType  = $part->contentType ?? 'application/octet-stream';
 
-        // Only images render inline; everything else (crucially any text/html)
-        // is forced to download so email-supplied markup never runs on our origin.
-        $inlineAllowed = true === str_starts_with($contentType, 'image/');
+        // An allow-list, not a prefix test. `image/svg+xml` starts with
+        // "image/" and executes script when loaded as a document, and the type
+        // comes from the MIME headers of an incoming mail — see
+        // InlineDisposition, which carries the reasoning and the reachability.
+        $inlineAllowed = InlineDisposition::allows($contentType);
         $forceDownload = true === $request->query->getBoolean('download')
             || false === $inlineAllowed;
 
         $response = new BinaryFileResponse($absolutePath);
         $response->headers->set('Content-Type', $contentType);
         $response->headers->set('X-Content-Type-Options', 'nosniff');
+        // On every response, download or not: it costs an inline image nothing
+        // and it means a future widening of the allow-list is a bug rather than
+        // a vulnerability.
+        $response->headers->set('Content-Security-Policy', InlineDisposition::SANDBOX_CSP);
         $response->setContentDisposition(
             true === $forceDownload
                 ? ResponseHeaderBag::DISPOSITION_ATTACHMENT
