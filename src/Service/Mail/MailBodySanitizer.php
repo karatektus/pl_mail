@@ -38,6 +38,22 @@ final readonly class MailBodySanitizer
      */
     private const int MAX_INPUT_LENGTH = 2_000_000;
 
+    /**
+     * The attributes a body composed in plMail is allowed to keep, on top of
+     * the inbound-mail allow-list.
+     *
+     * A closed list rather than "any data-*": the point is that the set is
+     * known and inert, and a wildcard would readmit whatever a future editor
+     * feature — or a paste — happens to write.
+     */
+    private const array COMPOSE_MARKERS = [
+        'data-quoted',
+        'data-quote-wrapped',
+        'data-quote-toggle',
+        'data-pl-signature',
+        'data-cid',
+    ];
+
     public function __construct(
         private UrlGeneratorInterface $urlGenerator,
         private LoggerInterface       $logger,
@@ -99,6 +115,86 @@ final readonly class MailBodySanitizer
         }
 
         return trim($this->buildSanitizer()->sanitize(CharsetHelper::retagHtmlAsUtf8($html)));
+    }
+
+    /**
+     * A body the user composed here, on its way into the database.
+     *
+     * The same allow-list as inbound mail, because a composed body contains
+     * inbound mail: the quote under a reply is the sender's HTML, and until
+     * this method existed it went into `bodyHtml` raw, was echoed into the
+     * app's own document by the compose window's `|raw`, and ran there. That
+     * is the path a reply to a hostile mail took — the read path was sandboxed,
+     * the answer path was not.
+     *
+     * What it adds is the five attributes the composer writes itself. The mail
+     * allow-list drops every `data-` attribute, which is right for a stranger's
+     * HTML and wrong here: `data-quoted` is how the quote is found — to collapse
+     * it, to cut it off the snippet, to tell the user's own writing from the
+     * mail they are answering — `data-cid` is the whole bridge between an
+     * inline image in the editor and the `cid:` reference that goes on the wire
+     * (InlineImageRewriter), and `data-pl-signature` is what a changed From
+     * replaces. Sanitising without them would leave the body safe and the
+     * features broken: quotes that no longer collapse, snippets containing the
+     * whole quoted thread, inline images that arrive as strangers.
+     *
+     * They are safe to keep because they are inert. None is a URL, none is
+     * script, and nothing reads them as anything but a marker to find a node
+     * by; an attacker who plants `data-quoted` on their own mail has achieved
+     * a collapsed quote.
+     *
+     * `class` is deliberately NOT among them, even though SignatureProvider
+     * writes `class="pl-signature"` beside the marker: nothing styles or
+     * queries that class — the attribute is the handle everywhere — and
+     * allowing class through would let pasted markup collide with the app's own
+     * CSS in a document that, unlike the reading frame, is shared with it.
+     */
+    public function sanitizeComposedBody(?string $html): string
+    {
+        if (null === $html || '' === trim($html)) {
+            return '';
+        }
+
+        return trim($this->restoreCidReferences(
+            $this->buildComposeSanitizer()->sanitize(CharsetHelper::retagHtmlAsUtf8($html)),
+        ));
+    }
+
+    /**
+     * Put `cid:` references back the way the wire needs them.
+     *
+     * The sanitiser escapes `@` to `&#64;` in every attribute value, which is
+     * correct HTML and correct in a browser — and fatal here, because a `cid:`
+     * reference is matched as a literal string twice on the way out. Symfony's
+     * Email::prepareParts() pairs an embedded part to the body by searching for
+     * `cid:<name>` and replacing it; InlineAttachmentDetector decides at ingest
+     * whether a part is an inline body asset by the same kind of match. Neither
+     * parses HTML, so `cid:logo&#64;plmail` pairs with nothing: the image is
+     * embedded with a Content-ID the body never mentions, and every mail sent
+     * with an inline image goes out with a broken one.
+     *
+     * Only inside `cid:`, and only when the decoded reference still looks like
+     * a reference. Decoding an attribute value in general would be a way back
+     * out of it — `&quot;` becoming a quote that ends the attribute early is
+     * the whole reason the sanitiser encodes in the first place — so anything
+     * that decodes to a quote, an angle bracket, whitespace or another
+     * ampersand is left exactly as the sanitiser wrote it.
+     */
+    private function restoreCidReferences(string $html): string
+    {
+        if (false === str_contains($html, 'cid:')) {
+            return $html;
+        }
+
+        return (string) preg_replace_callback(
+            '/cid:[^"\'\s>)]+/i',
+            static function (array $m): string {
+                $decoded = html_entity_decode($m[0], ENT_QUOTES | ENT_HTML5, 'UTF-8');
+
+                return 1 === preg_match('/^cid:[^"\'<>\s&]+$/', $decoded) ? $decoded : $m[0];
+            },
+            $html,
+        );
     }
 
     /**
@@ -164,6 +260,38 @@ final readonly class MailBodySanitizer
 
     private function buildSanitizer(): HtmlSanitizer
     {
+        return new HtmlSanitizer($this->allowList());
+    }
+
+    /**
+     * The allow-list plus the composer's own markers. See
+     * sanitizeComposedBody() for why each one is on the list.
+     */
+    private function buildComposeSanitizer(): HtmlSanitizer
+    {
+        $config = $this->allowList();
+
+        foreach (self::COMPOSE_MARKERS as $marker) {
+            // Reassigned, not called for effect: HtmlSanitizerConfig is
+            // immutable and every allow* method answers a clone. A bare
+            // $config->allowAttribute(...) configures a copy that is then
+            // dropped, which looks exactly like a working allow-list and
+            // silently strips everything it was supposed to keep.
+            $config = $config->allowAttribute($marker, '*');
+        }
+
+        // `cid:` on top of the mail schemes, because of WHERE this runs.
+        // DraftPersister::save() rewrites the editor's attachment URLs into
+        // `cid:` references BEFORE the draft is persisted — the stored body is
+        // the one that goes on the wire — so by the time a composed body
+        // reaches this sanitiser its inline images already point at cid.
+        // Without the scheme they are stripped to src-less <img> tags and every
+        // inline image a user attaches disappears on the next autosave.
+        return new HtmlSanitizer($config->allowMediaSchemes(['https', 'http', 'data', 'cid']));
+    }
+
+    private function allowList(): HtmlSanitizerConfig
+    {
         $config = new HtmlSanitizerConfig()
             // Structurally-safe baseline (text, lists, tables, …).
             ->allowSafeElements()
@@ -202,6 +330,6 @@ final readonly class MailBodySanitizer
             ->allowRelativeMedias()
             ->withMaxInputLength(self::MAX_INPUT_LENGTH);
 
-        return new HtmlSanitizer($config);
+        return $config;
     }
 }

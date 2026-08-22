@@ -151,6 +151,22 @@ final readonly class DraftPersister
         $message->seenAt ??= new DateTimeImmutable();
 
         $this->attachments->syncFlag($message);
+
+        // bodyHtml first, and that ordering is the point. sanitize() reads
+        // bodyHtml and writes bodyHtmlSafe — it never touched the field it read,
+        // so a draft could be sanitised and still hold script in the field the
+        // compose window echoes back with `|raw`, and the field that goes out
+        // on the wire. Every route into this method is a caller we do not
+        // control: a reply quoting a stranger's mail, a paste out of a browser,
+        // a POST somebody wrote by hand.
+        // null stays null rather than becoming '': "no body at all" and "a body
+        // that sanitised down to nothing" are the same thing to every reader of
+        // this field, but only the first is what a caller that sent no body
+        // meant, and the entity's own type says so.
+        if (null !== $message->bodyHtml) {
+            $message->bodyHtml = $this->bodySanitizer->sanitizeComposedBody($message->bodyHtml);
+        }
+
         $this->bodySanitizer->sanitize($message);
     }
 

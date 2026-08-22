@@ -28,6 +28,7 @@ final class ReplyDraftBuilder
 {
     public function __construct(
         private readonly SignatureProvider $signatures,
+        private readonly MailBodySanitizer $sanitizer,
     ) {
     }
 
@@ -215,7 +216,22 @@ final class ReplyDraftBuilder
         $fromAddr = htmlspecialchars($original->fromAddress ?? '', ENT_QUOTES, 'UTF-8');
         $from     = '' !== $fromName ? "{$fromName} &lt;{$fromAddr}&gt;" : $fromAddr;
 
-        $html = trim($original->bodyHtml ?? '');
+        // Sanitised, NOT `bodyHtml` raw. This is the sender's own HTML, and the
+        // draft it lands in is rendered by the compose window into the app's
+        // own document — with `|raw`, into a contenteditable, outside the
+        // sandboxed frame the read path is so careful about. A mail carrying
+        // `<img src=x onerror=…>` was therefore inert while it was being read
+        // and ran the moment the recipient pressed Reply, in a session that can
+        // mint an API token. The read path had this right all along; the answer
+        // path reached for the wrong one of the two body fields, two layers
+        // away from the sandbox and no longer looking like a security decision.
+        //
+        // sanitizeFragment() rather than the already-clean `bodyHtmlSafe`,
+        // because that field has its `cid:` references rewritten into app URLs
+        // and quoting it would need InlineImageRewriter::toCid() on the way
+        // back out. Sanitising the raw field keeps the quote exactly as
+        // faithful as it was before, minus the parts that execute.
+        $html = $this->sanitizer->sanitizeFragment($original->bodyHtml);
         $text = trim($original->bodyText ?? '');
         $body = '' !== $html ? $html : nl2br(htmlspecialchars($text, ENT_QUOTES, 'UTF-8'));
 
