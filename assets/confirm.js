@@ -46,3 +46,62 @@ export function askConfirm(message) {
 }
 
 Turbo.setConfirmMethod(askConfirm);
+
+/**
+ * The same guarantee for forms that opt OUT of Turbo.
+ *
+ * `data-turbo="false"` takes a submission away from Turbo entirely, so
+ * setConfirmMethod above is never consulted and a `data-turbo-confirm` beside
+ * it is inert — an attribute that looks like a guard and is not, which is worse
+ * than no attribute at all. templates/admin/_live_frame.html.twig says exactly
+ * that in a comment; the security page had the combination anyway, and revoking
+ * every trusted device and switching off two-factor authentication both stopped
+ * asking anything.
+ *
+ * Caught by the specs rather than by review, which is the argument for handling
+ * it here instead of writing the rule down again: a listener cannot forget, and
+ * the next form to combine the two is covered by having done nothing.
+ *
+ * Capture phase, so it runs before any other submit handler; and the submission
+ * is re-issued through requestSubmit() once confirmed rather than submit(),
+ * because submit() skips validation and does not fire this event again — the
+ * flag is what stops the second pass asking twice.
+ */
+document.addEventListener(
+    "submit",
+    (event) => {
+        const form = event.target;
+
+        if (!(form instanceof HTMLFormElement)) {
+            return;
+        }
+
+        const question = form.getAttribute("data-turbo-confirm");
+
+        // Turbo's own path handles everything else, and asking twice is worse
+        // than the bug this fixes.
+        if (null === question || "false" !== form.getAttribute("data-turbo")) {
+            return;
+        }
+
+        // A string compare, because dataset values are strings — `true ===`
+        // would never match and the confirmed submission would be intercepted
+        // again, asking the same question forever.
+        if ("true" === form.dataset.plConfirmed) {
+            delete form.dataset.plConfirmed;
+
+            return;
+        }
+
+        event.preventDefault();
+        event.stopImmediatePropagation();
+
+        void askConfirm(question).then((confirmed) => {
+            if (true === confirmed) {
+                form.dataset.plConfirmed = "true";
+                form.requestSubmit();
+            }
+        });
+    },
+    { capture: true },
+);

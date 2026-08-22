@@ -1,6 +1,7 @@
 import { expect } from "@playwright/test";
 import { test } from "./support/test";
 import { TEST_USER, consoleCommand, seed } from "./support/config";
+import { acceptConfirm } from "./support/confirm";
 
 /**
  * Managing calendars from settings.
@@ -68,8 +69,8 @@ test.describe("calendar settings", () => {
             const remove = page.getByRole("button", { name: `Delete calendar "${name}"` });
 
             if ((await remove.count()) > 0) {
-                page.once("dialog", (dialog) => dialog.accept());
                 await remove.first().click();
+                await acceptConfirm(page);
                 await expect(page.getByText(name, { exact: true })).toHaveCount(0);
             }
         }
@@ -358,8 +359,8 @@ test.describe("subscribing to remote calendars", () => {
         // The connection is stored carrying its failure, the way every other
         // connect path stores one — so it has to be disconnectable from here.
         await page.goto("/settings?section=calendars");
-        page.once("dialog", (dialog) => dialog.accept());
         await page.getByRole("button", { name: 'Disconnect "E2E unreachable server"' }).click();
+        await acceptConfirm(page);
         await expect(page.getByText("E2E unreachable server", { exact: true })).toHaveCount(0);
     });
 });

@@ -2365,6 +2365,10 @@ settings:
         folded: 'Folded'
         forward_quote: 'Quoted text when forwarding'
         forward_quote_hint: 'Open a forward with the original folded behind the pill, or laid out in full.'
+        send_feedback: When you press Send
+        send_feedback_hint: 'Close the window straight away and count the undo down in a toast, or keep the window open and let its own Send button be the cancel.'
+        send_optimistic: Close it
+        send_hold: Keep it open
         heading: 'Composing'
         open: 'Open'
         subheading: 'How the compose window behaves for you, on every account.'

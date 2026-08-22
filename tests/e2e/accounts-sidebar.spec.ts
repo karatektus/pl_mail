@@ -1,5 +1,6 @@
 import { expect } from "@playwright/test";
 import { test } from "./support/test";
+import { acceptConfirm } from "./support/confirm";
 
 /**
  * The account list and the sidebar, in a real browser.
@@ -84,8 +85,8 @@ async function removeAccount(page, label: string): Promise<void> {
     // A loop, not a single removal: an aborted earlier run can have left more
     // than one behind, and this is also the cleanup path.
     for (let remaining = await row.count(); remaining > 0; remaining -= 1) {
-        page.once("dialog", (dialog) => dialog.accept());
         await row.getByRole("button", { name: "Remove account" }).first().click();
+        await acceptConfirm(page);
         await expect(row).toHaveCount(remaining - 1);
     }
 }

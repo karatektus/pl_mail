@@ -2383,6 +2383,10 @@ settings:
         folded: 'Eingeklappt'
         forward_quote: 'Zitierter Text beim Weiterleiten'
         forward_quote_hint: 'Öffne eine Weiterleitung mit dem Original hinter der Kapsel — oder gleich ausgeklappt.'
+        send_feedback: Beim Senden
+        send_feedback_hint: 'Fenster sofort schließen und den Rückgängig-Countdown in einer Einblendung zeigen — oder das Fenster offen lassen, sodass sein eigener Senden-Knopf der Abbruch ist.'
+        send_optimistic: Schließen
+        send_hold: Offen lassen
         heading: 'Verfassen'
         open: 'Ausgeklappt'
         subheading: 'Wie sich das Verfassen-Fenster für dich verhält, über alle Konten.'

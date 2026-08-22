@@ -617,12 +617,36 @@ class ComposeController extends AbstractController
      */
     private function sendResponse(Message $message, ComposeContext $ctx): Response
     {
+        /** @var User $user */
+        $user = $this->getUser();
+
+        $feedback = (string) $user->getSetting(
+            User::SETTING_COMPOSE_SEND_FEEDBACK,
+            User::SEND_FEEDBACK_OPTIMISTIC,
+        );
+
+        $undoUrl = $this->generateUrl(
+            'app_compose_mail_undo',
+            $ctx->urlParams() + ['id' => $message->id],
+        );
+
+        // The default. The composer closes now and the toast carries the undo —
+        // see compose/_sent_optimistic.stream.html.twig for the trade between
+        // the two, which is a real one in both directions.
+        if (User::SEND_FEEDBACK_HOLD !== $feedback) {
+            return $this->renderTurboStream('compose/_sent_optimistic.stream.html.twig', [
+                'message' => $message,
+                'thread'  => $message->thread,
+                'ctx'     => $ctx,
+                'undoUrl' => $undoUrl,
+                // The CANCEL window, not the send delay — see CANCEL_WINDOW_MS.
+                'cancelWindow' => self::CANCEL_WINDOW_MS,
+            ]);
+        }
+
         return $this->renderTurboStream('compose/_sending.stream.html.twig', [
             'ctx'     => $ctx,
-            'undoUrl' => $this->generateUrl(
-                'app_compose_mail_undo',
-                $ctx->urlParams() + ['id' => $message->id],
-            ),
+            'undoUrl'   => $undoUrl,
             'settleUrl' => $this->generateUrl(
                 'app_compose_mail_sent',
                 $ctx->urlParams() + ['id' => $message->id],

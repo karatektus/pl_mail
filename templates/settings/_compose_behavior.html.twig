@@ -39,3 +39,33 @@ idiom every boolean on the appearance page wears.
         </div>
     </div>
 </form>
+
+{# Second question, its own form for the same reason the first one has one: each
+   control submits on change, and a shared form would post both keys every time
+   either moved. The controller only writes the key it is sent, so the two
+   cannot overwrite each other. #}
+<form method="post" action="{{ path('app_settings_compose_behavior_update') }}" data-turbo="false" class="mt-4">
+    <input type="hidden" name="_token" value="{{ csrf_token('settings-compose-behavior') }}">
+
+    <div class="flex items-start justify-between gap-3">
+        <span class="min-w-0">
+            <span class="block text-xs font-medium text-ink-muted">{{ 'settings.compose_behavior.send_feedback'|trans }}</span>
+            <span class="block text-[11px] text-ink-faint mt-0.5">{{ 'settings.compose_behavior.send_feedback_hint'|trans }}</span>
+        </span>
+
+        <div class="grid grid-flow-col auto-cols-fr shrink-0 rounded-pane border border-line overflow-hidden"
+             role="radiogroup" aria-label="{{ 'settings.compose_behavior.send_feedback'|trans }}">
+            {% for option in ['optimistic', 'hold'] %}
+                <label>
+                    <input type="radio" name="sendFeedback" class="peer sr-only"
+                           value="{{ option }}"
+                           onchange="this.form.submit()"
+                           {{ sendFeedback == option ? 'checked' : '' }}>
+                    <span class="{{ segText }}">
+                        {{ ('settings.compose_behavior.send_' ~ option)|trans }}
+                    </span>
+                </label>
+            {% endfor %}
+        </div>
+    </div>
+</form>

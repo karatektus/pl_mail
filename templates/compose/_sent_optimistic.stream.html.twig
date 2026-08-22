@@ -1,0 +1,49 @@
+{#
+compose/_sent_optimistic.stream.html.twig
+─────────────────────────────────────────────────────────────────────────────
+Send, answered optimistically: the composer closes now, the mail is where it
+will live, and the cancel moves to a toast that counts down beside it.
+
+The other half of a user setting — see User::SETTING_COMPOSE_SEND_FEEDBACK and
+compose/_sending.stream.html.twig, which is what "hold" renders instead. The
+trade is real in both directions. Holding keeps the cancel under the pointer
+that just clicked: nothing moves, and the way back is exactly where the way
+forward was. This gives the screen back at once and asks the user to look
+somewhere else for the undo. Eight seconds of a window that will not close is a
+long time when you have finished writing, and that is the complaint this
+answers.
+
+It is the DEFAULT of the two, because the wait is what people notice and the
+undo is what they rarely need.
+
+Nothing new happens here. The tidying is exactly what the end of the cancel
+window does — same template, so a send cannot settle differently depending on
+which shape rendered it — with its toast suppressed, because the news here is
+not "sent" but "sending, and you can still stop it".
+
+Variables: message, thread (MessageThread|null), ctx, undoUrl, cancelWindow
+#}
+{% include 'compose/_sent.stream.html.twig' with {
+    message: message,
+    thread:  thread,
+    ctx:     ctx,
+    notify:  false,
+} only %}
+
+{# The cancel, now that the pill is gone.
+   `hide_after` IS the cancel window rather than a toast duration somebody
+   picked: the Undo button goes when the toast goes, so a toast that outlived
+   the window would offer a cancel that silently fails, and one that died
+   early would take away a cancel that still worked. #}
+<turbo-stream action="append" target="toast-region">
+    <template>
+        {% include '_partials/_toast.html.twig' with {
+            type:    'success',
+            message: 'compose.sending'|trans,
+            extra:   {
+                undo_url:   undoUrl,
+                hide_after: cancelWindow,
+            },
+        } only %}
+    </template>
+</turbo-stream>

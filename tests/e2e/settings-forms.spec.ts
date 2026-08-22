@@ -1,4 +1,5 @@
 import { test, expect } from "./support/test";
+import { acceptConfirm } from "./support/confirm";
 
 /**
  * The two settings forms that are Symfony forms rather than hand-written
@@ -53,12 +54,12 @@ test.describe("app passwords", () => {
         await expect(reloaded.getByText(/^plmail_[0-9a-f]{64}$/)).toHaveCount(0);
         await expect(reloaded.getByText(/^plmail_[0-9a-f]{6}…$/)).toBeVisible();
 
-        page.once("dialog", (dialog) => dialog.accept());
         await reloaded
             .locator("li")
             .filter({ hasText: name })
             .getByRole("button", { name: "Revoke" })
             .click();
+        await acceptConfirm(page);
 
         await expect(page.locator("li").filter({ hasText: name })).toHaveCount(
             0,

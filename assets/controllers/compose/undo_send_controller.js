@@ -1,10 +1,22 @@
 import { Controller } from "@hotwired/stimulus"
 
 /**
- * **UNWIRED.** The dock's "Sending… — Undo" toast that this drives is no
- * longer rendered — the window stays open and its Send pill is the cancel.
- * See compose/_send_toast.html.twig, which is kept alongside it while the
- * replacement is reviewed.
+ * The Undo button in the "Sending…" toast.
+ *
+ * Wired again, and for the default path. Send has two shapes now, chosen by
+ * User::SETTING_COMPOSE_SEND_FEEDBACK: "hold" keeps the composer open and makes
+ * its own Send pill the cancel, and "optimistic" — the default — closes the
+ * composer at once and moves the cancel here. The wait is what people notice;
+ * the undo is what they rarely need.
+ *
+ * This was unwired for one release while the held shape was tried, and the
+ * complaint that brought it back was the obvious one: eight seconds of a window
+ * that will not close is a long time when you have finished writing.
+ *
+ * `hideAfter` IS the cancel window rather than a toast duration. The button
+ * goes when the toast goes, so a toast that outlived the window would offer a
+ * cancel that silently fails, and one that died early would take away a cancel
+ * that still worked.
  */
 
 export default class extends Controller {

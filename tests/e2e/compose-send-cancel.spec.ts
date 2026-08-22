@@ -1,5 +1,5 @@
 import { test, expect, type Page } from "./support/test";
-import { INBOX_SUBJECTS, mailRow, seed } from "./support/config";
+import { INBOX_SUBJECTS, TEST_USER, consoleCommand, mailRow, seed } from "./support/config";
 
 /**
  * One send, one cancel, one button.
@@ -31,6 +31,21 @@ const VALID = "send-cancel@example.test";
 
 test.beforeAll(() => {
     seed("seed-mail", "clear-drafts");
+
+    // These describe the HELD shape, which is now one of two settings rather
+    // than the only behaviour — see User::SETTING_COMPOSE_SEND_FEEDBACK. The
+    // default is the other one (the composer closes and a toast carries the
+    // undo), so without this the whole file would be asserting against a
+    // window that is no longer on screen.
+    // --email: each worker owns its own user, and the command
+    // defaults to the shared one.
+    consoleCommand(`app:test:send-feedback hold --email=${TEST_USER.email}`);
+});
+
+test.afterAll(() => {
+    // Back to the default, or every later spec in this worker inherits a
+    // composer that does not close.
+    consoleCommand(`app:test:send-feedback optimistic --email=${TEST_USER.email}`);
 });
 
 /**

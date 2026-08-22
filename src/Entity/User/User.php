@@ -522,6 +522,32 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
     public const string SETTING_COMPOSE_FORWARD_QUOTE_COLLAPSED = 'compose.forward_quote_collapsed';
 
     /**
+     * What pressing Send does to the screen.
+     *
+     * 'optimistic' (the default, and the absent value): the composer closes at
+     * once, the mail appears where it will live, and a toast counts the cancel
+     * window down with an Undo beside it.
+     *
+     * 'hold': the composer stays open and its own Send pill becomes the cancel,
+     * closing when the window elapses.
+     *
+     * A setting rather than a decision, because the two are a real trade and
+     * people split on it. Holding keeps the cancel under the pointer that just
+     * clicked — nothing moves, and the way back is exactly where the way
+     * forward was. Optimistic gives the screen back immediately and asks the
+     * user to look somewhere else for the undo. The wait is what people notice:
+     * eight seconds of a window that will not close is a long time when you
+     * have finished writing and want to get on.
+     */
+    public const string SETTING_COMPOSE_SEND_FEEDBACK = 'compose.send_feedback';
+
+    /** The composer closes at once and the toast carries the undo. */
+    public const string SEND_FEEDBACK_OPTIMISTIC = 'optimistic';
+
+    /** The composer stays open and is its own cancel. */
+    public const string SEND_FEEDBACK_HOLD = 'hold';
+
+    /**
      * The default is 19rem — what the column was fixed at before it could move.
      *
      * The maximum is the CALENDAR's maximum, deliberately the same number: both

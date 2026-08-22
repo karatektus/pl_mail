@@ -1,5 +1,6 @@
 import { test, expect } from "./support/test";
 import { seed } from "./support/config";
+import { acceptConfirm } from "./support/confirm";
 
 /**
  * Mail rules, end to end through the settings UI.
@@ -150,10 +151,8 @@ test.describe("mail filters", () => {
         const row = () => page.locator("#settings-filter-list li", { hasText: name });
         await expect(row()).toBeVisible();
 
-        // data-turbo-confirm surfaces as a native dialog; Playwright dismisses
-        // unhandled ones, which would cancel the submit.
-        page.once("dialog", (dialog) => dialog.accept());
         await row().getByRole("button", { name: "Apply to existing mail" }).click();
+        await acceptConfirm(page);
 
         // Queued state is rendered from the rule row, so it is on the page
         // rather than only in a toast.

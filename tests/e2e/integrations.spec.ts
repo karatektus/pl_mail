@@ -1,5 +1,6 @@
 import { test, expect, type Page } from "./support/test";
 import { TEST_ADMIN, login, seed, seedUser } from "./support/config";
+import { acceptConfirm } from "./support/confirm";
 
 /**
  * The admin side of integrations: every provider is listed with its own
@@ -328,12 +329,12 @@ test.describe("user integrations", () => {
             frame.locator("li").filter({ hasText: "Scratch cloud" }).getByText("(paused)"),
         ).toBeVisible();
 
-        page.once("dialog", (dialog) => dialog.accept());
         await frame
             .locator("li")
             .filter({ hasText: "Scratch cloud" })
             .getByRole("button", { name: "Disconnect" })
             .click();
+        await acceptConfirm(page);
 
         await expect(
             frame.locator("li").filter({ hasText: "Scratch cloud" }),
@@ -419,8 +420,8 @@ test.describe("compose integration picker", () => {
                 break;
             }
 
-            page.once("dialog", (dialog) => dialog.accept());
             await disconnects.first().click();
+            await acceptConfirm(page);
             await expect(disconnects).toHaveCount(remaining - 1);
         }
 

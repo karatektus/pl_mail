@@ -1,6 +1,7 @@
 import { expect } from "@playwright/test";
 import { test } from "./support/test";
 import { TEST_USER, consoleCommand } from "./support/config";
+import { acceptConfirm } from "./support/confirm";
 
 /**
  * Sharing a calendar with somebody who has no account, from the two ends.
@@ -75,8 +76,8 @@ test.describe("calendar sharing", () => {
                 break;
             }
 
-            page.once("dialog", (dialog) => dialog.accept());
             await remove().first().click();
+            await acceptConfirm(page);
             await expect(remove()).toHaveCount(before - 1);
         }
     });
@@ -229,8 +230,8 @@ test.describe("appointment booking", () => {
                 break;
             }
 
-            page.once("dialog", (dialog) => dialog.accept());
             await remove().first().click();
+            await acceptConfirm(page);
             await expect(remove()).toHaveCount(before - 1);
         }
     });

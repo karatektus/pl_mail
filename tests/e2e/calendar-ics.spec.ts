@@ -2,6 +2,7 @@ import { expect } from "@playwright/test";
 import { test } from "./support/test";
 import { consoleCommand } from "./support/config";
 import { choose } from "./support/select";
+import { acceptConfirm } from "./support/confirm";
 
 /**
  * iCalendar as a person handles it: a file in, a file out, an address followed.
@@ -96,8 +97,8 @@ test.describe("calendar files and feeds", () => {
         const remove = page.getByRole("button", { name: `Delete calendar "${CALENDAR}"` });
 
         if ((await remove.count()) > 0) {
-            page.once("dialog", (dialog) => dialog.accept());
             await remove.first().click();
+            await acceptConfirm(page);
             await expect(page.getByText(CALENDAR, { exact: true })).toHaveCount(0);
         }
     });

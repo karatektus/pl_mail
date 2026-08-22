@@ -13,8 +13,8 @@ use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 /**
- * User-level compose behaviour — today, one question: does a forward open
- * with its quoted original folded behind the pill, or laid out in full?
+ * User-level compose behaviour: whether a forward opens with its quoted
+ * original folded behind the pill, and what pressing Send does to the screen.
  *
  * A sibling of ClockController rather than a route on ComposeDefaults,
  * because that controller is per-ACCOUNT (read receipts, keyed into the
@@ -38,12 +38,34 @@ final class ComposeBehaviorController extends AbstractController
             throw $this->createAccessDeniedException();
         }
 
-        $folded = '1' === (string) $request->request->get('forwardQuoteCollapsed');
+        // Each control posts its own form, so a request carries one of these
+        // and not the other. Reading a key that is not there and writing the
+        // default back would be harmless for the boolean and wrong for the
+        // radio — an absent `sendFeedback` would be stored as the default and
+        // silently undo the other setting's choice on every save.
+        if (true === $request->request->has('forwardQuoteCollapsed')) {
+            $folded = '1' === (string) $request->request->get('forwardQuoteCollapsed');
 
-        $user->setSetting(
-            User::SETTING_COMPOSE_FORWARD_QUOTE_COLLAPSED,
-            $folded ? null : false,
-        );
+            // Stored only when the answer is "open": the absent key means the
+            // default, the way every setting in this bag reads.
+            $user->setSetting(
+                User::SETTING_COMPOSE_FORWARD_QUOTE_COLLAPSED,
+                $folded ? null : false,
+            );
+        }
+
+        if (true === $request->request->has('sendFeedback')) {
+            $hold = User::SEND_FEEDBACK_HOLD === (string) $request->request->get('sendFeedback');
+
+            // Same rule: null for the default, which is optimistic. An unknown
+            // value therefore lands on the default rather than being stored,
+            // so a hand-written POST cannot put the setting into a state
+            // nothing renders.
+            $user->setSetting(
+                User::SETTING_COMPOSE_SEND_FEEDBACK,
+                $hold ? User::SEND_FEEDBACK_HOLD : null,
+            );
+        }
 
         $em->flush();
 

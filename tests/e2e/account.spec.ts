@@ -1,4 +1,5 @@
 import { test, expect, type Page } from "./support/test";
+import { acceptConfirm } from "./support/confirm";
 
 /**
  * Runs authenticated as this worker's own user, signed in by the worker
@@ -43,9 +44,8 @@ async function removeAccount(page: Page, label: string): Promise<void> {
         return;
     }
 
-    // data-turbo-confirm surfaces as a native dialog.
-    page.once("dialog", (dialog) => dialog.accept());
     await row.getByRole("button", { name: "Remove account" }).first().click();
+    await acceptConfirm(page);
 
     await expect(row).toHaveCount(0);
 }

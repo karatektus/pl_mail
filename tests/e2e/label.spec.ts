@@ -1,5 +1,6 @@
 import { test, expect } from "./support/test";
 import { INBOX_SUBJECTS, mailRow, seed } from "./support/config";
+import { acceptConfirm } from "./support/confirm";
 
 /**
  * Runs authenticated as this worker's own user, signed in by the worker
@@ -148,9 +149,8 @@ test.describe("manage labels", () => {
         const row = list.locator("li").filter({ hasText: LABEL_NAME });
         await expect(row).toBeVisible();
 
-        // data-turbo-confirm surfaces as a native dialog.
-        page.once("dialog", (dialog) => dialog.accept());
         await row.getByRole("button", { name: `Delete label "${LABEL_NAME}"` }).click();
+        await acceptConfirm(page);
 
         await expect(list.locator("li").filter({ hasText: LABEL_NAME })).toHaveCount(0);
         await expect(
@@ -194,8 +194,8 @@ test.describe("manage labels", () => {
         const remove = modal.getByRole("button", { name: "Delete label" });
         await expect(remove).toBeVisible();
 
-        page.once("dialog", (dialog) => dialog.accept());
         await remove.click();
+        await acceptConfirm(page);
 
         await expect(modal).toBeHidden();
         await expect(

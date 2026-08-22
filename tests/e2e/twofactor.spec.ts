@@ -1,6 +1,7 @@
 import { test, expect, type Page } from "./support/test";
 import { TEST_USER, consoleCommand, login } from "./support/config";
 import { totp } from "./support/totp";
+import { acceptConfirm } from "./support/confirm";
 
 /**
  * Two-factor authentication, driven the way a person would drive it: enrol
@@ -148,8 +149,8 @@ test.describe("two-factor authentication", () => {
         // Revoke it, then sign in again — the cookie is still in the browser,
         // and it must no longer be worth anything.
         await page.goto("/settings?section=security");
-        page.once("dialog", (dialog) => dialog.accept());
         await page.getByRole("button", { name: "Revoke every remembered device" }).click();
+        await acceptConfirm(page);
 
         await expect(page.getByText("No devices are remembered")).toBeVisible();
 
