@@ -188,6 +188,13 @@ Threads only. A bare Message row is a message, and only a conversation arrives.
     id="thread_{{ rowId }}"
     class="group relative hover:shadow-sm"
     data-controller="mail--message-row"
+    {# Every user label on this row, so the bulk label menu can show the truth.
+       The chips beside the subject cannot serve: they stop at three and carry no
+       ids. Without this the menu opened with nothing ticked however many labels
+       the selection already had — and since it decides attach-or-detach from the
+       tick, a second click re-attached a label instead of removing it, so a
+       label could be put on and never taken off again. #}
+    data-label-ids="{{ item.labels|filter(l => l.role is null)|map(l => l.id)|join(',') }}"
     data-mail--message-row-id-value="{{ rowId }}"
     data-unread="{{ unread ? 'true' : 'false' }}"
     {# Its own attribute beside data-unread rather than folded into it: the two
@@ -541,11 +548,12 @@ Threads only. A bare Message row is a message, and only a conversation arrives.
                 </button>
                 {% endif %}
 
-                {# In the bin and in spam, the two actions that DO mean
-                   something there. Restore is the counterpart the bin never
-                   had: until it existed, mail could be thrown away and not
-                   fetched back except by attaching Inbox by hand from the
-                   label menu. #}
+                {# Anywhere that is not the inbox: the way back.
+                   The bin, spam AND the archive all had none — an archived
+                   conversation could be reached from no action in the whole
+                   interface, because the only thing on offer was Archive and it
+                   was already applied. Deleting for good stays below, limited to
+                   what has already been thrown away once. #}
                 {% if placement != 'normal' %}
                     <button type="button" data-action="click->mail--message-row#restore"
                             data-mail--message-row-restore-url-param="{{ path('app_status_restore', {'type': type, 'id': rowId}) }}"
@@ -555,11 +563,19 @@ Threads only. A bare Message row is a message, and only a conversation arrives.
                         <i class="fa-solid fa-inbox w-4 h-4" aria-hidden="true"></i>
                     </button>
 
-                    {# The question travels as a param, not as
+                    {# Delete forever is offered only where something has
+                       already been thrown away once — the bin and spam. Not
+                       because it could not work in the archive, but because
+                       archiving is an ordinary filing action and "delete
+                       forever" one click from it has no undo to catch the
+                       mistake.
+
+                       The question travels as a param, not as
                        data-turbo-confirm: Turbo only consults that attribute
                        for links and form submissions, and this posts with
                        fetch(). The controller asks the application's dialog
                        itself — see mail--message-row#purge. #}
+                    {% if placement in ['trash', 'spam'] %}
                     <button type="button" data-action="click->mail--message-row#purge"
                             data-mail--message-row-purge-url-param="{{ path('app_status_purge', {'type': type, 'id': rowId}) }}"
                             data-mail--message-row-purge-confirm-param="{{ 'discarded.actions.purge_confirm'|trans }}"
@@ -568,6 +584,7 @@ Threads only. A bare Message row is a message, and only a conversation arrives.
                             class="z-10 p-1.5 cursor-pointer rounded-lg text-gray-400 hover:text-danger hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
                         <i class="fa-solid fa-fire w-4 h-4" aria-hidden="true"></i>
                     </button>
+                    {% endif %}
                 {% endif %}
 
                 {% if false == draft and placement == 'normal' %}

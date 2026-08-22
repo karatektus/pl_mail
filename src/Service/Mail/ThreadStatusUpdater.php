@@ -195,10 +195,11 @@ final readonly class ThreadStatusUpdater
      * the label menu — which is not something a person looking at a wrongly
      * binned mail would think to do.
      *
-     * Both roles are removed rather than only the one it was found under. A
-     * message that carries Trash AND Spam — a spam mail somebody then deleted —
-     * would otherwise come back into the inbox still marked as spam, and
-     * disappear again on the next rule run.
+     * All three roles are removed rather than only the one it was found under.
+     * A message that carries Trash AND Spam — a spam mail somebody then deleted
+     * — would otherwise come back into the inbox still marked as spam and
+     * disappear again on the next rule run; and an archived conversation that
+     * kept its Archive label would sit in the inbox and the archive at once.
      *
      * @param list<Message> $messages
      */
@@ -207,8 +208,9 @@ final readonly class ThreadStatusUpdater
         $account = $this->accountOf($messages[0]);
 
         $inboxLabel = $this->labelResolver->systemLabel(LabelRole::Inbox, $account);
-        $trashLabel = $this->labels->findOneByRoleForUser(LabelRole::Trash, $account->usr);
-        $spamLabel  = $this->labels->findOneByRoleForUser(LabelRole::Spam, $account->usr);
+        $trashLabel   = $this->labels->findOneByRoleForUser(LabelRole::Trash, $account->usr);
+        $spamLabel    = $this->labels->findOneByRoleForUser(LabelRole::Spam, $account->usr);
+        $archiveLabel = $this->labels->findOneByRoleForUser(LabelRole::Archive, $account->usr);
 
         // Before the mailbox is re-pointed, so the IMAP job still knows which
         // folder to move the message out of — the same ordering archive() and
@@ -220,7 +222,7 @@ final readonly class ThreadStatusUpdater
         foreach ($messages as $message) {
             $message->addLabel($inboxLabel);
 
-            foreach ([$trashLabel, $spamLabel] as $label) {
+            foreach ([$trashLabel, $spamLabel, $archiveLabel] as $label) {
                 if (null !== $label) {
                     $message->removeLabel($label);
                 }

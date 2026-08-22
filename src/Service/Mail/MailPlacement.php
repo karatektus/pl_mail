@@ -32,16 +32,17 @@ use App\Entity\Mail\MessageThread;
  */
 final class MailPlacement
 {
-    public const string TRASH  = 'trash';
-    public const string SPAM   = 'spam';
-    public const string NORMAL = 'normal';
+    public const string TRASH   = 'trash';
+    public const string SPAM    = 'spam';
+    public const string ARCHIVE = 'archive';
+    public const string NORMAL  = 'normal';
 
     /**
      * Trash wins over Spam when something carries both, because deleting is the
      * more final of the two and the controls should describe the more final
      * one.
      *
-     * @return self::TRASH|self::SPAM|self::NORMAL
+     * @return self::TRASH|self::SPAM|self::ARCHIVE|self::NORMAL
      */
     public function of(Message|MessageThread|null $entity): string
     {
@@ -65,6 +66,16 @@ final class MailPlacement
             return self::SPAM;
         }
 
+        // Archive is not a discarded state — nothing is hidden from an archived
+        // conversation and it is not a candidate for deleting forever. It is
+        // named only so the row can offer the way back, which the archive had
+        // as little of as the bin did: an archived thread could be reached from
+        // no action anywhere in the interface, because Archive itself was the
+        // only thing on offer and it was already applied.
+        if (in_array(LabelRole::Archive, $roles, true)) {
+            return self::ARCHIVE;
+        }
+
         return self::NORMAL;
     }
 
@@ -77,6 +88,19 @@ final class MailPlacement
      * bin IS the confirmation step, and it is one the user has already taken.
      */
     public function isDiscarded(Message|MessageThread|null $entity): bool
+    {
+        return in_array($this->of($entity), [self::TRASH, self::SPAM], true);
+    }
+
+    /**
+     * Somewhere the conversation can be brought back INTO the inbox from.
+     *
+     * Wider than isDiscarded() on purpose: an archived mail is not discarded
+     * and still needs a way home. "Archive" was offered on mail already in the
+     * archive, where it does nothing, and "move to inbox" was offered nowhere at
+     * all — so archiving was as much a one-way trip as deleting.
+     */
+    public function isRestorable(Message|MessageThread|null $entity): bool
     {
         return self::NORMAL !== $this->of($entity);
     }

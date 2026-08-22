@@ -44,6 +44,10 @@ export default class extends Controller {
             // from there down is overflow:hidden. This menu used to vanish
             // behind the navbar and no z-index could have fixed it. See
             // assets/popout.js.
+            // Bulk mode: the menu is shared by whatever is selected, so what it
+            // shows has to be read from the selection each time it opens.
+            this._syncFromSelection();
+
             pinToTopLayer(event.currentTarget, this.panelTarget);
 
             document.addEventListener("click", this._boundClose, { capture: true });
@@ -76,6 +80,46 @@ export default class extends Controller {
     }
 
     // ── Private ───────────────────────────────────────────────────────────
+
+    /**
+     * Tick the labels the current selection already carries.
+     *
+     * Single-target mode gets this from the server — _thread_content renders
+     * `activeLabels` — but the toolbar's instance is shared by every row and
+     * therefore renders with nothing ticked. That was not only cosmetic: this
+     * menu decides attach-or-detach from the tick
+     * (`attach = dataset.attached !== "true"`), so an untitcked label that was
+     * in fact attached got attached AGAIN on the next click. A label could be
+     * put on a conversation and never taken off through the interface.
+     *
+     * Ticked only when EVERY selected row carries it, which is the reading that
+     * makes the next click do what the tick promises: a tick means "all of
+     * these have it", so clicking removes it from all of them. Gmail draws a
+     * third, indeterminate state for a partial selection; that is a nicer
+     * answer and a different change.
+     */
+    _syncFromSelection() {
+        if (this.hasTargetIdValue) {
+            return;
+        }
+
+        const rows = [...document.querySelectorAll("[data-thread-select]:checked")]
+            .map((box) => box.closest("[data-label-ids]"))
+            .filter((row) => null !== row);
+
+        for (const button of this.panelTarget.querySelectorAll("[data-label-id]")) {
+            const id = button.dataset.labelId;
+
+            const attached = rows.length > 0 && rows.every(
+                (row) => (row.dataset.labelIds ?? "").split(",").includes(id),
+            );
+
+            button.dataset.attached = attached ? "true" : "false";
+
+            button.querySelector("[data-mail--label-menu-target='check']")
+                ?.classList.toggle("invisible", false === attached);
+        }
+    }
 
     _resolveTargets() {
         if (this.hasTargetIdValue) {
