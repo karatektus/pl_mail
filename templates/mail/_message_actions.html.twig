@@ -48,6 +48,7 @@ Variables:
         <a href="{{ path('app_compose_reply', composeParams|merge({ id: message.id })) }}"
            data-turbo-frame="{{ composeFrame }}"
            data-controller="compose--frame-target"
+           data-turbo-prefetch="false"
            data-action="click->mail--message-actions#dismiss"
            class="flex items-center gap-2 px-4 py-2 text-ink-soft hover:bg-hover transition-colors">
             <i class="fa-solid fa-reply w-4 text-ink-faint" aria-hidden="true"></i>
@@ -58,6 +59,7 @@ Variables:
             <a href="{{ path('app_compose_reply_all', composeParams|merge({ id: message.id })) }}"
                data-turbo-frame="{{ composeFrame }}"
                data-controller="compose--frame-target"
+           data-turbo-prefetch="false"
            data-action="click->mail--message-actions#dismiss"
                class="flex items-center gap-2 px-4 py-2 text-ink-soft hover:bg-hover transition-colors">
                 <i class="fa-solid fa-reply-all w-4 text-ink-faint" aria-hidden="true"></i>
@@ -68,6 +70,7 @@ Variables:
         <a href="{{ path('app_compose_forward', composeParams|merge({ id: message.id })) }}"
            data-turbo-frame="{{ composeFrame }}"
            data-controller="compose--frame-target"
+           data-turbo-prefetch="false"
            data-action="click->mail--message-actions#dismiss"
            class="flex items-center gap-2 px-4 py-2 text-ink-soft hover:bg-hover transition-colors">
             <i class="fa-solid fa-share w-4 text-ink-faint" aria-hidden="true"></i>

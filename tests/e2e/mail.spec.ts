@@ -837,6 +837,46 @@ test.describe("mail UI actions", () => {
         ).toBe(0);
     });
 
+    /**
+     * Hovering Reply is not asking for a reply.
+     *
+     * Turbo Drive prefetches a link on hover, and the pointer crosses these two
+     * controls on the way to almost anything at the bottom of a mail. Each
+     * prefetch rebuilt the whole compose window on the server — the form, the
+     * identity's signature, the sanitised quote of the entire original — and
+     * threw it away again. Nothing is written by that GET, so it never
+     * corrupted anything; it just did the most expensive render in the app on
+     * mouse movement.
+     *
+     * The click still has to work, which is the half a bare
+     * `data-turbo-prefetch="false"` could get wrong, so it is asserted here
+     * rather than left to the specs that open a reply by other means.
+     */
+    test("hovering Reply prefetches nothing, and clicking it still opens", async ({ page }) => {
+        await page.goto("/mail/inbox");
+        await mailRow(page, INBOX_SUBJECTS.read).click();
+
+        const reply = page.getByRole("link", { name: "Reply", exact: true }).first();
+        await expect(reply).toBeVisible();
+
+        let composeRequests = 0;
+        page.on("request", (request) => {
+            if (request.url().includes("/compose/reply")) {
+                composeRequests++;
+            }
+        });
+
+        await reply.hover();
+        // Turbo's prefetch fires on a short hover delay, not immediately.
+        await page.waitForTimeout(1000);
+
+        expect(composeRequests, "a hover asked the server for a draft").toBe(0);
+
+        await reply.click();
+        await expect(page.locator(".compose-window").first()).toBeVisible();
+        expect(composeRequests, "the click itself must still fetch one").toBe(1);
+    });
+
     // ── Still pending: needs more than wiring ────────────────────────────────
 
     // Blocked: "Label as" never fires the POST from the UI. The only rendered

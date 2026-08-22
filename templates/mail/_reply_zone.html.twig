@@ -32,11 +32,23 @@ The action buttons hide themselves while a compose card is open; see the
     {% if last is not null %}
         {% set hasMultipleParticipants = ((last.toAddresses ?? [])|length + (last.ccAddresses ?? [])|length) > 1 %}
 
+        {# Prefetch off on all three, and this is the row the report was about.
+           Turbo Drive prefetches a link on hover, and hovering Reply is what
+           you do on the way to clicking it — so every pass of the pointer
+           rebuilt the entire compose window server-side: the form, the
+           identity's signature, and the sanitised quote of the whole original.
+           Nothing is written by that GET, so it was waste rather than damage,
+           and it was waste on the two controls at the bottom of every mail.
+
+           Same attribute, same reason, as the thread rows and the folder rows
+           — see _thread_row.html.twig, where a prefetched response ALSO had to
+           be declined for a second reason. #}
         <div data-reply-actions class="flex items-center gap-2 {{ sending ? 'hidden' : '' }}">
             <a
                 href="{{ path('app_compose_reply', params|merge({ id: last.id })) }}"
                 data-turbo-frame="{{ frame }}"
                 data-controller="compose--frame-target"
+                data-turbo-prefetch="false"
                 class="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium
                        text-ink-soft bg-sunken border border-line hover:bg-hover transition-colors"
             >
@@ -49,6 +61,7 @@ The action buttons hide themselves while a compose card is open; see the
                     href="{{ path('app_compose_reply_all', params|merge({ id: last.id })) }}"
                     data-turbo-frame="{{ frame }}"
                     data-controller="compose--frame-target"
+                data-turbo-prefetch="false"
                     class="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium
                            text-ink-soft bg-sunken border border-line hover:bg-hover transition-colors"
                 >
@@ -61,6 +74,7 @@ The action buttons hide themselves while a compose card is open; see the
                 href="{{ path('app_compose_forward', params|merge({ id: last.id })) }}"
                 data-turbo-frame="{{ frame }}"
                 data-controller="compose--frame-target"
+                data-turbo-prefetch="false"
                 class="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium
                        text-ink-soft bg-sunken border border-line hover:bg-hover transition-colors"
             >
