@@ -16,6 +16,10 @@ because of its draft, so it opens that draft even when the thread also holds
 the conversation it answers.
 #}
 {% set draft_scope = draft_scope|default(false) %}
+{# The Sent list, where the who column has the same problem the Drafts list had:
+   every row is from you, so naming the sender fills the column with your own
+   name and says nothing. See the `sent_scope` block further down. #}
+{% set sent_scope = sent_scope|default(false) %}
 {% set item = thread ?? message %}
 {% set isThread = item.messages is defined %}
 
@@ -82,7 +86,13 @@ Threads only. A bare Message row is a message, and only a conversation arrives.
        preview, so the list misreported what the message said. Twig's autoescaping
        is what makes this safe, and it is also what makes it correct — escaped, the
        angle brackets are shown; stripped, they were obeyed. #}
-    {% set snippet = latest ? (latest.bodyText ?? '')|slice(0, 100) : '' %}
+    {# mail_snippet, not bodyText. The text part is whatever the sender put in
+       the half of the mail most recipients never see — for bulk senders that is
+       routinely a sentence saying the mail is only available in HTML, and for
+       some it is HTML itself, which arrived in the list as visible `<p
+       style=…>`. The preview is made from the rendered body instead, which is
+       what the reader would actually see. See App\Service\Mail\MessageSnippet. #}
+    {% set snippet = mail_snippet(latest ?: null)|slice(0, 100) %}
 
     {# `latest` comes from |last, which yields FALSE (not null) on an empty
        collection — so `is not null` passes and .isDraft blows up on a bool.
@@ -114,6 +124,25 @@ Threads only. A bare Message row is a message, and only a conversation arrives.
             : ('thread_row.no_recipient'|trans) %}
     {% endif %}
 
+    {# Sent, for the same reason and with the same answer.
+       The column read "Sven" on every row — or "ich" on some and "Sven" on
+       others, depending on whether the participant list had learned the name —
+       and in a folder of mail you sent, the one fact nobody needs is who sent
+       it. The recipient is what tells one row from another, which the Drafts
+       list has always got right.
+
+       Taken from the newest message rather than from the thread's participants:
+       a conversation you have replied into contains everybody, and the question
+       here is who THIS went to. #}
+    {% if sent_scope and latest %}
+        {% set recipients = (latest.toAddresses ?? [])
+            |map(r => r.name ?: r.address)
+            |filter(r => r is not empty) %}
+        {% set sender = recipients|length > 0
+            ? ('thread_row.to'|trans({ '%recipients%': recipients|join(', ') }))
+            : ('thread_row.no_recipient'|trans) %}
+    {% endif %}
+
     {# A draft on a hold. sentAt guards it for the reason the compose window
        guards it: once the mail has gone, submissionSendAt is the record of
        when it was due, not a schedule. #}
@@ -138,8 +167,8 @@ Threads only. A bare Message row is a message, and only a conversation arrives.
     {% set count = 1 %}
     {% set sender = item.fromName ?: item.fromAddress %}
     {% set senderSeed = item.fromAddress ?: sender %}
-    {# Already plain text — see the note on the thread branch above. #}
-    {% set snippet = (item.bodyText ?? '')|slice(0, 100) %}
+    {# Same source as the thread branch above, so the two cannot drift. #}
+    {% set snippet = mail_snippet(item)|slice(0, 100) %}
 
     {% set hasAttachment = item.hasAttachments %}
 
