@@ -1508,7 +1508,7 @@ message:
     body_frame: Nachrichteninhalt
     details:
         categorised:
-            correspondent: 'Sie haben diesem Absender geschrieben'
+            correspondent: 'Du hast diesem Absender geschrieben'
             default: 'nichts wies auf Massenmail hin'
             forum: 'ein Mailinglisten-Header: '
             gmail: 'laut Gmail: '
@@ -1554,7 +1554,7 @@ message:
             subject: 'Gelesen: %subject%'
         mismatch: 'Die Bestätigung soll an %notifyTo% gehen – das ist nicht die Adresse, von der diese Nachricht gesendet wurde (%sender%).'
         read_at: 'Gelesen am %datetime%'
-        requested: '%sender% möchte benachrichtigt werden, wenn Sie diese Nachricht lesen.'
+        requested: '%sender% möchte benachrichtigt werden, wenn du diese Nachricht liest.'
         send: 'Bestätigung senden'
     save_to: 'Speichern in'
     security:
@@ -1563,7 +1563,7 @@ message:
             domain_in_name: "Der Name gibt %claimed% an, gesendet wurde die Nachricht aber von %actual%."
             title: "Der Absendername passt nicht zur Absenderadresse"
         spam:
-            body: "Diese Nachricht wurde als Spam eingestuft. Ihre Links und Bilder sind riskant — behandeln Sie jede Aufforderung darin wie die eines Fremden."
+            body: "Diese Nachricht wurde als Spam eingestuft. Ihre Links und Bilder sind riskant — behandle jede Aufforderung darin wie die eines Fremden."
             title: Diese Nachricht ist im Spam
 
 mercure:
@@ -2098,7 +2098,7 @@ settings:
         invalid: 'Diese Einstellung konnte nicht gespeichert werden.'
         read_receipt:
             for_alias: 'Lesebestätigungen für %alias%'
-            hint: 'Wenn ein Absender benachrichtigt werden möchte, sobald Sie seine Nachricht gelesen haben.'
+            hint: 'Wenn ein Absender benachrichtigt werden möchte, sobald du seine Nachricht gelesen hast.'
             inherit: 'Konto-Standard (%mode%)'
             label: 'Lesebestätigungen'
             mode:
@@ -2106,7 +2106,7 @@ settings:
                 ask: 'Jedes Mal fragen'
                 never: 'Nie senden'
         saved: 'Gespeichert.'
-        subheading: 'Was jede Ihrer Adressen beim Senden und Empfangen standardmäßig tut.'
+        subheading: 'Was jede deiner Adressen beim Senden und Empfangen standardmäßig tut.'
     filters:
         account: Account
         action:
@@ -2444,7 +2444,7 @@ settings:
             base_url: 'Serveradresse'
             base_url_fixed: 'Verbindung zu %url%, von der Administration festgelegt.'
             name: Name
-            name_help: 'Nur für Sie sichtbar, um zwei Verbindungen auseinanderzuhalten.'
+            name_help: 'Nur für dich sichtbar, um zwei Verbindungen auseinanderzuhalten.'
             secret:
                 dropbox: 'Zugriffstoken'
                 googleDrive: 'Zugriffstoken'
@@ -2462,7 +2462,7 @@ settings:
             permissions:
                 immich: 'asset.read — Fotos und Videos sehen|asset.download — die Originaldatei anhängen|asset.view — Vorschauen im Dialog anzeigen|asset.upload — Anhänge in Immich speichern|album.read — Alben auflisten und durchsehen|albumAsset.create — gespeicherte Anhänge einem Album zuordnen'
             permissions_heading: 'Berechtigungen für diesen Schlüssel'
-            permissions_note: 'Ein Schlüssel mit allen Berechtigungen funktioniert ebenfalls und ist einfacher, wenn Sie nicht einzeln auswählen möchten.'
+            permissions_note: 'Ein Schlüssel mit allen Berechtigungen funktioniert ebenfalls und ist einfacher, wenn du nicht einzeln auswählen möchtest.'
             secret_unchanged: 'Leer lassen, um die gespeicherten Zugangsdaten zu behalten'
             username: Benutzername
         heading: Integrationen
@@ -2760,7 +2760,7 @@ settings:
         reverted: 'Wieder die Signatur des Kontos.'
         save: 'Signatur speichern'
         saved: 'Gespeichert.'
-        subheading: 'Was am Ende der Nachrichten steht, die Sie schreiben.'
+        subheading: 'Was am Ende der Nachrichten steht, die du schreibst.'
     timezone:
         heading: Zeitzone
         subheading: Die Uhr, nach der Zeiten und Daten angezeigt werden. Es wird nichts umgeschrieben — derselbe Zeitpunkt wird nur auf deiner Uhr gelesen.
@@ -2864,6 +2864,11 @@ toast:
         no_archive_mailbox: Es gibt kein Archiv-Postfach.
 
 toolbar:
+    view_select:
+        offer: 'Es lassen sich alle %count% Unterhaltungen in dieser Ansicht auswählen.'
+        offer_action: 'Alle %count% auswählen'
+        selected: 'Alle %count% Unterhaltungen in dieser Ansicht sind ausgewählt.'
+        clear: 'Nur diese Seite auswählen'
     actions:
         archive: Archivieren
         delete: Löschen

@@ -9,7 +9,8 @@
 // reach it.
 
 import { Controller } from "@hotwired/stimulus";
-import { csrfToken } from "../../csrf.js";
+import * as Turbo from "@hotwired/turbo";
+import { jsonCsrfHeaders } from "../../csrf.js";
 import { announceWrite } from "../../mail_writes.js";
 
 // Classes applied to the checkbox button in each state
@@ -29,9 +30,39 @@ export default class extends Controller {
         "selectMenuBtn",
         "actions",         // wrapper div around bulk-action buttons
         "selectionCount",
+        "viewBanner",       // the "select all N in this view" strip
+        "viewBannerText",
+        "viewBannerAction",
     ];
 
-    static values = { total: Number };
+    static values = {
+        total: Number,
+        // What this list is showing, in the vocabulary the list template
+        // already uses for itself ({% block list_scope %}) — see
+        // App\Service\Mail\ListViewResolver. `scopeValue` carries the
+        // category for the inbox and the label id for a label view.
+        // `viewScope` / `viewValue`, not `scope` / `scopeValue`: Stimulus
+        // spells a value as `data-…-<name>-value`, so a value called
+        // `scopeValue` becomes `data-…-scope-value-value` while `scope` becomes
+        // `data-…-scope-value`. The two are one character apart in the markup
+        // and mean entirely different things, which is how the view descriptor
+        // arrived empty and the bulk action archived nothing while answering
+        // 200.
+        viewScope: String,
+        viewValue: String,
+        unreadOnly: Boolean,
+        i18n: Object,
+    };
+
+    /**
+     * True once "select all N" has been pressed: the selection is the VIEW,
+     * not the rows on screen.
+     *
+     * Cleared by anything that changes what is selected, including a bulk
+     * action finishing — a person who deleted everything and then clicks
+     * Archive must not archive everything that arrived since.
+     */
+    #allInView = false;
 
     // ── Lifecycle ─────────────────────────────────────────────────────────
 
@@ -106,27 +137,43 @@ export default class extends Controller {
     // ── Bulk actions ──────────────────────────────────────────────────────
 
     async archiveSelected() {
-        const ids = this._selectedIds();
-        if (ids.length === 0) { return; }
-        await this._bulkPost(ids, "archive");
+        await this._bulkPost("archive");
     }
 
     async deleteSelected() {
-        const ids = this._selectedIds();
-        if (ids.length === 0) { return; }
-        await this._bulkPost(ids, "trash");
+        await this._bulkPost("trash");
     }
 
     async markReadSelected() {
-        const ids = this._selectedIds();
-        if (ids.length === 0) { return; }
-        await this._bulkPost(ids, "read", { read: true });
+        await this._bulkPost("read", { read: true });
     }
 
     async markUnreadSelected() {
-        const ids = this._selectedIds();
-        if (ids.length === 0) { return; }
-        await this._bulkPost(ids, "read", { read: false });
+        await this._bulkPost("read", { read: false });
+    }
+
+    /**
+     * Extend the selection past the page, to everything in this view.
+     *
+     * Offered only when every row on screen is already selected and there are
+     * more than fit — the state where "select all" has visibly done less than
+     * the words promise. It is what a bin holding a hundred and ninety-five
+     * messages needs, and the same gesture as selecting every starred mail.
+     */
+    selectAllInView(event) {
+        event?.preventDefault();
+
+        this.#allInView = true;
+        this._syncFromRows();
+    }
+
+    /** Back to the rows on screen. */
+    clearViewSelection(event) {
+        event?.preventDefault();
+
+        this.#allInView = false;
+        this._setAllRows(false);
+        this._syncFromRows();
     }
 
     /**
@@ -188,66 +235,74 @@ export default class extends Controller {
      * @param {string}   action  - route suffix: archive | trash | read | snooze | star
      * @param {object}   body    - optional JSON body (e.g. { read: true })
      */
-    async _bulkPost(ids, action, body = {}) {
-        const csrf = csrfToken();
+    /**
+     * One request for the whole selection.
+     *
+     * It used to be one request per conversation, fired in parallel. That is
+     * survivable for the fifty rows a page holds and impossible for what this
+     * now offers: "select all" over a bin of two hundred would have opened two
+     * hundred connections, and a real mailbox is worse.
+     *
+     * It also could not answer for the list. Each response redrew its own row
+     * and knew nothing else, so a list that lost four of five rows still said
+     * "1–5 of 5" and an emptied one never showed its empty state — the pager
+     * and the placeholder belong to the LIST, and no row-shaped response
+     * carries them. The bulk response refreshes the frame instead.
+     */
+    async _bulkPost(action, body = {}) {
+        const ids = this.#allInView ? [] : this._selectedIds();
 
-        // Hold the list refresh for the whole run. Each of these posts makes the
-        // server publish a sync, and a refresh answering one of them mid-run
-        // re-renders the list from a state where the remaining threads have not
-        // been acted on yet — putting rows back that the streams below are about
-        // to remove, as fresh elements the streams can no longer address. The
-        // rows then stay on screen having been archived. See
-        // mail_pane_controller#hold.
+        if (false === this.#allInView && ids.length === 0) {
+            return;
+        }
+
+        // Holds the mail pane's refresh of the list frame for the duration —
+        // see mail--mail-pane#hold. Without it the frame reloads mid-run and
+        // the rows being acted on are replaced underneath the request.
         this.dispatch("writing");
 
         try {
-            await this._bulkPostInner(ids, action, body, csrf);
-        } finally {
-            // Releases the mail pane's hold on the list frame — a statement
-            // about THIS run of posts, and still the toolbar's own.
-            this.dispatch("written");
+            const response = await fetch(`${STATUS_BASE}/bulk/${action}`, {
+                method: "POST",
+                headers: jsonCsrfHeaders(),
+                body: JSON.stringify({
+                    ...body,
+                    ids,
+                    all: this.#allInView,
+                    scope: this.viewScopeValue,
+                    value: this.viewValueValue,
+                    unreadOnly: this.unreadOnlyValue,
+                }),
+            });
 
-            // And the separate, general one the badges listen for. The sidebar
-            // used to listen to the line above; it no longer does, so a bulk
-            // action has to make both statements. See assets/mail_writes.js
-            // for why they stayed two events rather than becoming one.
-            announceWrite();
-        }
-    }
+            if (false === response.ok) {
+                console.error(`[list-toolbar] bulk ${action} failed`, response.status);
 
-    async _bulkPostInner(ids, action, body, csrf) {
-        const results = await Promise.all(
-            ids.map(async (id) => {
-                const url      = `${STATUS_BASE}/thread/${id}/${action}`;
-                const response = await fetch(url, {
-                    method:  "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                        "X-CSRF-Token": csrf,
-                    },
-                    body: JSON.stringify(body),
-                });
-
-                if (!response.ok) {
-                    console.error(`[list-toolbar] ${action} failed for thread ${id}`, response.status);
-                    return null;
-                }
-
-                return response.text();
-            }),
-        );
-
-        // Render streams in selection order so DOM mutations are predictable.
-        for (const html of results) {
-            if (html !== null && html.trim() !== "") {
-                Turbo.renderStreamMessage(html);
+                return;
             }
-        }
 
-        // Uncheck all rows after the action succeeds (rows may have been
-        // removed from the DOM by the stream responses).
-        this._setAllRows(false);
-        this._syncFromRows();
+            // The rows first, so the click has an answer immediately, then the
+            // list itself for the pager and the empty state — see
+            // thread/status/_bulk.stream.html.twig for why it takes both.
+            Turbo.renderStreamMessage(await response.text());
+
+            // The list itself — the pager, the empty state, the total — is
+            // re-read by the mail pane when the "written" event below releases
+            // its hold. NOT by frame.reload(): this frame is rendered inline
+            // and has no `src`, and reload() on a src-less turbo-frame does
+            // nothing at all, silently. That is worth writing down, because it
+            // looks exactly like a refresh that ran and found no changes.
+        } finally {
+            this.dispatch("written");
+            announceWrite();
+
+            // The selection is spent either way. Leaving #allInView set is how
+            // a second click would act on everything that had arrived since —
+            // which is the shape of the desync that was reported, made worse.
+            this.#allInView = false;
+            this._setAllRows(false);
+            this._syncFromRows();
+        }
     }
 
     /**
@@ -272,8 +327,56 @@ export default class extends Controller {
 
         // ── Count label ──────────────────────────────────────────────────
         if (this.hasSelectionCountTarget) {
-            this.selectionCountTarget.textContent =
-                checkedCount > 0 ? String(checkedCount) : "";
+            this.selectionCountTarget.textContent = this.#allInView
+                ? String(this.totalValue)
+                : (checkedCount > 0 ? String(checkedCount) : "");
+        }
+
+        this.#syncViewBanner(allChecked);
+    }
+
+    /**
+     * The "and the other 145" offer.
+     *
+     * Shown only where "select all" has visibly done less than the words
+     * promise: every row on screen is ticked AND the view holds more than fit.
+     * On a list that fits on one page there is nothing to extend to, and
+     * offering it anyway would be a control that does nothing.
+     */
+    #syncViewBanner(allChecked) {
+        if (false === this.hasViewBannerTarget) {
+            return;
+        }
+
+        const extendable = allChecked && this.totalValue > this._rowCheckboxes().length;
+
+        this.viewBannerTarget.classList.toggle("hidden", false === (extendable || this.#allInView));
+
+        if (false === this.hasViewBannerTextTarget) {
+            return;
+        }
+
+        // Two sentences, because they say opposite things: one offers to widen
+        // the selection, the other reports that it IS widened and offers the
+        // way back. A single string with a number swapped in would have to be
+        // one or the other.
+        const i18n = this.i18nValue ?? {};
+
+        this.viewBannerTextTarget.textContent = this.#allInView
+            ? (i18n.allSelected ?? "").replace("%count%", String(this.totalValue))
+            : (i18n.selectAll ?? "").replace("%count%", String(this.totalValue));
+
+        if (this.hasViewBannerActionTarget) {
+            this.viewBannerActionTarget.textContent = this.#allInView
+                ? (i18n.clear ?? "")
+                : (i18n.selectAllAction ?? "");
+
+            this.viewBannerActionTarget.setAttribute(
+                "data-action",
+                this.#allInView
+                    ? "click->mail--list-toolbar#clearViewSelection"
+                    : "click->mail--list-toolbar#selectAllInView",
+            );
         }
     }
 

@@ -1,5 +1,6 @@
 import { test, expect } from "./support/test";
 import { INBOX_SUBJECTS, mailRow, seed } from "./support/config";
+import { rowAction } from "./support/rows";
 
 /**
  * The snooze menu says which day it means, in the order it means it.
@@ -53,9 +54,8 @@ async function offered(page: import("@playwright/test").Page): Promise<Array<{ k
 async function openSnoozeMenu(page: import("@playwright/test").Page, subject: string) {
     const row = mailRow(page, subject);
     await expect(row).toBeVisible();
-    await row.hover();
 
-    await row.getByRole("button", { name: /snooze/i }).click({ force: true });
+    await rowAction(row, /snooze/i);
 
     await expect(page.locator('[data-controller="mail--snooze-menu"]:not([hidden])').first())
         .toBeVisible();

@@ -1,5 +1,7 @@
 {% extends '_layout/_mailbox.html.twig' %}
 
+{% block list_scope %}starred{% endblock %}
+
 {% block title %}
     {% set _unread = sidebarCounts.forStarred() %}
     {{ _unread > 0 ? '('~_unread~')' }} {{ 'sidebar.nav.starred'|trans }} — {{ 'app.name'|trans }}

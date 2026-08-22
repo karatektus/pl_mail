@@ -2842,6 +2842,13 @@ toast:
         no_archive_mailbox: There is no archive mailbox.
 
 toolbar:
+    view_select:
+        # The "and the other 145" offer, shown when every row on screen is
+        # selected and the view holds more than fits on a page.
+        offer: 'All %count% conversations in this view can be selected.'
+        offer_action: 'Select all %count%'
+        selected: 'All %count% conversations in this view are selected.'
+        clear: 'Select only this page'
     actions:
         archive: Archive
         delete: Delete

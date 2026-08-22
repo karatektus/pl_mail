@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Twig;
 
 use App\Entity\Embeddable\Appearance;
+use Symfony\Component\HttpFoundation\RequestStack;
+use App\Infrastructure\Event\Subscriber\AppearanceCookieSubscriber;
 use App\Entity\User\User;
 use App\Service\Appearance\AppearanceRenderer;
 use App\Service\Appearance\BackgroundResolver;
@@ -25,6 +27,9 @@ final class AppearanceExtension extends AbstractExtension
          * for both to come out of the same method.
          */
         private readonly BackgroundResolver $backgrounds,
+        // For the no-user case above: the cookie is the only place the theme
+        // survives a request the firewall never ran for.
+        private readonly RequestStack       $requests,
     ) {
     }
 
@@ -45,11 +50,23 @@ final class AppearanceExtension extends AbstractExtension
     {
         $user = $this->security->getUser();
 
-        if (false === $user instanceof User) {
-            return new Appearance();
+        if ($user instanceof User) {
+            return $user->appearance;
         }
 
-        return $user->appearance;
+        // No user is not always "not signed in". An error page is rendered with
+        // an empty token storage even for somebody who is: a 404 is thrown by
+        // the router at priority 32 of kernel.request, before the firewall at
+        // 8, so nothing has authenticated by the time the exception is handled.
+        // Falling straight through to the defaults is what put a German user in
+        // a beige "Papier" 404 while every other page was their own theme.
+        //
+        // The cookie is written on ordinary responses, where the user IS known
+        // — see AppearanceCookieSubscriber, which also explains why the error
+        // template cannot simply look the user up for itself.
+        return AppearanceCookieSubscriber::appearanceFrom(
+            $this->requests->getCurrentRequest()?->cookies->get(AppearanceCookieSubscriber::COOKIE),
+        );
     }
 
     public function appearanceClass(): string

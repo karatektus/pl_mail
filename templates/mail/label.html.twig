@@ -3,6 +3,12 @@ mail/label.html.twig — thread list for a custom label.
 #}
 {% extends '_layout/_mailbox.html.twig' %}
 
+{# A label view names itself by its id, because the label is the view — see
+   App\Service\Mail\ListViewResolver, which checks the label belongs to the
+   person asking before it resolves anything. #}
+{% block list_scope %}label{% endblock %}
+{% block list_scope_value %}{{ label.id }}{% endblock %}
+
 {% block title %}
     {% set _unread = sidebarCounts.forLabel(label) %}
     {{ _unread > 0 ? '('~_unread~')' }} {{ label.fullName }} — {{ 'app.name'|trans }}

@@ -1,6 +1,5 @@
 import { Controller } from "@hotwired/stimulus";
 import { jsonCsrfHeaders } from "../../csrf.js";
-import { pinToTopLayer, releaseFromTopLayer } from "../../popout.js";
 
 /**
  * "Label as" dropdown. Toggles a label on the target thread/message via the
@@ -38,17 +37,9 @@ export default class extends Controller {
         } else {
             this.panelTarget.classList.remove("hidden");
 
-            // Into the top layer, or it never gets out of the mail pane: the
-            // panes carry backdrop-filter, which makes them a stacking context
-            // AND the containing block for position:fixed, and every ancestor
-            // from there down is overflow:hidden. This menu used to vanish
-            // behind the navbar and no z-index could have fixed it. See
-            // assets/popout.js.
             // Bulk mode: the menu is shared by whatever is selected, so what it
             // shows has to be read from the selection each time it opens.
             this._syncFromSelection();
-
-            pinToTopLayer(event.currentTarget, this.panelTarget);
 
             document.addEventListener("click", this._boundClose, { capture: true });
         }
@@ -162,11 +153,6 @@ export default class extends Controller {
     }
 
     _close() {
-        // Out of the top layer first: a hidden popover that was never dismissed
-        // keeps its scroll and resize listeners, and the next open would add a
-        // second pair.
-        releaseFromTopLayer(this.panelTarget);
-
         this.panelTarget.classList.add("hidden");
         document.removeEventListener("click", this._boundClose, { capture: true });
     }

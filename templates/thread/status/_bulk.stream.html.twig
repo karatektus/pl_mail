@@ -1,0 +1,57 @@
+{#
+The answer to a bulk action: redraw the list, once.
+
+Not a stream per row, which is what the toolbar's per-conversation posts
+produced. Each of those knew what had happened to its own row and nothing else,
+so a list that lost four of five rows still said "1–5 of 5", and one that lost
+every row showed no empty state at all — the pager and the placeholder are
+properties of the LIST, and no row-shaped response can carry them.
+
+So this body carries no streams at all: the CLIENT reloads the list frame when
+the request comes back, and the controller answers that reload exactly as it
+answers any other visit to the list. One definition of what the list looks like,
+and no second implementation here of the paging, filtering and sorting this
+response has no parameters for.
+
+A `<turbo-stream action="refresh">` was tried first and is not reliable enough
+for this: it asks Turbo to refresh the PAGE, which is debounced and skipped
+under conditions this code cannot see. Rows that leave the list happened to look
+right — they were gone either way — while rows that STAY, like a conversation
+being marked read, kept their old state on screen until something else
+re-rendered them.
+
+The count is a comment rather than anything visible. Nothing on screen needs it,
+and a bulk action that silently does nothing is otherwise indistinguishable from
+one that worked — which is exactly how a whole-view archive that resynced only
+the first thread's labels answered 200, reported 71, and changed nothing.
+
+## Why the rows are here as well as the frame reload
+
+The rows are redrawn from here AND the client re-reads the list frame, which
+looks like doing the same work twice and is not. The rows have to change the
+moment the response lands, because that is the feedback for the click; the frame
+has to be re-read because the pager and the empty state are properties of the
+list that no row-shaped stream can carry. Leaving out the first made a bulk
+mark-read take a visible beat and left the rows stale in between; leaving out
+the second is the original finding.
+
+Variables:
+  count    how many conversations were acted on; 0 is a valid answer
+  threads  the conversations, for redrawing their rows
+  leaves   true when the action takes them out of THIS list (archive, trash,
+           restore) rather than changing them in place (read)
+#}
+<!-- plmail-bulk: {{ count }} -->
+
+{% for thread in threads %}
+    {% if leaves %}
+        <turbo-stream action="remove" target="thread_{{ thread.id }}">
+        </turbo-stream>
+    {% else %}
+        <turbo-stream action="replace" target="thread_{{ thread.id }}">
+            <template>
+                {% include '_partials/_thread_row.html.twig' with { thread: thread } only %}
+            </template>
+        </turbo-stream>
+    {% endif %}
+{% endfor %}

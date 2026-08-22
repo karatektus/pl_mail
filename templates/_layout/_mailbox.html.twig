@@ -10,6 +10,12 @@
    conditional above and the fragment layout has no such block to inherit. #}
 {% block body_controllers %}core--mercure mail--mail-pane{% endblock %}
 
+{# The one part of a view that varies within its scope: the category tab for the
+   inbox, the label id for a label view. Empty for every list where the scope is
+   the whole answer. Defined here so `block('list_scope_value')` resolves for
+   every list rather than only the two that care. #}
+{% block list_scope_value %}{% endblock %}
+
 {% set selectedMessage = selectedMessage|default(null) %}
 
 {#
@@ -221,10 +227,18 @@ which of the two is happening.
 
         {# ── Gmail-style toolbar ──────────────────────────────────────────── #}
         {% block inbox_toolbar %}
+            {# list_scope is the same block the sync scope uses, so a view
+               names itself once. list_scope_value carries the one thing that
+               varies within a scope: the category tab for the inbox, the label
+               id for a label view. Both go to the server's closed set — see
+               App\Service\Mail\ListViewResolver. #}
             {% include '_partials/_list_toolbar.html.twig' with {
-                page:     page     ?? 1,
-                total:    total    ?? 0,
-                per_page: per_page ?? 50,
+                page:             page     ?? 1,
+                total:            total    ?? 0,
+                per_page:         per_page ?? 50,
+                list_scope:       block('list_scope'),
+                list_scope_value: block('list_scope_value'),
+                unread_only:      unread_only ?? false,
             } %}
         {% endblock %}
 

@@ -80,13 +80,43 @@ The button itself carries `group` and `relative`.
 {% import _self as m %}
 
 <div
-    class="flex items-center px-3 py-1
+    {# `relative`: the select-all-in-view banner below is positioned against
+       this bar, so it hangs under the toolbar rather than over the first row. #}
+    class="relative flex items-center px-3 py-1
            border-b border-line
            bg-raised
            shrink-0 min-h-[var(--pane-header-h)]"
     data-controller="mail--list-toolbar"
     data-mail--list-toolbar-total-value="{{ total }}"
+    {# What this list is showing, in the vocabulary the list template already
+       uses for itself. The server resolves it against a closed set — see
+       App\Service\Mail\ListViewResolver, which explains why the view is named
+       rather than posted as the current URL. #}
+    data-mail--list-toolbar-view-scope-value="{{ list_scope|default('') }}"
+    data-mail--list-toolbar-view-value-value="{{ list_scope_value|default('') }}"
+    data-mail--list-toolbar-unread-only-value="{{ unread_only|default(false) ? 'true' : 'false' }}"
+    data-mail--list-toolbar-i18n-value="{{ {
+        selectAll:       'toolbar.view_select.offer'|trans,
+        selectAllAction: 'toolbar.view_select.offer_action'|trans,
+        allSelected:     'toolbar.view_select.selected'|trans,
+        clear:           'toolbar.view_select.clear'|trans,
+    }|json_encode }}"
 >
+
+    {# The offer to select past the page. Hidden until every row on screen is
+       ticked AND the view holds more than fits — before that it would be a
+       control that does nothing. Filled in by the controller, which is the only
+       thing that knows both numbers. #}
+    <div data-mail--list-toolbar-target="viewBanner"
+         class="hidden absolute inset-x-0 top-full z-10 flex items-center justify-center gap-2
+                px-3 py-1.5 text-xs bg-accent-soft text-ink border-b border-line">
+        <span data-mail--list-toolbar-target="viewBannerText"></span>
+        <button type="button"
+                data-mail--list-toolbar-target="viewBannerAction"
+                data-action="click->mail--list-toolbar#selectAllInView"
+                class="font-semibold text-accent underline underline-offset-2 hover:opacity-70 cursor-pointer">
+        </button>
+    </div>
 
     {# ── Checkbox + chevron ───────────────────────────────────────────────── #}
     <div class="flex items-center shrink-0 mr-2">

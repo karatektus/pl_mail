@@ -1,5 +1,6 @@
 import { test, expect } from "./support/test";
 import { INBOX_SUBJECTS, mailRow, seed } from "./support/config";
+import { rowAction } from "./support/rows";
 
 /**
  * The Snoozed list says when each conversation comes back, and lets you cancel.
@@ -38,7 +39,18 @@ test("a snoozed conversation shows its wake time and can be woken", async ({ pag
     const option = menu.locator("[data-snooze-key]:not([hidden])").first();
     const wakeAt = await option.getAttribute("data-mail--message-row-until-param") ?? "";
 
+    // Waited for AND asserted. Navigating before the write lands reads the
+    // next list from before it, which fails as "the conversation is not there"
+    // — indistinguishable from the feature being broken, and only on some runs.
+    // A refused write answers just as promptly as a successful one, so the
+    // status is checked rather than assumed.
+    const snoozed = page.waitForResponse(
+        (response) => response.url().includes("/snooze") && response.request().method() === "POST",
+    );
+
     await option.click({ force: true });
+
+    expect((await snoozed).status(), "the snooze was refused").toBe(200);
 
     // Deliberately NOT asserting the row leaves the inbox here. It does not,
     // and that is its own reported finding — the row is removed locally by some

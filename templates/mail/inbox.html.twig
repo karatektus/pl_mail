@@ -2,6 +2,9 @@
 {% extends '_layout/_mailbox.html.twig' %}
 
 {% block list_scope %}inbox{% endblock %}
+{# The tab IS the view: selecting everything while looking at Notifications
+   must not reach into Primary, which is not on screen. #}
+{% block list_scope_value %}{{ tab.value ?? '' }}{% endblock %}
 
 {% block title %}
     {% set _unread = sidebarCounts.forRoleBadge(enum('App\\Domain\\Enum\\Mail\\LabelRole').Inbox) %}

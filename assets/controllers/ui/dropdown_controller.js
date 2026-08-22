@@ -1,5 +1,4 @@
 import { Controller } from "@hotwired/stimulus";
-import { pinToTopLayer, releaseFromTopLayer } from "../../popout.js";
 
 /**
  * A small click-to-open menu.
@@ -28,7 +27,6 @@ import { pinToTopLayer, releaseFromTopLayer } from "../../popout.js";
  */
 export default class extends Controller {
     static targets = ["menu"];
-    static values = { escapes: Boolean };
 
     connect() {
         this._boundOutside = this._handleOutside.bind(this);
@@ -56,35 +54,11 @@ export default class extends Controller {
     toggle(event) {
         event?.preventDefault();
 
-        this.menuTarget.hidden ? this.open(event?.currentTarget) : this.close();
+        this.menuTarget.hidden ? this.open() : this.close();
     }
 
-    /**
-     * @param {HTMLElement} [trigger] the control the menu should hang under.
-     *        Defaults to this controller's element, which is the wrapper the
-     *        menu was anchored to when it positioned itself with CSS.
-     */
-    open(trigger) {
+    open() {
         this.menuTarget.hidden = false;
-
-        // Into the top layer, for the menus that need to leave their pane.
-        //
-        // Opt-in, and that is the correction rather than the original design:
-        // applying it to every menu this controller opens broke the ones that
-        // are deliberately anchored to the box they live in. The compose
-        // window's emoji picker is centred ON the window and asserted to stay
-        // inside it — escaping to the viewport is exactly wrong there, and the
-        // specs said so.
-        //
-        // So a menu asks. The ones that ask are the ones opened inside a pane
-        // and needing to overlap the chrome around it: the panes carry
-        // backdrop-filter, which makes each a stacking context AND the
-        // containing block for position:fixed, so nothing anchored inside one
-        // can rise above the header whatever its z-index says. See
-        // assets/popout.js.
-        if (true === this.escapesValue) {
-            pinToTopLayer(trigger ?? this.element, this.menuTarget);
-        }
 
         // For menus whose contents go stale while closed — the snooze menu
         // recomputes its wake times here, so one left open across midnight
@@ -99,12 +73,6 @@ export default class extends Controller {
         if (true === this.menuTarget.hidden) {
             return;
         }
-
-        // Unconditional, unlike the open: a menu that stopped opting in while
-        // one of its panels was still shown would otherwise keep the scroll
-        // and resize listeners for ever. releaseFromTopLayer does nothing to a
-        // panel that was never pinned.
-        releaseFromTopLayer(this.menuTarget);
 
         this.menuTarget.hidden = true;
         this._detach();

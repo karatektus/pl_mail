@@ -289,7 +289,34 @@ final readonly class ThreadStatusUpdater
             }
         }
 
-        $messages[0]->thread->unreadCount = $unread;
+        // Per thread, counted from that thread's own messages.
+        //
+        // `$messages[0]->thread->unreadCount = $unread` was right while every
+        // caller named one conversation: the total of the set WAS the total of
+        // the thread. A bulk action passes several threads at once, and that
+        // line then wrote the whole selection's count onto the first thread and
+        // left the others untouched — so four conversations were marked read in
+        // the database and three rows went on rendering as unread, because
+        // `data-unread` reads the thread's counter rather than its messages.
+        $counts = [];
+
+        foreach ($messages as $message) {
+            $thread = $message->thread;
+
+            if (null === $thread) {
+                continue;
+            }
+
+            $counts[spl_object_id($thread)] ??= ['thread' => $thread, 'unread' => 0];
+
+            if (null === $message->seenAt) {
+                ++$counts[spl_object_id($thread)]['unread'];
+            }
+        }
+
+        foreach ($counts as ['thread' => $thread, 'unread' => $threadUnread]) {
+            $thread->unreadCount = $threadUnread;
+        }
 
         $this->propagator->markRead($messages, $read);
         $this->recordJmapUpdates($messages);
@@ -549,7 +576,30 @@ final readonly class ThreadStatusUpdater
      */
     private function finish(array $messages): void
     {
-        $this->threadLabelSynchronizer->sync($messages[0]->thread);
+        // Every distinct thread, not just the first one's.
+        //
+        // Each of these methods used to be reached from a route naming ONE
+        // conversation, so `$messages[0]->thread` was the whole set and saying
+        // so was honest. A bulk action passes messages from many threads at
+        // once, and a thread whose labels are not resynced keeps the Inbox
+        // label its messages no longer have — so the list goes on showing a
+        // conversation that has been archived. It answers 200, reports the
+        // right count, and changes nothing on screen, which is the most
+        // expensive kind of correct.
+        $threads = [];
+
+        foreach ($messages as $message) {
+            $thread = $message->thread;
+
+            if (null !== $thread) {
+                $threads[spl_object_id($thread)] = $thread;
+            }
+        }
+
+        foreach ($threads as $thread) {
+            $this->threadLabelSynchronizer->sync($thread);
+        }
+
         $this->recordJmapUpdates($messages);
         $this->em->flush();
     }
