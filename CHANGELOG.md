@@ -6,6 +6,62 @@ so anything that changes the schema irreversibly is called out explicitly.
 The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, and `sha-…` pins one commit.
 
+## v0.1.13 — 2026-08-23
+
+**No migration. Corrections to what the New marker means, all of them
+server-side — so the phone gets them from this release without an app update.
+Behind them, a day of chasing E2E flakes that turned up two real bugs and needed
+no raised timeouts at all.**
+
+### New means new
+
+**Mail you had already read still arrived badged as New.** The two are separate
+statements on purpose — New means *this has never been put in front of you*, and
+a conversation you scrolled past has stopped being new while still being unread
+— but nothing said an already-read message cannot also be new. Mail read in
+another client arrives carrying `\Seen` with no plMail surface having ever drawn
+its row, so it came in announcing itself as news you had already had.
+
+**Returning to the app re-reads the list.** Nothing refreshed on resume and the
+live stream has no replay, so a phone that had been in a pocket showed whatever
+was on screen when it went there — badges included.
+
+**A Reply badge**, escalating New for an answer to something you sent. Same
+behaviour as New in every other respect: it is the same marker wearing a
+different colour, so counts, dots and retirement are unchanged.
+
+That one needed a fix underneath it first. `listedAt` was written only when a
+conversation was CREATED, so a reply landing on a thread you had already looked
+at arrived permanently un-new — its marker retired by a render that happened
+before the reply existed. The case the marker is most obviously for was the one
+case it could never announce.
+
+### Two bugs found by running the tests, not by reading them
+
+**A dismissed search dropdown reopened itself.** The list is drawn twice for one
+query — the operator matches come from the browser, the server's results drop in
+underneath — and both finished by opening it, unconditionally. So the results
+for a query you had just dismissed brought the list back: after Escape, and
+after clicking away, where it springs back over whatever you clicked onto. On a
+fast connection the response beats the keypress and nothing is seen; the slower
+the connection, the more reliable the bug.
+
+**Which conversation a reply joined was up to the query planner.** The lookup
+that threads a message by subject takes one row and had no tiebreaker, so two
+equally recent conversations left the choice undefined — and it was picking the
+older one. A batch landing with a single timestamp is ordinary rather than
+exotic: any import or bulk sync does it. The same mailbox could thread the same
+message differently on two runs, which makes a report of "this went to the wrong
+conversation" unreproducible by construction.
+
+### Known, and not fixed here
+
+The label dropdown in a conversation is still painted under the navbar,
+unchanged from v0.1.12 — the cause is understood (the panes use
+`backdrop-filter`, which traps anything positioned inside them) and the attempted
+fix broke clicking in that menu and the snooze menu, so it was reverted rather
+than shipped. It is recorded in the test suite rather than forgotten.
+
 ## v0.1.12 — 2026-08-22
 
 **No migration. A round of fixes from two write-throughs of a running instance
