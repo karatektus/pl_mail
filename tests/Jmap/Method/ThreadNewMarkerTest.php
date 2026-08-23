@@ -111,11 +111,34 @@ final class ThreadNewMarkerTest extends KernelTestCase
     }
 
     /**
-     * **Newness is not unreadness**, and the two are allowed to disagree —
-     * that is the entire feature rather than an accident of it. A conversation
-     * read on a laptop is still new to a client that has never drawn its row.
+     * Reading it retires the marker, and this claim is the reverse of what it
+     * used to be.
+     *
+     * It said: "**Newness is not unreadness**, and the two are allowed to
+     * disagree — that is the entire feature rather than an accident of it. A
+     * conversation read on a laptop is still new to a client that has never
+     * drawn its row." That is a coherent definition — the marker records what
+     * THIS client has displayed — and it produced an interface nobody could
+     * read. Reported as: "I often see new mail that's already marked as read.
+     * That also does not make sense."
+     *
+     * "Often" is the word that settles it — and the reason is NOT that
+     * `listedAt` is per client. It is account-wide: whichever plMail surface
+     * draws the row first retires the badge everywhere, which
+     * NewMailMarkerTest::testADisplayInTheAppRetiresTheBadgeInTheBrowser proves
+     * across the two. The gap is mail read in something that is not plMail —
+     * the provider's own web client, a phone's built-in mail app — which
+     * arrives already \Seen with no plMail surface having drawn its row.
+     *
+     * Being shown a row was always a proxy for having seen the mail; having
+     * READ it is the stronger form of the same statement, and the two only ever
+     * disagree in the direction that misleads.
+     *
+     * What has NOT changed is the other direction: retiring the marker still
+     * says nothing about whether anybody read it — see the test below. The
+     * marker is a subset of read, not a synonym for it.
      */
-    public function testReadingMailDoesNotRetireTheMarker(): void
+    public function testReadingMailRetiresTheMarker(): void
     {
         $thread = $this->inboxThread();
 
@@ -126,7 +149,7 @@ final class ThreadNewMarkerTest extends KernelTestCase
         $thread->unreadCount = 0;
         $this->em->flush();
 
-        self::assertTrue($this->isNew($thread));
+        self::assertFalse($this->isNew($thread));
     }
 
     /** And retiring the marker says nothing about whether anybody read it. */
@@ -226,7 +249,10 @@ final class ThreadNewMarkerTest extends KernelTestCase
         $thread->normalizedSubject = 'new marker fixture';
         $thread->lastMessageAt = new \DateTimeImmutable('-1 hour');
         $thread->threadingMethod = ThreadingMethod::References;
-        $thread->unreadCount = 0;
+        // Unread, because that is what mail nobody has seen looks like — and
+        // since reading now retires the marker, a fixture seeded as read would
+        // be testing the retirement rather than the marker.
+        $thread->unreadCount = 1;
         $this->em->persist($thread);
 
         $message = new Message();

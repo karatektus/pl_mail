@@ -708,8 +708,9 @@ class MessageThreadRepository extends ServiceEntityRepository
     /**
      * The "is new" predicate, in one place.
      *
-     * Never shown AND arrived inside MessageThread::NEW_WINDOW. Every count
-     * below calls this instead of writing `t.listedAt IS NULL` itself, because
+     * Never shown, still unread, AND arrived inside MessageThread::NEW_WINDOW.
+     * Every count below calls this instead of writing `t.listedAt IS NULL`
+     * itself, because
      * the counts feed dots and the dots have to agree with the badges the list
      * renders — and the list decides with MessageThread::isNewAt(). One rule,
      * two languages; this is the seam where they are kept identical.
@@ -725,6 +726,12 @@ class MessageThreadRepository extends ServiceEntityRepository
     private function restrictToNew(QueryBuilder $qb, \DateTimeImmutable $now): void
     {
         $qb->andWhere('t.listedAt IS NULL')
+            // Read is seen. Not because listedAt is per client — it is
+            // account-wide, and plMail's own surfaces already agree through it
+            // — but because mail read in something that is NOT plMail arrives
+            // already \Seen with no plMail surface having drawn its row. That
+            // is how a dot could sit over a list with nothing bold in it.
+            ->andWhere('t.unreadCount > 0')
             ->andWhere('t.lastMessageAt IS NOT NULL')
             ->andWhere('t.lastMessageAt >= :newSince')
             ->setParameter('newSince', MessageThread::newSince($now));

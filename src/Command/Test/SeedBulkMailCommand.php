@@ -134,14 +134,41 @@ final class SeedBulkMailCommand extends Command
             return Command::FAILURE;
         }
 
-        $account = $this->account($user);
-
         if (true === $input->getOption('clear')) {
+            // Looked up rather than created. account() below MAKES one when it
+            // finds none, so clearing a user who never had a bulk mailbox used
+            // to mint an account and then empty it — leaving the row behind,
+            // which is the opposite of what this option says it does.
+            //
+            // That is not a tidiness point. The extra account outlives the run
+            // and changes what "the first account" means on the settings page,
+            // which is how compose-signature-and-options started failing on
+            // full runs and passing on its own: the signature was written to
+            // one account and the composer opened with another.
+            $account = $this->accountRepository->findOneBy([
+                'usr'      => $user,
+                'username' => self::SEED_ACCOUNT_USERNAME,
+            ]);
+
+            if (null === $account) {
+                $io->success('No bulk mailbox to clear.');
+
+                return Command::SUCCESS;
+            }
+
             $this->wipe($account);
+
+            // The account too, which is what "remove the bulk account and
+            // everything in it" has always claimed.
+            $this->entityManager->remove($account);
+            $this->entityManager->flush();
+
             $io->success('Bulk mailbox cleared.');
 
             return Command::SUCCESS;
         }
+
+        $account = $this->account($user);
 
         $total = max(1, (int) $input->getOption('messages'));
 

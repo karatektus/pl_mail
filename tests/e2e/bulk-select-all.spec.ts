@@ -30,7 +30,18 @@ test.beforeEach(() => {
 });
 
 // Its own account, so it has to be taken away again or every later spec in this
-// worker inherits a mailbox with sixty-seven extra conversations in it.
+// worker inherits a mailbox with sixty-seven extra conversations in it — and,
+// worse, a second account that changes what "the first account" means on the
+// settings page, which is how a signature written by another spec ended up on
+// an account its composer never opened.
+//
+// Cleared before as well as after: an interrupted run leaves the account
+// behind, and the next run would then inherit exactly the state this is here to
+// prevent. `--clear` is a no-op when there is nothing to clear.
+test.beforeAll(() => {
+    seed("seed-bulk --clear");
+});
+
 test.afterAll(() => {
     seed("seed-bulk --clear");
 });

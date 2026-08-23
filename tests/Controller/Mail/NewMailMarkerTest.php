@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Tests\Controller\Mail;
 
 use App\Domain\Enum\Mail\LabelRole;
+use App\Jmap\Method\Mail\ThreadSetMethod;
+use App\Jmap\Protocol\JmapContext;
 use App\Domain\Enum\Mail\MessageCategory;
 use App\Domain\Enum\Mail\ThreadingMethod;
 use App\Entity\Label\Label;
@@ -138,7 +140,7 @@ final class NewMailMarkerTest extends WebTestCase
     /** The backfill statement, run for real, does stamp a null row. */
     public function testTheBackfillStatementActuallyStampsANullThread(): void
     {
-        $thread = $this->thread('older than the feature');
+        $thread = $this->thread('older than the feature', unread: 1);
 
         $this->connection->executeStatement(
             'UPDATE message_thread SET listed_at = NULL WHERE id = :id',
@@ -160,7 +162,7 @@ final class NewMailMarkerTest extends WebTestCase
 
     public function testAFreshlyIngestedThreadIsNewAndSaysSoOnTheFirstRender(): void
     {
-        $thread = $this->thread('just arrived');
+        $thread = $this->thread('just arrived', unread: 1);
 
         self::assertTrue($this->isNew($thread), 'precondition: a new thread starts unlisted');
 
@@ -181,7 +183,7 @@ final class NewMailMarkerTest extends WebTestCase
      */
     public function testTheRenderThatShowedTheBadgeIsWhatRetiresIt(): void
     {
-        $thread = $this->thread('just arrived');
+        $thread = $this->thread('just arrived', unread: 1);
 
         $this->client->request('GET', '/mail/inbox');
 
@@ -191,7 +193,7 @@ final class NewMailMarkerTest extends WebTestCase
 
     public function testASecondRenderKeepsItNotNew(): void
     {
-        $thread = $this->thread('just arrived');
+        $thread = $this->thread('just arrived', unread: 1);
 
         $this->client->request('GET', '/mail/inbox');
         $this->client->request('GET', '/mail/inbox');
@@ -248,6 +250,9 @@ final class NewMailMarkerTest extends WebTestCase
                 // Inside the window, and ascending, so thread 0 is the oldest
                 // and lands on page two.
                 lastMessageAt: sprintf('now -%d minutes', 200 - $i),
+                // Unread, because "new" now means unread as well as unshown —
+                // mail read in another client is not news here either.
+                unread: 1,
                 flush: false,
             );
         }
@@ -276,8 +281,8 @@ final class NewMailMarkerTest extends WebTestCase
     {
         // Two categories, so the tab strip renders at all — a lone Primary tab
         // is deliberately suppressed.
-        $this->thread('a promo', category: MessageCategory::Promotions);
-        $this->thread('a normal one');
+        $this->thread('a promo', category: MessageCategory::Promotions, unread: 1);
+        $this->thread('a normal one', unread: 1);
 
         $this->client->request('GET', '/mail/inbox');
 
@@ -302,9 +307,9 @@ final class NewMailMarkerTest extends WebTestCase
      */
     public function testTheCategoryTabPillSaysHowMany(): void
     {
-        $this->thread('a promo', category: MessageCategory::Promotions);
-        $this->thread('another promo', category: MessageCategory::Promotions);
-        $this->thread('a normal one');
+        $this->thread('a promo', category: MessageCategory::Promotions, unread: 1);
+        $this->thread('another promo', category: MessageCategory::Promotions, unread: 1);
+        $this->thread('a normal one', unread: 1);
 
         $this->client->request('GET', '/mail/inbox');
 
@@ -333,9 +338,9 @@ final class NewMailMarkerTest extends WebTestCase
      */
     public function testTheTabSenderHintNamesWhoTheNewMailIsFrom(): void
     {
-        $this->thread('older promo', category: MessageCategory::Promotions, lastMessageAt: 'now -2 hours', fromName: 'Old Shop');
-        $this->thread('newer promo', category: MessageCategory::Promotions, lastMessageAt: 'now -1 hour', fromName: 'New Shop');
-        $this->thread('a normal one');
+        $this->thread('older promo', category: MessageCategory::Promotions, lastMessageAt: 'now -2 hours', fromName: 'Old Shop', unread: 1);
+        $this->thread('newer promo', category: MessageCategory::Promotions, lastMessageAt: 'now -1 hour', fromName: 'New Shop', unread: 1);
+        $this->thread('a normal one', unread: 1);
 
         $this->client->request('GET', '/mail/inbox');
 
@@ -357,7 +362,7 @@ final class NewMailMarkerTest extends WebTestCase
     public function testEveryTabMarkIsPatchableFromTheCountsPayload(): void
     {
         $this->thread('a promo', category: MessageCategory::Promotions, unread: 2, fromName: 'Acme');
-        $this->thread('a normal one');
+        $this->thread('a normal one', unread: 1);
 
         $counts = $this->countsPayload();
 
@@ -385,8 +390,8 @@ final class NewMailMarkerTest extends WebTestCase
      */
     public function testTheCountsEndpointAgreesWithTheRenderedDots(): void
     {
-        $this->thread('a promo', category: MessageCategory::Promotions);
-        $this->thread('a normal one');
+        $this->thread('a promo', category: MessageCategory::Promotions, unread: 1);
+        $this->thread('a normal one', unread: 1);
 
         // The endpoint FIRST, and that ordering is the feature rather than a
         // test convenience: rendering the inbox retires the badges it showed,
@@ -445,7 +450,7 @@ final class NewMailMarkerTest extends WebTestCase
      */
     public function testAListFragmentRefreshShowsTheBadgeAndThenRetiresIt(): void
     {
-        $thread = $this->thread('arrived while you watched');
+        $thread = $this->thread('arrived while you watched', unread: 1);
 
         $this->client->request(
             'GET',
@@ -478,7 +483,7 @@ final class NewMailMarkerTest extends WebTestCase
      */
     public function testAPrefetchRendersTheBadgeWithoutRetiringIt(): void
     {
-        $thread = $this->thread('nobody looked at this');
+        $thread = $this->thread('nobody looked at this', unread: 1);
 
         $this->client->request('GET', '/mail/inbox', server: ['HTTP_X_SEC_PURPOSE' => 'prefetch']);
 
@@ -496,7 +501,7 @@ final class NewMailMarkerTest extends WebTestCase
     /** The browser's own spelling, for prerender and speculation rules. */
     public function testTheStandardSecPurposeHeaderCountsToo(): void
     {
-        $thread = $this->thread('speculatively fetched');
+        $thread = $this->thread('speculatively fetched', unread: 1);
 
         $this->client->request('GET', '/mail/inbox', server: ['HTTP_SEC_PURPOSE' => 'prefetch;anonymous-client-ip']);
 
@@ -512,7 +517,7 @@ final class NewMailMarkerTest extends WebTestCase
     public function testBeingShownInALabelViewRetiresTheBadgeEverywhere(): void
     {
         $receipts = $this->seedLabel('Receipts');
-        $thread   = $this->thread('a receipt');
+        $thread   = $this->thread('a receipt', unread: 1);
         $thread->addLabel($receipts);
         $this->em->flush();
 
@@ -543,9 +548,111 @@ final class NewMailMarkerTest extends WebTestCase
      * Both edges, because a window asserted on one side is a window that can
      * silently become "always" or "never".
      */
+    /**
+     * A display in the app retires the badge in the browser.
+     *
+     * Newness is ACCOUNT-bound, not per client: `listedAt` is a column on the
+     * conversation, so whichever surface draws the row first speaks for all of
+     * them. The JMAP client says so with `Thread/set { isNew: false }`, the
+     * browser says so by POSTing to /mail/threads/listed, and both write the
+     * same column.
+     *
+     * Asserted across the two surfaces rather than within one, because that is
+     * the claim anybody actually cares about and neither surface's own tests
+     * can make it. ThreadNewMarkerTest proves the JMAP round trip; this proves
+     * the browser honours what the app did.
+     */
+    public function testADisplayInTheAppRetiresTheBadgeInTheBrowser(): void
+    {
+        $thread = $this->thread('shown on the phone first', unread: 1);
+
+        self::assertTrue(
+            $thread->isNewAt(new \DateTimeImmutable()),
+            'the fixture has to start out new for this to mean anything',
+        );
+
+        // The user's account collection was hydrated before the fixture
+        // account was persisted, and AccountResolver walks that collection —
+        // so without this the handler refuses an account the database has.
+        $this->em->refresh($this->user);
+
+        // The app draws the row and reports it — the real JMAP handler, not a
+        // column write, so this fails if the method stops doing the work.
+        self::getContainer()->get(ThreadSetMethod::class)->handle(
+            [
+                'accountId' => (string) $this->account->id,
+                'update'    => [(string) $thread->id => ['isNew' => false]],
+            ],
+            new JmapContext($this->user),
+        );
+
+        // The browser, arriving afterwards, must not call it new.
+        $crawler = $this->client->request('GET', '/mail/inbox');
+
+        self::assertResponseIsSuccessful();
+        self::assertStringNotContainsString(
+            'data-new="true"',
+            (string) $crawler->filter('#message-list')->html(),
+            'the browser still badges a conversation the app has already shown',
+        );
+    }
+
+    /**
+     * Mail that is already read is not new, however this install has never
+     * shown it.
+     *
+     * Reported as "I often see new mail that's already marked as read", and
+     * "often" is right: `listedAt` records what THIS install put in front of
+     * somebody, so anything read on a phone, in Gmail or in any other client
+     * arrives here already read and, under the old rule, still wearing a New
+     * badge. Anybody using two clients met it daily.
+     *
+     * Reading it IS having seen it, which is the whole thing the marker is
+     * trying to say.
+     */
+    public function testMailAlreadyReadElsewhereIsNotNew(): void
+    {
+        // Never listed here — exactly the state a sync produces — but read.
+        $thread = $this->thread('read on the phone', unread: 0);
+
+        self::assertNull($thread->listedAt, 'the fixture has to be one this install never showed');
+        self::assertFalse(
+            $thread->isNewAt(new \DateTimeImmutable()),
+            'a conversation with nothing unread in it is still being called new',
+        );
+
+        $crawler = $this->client->request('GET', '/mail/inbox');
+
+        self::assertResponseIsSuccessful();
+        self::assertStringNotContainsString(
+            'data-new="true"',
+            (string) $crawler->filter('#message-list')->html(),
+            'the row carries a New badge for mail that has been read',
+        );
+    }
+
+    /**
+     * And the dots agree, which is the seam that matters.
+     *
+     * The badge is decided in PHP by isNewAt() and the counts in SQL by
+     * restrictToNew(). They have to say the same thing or a sidebar dot
+     * promises new mail that the list below it declines to badge — which is the
+     * shape of this bug seen from the other side.
+     */
+    public function testTheCountsAgreeThatReadMailIsNotNew(): void
+    {
+        $this->thread('read on the phone', unread: 0);
+
+        self::assertSame(
+            0,
+            $this->countsPayload()['new:category:primary'] ?? 0,
+            'the tab still counts read mail as new',
+        );
+    }
+
     public function testMailInsideTheWindowIsStillNew(): void
     {
-        $thread = $this->thread('23 hours old', lastMessageAt: 'now -23 hours');
+        $thread = $this->thread('23 hours old', lastMessageAt: 'now -23 hours', unread: 1);
 
         $this->client->request('GET', '/mail/inbox');
 
@@ -558,7 +665,7 @@ final class NewMailMarkerTest extends WebTestCase
 
     public function testMailPastTheWindowIsNoLongerNew(): void
     {
-        $thread = $this->thread('25 hours old', lastMessageAt: 'now -25 hours');
+        $thread = $this->thread('25 hours old', lastMessageAt: 'now -25 hours', unread: 1);
 
         $this->client->request('GET', '/mail/inbox');
 
@@ -582,7 +689,7 @@ final class NewMailMarkerTest extends WebTestCase
      */
     public function testAgingOutDoesNotStampTheThreadAsHavingBeenShown(): void
     {
-        $thread = $this->thread('long past it', lastMessageAt: 'now -3 days');
+        $thread = $this->thread('long past it', lastMessageAt: 'now -3 days', unread: 1);
 
         $this->client->request('GET', '/mail/inbox');
 
@@ -596,8 +703,8 @@ final class NewMailMarkerTest extends WebTestCase
     /** The dots time out with the badges, or they promise mail the list denies. */
     public function testAnAgedOutThreadStopsDottingItsPlace(): void
     {
-        $this->thread('yesterdays promo', category: MessageCategory::Promotions, lastMessageAt: 'now -30 hours');
-        $this->thread('a normal one');
+        $this->thread('yesterdays promo', category: MessageCategory::Promotions, lastMessageAt: 'now -30 hours', unread: 1);
+        $this->thread('a normal one', unread: 1);
 
         $this->client->request('GET', '/mail/inbox');
 
@@ -622,7 +729,7 @@ final class NewMailMarkerTest extends WebTestCase
      */
     public function testSearchResultsRetireTheBadge(): void
     {
-        $thread = $this->thread('quarterly invoice');
+        $thread = $this->thread('quarterly invoice', unread: 1);
 
         $this->client->request('GET', '/mail/search?q=quarterly');
 
@@ -638,7 +745,7 @@ final class NewMailMarkerTest extends WebTestCase
     /** Search takes the same path, so it inherits the same prefetch guard. */
     public function testAPrefetchedSearchRetiresNothing(): void
     {
-        $thread = $this->thread('quarterly invoice');
+        $thread = $this->thread('quarterly invoice', unread: 1);
 
         $this->client->request(
             'GET',
@@ -668,7 +775,7 @@ final class NewMailMarkerTest extends WebTestCase
      */
     public function testRowsReportedByTheClientAreRetired(): void
     {
-        $thread = $this->thread('arrived by prefetch');
+        $thread = $this->thread('arrived by prefetch', unread: 1);
 
         // Exactly what a hovered sidebar link does: the page renders, and
         // nothing is marked.
@@ -694,7 +801,7 @@ final class NewMailMarkerTest extends WebTestCase
      */
     public function testTheClientCannotRetireAnotherUsersBadges(): void
     {
-        $mine = $this->thread('mine');
+        $mine = $this->thread('mine', unread: 1);
 
         $stranger = $this->seedUser();
 

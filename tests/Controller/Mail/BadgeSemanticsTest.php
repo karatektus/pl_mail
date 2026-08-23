@@ -422,8 +422,8 @@ final class BadgeSemanticsTest extends WebTestCase
     {
         $client = $this->fixtureClient();
 
-        $this->thread('arrived just now');
-        $this->thread('arrived the day before yesterday', lastMessageAt: 'now -40 hours');
+        $this->thread('arrived just now', unread: 1);
+        $this->thread('arrived the day before yesterday', lastMessageAt: 'now -40 hours', unread: 1);
 
         $client->request('GET', '/mail/inbox');
 
@@ -454,9 +454,9 @@ final class BadgeSemanticsTest extends WebTestCase
     {
         $client = $this->fixtureClient();
 
-        $this->thread('recent one');
-        $this->thread('recent two');
-        $this->thread('far too old', lastMessageAt: 'now -3 days');
+        $this->thread('recent one', unread: 1);
+        $this->thread('recent two', unread: 1);
+        $this->thread('far too old', lastMessageAt: 'now -3 days', unread: 1);
 
         // The counts endpoint renders no list, so it retires nothing — this is
         // the state the inbox is about to draw from.

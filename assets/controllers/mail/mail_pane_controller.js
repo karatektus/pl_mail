@@ -178,9 +178,29 @@ export default class extends Controller {
         this._holds = 0;
 
         this._onVisibility = () => {
-            if (!document.hidden && this._refreshPending) {
-                this._refreshList();
+            if (document.hidden) {
+                return;
             }
+
+            // Unconditionally, not only when a refresh was already pending.
+            //
+            // `_refreshPending` is set by a sync event that arrived while the
+            // tab was hidden — and on a phone there are none to arrive. Android
+            // suspends a backgrounded browser: the Mercure stream is dropped,
+            // the poll timer stops, and server-sent events have no replay, so
+            // everything that happened while the app was away is simply missed.
+            // Coming back, nothing was pending, nothing refreshed, and the list
+            // showed the state from before — mail read on another device still
+            // bold, "New" badges another client had already retired. Reported as
+            // read status and the New marker not updating on Android.
+            //
+            // The desktop case was hidden by the poll: a tab left open catches
+            // up within a minute, which reads as "slow" rather than "wrong".
+            //
+            // One fragment fetch, and _refreshList() already coalesces bursts
+            // and refuses while a write is in flight, so returning to the app
+            // repeatedly costs at most one refresh per MIN_REFRESH_MS.
+            this._refreshList();
         };
         document.addEventListener("visibilitychange", this._onVisibility);
 

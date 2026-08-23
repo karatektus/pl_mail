@@ -140,9 +140,32 @@ class MessageThread
      * Is this conversation new AS OF $now — never shown, and recent enough to
      * still be worth announcing?
      *
-     * Both halves are required. `listedAt IS NULL` alone was the original rule
-     * and is what made the badge a chore; the window alone would re-badge mail
-     * the user has already been shown for the rest of the day.
+     * All three parts are required. `listedAt IS NULL` alone was the original
+     * rule and is what made the badge a chore; the window alone would re-badge
+     * mail the user has already been shown for the rest of the day.
+     *
+     * And a conversation that has been READ is not new. That was the missing
+     * third.
+     *
+     * Not because `listedAt` is per client — it is not, and that is worth being
+     * precise about: it is a column on the conversation, so whichever surface
+     * draws the row first speaks for all of them. The app reports a display
+     * with `Thread/set { isNew: false }`, the browser POSTs to
+     * /mail/threads/listed, and both write here. plMail on a phone and plMail
+     * in a browser already agree.
+     *
+     * The gap is mail read somewhere that is NOT plMail. Gmail's own web
+     * interface, a phone's built-in mail app, Thunderbird — any of them can set
+     * \Seen, and the next sync brings the message in already read while no
+     * plMail surface has ever drawn its row. It then arrives new AND read,
+     * which is a row that is at once not-bold and badged "New" and tells the
+     * reader nothing they can act on. Reported as "I often see new mail that's
+     * already marked as read", and for anyone whose provider has a web client
+     * it is the common case rather than an edge one.
+     *
+     * Reading it IS having seen it, which is the whole thing the marker is
+     * trying to say. A conversation where one message was read and another has
+     * since arrived still counts, because its unread count is above zero again.
      *
      * A thread with no lastMessageAt cannot be shown to have arrived inside the
      * window, so it is not new. That errs towards silence, which is the right
@@ -151,6 +174,7 @@ class MessageThread
     public function isNewAt(\DateTimeImmutable $now): bool
     {
         return null === $this->listedAt
+            && $this->unreadCount > 0
             && null !== $this->lastMessageAt
             && $this->lastMessageAt >= self::newSince($now);
     }

@@ -345,7 +345,9 @@ final class ThreadSetMethodTest extends KernelTestCase
         $thread->normalizedSubject = 'thread/set fixture';
         $thread->lastMessageAt = new \DateTimeImmutable('-1 hour');
         $thread->threadingMethod = ThreadingMethod::References;
-        $thread->unreadCount = 0;
+        // Unread: newness now requires it, so a fixture seeded as read is one
+        // that can never be new and the isNew tests below would pass vacuously.
+        $thread->unreadCount = 1;
         $this->em->persist($thread);
 
         $message = new Message();
