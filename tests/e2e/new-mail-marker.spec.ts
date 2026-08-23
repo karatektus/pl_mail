@@ -1,4 +1,5 @@
 import { test, expect } from "./support/test";
+import type { Locator, Page } from "@playwright/test";
 import { INBOX_SUBJECTS, TEST_USER, mailRow, seed } from "./support/config";
 import { execSync } from "node:child_process";
 
@@ -151,6 +152,36 @@ function isListed(subject: string): boolean {
 }
 
 /**
+ * Hover a nav link and wait for Turbo's prefetch to actually come back.
+ *
+ * Was `hover()` followed by `waitForTimeout(500)`. Half a second is plenty on
+ * an idle machine and not plenty on a loaded one, and when the prefetch has not
+ * landed the click that follows is an ordinary navigation — so the case stops
+ * being about prefetching at all and fails claiming the badge survived. That is
+ * how it showed up: only ever in a heavily parallel run, always in the specs
+ * whose whole subject is the prefetch.
+ *
+ * The prefetch is identified by the header the server itself branches on
+ * (MailController::renderList), so this waits for the exact request the
+ * behaviour is about rather than for a plausible interval.
+ *
+ * Bounded and swallowed: Turbo will not always re-issue a prefetch for a URL it
+ * still holds, and a hover that legitimately sends nothing must not hang the
+ * test for its full budget. The ceiling only ever costs time on that path.
+ */
+async function hoverAndPrefetch(page: Page, link: Locator): Promise<void> {
+    const prefetched = page
+        .waitForResponse(
+            (response) => "prefetch" === response.request().headers()["x-sec-purpose"],
+            { timeout: 5_000 },
+        )
+        .catch(() => null);
+
+    await link.hover();
+    await prefetched;
+}
+
+/**
  * The reported bug: "when i tried the 'new' feature the tag survived a reload
  * and tab navigation. i dont think thats correct."
  *
@@ -182,8 +213,7 @@ test.describe("the badge and real navigation", () => {
 
         // Hover first, and let the prefetch actually fire. Without this the
         // click is a plain fetch and the test proves nothing about the bug.
-        await inboxLink.hover();
-        await page.waitForTimeout(500);
+        await hoverAndPrefetch(page, inboxLink);
 
         expect(
             isListed(INBOX_SUBJECTS.read),
@@ -208,8 +238,7 @@ test.describe("the badge and real navigation", () => {
         await page.goto("/mail/starred");
 
         const inboxLink = page.locator('#sidebar a[href="/mail/inbox"]').first();
-        await inboxLink.hover();
-        await page.waitForTimeout(500);
+        await hoverAndPrefetch(page, inboxLink);
         await inboxLink.click();
 
         await expect(mailRow(page, INBOX_SUBJECTS.read)).toHaveAttribute("data-new", "true");
@@ -228,22 +257,20 @@ test.describe("the badge and real navigation", () => {
         const inboxLink = page.locator('#sidebar a[href="/mail/inbox"]').first();
         const starredLink = page.locator('#sidebar a[href="/mail/starred"]').first();
 
-        await inboxLink.hover();
-        await page.waitForTimeout(500);
+        await hoverAndPrefetch(page, inboxLink);
         await inboxLink.click();
 
         await expect(mailRow(page, INBOX_SUBJECTS.read)).toHaveAttribute("data-new", "true");
         await expect.poll(() => isListed(INBOX_SUBJECTS.read), { timeout: 5_000 }).toBe(true);
 
-        await starredLink.hover();
+        await hoverAndPrefetch(page, starredLink);
         await starredLink.click();
         await expect(page.locator("#message-list")).toBeVisible();
 
         // Back to the inbox the same way it was reached the first time — hover,
         // prefetch, click. This is the exact sequence that used to redraw the
         // badge indefinitely.
-        await inboxLink.hover();
-        await page.waitForTimeout(500);
+        await hoverAndPrefetch(page, inboxLink);
         await inboxLink.click();
 
         const second = mailRow(page, INBOX_SUBJECTS.read);

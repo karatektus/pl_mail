@@ -15,8 +15,16 @@ import { seed } from "./support/config";
  * goes through the app's dialog, and nothing anywhere can reach the browser's.
  * A native dialog makes `page.on("dialog")` fire, so that is watched throughout.
  */
+/**
+ * `seed-label` is not decoration: three of the cases below drive the label
+ * delete form, which only exists on the settings page if the user HAS a label.
+ * Seeding only mail left that fixture to whichever other spec happened to
+ * create one first — so the trio passed or failed on file ordering, and turned
+ * red together with "no confirmed action on this page to exercise" whenever the
+ * worker reached this file before anything had made a label.
+ */
 test.beforeEach(() => {
-    seed("seed-mail");
+    seed("seed-mail", "seed-label");
 });
 
 /** Fails loudly instead of hanging: a native confirm() blocks the page. */

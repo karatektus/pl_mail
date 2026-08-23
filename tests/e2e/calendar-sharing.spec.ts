@@ -204,8 +204,38 @@ test.describe("calendar sharing", () => {
  */
 const PAGE_NAME = `E2E booking ${Date.now()}`;
 
+/**
+ * Forget how many bookings this address has already made.
+ *
+ * `booking_attempt` allows six per hour per IP (config/packages/
+ * rate_limiter.yaml) — sized for a public endpoint that creates rows and sends
+ * mail for a stranger, and far above what real colleagues behind one NAT
+ * address do. The suite books once per run from one address, so the seventh run
+ * within the hour is refused and the page answers "That is a lot of bookings
+ * from one place" instead of "That is booked".
+ *
+ * Nothing about the code changed between the run that passed and the one that
+ * did not, which is the signature of the whole family: re-running to chase a
+ * flake is what produces this one, and a CI retry is a second booking in the
+ * same hour.
+ *
+ * The pool holds the login and two-factor limiters as well and there is no
+ * per-limiter clear, so this empties all three. Nothing asserts throttling
+ * anywhere in the suite, and a worker whose login allowance is reset by this is
+ * helped rather than hurt.
+ *
+ * Per TEST rather than once per file: `--repeat-each` runs the booking case
+ * many times in one process, and a single clear at the start would just move
+ * the refusal to the seventh repeat. Chasing a flake means re-running, so the
+ * guard has to survive being re-run.
+ */
+function clearRateLimits(): void {
+    consoleCommand("cache:pool:clear cache.rate_limiter");
+}
+
 test.describe("appointment booking", () => {
     test.beforeAll(provisionCalendars);
+    test.beforeEach(clearRateLimits);
 
     test.afterEach(async ({ page }) => {
         // The booked MEETING outlives the page: calendar_booking cascades from
@@ -268,11 +298,10 @@ test.describe("appointment booking", () => {
 
         await expect(booking.getByRole("heading", { name: PAGE_NAME })).toBeVisible();
 
-        // Counted before anything is booked, so the assertion at the end is
-        // about this booking rather than about how many hours the page happens
-        // to offer on the day the suite runs.
-        const slotsBefore = await booking.locator('input[name="slot"]').count();
-        expect(slotsBefore).toBeGreaterThan(0);
+        // There is something to book at all. Only that — what happens to this
+        // one slot is asserted by value further down, not by watching the total
+        // go down by one.
+        expect(await booking.locator('input[name="slot"]').count()).toBeGreaterThan(0);
 
         // The first radio the page rendered, whatever hour that turns out to be.
         // Naming an hour here would be this spec deciding what the availability
@@ -296,8 +325,25 @@ test.describe("appointment booking", () => {
 
         // And the hour is gone from the page, which is the read-side half of
         // the double-booking guard doing its job in front of a person.
+        //
+        // The BOOKED hour by name, rather than "one radio fewer than before".
+        // A count compares two page loads that need not be showing the same
+        // week: the page offers the soonest week that has anything free, so
+        // taking the last slot in this one moves it on to the next — and the
+        // count went from 1 to 110. That is the guard working perfectly and
+        // the assertion calling it broken.
+        //
+        // How the page came to be down to a single slot is its own story: the
+        // all-day event `seed-grid-events` puts on today blocks the whole day
+        // for booking (BookingAvailabilityReader — an all-day event with no
+        // freeBusyStatus is the owner's time), so a worker that ran
+        // calendar-timegrid first arrives here with today already gone.
         await booking.goto(url);
-        expect(await booking.locator('input[name="slot"]').count()).toBe(slotsBefore - 1);
+
+        await expect(
+            booking.locator(`input[name="slot"][value="${slotKey}"]`),
+            "the hour that was just booked is still being offered",
+        ).toHaveCount(0);
 
         await stranger.close();
 
