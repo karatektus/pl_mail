@@ -1,5 +1,5 @@
 import { defineConfig, devices } from "@playwright/test";
-import { BASE_URL } from "./tests/e2e/support/config";
+import { APP_TIMEZONE, BASE_URL } from "./tests/e2e/support/config";
 
 /**
  * plMail end-to-end configuration.
@@ -77,6 +77,22 @@ export default defineConfig({
 
   use: {
     baseURL: BASE_URL,
+    // The browser keeps the same clock the server renders in.
+    //
+    // Times reach a page two ways: formatted server-side in the user's zone,
+    // which falls back to Europe/Berlin, and computed in the browser — the
+    // snooze and schedule menus work out "later today" and "tomorrow morning"
+    // locally, on purpose, because the server is never told the session's zone.
+    // With the browser on UTC those two disagree by the offset: the menu offers
+    // six in the evening, the row that comes back says eight.
+    //
+    // Unpinned this is the runner's zone, so it is Europe/Berlin on a
+    // developer's machine and UTC on a GitHub runner — which is the difference
+    // between a suite that passes locally and a tag that fails, two hours out,
+    // for reasons that look like flakiness. Pinning it also makes the suite
+    // describe the ordinary case, where a person's browser and their configured
+    // zone are the same place.
+    timezoneId: APP_TIMEZONE,
     trace: "on-first-retry",
     screenshot: "only-on-failure",
     // Off, not "retain-on-failure": that still screencasts every test and then

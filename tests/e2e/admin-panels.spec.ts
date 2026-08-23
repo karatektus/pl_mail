@@ -46,6 +46,19 @@ test.describe("admin panels", () => {
         await page.goto("/admin?section=system");
 
         await expect(panel(page, "processes")).toBeVisible();
+
+        // Put the panel where this test needs to start, rather than trusting it
+        // to be there. Collapse is stored PER ADMIN USER on the server and the
+        // admin is shared, not per worker, so the starting state is whatever the
+        // last run of this test left behind — and a run that fails anywhere
+        // after the first toggle leaves it collapsed. The next run then failed
+        // on its opening assertion, reporting a broken feature and really
+        // reporting its own previous failure. One red run became a red run
+        // every time until somebody clicked it open by hand.
+        if (null === await panel(page, "processes").getAttribute("open")) {
+            await toggle(page, "processes");
+        }
+
         await expect(panel(page, "processes")).toHaveAttribute("open", "");
 
         await toggle(page, "processes");

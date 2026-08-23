@@ -547,6 +547,22 @@ test.describe("a meeting on two calendars", () => {
 
 test.describe("calendar pane", () => {
     /**
+     * The mail this describe reads, seeded rather than inherited.
+     *
+     * Several cases here assert on the LIST beside the calendar — that its rows
+     * stack when the pane takes the width, that the mail is still there behind
+     * a full-width pane. This file seeds calendars and never seeded a mailbox,
+     * so those rows were whatever the previous spec on this worker happened to
+     * leave: bulk-select-all archives two hundred messages and then clears
+     * them, and after it the inbox is empty. `[data-row-layout]` then matches
+     * nothing and the failure reads as the container query being broken, when
+     * there is simply no row to lay out.
+     */
+    test.beforeEach(() => {
+        seed("seed-mail");
+    });
+
+    /**
      * The switch has three positions — mail, split, calendar — and cycles
      * through them in that order, wrapping. Which one it is in is a stored user
      * preference, so it survives from whichever test ran last: every case here

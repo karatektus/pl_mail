@@ -1,5 +1,5 @@
 import { test, expect } from "./support/test";
-import { INBOX_SUBJECTS, mailRow, seed } from "./support/config";
+import { APP_TIMEZONE, INBOX_SUBJECTS, mailRow, seed } from "./support/config";
 import { rowAction } from "./support/rows";
 
 /**
@@ -86,7 +86,24 @@ test("a snoozed conversation shows its wake time and can be woken", async ({ pag
     // arrival time too and would pass with this fix reverted. Both clock
     // formats are accepted: which one renders is a user setting, and the claim
     // here is about WHICH TIME is shown rather than how it is written.
-    const hour = new Date(wakeAt).getHours();
+    // Read in the zone the PAGE renders in, not the one Node is running in.
+    //
+    // The row is formatted server-side in the user's zone, which falls back to
+    // Europe/Berlin; `getHours()` answers in the runner's. Those are the same
+    // thing on a developer's machine and two hours apart on a GitHub runner, so
+    // this passed here and failed only on the tag: the mail came back at 18:00,
+    // the row said 20:00, and the assertion reported the wrong TIME being shown
+    // rather than the wrong CLOCK being read.
+    //
+    // See APP_TIMEZONE, and compose-scheduled-send's wallClockIn, which is the
+    // same lesson learned in the same place.
+    const hour = Number(
+        new Intl.DateTimeFormat("en-GB", {
+            timeZone: APP_TIMEZONE,
+            hour: "2-digit",
+            hour12: false,
+        }).format(new Date(wakeAt)),
+    ) % 24;
     const shown = await row.innerText();
 
     // `0?` because the hour is zero-padded on screen and not in a Date: at

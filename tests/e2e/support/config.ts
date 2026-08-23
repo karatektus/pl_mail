@@ -59,6 +59,21 @@ const SLOT = WORKER_SLOT;
  * A side effect worth having: the suite becomes re-runnable against a warm
  * database, because nothing depends on a fixed address whose rows accumulate.
  */
+/**
+ * The zone the SERVER renders wall-clock times in.
+ *
+ * Mirrors `app.fallback_timezone` in config/services.yaml. The seeded users
+ * leave `User::$timezone` null, so every time on a rendered page is formatted in
+ * this zone regardless of where the browser or the runner think they are.
+ *
+ * A test that reads an hour off a page must therefore convert into THIS zone,
+ * never with Node's `new Date().getHours()` — that is the runner's zone, which
+ * is Europe/Berlin on a developer's machine and UTC on a GitHub runner. Tests
+ * that get it wrong pass locally and fail only in CI, two hours out, looking
+ * like a timing flake.
+ */
+export const APP_TIMEZONE = "Europe/Berlin";
+
 export const TEST_USER = {
     email: `e2e-w${SLOT}@plmail.test`,
     password: process.env.APP_DEV_USER_PASSWORD ?? "e2e-password-change-me",
