@@ -17,6 +17,15 @@ const BOX = 'input[name="q"]';
 
 /** The suggestion list, which shares its dropdown with recent searches. */
 const OPTIONS = '[data-mail--search-target="recentsList"] button';
+/**
+ * The live-results status line.
+ *
+ * Used as the "the response has been handled" signal: it is filled from a
+ * `data-search-status` template that the endpoint returns whether or not it
+ * found anything, so it works for a query with no matches — where the results
+ * list itself stays empty and offers nothing to wait for.
+ */
+const STATUS = '[data-mail--search-target="status"]';
 
 async function type(page: Page, value: string): Promise<void> {
     await page.locator(BOX).click();
@@ -104,6 +113,94 @@ test.describe("search", () => {
 
         await page.locator(BOX).press("Escape");
         await expect(page.locator(BOX)).toHaveValue("");
+    });
+
+    /**
+     * …and it stays closed once the results it was waiting for turn up.
+     *
+     * The dropdown is drawn twice for one query: the operator matches come
+     * straight out of the browser, and the server's live results drop in
+     * underneath whenever they arrive. Both finish by settling the dropdown
+     * open, so results landing after an Escape reopened the list the reader
+     * had just dismissed.
+     *
+     * The delay is the whole test. Locally the response comes back well inside
+     * the time it takes to press a key, so the reopen never happens and this
+     * passes with the fix reverted; it showed up as `Escape closes the list`
+     * failing only in a loaded parallel run, which reads like an infrastructure
+     * flake and is in fact the bug reproducing. Holding the response until
+     * after both keypresses makes the ordering the test's own, and the failure
+     * a statement about the controller rather than about the machine.
+     */
+    test("results arriving after Escape do not reopen the list", async ({ page }) => {
+        let release = (): void => {};
+        const held = new Promise<void>((resolve) => {
+            release = resolve;
+        });
+
+        await page.route("**/mail/search/suggest**", async (route) => {
+            await held;
+            await route.continue();
+        });
+
+        await typeAndWait(page, "fro");
+
+        await page.locator(BOX).press("Escape");
+        await expect(page.locator(OPTIONS).first()).toBeHidden();
+
+        // The second Escape clears the box — which is only true if the first
+        // one is still the one in effect.
+        await page.locator(BOX).press("Escape");
+        await expect(page.locator(BOX)).toHaveValue("");
+
+        // Released, and then WAITED FOR. `toBeHidden()` is satisfied the instant
+        // it is called, so asserting straight after release just re-checks the
+        // state Escape already left behind and passes with the fix reverted —
+        // which is exactly what it did. The rows landing in the results list are
+        // proof the response has been handled, and the reopen, if it happens at
+        // all, happens in that same handler.
+        release();
+
+        await expect(page.locator(STATUS)).not.toBeEmpty();
+        await expect(page.locator(OPTIONS).first()).toBeHidden();
+        await expect(page.locator(BOX)).toHaveValue("");
+    });
+
+    /**
+     * The other way out of the list, and the same late response behind it.
+     *
+     * Escape is not the only deliberate dismissal — clicking away is the more
+     * common one, and it goes through a different handler. Held the same way,
+     * because the reopen is worse here: the list springs back over whatever the
+     * reader has just clicked onto, with the box no longer even focused.
+     */
+    test("results arriving after a click away do not reopen the list", async ({ page }) => {
+        let release = (): void => {};
+        const held = new Promise<void>((resolve) => {
+            release = resolve;
+        });
+
+        await page.route("**/mail/search/suggest**", async (route) => {
+            await held;
+            await route.continue();
+        });
+
+        await typeAndWait(page, "fro");
+
+        // Dispatched on the topbar rather than aimed at a coordinate. What the
+        // handler cares about is only that the click's target is outside the
+        // search element, and every point that reliably satisfies that is also
+        // a link or a mail row — a test that navigates away proves nothing
+        // about a dropdown.
+        await page.locator("header").first().evaluate((el) => el.click());
+        await expect(page.locator(OPTIONS).first()).toBeHidden();
+
+        release();
+
+        // Same reason as above: wait until the response has actually been
+        // rendered, or this asserts nothing.
+        await expect(page.locator(STATUS)).not.toBeEmpty();
+        await expect(page.locator(OPTIONS).first()).toBeHidden();
     });
 
     test("a completed search is offered again as a recent one", async ({ page }) => {

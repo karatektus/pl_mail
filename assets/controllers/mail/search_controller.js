@@ -111,6 +111,22 @@ export default class extends Controller {
     /** The in-flight suggestion request, so a newer keystroke can cancel it. */
     #liveRequest = null;
 
+    /**
+     * Whether Escape has dismissed the list for the query now in the box.
+     *
+     * Escape closing the dropdown is not enough on its own: the live results
+     * for the same query are already on their way, and landing they called
+     * `#settle()`, which reopened the list the reader had just dismissed. On a
+     * fast local connection the response beats the keypress and nothing is
+     * seen; the slower the connection, the more reliably the suggestions
+     * spring back up by themselves a moment after being sent away.
+     *
+     * Cleared by anything that means "I want the list again" — typing, a fresh
+     * focus, arrowing into it — so it only ever suppresses the reopen for the
+     * exact query that was dismissed.
+     */
+    #dismissed = false;
+
     /** The first list: recent searches, or operator and contact completions. */
     #suggestions = [];
 
@@ -204,6 +220,7 @@ export default class extends Controller {
             // query was gone before the user had dismissed anything.
             if (false === this.dropdownTarget.classList.contains("hidden")) {
                 event.preventDefault();
+                this.#dismissed = true;
                 this._closeDropdown();
 
                 return;
@@ -280,6 +297,10 @@ export default class extends Controller {
     /** Recents for an empty box, suggestions and live results for anything else. */
     #refresh() {
         clearTimeout(this.#debounce);
+
+        // A new keystroke — or a fresh focus — is a new question, so whatever
+        // Escape dismissed is no longer what is being asked for.
+        this.#dismissed = false;
 
         // Whatever is on its way back is about a query that no longer exists.
         // Left to land it would paint results for a prefix the user has
@@ -434,6 +455,12 @@ export default class extends Controller {
             return;
         }
 
+        // Results that arrive after Escape still go into the list — they are
+        // what the next focus should show — but they do not reopen it.
+        if (true === this.#dismissed) {
+            return;
+        }
+
         this._openDropdown();
     }
 
@@ -529,7 +556,9 @@ export default class extends Controller {
 
         // Arrowing into a list that is hidden would move a highlight nobody
         // can see, and the next Enter would then open something the reader
-        // never chose.
+        // never chose. Reaching for the list is also a way of asking for it
+        // back, so it overrides an earlier Escape.
+        this.#dismissed = false;
         this._openDropdown();
 
         const next = this.#active + delta;
@@ -763,6 +792,11 @@ export default class extends Controller {
 
     _handleOutsideClick(event) {
         if (!this.element.contains(event.target)) {
+            // Dismissed for the same reason Escape dismisses, and it has to be
+            // marked as such: clicking away leaves the request for the query
+            // still in the box in flight, and without this the list reopens
+            // itself on top of whatever the reader has just clicked onto.
+            this.#dismissed = true;
             this._closeDropdown();
         }
     }
