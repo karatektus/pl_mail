@@ -265,7 +265,26 @@ test.describe("scheduled send", () => {
         const reopened = await openSendOptions(page);
 
         await expect(reopened.getByText("Scheduled to send")).toBeVisible();
+
+        // Waited for AND checked. The assertion below it — that the draft comes
+        // back open — is ALREADY TRUE: the window was opened by the click on the
+        // Drafts row further up and never closed, so `toBeVisible` is satisfied
+        // the instant it is called and waits for nothing. The navigation that
+        // follows then raced the cancel, and on a loaded machine won: the hold
+        // was still on the draft when the list was read, and the spec reported
+        // that calling it off does not work.
+        //
+        // A refused cancel answers as promptly as an accepted one, so the status
+        // is read rather than assumed.
+        const cancelled = page.waitForResponse(
+            (response) =>
+                /\/compose\/(undo|unschedule)\/\d+/.test(response.url())
+                && "POST" === response.request().method(),
+        );
+
         await reopened.getByRole("button", { name: "Cancel scheduled send" }).click();
+
+        expect((await cancelled).status(), "the cancel was refused").toBeLessThan(400);
 
         // The draft comes back open (the undo stream reopens what it cancels)…
         await expect(page.locator(`${DOCK} .compose-window`)).toBeVisible({ timeout: 10_000 });

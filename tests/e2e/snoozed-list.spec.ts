@@ -26,7 +26,16 @@ async function openSnoozeMenu(page: import("@playwright/test").Page, subject: st
     await row.hover();
     await row.getByRole("button", { name: /snooze/i }).click({ force: true });
 
-    return page.locator('[data-controller="mail--snooze-menu"]:not([hidden])').first();
+    const menu = page.locator('[data-controller="mail--snooze-menu"]:not([hidden])').first();
+
+    // The helper does not hand back a menu it has not seen open. Callers go
+    // straight to looking for an entry inside it, so a click that did not open
+    // anything surfaced as "the snoozed row offers no way to cancel the snooze"
+    // — a sentence about a missing feature, for a menu that simply is not up
+    // yet. Whatever else is wrong, it should not be described as that.
+    await expect(menu, `the ${subject} row's snooze menu did not open`).toBeVisible();
+
+    return menu;
 }
 
 test("a snoozed conversation shows its wake time and can be woken", async ({ page }) => {
