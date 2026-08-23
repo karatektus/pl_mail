@@ -2,6 +2,7 @@
 
 namespace App\Entity\Mail;
 
+use App\Domain\Enum\Mail\LabelRole;
 use App\Domain\Enum\Mail\MessageCategory;
 use App\Domain\Enum\Mail\ThreadingMethod;
 use App\Entity\Label\Label;
@@ -171,6 +172,42 @@ class MessageThread
      * window, so it is not new. That errs towards silence, which is the right
      * direction for a marker whose whole job is to be believed.
      */
+    /**
+     * New mail that answers something you sent.
+     *
+     * An escalation of newness rather than a second kind of it: everything
+     * isNewAt() requires still applies — never shown, still unread, inside the
+     * window — and this adds one thing on top. A stranger's first mail is news;
+     * a reply to a mail you wrote is news you are waiting for, and the two
+     * deserve to look different in a list of fifty.
+     *
+     * "Answers something you sent" is read off the conversation rather than off
+     * headers, and that needs no new column: thread labels are the union of
+     * their messages' labels, so a conversation carrying the Sent role is one
+     * you have sent into. Combined with an unread message having arrived since
+     * — which is what makes it new again — that IS a reply.
+     *
+     * The In-Reply-To chain would be the more literal reading and is worse
+     * here. It is absent or wrong often enough that mail clients thread on
+     * subject as a fallback (see ThreadingMethod), so a badge keyed to it would
+     * be missing precisely on the mail from correspondents whose client is
+     * careless — and the thread has already done that reconciliation once.
+     */
+    public function isAnswerAt(\DateTimeImmutable $now): bool
+    {
+        if (false === $this->isNewAt($now)) {
+            return false;
+        }
+
+        foreach ($this->labels as $label) {
+            if (LabelRole::Sent === $label->role) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     public function isNewAt(\DateTimeImmutable $now): bool
     {
         return null === $this->listedAt

@@ -549,6 +549,72 @@ final class NewMailMarkerTest extends WebTestCase
      * silently become "always" or "never".
      */
     /**
+     * A reply to something you sent is badged louder than ordinary new mail.
+     *
+     * The escalation the marker was missing. A stranger's first mail is news; a
+     * reply to a mail you wrote is news you are waiting for, and in a list of
+     * fifty the two should not look the same.
+     *
+     * Read off the conversation rather than off In-Reply-To, and that needs no
+     * new column: thread labels are the union of their messages', so a
+     * conversation carrying the Sent role is one you have sent into. With an
+     * unread message having arrived since — which is what made it new again —
+     * that is a reply.
+     */
+    public function testAReplyToSomethingYouSentIsBadgedAsAnAnswer(): void
+    {
+        $sent   = $this->seedLabel('Sent', LabelRole::Sent);
+        $thread = $this->thread('you asked them something', unread: 1);
+
+        // Ordinary new mail until the conversation has been sent into.
+        self::assertTrue($thread->isNewAt(new \DateTimeImmutable()));
+        self::assertFalse($thread->isAnswerAt(new \DateTimeImmutable()));
+
+        $thread->addLabel($sent);
+        $this->em->flush();
+
+        self::assertTrue($thread->isAnswerAt(new \DateTimeImmutable()));
+
+        $html = (string) $this->client->request('GET', '/mail/inbox')
+            ->filter('#message-list')->html();
+
+        self::assertStringContainsString('data-thread-answer', $html);
+
+        // Still new, and still marked as such: an answer is an escalation, not
+        // a third state. Everything that looks for a new row — the counts, the
+        // dots, the display report that retires it — has to go on finding this
+        // one.
+        self::assertStringContainsString('data-thread-new', $html);
+        self::assertStringContainsString('data-new="true"', $html);
+    }
+
+    /**
+     * And the escalation obeys every rule newness obeys.
+     *
+     * The risk of a second badge is that it grows its own lifetime — a "Reply"
+     * that outlives the "New" it is an escalation of would be worse than not
+     * having it. Read is the one that matters most here, because a reply you
+     * have already read is exactly the mail this must not shout about.
+     */
+    public function testAnAnswerThatHasBeenReadIsNotAnAnswerAnyMore(): void
+    {
+        $sent   = $this->seedLabel('Sent', LabelRole::Sent);
+        $thread = $this->thread('answered and read', unread: 1);
+        $thread->addLabel($sent);
+        $this->em->flush();
+
+        self::assertTrue($thread->isAnswerAt(new \DateTimeImmutable()));
+
+        $thread->unreadCount = 0;
+        $this->em->flush();
+
+        self::assertFalse(
+            $thread->isAnswerAt(new \DateTimeImmutable()),
+            'a reply you have already read is still being announced',
+        );
+    }
+
+    /**
      * A display in the app retires the badge in the browser.
      *
      * Newness is ACCOUNT-bound, not per client: `listedAt` is a column on the

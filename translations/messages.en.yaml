@@ -2819,6 +2819,8 @@ thread_row:
     # a list, does not say new what.
     new: Not shown to you before
     new_badge: New
+    answer: New reply to your message
+    answer_badge: Reply
     no_recipient: (no recipient)
     no_subject: (no subject)
     scheduled: 'Scheduled %when%'

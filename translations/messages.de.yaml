@@ -2844,6 +2844,8 @@ thread_row:
     message_count: "({ count })"
     new: Dir noch nie angezeigt
     new_badge: Neu
+    answer: Neue Antwort auf deine Nachricht
+    answer_badge: Antwort
     no_recipient: (kein Empfänger)
     no_subject: (kein Betreff)
     scheduled: 'Geplant %when%'

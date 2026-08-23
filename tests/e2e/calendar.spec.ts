@@ -217,8 +217,20 @@ test.describe("calendar", () => {
 
         await expect(page).toHaveURL(/\/calendar\/week/);
 
-        // A daily event inside a seven-day window is on every remaining day of
-        // it, so more than one chip is the whole assertion.
+        // Asserted in the MONTH view, not the week it was created in.
+        //
+        // A daily event is on every REMAINING day of the window it is created
+        // in — which is six chips on a Monday and exactly one on a Sunday. This
+        // passed for six days out of seven and failed on the seventh, which is
+        // the worst shape a test can have: it looks like whatever was committed
+        // that day broke the calendar.
+        //
+        // A month has remaining days whatever the weekday, so the claim — a
+        // repeating event appears on more than one day — is the same one and no
+        // longer depends on when it is run.
+        await page.getByRole("link", { name: "Month", exact: true }).click();
+        await expect(page).toHaveURL(/\/calendar\/month/);
+
         const chips = page.getByRole("button", { name: new RegExp(TITLE) });
         await expect(chips.first()).toBeVisible();
         expect(await chips.count()).toBeGreaterThan(1);

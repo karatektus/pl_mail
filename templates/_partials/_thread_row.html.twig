@@ -68,6 +68,12 @@ Threads only. A bare Message row is a message, and only a conversation arrives.
         ? item.id in newThreadIds
         : newMail.isNew(item)) %}
 
+{# An escalation of isNew, never a replacement: an answer IS new, and every
+   count, dot and retirement path goes on treating it as exactly that. All this
+   decides is which of two badges the row wears. See
+   MessageThread::isAnswerAt(). #}
+{% set isAnswer = isNew and isThread and newMail.isAnswer(item) %}
+
 {% if isThread %}
     {% set type = 'thread' %}
     {% set unread = item.unreadCount > 0 %}
@@ -352,12 +358,29 @@ Threads only. A bare Message row is a message, and only a conversation arrives.
                        in sr-only beside it: "New" alone, announced in a list of
                        fifty rows, does not say new WHAT. #}
                     {% if isNew %}
+                        {# Two badges, one slot. The answer form is louder on
+                           purpose — it is the mail you are actually waiting for
+                           — and louder here means a colour that means something
+                           rather than a bigger box: `bg-success` is the only
+                           token in the palette that reads as "good news
+                           arrived", and it separates from the accent the
+                           ordinary New badge wears without inventing a colour
+                           for one badge.
+
+                           `data-thread-new` stays on both, because everything
+                           that looks for a new row must go on finding this one
+                           — an answer is new, escalated, not a third state. #}
                         <span class="shrink-0 inline-flex items-center rounded-full
-                                     bg-accent text-accent-ink
+                                     {{ isAnswer ? 'bg-success text-white ring-1 ring-inset ring-white/25' : 'bg-accent text-accent-ink' }}
                                      px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide leading-none"
-                              data-thread-new>
-                            <span aria-hidden="true">{{ 'thread_row.new_badge'|trans }}</span>
-                            <span class="sr-only">{{ 'thread_row.new'|trans }}</span>
+                              data-thread-new
+                              {% if isAnswer %}data-thread-answer{% endif %}>
+                            <span aria-hidden="true">
+                                {{ (isAnswer ? 'thread_row.answer_badge' : 'thread_row.new_badge')|trans }}
+                            </span>
+                            <span class="sr-only">
+                                {{ (isAnswer ? 'thread_row.answer' : 'thread_row.new')|trans }}
+                            </span>
                         </span>
                     {% endif %}
 

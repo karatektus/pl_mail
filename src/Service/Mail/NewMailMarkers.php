@@ -98,6 +98,18 @@ class NewMailMarkers implements ResetInterface
         return $thread->isNewAt($this->now());
     }
 
+    /**
+     * New mail answering something you sent — the louder half of newness.
+     *
+     * Shares `now()` with isNew() above, so a row cannot be told it is an
+     * answer by one call and not new by the next: both read the same instant,
+     * memoised for the render.
+     */
+    public function isAnswer(MessageThread $thread): bool
+    {
+        return $thread->isAnswerAt($this->now());
+    }
+
     private function now(): \DateTimeImmutable
     {
         return $this->now ??= new \DateTimeImmutable();

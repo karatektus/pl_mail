@@ -310,6 +310,24 @@ final class MessageThreader
 
         if (null === $message->seenAt) {
             $thread->unreadCount = $thread->unreadCount + 1;
+
+            // Unread mail joining a conversation makes it new AGAIN.
+            //
+            // listedAt was only ever written when a thread was created, so a
+            // reply landing on a conversation somebody had already looked at
+            // arrived permanently un-new: the marker had been retired by the
+            // render that showed the conversation before the reply existed.
+            // The one case the feature is most obviously for — somebody
+            // answering you — was the one case it could not announce.
+            //
+            // Guarded on unread rather than on direction. A sent copy coming
+            // back from the server is claimed by SentCopyReconciler onto the
+            // row plMail already had, which was marked seen when it was sent,
+            // so it never reaches this branch and cannot announce your own mail
+            // back at you. A draft cannot either — attachMessageToThread is not
+            // how drafts join a thread, and createThreadFor stamps listedAt for
+            // exactly that reason.
+            $thread->listedAt = null;
         }
 
         if (true === $message->hasAttachments) {

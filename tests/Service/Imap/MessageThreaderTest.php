@@ -133,6 +133,64 @@ final class MessageThreaderTest extends TestCase
     }
 
     /**
+     * Unread mail joining a conversation makes it new again.
+     *
+     * `listedAt` was only ever written when a thread was CREATED, so a reply
+     * landing on a conversation somebody had already looked at arrived
+     * permanently un-new — the marker had been retired by the render that
+     * showed the conversation before the reply existed. The case the marker is
+     * most obviously for, somebody answering you, was the one case it could not
+     * announce. It is also what the "Reply" badge is built on.
+     */
+    public function testUnreadMailJoiningAThreadMakesItNewAgain(): void
+    {
+        $thread = $this->existingThread();
+        $thread->listedAt = new \DateTimeImmutable('2026-07-28 12:00:00');
+
+        $message = $this->message(MessageCategory::Promotions, '2026-07-28 13:00:00');
+        $message->seenAt = null;
+
+        $this->threaderWithThreadLookup($thread)->assignThread($message, new Account());
+
+        self::assertNull($thread->listedAt, 'a reply arrived and the conversation is still not new');
+    }
+
+    /**
+     * And mail that arrives already read does not.
+     *
+     * Two things reach this branch looking like arrivals and are not: a sent
+     * copy coming back from the server, which was marked seen when it was sent,
+     * and anything already read in another client. Announcing either would be
+     * the marker shouting about mail the user has seen — which is the complaint
+     * that started this whole area.
+     */
+    public function testMailThatArrivesAlreadyReadDoesNotMakeAThreadNewAgain(): void
+    {
+        $thread = $this->existingThread();
+        $listed = new \DateTimeImmutable('2026-07-28 12:00:00');
+        $thread->listedAt = $listed;
+
+        $message = $this->message(MessageCategory::Promotions, '2026-07-28 13:00:00');
+        $message->seenAt = new \DateTimeImmutable('2026-07-28 13:00:01');
+
+        $this->threaderWithThreadLookup($thread)->assignThread($message, new Account());
+
+        self::assertSame($listed, $thread->listedAt);
+    }
+
+    private function existingThread(): MessageThread
+    {
+        $thread = new MessageThread();
+        $thread->messageCount = 1;
+        $thread->unreadCount = 0;
+        $thread->attachmentCount = 0;
+        $thread->category = MessageCategory::Updates;
+        $thread->lastMessageAt = new \DateTimeImmutable('2026-07-28 12:00:00');
+
+        return $thread;
+    }
+
+    /**
      * @return iterable<string, array{string, MessageCategory}>
      */
     public static function threadCategoryCases(): iterable

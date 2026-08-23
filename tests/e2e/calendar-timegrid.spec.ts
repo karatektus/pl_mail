@@ -420,7 +420,9 @@ test.describe("calendar time-grid", () => {
         // The wait, and it has to be this rather than a count: the answer is a
         // form submit and a full Turbo navigation, and every count assertion
         // holds just as well on the page being replaced. `first()` is the block
-        // that was dragged, since the series starts today.
+        // that was dragged, since the series starts at the beginning of the
+        // displayed week — anchored there rather than to today so that the
+        // occurrences are in view whichever day the suite runs.
         await expect(blocks(page, DAILY).first()).not.toHaveAttribute("data-starts-at", at);
         await expect(blocks(page, DAILY)).toHaveCount(before);
 
