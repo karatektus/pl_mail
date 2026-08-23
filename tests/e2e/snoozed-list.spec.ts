@@ -26,13 +26,23 @@ async function openSnoozeMenu(page: import("@playwright/test").Page, subject: st
     await row.hover();
     await row.getByRole("button", { name: /snooze/i }).click({ force: true });
 
-    const menu = page.locator('[data-controller="mail--snooze-menu"]:not([hidden])').first();
+    // THIS row's menu. Every row renders its own copy of the partial, and the
+    // list toolbar renders another for the selection, so a page-wide `.first()`
+    // was whichever menu came first in the document — not the one the click
+    // just opened. It only looked right because the inbox happened to list this
+    // subject first; when it did not, the helper handed back a closed menu
+    // belonging to another conversation, and the caller reported the feature
+    // inside it as missing.
+    //
+    // `:not([hidden])` went with it. The dropdown is opened and closed by
+    // class, never by the hidden attribute, so that filter excluded nothing and
+    // read as a check on open-ness while being none.
+    const menu = row.locator('[data-controller="mail--snooze-menu"]');
 
-    // The helper does not hand back a menu it has not seen open. Callers go
-    // straight to looking for an entry inside it, so a click that did not open
-    // anything surfaced as "the snoozed row offers no way to cancel the snooze"
-    // — a sentence about a missing feature, for a menu that simply is not up
-    // yet. Whatever else is wrong, it should not be described as that.
+    // And the helper does not hand back a menu it has not seen open: callers go
+    // straight to looking for an entry inside it, so a click that opened nothing
+    // surfaced as "the snoozed row offers no way to cancel the snooze" — a
+    // sentence about a missing feature, describing a menu that was not up.
     await expect(menu, `the ${subject} row's snooze menu did not open`).toBeVisible();
 
     return menu;
