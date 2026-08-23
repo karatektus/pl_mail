@@ -278,7 +278,13 @@ test.describe("appointment booking", () => {
         // Naming an hour here would be this spec deciding what the availability
         // rules mean, which is the reader's job and is tested there. `force` for
         // the reason the weekday boxes need it: the input is `sr-only`.
-        await booking.locator('input[name="slot"]').first().check({ force: true });
+        //
+        // Its value is kept because the owner's calendar is checked at the end,
+        // and WHICH week that is cannot be assumed — see the note there.
+        const slot = booking.locator('input[name="slot"]').first();
+        const slotKey = await slot.inputValue();
+
+        await slot.check({ force: true });
 
         await booking.getByLabel("Your name").fill("Ada Lovelace");
         await booking.getByLabel("Your email").fill("ada@example.test");
@@ -300,7 +306,22 @@ test.describe("appointment booking", () => {
         // asserts that EventSource::Booking carries an icon, and this asserts
         // that a chip draws it, which is a different claim and the one the
         // requirement was about.
-        await page.goto("/calendar/week");
+        // The week the slot is actually IN, not the week the suite happens to be
+        // run in. The page offers the soonest free hour, so as the day fills up
+        // the first slot rolls on to tomorrow — and on the last day of the week
+        // tomorrow is the NEXT one, which this view does not draw. The chip is
+        // then missing for a booking that was made perfectly well, and the test
+        // reports the badge as broken.
+        //
+        // Time-of-day AND day-of-week, which is why it survived three runs an
+        // hour apart and failed on the third: nothing about the code changed,
+        // the afternoon did.
+        //
+        // The key is a UTC `Y-m-d H:i:s` (BookableSlot::key) and the route
+        // parses the date in the owner's zone. Only a slot within an offset of
+        // midnight could land on the neighbouring day, and the availability
+        // rules put these in working hours.
+        await page.goto(`/calendar/week/${slotKey.split(" ")[0]}`);
 
         const chip = page.getByRole("button", { name: new RegExp(PAGE_NAME) }).first();
         await expect(chip).toBeVisible();

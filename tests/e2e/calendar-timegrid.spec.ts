@@ -312,21 +312,53 @@ test.describe("calendar time-grid", () => {
         expect(hoursOf(await startOf(blocks(page, TIMED).first())) - hoursOf(before)).toBe(2);
     });
 
-    /** A week has seven columns, and sideways is another day. */
+    /**
+     * A week has seven columns, and sideways is another day.
+     *
+     * The direction is chosen rather than fixed, and that is the whole
+     * subtlety. The seeder puts this event on TODAY — it has to, because every
+     * case above reads it in the day view — so which column it occupies moves
+     * with the calendar. Dragging right is off the end of the grid on the last
+     * day of the week, the controller has nowhere to drop it, and the block
+     * stays where it was: the test then fails with "data-starts-at did not
+     * change", which describes a broken drag and is really a Sunday.
+     *
+     * Six days in seven it passed, so the failure arrives looking like whatever
+     * happened to be committed that weekend.
+     */
     test("dragging a block sideways moves the event to another day", async ({ page }) => {
         await page.setViewportSize({ width: 1440, height: 900 });
         await page.goto("/calendar/week");
 
-        const before = await startOf(blocks(page, TIMED).first());
-        const column = (await page
-            .locator('[data-calendar--time-grid-target="column"]')
-            .first()
-            .boundingBox())!;
+        const columns = page.locator('[data-calendar--time-grid-target="column"]');
+        const count = await columns.count();
+        const centre = await centreOf(blocks(page, TIMED).first());
 
-        await dragBy(page, await centreOf(blocks(page, TIMED).first()), column.width, 0);
+        // Which column the block is actually sitting in, found by hit-testing
+        // rather than computed from the date: the grid decides where a weekday
+        // goes, and the first column is not always Monday.
+        let index = 0;
+        for (let i = 0; i < count; i += 1) {
+            const box = (await columns.nth(i).boundingBox())!;
+
+            if (centre.x >= box.x && centre.x < box.x + box.width) {
+                index = i;
+                break;
+            }
+        }
+
+        // Away from whichever edge it is against. Only the last column has no
+        // room to the right, but going left off the first would fail the same
+        // way, so both are handled.
+        const forward = index < count - 1;
+        const width = (await columns.first().boundingBox())!.width;
+        const before = await startOf(blocks(page, TIMED).first());
+
+        await dragBy(page, centre, forward ? width : -width, 0);
 
         await expect(blocks(page, TIMED).first()).not.toHaveAttribute("data-starts-at", before);
-        expect(hoursOf(await startOf(blocks(page, TIMED).first())) - hoursOf(before)).toBe(24);
+        expect(hoursOf(await startOf(blocks(page, TIMED).first())) - hoursOf(before))
+            .toBe(forward ? 24 : -24);
     });
 
     /**
