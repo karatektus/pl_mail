@@ -59,6 +59,15 @@ class MessageThreadRepository extends ServiceEntityRepository
             ->setParameter('normalizedSubject', $normalizedSubject)
             ->setParameter('since', $since)
             ->orderBy('thread.lastMessageAt', 'DESC')
+            // The tiebreaker ListSortOrder explains for the folder lists, for
+            // the same reason in a different shape: this takes ONE row, so two
+            // candidate threads sharing a lastMessageAt made "which
+            // conversation does this message join" a question the database
+            // answered however it liked. Nothing is lost either way, but the
+            // same mailbox could thread the same message differently on two
+            // runs — and a batch landing with one timestamp is ordinary, not an
+            // edge case.
+            ->addOrderBy('thread.id', 'DESC')
             ->setMaxResults(1)
             ->getQuery()
             ->getOneOrNullResult();
@@ -1003,6 +1012,12 @@ class MessageThreadRepository extends ServiceEntityRepository
             ->setParameter('labels', $labels)
             ->groupBy('thread.id')
             ->orderBy('thread.lastMessageAt', 'DESC')
+            // This one is paginated, which is the case the rule exists for:
+            // LIMIT/OFFSET over a non-deterministic sort can show one
+            // conversation on two pages and another on none. The folder lists
+            // get this from ListSortOrder::applyTo(); this method predates that
+            // and spells its own order, so it has to spell the tiebreaker too.
+            ->addOrderBy('thread.id', 'DESC')
             ->setFirstResult(($page - 1) * $perPage)
             ->setMaxResults($perPage)
             ->getQuery()
@@ -1634,6 +1649,13 @@ class MessageThreadRepository extends ServiceEntityRepository
             ->andWhere('t.snoozedUntil <= :now')
             ->setParameter('now', $now)
             ->orderBy('t.snoozedUntil', 'ASC')
+            // Snoozing a selection gives every thread in it the same wake time,
+            // so ties here are the norm rather than the exception. Everything
+            // due is woken eventually whatever the order, but with a cap on the
+            // batch the boundary is arbitrary without this — and a sweep that
+            // processes the same backlog in a different order each time is
+            // needlessly hard to reason about when one of them goes wrong.
+            ->addOrderBy('t.id', 'ASC')
             ->setMaxResults($limit)
             ->getQuery()
             ->getResult();

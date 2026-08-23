@@ -457,6 +457,44 @@ final class MessageThreadRepositoryTest extends KernelTestCase
         self::assertSame(1, $this->repository->countForStarred($this->user));
     }
 
+    // ── threading a message onto an existing conversation ───────────────────
+
+    /**
+     * Which conversation a subject-threaded message joins is a property of the
+     * mailbox, not of the query planner's mood.
+     *
+     * The lookup takes ONE row, and two candidate conversations sharing a
+     * lastMessageAt is ordinary rather than exotic — an import, a bulk sync,
+     * anything that lands a batch stamped with one instant. Without a
+     * tiebreaker the database was free to hand back either of them, so the same
+     * mailbox could thread the same message differently on two runs, and a
+     * report of "this reply went to the wrong conversation" would be
+     * unreproducible by construction.
+     *
+     * The newest row wins, which is what `id DESC` means here: of two equally
+     * recent conversations, the one started later is the better guess.
+     */
+    public function testATieBetweenCandidateConversationsIsBrokenTheSameWayEveryTime(): void
+    {
+        $sameInstant = '2026-03-01 09:00:00';
+
+        $this->thread('Quarterly report', $sameInstant);
+        $later = $this->thread('Quarterly report', $sameInstant);
+
+        $found = $this->repository->findMatchingNormalizedSubjectThreadForAccount(
+            'quarterly report',
+            $this->account,
+            new DateTimeImmutable('2026-02-01 00:00:00'),
+        );
+
+        self::assertNotNull($found, 'neither candidate conversation was found at all');
+        self::assertSame(
+            $later->id,
+            $found->id,
+            'a tie on lastMessageAt was broken by something other than the row order',
+        );
+    }
+
     /**
      * Runs the real derivation rather than writing thread_label by hand: the
      * whole point of the bug is that the thread's labels are DERIVED from its
