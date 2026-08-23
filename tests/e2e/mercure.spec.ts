@@ -255,6 +255,22 @@ test.describe("mercure live updates", () => {
     test("shows the stream's health on the topbar dot, and updates it when it drops", async ({ page, baseURL }) => {
         test.slow();
 
+        // The hub answers before the browser is asked to stream from it.
+        //
+        // Every other case that needs a live hub says so; this one inherited it
+        // from whichever ran before — and the one before this stops and
+        // restarts the hub. `waitForHub` returns the moment its probe gets a
+        // 401, which proves the process is listening rather than that it is
+        // ready to carry a subscription, so arriving straight afterwards asks
+        // for a stream from a hub still finding its feet. The dot then never
+        // leaves its blank state — the controller renders nothing until a state
+        // arrives — and the failure reads as the indicator being broken.
+        //
+        // Unproven, and said plainly: this went flaky once on a 2-vCPU runner
+        // after 577 other tests and has not been reproduced. It is here because
+        // a test that needs a hub should say so. No timeout was touched.
+        await waitForHub(baseURL!);
+
         await page.goto("/mail/inbox");
 
         // On screen without opening anything — this is the only surface that
