@@ -49,6 +49,14 @@ async function openSnoozeMenu(page: import("@playwright/test").Page, subject: st
 }
 
 test("a snoozed conversation shows its wake time and can be woken", async ({ page }) => {
+    // Long by nature rather than slow by accident: it seeds, opens two menus,
+    // waits on two writes and walks three lists. On a two-vCPU runner carrying
+    // five hundred other tests that legitimately outgrew the default budget and
+    // timed out as a whole — no single assertion was wrong. test.slow() is the
+    // sanctioned way to say a test needs more room, and it leaves every
+    // assertion inside it on its own honest timeout.
+    test.slow();
+
     await page.goto("/mail/inbox");
 
     const menu = await openSnoozeMenu(page, INBOX_SUBJECTS.read);

@@ -160,7 +160,22 @@ test.describe("compose undo reopens where it was sent from", () => {
         // symptom: a classless frame left behind used to take every later dock
         // window below the fold with it.
         await page.locator(DOCK).getByRole("button", { name: "Save draft and close" }).click();
-        await expect(page.locator(`${DOCK} .compose-window`)).toHaveCount(0);
+
+        // Deliberately NOT given a longer budget. This failed once on CI with
+        // the window resolving on all fourteen polls — continuously present for
+        // the full five seconds, not slow to go — and a window that never
+        // closes is not a window that closes late. Raising the wait would only
+        // move where it fails.
+        //
+        // Two candidates, and the message is here so the next occurrence says
+        // which: the click never reached close(), or something re-rendered the
+        // dock after it did. The second is the live one — this is the undo
+        // path, whose whole job is putting a window back, and a stream arriving
+        // after the reader has closed it would do exactly this.
+        await expect(
+            page.locator(`${DOCK} .compose-window`),
+            "the composer was still open after Save draft and close",
+        ).toHaveCount(0);
 
         await page.getByRole("link", { name: "Compose" }).first().click();
         await expect(page.locator(`${DOCK} .compose-window`)).toBeVisible();
