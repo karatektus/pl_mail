@@ -9,10 +9,14 @@ use App\Domain\Enum\PushHealth;
 use App\Entity\Mail\Account;
 use App\Entity\User\User;
 use App\Service\Graph\GraphSubscriptionManager;
+use App\Service\Mail\GraphApiClient;
+use App\Service\Setup\PublicUrlSetting;
+use App\Tests\Support\Log\RecordingLogger;
 use DateTimeImmutable;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
+use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 
 /**
  * Whether an Outlook account is on push or quietly back on polling.
@@ -183,6 +187,73 @@ final class GraphSubscriptionManagerTest extends KernelTestCase
 
         $this->account->oauthProvider = 'google';
         self::assertFalse($this->manager->supports($this->account));
+    }
+
+    /**
+     * A renewal that fails for a transient reason hands the old registration
+     * back before building a new one.
+     *
+     * This is the other half of testTeardownClearsLocalStateWhateverTheRemoteSays,
+     * and the more expensive half to get wrong. Renewal used to clear local
+     * state and let subscribe() do the teardown — but subscribe() returns
+     * early when there is no id, so the DELETE never went out. Microsoft went
+     * on holding a live subscription that plMail had forgotten, delivering
+     * notifications for an id no account matched, for up to three days, over
+     * something no admin could act on because the only record of it had been
+     * erased.
+     *
+     * Asserted on the teardown being ATTEMPTED rather than on the account's
+     * final state, and that is the whole difficulty: both the fixed and the
+     * broken version end with the id null, so the state says nothing. What
+     * differs is whether a delete was sent first.
+     *
+     * The remote calls all fail here — there is no Graph and no token — which
+     * is exactly the shape of the bug: the renewal fails for a reason that is
+     * NOT a 404, so the registration has to be assumed live.
+     */
+    public function testATransientRenewalFailureHandsTheOldRegistrationBack(): void
+    {
+        $this->account->pushEnabled                  = true;
+        $this->account->graphSubscriptionId          = 'sub-live';
+        $this->account->graphSubscriptionClientState = 'secret';
+        $this->account->graphSubscriptionExpiresAt   = new DateTimeImmutable('+1 hour');
+
+        $this->em->flush();
+
+        $logger  = new RecordingLogger();
+        $manager = $this->managerLogging($logger);
+
+        $manager->renew($this->account);
+
+        self::assertTrue(
+            $logger->sawMessageContaining('teardown'),
+            'renewal replaced a subscription that may still be live without handing it back',
+        );
+
+        self::assertNull(
+            $this->account->graphSubscriptionId,
+            'the forgotten id must not be left on the account either',
+        );
+    }
+
+    /**
+     * The same manager, wired to a logger this test can read.
+     *
+     * Built by hand rather than fetched: what has to be observed is a call the
+     * manager makes to a collaborator, and the only trace it leaves is a log
+     * line. GraphApiClient is final, so there is no spying on it directly.
+     */
+    private function managerLogging(RecordingLogger $logger): GraphSubscriptionManager
+    {
+        $container = self::getContainer();
+
+        return new GraphSubscriptionManager(
+            $container->get(GraphApiClient::class),
+            $container->get(UrlGeneratorInterface::class),
+            $this->em,
+            $logger,
+            $container->get(PublicUrlSetting::class),
+        );
     }
 
     // ── Fixtures ─────────────────────────────────────────────────────────────

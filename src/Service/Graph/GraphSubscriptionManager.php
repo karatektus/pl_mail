@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Service\Graph;
 
 use App\Domain\Enum\PushHealth;
+use App\Domain\Exception\GraphApiException;
 use App\Domain\Interface\PushSubscriptionManagerInterface;
 use App\Entity\Mail\Account;
 use App\Service\Mail\GraphApiClient;
@@ -192,12 +193,40 @@ final readonly class GraphSubscriptionManager implements PushSubscriptionManager
         try {
             $subscription = $this->apiClient->renewSubscription($account, $subscriptionId, $expiresAt);
         } catch (\Throwable $e) {
-            $this->logger->warning('GraphSubscriptionManager: renewal failed, recreating', [
-                'accountId' => $account->id,
-                'error'     => $e->getMessage(),
-            ]);
+            // A 404 means Microsoft no longer has it, which is the ordinary end
+            // of a subscription's life rather than a fault: there is nothing to
+            // hand back and nothing an admin can do. Anything else — throttling,
+            // a 5xx, a dropped connection — says the registration may well
+            // still be live, and THAT is the case that has to hand it back.
+            //
+            // It used to clear local state here and let subscribe() do the
+            // teardown. subscribe() returns early when the id is missing, so
+            // the delete never went out: every renewal that failed for a
+            // transient reason left Microsoft holding a live subscription
+            // plMail had forgotten. It then delivered notifications for an id
+            // no account matched — "GraphNotification: unknown subscription",
+            // once an hour for up to three days, over something nobody could
+            // act on because the id was gone from the only record of it.
+            //
+            // unsubscribe() is called here rather than left to subscribe()
+            // because subscribe() bails before its own teardown when there is
+            // no public URL. Handing the old registration back matters even
+            // when a new one cannot be built.
+            if (true === $this->isAlreadyGone($e)) {
+                $this->logger->info('GraphSubscriptionManager: subscription had lapsed, recreating', [
+                    'accountId'      => $account->id,
+                    'subscriptionId' => $subscriptionId,
+                ]);
 
-            $this->clearLocalState($account);
+                $this->clearLocalState($account);
+            } else {
+                $this->logger->warning('GraphSubscriptionManager: renewal failed, handing it back and recreating', [
+                    'accountId' => $account->id,
+                    'error'     => $e->getMessage(),
+                ]);
+
+                $this->unsubscribe($account);
+            }
 
             return $this->subscribe($account);
         }
@@ -252,6 +281,19 @@ final readonly class GraphSubscriptionManager implements PushSubscriptionManager
     }
 
     // ── Private ───────────────────────────────────────────────────────────────
+
+    /**
+     * Does this failure mean Microsoft has already let the subscription go?
+     *
+     * Only a 404 does. Everything else has to be treated as "it may still be
+     * there", because the cost of being wrong runs one way: assuming it is gone
+     * when it is not orphans a live registration, while assuming it is there
+     * when it is not costs one DELETE that answers 404 and is swallowed.
+     */
+    private function isAlreadyGone(\Throwable $e): bool
+    {
+        return $e instanceof GraphApiException && 404 === $e->getStatus();
+    }
 
     private function clearLocalState(Account $account): void
     {
