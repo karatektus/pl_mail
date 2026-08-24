@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Service\Imap;
 
+use App\Tests\Support\Imap\ImapUidSequence;
 use App\Domain\Enum\Mail\LabelRole;
 use App\Domain\Enum\Mail\MailboxSpecialUse;
 use App\Domain\Enum\Mail\MessageFlag;
@@ -453,7 +454,7 @@ final class SentCopyReconcilerTest extends KernelTestCase
         $message = $this->row($subject, $from);
         $message->messageId  = MessageIdHelper::mint($from);
         $message->mailbox    = $this->inbox;
-        $message->imapUid    = random_int(100, 999);
+        $message->imapUid    = ImapUidSequence::next();
         $message->receivedAt = new DateTimeImmutable('2026-08-10 09:00:00');
         $message->sentAt     = $message->receivedAt;
 

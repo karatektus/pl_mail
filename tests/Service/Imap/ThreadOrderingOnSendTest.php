@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Service\Imap;
 
+use App\Tests\Support\Imap\ImapUidSequence;
 use App\Domain\Enum\Mail\LabelRole;
 use App\Domain\Enum\Mail\MailboxSpecialUse;
 use App\Domain\Enum\Mail\MessageCategory;
@@ -304,7 +305,7 @@ final class ThreadOrderingOnSendTest extends KernelTestCase
         $message = $this->row('Re: ' . $thread->subject, 'kunde@example.test');
         $message->messageId  = MessageIdHelper::mint('example.test');
         $message->mailbox    = $this->inbox;
-        $message->imapUid    = random_int(1000, 9999);
+        $message->imapUid    = ImapUidSequence::next();
         $message->receivedAt = $at;
         $message->sentAt     = $at;
         $message->inReplyTo  = [];
@@ -337,7 +338,7 @@ final class ThreadOrderingOnSendTest extends KernelTestCase
         $message = $this->row($subject, 'kunde@example.test');
         $message->messageId  = MessageIdHelper::mint('example.test');
         $message->mailbox    = $this->inbox;
-        $message->imapUid    = random_int(1, 999);
+        $message->imapUid    = ImapUidSequence::next();
         $message->receivedAt = $receivedAt;
         $message->sentAt     = $receivedAt;
         $message->seenAt     = $receivedAt;

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Service\Imap;
 
+use App\Tests\Support\Imap\ImapUidSequence;
 use App\Domain\Enum\Mail\LabelRole;
 use App\Domain\Enum\Mail\MailboxSpecialUse;
 use App\Domain\Helper\MessageIdHelper;
@@ -245,7 +246,7 @@ final class GhostMessageReaperTest extends KernelTestCase
         $message = new Message();
         $message->account        = $this->account;
         $message->mailbox        = $this->junk;
-        $message->imapUid        = random_int(1000, 9999);
+        $message->imapUid        = ImapUidSequence::next();
         $message->messageId      = null;
         $message->subject        = '';
         $message->fromAddress    = null;
@@ -268,7 +269,7 @@ final class GhostMessageReaperTest extends KernelTestCase
         $message = new Message();
         $message->account        = $this->account;
         $message->mailbox        = $this->junk;
-        $message->imapUid        = random_int(1000, 9999);
+        $message->imapUid        = ImapUidSequence::next();
         $message->messageId      = MessageIdHelper::mint($from ?? 'someone@example.test');
         $message->subject        = $subject;
         $message->fromAddress    = $from;
