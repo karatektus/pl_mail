@@ -178,82 +178,7 @@ empty panel.
 
                             <ul class="mt-2 space-y-2" data-insight-list>
                                 {% for insight in insights %}
-                                    {% set trackingUrl = insight.payload.trackingUrl|default(null) %}
-                                    {% set status = insight.payload.status|default(null) %}
-                                    {# Only the vocabulary the catalogue knows. An
-                                       extractor's stray status must not print a raw
-                                       translation key onto a card. #}
-                                    {% set statusTone = {
-                                        'announced':        'border-ink-faint/40 text-ink-muted',
-                                        'in_transit':       'border-sky-500/40 text-sky-700 dark:text-sky-300',
-                                        'out_for_delivery': 'border-amber-500/40 text-amber-700 dark:text-amber-300',
-                                        'delivered':        'border-green-500/40 text-green-700 dark:text-green-300',
-                                    }[status] ?? null %}
-
-                                    <li data-insight-card
-                                        data-insight-id="{{ insight.id }}"
-                                        data-insight-kind="{{ insight.kind.value }}"
-                                        class="rounded-pane border border-line bg-surface p-3 shadow-sm">
-                                        <div class="flex items-start gap-3">
-                                            {% include 'insight/_kind_chip.html.twig' with { kind: insight.kind } only %}
-
-                                            <div class="min-w-0 flex-1">
-                                                <div class="flex items-start justify-between gap-2">
-                                                    <p class="truncate text-sm font-semibold text-ink" title="{{ insight.title }}">
-                                                        {{ insight.title }}
-                                                    </p>
-                                                    <button type="button"
-                                                            data-action="click->insight--radar#dismiss"
-                                                            data-insight--radar-url-param="{{ path('app_insight_dismiss', { id: insight.id }) }}"
-                                                            aria-label="{{ 'insights.panel.dismiss'|trans }}"
-                                                            title="{{ 'insights.panel.dismiss'|trans }}"
-                                                            class="-mr-1.5 -mt-1 flex h-6 w-6 shrink-0 items-center justify-center rounded-full
-                                                                   text-ink-faint hover:bg-hover hover:text-ink transition-colors">
-                                                        <i class="fa-solid fa-xmark text-xs" aria-hidden="true"></i>
-                                                    </button>
-                                                </div>
-
-                                                <p class="mt-0.5 text-xs text-ink-faint">
-                                                    {{ insight.happensAt|intl_date('EEEdMMM') }}
-                                                    {#- A parcel's ETA is a day, not an hour — its
-                                                        midnight is a placeholder, not a time. -#}
-                                                    {%- if insight.happensAt|date('His') != '000000' %} · {{ insight.happensAt|date(clock.time) }}{% endif %}
-                                                    {% if statusTone is not null %}
-                                                        <span data-insight-status="{{ status }}"
-                                                              class="ml-1 inline-flex items-center rounded-full border px-2 py-px
-                                                                     text-[11px] leading-[1.35] font-medium {{ statusTone }}">
-                                                            {{ ('insights.status.' ~ status)|trans }}
-                                                        </span>
-                                                    {% endif %}
-                                                </p>
-
-                                                {% if trackingUrl is not empty or insight.thread is not null %}
-                                                    <div class="mt-2 flex flex-wrap items-center gap-1.5">
-                                                        {% if trackingUrl is not empty %}
-                                                            <a href="{{ trackingUrl }}"
-                                                               target="_blank" rel="noopener noreferrer"
-                                                               data-insight-track
-                                                               class="inline-flex items-center gap-1.5 rounded-full bg-accent px-2.5 py-1
-                                                                      text-xs font-medium text-accent-ink hover:bg-accent-strong transition-colors">
-                                                                <i class="fa-solid fa-location-arrow text-[10px]" aria-hidden="true"></i>
-                                                                {{ 'insights.panel.track'|trans }}
-                                                            </a>
-                                                        {% endif %}
-                                                        {% if insight.thread is not null %}
-                                                            <a href="{{ path('app_mail_thread', { id: insight.thread.id }) }}"
-                                                               data-turbo-frame="_top"
-                                                               data-insight-open-mail
-                                                               class="inline-flex items-center gap-1.5 rounded-full border border-line px-2.5 py-1
-                                                                      text-xs font-medium text-ink-muted hover:bg-hover hover:text-ink transition-colors">
-                                                                <i class="fa-regular fa-envelope text-[10px]" aria-hidden="true"></i>
-                                                                {{ 'insights.panel.open_mail'|trans }}
-                                                            </a>
-                                                        {% endif %}
-                                                    </div>
-                                                {% endif %}
-                                            </div>
-                                        </div>
-                                    </li>
+                                    {% include 'insight/_card.html.twig' with { insight: insight } only %}
                                 {% endfor %}
                             </ul>
                         </section>
@@ -267,67 +192,7 @@ empty panel.
 
                             <ul class="mt-2 space-y-2" data-insight-list>
                                 {% for insight in undatedInsights %}
-                                    {% set repo = insight.payload.repo|default(null) %}
-                                    {% set number = insight.payload.number|default(null) %}
-                                    {% set action = insight.payload.action|default(null) %}
-                                    {% set url = insight.payload.url|default(null) %}
-
-                                    <li data-insight-card
-                                        data-insight-id="{{ insight.id }}"
-                                        data-insight-kind="{{ insight.kind.value }}"
-                                        class="rounded-pane border border-line bg-surface p-3 shadow-sm">
-                                        <div class="flex items-start gap-3">
-                                            {% include 'insight/_kind_chip.html.twig' with { kind: insight.kind } only %}
-
-                                            <div class="min-w-0 flex-1">
-                                                <div class="flex items-start justify-between gap-2">
-                                                    <p class="truncate text-sm font-semibold text-ink" title="{{ insight.title }}">
-                                                        {{ insight.title }}
-                                                    </p>
-                                                    <button type="button"
-                                                            data-action="click->insight--radar#dismiss"
-                                                            data-insight--radar-url-param="{{ path('app_insight_dismiss', { id: insight.id }) }}"
-                                                            aria-label="{{ 'insights.panel.dismiss'|trans }}"
-                                                            title="{{ 'insights.panel.dismiss'|trans }}"
-                                                            class="-mr-1.5 -mt-1 flex h-6 w-6 shrink-0 items-center justify-center rounded-full
-                                                                   text-ink-faint hover:bg-hover hover:text-ink transition-colors">
-                                                        <i class="fa-solid fa-xmark text-xs" aria-hidden="true"></i>
-                                                    </button>
-                                                </div>
-
-                                                {% if repo is not empty or number is not null or action is not empty %}
-                                                    <p class="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs text-ink-faint">
-                                                        {% if repo is not empty %}<span class="truncate">{{ repo }}</span>{% endif %}
-                                                        {% if number is not null %}<span class="shrink-0">#{{ number }}</span>{% endif %}
-                                                        {% if action is not empty %}
-                                                            <span data-insight-action="{{ action }}"
-                                                                  class="inline-flex items-center rounded-full border border-ink-faint/40 px-2 py-px
-                                                                         text-[11px] leading-[1.35] font-medium text-ink-muted">
-                                                                {{ action }}
-                                                            </span>
-                                                        {% endif %}
-                                                    </p>
-                                                {% endif %}
-
-                                                {% if url is not empty %}
-                                                    <div class="mt-2">
-                                                        {# The brand's own name rather than a
-                                                           catalogue key — "GitHub" is not a word
-                                                           any locale translates. #}
-                                                        <a href="{{ url }}"
-                                                           target="_blank" rel="noopener noreferrer"
-                                                           data-insight-open-url
-                                                           class="inline-flex items-center gap-1.5 rounded-full border border-line px-2.5 py-1
-                                                                  text-xs font-medium text-ink-muted hover:bg-hover hover:text-ink transition-colors">
-                                                            <i class="fa-brands fa-github text-[11px]" aria-hidden="true"></i>
-                                                            GitHub
-                                                            <i class="fa-solid fa-arrow-up-right-from-square text-[9px]" aria-hidden="true"></i>
-                                                        </a>
-                                                    </div>
-                                                {% endif %}
-                                            </div>
-                                        </div>
-                                    </li>
+                                    {% include 'insight/_card.html.twig' with { insight: insight } only %}
                                 {% endfor %}
                             </ul>
                         </section>

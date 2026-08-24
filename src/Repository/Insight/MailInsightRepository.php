@@ -47,6 +47,12 @@ class MailInsightRepository extends ServiceEntityRepository
             ->andWhere('i.happensAt >= :from')
             ->andWhere('i.happensAt <= :until')
             ->orderBy('i.happensAt', 'ASC')
+            // Ties here are the common case, not the exotic one: a parcel's ETA
+            // is a DAY, so every parcel due on the same day sits at that day's
+            // midnight, and which of them came first was left to the planner.
+            // With a cap on the list that also decided which one fell off the
+            // end. Newest first among equals, matching the undated list below.
+            ->addOrderBy('i.id', 'DESC')
             ->setMaxResults($limit)
             ->setParameter('user', $user)
             ->setParameter('from', $now->modify(sprintf('-%d hours', $hoursBack)))
@@ -76,6 +82,10 @@ class MailInsightRepository extends ServiceEntityRepository
             ->andWhere('i.happensAt IS NULL')
             ->andWhere('i.createdAt >= :from')
             ->orderBy('i.createdAt', 'DESC')
+            // Same reason, and likelier still: these are written by the
+            // harvester as it walks a batch of mail, so a run that reads twenty
+            // notifications stamps them all within the same second.
+            ->addOrderBy('i.id', 'DESC')
             ->setMaxResults($limit)
             ->setParameter('user', $user)
             ->setParameter('from', $now->modify(sprintf('-%d days', $daysBack)))

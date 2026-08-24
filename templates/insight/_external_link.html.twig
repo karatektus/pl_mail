@@ -1,0 +1,43 @@
+{#
+insight/_external_link.html.twig
+─────────────────────────────────────────────────────────────────────────────
+The link out to wherever an insight's payload url points.
+
+Accepts:
+  url    string
+  kind   InsightKind
+  class  optional extra classes for the anchor
+
+Shared by the radar card, the pane strip and the reading-pane strip, which had
+three copies of it — every one of them printing GitHub's octocat and the word
+"GitHub" for any payload url at all.
+
+That held only because GitHub is the one extractor setting `url` today. The
+same assumption already cost the undated section its name: it was called "From
+your repos" because repos were all that ever reached it, right up until a
+parcel with no stated ETA did. A mark that says which service a link belongs to
+has to be chosen from the KIND, not from the fact that nothing else has needed
+one yet.
+
+The host is the fallback, and it is deliberately modest: it names where the
+link goes without claiming to know what is there.
+#}
+<a href="{{ url }}"
+   target="_blank" rel="noopener noreferrer"
+   data-insight-open-url
+   class="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-line px-2.5 py-1
+          text-xs font-medium text-ink-muted hover:bg-hover hover:text-ink transition-colors {{ class|default('') }}">
+    {% if kind.value starts with 'github-' %}
+        {# The brand's own name rather than a catalogue key — "GitHub" is not a
+           word any locale translates. #}
+        <i class="fa-brands fa-github text-[11px]" aria-hidden="true"></i>
+        GitHub
+    {% else %}
+        {# Host only: `url|split('/')` puts it at index 2 for every absolute
+           http(s) URL, and an extractor that produced anything else falls back
+           to printing the url itself rather than a slice of nonsense. #}
+        <i class="fa-solid fa-link text-[10px]" aria-hidden="true"></i>
+        {{ url|split('/')|slice(2, 1)|first|default(url) }}
+    {% endif %}
+    <i class="fa-solid fa-arrow-up-right-from-square text-[9px]" aria-hidden="true"></i>
+</a>

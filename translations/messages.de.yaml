@@ -1382,7 +1382,7 @@ insights:
         heading: Auf deinem Radar
         open_mail: Zur Mail
         track: Verfolgen
-        undated_heading: Aus deinen Repos
+        undated_heading: Außerdem gefunden
     report:
         already_reported: Du hast diese Mail bereits gemeldet.
         cancel: Abbrechen

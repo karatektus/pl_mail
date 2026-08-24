@@ -92,15 +92,8 @@ the Happening Soon rows give for their provenance link.
                             {{ 'insights.panel.track'|trans }}
                         </a>
                     {% elseif externalUrl is not empty %}
-                        <a href="{{ externalUrl }}"
-                           target="_blank" rel="noopener noreferrer"
-                           data-insight-open-url
-                           class="ml-1 inline-flex shrink-0 items-center gap-1.5 rounded-full border border-line px-2.5 py-1
-                                  text-xs font-medium text-ink-muted hover:bg-hover hover:text-ink transition-colors">
-                            <i class="fa-brands fa-github text-[11px]" aria-hidden="true"></i>
-                            GitHub
-                            <i class="fa-solid fa-arrow-up-right-from-square text-[9px]" aria-hidden="true"></i>
-                        </a>
+                        {% include 'insight/_external_link.html.twig'
+                            with { url: externalUrl, kind: insight.kind, class: 'ml-1' } only %}
                     {% endif %}
                 </div>
             {% endfor %}

@@ -1375,7 +1375,7 @@ insights:
         heading: On your radar
         open_mail: Open mail
         track: Track
-        undated_heading: From your repos
+        undated_heading: Also spotted
     report:
         already_reported: You have already reported this mail.
         cancel: Cancel

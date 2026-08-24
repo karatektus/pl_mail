@@ -94,6 +94,97 @@ final class RadarPanelTest extends WebTestCase
         self::assertCount(2, $crawler->filter('[data-insight-section]'));
     }
 
+    /**
+     * A parcel with no ETA is still a parcel.
+     *
+     * Reported as "from your repos has dhl links". The undated section was
+     * written when GitHub was the only thing without a date, so its card knew
+     * about repos, numbers, actions and one external link it labelled "GitHub"
+     * — and the section calling itself "From your repos" was true by accident
+     * rather than by construction.
+     *
+     * It stopped being true the moment anything else failed to state a date. A
+     * courier mail that never says when tells you about a parcel just the same,
+     * and it landed in that list stripped of everything the dated card would
+     * have given it: no status, no tracking link, no way back to the mail, and
+     * a heading claiming it came from a repository.
+     */
+    public function testAnUndatedParcelIsDescribedAsAParcelAndNotAsARepo(): void
+    {
+        $client = $this->signIn();
+
+        $this->insight(
+            $this->account,
+            InsightKind::Parcel,
+            'DHL parcel from Zalando',
+            null,
+            [
+                'status'      => 'in_transit',
+                'trackingUrl' => 'https://tracking.example.test/PKG-2',
+            ],
+            $this->thread('Your parcel is on its way'),
+        );
+
+        $crawler = $client->request('GET', '/calendar/soon');
+
+        $card = $crawler->filter('[data-insight-card][data-insight-kind="parcel"]');
+
+        self::assertCount(1, $card);
+
+        // Says what it is. With no date to lead with, the only thing naming this
+        // for a sighted reader was the colour of its tile.
+        self::assertStringContainsString(
+            'Parcel',
+            $card->text(),
+            'an undated card does not say what kind of thing it is',
+        );
+
+        self::assertCount(1, $card->filter('[data-insight-status="in_transit"]'), 'the status went missing');
+        self::assertCount(1, $card->filter('a[data-insight-track]'), 'the tracking link went missing');
+
+        self::assertCount(
+            0,
+            $card->filter('.fa-github'),
+            'a courier is wearing GitHub\'s mark',
+        );
+    }
+
+    /**
+     * Every card offers the mail it was read from, dated or not.
+     *
+     * An insight is a claim ABOUT a mail, so the mail is the thing that settles
+     * it — and the undated cards were the ones with no way to get there, which
+     * is precisely where a reader is most likely to want it, there being no
+     * date to explain what they are looking at.
+     */
+    public function testEveryCardLinksToTheMailItWasReadFrom(): void
+    {
+        $client = $this->signIn();
+
+        $this->parcel($this->thread('Dated parcel mail'));
+
+        $this->insight(
+            $this->account,
+            InsightKind::GithubPullRequest,
+            'Make the radar sweep',
+            null,
+            ['repo' => 'plmail/pl_mail', 'number' => 42],
+            $this->thread('Undated pull request mail'),
+        );
+
+        $crawler = $client->request('GET', '/calendar/soon');
+
+        $cards = $crawler->filter('[data-insight-card]');
+
+        self::assertCount(2, $cards);
+
+        self::assertCount(
+            2,
+            $crawler->filter('[data-insight-card] a[data-insight-open-mail]'),
+            'a card with a thread behind it does not offer the mail',
+        );
+    }
+
     /** An empty radar adds nothing — no section, no heading, no empty state of its own. */
     public function testAnEmptyRadarRendersNothingExtra(): void
     {
