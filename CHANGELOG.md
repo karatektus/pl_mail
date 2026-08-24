@@ -6,6 +6,41 @@ so anything that changes the schema irreversibly is called out explicitly.
 The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, and `sha-…` pins one commit.
 
+## v0.1.17 — 2026-08-24
+
+**No migration. Live updates move to Mercure 0.8, the test suites stop sharing a
+database, and a correction to what v0.1.16 said about Playwright.**
+
+### Correction to v0.1.16
+
+Those notes said Playwright was pinned to 1.61 because 1.62 reports painted,
+on-screen elements as hidden. **That was wrong.** The failing tests were clicking
+a screen-reader-only radio — a one-pixel clipped box — and the click was not
+taking. plMail's own suite had already documented that exact failure as hitting
+"roughly one full run in three", so the test was broken before 1.62 and only
+intermittently so; the new version made it reliable, which is a tool exposing a
+bad test rather than breaking a good one.
+
+The tests click the visible label now, the way a person does, and the pin was
+lifted the same day. Nothing about the application was involved either way.
+
+### Under the floor
+
+- **symfony/mercure-bundle 0.5.0** (mercure 0.8). Held back from the previous
+  release's dependency sweep on purpose — it carries the live-update transport —
+  and it did turn out to change its `HubInterface`. Verified against the specs
+  that stop and restart the hub mid-test to prove the stream comes back on its
+  own.
+- **The unit and browser suites no longer share a database.** They both ran as
+  `test` and so both landed on the same one, while a test in the unit suite
+  truncates tables by design. Run at the same time, that could block the browser
+  suite's queries and produce timeouts in specs with no connection to it. Each
+  has its own now.
+- **A test fixture that collided with itself.** UIDs were drawn at random from a
+  few hundred values against a uniqueness constraint, which is a coin-flip that
+  eventually comes up twice — it did, in CI. They are handed out in sequence
+  now.
+
 ## v0.1.16 — 2026-08-24
 
 **No migration. Message bodies size themselves again — they had stopped, and on
@@ -48,9 +83,8 @@ deprecation warnings on every workflow run.
 
 Development tooling moved too (TypeScript 7, @types/node 26), and the type
 check that comes with it passes clean for the first time. **Playwright is held
-at 1.61**: 1.62 reports elements with a `clip-path` as hidden when they are
-plainly on screen — measured, painted and unclipped — which is a change in what
-the tool counts as visible rather than anything about plMail.
+at 1.61** — see the correction under v0.1.17: that diagnosis was wrong, and the
+pin was lifted the same day.
 
 ## v0.1.15 — 2026-08-24
 
