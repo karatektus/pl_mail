@@ -157,6 +157,22 @@ final class RecordingHub implements HubInterface
 
         return 'id';
     }
+
+    /**
+     * Both added to HubInterface in symfony/mercure 0.8. Neither is consulted
+     * by anything these doubles stand in for — the code under test publishes
+     * and nothing else — so they answer with the defaults a real hub uses
+     * rather than pretending to a configuration this test does not have.
+     */
+    public function getProtocolVersion(): \Symfony\Component\Mercure\ProtocolVersion
+    {
+        return \Symfony\Component\Mercure\ProtocolVersion::V1;
+    }
+
+    public function getCookieName(): string
+    {
+        return 'mercureAuthorization';
+    }
 }
 
 /** @internal */
@@ -175,5 +191,16 @@ final class ThrowingHub implements HubInterface
     public function publish(Update $update): string
     {
         throw new \RuntimeException('the hub is down');
+    }
+
+    /** See RecordingHub: added to the interface in symfony/mercure 0.8. */
+    public function getProtocolVersion(): \Symfony\Component\Mercure\ProtocolVersion
+    {
+        return \Symfony\Component\Mercure\ProtocolVersion::V1;
+    }
+
+    public function getCookieName(): string
+    {
+        return 'mercureAuthorization';
     }
 }

@@ -7,7 +7,7 @@
         "test:env:down": "docker compose -f compose.test.yaml down",
         "test:env:reset": "docker compose -f compose.test.yaml down -v",
         "test:env:logs": "docker compose -f compose.test.yaml logs -f app",
-        "test:unit:docker": "npm run test:env:up && docker compose -f compose.test.yaml run --rm --no-deps --entrypoint docker-php-entrypoint app php vendor/bin/phpunit",
+        "test:unit:docker": "npm run test:env:up && docker compose -f compose.test.yaml run --rm --no-deps --entrypoint docker-php-entrypoint app sh bin/test-unit.sh",
         "test:e2e:docker": "npm run test:env:up && playwright test",
         "test:e2e:docker:ui": "npm run test:env:up && playwright test --ui",
         "test:e2e:docker:headed": "npm run test:env:up && playwright test --headed",
