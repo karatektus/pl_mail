@@ -31,8 +31,13 @@ final class MessageRender
         public readonly string           $sandbox,
         /** The frame's own Content-Security-Policy, for its <meta>. */
         public readonly string           $csp,
-        /** Nonce permitting the frame's own height/hover script, and nothing else. */
-        public readonly string           $nonce,
+        /**
+         * The frame's own height-and-hover script, embedded verbatim.
+         *
+         * Authorised by its HASH in both policies rather than by a nonce — see
+         * MessageFrameScript for why a nonce cannot work here at all.
+         */
+        public readonly string           $frameScript,
         /** Plain-text fallback, when the message has no HTML body. */
         public readonly ?string          $text,
     ) {

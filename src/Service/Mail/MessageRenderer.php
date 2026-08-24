@@ -6,7 +6,6 @@ namespace App\Service\Mail;
 
 use App\Domain\Enum\Mail\LabelRole;
 use App\Entity\Mail\Message;
-use App\Security\Csp\CspNonce;
 use App\Entity\User\User;
 use App\Repository\Mail\TrustedImageSenderRepository;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -35,9 +34,10 @@ final readonly class MessageRenderer
      * height (a scrollbar inside a scrollbar) or a guess.
      *
      * So `allow-scripts` is here, and the CSP below is what pays for it: script
-     * execution is restricted to a per-render nonce, which our ~30 lines of
-     * height-and-hover reporting carry and no markup arriving in an email
-     * possibly can. The security properties that matter are untouched, and they
+     * execution is restricted to the HASH of our own height-and-hover reporter,
+     * which no markup arriving in an email can match — a hash authorises one
+     * exact script and nothing else. See MessageFrameScript for why it is a
+     * hash rather than the nonce it used to be. The security properties that matter are untouched, and they
      * come from what is NOT in this list:
      *
      *   no allow-same-origin      → opaque origin: no session cookie, no
@@ -61,7 +61,7 @@ final readonly class MessageRenderer
         private TrustedImageSenderRepository $trustedSenders,
         private Security                     $security,
         private RequestStack                 $requestStack,
-        private CspNonce                     $cspNonce,
+        private MessageFrameScript           $frameScript,
     ) {
     }
 
@@ -92,21 +92,6 @@ final readonly class MessageRenderer
         // provider disagreeing about whether this really is that sender, and
         // the safe reading of a disagreement is the cautious one.
         $allow = (true === $trusted || true === $forceImages) && false === $inSpam;
-        // The REQUEST's nonce, not one of this renderer's own.
-        //
-        // A srcdoc frame inherits the embedding document's Content-Security-
-        // Policy on top of its own <meta> one, so the height reporter below has
-        // to satisfy both. It used to carry a nonce minted here, which the
-        // frame's own policy named and the page's policy had never heard of —
-        // so the moment the application itself grew a CSP, every message frame
-        // stopped measuring itself and sat at its 80px floor.
-        //
-        // Nothing is given away by sharing it. The nonce is already in this
-        // document, where the email's own markup sits beside it, and the whole
-        // point of a nonce is that markup which did not come from us cannot
-        // name it. Asking CspNonce for the value is also what tells the response
-        // listener the header must carry it.
-        $nonce = $this->cspNonce->value();
 
         // The blocker settles what the body may load; the collapser then folds
         // its trailing reply-history behind a "Show quoted text" toggle. Both
@@ -127,8 +112,8 @@ final readonly class MessageRenderer
             inSpam:        $inSpam,
             mismatch:      $this->identityChecker->check($message),
             sandbox:       self::SANDBOX,
-            csp:           $this->contentSecurityPolicy($nonce),
-            nonce:         $nonce,
+            csp:           $this->contentSecurityPolicy(),
+            frameScript:   $this->frameScript->source(),
             text:          $message->bodyHtmlSafe ? null : $message->bodyText,
         );
     }
@@ -147,7 +132,7 @@ final readonly class MessageRenderer
      * frame is an opaque origin, so `'self'` in its policy matches nothing at
      * all and would block our own proxy along with everything else.
      */
-    private function contentSecurityPolicy(string $nonce): string
+    private function contentSecurityPolicy(): string
     {
         $request = $this->requestStack->getCurrentRequest();
         $origin  = null !== $request ? $request->getSchemeAndHttpHost() : '';
@@ -157,7 +142,7 @@ final readonly class MessageRenderer
             trim(sprintf('img-src %s data:', $origin)),
             "style-src 'unsafe-inline'",
             'font-src data:',
-            sprintf("script-src 'nonce-%s'", $nonce),
+            sprintf("script-src '%s'", $this->frameScript->hash()),
             "form-action 'none'",
             "frame-src 'none'",
             "connect-src 'none'",

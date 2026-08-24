@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Security\Csp;
 
+use App\Service\Mail\MessageFrameScript;
 use Symfony\Component\EventDispatcher\Attribute\AsEventListener;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Event\ResponseEvent;
@@ -92,10 +93,16 @@ final readonly class ContentSecurityPolicyListener
      * images use both. `connect-src 'self'` covers the Mercure hub, which the
      * app's own Caddy proxies under /.well-known/mercure — same origin, which
      * is exactly why that proxying was worth having.
+     *
+     * `script-src` also names the HASH of the message frame's height reporter.
+     * A srcdoc frame inherits this policy on top of its own, so that script has
+     * to be authorised HERE as well as there — and it cannot be done with the
+     * nonce above, because the frame is usually rendered by a later request
+     * than the page hosting it. See MessageFrameScript.
      */
     private const string FULL =
         "default-src 'self'; "
-        . "script-src 'self' 'nonce-%nonce%'; "
+        . "script-src 'self' 'nonce-%nonce%' '%frame-script%'; "
         . "style-src 'self' 'unsafe-inline'; "
         . "img-src 'self' data: blob:; "
         . "font-src 'self' data:; "
@@ -107,8 +114,9 @@ final readonly class ContentSecurityPolicyListener
         . "frame-ancestors 'self'";
 
     public function __construct(
-        private CspNonce $nonce,
-        private bool     $debug,
+        private CspNonce           $nonce,
+        private MessageFrameScript $frameScript,
+        private bool               $debug,
     ) {
     }
 
@@ -126,7 +134,11 @@ final readonly class ContentSecurityPolicyListener
             return;
         }
 
-        $full = str_replace('%nonce%', $this->nonce->value(), self::FULL);
+        $full = str_replace(
+            ['%nonce%', '%frame-script%'],
+            [$this->nonce->value(), $this->frameScript->hash()],
+            self::FULL,
+        );
 
         if (false === $this->debug) {
             $response->headers->set('Content-Security-Policy', $full);

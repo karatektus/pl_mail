@@ -217,7 +217,21 @@ test.describe("K-07 · sandboxed rendering", () => {
             .getAttribute("content");
 
         expect(csp).toContain("default-src 'none'");
-        expect(csp).toContain("script-src 'nonce-");
+
+        // A HASH, and nothing else. It used to be a nonce, which could not work:
+        // a srcdoc frame is governed by the EMBEDDING page's policy as well as
+        // this one, and the page's nonce belongs to the request that rendered
+        // the page — not to the later Turbo Frame request that rendered this
+        // message. A hash is a property of the script text, so both policies can
+        // name it without either knowing when the other was rendered.
+        //
+        // Asserted as the WHOLE directive: 'self' or 'unsafe-inline' creeping in
+        // beside the hash would let an email's own markup execute, which is the
+        // property this frame exists to deny.
+        expect(csp).toMatch(/script-src 'sha256-[A-Za-z0-9+/=]+'\s*;/);
+        expect(csp).not.toContain("script-src 'self'");
+        expect(csp).not.toContain("unsafe-inline'; script");
+
         expect(csp).toContain("form-action 'none'");
         expect(csp).toContain("object-src 'none'");
 
