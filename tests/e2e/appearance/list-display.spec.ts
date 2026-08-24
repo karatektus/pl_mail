@@ -55,15 +55,32 @@ const toggle = (page: Page, field: string, on = true) =>
 const setToggle = async (page: Page, field: string, on: boolean) => {
     const segment = toggle(page, field, on);
 
-    if (false === (await segment.isChecked())) {
-        // sr-only radio: the visible segment is its sibling label text, so the
-        // input is checked directly, the way the row-select checkbox is.
-        await segment.check({ force: true });
-        // The panel debounces its POST; wait for the write, not for a timeout.
-        await page.waitForResponse(
-            (r) => r.url().includes("/settings/appearance") && r.request().method() === "POST",
-        );
+    if (true === (await segment.isChecked())) {
+        return;
     }
+
+    // The panel debounces its POST; wait for the write, and arm the wait before
+    // the click so a fast answer cannot be missed.
+    const written = page.waitForResponse(
+        (r) => r.url().includes("/settings/appearance") && r.request().method() === "POST",
+    );
+
+    // Click the LABEL, which is both what a person clicks and the only thing
+    // that reliably works. The radio is `peer sr-only` — a 1px clipped box —
+    // and a forced click on one of those lands without changing its state:
+    // Playwright says "clicking the checkbox did not change its state", which
+    // is the same failure label-bulk-toggle.spec.ts documents and works around.
+    // It used to be intermittent and became reliable, which is how it surfaced
+    // as eight failures at once rather than one every third run.
+    //
+    // `pick()` above has always clicked the label for exactly this reason; this
+    // helper simply never caught up with it.
+    await page
+        .locator(`${PANEL} label:has(input[data-toggles="${field}"][value="${on ? "1" : "0"}"])`)
+        .click();
+
+    await expect(segment).toBeChecked();
+    await written;
 };
 
 test.describe("appearance — mail list display", () => {
