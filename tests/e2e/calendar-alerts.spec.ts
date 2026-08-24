@@ -36,7 +36,26 @@ function chipsOf(page: Page) {
  * click reads the state it was trying to change.
  */
 async function submit(page: Page, modal: Locator, button: string) {
+    // Waited for, not inferred from the dialog going away.
+    //
+    // The modal being hidden says the client has moved on, which is not the
+    // same as the server having written anything — and every caller here goes
+    // straight on to REOPEN the editor and read what was saved. Racing that
+    // GET against the POST returns the event as it was, so a reminder that had
+    // just been added was simply absent: 6 checkboxes where 7 were expected,
+    // on all fourteen polls, which reads as the feature not saving at all.
+    //
+    // Every button routed through this helper posts under /calendar/event —
+    // save, delete, move — so one predicate covers them.
+    const written = page.waitForResponse(
+        (response) =>
+            new URL(response.url()).pathname.startsWith("/calendar/event")
+            && "POST" === response.request().method(),
+    );
+
     await modal.getByRole("button", { name: button }).click();
+
+    expect((await written).status(), "the editor refused the change").toBeLessThan(400);
 
     await expect(page.locator("#modal-backdrop")).toBeHidden();
 }
