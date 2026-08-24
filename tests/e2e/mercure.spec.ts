@@ -278,7 +278,16 @@ test.describe("mercure live updates", () => {
         const dot = indicator(page);
         await expect(dot).toBeVisible();
 
-        await expectState(page, "connected");
+        // The same budget the reconnect at the end of this test gets, and for
+        // the same reason: this is a post-restart connect too. The case before
+        // this one stops and starts the hub, and a hub that is still coming up
+        // ACCEPTS an SSE request and holds it — neither onopen nor onerror
+        // fires, so the browser sits in CONNECTING for as long as that lasts.
+        // Fifteen seconds was not a claim about the feature, it was the
+        // default, and on a two-vCPU runner after five hundred other tests it
+        // was simply short. Sixty is what the same operation is already given
+        // eight lines down.
+        await expectState(page, "connected", 60000);
 
         // A coloured dot means nothing on its own; the tooltip is what makes it
         // readable, so it is part of the feature rather than a nicety.

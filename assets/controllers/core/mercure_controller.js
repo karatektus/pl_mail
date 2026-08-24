@@ -100,6 +100,19 @@ function open(url, stream) {
     const es = new EventSource(url, {withCredentials: true});
     stream.es = es;
 
+    // Say so while it is happening. Until this, state was only ever set from
+    // onopen or onerror — so between constructing the EventSource and the first
+    // of those there was no state at all, and the topbar dot renders nothing
+    // until it is given one: no colour, no tooltip, on a fresh page load.
+    //
+    // The gap is normally a few milliseconds and invisible. It is not always:
+    // an SSE request can HANG rather than fail — a hub that is still coming up
+    // accepts the connection and holds it — and neither handler fires, so the
+    // dot sits blank and untitled for as long as that lasts, over a stream that
+    // is genuinely still trying. "Reconnecting to live updates…" is the honest
+    // thing to show there, and it is a label the dot already carries.
+    setState(stream, STATE_CONNECTING);
+
     es.onopen = () => {
         stream.attempt = 0;
         setState(stream, STATE_CONNECTED);
