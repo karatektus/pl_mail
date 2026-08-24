@@ -6,6 +6,69 @@ so anything that changes the schema irreversibly is called out explicitly.
 The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, and `sha-…` pins one commit.
 
+## v0.1.14 — 2026-08-24
+
+**No migration. An Outlook push bug that had been quietly handing Microsoft
+subscriptions plMail then forgot about, a way to cancel the ones already out
+there, and category tabs that stop throwing away the filter you are looking
+through.**
+
+### Outlook push stopped orphaning its own subscriptions
+
+**A renewal that failed for a transient reason left Microsoft holding a live
+registration plMail had just erased.** Renewal cleared the subscription id and
+then asked `subscribe()` to rebuild — but the teardown `subscribe()` starts with
+reads that id to know what to delete, and it had been set to null one line
+earlier. So the `DELETE` never went out, a second subscription was created, and
+Microsoft went on delivering notifications for the first one.
+
+Nothing matched them, so they were logged as `GraphNotification: unknown
+subscription` — hourly, for up to the three days it takes one to lapse, about a
+registration that could not be cancelled because the only record of it was gone.
+
+The two failures are told apart now. A **404** means Microsoft has already let
+go: nothing to hand back, and it is logged at info rather than as a warning,
+because that is the ordinary end of a subscription's life. **Anything else** —
+throttling, a 5xx, a dropped connection — has to assume the registration is
+still live and hands it back before building a replacement.
+
+No mail was ever lost to this: push is a hint that brings a sync forward, and
+scheduled polling has always been the backstop. What it cost was latency
+whenever push was down, and a log nobody could act on.
+
+**`app:push:cancel-subscription`**, for the orphans already out there:
+
+```
+php bin/console app:push:cancel-subscription --account=10 \
+    --subscription=701dc0d3-b4ed-4ad8-94f2-a263a90a30bb
+```
+
+The webhook that reports one has an id and no account, and therefore no token to
+cancel it with. Naming an account on the command line supplies the missing half;
+any account in the same mailbox will do.
+
+### The inbox tabs keep your filter
+
+Clicking an unread badge opens that view narrowed to unread, and the toolbar
+says so with a **Show all** beside it that keeps every other narrowing intact.
+The category tabs did not do the same in reverse: each linked to its category
+and nothing else, so reaching Social from an unread inbox answered with **all**
+of Social — silently, since the chip went with it, and the only way back was the
+badge again. Filtering and changing tab were mutually exclusive.
+
+Which tabs exist is deliberately unchanged: it still comes from what each
+category holds in total, so the strip does not reshuffle as the filter goes on
+and off, and a tab with nothing unread shows its empty state rather than
+vanishing under the pointer.
+
+### Under the floor
+
+The browser suite went from one-to-three failures per run to clean, and the two
+that mattered are already in v0.1.13. What is new here is that it now runs under
+the same clock a CI runner does — times are read in the zone the page is
+rendered in rather than the one the test process happens to be in, which is why
+a suite that passed eighteen times locally still failed on a tag.
+
 ## v0.1.13 — 2026-08-23
 
 **No migration. Corrections to what the New marker means, all of them
