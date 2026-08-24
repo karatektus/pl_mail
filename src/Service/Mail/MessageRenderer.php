@@ -6,6 +6,7 @@ namespace App\Service\Mail;
 
 use App\Domain\Enum\Mail\LabelRole;
 use App\Entity\Mail\Message;
+use App\Security\Csp\CspNonce;
 use App\Entity\User\User;
 use App\Repository\Mail\TrustedImageSenderRepository;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -60,6 +61,7 @@ final readonly class MessageRenderer
         private TrustedImageSenderRepository $trustedSenders,
         private Security                     $security,
         private RequestStack                 $requestStack,
+        private CspNonce                     $cspNonce,
     ) {
     }
 
@@ -90,7 +92,21 @@ final readonly class MessageRenderer
         // provider disagreeing about whether this really is that sender, and
         // the safe reading of a disagreement is the cautious one.
         $allow = (true === $trusted || true === $forceImages) && false === $inSpam;
-        $nonce = bin2hex(random_bytes(16));
+        // The REQUEST's nonce, not one of this renderer's own.
+        //
+        // A srcdoc frame inherits the embedding document's Content-Security-
+        // Policy on top of its own <meta> one, so the height reporter below has
+        // to satisfy both. It used to carry a nonce minted here, which the
+        // frame's own policy named and the page's policy had never heard of —
+        // so the moment the application itself grew a CSP, every message frame
+        // stopped measuring itself and sat at its 80px floor.
+        //
+        // Nothing is given away by sharing it. The nonce is already in this
+        // document, where the email's own markup sits beside it, and the whole
+        // point of a nonce is that markup which did not come from us cannot
+        // name it. Asking CspNonce for the value is also what tells the response
+        // listener the header must carry it.
+        $nonce = $this->cspNonce->value();
 
         // The blocker settles what the body may load; the collapser then folds
         // its trailing reply-history behind a "Show quoted text" toggle. Both

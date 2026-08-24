@@ -86,6 +86,12 @@
        same 'ajax' id — until this tag existed they all sent an empty string. #}
     <meta name="csrf-token" content="{{ csrf_token('ajax') }}">
     <meta name="theme-color" content="#a21caf">
+    {# Both spellings. `mobile-web-app-capable` is the standardised one every
+       engine now reads and the only one Chrome does not warn about; the Apple
+       prefix stays because older iOS is the platform that actually needs it,
+       and dropping it would take the home-screen behaviour with it on exactly
+       the devices the tag was written for. #}
+    <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="plMail">
 

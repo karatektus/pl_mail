@@ -45,7 +45,10 @@ export function askConfirm(message) {
     return Promise.resolve(window.confirm(message));
 }
 
-Turbo.setConfirmMethod(askConfirm);
+// `Turbo.config.forms.confirm`, not the top-level setConfirmMethod: that one is
+// deprecated in Turbo 8 and warns on every page load, twice, which is two lines
+// of console noise standing between a reader and a real error.
+Turbo.config.forms.confirm = askConfirm;
 
 /**
  * The same guarantee for forms that opt OUT of Turbo.

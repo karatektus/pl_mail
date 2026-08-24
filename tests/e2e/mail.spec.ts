@@ -1,6 +1,7 @@
 import { test, expect, type Page } from "./support/test";
 import { INBOX_SUBJECTS, mailRow, seed } from "./support/config";
 import { settled } from "./support/motion";
+import { rowAction } from "./support/rows";
 
 /**
  * Runs authenticated as this worker's own user, signed in by the worker
@@ -78,9 +79,7 @@ test.describe("mail UI actions", () => {
         const row = mailRow(page, INBOX_SUBJECTS.archive);
         await expect(row).toBeVisible();
 
-        // Hover-only actions need the row hovered first.
-        await row.hover();
-        await row.getByRole("button", { name: "Archive", exact: true }).click();
+        await rowAction(row, "Archive");
 
         // _archive.stream removes the row.
         await expect(row).toHaveCount(0);
@@ -111,8 +110,7 @@ test.describe("mail UI actions", () => {
         const row = mailRow(page, INBOX_SUBJECTS.archive);
         await expect(row).toBeVisible();
 
-        await row.hover();
-        await row.getByRole("button", { name: "Archive", exact: true }).click();
+        await rowAction(row, "Archive");
         await expect(row).toHaveCount(0);
 
         await page.goto("/mail/archive");
@@ -149,8 +147,7 @@ test.describe("mail UI actions", () => {
         const row = mailRow(page, INBOX_SUBJECTS.trash);
         await expect(row).toBeVisible();
 
-        await row.hover();
-        await row.getByRole("button", { name: "Delete", exact: true }).click();
+        await rowAction(row, "Delete");
 
         // _delete.stream removes the row from the inbox.
         await expect(row).toHaveCount(0);
@@ -171,8 +168,6 @@ test.describe("mail UI actions", () => {
         await expect(row).toBeVisible();
         await expect(row).toHaveAttribute("data-unread", "true");
 
-        await row.hover();
-
         // Wait for the status POST itself, then reload — the read-state stream
         // has a known template typo (flagged separately), so assert on the
         // persisted outcome rather than the inline swap.
@@ -181,7 +176,7 @@ test.describe("mail UI actions", () => {
                 r.request().method() === "POST" &&
                 /\/status\/thread\/\d+\/read$/.test(r.url()),
         );
-        await row.getByRole("button", { name: "Mark as read", exact: true }).click();
+        await rowAction(row, "Mark as read");
         await readPost;
 
         await page.reload();
@@ -213,11 +208,10 @@ test.describe("mail UI actions", () => {
         // Step 1 — mark read.
         let row = mailRow(page, subject);
         await expect(row).toHaveAttribute("data-unread", "true");
-        await row.hover();
         let post = page.waitForResponse(
             (r) => r.request().method() === "POST" && readEndpoint.test(r.url()),
         );
-        await row.getByRole("button", { name: "Mark as read", exact: true }).click();
+        await rowAction(row, "Mark as read");
         await post;
         await page.reload();
         await settled(page);
@@ -225,13 +219,10 @@ test.describe("mail UI actions", () => {
         // Step 2 — the same row now offers "Mark as unread".
         row = mailRow(page, subject);
         await expect(row).toHaveAttribute("data-unread", "false");
-        await row.hover();
         post = page.waitForResponse(
             (r) => r.request().method() === "POST" && readEndpoint.test(r.url()),
         );
-        await row
-            .getByRole("button", { name: "Mark as unread", exact: true })
-            .click();
+        await rowAction(row, "Mark as unread");
         await post;
         await page.reload();
 
@@ -526,8 +517,7 @@ test.describe("mail UI actions", () => {
         await settled(page);
 
         const row = mailRow(page, INBOX_SUBJECTS.read);
-        await row.hover();
-        await row.getByRole("button", { name: "Snooze" }).click();
+        await rowAction(row, "Snooze");
 
         const menu = row.locator('[data-ui--dropdown-target="menu"]');
         await expect(menu).toBeVisible();
