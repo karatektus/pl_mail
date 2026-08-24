@@ -6,6 +6,49 @@ so anything that changes the schema irreversibly is called out explicitly.
 The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, and `sha-…` pins one commit.
 
+## v0.1.15 — 2026-08-24
+
+**No migration. The radar panel's undated cards stop pretending everything
+without a date came from a repository, and every card now offers the mail it
+was read from.**
+
+### "From your repos" was only ever true by accident
+
+That section was written when GitHub notifications were the only insight
+without a date, so three separate places quietly encoded *undated means repo*:
+the heading, the card, and the link out.
+
+It stopped being true the moment anything else failed to state a date. **A
+courier mail that never says when still tells you about a parcel** — so those
+parcels landed under "From your repos", stripped of everything the dated card
+would have given them: no status, no tracking link, and no way back to the
+mail.
+
+- **Undated cards say what they are.** The kind was already on every card, but
+  only for a screen reader; sighted readers got a coloured tile and an icon,
+  which says "parcel" to whoever already knew.
+- **Every card links to its mail**, dated or not. An insight is a claim about a
+  mail, and the undated ones were both the ones missing the link and the ones
+  where it is most wanted — there being no date to explain what you are looking
+  at.
+- **Status and tracking** appear on undated cards too, because a parcel with no
+  ETA is still a parcel in transit.
+- **The link out is labelled by what it is.** GitHub's mark was printed for any
+  payload link at all; it now comes from the kind, and anything else names the
+  host it points at.
+- The section is called **Also spotted**, which stays true whatever lands there.
+
+### Elsewhere
+
+- **The live-updates dot says it is connecting while it is connecting.** It
+  reported only success or failure, so a stream still opening — which is what a
+  hub coming back up produces — left the dot with no colour and no tooltip at
+  all.
+- **Same-day parcels stop shuffling.** A parcel's ETA is a day rather than an
+  hour, so several due on one day all sat at that day's midnight with nothing
+  deciding their order; under a capped list that also decided which one was
+  dropped.
+
 ## v0.1.14 — 2026-08-24
 
 **No migration. An Outlook push bug that had been quietly handing Microsoft
