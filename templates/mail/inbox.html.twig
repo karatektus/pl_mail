@@ -58,6 +58,20 @@
 
     {# A lone Primary tab is a heading pretending to be a choice — when no
        other category has mail, the whole row stays home. #}
+    {# What a tab link carries with it.
+       Everything the current URL narrows the list by, minus the two that must
+       not survive: `tab` because this is what each link is setting, and `page`
+       because page four of Primary is not page four of Social.
+
+       Rebuilt from the request rather than naming `unread`, and for the reason
+       the toolbar's own "Show all" link is — see _list_toolbar.html.twig, which
+       does the mirror image of this. Without it a tab dropped the filter it was
+       being clicked inside: opening the inbox from the sidebar's unread badge
+       and then reaching for Social answered with ALL of Social, silently, and
+       the only way back into unread was the badge again. Naming `unread` here
+       would fix today's filter and quietly lose the next one. #}
+    {% set tabQuery = app.request.query.all|filter((v, k) => k not in ['tab', 'page']) %}
+
     {% if tabs|length > 1 %}
     <div class="border-b border-line px-1">
         <nav class="flex text-sm">
@@ -75,7 +89,7 @@
                    tab centres its label beside the icon instead of sitting on
                    an invisible second line. #}
                 <a
-                    href="{{ path('app_mail_inbox', {tab: tabCase.value}) }}"
+                    href="{{ path('app_mail_inbox', tabQuery|merge({tab: tabCase.value})) }}"
                     data-turbo-frame="inbox-list-frame"
                     class="flex items-center gap-2.5 px-5 py-1.5 min-h-14 font-medium border-b-2 -mb-px transition-colors min-w-0 {{ isActive ? 'text-accent border-accent' : 'text-ink-muted hover:text-gray-700 border-transparent hover:border-gray-300' }}"
                 >
