@@ -721,6 +721,7 @@ php bin/mirror-wiki.php --check
 | `app:imap:supervise` | Spawn and watch one `app:imap:idle` process per IDLE-enabled mailbox |
 | `app:imap:test [--account=ID]` | Test an IMAP connection and folder listing |
 | `app:push:renew` | Renew Gmail watches and Graph subscriptions nearing expiry |
+| `app:push:cancel-subscription` | Cancel a Graph subscription by id, for one Microsoft still delivers and plMail no longer recognises |
 | `app:push:generate-vapid-keys` | Generate a VAPID keypair for Web Push |
 | `app:graph:diagnose` | Probe Microsoft Graph access for one account and report what works |
 | `app:attachments:reclassify` | Recompute inline/attachment classification for stored parts |
