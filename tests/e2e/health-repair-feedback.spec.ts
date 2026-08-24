@@ -1,4 +1,4 @@
-import { expect } from "@playwright/test";
+import { expect, type Page } from "@playwright/test";
 import { test } from "./support/test";
 import { consoleCommand, TEST_USER } from "./support/config";
 
@@ -106,7 +106,7 @@ function removeTheCalendar(): void {
 }
 
 /** The resync button on the broken calendar's card. */
-function resyncButton(page) {
+function resyncButton(page: Page) {
     return page.locator(
         '[data-health-kind="calendar_sync_failing"] form[action*="/resync"] button[type=submit]',
     );
@@ -407,7 +407,7 @@ test.describe("health repair feedback", () => {
                 // A disabled button must still be legible rather than washed
                 // out to nothing — it is carrying the only message on screen.
                 const opacity = await button.evaluate(
-                    (el) => Number(getComputedStyle(el).opacity),
+                    (el: HTMLElement) => Number(getComputedStyle(el).opacity),
                 );
 
                 expect(opacity).toBeGreaterThan(0.5);

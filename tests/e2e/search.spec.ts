@@ -192,7 +192,7 @@ test.describe("search", () => {
         // search element, and every point that reliably satisfies that is also
         // a link or a mail row — a test that navigates away proves nothing
         // about a dropdown.
-        await page.locator("header").first().evaluate((el) => el.click());
+        await page.locator("header").first().evaluate((el: HTMLElement) => el.click());
         await expect(page.locator(OPTIONS).first()).toBeHidden();
 
         release();

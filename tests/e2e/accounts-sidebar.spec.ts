@@ -1,4 +1,4 @@
-import { expect } from "@playwright/test";
+import { expect, type Page } from "@playwright/test";
 import { test } from "./support/test";
 import { acceptConfirm } from "./support/confirm";
 
@@ -42,16 +42,16 @@ function ratio(fg: string, bg: string): number {
 }
 
 /** The account dots the sidebar is currently painting, per account row. */
-async function sidebarDots(page): Promise<string[]> {
+async function sidebarDots(page: Page): Promise<string[]> {
     await page.goto("/mail/inbox");
 
-    return page.locator('#sidebar [role="img"][aria-label]').evaluateAll((dots) =>
-        dots.map((d) => `${(d as HTMLElement).getAttribute("aria-label")}=${getComputedStyle(d).backgroundColor}`),
+    return page.locator('#sidebar [role="img"][aria-label]').evaluateAll((dots: Element[]) =>
+        dots.map((d) => `${d.getAttribute("aria-label")}=${getComputedStyle(d).backgroundColor}`),
     );
 }
 
 /** Adds a password account through the settings modal, as account.spec.ts does. */
-async function addAccount(page, label: string, stamp: number): Promise<void> {
+async function addAccount(page: Page, label: string, stamp: number): Promise<void> {
     await page.goto("/settings?section=accounts");
 
     await page
@@ -75,7 +75,7 @@ async function addAccount(page, label: string, stamp: number): Promise<void> {
 }
 
 /** Drop it again — an account is durable, user-wide state the next spec sees. */
-async function removeAccount(page, label: string): Promise<void> {
+async function removeAccount(page: Page, label: string): Promise<void> {
     await page.goto("/settings?section=accounts");
 
     const row = page
@@ -91,8 +91,8 @@ async function removeAccount(page, label: string): Promise<void> {
     }
 }
 
-async function setTheme(page, theme: string) {
-    await page.evaluate((t) => {
+async function setTheme(page: Page, theme: string) {
+    await page.evaluate((t: string) => {
         document.documentElement.setAttribute("data-theme", t);
         document.documentElement.classList.toggle(
             "dark",
