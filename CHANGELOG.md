@@ -6,6 +6,52 @@ so anything that changes the schema irreversibly is called out explicitly.
 The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, and `sha-…` pins one commit.
 
+## v0.1.16 — 2026-08-24
+
+**No migration. Message bodies size themselves again — they had stopped, and on
+a self-hosted instance the only sign was a console error. Plus a dependency
+sweep: Symfony 8.1.5 and eighteen friends.**
+
+### The reading pane got its height back
+
+**Every message was an 80px letterbox with a scrollbar inside a scrollbar.**
+The body is rendered in a sandboxed frame with no access to the page around it,
+so the only way it can be sized is for a small script inside it to measure
+itself and say so. That script was blocked.
+
+A `srcdoc` frame is governed by the embedding page's Content-Security-Policy as
+well as its own, and the script was authorised by a nonce — which cannot work
+here. A page's nonce belongs to the request that rendered the page, and a
+conversation is normally rendered by a *later* request, fetched into a frame as
+you click it. The two only ever coincide on a full page load, which is why it
+looked so strange in use: broken every time you opened a mail, fixed every time
+you reloaded.
+
+It is authorised by the script's **hash** now, which is the same in every
+request and needs no agreement between them. That is also stricter than what it
+replaces: a nonce authorises anything carrying it, a hash authorises one exact
+script.
+
+Only enforced policies block, and plMail sends the full policy as Report-Only
+when debug is on — so this only ever happened on real installs, and never in
+development or in the test suite.
+
+Two console deprecations went with it: the confirm-dialog registration Turbo
+had renamed, and the home-screen meta tag Chrome now wants under its
+standardised name.
+
+### Dependencies
+
+Symfony 8.1.0/8.1.1 → **8.1.5** across eighteen packages, **tailwind-bundle
+1.0**, and the CI actions a generation forward — which also retires the Node 20
+deprecation warnings on every workflow run.
+
+Development tooling moved too (TypeScript 7, @types/node 26), and the type
+check that comes with it passes clean for the first time. **Playwright is held
+at 1.61**: 1.62 reports elements with a `clip-path` as hidden when they are
+plainly on screen — measured, painted and unclipped — which is a change in what
+the tool counts as visible rather than anything about plMail.
+
 ## v0.1.15 — 2026-08-24
 
 **No migration. The radar panel's undated cards stop pretending everything
