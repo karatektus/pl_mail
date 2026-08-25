@@ -14,6 +14,19 @@ idiom every boolean on the appearance page wears.
                   peer-focus-visible:ring-2 peer-focus-visible:ring-inset peer-focus-visible:ring-accent
                   transition-colors cursor-pointer' %}
 
+{# The body inset, which this card never had.
+
+   settings/_card.html.twig pads a body only when asked (`padded`), because
+   most of them are lists that pad their own rows — and the three cards beside
+   this one on the General page do exactly that, each wrapping itself in
+   `px-4 py-3`. This one wrapped itself in nothing, so both forms sat flush
+   against the card's edges: the labels started a few pixels LEFT of the
+   heading above them, and the segmented controls touched the right border.
+
+   Matched to the clock beside it rather than to chrome.body() (`px-4 py-5`),
+   so the four cards on this page have one rhythm. #}
+<div class="px-4 py-3">
+
 <form method="post" action="{{ path('app_settings_compose_behavior_update') }}" data-turbo="false">
     <input type="hidden" name="_token" value="{{ csrf_token('settings-compose-behavior') }}">
 
@@ -69,3 +82,5 @@ idiom every boolean on the appearance page wears.
         </div>
     </div>
 </form>
+
+</div>
