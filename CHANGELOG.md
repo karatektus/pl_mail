@@ -6,6 +6,35 @@ so anything that changes the schema irreversibly is called out explicitly.
 The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, and `sha-…` pins one commit.
 
+## v0.1.29 — 2026-08-25
+
+**Adds two columns to `account`; the migration runs on boot. A detected fault now offers the repair
+it tells you to make.**
+
+### Fixed
+
+- **Calendars refused for missing permissions now name the account and offer the reconnect.** They
+  said "has stopped syncing", explained in their technical detail that the account needed
+  reconnecting with calendar access allowed, and offered a **Try syncing now** button that could
+  only fail. If you upgraded to v0.1.28 and saw no change, this is why: recording what a provider
+  granted only helps accounts connected afterwards, and the evidence for everyone else was already
+  sitting on the calendars themselves.
+
+- **An OAuth account can be reconnected whenever you want.** Settings → Mail accounts has a
+  **Reconnect** button on Google and Microsoft accounts now. Previously the only way to reach the
+  consent screen again was a health card, which appears only after plMail has decided something is
+  wrong — so "I would like to grant the permission I declined" was not something you could ask for.
+
+### Added
+
+- **A mailbox can report that it has stopped syncing.** It could not before: a calendar has recorded
+  its sync failures for as long as it has synced, while the mail account carried a `last_synced_at`
+  column that nothing wrote and nothing read. A server refusing connections for a week looked
+  exactly like one that synced a minute ago.
+
+  The card waits for three failures in a row, so a dropped connection stays quiet, and one success
+  takes it away.
+
 ## v0.1.28 — 2026-08-25
 
 **Adds two columns to `account`; the migrations run on boot. plMail now checks what a provider
