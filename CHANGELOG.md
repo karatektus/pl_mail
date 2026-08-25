@@ -6,6 +6,25 @@ so anything that changes the schema irreversibly is called out explicitly.
 The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, and `sha-…` pins one commit.
 
+## v0.1.27 — 2026-08-25
+
+**No migration. A send no longer announces itself finished while still offering to stop.**
+
+### Fixed
+
+- **"Message sent." appeared beside "Sending… 8 · Undo".** Two toasts an inch apart, one saying the
+  message had gone and the other offering to call it back. The send response suppresses the first
+  one deliberately — and that suppression had never worked once.
+- **Compose attachment chips replayed their entrance animation** every time the window re-rendered.
+- **Time-grid event chips printed a start time** the column's own axis was already showing.
+- **The per-account mail list carried the account disambiguation** meant only for the merged lists.
+- **The setup wizard showed the appearance export/import block**, which is not something to put in
+  front of someone ninety seconds into the app.
+
+All five are one mistake. Twig's `default` filter substitutes when a value is undefined *or empty*,
+and `false` is empty — so `false|default(true)` is `true`, and every caller passing `false` to turn
+something off was ignored. A test now refuses that form anywhere in the templates.
+
 ## v0.1.26 — 2026-08-25
 
 **Adds a column to `user`; the migration runs on boot. Save a signature once instead of drawing it
