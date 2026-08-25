@@ -34,12 +34,18 @@ test("clicking the inbox badge lists exactly the conversations it counted", asyn
 
     const badge = page.locator(INBOX_BADGE);
 
+    // What the badge says before anything is read. Taken from the badge rather
+    // than written down: the seeder decides how many threads there are, and
+    // this test is about the badge AGREEING with the list, not about the
+    // number. See CODESTYLE 9.5.
+    const unreadBefore = Number((await badge.textContent())?.trim());
+
     // Read one, so the unread number and the folder's total differ — otherwise
     // "it filtered" and "it did nothing" produce the same list.
     await mailRow(page, INBOX_SUBJECTS.star).click();
     await expect(mailRow(page, INBOX_SUBJECTS.star))
         .toHaveAttribute("data-unread", "false", { timeout: 5000 });
-    await expect(badge).toHaveText("3", { timeout: 5000 });
+    await expect(badge).toHaveText(String(unreadBefore - 1), { timeout: 5000 });
 
     const promised = Number((await badge.textContent())?.trim());
 
@@ -54,12 +60,20 @@ test("the filtered view says so, and the way back out restores the rest", async 
     await page.goto("/mail/inbox");
     await expect(mailRow(page, INBOX_SUBJECTS.read)).toBeVisible();
 
+    // The inbox as it stands, before anything is read. Counted rather than
+    // written down: the seeder owns how many threads there are, and a spec
+    // that hard-codes its number fails the day somebody seeds one more for an
+    // unrelated test. See CODESTYLE 9.5.
+    const all = await page.locator(ROWS).count();
+
     await mailRow(page, INBOX_SUBJECTS.star).click();
     await expect(mailRow(page, INBOX_SUBJECTS.star))
         .toHaveAttribute("data-unread", "false", { timeout: 5000 });
 
     await page.locator(INBOX_BADGE).click();
-    await expect(page.locator(ROWS)).toHaveCount(3);
+
+    // Exactly one row was just read, so the unread view holds one fewer.
+    await expect(page.locator(ROWS)).toHaveCount(all - 1);
 
     // A filtered list and a genuinely quiet one look identical without this.
     await expect(page.getByText("Unread only")).toBeVisible();
@@ -67,7 +81,7 @@ test("the filtered view says so, and the way back out restores the rest", async 
     await page.getByRole("link", { name: "Show all" }).click();
 
     await expect(page).not.toHaveURL(/unread=1/);
-    await expect(page.locator(ROWS)).toHaveCount(4);
+    await expect(page.locator(ROWS)).toHaveCount(all);
     await expect(mailRow(page, INBOX_SUBJECTS.star)).toBeVisible();
 });
 

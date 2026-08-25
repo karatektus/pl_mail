@@ -196,13 +196,34 @@ final class DemoFlowTest extends WebTestCase
 
         $threads = $container->get(MessageThreadRepository::class)->findBy(['account' => $account]);
 
-        self::assertCount(count(DemoMailbox::THREADS), $threads, 'the seeded mailbox should be there');
-
-        // One thread per message: the pipeline threads the batch now, and a
-        // seeder that also built threads by hand would leave two of each.
         $messages = $container->get(MessageRepository::class)->findBy(['account' => $account]);
 
-        self::assertCount(count(DemoMailbox::THREADS), $messages);
+        self::assertNotEmpty($threads, 'the seeded mailbox should be there');
+
+        // Stated as a RELATION between what was seeded and what came out,
+        // rather than as a total. A total has to be edited every time the
+        // mailbox gains a thread — which is how this assertion came to say 13
+        // on a mailbox of 14 — and an assertion that needs editing whenever the
+        // fixture grows is testing the fixture, not the behaviour.
+        //
+        // What is actually true, and stays true however many threads are
+        // added: every message is its own thread EXCEPT the conversation,
+        // whose turns collapse into one.
+        self::assertCount(
+            count($messages) - (count(DemoMailbox::CONVERSATION) - 1),
+            $threads,
+            'every message should be its own thread except the conversation, which collapses',
+        );
+
+        // And the collapse is real: exactly one thread holds more than one
+        // message, and it holds all of the conversation's turns.
+        $multi = array_values(array_filter(
+            $threads,
+            static fn ($thread): bool => $thread->messageCount > 1,
+        ));
+
+        self::assertCount(1, $multi, 'the demo should contain exactly one conversation');
+        self::assertSame(count(DemoMailbox::CONVERSATION), $multi[0]->messageCount);
 
         // The pipeline ran, which is the whole reason seeding goes through it:
         // categories are decided from headers, and a mailbox written as

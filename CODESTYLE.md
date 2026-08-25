@@ -1069,7 +1069,48 @@ Stated as a rule and practised:
 Coverage is chosen by risk, not by line count — the criterion used here is "a bug in this is
 invisible until somebody notices mail is in the wrong place."
 
-### 9.5 Suite configuration is strict
+### 9.5 An assertion must survive the fixture growing
+
+Count what the action *changed*, not what the database happens to hold.
+
+```php
+// Brittle: has to be edited every time the seeded mailbox gains a thread,
+// and says nothing about the behaviour under test.
+self::assertCount(13, $threads);
+
+// Durable: a baseline, then the delta the action caused.
+$before = count($repository->findBy(['account' => $account]));
+$this->deliver($scenario);
+self::assertCount($before + 1, $repository->findBy(['account' => $account]));
+```
+
+Where there is no "before" — a freshly provisioned user, say — assert the **relation** that holds
+whatever the fixture's size:
+
+```php
+// Every message is its own thread EXCEPT the conversation, whose turns collapse.
+self::assertCount(
+    count($messages) - (count(DemoMailbox::CONVERSATION) - 1),
+    $threads,
+);
+```
+
+This applies to anything a shared fixture owns — messages, threads, labels, mailboxes, filters,
+accounts, calendars. `seed-mail` seeds four threads today; a test asserting `toHaveCount(4)` is
+asserting that number, not the feature, and it will fail the day somebody seeds a fifth for an
+unrelated reason. The failure will be in a spec whose subject has nothing to do with the change,
+which is the expensive kind.
+
+Two absolutes remain correct and should not be rewritten:
+
+- **Absence.** `assertCount(0, $crawler->filter('form'))` — zero *is* the claim, and it does not
+  drift.
+- **A fixture the test owns.** A test that creates two events and asserts two is self-contained; a
+  baseline there would be ceremony.
+
+The distinction is ownership: count freely what your own test made, never what a shared seeder did.
+
+### 9.6 Suite configuration is strict
 
 ```xml
 failOnDeprecation="true"
@@ -1079,7 +1120,7 @@ failOnWarning="true"
 
 Plus `restrictNotices` / `restrictWarnings` on the source block. A warning is a failure.
 
-### 9.6 Browser tests
+### 9.7 Browser tests
 
 Separate directory (`tests/e2e/`), excluded from the PHPUnit suite explicitly rather than by relying
 on file extensions. The conventions that matter:

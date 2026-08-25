@@ -2728,6 +2728,22 @@
         height: 100dvh;
     }
 
+    /* The demo bar is `fixed` at the bottom, so it sits OVER the panes rather
+       than shortening them — deliberately, because a banner in the flow costs
+       every page a strip of reading height. The cost is that the last row of a
+       scroller ends up behind it, which on a phone is the row you were reaching
+       for. Scrollers get that much padding back, so their content can always be
+       scrolled clear of the bar.
+
+       On the class rather than a media query: the bar exists only in demo mode,
+       and on a desktop the last row is just as covered — it is simply less
+       often the one you wanted. */
+    body.has-demo-bar [data-mail--mail-pane-target="list"],
+    body.has-demo-bar #message-list,
+    body.has-demo-bar .demo-bar-clearance {
+        padding-bottom: 3.5rem;
+    }
+
     body {
         /* viewport-fit=cover puts us under the notch and home indicator. */
         padding: env(safe-area-inset-top) env(safe-area-inset-right)

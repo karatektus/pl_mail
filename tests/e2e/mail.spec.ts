@@ -884,4 +884,69 @@ test.describe("mail UI actions", () => {
         await page.goto("/mail/inbox");
         // TODO(app): wire a working label-menu target, then seed a custom label.
     });
+
+    /**
+     * The Label-as panel, opened inside a thread, must be whole.
+     *
+     * The reading pane is `overflow-hidden`, and the panel was `absolute` — so
+     * in the list toolbar it was fine and in the thread it was sliced off at
+     * the pane's edge, with no way to scroll to the rest, because the thing
+     * clipping it is not the thing that scrolls. It is `fixed` while open now,
+     * which escapes every ancestor's overflow at once.
+     *
+     * Asserted on geometry rather than on a class: "is it clipped" is a
+     * question about boxes, and a panel can carry every intended class and
+     * still be cut in half by an ancestor.
+     */
+    test("the Label-as menu is not clipped by the reading pane", async ({ page }) => {
+        // A short window, which is the condition the bug needs: at a tall
+        // viewport the panel fits below the toolbar and nothing clips it, so a
+        // test at the default size passes whether the fix is there or not —
+        // measured, not assumed. 420px leaves the pane shorter than the
+        // panel's 288px maximum plus the chrome above it.
+        await page.setViewportSize({ width: 1280, height: 420 });
+
+        await page.goto("/mail/inbox");
+        await mailRow(page, INBOX_SUBJECTS.read).click();
+
+        // Scoped to the READING PANE. There are two Label-as buttons on this
+        // page — the list toolbar's and the thread's — and `.first()` finds the
+        // list one, which lives outside the pane and was never the clipped one.
+        // A test that opened it passed whether the fix was there or not.
+        const pane = page.locator('[data-mail--mail-pane-target="reading"]');
+        const button = pane.getByRole("button", { name: "Label as" }).first();
+
+        await expect(button).toBeVisible();
+        await button.click();
+
+        const panel = pane.locator('[data-mail--label-menu-target="panel"]:not(.hidden)').first();
+        await expect(panel).toBeVisible();
+
+        // Hit-testing, not boundingBox(). A clipped element still REPORTS its
+        // full layout box — overflow is resolved when painting, not when laying
+        // out — so measuring the box proves nothing at all. What clipping
+        // actually breaks is whether the pixel is there, so the question has to
+        // be asked of the pixel: what does the document say is at the bottom of
+        // this panel?
+        const reachable = await panel.evaluate((element) => {
+            const box = element.getBoundingClientRect();
+            const x = box.left + box.width / 2;
+            // Just inside the bottom edge, which is the end that was cut off.
+            const y = box.bottom - 4;
+            const hit = document.elementFromPoint(x, y);
+
+            return {
+                height: box.height,
+                inside: hit !== null && (element === hit || element.contains(hit)),
+            };
+        });
+
+        expect(
+            reachable.inside,
+            "the bottom of the panel is not reachable — something is clipping it",
+        ).toBe(true);
+
+        // And tall enough to be a menu rather than a sliver.
+        expect(reachable.height).toBeGreaterThan(40);
+    });
 });

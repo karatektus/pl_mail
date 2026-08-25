@@ -150,6 +150,12 @@ test.describe("returning from a thread", () => {
         await expect(mailRow(page, subject)).toHaveAttribute("data-unread", "true");
 
         const id = await mailRow(page, subject).getAttribute("data-mail--message-row-id-value");
+
+        // What the list holds before we leave it. The point of this test is
+        // that coming back shows the SAME list immediately — so the number to
+        // compare against is the one we left, not one written down here. See
+        // CODESTYLE 9.5.
+        const before = await page.locator(ROWS).count();
         expect(id).toBeTruthy();
 
         await mailRow(page, INBOX_SUBJECTS.read).click();
@@ -172,7 +178,7 @@ test.describe("returning from a thread", () => {
         // Immediate: the rows are there straight away, exactly as the tests
         // above require. This is the assertion the revalidation must not cost.
         await expect(page.locator("#message-list")).toBeVisible();
-        await expect(page.locator(ROWS)).toHaveCount(4);
+        await expect(page.locator(ROWS)).toHaveCount(before);
 
         // And current: the change made while the thread was open arrives on its
         // own. No reload, and no poll is anywhere near this quick.

@@ -9,6 +9,7 @@ use App\Domain\Enum\Mail\LabelRole;
 use App\Domain\Helper\MessageIdHelper;
 use App\Entity\Mail\Account;
 use App\Entity\Calendar\CalendarEvent;
+use App\Entity\Label\Label;
 use App\Entity\Mail\Message;
 use App\Entity\User\User;
 use App\Repository\Calendar\CalendarEventRepository;
@@ -160,6 +161,32 @@ final readonly class DemoMailbox
                 . 'Nobody is subscribed to anything.</p></div>',
         ],
         [
+            // HTML, and deliberately NOT a newsletter. The newsletter below
+            // carries List-Unsubscribe, which puts it in Promotions — correct,
+            // and it means the only formatted mail in the mailbox sat behind a
+            // tab nobody clicks, so the reading pane looked as though it could
+            // only render plain text. This one is from a person, stays in
+            // Primary, and is the first thing a visitor opens.
+            'subject' => 'Your booking at Hotel Aare — what to expect',
+            'fromName' => 'Hotel Aare', 'fromAddress' => 'reservations@hotelaare.example',
+            'label' => 'Travel', 'unread' => true, 'hoursAgo' => 5,
+            'body' => "Room 214, two nights, breakfast included.\n\n"
+                . "Arrival from 15:00. The side door takes the same key after 22:00.",
+            'html' => '<div style="font-family:-apple-system,Segoe UI,sans-serif;max-width:540px;color:#1f2933">'
+                . '<h2 style="margin:0 0 2px;font-size:19px">Hotel Aare</h2>'
+                . '<p style="margin:0 0 18px;color:#66757f">Confirmation 4471-B · 12–14 September</p>'
+                . '<table style="border-collapse:collapse;width:100%;font-size:14px">'
+                . '<tr><td style="padding:7px 0;color:#66757f;width:120px">Room</td><td style="padding:7px 0"><strong>214</strong>, lake side</td></tr>'
+                . '<tr><td style="padding:7px 0;color:#66757f">Nights</td><td style="padding:7px 0">Two</td></tr>'
+                . '<tr><td style="padding:7px 0;color:#66757f">Breakfast</td><td style="padding:7px 0">Included, 07:00–10:00</td></tr>'
+                . '<tr><td style="padding:7px 0;color:#66757f">Arrival</td><td style="padding:7px 0">Any time after 15:00</td></tr>'
+                . '</table>'
+                . '<p style="margin:18px 0 0;padding:12px;background:#f4f1e8;border-radius:8px;font-size:13px">'
+                . 'Coming in after 22:00? Reply here and we will leave the key in the side door.</p>'
+                . '<p style="margin:18px 0 0;color:#9aa5b1;font-size:12px">This is demo data. '
+                . 'No such booking exists.</p></div>',
+        ],
+        [
             'subject' => 'Photos from the weekend',
             'fromName' => 'Jonas Weber', 'fromAddress' => 'jonas.weber@example.com',
             'label' => 'Family', 'unread' => false, 'hoursAgo' => 52,
@@ -190,6 +217,53 @@ final readonly class DemoMailbox
                 . 'Adds about a week. Say the word and I will order the timber.',
         ],
     ];
+
+    /**
+     * One conversation, four turns, oldest first.
+     *
+     * Every other thread here is a single message, which makes the demo's
+     * threading invisible: the reading pane's whole argument is that replies
+     * collapse into one conversation, and a mailbox of singletons never shows
+     * it. This is the thread somebody opens to see what the product does with
+     * a back-and-forth.
+     *
+     * `mine` marks the turns the demo user wrote, which is what gives the
+     * thread two sides rather than four messages from one stranger.
+     *
+     * @var list<array{from: string, address: string, mine: bool, hoursAgo: int, body: string}>
+     */
+    public const array CONVERSATION = [
+        [
+            'from' => 'Priya Raman', 'address' => 'priya.raman@example.com', 'mine' => false,
+            'hoursAgo' => 96,
+            'body' => "Are you still after the oak for the alcove?\n\n"
+                . "The yard has one board wide enough left and they will not hold it past Friday. "
+                . "It is a little over budget but the grain is worth looking at.",
+        ],
+        [
+            'from' => 'You', 'address' => self::ACCOUNT_EMAIL, 'mine' => true,
+            'hoursAgo' => 92,
+            'body' => "Yes — how far over?\n\n"
+                . "If it is under fifty I will take it. Anything more and I would rather wait for "
+                . "the next delivery.",
+        ],
+        [
+            'from' => 'Priya Raman', 'address' => 'priya.raman@example.com', 'mine' => false,
+            'hoursAgo' => 74,
+            'body' => "Thirty-two, and they will cut it to length for nothing.\n\n"
+                . "I said you would ring before Friday. Marek can collect it with the shelves if "
+                . "you would rather not drive out.",
+        ],
+        [
+            'from' => 'You', 'address' => self::ACCOUNT_EMAIL, 'mine' => true,
+            'hoursAgo' => 70,
+            'body' => "Take it. And yes, let Marek bring it — one delivery is plenty.\n\n"
+                . "Thank you for chasing them.",
+        ],
+    ];
+
+    /** The subject the conversation runs under. */
+    public const string CONVERSATION_SUBJECT = 'Oak for the alcove';
 
     public function __construct(
         private EntityManagerInterface  $entityManager,
@@ -283,6 +357,7 @@ final readonly class DemoMailbox
         $this->entityManager->flush();
 
         $inbox  = $this->labelResolver->systemLabel(LabelRole::Inbox, $account);
+        $sent   = $this->labelResolver->systemLabel(LabelRole::Sent, $account);
         $labels = [];
 
         foreach (self::LABELS as $name) {
@@ -366,6 +441,77 @@ final readonly class DemoMailbox
         $this->contactRepository->upsertBatch($user, $contacts);
 
         $this->entityManager->flush();
+
+        return array_merge($messages, $this->seedConversation($account, $inbox, $sent, $now));
+    }
+
+    /**
+     * One thread with four turns in it, so the demo has a conversation.
+     *
+     * Every other thread here is a single message, which leaves the reading
+     * pane's whole argument — replies collapse into one conversation — with
+     * nothing to demonstrate it on.
+     *
+     * Threaded ONE AT A TIME rather than as a batch, and that is not a style
+     * choice. MessageThreader resolves a reply's parent with a SQL query that
+     * joins message.thread, so a parent created earlier in the same unflushed
+     * batch is invisible to it: all four turns looked like conversation
+     * openers and got a thread each. The code says as much where Gmail hits
+     * the same wall from the other side. Flushing between turns is what makes
+     * each parent findable by the time the next one asks for it.
+     *
+     * @return list<Message>
+     */
+    private function seedConversation(
+        Account           $account,
+        Label             $inbox,
+        Label             $sent,
+        DateTimeImmutable $now,
+    ): array {
+        $messages   = [];
+        $previousId = null;
+
+        foreach (self::CONVERSATION as $turn) {
+            $receivedAt = $now->modify(sprintf('-%d hours', $turn['hoursAgo']));
+            $messageId  = MessageIdHelper::mint($turn['address']);
+
+            $message = new Message();
+            $message->account     = $account;
+            $message->messageId   = $messageId;
+            $message->subject     = null === $previousId
+                ? self::CONVERSATION_SUBJECT
+                : 'Re: '.self::CONVERSATION_SUBJECT;
+            $message->fromName    = $turn['from'];
+            $message->fromAddress = $turn['address'];
+            $message->toAddresses = true === $turn['mine']
+                ? [['name' => 'Priya Raman', 'address' => 'priya.raman@example.com']]
+                : [['name' => 'You', 'address' => self::ACCOUNT_EMAIL]];
+            $message->bodyText       = $turn['body'];
+            $message->receivedAt     = $receivedAt;
+            $message->sentAt         = $receivedAt;
+            $message->syncedAt       = $now;
+            $message->flags          = [];
+            $message->hasAttachments = false;
+
+            // Read, all of them. A conversation in which your own replies show
+            // as unread mail from yourself is not a conversation.
+            $message->seenAt = $receivedAt;
+
+            if (null !== $previousId) {
+                $message->inReplyTo  = [$previousId];
+                $message->references = [$previousId];
+            }
+
+            $message->addLabel(true === $turn['mine'] ? $sent : $inbox);
+
+            $this->entityManager->persist($message);
+            $this->entityManager->flush();
+
+            $this->pipeline->run($account, [new IngestedMessage($message, $account)]);
+
+            $messages[]  = $message;
+            $previousId  = $messageId;
+        }
 
         return $messages;
     }

@@ -182,6 +182,9 @@
        the mailbox layout, and a controller that connects without them throws
        on every page that has no reading pane — which is every admin, settings
        and calendar page. The mailbox layout adds it back. #}
+    {# has-demo-bar: the fixed demo bar overlays the panes, so scrollers need
+       room to bring their last row clear of it. See app.css. #}
+    class="{% block body_class %}{% endblock %}{% if app.user and demo.isEnabled %} has-demo-bar{% endif %}"
     data-controller="ui--tooltip {% if app.user %}{% block body_controllers %}core--mercure{% endblock %}{% endif %}"
     {% if app.user %}
         {# URL only. The cookie that authorizes this subscription is attached by
