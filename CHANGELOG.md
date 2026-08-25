@@ -6,6 +6,24 @@ so anything that changes the schema irreversibly is called out explicitly.
 The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, and `sha-…` pins one commit.
 
+## v0.1.26 — 2026-08-25
+
+**Adds a column to `user`; the migration runs on boot. Save a signature once instead of drawing it
+on every document.**
+
+### Added
+
+- **A saved handwritten signature.** Settings → Profile has a pad beside your picture. Draw your
+  signature there and the PDF reader gains **Use saved signature**, which places it without asking
+  you to draw again. Remove it from the same place.
+
+It is stored as an image that belongs to you and is served only to you, in the same directory
+scheme as avatars. It is not a credential and there is nothing to verify against it — it is the
+same picture of a name that drawing one by hand produces, and it means exactly as much.
+
+Deliberately *not* the **Signature** section in the sidebar: that one is the block of text appended
+to outgoing mail, and the two have nothing to do with each other.
+
 ## v0.1.25 — 2026-08-25
 
 **No migration. Sign a PDF by drawing on it, and reply with the signed copy.**
