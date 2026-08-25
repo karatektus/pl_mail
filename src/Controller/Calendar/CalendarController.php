@@ -10,6 +10,7 @@ use App\Domain\Enum\Calendar\AlertAction;
 use App\Domain\Enum\Calendar\CalendarPaneMode;
 use App\Domain\Enum\Calendar\CalendarView;
 use App\Domain\Enum\Calendar\EventStatus;
+use App\Domain\Helper\DefaultEventStart;
 use App\Entity\Calendar\CalendarEvent;
 use App\Entity\User\User;
 use App\Infrastructure\Messaging\Message\SyncCalendarMessage;
@@ -1166,11 +1167,16 @@ final class CalendarController extends AbstractController
      *
      * Read once into $hour and used twice, so a request that crosses the hour
      * boundary between the two reads cannot produce an end before its own start.
+     *
+     * The rule itself lives in DefaultEventStart, because a decision about
+     * clocks that is only reachable through a browser can only be tested in the
+     * hour it happens to be wrong in — which is how the midnight rollover sat
+     * here unnoticed.
      */
     private function startFor(string $requested, DateTimeZone $zone): DateTimeImmutable
     {
         $now  = new DateTimeImmutable('now', $zone);
-        $hour = $now->setTime((int) $now->format('G'), 0)->modify('+1 hour');
+        $hour = DefaultEventStart::nextFullHour($now);
 
         if ('' === $requested) {
             return $hour;
@@ -1187,7 +1193,12 @@ final class CalendarController extends AbstractController
         // its absence is the question "did the caller name a time at all?".
         // Midnight is not what anybody means by "new event on Thursday".
         if (false === str_contains($requested, ':')) {
-            return $parsed->setTime((int) $hour->format('G'), 0);
+            // Not `$parsed->setTime($hour…)` directly: between 23:00 and
+            // midnight the next full hour is 00:00 TOMORROW, and pinning its
+            // hour-of-day to the requested date gave today at 00:00 — the whole
+            // day in the past, on the field the user was most likely to accept
+            // unchanged. See DefaultEventStart::onDay().
+            return DefaultEventStart::onDay($parsed, $now);
         }
 
         return $parsed;
