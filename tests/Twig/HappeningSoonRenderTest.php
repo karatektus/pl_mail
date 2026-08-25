@@ -7,6 +7,8 @@ namespace App\Tests\Twig;
 use App\Domain\DTO\Calendar\HappeningSoonRow;
 use App\Domain\DTO\Calendar\OccurrenceCluster;
 use App\Domain\Enum\Calendar\ExtractionKind;
+use App\Domain\Enum\Calendar\CalendarRole;
+use App\Entity\Calendar\Calendar;
 use App\Entity\Calendar\CalendarEvent;
 use App\Entity\Calendar\CalendarEventOccurrence;
 use App\Entity\Mail\Account;
@@ -52,6 +54,8 @@ final class HappeningSoonRenderTest extends KernelTestCase
     private Connection $connection;
     private Environment $twig;
     private Account $account;
+    private User $user;
+    private Calendar $calendar;
     private DateTimeImmutable $startsAt;
 
     protected function setUp(): void
@@ -203,9 +207,24 @@ final class HappeningSoonRenderTest extends KernelTestCase
 
     private function row(string $title, ?ExtractionKind $kind, ?Message $source = null): HappeningSoonRow
     {
-        $event        = new CalendarEvent();
-        $event->title = $title;
-        $event->kind  = $kind;
+        $event           = new CalendarEvent();
+        $event->title    = $title;
+        $event->kind     = $kind;
+        $event->calendar = $this->calendar;
+        // Unique per calendar, or the second row in a test collides on
+        // uniq_calendar_event_calendar_uid — every fixture event would
+        // otherwise carry the same empty uid.
+        $event->uid      = uniqid('soon-render-', true);
+        $event->usr      = $this->user;
+        $event->startsAt = $this->startsAt;
+        $event->endsAt   = $this->startsAt->modify('+2 hours');
+
+        // Persisted for its id, which the row's title needs to build the link
+        // that opens the event. Every row on this panel comes from a stored
+        // event in reality — an unsaved one was a shortcut that held only for
+        // as long as nothing in the template asked who the event was.
+        $this->em->persist($event);
+        $this->em->flush();
 
         $occurrence           = new CalendarEventOccurrence();
         $occurrence->event    = $event;
@@ -265,8 +284,21 @@ final class HappeningSoonRenderTest extends KernelTestCase
         $account->isActive       = true;
         $this->em->persist($account);
 
+        // A calendar for the events to sit on. They are persisted now — the
+        // row's title links to the event, so it needs an id — and an event
+        // without a calendar cannot be stored.
+        $calendar            = new Calendar();
+        $calendar->usr       = $user;
+        $calendar->name      = 'Soon render fixture';
+        $calendar->role      = CalendarRole::Custom;
+        $calendar->timeZone  = 'UTC';
+        $calendar->isDefault = true;
+        $this->em->persist($calendar);
+
         $this->em->flush();
 
-        $this->account = $account;
+        $this->account  = $account;
+        $this->user     = $user;
+        $this->calendar = $calendar;
     }
 }

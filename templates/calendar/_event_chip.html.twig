@@ -121,7 +121,11 @@ identity is threaded through a URL that would outlive the render that made it.
 <button type="button"
    data-controller="ui--modal"
    data-action="click->ui--modal#open"
-   data-ui--modal-src-value="{{ path('app_calendar_event_edit', {
+   {# Details, not the editor. Clicking an event to find out when it is used
+      to open a form asking you to change it — and the three things people
+      most often want (the description, who else is coming, and which mail it
+      came from) are not on that form at all. Edit is one step further in. #}
+   data-ui--modal-src-value="{{ path('app_calendar_event_details', {
        id: event.id,
        instance: occurrence.recurrenceId|date('Y-m-d\\TH:i:s\\Z', 'UTC'),
    }) }}"

@@ -1,0 +1,212 @@
+{#
+calendar/_event_details.html.twig
+─────────────────────────────────────────────────────────────────────────────
+An event, read rather than edited.
+
+Everything an event knows and nothing to fill in. Until this existed the only
+way to look at one was the editor, so "when is this, and why is it on my
+calendar?" was answered by opening a form that asks you to change it — and a
+field with no answer showed as an empty input rather than being absent, which
+reads as missing data instead of as no data.
+
+Three things here are not on the form at all, because the form does not edit
+them: the DESCRIPTION and the PARTICIPANTS, which live in the JSCalendar
+overlay, and the PROVENANCE — the message this event was read out of. The last
+is the one worth opening a dialog for. An extracted event is a guess a program
+made about somebody's mail, and a guess you cannot trace is one you cannot
+check.
+
+Accepts:
+  event         CalendarEvent
+  title         string            — the instance's title where one differs
+  startsAt      DateTimeImmutable — already in displayZone
+  endsAt        DateTimeImmutable — already in displayZone
+  timeZone      string|null       — the event's own zone, shown when it has one
+  displayZone   string|false      — false for all-day; see the controller
+  recurrenceId  string|null
+  source        Message|null      — newest APPLIED claim, not the first
+  returnTo      string|null
+
+The mail link carries `data-turbo-frame="_top"`, or Turbo reads it as a
+navigation of the modal frame and loads the whole mailbox inside the dialog —
+the same trap _happening_soon.html.twig documents, and the reason its
+provenance link carries it too.
+#}
+{% set jscal = event.jscalendar|default({}) %}
+{% set description = jscal.description|default('')|trim %}
+{% set participants = jscal.participants|default({}) %}
+
+<turbo-frame id="modal" class="flex-1 min-h-0 flex flex-col">
+    <div class="flex-1 min-h-0 overflow-y-auto px-6 pb-5 space-y-5">
+
+        {# ── What and when ──────────────────────────────────────────────── #}
+        <div class="flex items-start gap-3">
+            <span class="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg"
+                  style="background-color: {{ event.calendar.color }}1a; color: {{ event.calendar.color }}">
+                <i class="fa-regular fa-calendar text-sm" aria-hidden="true"></i>
+            </span>
+
+            <div class="min-w-0 flex-1">
+                <h2 class="text-base font-semibold text-ink break-words">
+                    {{ title ?: 'calendar.soon.untitled'|trans }}
+                </h2>
+
+                <p class="mt-1 text-sm text-ink-muted">
+                    {{ startsAt|intl_date('EEEE d MMMM', displayZone) }}
+                    {%- if not event.isAllDay %}
+                        · {{ startsAt|date(clock.time, displayZone) }} – {{ endsAt|date(clock.time, displayZone) }}
+                    {%- else %}
+                        · {{ 'calendar.event.all_day'|trans }}
+                    {%- endif %}
+                </p>
+
+                {# Only when the event carries its own zone. Printing the
+                   reader's would say nothing — it is the clock everything else
+                   on the page is already on. #}
+                {% if timeZone is not empty and not event.isAllDay %}
+                    <p class="mt-0.5 text-xs text-ink-faint">{{ timeZone }}</p>
+                {% endif %}
+            </div>
+        </div>
+
+        {# ── The facts it has ───────────────────────────────────────────── #}
+        <dl class="space-y-3 text-sm">
+            {% if event.location is not empty %}
+                <div class="flex gap-3">
+                    <dt class="w-24 shrink-0 text-xs uppercase tracking-wide text-ink-faint pt-0.5">
+                        {{ 'calendar.event.location'|trans }}
+                    </dt>
+                    <dd class="min-w-0 flex-1 text-ink break-words">{{ event.location }}</dd>
+                </div>
+            {% endif %}
+
+            <div class="flex gap-3">
+                <dt class="w-24 shrink-0 text-xs uppercase tracking-wide text-ink-faint pt-0.5">
+                    {{ 'calendar.event.calendar'|trans }}
+                </dt>
+                <dd class="min-w-0 flex-1 flex items-center gap-2 text-ink">
+                    <span class="h-2.5 w-2.5 shrink-0 rounded-full"
+                          style="background-color: {{ event.calendar.color }}"></span>
+                    <span class="truncate">{{ event.calendar.name }}</span>
+                </dd>
+            </div>
+
+            {% if event.isRecurring %}
+                <div class="flex gap-3">
+                    <dt class="w-24 shrink-0 text-xs uppercase tracking-wide text-ink-faint pt-0.5">
+                        {{ 'calendar.event.repeats'|trans }}
+                    </dt>
+                    <dd class="min-w-0 flex-1 text-ink">
+                        {{ 'calendar.details.recurring'|trans }}
+                        {%- if event.recurrenceUntil %}
+                            · {{ 'calendar.details.until'|trans({
+                                '%date%': event.recurrenceUntil|intl_date('d MMM yyyy', displayZone),
+                            }) }}
+                        {%- endif %}
+                    </dd>
+                </div>
+            {% endif %}
+
+            {% if event.myParticipation is not null %}
+                <div class="flex gap-3">
+                    <dt class="w-24 shrink-0 text-xs uppercase tracking-wide text-ink-faint pt-0.5">
+                        {{ 'calendar.details.your_answer'|trans }}
+                    </dt>
+                    {# calendar.invite.status.*, not a new set: those labels
+                       already exist and are already translated three ways. The
+                       key uses underscores where the enum value uses a hyphen
+                       (RFC 8984 spells it "needs-action"), so the value is
+                       normalised rather than the catalogue being reshaped. #}
+                    <dd class="min-w-0 flex-1 text-ink">
+                        {{ ('calendar.invite.status.' ~ event.myParticipation.value|replace({'-': '_'}))|trans }}
+                    </dd>
+                </div>
+            {% endif %}
+
+            {# Status only when it is NOT the ordinary one. "Confirmed" on every
+               event is a row that never varies, and a detail view that lists
+               constants buries the things that do change. #}
+            {% if event.status.value != 'confirmed' %}
+                <div class="flex gap-3">
+                    <dt class="w-24 shrink-0 text-xs uppercase tracking-wide text-ink-faint pt-0.5">
+                        {{ 'calendar.details.status'|trans }}
+                    </dt>
+                    <dd class="min-w-0 flex-1 text-ink">
+                        {{ ('calendar.status.' ~ event.status.value)|trans }}
+                    </dd>
+                </div>
+            {% endif %}
+        </dl>
+
+        {# ── Participants ───────────────────────────────────────────────── #}
+        {% if participants is not empty %}
+            <div>
+                <h3 class="text-[11px] font-semibold uppercase tracking-wider text-ink-faint">
+                    {{ 'calendar.details.participants'|trans }}
+                </h3>
+
+                <ul class="mt-2 space-y-1.5">
+                    {% for key, person in participants %}
+                        {% set person_email = person.email|default(key) %}
+                        {% set person_name = person.name|default('')|trim %}
+                        <li class="flex items-center gap-2 text-sm min-w-0">
+                            <i class="fa-regular fa-user text-[11px] text-ink-faint shrink-0" aria-hidden="true"></i>
+                            <span class="truncate text-ink">{{ person_name ?: person_email }}</span>
+                            {% if person_name and person_email %}
+                                <span class="truncate text-xs text-ink-faint">{{ person_email }}</span>
+                            {% endif %}
+                        </li>
+                    {% endfor %}
+                </ul>
+            </div>
+        {% endif %}
+
+        {# ── Description ────────────────────────────────────────────────── #}
+        {% if description is not empty %}
+            <div>
+                <h3 class="text-[11px] font-semibold uppercase tracking-wider text-ink-faint">
+                    {{ 'calendar.details.description'|trans }}
+                </h3>
+                {# whitespace-pre-line: a description arrives with real newlines
+                   and HTML collapses them. Escaped, never raw — this text came
+                   off somebody's mail. #}
+                <p class="mt-2 whitespace-pre-line break-words text-sm text-ink-soft">{{ description }}</p>
+            </div>
+        {% endif %}
+
+        {# ── Where it came from ─────────────────────────────────────────── #}
+        {% if source is not null %}
+            <div class="rounded-lg border border-line bg-sunken/40 p-3">
+                <h3 class="text-[11px] font-semibold uppercase tracking-wider text-ink-faint">
+                    {{ 'calendar.details.provenance'|trans }}
+                </h3>
+
+                <a href="{{ path('app_mail_message', { id: source.id }) }}"
+                   data-turbo-frame="_top"
+                   class="mt-2 flex items-center gap-2 text-sm text-accent hover:underline min-w-0">
+                    <i class="fa-regular fa-envelope text-xs shrink-0" aria-hidden="true"></i>
+                    <span class="truncate">{{ source.subject ?: 'calendar.soon.untitled'|trans }}</span>
+                </a>
+
+                {% if event.isExtracted %}
+                    <p class="mt-1.5 text-xs text-ink-faint">{{ 'calendar.details.extracted_hint'|trans }}</p>
+                {% endif %}
+            </div>
+        {% endif %}
+    </div>
+
+    {# ── Edit, one step in ──────────────────────────────────────────────── #}
+    <div class="shrink-0 border-t border-line px-6 py-3 flex justify-end">
+        <a href="{{ path('app_calendar_event_edit', {
+               id: event.id,
+               instance: recurrenceId,
+               returnTo: returnTo,
+           })|trim('?') }}"
+           data-turbo-frame="modal"
+           class="inline-flex items-center gap-2 px-3 h-9 rounded-lg text-sm font-medium
+                  bg-accent hover:bg-accent-strong text-accent-ink transition-colors">
+            <i class="fa-solid fa-pen text-[11px]" aria-hidden="true"></i>
+            {{ 'calendar.details.edit'|trans }}
+        </a>
+    </div>
+</turbo-frame>

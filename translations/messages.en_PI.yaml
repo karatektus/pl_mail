@@ -487,6 +487,16 @@ calendar:
         on_calendars: 'Upon %calendars%'
     delete_confirm: 'Scuttle "%name%" an'' every reckonin'' upon it? There be no haulin'' them back.'
     empty: Naught on the horizon
+    details:
+        description: The tellin' of it
+        edit: Change it
+        extracted_hint: plMail read this from yonder letter. No soul wrote it in.
+        participants: All hands
+        provenance: From yonder letter
+        recurring: Comes round again
+        status: Standin'
+        until: till %date%
+        your_answer: Yer word
     error:
         instance_create: >-
             One lone reckonin' cannot be shipped to an almanac on its own. Pick
@@ -525,6 +535,7 @@ calendar:
                 no say over them.
             unreadable: A nudge set in some other port
         all_day: All the day long
+        calendar: Almanac
         cancel: Belay that
         copies:
             help: >-
@@ -553,6 +564,7 @@ calendar:
         new: A new reckonin'
         new_on: A new reckonin' on %date%
         repeat: Comes round again
+        repeats: Comes round again
         save: Stow it
         scope:
             instance: This here reckonin'
@@ -782,6 +794,10 @@ calendar:
         title: 'Comin'' soon'
         untitled: (no subject)
     title: Almanac
+    status:
+        cancelled: Struck
+        confirmed: Signed
+        tentative: Undecided
     toast:
         created: Almanac drawn up
         default_set: New reckonin's land here now

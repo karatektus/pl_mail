@@ -37,6 +37,7 @@ use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 use Symfony\Contracts\Translation\TranslatorInterface;
+use App\Repository\Calendar\EventSourceLinkRepository;
 
 /**
  * The calendar, in its two shapes.
@@ -106,6 +107,7 @@ final class CalendarController extends AbstractController
         private readonly MessageBusInterface    $bus,
         private readonly TranslatorInterface    $translator,
         private readonly EntityManagerInterface $em,
+        private readonly EventSourceLinkRepository $sourceLinks,
     ) {
     }
 
@@ -195,6 +197,56 @@ final class CalendarController extends AbstractController
      * agree about all of them — so the opened event's are shown, which is also
      * what makes a merged chip open the same editor a lone one does.
      */
+    /**
+     * Everything an event says, and nothing to fill in.
+     *
+     * The only way to look at an event used to be the editor, which is a form:
+     * to answer "when is this and where did it come from?" you opened something
+     * that asks you to change it, and every field that had no answer showed as
+     * an empty input rather than being absent. A description, the participants
+     * and the provenance were not on it at all — they live in the JSCalendar
+     * overlay, which the form does not edit and therefore does not show.
+     *
+     * So this is the thing a click opens now, and Edit is one step further in.
+     * Reading is the common case by a wide margin, and it is the one that was
+     * missing.
+     *
+     * The zone handling is eventEdit's, deliberately duplicated rather than
+     * shared: it is four lines and the comment explaining `false` for an
+     * all-day event is worth more than the deduplication. See there for why
+     * converting a floating date moves it rather than translating it.
+     */
+    #[Route('/event/{id}/details', name: 'event_details', requirements: ['id' => '\d+'], methods: ['GET'])]
+    public function eventDetails(Request $request, CalendarEvent $event): Response
+    {
+        $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $event);
+
+        $zone     = $this->time->eventZone($event, $this->currentUser());
+        $instance = $this->instances->instance($event, $request->query->getString('instance'));
+
+        $startsAt = null === $instance ? $event->startsAt : $instance->startsAt;
+        $endsAt   = null === $instance ? $event->endsAt : $instance->endsAt;
+
+        // The same lookup HappeningSoonReader uses, called with one event
+        // rather than reimplemented: "newest applied claim wins" is a rule with
+        // a reason behind it, and two copies of it would eventually disagree
+        // about which mail an event came from — on the panel and in the dialog
+        // it opens, which is exactly where a reader would notice.
+        $source = $this->sourceLinks->findLatestAppliedMessageByEvent([$event])[(int) $event->id] ?? null;
+
+        return $this->render('calendar/_event_details.html.twig', [
+            'event'        => $event,
+            'title'        => null === $instance ? (string) $event->title : $this->instances->titleOf($event, $instance),
+            'startsAt'     => $startsAt->setTimezone($zone),
+            'endsAt'       => $endsAt->setTimezone($zone),
+            'timeZone'     => $event->timeZone,
+            'displayZone'  => true === $event->isAllDay ? false : $zone->getName(),
+            'recurrenceId' => $this->instances->identify($instance),
+            'source'       => $source,
+            'returnTo'     => $this->returnTo($request),
+        ]);
+    }
+
     #[Route('/event/{id}/edit', name: 'event_edit', requirements: ['id' => '\d+'], methods: ['GET'])]
     public function eventEdit(Request $request, CalendarEvent $event): Response
     {

@@ -223,6 +223,11 @@ test.describe("calendar files and feeds", () => {
         await expect(chip).toBeVisible();
         await chip.click();
 
+    // The chip opens the DETAILS panel now — reading an event is the common
+    // case, and it used to be the one you could not do without opening a form.
+    // Edit is one step in, so the specs that drive the editor click through it.
+    await modal.getByRole("link", { name: "Edit" }).click();
+
         // Waited on the field's value rather than on the dialog being visible:
         // the backdrop keeps the previous dialog's markup until Turbo swaps the
         // frame, so anything read straight after the click is read off the form

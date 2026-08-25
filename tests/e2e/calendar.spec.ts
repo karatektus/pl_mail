@@ -73,6 +73,12 @@ async function openChip(page: Page, index: number) {
     await chipsOf(page).nth(index).click();
 
     const modal = page.locator("#modal-backdrop");
+
+    // The chip opens the DETAILS panel now — reading an event is the common
+    // case, and it used to be the one you could not do without opening a form.
+    // Edit is one step in, so the specs that drive the editor click through it.
+    await modal.getByRole("link", { name: "Edit" }).click();
+
     await expect(modal.getByLabel("Title")).toHaveValue(new RegExp(TITLE));
 
     return modal;
@@ -397,6 +403,11 @@ test.describe("a meeting on two calendars", () => {
         await meetingChips(page).first().click();
 
         const modal = page.locator("#modal-backdrop");
+
+        // Through the details panel: a chip opens that now, with Edit one
+        // step in. See openChip() above.
+        await modal.getByRole("link", { name: "Edit" }).click();
+
         await expect(modal.getByLabel("Title")).toHaveValue(new RegExp(TITLE));
 
         return modal;

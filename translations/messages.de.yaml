@@ -755,6 +755,16 @@ calendar:
         on_calendars: 'In %calendars%'
     delete_confirm: '"%name%" mit allen Terminen löschen? Das lässt sich nicht rückgängig machen.'
     empty: Nichts in nächster Zeit
+    details:
+        description: Beschreibung
+        edit: Bearbeiten
+        extracted_hint: plMail hat diesen Termin aus dieser Nachricht gelesen. Eingetragen hat ihn niemand.
+        participants: Teilnehmende
+        provenance: Aus dieser E-Mail
+        recurring: Wiederkehrender Termin
+        status: Status
+        until: bis %date%
+        your_answer: Deine Antwort
     error:
         instance_create: >-
             Ein einzelner Termin lässt sich nicht allein in einen Kalender
@@ -794,6 +804,7 @@ calendar:
                 gilt also nicht für sie.
             unreadable: Erinnerung anderswo gesetzt
         all_day: Ganztägig
+        calendar: Kalender
         cancel: Abbrechen
         copies:
             help: >-
@@ -824,6 +835,7 @@ calendar:
         new: Neuer Termin
         new_on: Neuer Termin am %date%
         repeat: Wiederholung
+        repeats: Wiederholung
         save: Speichern
         scope:
             instance: Diesen Termin
@@ -1064,6 +1076,10 @@ calendar:
         title: Demnächst
         untitled: (kein Betreff)
     title: Kalender
+    status:
+        cancelled: Abgesagt
+        confirmed: Bestätigt
+        tentative: Vorläufig
     toast:
         created: Kalender angelegt
         default_set: Neue Termine landen jetzt hier

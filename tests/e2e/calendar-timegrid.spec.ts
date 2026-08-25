@@ -294,8 +294,23 @@ test.describe("calendar time-grid", () => {
         // Taken away again. `seed-grid-events --clear` removes the three titles
         // the seeder owns and this is not one of them, so without this the
         // fixture user collects a meeting per run for ever.
+        //
+        // Inline rather than in an afterEach, and that is a real weakness: a
+        // failure ANYWHERE above skips it, the meeting survives, and the next
+        // run finds two blocks where it expects one — so the following run
+        // fails for a reason that has nothing to do with what it tests, and
+        // keeps failing until somebody deletes the row by hand. On CI, where
+        // the suite retries once, that is the difference between a flake and a
+        // hard failure: the retry inherits the residue. Left here rather than
+        // moved because the deletion is itself under test — the dialog is what
+        // removes it — but it is worth knowing that this test cleans up only
+        // when it passes.
         await block.click();
         await expect(modal).toBeVisible();
+        // Through the details panel, which is what a click opens now. Delete
+        // stays on the editor: it is the one irreversible thing here, and a
+        // read-only view is the wrong place to keep it.
+        await modal.getByRole("link", { name: "Edit" }).click();
         await modal.getByRole("button", { name: "Delete" }).click();
         await expect(blocks(page, SHORT)).toHaveCount(0);
     });
@@ -386,7 +401,10 @@ test.describe("calendar time-grid", () => {
 
         const editorRequests: string[] = [];
         page.on("request", (request) => {
-            if (/\/calendar\/event\/\d+\/edit/.test(request.url())) {
+            // details as well as edit: a chip click opens the details panel
+            // now, and a drag must open NEITHER. Matching only /edit would have
+            // let this pass while every drag popped a dialog.
+            if (/\/calendar\/event\/\d+\/(edit|details)/.test(request.url())) {
                 editorRequests.push(request.url());
             }
         });
@@ -400,13 +418,23 @@ test.describe("calendar time-grid", () => {
         expect(editorRequests).toEqual([]);
     });
 
-    /** And a click that is only a click still does. */
-    test("a click on a block still opens the editor", async ({ page }) => {
+    /**
+     * And a click that is only a click still does.
+     *
+     * Asserted on the details panel's heading rather than on the editor's Title
+     * field: a click opens the event to READ now, with Edit one step in. What
+     * this test is actually about is unchanged — a click must be told apart
+     * from a drag — so it follows the new behaviour rather than reaching past
+     * it for the form.
+     */
+    test("a click on a block still opens the event", async ({ page }) => {
         await page.goto("/calendar/day");
 
         await blocks(page, TIMED).first().click();
 
-        await expect(page.locator("#modal-backdrop").getByLabel("Title")).toHaveValue(new RegExp(TIMED));
+        await expect(
+            page.locator("#modal-backdrop").getByRole("heading", { name: new RegExp(TIMED) }),
+        ).toBeVisible();
     });
 
     test("dragging the bottom edge makes the event longer", async ({ page }) => {

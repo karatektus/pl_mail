@@ -132,9 +132,26 @@ empty panel.
                             </span>
 
                             <div class="min-w-0 flex-1">
-                                <p class="truncate text-sm font-medium text-ink" title="{{ row_title }}">
+                                {# The row opens the event, whether or not a mail
+                                   is behind it. Before this the only thing on a
+                                   row you could act on was the provenance link,
+                                   so a hand-made appointment — which by
+                                   definition has no mail — was the one kind you
+                                   could not open at all. #}
+                                <button type="button"
+                                        data-controller="ui--modal"
+                                        data-action="click->ui--modal#open"
+                                        data-ui--modal-src-value="{{ path('app_calendar_event_details', {
+                                            id: row.event.id,
+                                            instance: row.occurrence.recurrenceId|date('Y-m-d\\TH:i:s\\Z', 'UTC'),
+                                        }) }}"
+                                        data-ui--modal-title-value="{{ 'calendar.event.title'|trans }}"
+                                        class="block w-full truncate text-left text-sm font-medium text-ink
+                                               hover:text-accent hover:underline focus:outline-none
+                                               focus-visible:ring-2 focus-visible:ring-accent rounded"
+                                        title="{{ row_title }}">
                                     {{ row_title }}
-                                </p>
+                                </button>
 
                                 <p class="mt-0.5 text-xs text-ink-muted">
                                     <span class="sr-only">{{ row.transKey|trans }} · </span>

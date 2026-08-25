@@ -70,6 +70,12 @@ async function openEditor(page: Page) {
     await chipsOf(page).first().click();
 
     const modal = page.locator("#modal-backdrop");
+
+    // The chip opens the DETAILS panel now — reading an event is the common
+    // case, and it used to be the one you could not do without opening a form.
+    // Edit is one step in, so the specs that drive the editor click through it.
+    await modal.getByRole("link", { name: "Edit" }).click();
+
     await expect(modal.getByLabel("Title")).toHaveValue(new RegExp(TITLE));
 
     return modal;

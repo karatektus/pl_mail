@@ -742,6 +742,16 @@ calendar:
         on_calendars: 'On %calendars%'
     delete_confirm: 'Delete "%name%" and every event on it? This cannot be undone.'
     empty: Nothing coming up
+    details:
+        description: Description
+        edit: Edit
+        extracted_hint: plMail read this event out of that message. Nobody typed it in.
+        participants: Participants
+        provenance: From this email
+        recurring: Repeating event
+        status: Status
+        until: until %date%
+        your_answer: Your answer
     error:
         instance_create: >-
             One occurrence cannot be added to a calendar on its own. Choose "All
@@ -778,6 +788,7 @@ calendar:
                 not apply to them.
             unreadable: Reminder set somewhere else
         all_day: All day
+        calendar: Calendar
         cancel: Cancel
         copies:
             help: >-
@@ -806,6 +817,7 @@ calendar:
         new: New event
         new_on: New event on %date%
         repeat: Repeat
+        repeats: Repeats
         save: Save
         scope:
             instance: This event
@@ -1037,6 +1049,10 @@ calendar:
         title: Happening soon
         untitled: (no subject)
     title: Calendar
+    status:
+        cancelled: Cancelled
+        confirmed: Confirmed
+        tentative: Tentative
     toast:
         created: Calendar created
         default_set: New events will land here
