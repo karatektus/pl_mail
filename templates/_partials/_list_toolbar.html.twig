@@ -80,12 +80,17 @@ The button itself carries `group` and `relative`.
 {% import _self as m %}
 
 <div
-    {# `relative`: the select-all-in-view banner below is positioned against
-       this bar, so it hangs under the toolbar rather than over the first row. #}
-    class="relative flex items-center px-3 py-1
+    {# A COLUMN, and the controls are the row inside it.
+       The select-all-in-view banner used to be `absolute top-full` against this
+       bar, which put it over whatever came next in the frame — on the inbox
+       that is the category tabs, so the offer to select 18,000 conversations
+       landed on top of Primary / Social / Promotions / Updates and hid them.
+       In flow it takes its own height and the tabs move down for it, which is
+       what a banner should do. #}
+    class="flex flex-col px-3 py-1
            border-b border-line
            bg-raised
-           shrink-0 min-h-[var(--pane-header-h)]"
+           shrink-0"
     data-controller="mail--list-toolbar"
     data-mail--list-toolbar-total-value="{{ total }}"
     {# What this list is showing, in the vocabulary the list template already
@@ -103,20 +108,9 @@ The button itself carries `group` and `relative`.
     }|json_encode }}"
 >
 
-    {# The offer to select past the page. Hidden until every row on screen is
-       ticked AND the view holds more than fits — before that it would be a
-       control that does nothing. Filled in by the controller, which is the only
-       thing that knows both numbers. #}
-    <div data-mail--list-toolbar-target="viewBanner"
-         class="hidden absolute inset-x-0 top-full z-10 flex items-center justify-center gap-2
-                px-3 py-1.5 text-xs bg-accent-soft text-ink border-b border-line">
-        <span data-mail--list-toolbar-target="viewBannerText"></span>
-        <button type="button"
-                data-mail--list-toolbar-target="viewBannerAction"
-                data-action="click->mail--list-toolbar#selectAllInView"
-                class="font-semibold text-accent underline underline-offset-2 hover:opacity-70 cursor-pointer">
-        </button>
-    </div>
+    {# The row the toolbar has always been. Wrapped now only so the banner
+       below can be a sibling of it rather than an overlay on the tabs. #}
+    <div data-toolbar-row class="flex items-center min-h-[var(--pane-header-h)]">
 
     {# ── Checkbox + chevron ───────────────────────────────────────────────── #}
     <div class="flex items-center shrink-0 mr-2">
@@ -348,6 +342,27 @@ The button itself carries `group` and `relative`.
             {% endif %}
         </div>
     {% endif %}
+    </div>
+
+    </div>{# ── end of the controls row ──────────────────────────────────── #}
+
+    {# The offer to select past the page. Hidden until every row on screen is
+       ticked AND the view holds more than fits — before that it would be a
+       control that does nothing. Filled in by the controller, which is the only
+       thing that knows both numbers.
+
+       `-mx-3` so the tinted strip runs the full width of the bar while the
+       toolbar keeps its own horizontal padding, and `mt-1` to clear the row
+       above rather than sit against it. #}
+    <div data-mail--list-toolbar-target="viewBanner"
+         class="hidden -mx-3 mt-1 flex items-center justify-center gap-2
+                px-3 py-1.5 text-xs bg-accent-soft text-ink border-t border-line">
+        <span data-mail--list-toolbar-target="viewBannerText"></span>
+        <button type="button"
+                data-mail--list-toolbar-target="viewBannerAction"
+                data-action="click->mail--list-toolbar#selectAllInView"
+                class="font-semibold text-accent underline underline-offset-2 hover:opacity-70 cursor-pointer">
+        </button>
     </div>
 
 </div>

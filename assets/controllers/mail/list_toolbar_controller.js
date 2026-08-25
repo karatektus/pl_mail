@@ -362,14 +362,23 @@ export default class extends Controller {
         // one or the other.
         const i18n = this.i18nValue ?? {};
 
+        // Every string goes through the same substitution, including the
+        // BUTTON. Three of the four carry %count% and the button's is one of
+        // them — "Select all %count%" — so substituting only the sentence put
+        // the raw placeholder on screen, in the one control the banner exists
+        // to offer. Applied to all four rather than to the three that need it
+        // today, because which strings carry the number is the translator's
+        // business and this should not have to be revisited when one does.
+        const say = (key) => (i18n[key] ?? "").replace("%count%", String(this.totalValue));
+
         this.viewBannerTextTarget.textContent = this.#allInView
-            ? (i18n.allSelected ?? "").replace("%count%", String(this.totalValue))
-            : (i18n.selectAll ?? "").replace("%count%", String(this.totalValue));
+            ? say("allSelected")
+            : say("selectAll");
 
         if (this.hasViewBannerActionTarget) {
             this.viewBannerActionTarget.textContent = this.#allInView
-                ? (i18n.clear ?? "")
-                : (i18n.selectAllAction ?? "");
+                ? say("clear")
+                : say("selectAllAction");
 
             this.viewBannerActionTarget.setAttribute(
                 "data-action",

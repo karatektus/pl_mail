@@ -132,11 +132,18 @@ final class SearchSortEndpointTest extends WebTestCase
 
         self::assertCount(1, $toolbar);
 
-        // A direct child of the toolbar, immediately before the pagination
+        // In the toolbar's CONTROLS ROW, immediately before the pagination
         // block — "beside the pagination" is the whole affordance, and a menu
         // that rendered above the list or under the filter pills would be a
         // different feature that happened to sort.
-        $menu = $toolbar->filter('[data-controller="mail--list-toolbar"] > [data-search-sort-menu]');
+        //
+        // Scoped to `[data-toolbar-row]` rather than to a direct child of the
+        // toolbar: the select-all banner moved from an overlay into the flow,
+        // which made the toolbar a column with the controls as a row inside it.
+        // The row is marked for this reason — the assertion is about which
+        // group of controls the menu belongs to, and that should not be spelled
+        // as a depth that a layout change can move.
+        $menu = $toolbar->filter('[data-toolbar-row] > [data-search-sort-menu]');
 
         self::assertCount(1, $menu, 'the switch is not a child of the list toolbar');
 

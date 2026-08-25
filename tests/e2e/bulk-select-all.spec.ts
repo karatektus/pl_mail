@@ -71,6 +71,41 @@ test.describe("selecting past the page", () => {
         expect(total, "this fixture does not span more than one page").toBeGreaterThan(rows);
         await expect(banner).toContainText(String(total));
 
+        // Including the BUTTON, which is the control the banner exists to
+        // offer. Its label carries the count too — "Select all 18354" — and
+        // only the sentence was being substituted, so the button read "Select
+        // all %count%" on every mailbox big enough to raise this banner.
+        //
+        // Asserted as "no placeholder anywhere in it" rather than on the
+        // wording: it is the same fault whichever of these strings grows a
+        // second placeholder, and the wording is the translators' to change.
+        await expect(banner).not.toContainText("%count%");
+
+        // And it sits ABOVE what follows the toolbar rather than on top of it.
+        // The banner used to be `absolute top-full`, which put it over whatever
+        // came next in the frame: the category tabs on an inbox that has them —
+        // Primary, Social, Promotions and Updates all hidden behind the offer,
+        // at the exact moment somebody is deciding what to act on — and the
+        // first rows of the list everywhere else.
+        //
+        // Measured against the ROW LIST rather than the tabs, because the tabs
+        // render only on an inbox where more than one category has mail and
+        // this fixture has one. An assertion that skips itself on the fixture
+        // it runs against is not an assertion; the rows are always there, and
+        // the overlap is the same overlap.
+        //
+        // Compared as boxes rather than by asserting a CSS property: `absolute`
+        // is not the bug, covering what is underneath is, and this stays true
+        // however a future layout achieves it.
+        const rowList = page.locator('[data-list-region="rows"]').first();
+        const bannerBox = (await banner.boundingBox())!;
+        const rowsBox = (await rowList.boundingBox())!;
+
+        expect(
+            Math.round(bannerBox.y + bannerBox.height),
+            "the select-all banner is drawn over the list below it",
+        ).toBeLessThanOrEqual(Math.round(rowsBox.y) + 1);
+
         let bulkRequests = 0;
         page.on("request", (request) => {
             if (request.url().includes("/status/bulk/")) {
