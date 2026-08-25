@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Service\Demo;
 
+use App\Domain\Helper\AvatarStorage;
+use App\Domain\Helper\SignatureStorage;
 use App\Entity\User\User;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Mapping\ClassMetadata;
@@ -39,6 +41,8 @@ final readonly class DemoUserEraser
     public function __construct(
         private EntityManagerInterface $entityManager,
         private DemoMode               $demoMode,
+        private AvatarStorage          $avatars,
+        private SignatureStorage       $signatures,
     ) {
     }
 
@@ -67,6 +71,21 @@ final readonly class DemoUserEraser
                 $this->entityManager->remove($row);
             }
         }
+
+        // Files, which no row cascade reaches. Rows are discovered from
+        // Doctrine's metadata; a PNG under var/uploads is not a row and is
+        // invisible to that, so each blob store owned by a user has to be named
+        // here. On a public demo minting a throwaway visitor at a time, a
+        // signature left behind is not untidiness — it is unbounded growth on
+        // somebody's disk.
+        //
+        // Before the flush, and outside any transaction it might join: deleting
+        // a file cannot be rolled back, so the ordering that loses least is
+        // files first and rows after. A file removed for a user whose deletion
+        // then failed is recoverable — they redraw it. The other way round
+        // leaves an orphan nothing will ever find again.
+        $this->avatars->deleteAllFor((string) $user->id);
+        $this->signatures->deleteAllFor((string) $user->id);
 
         $this->entityManager->remove($user);
         $this->entityManager->flush();

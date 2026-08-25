@@ -40,3 +40,78 @@ find.
     </div>
     {% endblock %}
 {% endembed %}
+
+{#
+The saved handwritten signature.
+
+A second card rather than a field on the form above, because it is not a form
+field: the pad hands the file input a PNG it just drew, and mixing that into the
+profile form would mean a half-drawn signature riding along with a name change.
+
+Deliberately NOT the "Signature" section in the sidebar — that one is the block
+of text appended to outgoing mail, and the two have nothing to do with each
+other. This lives beside the avatar, which is what it is: a picture of you.
+#}
+{% embed 'settings/_card.html.twig' with {
+    heading:    'settings.handwriting.heading'|trans,
+    subheading: 'settings.handwriting.subheading'|trans,
+    padded:     true,
+} %}
+    {% block body %}
+    <div class="max-w-md">
+        {% if app.user.signature %}
+            <div class="mb-4">
+                <img src="{{ path('app_settings_profile_signature', { filename: app.user.signature }) }}"
+                     alt="{{ 'settings.handwriting.saved'|trans }}"
+                     class="h-16 max-w-full object-contain rounded-lg border border-line bg-white p-2">
+
+                <form action="{{ path('app_settings_profile_signature_delete') }}" method="post" class="mt-2">
+                    <input type="hidden" name="_token" value="{{ csrf_token('profile_signature') }}">
+                    <button type="submit"
+                            class="text-xs text-ink-muted hover:text-danger transition-colors cursor-pointer">
+                        {{ 'settings.handwriting.remove'|trans }}
+                    </button>
+                </form>
+            </div>
+        {% endif %}
+
+        <form action="{{ path('app_settings_profile_signature_save') }}"
+              method="post"
+              enctype="multipart/form-data"
+              data-controller="settings--signature-pad">
+            <input type="hidden" name="_token" value="{{ csrf_token('profile_signature') }}">
+            <input type="file" name="signature" data-settings--signature-pad-target="file" hidden>
+
+            {# touch-none is what stops a finger stroke scrolling the page
+               instead of drawing on the pad. #}
+            <canvas data-settings--signature-pad-target="ink"
+                    data-action="pointerdown->settings--signature-pad#startStroke
+                                 pointermove->settings--signature-pad#stroke
+                                 pointerup->settings--signature-pad#endStroke
+                                 pointerleave->settings--signature-pad#endStroke
+                                 pointercancel->settings--signature-pad#endStroke"
+                    class="block h-28 w-full touch-none rounded-lg border border-dashed border-line
+                           bg-white cursor-crosshair"></canvas>
+
+            <div class="mt-3 flex items-center gap-2">
+                <button type="submit"
+                        data-settings--signature-pad-target="save"
+                        disabled
+                        class="inline-flex items-center justify-center h-9 px-4 rounded-lg text-sm font-medium
+                               text-accent-ink bg-accent hover:bg-accent-strong
+                               disabled:opacity-40 disabled:cursor-not-allowed
+                               transition-colors duration-100 cursor-pointer">
+                    {{ 'settings.handwriting.save'|trans }}
+                </button>
+
+                <button type="button"
+                        data-action="settings--signature-pad#clear"
+                        class="h-9 px-3 rounded-lg text-sm text-ink-muted hover:bg-hover hover:text-ink
+                               transition-colors cursor-pointer">
+                    {{ 'settings.handwriting.clear'|trans }}
+                </button>
+            </div>
+        </form>
+    </div>
+    {% endblock %}
+{% endembed %}

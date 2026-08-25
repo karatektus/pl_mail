@@ -50,6 +50,7 @@ import { pdfRect, stampAnchor, trimAlpha } from "../../pdf_geometry.js";
  * | filename   | what the signed copy is called, for the download only        |
  * | encryptedText | why signing is unavailable on a protected document       |
  * | unreadableText | and why it is unavailable on one that will not parse    |
+ * | savedUrl   | the saved signature, when there is one — empty when not      |
  */
 export default class extends Controller {
     static targets = ["pad", "ink", "stamp", "sheet", "reason", "apply", "form", "file", "frameField"];
@@ -60,6 +61,7 @@ export default class extends Controller {
         filename: String,
         encryptedText: String,
         unreadableText: String,
+        savedUrl: String,
     };
 
     /**
@@ -160,6 +162,48 @@ export default class extends Controller {
 
         this.#prepareInk();
         this.applyTarget.disabled = true;
+    }
+
+    /**
+     * Place the signature saved in Settings, without drawing anything.
+     *
+     * Goes through exactly the same path as a fresh scribble, because a stamp
+     * is an IMAGE from the moment it is captured rather than a set of strokes.
+     * That was the point of expressing it that way: this method is six lines
+     * instead of a second placement implementation to keep in step.
+     */
+    async useSaved(event) {
+        event?.preventDefault();
+
+        const refusal = await this.#refusal();
+
+        if (null !== refusal) {
+            this.reasonTarget.textContent = refusal;
+            this.reasonTarget.hidden = false;
+
+            return;
+        }
+
+        const response = await fetch(this.savedUrlValue, { credentials: "same-origin" });
+
+        if (false === response.ok) {
+            return;
+        }
+
+        const blob = await response.blob();
+        const bitmap = await createImageBitmap(blob);
+
+        this._stamp = {
+            bytes: await blob.arrayBuffer(),
+            url: URL.createObjectURL(blob),
+            ratio: bitmap.width / bitmap.height,
+        };
+
+        bitmap.close();
+        this.reasonTarget.hidden = true;
+        this.padTarget.hidden = true;
+
+        this.#placeOnCurrentPage();
     }
 
     /** Turn the ink into a stamp and put it on the page to be positioned. */

@@ -47,6 +47,7 @@ proves the document is unaltered.
          data-mail--pdf-sign-filename-value="{{ signedName }}"
          data-mail--pdf-sign-encrypted-text-value="{{ 'attachment.sign.protected'|trans }}"
          data-mail--pdf-sign-unreadable-text-value="{{ 'attachment.sign.unreadable'|trans }}"
+         data-mail--pdf-sign-saved-url-value="{{ app.user.signature ? path('app_settings_profile_signature', { filename: app.user.signature }) : '' }}"
          data-mail--pdf-viewer-src-value="{{ path('app_mail_attachment', { id: part.id }) }}"
          data-mail--pdf-viewer-assets-value="{{ assets|json_encode }}"
          data-mail--pdf-viewer-failed-text-value="{{ 'attachment.preview.failed'|trans }}">
@@ -64,6 +65,16 @@ proves the document is unaltered.
                    a failed load does not leave "1 / 0" on screen. #}
                 <span data-mail--pdf-viewer-target="pages"
                       class="hidden mr-2 text-xs text-ink-faint tabular-nums whitespace-nowrap"></span>
+
+                {% if app.user.signature %}
+                    <button type="button"
+                            data-action="mail--pdf-sign#useSaved"
+                            class="mr-1 inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-medium
+                                   text-ink-soft hover:bg-hover hover:text-ink transition-colors cursor-pointer">
+                        <i class="fa-solid fa-stamp text-[11px]" aria-hidden="true"></i>
+                        {{ 'attachment.sign.use_saved'|trans }}
+                    </button>
+                {% endif %}
 
                 <button type="button"
                         data-action="mail--pdf-sign#open"

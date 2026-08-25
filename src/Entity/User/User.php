@@ -68,6 +68,21 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
     public ?string $avatar = null;
 
     /**
+     * The filename of a saved handwritten signature, for stamping onto PDFs.
+     *
+     * A filename rather than the image, for the same reason the avatar is one:
+     * a PNG has no business in a row that is read on every request. Nullable
+     * because most people will never save one, and clearing it is a normal
+     * thing to do.
+     *
+     * It is a picture of a name and nothing more — no key material, nothing to
+     * verify against. See App\Domain\Helper\SignatureStorage, which is careful
+     * about the difference.
+     */
+    #[ORM\Column(length: 255, nullable: true)]
+    public ?string $signature = null;
+
+    /**
      * The shared TOTP secret, base32, encrypted at rest by the same libsodium
      * key as mailbox passwords — anyone who can read it can mint valid codes
      * forever, so it belongs in the same bracket as a credential, not a

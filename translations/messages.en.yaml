@@ -670,6 +670,7 @@ attachment:
         reply: Reply with signed copy
         protected: This PDF is protected, so it cannot be signed here. Reading it still works.
         unreadable: This PDF cannot be edited here. Reading it still works.
+        use_saved: Use saved signature
     preview:
         download: Download
         failed: This PDF could not be opened. You can still download it.
@@ -2331,6 +2332,16 @@ settings:
         then: Then
         when: When
         yes: Yes
+    handwriting:
+        # The HANDWRITTEN signature — a picture stamped onto a PDF. Not the
+        # `signature` section, which is the text appended to outgoing mail. The
+        # two are unrelated and the wording has to keep them apart.
+        heading: Handwritten signature
+        subheading: Draw it once, and place it on a PDF without drawing it again. It is a picture of your name, not a digital certificate.
+        saved: Your saved signature
+        save: Save signature
+        clear: Clear
+        remove: Remove saved signature
     health:
         awaiting:
             calendar_resync: >-

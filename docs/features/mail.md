@@ -324,6 +324,12 @@ been asked for a *qualified* electronic signature, this is not it.
 plMail's server only sees the result if you choose to reply with it. Nothing is uploaded to a
 signing service, because there is no signing service.
 
+**Save it once instead of drawing it every time.** Settings → Profile has a pad beside your picture;
+draw your signature there and the reader gains a **Use saved signature** button that places it
+without asking you to draw again. It is stored as an image belonging to you, served only to you, and
+you can remove it from the same place. It changes nothing about what the signature *means* — it is
+the same picture of a name either way.
+
 A PDF that is password-protected cannot be signed here — the reader says so, and reading it still
 works. Editing one would mean stripping the protection it was given, which is not a decision plMail
 should make quietly on your behalf.

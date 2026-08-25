@@ -1,4 +1,4 @@
-<!-- translated-from: features/mail.md sha1:fd73344f9fa8c31bd3c411e40dcc73bd156c21b8 -->
+<!-- translated-from: features/mail.md sha1:379d57cb5ef3c1b66d58d115dfcffc017b92f280 -->
 
 # Mail
 
@@ -360,6 +360,13 @@ nicht die richtige.
 **Zum Unterschreiben verlässt das Dokument deinen Browser nicht.** Gestempelt wird auf deinem
 Rechner, und plMails Server sieht das Ergebnis nur, wenn du damit antwortest. Nichts geht an einen
 Signaturdienst, weil es keinen gibt.
+
+**Einmal speichern statt jedes Mal neu zeichnen.** Unter Einstellungen → Profil gibt es neben deinem
+Bild ein Feld zum Zeichnen; zeichne deine Unterschrift dort, und der Leser bekommt einen Knopf
+**Gespeicherte Unterschrift verwenden**, der sie setzt, ohne dass du sie neu zeichnen musst. Sie
+wird als Bild gespeichert, gehört dir, wird nur an dich ausgeliefert, und du kannst sie an derselben
+Stelle wieder entfernen. Was die Unterschrift *bedeutet*, ändert das nicht — es ist so oder so
+dasselbe Bild eines Namens.
 
 Ein passwortgeschütztes PDF lässt sich hier nicht unterschreiben — der Leser sagt das, und lesen
 funktioniert weiterhin. Es zu bearbeiten hieße, den Schutz zu entfernen, den es bekommen hat, und

@@ -16,6 +16,7 @@ use App\Service\Demo\DemoScenario;
 use App\Service\Demo\DemoMode;
 use App\Service\Demo\DemoProvisioner;
 use App\Service\Demo\DemoScenarios;
+use App\Domain\Helper\SignatureStorage;
 use App\Service\Demo\DemoUserEraser;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
@@ -586,6 +587,37 @@ final class DemoFlowTest extends WebTestCase
         $this->expectException(\LogicException::class);
 
         static::getContainer()->get(DemoUserEraser::class)->erase($realUser);
+    }
+
+    /**
+     * Erasing a demo visitor takes their files with them.
+     *
+     * The rows are found through Doctrine's metadata, and a PNG under
+     * var/uploads is not a row — so a blob store owned by a user is invisible
+     * to that walk and has to be named explicitly. On a public demo minting a
+     * throwaway visitor at a time, one file left behind per visitor is
+     * unbounded growth on somebody's disk rather than untidiness.
+     */
+    public function testErasingAVisitorDeletesTheirSavedSignature(): void
+    {
+        $client = $this->demoClient();
+
+        $client->request('GET', '/demo');
+        $client->followRedirect();
+
+        $visitor = $this->visitor();
+
+        self::assertNotNull($visitor, 'the demo should have provisioned a visitor');
+
+        $signatures = static::getContainer()->get(SignatureStorage::class);
+        $filename   = $signatures->store((string) $visitor->id, 'not really a png, and it does not have to be');
+        $path       = $signatures->pathFor((string) $visitor->id, $filename);
+
+        self::assertFileExists($path);
+
+        static::getContainer()->get(DemoUserEraser::class)->erase($visitor);
+
+        self::assertFileDoesNotExist($path, 'the signature outlived the user it belonged to');
     }
 
     // ------------------------------------------------------------ the lockdown

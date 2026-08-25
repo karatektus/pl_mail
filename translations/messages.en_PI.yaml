@@ -412,6 +412,7 @@ attachment:
         reply: Answer with the marked copy
         protected: This scroll be sealed, so ye cannot mark it here. Readin' still works.
         unreadable: This scroll cannot be marked here. Readin' still works.
+        use_saved: Use yer stowed mark
     preview:
         download: Haul aboard
         failed: This scroll would not unroll. Ye can still haul it aboard.
@@ -1984,6 +1985,13 @@ settings:
         then: Then
         when: When
         yes: Aye
+    handwriting:
+        heading: Yer own mark
+        subheading: Scrawl it once and slap it on any scroll thereafter. 'Tis a picture of yer name, not a seal of office.
+        saved: Yer stowed mark
+        save: Stow the mark
+        clear: Scrub it out
+        remove: Throw the stowed mark overboard
     health:
         awaiting:
             calendar_resync: >-

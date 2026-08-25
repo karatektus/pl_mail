@@ -675,6 +675,7 @@ attachment:
         reply: Mit unterschriebener Kopie antworten
         protected: Dieses PDF ist geschützt und kann hier nicht unterschrieben werden. Lesen geht weiterhin.
         unreadable: Dieses PDF lässt sich hier nicht bearbeiten. Lesen geht weiterhin.
+        use_saved: Gespeicherte Unterschrift verwenden
     preview:
         download: Herunterladen
         failed: Dieses PDF konnte nicht geöffnet werden. Du kannst es trotzdem herunterladen.
@@ -2339,6 +2340,13 @@ settings:
         then: Dann
         when: Wenn
         yes: Ja
+    handwriting:
+        heading: Handschriftliche Unterschrift
+        subheading: Einmal zeichnen und danach auf jedes PDF setzen, ohne sie neu zu zeichnen. Das ist ein Bild deines Namens, kein digitales Zertifikat.
+        saved: Deine gespeicherte Unterschrift
+        save: Unterschrift speichern
+        clear: Löschen
+        remove: Gespeicherte Unterschrift entfernen
     health:
         awaiting:
             calendar_resync: >-

@@ -161,6 +161,15 @@ test.describe("admin integrations", () => {
         // suite, on the run where the machine was busiest.
         const drive = providerRow(page, "Google Drive");
         await drive.locator("summary").click();
+
+        // The wait, not a redundant assertion. Opening a row loads its body
+        // into the frame, and the button does not exist until that lands —
+        // clicking straight through auto-waits for the BUTTON but not for the
+        // frame, so the click can be aimed at a row the response then re-renders
+        // closed. Waiting for it to be visible is waiting for the frame to
+        // settle, and removing this line is what put the flake back.
+        await expect(drive.getByRole("button", { name: /Reuse Gmail sign-in/ })).toBeVisible();
+
         await drive.getByRole("button", { name: /Reuse Gmail sign-in/ }).click();
 
         // Wait for the copy to land before reopening: the response replaces the
