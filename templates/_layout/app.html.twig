@@ -185,7 +185,11 @@
     {# has-demo-bar: the fixed demo bar overlays the panes, so scrollers need
        room to bring their last row clear of it. See app.css. #}
     class="{% block body_class %}{% endblock %}{% if app.user and demo.isEnabled %} has-demo-bar{% endif %}"
-    data-controller="ui--tooltip {% if app.user %}{% block body_controllers %}core--mercure{% endblock %}{% endif %}"
+    data-controller="ui--tooltip {% if app.user %}{% block body_controllers %}core--mercure mail--jobs{% endblock %}{% endif %}"
+    {# On the BODY, beside the controller that reads it: a Stimulus value has to
+       live on the same element as its controller, and this one sat on the pane
+       below where it was silently never read. #}
+    {% if app.user %}data-mail--jobs-url-value="{{ path('app_jobs_indicator') }}"{% endif %}
     {% if app.user %}
         {# URL only. The cookie that authorizes this subscription is attached by
            MercureCookieSubscriber — passing `subscribe:` here would mint it too,
@@ -197,7 +201,8 @@
            are routed here too: a bulk action writes one request per selected
            row, and a refresh landing mid-run undoes the rows it has already
            finished. See mail_pane_controller#hold. #}
-        data-action="core--mercure:mailbox-synced->mail--mail-pane#onMailboxSynced
+        data-action="core--mercure:jobs-changed->mail--jobs#refresh
+                     core--mercure:mailbox-synced->mail--mail-pane#onMailboxSynced
                      core--mercure:account-synced->mail--mail-pane#onAccountSynced
                      mail--list-toolbar:writing->mail--mail-pane#hold
                      mail--list-toolbar:written->mail--mail-pane#release"

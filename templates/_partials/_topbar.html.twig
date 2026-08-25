@@ -309,6 +309,18 @@
 
     {# Right actions #}
     <div class="flex items-center gap-1 flex-shrink-0">
+        {# Background work, and nothing at all when there is none.
+
+           A whole-view action runs on a worker now — the request that used to
+           mark five thousand conversations read inline died at thirty seconds —
+           so this is the only place the user can see it happening. The frame
+           renders empty when there are no jobs, which is why there is no
+           wrapper or spacing around it: an indicator that is always present is
+           another fixture to learn to ignore. #}
+        {% if app.user %}
+            {{ include('mail/_jobs_indicator.html.twig', { jobs: background_jobs() }) }}
+        {% endif %}
+
         {# TEMPORARY: manual sync trigger (app:mail:sync) #}
         <button
             type="button"

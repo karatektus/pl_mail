@@ -1,0 +1,34 @@
+{#
+mail/_job_started.stream.html.twig
+─────────────────────────────────────────────────────────────────────────────
+The answer to a whole-view action, now that the work happens elsewhere.
+
+Two things, and deliberately not a third. The indicator is told to redraw, so
+the work becomes visible immediately rather than when the first chunk lands. And
+a toast says it started — because the list does NOT change yet, and an action
+that appears to do nothing is one people press again.
+
+What is not here: any change to the list. Five thousand rows will move as the
+job runs, and the list finds out the way it always does, from the writes the
+job makes.
+
+Variables: job
+#}
+{# The indicator's content, rendered here rather than a frame told to fetch
+   itself. Replacing a frame with another frame carrying the same src does not
+   reliably re-fetch — Turbo considers a frame it has already loaded complete —
+   and the point of this response is that something appears NOW. #}
+<turbo-stream action="replace" target="jobs-indicator">
+    <template>
+        {{ include('mail/_jobs_indicator.html.twig', { jobs: [job] }) }}
+    </template>
+</turbo-stream>
+
+<turbo-stream action="append" target="toast-region">
+    <template>
+        {% include '_partials/_toast.html.twig' with {
+            type:    'info',
+            message: 'jobs.started'|trans({ '%action%': job.kind.labelKey()|trans|lower }),
+        } only %}
+    </template>
+</turbo-stream>

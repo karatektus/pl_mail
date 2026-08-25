@@ -407,6 +407,13 @@ export default class extends Controller {
             // lives on the MailRule row, so a missed message costs a stale
             // panel until the next load, never a wrong answer.
             this.dispatch("rule-run", {detail: data});
+        } else if (data.type === "jobs.changed") {
+            // Published by App\Service\Job\JobNotifier on every chunk a bulk
+            // action completes, and on the transitions either side of them.
+            // Carries no state on purpose — the job row is the record, and the
+            // indicator re-reads it — so a nudge that is missed costs one stale
+            // render rather than a wrong number.
+            this.dispatch("jobs-changed", {detail: data});
         } else if (data.type === "mail.send-outcome") {
             // The one branch here that renders rather than dispatches, and it
             // is deliberate: the payload carries a turbo-stream the SERVER

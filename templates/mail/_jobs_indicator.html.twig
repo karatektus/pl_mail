@@ -1,0 +1,104 @@
+{#
+mail/_jobs_indicator.html.twig
+─────────────────────────────────────────────────────────────────────────────
+Background work, in the topbar, and only when there is any.
+
+A whole-view action — "mark all 5,455 read" — runs on a worker now, so the page
+answers immediately and the work happens somewhere the user cannot see. This is
+where they can see it.
+
+NOT RENDERED WHEN THERE IS NOTHING TO SAY, and that is the whole design of it.
+An indicator that is always present is another permanent fixture to learn to
+ignore; one that appears only while something is happening is read the moment it
+appears. The frame collapses to nothing when the list is empty.
+
+A job that SUCCEEDED does not linger — see BackgroundJobRepository::findVisibleForUser.
+It has already changed the list the user is looking at, so an indicator
+reporting it says something they can see, and an indicator that appears and
+disappears on its own is a topbar that reflows for no reason. A FAILURE is the
+opposite: nothing changed, and if this does not say so, nothing does.
+
+Refreshed by core--mercure on `jobs.changed`, which carries no state: the row is
+the record and a missed nudge costs one stale render, never a wrong answer.
+#}
+{# NO `src`, deliberately. A frame with one fetches itself on every page load,
+   which is a request per page for every user answering "nothing is happening"
+   almost every time — and it broke the appearance preview's assertion that it
+   loads no mail, which was right to complain.
+
+   The topbar renders this with whatever jobs exist, which is one indexed query
+   it is already making a page render for. From then on it is replaced: by the
+   response to starting a job, and by mail--jobs when Mercure says one moved.
+   The route stays, because that is what mail--jobs re-reads. #}
+<turbo-frame id="jobs-indicator">
+    {% if jobs is defined and jobs|length > 0 %}
+        {% set active = jobs|filter(j => j.isActive())|length %}
+        {% set failed = jobs|filter(j => j.state.value == 'failed')|length %}
+
+        <div class="relative" data-controller="ui--dropdown">
+            <button
+                type="button"
+                data-action="click->ui--dropdown#toggle"
+                class="flex cursor-pointer items-center justify-center w-9 h-9 rounded-lg
+                       text-ink-muted hover:bg-hover transition-colors flex-shrink-0"
+                aria-label="{{ 'jobs.heading'|trans }}"
+                title="{{ 'jobs.heading'|trans }}"
+            >
+                {# Spinning only while something is actually running: a static
+                   glyph for "finished, here is what happened" and a moving one
+                   for "still going" is the difference the eye reads first. #}
+                <i class="fa-solid fa-list-check text-base {{ active > 0 ? 'fa-fade' : '' }}
+                          {{ failed > 0 ? 'text-danger' : (active > 0 ? 'text-accent' : '') }}"
+                   aria-hidden="true"></i>
+            </button>
+
+            <div
+                data-ui--dropdown-target="menu"
+                data-enter="slide-down"
+                class="hidden absolute right-0 top-full mt-1 z-30 w-80
+                       rounded-pane bg-pane-soft backdrop-blur-sm
+                       border border-line shadow-pop p-2 text-sm"
+            >
+                <p class="px-2 py-1 text-xs font-semibold text-ink">{{ 'jobs.heading'|trans }}</p>
+
+                <ul class="mt-1 space-y-1">
+                    {% for job in jobs %}
+                        <li class="rounded-lg px-2 py-2 {{ job.isActive() ? 'bg-accent-soft/40' : '' }}">
+                            <div class="flex items-baseline justify-between gap-2">
+                                <span class="text-xs font-medium text-ink truncate">
+                                    {{ job.kind.labelKey()|trans }}
+                                </span>
+                                <span class="text-[11px] text-ink-faint tabular-nums shrink-0">
+                                    {% if job.state.value == 'failed' %}
+                                        {{ 'jobs.state.failed'|trans }}
+                                    {% elseif job.state.value == 'done' %}
+                                        {{ 'jobs.state.done'|trans({ '%count%': job.total }) }}
+                                    {% elseif job.total > 0 %}
+                                        {{ job.processed }} / {{ job.total }}
+                                    {% else %}
+                                        {{ 'jobs.state.queued'|trans }}
+                                    {% endif %}
+                                </span>
+                            </div>
+
+                            {% if job.isActive() and job.total > 0 %}
+                                {# Width from the job's own percent(), which
+                                   floors and never reports more than 100 — a
+                                   bar that reaches the end before the work does
+                                   is worse than no bar. #}
+                                <div class="mt-1.5 h-1 rounded-full bg-line overflow-hidden">
+                                    <div class="h-full bg-accent transition-all duration-300"
+                                         style="width: {{ job.percent() }}%"></div>
+                                </div>
+                            {% endif %}
+
+                            {% if job.failureReason %}
+                                <p class="mt-1 text-[11px] text-danger break-words">{{ job.failureReason }}</p>
+                            {% endif %}
+                        </li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    {% endif %}
+</turbo-frame>

@@ -6,11 +6,15 @@ namespace App\Controller\Mail;
 
 use App\Controller\ChecksCsrf;
 use App\Controller\RendersTurboStreams;
+use App\Domain\Enum\Job\JobKind;
+use App\Entity\Job\BackgroundJob;
 use App\Entity\User\User;
+use App\Infrastructure\Messaging\Message\RunBulkStatusMessage;
 use App\Repository\Mail\MessageThreadRepository;
 use App\Security\Voter\OwnershipVoter;
-use App\Service\Mail\ListViewResolver;
 use App\Service\Mail\ThreadStatusUpdater;
+use Doctrine\ORM\EntityManagerInterface;
+use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -37,7 +41,8 @@ final class BulkStatusController extends AbstractController
     public function __construct(
         private readonly MessageThreadRepository $threadRepository,
         private readonly ThreadStatusUpdater     $status,
-        private readonly ListViewResolver        $views,
+        private readonly EntityManagerInterface  $entityManager,
+        private readonly MessageBusInterface     $bus,
     ) {
     }
 
@@ -56,7 +61,8 @@ final class BulkStatusController extends AbstractController
      * answers with the list frame, once, which is the only thing that does.
      *
      * @see ListViewResolver for why the view arrives as a named scope rather
-     *      than as the URL the user is on.
+     *      than as the URL the user is on — it is resolved by
+     *      RunBulkStatusHandler now, where the work happens.
      */
     #[Route('/{action}', name: 'run', methods: ['POST'], requirements: ['action' => 'archive|trash|read|restore'])]
     public function bulk(Request $request, string $action): Response
@@ -69,14 +75,25 @@ final class BulkStatusController extends AbstractController
         $body = json_decode($request->getContent(), true);
         $body = is_array($body) ? $body : [];
 
-        $threads = true === ($body['all'] ?? false)
-            ? $this->views->threadsIn(
-                $user,
-                (string) ($body['scope'] ?? ''),
-                (string) ($body['value'] ?? ''),
-                true === ($body['unreadOnly'] ?? false),
-            )
-            : $this->threadRepository->findBy(['id' => array_map(intval(...), (array) ($body['ids'] ?? []))]);
+        // A WHOLE VIEW GOES TO A WORKER. An explicit list of ids does not.
+        //
+        // The two are different sizes by construction: a list of ids comes from
+        // rows on screen and is bounded by the page, while a view selection is
+        // however much mail the user has. Doing the second one inline is what
+        // produced `Maximum execution time of 30 seconds exceeded` on a mailbox
+        // with five thousand unread — every thread hydrated, every message
+        // loaded, an ownership check apiece, inside a request with thirty
+        // seconds to live. The user got a broken page and no way to tell how
+        // much of it had happened.
+        //
+        // The small case stays inline deliberately. It is the common one, it
+        // finishes in milliseconds, and answering it with "started" instead of
+        // the result would make every ordinary archive feel slower.
+        if (true === ($body['all'] ?? false)) {
+            return $this->startJob($user, $action, $body);
+        }
+
+        $threads = $this->threadRepository->findBy(['id' => array_map(intval(...), (array) ($body['ids'] ?? []))]);
 
         // Grouped by account, and that is not an optimisation.
         // ThreadStatusUpdater resolves the destination label and its IMAP
@@ -128,6 +145,34 @@ final class BulkStatusController extends AbstractController
             // marking read leaves it exactly where it was and only changes how
             // it draws.
             'leaves'  => 'read' !== $action,
+        ]);
+    }
+    /**
+     * Hand a whole-view action to a worker and say so.
+     *
+     * The job row is created here rather than in the handler so the answer can
+     * name it: the page gets an indicator with something in it immediately,
+     * instead of a spinner waiting for a worker to pick the envelope up.
+     *
+     * @param array<string, mixed> $body
+     */
+    private function startJob(User $user, string $action, array $body): Response
+    {
+        $job = new BackgroundJob($user, JobKind::forAction($action, true === ($body['read'] ?? true)));
+
+        $job->view = [
+            'scope'      => (string) ($body['scope'] ?? ''),
+            'value'      => (string) ($body['value'] ?? ''),
+            'unreadOnly' => true === ($body['unreadOnly'] ?? false),
+        ];
+
+        $this->entityManager->persist($job);
+        $this->entityManager->flush();
+
+        $this->bus->dispatch(new RunBulkStatusMessage((int) $job->id));
+
+        return $this->renderTurboStream('mail/_job_started.stream.html.twig', [
+            'job' => $job,
         ]);
     }
 }

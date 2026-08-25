@@ -1557,6 +1557,19 @@ integration:
         timeline: 'Zu einem Datum springen'
         too_big: 'Zu groß zum Anhängen'
 
+jobs:
+    heading: Hintergrundarbeit
+    started: '%action% gestartet — das läuft im Hintergrund.'
+    kind:
+        mark_read: Als gelesen markieren
+        mark_unread: Als ungelesen markieren
+        archive: Archivieren
+        trash: In den Papierkorb verschieben
+        restore: Wiederherstellen
+    state:
+        queued: wartet
+        done: '%count% erledigt'
+        failed: fehlgeschlagen
 label:
     all_accounts: Alle Konten
     color:

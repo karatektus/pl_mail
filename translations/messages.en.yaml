@@ -1551,6 +1551,19 @@ integration:
         timeline: 'Jump to a date'
         too_big: 'Too large to attach'
 
+jobs:
+    heading: Background work
+    started: 'Started %action% — this runs in the background.'
+    kind:
+        mark_read: Marking as read
+        mark_unread: Marking as unread
+        archive: Archiving
+        trash: Moving to bin
+        restore: Restoring
+    state:
+        queued: waiting
+        done: '%count% done'
+        failed: failed
 label:
     all_accounts: All accounts
     color:

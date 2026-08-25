@@ -56,9 +56,12 @@ final class GmailIdsSurviveArrayKeysTest extends TestCase
 
         self::assertSame(['1992288000000000', '18f2a1b3c4d5e6f7'], $ids);
 
+        // And the call that actually threw now has something it accepts. Called
+        // rather than type-asserted: urlencode() returns a string by signature,
+        // so asserting that proves nothing — what is being checked is that it
+        // does not raise a TypeError on this input.
         foreach ($ids as $id) {
-            // The call that actually threw.
-            self::assertIsString(urlencode($id));
+            self::assertNotSame('', urlencode($id));
         }
     }
 }
