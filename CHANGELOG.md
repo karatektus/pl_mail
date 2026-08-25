@@ -6,6 +6,31 @@ so anything that changes the schema irreversibly is called out explicitly.
 The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, and `sha-…` pins one commit.
 
+## v0.1.33 — 2026-08-25
+
+**Adds a table; the migration runs on boot. Acting on a whole view no longer times out.**
+
+### Added
+
+- **Acting on a whole view now runs in the background, with an indicator that says so.** Selecting
+  every conversation in a view and marking it read — 5,455 of them, in the report this came from —
+  hit the thirty-second request limit and left a broken page with no way to tell how much had
+  happened. It becomes a job now: the page answers straight away, and a control appears in the
+  topbar showing what is running and how far along it is.
+
+  The indicator is not there when nothing is happening, and does not linger after a job succeeds —
+  the list already shows the result. A job that *fails* stays for five minutes, because nothing else
+  would tell you.
+
+  Selecting rows on the page still acts immediately. That is bounded by what is on screen, finishes
+  in milliseconds, and would only feel slower for being deferred.
+
+### Fixed
+
+- **"New event on today" opened in the past, for the last hour of every day.** After 23:00 the
+  calendar's new-event dialog offered 00:00 *that morning* rather than the next full hour — the
+  whole day behind the clock, on the field you are most likely to accept unchanged.
+
 ## v0.1.32 — 2026-08-25
 
 **Adds three columns; the migrations run on boot. Two silent mail-loss bugs on Gmail accounts, and
