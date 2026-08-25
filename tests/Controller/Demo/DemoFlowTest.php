@@ -207,24 +207,41 @@ final class DemoFlowTest extends WebTestCase
         // on a mailbox of 14 — and an assertion that needs editing whenever the
         // fixture grows is testing the fixture, not the behaviour.
         //
-        // What is actually true, and stays true however many threads are
-        // added: every message is its own thread EXCEPT the conversation,
-        // whose turns collapse into one.
+        // What is actually true, and stays true however many single messages
+        // are added: everything is its own thread except the two groups that
+        // are supposed to collapse — the conversation's turns, and the bounce
+        // pair, whose DSN references the message it is reporting on.
+        $collapsed = (count(DemoMailbox::CONVERSATION) - 1) + 1;
+
         self::assertCount(
-            count($messages) - (count(DemoMailbox::CONVERSATION) - 1),
+            count($messages) - $collapsed,
             $threads,
-            'every message should be its own thread except the conversation, which collapses',
+            'every message should be its own thread except the conversation and the bounce pair',
         );
 
-        // And the collapse is real: exactly one thread holds more than one
-        // message, and it holds all of the conversation's turns.
+        // And the collapses are real: two threads hold more than one message.
         $multi = array_values(array_filter(
             $threads,
             static fn ($thread): bool => $thread->messageCount > 1,
         ));
 
-        self::assertCount(1, $multi, 'the demo should contain exactly one conversation');
+        usort($multi, static fn ($a, $b): int => $b->messageCount <=> $a->messageCount);
+
+        self::assertCount(2, $multi, 'the conversation and the bounce pair, and nothing else');
         self::assertSame(count(DemoMailbox::CONVERSATION), $multi[0]->messageCount);
+        self::assertSame(2, $multi[1]->messageCount, 'the bounce sits with the message it bounced');
+
+        // The bounce was correlated by the real BounceCorrelator during
+        // seeding, so a demo that stops showing the red banner is a detection
+        // regression rather than a fixture edit. See DemoMailbox::seedBounce().
+        $bounced = array_values(array_filter(
+            $messages,
+            static fn ($message): bool => null !== $message->bouncedAt,
+        ));
+
+        self::assertCount(1, $bounced, 'exactly the one message that was sent to a bad domain');
+        self::assertSame('5.4.4', $bounced[0]->bounceStatus);
+        self::assertSame('versand@nordwind-logistik.exmaple', $bounced[0]->bounceRecipient);
 
         // The pipeline ran, which is the whole reason seeding goes through it:
         // categories are decided from headers, and a mailbox written as
@@ -257,6 +274,46 @@ final class DemoFlowTest extends WebTestCase
 
         self::assertResponseIsSuccessful();
         self::assertStringNotContainsString('/login', (string) $client->getRequest()->getUri());
+
+        $this->eraseDemoUsers();
+    }
+
+    /**
+     * The bounce panel actually renders, on the page a visitor would open.
+     *
+     * DemoMailbox::seedBounce() proves the correlation; this proves the half
+     * that faces a person. They are separate failures: the columns can be
+     * stamped perfectly while the partial that reads them throws, or renders
+     * nothing, and the thread view is the one place either would be noticed.
+     */
+    public function testTheBouncePanelIsVisibleOnTheThreadThatFailed(): void
+    {
+        $client    = $this->demoClient();
+        $container = static::getContainer();
+
+        $client->request('GET', '/demo');
+        $client->followRedirects();
+
+        $bounced = null;
+
+        foreach ($container->get(MessageRepository::class)->findAll() as $message) {
+            if (null !== $message->bouncedAt) {
+                $bounced = $message;
+            }
+        }
+
+        self::assertNotNull($bounced, 'the demo seeds one message that did not arrive');
+        self::assertNotNull($bounced->thread);
+
+        $client->request('GET', '/mail/thread/' . $bounced->thread->id);
+
+        self::assertResponseIsSuccessful();
+
+        $html = (string) $client->getResponse()->getContent();
+
+        self::assertStringContainsString('data-testid="bounce-notice"', $html);
+        self::assertStringContainsString('versand@nordwind-logistik.exmaple', $html);
+        self::assertStringContainsString('Host not found', $html, "the server's own words, not a paraphrase");
 
         $this->eraseDemoUsers();
     }

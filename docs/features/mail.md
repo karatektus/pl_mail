@@ -504,6 +504,37 @@ Two things narrow it further, both in the same direction:
   automatically — it asks you, and says what the mismatch was. Not silence, because the legitimate
   version of that shape is a bulk sender collecting at its bounce address.
 
+## When mail does not arrive
+
+A message that is refused comes back as a **delivery status notification** — a machine-generated
+mail from `MAILER-DAEMON` whose body is an SMTP transcript. On its own that is easy to miss and hard
+to read, and the message it is about goes on sitting in **Sent** looking like it worked.
+
+plMail attaches the report to the message it concerns. The failed message gains a red
+**Not delivered** panel naming the recipient that failed, the reporting server's own words, and the
+time and status code:
+
+> **Not delivered to versand@nordwind-logistik.exmaple.**
+> smtp; 550 5.4.4 [Host not found] the domain nordwind-logistik.exmaple does not exist
+> 26 Aug, 14:12 · 5.4.4
+
+Three things it deliberately does not do:
+
+- **The bounce is not filed away.** Unlike a read receipt, it stays unread in the Inbox. Its body is
+  frequently the only readable statement of what went wrong, and a failure you may have to act on is
+  not something to tidy up on your behalf.
+- **Nothing is retried and no address is disabled.** plMail records what one server said about one
+  attempt. Whether the address was a typo, a mailbox that is full, or a server having a bad morning
+  is not something it can tell from the report — so it shows you the report and leaves the decision
+  where it belongs.
+- **A delay notice is not a bounce.** Mail servers send one of these after a few hours and keep
+  trying for days. A message still in flight is not marked as failed, because the panel would then
+  be wrong at exactly the moment it mattered and nothing would clear it when the mail went through.
+
+A bounce for a message this mailbox never sent — which arrives constantly, as forged mail bounces
+back at the address it was forged from — is ignored. The report has to name a message you actually
+sent before anything is attached to anything.
+
 ## Undo send
 
 Pressing send queues the message with a **ten-second** delay and leaves the composer exactly where

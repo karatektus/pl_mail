@@ -31,6 +31,7 @@ use App\Service\Imap\MessageThreader;
 use App\Service\Label\LabelResolver;
 use App\Service\Label\ThreadLabelSynchronizer;
 use App\Service\Mail\AttachmentResolver;
+use App\Service\Mail\BounceCorrelator;
 use App\Service\Mail\MailChangeRecorder;
 use App\Service\Mail\MailSenderRegistry;
 use App\Service\Mail\ReadReceiptCorrelator;
@@ -689,6 +690,7 @@ final class ReadReceiptTest extends KernelTestCase
         $handler = new ProcessReadReceiptsHandler(
             $container->get(MessageRepository::class),
             $container->get(ReadReceiptCorrelator::class),
+            $container->get(BounceCorrelator::class),
             $this->policy,
             $container->get(MailChangeRecorder::class),
             $this->em,

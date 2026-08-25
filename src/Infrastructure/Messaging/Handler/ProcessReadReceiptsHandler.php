@@ -7,6 +7,7 @@ namespace App\Infrastructure\Messaging\Handler;
 use App\Entity\Mail\Message;
 use App\Infrastructure\Messaging\Message\ProcessReadReceiptsMessage;
 use App\Repository\Mail\MessageRepository;
+use App\Service\Mail\BounceCorrelator;
 use App\Service\Mail\MailChangeRecorder;
 use App\Service\Mail\ReadReceiptCorrelator;
 use App\Service\Mail\ReadReceiptPolicy;
@@ -14,13 +15,15 @@ use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 
 /**
- * Reads a freshly ingested batch for anything read-receipt shaped.
+ * Reads a freshly ingested batch for anything report-shaped: read receipts,
+ * and the bounces that share their envelope.
  *
- * Two passes over the same messages, and the order between them matters only
- * in that they are exclusive: a disposition notification is never itself a
- * request for one, so a row that correlates as a receipt is not then flagged
- * as asking for a receipt. Doing it the other way round would have plMail
- * asking for a read receipt on read receipts.
+ * Three passes over the same messages, and the order between them matters only
+ * in that they are exclusive: a report is never itself a request for a
+ * receipt, so a row that correlates as one is not then flagged as asking for
+ * one. Doing it the other way round would have plMail asking for a read
+ * receipt on read receipts and on bounces — the second of which would mail an
+ * MDN to a null sender at a dead MTA.
  *
  * NOTHING IS SENT HERE. Flagging a message as receipt-requested is the whole
  * of the incoming half; the MDN — if any — goes out on the read transition,
@@ -34,6 +37,7 @@ readonly class ProcessReadReceiptsHandler
     public function __construct(
         private MessageRepository     $messages,
         private ReadReceiptCorrelator $correlator,
+        private BounceCorrelator      $bounces,
         private ReadReceiptPolicy     $policy,
         private MailChangeRecorder    $changes,
         private EntityManagerInterface $em,
@@ -50,6 +54,12 @@ readonly class ProcessReadReceiptsHandler
 
         foreach ($this->messages->findByIds($msg->messageIds) as $message) {
             if (true === $this->handleReport($message)) {
+                $touched = true;
+
+                continue;
+            }
+
+            if (true === $this->handleBounce($message)) {
                 $touched = true;
 
                 continue;
@@ -92,6 +102,40 @@ readonly class ProcessReadReceiptsHandler
         $accountId = (int) $message->account->id;
 
         $this->changes->emailChanged($accountId, (string) $message->id, created: false, thread: $message->thread);
+        $this->changes->emailChanged(
+            (int) $original->account->id,
+            (string) $original->id,
+            created: false,
+            thread: $original->thread,
+        );
+
+        return true;
+    }
+
+    /**
+     * An inbound DSN: stamp the message that failed to arrive.
+     *
+     * The bounce itself is left alone — not marked read, not taken off the
+     * Inbox, unlike the MDN above. It is real mail from a real server about a
+     * real failure, its body is where the reason actually is, and hiding it
+     * would leave the stamped "not delivered" on the sent message as the only
+     * trace of an event the user may need to act on.
+     *
+     * Only the ORIGINAL is announced to JMAP clients, for the same reason: the
+     * bounce row did not change, so there is nothing to tell anyone about it.
+     */
+    private function handleBounce(Message $message): bool
+    {
+        if (false === $this->bounces->isDeliveryStatusNotification($message)) {
+            return false;
+        }
+
+        $original = $this->bounces->correlate($message);
+
+        if (null === $original) {
+            return false;
+        }
+
         $this->changes->emailChanged(
             (int) $original->account->id,
             (string) $original->id,

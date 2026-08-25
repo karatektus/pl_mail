@@ -1636,6 +1636,10 @@ message:
     attachments: Attachments
     back: Back
     body_frame: Message content
+    bounce:
+        failed: 'This message was not delivered.'
+        failed_for: 'Not delivered to %recipient%.'
+        reported_at: 'Reported %datetime%'
     details:
         categorised:
             correspondent: 'you have written to this sender'
@@ -2368,6 +2372,7 @@ settings:
                 This throws the waiting work away for good. Nothing is retried
                 and it cannot be brought back. Continue?
         fact:
+            last_full_resync: 'Re-listed the whole mailbox (%count%×)'
             never: 'never'
             never_delivered: 'nothing has ever arrived'
             never_run: 'no run recorded'

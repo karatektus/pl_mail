@@ -1,4 +1,4 @@
-<!-- translated-from: features/mail.md sha1:379d57cb5ef3c1b66d58d115dfcffc017b92f280 -->
+<!-- translated-from: features/mail.md sha1:e7c5fd3b316e9670e491e9a018a06c75f7800382 -->
 
 # Mail
 
@@ -561,6 +561,40 @@ Zwei Dinge engen das weiter ein, beide in dieselbe Richtung:
   beantwortet plMail sie nicht automatisch — es fragt dich und nennt den Widerspruch. Nicht
   Schweigen, denn die legitime Fassung dieser Form ist ein Massenversender, der an seiner
   Bounce-Adresse sammelt.
+
+## Wenn Mail nicht ankommt
+
+Eine abgelehnte Nachricht kommt als **Delivery Status Notification** zurück — eine maschinell
+erzeugte Mail von `MAILER-DAEMON`, deren Text ein SMTP-Protokoll ist. Für sich genommen übersieht
+man sie leicht und liest sie schwer, und die Nachricht, um die es geht, steht weiter in **Gesendet**,
+als hätte alles geklappt.
+
+plMail hängt den Bericht an die Nachricht, um die es geht. Die fehlgeschlagene Nachricht bekommt ein
+rotes Feld **Nicht zugestellt** mit der Adresse, die fehlgeschlagen ist, dem Wortlaut des meldenden
+Servers sowie Zeit und Statuscode:
+
+> **Nicht zugestellt an versand@nordwind-logistik.exmaple.**
+> smtp; 550 5.4.4 [Host not found] the domain nordwind-logistik.exmaple does not exist
+> 26. Aug, 14:12 · 5.4.4
+
+Drei Dinge passieren bewusst nicht:
+
+- **Der Bounce wird nicht weggeräumt.** Anders als eine Lesebestätigung bleibt er ungelesen im
+  Posteingang. Sein Text ist oft die einzige lesbare Auskunft darüber, was schiefging, und einen
+  Fehler, auf den du reagieren musst, räumt dir niemand ungefragt weg.
+- **Es wird nichts erneut versucht und keine Adresse abgeschaltet.** plMail hält fest, was ein Server
+  zu einem Zustellversuch gesagt hat. Ob die Adresse ein Tippfehler war, ein volles Postfach oder ein
+  Server mit einem schlechten Vormittag, geht aus dem Bericht nicht hervor — also zeigt plMail dir
+  den Bericht und überlässt dir die Entscheidung.
+- **Eine Verzögerungsmeldung ist kein Bounce.** Mailserver schicken so etwas nach ein paar Stunden
+  und versuchen es tagelang weiter. Eine Nachricht, die noch unterwegs ist, wird nicht als
+  gescheitert markiert — das Feld wäre genau dann falsch, wenn es darauf ankommt, und nichts würde
+  es zurücknehmen, sobald die Mail doch durchgeht.
+
+Ein Bounce zu einer Nachricht, die dieses Postfach nie gesendet hat, wird ignoriert — so etwas kommt
+ständig an, weil gefälschte Mail an die Adresse zurückprallt, in deren Namen sie verschickt wurde.
+Der Bericht muss eine Nachricht nennen, die du wirklich gesendet hast, bevor irgendetwas verknüpft
+wird.
 
 ## Senden rückgängig machen
 

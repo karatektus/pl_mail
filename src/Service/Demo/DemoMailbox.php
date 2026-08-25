@@ -19,6 +19,7 @@ use App\Repository\Calendar\CalendarEventRepository;
 use App\Repository\Mail\ContactRepository;
 use App\Repository\Mail\MessageThreadRepository;
 use App\Service\Label\LabelResolver;
+use App\Service\Mail\BounceCorrelator;
 use App\Service\Calendar\CalendarEventWriter;
 use App\Service\Calendar\CalendarProvisioner;
 use App\Service\Mail\PostIngestPipeline;
@@ -325,6 +326,7 @@ final readonly class DemoMailbox
         private CalendarProvisioner      $calendarProvisioner,
         private CalendarEventWriter      $calendarWriter,
         private UserTimezoneResolver     $timezones,
+        private BounceCorrelator         $bounces,
     ) {
     }
 
@@ -543,7 +545,11 @@ final readonly class DemoMailbox
 
         $this->entityManager->flush();
 
-        return array_merge($messages, $this->seedConversation($account, $inbox, $sent, $now));
+        return array_merge(
+            $messages,
+            $this->seedConversation($account, $inbox, $sent, $now),
+            $this->seedBounce($account, $inbox, $sent, $now),
+        );
     }
 
     /**
@@ -615,6 +621,99 @@ final readonly class DemoMailbox
         }
 
         return $messages;
+    }
+
+    /**
+     * One message that did not arrive, and the bounce that says so.
+     *
+     * The demo otherwise shows only mail that worked, which makes the one
+     * outcome a person actually has to act on the one thing they cannot see.
+     * A typo'd address is the most ordinary way mail fails and the easiest to
+     * recognise, so that is what this is: a reply sent to `.exmaple`, and the
+     * MAILER-DAEMON answer four minutes later.
+     *
+     * The bounce is correlated by the REAL BounceCorrelator rather than by
+     * setting the columns here. Seeding the stamped result directly would make
+     * this a picture of the feature that stays green when the feature breaks —
+     * and this is a demo whose whole job is to be the place new work gets
+     * looked at. If detection regresses, the red banner disappears from the
+     * demo, which is exactly the alarm that ought to sound.
+     *
+     * @return list<Message>
+     */
+    private function seedBounce(
+        Account           $account,
+        Label             $inbox,
+        Label             $sent,
+        DateTimeImmutable $now,
+    ): array {
+        $sentAt    = $now->modify('-3 hours');
+        $messageId = MessageIdHelper::mint(self::ACCOUNT_EMAIL);
+
+        $outgoing = new Message();
+        $outgoing->account        = $account;
+        $outgoing->messageId      = $messageId;
+        $outgoing->subject        = 'Re: Lieferschein 4471';
+        $outgoing->fromName       = 'You';
+        $outgoing->fromAddress    = self::ACCOUNT_EMAIL;
+        $outgoing->toAddresses    = [['name' => 'Nordwind Logistik', 'address' => 'versand@nordwind-logistik.exmaple']];
+        $outgoing->bodyText       = "That is the wrong delivery note — 4471 is the pallet we sent back in June.\n\n"
+            . 'Could you check against the collection receipt and send the corrected one?';
+        $outgoing->receivedAt     = $sentAt;
+        $outgoing->sentAt         = $sentAt;
+        $outgoing->syncedAt       = $now;
+        $outgoing->flags          = [];
+        $outgoing->hasAttachments = false;
+        $outgoing->seenAt         = $sentAt;
+        $outgoing->addLabel($sent);
+
+        $this->entityManager->persist($outgoing);
+        $this->entityManager->flush();
+
+        $this->pipeline->run($account, [new IngestedMessage($outgoing, $account)]);
+
+        $bouncedAt = $sentAt->modify('+4 minutes');
+
+        $dsn = new Message();
+        $dsn->account        = $account;
+        $dsn->messageId      = MessageIdHelper::mint('mailer-daemon@plmail.demo');
+        $dsn->subject        = 'Undelivered Mail Returned to Sender';
+        $dsn->fromName       = 'Mail Delivery System';
+        $dsn->fromAddress    = 'MAILER-DAEMON@plmail.demo';
+        $dsn->toAddresses    = [['name' => 'You', 'address' => self::ACCOUNT_EMAIL]];
+        $dsn->headers        = ['content-type' => 'multipart/report; report-type=delivery-status; boundary="dsn"'];
+        $dsn->bodyText       = "This is the mail system at plmail.demo.\r\n\r\n"
+            . "I'm sorry to have to inform you that your message could not be delivered to one or more "
+            . "recipients.\r\n\r\n"
+            . "Reporting-MTA: dns; plmail.demo\r\n\r\n"
+            . "Final-Recipient: rfc822; versand@nordwind-logistik.exmaple\r\n"
+            . "Original-Message-ID: <" . $messageId . ">\r\n"
+            . "Action: failed\r\n"
+            . "Status: 5.4.4\r\n"
+            . "Diagnostic-Code: smtp; 550 5.4.4 [Host not found] the domain nordwind-logistik.exmaple does "
+            . "not exist\r\n";
+        $dsn->receivedAt     = $bouncedAt;
+        $dsn->sentAt         = $bouncedAt;
+        $dsn->syncedAt       = $now;
+        $dsn->flags          = [];
+        $dsn->hasAttachments = false;
+        // Unread on purpose. A bounce the demo has already marked read is a
+        // bounce the visitor never notices, which is the failure this whole
+        // feature exists to prevent.
+        $dsn->inReplyTo      = [$messageId];
+        $dsn->references     = [$messageId];
+        $dsn->addLabel($inbox);
+
+        $this->entityManager->persist($dsn);
+        $this->entityManager->flush();
+
+        $this->pipeline->run($account, [new IngestedMessage($dsn, $account)]);
+
+        $this->bounces->correlate($dsn);
+
+        $this->entityManager->flush();
+
+        return [$outgoing, $dsn];
     }
 
     /**

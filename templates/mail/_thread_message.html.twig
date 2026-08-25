@@ -226,6 +226,11 @@ Variables:
            a button the message could draw is a button the message could forge,
            and this one sends mail on the reader's behalf. #}
         {% include 'mail/_read_receipt.html.twig' with { message: message } only %}
+
+        {# "Not delivered", when a DSN came back for this one. Same region and
+           the same reasoning as the receipt above — chrome the message itself
+           must never be able to draw. #}
+        {% include 'mail/_bounce.html.twig' with { message: message } only %}
     </div>
 </div>
 {% endif %}

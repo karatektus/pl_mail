@@ -1642,6 +1642,10 @@ message:
     attachments: Anhänge
     back: Zurück
     body_frame: Nachrichteninhalt
+    bounce:
+        failed: 'Diese Nachricht wurde nicht zugestellt.'
+        failed_for: 'Nicht zugestellt an %recipient%.'
+        reported_at: 'Gemeldet %datetime%'
     details:
         categorised:
             correspondent: 'Du hast diesem Absender geschrieben'
@@ -2374,6 +2378,7 @@ settings:
                 wird erneut versucht, und es lässt sich nicht rückgängig
                 machen. Fortfahren?
         fact:
+            last_full_resync: 'Postfach komplett neu gelistet (%count%×)'
             never: 'nie'
             never_delivered: 'es kam noch nie etwas an'
             never_run: 'kein Lauf aufgezeichnet'

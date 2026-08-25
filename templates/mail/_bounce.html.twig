@@ -1,0 +1,57 @@
+{#
+mail/_bounce.html.twig
+─────────────────────────────────────────────────────────────────────────────
+"This did not arrive", on our own sent mail.
+
+Renders to nothing for almost every message, and when it does render it is the
+most important thing on the screen — so unlike the read-receipt line beside it,
+this is an alert and not a footnote. The failure it reports is silent by
+nature: the mail was accepted, the compose window closed, and the only other
+trace is a machine-generated message sitting in the Inbox.
+
+WHAT IS SHOWN, AND WHY EACH PART
+  · the recipient, because a mail to five people that failed for one is not an
+    undelivered message and must not read as one
+  · the MTA's own diagnostic, because "no such address" and "mailbox full" are
+    the same status class and completely different problems
+  · the status code, quietly, because it is the only unambiguous thing in a
+    DSN and someone eventually has to paste it somewhere
+
+NO ACTION BUTTONS. There is no honest one: plMail cannot know whether the
+address was a typo, and a "resend" that re-runs the same failure is worse than
+nothing. The user reads this and decides.
+
+Variables:
+  message  Message
+#}
+{% if message.bouncedAt is not null %}
+    <div role="alert"
+         data-testid="bounce-notice"
+         class="flex items-start gap-2.5 mt-3 rounded-lg alert-danger px-3.5 py-3">
+
+        <i class="fa-regular fa-circle-xmark text-danger text-sm mt-0.5 shrink-0" aria-hidden="true"></i>
+
+        <div class="min-w-0 flex-1 text-xs">
+            <p class="font-medium text-danger">
+                {% if message.bounceRecipient is not empty %}
+                    {{ 'message.bounce.failed_for'|trans({'%recipient%': message.bounceRecipient}) }}
+                {% else %}
+                    {{ 'message.bounce.failed'|trans }}
+                {% endif %}
+            </p>
+
+            {% if message.bounceDiagnostic is not empty %}
+                {# Wrapped and breakable: a diagnostic is frequently one long
+                   unbroken token like a URL to a provider's block-list page,
+                   and letting it push the column wide breaks the thread. #}
+                <p class="mt-1 text-ink-muted break-words">{{ message.bounceDiagnostic }}</p>
+            {% endif %}
+
+            <p class="mt-1 text-ink-faint">
+                {{ 'message.bounce.reported_at'|trans({
+                    '%datetime%': message.bouncedAt|intl_date('dMMM') ~ ', ' ~ message.bouncedAt|date(clock.time),
+                }) }}{% if message.bounceStatus is not empty %} · {{ message.bounceStatus }}{% endif %}
+            </p>
+        </div>
+    </div>
+{% endif %}

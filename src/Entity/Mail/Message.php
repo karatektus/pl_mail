@@ -354,6 +354,55 @@ class Message extends MessageModel
     public ?DateTimeImmutable $readReceiptAt = null;
 
     /**
+     * When a message WE sent came back undelivered, per a DSN from an MTA.
+     *
+     * The unhappy twin of $readReceiptAt, and the more important of the two: a
+     * read receipt not arriving means nothing much, but a bounce not surfacing
+     * means the user believes they have written to someone they have not. The
+     * bounce lands in the Inbox as a message titled "Undelivered Mail Returned
+     * to Sender" whose body is an SMTP transcript, and the sent message it is
+     * about says "Sent" — which is, at that point, a lie.
+     *
+     * Only ever written by BounceCorrelator, and only for `Action: failed`.
+     * A DSN that says `delayed` is a message still in flight and must not set
+     * this; a `delivered` DSN is good news and sets nothing at all.
+     */
+    #[ORM\Column(name: 'bounced_at', nullable: true)]
+    public ?DateTimeImmutable $bouncedAt = null;
+
+    /**
+     * The RFC 3463 status the reporting MTA gave, verbatim — "5.1.1", "4.4.7".
+     *
+     * Stored as the server said it rather than as a boolean "permanent", so
+     * that the class digit stays readable and plMail never has to be the one
+     * deciding a failure is final. 5.x.x is permanent by the RFC's own
+     * definition; anything else is the server hedging, and so do we.
+     */
+    #[ORM\Column(name: 'bounce_status', length: 16, nullable: true)]
+    public ?string $bounceStatus = null;
+
+    /**
+     * Which recipient failed, when the message went to more than one.
+     *
+     * A mail to five people that bounces for one is not an undelivered
+     * message, and rendering it as one would be worse than silence. This is
+     * what lets the sent message say "not delivered to bob@…" instead.
+     */
+    #[ORM\Column(name: 'bounce_recipient', length: 320, nullable: true)]
+    public ?string $bounceRecipient = null;
+
+    /**
+     * The Diagnostic-Code text, which is the only part of a DSN written for a
+     * person: "550 mailbox unavailable", "552 quota exceeded".
+     *
+     * Kept because the difference between "that address does not exist" and
+     * "their mailbox is full" is the difference between fixing a typo and
+     * trying again tomorrow, and no status code carries it.
+     */
+    #[ORM\Column(name: 'bounce_diagnostic', type: 'text', nullable: true)]
+    public ?string $bounceDiagnostic = null;
+
+    /**
      * @var Collection<int, Label>
      */
     #[ORM\ManyToMany(targetEntity: Label::class)]

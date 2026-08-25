@@ -1342,6 +1342,10 @@ message:
     attachments: Cargo
     back: Back
     body_frame: The bottle's contents
+    bounce:
+        failed: "This message ne'er made port."
+        failed_for: "Ne'er made port at %recipient%."
+        reported_at: "Word came back %datetime%"
     details:
         categorised:
             correspondent: 'ye have written to this one'
@@ -2018,6 +2022,7 @@ settings:
                 This heaves th'' waitin'' work overboard fer good. Naught be
                 tried again, an'' naught comes back up. Carry on?
         fact:
+            last_full_resync: 'Counted the whole hold again (%count%×)'
             never: 'never'
             never_delivered: 'naught ever came ashore'
             never_run: 'no run in th'' log'

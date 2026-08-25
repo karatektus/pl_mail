@@ -62,6 +62,14 @@ final readonly class ReadReceiptCorrelator
      * The second arm catches senders that emit the field block as the whole
      * body rather than wrapping it in a report. That is not conforming, and it
      * is common enough that refusing to read it would strand real receipts.
+     *
+     * BOTH ARMS REFUSE A BOUNCE FIRST, and that is not a formality. A DSN
+     * carries Original-Message-ID in exactly the same field block, so without
+     * the guard a bounce satisfies the second arm, gets correlated here, and
+     * stamps `Read at …` on a message that was never delivered — the worst
+     * available answer, since it is not merely missing information but the
+     * precise opposite of the truth. `Disposition:` and `Action:` are the two
+     * field blocks' mutually exclusive discriminators; that is what is used.
      */
     public function isDispositionNotification(Message $message): bool
     {
@@ -69,6 +77,14 @@ final readonly class ReadReceiptCorrelator
 
         if (null !== $contentType) {
             $lowered = strtolower($contentType);
+
+            if (
+                true === str_contains($lowered, 'report-type=delivery-status')
+                || true === str_contains($lowered, 'report-type="delivery-status"')
+                || true === str_contains($lowered, 'message/delivery-status')
+            ) {
+                return false;
+            }
 
             if (
                 true === str_contains($lowered, 'report-type=disposition-notification')
@@ -80,6 +96,10 @@ final readonly class ReadReceiptCorrelator
             if (true === str_contains($lowered, 'message/disposition-notification')) {
                 return true;
             }
+        }
+
+        if (true === $this->looksLikeDeliveryStatus($message)) {
+            return false;
         }
 
         return null !== $this->originalIdInBody($message);
@@ -158,6 +178,29 @@ final readonly class ReadReceiptCorrelator
         if (null !== $inbox) {
             $mdn->removeLabel($inbox);
         }
+    }
+
+    /**
+     * A DSN field block, recognised by the one field an MDN never has.
+     *
+     * `Action:` is per-recipient delivery status — failed, delayed, delivered,
+     * relayed — and has no counterpart in a disposition notification, whose
+     * equivalent field is `Disposition:`. Matching at the start of a line is
+     * what keeps the word "action" in ordinary prose from counting.
+     */
+    private function looksLikeDeliveryStatus(Message $message): bool
+    {
+        foreach ([$message->bodyText, $message->bodyHtml] as $body) {
+            if (null === $body || '' === $body) {
+                continue;
+            }
+
+            if (1 === preg_match('/^Action:[ \t]*\S/mi', $body)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
