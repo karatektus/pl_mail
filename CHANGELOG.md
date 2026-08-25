@@ -6,6 +6,44 @@ so anything that changes the schema irreversibly is called out explicitly.
 The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, and `sha-…` pins one commit.
 
+## v0.1.25 — 2026-08-25
+
+**No migration. Sign a PDF by drawing on it, and reply with the signed copy.**
+
+### Added
+
+- **Signing a PDF in the reader.** Draw a signature with a mouse, trackpad or finger, place it on
+  the page, drag it where it belongs, and either reply with the signed copy attached or download it.
+  The demo mailbox carries a document that asks to be signed.
+
+  This is a **visual** signature — a picture of a name on a page, worth what a printed-signed-scanned
+  copy is worth. There is no certificate and it proves nothing about the document being unaltered.
+  Neither the interface nor this entry will pretend otherwise.
+
+  The stamping happens in the browser. plMail's server sees the result only if you choose to reply
+  with it, and there is no signing service anywhere in the path. A password-protected PDF is refused
+  with a reason, because signing one would mean stripping the protection it was given.
+
+### Fixed
+
+- **The details panel was painted over by the message below it.** Opening "to me ▾" on any message
+  but the last one in a conversation put the next message's header on top of it — over the middle,
+  so the edges stayed visible and it read as a rendering glitch. The panel's `z-30` was measured
+  inside its own `sticky z-10` header rather than against the page; the header is raised now.
+- **A revoked Google or Microsoft sign-in is no longer retried.** A dead grant answers identically
+  every time, and it was producing five CRITICAL log lines per calendar and three per mailbox, all
+  the same sentence — which is how the one line that matters stops being read. It is classified from
+  the provider's own OAuth error code, so a timeout against the token endpoint is still retried.
+  Nothing changes about how you are told: the account already grows a Reconnect button in Settings.
+- **A calendar was written off for a slow token endpoint.** The Microsoft driver treated *every*
+  failed refresh as permanent, including a network timeout that one more attempt would have survived.
+
+### Fixed in this release rather than the last
+
+v0.1.23's German handbook was left marked as translated from an older English one, which failed the
+documentation check on the v0.1.24 tag. The image was published regardless — the two run in parallel
+by design — so the release itself was sound; the tag is simply red in the history.
+
 ## v0.1.24 — 2026-08-25
 
 **No migration. PDF attachments open in a reader instead of downloading.**
