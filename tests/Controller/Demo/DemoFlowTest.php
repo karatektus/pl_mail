@@ -198,6 +198,35 @@ final class DemoFlowTest extends WebTestCase
 
         self::assertCount(count(DemoMailbox::THREADS), $threads, 'the seeded mailbox should be there');
 
+        // One thread per message: the pipeline threads the batch now, and a
+        // seeder that also built threads by hand would leave two of each.
+        $messages = $container->get(MessageRepository::class)->findBy(['account' => $account]);
+
+        self::assertCount(count(DemoMailbox::THREADS), $messages);
+
+        // The pipeline ran, which is the whole reason seeding goes through it:
+        // categories are decided from headers, and a mailbox written as
+        // finished rows has none decided at all. Two of the twelve carry bulk
+        // headers, so more than one category must be represented.
+        $categories = [];
+
+        foreach ($messages as $message) {
+            $categories[$message->category->value] = true;
+        }
+
+        self::assertGreaterThan(
+            1,
+            count($categories),
+            'seeded mail should be categorised, not all Primary — see DemoMailbox::seed()',
+        );
+
+        // And a week worth looking at beside the mail.
+        self::assertNotEmpty(
+            $container->get(\App\Repository\Calendar\CalendarEventRepository::class)
+                ->findBy(['usr' => $visitor]),
+            'the demo should provision a calendar too',
+        );
+
         // The visitor really is signed in — the chain must land in a mailbox
         // rather than back on the login form. Two hops: /demo redirects to the
         // app root, which redirects again to the inbox.

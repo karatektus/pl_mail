@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Command\Test;
 
-use App\Repository\Calendar\CalendarEventRepository;
 use App\Repository\Label\LabelRepository;
 use App\Repository\Mail\AccountRepository;
 use App\Repository\User\UserRepository;
@@ -47,7 +46,6 @@ final class SeedDemoMailboxCommand extends Command
         private readonly EntityManagerInterface  $entityManager,
         private readonly UserRepository          $userRepository,
         private readonly AccountRepository       $accountRepository,
-        private readonly CalendarEventRepository $calendarEventRepository,
         private readonly LabelRepository         $labelRepository,
         private readonly DemoMailbox             $demoMailbox,
         #[Autowire('%kernel.environment%')]
@@ -83,12 +81,11 @@ final class SeedDemoMailboxCommand extends Command
         $accounts = $this->accountRepository->findBy(['usr' => $user]);
         $account  = $this->demoMailbox->account($user, $accounts);
 
-        // The calendar goes too. The screenshot suite creates its events
-        // through the dialog on every run, so anything already there is a
-        // leftover from the last one and would show up twice.
-        foreach ($this->calendarEventRepository->findBy(['usr' => $user]) as $event) {
-            $this->entityManager->remove($event);
-        }
+        // The calendar is no longer cleared here: DemoMailbox::seedCalendar()
+        // wipes and rewrites it, the same way seed() does the mailbox, so the
+        // screenshot suite's own dialog-created events are cleaned up by the
+        // thing that then puts a real week in their place. Two callers deleting
+        // the same rows was harmless and said the opposite of what is true.
 
         // The demo mailbox ends up the only one, because the sidebar lists
         // every account and "E2E Mailbox" in a readme screenshot gives the
@@ -115,11 +112,13 @@ final class SeedDemoMailboxCommand extends Command
         $this->entityManager->flush();
 
         $messages = $this->demoMailbox->seed($user, $account);
+        $events   = $this->demoMailbox->seedCalendar($user);
 
         $io->success(sprintf(
-            'Seeded %d demo threads and %d labels for %s.',
+            'Seeded %d demo threads, %d labels and %d calendar events for %s.',
             count($messages),
             count(DemoMailbox::LABELS),
+            $events,
             $userEmail,
         ));
 

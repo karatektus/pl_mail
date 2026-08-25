@@ -4,18 +4,21 @@ declare(strict_types=1);
 
 namespace App\Service\Demo;
 
+use App\Domain\DTO\Mail\IngestedMessage;
 use App\Domain\Enum\Mail\LabelRole;
-use App\Domain\Enum\Mail\MessageCategory;
-use App\Domain\Enum\Mail\ThreadingMethod;
+use App\Domain\Helper\MessageIdHelper;
 use App\Entity\Mail\Account;
+use App\Entity\Calendar\CalendarEvent;
 use App\Entity\Mail\Message;
-use App\Entity\Mail\MessageThread;
 use App\Entity\User\User;
-use App\Jmap\State\JmapObjectType;
-use App\Jmap\State\StateManager;
+use App\Repository\Calendar\CalendarEventRepository;
 use App\Repository\Mail\ContactRepository;
 use App\Repository\Mail\MessageThreadRepository;
 use App\Service\Label\LabelResolver;
+use App\Service\Calendar\CalendarEventWriter;
+use App\Service\Calendar\CalendarProvisioner;
+use App\Service\Mail\PostIngestPipeline;
+use App\Service\User\UserTimezoneResolver;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 
@@ -46,51 +49,145 @@ final readonly class DemoMailbox
     public const array LABELS = ['Receipts', 'Travel', 'Family'];
 
     /**
-     * Subject, sender name, sender address, label, unread, hours ago, body.
+     * The mailbox itself.
      *
-     * @var list<array{string, string, string, string|null, bool, int, string}>
+     * Keyed rather than positional: it grew a body in HTML and a couple of
+     * entries whose text is written to be READ by something — the invoice
+     * states a total and a due date, the sign-in mail carries a code — and
+     * seven-element tuples stopped being legible at about the fifth field.
+     *
+     * Those two are deliberate. Insights are extracted from what a mail says,
+     * not from a flag, so a demo mailbox of plausible prose produces an empty
+     * Insights pane and looks like a feature that does not work. Writing mail
+     * that genuinely says "Gesamtbetrag 285,60 EUR" and "fällig am 12.09.2026"
+     * means the extractor finds it the same way it would in a real mailbox —
+     * which is the only version of this worth showing.
+     *
+     * Senders stay fictional throughout, which is why there is no parcel here:
+     * ParcelExtractor keys on real carrier domains, and putting noreply@dhl.de
+     * in a demo would be impersonating DHL to make a card appear.
+     *
+     * @var list<array{
+     *     subject: string, fromName: string, fromAddress: string,
+     *     label: string|null, unread: bool, hoursAgo: int,
+     *     body: string, html?: string, headers?: array<string, string>,
+     *     correspondent?: bool
+     * }>
      */
     public const array THREADS = [
-        ['Bookshelf dimensions', 'Priya Raman', 'priya.raman@example.com', null, true, 1,
-            "The alcove is 182cm from skirting to the underside of the shelf, and 96cm wide.\n\n"
-            . 'The 175cm unit would leave a finger of daylight at the top, which I think looks '
-            . "deliberate. Photos when the light is better.\n\nP",
+        [
+            'subject' => 'Bookshelf dimensions',
+            'fromName' => 'Priya Raman', 'fromAddress' => 'priya.raman@example.com',
+            'label' => null, 'unread' => true, 'hoursAgo' => 1,
+            'body' => "The alcove is 182cm from skirting to the underside of the shelf, and 96cm wide.\n\n"
+                . 'The 175cm unit would leave a finger of daylight at the top, which I think looks '
+                . "deliberate. Photos when the light is better.\n\nP",
         ],
-        ['Your order has shipped', 'Kleinschmidt Werkzeug', 'versand@kleinschmidt.example', 'Receipts', true, 3,
-            "Two of three items are on their way and should arrive Thursday.\n\n"
-            . 'The chisel set is back-ordered until the 19th; nothing to do at your end.',
+        [
+            'subject' => 'Your order has shipped',
+            'fromName' => 'Kleinschmidt Werkzeug', 'fromAddress' => 'versand@kleinschmidt.example',
+            'label' => 'Receipts', 'unread' => true, 'hoursAgo' => 3,
+            'body' => "Two of three items are on their way and should arrive Thursday.\n\n"
+                . 'The chisel set is back-ordered until the 19th; nothing to do at your end.',
         ],
-        ['Re: Sunday', 'Mum', 'ruth@example.org', 'Family', false, 6,
-            "Sunday works. Bring nothing, there is far too much food already.\n\n"
-            . 'Your father has opinions about the hedge again.',
+        [
+            'subject' => 'Re: Sunday',
+            'fromName' => 'Mum', 'fromAddress' => 'ruth@example.org',
+            'label' => 'Family', 'unread' => false, 'hoursAgo' => 6,
+            'body' => "Sunday works. Bring nothing, there is far too much food already.\n\n"
+                . 'Your father has opinions about the hedge again.',
         ],
-        ['Booking confirmed — Hotel Aare, 12–14 Sep', 'Hotel Aare', 'reservations@hotelaare.example', 'Travel', true, 9,
-            "Room 214, two nights, breakfast included. Arrival any time after 15:00.\n\n"
-            . 'Reply to this message if the train puts you in after 22:00 and we will leave the key.',
+        [
+            'subject' => 'Booking confirmed — Hotel Aare, 12–14 Sep',
+            'fromName' => 'Hotel Aare', 'fromAddress' => 'reservations@hotelaare.example',
+            'label' => 'Travel', 'unread' => true, 'hoursAgo' => 9,
+            'body' => "Room 214, two nights, breakfast included. Arrival any time after 15:00.\n\n"
+                . 'Reply to this message if the train puts you in after 22:00 and we will leave the key.',
         ],
-        ['Invoice 2026-0841', 'Steuerbüro Lang', 'buchhaltung@lang-steuer.example', 'Receipts', false, 26,
-            "Attached is the invoice for the quarter, due in 14 days.\n\n"
-            . 'Nothing needs signing.',
+        [
+            'subject' => 'Rechnung 2026-0841',
+            'fromName' => 'Steuerbüro Lang', 'fromAddress' => 'buchhaltung@lang-steuer.example',
+            'label' => 'Receipts', 'unread' => false, 'hoursAgo' => 26,
+            'body' => "Anbei die Rechnung für das Quartal.\n\n"
+                . "Buchhaltung Quartal III .......... 240,00 EUR\n"
+                . "Umsatzsteuer 19% ................. 45,60 EUR\n"
+                . "Gesamtbetrag ..................... 285,60 EUR\n\n"
+                . "Zahlbar bis 12.09.2026. Es muss nichts unterschrieben werden.",
         ],
-        ['Rail replacement on the 12th', 'SBB Kundeninfo', 'info@sbb.example', 'Travel', false, 30,
-            "The 07:41 does not run on the 12th. The 07:19 is replaced by a bus as far as Olten "
-            . "and adds 25 minutes.\n\nNo action needed if you are travelling later.",
+        [
+            'subject' => 'Rail replacement on the 12th',
+            'fromName' => 'SBB Kundeninfo', 'fromAddress' => 'info@sbb.example',
+            'label' => 'Travel', 'unread' => false, 'hoursAgo' => 30,
+            'body' => "The 07:41 does not run on the 12th. The 07:19 is replaced by a bus as far as Olten "
+                . "and adds 25 minutes.\n\nNo action needed if you are travelling later.",
         ],
-        ['Photos from the weekend', 'Jonas Weber', 'jonas.weber@example.com', 'Family', false, 52,
-            "Forty of them, and about six are any good. The one of the dog in the river is the "
-            . "only one worth printing.\n\nJ",
+        [
+            'subject' => 'Your sign-in code',
+            'fromName' => 'Werkstatt Portal', 'fromAddress' => 'noreply@werkstatt-portal.example',
+            'label' => null, 'unread' => true, 'hoursAgo' => 34,
+            'headers' => ['Auto-Submitted' => 'auto-generated'],
+            'correspondent' => false,
+            // Contiguous digits: OtpExtractor matches \d{4,8} and a code
+            // written "418 259" is two three-digit runs it will not read.
+            'body' => "Your verification code is 418259.\n\n"
+                . "It is good for ten minutes. If you did not ask to sign in, you can ignore this "
+                . "and nothing happens.",
         ],
-        ['Reading group — October pick', 'Sofia Marchetti', 'sofia@example.net', null, false, 74,
-            "We landed on the short one, thankfully. Meeting moves to the 8th because the room "
-            . "is taken on the 1st.\n\nSame time, same place, bring the good chairs back.",
+        [
+            'subject' => 'Six things worth reading this month',
+            'fromName' => 'The Long Field', 'fromAddress' => 'post@longfield.example',
+            'label' => null, 'unread' => false, 'hoursAgo' => 41,
+            // MessageCategorizer decides from headers, not from prose, so a
+            // newsletter with none of them lands in Primary alongside a note
+            // from your mother — and the category tabs, which are one of the
+            // things worth showing, have nothing in them but Primary.
+            'headers' => ['List-Unsubscribe' => '<mailto:unsubscribe@longfield.example>'],
+            'correspondent' => false,
+            'body' => "This month: a piece on hedgerows, two on bread, and one that is mostly "
+                . "photographs of doors.\n\nUnsubscribe at the bottom, as ever.",
+            'html' => '<div style="font-family:Georgia,serif;max-width:520px;color:#222">'
+                . '<h1 style="font-size:22px;margin:0 0 2px">The Long Field</h1>'
+                . '<p style="color:#777;margin:0 0 18px;font-style:italic">Six things worth reading this month</p>'
+                . '<ol style="line-height:1.8;padding-left:18px">'
+                . '<li>The hedge that outlived the farm</li>'
+                . '<li>Bread, part one: the flour</li>'
+                . '<li>Bread, part two: the wait</li>'
+                . '<li>What the doors of Lisbon are painted with</li>'
+                . '<li>An argument for the short walk</li>'
+                . '<li>Letters, and one correction</li></ol>'
+                . '<hr style="border:none;border-top:1px solid #ddd;margin:18px 0">'
+                . '<p style="color:#999;font-size:12px">You are reading a demo. '
+                . 'Nobody is subscribed to anything.</p></div>',
         ],
-        ['Meter reading due', 'Stadtwerke', 'ablesung@stadtwerke.example', null, false, 99,
-            "Please submit your reading before the 20th. It takes a minute online and saves an "
-            . 'estimate you will only have to correct later.',
+        [
+            'subject' => 'Photos from the weekend',
+            'fromName' => 'Jonas Weber', 'fromAddress' => 'jonas.weber@example.com',
+            'label' => 'Family', 'unread' => false, 'hoursAgo' => 52,
+            'body' => "Forty of them, and about six are any good. The one of the dog in the river is the "
+                . "only one worth printing.\n\nJ",
         ],
-        ['Re: quote for the trim', 'Marek Nowak', 'marek@nowak-schreinerei.example', null, false, 120,
-            "Oak trim to match is fine, and I can do it in the same run as the shelves.\n\n"
-            . 'Adds about a week. Say the word and I will order the timber.',
+        [
+            'subject' => 'Reading group — October pick',
+            'fromName' => 'Sofia Marchetti', 'fromAddress' => 'sofia@example.net',
+            'label' => null, 'unread' => false, 'hoursAgo' => 74,
+            'body' => "We landed on the short one, thankfully. Meeting moves to the 8th because the room "
+                . "is taken on the 1st.\n\nSame time, same place, bring the good chairs back.",
+        ],
+        [
+            'subject' => 'Meter reading due',
+            'fromName' => 'Stadtwerke', 'fromAddress' => 'ablesung@stadtwerke.example',
+            'label' => null, 'unread' => false, 'hoursAgo' => 99,
+            'headers' => ['Auto-Submitted' => 'auto-generated'],
+            'correspondent' => false,
+            'body' => "Please submit your reading before the 20th. It takes a minute online and saves an "
+                . 'estimate you will only have to correct later.',
+        ],
+        [
+            'subject' => 'Re: quote for the trim',
+            'fromName' => 'Marek Nowak', 'fromAddress' => 'marek@nowak-schreinerei.example',
+            'label' => null, 'unread' => false, 'hoursAgo' => 120,
+            'body' => "Oak trim to match is fine, and I can do it in the same run as the shelves.\n\n"
+                . 'Adds about a week. Say the word and I will order the timber.',
         ],
     ];
 
@@ -99,7 +196,11 @@ final readonly class DemoMailbox
         private MessageThreadRepository $threadRepository,
         private ContactRepository       $contactRepository,
         private LabelResolver           $labelResolver,
-        private StateManager            $stateManager,
+        private PostIngestPipeline      $pipeline,
+        private CalendarEventRepository  $calendarEvents,
+        private CalendarProvisioner      $calendarProvisioner,
+        private CalendarEventWriter      $calendarWriter,
+        private UserTimezoneResolver     $timezones,
     ) {
     }
 
@@ -147,12 +248,36 @@ final readonly class DemoMailbox
      * different inbox every time it is run, and a demo that did would drift
      * further from its own screenshots with every visitor.
      *
+     * The batch goes through PostIngestPipeline rather than being written as
+     * finished rows, which is what it did before. Writing rows directly is
+     * faster and produces a mailbox that LOOKS right and is inert: no
+     * categories, no insights, and no evaluation by the filters the visitor is
+     * invited to build. Those are the things plMail does when mail arrives, and
+     * a demo whose mailbox has never had them done to it is showing the inbox
+     * and none of the product.
+     *
+     * Two consequences worth stating. Threads are no longer built here — the
+     * pipeline assigns them, and building both would leave two — and the JMAP
+     * create is no longer recorded here either, because the pipeline records
+     * it; doing both announced every message twice.
+     *
      * @return list<Message>
      */
     public function seed(User $user, Account $account): array
     {
         foreach ($this->threadRepository->findBy(['account' => $account]) as $thread) {
             $this->entityManager->remove($thread);
+        }
+
+        // The address book goes with the threads, and this is not tidiness.
+        // upsertBatch does not clear a correspondent flag it has already set,
+        // and MessageCategorizer treats a correspondent as an override that
+        // forces Primary — so contacts left from a previous seed dragged the
+        // newsletter and the robots back into Primary and emptied the category
+        // tabs. It worked the first time and not the second, which is the worst
+        // way for it to fail.
+        foreach ($this->contactRepository->findBy(['usr' => $user]) as $contact) {
+            $this->entityManager->remove($contact);
         }
 
         $this->entityManager->flush();
@@ -168,17 +293,23 @@ final readonly class DemoMailbox
 
         $now      = new DateTimeImmutable();
         $messages = [];
+        $ingested = [];
 
-        foreach (self::THREADS as [$subject, $fromName, $fromAddress, $label, $unread, $hoursAgo, $body]) {
-            $receivedAt = $now->modify(sprintf('-%d hours', $hoursAgo));
+        foreach (self::THREADS as $entry) {
+            $receivedAt = $now->modify(sprintf('-%d hours', $entry['hoursAgo']));
 
             $message = new Message();
             $message->account        = $account;
-            $message->subject        = $subject;
-            $message->fromName       = $fromName;
-            $message->fromAddress    = $fromAddress;
+            // Bracket-less, like every other write path — MessageThreader
+            // normalises references before matching against what is stored.
+            $message->messageId      = MessageIdHelper::mint($entry['fromAddress']);
+            $message->subject        = $entry['subject'];
+            $message->fromName       = $entry['fromName'];
+            $message->fromAddress    = $entry['fromAddress'];
             $message->toAddresses    = [['name' => 'You', 'address' => self::ACCOUNT_EMAIL]];
-            $message->bodyText       = $body;
+            $message->bodyText       = $entry['body'];
+            $message->bodyHtml       = $entry['html'] ?? null;
+            $message->headers        = $entry['headers'] ?? null;
             $message->receivedAt     = $receivedAt;
             $message->sentAt         = $receivedAt;
             $message->hasAttachments = false;
@@ -186,52 +317,50 @@ final readonly class DemoMailbox
             $message->syncedAt       = $now;
             $message->addLabel($inbox);
 
-            if (false === $unread) {
+            if (false === $entry['unread']) {
                 $message->seenAt = $receivedAt;
             }
 
-            $thread = new MessageThread();
-            $thread->account           = $account;
-            $thread->subject           = $subject;
-            $thread->normalizedSubject = mb_strtolower(trim($subject));
-            $thread->threadingMethod   = ThreadingMethod::SubjectFallback;
-            $thread->messageCount      = 1;
-            $thread->unreadCount       = true === $unread ? 1 : 0;
-            $thread->category          = MessageCategory::Primary;
-            $thread->attachmentCount   = 0;
-            $thread->lastMessageAt     = $receivedAt;
-            $thread->addLabel($inbox);
-
-            if (null !== $label) {
-                $message->addLabel($labels[$label]);
-                $thread->addLabel($labels[$label]);
+            if (null !== $entry['label']) {
+                $message->addLabel($labels[$entry['label']]);
             }
 
             $this->entityManager->persist($message);
-            $this->entityManager->persist($thread);
 
-            $message->thread = $thread;
-            $messages[]      = $message;
+            $messages[] = $message;
+            $ingested[] = new IngestedMessage($message, $account);
         }
 
+        // The pipeline's precondition: ids must exist before it threads, and
+        // its rule engine matches in SQL against a generated column, so a
+        // message that has not reached the database is invisible to it.
         $this->entityManager->flush();
 
-        // Seeded mail is real mail to a JMAP client — see the same note in
-        // SeedTestEmailCommand. Recorded after the flush, because the log rows
-        // need the ids it mints.
-        $accountId = (int) $account->id;
-
-        foreach ($messages as $message) {
-            $this->stateManager->recordCreated($accountId, JmapObjectType::Email, (string) $message->id);
-        }
+        // One run for the whole batch rather than one per message. This is
+        // called while a visitor waits for /demo to answer, and the pipeline
+        // does per-batch work — correspondent lookup, one query per rule — that
+        // would otherwise be repeated a dozen times over.
+        $this->pipeline->run($account, $ingested);
 
         // The senders as contacts, which is what makes compose worth showing:
         // recipients autocomplete from the address book, and that is normally
         // filled by harvesting synced mail rather than by seeding it.
         $contacts = [];
 
-        foreach (self::THREADS as [, $fromName, $fromAddress]) {
-            $contacts[] = ['email' => $fromAddress, 'name' => $fromName, 'correspondent' => true];
+        foreach (self::THREADS as $entry) {
+            $contacts[] = [
+                'email' => $entry['fromAddress'],
+                'name'  => $entry['fromName'],
+                // A correspondent is someone the user has WRITTEN to, and
+                // MessageCategorizer treats that as an override: mail from one
+                // is Primary whatever its bulk headers say. Flagging the
+                // newsletter and the two robots as correspondents therefore
+                // dragged them into Primary and emptied the category tabs —
+                // and only on the SECOND seed, because the first ran before
+                // these contacts existed. A demo that categorises correctly
+                // once and then stops is worse than one that never did.
+                'correspondent' => $entry['correspondent'] ?? true,
+            ];
         }
 
         $this->contactRepository->upsertBatch($user, $contacts);
@@ -239,5 +368,79 @@ final readonly class DemoMailbox
         $this->entityManager->flush();
 
         return $messages;
+    }
+
+    /**
+     * A week with something in it.
+     *
+     * A demo whose calendar is empty shows the grid and none of the point: the
+     * week view, the overlap handling and the docked pane beside the mail all
+     * need events to be anything but a ruled page. These are the same kind of
+     * dull and plausible as the mailbox — a standing meeting, a haircut, a
+     * birthday that lasts all day — and they are written relative to today, so
+     * the demo is never showing last month.
+     *
+     * Wiped first for the reason everything here is: run twice, this must give
+     * the same week rather than two of everything.
+     *
+     * @return int how many events were written
+     */
+    public function seedCalendar(User $user): int
+    {
+        foreach ($this->calendarEvents->findBy(['usr' => $user]) as $event) {
+            $this->entityManager->remove($event);
+        }
+
+        $this->entityManager->flush();
+
+        $calendar = $this->calendarProvisioner->defaultFor($user);
+        $zone     = $this->timezones->resolve($user);
+        $today    = new DateTimeImmutable('today', $zone);
+
+        // Day offset from today, start hour, duration in minutes, title,
+        // location, all-day. Kept inside the working week either side of today
+        // so the default view has something in it whichever day it is opened.
+        $plan = [
+            [0,  9,  30, 'Stand-up',                 'Jitsi',            false],
+            [0, 14,  60, 'Call with Marek — trim',   'Phone',            false],
+            [1, 11,  45, 'Dentist',                  'Praxis Dr. Ilg',   false],
+            [1, 18,  90, 'Reading group',            'Sofia\'s place',   false],
+            [2,  0,   0, 'Jonas — birthday',         null,               true],
+            [2, 10, 120, 'Workshop: sharpening',     'Werkstatt Nord',   false],
+            [3,  8,  30, 'Meter reading due',        null,               false],
+            [4, 16,  60, 'Pick up the shelves',      'Nowak Schreinerei', false],
+        ];
+
+        $written = 0;
+
+        foreach ($plan as [$dayOffset, $hour, $minutes, $title, $location, $allDay]) {
+            $day = $today->modify(sprintf('+%d days', $dayOffset));
+
+            if (true === $allDay) {
+                $startsAt = $day;
+                $endsAt   = $day->modify('+1 day');
+            } else {
+                $startsAt = $day->setTime($hour, 0);
+                $endsAt   = $startsAt->modify(sprintf('+%d minutes', $minutes));
+            }
+
+            $this->calendarWriter->write(
+                event:    new CalendarEvent(),
+                calendar: $calendar,
+                user:     $user,
+                title:    $title,
+                startsAt: $startsAt,
+                endsAt:   $endsAt,
+                timeZone: $zone->getName(),
+                isAllDay: $allDay,
+                location: $location,
+            );
+
+            ++$written;
+        }
+
+        $this->entityManager->flush();
+
+        return $written;
     }
 }

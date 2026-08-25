@@ -81,6 +81,10 @@ final readonly class DemoProvisioner
 
         $this->demoMailbox->seed($user, $account);
 
+        // The calendar too: plMail's argument is mail and a diary side by side,
+        // and half of that on an empty grid is not the argument.
+        $this->demoMailbox->seedCalendar($user);
+
         return $user;
     }
 }
