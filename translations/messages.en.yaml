@@ -3008,6 +3008,7 @@ toast:
     # message has gone and nothing here can bring it back, and the previous
     # behaviour — claiming it was cancelled — was worse than saying nothing.
     send_too_late: Too late — that message had already been sent.
+    send_failed: 'That message could not be sent: %subject%'
     sent: Message sent.
     undo: Undo
     error:

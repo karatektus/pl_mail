@@ -1,0 +1,30 @@
+{#
+mail/_send_outcome.stream.html.twig
+─────────────────────────────────────────────────────────────────────────────
+What the browser is told once the send has actually happened.
+
+Rendered by App\Service\Mail\SendOutcomeNotifier in the WORKER, published over
+Mercure, and applied by core--mercure. Rendered rather than described because
+the alternative is building a toast in JavaScript, which means a second copy of
+_toast.html.twig that drifts from the first.
+
+WHY THIS EXISTS AT ALL
+
+"Message sent." used to be said by ComposeController::sent(), which the browser
+calls when the cancel window closes — at eight seconds. The send is held for
+ten. So the confirmation preceded the attempt by two seconds, every time, for
+everybody, and a send that then failed was never mentioned again.
+
+Variables: message, sent (bool)
+#}
+<turbo-stream action="append" target="toast-region">
+    <template>
+        {% include '_partials/_toast.html.twig' with {
+            type:    sent ? 'success' : 'error',
+            message: sent
+                ? 'toast.sent'|trans
+                : 'toast.send_failed'|trans({ '%subject%': message.subject|default('')|slice(0, 60) }),
+            extra:   sent ? {} : { hide_after: 12000 },
+        } only %}
+    </template>
+</turbo-stream>

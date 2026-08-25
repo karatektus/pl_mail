@@ -36,12 +36,11 @@ Variables: message, thread (MessageThread|null), ctx
     </template>
 </turbo-stream>
 
-{# `notify: false` — the error above IS this send's notification, and a
-   "Message sent" toast stacked under "too late to stop it" tells the same
-   news twice with the reassuring half on top. #}
+{# The error above IS this send's notification. Nothing has to be suppressed
+   any more: _sent.stream stopped claiming success, because at the moment it
+   runs nobody knows whether the send worked. #}
 {% include 'compose/_sent.stream.html.twig' with {
     message: message,
     thread:  thread,
     ctx:     ctx,
-    notify:  false,
 } only %}

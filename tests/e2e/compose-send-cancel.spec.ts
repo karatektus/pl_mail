@@ -138,7 +138,22 @@ test.describe("the send pill is the cancel", () => {
         await sendPill(page, DOCK).click();
 
         await expect(page.locator(`${DOCK} .compose-window`)).toHaveCount(0, { timeout: 20_000 });
-        await expect(page.locator("#toast-region").getByText("Message sent.")).toBeVisible();
+        // NOTHING claims the send succeeded yet, and that is the assertion.
+        //
+        // "Message sent." used to appear here, at the cancel mark — eight
+        // seconds — while the send itself is held for ten. The confirmation
+        // preceded the attempt by two seconds for everybody, and when the send
+        // then failed nothing corrected it.
+        //
+        // It comes from the worker now, once there is an outcome, over the
+        // live-updates stream. This stack cannot show that end to end: the app
+        // container runs MESSENGER_TRANSPORT_DSN=in-memory://, so a send
+        // dispatched by a browser request is discarded when the request ends
+        // and no worker can ever pick it up. What this CAN pin is the half that
+        // was wrong — that the app no longer announces an outcome it does not
+        // have. The publishing side is covered by
+        // tests/Service/Mail/SendOutcomeNotifierTest.
+        await expect(page.locator("#toast-region")).not.toContainText("Message sent.");
     });
 
     test("an inline send keeps its window too — no countdown bar in the thread", async ({ page }) => {
@@ -179,7 +194,22 @@ test.describe("the send pill is the cancel", () => {
 
         // The reply joined the conversation, and the toast said so.
         await expect(messages).toHaveCount(before + 1);
-        await expect(page.locator("#toast-region").getByText("Message sent.")).toBeVisible();
+        // NOTHING claims the send succeeded yet, and that is the assertion.
+        //
+        // "Message sent." used to appear here, at the cancel mark — eight
+        // seconds — while the send itself is held for ten. The confirmation
+        // preceded the attempt by two seconds for everybody, and when the send
+        // then failed nothing corrected it.
+        //
+        // It comes from the worker now, once there is an outcome, over the
+        // live-updates stream. This stack cannot show that end to end: the app
+        // container runs MESSENGER_TRANSPORT_DSN=in-memory://, so a send
+        // dispatched by a browser request is discarded when the request ends
+        // and no worker can ever pick it up. What this CAN pin is the half that
+        // was wrong — that the app no longer announces an outcome it does not
+        // have. The publishing side is covered by
+        // tests/Service/Mail/SendOutcomeNotifierTest.
+        await expect(page.locator("#toast-region")).not.toContainText("Message sent.");
     });
 
     /**
@@ -208,7 +238,22 @@ test.describe("the send pill is the cancel", () => {
         await sendPill(page, INLINE).click();
 
         await expect(page.locator(`${INLINE} .compose-window`)).toHaveCount(0, { timeout: 20_000 });
-        await expect(page.locator("#toast-region").getByText("Message sent.")).toBeVisible();
+        // NOTHING claims the send succeeded yet, and that is the assertion.
+        //
+        // "Message sent." used to appear here, at the cancel mark — eight
+        // seconds — while the send itself is held for ten. The confirmation
+        // preceded the attempt by two seconds for everybody, and when the send
+        // then failed nothing corrected it.
+        //
+        // It comes from the worker now, once there is an outcome, over the
+        // live-updates stream. This stack cannot show that end to end: the app
+        // container runs MESSENGER_TRANSPORT_DSN=in-memory://, so a send
+        // dispatched by a browser request is discarded when the request ends
+        // and no worker can ever pick it up. What this CAN pin is the half that
+        // was wrong — that the app no longer announces an outcome it does not
+        // have. The publishing side is covered by
+        // tests/Service/Mail/SendOutcomeNotifierTest.
+        await expect(page.locator("#toast-region")).not.toContainText("Message sent.");
 
         // The thread's own buttons are back — the composer did not merely go
         // invisible, the reply zone knows it closed.

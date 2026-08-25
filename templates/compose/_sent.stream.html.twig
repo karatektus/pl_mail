@@ -1,8 +1,9 @@
 {#
 compose/_sent.stream.html.twig
 ─────────────────────────────────────────────────────────────────────────────
-The cancel window is over: the message is where it belongs, the composer is
-gone, and a toast says so.
+The cancel window is over: the message is where it belongs and the composer is
+gone. What became of the SEND is said separately, by the worker, once it is
+known — see the note further down and App\Service\Mail\SendOutcomeNotifier.
 
 Rendered when the composer asks for it (ComposeController::sent(), driven by
 compose--compose#_settleSend) and when a cancel arrives too late to take —
@@ -26,23 +27,15 @@ saying "Sending…" for ever. Closing the frame is therefore unconditional and
 comes first; the conversation is updated only when there is one to update.
 
 A forward's mail is not shown anywhere on this page as a result, because it is
-not part of this conversation — it is in Sent, and the toast is what says it
-went.
+not part of this conversation — it is in Sent, and the outcome toast is what
+says it went.
 
-Variables: message, thread (MessageThread|null), ctx, notify (default true)
+Variables: message, thread (MessageThread|null), ctx
 #}
 {# The too-late answer includes this template for the tidying and brings its
-   own toast — an error one, which is the news that matters there. Two toasts
-   stacked, one saying the send failed to stop and one saying it went, is the
-   same fact told twice with the second half burying the first. #}
-{# `?? true`, NOT `|default(true)`. Twig's default filter fires on any EMPTY
-   value, not merely a missing one, so `false|default(true)` is true — and every
-   caller that passed `notify: false` to suppress this toast got it anyway. Both
-   of them do that, so a send showed "Message sent." next to its own countdown
-   saying "Sending… 8", and a cancel that arrived too late was told off and
-   congratulated at the same time. The null-coalescing operator defaults only on
-   null or undefined, which is what was meant. #}
-{% set notify = notify ?? true %}
+   own toast — an error one, which is the news that matters there. It no longer
+   has to suppress anything: this template stopped claiming the send succeeded,
+   because at the moment it runs nobody knows yet. #}
 {# Is the sent message part of the conversation this composer was opened in?
    Both halves are needed: the dock carries `thread` too (a reply opened below
    md lands there), and a message can have no thread at all. #}
@@ -78,16 +71,15 @@ Variables: message, thread (MessageThread|null), ctx, notify (default true)
     </turbo-stream>
 {% endif %}
 
-{# The one piece of feedback the send gets that is not the button itself.
-   Without it a mail sent from the dock was a window that simply vanished, and
-   a forward was a composer that closed with nothing said at all. #}
-{% if notify %}
-    <turbo-stream action="append" target="toast-region">
-        <template>
-            {% include '_partials/_toast.html.twig' with {
-                type: 'success',
-                message: 'toast.sent'|trans,
-            } only %}
-        </template>
-    </turbo-stream>
-{% endif %}
+{# NO TOAST HERE ANY MORE, and that is the point of this comment.
+
+   This template is reached when the CANCEL WINDOW closes, at eight seconds.
+   The send is held for ten. So every "Message sent." it ever printed was said
+   two seconds before the first byte left, for everybody — and when the send
+   then failed, nothing corrected it, because the senders turn a failure into a
+   bare `false` and the handler treated that as done.
+
+   The outcome is published from the worker now, at the moment there is one:
+   App\Service\Mail\SendOutcomeNotifier renders it and core--mercure applies
+   it. What is left here is the tidying, which genuinely does belong at the
+   moment the window closes. #}

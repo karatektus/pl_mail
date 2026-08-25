@@ -407,6 +407,20 @@ export default class extends Controller {
             // lives on the MailRule row, so a missed message costs a stale
             // panel until the next load, never a wrong answer.
             this.dispatch("rule-run", {detail: data});
+        } else if (data.type === "mail.send-outcome") {
+            // The one branch here that renders rather than dispatches, and it
+            // is deliberate: the payload carries a turbo-stream the SERVER
+            // rendered, so the toast is _toast.html.twig itself rather than a
+            // second copy of it living in JavaScript.
+            //
+            // Published by App\Service\Mail\SendOutcomeNotifier when the send
+            // has actually happened. Until this existed, "Message sent." was
+            // said by the browser when the cancel window closed — two seconds
+            // before the send was even attempted — and a failure afterwards was
+            // never mentioned at all.
+            if ("string" === typeof data.stream && "" !== data.stream) {
+                Turbo.renderStreamMessage(data.stream);
+            }
         } else if (data.type === "insights.changed") {
             // Published by App\Service\Insight\InsightNotifier when a sync
             // actually landed insights for this user. The strip above the mail

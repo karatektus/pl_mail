@@ -5,6 +5,7 @@ use App\Entity\Mail\Message;
 use App\Infrastructure\Messaging\Message\SendMessageMessage;
 use App\Repository\Mail\MessageRepository;
 use App\Service\Imap\MessageSendService;
+use App\Service\Mail\SendOutcomeNotifier;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 use Throwable;
@@ -32,6 +33,7 @@ readonly class SendMessageHandler
         private MessageRepository  $messageRepository,
         private MessageSendService $sendService,
         private EntityManagerInterface $em,
+        private SendOutcomeNotifier $outcomes,
     ) {}
 
     public function __invoke(SendMessageMessage $msg): void
@@ -78,12 +80,30 @@ readonly class SendMessageHandler
             // or every retry would be refused by our own claim.
             $this->releaseAfterFailure($msg->messageId);
 
+            // Not told yet: this one IS retried, and announcing a failure that
+            // the next attempt may undo would be the same overconfidence in the
+            // other direction. Messenger exhausting its ladder is what makes it
+            // final, and the toast is not the surface for that.
             throw $failure;
         }
 
         if (false === $sent) {
             $this->releaseAfterFailure($msg->messageId);
+
+            // SAID OUT LOUD. A refused send used to end here, silently: the
+            // senders turn every failure into `return false`, so Messenger
+            // considers the message handled — no retry, no failed-transport
+            // row, nothing — and the browser had already been told the mail
+            // was sent two seconds before the attempt was even made.
+            $this->outcomes->failed($message);
+
+            return;
         }
+
+        // And the confirmation now happens HERE, where success is actually
+        // known, rather than at the eight-second mark where it was merely
+        // assumed. See SendOutcomeNotifier.
+        $this->outcomes->sent($message);
     }
 
     /**

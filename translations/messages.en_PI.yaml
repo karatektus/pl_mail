@@ -2615,6 +2615,7 @@ toast:
     schedule_cancelled: The castin' off be belayed.
     send_cancelled: Castin' off belayed — back to yer scroll.
     send_too_late: Too late, matey — that message has already sailed.
+    send_failed: 'That message could not be hoisted: %subject%'
     sent: Message away!
     undo: Belay that
     error:
