@@ -1,5 +1,5 @@
 import { test, expect } from "./support/test";
-import { consoleCommand, seed } from "./support/config";
+import { seed } from "./support/config";
 
 /**
  * The details panel is on top of the conversation, not inside one message of it.
@@ -17,26 +17,21 @@ import { consoleCommand, seed } from "./support/config";
  * so any assertion phrased in z-index would have passed throughout the bug.
  *
  * Needs a conversation — a thread of one has nothing to be covered by — so it
- * seeds the demo mailbox, which carries a four-message one.
+ * seeds one, additively.
  *
- * ⚠ AND THEN PUTS IT BACK. app:test:seed-demo adds a SECOND account,
- * you@example.com, to the shared fixture user, and account-scope.spec.ts
- * asserts on the first account in the sidebar — so leaving it behind fails that
- * spec with "expected E2E Mailbox, received you@example.com", which reads as a
- * regression in account scoping and is not. screenshots.spec.ts carries the
- * same warning and prescribes exactly this cleanup.
+ * NOT app:test:seed-demo, which was the first attempt and was a mistake worth
+ * recording: that command is a screenshot tool. It DELETES every other account
+ * on the user, so the next spec's seed-mail put E2E Mailbox back alongside the
+ * demo one it left behind, and six unrelated specs then failed on account and
+ * unread counts that had been correct until this file ran — in a full suite,
+ * never alone.
  *
- * In afterAll rather than at the end of the test body, because a failing test
- * never reaches its last line — cleanup written inline is cleanup that is
- * skipped precisely when the residue does the most damage, and then poisons the
- * retry as well.
+ * app:test:seed-conversation adds one read thread and removes only that thread
+ * on a re-run. Nothing else on the account moves, so this spec cannot be the
+ * reason another one fails.
  */
-test.beforeAll(() => {
-    seed("seed-demo");
-});
-
-test.afterAll(() => {
-    consoleCommand(`dbal:run-sql "DELETE FROM account WHERE email = 'you@example.com'"`);
+test.beforeEach(() => {
+    seed("seed-mail", "seed-conversation");
 });
 
 const DETAILS = '[data-controller="mail--message-details"]';
@@ -44,7 +39,7 @@ const PANEL = '[data-mail--message-details-target="panel"]';
 
 test("the details panel is not painted over by the next message", async ({ page }) => {
     await page.goto("/mail/inbox");
-    await page.locator("#message-list li").filter({ hasText: "Oak for the alcove" }).first().click();
+    await page.locator("#message-list li").filter({ hasText: "E2E Conversation" }).first().click();
 
     // The first message of the conversation, which has messages after it —
     // the last one is the only one open by default and would have nothing
