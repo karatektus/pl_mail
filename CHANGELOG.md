@@ -6,6 +6,24 @@ so anything that changes the schema irreversibly is called out explicitly.
 The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, and `sha-…` pins one commit.
 
+## v0.1.20 — 2026-08-25
+
+**No migration. New mail on a Gmail or Outlook account never appeared in the
+list until you navigated — the badge moved and nothing else did.**
+
+### Fixed
+
+- **New mail did not reach the message list on Gmail, Outlook or demo
+  accounts.** plMail publishes two kinds of sync announcement: `mailbox.synced`
+  from IMAP, which names the folder that changed, and `account.synced` from the
+  provider APIs, which cannot. The layout routed only the first to the list.
+  Nothing errored — the sidebar listens for both, so the badge read "Inbox 4"
+  beside a list holding three, and stayed that way until the next navigation.
+  Whether it looked broken depended on whether you happened to click away.
+- **A tooltip still covered the user menu it had just opened.** The fix in
+  v0.1.19 covered one of the two ways a menu is hidden here, and the reported
+  case was the other one.
+
 ## v0.1.19 — 2026-08-25
 
 **No migration. Demo mode grows a mailbox the product has actually happened to,
