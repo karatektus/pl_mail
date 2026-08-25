@@ -93,26 +93,37 @@ class OAuthTokenManager
                 'refresh_token' => $refreshToken,
             ]);
         } catch (Throwable $e) {
-            // Recorded before anything is decided about retrying: this is what
-            // AccountHealthInspector reads to offer the Reconnect button, and
-            // it has to be there whether the message is tried again or not.
-            $account->oauthLastRefreshError = $e->getMessage();
-            $this->em->flush();
-
             // A revoked grant answers identically every time, so it is raised
             // as something Messenger will not retry. Everything else — a
             // timeout, a 500, a DNS failure — stays exactly as it was and is
             // tried again; see OAuthGrantRevokedException on why that line is
             // drawn at the provider's error code and nowhere else.
-            if (true === OAuthGrantRevokedException::isTerminal($e)) {
-                throw new OAuthGrantRevokedException(
-                    sprintf('The sign-in for account %d has been revoked or has expired.', $account->id),
-                    0,
-                    $e,
-                );
+            if (false === OAuthGrantRevokedException::isTerminal($e)) {
+                throw $e;
             }
 
-            throw $e;
+            // RECORDED ONLY WHEN THE GRANT IS ACTUALLY DEAD.
+            //
+            // This used to be written on every failed refresh, before anything
+            // was decided about retrying — and the card it raises says "needs
+            // you to sign in again", in red, at the top of the health page. One
+            // timeout against the token endpoint was enough to say that about a
+            // perfectly good account.
+            //
+            // Which would have been survivable if a later success undid it, and
+            // it did not: the clear below sat inside `if (null !== $returnedRefresh)`,
+            // and Google returns a refresh token on the initial authorization
+            // only. So a single network blip marked an account as broken
+            // permanently, and the one thing that cleared it was doing the
+            // reconnect the card had wrongly demanded.
+            $account->oauthLastRefreshError = mb_substr($e->getMessage(), 0, 500);
+            $this->em->flush();
+
+            throw new OAuthGrantRevokedException(
+                sprintf('The sign-in for account %d has been revoked or has expired.', $account->id),
+                0,
+                $e,
+            );
         }
 
         $account->oauthAccessToken = $newToken->getToken();
@@ -146,11 +157,18 @@ class OAuthTokenManager
             $account->oauthTokenExpiry = new DateTimeImmutable()->setTimestamp($expires);
         }
 
+        // Cleared on ANY successful refresh, and that is the fix rather than a
+        // tidy-up: this sat inside the branch below, which only runs when the
+        // provider hands back a NEW refresh token — something Google does on
+        // the initial authorization and essentially never afterwards. An
+        // account that recovered went on reporting itself broken for ever.
+        $account->oauthLastRefreshAt    = new DateTimeImmutable();
+        $account->oauthLastRefreshError = null;
+
         $returnedRefresh = $newToken->getRefreshToken();
+
         if (null !== $returnedRefresh) {
             $account->oauthRefreshToken = $returnedRefresh;
-            $account->oauthLastRefreshAt = new DateTimeImmutable();
-            $account->oauthLastRefreshError = null;
         }
 
 
