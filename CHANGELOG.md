@@ -6,6 +6,62 @@ so anything that changes the schema irreversibly is called out explicitly.
 The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, and `sha-…` pins one commit.
 
+## v0.1.18 — 2026-08-25
+
+**No migration. A demo mode: one environment variable turns an install into a
+public demo where every visitor gets a throwaway mailbox, sending is answered by
+a script, and a button makes mail arrive.**
+
+### Demo mode
+
+`APP_DEMO_MODE=1` is the whole of it. It is instance-wide rather than per-user,
+and that is deliberate: the promise is that nothing reaches the network, and a
+per-account flag would move that promise into every outbound path individually,
+where it would hold until the first one that forgot to ask.
+
+**Do not set it on an install holding real mail.** With it on, mail sync stops,
+sending goes nowhere, and `/demo` hands anyone who asks a working session. It
+defaults to off, and an install that has never heard of the variable is a normal
+install — the accident worth designing against is a real deployment quietly
+becoming a demo.
+
+What a visitor gets: their own throwaway user (not a shared account — two people
+arriving at once would be marking each other's mail read), the ten seeded
+threads the README screenshots are taken against, a bar at the foot of the page
+with a **Receive mail** button, and two hours before `app:demo:reap` deletes
+them. Nothing is asked of them: no address, no sign-up.
+
+The button walks a scripted queue — a reply, an invoice with a real attachment,
+a delayed train, an HTML newsletter — and wraps at the end. Delivery goes
+through the same ingest pipeline a real IMAP sync uses, so the mail threads,
+gets categorised, runs the visitor's own filters and appears without a reload.
+Compose works too, and answers itself a few seconds later from whoever was
+addressed.
+
+Attaching a real mailbox is refused — account forms, OAuth and CalDAV connect,
+calendar subscribe. Everything else stays clickable, themes and filter builder
+included.
+
+`compose.demo.yaml` is the overlay, and it exists rather than being a documented
+command line because compose reads Symfony's committed `.env`, which ships the
+variable as `0`. Written as `${APP_DEMO_MODE:-1}` it would have resolved to `0`
+for everyone who cloned the repo, and the stack would have come up healthy and
+simply not been a demo. See [Demo mode](docs/install/demo-mode.md).
+
+### Under the floor
+
+- **The demo mailbox is now shared.** `app:test:seed-demo` and the demo
+  provisioner build it from one place, so the README screenshots and the hosted
+  demo cannot drift into being pictures of different things.
+- **Deleting a user is now possible.** There was no such path — a self-hosted
+  install's users leave by having their password changed — and the reaper needed
+  one. It finds owned rows from Doctrine's mapping rather than a hand-written
+  list, because twenty entities point at `User` today under two different
+  property names, and a list would be right only until the next one was added.
+- **`.idea/` is no longer tracked.** It has been in `.gitignore` for a long time,
+  but gitignore does not apply to files already tracked, so nine of them kept
+  turning up in diffs.
+
 ## v0.1.17 — 2026-08-24
 
 **No migration. Live updates move to Mercure 0.8, the test suites stop sharing a
