@@ -355,8 +355,43 @@ final readonly class AccountHealthInspector
         // accounts connected afterwards, and waiting for a refusal only helps
         // if something tries to write. Somebody looking at three broken
         // calendars right now had the evidence on screen and nothing read it.
-        $missing  = $provider->missingScopes($account->oauthGrantedScopes) ?? [];
-        $refused  = $account->exportRefusedReason;
+        $missing = $provider->missingScopes($account->oauthGrantedScopes);
+
+        // A KNOWN-GOOD GRANT ENDS THE QUESTION.
+        //
+        // The indirect evidence below is historical: a calendar keeps the error
+        // it failed with until it next succeeds, and an export refusal is
+        // cleared by the next export that works. Neither is a statement about
+        // the grant as it stands now — so once the granted scopes have been
+        // recorded and nothing is missing from them, the old refusals are the
+        // past and this card has nothing to say.
+        //
+        // Without this the card could not be cleared by doing what it asked.
+        // Reconnecting records a complete grant, and the stale calendar error
+        // raised the card again on the very next page load.
+        if ([] === $missing) {
+            return null;
+        }
+
+        $missing ??= [];
+
+        // The recorded grant is null on every account connected before it was
+        // recorded — which is every account already suffering from this — so
+        // two indirect signals stand in for it.
+        //
+        // A permanently refused export, but only when the refusal is ABOUT
+        // scopes: `insufficientPermissions` on a batchModify is Gmail saying
+        // the grant cannot write, while a tenant policy refusing REST access is
+        // a different problem with a different answer, and this card's wording
+        // fits only the first.
+        $refused = true === $provider->looksLikeScopeRefusal($account->exportRefusedReason)
+            ? $account->exportRefusedReason
+            : null;
+
+        // And a calendar that failed the same way, which is the signal that
+        // works on an install already broken: it needs no refresh to have
+        // happened and nothing to have tried to write, because the calendars
+        // stored the provider's own refusal the first time they failed.
         $refusedByCalendar = null;
 
         if ([] === $missing && null === $refused) {

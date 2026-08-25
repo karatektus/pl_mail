@@ -326,6 +326,70 @@ final class AccountHealthQuieterProblemsTest extends WebTestCase
         );
     }
 
+    /**
+     * The card goes away when the grant is put right — which it did not.
+     *
+     * Two faults, and either alone made the card unclearable.
+     *
+     * The comparison included `openid`, `email` and `offline_access`, which are
+     * handshake scopes that providers do not echo back in the granted `scope`.
+     * So a perfectly complete grant reported four missing scopes, on every
+     * account, for ever — and each reconnect recorded the same answer and the
+     * same four.
+     *
+     * And the indirect evidence outlived the fix: a calendar keeps the error it
+     * failed with until it next syncs, so even once the scopes were right the
+     * stale error raised the card again on the next page load. A recorded grant
+     * with nothing missing is the current answer and now ends the question.
+     */
+    public function testTheCardClearsOnceTheGrantIsComplete(): void
+    {
+        $client  = static::createClient();
+        $user    = $this->boot($client);
+        $account = $this->gmailAccount($user, 'regranted@joder.dev');
+
+        // The state a reconnect leaves behind: a full grant recorded, and the
+        // history of what was failing before still on the account.
+        $account->oauthGrantedScopes  = implode(' ', MailProvider::Google->capabilityScopes());
+        $account->exportRefusedReason = 'Gmail messages.batchModify failed with 403 (insufficientPermissions)';
+        $this->em->flush();
+
+        $crawler = $client->request('GET', '/settings?section=health');
+
+        self::assertSame(
+            0,
+            $crawler->filter('[data-health-issue="account-scope-' . $account->id . '"]')->count(),
+            'the card survived the reconnect that was meant to clear it',
+        );
+    }
+
+    /**
+     * And a provider that omits the handshake scopes is not reported at all.
+     *
+     * Microsoft returns `Mail.ReadWrite Calendars.ReadWrite …` and no
+     * `offline_access`, `openid` or `profile`, even though all three were
+     * requested. Reading that as a shortfall put a permanent card on every
+     * Outlook account.
+     */
+    public function testHandshakeScopesAreNotCountedAsMissing(): void
+    {
+        $client  = static::createClient();
+        $user    = $this->boot($client);
+        $account = $this->gmailAccount($user, 'handshake@joder.dev');
+
+        $account->oauthProvider      = MailProvider::Microsoft->value;
+        $account->oauthGrantedScopes = 'Mail.ReadWrite Mail.Send MailboxSettings.ReadWrite Calendars.ReadWrite User.Read';
+        $this->em->flush();
+
+        $crawler = $client->request('GET', '/settings?section=health');
+
+        self::assertSame(
+            0,
+            $crawler->filter('[data-health-issue="account-scope-' . $account->id . '"]')->count(),
+            'the sign-in scopes were counted as permissions',
+        );
+    }
+
     /** The reconnect this account's repair button should point at. */
     private function urlFor(Account $account): string
     {

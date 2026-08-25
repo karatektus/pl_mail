@@ -120,6 +120,23 @@ enum MailProvider: string
      *
      * @var list<string>
      */
+    /**
+     * The handshake scopes, which are requested and not reported back.
+     *
+     * Not permissions over anything: they identify the user and ask for a
+     * refresh token. A provider that answers without them has not withheld
+     * anything, and treating their absence as a shortfall is what made the
+     * "not given full access" card unclearable.
+     *
+     * @var list<string>
+     */
+    private const array SIGN_IN_SCOPES = [
+        'openid',
+        'email',
+        'profile',
+        'offline_access',
+    ];
+
     private const array SCOPE_REFUSAL_CODES = [
         'insufficientPermissions',
         'ACCESS_TOKEN_SCOPE_INSUFFICIENT',
@@ -167,6 +184,30 @@ enum MailProvider: string
     }
 
     /**
+     * The scopes that grant access to DATA, as opposed to signing in.
+     *
+     * `openid`, `email`, `profile` and `offline_access` are asked for in the
+     * authorization request and are routinely absent from the granted `scope`
+     * that comes back — the providers treat them as part of the handshake
+     * rather than as permissions to enumerate. Comparing them reported four
+     * missing scopes on a grant that was completely fine, which put a card on
+     * the health page that reconnecting could never clear: every reconnect
+     * recorded the same answer and the same four "missing" entries.
+     *
+     * So the comparison is over what actually buys access to somebody's mail
+     * and calendar. Those are echoed, by both providers, every time.
+     *
+     * @return list<string>
+     */
+    public function capabilityScopes(): array
+    {
+        return array_values(array_filter(
+            $this->scopes(),
+            static fn (string $scope): bool => false === in_array($scope, self::SIGN_IN_SCOPES, true),
+        ));
+    }
+
+    /**
      * Everything that was asked for and not given.
      *
      * Calendar is the case people notice, because a calendar that stops
@@ -191,7 +232,7 @@ enum MailProvider: string
         $held    = array_map($this->normaliseScope(...), explode(' ', trim($granted)));
         $missing = [];
 
-        foreach ($this->scopes() as $wanted) {
+        foreach ($this->capabilityScopes() as $wanted) {
             if (false === in_array($this->normaliseScope($wanted), $held, true)) {
                 $missing[] = $wanted;
             }
