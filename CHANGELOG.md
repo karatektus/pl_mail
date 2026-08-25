@@ -6,6 +6,29 @@ so anything that changes the schema irreversibly is called out explicitly.
 The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, and `sha-…` pins one commit.
 
+## v0.1.21 — 2026-08-25
+
+**No migration. Clicking an event now opens it to read rather than to edit —
+including the description, who else is coming, and the mail it was read out of,
+none of which the editor could show.**
+
+### Events open to be read
+
+The only way to look at an event was the editor. Answering "when is this, and
+why is it on my calendar?" meant opening a form that asks you to change it, and
+a field with no answer appeared as an empty input rather than being absent.
+
+A click now opens a read-only panel — on the calendar grid and in Happening
+Soon alike — with **Edit** one step in. It shows three things the form never
+could: the **description** and **participants**, which live in the JSCalendar
+overlay the form does not edit, and the **message the event came from**. Delete
+stays on the editor, being the one irreversible action here.
+
+Happening Soon rows open whether or not there is mail behind them. Previously
+the only thing you could act on was the provenance link, so a hand-typed
+appointment — which by definition has no mail — was the one kind of row with
+nothing clickable on it at all.
+
 ## v0.1.20 — 2026-08-25
 
 **No migration. New mail on a Gmail or Outlook account never appeared in the
