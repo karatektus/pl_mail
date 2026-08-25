@@ -55,6 +55,30 @@ test.describe("send closes the composer and puts the undo in a toast", () => {
         const toast = page.locator(TOAST);
         await expect(toast).toContainText("Sending");
         await expect(toast.getByRole("button", { name: "Undo" })).toBeVisible();
+
+        // ONE toast, and it is the countdown.
+        //
+        // The optimistic response includes the settle template with
+        // `notify: false`, precisely so that "Message sent." is not said while
+        // the send can still be called off. That suppression silently did
+        // nothing for as long as it existed: the template read the flag with
+        // `|default(true)`, and Twig's default filter fires on false as well as
+        // on absent. So every send put "Message sent." on screen beside its own
+        // countdown reading "Sending… 8" — the app contradicting itself, twice
+        // over, in two toasts an inch apart.
+        //
+        // Asserted as a count rather than as "does not contain Message sent",
+        // because the failure to catch is a SECOND toast of any wording.
+        // Counted ONCE, not with expect().toHaveCount(), and that is the
+        // difference between this catching the bug and not. toHaveCount retries
+        // until it matches, and the stray toast auto-hides a few seconds in —
+        // so the retrying form sat there watching two toasts, waited for one to
+        // expire, and passed. It reported success against the unfixed code.
+        //
+        // Safe as a single sample because both toasts arrive in one Turbo
+        // stream response, and the assertion above has already waited for the
+        // second of the two.
+        expect(await page.locator(`${TOAST} > *`).count(), "a second toast was raised alongside the countdown").toBe(1);
     });
 
     /**

@@ -1122,7 +1122,10 @@
                and a download triggered from inside a turbo-frame either blows the
                frame away or does nothing at all. Neither is worth showing someone
                who has been in the app for ninety seconds. #}
-            {% if show_appearance_transfer|default(true) %}
+            {# `?? true`, not `|default(true)`: false is empty to the default filter, so
+               the wizard's `show_appearance_transfer: false` never took and the block
+               above showed there anyway. #}
+            {% if show_appearance_transfer ?? true %}
                 <section class="flex items-center gap-2 pt-4 border-t border-line">
                     <a href="{{ path('app_appearance_export') }}"
                        class="inline-flex items-center gap-2 px-3 h-9 rounded-pane border border-line text-sm text-ink-muted hover:bg-hover transition-colors">

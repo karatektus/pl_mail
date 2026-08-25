@@ -35,7 +35,14 @@ Variables: message, thread (MessageThread|null), ctx, notify (default true)
    own toast — an error one, which is the news that matters there. Two toasts
    stacked, one saying the send failed to stop and one saying it went, is the
    same fact told twice with the second half burying the first. #}
-{% set notify = notify|default(true) %}
+{# `?? true`, NOT `|default(true)`. Twig's default filter fires on any EMPTY
+   value, not merely a missing one, so `false|default(true)` is true — and every
+   caller that passed `notify: false` to suppress this toast got it anyway. Both
+   of them do that, so a send showed "Message sent." next to its own countdown
+   saying "Sending… 8", and a cancel that arrived too late was told off and
+   congratulated at the same time. The null-coalescing operator defaults only on
+   null or undefined, which is what was meant. #}
+{% set notify = notify ?? true %}
 {# Is the sent message part of the conversation this composer was opened in?
    Both halves are needed: the dock carries `thread` too (a reply opened below
    md lands there), and a message can have no thread at all. #}

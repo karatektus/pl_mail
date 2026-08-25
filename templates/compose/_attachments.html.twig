@@ -16,7 +16,11 @@ appears with no sign it arrived is an attachment people upload twice.
 Variables: message, live (default true)
 #}
 {% set parts = message.messageParts|filter(part => not part.isInline) %}
-{% set live  = live|default(true) %}
+{# `?? true`, not `|default(true)`: the default filter fires on any empty
+   value, so `false|default(true)` is true and `live: false` — which the compose
+   window passes to say "these chips are already here, do not animate them in" —
+   was ignored. #}
+{% set live  = live ?? true %}
 
 {% if parts|length > 0 %}
     {# Stagger, so three files dropped at once read as a list arriving rather

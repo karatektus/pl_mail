@@ -45,7 +45,10 @@ the account view passes false.
    mail's own labels rather than from the route, so a row reached from a search
    result or a live update answers the same as one in the folder listing. #}
 {% set placement = mail_placement(item) %}
-{% set unified = unified|default(true) %}
+{# `?? true`, not `|default(true)`: the default filter fires on false as well
+   as on absent, so the per-account list's `unified: false` was ignored and its
+   rows carried the account disambiguation only the merged lists need. #}
+{% set unified = unified ?? true %}
 {% set rowAccount = item.account ?? null %}
 {% set showAccountDot = unified and rowAccount is not null and accounts|length > 1 %}
 

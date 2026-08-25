@@ -60,7 +60,10 @@ identity is threaded through a URL that would outlive the render that made it.
 
 {% set occurrence = cluster.primary %}
 {% set event = occurrence.event %}
-{% set showTime = showTime|default(true) and not event.isAllDay %}
+{# `?? true`, not `|default(true)`: the default filter treats false as absent,
+   so the time-grid's `showTime: false` never took and every chip printed a start
+   time the column's own axis was already showing. #}
+{% set showTime = (showTime ?? true) and not event.isAllDay %}
 {% set tall = tall|default(false) %}
 
 {# Whether the chip prints "18:00–19:00" or just "18:00".
