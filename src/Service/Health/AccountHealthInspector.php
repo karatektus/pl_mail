@@ -480,8 +480,40 @@ final readonly class AccountHealthInspector
             // behaviour is to wait for the next scheduled sync to fail too.
             // The detail below is what someone can actually act on.
             repairs: [],
+            // The evidence, not a second verdict. A mailbox that fails to sync
+            // and has re-listed itself six times this week is a different story
+            // from one that has never had to — the first is falling behind the
+            // window its provider keeps, and that is somewhere to look.
+            facts: $this->resyncFacts($account),
             detail: $account->lastSyncError,
         );
+    }
+
+    /**
+     * How often this account has had to start its sync over, if ever.
+     *
+     * Nothing when it never has, which is the common case and reads better as
+     * absence than as "0 times". HealthFact's own docblock makes the opposite
+     * argument for dates — a null there renders as "never" rather than a blank,
+     * because an empty cell reads as a bug — and that holds because the fact is
+     * always relevant once its card is up. This one is only relevant when it
+     * has happened.
+     *
+     * @return list<HealthFact>
+     */
+    private function resyncFacts(Account $account): array
+    {
+        if (0 === $account->fullResyncCount) {
+            return [];
+        }
+
+        return [
+            new HealthFact(
+                labelKey: 'settings.health.fact.last_full_resync',
+                at: $account->lastFullResyncAt,
+                labelParams: ['%count%' => $account->fullResyncCount],
+            ),
+        ];
     }
 
     /**

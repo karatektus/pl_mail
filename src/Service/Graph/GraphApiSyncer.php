@@ -109,6 +109,14 @@ final class GraphApiSyncer
 
                 unset($deltaLinks[$folderId]);
                 $account->graphDeltaLinks = $deltaLinks;
+
+                // Same count as the Gmail path keeps, and it matters more here:
+                // a Graph re-enumeration re-reads the whole folder and, on a
+                // mailbox without immutable ids, re-downloads every body only
+                // to discard them as duplicates. Once is nothing; every hour is
+                // an account quietly costing a great deal.
+                $account->recordFullResync();
+
                 $this->em->flush();
 
                 try {

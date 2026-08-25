@@ -135,7 +135,7 @@
                                 {% if issue.facts is not empty %}
                                     <dl class="mt-2.5 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-[11px] leading-relaxed" data-health-facts>
                                         {% for fact in issue.facts %}
-                                            <dt class="text-ink-faint">{{ fact.labelKey|trans }}</dt>
+                                            <dt class="text-ink-faint">{{ fact.labelKey|trans(fact.labelParams) }}</dt>
                                             {# Only a deadline that has gone by
                                                is tinted — see HealthFact
                                                $alarmWhenPast. Every other date

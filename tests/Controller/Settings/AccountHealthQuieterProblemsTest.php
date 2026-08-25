@@ -496,6 +496,64 @@ final class AccountHealthQuieterProblemsTest extends WebTestCase
         self::assertSame(0, $card->filter('form')->count());
     }
 
+    /**
+     * A repeatedly re-listed mailbox shows how often, as evidence.
+     *
+     * Both providers hand out a sync cursor that expires, and the answer is to
+     * list the whole mailbox again and work out what is missing. Once is
+     * housekeeping. Repeatedly means the account is not being synced inside the
+     * window the provider keeps, or a worker is dying before it can commit the
+     * new cursor — and the symptom of that is a mailbox that is intermittently
+     * behind, which looks like nothing at all from outside.
+     *
+     * It rides on the card that fires when syncing is actually failing, rather
+     * than raising one of its own: a card about routine housekeeping is noise,
+     * and HealthFact exists precisely so a verdict can show what it was read
+     * off.
+     */
+    public function testARepeatedlyReListedMailboxShowsHowOften(): void
+    {
+        $client  = static::createClient();
+        $user    = $this->boot($client);
+        $account = $this->gmailAccount($user, 'falling-behind@joder.dev');
+
+        $account->recordSyncFailure('IMAP: connection refused');
+        $account->recordSyncFailure('IMAP: connection refused');
+        $account->recordSyncFailure('IMAP: connection refused');
+
+        $account->recordFullResync();
+        $account->recordFullResync();
+        $this->em->flush();
+
+        $crawler = $client->request('GET', '/settings?section=health');
+        $card    = $crawler->filter('[data-health-issue="account-sync-' . $account->id . '"]');
+
+        self::assertSame(1, $card->count());
+        self::assertStringContainsString('2', $card->filter('dt')->text(), 'the count is the evidence and it is missing');
+    }
+
+    /** And an account that has never had to says nothing about it. */
+    public function testAMailboxThatNeverReListedShowsNoSuchFact(): void
+    {
+        $client  = static::createClient();
+        $user    = $this->boot($client);
+        $account = $this->gmailAccount($user, 'steady@joder.dev');
+
+        $account->recordSyncFailure('IMAP: connection refused');
+        $account->recordSyncFailure('IMAP: connection refused');
+        $account->recordSyncFailure('IMAP: connection refused');
+        $this->em->flush();
+
+        $crawler = $client->request('GET', '/settings?section=health');
+        $card    = $crawler->filter('[data-health-issue="account-sync-' . $account->id . '"]');
+
+        self::assertSame(1, $card->count());
+
+        // Absent rather than "0 times": a fact that has not happened reads
+        // better as nothing than as a zero somebody has to interpret.
+        self::assertSame(0, $card->filter('[data-health-fact="settings.health.fact.last_full_resync"]')->count());
+    }
+
     /** The reconnect this account's repair button should point at. */
     private function urlFor(Account $account): string
     {

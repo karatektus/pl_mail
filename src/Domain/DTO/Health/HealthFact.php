@@ -49,6 +49,18 @@ final readonly class HealthFact
          * teach the reader that the colour means nothing.
          */
         public bool $alarmWhenPast = false,
+        /**
+         * Placeholders for the label, the way HealthIssue carries titleParams.
+         *
+         * A label is usually a constant — "Watch expires" — and needed none.
+         * "Re-listed the whole mailbox 6 times" is the same kind of fact and
+         * cannot be one: the number IS the evidence, and a fact that said
+         * "re-listed the whole mailbox" without it would be a sentence nobody
+         * could act on.
+         *
+         * @var array<string, string|int>
+         */
+        public array $labelParams = [],
     ) {
     }
 

@@ -243,6 +243,12 @@ final class GmailApiSyncer
                 $account->backfillRanAt    = null;
                 $account->backfillAttempts = 0;
 
+                // Counted, because once is housekeeping and repeatedly is a
+                // fault: a cursor that keeps expiring means this account is not
+                // being synced inside the thirty days Gmail keeps history for,
+                // or a worker is dying before it can commit the new one.
+                $account->recordFullResync();
+
                 $this->em->flush();
                 $this->initialSync($account);
 

@@ -219,6 +219,39 @@ class Account extends AccountModel
     #[ORM\Column(type: 'text', nullable: true)]
     public ?string $imapServerAlert = null;
 
+    /**
+     * How many times this account has had to re-enumerate its whole mailbox.
+     *
+     * Both providers hand out a sync cursor that can expire — Gmail's historyId
+     * after about thirty days, Graph's delta link on its own schedule — and the
+     * answer to either is to list everything again and work out what is missing.
+     * That recovery is correct and normal, occasionally.
+     *
+     * It is not normal often. A cursor that keeps expiring means the account is
+     * not being synced inside the window the provider keeps, or a worker is
+     * dying mid-batch and never committing the new one — and the symptom of
+     * that is a mailbox that is intermittently behind, which looks like nothing
+     * in particular from the outside.
+     *
+     * Recorded rather than surfaced on its own: one re-sync is housekeeping and
+     * a card about it would be noise. It rides along as evidence on the card
+     * that fires when syncing is actually failing — see HealthFact, which
+     * exists so somebody can check the reasoning rather than take a verdict on
+     * faith.
+     */
+    #[ORM\Column(options: ['default' => 0])]
+    public int $fullResyncCount = 0;
+
+    #[ORM\Column(nullable: true)]
+    public ?DateTimeImmutable $lastFullResyncAt = null;
+
+    /** A cursor expired and the whole mailbox had to be listed again. */
+    public function recordFullResync(): void
+    {
+        ++$this->fullResyncCount;
+        $this->lastFullResyncAt = new DateTimeImmutable();
+    }
+
 
     #[ORM\Column(length: 255, nullable: true)]
     public ?string $gmailHistoryId = null;
