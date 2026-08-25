@@ -1,5 +1,5 @@
 import { test, expect } from "./support/test";
-import { seed } from "./support/config";
+import { consoleCommand, seed } from "./support/config";
 
 /**
  * The details panel is on top of the conversation, not inside one message of it.
@@ -18,9 +18,25 @@ import { seed } from "./support/config";
  *
  * Needs a conversation — a thread of one has nothing to be covered by — so it
  * seeds the demo mailbox, which carries a four-message one.
+ *
+ * ⚠ AND THEN PUTS IT BACK. app:test:seed-demo adds a SECOND account,
+ * you@example.com, to the shared fixture user, and account-scope.spec.ts
+ * asserts on the first account in the sidebar — so leaving it behind fails that
+ * spec with "expected E2E Mailbox, received you@example.com", which reads as a
+ * regression in account scoping and is not. screenshots.spec.ts carries the
+ * same warning and prescribes exactly this cleanup.
+ *
+ * In afterAll rather than at the end of the test body, because a failing test
+ * never reaches its last line — cleanup written inline is cleanup that is
+ * skipped precisely when the residue does the most damage, and then poisons the
+ * retry as well.
  */
 test.beforeAll(() => {
     seed("seed-demo");
+});
+
+test.afterAll(() => {
+    consoleCommand(`dbal:run-sql "DELETE FROM account WHERE email = 'you@example.com'"`);
 });
 
 const DETAILS = '[data-controller="mail--message-details"]';

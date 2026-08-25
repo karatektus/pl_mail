@@ -150,16 +150,17 @@ test.describe("admin integrations", () => {
             page.locator("#admin-integrations").getByText("Enabled").first(),
         ).toBeVisible();
 
-        // Both Google integrations share that Cloud project, so both offer it;
-        // Dropbox has no mail counterpart and must not.
+        // Both Google integrations share that Cloud project, so Drive offers it.
+        //
+        // Finished with in ONE go, and that ordering is load-bearing rather
+        // than tidiness: opening any row replaces the whole frame, which
+        // collapses every other row with it. This used to open Dropbox between
+        // asserting Drive's button was there and clicking it, so the click
+        // raced the replacement — fast enough and it landed, slow enough and
+        // the button it had just seen was gone. It failed roughly once a full
+        // suite, on the run where the machine was busiest.
         const drive = providerRow(page, "Google Drive");
         await drive.locator("summary").click();
-        await expect(drive.getByRole("button", { name: /Reuse Gmail sign-in/ })).toBeVisible();
-
-        const dropbox = providerRow(page, "Dropbox");
-        await dropbox.locator("summary").click();
-        await expect(dropbox.getByRole("button", { name: /Reuse/ })).toHaveCount(0);
-
         await drive.getByRole("button", { name: /Reuse Gmail sign-in/ }).click();
 
         // Wait for the copy to land before reopening: the response replaces the
@@ -173,6 +174,13 @@ test.describe("admin integrations", () => {
         await expect(refreshed.getByText("gmail-client-id")).toBeVisible();
         await expect(refreshed.getByText("Stored")).toBeVisible();
         await expect(page.locator("body")).not.toContainText("gmail-client-secret");
+
+        // Dropbox has no mail counterpart and must never offer to reuse one —
+        // asserted last, and therefore against the hardest case: Google
+        // credentials now exist and have already been copied once.
+        const dropbox = providerRow(page, "Dropbox");
+        await dropbox.locator("summary").click();
+        await expect(dropbox.getByRole("button", { name: /Reuse/ })).toHaveCount(0);
     });
 
     test("the setup tutorial is readable inline", async ({ page }) => {
