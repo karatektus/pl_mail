@@ -6,6 +6,57 @@ so anything that changes the schema irreversibly is called out explicitly.
 The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, and `sha-…` pins one commit.
 
+## v0.1.35 — 2026-08-26
+
+**Adds columns to `message` and `account`; the migrations run on boot. Mail that bounces now says so.**
+
+### Added
+
+- **A message that was refused now shows it.** When a delivery status notification comes back, the
+  message it is about gains a red **Not delivered** panel naming the recipient that failed, the
+  reporting server's own diagnostic, and the status code. Until now the only trace of a failed send
+  was a machine-generated mail in the Inbox whose body is an SMTP transcript, while the message
+  itself sat in Sent looking like it had worked.
+
+  Deliberately narrow. A **delay notice is not a bounce** — mail servers send one after a few hours
+  and keep trying for days, and marking a message in flight as failed would be wrong at exactly the
+  moment it mattered. A **delivery confirmation** stamps nothing. A bounce naming a message this
+  mailbox never sent — forged mail bouncing back at the address it was forged from, which arrives
+  constantly — is ignored. Nothing is retried, and no address is ever disabled: plMail records what
+  one server said about one attempt and leaves the decision to you.
+
+  The bounce itself stays unread in the Inbox rather than being filed away the way a read receipt
+  is. Its body is often the only readable account of what went wrong.
+
+- **The health page says how often an account has had to re-list its whole mailbox.** Both providers
+  hand out a sync cursor that expires, and the answer to either is a full re-enumeration. Once in a
+  while that is housekeeping; repeatedly it means the account is not being synced inside the window
+  the provider keeps, or a worker is dying mid-batch. Nothing recorded it, so the two were
+  indistinguishable — and the symptom of the second is a mailbox that is quietly, intermittently
+  behind. It appears as a detail on the existing sync card rather than as a warning of its own,
+  because on its own it is not a problem.
+
+### Fixed
+
+- **A bulk action over more than 100 threads applied only the first 100 — and reported success.** The
+  handler clears the EntityManager after each chunk, but resolved the whole thread list once up
+  front, so from the second chunk on it was writing through detached objects. On a real mailbox that
+  surfaced as `Multiple non-persisted new entities were found through the given association graph`;
+  under other conditions it did something quieter and worse — the job finished, the counter read
+  250 of 250, and 150 of those messages were never touched. It now carries thread ids across the
+  chunk boundary and re-reads each chunk, because scalars survive a clear and managed objects do
+  not.
+
+  A failing job was also left looking like a running one: the failure was written to the same
+  detached job row and flushed nothing, so the indicator span for ever. It re-reads before recording
+  the failure now.
+
+- **A bounce could be mistaken for a read receipt**, which put **Read at …** on a message that was
+  never delivered. Both are `multipart/report` and both carry `Original-Message-ID`, so a bounce
+  satisfied the receipt matcher's fallback. The two field blocks are now told apart by the fields
+  only one of them has. This was reachable before this release and is the reason the fix is listed
+  separately from the feature.
+
 ## v0.1.34 — 2026-08-25
 
 **No migration. The sidebar badge keeps up, and the list stops flashing.**
