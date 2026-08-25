@@ -6,6 +6,33 @@ so anything that changes the schema irreversibly is called out explicitly.
 The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, and `sha-…` pins one commit.
 
+## v0.1.31 — 2026-08-25
+
+**No migration. The "not given full access" card can now be cleared by granting access.**
+
+### Fixed
+
+- **The permissions card would not go away, however many times you reconnected.** Two reasons, and
+  either alone was enough. The comparison counted `openid`, `email`, `profile` and `offline_access`
+  — sign-in scopes that providers do not report back — so a complete grant looked four permissions
+  short, on every account, permanently. Microsoft accounts were affected outright, since Graph omits
+  all four. And the older evidence outlived the fix: a calendar keeps the error it failed with until
+  it next syncs, so even once the grant was right the stale error raised the card again. A recorded
+  grant with nothing missing now ends the question.
+
+- **The Composing card on Settings → General had no inset**, so its labels and toggles sat flush
+  against the card's edges.
+
+### Added
+
+- **Microsoft and IMAP accounts now say when a change never reached the server.** Marking read,
+  archiving or starring can be applied here and refused there — the change then survives on screen
+  until the next sync quietly undoes it. Gmail gained this in v0.1.28; the other two were silent.
+
+  Nothing is written off as permanent. A refusal can be a missing permission or a mailbox that is
+  briefly unavailable, so the record simply says what the provider said, and the next change that
+  goes through clears it.
+
 ## v0.1.30 — 2026-08-25
 
 **No migration. Marking a large selection read now actually reaches the provider, and a send is
