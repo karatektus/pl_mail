@@ -36,6 +36,18 @@ x-demo-env: &demo-env
   # never heard of the variable gets the documented default either way.
   APP_DEMO_TTL: ${APP_DEMO_TTL:-PT2H}
 
+  # The legal notice. Passed through explicitly, because compose hands a
+  # container only what a service declares — putting these in an .env file
+  # makes them available for ${…} interpolation and nothing else. Without these
+  # three lines the operator sets them, restarts, and the page still says they
+  # are unset, with nothing anywhere explaining why.
+  #
+  # Empty defaults, matching the shipped .env, so the page keeps saying loudly
+  # that it has no operator until somebody gives it one.
+  APP_DEMO_IMPRESSUM_NAME: ${APP_DEMO_IMPRESSUM_NAME:-}
+  APP_DEMO_IMPRESSUM_ADDRESS: ${APP_DEMO_IMPRESSUM_ADDRESS:-}
+  APP_DEMO_IMPRESSUM_EMAIL: ${APP_DEMO_IMPRESSUM_EMAIL:-}
+
 services:
   # Serves /demo, provisions visitors and renders the demo bar.
   php:
