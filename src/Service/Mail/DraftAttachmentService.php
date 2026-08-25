@@ -64,30 +64,14 @@ final readonly class DraftAttachmentService
         }
 
         foreach ($files as $file) {
-            // Bucketed like synced attachments: account / mailbox (0 where the
-            // account has none) / message. Drafts have no UID, so the message
-            // id keeps one draft's files out of another's directory.
-            $storagePath = $this->storage->store(
-                (int) $message->account->id,
-                (int) ($message->mailbox->id ?? 0),
-                (int) $message->id,
+            $this->storeBytes(
+                $message,
                 (string) $file->getClientOriginalName(),
+                // Guessed from the bytes, not from the client's header — this
+                // value comes back out as a Content-Type on download.
+                $file->getMimeType() ?? 'application/octet-stream',
                 (string) file_get_contents($file->getPathname()),
             );
-
-            $part = new MessagePart();
-            $part->message = $message;
-            // Guessed from the bytes, not from the client's header — this
-            // value comes back out as a Content-Type on download.
-            $part->contentType = $file->getMimeType() ?? 'application/octet-stream';
-            $part->filename    = basename((string) $file->getClientOriginalName());
-            $part->disposition = 'attachment';
-            $part->size        = $file->getSize();
-            $part->storagePath = $storagePath;
-            $part->isInline    = false;
-
-            $message->addMessagePart($part);
-            $this->entityManager->persist($part);
         }
 
         $this->syncFlag($message);
@@ -153,6 +137,65 @@ final readonly class DraftAttachmentService
 
         // Derived, not assumed: an inline part leaves the flag exactly where
         // the draft's real attachments left it.
+        $this->syncFlag($message);
+        $this->announce($message);
+        $this->entityManager->flush();
+
+        return $part;
+    }
+
+    /**
+     * Bytes we already hold, hung off a draft as one attachment.
+     *
+     * The primitive under attach(): everything from "here are the bytes" on is
+     * identical whether they arrived as an upload, out of a cloud drive, or
+     * from a document the browser just rewrote. No flush, so a caller adding
+     * several parts pays for one — attachBytes() is the single-part form that
+     * finishes the job.
+     *
+     * The MIME type is the caller's to establish, and it must establish it from
+     * the bytes rather than from anything a client said. attach() uses
+     * UploadedFile::getMimeType(), which is finfo over the temporary file.
+     */
+    public function storeBytes(Message $message, string $filename, string $contentType, string $contents): MessagePart
+    {
+        // Bucketed like synced attachments: account / mailbox (0 where the
+        // account has none) / message. Drafts have no UID, so the message
+        // id keeps one draft's files out of another's directory.
+        $storagePath = $this->storage->store(
+            (int) $message->account->id,
+            (int) ($message->mailbox->id ?? 0),
+            (int) $message->id,
+            $filename,
+            $contents,
+        );
+
+        $part = new MessagePart();
+        $part->message     = $message;
+        $part->contentType = $contentType;
+        $part->filename    = basename($filename);
+        $part->disposition = 'attachment';
+        $part->size        = strlen($contents);
+        $part->storagePath = $storagePath;
+        $part->isInline    = false;
+
+        $message->addMessagePart($part);
+        $this->entityManager->persist($part);
+
+        return $part;
+    }
+
+    /**
+     * storeBytes(), finished: flag, announcement and flush.
+     *
+     * The tail attach() and attachInline() already share, named — so a caller
+     * with one file in hand does not have to know that three bookkeeping steps
+     * follow the store, or get one of them wrong.
+     */
+    public function attachBytes(Message $message, string $filename, string $contentType, string $contents): MessagePart
+    {
+        $part = $this->storeBytes($message, $filename, $contentType, $contents);
+
         $this->syncFlag($message);
         $this->announce($message);
         $this->entityManager->flush();

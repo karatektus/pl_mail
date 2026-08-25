@@ -33,13 +33,22 @@ async function openAttachmentThread(page: Page) {
         .click();
 }
 
+/**
+ * The page canvases, and only those.
+ *
+ * Scoped to the stack rather than to the modal: the signing pad is a canvas in
+ * this dialog too, and `#modal-backdrop canvas` counted it the moment signing
+ * was added. See CODESTYLE 9.5 — an assertion must survive the screen growing.
+ */
+const PAGES = '[data-mail--pdf-viewer-target="stack"] canvas';
+
 test.describe("the PDF reader", () => {
     test("opens from the chip and draws every page", async ({ page }) => {
         await openAttachmentThread(page);
 
         await page.getByRole("button", { name: /e2e-document\.pdf/ }).click();
 
-        const canvases = page.locator("#modal-backdrop canvas");
+        const canvases = page.locator(PAGES);
 
         // Two pages, because the fixture has two. Both drawn — a canvas with
         // width 0 is one pdf.js never rendered, which is what a failure inside
@@ -74,7 +83,7 @@ test.describe("the PDF reader", () => {
 
         await openAttachmentThread(page);
         await page.getByRole("button", { name: /e2e-document\.pdf/ }).click();
-        await expect(page.locator("#modal-backdrop canvas").first()).toBeVisible({ timeout: 20000 });
+        await expect(page.locator(PAGES).first()).toBeVisible({ timeout: 20000 });
 
         // The worker starts and decodes after the first paint, so a violation
         // it causes arrives later than the canvas does.
@@ -89,7 +98,7 @@ test.describe("the PDF reader", () => {
         await openAttachmentThread(page);
         await page.getByRole("button", { name: /e2e-document\.pdf/ }).click();
 
-        const first = page.locator("#modal-backdrop canvas").first();
+        const first = page.locator(PAGES).first();
         await expect(first).toBeVisible({ timeout: 20000 });
 
         const before = (await first.boundingBox())!.width;
@@ -99,7 +108,7 @@ test.describe("the PDF reader", () => {
         // Compared against what it was, not against a number: the starting
         // scale is the viewer's business and may change. See CODESTYLE 9.5.
         await expect
-            .poll(async () => (await page.locator("#modal-backdrop canvas").first().boundingBox())!.width)
+            .poll(async () => (await page.locator(PAGES).first().boundingBox())!.width)
             .toBeGreaterThan(before);
     });
 
@@ -113,7 +122,7 @@ test.describe("the PDF reader", () => {
         const before = page.workers().length;
 
         await page.getByRole("button", { name: /e2e-document\.pdf/ }).click();
-        await expect(page.locator("#modal-backdrop canvas").first()).toBeVisible({ timeout: 20000 });
+        await expect(page.locator(PAGES).first()).toBeVisible({ timeout: 20000 });
 
         expect(page.workers().length, "pdf.js should have started a worker").toBeGreaterThan(before);
 

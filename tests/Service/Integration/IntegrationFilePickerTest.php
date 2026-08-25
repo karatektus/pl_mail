@@ -22,7 +22,10 @@ use App\Entity\User\User;
 use App\Service\Integration\IntegrationDriverRegistry;
 use App\Service\Integration\IntegrationFilePicker;
 use App\Service\Mail\AttachmentResolver;
+use App\Service\Mail\DraftAttachmentService;
+use App\Service\Mail\MailChangeRecorder;
 use Doctrine\ORM\EntityManagerInterface;
+use Symfony\Contracts\Translation\TranslatorInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 
 /**
@@ -418,11 +421,24 @@ final class IntegrationFilePickerTest extends KernelTestCase
 
     private function picker(IntegrationDriverInterface $driver): IntegrationFilePicker
     {
+        $entityManager = $this->createStub(EntityManagerInterface::class);
+
+        // The picker stores through DraftAttachmentService now — the same
+        // primitive a dragged-in upload goes through. Assembled here rather
+        // than fetched so that the storage root stays this test's temporary
+        // directory and the entity manager stays the stub.
+        $attachments = new DraftAttachmentService(
+            $entityManager,
+            new AttachmentStorageHelper($this->storageRoot, 'attachments'),
+            self::getContainer()->get(MailChangeRecorder::class),
+            self::getContainer()->get(TranslatorInterface::class),
+        );
+
         return new IntegrationFilePicker(
             new IntegrationDriverRegistry([$driver]),
-            new AttachmentStorageHelper($this->storageRoot, 'attachments'),
+            $attachments,
             $this->attachmentResolver,
-            $this->createStub(EntityManagerInterface::class),
+            $entityManager,
         );
     }
 

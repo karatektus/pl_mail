@@ -305,6 +305,29 @@ to the browser's PDF plugin, which is what keeps the rule above intact: the file
 an attachment, and nothing in it gets to run on plMail's origin. Nothing is sent anywhere to make
 this work; the reading happens on your machine.
 
+### Signing a PDF
+
+**Sign** in the reader's toolbar opens a pad. Draw your signature with a mouse, a trackpad or a
+finger, press **Place on page**, and drag it where it belongs — the corner handle resizes it. Then
+either **Reply with signed copy**, which opens a reply with the signed file already attached, or
+**Download signed copy**.
+
+Two things are worth being plain about.
+
+**This is a visual signature.** It is a picture of your name drawn onto the page, exactly as if you
+had printed the document, signed it and scanned it back in — and it is worth precisely as much as
+that is. It is not a digital signature in the cryptographic sense: there is no certificate, nothing
+is registered anywhere, and it does not prove the document was unaltered afterwards. If you have
+been asked for a *qualified* electronic signature, this is not it.
+
+**The document never leaves your browser to be signed.** The stamping happens on your machine, and
+plMail's server only sees the result if you choose to reply with it. Nothing is uploaded to a
+signing service, because there is no signing service.
+
+A PDF that is password-protected cannot be signed here — the reader says so, and reading it still
+works. Editing one would mean stripping the protection it was given, which is not a decision plMail
+should make quietly on your behalf.
+
 **Save to** on an attachment pushes it out to a connected service — see
 [Files and integrations](integrations.md). This works for Gmail and Microsoft messages whose
 attachment has never touched plMail's disk; it is materialised on first access.

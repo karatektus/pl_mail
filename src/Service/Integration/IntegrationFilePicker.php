@@ -9,7 +9,6 @@ use App\Domain\DTO\Integration\PickerView;
 use App\Domain\DTO\Integration\RemoteFile;
 use App\Domain\Enum\Integration\Capability;
 use App\Domain\Exception\IntegrationException;
-use App\Domain\Helper\AttachmentStorageHelper;
 use App\Domain\Interface\DestinationDriverInterface;
 use App\Domain\Interface\SearchableDriverInterface;
 use App\Domain\Interface\TimelineDriverInterface;
@@ -17,6 +16,7 @@ use App\Entity\Integration\Integration;
 use App\Entity\Mail\Message;
 use App\Entity\Mail\MessagePart;
 use App\Service\Mail\AttachmentResolver;
+use App\Service\Mail\DraftAttachmentService;
 use Doctrine\ORM\EntityManagerInterface;
 use RuntimeException;
 
@@ -39,7 +39,7 @@ final readonly class IntegrationFilePicker
 {
     public function __construct(
         private IntegrationDriverRegistry $drivers,
-        private AttachmentStorageHelper   $attachmentStorage,
+        private DraftAttachmentService    $draftAttachments,
         private AttachmentResolver        $attachmentResolver,
         private EntityManagerInterface    $em,
     ) {
@@ -335,27 +335,14 @@ final readonly class IntegrationFilePicker
      * Bucketed exactly as a local upload is, so a file pulled from a service
      * and one dragged in from disk land in the same place and are
      * indistinguishable from then on.
+     *
+     * Which is a property, not a coincidence: it is literally the same code.
+     * This was the "bytes → part on a draft" primitive, sitting in the wrong
+     * class; it lives on DraftAttachmentService now, and this delegates. No
+     * flush, because attachToDraft() batches and flushes once at the end.
      */
     private function storePart(Message $message, string $filename, string $mime, string $contents): void
     {
-        $storagePath = $this->attachmentStorage->store(
-            (int) $message->account->id,
-            (int) ($message->mailbox->id ?? 0),
-            (int) $message->id,
-            $filename,
-            $contents,
-        );
-
-        $part = new MessagePart();
-        $part->message     = $message;
-        $part->contentType = $mime;
-        $part->filename    = basename($filename);
-        $part->disposition = 'attachment';
-        $part->size        = strlen($contents);
-        $part->storagePath = $storagePath;
-        $part->isInline    = false;
-
-        $message->addMessagePart($part);
-        $this->em->persist($part);
+        $this->draftAttachments->storeBytes($message, $filename, $mime, $contents);
     }
 }

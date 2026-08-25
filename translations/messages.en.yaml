@@ -655,6 +655,21 @@ app:
     name: Mail
 
 attachment:
+    sign:
+        # A VISUAL signature: a picture of a name on a page. Nothing here may
+        # suggest it proves the document is unaltered — it is not PAdES, there
+        # is no certificate, and saying otherwise would be a lie about what the
+        # software does.
+        action: Sign
+        draw: Draw your signature, then place it on the page.
+        clear: Start over
+        cancel: Cancel
+        place: Place on page
+        hint: Drag it where it belongs, then attach it to a reply.
+        download: Download signed copy
+        reply: Reply with signed copy
+        protected: This PDF is protected, so it cannot be signed here. Reading it still works.
+        unreadable: This PDF cannot be edited here. Reading it still works.
     preview:
         download: Download
         failed: This PDF could not be opened. You can still download it.

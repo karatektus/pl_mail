@@ -16,12 +16,37 @@ the integration picker uses inside this dialog.
 The download link stays. Reading in place is the point of this screen, but a
 document you are asked to sign is one you may well want a copy of, and removing
 the only way to get one would be a loss dressed as a feature.
+
+TWO CONTROLLERS, ONE ELEMENT
+────────────────────────────
+mail--pdf-viewer reads; mail--pdf-sign writes on it. They ride the same element
+and the signing one talks to the reader through the small surface that
+controller marks as its own. Reading is the feature almost everyone will use and
+it stays whole, and testable, without any of the signing code — pdf-preview.spec
+and pdf-sign.spec are separate for the same reason.
+
+The signature is VISUAL: a picture of a name, stamped on a page. It is not
+PAdES, it carries no certificate, and nothing on this screen may suggest it
+proves the document is unaltered.
 #}
-{% set assets = pdfjs_assets() %}
+{% set assets  = pdfjs_assets() %}
+{% set message = part.message %}
+
+{# A reply opens inline at the foot of the conversation, and falls back to the
+   dock for a message that somehow is not threaded — the same choice
+   _message_actions makes, and made the same way so the two cannot drift. #}
+{% set composeFrame = message.thread is not null ? 'compose_inline' : 'compose_dock' %}
+{% set signedName   = (part.filename ?: 'document.pdf')|replace({'.pdf': '', '.PDF': ''}) ~ '-signed.pdf' %}
 
 <turbo-frame id="modal" class="flex-1 min-h-0 flex flex-col">
     <div class="flex-1 min-h-0 flex flex-col"
-         data-controller="mail--pdf-viewer"
+         data-controller="mail--pdf-viewer mail--pdf-sign"
+         data-mail--pdf-sign-action-value="{{ path('app_compose_reply_signed', { id: part.id, frame: composeFrame, thread: message.thread ? message.thread.id : null }) }}"
+         data-mail--pdf-sign-token-value="{{ csrf_token('reply_signed' ~ part.id) }}"
+         data-mail--pdf-sign-frame-value="{{ composeFrame }}"
+         data-mail--pdf-sign-filename-value="{{ signedName }}"
+         data-mail--pdf-sign-encrypted-text-value="{{ 'attachment.sign.protected'|trans }}"
+         data-mail--pdf-sign-unreadable-text-value="{{ 'attachment.sign.unreadable'|trans }}"
          data-mail--pdf-viewer-src-value="{{ path('app_mail_attachment', { id: part.id }) }}"
          data-mail--pdf-viewer-assets-value="{{ assets|json_encode }}"
          data-mail--pdf-viewer-failed-text-value="{{ 'attachment.preview.failed'|trans }}">
@@ -39,6 +64,14 @@ the only way to get one would be a loss dressed as a feature.
                    a failed load does not leave "1 / 0" on screen. #}
                 <span data-mail--pdf-viewer-target="pages"
                       class="hidden mr-2 text-xs text-ink-faint tabular-nums whitespace-nowrap"></span>
+
+                <button type="button"
+                        data-action="mail--pdf-sign#open"
+                        class="mr-1 inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-medium
+                               text-ink-soft hover:bg-hover hover:text-ink transition-colors cursor-pointer">
+                    <i class="fa-solid fa-signature text-[11px]" aria-hidden="true"></i>
+                    {{ 'attachment.sign.action'|trans }}
+                </button>
 
                 <button type="button"
                         data-action="mail--pdf-viewer#zoomOut"
@@ -73,9 +106,31 @@ the only way to get one would be a loss dressed as a feature.
 
         {# ── Pages ───────────────────────────────────────────────────────── #}
         <div data-mail--pdf-viewer-target="scroller"
-             class="flex-1 min-h-0 overflow-auto bg-sunken/40 px-4 py-4">
+             class="relative flex-1 min-h-0 overflow-auto bg-sunken/40 px-4 py-4">
 
             <div data-mail--pdf-viewer-target="stack" class="mx-auto flex flex-col items-center gap-4"></div>
+
+            {# The placed signature. A SIBLING of the page stack, not a child of
+               it: the reader empties that stack and rebuilds it on every zoom,
+               which took the stamp with it. Positioned against the scroller,
+               which is why the scroller is `relative` — an absolutely
+               positioned child of a scrolling box scrolls with its content, and
+               the stamp belongs to the page rather than to the window.
+
+               Dragged by its body, resized by the corner. #}
+            <div data-mail--pdf-sign-target="stamp"
+                 data-action="pointerdown->mail--pdf-sign#grab
+                              pointermove->mail--pdf-sign#drag
+                              pointerup->mail--pdf-sign#drop
+                              pointercancel->mail--pdf-sign#drop"
+                 hidden
+                 class="absolute z-20 cursor-move touch-none select-none
+                        bg-contain bg-no-repeat bg-center
+                        outline outline-2 outline-offset-2 outline-accent/70">
+                <span data-resize
+                      class="absolute -right-1.5 -bottom-1.5 h-3 w-3 cursor-nwse-resize
+                             rounded-full bg-accent"></span>
+            </div>
 
             <div data-mail--pdf-viewer-target="status"
                  class="flex flex-col items-center justify-center gap-2 py-12 text-ink-faint"
@@ -83,6 +138,93 @@ the only way to get one would be a loss dressed as a feature.
                 <i class="fa-solid fa-circle-notch fa-spin text-2xl" aria-hidden="true"></i>
                 <p class="text-sm">{{ 'attachment.preview.loading'|trans }}</p>
             </div>
+        </div>
+
+        {# ── Why it cannot be signed ─────────────────────────────────────── #}
+        <p data-mail--pdf-sign-target="reason" hidden
+           class="shrink-0 border-t border-line bg-warning-soft px-4 py-2 text-xs text-ink-soft"
+           aria-live="polite"></p>
+
+        {# ── The pad ─────────────────────────────────────────────────────── #}
+        {# Backed at four times the size it is shown at — see the controller.
+           touch-none is what stops a finger stroke scrolling the reader
+           instead of drawing on it. #}
+        <div data-mail--pdf-sign-target="pad" hidden
+             class="shrink-0 border-t border-line bg-surface px-4 py-3">
+
+            <div class="flex items-center justify-between gap-3 pb-2">
+                <p class="text-xs text-ink-muted">{{ 'attachment.sign.draw'|trans }}</p>
+
+                <div class="flex items-center gap-2">
+                    <button type="button"
+                            data-action="mail--pdf-sign#clear"
+                            class="rounded-lg px-3 py-1.5 text-xs text-ink-muted hover:bg-hover
+                                   hover:text-ink transition-colors cursor-pointer">
+                        {{ 'attachment.sign.clear'|trans }}
+                    </button>
+
+                    <button type="button"
+                            data-action="mail--pdf-sign#close"
+                            class="rounded-lg px-3 py-1.5 text-xs text-ink-muted hover:bg-hover
+                                   hover:text-ink transition-colors cursor-pointer">
+                        {{ 'attachment.sign.cancel'|trans }}
+                    </button>
+
+                    <button type="button"
+                            data-mail--pdf-sign-target="apply"
+                            data-action="mail--pdf-sign#apply"
+                            disabled
+                            class="rounded-lg bg-accent px-3 py-1.5 text-xs font-medium text-on-accent
+                                   disabled:opacity-40 disabled:cursor-not-allowed
+                                   hover:bg-accent-strong transition-colors cursor-pointer">
+                        {{ 'attachment.sign.place'|trans }}
+                    </button>
+                </div>
+            </div>
+
+            <canvas data-mail--pdf-sign-target="ink"
+                    data-action="pointerdown->mail--pdf-sign#startStroke
+                                 pointermove->mail--pdf-sign#stroke
+                                 pointerup->mail--pdf-sign#endStroke
+                                 pointerleave->mail--pdf-sign#endStroke
+                                 pointercancel->mail--pdf-sign#endStroke"
+                    class="block h-28 w-full touch-none rounded-lg border border-dashed border-line
+                           bg-white cursor-crosshair"></canvas>
+        </div>
+
+        {# ── What to do with the signed copy ─────────────────────────────── #}
+        {# A real form, submitted by Turbo into the compose frame, so the window
+           comes back where it belongs and modal_controller closes the dialog on
+           turbo:submit-end without a line of new JavaScript. #}
+        <div data-mail--pdf-sign-target="sheet" hidden
+             class="shrink-0 flex flex-wrap items-center gap-3 border-t border-line px-4 py-3">
+
+            <p class="mr-auto text-xs text-ink-muted">{{ 'attachment.sign.hint'|trans }}</p>
+
+            <button type="button"
+                    data-action="mail--pdf-sign#download"
+                    class="rounded-lg border border-line px-3 py-1.5 text-xs text-ink-soft
+                           hover:bg-hover hover:text-ink transition-colors cursor-pointer">
+                {{ 'attachment.sign.download'|trans }}
+            </button>
+
+            <button type="button"
+                    data-action="mail--pdf-sign#reply"
+                    class="rounded-lg bg-accent px-3 py-1.5 text-xs font-medium text-on-accent
+                           hover:bg-accent-strong transition-colors cursor-pointer">
+                {{ 'attachment.sign.reply'|trans }}
+            </button>
+
+            <form data-mail--pdf-sign-target="form"
+                  action="{{ path('app_compose_reply_signed', { id: part.id, frame: composeFrame, thread: message.thread ? message.thread.id : null }) }}"
+                  method="post"
+                  enctype="multipart/form-data"
+                  data-turbo-frame="{{ composeFrame }}"
+                  hidden>
+                <input type="hidden" name="_token" value="{{ csrf_token('reply_signed' ~ part.id) }}">
+                <input type="hidden" name="frame" data-mail--pdf-sign-target="frameField">
+                <input type="file" name="document" data-mail--pdf-sign-target="file">
+            </form>
         </div>
     </div>
 </turbo-frame>

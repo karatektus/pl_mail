@@ -75,7 +75,10 @@ final readonly class DemoMailbox
      *     subject: string, fromName: string, fromAddress: string,
      *     label: string|null, unread: bool, hoursAgo: int,
      *     body: string, html?: string, headers?: array<string, string>,
-     *     attachment?: string,
+     *     attachment?: string, attachmentBody?: list<string>,
+     *     // attachment and attachmentBody travel together: a filename with no
+     *     // document behind it would attach an empty PDF, and lines with no
+     *     // filename would never be written anywhere.
      *     correspondent?: bool
      * }>
      */
@@ -118,11 +121,48 @@ final readonly class DemoMailbox
             // It is also the document a visitor would most plausibly want to
             // open, and later to sign.
             'attachment' => 'Rechnung-2026-0841.pdf',
+            'attachmentBody' => [
+                'Buchhaltung Quartal III .......... 240,00 EUR',
+                'Umsatzsteuer 19% ................. 45,60 EUR',
+                'Gesamtbetrag ..................... 285,60 EUR',
+                '',
+                'Zahlbar bis 12.09.2026.',
+                '',
+                'This is demo data. No such invoice exists.',
+            ],
             'body' => "Anbei die Rechnung für das Quartal.\n\n"
                 . "Buchhaltung Quartal III .......... 240,00 EUR\n"
                 . "Umsatzsteuer 19% ................. 45,60 EUR\n"
                 . "Gesamtbetrag ..................... 285,60 EUR\n\n"
                 . "Zahlbar bis 12.09.2026. Es muss nichts unterschrieben werden.",
+        ],
+        [
+            // The document the signing feature exists for. The invoice above
+            // deliberately says nothing needs signing, so without this there
+            // was nowhere in the demo to try it — and "try it on the invoice
+            // that says not to" is a bad first impression of a feature.
+            'subject' => 'Einverständniserklärung Treppenhaus',
+            'fromName' => 'Hausverwaltung Brunnengasse', 'fromAddress' => 'verwaltung@brunnengasse.example',
+            'label' => null, 'unread' => true, 'hoursAgo' => 5,
+            'attachment' => 'Einverstaendnis-Treppenhaus.pdf',
+            'attachmentBody' => [
+                'Die Malerarbeiten im Treppenhaus beginnen am 14.09.2026',
+                'und dauern voraussichtlich vier Werktage.',
+                '',
+                'Waehrend dieser Zeit ist der Handlauf im zweiten',
+                'Obergeschoss zeitweise nicht benutzbar.',
+                '',
+                'Unterschrift der Mieterin / des Mieters:',
+                '',
+                '',
+                '____________________________________________',
+                '',
+                'This is demo data. No such agreement exists.',
+            ],
+            'body' => "Hallo,\n\n"
+                . "anbei die Einverständniserklärung für die Malerarbeiten im Treppenhaus. "
+                . "Bitte unterschreib sie und schick sie einfach zurück — ausdrucken musst du nichts.\n\n"
+                . "Viele Grüße\nHausverwaltung Brunnengasse",
         ],
         [
             'subject' => 'Rail replacement on the 12th',
@@ -335,17 +375,10 @@ final readonly class DemoMailbox
      * The message must be flushed before this: the storage path is built from
      * its id.
      */
-    private function attach(Message $message, Account $account, string $filename, string $subject): void
+    /** @param list<string> $lines what the document says, from the thread entry */
+    private function attach(Message $message, Account $account, string $filename, string $subject, array $lines): void
     {
-        $pdf = SamplePdf::document($subject, [
-            'Buchhaltung Quartal III .......... 240,00 EUR',
-            'Umsatzsteuer 19% ................. 45,60 EUR',
-            'Gesamtbetrag ..................... 285,60 EUR',
-            '',
-            'Zahlbar bis 12.09.2026.',
-            '',
-            'This is demo data. No such invoice exists.',
-        ]);
+        $pdf = SamplePdf::document($subject, $lines);
 
         $part = new MessagePart();
         $part->message     = $message;
@@ -461,7 +494,7 @@ final readonly class DemoMailbox
             $ingested[] = new IngestedMessage($message, $account);
 
             if (true === isset($entry['attachment'])) {
-                $pending[] = [$message, $entry['attachment'], $entry['subject']];
+                $pending[] = [$message, $entry['attachment'], $entry['subject'], $entry['attachmentBody']];
             }
         }
 
@@ -473,8 +506,8 @@ final readonly class DemoMailbox
         // Attachments AFTER that flush, not inside the loop above: the storage
         // path is built from the message id, and inside the loop there is not
         // one yet. Same precondition, one step later.
-        foreach ($pending as [$message, $filename, $subject]) {
-            $this->attach($message, $account, $filename, $subject);
+        foreach ($pending as [$message, $filename, $subject, $lines]) {
+            $this->attach($message, $account, $filename, $subject, $lines);
         }
 
         $this->entityManager->flush();

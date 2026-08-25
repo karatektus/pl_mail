@@ -401,6 +401,17 @@ app:
     name: Mail
 
 attachment:
+    sign:
+        action: Make yer mark
+        draw: Scrawl yer mark, then slap it on the page.
+        clear: Scrub it out
+        cancel: Belay that
+        place: Slap it on
+        hint: Drag it where it belongs, then pin it to a reply.
+        download: Haul down the marked copy
+        reply: Answer with the marked copy
+        protected: This scroll be sealed, so ye cannot mark it here. Readin' still works.
+        unreadable: This scroll cannot be marked here. Readin' still works.
     preview:
         download: Haul aboard
         failed: This scroll would not unroll. Ye can still haul it aboard.

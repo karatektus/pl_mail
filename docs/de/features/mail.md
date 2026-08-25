@@ -1,4 +1,4 @@
-<!-- translated-from: features/mail.md sha1:77ce738f1d94b302130b86d0166418bf6add39ce -->
+<!-- translated-from: features/mail.md sha1:fd73344f9fa8c31bd3c411e40dcc73bd156c21b8 -->
 
 # Mail
 
@@ -339,6 +339,31 @@ Download-Knopf bleibt in der Werkzeugleiste. Gezeichnet wird das Dokument von pl
 in deinem Browser, nicht vom PDF-Plugin des Browsers; genau das hält die Regel oben aufrecht: die
 Datei wird weiterhin als Anhang ausgeliefert, und nichts darin darf auf plMails Herkunft laufen.
 Dafür wird nichts irgendwohin geschickt — gelesen wird auf deinem Rechner.
+
+### Ein PDF unterschreiben
+
+**Unterschreiben** in der Werkzeugleiste des Lesers öffnet ein Feld zum Zeichnen. Zeichne deine
+Unterschrift mit Maus, Trackpad oder Finger, klick auf **Auf die Seite setzen** und zieh sie an die
+richtige Stelle — der Griff in der Ecke ändert die Größe. Danach entweder **Mit unterschriebener
+Kopie antworten**, was eine Antwort mit der fertigen Datei im Anhang öffnet, oder **Unterschriebene
+Kopie herunterladen**.
+
+Zwei Dinge gehören klar gesagt.
+
+**Das ist eine sichtbare Unterschrift.** Es ist ein Bild deines Namens auf der Seite — genau so, als
+hättest du das Dokument ausgedruckt, unterschrieben und wieder eingescannt, und es ist genau so viel
+wert wie das. Es ist *keine* digitale Signatur im kryptografischen Sinn: es gibt kein Zertifikat,
+nichts wird irgendwo registriert, und es beweist nicht, dass das Dokument danach unverändert
+geblieben ist. Wenn von dir eine *qualifizierte* elektronische Signatur verlangt wird, ist das hier
+nicht die richtige.
+
+**Zum Unterschreiben verlässt das Dokument deinen Browser nicht.** Gestempelt wird auf deinem
+Rechner, und plMails Server sieht das Ergebnis nur, wenn du damit antwortest. Nichts geht an einen
+Signaturdienst, weil es keinen gibt.
+
+Ein passwortgeschütztes PDF lässt sich hier nicht unterschreiben — der Leser sagt das, und lesen
+funktioniert weiterhin. Es zu bearbeiten hieße, den Schutz zu entfernen, den es bekommen hat, und
+das ist keine Entscheidung, die plMail still für dich treffen sollte.
 
 **Speichern in** auf einem Anhang schiebt ihn hinaus in einen verbundenen Dienst — siehe
 [Dateien und Integrationen](integrations.md). Das funktioniert auch für Gmail- und

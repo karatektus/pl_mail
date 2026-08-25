@@ -2,10 +2,12 @@
 
 namespace App\Controller\Mail;
 
+use App\Controller\ChecksCsrf;
 use App\Controller\RendersTurboStreams;
 use App\Domain\DTO\Mail\ComposeContext;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Message;
+use App\Entity\Mail\MessagePart;
 use App\Entity\User\User;
 use App\Infrastructure\Messaging\Message\SendMessageMessage;
 use App\Repository\Mail\MessageRepository;
@@ -14,6 +16,7 @@ use App\Service\Label\LabelChangePropagator;
 use App\Service\Mail\ComposeFormFactory;
 use App\Service\Mail\ComposeWindow;
 use App\Service\Mail\DraftAddressFields;
+use App\Service\Mail\DraftAttachmentService;
 use App\Service\Mail\DraftPersister;
 use App\Service\Mail\InvalidScheduleException;
 use App\Service\Mail\MessageEraser;
@@ -24,9 +27,11 @@ use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\Form\FormError;
 use Symfony\Component\Form\FormInterface;
+use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Messenger\Stamp\DelayStamp;
 use Symfony\Component\Routing\Attribute\Route;
@@ -47,6 +52,7 @@ use Symfony\Contracts\Translation\TranslatorInterface;
 #[Route('/compose', name: 'app_compose_')]
 class ComposeController extends AbstractController
 {
+    use ChecksCsrf;
     use RendersTurboStreams;
 
     /** Matches the DelayStamp on the send job. */
@@ -80,6 +86,7 @@ class ComposeController extends AbstractController
         private readonly MessageBusInterface     $bus,
         private readonly ReplyDraftBuilder       $replyDrafts,
         private readonly DraftPersister          $drafts,
+        private readonly DraftAttachmentService  $draftAttachments,
         private readonly DraftAddressFields      $addressFields,
         private readonly SenderResolver          $senders,
         private readonly MessageEraser           $eraser,
@@ -138,28 +145,111 @@ class ComposeController extends AbstractController
     #[Route('/reply/{id}', name: 'reply', methods: ['GET'])]
     public function reply(ComposeContext $ctx, Message $original): Response
     {
-        $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $original);
-
-        $ctx     = $ctx->withReplyTo($original->id);
-        $account = $original->account ?? $this->window->defaultAccountFor($this->currentUser());
-        $draft   = $this->replyDrafts->reply($original, $account);
-
-        $form = $this->formFactory->create($draft, $ctx, $this->currentUser());
-        $form->get('account')->setData($this->senders->token($account));
-        $this->addressFields->hydrate($form, $draft, $this->getUser());
-
-        return $this->renderWindow($form, $draft, $ctx);
+        return $this->replyWindow($ctx, $original);
     }
 
     #[Route('/reply-all/{id}', name: 'reply_all', methods: ['GET'])]
     public function replyAll(ComposeContext $ctx, Message $original): Response
     {
+        return $this->replyWindow($ctx, $original, replyAll: true);
+    }
+
+    /**
+     * Reply to a message with a signed copy of one of its PDF attachments.
+     *
+     * One request, not three. The browser could open the reply, wait for the
+     * frame, dig the draft id out of it and then post the file — that is three
+     * round trips and three ways to end up with a draft nobody attached
+     * anything to. The window this answers with already has the chip on it.
+     *
+     * What is trusted here, and what is not: the BYTES are the browser's, and
+     * everything said about them is re-established on this side. The type comes
+     * from finfo over the uploaded file, which is the magic-byte check —
+     * `%PDF-` is not spelled out here because getMimeType() already reads it,
+     * and a hand-rolled prefix test would be the weaker of the two. The
+     * FILENAME is derived from the original part rather than taken from the
+     * upload, because a client-supplied name is a path and an extension we
+     * would then be storing and echoing back.
+     */
+    #[Route('/reply-signed/{id}', name: 'reply_signed', methods: ['POST'])]
+    public function replySigned(Request $request, ComposeContext $ctx, MessagePart $part): Response
+    {
+        $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $part);
+        $this->assertCsrf($request, 'reply_signed' . $part->id);
+
+        $file = $request->files->get('document');
+
+        if (false === $file instanceof UploadedFile || false === $file->isValid()) {
+            throw new BadRequestHttpException('No document.');
+        }
+
+        // finfo over the bytes, which IS the magic-byte check. Written out
+        // rather than delegated to PdfAttachment::matches(), which reads a
+        // DECLARED type and is right for deciding whether to offer a reader —
+        // and wrong for deciding whether to store what a browser just posted.
+        if ('application/pdf' !== $file->getMimeType()) {
+            throw new BadRequestHttpException('Not a PDF.');
+        }
+
+        if ($file->getSize() > DraftAttachmentService::MAX_BYTES) {
+            throw new BadRequestHttpException('Too large.');
+        }
+
+        $original = $part->message;
+
+        $ctx     = $ctx->withReplyTo($original->id);
+        $account = $original->account ?? $this->window->defaultAccountFor($this->currentUser());
+        $draft   = $this->replyDrafts->reply($original, $account);
+
+        // Saved before the file is attached, because the bytes are bucketed by
+        // message id and a draft the reply window has merely built does not
+        // have one yet — the browser's first autosave is what usually creates
+        // the row, and there is no autosave before this.
+        $this->drafts->save($draft, $account);
+
+        $this->draftAttachments->attachBytes(
+            $draft,
+            $this->signedName($part),
+            'application/pdf',
+            (string) file_get_contents($file->getPathname()),
+        );
+
+        return $this->composeWindow($ctx, $draft, $account);
+    }
+
+    /**
+     * What the signed copy is called, derived here rather than accepted.
+     *
+     * A name posted by the client is a path and an extension that we would then
+     * store and hand back on download. This one comes off the part being
+     * signed, so it inherits whatever the sender called it, with the suffix
+     * that says what happened to it.
+     */
+    private function signedName(MessagePart $part): string
+    {
+        $name = basename((string) ($part->filename ?: 'document.pdf'));
+        $stem = preg_replace('/\.pdf$/i', '', $name);
+
+        return ('' === $stem || null === $stem ? 'document' : $stem) . '-signed.pdf';
+    }
+
+    /**
+     * The body reply() and replyAll() share, which was the whole of both.
+     */
+    private function replyWindow(ComposeContext $ctx, Message $original, bool $replyAll = false): Response
+    {
         $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $original);
 
         $ctx     = $ctx->withReplyTo($original->id);
         $account = $original->account ?? $this->window->defaultAccountFor($this->currentUser());
-        $draft   = $this->replyDrafts->reply($original, $account, replyAll: true);
+        $draft   = $this->replyDrafts->reply($original, $account, replyAll: $replyAll);
 
+        return $this->composeWindow($ctx, $draft, $account);
+    }
+
+    /** A built draft, dressed as the window that edits it. */
+    private function composeWindow(ComposeContext $ctx, Message $draft, Account $account): Response
+    {
         $form = $this->formFactory->create($draft, $ctx, $this->currentUser());
         $form->get('account')->setData($this->senders->token($account));
         $this->addressFields->hydrate($form, $draft, $this->getUser());

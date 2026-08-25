@@ -664,6 +664,17 @@ app:
     name: Mail
 
 attachment:
+    sign:
+        action: Unterschreiben
+        draw: Zeichne deine Unterschrift und setze sie dann auf die Seite.
+        clear: Neu zeichnen
+        cancel: Abbrechen
+        place: Auf die Seite setzen
+        hint: Zieh sie an die richtige Stelle und häng sie dann an eine Antwort.
+        download: Unterschriebene Kopie herunterladen
+        reply: Mit unterschriebener Kopie antworten
+        protected: Dieses PDF ist geschützt und kann hier nicht unterschrieben werden. Lesen geht weiterhin.
+        unreadable: Dieses PDF lässt sich hier nicht bearbeiten. Lesen geht weiterhin.
     preview:
         download: Herunterladen
         failed: Dieses PDF konnte nicht geöffnet werden. Du kannst es trotzdem herunterladen.

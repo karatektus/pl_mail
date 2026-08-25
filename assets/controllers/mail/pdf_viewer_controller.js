@@ -108,6 +108,47 @@ export default class extends Controller {
         this.#rescale(Math.max(this._scale - 0.25, 0.5));
     }
 
+    // ── What the signing layer needs ──────────────────────────────────────
+    //
+    // A small deliberate surface rather than mail--pdf-sign reading this
+    // controller's fields. The two are separate controllers on one element so
+    // that reading a PDF does not depend on the code for writing on one; that
+    // is only true while the boundary between them is something either side
+    // could be rewritten behind.
+
+    /**
+     * The document exactly as it arrived.
+     *
+     * pdf.js DETACHES the ArrayBuffer it is handed as `data`, which is why the
+     * loader gives it a copy. This is the original, and it is what pdf-lib has
+     * to be given: reading the bytes back out of pdf.js is not possible, and
+     * re-fetching them would be a second download of a file already in memory.
+     */
+    documentBytes() {
+        return this._original;
+    }
+
+    /** The page the reader is looking at, or null before anything is drawn. */
+    currentPage() {
+        return this._pages[(this._current ?? 1) - 1] ?? null;
+    }
+
+    /** One page by its number, which is 1-based as the reader counts them. */
+    pageAt(number) {
+        return this._pages[number - 1] ?? null;
+    }
+
+    /**
+     * The viewport a page is currently DISPLAYED at.
+     *
+     * At the CSS scale, never the render scale: the render viewport carries the
+     * device pixel ratio, and geometry taken from it would place every stamp at
+     * half size on a Retina display.
+     */
+    displayViewport(slot) {
+        return slot.page.getViewport({ scale: this._scale });
+    }
+
     // ── Private ───────────────────────────────────────────────────────────
 
     async #load() {
