@@ -6,6 +6,28 @@ so anything that changes the schema irreversibly is called out explicitly.
 The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, and `sha-…` pins one commit.
 
+## v0.1.24 — 2026-08-25
+
+**No migration. PDF attachments open in a reader instead of downloading.**
+
+### Added
+
+- **Read a PDF without downloading it.** A PDF chip opens a reader in the modal: pages, zoom, a
+  page-position readout, and the download link it always had. The demo mailbox carries an invoice to
+  try it on.
+
+Nothing about how attachments are *served* changes. The reader fetches the same route the download
+link uses, so PDFs are still delivered as `attachment` and the inline allow-list still admits only
+raster images — mail-controlled bytes are never handed to the browser's own PDF plugin.
+
+The rendering is plMail's own, in the browser, under the same enforced Content-Security-Policy as
+every other page: a same-origin module worker and no WebAssembly. Nothing is uploaded anywhere to
+make it work, and a test asserts the reader raises no policy violation, so an upgrade cannot quietly
+change either of those.
+
+Signing a PDF in place — scribbling a name on it and replying with the signed copy — is the next
+step and is not in this release.
+
 ## v0.1.23 — 2026-08-25
 
 **No migration. A second scrollbar on phones, a label menu cut off inside a thread, and a demo

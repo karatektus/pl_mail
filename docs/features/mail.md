@@ -299,6 +299,12 @@ by wake time.
 Attachments show as chips under the message, with a preview for images. Clicking one downloads it;
 only images are ever served inline, so email-supplied HTML can never run on plMail's own origin.
 
+**A PDF opens in a reader** instead of downloading — pages, zoom, and the download button still
+there in the toolbar. The document is drawn by plMail's own code in your browser rather than handed
+to the browser's PDF plugin, which is what keeps the rule above intact: the file is still served as
+an attachment, and nothing in it gets to run on plMail's origin. Nothing is sent anywhere to make
+this work; the reading happens on your machine.
+
 **Save to** on an attachment pushes it out to a connected service — see
 [Files and integrations](integrations.md). This works for Gmail and Microsoft messages whose
 attachment has never touched plMail's disk; it is materialised on first access.

@@ -334,6 +334,12 @@ Anhänge erscheinen als Chips unter der Nachricht, bei Bildern mit einer Vorscha
 lädt sie herunter; nur Bilder werden je eingebettet ausgeliefert, damit per E-Mail geliefertes
 HTML niemals auf plMails eigener Herkunft laufen kann.
 
+**Ein PDF öffnet sich in einem Leser**, statt heruntergeladen zu werden — Seiten, Zoom, und der
+Download-Knopf bleibt in der Werkzeugleiste. Gezeichnet wird das Dokument von plMails eigenem Code
+in deinem Browser, nicht vom PDF-Plugin des Browsers; genau das hält die Regel oben aufrecht: die
+Datei wird weiterhin als Anhang ausgeliefert, und nichts darin darf auf plMails Herkunft laufen.
+Dafür wird nichts irgendwohin geschickt — gelesen wird auf deinem Rechner.
+
 **Speichern in** auf einem Anhang schiebt ihn hinaus in einen verbundenen Dienst — siehe
 [Dateien und Integrationen](integrations.md). Das funktioniert auch für Gmail- und
 Microsoft-Nachrichten, deren Anhang nie plMails Platte berührt hat; er wird beim ersten Zugriff
