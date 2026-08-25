@@ -564,7 +564,8 @@ final class GraphApiClient
      * instant in the UI.
      *
      * @param array<string, array<string,mixed>> $patches  graphId => properties
-     * @return array{throttled: list<string>, failed: array<string,int>}
+     *
+     * @return array{throttled: list<string>, failed: array<string,int>, refusals: array<string,string>}
      */
     public function batchPatchMessages(Account $account, array $patches): array
     {
@@ -585,7 +586,8 @@ final class GraphApiClient
      * return value.
      *
      * @param list<string> $graphIds
-     * @return array{moved: array<string,string>, throttled: list<string>, failed: array<string,int>}
+     *
+     * @return array{moved: array<string,string>, throttled: list<string>, failed: array<string,int>, refusals: array<string,string>}
      */
     public function batchMoveMessages(Account $account, array $graphIds, string $destinationFolderId): array
     {
@@ -612,6 +614,7 @@ final class GraphApiClient
             'moved'     => $moved,
             'throttled' => $result['throttled'],
             'failed'    => $result['failed'],
+            'refusals'  => $result['refusals'],
         ];
     }
 
@@ -932,16 +935,21 @@ final class GraphApiClient
      * @param array<string, mixed>                     $payloads  graphId => request body
      * @param callable(string, mixed): array<string,mixed> $build   builds one sub-request
      * @param array<string,string>|null                 $resultIds out-param: graphId => returned id
-     * @return array{throttled: list<string>, failed: array<string,int>}
+     *
+     * @return array{throttled: list<string>, failed: array<string,int>, refusals: array<string,string>}
+     *               `failed` is graphId => HTTP status, as it has always been.
+     *               `refusals` is graphId => the error CODE Graph gave, which
+     *               was being thrown away — see the note on the loop below.
      */
     private function batchWrite(Account $account, array $payloads, callable $build, ?array &$resultIds = null): array
     {
         $throttled = [];
         $failed    = [];
+        $refusals  = [];
         $resultIds = [];
 
         if (count($payloads) === 0) {
-            return ['throttled' => [], 'failed' => []];
+            return ['throttled' => [], 'failed' => [], 'refusals' => []];
         }
 
         foreach (array_chunk($payloads, self::BATCH_LIMIT, true) as $chunk) {
@@ -992,12 +1000,30 @@ final class GraphApiClient
                 }
 
                 $failed[(string) $graphId] = $status;
+
+                // The CODE, not only the status, and this is the line that was
+                // missing. A $batch answers 200 even when every sub-request
+                // inside it was refused, so a refusal never becomes an
+                // exception and never passes through any classification — it
+                // arrives here, and everything except the bare status was
+                // dropped on the floor.
+                //
+                // `error.code` is the machine-readable half: ErrorAccessDenied,
+                // MailboxNotEnabledForRESTAPI, ErrorItemNotFound. Without it a
+                // caller can say "a write was refused" and nothing more, which
+                // is not enough to tell a user what to do about it.
+                $code = $subResponse['body']['error']['code'] ?? null;
+
+                if (true === is_string($code) && '' !== $code) {
+                    $refusals[(string) $graphId] = $code;
+                }
             }
         }
 
         return [
             'throttled' => $throttled,
             'failed'    => $failed,
+            'refusals'  => $refusals,
         ];
     }
 

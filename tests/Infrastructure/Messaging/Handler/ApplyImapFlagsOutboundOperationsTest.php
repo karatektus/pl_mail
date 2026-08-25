@@ -13,6 +13,7 @@ use App\Entity\User\User;
 use App\Infrastructure\Messaging\Handler\ApplyImapFlagsHandler;
 use App\Infrastructure\Messaging\Message\ApplyImapFlagsMessage;
 use App\Repository\Mail\MailboxRepository;
+use App\Repository\Mail\AccountRepository;
 use App\Repository\Mail\MessageRepository;
 use App\Service\Imap\ImapFolderProvisioner;
 use Doctrine\ORM\EntityManagerInterface;
@@ -368,6 +369,7 @@ final class ApplyImapFlagsOutboundOperationsTest extends TestCase
             $connectionFactory,
             $this->createStub(EntityManagerInterface::class),
             $provisioner,
+            $this->createStub(AccountRepository::class),
         );
 
         $handler(new ApplyImapFlagsMessage([1 => 10], $action, $destinationPath, [1 => 6]));

@@ -162,13 +162,7 @@ final class ApplyGraphChangesHandler
             return [];
         }
 
-        foreach ($result['failed'] as $graphId => $status) {
-            $this->logger->error('ApplyGraphChangesHandler: patch sub-request failed', [
-                'accountId' => $account->id,
-                'graphId'   => $graphId,
-                'status'    => $status,
-            ]);
-        }
+        $this->recordRefusals($account, $result, 'patch');
 
         return $result['throttled'];
     }
@@ -343,15 +337,78 @@ final class ApplyGraphChangesHandler
             }
         }
 
+        $this->recordRefusals($account, $result, 'move');
+
+        return $result['throttled'];
+    }
+
+    /**
+     * Log the refused sub-requests, and — where it says something a user can
+     * act on — record it on the account.
+     *
+     * WHY THIS IS NOT THE GMAIL SHAPE
+     *
+     * On Gmail a refusal is a thrown GmailPermanentException, so one catch was
+     * enough. Graph does not work that way: a $batch POST answers HTTP 200 even
+     * when every sub-request inside it was refused, so the refusals never
+     * become exceptions, never reach rethrowIfTransient(), and never touch any
+     * classification at all. They arrive here, in an array, and everything
+     * except the bare status used to be dropped.
+     *
+     * WHAT IS RECORDED, AND WHAT IS NOT CLAIMED
+     *
+     * The account gets "a change could not be pushed, and here is what the
+     * provider said". That statement is true whether the cause is permanent or
+     * temporary, which matters: a 403 here can be a grant that lacks
+     * Mail.ReadWrite (permanent, needs a reconnect) or a mailbox mid-migration
+     * answering MailboxNotEnabledForRESTAPI (temporary, needs an hour). Nothing
+     * here decides between them, and nothing here stops a retry — the next
+     * export that succeeds clears the record, so a temporary cause clears
+     * itself.
+     *
+     * @param array{throttled: list<string>, failed: array<string,int>, refusals: array<string,string>} $result
+     */
+    private function recordRefusals(Account $account, array $result, string $what): void
+    {
+        if ([] === $result['failed']) {
+            // Nothing refused, so whatever was wrong is not wrong now. This is
+            // what lets a temporary cause clear itself: a mailbox that was
+            // mid-migration answers normally an hour later, and the card goes
+            // without anybody doing anything.
+            if (null !== $account->exportRefusedReason) {
+                $account->exportRefusedReason = null;
+                $this->em->flush();
+            }
+
+            return;
+        }
+
         foreach ($result['failed'] as $graphId => $status) {
-            $this->logger->error('ApplyGraphChangesHandler: move sub-request failed', [
+            $this->logger->error(sprintf('ApplyGraphChangesHandler: %s sub-request failed', $what), [
                 'accountId' => $account->id,
                 'graphId'   => $graphId,
                 'status'    => $status,
+                'code'      => $result['refusals'][$graphId] ?? null,
             ]);
         }
 
-        return $result['throttled'];
+        // One line for the account, from the first refusal: they are almost
+        // always the same fault repeated per message, and a field holding five
+        // thousand copies of it helps nobody.
+        $graphId = array_key_first($result['failed']);
+        $status  = $result['failed'][$graphId];
+        $code    = $result['refusals'][$graphId] ?? null;
+
+        $account->exportRefusedReason = mb_substr(sprintf(
+            'Microsoft refused a %s with %d%s (%d of %d changes).',
+            $what,
+            $status,
+            null !== $code ? ' ' . $code : '',
+            count($result['failed']),
+            count($result['failed']) + count($result['throttled']),
+        ), 0, 500);
+
+        $this->em->flush();
     }
 
     /**

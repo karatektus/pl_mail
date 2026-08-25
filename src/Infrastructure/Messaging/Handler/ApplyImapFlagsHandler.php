@@ -13,6 +13,7 @@ use App\Entity\Mail\Mailbox;
 use App\Entity\Mail\Message;
 use App\Infrastructure\Messaging\Message\ApplyImapFlagsMessage;
 use App\Repository\Mail\MailboxRepository;
+use App\Repository\Mail\AccountRepository;
 use App\Repository\Mail\MessageRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
@@ -108,10 +109,29 @@ final class ApplyImapFlagsHandler
         private readonly ImapConnectionFactory  $imapConnectionFactory,
         private readonly EntityManagerInterface $em,
         private readonly ImapFolderProvisioner  $folders,
+        // Appended rather than placed where it reads best: the existing tests
+        // construct this positionally, and inserting a parameter silently
+        // shifts every argument after it into the wrong slot.
+        private readonly AccountRepository      $accountRepository,
     ) {}
+
+    /**
+     * What the server refused during THIS run, for the account it belonged to.
+     *
+     * An instance property because the refusals happen three levels down and
+     * threading a counter through would be more invasive than the record is
+     * worth. Reset at the top of every invocation: a Messenger handler is a
+     * shared service, and a count carried over from the last message would
+     * report a fault that has already been dealt with.
+     *
+     * @var array<int|string, string> accountId => the first refusal, in the server's own words
+     */
+    private array $refusedThisRun = [];
 
     public function __invoke(ApplyImapFlagsMessage $message): void
     {
+        $this->refusedThisRun = [];
+
         $messages = $this->messageRepository->findBy(['id' => array_keys($message->messageIds)]);
 
         if (count($messages) === 0) {
@@ -167,7 +187,11 @@ final class ApplyImapFlagsHandler
                     'action'    => $message->action,
                     'error'     => $e->getMessage(),
                 ]);
+
+                $this->refusedThisRun[$accountId] ??= $e->getMessage();
             }
+
+            $this->settle((int) $accountId);
         }
 
         // Whatever the pass learned about where these messages actually are.
@@ -268,6 +292,16 @@ final class ApplyImapFlagsHandler
                     'action'    => $envelope->action,
                     'error'     => $e->getMessage(),
                 ]);
+
+                // The silent-divergence case, and the reason this is recorded
+                // at all: the flag is already set HERE and the server refused
+                // it, so plMail and the mailbox now disagree and the next sync
+                // decides in the server's favour. Nothing said so.
+                $accountId = $msg->account?->id;
+
+                if (null !== $accountId) {
+                    $this->refusedThisRun[(int) $accountId] ??= $e->getMessage();
+                }
             }
         }
     }
@@ -551,5 +585,33 @@ final class ApplyImapFlagsHandler
         }
 
         return $this->folders->ensureSpecialUse($account, $client, $specialUse);
+    }
+    /**
+     * Write down what the server refused for this account, or clear it.
+     *
+     * The same shape the Gmail and Graph handlers use, and the same care about
+     * what is being claimed: this records that a change could not be pushed,
+     * never that it is permanent. An IMAP `NO` can be a mailbox that is
+     * genuinely read-only or a NAS that had not finished waking up, and the
+     * next run that succeeds clears the record either way — so a temporary
+     * cause clears itself and nobody is told to go fix a server that is fine.
+     */
+    private function settle(int $accountId): void
+    {
+        $account = $this->accountRepository->find($accountId);
+
+        if (null === $account) {
+            return;
+        }
+
+        $refusal = $this->refusedThisRun[$accountId] ?? null;
+        $stored  = null !== $refusal ? mb_substr($refusal, 0, 500) : null;
+
+        if ($stored === $account->exportRefusedReason) {
+            return;
+        }
+
+        $account->exportRefusedReason = $stored;
+        $this->em->flush();
     }
 }
