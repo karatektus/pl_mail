@@ -284,6 +284,78 @@ final class GmailApiClientFailureTest extends TestCase
         }
     }
 
+    /**
+     * More than a thousand ids goes out as more than one request.
+     *
+     * Gmail refuses a batchModify carrying over a thousand ids —
+     * `400 invalidArgument: Number of ids cannot exceed 1000` — and nothing
+     * capped it. Selecting a whole view and marking it read sent every id in
+     * one call; the live report that found this had five thousand four hundred
+     * of them. The call was refused, the rows were already changed locally, and
+     * the next sync quietly put them all back.
+     *
+     * Asserted by counting REQUESTS rather than by inspecting a body: the fault
+     * was one request where there should have been six, and that is the thing
+     * to pin.
+     */
+    public function testABatchModifyOverAThousandIdsIsSplit(): void
+    {
+        $requests = [];
+
+        $http = new MockHttpClient(function (string $method, string $url, array $options) use (&$requests) {
+            $requests[] = json_decode((string) ($options['body'] ?? '{}'), true);
+
+            return new MockResponse('', ['http_code' => 204]);
+        });
+
+        $tokenManager = $this->createStub(OAuthTokenManager::class);
+        $tokenManager->method('getValidAccessToken')->willReturn('test-token');
+
+        $client = new GmailApiClient($http, $tokenManager);
+
+        $ids = array_map(static fn (int $n): string => 'm' . $n, range(1, 2500));
+
+        $client->batchModify($this->account(), $ids, [], ['UNREAD']);
+
+        self::assertCount(3, $requests, '2,500 ids should go out as three requests');
+        self::assertCount(1000, $requests[0]['ids']);
+        self::assertCount(1000, $requests[1]['ids']);
+        self::assertCount(500, $requests[2]['ids']);
+
+        // Every id, exactly once: a chunking bug that dropped or duplicated
+        // would still produce three requests.
+        $sent = array_merge($requests[0]['ids'], $requests[1]['ids'], $requests[2]['ids']);
+
+        self::assertSame($ids, $sent);
+
+        // And the labels ride along on each one, or the later chunks would be
+        // no-ops that looked like successes.
+        self::assertSame(['UNREAD'], $requests[2]['removeLabelIds']);
+    }
+
+    /**
+     * A 400 is not retried.
+     *
+     * It is our own malformed request, and it will be refused identically for
+     * ever. "Number of ids cannot exceed 1000" went round the retry ladder
+     * three times, filling the log with copies of the one line that said what
+     * was wrong.
+     */
+    public function testABadRequestIsPermanent(): void
+    {
+        $client = $this->client(400, [
+            'error' => [
+                'code'    => 400,
+                'message' => 'Number of ids cannot exceed 1000',
+                'errors'  => [['reason' => 'invalidArgument']],
+            ],
+        ]);
+
+        $this->expectException(GmailPermanentException::class);
+
+        $client->batchModify($this->account(), ['m1'], [], ['UNREAD']);
+    }
+
     public function testASuccessfulBatchModifyReadsNoBody(): void
     {
         // Gmail answers 204 with nothing in it; asserting the status must not

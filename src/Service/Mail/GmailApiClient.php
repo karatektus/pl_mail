@@ -31,6 +31,15 @@ final class GmailApiClient
      * tell these apart from a permissions failure, so the reason in the body is
      * the only thing that can.
      */
+    /**
+     * Gmail's own ceiling on `ids` for batchModify and batchDelete.
+     *
+     * Documented by Google and enforced with `400 invalidArgument: Number of
+     * ids cannot exceed 1000`. Not a tuning knob: sending 1001 is refused
+     * outright, and the request is not partially applied.
+     */
+    private const int IDS_PER_BATCH = 1000;
+
     private const array TRANSIENT_REASONS = [
         'rateLimitExceeded',
         'userRateLimitExceeded',
@@ -631,22 +640,39 @@ final class GmailApiClient
 
         $token = $this->tokenManager->getValidAccessToken($account);
 
-        $payload = ['ids' => $gmailMessageIds];
+        // CHUNKED, because Gmail refuses more than a thousand ids in one call:
+        // `400 invalidArgument: Number of ids cannot exceed 1000`. Nothing here
+        // capped it, so a user selecting a whole view and marking it read sent
+        // every id at once — five thousand of them in the case that found this
+        // — and the call was refused outright. Messenger then retried the
+        // identical request three times, because a 400 was not classified as
+        // permanent either.
+        //
+        // The result was a mark-as-read that changed the rows locally, never
+        // reached Gmail, and was quietly reverted by the next sync. From the
+        // outside: a button that did nothing, twice, with the reason only in a
+        // log the user cannot read.
+        //
+        // The Graph client has chunked from the start — see BATCH_LIMIT there.
+        // This one simply never learned.
+        foreach (array_chunk($gmailMessageIds, self::IDS_PER_BATCH) as $chunk) {
+            $payload = ['ids' => $chunk];
 
-        if (count($addLabelIds) > 0) {
-            $payload['addLabelIds'] = $addLabelIds;
+            if (count($addLabelIds) > 0) {
+                $payload['addLabelIds'] = $addLabelIds;
+            }
+
+            if (count($removeLabelIds) > 0) {
+                $payload['removeLabelIds'] = $removeLabelIds;
+            }
+
+            $response = $this->httpClient->request('POST', self::BASE . '/messages/batchModify', [
+                'auth_bearer' => $token,
+                'json'        => $payload,
+            ]);
+
+            $this->assertSuccess($response, 'messages.batchModify');
         }
-
-        if (count($removeLabelIds) > 0) {
-            $payload['removeLabelIds'] = $removeLabelIds;
-        }
-
-        $response = $this->httpClient->request('POST', self::BASE . '/messages/batchModify', [
-            'auth_bearer' => $token,
-            'json'        => $payload,
-        ]);
-
-        $this->assertSuccess($response, 'messages.batchModify');
     }
 
     /**
@@ -676,12 +702,18 @@ final class GmailApiClient
 
         $token = $this->tokenManager->getValidAccessToken($account);
 
-        $response = $this->httpClient->request('POST', self::BASE . '/messages/batchDelete', [
-            'auth_bearer' => $token,
-            'json'        => ['ids' => $gmailMessageIds],
-        ]);
+        // Chunked for the same reason batchModify is, and it matters more here:
+        // emptying a large bin is exactly the operation that exceeds a thousand
+        // ids, and a refused batchDelete leaves mail at Google that plMail has
+        // already destroyed its own copy of.
+        foreach (array_chunk($gmailMessageIds, self::IDS_PER_BATCH) as $chunk) {
+            $response = $this->httpClient->request('POST', self::BASE . '/messages/batchDelete', [
+                'auth_bearer' => $token,
+                'json'        => ['ids' => $chunk],
+            ]);
 
-        $this->assertSuccess($response, 'messages.batchDelete');
+            $this->assertSuccess($response, 'messages.batchDelete');
+        }
     }
 
     // ── Failure handling ──────────────────────────────────────────────────────
@@ -752,6 +784,19 @@ final class GmailApiClient
         }
 
         if (403 === $status && true === in_array($reason, self::PERMANENT_REASONS, true)) {
+            throw new GmailPermanentException($message, $status, $reason);
+        }
+
+        // A 400 is OUR mistake, and the same request will be refused the same
+        // way for ever. Retrying one is not caution, it is three more copies of
+        // an identical log line burying the one that says what is wrong — which
+        // is precisely what "Number of ids cannot exceed 1000" did, at retry
+        // #1, #2 and #3, while the fix was to send fewer ids.
+        //
+        // Narrow on purpose: 400 only, and not the whole 4xx range. A 401 is a
+        // token that may refresh, a 404 can be a race with a delete, and a 429
+        // is throttling — all handled above or genuinely worth another attempt.
+        if (400 === $status) {
             throw new GmailPermanentException($message, $status, $reason);
         }
 
