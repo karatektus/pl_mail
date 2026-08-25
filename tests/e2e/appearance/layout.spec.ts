@@ -16,8 +16,27 @@ import { test, expect, type Page } from "../support/test";
 const APPEARANCE = "/settings?section=appearance";
 const TRANSPARENT = "rgba(0, 0, 0, 0)";
 
-const layoutSelect = (page: Page) =>
-    page.locator('select[data-settings--appearance-field="layout"]');
+/**
+ * The layout control, which is a segmented radio group rather than a <select>.
+ *
+ * It was the last dropdown on a page where every other short choice — motion,
+ * density, preview lines, unread emphasis — is a segmented group, so it was
+ * converted to match. The radios are `sr-only` with a styled <span> beside
+ * them, so these act on the input directly rather than clicking the label.
+ */
+const layoutRadio = (page: Page, value: "flat" | "boxed") =>
+    page.locator(`input[data-settings--appearance-field="layout"][value="${value}"]`);
+
+/**
+ * The clickable half of the segment.
+ *
+ * The input is `sr-only`, so acting on it directly does not work — Playwright
+ * clicks it and the browser reports the state unchanged. The <label> wrapping
+ * it is what a person clicks and what actually toggles the radio, which is the
+ * same pattern density.spec.ts uses for the identical control shape.
+ */
+const layoutTile = (page: Page, value: "flat" | "boxed") =>
+    page.locator(`label:has(input[data-settings--appearance-field="layout"][value="${value}"])`);
 
 const flat = (page: Page) =>
     page.evaluate(() =>
@@ -32,7 +51,7 @@ async function pickLayout(page: Page, value: "flat" | "boxed"): Promise<void> {
             response.request().method() === "POST",
     );
 
-    await layoutSelect(page).selectOption(value);
+    await layoutTile(page, value).click();
     await save;
 }
 
@@ -44,7 +63,7 @@ test.beforeEach(async ({ page }) => {
     expect(reset.ok()).toBe(true);
 
     await page.goto(APPEARANCE);
-    await expect(layoutSelect(page)).toHaveValue("flat");
+    await expect(layoutRadio(page, "flat")).toBeChecked();
 });
 
 test.describe("layout", () => {

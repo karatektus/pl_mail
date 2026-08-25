@@ -28,8 +28,18 @@
              data-ui--clipboard-confirm-text-value="{{ 'clipboard.copied'|trans }}"
              data-ui--clipboard-failed-text-value="{{ 'clipboard.copy_failed'|trans }}"
              class="px-4 py-3.5">
+            {# whitespace-pre-line, because the codes are joined with real
+               newlines below and <code> does not preserve them on its own —
+               HTML collapses them to spaces, so all eight ran together into
+               one wrapped line that read as a single long string rather than
+               as eight things to keep. The newlines were always in the markup;
+               nothing was rendering them.
+
+               pre-LINE rather than pre: it honours the newlines while still
+               collapsing the template's own indentation, so the block does not
+               inherit the leading whitespace of this file. #}
             <code data-ui--clipboard-target="source"
-                  class="block rounded-lg bg-zinc-500/10 px-3 py-2.5 text-xs font-mono text-ink select-all leading-relaxed">{% for code in newBackupCodes %}{{ code }}{% if not loop.last %}&#10;{% endif %}{% endfor %}</code>
+                  class="block whitespace-pre-line rounded-lg bg-zinc-500/10 px-3 py-2.5 text-xs font-mono text-ink select-all leading-relaxed">{% for code in newBackupCodes %}{{ code }}{% if not loop.last %}&#10;{% endif %}{% endfor %}</code>
 
             <button type="button"
                     data-action="click->ui--clipboard#copy"
@@ -245,8 +255,26 @@
                         <div class="min-w-0 flex-1">
                             <p class="text-xs text-ink-muted leading-relaxed mb-2.5">{{ 'settings.security.enrol.step_confirm'|trans }}</p>
 
+                            {#
+                                submit-once, because confirming a code is slow
+                                enough to look like nothing happened: the button
+                                stayed idle while the request was in flight, so
+                                a second press was the obvious thing to try —
+                                and the reply to the first one carries the
+                                recovery codes, which are shown exactly once.
+                                Pressing again, or wandering off because nothing
+                                said to wait, lost them.
+
+                                The button now says so and stops accepting
+                                presses. Same controller the 2FA login form
+                                uses; it was written to be reusable and this is
+                                the second use.
+                            #}
                             <form method="post" action="{{ path('app_two_factor_confirm') }}"
-                                  data-turbo="false" class="flex items-end gap-2">
+                                  data-turbo="false" class="flex items-end gap-2"
+                                  data-controller="core--submit-once"
+                                  data-action="submit->core--submit-once#guard"
+                                  data-core--submit-once-busy-label-value="{{ 'two_factor.form.submitting'|trans }}">
                                 <input type="hidden" name="_token" value="{{ csrf_token('two-factor-confirm') }}">
                                 <div class="flex-1 min-w-0 max-w-[200px]">
                                     <input type="text" name="code" required autofocus
@@ -254,8 +282,10 @@
                                            class="w-full px-3 py-2 text-sm font-mono tracking-widest rounded-lg border border-field bg-field text-ink placeholder:text-ink-faint placeholder:tracking-normal focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition-colors">
                                 </div>
                                 <button type="submit"
+                                        data-core--submit-once-target="button"
                                         class="shrink-0 inline-flex items-center gap-2 px-3 h-9 rounded-lg text-sm font-medium
-                                               bg-accent hover:bg-accent-strong text-accent-ink transition-colors cursor-pointer">
+                                               bg-accent hover:bg-accent-strong text-accent-ink transition-colors cursor-pointer
+                                               disabled:opacity-60 disabled:cursor-wait">
                                     {{ 'settings.security.enrol.submit'|trans }}
                                 </button>
                             </form>
@@ -263,10 +293,17 @@
                     </li>
                 </ol>
 
-                <a href="{{ path('app_settings_index', { section: 'security' }) }}"
-                   class="inline-block mt-4 text-[11px] text-ink-faint hover:text-ink transition-colors">
-                    {{ 'settings.security.enrol.cancel'|trans }}
-                </a>
+                {# The Cancel link that used to sit here pointed at the settings
+                   page the enrol form is already ON, so it did nothing a
+                   half-finished enrolment did not already allow: nothing is
+                   written until the code is confirmed, and navigating away —
+                   or simply not typing the code — abandons it just as well.
+                   A link offering to undo something that has not happened yet
+                   reads as though something has.
+
+                   The onboarding step keeps its own, which is not the same
+                   affordance: there it backs out of a wizard step that would
+                   otherwise hold the screen. #}
             </div>
 
         {% else %}

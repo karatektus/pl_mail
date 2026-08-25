@@ -127,6 +127,17 @@
                 </form>
             </div>
 
+            {# The legal notice. Demo-mode only, because only a publicly hosted
+               instance needs one — and it sits outside the card, below
+               everything, which is where a visitor looks for it. #}
+            {% if demo.isEnabled %}
+                <p class="text-center text-xs text-ink-faint mt-6">
+                    <a href="{{ path('app_demo_impressum') }}" class="hover:text-ink transition-colors">
+                        {{ 'demo.impressum.link'|trans }}
+                    </a>
+                </p>
+            {% endif %}
+
             {# Register link. Hidden on a demo: it advertises a sign-up that does
                not exist yet, and on a public instance that reads as the demo
                refusing to let you in rather than as a roadmap note. #}

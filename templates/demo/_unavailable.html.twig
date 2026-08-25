@@ -1,0 +1,29 @@
+{#
+    What a demo visitor gets instead of a form that would attach a real mailbox.
+
+    Rendered into the modal's turbo-frame rather than redirected to, because a
+    redirect has nowhere to land: the frame looks for <turbo-frame id="modal">
+    in the response, the settings page has none, and Turbo leaves the frame
+    exactly as it was — which is the spinner. The modal then spun forever, and
+    "unavailable" is not a thing a spinner can say.
+#}
+<turbo-frame id="{{ frame|default('modal') }}" class="flex-1 min-h-0 flex flex-col">
+    <div class="px-6 py-8 text-center">
+        <i class="fa-solid fa-flask text-accent text-3xl mb-4" aria-hidden="true"></i>
+
+        <h2 class="text-base font-semibold text-ink mb-2">
+            {{ 'demo.unavailable.title'|trans }}
+        </h2>
+
+        <p class="text-sm text-ink-muted max-w-sm mx-auto mb-6">
+            {{ 'demo.unavailable.body'|trans }}
+        </p>
+
+        <button type="button"
+                data-action="ui--modal#close"
+                class="px-4 py-2 rounded-lg bg-accent text-accent-ink text-sm font-medium
+                       hover:bg-accent-strong transition-colors">
+            {{ 'demo.unavailable.dismiss'|trans }}
+        </button>
+    </div>
+</turbo-frame>

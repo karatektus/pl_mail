@@ -3,6 +3,7 @@
 namespace App\Repository\User;
 
 use App\Entity\User\User;
+use App\Service\Demo\DemoMode;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\ORM\NonUniqueResultException;
 use Doctrine\ORM\QueryBuilder;
@@ -122,6 +123,31 @@ class UserRepository extends ServiceEntityRepository implements PasswordUpgrader
     }
 
     /**
+     * Users this install belongs to, not counting demo visitors.
+     *
+     * The distinction exists because /install closes the moment a user exists,
+     * and demo mode mints one per visitor. Counted with countAll(), the first
+     * stranger to open /demo on a fresh demo instance would take the install
+     * page away with them: nobody could ever create an administrator through
+     * the browser, and the only way back would be app:setup on the console.
+     * Nothing announces that has happened, either — the page simply 404s, which
+     * is exactly what it does on a correctly installed instance.
+     *
+     * The predicate is the one DemoUserEraser deletes on, and is narrow for the
+     * same reason: both halves must match, so an administrator who happens to
+     * like the word "demo" is still counted as a real user.
+     */
+    public function countExcludingDemoVisitors(): int
+    {
+        return (int) $this->createQueryBuilder('usr')
+            ->select('COUNT(usr.id)')
+            ->where('usr.email NOT LIKE :demoAddress')
+            ->setParameter('demoAddress', DemoMode::USER_PREFIX.'%@'.DemoMode::USER_DOMAIN)
+            ->getQuery()
+            ->getSingleScalarResult();
+    }
+
+    /**
      * Persist $user as the first administrator, or return false if someone
      * else got there first.
      *
@@ -148,7 +174,11 @@ class UserRepository extends ServiceEntityRepository implements PasswordUpgrader
                 [self::FIRST_ADMIN_LOCK],
             );
 
-            if (0 !== $this->countAll()) {
+            // Demo visitors excluded, for the reason
+            // countExcludingDemoVisitors() gives: on a demo instance one of
+            // them exists within seconds of the stack coming up, and counting
+            // it here would refuse the very first administrator.
+            if (0 !== $this->countExcludingDemoVisitors()) {
                 return false;
             }
 

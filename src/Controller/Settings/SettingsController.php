@@ -51,7 +51,10 @@ final class SettingsController extends AbstractController
      * the top of the accounts pane would push the actual account controls below
      * the fold on exactly the installs that have something wrong.
      */
-    private const array SECTIONS = ['health', 'accounts', 'profile', 'security', 'labels', 'calendars', 'sharing', 'filters', 'insights', 'integrations', 'appearance', 'aliases', 'signature', 'app-passwords', 'notifications', 'general'];
+    /** Where /settings opens: the first entry in the navigation. */
+    private const string DEFAULT_SECTION = 'profile';
+
+    private const array SECTIONS = ['health', 'accounts', 'profile', 'security', 'labels', 'calendars', 'sharing', 'filters', 'insights', 'integrations', 'appearance', 'aliases', 'read-receipts', 'signature', 'app-passwords', 'notifications', 'general'];
 
     public function __construct(
         private readonly AccountRepository $accountRepository,
@@ -82,10 +85,19 @@ final class SettingsController extends AbstractController
     #[Route('', name: 'index')]
     public function index(Request $request): Response
     {
-        $section = (string) $request->query->get('section', 'accounts');
+        // Profile, because it is the first entry in the navigation and opening
+        // a settings page anywhere other than its top reads as though something
+        // else had been clicked. It used to be 'accounts', which is the FOURTH
+        // item on a healthy install — the Health entry only shows itself when
+        // there is something wrong, so the strip normally begins profile,
+        // general, appearance, accounts.
+        //
+        // Kept as one constant so the default and the fallback below cannot
+        // drift apart.
+        $section = (string) $request->query->get('section', self::DEFAULT_SECTION);
 
         if (false === in_array($section, self::SECTIONS, true)) {
-            $section = 'accounts';
+            $section = self::DEFAULT_SECTION;
         }
 
         // The user's own arrangement, not the alphabet.

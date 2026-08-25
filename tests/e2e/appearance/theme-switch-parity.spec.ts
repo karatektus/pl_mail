@@ -108,18 +108,23 @@ async function pick(page: Page, theme: string): Promise<void> {
 }
 
 /**
- * Choose a layout through the Tom Select widget rather than the native
- * <select> underneath it. ui--select replaces every single-select in the app,
- * so `selectOption` drives an element the user cannot see: the change lands,
- * but the visible control keeps showing the old label, and a later assertion
- * on what the page says disagrees with what it does.
+ * Choose a layout.
+ *
+ * This used to drive a Tom Select widget, because the control was a <select>
+ * that ui--select had replaced — so acting on the native element changed the
+ * value without changing what the page showed. The control is now a segmented
+ * radio group like every other short choice on the panel, and there is no
+ * widget in between: the radio IS the control, and checking it is what a
+ * person does.
  */
 async function setLayout(page: Page, layout: string): Promise<void> {
-    const native = page.locator(`${PANEL} select[data-settings--appearance-field="layout"]`);
+    const radio = page.locator(
+        `${PANEL} input[data-settings--appearance-field="layout"][value="${layout}"]`,
+    );
 
     // Re-picking the selected option fires no change, so there is no save to
     // wait for and nothing to do.
-    if ((await native.inputValue()) === layout) {
+    if (await radio.isChecked()) {
         return;
     }
 
@@ -127,8 +132,11 @@ async function setLayout(page: Page, layout: string): Promise<void> {
         (response) => response.url().includes("/appearance") && response.request().method() === "POST",
     );
 
-    await page.locator(`${PANEL} .ts-wrapper .ts-control`).first().click();
-    await page.locator(`.ts-dropdown [data-value="${layout}"]`).click();
+    // The wrapping <label>, not the input: the radio is sr-only, and clicking
+    // it directly leaves the state unchanged. Same as density.spec.ts.
+    await page
+        .locator(`${PANEL} label:has(input[data-settings--appearance-field="layout"][value="${layout}"])`)
+        .click();
     await saved;
 }
 

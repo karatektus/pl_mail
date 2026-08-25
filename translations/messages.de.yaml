@@ -1300,6 +1300,36 @@ demo:
         blurb: Sieh dich in plMail um — mit einem eigenen Postfach, ohne Anmeldung und ohne Adresse.
         start: Demo starten
         disclaimer: Dein Demo-Postfach wird nach ein paar Stunden automatisch gelöscht.
+    unavailable:
+        title: In der Demo nicht verfügbar
+        body: >-
+            Ein echtes Postfach zu verbinden ist hier abgeschaltet. Diese Demo
+            läuft auf einem Server, der dir nicht gehört, und niemand sollte
+            dort sein Mail-Passwort eintippen. Alles andere — Themes, Filter,
+            Kalender, Mail schreiben — funktioniert wie auf deiner eigenen
+            Installation.
+        dismiss: Zurück zur Demo
+    impressum:
+        link: Impressum
+        title: Impressum
+        heading: Angaben gemäß § 5 TMG
+        operator: Betreiber
+        contact: Kontakt
+        contact_email: 'E-Mail:'
+        disclaimer_title: Über diese Demo
+        disclaimer: >-
+            Dies ist eine Demonstration von plMail. Die gezeigten Postfächer,
+            Absender und Nachrichten sind erfunden; nichts davon ist echte
+            Korrespondenz. Hier geschriebene Mail verlässt den Server nie, und
+            Demo-Konten werden nach einigen Stunden automatisch gelöscht.
+        privacy_title: Daten
+        privacy: >-
+            Ein Demo-Besuch legt ein Wegwerf-Konto ohne persönliche Daten an.
+            Was du dort eingibst, wird mit dem Konto gelöscht. Server-Logs
+            speichern IP-Adressen aus den üblichen Betriebsgründen und werden
+            rotiert.
+        source_title: Quellcode
+        source: 'plMail ist freie Software unter der AGPL-3.0:'
 drafts:
     empty: Keine Entwürfe.
     heading: Entwürfe
@@ -2606,6 +2636,7 @@ settings:
         heading: Sprache
         subheading: Die Sprache der plMail-Oberfläche. Deine E-Mails bleiben so, wie sie geschrieben wurden.
     nav:
+        read_receipts: Lesebestätigungen
         sharing: Teilen
         accounts: E-Mail-Konten
         aliases: Aliase

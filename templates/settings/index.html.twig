@@ -113,6 +113,7 @@
                                     { label: 'settings.nav.group.mail', items: [
                                         { section: 'accounts',      icon: 'fa-solid fa-at',    label: 'settings.nav.accounts' },
                                         { section: 'aliases',       icon: 'fa-solid fa-user-tag' },
+                                        { section: 'read-receipts', icon: 'fa-solid fa-envelope-open-text', label: 'settings.nav.read_receipts' },
                                         { section: 'signature',     icon: 'fa-solid fa-signature' },
                                         { section: 'labels',        icon: 'fa-solid fa-tag' },
                                         { section: 'filters',       icon: 'fa-solid fa-filter' },
@@ -353,25 +354,28 @@
                                                 {% endblock %}
                                             {% endembed %}
 
-                                            {# Per-alias compose defaults, under the alias list
-                                               because every control in it is captioned by an
-                                               address from the list above. Signatures used to
-                                               be in here too and are their own section now —
-                                               they needed the room, and people looked for them
-                                               by name. #}
-                                            {% embed 'settings/_card.html.twig' with {
-                                                heading:    'settings.compose_defaults.heading'|trans,
-                                                subheading: 'settings.compose_defaults.subheading'|trans,
-                                            } %}
-                                                {% block body %}
-                                                    <div id="settings-compose-defaults">
-                                                        {% include 'settings/_compose_defaults.html.twig' with {
-                                                            manageableAccounts: manageableAccounts,
-                                                        } %}
-                                                    </div>
-                                                {% endblock %}
-                                            {% endembed %}
                                         </div>
+                                    {% elseif section == 'read-receipts' %}
+                                        {# Its own section, following signatures out of the alias
+                                           tab for the same two reasons: it is not what anyone
+                                           opens "Aliases" to find, and it is captioned by
+                                           addresses rather than being about them. The card is
+                                           still per-alias — a receipt policy is a property of
+                                           the address you send from — but the tab is now named
+                                           after the thing it configures, which is what people
+                                           look for. #}
+                                        {% embed 'settings/_card.html.twig' with {
+                                            heading:    'settings.compose_defaults.heading'|trans,
+                                            subheading: 'settings.compose_defaults.subheading'|trans,
+                                        } %}
+                                            {% block body %}
+                                                <div id="settings-compose-defaults">
+                                                    {% include 'settings/_compose_defaults.html.twig' with {
+                                                        manageableAccounts: manageableAccounts,
+                                                    } %}
+                                                </div>
+                                            {% endblock %}
+                                        {% endembed %}
                                     {% elseif section == 'signature' %}
                                         {% embed 'settings/_card.html.twig' with {
                                             heading:    'settings.signature.heading'|trans,

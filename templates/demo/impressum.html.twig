@@ -1,0 +1,85 @@
+{% extends '_layout/app.html.twig' %}
+
+{% block title %}{{ 'demo.impressum.title'|trans }} — {{ 'app.name'|trans }}{% endblock %}
+
+{#
+    The legal notice for a publicly hosted demo (§ 5 TMG).
+
+    Reachable without a session on purpose: an Impressum behind a login is not
+    an Impressum. The operator's details come from the environment, and when
+    they are unset this page says so in a red box rather than rendering an empty
+    heading — a legal notice naming nobody looks compliant from a distance and
+    is not, which is the worst of the available failures.
+#}
+{% block body %}
+    <div class="min-h-screen app-bg py-12 px-4">
+        <div class="w-full max-w-2xl mx-auto">
+
+            <a href="{{ path('app_login') }}"
+               class="inline-flex items-center gap-2 text-sm text-ink-muted hover:text-ink transition-colors mb-6">
+                <i class="fa-solid fa-arrow-left text-xs" aria-hidden="true"></i>
+                {{ 'app.name'|trans }}
+            </a>
+
+            <div class="bg-surface rounded-pane shadow-sm border border-line p-8 space-y-8">
+
+                <h1 class="text-xl font-semibold text-ink">{{ 'demo.impressum.title'|trans }}</h1>
+
+                <section class="space-y-2">
+                    <h2 class="text-sm font-semibold text-ink">{{ 'demo.impressum.heading'|trans }}</h2>
+
+                    {% if operatorName is empty and operatorAddress is empty and operatorEmail is empty %}
+                        <div class="rounded-lg alert-danger text-danger text-sm px-4 py-3">
+                            <strong>APP_DEMO_IMPRESSUM_NAME</strong>,
+                            <strong>APP_DEMO_IMPRESSUM_ADDRESS</strong> and
+                            <strong>APP_DEMO_IMPRESSUM_EMAIL</strong> are not set.
+                            This page is legally required to name a real operator — set them
+                            in the environment before making this instance public.
+                        </div>
+                    {% else %}
+                        <dl class="text-sm text-ink-soft space-y-3">
+                            {% if operatorName is not empty %}
+                                <div>
+                                    <dt class="text-ink-faint text-xs uppercase tracking-wide">{{ 'demo.impressum.operator'|trans }}</dt>
+                                    <dd class="text-ink">{{ operatorName }}</dd>
+                                </div>
+                            {% endif %}
+                            {% if operatorAddress is not empty %}
+                                <div>
+                                    <dt class="text-ink-faint text-xs uppercase tracking-wide">{{ 'demo.impressum.contact'|trans }}</dt>
+                                    <dd class="text-ink whitespace-pre-line">{{ operatorAddress }}</dd>
+                                </div>
+                            {% endif %}
+                            {% if operatorEmail is not empty %}
+                                <div>
+                                    <dt class="text-ink-faint text-xs uppercase tracking-wide">{{ 'demo.impressum.contact_email'|trans }}</dt>
+                                    <dd><a href="mailto:{{ operatorEmail }}" class="text-accent hover:underline">{{ operatorEmail }}</a></dd>
+                                </div>
+                            {% endif %}
+                        </dl>
+                    {% endif %}
+                </section>
+
+                <section class="space-y-2">
+                    <h2 class="text-sm font-semibold text-ink">{{ 'demo.impressum.disclaimer_title'|trans }}</h2>
+                    <p class="text-sm text-ink-muted leading-relaxed">{{ 'demo.impressum.disclaimer'|trans }}</p>
+                </section>
+
+                <section class="space-y-2">
+                    <h2 class="text-sm font-semibold text-ink">{{ 'demo.impressum.privacy_title'|trans }}</h2>
+                    <p class="text-sm text-ink-muted leading-relaxed">{{ 'demo.impressum.privacy'|trans }}</p>
+                </section>
+
+                <section class="space-y-2">
+                    <h2 class="text-sm font-semibold text-ink">{{ 'demo.impressum.source_title'|trans }}</h2>
+                    <p class="text-sm text-ink-muted leading-relaxed">
+                        {{ 'demo.impressum.source'|trans }}
+                        <a href="https://github.com/karatektus/pl_mail" class="text-accent hover:underline"
+                           rel="noopener noreferrer" target="_blank">github.com/karatektus/pl_mail</a>
+                    </p>
+                </section>
+
+            </div>
+        </div>
+    </div>
+{% endblock %}

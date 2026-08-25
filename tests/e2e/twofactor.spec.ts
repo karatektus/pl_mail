@@ -50,7 +50,13 @@ async function enrol(page: Page): Promise<string> {
 
     await submitCode(page, secret, page.getByRole("button", { name: "Confirm" }));
 
-    await expect(page.getByText("Two-factor authentication is on")).toBeVisible();
+    // exact, because the success toast now says almost the same thing. The
+    // flash used to reach the page as the raw key "two_factor.flash.enabled" —
+    // nothing translated it — so this locator matched the panel heading alone
+    // and passed for the wrong reason. Translating the flash (which is what a
+    // user should see) made it match both, and strict mode rightly refused.
+    // The heading has no trailing full stop; the sentence in the toast does.
+    await expect(page.getByText("Two-factor authentication is on", { exact: true })).toBeVisible();
 
     return secret;
 }
@@ -152,7 +158,16 @@ test.describe("two-factor authentication", () => {
         await page.getByRole("button", { name: "Revoke every remembered device" }).click();
         await acceptConfirm(page);
 
-        await expect(page.getByText("No devices are remembered")).toBeVisible();
+        // The panel's whole sentence, not a prefix of it. The toast that
+        // appears alongside says "No devices are remembered any more.", so
+        // "No devices are remembered" matches both and strict mode refuses.
+        // Matching the empty-state text in full is unambiguous against
+        // anything the flash bag can add.
+        await expect(
+            page.getByText(
+                "No devices are remembered. You will be asked for a code every time you sign in.",
+            ),
+        ).toBeVisible();
 
         await page.goto("/logout");
         await page.goto("/login");

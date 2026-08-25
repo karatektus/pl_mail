@@ -1016,6 +1016,34 @@ demo:
         blurb: Take a turn about plMail wi' a sea chest o' yer own — no articles t' sign, no berth needed.
         start: Begin th' sea trial
         disclaimer: Yer trial chest be scuttled on its own after a watch or two.
+    unavailable:
+        title: Not to be had on a sea trial
+        body: >-
+            Lashin' a real sea chest to this hull be forbidden here. This trial
+            runs on a hull ye don't command, an' no soul should be tellin' it
+            their countersign. All else — colours, sieves, the almanac, writin'
+            letters — sails as it would on yer own ship.
+        dismiss: Back to the trial
+    impressum:
+        link: Ship's papers
+        title: Ship's papers
+        heading: Declarations under § 5 TMG
+        operator: Master o' the vessel
+        contact: Hailing
+        contact_email: 'Letters:'
+        disclaimer_title: About this sea trial
+        disclaimer: >-
+            This be a showin' o' plMail. Th' chests, senders an' messages be
+            invented; none o' it be real correspondence. Letters penned here
+            never leave th' harbour, an' trial berths be scuttled after a watch
+            or two.
+        privacy_title: Records
+        privacy: >-
+            A trial visit opens a borrowed berth wi' no personal cargo in it.
+            Whatever ye write be scuttled wi' the berth. Th' log records
+            addresses for th' usual reasons o' seamanship an' be turned over.
+        source_title: Ship's plans
+        source: 'plMail be free vessels, under th'' AGPL-3.0 articles:'
 drafts:
     empty: No scrolls in the works.
     heading: Scrolls in the works
@@ -2240,6 +2268,7 @@ settings:
         heading: Tongue
         subheading: The tongue plMail speaks to ye in. Yer bottles be left as they were writ.
     nav:
+        read_receipts: Read-marks
         sharing: Sharing
         accounts: Th' crew
         aliases: Aliases

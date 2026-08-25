@@ -170,9 +170,44 @@ export default class extends Controller {
             return;
         }
 
+        if (this._opensAVisibleMenu(trigger)) {
+            return;
+        }
+
         this.current = trigger;
         clearTimeout(this.timer);
         this.timer = setTimeout(() => this._show(trigger, text), SHOW_DELAY_MS);
+    }
+
+    /**
+     * Is this trigger the button of a menu that is currently open?
+     *
+     * Clicking a dropdown trigger focuses it, and `focusin` is one of the
+     * events that shows a tooltip — so opening the user menu painted its own
+     * hint ("Account") across the top of the menu it had just opened. The
+     * document-level click handler hides the bubble, but the focus arrives
+     * after it, so hiding alone never fixed this; the show has to be refused
+     * while the menu is up.
+     *
+     * Structural rather than an aria check, because ui--dropdown does not set
+     * aria-expanded — it toggles `hidden` on its menu target. Reading that is
+     * reading the same state the controller acts on, and it covers every
+     * dropdown on the page rather than the one that was reported.
+     *
+     * A hint explaining a button is useful right up until the button has been
+     * pressed and its answer is on screen; past that it is describing something
+     * the user is already looking at.
+     */
+    _opensAVisibleMenu(trigger) {
+        const dropdown = trigger.closest('[data-controller~="ui--dropdown"]');
+
+        if (dropdown === null) {
+            return false;
+        }
+
+        const menu = dropdown.querySelector('[data-ui--dropdown-target="menu"]');
+
+        return menu !== null && false === menu.hidden;
     }
 
     /**

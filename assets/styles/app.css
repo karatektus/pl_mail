@@ -274,7 +274,13 @@
     --rgb-accent-ink: 255 255 255;
 
     --rgb-field:        255 255 255;
-    --rgb-field-border: 212 212 216;
+
+    /* Same as solar, and for the same reason — see the note there. Paper's
+       surface is 247 245 239, so a white field at 0.6 alpha is within about
+       three percent of the topbar it sits on. The border tone here is warm to
+       match the paper family rather than the cool grey it had. */
+    --rgb-field-border: 168 162 150;
+    --field-border-alpha: 0.75;
 
     --rgb-danger:    220  38  38;
     --rgb-warning:   217 119   6;
@@ -566,7 +572,23 @@
     --rgb-accent-ink: 255 255 255;
 
     --rgb-field:        255 255 255;
-    --rgb-field-border: 212 212 216;
+
+    /* The search field sits ON the topbar, and in the boxed layout the topbar
+       is translucent (paneAlpha 0.7) over a warm off-white. A pure-white fill
+       at --field-alpha 0.6 lands within a couple of percent of that, so the
+       input had almost no edge: you could see where it was only by the
+       placeholder text inside it.
+
+       The fill is not the thing to change — a white field on cream is right,
+       and darkening it would make the input look disabled. The border is what
+       delineates a control whose fill legitimately matches its surround, and
+       here it was a cool grey at 0.4 alpha, i.e. barely present. A darker tone
+       from the theme's own family, at an alpha that survives the translucency.
+
+       Flat is unaffected in practice: an opaque topbar already gives the fill
+       something to sit against, and a firmer border does not hurt it. */
+    --rgb-field-border: 147 161 161;
+    --field-border-alpha: 0.75;
 
     --rgb-danger:    220  38  38;
     --rgb-warning:   217 119   6;

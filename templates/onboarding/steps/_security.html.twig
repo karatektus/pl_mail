@@ -31,7 +31,11 @@ full navigation to a step URL renders it unstyled.
              data-ui--clipboard-failed-text-value="{{ 'clipboard.copy_failed'|trans }}"
              class="px-4 py-3.5">
             <code data-ui--clipboard-target="source"
-                  class="block rounded-lg bg-zinc-500/10 px-3 py-2.5 text-xs font-mono text-ink select-all leading-relaxed">{% for code in newBackupCodes %}{{ code }}{% if not loop.last %}&#10;{% endif %}{% endfor %}</code>
+                  {# whitespace-pre-line for the same reason as the settings
+                     panel: the codes are joined with real newlines and <code>
+                     collapses them without it, so all eight ran together as one
+                     unreadable line. #}
+                  class="block whitespace-pre-line rounded-lg bg-zinc-500/10 px-3 py-2.5 text-xs font-mono text-ink select-all leading-relaxed">{% for code in newBackupCodes %}{{ code }}{% if not loop.last %}&#10;{% endif %}{% endfor %}</code>
 
             <button type="button"
                     data-action="click->ui--clipboard#copy"

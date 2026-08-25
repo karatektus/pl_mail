@@ -274,7 +274,17 @@ final class DemoFlowTest extends WebTestCase
                 '_token' => $this->csrfToken($client),
             ]);
 
-            self::assertResponseRedirects(null, null, sprintf('press %d should redirect back', $i + 1));
+            // A Turbo Stream, not a redirect. The mail is already on screen by
+            // the time this returns — Mercure delivered it — so the response
+            // touches only the demo bar. Redirecting instead reloaded the whole
+            // page on top of mail that had just arrived, which replayed the
+            // list's entry animation; see DemoController::receive().
+            self::assertResponseIsSuccessful(sprintf('press %d should succeed', $i + 1));
+            self::assertStringContainsString(
+                'text/vnd.turbo-stream.html',
+                (string) $client->getResponse()->headers->get('Content-Type'),
+                'the response must be a stream or Turbo will navigate to it',
+            );
         }
 
         $delivered = $messages->findBy([
@@ -408,6 +418,51 @@ final class DemoFlowTest extends WebTestCase
         $_ENV['APP_DEMO_MODE']    = '1';
         static::ensureKernelShutdown();
         static::createClient();
+
+        $this->eraseDemoUsers();
+    }
+
+    // ------------------------------------------------------------ the install page
+
+    /**
+     * A demo visitor must not close /install.
+     *
+     * InstallGuard shuts that page as soon as a user exists, and demo mode
+     * mints one per arrival — so counted naively, the first stranger or crawler
+     * to open /demo on a fresh demo instance took the install page away with
+     * them, permanently, before the operator had made themselves an
+     * administrator. Nothing announced it: the page simply 404s, which is
+     * exactly what it does on a correctly installed instance.
+     *
+     * Asserted through the guard rather than by fetching /install, because the
+     * test database already has real users in it — the predicate is the thing
+     * that was wrong, and it is the thing worth pinning.
+     */
+    public function testADemoVisitorDoesNotCountAsTheInstallsFirstUser(): void
+    {
+        $client    = $this->demoClient();
+        $container = static::getContainer();
+        $users     = $container->get(UserRepository::class);
+
+        $before = $users->countExcludingDemoVisitors();
+
+        $client->request('GET', '/demo');
+
+        self::assertNotNull($this->visitor(), 'a demo visitor should have been provisioned');
+
+        self::assertSame(
+            $before,
+            $users->countExcludingDemoVisitors(),
+            'provisioning a demo visitor must not change the real-user count',
+        );
+
+        // The naive count did move — which is precisely what used to close the
+        // install page.
+        self::assertGreaterThan(
+            $before,
+            $users->countAll(),
+            'the visitor is still a row; it is only excluded from the install predicate',
+        );
 
         $this->eraseDemoUsers();
     }

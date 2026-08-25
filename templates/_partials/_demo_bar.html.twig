@@ -14,7 +14,6 @@
 #}
 <div class="fixed bottom-0 inset-x-0 z-50 border-t border-line bg-surface/95 backdrop-blur
             px-4 py-2 flex items-center gap-4 text-sm"
-     data-turbo-permanent
      id="demo-bar">
 
     <div class="flex items-center gap-2 min-w-0">
@@ -23,10 +22,21 @@
         <span class="text-ink-muted truncate hidden sm:inline">{{ 'demo.bar.blurb'|trans }}</span>
     </div>
 
+    {#
+        Turbo drives this deliberately. With data-turbo="false" the POST was a
+        full browser navigation, so pressing Receive reloaded the whole page —
+        on top of mail that had ALREADY appeared over Mercure a moment earlier.
+        The visitor saw the message arrive, then the list blink and replay its
+        entry animation, which reads as the app doing the work twice.
+
+        Now the response is a stream that touches only this bar. The mail itself
+        arrives the way real mail does: pushed, in place, with nothing else
+        moving. That is the whole thing the button exists to demonstrate, and
+        the reload was hiding it.
+    #}
     <form method="post"
           action="{{ path('app_demo_receive') }}"
-          class="ml-auto flex items-center gap-3 shrink-0"
-          data-turbo="false">
+          class="ml-auto flex items-center gap-3 shrink-0">
         <input type="hidden" name="_token" value="{{ csrf_token('demo_receive') }}">
 
         {# Naming the next delivery is what keeps the button from being a

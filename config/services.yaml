@@ -23,6 +23,17 @@ parameters:
     app.demo_mode: '%env(default:app.demo_mode_default:bool:APP_DEMO_MODE)%'
     app.demo_ttl_default: 'PT2H'
     app.demo_ttl: '%env(default:app.demo_ttl_default:APP_DEMO_TTL)%'
+    # Impressum fields. Blank by default, on purpose — the page says so rather
+    # than inventing an operator; see the note in .env.
+    #
+    # Through a named parameter rather than `default::`, which looks like it
+    # means "default to empty" and does not: the text after `default:` is a
+    # PARAMETER NAME, so an empty one resolves to null and the controller's
+    # string arguments blew up on an install that had never set these.
+    app.demo_impressum_blank: ''
+    app.demo_impressum_name: '%env(default:app.demo_impressum_blank:APP_DEMO_IMPRESSUM_NAME)%'
+    app.demo_impressum_address: '%env(default:app.demo_impressum_blank:APP_DEMO_IMPRESSUM_ADDRESS)%'
+    app.demo_impressum_email: '%env(default:app.demo_impressum_blank:APP_DEMO_IMPRESSUM_EMAIL)%'
 
 services:
     # default configuration for services in *this* file

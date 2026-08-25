@@ -20,6 +20,7 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
+use Symfony\Contracts\Translation\TranslatorInterface;
 
 #[Route('/admin', name: 'app_admin_')]
 #[IsGranted('ROLE_ADMIN')]
@@ -55,6 +56,7 @@ final class AdminDashboardController extends AbstractController
         private readonly PostgresStatusRepository $statistics,
         private readonly EntityManagerInterface $entityManager,
         private readonly InsightReportRepository $insightReports,
+        private readonly TranslatorInterface $translator,
     ) {}
 
     #[Route('', name: 'dashboard')]
@@ -231,7 +233,7 @@ final class AdminDashboardController extends AbstractController
         $this->assertCsrf($request, 'admin_db_stat_statements_enable');
 
         if (false === $this->statistics->enableStatStatements()) {
-            $this->addFlash('error', 'admin.db.extension_enable_failed');
+            $this->addFlash('error', $this->translator->trans('admin.db.extension_enable_failed'));
         }
 
         return $this->redirectToRoute('app_admin_dashboard', ['section' => 'database']);

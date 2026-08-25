@@ -468,21 +468,28 @@ export default class extends Controller {
     }
 
     pickLayout(event) {
-        const option = event.currentTarget.selectedOptions[0];
+        // The chosen radio itself. This was a <select>, reading
+        // selectedOptions[0] and querying its own <option> children; the
+        // control is now a segmented radio group like the rest of the page, so
+        // the target IS the choice and the siblings are found through the form
+        // rather than through it.
+        const chosen = event.currentTarget;
 
         // Exactly one layout class may be on <html> at a time, so clear every
         // known one before adding this layout's (the default layout has none).
-        event.currentTarget.querySelectorAll('[data-layout-class]').forEach((candidate) => {
-            if (candidate.dataset.layoutClass !== '') {
-                this.root.classList.remove(candidate.dataset.layoutClass);
-            }
-        });
+        this.element
+            .querySelectorAll('[data-settings--appearance-field="layout"][data-layout-class]')
+            .forEach((candidate) => {
+                if (candidate.dataset.layoutClass !== '') {
+                    this.root.classList.remove(candidate.dataset.layoutClass);
+                }
+            });
 
-        if (option.dataset.layoutClass !== '') {
-            this.root.classList.add(option.dataset.layoutClass);
+        if (chosen.dataset.layoutClass !== '') {
+            this.root.classList.add(chosen.dataset.layoutClass);
         }
 
-        this.applyDefaults(JSON.parse(option.dataset.layoutDefaults));
+        this.applyDefaults(JSON.parse(chosen.dataset.layoutDefaults));
         this.queue(0);
     }
 

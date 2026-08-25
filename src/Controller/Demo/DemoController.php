@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Controller\Demo;
 
 use App\Controller\ChecksCsrf;
+use App\Controller\RendersTurboStreams;
 use App\Entity\User\User;
 use App\Repository\Mail\AccountRepository;
 use App\Security\LoginFormAuthenticator;
@@ -20,8 +21,8 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\HttpKernel\Exception\TooManyRequestsHttpException;
 use Symfony\Component\RateLimiter\RateLimiterFactoryInterface;
+use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\Routing\Attribute\Route;
-use Symfony\Contracts\Translation\TranslatorInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 
 /**
@@ -37,6 +38,7 @@ use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 final class DemoController extends AbstractController
 {
     use ChecksCsrf;
+    use RendersTurboStreams;
 
     public function __construct(
         private readonly DemoMode                    $demoMode,
@@ -46,7 +48,12 @@ final class DemoController extends AbstractController
         private readonly AccountRepository           $accounts,
         private readonly EntityManagerInterface      $entityManager,
         private readonly RateLimiterFactoryInterface $demoProvisionLimiter,
-        private readonly TranslatorInterface         $translator,
+        #[Autowire('%app.demo_impressum_name%')]
+        private readonly string                      $impressumName,
+        #[Autowire('%app.demo_impressum_address%')]
+        private readonly string                      $impressumAddress,
+        #[Autowire('%app.demo_impressum_email%')]
+        private readonly string                      $impressumEmail,
     ) {
     }
 
@@ -133,40 +140,45 @@ final class DemoController extends AbstractController
 
         // A sentence, not a key: the flash bag holds translated text here —
         // see the toast region in _layout/app.html.twig.
-        $this->addFlash('success', $this->translator->trans('demo.flash.received', [
-            '%subject%' => $scenario->subject,
-        ]));
-
-        return $this->redirect($this->backTo($request));
+        // No flash, and no redirect. The mail is already on screen: DemoInbox
+        // publishes over Mercure, and the list picks it up the way it picks up
+        // a real IMAP sync. A toast announcing what the visitor is already
+        // looking at, plus a navigation that repaints the list underneath it,
+        // was the app doing the delivery twice and calling attention to it
+        // both times.
+        //
+        // The stream touches only the demo bar, whose "Next up" label is the
+        // one thing on the page the delivery changed and Mercure knows nothing
+        // about.
+        return $this->renderTurboStream('demo/_bar.stream.html.twig');
     }
 
     /**
-     * Where to send the visitor after a delivery: the page they pressed the
-     * button on, if that page was ours.
+     * The legal notice a publicly hosted demo needs.
      *
-     * Referer is attacker-controlled, so it is checked rather than trusted —
-     * handed straight to redirect() this would be an open redirect on a public
-     * endpoint, which is a phishing primitive whatever the page behind it does.
-     * Only the path is kept, and only when the header names this host.
+     * Demo-mode only, like everything else here — a self-hosted plMail serving
+     * one household is not a Telemedium and has nobody to name.
+     *
+     * PUBLIC_ACCESS by necessity rather than convenience: an Impressum behind a
+     * login is not an Impressum. § 5 TMG wants it "leicht erkennbar, unmittelbar
+     * erreichbar und ständig verfügbar", and a visitor who has not signed in is
+     * exactly who it is for.
+     *
+     * The operator's details come from the environment and are deliberately
+     * blank in the shipped .env. The template says so in as many words when
+     * they are unset — a legal notice naming nobody is worse than useless, and
+     * inventing a plausible-looking one would be worse still.
      */
-    private function backTo(Request $request): string
+    #[Route('/impressum', name: 'app_demo_impressum', methods: ['GET'])]
+    public function impressum(): Response
     {
-        $referer = $request->headers->get('referer');
-        $home    = $this->generateUrl('app_default_index');
+        $this->assertDemoMode();
 
-        if (null === $referer) {
-            return $home;
-        }
-
-        $parts = parse_url($referer);
-
-        if (false === is_array($parts) || ($parts['host'] ?? null) !== $request->getHost()) {
-            return $home;
-        }
-
-        $path = $parts['path'] ?? '/';
-
-        return isset($parts['query']) ? $path.'?'.$parts['query'] : $path;
+        return $this->render('demo/impressum.html.twig', [
+            'operatorName'    => $this->impressumName,
+            'operatorAddress' => $this->impressumAddress,
+            'operatorEmail'   => $this->impressumEmail,
+        ]);
     }
 
     private function assertDemoMode(): void

@@ -1,0 +1,8 @@
+{# Only the bar. The message itself is already on screen — Mercure put it
+   there — so a stream that touched the list would be the second delivery of
+   something that had already arrived. #}
+<turbo-stream action="replace" target="demo-bar">
+    <template>
+        {% include '_partials/_demo_bar.html.twig' %}
+    </template>
+</turbo-stream>

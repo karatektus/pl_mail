@@ -421,26 +421,36 @@
                sliders below. #}
             <section>
                 <div class="mb-4">
-                    <h3 class="text-sm font-semibold text-ink">{{ 'settings.appearance.layout.heading'|trans }}</h3>
+                    <h3 class="text-sm font-semibold text-ink" id="layout-label">{{ 'settings.appearance.layout.heading'|trans }}</h3>
                     <p class="text-xs text-ink-faint mt-0.5">{{ 'settings.appearance.layout.subheading'|trans }}</p>
                 </div>
 
-                {# The per-option data attributes are read off the <option> elements by
-                   settings--appearance, which still finds them: the widget renders a
-                   copy of the list, it does not consume the original. #}
-                <select data-settings--appearance-field="layout"
-                        data-action="change->settings--appearance#pickLayout"
-                        {{ select.enhance() }}
-                        class="select-field w-full @lg:w-64 h-9 text-sm">
+                {# A segmented group like every other short list on this page.
+                   It was the last <select> left here, which is the same
+                   complaint the note at the top of this file records about the
+                   typeface control: two ways to make the same kind of choice,
+                   sitting one above the other. Two options do not need a
+                   dropdown to hide one of them.
+
+                   The per-option data attributes move onto the inputs; save()
+                   already skips unchecked radios, so it needed no change. #}
+                <div class="{{ segGroup }}" role="radiogroup" aria-labelledby="layout-label">
                     {% for layout in enum('App\\Domain\\Enum\\Theme\\Layout').cases %}
-                        <option value="{{ layout.value }}"
-                                data-layout-class="{{ layout.htmlClass ?? '' }}"
-                                data-layout-defaults="{{ layout.defaults|json_encode }}"
-                                {{ a.layout == layout ? 'selected' : '' }}>
-                            {{ ('settings.appearance.layout.' ~ layout.value)|trans }}
-                        </option>
+                        <label class="cursor-pointer">
+                            <input type="radio" name="layout" class="peer sr-only"
+                                   value="{{ layout.value }}"
+                                   data-settings--appearance-field="layout"
+                                   data-layout-class="{{ layout.htmlClass ?? '' }}"
+                                   data-layout-defaults="{{ layout.defaults|json_encode }}"
+                                   data-action="change->settings--appearance#pickLayout"
+                                   aria-label="{{ ('settings.appearance.layout.' ~ layout.value)|trans }}"
+                                {{ a.layout == layout ? 'checked' : '' }}>
+                            <span class="{{ segText }}">
+                                {{ ('settings.appearance.layout.' ~ layout.value)|trans }}
+                            </span>
+                        </label>
                     {% endfor %}
-                </select>
+                </div>
             </section>
 
             {# ── Motion ────────────────────────────────────────────────────

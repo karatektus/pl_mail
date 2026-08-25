@@ -1291,6 +1291,35 @@ demo:
         blurb: Take a look around plMail with a mailbox of your own — no sign-up, no address needed.
         start: Start the demo
         disclaimer: Your demo mailbox is deleted automatically after a couple of hours.
+    unavailable:
+        title: Not available in the demo
+        body: >-
+            Connecting a real mailbox is switched off here. This demo runs on a
+            server you do not control, and no stranger should be typing their
+            mail password into it. Everything else — themes, filters, the
+            calendar, writing mail — works as it does on your own install.
+        dismiss: Back to the demo
+    impressum:
+        link: Legal notice
+        title: Legal notice
+        heading: Information under § 5 TMG
+        operator: Operator
+        contact: Contact
+        contact_email: 'Email:'
+        disclaimer_title: About this demo
+        disclaimer: >-
+            This is a demonstration of plMail. The mailboxes, senders and
+            messages shown are invented; none of them is real correspondence.
+            Mail written here never leaves the server, and demo accounts are
+            deleted automatically after a couple of hours.
+        privacy_title: Data
+        privacy: >-
+            A demo visit creates a throwaway account with no personal data in
+            it. Anything you type into it is deleted with the account. Server
+            logs record IP addresses for the usual operational reasons and are
+            rotated.
+        source_title: Source
+        source: 'plMail is free software, licensed AGPL-3.0:'
 drafts:
     empty: No drafts.
     heading: Drafts
@@ -2584,6 +2613,7 @@ settings:
         heading: Language
         subheading: The language plMail's interface is shown in. Your mail is left as it was written.
     nav:
+        read_receipts: Read receipts
         sharing: Sharing
         accounts: Mail accounts
         aliases: Aliases

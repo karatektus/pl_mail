@@ -38,8 +38,20 @@
                 data-action="{{ fire }}"
                 class="w-full flex items-center justify-between gap-3 px-3 py-2 text-sm text-ink-muted
                        hover:bg-hover hover:text-ink transition-colors text-left">
-            <span>{{ ('snooze.' ~ key)|trans }}</span>
-            <span data-snooze-when class="text-xs text-ink-faint tabular-nums"></span>
+            <span class="whitespace-nowrap">{{ ('snooze.' ~ key)|trans }}</span>
+            {#
+                nowrap and shrink-0, because the wake time is not always the
+                same shape: anything more than two days out carries the date as
+                well ("Sat, Aug 29, 08:00"), and inside min-w-56 that wrapped to
+                a second line. The two distant options were then visibly taller
+                than the two near ones, which reads as a spacing bug rather than
+                as a longer string. The menu widens to fit instead — it is an
+                absolutely positioned dropdown, so it costs nothing.
+
+                The date itself stays: it is there because a bare weekday was
+                once misread as today. See snooze_menu_controller#format.
+            #}
+            <span data-snooze-when class="text-xs text-ink-faint tabular-nums whitespace-nowrap shrink-0"></span>
         </button>
     {% endfor %}
 

@@ -7,11 +7,13 @@ namespace App\EventSubscriber;
 use App\Service\Demo\DemoMode;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 use Symfony\Component\HttpFoundation\RedirectResponse;
+use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\HttpFoundation\Session\FlashBagAwareSessionInterface;
 use Symfony\Component\HttpKernel\Event\RequestEvent;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Contracts\Translation\TranslatorInterface;
+use Twig\Environment;
 
 /**
  * The routes a demo visitor may not use.
@@ -61,6 +63,7 @@ final readonly class DemoGuardSubscriber implements EventSubscriberInterface
         private RequestStack          $requestStack,
         private UrlGeneratorInterface $urls,
         private TranslatorInterface   $translator,
+        private Environment           $twig,
     ) {
     }
 
@@ -88,6 +91,22 @@ final readonly class DemoGuardSubscriber implements EventSubscriberInterface
         $route = $event->getRequest()->attributes->get('_route');
 
         if (false === is_string($route) || false === $this->isBlocked($route)) {
+            return;
+        }
+
+        // Most of these routes are opened INSIDE the settings modal, which is a
+        // turbo-frame. A redirect is useless there: Turbo looks for
+        // <turbo-frame id="modal"> in the response, the settings page has none,
+        // and the frame is left exactly as it was — showing its loading
+        // spinner, forever. The visitor gets a modal that spins instead of one
+        // that says why the form is not coming.
+        $frame = $event->getRequest()->headers->get('Turbo-Frame');
+
+        if (null !== $frame && '' !== $frame) {
+            $event->setResponse(new Response($this->twig->render('demo/_unavailable.html.twig', [
+                'frame' => $frame,
+            ])));
+
             return;
         }
 

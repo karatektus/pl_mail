@@ -201,7 +201,13 @@ test("enrols in two-factor authentication without leaving the wizard", async ({ 
 
     // And it actually took, rather than the wizard merely looking pleased.
     await page.goto("/settings?section=security");
-    await expect(page.getByText("Two-factor authentication is on")).toBeVisible();
+    // exact, because the success toast now says almost the same thing. The
+    // flash used to reach the page as the raw key "two_factor.flash.enabled" —
+    // nothing translated it — so this locator matched the panel heading alone
+    // and passed for the wrong reason. Translating the flash (which is what a
+    // user should see) made it match both, and strict mode rightly refused.
+    // The heading has no trailing full stop; the sentence in the toast does.
+    await expect(page.getByText("Two-factor authentication is on", { exact: true })).toBeVisible();
 });
 
 test("closing the dialog quietens it without ending setup", async ({ page }) => {

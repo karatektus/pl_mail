@@ -19,6 +19,7 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\HttpFoundation\Session\Session;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
+use Symfony\Contracts\Translation\TranslatorInterface;
 
 /**
  * Offering two-factor authentication while the user is still setting up.
@@ -46,6 +47,7 @@ final readonly class SecurityStepHandler implements OnboardingStepHandlerInterfa
         private TwoFactorEnrolment $enrolment,
         private QrCodeRenderer $qrCodes,
         private RequestStack $requestStack,
+        private TranslatorInterface $translator,
     ) {
     }
 
@@ -170,9 +172,17 @@ final readonly class SecurityStepHandler implements OnboardingStepHandlerInterfa
             && '1' === (string) $request->query->get('enrol', '');
     }
 
-    private function flash(string $type, string $message): void
+    /**
+     * @param string $key a translation key, translated here
+     *
+     * Translated at the point of adding rather than by the template, because
+     * the flash bag on this install holds sentences: the toast region in
+     * _layout/app.html.twig prints what it finds verbatim. A key added raw
+     * reached the user as "two_factor.flash.code_rejected" in a red toast.
+     */
+    private function flash(string $type, string $key): void
     {
-        $this->session()?->getFlashBag()->add($type, $message);
+        $this->session()?->getFlashBag()->add($type, $this->translator->trans($key));
     }
 
     private function session(): ?Session

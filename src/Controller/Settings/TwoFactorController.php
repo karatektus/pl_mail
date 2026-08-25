@@ -15,6 +15,7 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
+use Symfony\Contracts\Translation\TranslatorInterface;
 
 /**
  * Turning two-factor authentication on and off, and withdrawing trusted
@@ -48,6 +49,10 @@ final class TwoFactorController extends AbstractController
         private readonly TrustedDeviceRepository $trustedDevices,
         private readonly TrustedDeviceCookieJar $cookies,
         private readonly EntityManagerInterface $em,
+        // The flash bag on this install holds sentences, not keys: the toast
+        // region in _layout/app.html.twig prints what it finds verbatim, so a
+        // key put in here reaches the user as "two_factor.flash.code_rejected".
+        private readonly TranslatorInterface $translator,
     ) {
     }
 
@@ -66,14 +71,14 @@ final class TwoFactorController extends AbstractController
         $codes = $this->enrolment->confirm($user, (string) $request->request->get('code', ''));
 
         if (null === $codes) {
-            $this->addFlash('error', 'two_factor.flash.code_rejected');
+            $this->addFlash('error', $this->translator->trans('two_factor.flash.code_rejected'));
 
             // Back to the panel with the secret still staged, so the user can
             // try again against the QR they already scanned.
             return $this->redirectToSection(['enrol' => '1']);
         }
 
-        $this->addFlash('success', 'two_factor.flash.enabled');
+        $this->addFlash('success', $this->translator->trans('two_factor.flash.enabled'));
         $request->getSession()->getFlashBag()->set(self::FLASH_BACKUP_CODES, $codes);
 
         return $this->redirectToSection();
@@ -97,13 +102,13 @@ final class TwoFactorController extends AbstractController
         }
 
         if (false === $this->enrolment->provesPossession($user, (string) $request->request->get('code', ''))) {
-            $this->addFlash('error', 'two_factor.flash.code_rejected');
+            $this->addFlash('error', $this->translator->trans('two_factor.flash.code_rejected'));
 
             return $this->redirectToSection();
         }
 
         $this->enrolment->disable($user);
-        $this->addFlash('success', 'two_factor.flash.disabled');
+        $this->addFlash('success', $this->translator->trans('two_factor.flash.disabled'));
 
         return $this->redirectToSection();
     }
@@ -121,14 +126,14 @@ final class TwoFactorController extends AbstractController
         }
 
         if (false === $this->enrolment->provesPossession($user, (string) $request->request->get('code', ''))) {
-            $this->addFlash('error', 'two_factor.flash.code_rejected');
+            $this->addFlash('error', $this->translator->trans('two_factor.flash.code_rejected'));
 
             return $this->redirectToSection();
         }
 
         $codes = $this->enrolment->regenerateBackupCodes($user);
 
-        $this->addFlash('success', 'two_factor.flash.codes_regenerated');
+        $this->addFlash('success', $this->translator->trans('two_factor.flash.codes_regenerated'));
         $request->getSession()->getFlashBag()->set(self::FLASH_BACKUP_CODES, $codes);
 
         return $this->redirectToSection();
@@ -154,7 +159,7 @@ final class TwoFactorController extends AbstractController
             $this->cookies->clear($request);
         }
 
-        $this->addFlash('success', 'two_factor.flash.device_revoked');
+        $this->addFlash('success', $this->translator->trans('two_factor.flash.device_revoked'));
 
         return $this->redirectToSection();
     }
@@ -167,7 +172,7 @@ final class TwoFactorController extends AbstractController
         $this->trustedDevices->revokeAllForUser($this->getUser());
         $this->cookies->clear($request);
 
-        $this->addFlash('success', 'two_factor.flash.devices_revoked');
+        $this->addFlash('success', $this->translator->trans('two_factor.flash.devices_revoked'));
 
         return $this->redirectToSection();
     }
