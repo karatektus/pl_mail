@@ -6,6 +6,25 @@ so anything that changes the schema irreversibly is called out explicitly.
 The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, and `sha-…` pins one commit.
 
+## v0.1.34 — 2026-08-25
+
+**No migration. The sidebar badge keeps up, and the list stops flashing.**
+
+### Fixed
+
+- **A single arriving mail did not move the sidebar badge.** Counts refresh at most once every
+  fifteen seconds, and anything arriving inside that window was discarded rather than deferred — so
+  one delivery, with nothing following it, left the badge on its old number indefinitely. It is now
+  fetched at the end of the window instead. Bursts are still collapsed into one request.
+
+  There are two sidebars on a page — the rail and the drawer — and only one of them was being
+  brought up to date. Both are now.
+
+- **The message list flashed when it refreshed.** The rows animate, but the category tabs and the
+  pager were rebuilt from scratch each time, so everything around the rows blinked. They are updated
+  in place now, which is what makes new mail look like it arrived rather than like the page
+  restarted.
+
 ## v0.1.33 — 2026-08-25
 
 **Adds a table; the migration runs on boot. Acting on a whole view no longer times out.**
