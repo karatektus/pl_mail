@@ -6,6 +6,62 @@ so anything that changes the schema irreversibly is called out explicitly.
 The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, and `sha-…` pins one commit.
 
+## v0.1.19 — 2026-08-25
+
+**No migration. Demo mode grows a mailbox the product has actually happened to,
+an install page a demo visitor cannot close, and eleven flash messages that
+reached the page as raw translation keys.**
+
+### Fixed
+
+- **A demo visitor could lock an install out of `/install`.** That page closes
+  as soon as a user exists, and demo mode mints one per arrival — so the first
+  passer-by took it away permanently, before the operator had made themselves
+  an administrator. The page simply 404s, which is what it does on a correctly
+  installed instance, so the symptom was indistinguishable from working.
+- **Flash messages showed their translation key.** A rejected two-factor code
+  produced a toast reading `two_factor.flash.code_rejected`. The strings existed
+  and were translated in all three locales; nothing looked them up. Eleven call
+  sites, now covered by a test that scans for it.
+- **The eight recovery codes ran together on one line.** They were joined with
+  real newlines and `<code>` collapses those — nothing was rendering what was
+  already there.
+- **Confirming a two-factor code gave no sign anything was happening**, and the
+  reply carries codes shown exactly once. The button now says so and stops
+  accepting presses.
+- **The snooze menu's two distant options were taller than the near ones** —
+  anything past two days carries the date, and it wrapped.
+- **Opening a menu painted its own tooltip across it.** Clicking a dropdown
+  trigger focuses it, and focus shows a hint.
+- **Solar and paper left the search box with no visible edge** under the boxed
+  layout: a white field on a warm off-white surface, seen through a translucent
+  topbar.
+- **`/settings` opened on its fourth entry.** It opens on the first now.
+- **Read receipts have a tab of their own.** The card held nothing else, and
+  signatures left the alias tab before it for the same reasons.
+- **Layout is a segmented control**, like every other short choice on the
+  appearance panel. It was the last dropdown there.
+
+### Demo mode
+
+The seeded mailbox now goes through the same ingest pipeline a real sync does,
+so it arrives categorised, with insights extracted and any filters applied —
+before, it was written as finished rows and none of that had ever happened to
+it. It comes with a week in the calendar and an HTML newsletter, and the
+scripted mail says things an extractor can actually read.
+
+Sending from the demo no longer reloads the page. Mail arrives over Mercure and
+stays where it lands, rather than the list blinking and replaying its entrance
+on top of a message that was already there.
+
+Attaching a real mailbox now explains itself instead of spinning: the form opens
+in a turbo-frame, and a redirect into one has nowhere to land.
+
+A demo instance can serve an Impressum at `/impressum`, linked from the login
+page — blank by default and saying so, because § 5 TMG wants a real operator and
+a notice naming nobody looks compliant without being one. See
+[Demo mode](docs/install/demo-mode.md).
+
 ## v0.1.18 — 2026-08-25
 
 **No migration. A demo mode: one environment variable turns an install into a
