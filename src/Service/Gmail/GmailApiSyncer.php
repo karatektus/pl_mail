@@ -209,10 +209,40 @@ final class GmailApiSyncer
             // endpoints use for an expired token and it means the same thing
             // here; the response to either is the only one available anyway.
             if (true === in_array($e->getStatus(), [404, 410], true)) {
-                $this->logger->warning('GmailApiSyncer: historyId expired, re-running initial sync', [
+                $this->logger->warning('GmailApiSyncer: historyId expired, re-listing the mailbox', [
                     'accountId' => $account->id,
                 ]);
+
                 $account->gmailHistoryId = null;
+
+                // THE RE-LISTING HAS TO BE FORCED, and until now it was not.
+                //
+                // initialSync() below ends in backfill(), which opens with
+                // `if (false === $account->needsBackfill()) { return; }` — and
+                // needsBackfill() is `0 !== backfillTarget`. Every account that
+                // has ever finished its first sync has a target of 0, set once
+                // by settleBackfill() and never unset. So on every steady-state
+                // account the entire recovery was: fetch a fresh historyId from
+                // /profile, store it, and return.
+                //
+                // Which means everything that happened between the dead cursor
+                // and the new one was never enumerated by anything. A Gmail
+                // account has no folder to re-list and no periodic sweep — mail
+                // that arrived, was read, deleted or relabelled inside that
+                // window was simply missing or stale in plMail for good, with
+                // the app reporting full health and one log line as the only
+                // trace. "It is in Gmail on my phone and not here, and nothing
+                // says why" is exactly the shape this recovery existed to
+                // prevent.
+                //
+                // Clearing the two backfill markers is what makes the listing
+                // run. It is bounded: newGmailIds() fetches only the ids not
+                // already stored, so a mailbox that lost nothing costs one
+                // listing and dispatches nothing.
+                $account->backfillTarget   = null;
+                $account->backfillRanAt    = null;
+                $account->backfillAttempts = 0;
+
                 $this->em->flush();
                 $this->initialSync($account);
 
@@ -281,7 +311,12 @@ final class GmailApiSyncer
             unset($relabelled[$gmailId]);
         }
 
-        $this->eraseDeleted($account, array_keys($deleted));
+        // Cast, because array_keys() on an id-keyed array does not give back
+        // strings. PHP converts any decimal-integer-like array key to an int on
+        // the way IN, so a Gmail id that happens to be all digits comes back
+        // out as 1992288000000000 rather than "1992288000000000" — see the two
+        // sites below, which is where that bit.
+        $this->eraseDeleted($account, array_map(strval(...), array_keys($deleted)));
 
         // Two sets with different rules, unioned once. New ids are filtered
         // against what is already stored, because fetching a message plMail
@@ -293,7 +328,17 @@ final class GmailApiSyncer
         $wanted = $this->newGmailIds($account, array_values($refs));
 
         foreach (array_keys($relabelled) as $gmailId) {
-            $wanted[] = $gmailId;
+            // strval, and this is not defensive: an all-digit Gmail id arrives
+            // here as an INT, rides the queue as one, and kills the batch at
+            // `urlencode(): Argument #1 must be of type string, int given` —
+            // five retries, then the whole batch to the failure transport. Every
+            // relabelled message in it, read state included, was never re-read.
+            //
+            // The deletion path above has the same shape and the quieter
+            // symptom: an int compared against stored ids simply matches
+            // nothing, so the message is not erased and no error is raised at
+            // all.
+            $wanted[] = (string) $gmailId;
         }
 
         $this->dispatchBatches($account, array_values(array_unique($wanted)));

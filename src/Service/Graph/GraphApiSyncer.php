@@ -159,7 +159,13 @@ final class GraphApiSyncer
 
         $this->em->flush();
 
-        $this->dispatchBatches($account, array_keys($pending));
+        // strval, because array_keys() on an id-keyed array does not return
+        // strings: PHP converts a decimal-integer-like key to an int on the way
+        // in. Graph ids are long base64-ish strings and almost never all digits,
+        // which is exactly what makes this the kind of bug that waits — the
+        // Gmail equivalent killed whole batches with
+        // `urlencode(): Argument #1 must be of type string, int given`.
+        $this->dispatchBatches($account, array_map(strval(...), array_keys($pending)));
     }
 
     // ── Private ───────────────────────────────────────────────────────────────
@@ -198,7 +204,10 @@ final class GraphApiSyncer
         $erased = 0;
 
         foreach (array_keys($graphIds) as $graphId) {
-            $message = $this->messageRepository->findOneBy(['graphId' => $graphId]);
+            // Cast for the same reason, and here the symptom would be silent:
+            // an int compared against a stored string id matches nothing, so
+            // the message is simply not erased and nothing is raised.
+            $message = $this->messageRepository->findOneBy(['graphId' => (string) $graphId]);
 
             if (null === $message) {
                 continue;
