@@ -52,6 +52,39 @@ function providerRow(page: Page, label: string) {
     return page.locator(`#integration-provider-${PROVIDER_IDS[label]}`);
 }
 
+/**
+ * Open one provider row and keep it open.
+ *
+ * Opening a row navigates #admin-integrations, and the response REPLACES every
+ * row in it — including the one just clicked, which comes back closed. The
+ * click and the replacement race, so on a busy machine the row shuts again
+ * immediately after opening.
+ *
+ * A visibility assertion does not settle that, which is why one was added here
+ * and the flake came back anyway: the button really is visible, in the render
+ * that is about to be thrown away, and the click that follows is aimed at a
+ * node the response then detaches. Playwright reports it as
+ * `locator.click: Timeout` with no mention of a frame, which is why this cost
+ * an afternoon twice.
+ *
+ * So: assert the row is still open, and click again if it is not, until it
+ * stays. `open` is the browser's own state for a <details>, not a guess about
+ * the network.
+ */
+async function openRow(page: Page, label: string) {
+    await expect(async () => {
+        const row = providerRow(page, label);
+
+        if (false === (await row.evaluate((el) => (el as HTMLDetailsElement).open))) {
+            await row.locator("summary").click();
+        }
+
+        await expect(row).toHaveAttribute("open", "", { timeout: 1_500 });
+    }).toPass({ timeout: 15_000 });
+
+    return providerRow(page, label);
+}
+
 async function openIntegrations(page: Page) {
     await login(page, ADMIN.email, ADMIN.password);
     await page.goto("/admin?section=integrations");
@@ -159,8 +192,7 @@ test.describe("admin integrations", () => {
         // raced the replacement — fast enough and it landed, slow enough and
         // the button it had just seen was gone. It failed roughly once a full
         // suite, on the run where the machine was busiest.
-        const drive = providerRow(page, "Google Drive");
-        await drive.locator("summary").click();
+        const drive = await openRow(page, "Google Drive");
 
         // The wait, not a redundant assertion. Opening a row loads its body
         // into the frame, and the button does not exist until that lands —
@@ -178,8 +210,7 @@ test.describe("admin integrations", () => {
 
         // The client id crossed over; the secret did too, but only server-side —
         // nothing in the page should ever contain it.
-        const refreshed = providerRow(page, "Google Drive");
-        await refreshed.locator("summary").click();
+        const refreshed = await openRow(page, "Google Drive");
         await expect(refreshed.getByText("gmail-client-id")).toBeVisible();
         await expect(refreshed.getByText("Stored")).toBeVisible();
         await expect(page.locator("body")).not.toContainText("gmail-client-secret");
@@ -187,16 +218,14 @@ test.describe("admin integrations", () => {
         // Dropbox has no mail counterpart and must never offer to reuse one —
         // asserted last, and therefore against the hardest case: Google
         // credentials now exist and have already been copied once.
-        const dropbox = providerRow(page, "Dropbox");
-        await dropbox.locator("summary").click();
+        const dropbox = await openRow(page, "Dropbox");
         await expect(dropbox.getByRole("button", { name: /Reuse/ })).toHaveCount(0);
     });
 
     test("the setup tutorial is readable inline", async ({ page }) => {
         await openIntegrations(page);
 
-        const row = providerRow(page, "Nextcloud");
-        await row.locator("summary").click();
+        const row = await openRow(page, "Nextcloud");
 
         await expect(row.getByText("Setup")).toBeVisible();
         await expect(
@@ -209,8 +238,7 @@ test.describe("admin integrations", () => {
     }) => {
         await openIntegrations(page);
 
-        const row = providerRow(page, "Dropbox");
-        await row.locator("summary").click();
+        const row = await openRow(page, "Dropbox");
         await row.getByRole("button", { name: "Configure" }).click();
 
         // Generated from the route, so it cannot drift from where the callback
@@ -225,8 +253,7 @@ test.describe("admin integrations", () => {
     test("enabling a provider persists across a reload", async ({ page }) => {
         await openIntegrations(page);
 
-        const row = providerRow(page, "Nextcloud");
-        await row.locator("summary").click();
+        const row = await openRow(page, "Nextcloud");
         await row.getByRole("button", { name: "Configure" }).click();
 
         const modal = page.locator("#modal");
@@ -247,7 +274,7 @@ test.describe("admin integrations", () => {
         // The row collapses on reload, so the stored address has to be
         // reopened to be asserted on. The status chip above lives in the
         // summary and is visible either way.
-        await providerRow(page, "Nextcloud").locator("summary").click();
+        await openRow(page, "Nextcloud");
 
         // Scoped to the <code> in the detail block: the Nextcloud tutorial
         // uses the same host as its worked example, so a plain text match hits
@@ -271,8 +298,7 @@ test.describe("user integrations", () => {
 
         // Ensure Nextcloud is on regardless of which admin test ran last.
         await page.goto("/admin?section=integrations");
-        const row = providerRow(page, "Nextcloud");
-        await row.locator("summary").click();
+        const row = await openRow(page, "Nextcloud");
         await row.getByRole("button", { name: "Configure" }).click();
         await page.locator('#modal input[name$="[isEnabled]"]').check();
         await page
@@ -381,8 +407,7 @@ test.describe("compose integration picker", () => {
         await login(page, ADMIN.email, ADMIN.password);
         await page.goto("/admin?section=integrations");
 
-        const row = providerRow(page, "Nextcloud");
-        await row.locator("summary").click();
+        const row = await openRow(page, "Nextcloud");
         await row.getByRole("button", { name: "Configure" }).click();
         await page.locator('#modal input[name$="[isEnabled]"]').check();
         await page

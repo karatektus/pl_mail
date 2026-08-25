@@ -1,6 +1,6 @@
 import { expect, type Locator, type Page } from "@playwright/test";
 import { test } from "./support/test";
-import { seed } from "./support/config";
+import { APP_TIMEZONE, seed } from "./support/config";
 
 /**
  * The time-grid, and moving things on it.
@@ -259,7 +259,16 @@ test.describe("calendar time-grid", () => {
      * test comes to assert a state the app cannot produce.
      */
     test("a fifteen-minute meeting is still tall enough to read", async ({ page }) => {
-        const day = new Date().toISOString().slice(0, 10);
+        // The day the PAGE is showing, not the day in UTC. `toISOString()`
+        // answers in UTC, and /calendar/day renders in APP_TIMEZONE — the same
+        // instant, two different dates for two hours either side of midnight.
+        // This spec filled 09:00 on yesterday's date, the block was rendered on
+        // a day that was not on screen, and the failure read "element(s) not
+        // found" rather than "wrong date". Passed all day, failed at 00:20.
+        // Same lesson as snoozed-list and compose-scheduled-send's wallClockIn.
+        const day = new Intl.DateTimeFormat("en-CA", {
+            timeZone: APP_TIMEZONE,
+        }).format(new Date());
 
         await page.goto("/calendar/day");
 

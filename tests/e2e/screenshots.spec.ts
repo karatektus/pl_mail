@@ -1,5 +1,5 @@
 import { test, expect } from "./support/test";
-import { TEST_ADMIN, consoleCommand, login, seed, seedUser } from "./support/config";
+import { APP_TIMEZONE, TEST_ADMIN, consoleCommand, login, seed, seedUser } from "./support/config";
 
 /**
  * Captures the README screenshots against the demo mailbox.
@@ -185,12 +185,23 @@ test.describe("README screenshots", () => {
         // Spread across the week, because every event landing on one day says
         // nothing about a week view. Dates are relative to Monday of the
         // current week, so the picture is the same shape whenever it is taken.
-        const monday = new Date();
-        monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7));
+        // Anchored in the APP's zone, not the runner's, and the arithmetic done
+        // at UTC noon. Two separate traps, both of which move every event in
+        // this picture by a day:
+        //
+        //   · `toISOString()` answers in UTC while the calendar renders in
+        //     APP_TIMEZONE. Run this at 00:20 in Berlin and every date comes
+        //     out as yesterday, which walks Monday's events off the week view.
+        //   · midnight + setDate() lands on 23:00 or 01:00 across a DST
+        //     boundary, and the date can go with it. Noon has an hour of slack
+        //     either side, so it never does.
+        const today = new Intl.DateTimeFormat("en-CA", { timeZone: APP_TIMEZONE }).format(new Date());
+        const monday = new Date(`${today}T12:00:00Z`);
+        monday.setUTCDate(monday.getUTCDate() - ((monday.getUTCDay() + 6) % 7));
 
         const at = (dayOffset: number, time: string): string => {
             const day = new Date(monday);
-            day.setDate(day.getDate() + dayOffset);
+            day.setUTCDate(day.getUTCDate() + dayOffset);
 
             return `${day.toISOString().slice(0, 10)}T${time}`;
         };
