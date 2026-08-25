@@ -6,6 +6,35 @@ so anything that changes the schema irreversibly is called out explicitly.
 The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, and `sha-…` pins one commit.
 
+## v0.1.23 — 2026-08-25
+
+**No migration. A second scrollbar on phones, a label menu cut off inside a thread, and a demo
+mailbox with a conversation in it.**
+
+### Fixed
+
+- **A second scrollbar on mobile.** `html` and `body` are `100dvh` because mobile browsers measure
+  `100vh` against the viewport with the URL bar hidden — but the mailbox, settings and admin shells
+  asked for `h-screen`, so each was taller than the body holding it and the page scrolled to make
+  room.
+- **The Label-as menu was sliced off** when opened inside a thread. The reading pane hides its
+  overflow and the menu hung below the toolbar, with no way to scroll to the rest.
+- **The demo bar covered the last row of the list**, which on a phone is the row you were reaching
+  for.
+
+### Demo mode
+
+The seeded mailbox gains a four-message conversation, so replies collapsing into one thread has
+something to demonstrate on, and a formatted HTML mail that stays in **Primary** — the newsletter is
+correctly filed under Promotions, which left the only formatted mail behind a tab nobody clicks.
+
+### Under the floor
+
+- **CODESTYLE 9.5: an assertion must survive the fixture growing.** A test that hard-codes how many
+  threads the seeder makes is asserting that number rather than the behaviour, and it fails in a spec
+  whose subject has nothing to do with the change. Three specs brought in line, found by seeding an
+  extra thread and seeing what broke.
+
 ## v0.1.22 — 2026-08-25
 
 **No migration. A demo instance can now serve a privacy notice, and two things
