@@ -53,6 +53,14 @@ final class ComposeEnvironmentTest extends TestCase
     public const array OPERATOR_COMPOSE_FILES = [
         'compose.yaml',
         'compose.prod.yaml',
+        // The demo overlay, and it belongs here for a sharper version of the
+        // reason above: `.env` ships APP_DEMO_MODE=0, so a `${APP_DEMO_MODE:-1}`
+        // in that file would resolve to 0 for every operator who cloned the
+        // repo. The stack would come up healthy and simply not be a demo —
+        // no /demo route, no button, and IMAP sync running against accounts
+        // that point at documentation domains. It hardcodes the switch, and
+        // this is what keeps it hardcoded.
+        'compose.demo.yaml',
     ];
 
     /**

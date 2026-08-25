@@ -13,6 +13,7 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
+use App\Service\Demo\DemoMode;
 
 /**
  * Renews push registrations across every provider.
@@ -40,6 +41,7 @@ final class PushRenewCommand extends Command
         private readonly AccountRepository        $accountRepository,
         private readonly PushSubscriptionRegistry $registry,
         private readonly ProcessHeartbeatService  $heartbeats,
+        private readonly DemoMode $demoMode,
     ) {
         parent::__construct();
     }
@@ -54,6 +56,17 @@ final class PushRenewCommand extends Command
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $io     = new SymfonyStyle($input, $output);
+
+        // Nothing on a demo instance has a provider to talk to — see the
+        // same guard in MailSyncCommand. The scheduler fires this on a timer,
+        // so without the refusal a demo would sit in a permanent retry loop
+        // against hosts that do not resolve.
+        if (true === $this->demoMode->isEnabled()) {
+            $io->note('Demo mode is on — push renewal is disabled.');
+
+            return Command::SUCCESS;
+        }
+
         $force  = true === $input->getOption('force');
         $repair = true === $input->getOption('repair');
 

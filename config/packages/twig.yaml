@@ -13,6 +13,10 @@ twig:
         integrations: '@App\Twig\IntegrationsGlobal'
         calendar: '@App\Twig\CalendarGlobal'
         onboarding: '@App\Twig\OnboardingGlobal'
+        # Whether this install is a public demo, and what the receive button
+        # will deliver next. A global because the demo bar renders from the
+        # layout on every page — see App\Twig\DemoGlobal.
+        demo: '@App\Twig\DemoGlobal'
         logAlert: '@App\Twig\LogAlertGlobal'
         # "Something about YOUR accounts needs attention" — the user-facing
         # counterpart to logAlert, which is the admin's. A global for the same

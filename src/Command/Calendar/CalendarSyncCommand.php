@@ -15,6 +15,7 @@ use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
 use Symfony\Component\Messenger\MessageBusInterface;
+use App\Service\Demo\DemoMode;
 
 /**
  * The sweep the scheduler fires, and the one a person runs when a calendar
@@ -47,6 +48,7 @@ final class CalendarSyncCommand extends Command
     public function __construct(
         private readonly CalendarRepository  $calendars,
         private readonly MessageBusInterface $bus,
+        private readonly DemoMode $demoMode,
     ) {
         parent::__construct();
     }
@@ -60,6 +62,17 @@ final class CalendarSyncCommand extends Command
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $io         = new SymfonyStyle($input, $output);
+
+        // Nothing on a demo instance has a provider to talk to — see the
+        // same guard in MailSyncCommand. The scheduler fires this on a timer,
+        // so without the refusal a demo would sit in a permanent retry loop
+        // against hosts that do not resolve.
+        if (true === $this->demoMode->isEnabled()) {
+            $io->note('Demo mode is on — calendar sync is disabled.');
+
+            return Command::SUCCESS;
+        }
+
         $calendarId = $input->getArgument('calendar-id');
 
         if (null !== $calendarId) {

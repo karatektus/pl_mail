@@ -23,6 +23,25 @@
                 </div>
             {% endif %}
 
+            {# The way in on a demo instance, and the only one most visitors
+               will use: /demo mints them a mailbox and signs them into it, so
+               there is nothing for them to type. The form below stays for the
+               visitor coming back to a session they were already given — the
+               address is theirs and unguessable, the password is public. #}
+            {% if demo.isEnabled %}
+                <div class="mb-6 rounded-pane border border-accent/40 bg-accent/5 p-5 text-center">
+                    <p class="text-sm text-ink-soft mb-4">{{ 'demo.login.blurb'|trans }}</p>
+                    <a href="{{ path('app_demo_start') }}"
+                       data-turbo="false"
+                       class="inline-flex items-center justify-center gap-2 w-full bg-accent hover:bg-accent-strong
+                              text-accent-ink text-sm font-medium py-2 rounded-lg transition-colors">
+                        <i class="fa-solid fa-arrow-right-to-bracket" aria-hidden="true"></i>
+                        {{ 'demo.login.start'|trans }}
+                    </a>
+                    <p class="text-xs text-ink-faint mt-3">{{ 'demo.login.disclaimer'|trans }}</p>
+                </div>
+            {% endif %}
+
             {# Card #}
             <div class="bg-surface rounded-pane shadow-sm border border-line p-8">
 
@@ -73,7 +92,12 @@
                                 name="password"
                                 autocomplete="current-password"
                                 required
-                                {% if 'dev' == app.environment %}value="{{ 'APP_DEV_USER_PASSWORD'|get_env }}"{% endif %}
+                                {# Two prefills, and neither is a leak. The dev one is
+                                   empty in the shipped .env; the demo one is a constant
+                                   printed on this very page, because every demo user is
+                                   given it — see App\Service\Demo\DemoMode::PASSWORD. #}
+                                {% if 'dev' == app.environment %}value="{{ 'APP_DEV_USER_PASSWORD'|get_env }}"
+                                {% elseif demo.isEnabled %}value="demo"{% endif %}
                                 class="w-full px-3 py-2 text-sm rounded-lg border border-field bg-field text-ink placeholder:text-ink-faint focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition-colors"
                                 placeholder="••••••••"
                             >
@@ -103,8 +127,10 @@
                 </form>
             </div>
 
-            {# Register link #}
-            <p class="text-center text-sm text-ink-muted mt-6">
+            {# Register link. Hidden on a demo: it advertises a sign-up that does
+               not exist yet, and on a public instance that reads as the demo
+               refusing to let you in rather than as a roadmap note. #}
+            <p class="text-center text-sm text-ink-muted mt-6 {{ demo.isEnabled ? 'hidden' }}">
                 {{ 'login.register.prompt'|trans }}
                 <a href="#" class="text-accent font-medium hover:underline">
                     {{ 'login.register.link'|trans }}

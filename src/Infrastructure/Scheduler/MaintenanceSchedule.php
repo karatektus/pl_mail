@@ -110,6 +110,13 @@ final class MaintenanceSchedule implements ScheduleProviderInterface
                 // re-drawing is idempotent, so a missed night costs nothing.
                 RecurringMessage::cron('50 3 * * *', new RunCommandMessage('app:calendar:materialise')),
 
+                // Demo instances only — the command returns immediately
+                // anywhere else. Every ten minutes rather than nightly because
+                // what accumulates here is one user, one account and ten
+                // threads per person who followed the link, and a demo that is
+                // being talked about somewhere gets a lot of them in an hour.
+                RecurringMessage::cron('*/10 * * * *', new RunCommandMessage('app:demo:reap')),
+
                 // Log entries, push deliveries and dead heartbeats.
                 RecurringMessage::cron('30 4 * * *', new RunCommandMessage('app:monitoring:prune')),
 

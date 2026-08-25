@@ -1,0 +1,79 @@
+# A public demo, on top of the published image.
+#
+#   SERVER_NAME=demo.example.com \
+#   docker compose -f compose.yaml -f compose.demo.yaml up -d --wait
+#
+# Layers over compose.yaml, not over compose.prod.yaml: that one builds the
+# image from source, and a demo has no reason to. Everything here is either the
+# demo switch or a consequence of it.
+#
+# APP_DEMO_MODE is hardcoded rather than interpolated, and that is the whole
+# reason this file exists instead of a line in a README. `docker compose` reads
+# the `.env` beside it — Symfony's, committed — and that file says
+# APP_DEMO_MODE=0. A `${APP_DEMO_MODE:-1}` here would therefore resolve to 0 for
+# every operator who cloned the repo, and the stack would come up looking
+# perfectly healthy and not be a demo at all: no /demo route, no button, and
+# real IMAP sync attempts against accounts pointing at example.com. That is the
+# same trap APP_ENV fell into once — see ComposeEnvironmentTest, which holds
+# this file to the rule too.
+#
+# Before putting one on the internet: give it its own APP_SECRET and
+# APP_ENCRYPTION_KEY and never reuse them from an install holding real mail.
+# The encryption key is what reads mailbox passwords, and a box where anyone can
+# log in is the last place a real one should exist. Left unset, secrets-init
+# mints fresh ones into the demo's own volume, which is what you want.
+#
+# See docs/install/demo-mode.md.
+
+# APP_ENV is spelled out beside the demo switch rather than inherited, for the
+# reason ComposeEnvironmentTest gives: a file that configures the app services
+# should say which environment it is configuring them for, so that it cannot be
+# read as "whatever the base happened to say".
+x-demo-env: &demo-env
+  APP_ENV: prod
+  APP_DEMO_MODE: "1"
+  # Safe to interpolate: `.env` sets exactly this value, so an operator who
+  # never heard of the variable gets the documented default either way.
+  APP_DEMO_TTL: ${APP_DEMO_TTL:-PT2H}
+
+services:
+  # Serves /demo, provisions visitors and renders the demo bar.
+  php:
+    environment:
+      <<: *demo-env
+
+  # Delivers the scripted mail the Receive button asks for, and the auto-reply
+  # to anything a visitor sends. Without this worker the button appears to do
+  # nothing: the job is queued and never handled.
+  worker-ingest:
+    environment:
+      <<: *demo-env
+
+  # Nothing outbound actually leaves on a demo — DemoMailSender swallows it —
+  # but the queue is still the one a send travels through, so the consumer has
+  # to be here for Send to complete rather than sit pending.
+  worker-export:
+    environment:
+      <<: *demo-env
+
+  worker-maintenance:
+    environment:
+      <<: *demo-env
+
+  # Runs app:demo:reap every ten minutes. Drop this service and expired
+  # visitors are never deleted — the database then grows by one user, one
+  # account, ten threads and ten contacts for every person who followed the
+  # link, with nothing anywhere saying so.
+  scheduler:
+    environment:
+      <<: *demo-env
+
+  # Holds an IMAP IDLE connection per mailbox, and a demo has no mailbox to
+  # hold one to: its accounts point at documentation domains that resolve
+  # nowhere, so this would spend the whole time failing to connect and backing
+  # off. Parked behind a profile nothing activates, which is how the compose
+  # spec says "not in this configuration" — there is no way to delete a service
+  # an earlier file defined.
+  imap-supervisor:
+    profiles:
+      - imap-not-used-on-a-demo

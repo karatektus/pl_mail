@@ -734,6 +734,7 @@ php bin/mirror-wiki.php --check
 | `app:reset --full [--rotate-secrets]` | Back to first-run state: every table, every user, the stored files. `--rotate-secrets` also discards the generated secrets and requires restarting the whole stack — see "Secrets and the encryption key" |
 | `app:secrets:init` | Generate the per-install secrets that need PHP, and verify the encryption key against stored credentials |
 | `app:db:migrate` | Run pending migrations under a lock, so several containers booting together cannot collide. This is what the entrypoint calls; run it by hand only when a boot was interrupted |
+| `app:demo:reap [--dry-run]` | Delete demo visitors whose time is up, and everything they own. Only does anything when `APP_DEMO_MODE` is on; runs every 10 minutes there. See "Demo mode" |
 | `app:device:pair <email>` | Issue a short-lived pairing code so a device can enrol itself — the way in when a client cannot complete a browser sign-in. See "Two-factor authentication" |
 
 These run on a schedule already — see `App\Infrastructure\Scheduler\MaintenanceSchedule`

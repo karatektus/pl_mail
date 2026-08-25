@@ -1278,6 +1278,19 @@ compose:
     body_placeholder: "Write your message…"
     attachment_remove: Remove attachment
 
+demo:
+    bar:
+        title: Demo
+        blurb: A throwaway mailbox. Nothing here is real, and nothing you send leaves the server.
+        next: 'Next up: %subject%'
+        receive: Receive mail
+    flash:
+        received: '"%subject%" has arrived.'
+        blocked: Connecting a real mailbox is switched off on the demo.
+    login:
+        blurb: Take a look around plMail with a mailbox of your own — no sign-up, no address needed.
+        start: Start the demo
+        disclaimer: Your demo mailbox is deleted automatically after a couple of hours.
 drafts:
     empty: No drafts.
     heading: Drafts

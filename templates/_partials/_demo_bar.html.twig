@@ -1,0 +1,48 @@
+{#
+    The demo's own strip of chrome: what this is, and the button that makes
+    mail arrive.
+
+    Fixed to the bottom rather than pushed in above the app. plMail's layout is
+    a full-height three-pane grid, and a banner in the flow shortens the reading
+    pane on every page — so the first thing a visitor would learn about the
+    product is that it does not quite fit. It also has to survive Turbo
+    navigation, which it does by living in the layout rather than in a page.
+
+    Left of the button is the disclosure, and it is deliberately the larger
+    half. Somebody who has been handed a working mailbox on a public URL is
+    owed a plain statement that it is not theirs and will be deleted.
+#}
+<div class="fixed bottom-0 inset-x-0 z-50 border-t border-line bg-surface/95 backdrop-blur
+            px-4 py-2 flex items-center gap-4 text-sm"
+     data-turbo-permanent
+     id="demo-bar">
+
+    <div class="flex items-center gap-2 min-w-0">
+        <i class="fa-solid fa-flask text-accent" aria-hidden="true"></i>
+        <span class="font-medium text-ink">{{ 'demo.bar.title'|trans }}</span>
+        <span class="text-ink-muted truncate hidden sm:inline">{{ 'demo.bar.blurb'|trans }}</span>
+    </div>
+
+    <form method="post"
+          action="{{ path('app_demo_receive') }}"
+          class="ml-auto flex items-center gap-3 shrink-0"
+          data-turbo="false">
+        <input type="hidden" name="_token" value="{{ csrf_token('demo_receive') }}">
+
+        {# Naming the next delivery is what keeps the button from being a
+           mystery box: a visitor who has pressed it twice can see that a third
+           press brings something else. #}
+        {% if demo.nextSubject is not null %}
+            <span class="text-ink-muted hidden md:inline">
+                {{ 'demo.bar.next'|trans({'%subject%': demo.nextSubject}) }}
+            </span>
+        {% endif %}
+
+        <button type="submit"
+                class="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg
+                       bg-accent text-on-accent font-medium hover:opacity-90 transition-opacity">
+            <i class="fa-solid fa-inbox" aria-hidden="true"></i>
+            {{ 'demo.bar.receive'|trans }}
+        </button>
+    </form>
+</div>

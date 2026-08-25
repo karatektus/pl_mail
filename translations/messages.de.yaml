@@ -1287,6 +1287,19 @@ compose:
     body_placeholder: "Schreibe deine Nachricht…"
     attachment_remove: Anhang entfernen
 
+demo:
+    bar:
+        title: Demo
+        blurb: Ein Wegwerf-Postfach. Nichts davon ist echt, und was du schreibst, verlässt den Server nicht.
+        next: 'Als Nächstes: %subject%'
+        receive: Mail empfangen
+    flash:
+        received: '„%subject%“ ist angekommen.'
+        blocked: Ein echtes Postfach zu verbinden ist in der Demo abgeschaltet.
+    login:
+        blurb: Sieh dich in plMail um — mit einem eigenen Postfach, ohne Anmeldung und ohne Adresse.
+        start: Demo starten
+        disclaimer: Dein Demo-Postfach wird nach ein paar Stunden automatisch gelöscht.
 drafts:
     empty: Keine Entwürfe.
     heading: Entwürfe

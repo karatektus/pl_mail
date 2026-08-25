@@ -15,6 +15,15 @@ parameters:
     app.fallback_timezone: 'Europe/Berlin'
     app.default_timezone: '%env(default:app.fallback_timezone:APP_DEFAULT_TIMEZONE)%'
 
+    # Whether this install is a public demo. Read through `default:` so an
+    # install that never heard of the variable is a normal one — the accident
+    # worth preventing is a real deployment turning into a demo, not the
+    # reverse. See App\Service\Demo\DemoMode.
+    app.demo_mode_default: false
+    app.demo_mode: '%env(default:app.demo_mode_default:bool:APP_DEMO_MODE)%'
+    app.demo_ttl_default: 'PT2H'
+    app.demo_ttl: '%env(default:app.demo_ttl_default:APP_DEMO_TTL)%'
+
 services:
     # default configuration for services in *this* file
     _defaults:
@@ -86,6 +95,12 @@ services:
 
     App\Service\Graph\GraphSubscriptionManager:
         tags: ['app.push_subscription_manager']
+
+    # Above every real sender, and it claims accounts only when demo mode is
+    # on. That ordering is the whole guarantee: a demo instance cannot reach an
+    # SMTP relay because the sender that would have done it is never asked.
+    App\Service\Mail\DemoMailSender:
+        tags: [{ name: app.mail_sender, priority: 100 }]
 
     App\Service\Mail\GmailApiSender:
         tags: [{ name: app.mail_sender, priority: 10 }]

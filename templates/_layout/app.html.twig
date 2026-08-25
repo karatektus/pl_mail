@@ -208,6 +208,13 @@
     {% if app.user %}
         {% include 'onboarding/_boot.html.twig' %}
     {% endif %}
+    {# The demo strip, for a signed-in visitor on an install that is a demo.
+       Inside the app.user check for the same reason the session-expired bar is:
+       it posts to a route that requires a mailbox to deliver into, so on the
+       login screen it would be a button that could only fail. #}
+    {% if app.user and demo.isEnabled %}
+        {% include '_partials/_demo_bar.html.twig' %}
+    {% endif %}
     {# The dock's placement lives on this wrapper, never on the turbo-frame it
        holds. The undo stream reopens the window with `action="replace"` on the
        frame element itself, so any class on the frame is thrown away with the

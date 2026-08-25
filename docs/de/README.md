@@ -1,4 +1,4 @@
-<!-- translated-from: README.md sha1:9cebb8a0e8d6a5b6d68c807a928548fcfd74903b -->
+<!-- translated-from: README.md sha1:03bd51444ebe373d2f1ffe58813794dcc62a4c93 -->
 
 # plMail-Dokumentation
 
@@ -53,6 +53,7 @@ wo der Mechanismus dahinter steht.
 | [Sichern und Wiederherstellen](install/backup-restore.md) | Was zu sichern ist, der Verschlüsselungsschlüssel und die Wiederherstellung auf einem neuen Host |
 | [Konfigurationssicherung](install/config-backup.md) | Einstellungen und Zugangsdaten einer Installation als eine verschlüsselte Datei zu einer anderen tragen |
 | [Aktualisieren](install/upgrading.md) | Migrationen laufen beim Start, was das bedeutet, und wie du erkennst, welcher Build läuft |
+| [Demo-Modus](install/demo-mode.md) | Eine öffentliche Demo betreiben: Wegwerf-Postfächer, Mail nach Drehbuch, und was dabei abgeschaltet wird |
 | [Fehlersuche](install/troubleshooting.md) | Health-Checks, die Warteschlange, Protokolle und die Fehler, die tatsächlich vorgekommen sind |
 
 ## Anbieter

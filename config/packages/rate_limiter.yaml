@@ -48,3 +48,28 @@ framework:
             policy: 'fixed_window'
             limit: 6
             interval: '1 hour'
+
+        # Provisioning a demo visitor. GET /demo creates a user, an account,
+        # ten threads and ten contacts, which is by far the most expensive
+        # thing an anonymous caller can ask this install to do — and on a
+        # public demo, anonymous callers are the only kind there is. Unlimited,
+        # one loop over the URL fills the database with throwaway users faster
+        # than app:demo:reap removes them.
+        #
+        # Keyed per IP, like booking_attempt and for the same reason: there is
+        # no account being attacked, so the caller's address is the only handle
+        # on "whoever". The cost is the one an IP key always has, and it is the
+        # binding constraint here rather than an afterthought: a demo is a link
+        # people open together — an office, a conference hall, a classroom —
+        # and all of them share one address. Thirty an hour is set for that
+        # room, not for one visitor, who needs exactly one (the session
+        # survives a reload, so arriving once covers the whole visit). It is
+        # still far below what a script does in a second.
+        #
+        # A fixed window rather than sliding, again for booking_attempt's
+        # reason: the counter is per address on a public endpoint, and sliding
+        # keeps a timestamp per hit where this keeps an integer.
+        demo_provision:
+            policy: 'fixed_window'
+            limit: 30
+            interval: '1 hour'

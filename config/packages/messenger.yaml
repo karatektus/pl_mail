@@ -117,6 +117,12 @@ framework:
             App\Infrastructure\Messaging\Message\ApplyMailRuleMessage: maintenance
             App\Infrastructure\Messaging\Message\UploadAttachmentsMessage: export
             App\Infrastructure\Messaging\Message\ExtractEventsMessage: ingest
+            # ingest, because it is mail arriving — the delay that makes the
+            # reply feel like a reply is a DelayStamp, not this queue's doing.
+            # Routing it at all is what matters: unrouted it would run inside
+            # the HTTP request that sent the mail, which would deliver the
+            # answer before the send had finished rendering.
+            App\Infrastructure\Messaging\Message\DemoAutoReplyMessage: ingest
             # Both halves of read receipts, and both routed for the reason
             # RegisterCalendarPushMessage explains: an unrouted message is
             # handled in the process that dispatched it. Unrouted, the send

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Command\Mail;
 
 use App\Command\Mail\MailSyncCommand;
+use App\Service\Demo\DemoMode;
 use App\Entity\Mail\Account;
 use App\Infrastructure\Messaging\Message\SyncAccountMessage;
 use App\Repository\Mail\AccountRepository;
@@ -137,9 +138,35 @@ final class MailSyncCommandTest extends KernelTestCase
         return self::getContainer()->get(AccountRepository::class);
     }
 
-    private function tester(): CommandTester
+    /**
+     * @param bool $demo whether the command should believe it is on a demo
+     *                   install, which is the one condition under which it
+     *                   dispatches nothing at all
+     */
+    private function tester(bool $demo = false): CommandTester
     {
-        return new CommandTester(new MailSyncCommand($this->repository(), $this->bus()));
+        return new CommandTester(
+            new MailSyncCommand($this->repository(), $this->bus(), new DemoMode($demo, 'PT2H')),
+        );
+    }
+
+    /**
+     * A demo instance's accounts point at documentation domains, so every
+     * dispatch would be a worker spending its full retry ladder on a host that
+     * does not resolve. The scheduler runs this every fifteen minutes, so this
+     * branch is what actually keeps a demo's queue clean.
+     */
+    public function testItDispatchesNothingOnADemoInstall(): void
+    {
+        $this->account();
+        $this->account();
+
+        $tester = $this->tester(demo: true);
+
+        $tester->execute([]);
+
+        self::assertSame(Command::SUCCESS, $tester->getStatusCode());
+        self::assertSame([], $this->dispatched);
     }
 
     private function bus(): MessageBusInterface

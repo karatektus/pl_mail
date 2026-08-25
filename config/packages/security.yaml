@@ -85,6 +85,12 @@ security:
         - { path: ^/jmap, roles: IS_AUTHENTICATED }
         - { path: ^/admin, roles: ROLE_ADMIN }
         - { path: ^/login, roles: PUBLIC_ACCESS }
+        # Starting a demo, and only on an install that is one: the route 404s
+        # itself when APP_DEMO_MODE is off, so this rule opens nothing on a
+        # normal deployment. Anchored to the exact path — /demo/receive
+        # deliberately falls through to ROLE_USER below, because delivering
+        # mail into a mailbox requires being in one.
+        - { path: ^/demo$, roles: PUBLIC_ACCESS }
         # The tab icon. Browsers fetch it for the login page too — before any
         # session exists — and an icon behind the login is a redirect the tab
         # strip renders as a missing favicon. Anonymous callers get the

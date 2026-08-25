@@ -51,6 +51,7 @@ mechanism behind it.
 | [Backup and restore](install/backup-restore.md) | What to back up, the encryption key, and restoring onto a new host |
 | [Configuration backup](install/config-backup.md) | Carrying an install's settings and credentials to another one, as one encrypted file |
 | [Upgrading](install/upgrading.md) | Migrations run on boot, what that means, and how to tell which build is running |
+| [Demo mode](install/demo-mode.md) | Hosting a public demo: throwaway mailboxes, scripted mail, and what it switches off |
 | [Troubleshooting](install/troubleshooting.md) | Health checks, the queue, logs, and the failures that have actually happened |
 
 ## Providers

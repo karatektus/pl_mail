@@ -1003,6 +1003,19 @@ compose:
     body_placeholder: "Scrawl yer message…"
     attachment_remove: Heave the cargo overboard
 
+demo:
+    bar:
+        title: Sea trial
+        blurb: A borrowed sea chest. Naught here be real, an' naught ye send ever leaves th' harbour.
+        next: "Next on th' tide: %subject%"
+        receive: Haul in mail
+    flash:
+        received: "\"%subject%\" has come aboard."
+        blocked: Lashin' a real sea chest to this hull be forbidden on a sea trial.
+    login:
+        blurb: Take a turn about plMail wi' a sea chest o' yer own — no articles t' sign, no berth needed.
+        start: Begin th' sea trial
+        disclaimer: Yer trial chest be scuttled on its own after a watch or two.
 drafts:
     empty: No scrolls in the works.
     heading: Scrolls in the works

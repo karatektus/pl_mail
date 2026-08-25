@@ -6,6 +6,7 @@ namespace App\Command\Mail;
 
 use App\Infrastructure\Messaging\Message\SyncAccountMessage;
 use App\Repository\Mail\AccountRepository;
+use App\Service\Demo\DemoMode;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
@@ -23,6 +24,7 @@ final class MailSyncCommand extends Command
     public function __construct(
         private readonly AccountRepository   $accountRepository,
         private readonly MessageBusInterface $bus,
+        private readonly DemoMode            $demoMode,
     ) {
         parent::__construct();
     }
@@ -35,6 +37,22 @@ final class MailSyncCommand extends Command
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $io        = new SymfonyStyle($input, $output);
+
+        // A demo instance has no real mailbox to reach: its accounts point at
+        // documentation domains, so every dispatch here would be a worker
+        // spending its full retry ladder on a host that does not resolve.
+        // Refused outright rather than left to fail, because a queue full of
+        // failures is precisely the state the admin panel exists to make
+        // alarming — and on a demo it would be alarming about nothing.
+        //
+        // The scheduler runs this every fifteen minutes, so this is the branch
+        // that actually keeps a demo quiet.
+        if (true === $this->demoMode->isEnabled()) {
+            $io->note('Demo mode is on — mail sync is disabled.');
+
+            return Command::SUCCESS;
+        }
+
         $accountId = $input->getArgument('account-id');
 
         if (null !== $accountId) {
