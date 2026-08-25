@@ -4030,3 +4030,22 @@ label:has(> input.sr-only) {
     text-underline-offset: 2px;
 }
 
+
+/* ═══ A message header holding an open details panel ═══════════════════════
+
+   The panel next to a recipient line is z-30, and that number is measured
+   inside its own header, not against the page: the header is `sticky top-0
+   z-10`, and a positioned element with a z-index starts a stacking context.
+   Every message header in a conversation carries the same z-10, and equal
+   z-index is decided by document order — so the panel opened on one message
+   was painted over by the header of the message BELOW it, which is the one
+   thing a reader is most likely to have the panel overlapping.
+
+   Raising the header raises the whole context with it. Raising the panel could
+   not have fixed this at any value, which is worth saying because that is the
+   change anyone reaching for this bug tries first.
+
+   mail--message-details sets the attribute while the panel is open. */
+[data-details-open] {
+    z-index: 30;
+}

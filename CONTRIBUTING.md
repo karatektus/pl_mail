@@ -159,6 +159,24 @@ alone pulls 54 module preloads plus 2 stylesheets, measured at ~35ms each agains
 static file, and Playwright hands every test a cold cache. That one change took the suite from 255s
 to 138s.
 
+After changing anything under `assets/`, re-run it:
+
+```
+docker compose -f compose.test.yaml exec -T app php bin/console asset-map:compile
+```
+
+For a change to a **stylesheet**, build Tailwind first — `assets/styles/app.css` is an input, not the
+file that gets served, and `asset-map:compile` will happily copy a stale
+`var/tailwind/app.built.css` forward:
+
+```
+docker compose -f compose.test.yaml exec -T app php bin/console tailwind:build
+```
+
+The failure mode is worth knowing, because it does not look like a stale asset: the browser gets a
+perfectly valid stylesheet in which your new rule simply does not exist, so the symptom is "my CSS
+has no effect" and the next hour goes on specificity and cascade layers.
+
 **Every worker owns its own user.** `tests/e2e/support/config.ts` derives `e2e-w{N}@plmail.test` from
 Playwright's `TEST_PARALLEL_INDEX`, and the `app:test:*` commands take a matching `--email`
 (`App\Command\Test\TargetsTestUser`). Passing it is not optional in a spec that asserts on the

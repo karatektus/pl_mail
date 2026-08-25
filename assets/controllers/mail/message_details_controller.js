@@ -27,6 +27,7 @@ export default class extends Controller {
         }
 
         this.panelTarget.classList.remove("hidden");
+        this.#header()?.setAttribute("data-details-open", "");
 
         if (this.hasCaretTarget) {
             this.caretTarget.classList.add("rotate-180");
@@ -65,6 +66,15 @@ export default class extends Controller {
 
     // ── Private ───────────────────────────────────────────────────────────
 
+    /**
+     * The sticky header this panel hangs from, where there is one — the
+     * single-message view includes the same partial outside a conversation and
+     * has nothing to raise.
+     */
+    #header() {
+        return this.element.closest(".sticky");
+    }
+
     _closeOnOutsideClick(event) {
         if (!this.element.contains(event.target)) {
             this._close();
@@ -73,6 +83,7 @@ export default class extends Controller {
 
     _close() {
         this.panelTarget.classList.add("hidden");
+        this.#header()?.removeAttribute("data-details-open");
 
         if (this.hasCaretTarget) {
             this.caretTarget.classList.remove("rotate-180");
