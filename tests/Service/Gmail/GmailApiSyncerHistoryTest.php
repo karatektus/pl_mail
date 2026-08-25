@@ -61,6 +61,28 @@ final class GmailApiSyncerHistoryTest extends TestCase
 
         self::assertTrue($this->profileWasFetched(), 'an expired cursor must trigger a full re-sync');
         self::assertSame('999', $account->gmailHistoryId, 'the fresh cursor replaces the dead one');
+
+        // AND THE MAILBOX IS ACTUALLY RE-LISTED.
+        //
+        // This is the assertion the test's own name promised and did not make.
+        // Fetching a fresh historyId proves only that /profile was called; the
+        // listing that should follow opens with
+        // `if (false === needsBackfill())`, and needsBackfill() is
+        // `0 !== backfillTarget`. Every account that has finished its first
+        // sync carries a target of 0 for ever — settleBackfill() writes it once
+        // and nothing unsets it — so on every steady-state account the recovery
+        // ended at the /profile call.
+        //
+        // Everything that happened between the dead cursor and the new one was
+        // therefore never enumerated by anything. A Gmail account has no folder
+        // to re-list and no periodic sweep, so that mail was missing or stale
+        // in plMail permanently, on an app reporting full health.
+        //
+        // Asserted on the LISTING rather than on needsBackfill() afterwards:
+        // the backfill runs and then settles the target back to 0, so the end
+        // state looks identical either way. What differs is whether a listing
+        // request was made at all.
+        self::assertTrue($this->mailboxWasListed(), 'the gap window was never re-listed, so it is lost');
     }
 
     public function testAGoneHistoryIdRestartsToo(): void
@@ -313,6 +335,18 @@ final class GmailApiSyncerHistoryTest extends TestCase
 
     // ── Fixture ──────────────────────────────────────────────────────────────
 
+    /** Whether the recovery went on to re-list the mailbox. */
+    private function mailboxWasListed(): bool
+    {
+        foreach ($this->requests as $url) {
+            if (true === str_contains($url, '/messages?') || true === str_contains($url, '/messages&')) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     private function profileWasFetched(): bool
     {
         foreach ($this->requests as $url) {
@@ -419,11 +453,21 @@ final class GmailApiSyncerHistoryTest extends TestCase
         ]);
     }
 
+    /**
+     * A SETTLED account, which is the only interesting kind here.
+     *
+     * backfillTarget is 0 on every account that has finished its first sync —
+     * settleBackfill() writes it once and nothing unsets it — and that is
+     * exactly the state in which the expired-cursor recovery used to do
+     * nothing. A fixture without it would leave needsBackfill() true by
+     * accident and the assertion above would pass on any code at all.
+     */
     private function account(): Account
     {
         $account = new Account();
         $account->usr = new User();
         $account->gmailHistoryId = '12345';
+        $account->backfillTarget = 0;
 
         return $account;
     }
