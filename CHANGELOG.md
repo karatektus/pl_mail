@@ -6,6 +6,38 @@ so anything that changes the schema irreversibly is called out explicitly.
 The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, and `sha-…` pins one commit.
 
+## v0.1.22 — 2026-08-25
+
+**No migration. A demo instance can now serve a privacy notice, and two things
+that made the demo look broken are fixed.**
+
+### A privacy notice
+
+`/datenschutz`, its own page with its own link beside the Impressum. It is
+required even on an instance that asks for nothing: a web server writes the
+caller's IP address into a log, and an IP address is personal data.
+
+Written from what plMail does rather than from a template — it names the three
+cookies it actually sets, and the no-third-parties claim is its content security
+policy, which permits connections to this server only. The retention period is
+read from `APP_DEMO_TTL` rather than written into the text, so tuning the one
+cannot leave the other claiming something the reaper does not do.
+
+`APP_DEMO_PRIVACY_HOST` names whoever runs the machine, who is a processor.
+Unset, the page says so rather than rendering a blank. See
+[Demo mode](docs/install/demo-mode.md), which also lists what neither the
+software nor this notice can check for you.
+
+### Fixed
+
+- **Pressing Receive a second time appeared to do nothing** for up to thirteen
+  seconds. The list refresh coalesces bursts through a fifteen-second floor
+  measured from the last refresh — right for a background sync, wrong for
+  somebody who has just pressed a button and is watching for the result.
+- **The user menu still wore its own tooltip**, until the pointer left the
+  button. A click was meant to take the bubble down, but the menu stops the
+  click before it gets there.
+
 ## v0.1.21 — 2026-08-25
 
 **No migration. Clicking an event now opens it to read rather than to edit —
