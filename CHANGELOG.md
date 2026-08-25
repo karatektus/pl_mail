@@ -6,6 +6,38 @@ so anything that changes the schema irreversibly is called out explicitly.
 The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, and `sha-…` pins one commit.
 
+## v0.1.28 — 2026-08-25
+
+**Adds two columns to `account`; the migrations run on boot. plMail now checks what a provider
+actually granted, instead of assuming it got what it asked for.**
+
+### Fixed
+
+- **A Google or Microsoft account could connect without the permissions plMail asked for, and
+  nothing said so.** Google's consent screen offers sensitive scopes as separate tick boxes and a
+  declined one does not fail the sign-in; a Microsoft tenant can withhold the same by policy. The
+  account connected, the app said so, and the missing permission surfaced days later as something
+  that simply did not work.
+
+  Two things did not work, and one of them had no explanation available anywhere. Calendars never
+  synced. And a grant that could not *write* meant marking read, archiving and starring were applied
+  on screen, refused by Gmail with `insufficientPermissions`, and undone by the next sync — so
+  marking five thousand conversations read left every one of them unread.
+
+  Account health now carries a card naming the account, with a button to connect again and grant the
+  rest. Existing accounts fill in on their next sign-in refresh, or the first time a change is
+  refused — you do not have to do anything to get the card.
+
+- **A permanently refused export was a log line and nothing else.** The change stayed applied here
+  and never reached the provider, which is a divergence the person it happened to could not see. It
+  is recorded on the account and reported, and cleared by the next export that works.
+
+- **Four cards for one problem.** Calendars stopped by an account-level cause collapse into a single
+  card that names them, instead of one card each offering a retry that could only fail. A single
+  blocked calendar still gets its own card, because its name says more than a count.
+
+- **The select-all banner covered the category tabs** and its button read "Select all %count%".
+
 ## v0.1.27 — 2026-08-25
 
 **No migration. A send no longer announces itself finished while still offering to stop.**
