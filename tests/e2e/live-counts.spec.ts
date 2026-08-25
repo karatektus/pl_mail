@@ -1,5 +1,5 @@
 import { test, expect } from "./support/test";
-import { INBOX_SUBJECTS, mailRow, seed } from "./support/config";
+import { INBOX_SUBJECTS, TEST_USER, consoleCommand, mailRow, seed } from "./support/config";
 
 /**
  * The numbers beside the list keep up with the list.
@@ -33,6 +33,7 @@ import { INBOX_SUBJECTS, mailRow, seed } from "./support/config";
  */
 
 const INBOX_BADGE = '[data-count-key="role:inbox"]';
+const TOOLBAR = '[data-controller="mail--list-toolbar"]';
 
 /** No reload anywhere in this file. That is the entire point of it. */
 async function inboxBadge(page: import("@playwright/test").Page): Promise<string> {
@@ -46,6 +47,47 @@ function tick(page: import("@playwright/test").Page, subject: string) {
 
 test.beforeEach(() => {
     seed("seed-mail");
+});
+
+/**
+ * A single sync event moves the badge, even inside the rate-limit window.
+ *
+ * The window collapses a burst — a sync run publishes one event per mailbox per
+ * account — and it used to DROP anything that landed inside it, on the
+ * reasoning that "a missed counts update is corrected by the next one, and
+ * there is always a next one". That holds for a mailbox syncing on a timer and
+ * is false for the case a person actually watches: the demo's Receive button
+ * publishes exactly one event, and if it fell inside the window the badge
+ * simply never moved. Nothing came afterwards to correct it.
+ *
+ * Driven by dispatching the event the hub would deliver, rather than by waiting
+ * for a real sync: what is under test is the sidebar's handling of it, and a
+ * real sync would take the rate limit out of the picture by being slow.
+ */
+test("a lone sync event still moves the badge after a recent refresh", async ({ page }) => {
+    await page.goto("/mail/inbox");
+    await expect(mailRow(page, INBOX_SUBJECTS.read)).toBeVisible();
+    await expect(page.locator(INBOX_BADGE).first()).toHaveText("4");
+
+    // A write, which refreshes the counts immediately and so starts the window.
+    await tick(page, INBOX_SUBJECTS.read);
+    await page.locator(TOOLBAR).getByRole("button", { name: /read/i }).first().click();
+    await expect(page.locator(INBOX_BADGE).first()).toHaveText("3");
+
+    // Now the server changes underneath, and one event announces it — inside
+    // the window that has just been started.
+    consoleCommand(`app:test:seed-mail --email=${TEST_USER.email}`);
+
+    await page.evaluate(() => {
+        document.dispatchEvent(new CustomEvent("core--mercure:account-synced", { detail: {} }));
+    });
+
+    // Back to four, because the seed restored the unread ones. The wait is
+    // generous on purpose: the whole point is that the refresh is DEFERRED to
+    // the end of the window rather than dropped.
+    await expect(page.locator(INBOX_BADGE).first(), "a lone sync event was dropped").toHaveText("4", {
+        timeout: 20_000,
+    });
 });
 
 test.describe("counters after a bulk action", () => {

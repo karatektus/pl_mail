@@ -77,8 +77,19 @@ const REFRESHABLE_REGIONS = ["tabs", "pagination", "rows"];
  * missed Mercure event costs a LATE redraw, never a wrong list, because there
  * is no accumulated client state to drift out of step.
  *
- * Tabs and pagination stay plain assignment. They hold no state, no focus and
- * no identity, and morphing them would be machinery bought for nothing.
+ * Tabs and pagination are morphed too, and the reasoning above is why this
+ * comment used to say they were not. It said they "hold no state, no focus and
+ * no identity, so morphing them would be machinery bought for nothing" — true
+ * about state, and it missed what else morphing buys: the screen not moving.
+ *
+ * Assignment tears the tab strip down and builds it again on every refresh, so
+ * the active tab, its underline and its count all blink — on the demo's Receive
+ * button, which refreshes the list on purpose, that reads as the list flickering
+ * rather than mail arriving. The rows animated beautifully and everything around
+ * them flashed.
+ *
+ * Only the ROW morph needs the callbacks. The other two are plain content with
+ * nothing the client owns, so they get a plain morph.
  */
 const MORPHED_REGION = "rows";
 
@@ -656,7 +667,10 @@ export default class extends Controller {
                 return;
             }
 
-            live.innerHTML = incoming.innerHTML;
+            // Morphed rather than assigned, so the tab strip and the pager
+            // change only where they differ. Assignment rebuilt them whole and
+            // made both blink on every refresh.
+            Idiomorph.morph(live, incoming.innerHTML, { morphStyle: "innerHTML" });
         });
 
         this._restoreSelection(frame, selected);

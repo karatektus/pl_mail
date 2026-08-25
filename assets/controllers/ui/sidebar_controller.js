@@ -253,6 +253,8 @@ export default class extends Controller {
 
         this._onWritten = () => this.refreshCounts({ immediate: true });
         document.addEventListener(WRITTEN_EVENT, this._onWritten);
+
+        this._trailing = null;
     }
 
     /**
@@ -271,6 +273,9 @@ export default class extends Controller {
             document.removeEventListener(name, this._onSynced),
         );
         document.removeEventListener(WRITTEN_EVENT, this._onWritten);
+
+        // A refresh owed to a sidebar that has gone is owed to nobody.
+        clearTimeout(this._trailing);
     }
 
     /**
@@ -365,12 +370,37 @@ export default class extends Controller {
             return;
         }
 
-        // A burst of sync events is one refresh. Skipped rather than queued:
-        // unlike the message list, a missed counts update is corrected by the
-        // next one, and there is always a next one.
+        // A burst of sync events is one refresh — but the LAST one still lands.
+        //
+        // This used to return here and drop the event, on the reasoning that "a
+        // missed counts update is corrected by the next one, and there is
+        // always a next one". That holds for a mailbox syncing on a timer and
+        // is false for the case a person actually watches: the demo's Receive
+        // button publishes exactly one event, and if it fell inside the window
+        // the badge simply never moved. Nothing came afterwards to correct it.
+        //
+        // Trailing edge instead. The window still collapses a burst of five
+        // accounts into one request, and the final state is always fetched.
+        //
+        // The timer is PER INSTANCE, and that is the other half of the fix.
+        // There are two sidebars on the page — the desktop rail and the drawer
+        // — so there are two controllers, each holding its own badges. A single
+        // shared slot meant the second one to schedule cancelled the first, so
+        // only one sidebar was ever brought up to date and the other kept its
+        // number indefinitely. The rate limit stays shared, which is what it is
+        // for: both wake at the end of the same window and `inFlight`
+        // deduplicates them into one round trip.
         if (!immediate && inFlight === null && Date.now() - lastFetchAt < MIN_COUNTS_MS) {
+            clearTimeout(this._trailing);
+            this._trailing = setTimeout(
+                () => this.refreshCounts({ immediate: true }),
+                MIN_COUNTS_MS - (Date.now() - lastFetchAt),
+            );
+
             return;
         }
+
+        clearTimeout(this._trailing);
 
         // Offline, or the sync raced a navigation — fetchCounts answers null and
         // the next sync retries.
