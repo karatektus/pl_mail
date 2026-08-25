@@ -64,6 +64,16 @@ final readonly class AccountHealthInspector
      */
     private const int NAMES_IN_A_GROUP = 6;
 
+    /**
+     * Consecutive failed syncs before the health page says anything.
+     *
+     * Three, because a mailbox is polled often enough that one failure is
+     * usually a dropped connection and three in a row is not. The count resets
+     * on the first success, so this is "it is still failing", never "it failed
+     * once, a while ago".
+     */
+    private const int SYNC_FAILURES_BEFORE_REPORTING = 3;
+
     public function __construct(
         private AccountRepository        $accounts,
         private CalendarRepository       $calendars,
@@ -107,7 +117,7 @@ final readonly class AccountHealthInspector
                 continue;
             }
 
-            $scope = $this->calendarPermission($account);
+            $scope = $this->calendarPermission($account) ?? $this->mailboxSync($account);
 
             if (null !== $scope) {
                 $issues[] = $scope;
@@ -335,10 +345,31 @@ final readonly class AccountHealthInspector
         // Gmail saying the grant cannot write. That is what makes this useful
         // on an install that has been broken for weeks rather than only on the
         // next account somebody connects.
+        // And a calendar that failed for the same reason is the THIRD, which is
+        // the one that works on an install already broken. It needs no refresh
+        // to have happened and no further export to be refused: the calendars
+        // stored the provider's own refusal the first time they failed, and it
+        // has been sitting in the database ever since.
+        //
+        // This is the gap that mattered. Recording the granted scope only helps
+        // accounts connected afterwards, and waiting for a refusal only helps
+        // if something tries to write. Somebody looking at three broken
+        // calendars right now had the evidence on screen and nothing read it.
         $missing  = $provider->missingScopes($account->oauthGrantedScopes) ?? [];
         $refused  = $account->exportRefusedReason;
+        $refusedByCalendar = null;
 
         if ([] === $missing && null === $refused) {
+            foreach ($this->calendars->findMirroredForAccount($account) as $calendar) {
+                if (true === $provider->looksLikeScopeRefusal($calendar->lastSyncError)) {
+                    $refusedByCalendar = $calendar->lastSyncError;
+
+                    break;
+                }
+            }
+        }
+
+        if ([] === $missing && null === $refused && null === $refusedByCalendar) {
             return null;
         }
 
@@ -373,25 +404,49 @@ final readonly class AccountHealthInspector
             // read this to act, and the one person debugging a tenant policy
             // needs it exactly. The provider's own refusal first when there is
             // one — it names the call that was turned away.
-            detail: $refused ?? $account->oauthGrantedScopes,
+            detail: $refused ?? $refusedByCalendar ?? $account->oauthGrantedScopes,
         );
     }
 
     /**
-     * A calendar that has stopped filling in.
+     * The mailbox has stopped syncing, and the sign-in is not the reason.
      *
-     * Attributed to the account's dead grant when there is one. Three calendars
-     * failing because one Google sign-in expired is one problem with three
-     * symptoms, and the repair for all three is the single reconnect button on
-     * the account above — offering three more of them would imply three
-     * separate round trips through Google.
+     * Reached only when accountGrant() and calendarPermission() both had
+     * nothing to say, which is what keeps this from being a second card about
+     * a problem already explained. "Sign in again" and "your mail server keeps
+     * refusing us" are different repairs.
      *
-     * Still listed rather than swallowed: the user's question is "why is my
-     * Feiertage calendar empty", and an account-level card alone does not
-     * answer it.
-     *
-     * @param array<int, string> $deadGrants account id => the issue id naming it
+     * The threshold is the point. A dropped connection is not news and a page
+     * that reports every one of them is a page that stops being read; several
+     * attempts in a row is a different statement, and only the second one is
+     * worth a card. One success clears the count entirely.
      */
+    private function mailboxSync(Account $account): ?HealthIssue
+    {
+        if (true !== $account->isActive) {
+            return null;
+        }
+
+        if (null === $account->lastSyncError || $account->syncFailureCount < self::SYNC_FAILURES_BEFORE_REPORTING) {
+            return null;
+        }
+
+        return new HealthIssue(
+            id: 'account-sync-' . $account->id,
+            kind: HealthIssueKind::AccountSyncFailing,
+            severity: HealthSeverity::Critical,
+            subject: $account->email,
+            titleParams: ['%account%' => $account->email],
+            bodyParams: ['%account%' => $account->email],
+            // No repair button. There is no honest one: the fault is at the
+            // other end, and a "try again" here would be a button whose whole
+            // behaviour is to wait for the next scheduled sync to fail too.
+            // The detail below is what someone can actually act on.
+            repairs: [],
+            detail: $account->lastSyncError,
+        );
+    }
+
     /**
      * Several calendars, one cause, one card.
      *

@@ -1599,6 +1599,8 @@ settings:
         heading: Th' crew
         make_primary: Name her flagship
         make_primary_explained: 'Send new bottles from %account% by default'
+        reconnect: Sign on again
+        reconnect_explained: 'Sign on to %account% afresh — to grant leave ye once refused, or after changin'' yer word'
         move_down: 'Move %account% down the roster'
         move_up: 'Move %account% up the roster'
         order_hint: >-
@@ -2050,6 +2052,15 @@ settings:
                     provider, and be undone at the next reckonin'. Sign on again
                     and grant all that ye be asked.
                 title: '%account% never got full leave'
+            account_sync_failing:
+                body: >-
+                    Several tries in a row have foundered, so no new post be
+                    arrivin' for this account and all that hangs on it stands
+                    still. The post already aboard be safe. The sign-on be
+                    sound, so 'tis the mail server refusin' or lost at sea —
+                    check she be afloat and that naught changed about the host,
+                    the port or the password.
+                title: "%account% keeps foulin' its reckonin'"
             calendar_sync_failing:
                 body: >-
                     This almanac has stopped takin'' on changes, so she shows

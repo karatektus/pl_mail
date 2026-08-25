@@ -673,7 +673,65 @@ final class AccountHealthSectionTest extends WebTestCase
     }
 
     /** A calendar that mirrors a mail account's provider — role Remote. */
-    private function remoteCalendar(User $user, Account $account, string $name): Calendar
+    /**
+     * The reported situation, exactly: an install upgraded mid-fault.
+     *
+     * Three Google calendars showing "has stopped syncing" with a 403 about
+     * insufficient scopes, an account connected long before the granted scope
+     * was ever recorded, and nothing on the page offering a way to grant what
+     * was missing — the cards said "reconnect the account and allow calendar
+     * access" in their technical detail and offered a "Try syncing now" button
+     * whose entire behaviour is to fail.
+     *
+     * Recording the granted scope fixed nothing here, because there is nothing
+     * recorded. Waiting for a refused export fixed nothing either, because
+     * nothing was trying to write. The evidence was on the calendars all along:
+     * they stored the provider's own refusal, code and all, the first time they
+     * failed.
+     */
+    public function testCalendarsRefusedForScopesRaiseTheAccountCardWithAReconnect(): void
+    {
+        $client  = static::createClient();
+        $user    = $this->boot($client);
+        $account = $this->oauthAccount($user, 'upgraded-mid-fault@joder.dev');
+
+        // Neither of the two direct signals is available on this install.
+        self::assertNull($account->oauthGrantedScopes);
+        self::assertNull($account->exportRefusedReason);
+
+        foreach (['Feiertage in Deutschland', 'Familie', 'upgraded-mid-fault@joder.dev'] as $name) {
+            $calendar = $this->remoteCalendar($user, $account, $name);
+            $calendar->lastSyncError = "Google is not allowing plMail to see this account's calendars."
+                . ' Reconnect the account and allow calendar access when Google asks.'
+                . ' (events.list, 403 insufficientPermissions: Request had insufficient authentication scopes.)';
+        }
+
+        $this->em->flush();
+
+        $crawler = $client->request('GET', '/settings?section=health');
+        $card    = $crawler->filter('[data-health-issue="account-scope-' . $account->id . '"]');
+
+        self::assertSame(1, $card->count(), 'the missing permission is still not named anywhere');
+
+        // The half the user actually asked for: a way to fix it.
+        self::assertStringContainsString(
+            (string) static::getContainer()->get('router')->generate(
+                'app_health_reconnect',
+                ['id' => $account->id],
+            ),
+            $card->html(),
+            'the card names the problem and offers no way to grant the permission',
+        );
+
+        // And the three symptoms fold under it instead of standing beside it.
+        self::assertSame(
+            1,
+            $crawler->filter('[data-health-issue="calendars-blocked-account-scope-' . $account->id . '"]')->count(),
+            'the calendars did not collapse under the cause',
+        );
+    }
+
+        private function remoteCalendar(User $user, Account $account, string $name): Calendar
     {
         $calendar = new Calendar();
 

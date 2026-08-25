@@ -156,9 +156,46 @@ class Account extends AccountModel
     #[ORM\Column]
     public ?bool $isActive = null;
 
+    /**
+     * When this account last synced without error.
+     *
+     * Present since the first migration and, until now, written by nothing and
+     * read by nothing — a column that looked like it meant something and did
+     * not. SyncAccountMessageHandler sets it now, which is what gives
+     * lastSyncError below something to be measured against.
+     */
     #[ORM\Column(nullable: true)]
     public ?DateTimeImmutable $lastSyncedAt = null;
 
+    /**
+     * Why this account's last sync failed, or null when it did not.
+     *
+     * A mail account recorded NOTHING about failing. Calendar has had a full
+     * account of it for as long as it has synced — a failure count, a backoff
+     * ladder, a message, and a rule for which failures are worth a log line —
+     * and the mailbox, which is the thing the application is for, had a
+     * timestamp nobody wrote. An IMAP server that had been refusing
+     * connections for a week was indistinguishable from one that synced a
+     * minute ago.
+     *
+     * Truncated like Calendar::recordSyncFailure() and Integration::recordFailure():
+     * a provider stack trace is not a message.
+     */
+    #[ORM\Column(type: 'text', nullable: true)]
+    public ?string $lastSyncError = null;
+
+    /**
+     * Consecutive failed syncs, reset by the first success.
+     *
+     * The health page waits for this to reach a threshold before saying
+     * anything, which is the whole reason it is counted rather than merely
+     * flagged. A dropped connection at three in the morning is not news; the
+     * same mailbox failing every attempt for a day is. Reporting the first
+     * failure would put a card on the page for every transient blip and teach
+     * people to ignore the page.
+     */
+    #[ORM\Column(options: ['default' => 0])]
+    public int $syncFailureCount = 0;
 
 
     #[ORM\Column(length: 255, nullable: true)]
@@ -414,6 +451,41 @@ class Account extends AccountModel
     public static function signatureAliasSetting(int $aliasId): string
     {
         return 'compose.signature.alias.' . $aliasId;
+    }
+
+    /**
+     * A sync that worked, recorded the same way a calendar records one.
+     *
+     * Mirrors Calendar::recordSyncSuccess() down to the name, and for the
+     * reason that class gives: a connection that has quietly stopped working
+     * should say so in the same way wherever it is listed, and two spellings of
+     * "it is fine now" is how one of them ends up not clearing the error.
+     *
+     * One success earns the whole count back. Decaying it instead would leave a
+     * mailbox that recovered still on the health page, with nothing on screen
+     * to explain why it looks broken.
+     */
+    public function recordSyncSuccess(): void
+    {
+        $this->lastSyncedAt      = new DateTimeImmutable();
+        $this->lastSyncError     = null;
+        $this->syncFailureCount  = 0;
+    }
+
+    /**
+     * A sync that did not, and how many in a row that makes.
+     *
+     * The count is what lets the health page stay quiet about a dropped
+     * connection and speak up about a mailbox that has been failing all day —
+     * see AccountHealthInspector, which is the only reader of it.
+     *
+     * Truncated: a provider stack trace is not a message, and this string is
+     * shown to a person.
+     */
+    public function recordSyncFailure(string $reason): void
+    {
+        $this->lastSyncError = mb_substr($reason, 0, 500);
+        ++$this->syncFailureCount;
     }
 
     public function getSetting(string $key, mixed $default = null): mixed

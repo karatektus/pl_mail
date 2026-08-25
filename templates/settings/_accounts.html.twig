@@ -116,6 +116,31 @@
                             <i class="fa-solid fa-pen text-xs" aria-hidden="true"></i>
                         </button>
                     {% endif %}
+                    {# Reconnect, always offered on an OAuth account and not
+                       only when something is already known to be broken.
+
+                       This is the affordance that was missing. An IMAP account
+                       has Edit beside it; an OAuth one had nothing at all, so a
+                       user who wanted to grant a permission they had declined —
+                       or simply re-authorise — had no way to ask for it. The
+                       reconnect existed, and lived exclusively on a health card
+                       that only appears once plMail has already detected the
+                       fault, which is precisely too late.
+
+                       Same target as that card's button: the provider's consent
+                       screen, with the account remembered so the callback
+                       relinks rather than creating a second one. Google is sent
+                       prompt=consent, so the screen is shown in full and a
+                       previously declined tick box can be ticked. #}
+                    {% if not isPassword and account.oauthProvider %}
+                        <a href="{{ path('app_oauth_connect', { provider: account.oauthProvider, reconnect: account.id }) }}"
+                           data-turbo="false"
+                           class="w-8 h-8 flex items-center justify-center rounded-lg text-zinc-400 hover:text-ink hover:bg-hover transition-colors"
+                           aria-label="{{ 'settings.accounts.reconnect'|trans }}"
+                           title="{{ 'settings.accounts.reconnect_explained'|trans({ '%account%': account.displayAddress }) }}">
+                            <i class="fa-solid fa-rotate text-xs" aria-hidden="true"></i>
+                        </a>
+                    {% endif %}
                     {% if account.microsoft or account.gmail %}
                         {{ include('settings/accounts/_push_control.html.twig', {account: account, failed: false}) }}
                     {% endif %}

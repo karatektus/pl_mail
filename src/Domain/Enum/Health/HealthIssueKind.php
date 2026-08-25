@@ -46,6 +46,27 @@ enum HealthIssueKind: string
     case AccountScopeMissing = 'account_scope_missing';
 
     /**
+     * The mailbox itself has stopped syncing, repeatedly, for a reason that is
+     * not the sign-in.
+     *
+     * A mail account recorded nothing about failing until this existed. A
+     * calendar has had a message, a count and a backoff for as long as it has
+     * synced; the mailbox — the thing the application is for — had a
+     * `last_synced_at` column that nothing wrote, so an IMAP server refusing
+     * connections for a week looked identical to one that synced a minute ago.
+     *
+     * Raised on a COUNT rather than on the last failure, and that is the whole
+     * of what keeps it honest: a dropped connection at three in the morning is
+     * not news, and a page that says so about every blip is a page nobody
+     * reads. Several attempts in a row failing is a different statement.
+     *
+     * Ranked below the grant cards, which explain a sync failure when they
+     * apply — "sign in again" and "your mail server is refusing us" are
+     * different repairs and the user should be shown the one that fits.
+     */
+    case AccountSyncFailing = 'account_sync_failing';
+
+    /**
      * A calendar whose sync answers the same way every time — see
      * CalendarSyncPermanentException. Surfaced per calendar rather than rolled
      * into the account, because "reconnect and allow calendar access" and
@@ -116,6 +137,9 @@ enum HealthIssueKind: string
             // Sitting this beside "your account has stopped receiving" would
             // teach people to read past both.
             self::AccountScopeMissing  => HealthSeverity::Warning,
+            // Critical: this one means new mail is not arriving, which is the
+            // application not doing its job rather than a part of it missing.
+            self::AccountSyncFailing   => HealthSeverity::Critical,
             self::CalendarSyncFailing  => HealthSeverity::Critical,
             // A consequence, never a second emergency: the cause above is the
             // thing to act on, and this must not add to the topbar count.
@@ -163,6 +187,7 @@ enum HealthIssueKind: string
             self::AccountReconnect     => 'fa-link-slash',
             // A permission that was not given, rather than a link that broke.
             self::AccountScopeMissing  => 'fa-calendar-day',
+            self::AccountSyncFailing   => 'fa-inbox',
             self::CalendarSyncFailing  => 'fa-calendar-xmark',
             self::CalendarsBlocked     => 'fa-calendar-xmark',
             // fa-tower-broadcast, not fa-bolt-slash: the latter is a Pro icon

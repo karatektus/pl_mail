@@ -1938,6 +1938,8 @@ settings:
         heading: Mail accounts
         make_primary: Make primary
         make_primary_explained: 'Send new messages from %account% by default'
+        reconnect: Reconnect
+        reconnect_explained: 'Sign in to %account% again — to grant a permission you declined, or after changing your password'
         move_down: 'Move %account% down the list'
         move_up: 'Move %account% up the list'
         order_hint: >-
@@ -2400,6 +2402,16 @@ settings:
                     next sync. Connect the account again and allow everything
                     you are asked for.
                 title: '%account% was not given full access'
+            account_sync_failing:
+                body: >-
+                    Several attempts in a row have failed, so new mail is not
+                    arriving for this account and anything that depends on it —
+                    filters that run on delivery, and the unread counts — is
+                    standing still. The mail already here is safe and unchanged.
+                    The sign-in is fine, so this is the mail server refusing or
+                    unreachable: check that it is up and that nothing has
+                    changed about the host, the port or the password.
+                title: '%account% keeps failing to sync'
             calendar_sync_failing:
                 body: >-
                     This calendar has stopped picking up changes, so it is

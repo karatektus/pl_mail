@@ -237,6 +237,95 @@ final class AccountHealthQuieterProblemsTest extends WebTestCase
         );
     }
 
+    /**
+     * A mailbox that keeps failing to sync says so — after several failures,
+     * not after one.
+     *
+     * The threshold is the assertion. A mail account recorded nothing at all
+     * about failing until recently, and the obvious fix — report the last
+     * error — would have put a card on the page for every dropped connection
+     * and taught people to scroll past the page that matters most.
+     */
+    public function testAMailboxThatKeepsFailingIsReported(): void
+    {
+        $client  = static::createClient();
+        $user    = $this->boot($client);
+        $account = $this->gmailAccount($user, 'flaky@joder.dev');
+
+        $account->recordSyncFailure('IMAP: connection refused');
+        $this->em->flush();
+
+        $crawler = $client->request('GET', '/settings?section=health');
+
+        self::assertSame(
+            0,
+            $crawler->filter('[data-health-issue="account-sync-' . $account->id . '"]')->count(),
+            'one dropped connection is not news',
+        );
+
+        $account->recordSyncFailure('IMAP: connection refused');
+        $account->recordSyncFailure('IMAP: connection refused');
+        $this->em->flush();
+
+        $crawler = $client->request('GET', '/settings?section=health');
+
+        self::assertSame(
+            1,
+            $crawler->filter('[data-health-issue="account-sync-' . $account->id . '"]')->count(),
+            'a mailbox failing every attempt is not reported',
+        );
+    }
+
+    /** And one success is enough to take it back off the page. */
+    public function testASuccessfulSyncClearsIt(): void
+    {
+        $client  = static::createClient();
+        $user    = $this->boot($client);
+        $account = $this->gmailAccount($user, 'recovered@joder.dev');
+
+        $account->recordSyncFailure('IMAP: connection refused');
+        $account->recordSyncFailure('IMAP: connection refused');
+        $account->recordSyncFailure('IMAP: connection refused');
+        $account->recordSyncSuccess();
+        $this->em->flush();
+
+        self::assertNull($account->lastSyncError);
+        self::assertSame(0, $account->syncFailureCount);
+        self::assertNotNull($account->lastSyncedAt, 'a success should record when it happened');
+
+        $crawler = $client->request('GET', '/settings?section=health');
+
+        self::assertSame(0, $crawler->filter('[data-health-issue="account-sync-' . $account->id . '"]')->count());
+    }
+
+    /**
+     * A dead sign-in explains a failing sync, so it does not get a second card.
+     *
+     * "Sign in again" and "your mail server is refusing us" are different
+     * repairs, and showing both invites the user to try the wrong one.
+     */
+    public function testADeadGrantHidesTheSyncCard(): void
+    {
+        $client  = static::createClient();
+        $user    = $this->boot($client);
+        $account = $this->gmailAccount($user, 'dead-and-failing@joder.dev');
+
+        $account->oauthLastRefreshError = 'invalid_grant';
+        $account->recordSyncFailure('Gmail: 401');
+        $account->recordSyncFailure('Gmail: 401');
+        $account->recordSyncFailure('Gmail: 401');
+        $this->em->flush();
+
+        $crawler = $client->request('GET', '/settings?section=health');
+
+        self::assertSame(1, $crawler->filter('[data-health-issue="account-' . $account->id . '"]')->count());
+        self::assertSame(
+            0,
+            $crawler->filter('[data-health-issue="account-sync-' . $account->id . '"]')->count(),
+            'one cause, one card',
+        );
+    }
+
     /** The reconnect this account's repair button should point at. */
     private function urlFor(Account $account): string
     {

@@ -109,6 +109,22 @@ enum MailProvider: string
      *
      * @return list<string>
      */
+    /**
+     * What a provider calls it when the token is valid and too narrow.
+     *
+     * Google sends two spellings depending on which error envelope answers —
+     * see GoogleCalendarApiClient::SCOPE_REASONS, which lists the same two for
+     * the same reason. Microsoft's Graph uses ErrorAccessDenied for this and
+     * for several unrelated things, so it is deliberately NOT here: a code that
+     * means four different conditions cannot be used as evidence of one.
+     *
+     * @var list<string>
+     */
+    private const array SCOPE_REFUSAL_CODES = [
+        'insufficientPermissions',
+        'ACCESS_TOKEN_SCOPE_INSUFFICIENT',
+    ];
+
     public function calendarScopes(): array
     {
         return match ($this) {
@@ -182,6 +198,44 @@ enum MailProvider: string
         }
 
         return $missing;
+    }
+
+    /**
+     * Whether a stored error message is the provider saying our grant is short.
+     *
+     * The direct evidence — the granted `scope` recorded at connect time — is
+     * null for every account connected before it was recorded, and those are
+     * precisely the accounts already suffering from a partial grant. Waiting
+     * for the next token refresh to backfill it leaves somebody staring at
+     * three broken calendars and no explanation, which is exactly what
+     * happened.
+     *
+     * So the indirect evidence counts too, and it is already in the database:
+     * a calendar that failed for this reason stored the provider's own words,
+     * and those words contain the reason CODE rather than only prose.
+     *
+     * Matched on the codes and not on the sentence around them. `insufficientPermissions`
+     * and `ACCESS_TOKEN_SCOPE_INSUFFICIENT` are Google's identifiers — the two
+     * spellings its two error envelopes use, both listed in
+     * GoogleCalendarApiClient — and identifiers are stable in a way the
+     * sentence is not. Matching the sentence would break the first time it was
+     * reworded or translated.
+     */
+    public function looksLikeScopeRefusal(?string $error): bool
+    {
+        if (null === $error || '' === trim($error)) {
+            return false;
+        }
+
+        $haystack = strtolower($error);
+
+        foreach (self::SCOPE_REFUSAL_CODES as $code) {
+            if (true === str_contains($haystack, strtolower($code))) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**

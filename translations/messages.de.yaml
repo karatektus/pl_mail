@@ -1943,6 +1943,8 @@ settings:
         heading: E-Mail-Konten
         make_primary: Als primär festlegen
         make_primary_explained: 'Neue Nachrichten standardmäßig von %account% senden'
+        reconnect: Neu verbinden
+        reconnect_explained: 'Melde dich erneut bei %account% an — um eine abgelehnte Berechtigung doch noch zu erteilen oder nach einer Passwortänderung'
         move_down: '%account% in der Liste nach unten schieben'
         move_up: '%account% in der Liste nach oben schieben'
         order_hint: >-
@@ -2409,6 +2411,17 @@ settings:
                     zurückgesetzt. Verbinde das Konto neu und erlaube alles,
                     wonach du gefragt wirst.
                 title: '%account% hat nicht alle Rechte bekommen'
+            account_sync_failing:
+                body: >-
+                    Mehrere Versuche hintereinander sind fehlgeschlagen — für
+                    dieses Konto kommt also keine neue Mail an, und alles, was
+                    davon abhängt, steht still: Filter, die beim Empfang laufen,
+                    und die Ungelesen-Zähler. Die Mail, die schon da ist, bleibt
+                    unverändert. Die Anmeldung ist in Ordnung, es liegt also am
+                    Mailserver — er lehnt ab oder ist nicht erreichbar. Prüf, ob
+                    er läuft und ob sich an Host, Port oder Passwort etwas
+                    geändert hat.
+                title: '%account% scheitert immer wieder beim Abgleich'
             calendar_sync_failing:
                 body: >-
                     Dieser Kalender übernimmt keine Änderungen mehr und zeigt
