@@ -9,6 +9,7 @@ use App\Entity\Job\BackgroundJob;
 use App\Entity\Mail\MessageThread;
 use App\Infrastructure\Messaging\Message\RunBulkStatusMessage;
 use App\Repository\Job\BackgroundJobRepository;
+use App\Repository\Mail\MessageThreadRepository;
 use App\Service\Job\JobNotifier;
 use App\Service\Mail\ListViewResolver;
 use App\Service\Mail\ThreadStatusUpdater;
@@ -57,7 +58,8 @@ final readonly class RunBulkStatusHandler
     private const int CHUNK = 100;
 
     public function __construct(
-        private BackgroundJobRepository $jobs,
+        private BackgroundJobRepository  $jobs,
+        private MessageThreadRepository  $threads,
         private ListViewResolver        $views,
         private ThreadStatusUpdater     $status,
         private JobNotifier             $notifier,
@@ -86,7 +88,7 @@ final readonly class RunBulkStatusHandler
             $this->run($job);
         } catch (Throwable $e) {
             $this->logger->error('RunBulkStatusHandler: bulk action failed', [
-                'jobId' => $job->id,
+                'jobId' => $message->jobId,
                 'kind'  => $job->kind->value,
                 'error' => $e->getMessage(),
             ]);
@@ -94,9 +96,19 @@ final readonly class RunBulkStatusHandler
             // Recorded on the job, not only logged: the person who started this
             // is watching an indicator, and a job that simply stops moving is
             // indistinguishable from a worker that died.
-            $job->finish(JobState::Failed, $e->getMessage());
-            $this->em->flush();
-            $this->notifier->changed($job);
+            //
+            // RE-READ FIRST. run() clears the EntityManager once per chunk, so
+            // the $job in hand is detached by the time anything throws — and
+            // finish() on a detached entity flushes nothing at all. The failure
+            // was logged and the indicator span forever, which is precisely the
+            // outcome this block exists to prevent.
+            $failed = $this->jobs->find($message->jobId);
+
+            if (null !== $failed) {
+                $failed->finish(JobState::Failed, $e->getMessage());
+                $this->em->flush();
+                $this->notifier->changed($failed);
+            }
 
             throw $e;
         }
@@ -118,29 +130,60 @@ final readonly class RunBulkStatusHandler
 
         $action = $job->kind->action();
         $read   = $job->kind->readFlag();
+        $userId = (int) $job->usr->id;
+        $jobId  = (int) $job->id;
 
-        foreach (array_chunk($threads, self::CHUNK) as $chunk) {
-            $this->apply($chunk, $action, $read, (int) $job->usr->id);
+        // IDS, NOT ENTITIES, and this is the whole correctness argument for the
+        // loop below. Every chunk ends in an EntityManager clear, which
+        // detaches every object this list is holding — so from the second chunk
+        // onward the old code was handing ThreadStatusUpdater detached threads,
+        // and flushing one makes Doctrine read its MessageThread as a brand new
+        // entity nobody persisted:
+        //
+        //     Multiple non-persisted new entities were found through the given
+        //     association graph … App\Entity\Mail\Message#thread
+        //
+        // A bulk action over one chunk therefore worked and the same action over
+        // two did not, which is the shape that survives a hurried test.
+        // Scalars survive a clear; managed objects do not.
+        $ids = array_map(static fn (MessageThread $thread): int => (int) $thread->id, $threads);
 
-            // Re-read: the chunk above cleared the EntityManager, so the job in
-            // hand is detached. Not re-reading here is how a progress counter
-            // ends up written against a stale copy and silently lost.
-            $fresh = $this->jobs->find($job->id);
+        unset($threads);
+
+        $processed = 0;
+
+        foreach (array_chunk($ids, self::CHUNK) as $chunk) {
+            $this->apply($chunk, $action, $read, $userId);
+
+            $processed += count($chunk);
+
+            // Re-read for the same reason: the chunk above cleared the
+            // EntityManager, so the job in hand is detached. Not re-reading here
+            // is how a progress counter ends up written against a stale copy and
+            // silently lost.
+            $fresh = $this->jobs->find($jobId);
 
             if (null === $fresh) {
                 return;
             }
 
-            $fresh->processed += count($chunk);
+            // Assigned rather than incremented, because $processed is counted
+            // here and the row is re-read each time: += against a fresh read
+            // would be adding this run's total to itself.
+            $fresh->processed = $processed;
             $this->em->flush();
             $this->notifier->changed($fresh);
-
-            $job = $fresh;
         }
 
-        $job->finish(JobState::Done);
+        $done = $this->jobs->find($jobId);
+
+        if (null === $done) {
+            return;
+        }
+
+        $done->finish(JobState::Done);
         $this->em->flush();
-        $this->notifier->changed($job);
+        $this->notifier->changed($done);
     }
 
     /**
@@ -152,13 +195,16 @@ final readonly class RunBulkStatusHandler
      * spanning two mailboxes — everything would be filed into the first
      * account's Archive.
      *
-     * @param list<MessageThread> $threads
+     * Takes IDS and loads the threads itself, because the caller's list does
+     * not survive the clear at the foot of this method. See run().
+     *
+     * @param list<int> $threadIds
      */
-    private function apply(array $threads, string $action, bool $read, int $userId): void
+    private function apply(array $threadIds, string $action, bool $read, int $userId): void
     {
         $byAccount = [];
 
-        foreach ($threads as $thread) {
+        foreach ($this->threads->findBy(['id' => $threadIds]) as $thread) {
             // The last check before a write. The resolver selected these for
             // this user, but that is a query in another class.
             if ((int) ($thread->account?->usr->id ?? 0) !== $userId) {
