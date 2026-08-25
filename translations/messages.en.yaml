@@ -2412,6 +2412,15 @@ settings:
                     unreachable: check that it is up and that nothing has
                     changed about the host, the port or the password.
                 title: '%account% keeps failing to sync'
+            server_alert:
+                body: >-
+                    Your mail server sent this message for you, and it is
+                    repeated here word for word: “%alert%”. plMail cannot act on
+                    it — a mailbox that is full, a password about to expire or a
+                    server about to move are all things only you or your
+                    provider can settle. It stays here until the server stops
+                    saying it.
+                title: '%account% — a message from your mail server'
             calendar_sync_failing:
                 body: >-
                     This calendar has stopped picking up changes, so it is
@@ -2433,6 +2442,14 @@ settings:
                     unaffected — this is only the link to that service. Nothing
                     stored there has been touched.
                 title: '%connection% needs reconnecting'
+            integration_scope_missing:
+                body: >-
+                    This connection works, but some of the permissions plMail
+                    asked for were not granted — so parts of it will not work
+                    and cannot. Browsing may come back empty while saving still
+                    succeeds, or the other way round. Connect it again and allow
+                    everything you are asked for.
+                title: '%connection% was not given full access'
             push_degraded:
                 body: >-
                     The registration is live and has not expired, but mail has
@@ -2482,6 +2499,11 @@ settings:
                 promise: >-
                     Asks this calendar to sync again right away, and puts it
                     back on the normal schedule. Nothing on it is deleted.
+            integration_grant:
+                label: 'Grant full access'
+                promise: >-
+                    Takes you back to %connection% to sign in again and grant
+                    everything plMail asks for. Nothing stored there is touched.
             integration_reconnect:
                 label: 'Reconnect'
                 promise: >-

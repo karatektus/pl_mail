@@ -4,8 +4,12 @@ namespace App\Command\Imap;
 
 use App\Domain\Helper\ImapConnectionFactory;
 use App\Infrastructure\Messaging\Message\SyncImapMailboxMessage;
+use App\Entity\Mail\Account;
+use App\Repository\Mail\AccountRepository;
 use App\Repository\Mail\MailboxRepository;
 use App\Service\Monitoring\ProcessHeartbeatService;
+use Doctrine\ORM\EntityManagerInterface;
+use Psr\Log\LoggerInterface;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
@@ -36,6 +40,9 @@ class ImapIdleCommand extends Command
         private readonly MessageBusInterface     $bus,
         private readonly ImapConnectionFactory   $imapConnectionFactory,
         private readonly ProcessHeartbeatService $heartbeats,
+        private readonly AccountRepository       $accountRepository,
+        private readonly EntityManagerInterface  $entityManager,
+        private readonly LoggerInterface         $logger,
     ) {
         parent::__construct();
     }
@@ -183,6 +190,24 @@ class ImapIdleCommand extends Command
                 throw $e;
             }
 
+            // The one line in this loop the RFC says we MUST show somebody.
+            //
+            // `* OK [ALERT] …` is how a server tells the USER something no
+            // other part of the protocol will: the mailbox is over quota, the
+            // password expires on Friday, the app password is being retired.
+            // RFC 3501 §7.1 requires a client to present that text. This loop
+            // read it and dropped it, so an over-quota mailbox — the commonest
+            // case by far, and common in particular on the consumer ISPs in
+            // plMail's own preset list — was one where mail simply stopped
+            // arriving with nothing on screen to explain it.
+            //
+            // Recorded rather than printed: this command runs in a container
+            // nobody is watching, so the console is not where a user is.
+            if (true === str_contains($line, '[ALERT]')) {
+                $io->warning(sprintf('[%s] Server alert: %s', date('H:i:s'), trim($line)));
+                $this->recordAlert($account, $line);
+            }
+
             if (true === str_contains($line, 'EXISTS')) {
                 $this->beat($mailbox, $account, true);
                 $io->text(sprintf('[%s] Notification received — dispatching sync.', date('H:i:s')));
@@ -280,5 +305,45 @@ class ImapIdleCommand extends Command
             (string) $mailbox->id,
             ['mailbox' => $mailbox->fullPath, 'account' => $account->email],
         );
+    }
+    /**
+     * Keep what the server said, for the health page to show.
+     *
+     * The text is taken as sent, minus the protocol furniture: a server writes
+     * `* OK [ALERT] Quota exceeded (mailbox for user is full)`, and the part
+     * worth showing a person starts after the bracket.
+     *
+     * Best effort by design. This runs inside a socket loop whose job is to
+     * stay connected, so a database that is briefly unavailable must not take
+     * the IDLE connection down with it — an alert is worth recording and never
+     * worth dropping mail delivery for.
+     */
+    private function recordAlert(?Account $account, string $line): void
+    {
+        if (null === $account) {
+            return;
+        }
+
+        $text = trim((string) preg_replace('/^.*\[ALERT\]\s*/i', '', trim($line)));
+
+        if ('' === $text) {
+            return;
+        }
+
+        try {
+            $fresh = $this->accountRepository->find($account->id);
+
+            if (null === $fresh || $fresh->imapServerAlert === $text) {
+                return;
+            }
+
+            $fresh->imapServerAlert = mb_substr($text, 0, 500);
+            $this->entityManager->flush();
+        } catch (\Throwable $e) {
+            $this->logger->warning('ImapIdleCommand: could not record a server alert', [
+                'accountId' => $account->id,
+                'error'     => $e->getMessage(),
+            ]);
+        }
     }
 }

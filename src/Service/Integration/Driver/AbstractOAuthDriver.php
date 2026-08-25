@@ -116,6 +116,15 @@ abstract class AbstractOAuthDriver implements IntegrationDriverInterface
             // reconnecting is the fix, which is different advice from "check
             // your password" on an app-password provider.
             401 === $status => sprintf('%s refused the connection — reconnect it.', $this->label()),
+            // A 403 is TWO different things at Google, and the difference is
+            // only in the body. `userRateLimitExceeded`, `rateLimitExceeded`
+            // and `dailyLimitExceeded` are quota — a burst of saves, or a
+            // share-link action issuing two calls per file — and telling
+            // somebody their connection is missing a permission sends them to
+            // re-grant a permission they already have, on a connection that
+            // was working a minute earlier and will work again in a minute.
+            403 === $status && true === $this->isQuota($response)
+                => sprintf('%s is rate-limiting us. Try again shortly.', $this->label()),
             403 === $status => sprintf('%s denied access. The connection may be missing a permission.', $this->label()),
             404 === $status => sprintf('%s could not find that item.', $this->label()),
             429 === $status => sprintf('%s is rate-limiting us. Try again shortly.', $this->label()),
@@ -124,6 +133,43 @@ abstract class AbstractOAuthDriver implements IntegrationDriverInterface
             0 === $status   => sprintf('Could not reach %s.', $this->label()),
             default         => sprintf('%s returned an unexpected response (%d).', $this->label(), $status),
         };
+    }
+
+    /**
+     * Whether a 403 is quota rather than permission.
+     *
+     * Google answers 403 for both, and the reason code is the only thing that
+     * separates them. GmailApiClient and GoogleCalendarApiClient have each kept
+     * their own list of these for the same reason; this is the third, and it is
+     * here rather than shared because a driver that is not Google should not
+     * inherit Google's vocabulary.
+     *
+     * Conservative on anything it cannot read: a body that is missing,
+     * truncated, or an HTML page from a proxy answers false, which keeps the
+     * existing wording. Guessing "quota" on an unreadable body would hide a
+     * real permission problem behind "try again shortly" for ever.
+     */
+    protected function isQuota(?ResponseInterface $response): bool
+    {
+        if (null === $response) {
+            return false;
+        }
+
+        try {
+            $body = $response->getContent(false);
+        } catch (\Throwable) {
+            return false;
+        }
+
+        $haystack = strtolower($body);
+
+        foreach (['userratelimitexceeded', 'ratelimitexceeded', 'dailylimitexceeded', 'sharingratelimitexceeded'] as $code) {
+            if (true === str_contains($haystack, $code)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     // ── Parsing helpers ───────────────────────────────────────────────────────

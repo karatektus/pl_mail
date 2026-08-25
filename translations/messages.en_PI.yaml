@@ -2061,6 +2061,14 @@ settings:
                     check she be afloat and that naught changed about the host,
                     the port or the password.
                 title: "%account% keeps foulin' its reckonin'"
+            server_alert:
+                body: >-
+                    Yer mail server sent this word for ye, repeated here as it
+                    came: “%alert%”. plMail can do naught about it — a full hold,
+                    a word about to lapse, or a port about to move be yours or
+                    yer provider's to settle. It stands here till the server
+                    stops sayin' it.
+                title: '%account% — word from yer mail server'
             calendar_sync_failing:
                 body: >-
                     This almanac has stopped takin'' on changes, so she shows
@@ -2081,6 +2089,13 @@ settings:
                     this be only th'' rope t'' that port. Naught stowed there
                     has been disturbed.
                 title: '%connection% needs joinin'' again'
+            integration_scope_missing:
+                body: >-
+                    This connection sails, but some leave plMail asked for were
+                    never granted, so parts of her cannot work. Browsin' may
+                    come back empty while stowin' still works, or t'other way
+                    round. Sign on again and grant all that ye be asked.
+                title: '%connection% never got full leave'
             push_degraded:
                 body: >-
                     Th'' registration still stands an'' has not run out, yet
@@ -2130,6 +2145,11 @@ settings:
                 promise: >-
                     Bids this almanac sail again straight away, an'' puts her
                     back on th'' usual bell. Naught aboard her be thrown out.
+            integration_grant:
+                label: 'Grant full leave'
+                promise: >-
+                    Takes ye back to %connection% to sign on afresh and grant
+                    all that be asked. Naught stowed there be touched.
             integration_reconnect:
                 label: 'Join again'
                 promise: >-

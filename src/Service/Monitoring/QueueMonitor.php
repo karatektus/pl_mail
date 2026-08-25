@@ -140,7 +140,7 @@ final class QueueMonitor
     }
 
     /**
-     * @return list<array{id: string, class: string, error: string|null, failedAt: DateTimeInterface|null}>
+     * @return list<array{id: string, class: string, error: string|null, failedAt: DateTimeInterface|null, accountId: int|null}>
      */
     public function failedMessages(int $limit = 50): array
     {
@@ -165,11 +165,29 @@ final class QueueMonitor
                 continue;
             }
 
+            $message = $envelope->getMessage();
+
+            // The account, where the message carries one. Nine of the nineteen
+            // message classes have a public `accountId`, and it was being
+            // discarded along with the rest of the object — so "50 background
+            // jobs were given up on" could not say that all fifty belonged to
+            // one mailbox whose grant could not write, which was the whole
+            // answer on the install that prompted this.
+            //
+            // Read reflectively rather than through an interface: adding one to
+            // nineteen message classes to expose a property they already have
+            // is a lot of ceremony for a line on a card, and a message without
+            // the property simply reports none.
+            $accountId = property_exists($message, 'accountId') && is_int($message->accountId)
+                ? $message->accountId
+                : null;
+
             $failed[] = [
-                'id'       => (string) $idStamp->getId(),
-                'class'    => $envelope->getMessage()::class,
-                'error'    => $errorStamp?->getExceptionMessage(),
-                'failedAt' => $redeliveryStamp?->getRedeliveredAt(),
+                'id'        => (string) $idStamp->getId(),
+                'class'     => $message::class,
+                'error'     => $errorStamp?->getExceptionMessage(),
+                'failedAt'  => $redeliveryStamp?->getRedeliveredAt(),
+                'accountId' => $accountId,
             ];
         }
 

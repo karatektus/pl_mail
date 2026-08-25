@@ -67,6 +67,24 @@ enum HealthIssueKind: string
     case AccountSyncFailing = 'account_sync_failing';
 
     /**
+     * The mail server has something to tell the user, in its own words.
+     *
+     * IMAP has a channel for exactly this — `* OK [ALERT] …` — and RFC 3501
+     * §7.1 says a client MUST present the text. plMail read those lines off the
+     * socket and dropped them, so the things servers use it for went unheard:
+     * a mailbox over quota, a password expiring on Friday, an app password
+     * being retired, a server about to move.
+     *
+     * Quota is the one that matters most, and it is invisible without this. An
+     * over-quota mailbox does not fail to connect and does not fail to sync; it
+     * simply stops receiving, and every other signal in the app looks healthy.
+     *
+     * No repair, because there is nothing plMail can do about it — the text
+     * itself is the whole of the answer, and it is the server's, not ours.
+     */
+    case ServerAlert = 'server_alert';
+
+    /**
      * A calendar whose sync answers the same way every time — see
      * CalendarSyncPermanentException. Surfaced per calendar rather than rolled
      * into the account, because "reconnect and allow calendar access" and
@@ -119,6 +137,23 @@ enum HealthIssueKind: string
     /** A file-store connection whose token could not be renewed. */
     case IntegrationReconnect = 'integration_reconnect';
 
+    /**
+     * A connected service works, and was given less than it was asked for.
+     *
+     * The same shape as AccountScopeMissing and for the same reason: a consent
+     * screen can grant part of a request and hand back a token that works
+     * perfectly for the part it granted. Google Photos is the case that makes
+     * this concrete — an unverified app is routinely refused
+     * `photoslibrary.readonly` while being given `appendonly`, so saving to a
+     * library works and browsing one is empty, and nothing anywhere connects
+     * that to a screen the user clicked through last week.
+     *
+     * Distinct from IntegrationReconnect, which means the connection is broken.
+     * This one is not broken; it is narrower than it should be, and the repair
+     * is the same trip with a different thing to tick.
+     */
+    case IntegrationScopeMissing = 'integration_scope_missing';
+
     /** Background work that exhausted its retries and was put aside. */
     case QueueWorkAbandoned = 'queue_work_abandoned';
 
@@ -140,11 +175,15 @@ enum HealthIssueKind: string
             // Critical: this one means new mail is not arriving, which is the
             // application not doing its job rather than a part of it missing.
             self::AccountSyncFailing   => HealthSeverity::Critical,
+            // Warning: mail may still be arriving, and the server has not said
+            // anything is broken — only that somebody should know something.
+            self::ServerAlert          => HealthSeverity::Warning,
             self::CalendarSyncFailing  => HealthSeverity::Critical,
             // A consequence, never a second emergency: the cause above is the
             // thing to act on, and this must not add to the topbar count.
             self::CalendarsBlocked     => HealthSeverity::Warning,
             self::IntegrationReconnect => HealthSeverity::Warning,
+            self::IntegrationScopeMissing => HealthSeverity::Warning,
             self::QueueWorkAbandoned   => HealthSeverity::Warning,
             // ── Why push is no longer a Notice ────────────────────────────────
             // Notice deliberately does not light the topbar indicator, and that
@@ -188,6 +227,7 @@ enum HealthIssueKind: string
             // A permission that was not given, rather than a link that broke.
             self::AccountScopeMissing  => 'fa-calendar-day',
             self::AccountSyncFailing   => 'fa-inbox',
+            self::ServerAlert          => 'fa-bullhorn',
             self::CalendarSyncFailing  => 'fa-calendar-xmark',
             self::CalendarsBlocked     => 'fa-calendar-xmark',
             // fa-tower-broadcast, not fa-bolt-slash: the latter is a Pro icon
@@ -200,6 +240,10 @@ enum HealthIssueKind: string
             self::PushDegraded         => 'fa-tower-broadcast',
             self::PushLapsed           => 'fa-hourglass-end',
             self::IntegrationReconnect => 'fa-plug-circle-exclamation',
+            // A connection that works and is too narrow, not one that is
+            // broken — a different glyph so the two do not read as the same
+            // card twice.
+            self::IntegrationScopeMissing => 'fa-plug-circle-minus',
             self::QueueWorkAbandoned   => 'fa-inbox',
         };
     }

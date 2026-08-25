@@ -63,7 +63,8 @@ final readonly class IntegrationTokenManager
             $this->em->persist($integration);
         }
 
-        $integration->oauthAccessToken = $token->getToken();
+        $integration->oauthAccessToken   = $token->getToken();
+        $integration->oauthGrantedScopes = $this->grantedScopes($token) ?? $integration->oauthGrantedScopes;
 
         $expires = $token->getExpires();
 
@@ -158,6 +159,13 @@ final readonly class IntegrationTokenManager
 
         $integration->oauthAccessToken = $new->getToken();
 
+        // The backfill, and the only one there can be: what a service granted
+        // is in the response that delivered the token, and that response is
+        // long gone for every connection made before this was recorded. A
+        // refresh gets a fresh one. Absent means unchanged, so a response
+        // without it leaves the record alone rather than blanking it.
+        $integration->oauthGrantedScopes = $this->grantedScopes($new) ?? $integration->oauthGrantedScopes;
+
         $expires = $new->getExpires();
 
         if (null !== $expires) {
@@ -177,5 +185,23 @@ final readonly class IntegrationTokenManager
         $this->em->flush();
 
         return $new->getToken();
+    }
+    /**
+     * What the service says it actually granted, or null when it did not say.
+     *
+     * OAuth 2.0 requires the `scope` member only when the grant DIFFERS from
+     * the request, so its absence means "you got what you asked for" — and the
+     * caller keeps whatever was already recorded rather than blanking it, since
+     * a refresh that says nothing must not un-record a connection.
+     */
+    private function grantedScopes(AccessTokenInterface $token): ?string
+    {
+        $granted = $token->getValues()['scope'] ?? null;
+
+        if (false === is_string($granted) || '' === trim($granted)) {
+            return null;
+        }
+
+        return trim($granted);
     }
 }

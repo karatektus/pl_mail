@@ -197,6 +197,28 @@ class Account extends AccountModel
     #[ORM\Column(options: ['default' => 0])]
     public int $syncFailureCount = 0;
 
+    /**
+     * The last `[ALERT]` the IMAP server sent, verbatim.
+     *
+     * RFC 3501 §7.1 is not ambiguous about this: "The human-readable text
+     * contains a special alert that MUST be presented to the user in a fashion
+     * that calls the user's attention to the message." plMail read those lines
+     * off the socket and dropped them, which made it a MUST-violating client.
+     *
+     * What actually arrives this way is the mail nobody else will tell you
+     * about: `Quota exceeded (mailbox for user is full)`, `Your password
+     * expires in 3 days`, an app-password deprecation notice, a server about to
+     * be migrated. The quota one matters most here — plMail's own preset list
+     * is dominated by German consumer ISPs with small free tiers, and an
+     * over-quota mailbox is one where new mail simply stops arriving, with
+     * nothing on screen to say why.
+     *
+     * Cleared by the next connection that carries none, on the same contract as
+     * $exportRefusedReason: it describes the present, not a bad afternoon.
+     */
+    #[ORM\Column(type: 'text', nullable: true)]
+    public ?string $imapServerAlert = null;
+
 
     #[ORM\Column(length: 255, nullable: true)]
     public ?string $gmailHistoryId = null;

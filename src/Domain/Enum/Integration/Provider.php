@@ -305,6 +305,66 @@ enum Provider: string
     }
 
     /**
+     * Everything that was asked for and not given.
+     *
+     * The same question the mail providers answer, for the same reason: a
+     * service can grant part of what was requested and hand back a token that
+     * works perfectly for the part it granted. Google's consent screen ticks
+     * restricted scopes individually, and Google Photos in particular may
+     * refuse `photoslibrary.readonly` to an unverified app while granting
+     * `appendonly` — leaving a library that cannot be browsed and a save that
+     * works, with nothing anywhere saying which half is missing.
+     *
+     * `offline_access` is excluded: it asks for a refresh token rather than for
+     * access to anything, and Microsoft does not echo it. Counting it reported
+     * a shortfall on every OneDrive connection that was completely fine — the
+     * same false positive the mail side had to unpick.
+     *
+     * @param string|null $granted the `scope` value from the token response
+     *
+     * @return list<string>|null the requested scopes that were withheld, or
+     *                           null when there is nothing to judge
+     */
+    public function missingScopes(?string $granted): ?array
+    {
+        if (null === $granted || '' === trim($granted)) {
+            return null;
+        }
+
+        $held    = array_map($this->normaliseScope(...), explode(' ', trim($granted)));
+        $missing = [];
+
+        foreach ($this->scopes() as $wanted) {
+            if ('offline_access' === $wanted) {
+                continue;
+            }
+
+            if (false === in_array($this->normaliseScope($wanted), $held, true)) {
+                $missing[] = $wanted;
+            }
+        }
+
+        return $missing;
+    }
+
+    /**
+     * One spelling of a scope, so two spellings of the same one compare equal.
+     *
+     * Microsoft accepts `https://graph.microsoft.com/Files.ReadWrite` and
+     * answers with a bare `Files.ReadWrite`, in whatever case it likes. The
+     * host prefix is stripped and nothing else — trimming to the last path
+     * segment would collapse Google's `photoslibrary.readonly` and
+     * `photoslibrary.appendonly` into neighbours of each other, which is
+     * exactly the distinction that matters for Photos.
+     */
+    private function normaliseScope(string $scope): string
+    {
+        $bare = preg_replace('#^https?://[^/]+/#i', '', trim($scope)) ?? $scope;
+
+        return strtolower(rtrim($bare, '/'));
+    }
+
+    /**
      * Extra authorization-URL parameters, per provider quirk.
      *
      * @return array<string,string>

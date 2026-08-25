@@ -390,6 +390,112 @@ final class AccountHealthQuieterProblemsTest extends WebTestCase
         );
     }
 
+    /**
+     * A connection given less than it asked for says so, and offers the trip.
+     *
+     * The mail accounts got this in v0.1.28; the file stores and photo
+     * libraries had the identical blindness and none of the attention. Google
+     * Photos is the case that makes it real — an unverified app is routinely
+     * refused the browse scope and given the append one, so saving works,
+     * browsing is empty, and nothing connects that to a consent screen the user
+     * clicked through last week.
+     */
+    public function testAConnectionWithoutFullAccessIsReported(): void
+    {
+        $client = static::createClient();
+        $user   = $this->boot($client);
+
+        $integration = new Integration($user, Provider::GooglePhotos, Provider::GooglePhotos->label());
+        $integration->oauthAccessToken   = 'token';
+        $integration->oauthGrantedScopes = 'https://www.googleapis.com/auth/photoslibrary.appendonly';
+
+        $this->em->persist($integration);
+        $this->em->flush();
+
+        $crawler = $client->request('GET', '/settings?section=health');
+        $card    = $crawler->filter('[data-health-issue="integration-scope-' . $integration->id . '"]');
+
+        self::assertSame(1, $card->count(), 'a partial grant on a connection is not reported');
+        self::assertStringContainsString('oauth/googlePhotos/connect', $card->html());
+    }
+
+    /** A complete grant is not a problem. */
+    public function testAConnectionWithFullAccessIsNotReported(): void
+    {
+        $client = static::createClient();
+        $user   = $this->boot($client);
+
+        $integration = new Integration($user, Provider::Dropbox, Provider::Dropbox->label());
+        $integration->oauthAccessToken   = 'token';
+        $integration->oauthGrantedScopes = implode(' ', Provider::Dropbox->scopes());
+
+        $this->em->persist($integration);
+        $this->em->flush();
+
+        $crawler = $client->request('GET', '/settings?section=health');
+
+        self::assertSame(0, $crawler->filter('[data-health-issue="integration-scope-' . $integration->id . '"]')->count());
+    }
+
+    /**
+     * And a connection made before the scopes were recorded is left alone.
+     *
+     * Null means "not known", never "nothing granted" — reporting on it would
+     * put a permanent warning on every connection that predates the column.
+     */
+    public function testAConnectionWithNoRecordedScopesIsNotReported(): void
+    {
+        $client = static::createClient();
+        $user   = $this->boot($client);
+
+        $integration = new Integration($user, Provider::GoogleDrive, Provider::GoogleDrive->label());
+        $integration->oauthAccessToken = 'token';
+
+        $this->em->persist($integration);
+        $this->em->flush();
+
+        self::assertNull($integration->oauthGrantedScopes);
+
+        $crawler = $client->request('GET', '/settings?section=health');
+
+        self::assertSame(0, $crawler->filter('[data-health-issue="integration-scope-' . $integration->id . '"]')->count());
+    }
+
+    /**
+     * What the mail server said is shown, word for word.
+     *
+     * RFC 3501 §7.1: the text of an `[ALERT]` response "MUST be presented to
+     * the user". plMail read those lines off the socket in its IDLE loop and
+     * dropped them, which made it a MUST-violating client — and lost the one
+     * channel a server has for saying things nothing else will.
+     *
+     * Quota is why it matters. An over-quota mailbox connects fine and syncs
+     * fine; it just stops receiving, and every other signal in the app looks
+     * healthy while it does.
+     */
+    public function testAServerAlertIsShownVerbatim(): void
+    {
+        $client  = static::createClient();
+        $user    = $this->boot($client);
+        $account = $this->gmailAccount($user, 'full-mailbox@joder.dev');
+
+        $account->imapServerAlert = 'Quota exceeded (mailbox for user is full)';
+        $this->em->flush();
+
+        $crawler = $client->request('GET', '/settings?section=health');
+        $card    = $crawler->filter('[data-health-issue="server-alert-' . $account->id . '"]');
+
+        self::assertSame(1, $card->count(), 'the server said something and nobody was told');
+
+        // Verbatim, not paraphrased: the server wrote a sentence for a person
+        // to read, and rewording it is how the useful part gets lost.
+        self::assertStringContainsString('Quota exceeded (mailbox for user is full)', $card->text());
+
+        // And no repair. plMail cannot empty somebody's mailbox, and a button
+        // that did nothing would be worse than none.
+        self::assertSame(0, $card->filter('form')->count());
+    }
+
     /** The reconnect this account's repair button should point at. */
     private function urlFor(Account $account): string
     {

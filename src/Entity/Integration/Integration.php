@@ -111,6 +111,22 @@ class Integration
     #[ORM\Column(nullable: true)]
     public ?DateTimeImmutable $oauthTokenExpiry = null;
 
+    /**
+     * The scopes the provider actually GRANTED, as it spelled them.
+     *
+     * The same blindness the mail accounts had until v0.1.28: plMail asks for a
+     * set of permissions and throws the answer away, so a connection that was
+     * granted read and not write looks identical to one that got everything —
+     * until a save fails, days later, with a message about a permission nobody
+     * can connect to a consent screen they clicked through last week.
+     *
+     * Null on a connection made before this was recorded, and on one whose
+     * provider returned no `scope` — which per OAuth 2.0 means the grant
+     * matched the request. Null means "not known", never "nothing granted".
+     */
+    #[ORM\Column(type: 'text', nullable: true)]
+    public ?string $oauthGrantedScopes = null;
+
     #[ORM\Column]
     public bool $isActive = true;
 

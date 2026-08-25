@@ -2422,6 +2422,15 @@ settings:
                     er läuft und ob sich an Host, Port oder Passwort etwas
                     geändert hat.
                 title: '%account% scheitert immer wieder beim Abgleich'
+            server_alert:
+                body: >-
+                    Dein Mailserver hat diese Nachricht für dich geschickt, hier
+                    Wort für Wort: „%alert%“. plMail kann nichts daran ändern —
+                    ein volles Postfach, ein bald ablaufendes Passwort oder ein
+                    Server, der umzieht, lassen sich nur von dir oder deinem
+                    Anbieter klären. Sie bleibt hier stehen, bis der Server sie
+                    nicht mehr schickt.
+                title: '%account% — eine Nachricht von deinem Mailserver'
             calendar_sync_failing:
                 body: >-
                     Dieser Kalender übernimmt keine Änderungen mehr und zeigt
@@ -2446,6 +2455,15 @@ settings:
                     nur um die Verbindung zu diesem Dienst. An den dort
                     abgelegten Dateien wurde nichts verändert.
                 title: '%connection% muss neu verbunden werden'
+            integration_scope_missing:
+                body: >-
+                    Diese Verbindung funktioniert, aber einige der Rechte, die
+                    plMail angefragt hat, wurden nicht erteilt — Teile davon
+                    funktionieren deshalb nicht und können es auch nicht.
+                    Vielleicht bleibt das Durchsuchen leer, während Speichern
+                    klappt, oder umgekehrt. Verbinde sie neu und erlaube alles,
+                    wonach du gefragt wirst.
+                title: '%connection% hat nicht alle Rechte bekommen'
             push_degraded:
                 body: >-
                     Die Registrierung ist aktiv und nicht abgelaufen, aber es
@@ -2498,6 +2516,12 @@ settings:
                     Fordert diesen Kalender sofort zu einer neuen
                     Synchronisierung auf und setzt ihn zurück auf den normalen
                     Zeitplan. Es wird nichts gelöscht.
+            integration_grant:
+                label: 'Alle Rechte erteilen'
+                promise: >-
+                    Bringt dich zurück zu %connection%, um dich neu anzumelden
+                    und alles zu erteilen, wonach plMail fragt. Was dort liegt,
+                    wird nicht angefasst.
             integration_reconnect:
                 label: 'Neu verbinden'
                 promise: >-

@@ -117,7 +117,9 @@ final readonly class AccountHealthInspector
                 continue;
             }
 
-            $scope = $this->calendarPermission($account) ?? $this->mailboxSync($account);
+            $scope = $this->calendarPermission($account)
+                ?? $this->mailboxSync($account)
+                ?? $this->serverAlert($account);
 
             if (null !== $scope) {
                 $issues[] = $scope;
@@ -483,6 +485,41 @@ final readonly class AccountHealthInspector
     }
 
     /**
+     * What the mail server asked us to tell the user.
+     *
+     * Passed through verbatim, because it is not ours to paraphrase: the server
+     * wrote a sentence for a person to read, and the RFC requires it be shown.
+     * The card's own wording says only where it came from.
+     *
+     * Last of the account checks, and that is not a ranking of importance —
+     * an alert usually explains something rather than replacing it, and a card
+     * that says "your mailbox is full" is more useful under one that says mail
+     * has stopped arriving than instead of it.
+     */
+    private function serverAlert(Account $account): ?HealthIssue
+    {
+        if (null === $account->imapServerAlert || '' === trim($account->imapServerAlert)) {
+            return null;
+        }
+
+        return new HealthIssue(
+            id: 'server-alert-' . $account->id,
+            kind: HealthIssueKind::ServerAlert,
+            severity: HealthSeverity::Warning,
+            subject: $account->email,
+            titleParams: ['%account%' => $account->email],
+            bodyParams: [
+                '%account%' => $account->email,
+                '%alert%'   => $account->imapServerAlert,
+            ],
+            // Nothing to offer. plMail cannot empty somebody's mailbox or
+            // change their password, and a button that did nothing would be
+            // worse than none.
+            repairs: [],
+        );
+    }
+
+    /**
      * Several calendars, one cause, one card.
      *
      * The shape this replaces: an account without calendar permission put a red
@@ -747,7 +784,7 @@ final readonly class AccountHealthInspector
     private function integration(Integration $integration): ?HealthIssue
     {
         if (null === $integration->lastError) {
-            return null;
+            return $this->integrationScope($integration);
         }
 
         return new HealthIssue(
@@ -768,6 +805,53 @@ final readonly class AccountHealthInspector
                 ),
             ],
             detail: $integration->lastError,
+        );
+    }
+
+    /**
+     * A connection that works and was given less than it asked for.
+     *
+     * Reached only when the connection is otherwise healthy, and that ordering
+     * is the point: a broken connection has its own card with the same repair
+     * on it, and telling somebody to re-grant a permission on a service that is
+     * not currently reachable wastes the trip.
+     *
+     * Silent on a null, always. A connection made before the granted scopes
+     * were recorded has none, and so does one whose provider returned no
+     * `scope` — which per OAuth 2.0 means the grant matched the request.
+     * Reporting on either would put a permanent warning on every connection
+     * that predates the column.
+     */
+    private function integrationScope(Integration $integration): ?HealthIssue
+    {
+        $missing = $integration->provider->missingScopes($integration->oauthGrantedScopes);
+
+        if (null === $missing || [] === $missing) {
+            return null;
+        }
+
+        $label = $integration->provider->label();
+
+        return new HealthIssue(
+            id: 'integration-scope-' . $integration->id,
+            kind: HealthIssueKind::IntegrationScopeMissing,
+            severity: HealthSeverity::Warning,
+            subject: $label,
+            titleParams: ['%connection%' => $label],
+            bodyParams: ['%connection%' => $label],
+            repairs: [
+                new HealthRepair(
+                    route: 'app_integration_oauth_connect',
+                    routeParams: ['provider' => $integration->provider->value],
+                    labelKey: 'settings.health.repair.integration_grant.label',
+                    promiseKey: 'settings.health.repair.integration_grant.promise',
+                    promiseParams: ['%connection%' => $label],
+                    pendingKey: 'settings.health.pending.reconnect',
+                    pendingParams: ['%provider%' => $label],
+                ),
+            ],
+            // The scopes as the service spelled them, behind a disclosure.
+            detail: $integration->oauthGrantedScopes,
         );
     }
 
@@ -836,16 +920,36 @@ final readonly class AccountHealthInspector
     /**
      * The distinct failures behind the count, worst-repeated first.
      *
-     * @param list<array{id: string, class: string, error: string|null, failedAt: mixed}> $failed
+     * @param list<array{id: string, class: string, error: string|null, failedAt: mixed, accountId: int|null}> $failed
      */
     private function summarise(array $failed): ?string
     {
+        // Which mailbox each one belonged to, resolved in a single query rather
+        // than one per row. Without this the card could say "50 jobs were given
+        // up on" and not that all fifty were one account whose grant could not
+        // write — which was the entire answer, and was sitting in the envelopes
+        // the whole time.
+        $ids = array_values(array_unique(array_filter(
+            array_column($failed, 'accountId'),
+            static fn (?int $id): bool => null !== $id,
+        )));
+
+        $labels = [];
+
+        foreach ([] !== $ids ? $this->accounts->findBy(['id' => $ids]) : [] as $account) {
+            $labels[(int) $account->id] = (string) $account->email;
+        }
+
         $tally = [];
 
         foreach ($failed as $row) {
             $class = $row['class'];
             $short = substr((string) strrchr($class, '\\'), 1);
-            $key   = ('' !== $short ? $short : $class) . ': ' . ($row['error'] ?? '—');
+            $who   = null !== $row['accountId'] ? ($labels[$row['accountId']] ?? null) : null;
+
+            $key = ('' !== $short ? $short : $class)
+                . (null !== $who ? ' (' . $who . ')' : '')
+                . ': ' . ($row['error'] ?? '—');
 
             $tally[$key] = ($tally[$key] ?? 0) + 1;
         }
