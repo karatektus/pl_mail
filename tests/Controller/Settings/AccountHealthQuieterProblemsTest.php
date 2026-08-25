@@ -104,6 +104,148 @@ final class AccountHealthQuieterProblemsTest extends WebTestCase
         );
     }
 
+    /**
+     * An account connected without the calendar permission says so, and offers
+     * the way to fix it.
+     *
+     * This is the case that produced the report: mail arriving perfectly, three
+     * calendars insisting they had "stopped syncing" with a 403, and nothing
+     * anywhere connecting the two to a box that was not ticked on a consent
+     * screen weeks earlier. The handshake succeeded, so nothing failed at
+     * connect time — which is exactly why it has to be said here.
+     */
+    public function testAnAccountConnectedWithoutCalendarAccessIsReported(): void
+    {
+        $client  = static::createClient();
+        $user    = $this->boot($client);
+        $account = $this->gmailAccount($user, 'no-calendar@joder.dev');
+
+        // Mail granted, calendar declined — a token that works and always will.
+        $account->oauthGrantedScopes = 'https://mail.google.com/';
+        $this->em->flush();
+
+        $crawler = $client->request('GET', '/settings?section=health');
+        $card    = $crawler->filter('[data-health-issue="account-scope-' . $account->id . '"]');
+
+        self::assertSame(1, $card->count(), 'the missing permission is not reported');
+
+        // A repair, not just a diagnosis. A card that explains a problem and
+        // offers nothing is a card that gets read once.
+        self::assertStringContainsString(
+            (string) $this->urlFor($account),
+            $card->html(),
+            'the card does not offer the reconnect that would fix it',
+        );
+    }
+
+    /** A full grant is not a problem, and must not put a card on the page. */
+    public function testAnAccountWithCalendarAccessIsNotReported(): void
+    {
+        $client  = static::createClient();
+        $user    = $this->boot($client);
+        $account = $this->gmailAccount($user, 'with-calendar@joder.dev');
+
+        // The whole requested set, derived rather than spelled out: the two
+        // are the same fact, and a literal list here would go on passing after
+        // somebody added a scope the app now needs.
+        $account->oauthGrantedScopes = implode(' ', MailProvider::Google->scopes());
+        $this->em->flush();
+
+        $crawler = $client->request('GET', '/settings?section=health');
+
+        self::assertSame(0, $crawler->filter('[data-health-issue="account-scope-' . $account->id . '"]')->count());
+    }
+
+    /**
+     * And neither does an account connected before any of this was recorded.
+     *
+     * Null means "not known", never "nothing granted". Reading it as the latter
+     * would put a permanent warning on every account that predates the column,
+     * telling people to re-grant a permission they may well already have.
+     */
+    public function testAnAccountWithNoRecordedScopesIsNotReported(): void
+    {
+        $client  = static::createClient();
+        $user    = $this->boot($client);
+        $account = $this->gmailAccount($user, 'legacy@joder.dev');
+
+        self::assertNull($account->oauthGrantedScopes);
+
+        $crawler = $client->request('GET', '/settings?section=health');
+
+        self::assertSame(0, $crawler->filter('[data-health-issue="account-scope-' . $account->id . '"]')->count());
+    }
+
+    /**
+     * A dead grant and a narrow one are one trip, so they are one card.
+     *
+     * The consent screen is where both are fixed and it is unreachable until
+     * the account is signed in to again. Offering two buttons for one journey
+     * is how a page teaches people to stop reading it — the same reasoning the
+     * push card already follows.
+     */
+    public function testADeadGrantHidesTheScopeCard(): void
+    {
+        $client  = static::createClient();
+        $user    = $this->boot($client);
+        $account = $this->gmailAccount($user, 'both-problems@joder.dev');
+
+        $account->oauthGrantedScopes    = 'https://mail.google.com/';
+        $account->oauthLastRefreshError = 'invalid_grant';
+        $this->em->flush();
+
+        $crawler = $client->request('GET', '/settings?section=health');
+
+        self::assertSame(1, $crawler->filter('[data-health-issue="account-' . $account->id . '"]')->count());
+        self::assertSame(
+            0,
+            $crawler->filter('[data-health-issue="account-scope-' . $account->id . '"]')->count(),
+            'one trip, one card',
+        );
+    }
+
+    /**
+     * A refused export is reported, on an account with no recorded scopes.
+     *
+     * This is the case that matters most in practice and the one a scope check
+     * alone cannot reach: an install that has been broken for weeks, connected
+     * long before any of this was recorded, where the only evidence is Gmail
+     * turning away a batchModify with insufficientPermissions.
+     *
+     * What it looked like without this: select five thousand unread, press mark
+     * as read, watch the screen do nothing for eight seconds, and get nothing
+     * back. The change is applied here, refused there, and undone by the next
+     * sync — and the only trace was a line in a log the user cannot reach.
+     */
+    public function testARefusedExportIsReportedEvenWithNoRecordedScopes(): void
+    {
+        $client  = static::createClient();
+        $user    = $this->boot($client);
+        $account = $this->gmailAccount($user, 'refused@joder.dev');
+
+        self::assertNull($account->oauthGrantedScopes, 'this is the pre-existing-install case');
+
+        $account->exportRefusedReason = 'Gmail messages.batchModify failed with 403 (insufficientPermissions)';
+        $this->em->flush();
+
+        $crawler = $client->request('GET', '/settings?section=health');
+
+        self::assertSame(
+            1,
+            $crawler->filter('[data-health-issue="account-scope-' . $account->id . '"]')->count(),
+            'a permanently refused export is not reported anywhere the user can see',
+        );
+    }
+
+    /** The reconnect this account's repair button should point at. */
+    private function urlFor(Account $account): string
+    {
+        return static::getContainer()->get('router')->generate(
+            'app_health_reconnect',
+            ['id' => $account->id],
+        );
+    }
+
     // ── integrations ─────────────────────────────────────────────────────────
 
     /**

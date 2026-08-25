@@ -55,6 +55,15 @@ use App\Service\Push\PushSubscriptionRegistry;
  */
 final readonly class AccountHealthInspector
 {
+    /**
+     * How many calendar names a grouped card lists before it stops.
+     *
+     * A card is not a list. Six is enough to recognise the set at a glance on
+     * the accounts people actually have, and the remainder is counted rather
+     * than hidden.
+     */
+    private const int NAMES_IN_A_GROUP = 6;
+
     public function __construct(
         private AccountRepository        $accounts,
         private CalendarRepository       $calendars,
@@ -87,12 +96,30 @@ final readonly class AccountHealthInspector
         foreach ($accounts as $account) {
             $issue = $this->accountGrant($account);
 
-            if (null === $issue) {
+            if (null !== $issue) {
+                $issues[]                       = $issue;
+                $deadGrants[(int) $account->id] = $issue->id;
+
+                // A dead grant makes every scope question moot: the consent
+                // screen is unreachable until the account is signed in to
+                // again, and the reconnect above is that same trip. Two cards
+                // asking for one journey is how a page stops being read.
                 continue;
             }
 
-            $issues[]                       = $issue;
-            $deadGrants[(int) $account->id] = $issue->id;
+            $scope = $this->calendarPermission($account);
+
+            if (null !== $scope) {
+                $issues[] = $scope;
+
+                // Registered as a CAUSE, not merely reported. Every calendar on
+                // this account is failing for exactly this reason, and without
+                // this each one raised its own red card offering "Try syncing
+                // now" — a button whose entire behaviour is to fail, three
+                // times over, with nothing on the page connecting any of them
+                // to the permission that was never granted.
+                $deadGrants[(int) $account->id] = $scope->id;
+            }
         }
 
         // A separate pass rather than the same loop: push is only asked about
@@ -106,12 +133,35 @@ final readonly class AccountHealthInspector
             }
         }
 
+        // Calendars failing for a reason already on the page are collected per
+        // cause rather than listed one by one. Three calendars on one account
+        // are three symptoms of a single missing permission, and three cards
+        // saying so is a page that buries its own answer — see calendarGroup().
+        $blocked = [];
+
         foreach ($this->calendars->findForUser($user) as $calendar) {
+            $cause = $this->causeFor($calendar, $deadGrants);
+
+            if (null !== $cause) {
+                $blocked[$cause][] = $calendar;
+
+                continue;
+            }
+
             $issue = $this->calendar($calendar, $deadGrants);
 
             if (null !== $issue) {
                 $issues[] = $issue;
             }
+        }
+
+        foreach ($blocked as $cause => $calendars) {
+            // One calendar is not a group. It keeps its own card, which names
+            // it — "Familie has stopped syncing" tells the user more than "1
+            // calendar is not syncing" ever could.
+            $issues[] = 1 === count($calendars)
+                ? $this->calendar($calendars[0], $deadGrants)
+                : $this->calendarGroup($calendars, (string) $cause);
         }
 
         foreach ($this->integrations->findForUserOrdered($user) as $integration) {
@@ -189,7 +239,9 @@ final readonly class AccountHealthInspector
      */
     public function inspectAccount(Account $account): ?HealthIssue
     {
-        return $this->accountGrant($account) ?? $this->push($account);
+        return $this->accountGrant($account)
+            ?? $this->calendarPermission($account)
+            ?? $this->push($account);
     }
 
     private function accountGrant(Account $account): ?HealthIssue
@@ -246,6 +298,86 @@ final readonly class AccountHealthInspector
     }
 
     /**
+     * The account connected, and without the calendar permission it asked for.
+     *
+     * Ranked BELOW accountGrant() and that order matters: a dead refresh token
+     * makes every scope question moot, and telling somebody to tick a box on a
+     * consent screen they cannot currently reach is advice that wastes a trip.
+     *
+     * Only ever raised on a positive answer. `grantsCalendarAccess()` returns
+     * null when the provider sent no scope back — which per OAuth 2.0 means the
+     * grant matched the request — and null is also what an account connected
+     * before this was recorded looks like. Neither is evidence of anything
+     * missing, and reporting on a null would put a permanent warning on every
+     * account that predates the column.
+     */
+    private function calendarPermission(Account $account): ?HealthIssue
+    {
+        if (AuthType::OAuth2->value !== $account->authType) {
+            return null;
+        }
+
+        $provider = MailProvider::tryFrom((string) $account->oauthProvider);
+
+        if (null === $provider) {
+            return null;
+        }
+
+        // Two ways to learn the same thing, and both are needed.
+        //
+        // The recorded grant is the direct evidence and covers the case before
+        // anything has gone wrong — but it is null for every account connected
+        // before it was recorded, and those are exactly the accounts already
+        // suffering from this.
+        //
+        // A permanently refused export is the indirect evidence, and it is
+        // available immediately: `insufficientPermissions` on a batchModify is
+        // Gmail saying the grant cannot write. That is what makes this useful
+        // on an install that has been broken for weeks rather than only on the
+        // next account somebody connects.
+        $missing  = $provider->missingScopes($account->oauthGrantedScopes) ?? [];
+        $refused  = $account->exportRefusedReason;
+
+        if ([] === $missing && null === $refused) {
+            return null;
+        }
+
+        $providerLabel = $this->providerLabel($account);
+
+        return new HealthIssue(
+            id: 'account-scope-' . $account->id,
+            kind: HealthIssueKind::AccountScopeMissing,
+            // A warning, not a failure: mail works, and it will keep working.
+            // Calling this critical would put it beside "your account has
+            // stopped receiving" and teach people to ignore both.
+            severity: HealthSeverity::Warning,
+            subject: $account->email,
+            titleParams: ['%account%' => $account->email],
+            bodyParams: ['%account%' => $account->email],
+            repairs: [
+                new HealthRepair(
+                    route: 'app_health_reconnect',
+                    routeParams: ['id' => $account->id],
+                    labelKey: 'settings.health.repair.grant_calendar.label',
+                    promiseKey: 'settings.health.repair.grant_calendar.promise',
+                    promiseParams: ['%account%' => $account->email],
+                    pendingKey: null !== $providerLabel
+                        ? 'settings.health.pending.reconnect'
+                        : 'settings.health.pending.reconnect_generic',
+                    pendingParams: null !== $providerLabel
+                        ? ['%provider%' => $providerLabel]
+                        : [],
+                ),
+            ],
+            // Behind a disclosure, like the refresh error: nobody needs to
+            // read this to act, and the one person debugging a tenant policy
+            // needs it exactly. The provider's own refusal first when there is
+            // one — it names the call that was turned away.
+            detail: $refused ?? $account->oauthGrantedScopes,
+        );
+    }
+
+    /**
      * A calendar that has stopped filling in.
      *
      * Attributed to the account's dead grant when there is one. Three calendars
@@ -260,6 +392,71 @@ final readonly class AccountHealthInspector
      *
      * @param array<int, string> $deadGrants account id => the issue id naming it
      */
+    /**
+     * Several calendars, one cause, one card.
+     *
+     * The shape this replaces: an account without calendar permission put a red
+     * card on the page for every calendar on it, each offering a retry that
+     * could only fail, and nothing anywhere connecting the four of them to the
+     * one box that was never ticked.
+     *
+     * The names are listed rather than counted alone, because "which of my
+     * calendars went dark" is the actual question and a number does not answer
+     * it. Capped, because an account can carry dozens and a card is not a list.
+     *
+     * @param list<Calendar> $calendars all failing for the same reason
+     */
+    private function calendarGroup(array $calendars, string $causedBy): HealthIssue
+    {
+        $names = array_map(static fn (Calendar $calendar): string => (string) $calendar->name, $calendars);
+
+        sort($names);
+
+        $shown     = array_slice($names, 0, self::NAMES_IN_A_GROUP);
+        $remaining = count($names) - count($shown);
+
+        // `+3` rather than a translated "and 3 more", because this class emits
+        // keys and parameters and never translated text — that separation is
+        // what lets every string on the page be a translator's to change. A
+        // bare plus and a numeral read the same in every language this ships.
+        $listed = implode(', ', $shown) . (0 < $remaining ? ' +' . $remaining : '');
+
+        $params = ['%count%' => count($names), '%calendars%' => $listed];
+
+        return new HealthIssue(
+            id: 'calendars-blocked-' . $causedBy,
+            kind: HealthIssueKind::CalendarsBlocked,
+            severity: HealthSeverity::Warning,
+            subject: $listed,
+            titleParams: $params,
+            bodyParams: $params,
+            // No repair: it belongs to the card this one is downstream of.
+            repairs: [],
+            causedBy: $causedBy,
+        );
+    }
+
+    /**
+     * The issue already on the page that explains this calendar, if there is one.
+     *
+     * Shared by the grouping above and by calendar() below rather than worked
+     * out twice: the two would disagree the moment one of them learned about a
+     * new kind of cause, and the symptom would be a calendar counted in a group
+     * AND given its own card.
+     *
+     * @param array<int, string> $deadGrants account id => the issue id naming it
+     */
+    private function causeFor(Calendar $calendar, array $deadGrants): ?string
+    {
+        if (null === $calendar->lastSyncError || CalendarRole::Remote !== $calendar->role) {
+            return null;
+        }
+
+        $accountId = $calendar->account?->id;
+
+        return null !== $accountId ? ($deadGrants[(int) $accountId] ?? null) : null;
+    }
+
     private function calendar(Calendar $calendar, array $deadGrants): ?HealthIssue
     {
         if (null === $calendar->lastSyncError) {

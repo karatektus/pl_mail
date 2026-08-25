@@ -19,6 +19,7 @@ account:
             host: Host
         username: Username
     oauth:
+        calendar_declined: The account is connected, but calendar access was not granted — so its calendars will not sync. Reconnect it and tick calendar access on Google's consent screen.
         google: Continue with Google
         info: Sign in with your provider — no password stored.
         microsoft: Continue with Microsoft
@@ -2389,6 +2390,16 @@ settings:
                     authentication is switched on, or the sign-in is revoked
                     from the provider's security page.
                 title: '%account% needs you to sign in again'
+            account_scope_missing:
+                body: >-
+                    Some of the permissions plMail asked for when this account
+                    was connected were not granted, so parts of it do not work
+                    and cannot. Calendars may not sync, and changes you make
+                    here — marking read, archiving, starring — may be applied on
+                    this screen and refused by the provider, then undone by the
+                    next sync. Connect the account again and allow everything
+                    you are asked for.
+                title: '%account% was not given full access'
             calendar_sync_failing:
                 body: >-
                     This calendar has stopped picking up changes, so it is
@@ -2396,6 +2407,13 @@ settings:
                     or moved elsewhere since then are not here yet, and changes
                     you make here are not being sent out.
                 title: '%calendar% has stopped syncing'
+            calendars_blocked:
+                body: >-
+                    All of these stopped for the same reason, which is the card
+                    above — fixing that fixes them together. They are showing
+                    what they knew the last time they worked, and nothing on
+                    them has been deleted.
+                title: '%count% calendars are not syncing: %calendars%'
             integration_reconnect:
                 body: >-
                     Saving attachments to %connection% and attaching files from
@@ -2474,6 +2492,12 @@ settings:
                 promise: >-
                     Tries the abandoned jobs once more. Safe to press — any
                     that fail again simply end up back here.
+            grant_calendar:
+                label: 'Grant full access'
+                promise: >-
+                    Takes you back to the provider to sign in as %account% and
+                    grant everything plMail asks for. Nothing about your mail
+                    changes, and no mail is re-downloaded.
             reconnect:
                 label: 'Reconnect this account'
                 promise: >-

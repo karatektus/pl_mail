@@ -15,6 +15,7 @@ use App\Service\OAuth\OAuthProviderFactory;
 use App\Service\OAuth\OAuthStateStore;
 use App\Service\Onboarding\OnboardingFlow;
 use League\OAuth2\Client\Provider\Exception\IdentityProviderException;
+use League\OAuth2\Client\Token\AccessTokenInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\RedirectResponse;
@@ -189,6 +190,7 @@ class OAuthController extends AbstractController
 
         if (false === is_int($reconnect)) {
             $this->accountLinker->link($user, $mailProvider, $email, $token);
+            $this->warnIfCalendarWasDeclined($mailProvider, $token);
 
             return $this->redirectToRoute($this->landingRoute());
         }
@@ -223,10 +225,59 @@ class OAuthController extends AbstractController
             '%account%' => $account->email,
         ]));
 
+        $this->warnIfCalendarWasDeclined($mailProvider, $token);
+
         return $this->redirectToRoute('app_settings_index', ['section' => 'health']);
     }
 
     // ── Private ───────────────────────────────────────────────────────────────
+
+    /**
+     * Say so NOW when the calendar permission was asked for and not given.
+     *
+     * The durable half of this is the health card built from
+     * Account::$oauthGrantedScopes — a flash is gone on the next click, and the
+     * shortfall lasts until somebody fixes it. This is the immediate half, said
+     * at the one moment the user remembers the consent screen they just saw.
+     *
+     * Google's consent screen offers sensitive scopes as individual tick boxes,
+     * so a user can grant mail and decline calendar and still come back with a
+     * perfectly valid token. Nothing about the handshake fails. The account
+     * connects, the app says so, and the missing permission surfaces days later
+     * as three calendars that "stopped syncing" with a 403 — by which time the
+     * consent screen is a distant memory and the message reads like a fault in
+     * plMail.
+     *
+     * The token response is where the truth is: OAuth 2.0 requires the
+     * authorization server to return the granted `scope` whenever it differs
+     * from the requested one, and Google returns it every time. It was being
+     * discarded.
+     *
+     * A warning rather than a refusal, and the account is linked either way:
+     * mail works, that is most of what people connect an account for, and
+     * throwing the whole connection away over a permission somebody may not
+     * want to give would be worse than telling them what they will be missing.
+     *
+     * Google only. Microsoft consents to the requested set as a whole — see
+     * MailProvider::scopes(), which says so — and its token response spells
+     * scopes differently enough that comparing them would invent a warning
+     * where there is no problem.
+     */
+    private function warnIfCalendarWasDeclined(MailProvider $provider, AccessTokenInterface $token): void
+    {
+        $granted = $token->getValues()['scope'] ?? null;
+
+        if (false !== $provider->grantsCalendarAccess(is_string($granted) ? $granted : null)) {
+            return;
+        }
+
+        $this->logger->warning('Account connected without calendar access', [
+            'provider' => $provider->value,
+            'granted'  => $granted,
+        ]);
+
+        $this->addFlash('warning', $this->translator->trans('account.oauth.calendar_declined'));
+    }
 
     private function resolveProvider(string $provider): MailProvider
     {

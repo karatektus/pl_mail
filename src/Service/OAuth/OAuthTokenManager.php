@@ -117,6 +117,30 @@ class OAuthTokenManager
 
         $account->oauthAccessToken = $newToken->getToken();
 
+        // THE BACKFILL, and the only one there can be.
+        //
+        // What a provider granted cannot be recovered from a stored token — it
+        // is in the response that delivered it, and that response is long gone
+        // for every account connected before this was recorded. A refresh gets
+        // a fresh one, and both providers return `scope` on it, so every
+        // working account fills itself in on its next refresh: within the hour
+        // for an active one, without a migration that would have to invent the
+        // answer.
+        //
+        // An account whose refresh FAILS never gets here, and does not need to:
+        // a dead grant already has its own card, and it outranks this one for
+        // the good reason that a consent screen is unreachable until you can
+        // sign in again.
+        //
+        // Absent means "unchanged from what was asked for" per OAuth 2.0, so a
+        // response without it must leave the column alone rather than blank it
+        // — writing null here would un-backfill an account on every refresh.
+        $granted = $newToken->getValues()['scope'] ?? null;
+
+        if (true === is_string($granted) && '' !== trim($granted)) {
+            $account->oauthGrantedScopes = trim($granted);
+        }
+
         $expires = $newToken->getExpires();
         if (null !== $expires) {
             $account->oauthTokenExpiry = new DateTimeImmutable()->setTimestamp($expires);

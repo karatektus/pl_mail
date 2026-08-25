@@ -118,6 +118,94 @@ enum MailProvider: string
     }
 
     /**
+     * Whether a grant we were actually given includes calendar access.
+     *
+     * The question exists because the answer is routinely no. Google's consent
+     * screen offers sensitive scopes as individual tick boxes, so a user can
+     * grant mail, decline calendar, and come back with a token that works
+     * perfectly for everything except the thing they declined — nothing about
+     * the handshake fails. Microsoft consents to the requested set as a whole,
+     * but an admin can restrict what a tenant will hand out, and the result
+     * arrives the same way: a narrower `scope` in the token response.
+     *
+     * OAuth 2.0 requires the authorization server to return the granted `scope`
+     * whenever it differs from the request, and both providers return it every
+     * time. Comparing it against what was asked for is the only way to learn
+     * this at CONNECT time rather than days later, when a sync 403s and the
+     * consent screen is a distant memory.
+     *
+     * @param string|null $granted the `scope` value from the token response
+     *
+     * @return bool|null null when there is nothing to judge — no scope string
+     *                   came back, so the grant matched the request
+     */
+    public function grantsCalendarAccess(?string $granted): ?bool
+    {
+        $missing = $this->missingScopes($granted);
+
+        if (null === $missing) {
+            return null;
+        }
+
+        return [] === array_intersect($missing, $this->calendarScopes());
+    }
+
+    /**
+     * Everything that was asked for and not given.
+     *
+     * Calendar is the case people notice, because a calendar that stops
+     * updating is visible. It is not the worst one. A Google account granted
+     * read-only mail accepts every sign-in, syncs perfectly, and then refuses
+     * `messages.batchModify` with 403 insufficientPermissions — so marking five
+     * thousand conversations read succeeds locally, never reaches Gmail, and is
+     * quietly undone by the next sync. Nothing about that is visible anywhere
+     * unless the granted set is compared against the requested one.
+     *
+     * @param string|null $granted the `scope` value from the token response
+     *
+     * @return list<string>|null the requested scopes that were withheld, or
+     *                           null when there is nothing to judge
+     */
+    public function missingScopes(?string $granted): ?array
+    {
+        if (null === $granted || '' === trim($granted)) {
+            return null;
+        }
+
+        $held    = array_map($this->normaliseScope(...), explode(' ', trim($granted)));
+        $missing = [];
+
+        foreach ($this->scopes() as $wanted) {
+            if (false === in_array($this->normaliseScope($wanted), $held, true)) {
+                $missing[] = $wanted;
+            }
+        }
+
+        return $missing;
+    }
+
+    /**
+     * One spelling of a scope, so two spellings of the same one compare equal.
+     *
+     * Necessary rather than fastidious: Microsoft accepts
+     * `https://graph.microsoft.com/Calendars.ReadWrite` in the request and
+     * answers with a bare `Calendars.ReadWrite`, in whatever case it feels
+     * like. A literal comparison would report every Microsoft account as
+     * missing calendar access.
+     *
+     * The host prefix is stripped and nothing else. Trimming to the last path
+     * segment would be wrong for Google, where `auth/calendar` and
+     * `auth/calendar.events` are different permissions that must not collapse
+     * into one.
+     */
+    private function normaliseScope(string $scope): string
+    {
+        $bare = preg_replace('#^https?://[^/]+/#i', '', trim($scope)) ?? $scope;
+
+        return strtolower(rtrim($bare, '/'));
+    }
+
+    /**
      * Extra parameters appended to the authorization URL.
      *
      * Google needs prompt=consent (plus accessType=offline, set on the league

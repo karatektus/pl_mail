@@ -1,4 +1,4 @@
-<!-- translated-from: features/accounts.md sha1:6ad89a74b057dbd544fc063cc0d44711c7ba344e -->
+<!-- translated-from: features/accounts.md sha1:3c63f9c65f0a7e82c8dd84517d821aa08ddc9aa6 -->
 
 # Konten und Aliase
 
@@ -44,6 +44,19 @@ beim Anbieter registrieren, bevor der Knopf überhaupt etwas tut. Ist das erledi
 **Konto hinzufügen** auf dem Reiter **OAuth** die Punkte **Weiter mit Google** und **Weiter mit
 Microsoft** an, und der gesamte Ablauf ist die Zustimmungsseite des Anbieters selbst — hier
 wird überhaupt kein Passwort gespeichert.
+
+**Erteile alles, wonach die Zustimmungsseite fragt.** Googles Seite listet die Berechtigungen als
+einzelne Häkchen auf und lässt dich jedes davon ablehnen — und ein abgelehntes Häkchen lässt die
+Anmeldung nicht scheitern. Das Konto wird verbunden, plMail sagt das auch, und der Teil, den du
+zurückgehalten hast, funktioniert still und leise nicht: Kalender, die nie synchronisieren, oder
+Mail, bei der Als-gelesen-markieren und Archivieren auf dem Bildschirm zu klappen scheinen, von
+Google abgelehnt werden und beim nächsten Abgleich wieder verschwinden. Ein Microsoft-Tenant kann
+dieselben Rechte per Richtlinie zurückhalten.
+
+plMail vergleicht jetzt, was es bekommen hat, mit dem, wonach es gefragt hat, und zeigt bei einem
+Unterschied eine Karte unter **Kontozustand** — mit einem Knopf, um das Konto neu zu verbinden und
+den Rest zu erteilen. Wenn du ein Konto verbunden hast, bevor es das gab, erscheint die Karte beim
+ersten Erneuern der Anmeldung oder sobald eine Änderung zum ersten Mal abgelehnt wird.
 
 Microsoft-Konten laufen über Graph statt über IMAP. Das ist Absicht: Exchange Online behandelt
 IMAP als Altlast-Authentifizierung und blockiert es in jedem Tenant, der die Security Defaults

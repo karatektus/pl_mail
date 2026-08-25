@@ -359,25 +359,42 @@ final class AccountHealthSectionTest extends WebTestCase
 
         $crawler = $client->request('GET', '/settings?section=health');
 
+        // ONE card for the three of them, not three.
+        //
+        // They were listed individually until somebody looked at the live
+        // install and counted: four red cards, three of them symptoms of the
+        // first, each offering a retry that could only fail. Attribution alone
+        // was not enough — it demoted them and still printed three of them.
+        $group = $crawler->filter('[data-health-issue="calendars-blocked-account-' . $account->id . '"]');
+
+        self::assertSame(1, $group->count(), 'the blocked calendars were not collapsed into one card');
+
         foreach ($calendars as $calendar) {
-            $card = $crawler->filter('[data-health-issue="calendar-' . $calendar->id . '"]');
-
-            self::assertSame(1, $card->count(), 'the calendar is still listed by name');
             self::assertSame(
-                'account-' . $account->id,
-                $card->attr('data-health-caused-by'),
-                'and it is attributed to the sign-in that caused it',
-            );
-            self::assertSame(
-                'warning',
-                $card->attr('data-health-severity'),
-                'a consequence is not a second emergency',
+                0,
+                $crawler->filter('[data-health-issue="calendar-' . $calendar->id . '"]')->count(),
+                'a blocked calendar still has a card of its own beside the group',
             );
 
-            // No retry button: with the grant dead, "try again" is a button
-            // whose entire behaviour is to fail.
-            self::assertSame(0, $card->filter('form[action*="/resync"]')->count());
+            // Named inside the group, though. "Which of my calendars went dark"
+            // is the actual question and a count does not answer it.
+            self::assertStringContainsString((string) $calendar->name, $group->text());
         }
+
+        self::assertSame(
+            'account-' . $account->id,
+            $group->attr('data-health-caused-by'),
+            'and the group is attributed to the sign-in that caused it',
+        );
+        self::assertSame(
+            'warning',
+            $group->attr('data-health-severity'),
+            'a consequence is not a second emergency',
+        );
+
+        // No retry button: with the grant dead, "try again" is a button whose
+        // entire behaviour is to fail — and the repair is on the card above.
+        self::assertSame(0, $group->filter('form[action*="/resync"]')->count());
 
         // The badge counts ONE thing to do, not four.
         $badge = $crawler->filter('nav a[href*="section=health"] span.rounded-full');

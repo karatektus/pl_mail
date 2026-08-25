@@ -19,6 +19,7 @@ account:
             host: Port o' call
         username: Name ye go by
     oauth:
+        calendar_declined: The account be aboard, but ye never granted the almanac — so its calendars will not sync. Sign in again and tick the calendar box when Google asks.
         google: Sail on with Google
         info: Sign on with yer harbourmaster — no secret word be kept aboard.
         microsoft: Sail on with Microsoft
@@ -2040,6 +2041,15 @@ settings:
                     lock be thrown, or when th'' harbourmaster tears up yer
                     papers.
                 title: '%account% must sign on again'
+            account_scope_missing:
+                body: >-
+                    Some leave plMail asked for when ye signed this account on
+                    were never granted, so parts of it cannot work. Almanacs may
+                    not sync, and changes ye make here — markin' read, stowin',
+                    starrin' — may take on this screen, be refused by the
+                    provider, and be undone at the next reckonin'. Sign on again
+                    and grant all that ye be asked.
+                title: '%account% never got full leave'
             calendar_sync_failing:
                 body: >-
                     This almanac has stopped takin'' on changes, so she shows
@@ -2047,6 +2057,12 @@ settings:
                     shifted elsewhere since then be not aboard, an'' yer own
                     changes be not gettin'' out.
                 title: '%calendar% has stopped sailin'''
+            calendars_blocked:
+                body: >-
+                    All becalmed for the one reason, which be the card above —
+                    mend that and they all sail again. They show what they knew
+                    when last they worked, and naught upon them be lost.
+                title: '%count% almanacs be becalmed: %calendars%'
             integration_reconnect:
                 body: >-
                     Stowin'' cargo at %connection% an'' haulin'' it back will
@@ -2124,6 +2140,12 @@ settings:
                 promise: >-
                     Tries th'' abandoned tasks once more. Safe t'' press — any
                     that fail again just wash back up here.
+            grant_calendar:
+                label: 'Grant full leave'
+                promise: >-
+                    Takes ye back to sign on as %account% and grant all that be
+                    asked. Naught about yer post changes, and no post be hauled
+                    again.
             reconnect:
                 label: 'Sign this one on again'
                 promise: >-

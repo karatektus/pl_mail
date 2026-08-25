@@ -114,6 +114,45 @@ class Account extends AccountModel
     #[ORM\Column(nullable: true)]
     public ?DateTimeImmutable $oauthTokenExpiry = null;
 
+    /**
+     * The scopes the provider actually GRANTED, as it spelled them.
+     *
+     * Not the scopes we asked for — those are a constant and live on
+     * MailProvider. This is the answer, and it is routinely narrower than the
+     * question: Google lets a user decline calendar access on the consent
+     * screen and still hands back a working token, and a Microsoft tenant can
+     * be configured to withhold the same permission.
+     *
+     * Stored because the difference is otherwise learned days later, as
+     * calendars that "stopped syncing" with a 403 — see
+     * MailProvider::grantsCalendarAccess() and the health card built from it.
+     *
+     * Null on an account connected before this was recorded, and on one that
+     * does not use OAuth at all. Null means "not known", never "nothing
+     * granted": nothing may be reported as missing on the strength of it.
+     */
+    #[ORM\Column(type: 'text', nullable: true)]
+    public ?string $oauthGrantedScopes = null;
+
+    /**
+     * Why the provider last refused a change we tried to push, permanently.
+     *
+     * Set when an export is turned away for a reason that will not change on
+     * its own — insufficient scopes, above all. Cleared by the next export that
+     * works, so it describes the present rather than a bad afternoon.
+     *
+     * It exists because the alternative is silence. A refused export leaves the
+     * change applied HERE and nowhere else: marking five thousand conversations
+     * read succeeds on screen, never reaches Gmail, and is undone by the next
+     * sync — with nothing but a log line to say why. This is what the health
+     * page reads to say it out loud.
+     *
+     * Null on an account that has never had one refused, which is almost all of
+     * them.
+     */
+    #[ORM\Column(type: 'text', nullable: true)]
+    public ?string $exportRefusedReason = null;
+
     #[ORM\Column]
     public ?bool $isActive = null;
 

@@ -37,6 +37,18 @@ button does anything. Once that is done, **Add account** offers **Continue with 
 **Continue with Microsoft** on the **OAuth** tab, and the whole flow is the provider's own consent
 screen — no password is stored here at all.
 
+**Grant everything the consent screen asks for.** Google's screen lists the permissions as separate
+tick boxes and lets you decline any of them — and declining one does not fail the sign-in. The
+account connects, plMail says so, and the part you withheld quietly does not work: calendars that
+never sync, or mail where marking read and archiving appear to work on screen, are refused by
+Google, and are undone by the next sync. A Microsoft tenant can withhold the same permissions by
+policy.
+
+plMail now compares what it was given against what it asked for and puts a card on **Account
+health** when they differ, with a button to connect again and grant the rest. If you connected an
+account before this existed, the card appears the first time the account refreshes its sign-in, or
+the first time a change is refused.
+
 Microsoft accounts go through Graph rather than IMAP. That is deliberate: Exchange Online treats
 IMAP as legacy authentication and blocks it in any tenant running Security Defaults.
 

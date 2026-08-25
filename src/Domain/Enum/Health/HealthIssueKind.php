@@ -27,6 +27,25 @@ enum HealthIssueKind: string
     case AccountReconnect = 'account_reconnect';
 
     /**
+     * The grant WORKS, and is narrower than what was asked for.
+     *
+     * Distinct from AccountReconnect on purpose: nothing is broken, mail is
+     * arriving, and the token will refresh happily for years. What is missing
+     * is a permission the user was offered and did not give — Google's consent
+     * screen ticks sensitive scopes individually, and a Microsoft tenant can be
+     * configured to withhold one.
+     *
+     * It has to be its own card because the alternative is silence. The
+     * handshake succeeds, so nothing fails at connect time; the shortfall
+     * surfaces days later as calendars that "stopped syncing" with a 403, which
+     * reads as a fault in plMail rather than a permission nobody granted.
+     *
+     * The repair is the same reconnect, with a different thing to do on the
+     * consent screen — which is why the wording, not the button, is the point.
+     */
+    case AccountScopeMissing = 'account_scope_missing';
+
+    /**
      * A calendar whose sync answers the same way every time — see
      * CalendarSyncPermanentException. Surfaced per calendar rather than rolled
      * into the account, because "reconnect and allow calendar access" and
@@ -34,6 +53,24 @@ enum HealthIssueKind: string
      * calendars went dark.
      */
     case CalendarSyncFailing = 'calendar_sync_failing';
+
+    /**
+     * SEVERAL calendars on one account, all stopped for the same reason, and
+     * that reason already has a card of its own further up the page.
+     *
+     * One card because it is one problem. A Google account whose grant is dead,
+     * or which was never given calendar permission, takes every calendar on it
+     * down at once — and listing them individually produced four red cards each
+     * offering "Try syncing now", a button whose entire behaviour there is to
+     * fail. The page buried its own answer under its own symptoms.
+     *
+     * No repair of its own, deliberately: the repair is on the card this one
+     * points at, and offering a second button for the same trip is how a page
+     * teaches people to stop reading it. A single blocked calendar keeps its
+     * own card instead — "Familie has stopped syncing" says more than "1
+     * calendar is not syncing" ever could.
+     */
+    case CalendarsBlocked = 'calendars_blocked';
 
     /**
      * The push registration is alive and unexpired, and mail is arriving by
@@ -75,7 +112,14 @@ enum HealthIssueKind: string
     {
         return match ($this) {
             self::AccountReconnect     => HealthSeverity::Critical,
+            // Warning, not Critical: mail is arriving and will keep arriving.
+            // Sitting this beside "your account has stopped receiving" would
+            // teach people to read past both.
+            self::AccountScopeMissing  => HealthSeverity::Warning,
             self::CalendarSyncFailing  => HealthSeverity::Critical,
+            // A consequence, never a second emergency: the cause above is the
+            // thing to act on, and this must not add to the topbar count.
+            self::CalendarsBlocked     => HealthSeverity::Warning,
             self::IntegrationReconnect => HealthSeverity::Warning,
             self::QueueWorkAbandoned   => HealthSeverity::Warning,
             // ── Why push is no longer a Notice ────────────────────────────────
@@ -117,7 +161,10 @@ enum HealthIssueKind: string
     {
         return match ($this) {
             self::AccountReconnect     => 'fa-link-slash',
+            // A permission that was not given, rather than a link that broke.
+            self::AccountScopeMissing  => 'fa-calendar-day',
             self::CalendarSyncFailing  => 'fa-calendar-xmark',
+            self::CalendarsBlocked     => 'fa-calendar-xmark',
             // fa-tower-broadcast, not fa-bolt-slash: the latter is a Pro icon
             // and is not in the Free build this app ships, so it rendered as
             // nothing at all — an empty square where every other card has a

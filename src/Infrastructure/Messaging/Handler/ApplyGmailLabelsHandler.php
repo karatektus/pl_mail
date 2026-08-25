@@ -83,6 +83,14 @@ final class ApplyGmailLabelsHandler
             }
 
             $this->apiClient->batchModify($account, $gmailIds, $addLabelIds, $removeLabelIds);
+
+            // It worked, so whatever was wrong is not wrong now. Cleared here
+            // rather than left to expire, because the health card built from it
+            // has to describe the present.
+            if (null !== $account->exportRefusedReason) {
+                $account->exportRefusedReason = null;
+                $this->em->flush();
+            }
         } catch (GmailPermanentException $e) {
             // Deliberately the only failure that stops here. Anything else —
             // a quota rejection, a 5xx, a dropped connection — leaves the
@@ -95,6 +103,22 @@ final class ApplyGmailLabelsHandler
                 'reason'    => $e->getReason(),
                 'error'     => $e->getMessage(),
             ]);
+
+            // AND SAID WHERE SOMEBODY WILL SEE IT.
+            //
+            // A log line was the whole of it, and the consequence is not small:
+            // the change is applied here and refused there, so marking five
+            // thousand conversations read appears to work, never reaches Gmail,
+            // and is undone by the next sync. From the outside that is a button
+            // that does nothing, twice, with no explanation available anywhere
+            // a user can reach.
+            //
+            // AccountHealthInspector turns this into a card with a reconnect on
+            // it, because for the reason this actually happens —
+            // insufficientPermissions, a grant that was never given the scope
+            // to write — reconnecting IS the repair.
+            $account->exportRefusedReason = mb_substr($e->getMessage(), 0, 500);
+            $this->em->flush();
         }
     }
 

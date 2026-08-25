@@ -19,6 +19,7 @@ account:
             host: Server
         username: Benutzername
     oauth:
+        calendar_declined: Das Konto ist verbunden, aber der Kalenderzugriff wurde nicht erteilt — seine Kalender werden also nicht synchronisiert. Verbinde es neu und hak auf Googles Zustimmungsseite den Kalenderzugriff an.
         google: Weiter mit Google
         info: Melde dich bei deinem Anbieter an — es wird kein Passwort gespeichert.
         microsoft: Weiter mit Microsoft
@@ -2396,6 +2397,18 @@ settings:
                     oder die Zwei-Faktor-Anmeldung eingeschaltet wurde, oder
                     wenn die Anmeldung beim Anbieter widerrufen wurde.
                 title: '%account% muss sich neu anmelden'
+            account_scope_missing:
+                body: >-
+                    Einige Rechte, die plMail beim Verbinden dieses Kontos
+                    angefragt hat, wurden nicht erteilt — deshalb funktionieren
+                    Teile davon nicht und können es auch nicht. Kalender werden
+                    womöglich nicht synchronisiert, und Änderungen, die du hier
+                    machst — als gelesen markieren, archivieren, markieren —
+                    werden vielleicht auf diesem Bildschirm übernommen, vom
+                    Anbieter abgelehnt und beim nächsten Abgleich wieder
+                    zurückgesetzt. Verbinde das Konto neu und erlaube alles,
+                    wonach du gefragt wirst.
+                title: '%account% hat nicht alle Rechte bekommen'
             calendar_sync_failing:
                 body: >-
                     Dieser Kalender übernimmt keine Änderungen mehr und zeigt
@@ -2404,6 +2417,14 @@ settings:
                     verschoben wurden, fehlen hier — und deine Änderungen
                     werden nicht nach außen übertragen.
                 title: '%calendar% synchronisiert nicht mehr'
+            calendars_blocked:
+                body: >-
+                    Alle aus demselben Grund stehengeblieben — dem Grund in der
+                    Karte darüber. Wenn du den behebst, laufen sie wieder,
+                    alle zusammen. Sie zeigen, was sie beim letzten
+                    funktionierenden Abgleich wussten, und es wurde nichts
+                    gelöscht.
+                title: '%count% Kalender werden nicht synchronisiert: %calendars%'
             integration_reconnect:
                 body: >-
                     Anhänge in %connection% zu speichern und Dateien von dort
@@ -2487,6 +2508,13 @@ settings:
                     Versucht die liegen gebliebenen Aufgaben noch einmal.
                     Unbedenklich — was erneut scheitert, landet einfach wieder
                     hier.
+            grant_calendar:
+                label: 'Alle Rechte erteilen'
+                promise: >-
+                    Bringt dich zurück zum Anbieter, um dich als %account%
+                    anzumelden und alles zu erteilen, wonach plMail fragt. An
+                    deiner Mail ändert sich nichts, und es wird nichts neu
+                    geladen.
             reconnect:
                 label: 'Konto neu verbinden'
                 promise: >-

@@ -104,7 +104,8 @@ final readonly class OAuthAccountLinker
             throw new AccountIdentityMismatch($account->email, $email);
         }
 
-        $account->oauthAccessToken = $token->getToken();
+        $account->oauthAccessToken   = $token->getToken();
+        $account->oauthGrantedScopes = $this->grantedScopes($token);
 
         $refreshToken = $token->getRefreshToken();
 
@@ -204,7 +205,8 @@ final readonly class OAuthAccountLinker
         $account->authType = AuthType::OAuth2->value;
         $account->oauthProvider = $provider->value;
         $account->password = null;
-        $account->oauthAccessToken = $token->getToken();
+        $account->oauthAccessToken   = $token->getToken();
+        $account->oauthGrantedScopes = $this->grantedScopes($token);
 
         $imapHost = $provider->imapHost();
 
@@ -261,5 +263,24 @@ final readonly class OAuthAccountLinker
             $account->pushEnabled = false;
             $this->em->flush();
         }
+    }
+    /**
+     * What the provider says it actually granted, or null when it did not say.
+     *
+     * OAuth 2.0 requires the `scope` member only when the grant DIFFERS from
+     * the request, so its absence means "you got what you asked for". Recorded
+     * as-is, in the provider's own spelling; MailProvider::grantsCalendarAccess()
+     * is what knows how to read it, because how a scope is spelled is a
+     * property of the provider rather than of this.
+     */
+    private function grantedScopes(AccessTokenInterface $token): ?string
+    {
+        $granted = $token->getValues()['scope'] ?? null;
+
+        if (false === is_string($granted) || '' === trim($granted)) {
+            return null;
+        }
+
+        return trim($granted);
     }
 }
