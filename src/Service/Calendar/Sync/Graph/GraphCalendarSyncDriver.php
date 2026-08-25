@@ -15,6 +15,7 @@ use App\Domain\Enum\Account\MailProvider;
 use App\Domain\Exception\CalendarResyncRequiredException;
 use App\Domain\Exception\CalendarSyncException;
 use App\Domain\Exception\CalendarSyncPermanentException;
+use App\Domain\Exception\OAuthGrantRevokedException;
 use App\Domain\Exception\CalendarSyncThrottledException;
 use App\Domain\Interface\CalendarSyncDriverInterface;
 use App\Entity\Calendar\Calendar;
@@ -955,9 +956,19 @@ final readonly class GraphCalendarSyncDriver implements CalendarSyncDriverInterf
     {
         try {
             return $this->tokens->getValidAccessToken($account);
-        } catch (\Throwable $e) {
+        } catch (OAuthGrantRevokedException $e) {
             throw new CalendarSyncPermanentException(
                 'Microsoft would not renew the sign-in for this account. Reconnect it in the account settings.',
+                401,
+                $e,
+            );
+        } catch (\Throwable $e) {
+            // Not every failed refresh is a dead grant. This used to write the
+            // account off for a timeout against Entra's token endpoint, which
+            // is a retry that WOULD have worked — the permanent branch above is
+            // now taken only when the provider has said the grant is finished.
+            throw new CalendarSyncException(
+                'Microsoft could not renew the sign-in for this account.',
                 401,
                 $e,
             );

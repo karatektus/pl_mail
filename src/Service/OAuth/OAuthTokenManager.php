@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Service\OAuth;
 
 use App\Domain\Enum\Account\MailProvider;
+use App\Domain\Exception\OAuthGrantRevokedException;
 use App\Entity\Mail\Account;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
@@ -75,7 +76,11 @@ class OAuthTokenManager
         $refreshToken = $account->oauthRefreshToken;
 
         if (null === $refreshToken) {
-            throw new \RuntimeException(sprintf(
+            // Nothing to refresh WITH, which is as permanent as a refusal —
+            // and arrives for an account half-way through being connected, or
+            // one whose provider never returned a refresh token because the
+            // consent screen was skipped.
+            throw new OAuthGrantRevokedException(sprintf(
                 'Account %d has no refresh token; the account must be reconnected.',
                 $account->id,
             ));
@@ -88,8 +93,24 @@ class OAuthTokenManager
                 'refresh_token' => $refreshToken,
             ]);
         } catch (Throwable $e) {
+            // Recorded before anything is decided about retrying: this is what
+            // AccountHealthInspector reads to offer the Reconnect button, and
+            // it has to be there whether the message is tried again or not.
             $account->oauthLastRefreshError = $e->getMessage();
             $this->em->flush();
+
+            // A revoked grant answers identically every time, so it is raised
+            // as something Messenger will not retry. Everything else — a
+            // timeout, a 500, a DNS failure — stays exactly as it was and is
+            // tried again; see OAuthGrantRevokedException on why that line is
+            // drawn at the provider's error code and nowhere else.
+            if (true === OAuthGrantRevokedException::isTerminal($e)) {
+                throw new OAuthGrantRevokedException(
+                    sprintf('The sign-in for account %d has been revoked or has expired.', $account->id),
+                    0,
+                    $e,
+                );
+            }
 
             throw $e;
         }

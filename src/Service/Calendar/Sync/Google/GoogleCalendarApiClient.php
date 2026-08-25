@@ -6,6 +6,7 @@ namespace App\Service\Calendar\Sync\Google;
 
 use App\Domain\Exception\CalendarResyncRequiredException;
 use App\Domain\Exception\CalendarSyncException;
+use App\Domain\Exception\OAuthGrantRevokedException;
 use App\Domain\Exception\CalendarSyncPermanentException;
 use App\Domain\Exception\CalendarSyncThrottledException;
 use App\Entity\Mail\Account;
@@ -326,10 +327,15 @@ final readonly class GoogleCalendarApiClient
      * IdentityProviderException for a revoked grant, a Guzzle exception for a
      * network fault — and letting either out would break the contract that
      * every failure crossing the driver boundary is a CalendarSyncException.
-     * Left unclassified rather than called permanent: a refused refresh and a
-     * timeout on the token endpoint arrive here as the same kind of object, and
-     * writing off an account because Google's token endpoint was briefly slow
-     * is worse than one more attempt.
+     * Classified from the token manager's own answer. A refused refresh and a
+     * timeout on the token endpoint used to arrive here as the same kind of
+     * object, so everything was left retryable and a revoked grant produced
+     * five identical CRITICAL lines per calendar. OAuthTokenManager now
+     * distinguishes them at the only place that can — the provider's OAuth
+     * error code — and a dead grant arrives as OAuthGrantRevokedException.
+     *
+     * Writing off an account because Google's token endpoint was briefly slow
+     * is still worse than one more attempt, and that case is still retried.
      *
      * @throws CalendarSyncException
      */
@@ -337,6 +343,12 @@ final readonly class GoogleCalendarApiClient
     {
         try {
             return $this->tokenManager->getValidAccessToken($account);
+        } catch (OAuthGrantRevokedException $e) {
+            throw new CalendarSyncPermanentException(
+                'Google would not renew the sign-in for this account. Reconnect it in the account settings.',
+                0,
+                $e,
+            );
         } catch (\Throwable $e) {
             throw new CalendarSyncException(
                 'Google would not renew the sign-in for this account.',
