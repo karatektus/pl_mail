@@ -195,6 +195,7 @@
            row, and a refresh landing mid-run undoes the rows it has already
            finished. See mail_pane_controller#hold. #}
         data-action="core--mercure:mailbox-synced->mail--mail-pane#onMailboxSynced
+                     core--mercure:account-synced->mail--mail-pane#onAccountSynced
                      mail--list-toolbar:writing->mail--mail-pane#hold
                      mail--list-toolbar:written->mail--mail-pane#release"
         data-mail--mail-pane-open-value="{% block pane_open %}false{% endblock %}"

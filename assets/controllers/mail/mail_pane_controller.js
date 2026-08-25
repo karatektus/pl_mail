@@ -423,6 +423,31 @@ export default class extends Controller {
         }
     }
 
+    /**
+     * An account finished syncing, without saying which mailbox changed.
+     *
+     * Gmail and Graph publish this instead of mailbox.synced — they have no
+     * per-mailbox sync to report — and so does a demo delivery, whose account
+     * has no Mailbox rows at all because nothing ever connected to an IMAP
+     * server to enumerate them. Nothing listened for it here, so on those
+     * accounts new mail moved the sidebar counts and never appeared in the
+     * list until the next navigation. On the demo that was starker: the
+     * Receive button published, the badge moved, and the list sat unchanged.
+     *
+     * Treated like the polling fallback rather than like a mailbox event,
+     * because it carries the same amount of information: something in this
+     * account changed and there is no way to tell whether it was the view on
+     * screen. Refreshing whatever is open is the only correct answer, and
+     * _refreshList()'s own floor keeps a burst to one request.
+     */
+    onAccountSynced() {
+        if (false === this.hasListTarget) {
+            return;
+        }
+
+        this._refreshList();
+    }
+
     _affectsCurrentView(data) {
         if (!this.hasListTarget) {
             return false;

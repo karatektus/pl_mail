@@ -199,15 +199,53 @@ export default class extends Controller {
      * the user is already looking at.
      */
     _opensAVisibleMenu(trigger) {
-        const dropdown = trigger.closest('[data-controller~="ui--dropdown"]');
+        // Any controller that owns a "menu" target, not ui--dropdown alone.
+        // The first version of this checked that one controller and its
+        // `hidden` PROPERTY, and missed the user menu entirely — which is a
+        // different controller (ui--user-menu) hiding its menu with a `hidden`
+        // CLASS. Two mechanisms, and the reported bug was on the one not
+        // covered.
+        //
+        // So: find the nearest ancestor holding a menu target, and ask whether
+        // that menu is actually on screen rather than how it was hidden.
+        // checkVisibility() answers for the property, the class, `display`,
+        // `visibility` and anything else a future menu invents.
+        const menu = this._menuNear(trigger);
 
-        if (dropdown === null) {
+        if (menu === null) {
             return false;
         }
 
-        const menu = dropdown.querySelector('[data-ui--dropdown-target="menu"]');
+        return typeof menu.checkVisibility === "function"
+            ? menu.checkVisibility()
+            : menu.offsetParent !== null;
+    }
 
-        return menu !== null && false === menu.hidden;
+    /**
+     * The menu belonging to this trigger, found by attribute suffix.
+     *
+     * Stimulus target attributes are named for their controller
+     * (`data-ui--dropdown-target`, `data-ui--user-menu-target`), so there is no
+     * one selector for "the menu". Walking the trigger's ancestors and reading
+     * their attribute names is what covers every controller without listing
+     * them.
+     */
+    _menuNear(trigger) {
+        for (let node = trigger.parentElement; node !== null; node = node.parentElement) {
+            if (node.hasAttribute("data-controller")) {
+                for (const candidate of node.querySelectorAll("*")) {
+                    for (const attribute of candidate.attributes) {
+                        if (attribute.name.endsWith("-target") && attribute.value === "menu") {
+                            return candidate;
+                        }
+                    }
+                }
+
+                return null;
+            }
+        }
+
+        return null;
     }
 
     /**
