@@ -34,6 +34,7 @@ parameters:
     app.demo_impressum_name: '%env(default:app.demo_impressum_blank:APP_DEMO_IMPRESSUM_NAME)%'
     app.demo_impressum_address: '%env(default:app.demo_impressum_blank:APP_DEMO_IMPRESSUM_ADDRESS)%'
     app.demo_impressum_email: '%env(default:app.demo_impressum_blank:APP_DEMO_IMPRESSUM_EMAIL)%'
+    app.demo_privacy_host: '%env(default:app.demo_impressum_blank:APP_DEMO_PRIVACY_HOST)%'
 
 services:
     # default configuration for services in *this* file

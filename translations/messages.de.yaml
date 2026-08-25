@@ -1316,6 +1316,49 @@ demo:
         blurb: Sieh dich in plMail um — mit einem eigenen Postfach, ohne Anmeldung und ohne Adresse.
         start: Demo starten
         disclaimer: Dein Demo-Postfach wird nach ein paar Stunden automatisch gelöscht.
+    privacy:
+        account: >-
+            Beim Start der Demo wird ein Wegwerf-Konto mit einer zufällig erzeugten
+            Adresse angelegt. Du wirst nicht nach Namen, E-Mail-Adresse oder Passwort
+            gefragt, und es wird nichts davon gespeichert. Alles, was du dort eingibst —
+            Nachrichten, Entwürfe, Kalendereinträge — existiert nur in diesem Konto und
+            wird zusammen mit ihm automatisch gelöscht, etwa %ttl% nach dem Anlegen. In
+            der Demo geschriebene Mail wird nie versendet: Es besteht keine Verbindung zu
+            einem Mailserver.
+        account_title: Das Demo-Konto
+        complaint: >-
+            Außerdem steht dir ein Beschwerderecht bei einer Datenschutz-Aufsichtsbehörde
+            zu.
+        controller_intro: Verantwortlich für die hier beschriebene Verarbeitung:
+        controller_title: Verantwortlicher
+        cookie_mercure: hält die Verbindung für Live-Aktualisierungen offen, solange du angemeldet bist.
+        cookie_session: hält dich in deinem Demo-Konto angemeldet. Wird beim Schließen des Browsers gelöscht.
+        cookie_ui: merkt sich das gewählte Design und die Sprache.
+        cookies: >-
+            Es werden drei Cookies gesetzt, alle technisch notwendig für den Betrieb.
+            Es gibt kein Tracking-, Werbe- oder Analyse-Cookie und deshalb auch kein
+            Cookie-Banner.
+        cookies_title: Cookies
+        host: Der Server wird in unserem Auftrag von %host% betrieben, als Auftragsverarbeiter auf Grundlage eines Auftragsverarbeitungsvertrags.
+        logs: >-
+            Wie jeder Webserver protokolliert auch dieser jeden Abruf: die IP-Adresse,
+            von der er kam, den Zeitpunkt, die angeforderte Seite, die verweisende Seite
+            und die Browserkennung. Das ist für den Betrieb und die Absicherung des
+            Dienstes erforderlich (Art. 6 Abs. 1 lit. f DSGVO — berechtigtes Interesse).
+            Diese Protokolle werden rotiert und nicht zur Profilbildung verwendet.
+        logs_title: Server-Logfiles
+        rights: >-
+            Du hast das Recht auf Auskunft über die zu dir gespeicherten Daten sowie auf
+            deren Berichtigung, Löschung oder Einschränkung der Verarbeitung, außerdem
+            ein Widerspruchsrecht und ein Recht auf Datenübertragbarkeit. Wende dich
+            dafür an die oben genannte Adresse.
+        rights_title: Deine Rechte
+        third_parties: >-
+            Es werden keine Daten an Dritte weitergegeben. Diese Seite lädt keine
+            externen Schriftarten, Skripte, Karten oder Analysedienste — ihre Content
+            Security Policy erlaubt Verbindungen ausschließlich zu diesem Server.
+        third_parties_title: Weitergabe an Dritte
+        title: Datenschutzerklärung
     unavailable:
         title: In der Demo nicht verfügbar
         body: >-

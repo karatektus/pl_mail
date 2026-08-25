@@ -1,0 +1,123 @@
+{% extends '_layout/app.html.twig' %}
+
+{% block title %}{{ 'demo.privacy.title'|trans }} — {{ 'app.name'|trans }}{% endblock %}
+
+{#
+    The privacy notice for a publicly hosted demo.
+
+    Its own page and its own link, because a section inside the Impressum is
+    not a privacy notice: the GDPR wants this reachable in its own right.
+
+    It exists even though this instance asks for nothing. A server that answers
+    a request writes the caller's IP into a log, and an IP is personal data — so
+    "we collect almost nothing" is a statement that has to be made rather than a
+    reason to skip the page. Everything below describes what the software
+    actually does, and the retention period is read off the configured TTL
+    rather than typed here, so the two cannot drift.
+#}
+{% block body %}
+    <div class="min-h-screen app-bg py-12 px-4">
+        <div class="w-full max-w-2xl mx-auto">
+
+            <a href="{{ path('app_login') }}"
+               class="inline-flex items-center gap-2 text-sm text-ink-muted hover:text-ink transition-colors mb-6">
+                <i class="fa-solid fa-arrow-left text-xs" aria-hidden="true"></i>
+                {{ 'app.name'|trans }}
+            </a>
+
+            <div class="bg-surface rounded-pane shadow-sm border border-line p-8 space-y-8">
+
+                <h1 class="text-xl font-semibold text-ink">{{ 'demo.privacy.title'|trans }}</h1>
+
+                {% if operatorName is empty and operatorAddress is empty and operatorEmail is empty %}
+                    <div class="rounded-lg alert-danger text-danger text-sm px-4 py-3">
+                        <strong>APP_DEMO_IMPRESSUM_NAME</strong>,
+                        <strong>APP_DEMO_IMPRESSUM_ADDRESS</strong> and
+                        <strong>APP_DEMO_IMPRESSUM_EMAIL</strong> are not set. A privacy notice must
+                        name the controller — set them before making this instance public.
+                    </div>
+                {% endif %}
+
+                {# ── Who ────────────────────────────────────────────────── #}
+                <section class="space-y-2">
+                    <h2 class="text-sm font-semibold text-ink">{{ 'demo.privacy.controller_title'|trans }}</h2>
+                    <p class="text-sm text-ink-muted leading-relaxed">
+                        {{ 'demo.privacy.controller_intro'|trans }}
+                    </p>
+                    <dl class="text-sm text-ink-soft space-y-1">
+                        {% if operatorName is not empty %}<dd class="text-ink">{{ operatorName }}</dd>{% endif %}
+                        {% if operatorAddress is not empty %}<dd class="whitespace-pre-line">{{ operatorAddress }}</dd>{% endif %}
+                        {% if operatorEmail is not empty %}
+                            <dd><a href="mailto:{{ operatorEmail }}" class="text-accent hover:underline">{{ operatorEmail }}</a></dd>
+                        {% endif %}
+                    </dl>
+                </section>
+
+                {# ── What, and on what basis ────────────────────────────── #}
+                <section class="space-y-3">
+                    <h2 class="text-sm font-semibold text-ink">{{ 'demo.privacy.processing_title'|trans }}</h2>
+
+                    <div>
+                        <h3 class="text-xs font-semibold uppercase tracking-wide text-ink-faint">
+                            {{ 'demo.privacy.logs_title'|trans }}
+                        </h3>
+                        <p class="mt-1 text-sm text-ink-muted leading-relaxed">{{ 'demo.privacy.logs'|trans }}</p>
+                    </div>
+
+                    <div>
+                        <h3 class="text-xs font-semibold uppercase tracking-wide text-ink-faint">
+                            {{ 'demo.privacy.account_title'|trans }}
+                        </h3>
+                        {# The retention period comes from DemoMode::ttlDescription(), which
+                           reads the same setting the reaper acts on. #}
+                        <p class="mt-1 text-sm text-ink-muted leading-relaxed">
+                            {{ 'demo.privacy.account'|trans({ '%ttl%': ttl }) }}
+                        </p>
+                    </div>
+
+                    <div>
+                        <h3 class="text-xs font-semibold uppercase tracking-wide text-ink-faint">
+                            {{ 'demo.privacy.cookies_title'|trans }}
+                        </h3>
+                        <p class="mt-1 text-sm text-ink-muted leading-relaxed">{{ 'demo.privacy.cookies'|trans }}</p>
+                        <ul class="mt-2 space-y-1 text-sm text-ink-soft">
+                            <li><code class="text-xs">PHPSESSID</code> — {{ 'demo.privacy.cookie_session'|trans }}</li>
+                            <li><code class="text-xs">plmail_ui</code> — {{ 'demo.privacy.cookie_ui'|trans }}</li>
+                            <li><code class="text-xs">mercureAuthorization</code> — {{ 'demo.privacy.cookie_mercure'|trans }}</li>
+                        </ul>
+                    </div>
+                </section>
+
+                {# ── Who else sees it ───────────────────────────────────── #}
+                <section class="space-y-2">
+                    <h2 class="text-sm font-semibold text-ink">{{ 'demo.privacy.third_parties_title'|trans }}</h2>
+                    <p class="text-sm text-ink-muted leading-relaxed">{{ 'demo.privacy.third_parties'|trans }}</p>
+
+                    {% if host is not empty %}
+                        <p class="text-sm text-ink-muted leading-relaxed">
+                            {{ 'demo.privacy.host'|trans({ '%host%': host }) }}
+                        </p>
+                    {% else %}
+                        <div class="rounded-lg alert-danger text-danger text-sm px-4 py-3">
+                            <strong>APP_DEMO_PRIVACY_HOST</strong> is not set. The company running the
+                            server is a processor and has to be named here.
+                        </div>
+                    {% endif %}
+                </section>
+
+                {# ── Rights ─────────────────────────────────────────────── #}
+                <section class="space-y-2">
+                    <h2 class="text-sm font-semibold text-ink">{{ 'demo.privacy.rights_title'|trans }}</h2>
+                    <p class="text-sm text-ink-muted leading-relaxed">{{ 'demo.privacy.rights'|trans }}</p>
+                    <p class="text-sm text-ink-muted leading-relaxed">{{ 'demo.privacy.complaint'|trans }}</p>
+                </section>
+
+                <p class="text-xs text-ink-faint border-t border-line pt-4">
+                    <a href="{{ path('app_demo_impressum') }}" class="text-accent hover:underline">
+                        {{ 'demo.impressum.link'|trans }}
+                    </a>
+                </p>
+            </div>
+        </div>
+    </div>
+{% endblock %}

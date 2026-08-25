@@ -68,6 +68,12 @@
                 <section class="space-y-2">
                     <h2 class="text-sm font-semibold text-ink">{{ 'demo.impressum.privacy_title'|trans }}</h2>
                     <p class="text-sm text-ink-muted leading-relaxed">{{ 'demo.impressum.privacy'|trans }}</p>
+                    {# The summary stays; the notice itself is its own page. #}
+                    <p class="text-sm">
+                        <a href="{{ path('app_demo_privacy') }}" class="text-accent hover:underline">
+                            {{ 'demo.privacy.title'|trans }}
+                        </a>
+                    </p>
                 </section>
 
                 <section class="space-y-2">

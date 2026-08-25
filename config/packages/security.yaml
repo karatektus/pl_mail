@@ -96,6 +96,9 @@ security:
         # who has not signed in is exactly who it is for. The route 404s itself
         # when demo mode is off, so this opens nothing on a normal install.
         - { path: ^/impressum$, roles: PUBLIC_ACCESS }
+        # The privacy notice, anonymous for the same reason and with more force:
+        # the reader has no account here and is deciding whether to get one.
+        - { path: ^/datenschutz$, roles: PUBLIC_ACCESS }
         # The tab icon. Browsers fetch it for the login page too — before any
         # session exists — and an icon behind the login is a redirect the tab
         # strip renders as a missing favicon. Anonymous callers get the

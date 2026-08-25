@@ -448,6 +448,30 @@ export default class extends Controller {
         this._refreshList();
     }
 
+    /**
+     * Somebody pressed a button and is watching the list for the result.
+     *
+     * Skips the coalescing window, which is there for the opposite situation: a
+     * sync run publishes one event per mailbox per account, so "a sync
+     * happened" arrives as a burst and MIN_REFRESH_MS turns eight fetches into
+     * one. A person pressing Receive is not a burst — and because the window is
+     * measured from the LAST refresh, the press right after a delivery was the
+     * one most likely to be inside it. The mail landed instantly the first
+     * time and appeared to do nothing for the next thirteen seconds the second,
+     * which reads as the button breaking after one use.
+     *
+     * Deliberately not folded into onAccountSynced(): that one is the server
+     * volunteering that something changed, and it should stay coalesced. The
+     * difference between the two is whether anybody is waiting.
+     */
+    refreshNow() {
+        if (false === this.hasListTarget) {
+            return;
+        }
+
+        this._refreshList({ immediate: true });
+    }
+
     _affectsCurrentView(data) {
         if (!this.hasListTarget) {
             return false;

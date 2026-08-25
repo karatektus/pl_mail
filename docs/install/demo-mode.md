@@ -108,6 +108,35 @@ Each visitor costs one user, one account, ten threads and ten contacts. Provisio
 limited to 30 an hour per address, which is set for a room sharing one NAT address — an office, a
 conference hall, a classroom — rather than for one visitor, who needs exactly one.
 
+## The legal pages
+
+A publicly hosted demo in Germany needs an Impressum (§ 5 TMG) and a privacy
+notice, and the second is the one people skip: it is required even though this
+instance asks for nothing, because a web server writes the caller's IP address
+into a log and an IP address is personal data.
+
+Both are served only in demo mode, both without a session, and both are linked
+from the login page:
+
+| Page | Needs |
+|---|---|
+| `/impressum` | `APP_DEMO_IMPRESSUM_NAME`, `APP_DEMO_IMPRESSUM_ADDRESS`, `APP_DEMO_IMPRESSUM_EMAIL` |
+| `/datenschutz` | the three above, plus `APP_DEMO_PRIVACY_HOST` |
+
+Unset, each renders a visible warning naming the missing variable rather than a
+blank heading — a legal notice naming nobody looks compliant from a distance
+and is not.
+
+The retention period in the privacy notice is read from `APP_DEMO_TTL` rather
+than written into the text, so tuning the one cannot leave the other claiming
+something the reaper does not do.
+
+Two things the software cannot know and you must check: that you hold a data
+processing agreement with whoever runs the machine, and that the notice matches
+what you actually run. It describes plMail's own behaviour accurately — the
+three cookies it sets, and a content security policy that permits no third-party
+connections — but it is a description, not legal advice.
+
 ## Things that bite
 
 **`APP_DEMO_MODE` is instance-wide, not per-user.** There is no way to run a demo mailbox beside

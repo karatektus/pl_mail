@@ -72,6 +72,29 @@ final readonly class DemoMode
     }
 
     /**
+     * The retention period in words, for the privacy notice.
+     *
+     * Derived from the configured TTL rather than written into the page: a
+     * privacy notice that states a retention period the software does not
+     * honour is worse than one that says nothing, and these two would drift the
+     * first time somebody tuned APP_DEMO_TTL.
+     *
+     * Rounded to hours because that is the unit the setting is chosen in and
+     * the granularity a notice needs. Anything under an hour reads as minutes.
+     */
+    public function ttlDescription(): string
+    {
+        $now     = new DateTimeImmutable('@0');
+        $seconds = $this->expiryFrom($now)->getTimestamp();
+
+        if ($seconds < 3600) {
+            return sprintf('%d min', (int) round($seconds / 60));
+        }
+
+        return sprintf('%d h', (int) round($seconds / 3600));
+    }
+
+    /**
      * Whether an address belongs to a demo-provisioned user.
      *
      * The reaper deletes on this predicate, so it is deliberately narrow:

@@ -47,6 +47,7 @@ x-demo-env: &demo-env
   APP_DEMO_IMPRESSUM_NAME: ${APP_DEMO_IMPRESSUM_NAME:-}
   APP_DEMO_IMPRESSUM_ADDRESS: ${APP_DEMO_IMPRESSUM_ADDRESS:-}
   APP_DEMO_IMPRESSUM_EMAIL: ${APP_DEMO_IMPRESSUM_EMAIL:-}
+  APP_DEMO_PRIVACY_HOST: ${APP_DEMO_PRIVACY_HOST:-}
 
 services:
   # Serves /demo, provisions visitors and renders the demo bar.

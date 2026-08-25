@@ -451,6 +451,51 @@ final class DemoFlowTest extends WebTestCase
         $this->eraseDemoUsers();
     }
 
+    // ------------------------------------------------------------- the legal pages
+
+    /**
+     * Both notices are reachable without a session, and they are two pages.
+     *
+     * A privacy notice folded into the Impressum is not one — it has to be
+     * reachable in its own right — and both are read by people who have no
+     * account here and are deciding whether to get one.
+     */
+    public function testTheLegalPagesAreReadableWithoutSigningIn(): void
+    {
+        $client = $this->demoClient();
+
+        foreach (['/impressum', '/datenschutz'] as $path) {
+            $client->request('GET', $path);
+
+            self::assertResponseIsSuccessful(sprintf('%s must be readable anonymously', $path));
+        }
+    }
+
+    public function testTheLoginPageLinksToBothOfThem(): void
+    {
+        $client  = $this->demoClient();
+        $crawler = $client->request('GET', '/login');
+
+        self::assertGreaterThan(0, $crawler->filter('a[href="/impressum"]')->count());
+        self::assertGreaterThan(
+            0,
+            $crawler->filter('a[href="/datenschutz"]')->count(),
+            'the privacy notice needs its own link, not a mention inside the Impressum',
+        );
+    }
+
+    /** Neither exists on an install that is not a demo. */
+    public function testTheLegalPagesDoNotExistOnANormalInstall(): void
+    {
+        $client = static::createClient();
+
+        foreach (['/impressum', '/datenschutz'] as $path) {
+            $client->request('GET', $path);
+
+            self::assertResponseStatusCodeSame(404, $path.' should not exist off-demo');
+        }
+    }
+
     // ------------------------------------------------------------ the install page
 
     /**

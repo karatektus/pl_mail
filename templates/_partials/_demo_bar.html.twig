@@ -34,8 +34,13 @@
         moving. That is the whole thing the button exists to demonstrate, and
         the reload was hiding it.
     #}
+    {# turbo:submit-end, so the list is re-read the moment the delivery is
+       acknowledged rather than whenever the coalescing window next opens.
+       Mercure announces the mail too, but that path is throttled on purpose —
+       see mail--mail-pane#refreshNow for why the two are kept apart. #}
     <form method="post"
           action="{{ path('app_demo_receive') }}"
+          data-action="turbo:submit-end->mail--mail-pane#refreshNow"
           class="ml-auto flex items-center gap-3 shrink-0">
         <input type="hidden" name="_token" value="{{ csrf_token('demo_receive') }}">
 

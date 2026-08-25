@@ -1,4 +1,4 @@
-<!-- translated-from: install/configuration.md sha1:3cfadc2b2626e9f3017f6fab0d8d287184aeb6d9 -->
+<!-- translated-from: install/configuration.md sha1:2f2698fae7601d3f4a55f7f252d9174b572ddd01 -->
 # Konfigurationsreferenz
 
 Jede Umgebungsvariable, die plMail liest, was sie bewirkt, welchen Vorgabewert sie hat und was
@@ -58,6 +58,7 @@ Das sind die Variablen aus `.env`, in der Reihenfolge, in der sie dort stehen.
 | `APP_DEMO_IMPRESSUM_NAME` | Betreiber, der im Impressum der Demo (`/impressum`) genannt wird. | leer | Für eine öffentliche Demo in Deutschland: ja | Leer, und die Seite zeigt statt eines Namens eine sichtbare Warnung. Das ist Absicht: § 5 TMG verlangt einen echten Betreiber, und ein Impressum, das niemanden nennt, sieht von weitem korrekt aus, ohne es zu sein. Wird nur gelesen, wenn `APP_DEMO_MODE` an ist. |
 | `APP_DEMO_IMPRESSUM_ADDRESS` | Postanschrift auf derselben Seite. Zeilenumbrüche bleiben erhalten. | leer | Wie oben | Wie oben. |
 | `APP_DEMO_IMPRESSUM_EMAIL` | Kontaktadresse auf derselben Seite, als `mailto:`-Link. | leer | Wie oben | Wie oben. |
+| `APP_DEMO_PRIVACY_HOST` | Das Unternehmen, das den Server betreibt; wird in der Datenschutzerklärung der Demo (`/datenschutz`) als Auftragsverarbeiter genannt. | leer | Für eine öffentliche Demo: ja | Leer, und die Seite zeigt statt eines Namens eine sichtbare Warnung. Wer die Maschine betreibt, verarbeitet in deinem Auftrag die IP-Adressen der Besucher und muss genannt werden; prüfe, ob ein Auftragsverarbeitungsvertrag besteht — die Seite sagt, dass es einen gibt. Wird nur gelesen, wenn `APP_DEMO_MODE` an ist. |
 | `MERCURE_URL` | Die Hub-Adresse, an die die **Anwendung** innerhalb des Docker-Netzes veröffentlicht. | `http://mercure/.well-known/mercure` | Ja | Falsch, und nichts wird veröffentlicht: keine Live-Aktualisierungen, kein sichtbarer Fehler auf der Seite. |
 | `MERCURE_PUBLIC_URL` | Die Hub-Adresse, die der **Browser** abonniert. | `https://localhost/.well-known/mercure`, sowohl in `.env` als auch in `compose.yaml` | Ja | Falsch, und der Browser öffnet einen Stream dorthin, wo er nicht hinkommt — Maillisten hören auf, sich selbst zu aktualisieren, während der Rest der Anwendung funktioniert. Wird nur dann aus `APP_PUBLIC_URL` abgeleitet, wenn sie nicht gesetzt oder leer ist, was die Standard-`compose.yaml` verhindert. Siehe [Hinter einem Reverse-Proxy](reverse-proxy.md). |
 | `MERCURE_JWT_SECRET` | Signiert die Publisher- und Subscriber-JWTs. | leer — 32 zufällige Bytes, hexadezimal, beim ersten Start erzeugt | Ja, aber erzeugt | Anwendung und Hub müssen denselben Wert halten. Weichen sie voneinander ab, weist der Hub jeden Subscriber ab — aus Sicht des Browsers lautlos. |

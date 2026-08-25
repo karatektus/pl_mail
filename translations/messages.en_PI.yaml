@@ -1032,6 +1032,45 @@ demo:
         blurb: Take a turn about plMail wi' a sea chest o' yer own — no articles t' sign, no berth needed.
         start: Begin th' sea trial
         disclaimer: Yer trial chest be scuttled on its own after a watch or two.
+    privacy:
+        account: >-
+            Beginnin' th' sea trial opens a borrowed berth under a name drawn from th'
+            hat. Ye be asked for no name, no address an' no countersign, an' none be
+            kept. Whatever ye write there — letters, drafts, almanac marks — lives only
+            in that berth an' be scuttled wi' it, on its own, some %ttl% after it were
+            opened. Letters penned on a sea trial never leave th' harbour: there be no
+            line to any post at all.
+        account_title: Th' trial berth
+        complaint: Ye may also lay a complaint before th' harbourmaster o' records.
+        controller_intro: Answerable for th' handlin' set down here:
+        controller_title: Th' one answerable
+        cookie_mercure: keeps th' speakin'-line open while ye be aboard.
+        cookie_session: keeps ye aboard yer trial berth. Struck when ye close th' spyglass.
+        cookie_ui: remembers th' colours an' tongue ye chose.
+        cookies: >-
+            Three tokens be set, every one needful for sailin' her. There be no
+            followin' token, no crier's token an' no countin' token, an' so no banner
+            to wave away.
+        cookies_title: Tokens
+        host: Th' hull be kept on our behalf by %host%, under articles o' handlin'.
+        logs: >-
+            As any harbour does, this one notes each callin': th' address it came from,
+            th' hour, th' page sought, th' page afore it an' th' spyglass's mark. This
+            be needful to sail her an' to hold off boarders (Art. 6(1)(f) o' th'
+            articles — rightful interest). Th' logs be turned over an' no man's likeness
+            be built from them.
+        logs_title: Th' harbour log
+        rights: >-
+            Ye have th' right to be told what be held on ye, an' to have it set right,
+            struck, or held back, as well as th' right to object an' th' right to carry
+            yer records elsewhere. Write to th' address above.
+        rights_title: Yer rights
+        third_parties: >-
+            Naught be passed to other ships. This page draws no outside letterin',
+            scripts, charts nor countin'-houses — her articles permit lines to this
+            hull alone.
+        third_parties_title: Other ships
+        title: Articles o' records
     unavailable:
         title: Not to be had on a sea trial
         body: >-

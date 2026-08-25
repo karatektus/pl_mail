@@ -1307,6 +1307,47 @@ demo:
         blurb: Take a look around plMail with a mailbox of your own — no sign-up, no address needed.
         start: Start the demo
         disclaimer: Your demo mailbox is deleted automatically after a couple of hours.
+    privacy:
+        account: >-
+            Starting the demo creates a throwaway account with a randomly generated
+            address. You are not asked for a name, an email address or a password, and
+            none is stored. Anything you type into it — messages, drafts, calendar
+            entries — exists only in that account and is deleted with it, automatically,
+            about %ttl% after it was created. Mail written in the demo is never sent:
+            there is no connection to any mail server.
+        account_title: The demo account
+        complaint: >-
+            You also have the right to lodge a complaint with a data protection
+            supervisory authority.
+        controller_intro: Responsible for the processing described here:
+        controller_title: Controller
+        cookie_mercure: keeps the live-update connection open while you are signed in.
+        cookie_session: keeps you signed in to your demo account. Deleted when you close the browser.
+        cookie_ui: remembers the theme and language you picked.
+        cookies: >-
+            Three cookies are set, all of them strictly necessary to operate the
+            service. There is no tracking, advertising or analytics cookie, and
+            therefore no consent banner.
+        cookies_title: Cookies
+        host: The server is operated on our behalf by %host%, acting as a processor under a data processing agreement.
+        logs: >-
+            Like any web server, this one records each request: the IP address it came
+            from, the time, the page requested, the referring page and the browser's
+            user-agent string. This is necessary to run the service and to defend it
+            against attack (Art. 6(1)(f) GDPR — legitimate interest). These logs are
+            rotated and are not used to build a profile of anyone.
+        logs_title: Server log files
+        rights: >-
+            You have the right to information about the data held about you, and to its
+            correction, erasure or restriction, as well as the right to object to
+            processing and the right to data portability. Write to the address above.
+        rights_title: Your rights
+        third_parties: >-
+            No data is passed to third parties. This site loads no external fonts,
+            scripts, maps or analytics — its content security policy allows connections
+            to this server only.
+        third_parties_title: Third parties
+        title: Privacy notice
     unavailable:
         title: Not available in the demo
         body: >-

@@ -131,9 +131,15 @@
                instance needs one — and it sits outside the card, below
                everything, which is where a visitor looks for it. #}
             {% if demo.isEnabled %}
-                <p class="text-center text-xs text-ink-faint mt-6">
+                {# Two links, not one with the privacy notice tucked inside the
+                   Impressum: the GDPR wants it reachable in its own right. #}
+                <p class="text-center text-xs text-ink-faint mt-6 flex items-center justify-center gap-3">
                     <a href="{{ path('app_demo_impressum') }}" class="hover:text-ink transition-colors">
                         {{ 'demo.impressum.link'|trans }}
+                    </a>
+                    <span aria-hidden="true">·</span>
+                    <a href="{{ path('app_demo_privacy') }}" class="hover:text-ink transition-colors">
+                        {{ 'demo.privacy.title'|trans }}
                     </a>
                 </p>
             {% endif %}

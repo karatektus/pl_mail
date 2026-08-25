@@ -54,6 +54,8 @@ final class DemoController extends AbstractController
         private readonly string                      $impressumAddress,
         #[Autowire('%app.demo_impressum_email%')]
         private readonly string                      $impressumEmail,
+        #[Autowire('%app.demo_privacy_host%')]
+        private readonly string                      $privacyHost,
     ) {
     }
 
@@ -178,6 +180,36 @@ final class DemoController extends AbstractController
             'operatorName'    => $this->impressumName,
             'operatorAddress' => $this->impressumAddress,
             'operatorEmail'   => $this->impressumEmail,
+        ]);
+    }
+
+    /**
+     * The privacy notice, on its own page and its own link.
+     *
+     * A section inside the Impressum is not one. The GDPR wants this
+     * "leicht zugänglich" in its own right, and — the part that is easy to get
+     * wrong — it is required even when almost nothing is processed. A server
+     * that answers a request writes the caller's IP address into a log, and an
+     * IP address is personal data; "we collect nothing" is a statement that
+     * still has to be made, not a reason to omit the page.
+     *
+     * Public for the same reason the Impressum is: the reader has no account
+     * here and is deciding whether to get one.
+     *
+     * The operator and the host come from the environment, blank by default and
+     * saying so, because neither can be guessed.
+     */
+    #[Route('/datenschutz', name: 'app_demo_privacy', methods: ['GET'])]
+    public function privacy(): Response
+    {
+        $this->assertDemoMode();
+
+        return $this->render('demo/privacy.html.twig', [
+            'operatorName'    => $this->impressumName,
+            'operatorAddress' => $this->impressumAddress,
+            'operatorEmail'   => $this->impressumEmail,
+            'host'            => $this->privacyHost,
+            'ttl'             => $this->demoMode->ttlDescription(),
         ]);
     }
 

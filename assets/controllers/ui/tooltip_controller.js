@@ -90,7 +90,15 @@ export default class extends Controller {
         this._onDismiss = () => this._hide();
         window.addEventListener("scroll", this._onDismiss, true);
         window.addEventListener("resize", this._onDismiss);
-        document.addEventListener("click", this._onDismiss);
+        // CAPTURE, like the scroll listener above and for a sharper reason: a
+        // handler on the thing being clicked can call stopPropagation() and
+        // this never hears the click at all. ui--user-menu#toggle does exactly
+        // that, so opening the user menu left its own hint painted across the
+        // menu until the pointer happened to leave the button — the bubble was
+        // refused a re-show (see _opensAVisibleMenu) but nothing took down the
+        // one already on screen. Capture runs at the document BEFORE the event
+        // reaches its target, so no handler can hide a click from this.
+        document.addEventListener("click", this._onDismiss, true);
         document.addEventListener("turbo:before-render", this._onDismiss);
 
         // A trigger can leave the page while the pointer is still on it, and
@@ -127,7 +135,7 @@ export default class extends Controller {
         document.removeEventListener("keydown", this._onKeydown);
         window.removeEventListener("scroll", this._onDismiss, true);
         window.removeEventListener("resize", this._onDismiss);
-        document.removeEventListener("click", this._onDismiss);
+        document.removeEventListener("click", this._onDismiss, true);
         document.removeEventListener("turbo:before-render", this._onDismiss);
         this._observer?.disconnect();
 
