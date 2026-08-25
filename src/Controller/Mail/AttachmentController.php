@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Controller\Mail;
 
 use App\Domain\Helper\InlineDisposition;
+use App\Domain\Helper\PdfAttachment;
 use App\Entity\Mail\MessagePart;
 use App\Security\Voter\OwnershipVoter;
 use App\Service\Mail\AttachmentResolver;
@@ -24,6 +25,39 @@ final class AttachmentController extends AbstractController
         private readonly AttachmentResolver $attachmentResolver,
         private readonly AttachmentThumbnailer $thumbnailer,
     ) {}
+
+    /**
+     * The reader for a PDF attachment, rendered into the modal frame.
+     *
+     * Returns the viewer's HTML, not the document — the bytes are fetched by
+     * the browser from serve(), which is unchanged. That is the whole reason
+     * this feature needs no change to how attachments are served: `fetch()`
+     * ignores Content-Disposition, so a PDF can stay `attachment` (as
+     * InlineDisposition insists) and still be read. Widening the inline
+     * allow-list to admit application/pdf would hand mail-controlled bytes to
+     * the browser's own PDF plugin, which is precisely the "future widening is
+     * a bug" that helper's docblock warns about.
+     *
+     * 404 rather than a refusal for a non-PDF: there is no viewer for it, so
+     * the route does not exist for that part. The chip only renders this link
+     * where attachment_is_pdf() agrees, so reaching it otherwise means somebody
+     * typed the URL.
+     *
+     * Rendering PDFs in the browser rather than on the server is a standing
+     * decision, not a shortcut — see AttachmentThumbnailer's docblock and the
+     * README beside the vendored library under public/pdfjs.
+     */
+    #[Route('/mail/attachment/{id}/preview', name: 'app_mail_attachment_preview', methods: ['GET'], requirements: ['id' => '\d+'])]
+    public function preview(MessagePart $part): Response
+    {
+        $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $part);
+
+        if (false === PdfAttachment::matches($part->contentType, $part->filename)) {
+            throw $this->createNotFoundException();
+        }
+
+        return $this->render('mail/_attachment_preview.html.twig', ['part' => $part]);
+    }
 
     /**
      * A cached preview for an image attachment.

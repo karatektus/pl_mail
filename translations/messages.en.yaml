@@ -654,6 +654,14 @@ alias:
 app:
     name: Mail
 
+attachment:
+    preview:
+        download: Download
+        failed: This PDF could not be opened. You can still download it.
+        loading: Opening…
+        untitled: Attachment
+        zoom_in: Zoom in
+        zoom_out: Zoom out
 calendar:
     default_name: Personal
     alert:

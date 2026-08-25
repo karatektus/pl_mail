@@ -31,6 +31,36 @@ console to say why. Turbo leaves a link carrying `download` to the browser.
 {% set targets = integrations.forUploadOf(part.contentType) %}
 {% set hasPreview = attachment_has_preview(part) %}
 {% set downloadName = part.filename ?: 'attachment' %}
+{% set isPdf = attachment_is_pdf(part) %}
+
+{#
+    A PDF opens a reader instead of downloading.
+
+    This is the ONE case where the chip's face is not an `<a download>`, and the
+    note above about `download` being load-bearing still holds everywhere else:
+    it is there so Turbo Drive leaves a non-HTML response alone. A button that
+    opens a dialog is not a navigation, so Turbo has nothing to swallow and the
+    attribute has nothing to do.
+
+    Nothing is lost by it. The reader carries its own download link, and the
+    "Save to…" half beside it is untouched.
+#}
+{% macro pdfFace(part, hasPreview) %}
+    {# A macro gets no caller scope, so the sibling macro is imported here rather
+       than passed in: an imported name lives in Twig's macro table, not in the
+       context, so it cannot travel as an argument. #}
+    {% import _self as chip %}
+    <button type="button"
+            data-controller="ui--modal"
+            data-action="click->ui--modal#open"
+            data-ui--modal-size-value="full"
+            data-ui--modal-src-value="{{ path('app_mail_attachment_preview', { id: part.id }) }}"
+            data-ui--modal-title-value="{{ part.filename ?: 'attachment.preview.untitled'|trans }}"
+            class="inline-flex items-center gap-2 {{ hasPreview ? 'p-1.5 pr-3' : 'px-3 py-2' }} text-xs
+                   text-ink-soft hover:bg-hover transition-colors cursor-pointer text-left">
+        {{ chip.face(part, hasPreview) }}
+    </button>
+{% endmacro %}
 
 {% macro face(part, hasPreview) %}
     {% if hasPreview %}
@@ -50,12 +80,18 @@ console to say why. Turbo leaves a link carrying `download` to the browser.
 
 {% if targets is empty %}
 
-    <a href="{{ path('app_mail_attachment', { id: part.id }) }}?download=1"
-       download="{{ downloadName }}"
-       class="inline-flex items-center gap-2 {{ hasPreview ? 'p-1.5 pr-3' : 'px-3 py-2' }} rounded-lg text-xs
-              bg-sunken border border-line text-ink-soft hover:bg-hover transition-colors">
-        {{ chip.face(part, hasPreview) }}
-    </a>
+    {% if isPdf %}
+        <span class="inline-flex rounded-lg bg-sunken border border-line overflow-hidden">
+            {{ chip.pdfFace(part, hasPreview) }}
+        </span>
+    {% else %}
+        <a href="{{ path('app_mail_attachment', { id: part.id }) }}?download=1"
+           download="{{ downloadName }}"
+           class="inline-flex items-center gap-2 {{ hasPreview ? 'p-1.5 pr-3' : 'px-3 py-2' }} rounded-lg text-xs
+                  bg-sunken border border-line text-ink-soft hover:bg-hover transition-colors">
+            {{ chip.face(part, hasPreview) }}
+        </a>
+    {% endif %}
 
 {% else %}
 
@@ -70,11 +106,15 @@ console to say why. Turbo leaves a link carrying `download` to the browser.
     <div class="relative inline-flex" data-controller="ui--dropdown">
 
         <div class="inline-flex items-stretch rounded-lg bg-sunken border border-line overflow-hidden">
-            <a href="{{ path('app_mail_attachment', { id: part.id }) }}?download=1"
-               download="{{ downloadName }}"
-               class="inline-flex items-center gap-2 {{ hasPreview ? 'p-1.5 pr-3' : 'px-3 py-2' }} text-xs text-ink-soft hover:bg-hover transition-colors">
-                {{ chip.face(part, hasPreview) }}
-            </a>
+            {% if isPdf %}
+                {{ chip.pdfFace(part, hasPreview) }}
+            {% else %}
+                <a href="{{ path('app_mail_attachment', { id: part.id }) }}?download=1"
+                   download="{{ downloadName }}"
+                   class="inline-flex items-center gap-2 {{ hasPreview ? 'p-1.5 pr-3' : 'px-3 py-2' }} text-xs text-ink-soft hover:bg-hover transition-colors">
+                    {{ chip.face(part, hasPreview) }}
+                </a>
+            {% endif %}
 
             <button type="button"
                     data-action="click->ui--dropdown#toggle"

@@ -5,12 +5,15 @@ declare(strict_types=1);
 namespace App\Service\Demo;
 
 use App\Domain\DTO\Mail\IngestedMessage;
+use App\Domain\Helper\AttachmentStorageHelper;
 use App\Domain\Enum\Mail\LabelRole;
 use App\Domain\Helper\MessageIdHelper;
+use App\Domain\Helper\SamplePdf;
 use App\Entity\Mail\Account;
 use App\Entity\Calendar\CalendarEvent;
 use App\Entity\Label\Label;
 use App\Entity\Mail\Message;
+use App\Entity\Mail\MessagePart;
 use App\Entity\User\User;
 use App\Repository\Calendar\CalendarEventRepository;
 use App\Repository\Mail\ContactRepository;
@@ -72,6 +75,7 @@ final readonly class DemoMailbox
      *     subject: string, fromName: string, fromAddress: string,
      *     label: string|null, unread: bool, hoursAgo: int,
      *     body: string, html?: string, headers?: array<string, string>,
+     *     attachment?: string,
      *     correspondent?: bool
      * }>
      */
@@ -109,6 +113,11 @@ final readonly class DemoMailbox
             'subject' => 'Rechnung 2026-0841',
             'fromName' => 'Steuerbüro Lang', 'fromAddress' => 'buchhaltung@lang-steuer.example',
             'label' => 'Receipts', 'unread' => false, 'hoursAgo' => 26,
+            // The mail says "Anbei die Rechnung" and, until this, attached
+            // nothing — a demo that describes an attachment it does not have.
+            // It is also the document a visitor would most plausibly want to
+            // open, and later to sign.
+            'attachment' => 'Rechnung-2026-0841.pdf',
             'body' => "Anbei die Rechnung für das Quartal.\n\n"
                 . "Buchhaltung Quartal III .......... 240,00 EUR\n"
                 . "Umsatzsteuer 19% ................. 45,60 EUR\n"
@@ -270,6 +279,7 @@ final readonly class DemoMailbox
         private MessageThreadRepository $threadRepository,
         private ContactRepository       $contactRepository,
         private LabelResolver           $labelResolver,
+        private AttachmentStorageHelper $attachmentStorage,
         private PostIngestPipeline      $pipeline,
         private CalendarEventRepository  $calendarEvents,
         private CalendarProvisioner      $calendarProvisioner,
@@ -312,6 +322,50 @@ final readonly class DemoMailbox
         $this->entityManager->flush();
 
         return $account;
+    }
+
+    /**
+     * A real PDF on a message that says it has one.
+     *
+     * Written to actual blob storage rather than faked, so downloading it, the
+     * reader, and saving it to a connected file store all exercise the same
+     * path a synced attachment does. See App\Domain\Helper\SamplePdf for why
+     * the document is generated rather than committed.
+     *
+     * The message must be flushed before this: the storage path is built from
+     * its id.
+     */
+    private function attach(Message $message, Account $account, string $filename, string $subject): void
+    {
+        $pdf = SamplePdf::document($subject, [
+            'Buchhaltung Quartal III .......... 240,00 EUR',
+            'Umsatzsteuer 19% ................. 45,60 EUR',
+            'Gesamtbetrag ..................... 285,60 EUR',
+            '',
+            'Zahlbar bis 12.09.2026.',
+            '',
+            'This is demo data. No such invoice exists.',
+        ]);
+
+        $part = new MessagePart();
+        $part->message     = $message;
+        $part->contentType = 'application/pdf';
+        $part->filename    = $filename;
+        $part->disposition = 'attachment';
+        $part->size        = strlen($pdf);
+        $part->isInline    = false;
+        $part->storagePath = $this->attachmentStorage->store(
+            (int) $account->id,
+            0,
+            (int) $message->id,
+            $filename,
+            $pdf,
+        );
+
+        $message->addMessagePart($part);
+        $message->hasAttachments = true;
+
+        $this->entityManager->persist($part);
     }
 
     /**
@@ -369,6 +423,7 @@ final readonly class DemoMailbox
         $now      = new DateTimeImmutable();
         $messages = [];
         $ingested = [];
+        $pending  = [];
 
         foreach (self::THREADS as $entry) {
             $receivedAt = $now->modify(sprintf('-%d hours', $entry['hoursAgo']));
@@ -404,11 +459,24 @@ final readonly class DemoMailbox
 
             $messages[] = $message;
             $ingested[] = new IngestedMessage($message, $account);
+
+            if (true === isset($entry['attachment'])) {
+                $pending[] = [$message, $entry['attachment'], $entry['subject']];
+            }
         }
 
         // The pipeline's precondition: ids must exist before it threads, and
         // its rule engine matches in SQL against a generated column, so a
         // message that has not reached the database is invisible to it.
+        $this->entityManager->flush();
+
+        // Attachments AFTER that flush, not inside the loop above: the storage
+        // path is built from the message id, and inside the loop there is not
+        // one yet. Same precondition, one step later.
+        foreach ($pending as [$message, $filename, $subject]) {
+            $this->attach($message, $account, $filename, $subject);
+        }
+
         $this->entityManager->flush();
 
         // One run for the whole batch rather than one per message. This is

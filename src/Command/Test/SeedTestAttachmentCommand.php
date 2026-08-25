@@ -8,6 +8,7 @@ use App\Domain\Enum\Mail\LabelRole;
 use App\Domain\Enum\Mail\MessageCategory;
 use App\Domain\Enum\Mail\ThreadingMethod;
 use App\Domain\Helper\AttachmentStorageHelper;
+use App\Domain\Helper\SamplePdf;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Message;
 use App\Entity\Mail\MessagePart;
@@ -61,6 +62,9 @@ final class SeedTestAttachmentCommand extends Command
     private const string SUBJECT = 'E2E Attachment';
     private const string FILENAME = 'e2e-attachment.txt';
     private const string CONTENTS = "Seeded attachment body.\n";
+
+    /** The PDF the viewer specs open. See pdfBytes() for what is in it. */
+    private const string PDF_FILENAME = 'e2e-document.pdf';
 
     public function __construct(
         private readonly EntityManagerInterface  $entityManager,
@@ -173,6 +177,33 @@ final class SeedTestAttachmentCommand extends Command
         $part->isInline    = false;
 
         $message->addMessagePart($part);
+
+        // A second part: a real PDF, for the reader specs.
+        //
+        // Built rather than committed as a binary — see SamplePdf, and note
+        // that awkward() is the deliberately difficult one: a rotated page with
+        // an offset MediaBox, which is what signature placement gets wrong.
+        $pdf = SamplePdf::awkward();
+
+        $pdfPath = $this->attachmentStorage->store(
+            (int) $account->id,
+            0,
+            (int) $message->id,
+            self::PDF_FILENAME,
+            $pdf,
+        );
+
+        $pdfPart = new MessagePart();
+        $pdfPart->message     = $message;
+        $pdfPart->contentType = 'application/pdf';
+        $pdfPart->filename    = self::PDF_FILENAME;
+        $pdfPart->disposition = 'attachment';
+        $pdfPart->size        = strlen($pdf);
+        $pdfPart->storagePath = $pdfPath;
+        $pdfPart->isInline    = false;
+
+        $message->addMessagePart($pdfPart);
+        $this->entityManager->persist($pdfPart);
         $this->entityManager->persist($part);
         $this->entityManager->flush();
 
@@ -251,4 +282,5 @@ final class SeedTestAttachmentCommand extends Command
 
         $this->entityManager->flush();
     }
+
 }

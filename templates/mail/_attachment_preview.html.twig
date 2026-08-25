@@ -1,0 +1,88 @@
+{#
+mail/_attachment_preview.html.twig
+─────────────────────────────────────────────────────────────────────────────
+Reading a PDF attachment without downloading it.
+
+Rendered into the app's modal frame. The document itself is NOT delivered by
+this response — the controller fetches the bytes from `app_mail_attachment`,
+which is unchanged and still serves them as a download. `fetch()` ignores
+Content-Disposition, so the strict inline allow-list stays exactly as strict as
+it was.
+
+The panel is `flex flex-col max-h-[92vh] overflow-hidden`, so the page stack
+must be `flex-1 min-h-0 overflow-auto` or it will not scroll — the same shape
+the integration picker uses inside this dialog.
+
+The download link stays. Reading in place is the point of this screen, but a
+document you are asked to sign is one you may well want a copy of, and removing
+the only way to get one would be a loss dressed as a feature.
+#}
+{% set assets = pdfjs_assets() %}
+
+<turbo-frame id="modal" class="flex-1 min-h-0 flex flex-col">
+    <div class="flex-1 min-h-0 flex flex-col"
+         data-controller="mail--pdf-viewer"
+         data-mail--pdf-viewer-src-value="{{ path('app_mail_attachment', { id: part.id }) }}"
+         data-mail--pdf-viewer-assets-value="{{ assets|json_encode }}"
+         data-mail--pdf-viewer-failed-text-value="{{ 'attachment.preview.failed'|trans }}">
+
+        {# ── Toolbar ─────────────────────────────────────────────────────── #}
+        <div class="shrink-0 flex items-center gap-3 border-b border-line px-4 py-2">
+            <i class="fa-solid fa-file-pdf text-danger shrink-0" aria-hidden="true"></i>
+
+            <span class="truncate text-sm font-medium text-ink" title="{{ part.filename }}">
+                {{ part.filename ?: 'attachment.preview.untitled'|trans }}
+            </span>
+
+            <div class="ml-auto flex items-center gap-1 shrink-0">
+                {# Page position. Hidden until the document reports a count, so
+                   a failed load does not leave "1 / 0" on screen. #}
+                <span data-mail--pdf-viewer-target="pages"
+                      class="hidden mr-2 text-xs text-ink-faint tabular-nums whitespace-nowrap"></span>
+
+                <button type="button"
+                        data-action="mail--pdf-viewer#zoomOut"
+                        aria-label="{{ 'attachment.preview.zoom_out'|trans }}"
+                        class="flex h-8 w-8 items-center justify-center rounded-lg text-ink-muted
+                               hover:bg-hover hover:text-ink transition-colors cursor-pointer">
+                    <i class="fa-solid fa-minus text-xs" aria-hidden="true"></i>
+                </button>
+
+                <button type="button"
+                        data-action="mail--pdf-viewer#zoomIn"
+                        aria-label="{{ 'attachment.preview.zoom_in'|trans }}"
+                        class="flex h-8 w-8 items-center justify-center rounded-lg text-ink-muted
+                               hover:bg-hover hover:text-ink transition-colors cursor-pointer">
+                    <i class="fa-solid fa-plus text-xs" aria-hidden="true"></i>
+                </button>
+
+                {# ?download=1 and the download attribute, both: the query
+                   parameter is what makes the server send it as an attachment,
+                   and the attribute is what stops Turbo Drive swallowing a
+                   non-HTML response. The chip's docblock explains the second. #}
+                <a href="{{ path('app_mail_attachment', { id: part.id, download: 1 }) }}"
+                   download="{{ part.filename ?: 'attachment.pdf' }}"
+                   data-turbo="false"
+                   aria-label="{{ 'attachment.preview.download'|trans }}"
+                   class="flex h-8 w-8 items-center justify-center rounded-lg text-ink-muted
+                          hover:bg-hover hover:text-ink transition-colors">
+                    <i class="fa-solid fa-download text-xs" aria-hidden="true"></i>
+                </a>
+            </div>
+        </div>
+
+        {# ── Pages ───────────────────────────────────────────────────────── #}
+        <div data-mail--pdf-viewer-target="scroller"
+             class="flex-1 min-h-0 overflow-auto bg-sunken/40 px-4 py-4">
+
+            <div data-mail--pdf-viewer-target="stack" class="mx-auto flex flex-col items-center gap-4"></div>
+
+            <div data-mail--pdf-viewer-target="status"
+                 class="flex flex-col items-center justify-center gap-2 py-12 text-ink-faint"
+                 aria-live="polite">
+                <i class="fa-solid fa-circle-notch fa-spin text-2xl" aria-hidden="true"></i>
+                <p class="text-sm">{{ 'attachment.preview.loading'|trans }}</p>
+            </div>
+        </div>
+    </div>
+</turbo-frame>

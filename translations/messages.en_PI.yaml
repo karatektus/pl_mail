@@ -400,6 +400,14 @@ alias:
 app:
     name: Mail
 
+attachment:
+    preview:
+        download: Haul aboard
+        failed: This scroll would not unroll. Ye can still haul it aboard.
+        loading: Unrollin'…
+        untitled: Cargo
+        zoom_in: Closer
+        zoom_out: Further off
 calendar:
     default_name: Cap'n's own
     alert:

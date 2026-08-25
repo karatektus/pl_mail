@@ -663,6 +663,14 @@ alias:
 app:
     name: Mail
 
+attachment:
+    preview:
+        download: Herunterladen
+        failed: Dieses PDF konnte nicht geöffnet werden. Du kannst es trotzdem herunterladen.
+        loading: Wird geöffnet…
+        untitled: Anhang
+        zoom_in: Vergrößern
+        zoom_out: Verkleinern
 calendar:
     default_name: Persönlich
     alert:
