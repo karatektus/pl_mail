@@ -6,6 +6,31 @@ so anything that changes the schema irreversibly is called out explicitly.
 The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, and `sha-…` pins one commit.
 
+## v0.1.30 — 2026-08-25
+
+**No migration. Marking a large selection read now actually reaches the provider, and a send is
+confirmed after it happens rather than before.**
+
+### Fixed
+
+- **Marking more than 1,000 conversations read did nothing.** Gmail refuses a batch of over a
+  thousand ids outright. plMail sent them all in one call, so the refusal came back, the rows had
+  already changed locally, and the next sync quietly put them all back — a button that appeared to
+  work, twice, with the reason only in a log. Batches are split now, for marking and for deleting.
+
+- **"Message sent." appeared two seconds before the send was attempted.** The confirmation was tied
+  to the end of the undo window (eight seconds), not to the send (ten). It comes from the worker
+  now, once there is an outcome — and a send that *fails* says so, which it never did before: every
+  sender turned a failure into a silent no-op with no retry and no record.
+
+- **A single network blip could mark an account as needing reconnection permanently.** Any failed
+  token refresh raised the red "sign in again" card, and the line that cleared it only ran when the
+  provider returned a new refresh token — which Google does once, at first connection. The card
+  never went away on its own.
+
+- **Gmail's own malformed-request errors are no longer retried.** A 400 is refused identically every
+  time; the retry ladder just produced three more copies of the line explaining what was wrong.
+
 ## v0.1.29 — 2026-08-25
 
 **Adds two columns to `account`; the migration runs on boot. A detected fault now offers the repair
