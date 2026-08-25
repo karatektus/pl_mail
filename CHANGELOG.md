@@ -6,6 +6,41 @@ so anything that changes the schema irreversibly is called out explicitly.
 The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, and `sha-…` pins one commit.
 
+## v0.1.32 — 2026-08-25
+
+**Adds three columns; the migrations run on boot. Two silent mail-loss bugs on Gmail accounts, and
+three things the app knew and never told you.**
+
+### Fixed
+
+- **A Gmail sync could abandon mail silently.** When Google refuses a sync cursor as too old, plMail
+  is supposed to re-list the mailbox. On any account past its first sync it fetched a fresh cursor
+  and stopped, so everything that happened in between — mail that arrived, was read, was deleted or
+  was refiled — stayed missing or stale for good, with the app reporting full health.
+
+- **A Gmail message id made entirely of digits crashed its whole batch.** PHP turns a numeric-looking
+  array key into a number, so those ids came back out as integers and the fetch died. Five retries,
+  then the batch was dropped: every refiled message in it, read state included, was never re-read.
+  The deletion path had the same fault with no error at all — the message simply was not deleted.
+
+- **A rate limit from Google Drive or Photos was reported as a missing permission**, sending you to
+  re-grant something you already had on a connection that would work again in a minute.
+
+### Added
+
+- **Connected services now say when they were given less than plMail asked for** — the same check the
+  mail accounts got in v0.1.28. Google Photos in particular is often refused permission to *browse* a
+  library while being allowed to *save* to it, which until now looked like an empty library and
+  nothing else.
+
+- **"N background jobs were given up on" now names the account and the kind of work.** Fifty failures
+  that are all one mailbox is one problem, and the card could not say so.
+
+- **Your mail server can finally tell you something.** IMAP has a channel for exactly this and the
+  standard says a client must show the text; plMail read those lines and dropped them. The most
+  common one by far is a mailbox over quota — which otherwise just stops receiving mail, with
+  everything else looking healthy.
+
 ## v0.1.31 — 2026-08-25
 
 **No migration. The "not given full access" card can now be cleared by granting access.**
