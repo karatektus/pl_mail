@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 namespace App\Command\Test;
 
+use App\Domain\Enum\Calendar\CalendarPaneMode;
 use App\Domain\Enum\Mail\LabelRole;
 use App\Domain\Enum\Mail\MessageCategory;
 use App\Domain\Enum\Mail\ThreadingMethod;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Message;
 use App\Entity\Mail\MessageThread;
+use App\Entity\User\User;
 use App\Jmap\State\JmapObjectType;
 use App\Jmap\State\StateManager;
 use App\Repository\Mail\AccountRepository;
@@ -103,6 +105,32 @@ final class SeedTestEmailCommand extends Command
 
             return Command::FAILURE;
         }
+
+        // A deterministic inbox has to mean a deterministic LIST, not merely
+        // deterministic mail.
+        //
+        // The calendar pane's mode and width live on the USER, and the client
+        // writes them whenever the pane is docked -- including on arrival at
+        // mail from outside it, which persists by itself without anyone
+        // touching the switch (see ui--split's connect). So the state outlives
+        // the browser context, and the per-worker user is shared by every spec
+        // file this worker runs: one spec that left the calendar docked
+        // narrows this list below the 36rem CONTAINER width that the row's
+        // `hidden @xl:flex` actions query.
+        //
+        // The failure that causes is a liar. The row is present and visible,
+        // its action buttons are merely display:none, and a hidden element is
+        // not in the accessibility tree -- so getByRole finds nothing and the
+        // test reports a row that has no Archive action. Nothing recovers it,
+        // either: the state is server-side, so retrying the assertion re-reads
+        // the same width until it times out. It reproduced only in full runs,
+        // because whether a calendar spec lands on this worker first depends
+        // on how the files happen to be distributed.
+        //
+        // Put the furniture back on every seed rather than trusting each
+        // producer to clean up after itself.
+        $user->calendarPaneMode = CalendarPaneMode::Mail;
+        $user->setSetting(User::SETTING_CALENDAR_PANE_WIDTH, User::CALENDAR_PANE_DEFAULT_WIDTH);
 
         $account = $this->accountRepository->findOneBy([
             'usr'      => $user,

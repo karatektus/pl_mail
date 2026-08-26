@@ -75,7 +75,17 @@ test("a snoozed conversation shows its wake time and can be woken", async ({ pag
         (response) => response.url().includes("/snooze") && response.request().method() === "POST",
     );
 
-    await option.click({ force: true });
+    // NOT force. `force` skips the hit-target check, and skipping it here is
+    // what produced a 90s timeout on a full run: the menu was still animating
+    // open, so the click went to the option's centre while something else was
+    // still over that point, and the event landed on the ROW instead. The trace
+    // shows it exactly -- no POST to /snooze at all, and a POST to
+    // /status/thread/<id>/read, which is the conversation being opened by a
+    // click the test believed it had aimed at a menu entry. An honest click
+    // waits for the option to be stable and actually hittable; if something
+    // ever does cover it, the failure says so instead of quietly pressing
+    // whatever is underneath.
+    await option.click();
 
     expect((await snoozed).status(), "the snooze was refused").toBe(200);
 
@@ -142,7 +152,11 @@ test("a snoozed conversation shows its wake time and can be woken", async ({ pag
         (response) => response.url().includes("/snooze") && response.request().method() === "POST",
     );
 
-    await wakeNow.click({ force: true });
+    // Not force, for the reason given at the first menu click above: an entry
+    // in a menu that has been asserted visible does not need the hit-target
+    // check disabled, and disabling it turns "something was over it" into a
+    // click on whatever was underneath.
+    await wakeNow.click();
     await woken;
 
     await page.goto("/mail/inbox");
