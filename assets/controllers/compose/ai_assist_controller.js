@@ -87,7 +87,7 @@ export default class extends Controller {
         refusedLabel: { type: String, default: "No answer" },
     };
 
-    static targets = ["panel", "status", "meter", "preview", "stop", "actions"];
+    static targets = ["panel", "status", "meter", "preview", "stop", "actions", "pending"];
 
     /**
      * How often the token counter may be redrawn, in milliseconds.
@@ -198,12 +198,12 @@ export default class extends Controller {
         if (null === target) return;
 
         target.focus();
-        this.#caretToEnd(target);
+        this.#caretToWritingEnd(target);
 
-        // A blank line between what was there and what arrives, unless the
-        // draft is empty — a reply that opens with two blank lines is a thing
-        // the writer then has to delete.
-        const separator = "" === this.#textOf(target).trim() ? "" : "\n\n";
+        // A blank line between what was there and what arrives, unless there is
+        // nothing of the writer's above it — a reply that opens with two blank
+        // lines is a thing the writer then has to delete.
+        const separator = "" === this.#writtenBefore(target).trim() ? "" : "\n\n";
 
         if (false === document.execCommand("insertText", false, separator + text)) {
             // A browser that refuses execCommand still has to end up with the
@@ -269,7 +269,9 @@ export default class extends Controller {
         this.#stopping(true);
 
         // Said before the request is even built, so the very first thing that
-        // happens after the click is visible.
+        // happens after the click is visible — and moving, because the wait
+        // that follows can be thirteen silent seconds.
+        this.#pending(true);
         this.#say(this.sentLabelValue);
 
         try {
@@ -379,7 +381,11 @@ export default class extends Controller {
 
         if ("token" === frame.type) {
             if (0 === this.#tokens) {
-                // The first token is the moment "waiting" stops being true.
+                // The first token is the moment "waiting" stops being true —
+                // and the moment the dots stop earning their place, because
+                // text arriving is a better progress indicator than anything
+                // drawn beside it.
+                this.#pending(false);
                 this.#firstTokenAt = performance.now();
                 this.#say(this.busyLabelValue);
             }
@@ -484,6 +490,21 @@ export default class extends Controller {
      * Empty means gone, not blank: an empty line floating over the action bar
      * is furniture with nothing in it.
      */
+    /**
+     * The dots, on or off.
+     *
+     * Deliberately not tied to #say(): the panel says something in every state
+     * including the finished ones, and dots under "Finished." would be a window
+     * claiming to still be working.
+     */
+    #pending(on) {
+        if (false === this.hasPendingTarget) {
+            return;
+        }
+
+        this.pendingTarget.hidden = false === on;
+    }
+
     #say(message, title = "") {
         if (false === this.hasStatusTarget) {
             return;
@@ -589,6 +610,15 @@ export default class extends Controller {
         if (true === this.hasStopTarget) {
             this.stopTarget.hidden = false === on;
         }
+
+        // Every path that ends a run comes through here with false — finished,
+        // failed, stopped, discarded — so this is the one place that cannot
+        // leave the dots breathing over a panel that is done. They are switched
+        // ON separately, because they also have to go out at the first token
+        // while the stop button quite deliberately stays.
+        if (false === on) {
+            this.#pending(false);
+        }
     }
 
     #actions(on) {
@@ -656,6 +686,104 @@ export default class extends Controller {
     }
 
     /** Put the caret at the very end, which is where the answer goes. */
+    /**
+     * The quoted original, and everything the composer stacks below it.
+     *
+     * Same selector the composer's own typed-length calculation uses, including
+     * its two fallbacks for drafts written before the quote was marked — so
+     * "what is quoted" means one thing in this window, not two.
+     */
+    static QUOTE = '[data-quote-wrapped], [data-quoted], blockquote,'
+        + ' div[style*="border-top"], div[style*="font-size:0.85em"]';
+
+    /**
+     * The end of what the WRITER has written, which is not the end of the box.
+     *
+     * A reply opens with the quoted original already in the body, so the end of
+     * the editor is underneath it — and an answer inserted there is an answer
+     * nobody scrolls to, sitting below the message it is answering. It was
+     * reported exactly that way: "ai written text are inserted below the quote".
+     *
+     * So the caret goes immediately BEFORE the first quoted block instead, which
+     * is where a person's cursor already is when they start typing a reply.
+     * With no quote — a new message — this is the end of the box, as before.
+     */
+    #caretToWritingEnd(surface) {
+        if (undefined !== surface.value) {
+            // Plain text. The quote is `>`-prefixed lines rather than markup, so
+            // the boundary is the first of them; anything after it is quoted.
+            const cut = this.#plainQuoteStart(surface.value);
+
+            surface.selectionStart = cut;
+            surface.selectionEnd = cut;
+
+            return;
+        }
+
+        const quote = surface.querySelector(this.constructor.QUOTE);
+
+        if (null === quote) {
+            this.#caretToEnd(surface);
+
+            return;
+        }
+
+        // The quote may be wrapped several layers deep; the caret belongs before
+        // the outermost child of the editor that contains it, or the separator
+        // lands inside the quotation.
+        let block = quote;
+
+        while (null !== block.parentElement && block.parentElement !== surface) {
+            block = block.parentElement;
+        }
+
+        const range = document.createRange();
+        range.setStartBefore(block);
+        range.collapse(true);
+
+        const selection = document.getSelection();
+        selection?.removeAllRanges();
+        selection?.addRange(range);
+    }
+
+    /**
+     * Where the quoted text starts in a plain-text draft.
+     *
+     * The first `>` line that begins a line, minus the attribution line above it
+     * ("On <date>, <somebody> wrote:") when there is one — that line belongs to
+     * the quote, and inserting between it and the `>` lines splits the quotation
+     * in half.
+     */
+    #plainQuoteStart(value) {
+        const lines = value.split("\n");
+        const first = lines.findIndex((line) => line.startsWith(">"));
+
+        if (-1 === first) {
+            return value.length;
+        }
+
+        let cut = first;
+
+        if (cut > 0 && "" !== lines[cut - 1].trim()) {
+            cut -= 1;
+        }
+
+        return lines.slice(0, cut).join("\n").length;
+    }
+
+    /** What the writer has above the insertion point, for the separator. */
+    #writtenBefore(surface) {
+        if (undefined !== surface.value) {
+            return surface.value.slice(0, this.#plainQuoteStart(surface.value));
+        }
+
+        const clone = surface.cloneNode(true);
+
+        clone.querySelectorAll(this.constructor.QUOTE).forEach((node) => node.remove());
+
+        return clone.innerText ?? clone.textContent ?? "";
+    }
+
     #caretToEnd(surface) {
         if (undefined !== surface.value) {
             surface.selectionStart = surface.value.length;

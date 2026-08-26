@@ -191,6 +191,31 @@ final class ComposeAssistController extends AbstractController
         // own hands means we notice it at a line we chose and unwind properly.
         ignore_user_abort(true);
 
+        // And no wall-clock limit, because the one PHP ships with is far below
+        // what this request legitimately takes.
+        //
+        // php.ini sets max_execution_time = 30 for the web SAPI. A cold load of
+        // the 30B writing model is around thirteen seconds BEFORE the first
+        // token exists, and a reply worth reading is another twenty or thirty
+        // after it — so the limit fired mid-generation and the reader watched
+        // the text stop halfway with a 500 in the log:
+        //
+        //     MaxExecutionTimeError: Maximum execution time of 30 seconds
+        //     exceeded at CurlResponse.php line 370
+        //
+        // Killing it there is the worst possible moment: it lands inside the
+        // HTTP client's read, so the unwinding that cancels the model call and
+        // records the row never happens, and Ollama carries on generating for a
+        // reader who has already been shown an error.
+        //
+        // Unbounded here does NOT mean unbounded overall, which is the only
+        // reason this is safe. The upstream call is held to
+        // OllamaClient::GENERATE_TIMEOUT, a dead host trips that and unwinds
+        // normally, and a reader who leaves is noticed by connection_aborted()
+        // on the next write. This removes the one bound that was shorter than
+        // the work and did the most damage when it fired.
+        set_time_limit(0);
+
         $tokens = $this->assistant->stream($task, $draft, $context, $subject);
 
         if (null === $tokens) {

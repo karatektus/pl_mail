@@ -4086,3 +4086,55 @@ label:has(> input.sr-only) {
 [data-details-open] {
     z-index: 30;
 }
+
+/*
+   ── The composer's "still working" dots ────────────────────────────────────
+
+   Shown between asking a model for something and the first token of its
+   answer. That gap is not small and it is not fillable: a 30B model that has
+   fallen out of the keep-alive window takes around thirteen seconds to be read
+   off disk before it can emit anything, and Ollama reports no progress at all
+   while it does. So there is nothing honest to put in a progress bar, and a
+   sentence that simply sits there — "The model is loading." — reads as a window
+   that has hung. It was reported that way.
+
+   Three dots, breathing out of phase. They say "working" and claim nothing
+   about how far along it is, which is exactly as much as we know.
+
+   Opacity and not transform: the row sits beside a line of text whose baseline
+   must not move, and animating opacity keeps the whole thing off the layout
+   path.
+*/
+.ai-pending {
+    display: inline-flex;
+    gap: 3px;
+}
+
+.ai-pending i {
+    width: 4px;
+    height: 4px;
+    border-radius: 9999px;
+    background: currentColor;
+    opacity: 0.25;
+    animation: ai-pending-breathe 1.4s ease-in-out infinite;
+}
+
+.ai-pending i:nth-child(2) { animation-delay: 0.2s; }
+.ai-pending i:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes ai-pending-breathe {
+    0%, 80%, 100% { opacity: 0.25; }
+    40%           { opacity: 1; }
+}
+
+/*
+   Still visible, just still. The dots are the only sign the request is alive,
+   so removing them under reduced motion would leave exactly the silent window
+   this exists to fix — they stop moving and sit at a readable opacity instead.
+*/
+@media (prefers-reduced-motion: reduce) {
+    .ai-pending i {
+        animation: none;
+        opacity: 0.55;
+    }
+}

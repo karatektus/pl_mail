@@ -1100,6 +1100,23 @@ Variables: form, message, ctx (an App\Domain\DTO\Mail\ComposeContext)
                                         z-30 popover flex flex-col">
 
                                 <div class="flex items-start gap-2 px-3 py-2">
+                                    {# Something moving while nothing is arriving.
+                                       Between the click and the first token there can be
+                                       thirteen seconds of a 30B model being read off disk,
+                                       and Ollama reports no progress through it — so there
+                                       is nothing to fill a bar with and a still sentence
+                                       reads as a hung window. Three dots that breathe say
+                                       "working" without claiming to know how far along it
+                                       is. aria-hidden: the status line beside it already
+                                       announces the state in words, and a screen reader has
+                                       no use for decoration. Held still under
+                                       prefers-reduced-motion, where it stays visible as
+                                       three plain dots. #}
+                                    <span data-compose--ai-assist-target="pending"
+                                          hidden
+                                          aria-hidden="true"
+                                          class="ai-pending mt-[3px] shrink-0"><i></i><i></i><i></i></span>
+
                                     <div class="min-w-0 flex-1">
                                         {# `role="status"` with aria-live so the STATE TRANSITIONS
                                            are announced rather than only drawn. Only transitions:
