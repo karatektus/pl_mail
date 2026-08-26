@@ -111,6 +111,28 @@ so anything logged while you were reading is still genuinely unread.
 The outline is shown to administrators only. For anyone else it would be an alarm about something
 they are not allowed to look at.
 
+### What an entry contains
+
+Expanding an entry shows its context as JSON, and **Copy** puts the whole thing — time, level,
+channel, source, message and context — on the clipboard in one piece, which is what makes an entry
+worth pasting into a bug report.
+
+When the entry came from an exception, the context carries its class, message, code, file, line and
+stack trace, followed by the chain of **previous** exceptions underneath it. That chain is usually
+where the real cause is: a database wrapper reports "an exception occurred while executing a query"
+and the exception beneath it names the constraint. Entries produced by a web request also record the
+request's method, path and route name, so a fault can be tied to the page that caused it.
+
+Two things are deliberately left out, and both are about not turning an admin page into a place
+secrets accumulate:
+
+- **Stack frames carry no argument values.** A frame is recorded as its file, line and function, and
+  nothing else. The arguments a frame received are the plaintext password on a sign-in path and the
+  message body on a mail one.
+- **Query-string values are not recorded** — only the parameter names. That a request carried a `q`
+  is what tells you a search ran, which is the question worth answering; what somebody searched for
+  is their business, and the administrator reading this is not always the person who typed it.
+
 Unlike the System panels this section does not auto-refresh — reading a stack trace should not get
 yanked away mid-scroll.
 

@@ -1,4 +1,4 @@
-<!-- translated-from: features/admin.md sha1:bfaa81ffb9da7112b487539553d795b962e5884a -->
+<!-- translated-from: features/admin.md sha1:ac96ff8eb7734270e5ef353b0889620cb4fc22f4 -->
 
 # Administration
 
@@ -126,6 +126,30 @@ protokolliert wird, während du liest, bleibt also tatsächlich ungelesen.
 
 Die Umrandung sehen nur Administratorinnen und Administratoren. Für alle anderen wäre sie ein
 Alarm über etwas, das sie gar nicht ansehen dürfen.
+
+### Was in einem Eintrag steht
+
+Klappst du einen Eintrag auf, siehst du seinen Kontext als JSON, und **Kopieren** legt das Ganze —
+Zeit, Stufe, Kanal, Quelle, Meldung und Kontext — in einem Stück in die Zwischenablage. Genau das
+macht einen Eintrag brauchbar, wenn du ihn in einen Fehlerbericht einfügst.
+
+Stammt der Eintrag von einer Exception, enthält der Kontext deren Klasse, Meldung, Code, Datei,
+Zeile und Stacktrace und darunter die Kette der **vorherigen** Exceptions. In dieser Kette steckt
+meistens die eigentliche Ursache: Eine Datenbank-Hülle meldet „beim Ausführen einer Abfrage ist ein
+Fehler aufgetreten“, und die Exception darunter nennt die verletzte Bedingung. Einträge aus einem
+Web-Request halten außerdem Methode, Pfad und Routennamen fest, sodass sich ein Fehler der Seite
+zuordnen lässt, die ihn ausgelöst hat.
+
+Zwei Dinge fehlen bewusst, und bei beiden geht es darum, dass sich auf einer Admin-Seite keine
+Geheimnisse ansammeln:
+
+- **Stack-Frames enthalten keine Argumentwerte.** Ein Frame wird mit Datei, Zeile und Funktion
+  festgehalten, sonst nichts. Die Argumente eines Frames sind auf dem Anmeldeweg das Klartext-Passwort
+  und auf dem Mail-Weg der Nachrichtentext.
+- **Werte aus dem Query-String werden nicht gespeichert** — nur die Parameternamen. Dass ein Request
+  ein `q` mitgebracht hat, sagt dir, dass eine Suche lief, und das ist die Frage, die zählt. Wonach
+  jemand gesucht hat, geht nur diese Person etwas an, und wer hier mitliest, ist nicht immer die
+  Person, die es getippt hat.
 
 Anders als die System-Panels aktualisiert sich dieser Abschnitt nicht von selbst — beim Lesen
 eines Stacktrace soll einem nicht mitten im Scrollen alles weggerissen werden.

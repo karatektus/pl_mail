@@ -6,6 +6,50 @@ so anything that changes the schema irreversibly is called out explicitly.
 The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, and `sha-…` pins one commit.
 
+## v0.1.36 — 2026-08-26
+
+**No migration. Search stops timing out, and the log finally says where a fault happened.**
+
+### Fixed
+
+- **A search could spend the whole request on one query and return a 500.** Free-text search runs a
+  cheap indexed pass first and, when that comes back with less than a screenful, falls back to
+  scanning message bodies for the raw substring. That fallback cannot be indexed away — it exists
+  for a needle full-text cannot see, like a word inside a domain name — and on a large mailbox it
+  ran long enough to hit PHP's thirty-second limit:
+  `MaxExecutionTimeError: Maximum execution time of 30 seconds exceeded`.
+
+  It now runs under a five-second database timeout, and when it expires the results the cheap pass
+  already found are returned instead. What is lost is the occasional infix match; what is no longer
+  lost is the search. The timeout is enforced by Postgres rather than PHP on purpose — PHP's limit
+  kills the process and leaves the database still working on a query nobody is waiting for any more.
+
+- **A remote image that failed to load said nothing anywhere.** The image proxy has four ways to
+  give up, and the two most common — the host answering with a refusal, and an error page served as
+  HTML with a 200 — recorded nothing at all. The image became a transparent placeholder,
+  indistinguishable from a spacer, and an expired link, a host blocking an unfamiliar user agent and
+  a mistyped URL all looked identical with no evidence to tell them apart. Both now log the reason,
+  with the status code or the content type attached.
+
+  At `info`, like the proxy's other diagnostics: set `APP_DB_LOG_LEVEL=info` to see them. Kept below
+  the default deliberately — every expired tracking pixel in a newsletter takes this path, and a
+  dashboard that is mostly those stops being read.
+
+- **Every logged exception said `"exception": []`.** The log handler wrote the raw context to the
+  database with `json_encode`, and a PHP exception has no public properties — so its class, file,
+  line, stack trace and underlying cause were all encoded as an empty object. The dashboard showed
+  the level and the message and threw away the one field that says **where**.
+
+  Faults now record class, message, code, file, line, a stack trace, and the full chain of previous
+  exceptions — which is usually where the real cause is. Log entries also carry the request that
+  produced them: method, path and route name.
+
+  Stack frames deliberately carry **no argument values**, and the request's query-string **values**
+  are not recorded either — only the parameter names. A trace's arguments are the plaintext password
+  on a sign-in path and the message body on a mail one, and a search term is private to whoever
+  typed it. What is kept is what identifies the code path; what is dropped is what would turn an
+  admin page into a place secrets accumulate.
+
 ## v0.1.35 — 2026-08-26
 
 **Adds columns to `message` and `account`; the migrations run on boot. Mail that bounces now says so.**
