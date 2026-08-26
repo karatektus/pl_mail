@@ -42,6 +42,43 @@ admin:
         messages: 'Bottles'
         threads: 'Yarns'
     ago: 'ago'
+    ai:
+        field:
+            base_url: "Oracle's berth"
+            base_url_help: "Where yer Ollama box lies on the network, port an' all."
+            base_url_invalid: 'That must begin with http:// or https://.'
+            categorisation: 'Sort mail into holds'
+            categorisation_help: "Runs on ev'ry message that arrives. Only breaks a tie — the ordinary rules speak first."
+            chat_model: 'Scrivener model'
+            chat_model_help: "For replies, summaries an' sortin'. Somethin' instruction-tuned."
+            embedding_model: "Divinin' model"
+            embedding_model_help: "Turns mail into vectors so the search finds meanin', not words."
+            enabled: 'Consult an oracle'
+            enabled_help: "Off by default. While this be off, all below be ignored."
+            search: "Search by meanin'"
+            search_help: "Adds hits that match what ye meant. The ordinary search be untouched."
+            token: 'Token'
+            token_help: "Only if ye put a guard in front o' the box."
+            token_help_set: 'A token be on file. Leave it blank to keep it.'
+            writing_help: 'Help me write'
+            writing_help_help: "Offers drafts an' rewrites at the writin' desk, when ye ask."
+        heading: 'Oracle'
+        intro: "plMail can consult an oracle ye run yerself. Nowt leaves yer waters, nowt starts until ye say so, an' while this be off the mail works exactly as it does now."
+        probe:
+            missing_model: "That berth answered, but holds no: %models%. Haul 'em aboard there first."
+            no_host: 'Write an address first.'
+            ok: "That berth answered, an' holds %count% models."
+            models: 'Show the %count% models it holds'
+            status: 'That berth answered with HTTP %status%.'
+            unreachable: 'Nowt answered at that berth. (%error%)'
+        save: 'Save'
+        saved: 'Saved.'
+        status:
+            incomplete: 'Wants a berth'
+            off: 'Off'
+            on: 'On'
+            paused: 'Becalmed'
+        test: 'Test'
     db:
         active:
             empty: 'No queries afoot right now.'
