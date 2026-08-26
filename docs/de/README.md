@@ -1,4 +1,4 @@
-<!-- translated-from: README.md sha1:03bd51444ebe373d2f1ffe58813794dcc62a4c93 -->
+<!-- translated-from: README.md sha1:6068a5de0b9b1f1c887145d2aa12895e74623be9 -->
 
 # plMail-Dokumentation
 
@@ -79,6 +79,7 @@ plMail prüft oder erweitert, statt es zu betreiben.
 | [Mail-Ingest](internals/mail-ingest.md) | Der Weg vom Anbieter in die Datenbank, Zuordnung zu Konversationen, Kategorisierung |
 | [Das Kalendermodell](internals/calendar-model.md) | JSCalendar in jsonb, projizierte Spalten, Termininstanzen, Wiederholungen und Ausnahmen |
 | [Die Sync-Engine](internals/calendar-sync-engine.md) | Der Treibervertrag, den jeder Anbieter erfüllt, Push-Kanäle, Deduplizierung |
+| [KI-Unterstützung](internals/ai-assist.md) | Die optionalen Modell-Funktionen: was standardmäßig aus ist und warum das Vektor-Design ohne pgvector auskommt |
 | [Terminerkennung](internals/event-extraction.md) | Wie aus einer Einladung und wie aus einem Satz ein Kalendereintrag wird |
 | [JMAP](internals/jmap.md) | Was umgesetzt ist, was bewusst nicht, und die Id-Räume |
 | [Sicherheitsmodell](internals/security-model.md) | Verschlüsselung im Ruhezustand, die Geheimnisdatei, Token, und was ein öffentlicher Link erreicht |
