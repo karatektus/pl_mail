@@ -6,6 +6,88 @@ so anything that changes the schema irreversibly is called out explicitly.
 The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, and `sha-…` pins one commit.
 
+## v0.2.0 — 2026-08-27
+
+**Adds two tables and two columns; the migrations run on boot. The language model can now be watched
+while it works — and the composer button that was reported as dead had never run at all.**
+
+### Fixed
+
+- **"Help me write" did nothing, in every installation that had it switched on.** The composer looks
+  up its editor by one attribute name and renders it under another, so the very first guard returned
+  and no request was ever made — no pending state, no error, nothing in a log. The subject was read
+  the same wrong way and failed more quietly still: every prompt that *did* reach a model went out
+  with an empty subject. Reported as "I click the AI button and nothing happens", which was exactly
+  right and had nothing to do with the model.
+
+- **Background work could not be opened.** The topbar indicator pulsed away saying work was running,
+  which was true, and clicking it did nothing whatsoever — the panel was hidden by a CSS class while
+  the control that opens it clears an attribute. Worse, because the attribute was absent, the first
+  click was read as a close.
+
+- **Finished background work never left the list.** Three "Marking as read" jobs stuck at partial
+  progress had stopped weeks earlier. A job that fails properly says so and clears after five
+  minutes; these were killed mid-flight — a restart, a worker that went away — and the query behind
+  the indicator had no notion of time at all, so "still going" and "abandoned" were the same row
+  forever. Jobs now report progress as they make it, and `app:jobs:reap` sweeps the stragglers.
+
+- **Chrome filled saved mail credentials into API-token fields.** Observed in Admin → AI: focusing
+  "Model host" pulled in the account address and the token field took the account password. Nothing
+  was submitted, but a login was one press away from being stored as a token and sent to whatever
+  host that field names. Every credential input now says it is not the site login.
+
+- **The image proxy refused pictures without saying so anywhere.** The reader still sees the same
+  blank placeholder — telling a stranger's server apart from a refused one is what its rules exist to
+  prevent — but the operator now gets a line saying which of the two happened.
+
+### Added
+
+- **A performance panel for the model host, in Admin → AI.** What is loaded right now, how long until
+  it is unloaded, whether the models you named are actually installed, and what recent calls have
+  cost — median and 95th-percentile tokens a second, per workload and per model, over an hour, a day
+  or a week.
+
+  The state worth the whole panel is **"partly on the CPU"**. When a model does not fit, some of its
+  layers spill out of GPU memory and throughput collapses — while the answers stay perfectly correct.
+  Nothing else in plMail can see that, so without this the symptom is that everything is simply slow,
+  for as long as it takes somebody to think of checking.
+
+  What is recorded is counts and durations. No prompt, no completion, no subject, no address, and
+  failures are recorded as a category rather than a message, because an HTTP error routinely quotes
+  the request back and the request is your mail. `app:ai:prune-metrics` keeps a month.
+
+- **The composer shows the model working.** Text arrives as it is written, into a panel of its own
+  that you accept or throw away — never straight into the message, so one undo removes it and an
+  arriving word cannot land in the middle of a sentence you are typing. Stopping stops the model,
+  rather than only the watching.
+
+  The wait before the first word is now a sentence rather than a silence. A model that has gone idle
+  takes around fifteen seconds to load, and saying so is the difference between waiting and giving
+  up.
+
+- **Search says whether it searched by meaning, and how much of the mailbox it could.** A search that
+  quietly fell back to words alone now says why — the host did not answer, the model is not
+  installed, the query was too short. Results found by meaning are marked as such, so an
+  apparently unrelated message can explain itself. And while indexing is still running it says how
+  far it has got: meaning-search over a mailbox that is 8% indexed is not a feature, it is a trap.
+
+- **Indexing existing mail has a progress display and controls.** Start, pause and resume in
+  Admin → AI, with a rate and an estimate that stays hidden until it means something. It counts what
+  is actually indexed rather than what it thinks it did, so a worker that dies resumes instead of
+  starting over — and it stands aside while anyone is using the AI and comes back on its own, because
+  both want the same GPU and a batch in flight makes the composer feel dead again.
+
+- **A second opacity slider, for windows and menus.** Translucency multiplies: a composer at 70% over
+  a pane at 70% left about a tenth of the wallpaper in the middle of the text. Windows, menus, modals
+  and toasts now have their own setting, and it cannot be taken as low as the panes'.
+
+### Changed
+
+- **Vectors are matched to the model that made them.** Changing the search model in settings used to
+  leave every existing vector silently in place, comparing numbers that mean nothing to each other.
+  Search now only compares vectors from the model in use and says that the rest are waiting to be
+  indexed again.
+
 ## v0.1.45 — 2026-08-26
 
 **Adds three tables; the migrations run on boot. plMail can use a language model you run yourself —
