@@ -4,12 +4,17 @@ declare(strict_types=1);
 
 namespace App\Controller\Admin;
 
+use App\Controller\ChecksCsrf;
 use App\Domain\DTO\Ai\AiProbe;
+use App\Domain\Enum\Ai\MetricWindow;
 use App\Form\Admin\AiSettingsType;
 use App\Repository\Ai\AiSettingsRepository;
 use App\Service\Ai\AiAssistant;
+use App\Service\Ai\AiPerformancePanel;
+use App\Service\Ai\EmbeddingBackfill;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
@@ -38,10 +43,14 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 #[IsGranted('ROLE_ADMIN')]
 final class AiSettingsController extends AbstractController
 {
+    use ChecksCsrf;
+
     public function __construct(
         private readonly AiSettingsRepository   $settings,
         private readonly AiAssistant            $assistant,
         private readonly EntityManagerInterface $entityManager,
+        private readonly AiPerformancePanel     $panel,
+        private readonly EmbeddingBackfill      $backfill,
     ) {
     }
 
@@ -121,6 +130,85 @@ final class AiSettingsController extends AbstractController
                 $submitted['chatModel'] ?? null,
                 $submitted['embeddingModel'] ?? null,
             ])),
+        ]);
+    }
+
+    /**
+     * What the model host is doing, as JSON, for the panel to poll.
+     *
+     * PROXIED, BECAUSE THE BROWSER CANNOT ASK THE HOST ITSELF
+     * ──────────────────────────────────────────────────────
+     * The model host is a different origin, usually on an address only this
+     * server can route to, and `connect-src 'self'` refuses it in production
+     * regardless. So the page asks this endpoint and this endpoint asks the
+     * host — with short timeouts, because it is polled; see AiPerformancePanel.
+     *
+     * WHY IT CARRIES RENDERED HTML AS WELL AS THE NUMBERS
+     * ──────────────────────────────────────────────────
+     * The panel has six states to tell apart — off, unreachable, nothing
+     * resident, warm, partly on the CPU, no history yet — and every one of them
+     * is a sentence in three languages. Building those in JavaScript would put
+     * the copy somewhere the translator never looks, so the states stay in
+     * Twig and the payload carries both: the structured reading for anything
+     * that wants to reason about it, and the fragment the controller swaps in.
+     *
+     * A GET that changes nothing, so no CSRF token — the policy this project
+     * applies everywhere.
+     */
+    #[Route('/status', name: 'status', methods: ['GET'])]
+    public function status(Request $request): JsonResponse
+    {
+        $snapshot = $this->panel->snapshot(MetricWindow::fromRequest($request->query->get('window')));
+
+        return $this->json([
+            ...$this->panel->payload($snapshot),
+            'html' => $this->renderView('admin/ai/_performance.html.twig', ['panel' => $snapshot]),
+        ]);
+    }
+
+    /**
+     * Start, pause or resume the backfill.
+     *
+     * One action for the three, because they are one control: they share every
+     * guard, they answer the same way, and the panel re-renders from the same
+     * snapshot afterwards whichever was pressed. Three endpoints would have
+     * been three places to forget the CSRF check.
+     *
+     * The outcome is a KEY, not a sentence — 'already_running', 'search_off',
+     * 'resumes_itself' — translated by the template that shows it. The service
+     * layer does not know what language anybody reads, which is the same rule
+     * AiProbe follows.
+     */
+    #[Route('/backfill/{action}', name: 'backfill', methods: ['POST'], requirements: ['action' => 'start|pause|resume'])]
+    public function backfill(string $action, Request $request): JsonResponse
+    {
+        $this->assertCsrf($request, 'ajax');
+
+        $outcome = match ($action) {
+            'start'  => $this->backfill->start(),
+            'pause'  => $this->backfill->pause(),
+            'resume' => $this->backfill->resume(),
+            // Unreachable: the route requirement is the same closed set. Spelled
+            // out anyway so a future action added to the requirement cannot
+            // silently fall through to "started".
+            default  => EmbeddingBackfill::NOT_RUNNING,
+        };
+
+        // Re-read rather than predicted. A start that was refused because
+        // another administrator got there first must render THEIR run, not the
+        // one this request thought it was making.
+        $snapshot = $this->panel->snapshot(MetricWindow::fromRequest($request->query->get('window')));
+
+        return $this->json([
+            ...$this->panel->payload($snapshot),
+            'outcome' => $outcome,
+            // The outcome goes into the FRAGMENT as well as the payload: a
+            // refusal is a sentence, and sentences live in Twig where the
+            // translator can find them.
+            'html'    => $this->renderView('admin/ai/_performance.html.twig', [
+                'panel'   => $snapshot,
+                'outcome' => $outcome,
+            ]),
         ]);
     }
 

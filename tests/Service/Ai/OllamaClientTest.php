@@ -101,7 +101,7 @@ final class OllamaClientTest extends TestCase
             return new MockResponse(json_encode(['embeddings' => [[0.5, 1, -0.25]]]));
         });
 
-        self::assertSame([0.5, 1.0, -0.25], $client->embed('http://h:11434', 'nomic-embed-text', 'hello'));
+        self::assertSame([0.5, 1.0, -0.25], $client->embed('http://h:11434', 'nomic-embed-text', 'hello')->vector);
     }
 
     /**
@@ -119,7 +119,7 @@ final class OllamaClientTest extends TestCase
             return new MockResponse(json_encode(['embedding' => [1, 2, 3]]));
         });
 
-        self::assertSame([1.0, 2.0, 3.0], $client->embed('http://h:11434', 'nomic-embed-text', 'hello'));
+        self::assertSame([1.0, 2.0, 3.0], $client->embed('http://h:11434', 'nomic-embed-text', 'hello')->vector);
     }
 
     /**
@@ -131,7 +131,7 @@ final class OllamaClientTest extends TestCase
     {
         $client = $this->client(static fn (): MockResponse => new MockResponse(json_encode(['embeddings' => [[1, 2, 3]]])));
 
-        foreach ((array) $client->embed('http://h:11434', 'm', 't') as $component) {
+        foreach ((array) $client->embed('http://h:11434', 'm', 't')->vector as $component) {
             self::assertIsFloat($component);
         }
     }
@@ -140,7 +140,15 @@ final class OllamaClientTest extends TestCase
     {
         $client = $this->client(static fn (): MockResponse => new MockResponse('no', ['http_code' => 500]));
 
-        self::assertNull($client->embed('http://h:11434', 'm', 't'));
+        $result = $client->embed('http://h:11434', 'm', 't');
+
+        self::assertNull($result->vector);
+        self::assertFalse($result->succeeded);
+
+        // ONE result for two attempts, carrying the reason the informative
+        // attempt gave. Two rows for one logical embedding would double every
+        // call count on a host old enough to need the fallback.
+        self::assertSame(OllamaClient::ERROR_HTTP_STATUS, $result->errorKind);
     }
 
     public function testChatReturnsTheMessageContent(): void
@@ -157,7 +165,7 @@ final class OllamaClientTest extends TestCase
 
         self::assertSame(
             'A subject line',
-            $client->chat('http://h:11434', 'llama3.1', [['role' => 'user', 'content' => 'hi']]),
+            $client->chat('http://h:11434', 'llama3.1', [['role' => 'user', 'content' => 'hi']])->content,
         );
     }
 
@@ -166,7 +174,10 @@ final class OllamaClientTest extends TestCase
     {
         $client = $this->client(static fn (): MockResponse => new MockResponse(json_encode(['message' => ['content' => '   ']])));
 
-        self::assertNull($client->chat('http://h:11434', 'm', [['role' => 'user', 'content' => 'hi']]));
+        $result = $client->chat('http://h:11434', 'm', [['role' => 'user', 'content' => 'hi']]);
+
+        self::assertNull($result->content);
+        self::assertSame(OllamaClient::ERROR_BAD_RESPONSE, $result->errorKind);
     }
 
     public function testChatSurvivesAHostThatDropsTheConnection(): void
@@ -175,7 +186,14 @@ final class OllamaClientTest extends TestCase
             throw new TransportException('Connection reset by peer');
         });
 
-        self::assertNull($client->chat('http://h:11434', 'm', [['role' => 'user', 'content' => 'hi']]));
+        $result = $client->chat('http://h:11434', 'm', [['role' => 'user', 'content' => 'hi']]);
+
+        self::assertNull($result->content);
+
+        // Categorised, not merely null. "The host is not there" and "the host
+        // took too long" want opposite things done about them, and collapsing
+        // them was most of why a broken model host had no diagnosis.
+        self::assertSame(OllamaClient::ERROR_UNREACHABLE, $result->errorKind);
     }
 
     private function client(callable $handler): OllamaClient

@@ -143,4 +143,33 @@ poll would empty a field mid-word.
             {{ form_end(form) }}
         </div>
     </div>
+
+    {# ── Telemetry, under the configuration ────────────────────────────────
+       Below the settings card and inside the same frame, because it answers
+       the question the settings raise: you have named a host and two models,
+       is any of that actually working.
+
+       It is NOT rendered here. The first paint is a placeholder and the
+       controller fetches immediately, which keeps the settings page off the
+       critical path of a model host that may be switched off — probing one of
+       those from inside this action would hold the whole admin page for as
+       long as the timeout, before anybody had typed anything.
+
+       The poll only runs while the master switch is on. Off is a valid
+       configuration and there is nothing to watch; the one fetch on connect is
+       what renders "AI is off" rather than a spinner that never stops. #}
+    <div data-controller="admin--ai-status"
+         data-admin--ai-status-url-value="{{ path('app_admin_ai_status') }}"
+         data-admin--ai-status-start-url-value="{{ path('app_admin_ai_backfill', { action: 'start' }) }}"
+         data-admin--ai-status-pause-url-value="{{ path('app_admin_ai_backfill', { action: 'pause' }) }}"
+         data-admin--ai-status-resume-url-value="{{ path('app_admin_ai_backfill', { action: 'resume' }) }}"
+         data-admin--ai-status-interval-value="5000"
+         data-admin--ai-status-live-value="{{ settings.isEnabled and settings.isConfigured ? 'true' : 'false' }}">
+
+        <div data-admin--ai-status-target="panel">
+            <div class="py-8 text-center text-sm text-ink-faint">
+                <i class="fa-solid fa-circle-notch fa-spin mr-2" aria-hidden="true"></i>{{ 'admin.loading'|trans }}
+            </div>
+        </div>
+    </div>
 </turbo-frame>

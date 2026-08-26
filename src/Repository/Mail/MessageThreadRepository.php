@@ -2,6 +2,7 @@
 
 namespace App\Repository\Mail;
 
+use App\Domain\DTO\Ai\SemanticSearch;
 use App\Domain\DTO\Mail\SearchPage;
 use App\Domain\DTO\ParsedSearchQuery;
 use App\Domain\Enum\Mail\LabelRole;
@@ -1193,24 +1194,24 @@ class MessageThreadRepository extends ServiceEntityRepository
         int               $page = 1,
         int               $perPage = 50,
         SearchSortOrder   $sort = SearchSortOrder::Recent,
-        ?string           $queryVector = null,
+        ?SemanticSearch   $semantic = null,
     ): SearchPage {
         $offset = ($page - 1) * $perPage;
 
-        $rows = $this->searchRows($user, $query, $sort, $perPage, $offset, false, $queryVector);
+        $rows = $this->searchRows($user, $query, $sort, $perPage, $offset, false, $semantic);
 
         // Thin, so the expensive pass earns its keep — see the rescue note in
         // buildSearchSql(). Only ever reached on a page that did not fill,
         // which is the same condition the pass exists to serve.
         if (count($rows) < self::SEARCH_RESCUE_BELOW) {
             $rows = $this->rescueRows(
-                fn (): array => $this->searchRows($user, $query, $sort, $perPage, $offset, true, $queryVector),
+                fn (): array => $this->searchRows($user, $query, $sort, $perPage, $offset, true, $semantic),
                 $rows,
             );
         }
 
         if ([] === $rows) {
-            return new SearchPage([], $this->totalForEmptyPage($user, $query, $sort, $page, $queryVector));
+            return new SearchPage([], $this->totalForEmptyPage($user, $query, $sort, $page, $semantic));
         }
 
         // Every row carries the same window count, so the first one will do.
@@ -1236,7 +1237,22 @@ class MessageThreadRepository extends ServiceEntityRepository
             }
         }
 
-        return new SearchPage($ordered, $total);
+        // Provenance rides out on the same rows it was computed from. Read as
+        // ids rather than as a flag on the entity: MessageThread is a mapped
+        // entity shared with every list in the application, and "how this
+        // particular search found you" is a property of the search, not of the
+        // conversation — a thread hydrated here goes into Doctrine's identity
+        // map and would carry the answer to somebody else's question around
+        // with it for the rest of the request.
+        $semanticOnly = [];
+
+        foreach ($rows as $row) {
+            if (1 === (int) ($row['semantic_only'] ?? 0)) {
+                $semanticOnly[] = (int) $row['thread_id'];
+            }
+        }
+
+        return new SearchPage($ordered, $total, $semanticOnly);
     }
 
     /**
@@ -1255,20 +1271,20 @@ class MessageThreadRepository extends ServiceEntityRepository
         ParsedSearchQuery $query,
         SearchSortOrder   $sort,
         int               $page,
-        ?string           $queryVector = null,
+        ?SemanticSearch   $semantic = null,
     ): int {
         if (1 === $page) {
             return 0;
         }
 
-        $rows = $this->searchRows($user, $query, $sort, 1, 0, false, $queryVector);
+        $rows = $this->searchRows($user, $query, $sort, 1, 0, false, $semantic);
 
         // Spelled as "nothing at all" rather than searchPage()'s "fewer than a
         // screenful": with a limit of one, that test would fire on every
         // query and put the body scan back on a path that does not need it.
         if ([] === $rows) {
             $rows = $this->rescueRows(
-                fn (): array => $this->searchRows($user, $query, $sort, 1, 0, true, $queryVector),
+                fn (): array => $this->searchRows($user, $query, $sort, 1, 0, true, $semantic),
                 $rows,
             );
         }
@@ -1304,9 +1320,9 @@ class MessageThreadRepository extends ServiceEntityRepository
         int               $perPage,
         int               $offset,
         bool              $withBodyRescue,
-        ?string           $queryVector = null,
+        ?SemanticSearch   $semantic = null,
     ): array {
-        [$sql, $params, $types] = $this->buildSearchSql($user, $query, $withBodyRescue, $queryVector);
+        [$sql, $params, $types] = $this->buildSearchSql($user, $query, $withBodyRescue, $semantic);
 
         $sql .= ' ORDER BY ' . $sort->orderBy() . ' LIMIT :limit OFFSET :offset';
         $params['limit']  = $perPage;
@@ -1460,7 +1476,7 @@ class MessageThreadRepository extends ServiceEntityRepository
         UserInterface     $user,
         ParsedSearchQuery $query,
         bool              $withBodyRescue = false,
-        ?string           $queryVector = null,
+        ?SemanticSearch   $semantic = null,
     ): array {
         $params = [];
         $types  = [];
@@ -1469,7 +1485,12 @@ class MessageThreadRepository extends ServiceEntityRepository
         $params['userId'] = $user->id;
         $types['userId']  = ParameterType::INTEGER;
 
-        $rankExpr = '0';
+        // MAX(0) rather than 0: this is one of the aggregate columns of a
+        // GROUP BY, and a search with no free text at all still has to produce
+        // the `rank` alias the sort orders by.
+        $rankSelect     = 'MAX(0)';
+        $semanticColumn = '';
+        $semanticRank   = null;
 
         // ── Free-text ─────────────────────────────────────────────────────
         // Four passes over one question, and how they are COMBINED is the
@@ -1518,8 +1539,8 @@ class MessageThreadRepository extends ServiceEntityRepository
             // syntax error one frame later. It was: /mail/search 500'd for any
             // user who had not connected a mailbox yet.
             if ([] === $accountIds) {
-                $where[]  = 'false';
-                $rankExpr = '0';
+                $where[]    = 'false';
+                $rankSelect = 'MAX(0)';
 
                 $mine = 'false';
             } else {
@@ -1532,9 +1553,23 @@ class MessageThreadRepository extends ServiceEntityRepository
             $cheap = ["SELECT m.id FROM message m WHERE {$mine} AND m.search_vector @@ websearch_to_tsquery('english', :freeText)"];
             $ranks = ["ts_rank(m.search_vector, websearch_to_tsquery('english', :freeText))"];
 
+            // ── What a row would have matched WITHOUT the vector ──────
+            // One entry per lexical arm above, as a per-row predicate rather
+            // than as an id-producing SELECT. It is the same question the UNION
+            // answers, asked of a row that is already in hand: which is the
+            // whole point, because asking the UNION again to find out where a
+            // row came from would run every scan in it a second time, and those
+            // scans are the search.
+            //
+            // Only ever added to the statement when there is a semantic arm to
+            // attribute rows to — see below. A search with the feature off
+            // produces byte-for-byte the SQL it always did.
+            $lexical = ["m.search_vector @@ websearch_to_tsquery('english', :freeText)"];
+
             if (null !== $free->prefix) {
                 $cheap[]              = "SELECT m.id FROM message m WHERE {$mine} AND m.search_vector @@ to_tsquery('english', :freePrefix)";
                 $ranks[]              = "ts_rank(m.search_vector, to_tsquery('english', :freePrefix))";
+                $lexical[]            = "m.search_vector @@ to_tsquery('english', :freePrefix)";
                 $params['freePrefix'] = $free->prefix;
             }
 
@@ -1563,11 +1598,25 @@ class MessageThreadRepository extends ServiceEntityRepository
             // Already a PostgreSQL literal, normalised by the caller — DBAL
             // cannot name `real[]` as a parameter type, and the cast below is
             // what turns the bound string back into an array.
-            if (null !== $queryVector) {
+            //
+            // SCOPED TO ONE MODEL, AND THAT IS NOT TIDINESS. Vectors from two
+            // embedding models are not comparable, and neither implementation
+            // of plmail_embed_distance() says so: the shipped plpgsql loop
+            // compares whatever the two arrays have in common and answers a
+            // plausible number, and on an installation with pgvector the cast
+            // raises `different vector dimensions` — a 500 on /mail/search for
+            // everybody, caused by a dropdown in the admin panel. Matching on
+            // model AND width means a mailbox half re-indexed after a model
+            // change searches the half that matches and ignores the rest,
+            // instead of mixing two spaces and ranking the result. The index
+            // idx_message_embedding_model is (model, dimensions) for this.
+            if (null !== $semantic?->literal) {
                 $cheap[] = <<<SQL
                     SELECT m.id
                       FROM message m
                       JOIN message_embedding e ON e.message_id = m.id
+                                              AND e.model = :semanticModel
+                                              AND e.dimensions = :semanticDimensions
                      WHERE {$mine}
                        AND m.id IN (
                            SELECT recent.id FROM (
@@ -1583,12 +1632,25 @@ class MessageThreadRepository extends ServiceEntityRepository
                 // Similarity, so it is on the same "bigger is better" footing
                 // as ts_rank and GREATEST can mix them. Rows with no embedding
                 // give NULL here, which GREATEST ignores.
-                $ranks[] = 'CASE WHEN sem.embedding IS NULL THEN NULL'
+                //
+                // Held in a variable because the provenance column below binds
+                // the SAME expression, character for character, and that is
+                // what keeps it free: Postgres matches identical aggregate
+                // calls and evaluates their argument once per row. Two
+                // expressions that merely mean the same thing would be two
+                // distance computations on every candidate row, which at
+                // 0.11ms a row is the most expensive thing in this statement.
+                $semanticRank = 'CASE WHEN sem.embedding IS NULL THEN NULL'
                     . ' ELSE 1 - plmail_embed_distance(sem.embedding, CAST(:queryVector AS real[])) END';
 
-                $params['queryVector']         = $queryVector;
+                $ranks[] = $semanticRank;
+
+                $params['queryVector']         = $semantic->literal;
+                $params['semanticModel']       = $semantic->model;
+                $params['semanticDimensions']  = $semantic->dimensions;
                 $params['semanticDistance']    = self::SEMANTIC_MAX_DISTANCE;
                 $params['semanticCandidates']  = self::SEMANTIC_CANDIDATES;
+                $types['semanticDimensions']   = ParameterType::INTEGER;
                 $types['semanticCandidates']   = ParameterType::INTEGER;
             }
 
@@ -1597,7 +1659,8 @@ class MessageThreadRepository extends ServiceEntityRepository
                 // three are narrow, so the trigram index's recheck reads almost
                 // nothing and they cost microseconds.
                 foreach (['subject', 'from_name', 'from_address'] as $column) {
-                    $cheap[] = "SELECT m.id FROM message m WHERE {$mine} AND m.{$column} ILIKE :freeLike";
+                    $cheap[]   = "SELECT m.id FROM message m WHERE {$mine} AND m.{$column} ILIKE :freeLike";
+                    $lexical[] = "m.{$column} ILIKE :freeLike";
                 }
 
                 $params['freeLike'] = $this->freeText->likePattern($free->substring);
@@ -1631,6 +1694,16 @@ class MessageThreadRepository extends ServiceEntityRepository
             // short.
             if (true === $withBodyRescue && null !== $free->substring) {
                 $cheap[] = "SELECT m.id FROM message m WHERE {$mine} AND m.body_text ILIKE :freeLike";
+
+                // The one lexical arm whose per-row form is not free: it reads
+                // the body of every row the statement is about to return, which
+                // is the same detoast the pass itself pays, over the far
+                // smaller set that actually matched. Left out, a message the
+                // body pass found and the vector also liked would be labelled
+                // "found by meaning", which is the one thing this column exists
+                // not to get wrong. Only ever in the rescue statement, which is
+                // rare by construction and already the expensive one.
+                $lexical[] = 'm.body_text ILIKE :freeLike';
             }
 
             $where[] = 'm.id IN (' . implode(' UNION ', $cheap) . ')';
@@ -1638,7 +1711,52 @@ class MessageThreadRepository extends ServiceEntityRepository
             // A row reached only by the substring pass has no ts_rank to give;
             // GREATEST over what did match keeps relevance ordering meaningful
             // instead of letting a NULL sink every such row to the bottom.
-            $rankExpr = 1 === count($ranks) ? $ranks[0] : 'GREATEST(' . implode(', ', $ranks) . ')';
+            //
+            // GREATEST(MAX(a), MAX(b)) rather than MAX(GREATEST(a, b)), which
+            // is the same number — the largest of the largests is the largest —
+            // and not the same statement. Postgres shares identical aggregate
+            // calls, so writing MAX(semantic) here and MAX(semantic) again in
+            // the provenance column below computes the distance ONCE per row.
+            // Nested inside a GREATEST the two are no longer identical calls,
+            // and every candidate row would pay for the distance function
+            // twice.
+            $rankParts  = array_map(static fn (string $rank): string => "MAX({$rank})", $ranks);
+            $rankSelect = 1 === count($rankParts) ? $rankParts[0] : 'GREATEST(' . implode(', ', $rankParts) . ')';
+
+            // ── Where did this row come from ──────────────────────────
+            // One column, computed from aggregates the statement is already
+            // producing: it matched the vector, and no arm made of words would
+            // have found it. That distinction is the entire point — somebody
+            // who typed a literal string needs to know why an apparently
+            // unrelated message is in the list, and a row the words found needs
+            // no explaining.
+            //
+            // Read per THREAD, over the messages of that thread that matched.
+            // A conversation whose first message matched the words and whose
+            // fourth happens to sit near the vector was found by the words, and
+            // BOOL_OR over the group says so.
+            //
+            // No extra join and no extra scan: `sem` is already joined for the
+            // rank, and the lexical predicates are re-asked of rows that are
+            // already in hand rather than by running the UNION again.
+            //
+            // COALESCE because a lexical arm can be NULL rather than false — a
+            // message with no subject ILIKEs to NULL — and BOOL_OR over nothing
+            // but NULLs is NULL, which would make the CASE fall through to a
+            // row claiming a provenance it never had.
+            if (null !== $semanticRank) {
+                $lexicalHit = '(' . implode(' OR ', $lexical) . ')';
+
+                $semanticColumn = ",\n                CASE WHEN MAX({$semanticRank}) >= :semanticSimilarity"
+                    . " AND NOT COALESCE(BOOL_OR({$lexicalHit}), false)"
+                    . " THEN 1 ELSE 0 END AS semantic_only";
+
+                // The arm's own threshold, said the other way up: the arm
+                // bounds a distance and this reads a similarity, and 1 - d is
+                // the conversion. One constant, so the column cannot come to
+                // disagree with the arm it describes.
+                $params['semanticSimilarity'] = 1 - self::SEMANTIC_MAX_DISTANCE;
+            }
         }
 
         // ── Operator filters ──────────────────────────────────────────────
@@ -1743,9 +1861,14 @@ class MessageThreadRepository extends ServiceEntityRepository
         // property the label joins above lost and had to be given back in
         // v0.1.40. LEFT, because most messages have no embedding and every one
         // of them still has to be able to match lexically.
-        $semanticJoin = null === $queryVector
+        // Matched on model and width like the arm above, and for the same
+        // reason: this is the side that FEEDS the distance function, so an
+        // unmatched row here is either a meaningless number or, with pgvector
+        // installed, an error that takes the whole search page with it.
+        $semanticJoin = null === $semantic?->literal
             ? ''
-            : "\n            LEFT JOIN message_embedding sem ON sem.message_id = m.id";
+            : "\n            LEFT JOIN message_embedding sem ON sem.message_id = m.id"
+                . "\n                AND sem.model = :semanticModel AND sem.dimensions = :semanticDimensions";
 
         $labelJoins = '';
 
@@ -1757,9 +1880,9 @@ class MessageThreadRepository extends ServiceEntityRepository
         $sql = <<<SQL
             SELECT
                 t.id                                              AS thread_id,
-                MAX({$rankExpr})                                  AS rank,
+                {$rankSelect}                                     AS rank,
                 MAX(t.last_message_at)                            AS last_message_at,
-                COUNT(*) OVER ()                                  AS total_threads
+                COUNT(*) OVER ()                                  AS total_threads{$semanticColumn}
             FROM message_thread t
             JOIN message m ON m.thread_id = t.id
             JOIN account a ON a.id = t.account_id{$semanticJoin}{$labelJoins}

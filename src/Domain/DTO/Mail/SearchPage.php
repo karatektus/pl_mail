@@ -24,12 +24,18 @@ use App\Entity\Mail\MessageThread;
 final readonly class SearchPage
 {
     /**
-     * @param list<MessageThread> $threads in the order the sort asked for
-     * @param int                 $total   matching threads across every page
+     * @param list<MessageThread> $threads      in the order the sort asked for
+     * @param int                 $total        matching threads across every page
+     * @param list<int>           $semanticOnly ids of threads on THIS page that only the
+     *                                          meaning pass found — no arm made of words
+     *                                          matched them. Empty whenever that pass did
+     *                                          not run, which is every search on an
+     *                                          installation with no model configured.
      */
     public function __construct(
         public array $threads,
         public int $total,
+        public array $semanticOnly = [],
     ) {
     }
 }

@@ -257,6 +257,34 @@ relevant**, which is full-text rank — the best match leads, whenever it arrive
 is remembered for your next search, and paging keeps it. Switching orders starts again at the first
 page, because page four of one order is page four of nothing in the other.
 
+### Searching by meaning
+
+If an administrator has switched **Search by meaning** on, one more pass runs beside the words: your
+query is turned into a vector and compared against the mail that has been indexed. It only ever
+**adds** results — the ordinary search is unchanged, and nothing it finds displaces anything the
+words found.
+
+Rows it brought in on its own carry a small **meaning** badge. That badge is the answer to "why is
+this in my results when it does not contain what I typed" — a row the words found is never badged,
+even when the meaning pass would have found it too.
+
+Under the box, one quiet line says what that pass actually did, and it is worth reading before
+judging the results:
+
+| What it says | What it means |
+|---|---|
+| *Searching meaning across 4,120 of 48,900 messages — 8% complete* | The index is still being built. Anything it has not reached cannot be found by meaning yet, so the answer will get better on its own. |
+| *The search model changed…* | Every vector stored before the change belongs to a different model and cannot be compared with the new one. Nothing is searched by meaning until the mailbox has been indexed again. |
+| *…so this search used words only* | The pass did not run: the model host did not answer, the model is not on it, it took too long, or the feature is switched on without a host. Your results are the ordinary search, complete and correct. |
+| *found nothing the words had not already* | It ran, over a finished index, and had nothing to add. |
+
+The difference between the first and the last is the one that matters: "not yet" and "there was
+nothing" produce the same list and mean opposite things. Nothing is said at all while the feature is
+switched off, because then the ordinary search is not missing anything.
+
+Building that index is one pass over the mailbox and an administrator starts it — see
+[Administration](admin.md).
+
 Search only covers mail that has been synced. plMail syncs everything an account holds and there is
 no setting that bounds it, so a large mailbox is searchable in full a few sync runs after it is
 added rather than immediately; see [Accounts and aliases](accounts.md).
@@ -584,6 +612,10 @@ the close button is still just a close. Shut the window, or the tab, and the mai
 the answer may be *Too late — that message had already been sent*. That is the honest outcome rather
 than a failure: the alternative would be handing back an editable draft of mail that is already on
 its way, which reads as a cancellation that worked.
+
+**A thin result from a search by meaning is usually an index that is not finished.** The line under
+the search box says how far it has got, and until it says nothing at all, "meaning found nothing" is
+"meaning has not got there yet". It is not the feature's verdict on your mail.
 
 **Deleting a label from the sidebar is the same delete as the one in settings.** It is not a "remove
 from this view" — the dialog is a shortcut to the same operation, across every account, nested labels

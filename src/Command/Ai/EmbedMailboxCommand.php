@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace App\Command\Ai;
 
 use App\Entity\Ai\AiFeature;
-use App\Infrastructure\Messaging\Message\BackfillEmbeddingsMessage;
 use App\Repository\Ai\AiSettingsRepository;
 use App\Repository\User\UserRepository;
 use App\Service\Ai\AiAssistant;
+use App\Service\Ai\EmbeddingBackfill;
 use App\Service\Ai\EmbeddingStore;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
@@ -16,7 +16,6 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
-use Symfony\Component\Messenger\MessageBusInterface;
 
 /**
  * Start embedding an existing mailbox.
@@ -44,7 +43,7 @@ final class EmbedMailboxCommand extends Command
         private readonly AiAssistant          $ai,
         private readonly AiSettingsRepository $settings,
         private readonly EmbeddingStore       $store,
-        private readonly MessageBusInterface  $bus,
+        private readonly EmbeddingBackfill    $backfill,
     ) {
         parent::__construct();
     }
@@ -90,16 +89,31 @@ final class EmbedMailboxCommand extends Command
 
         $model = (string) $this->settings->currentOrDefault()->embeddingModel;
 
+        $userIds = [];
+
         foreach ($users as $user) {
-            $id = $user->id;
+            if (null !== $user->id) {
+                $userIds[] = (int) $user->id;
 
-            if (null === $id) {
-                continue;
+                $io->writeln(sprintf('Queueing a pass over <info>%s</info>.', (string) $user->email));
             }
+        }
 
-            $this->bus->dispatch(new BackfillEmbeddingsMessage((int) $id));
+        // Through the service rather than dispatching the message here, and
+        // that is load-bearing rather than tidy: the handler stops on its first
+        // delivery unless the state row says a run is meant to be going, so a
+        // command that posted its own message would queue a job that returned
+        // immediately — and then say "Queued." to whoever typed it.
+        $outcome = $this->backfill->start($userIds);
 
-            $io->writeln(sprintf('Queued a pass over <info>%s</info>.', (string) $user->email));
+        if (EmbeddingBackfill::STARTED !== $outcome) {
+            $io->error(match ($outcome) {
+                EmbeddingBackfill::ALREADY_RUNNING => 'A pass is already running. Pause it in Admin → AI first, or wait for it to finish.',
+                EmbeddingBackfill::SEARCH_OFF      => 'Semantic search is off, or no embedding model is configured. See Admin → AI.',
+                default                            => 'Nothing to do.',
+            });
+
+            return Command::FAILURE;
         }
 
         $io->success(sprintf(
@@ -111,6 +125,11 @@ final class EmbedMailboxCommand extends Command
         // Said plainly, because the alternative is somebody watching a queue
         // that is deliberately slow and concluding it has stalled.
         $io->note('This runs on the maintenance worker, one chunk at a time, and takes hours on a large mailbox. It is safe to interrupt and safe to run again.');
+
+        // The panel is where this is actually watched, and it is also where the
+        // pass can be paused — which is worth saying, because the deliberate
+        // slowness is otherwise indistinguishable from a stall.
+        $io->note('Admin → AI shows how far it has got, and can pause and resume it.');
 
         return Command::SUCCESS;
     }

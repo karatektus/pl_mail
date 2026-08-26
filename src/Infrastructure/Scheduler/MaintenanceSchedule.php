@@ -117,8 +117,32 @@ final class MaintenanceSchedule implements ScheduleProviderInterface
                 // being talked about somewhere gets a lot of them in an hour.
                 RecurringMessage::cron('*/10 * * * *', new RunCommandMessage('app:demo:reap')),
 
+                // A worker killed mid-bulk-action leaves its job row in
+                // `running` forever, and nothing else will ever touch it — the
+                // only code that writes it is the handler that died. Three
+                // "Marking as read" jobs sat in one user's indicator at partial
+                // progress for weeks because of it.
+                //
+                // Every five minutes, which is the same order as the five
+                // minutes a failure then stays on screen: the point is that the
+                // user is told once, reasonably soon, rather than left with a
+                // progress bar that never moves again. The sweep costs one
+                // indexed query when there is nothing stranded, which is every
+                // run on a healthy install.
+                RecurringMessage::cron('*/5 * * * *', new RunCommandMessage('app:jobs:reap')),
+
                 // Log entries, push deliveries and dead heartbeats.
                 RecurringMessage::cron('30 4 * * *', new RunCommandMessage('app:monitoring:prune')),
+
+                // Counts and durations of model calls. Its own line rather than
+                // a fourth window on app:monitoring:prune above, because it is
+                // the retention of a FEATURE rather than of the deployment: the
+                // table is empty on installations that never switched the AI
+                // on, and fills a hundred thousand rows in an afternoon during
+                // a backfill. Ten past five, after the monitoring sweep and
+                // before the weekly blob walk — they share one worker, and
+                // stacking two DELETEs on the same minute buys nothing.
+                RecurringMessage::cron('10 5 * * *', new RunCommandMessage('app:ai:prune-metrics')),
 
                 // Expired JMAP uploads and files orphaned by deleted rows.
                 // Weekly: it walks three directory trees, and a week of

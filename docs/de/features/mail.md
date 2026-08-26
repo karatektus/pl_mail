@@ -1,4 +1,4 @@
-<!-- translated-from: features/mail.md sha1:e7c5fd3b316e9670e491e9a018a06c75f7800382 -->
+<!-- translated-from: features/mail.md sha1:d777287bd7fac42fa84c14411564b74ca31bbe3f -->
 
 # Mail
 
@@ -286,6 +286,35 @@ Ergebnisse kommen **Neueste zuerst**. Der Schalter neben der Seitenblätterung s
 angekommen ist. Was du wählst, wird für deine nächste Suche gemerkt, und das Blättern behält es
 bei. Ein Wechsel der Reihenfolge beginnt wieder auf der ersten Seite, denn Seite vier der einen
 Reihenfolge ist Seite vier von nichts in der anderen.
+
+### Nach Bedeutung suchen
+
+Wenn eine Administratorin **Nach Bedeutung suchen** eingeschaltet hat, läuft neben den Wörtern noch
+ein Durchgang mit: deine Abfrage wird in einen Vektor umgewandelt und mit der Mail verglichen, die
+indexiert wurde. Er **ergänzt** immer nur — die normale Suche bleibt unverändert, und nichts, was er
+findet, verdrängt etwas, das die Wörter gefunden haben.
+
+Zeilen, die er allein hereingeholt hat, tragen ein kleines **Bedeutung**-Zeichen. Das ist die
+Antwort auf „warum steht das in meinen Ergebnissen, obwohl nichts davon drinsteht, was ich getippt
+habe“ — eine Zeile, die die Wörter gefunden haben, bekommt das Zeichen nie, auch dann nicht, wenn
+die Bedeutung sie ebenfalls gefunden hätte.
+
+Unter dem Suchfeld sagt eine ruhige Zeile, was dieser Durchgang tatsächlich getan hat, und die lohnt
+sich, bevor du die Ergebnisse beurteilst:
+
+| Was dort steht | Was es heißt |
+|---|---|
+| *Bedeutung wird über 4.120 von 48.900 Nachrichten durchsucht — zu 8% fertig* | Der Index wird noch aufgebaut. Was er noch nicht erreicht hat, ist über die Bedeutung noch nicht auffindbar — die Antwort wird also von allein besser. |
+| *Das Such-Modell hat sich geändert …* | Jeder Vektor, der vor der Änderung gespeichert wurde, gehört zu einem anderen Modell und ist mit dem neuen nicht vergleichbar. Bis das Postfach neu indexiert ist, wird nichts nach Bedeutung durchsucht. |
+| *… deshalb wurde nur nach Wörtern gesucht* | Der Durchgang lief nicht: der Modell-Host hat nicht geantwortet, das Modell liegt nicht darauf, es hat zu lange gedauert, oder die Funktion ist ohne Host eingeschaltet. Deine Ergebnisse sind die der normalen Suche, vollständig und richtig. |
+| *hat nichts gefunden, was die Wörter nicht schon hatten* | Er lief, über einen fertigen Index, und hatte nichts hinzuzufügen. |
+
+Der Unterschied zwischen der ersten und der letzten Zeile ist der, auf den es ankommt: „noch nicht“
+und „da war nichts“ ergeben dieselbe Liste und bedeuten das Gegenteil voneinander. Solange die
+Funktion aus ist, steht dort gar nichts — dann fehlt der normalen Suche ja auch nichts.
+
+Diesen Index aufzubauen ist ein Durchlauf über das Postfach, den eine Administratorin startet —
+siehe [Administration](admin.md).
 
 Die Suche erfasst nur Mail, die synchronisiert wurde. plMail synchronisiert alles, was ein Konto
 hält, und es gibt keine Einstellung, die das begrenzt — ein großes Postfach ist also erst einige
@@ -694,6 +723,11 @@ harmlose Art, „bring das jetzt zurück“ zu sagen, und kein Fehler.
 Konten, also gilt das Löschen es auch — untergeordnete Labels eingeschlossen. Das `destroy`
 eines `Mailbox/set` in einem JMAP-Client ist die Operation pro Konto; die Weboberfläche hat
 kein Gegenstück dazu.
+
+**Ein dünnes Ergebnis der Suche nach Bedeutung ist meistens ein Index, der noch nicht fertig ist.**
+Die Zeile unter dem Suchfeld sagt, wie weit er gekommen ist, und solange dort überhaupt etwas steht,
+heißt „die Bedeutung hat nichts gefunden“ nur „die Bedeutung ist noch nicht so weit“. Es ist kein
+Urteil über deine Mail.
 
 **Die Suche erfasst nur Mail, die schon angekommen ist.** plMail synchronisiert alles, was ein
 Konto hält, aber ein großes Postfach braucht mehrere Läufe, bis es vollständig herüber ist, und

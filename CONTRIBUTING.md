@@ -747,12 +747,14 @@ php bin/mirror-wiki.php --check
 | `app:user:promote <email> [--revoke]` | Grant or revoke `ROLE_ADMIN` |
 | `app:user:2fa-disable <email> [--force]` | Turn off 2FA for someone locked out — see "Two-factor authentication" |
 | `app:monitoring:prune [--days=N] [--push-days=N]` | Prune old log entries, push deliveries and dead process heartbeats |
+| `app:jobs:reap [--stale-seconds=N] [--dry-run]` | Fail background jobs that have stopped reporting progress, so the topbar indicator stops showing work whose worker died. Runs every 5 minutes; a job counts as abandoned after 15 minutes without a chunk |
 | `app:backup [dir] [--skip-secrets] [--skip-storage]` | Write a restorable snapshot: `pg_dump`, the stored files, and the generated secrets. Says explicitly when `APP_ENCRYPTION_KEY` is *not* in it |
 | `app:reset` | Truncate synced data — useful during development |
 | `app:reset --full [--rotate-secrets]` | Back to first-run state: every table, every user, the stored files. `--rotate-secrets` also discards the generated secrets and requires restarting the whole stack — see "Secrets and the encryption key" |
 | `app:secrets:init` | Generate the per-install secrets that need PHP, and verify the encryption key against stored credentials |
 | `app:db:migrate` | Run pending migrations under a lock, so several containers booting together cannot collide. This is what the entrypoint calls; run it by hand only when a boot was interrupted |
 | `app:ai:embed-mailbox --email=… \| --all` | Queue a pass that embeds an existing mailbox for semantic search. Needed once after switching the feature on: the ingest path only embeds mail that ARRIVES. Runs on the maintenance worker a chunk at a time, takes hours on a large mailbox, and is safe to interrupt and safe to repeat — it skips whatever is already embedded under the current model, so changing the model is how a re-embed is asked for |
+| `app:ai:prune-metrics [--days=N]` | Prune recorded model-call timings older than the retention window (30 days by default). Runs nightly at 05:10. The table holds counts and durations only — no prompt, no completion, no message id — so pruning it forgets how fast the box was last month and nothing else. Its own command rather than a fourth window on `app:monitoring:prune`: this is the retention of a feature, empty on installations that never switched the AI on and a hundred thousand rows after an afternoon's backfill |
 | `app:demo:reap [--dry-run]` | Delete demo visitors whose time is up, and everything they own. Only does anything when `APP_DEMO_MODE` is on; runs every 10 minutes there. See "Demo mode" |
 | `app:device:pair <email>` | Issue a short-lived pairing code so a device can enrol itself — the way in when a client cannot complete a browser sign-in. See "Two-factor authentication" |
 

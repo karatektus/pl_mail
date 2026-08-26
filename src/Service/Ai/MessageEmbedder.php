@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Service\Ai;
 
+use App\Domain\Enum\Ai\AiCallFeature;
 use App\Entity\Ai\AiFeature;
 use App\Entity\Mail\Message;
 use App\Repository\Ai\AiSettingsRepository;
@@ -62,7 +63,7 @@ final readonly class MessageEmbedder
                 continue;
             }
 
-            $vector = $this->ai->embed($this->describe($message));
+            $vector = $this->ai->embed(AiCallFeature::MailIndex, $this->describe($message));
 
             if (null === $vector) {
                 // The host is down, the model was deleted, or this message has

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controller\Mail;
 
+use App\Service\Ai\SemanticCoverage;
 use App\Service\Ai\SemanticQuery;
 use App\Domain\Enum\Mail\SearchSortOrder;
 use App\Entity\User\User;
@@ -27,6 +28,7 @@ final class SearchController extends AbstractController
         private readonly EntityManagerInterface  $em,
         private readonly ThreadListRenderer      $listRenderer,
         private readonly SemanticQuery           $semantic,
+        private readonly SemanticCoverage        $coverage,
     ) {}
 
     #[Route('', name: '', methods: ['GET'])]
@@ -45,6 +47,7 @@ final class SearchController extends AbstractController
                 'per_page' => 50,
                 'parsed'   => null,
                 'sort'     => $sort,
+                'semantic' => null,
             ]);
         }
 
@@ -63,6 +66,7 @@ final class SearchController extends AbstractController
                 'per_page' => 50,
                 'parsed'   => $parsed,
                 'sort'     => $sort,
+                'semantic' => null,
             ]);
         }
 
@@ -80,12 +84,16 @@ final class SearchController extends AbstractController
         // four times as long for no reason a user could see, and inside the
         // timeout a slow model would be reported as a database fault.
         //
-        // Null whenever the feature is off, unconfigured, unreachable, or the
-        // query is too short to mean anything — and null makes the search
-        // exactly the search it has always been.
-        $queryVector = $this->semantic->literalFor($parsed->freeText);
+        // A REASON RATHER THAN A NULL. Every way this can come back without a
+        // vector — off, unconfigured, host down, model gone, a query too short
+        // to mean anything — used to be the same null and the same silence, and
+        // four of those five happen on an installation where somebody has
+        // switched the feature ON. The search still runs exactly as it always
+        // has; what changes is that the page can now say why it is the search
+        // it always was. See SemanticQuery.
+        $semantic = $this->semantic->forQuery($parsed->freeText);
 
-        $results = $this->threadRepository->searchPage($user, $parsed, $page, sort: $sort, queryVector: $queryVector);
+        $results = $this->threadRepository->searchPage($user, $parsed, $page, sort: $sort, semantic: $semantic);
         $threads = $results->threads;
 
         // The list views have always preloaded and search never did, which is
@@ -100,13 +108,33 @@ final class SearchController extends AbstractController
         // announced as news the next time you opened the inbox. Same
         // collect-render-then-mark order, same prefetch guard, one
         // implementation — see the service.
+        //
+        // The report counts what THIS PAGE owes to the vector, which is all the
+        // rows in hand can answer for: attributing the whole result set would
+        // need a second pass over every matching row, and one statement per
+        // search is the design this route is built on.
+        //
+        // The coverage is per MAILBOX, so it needs the id and not the token —
+        // and IS_AUTHENTICATED guarantees a user without saying which class it
+        // is. A search is not worth failing over the difference, so an
+        // unrecognised principal reports an empty mailbox, which is a report
+        // with nothing to say rather than an error page. Same shape as
+        // resolveSort() below.
+        $report = $this->coverage->report(
+            $user instanceof User ? (int) $user->id : 0,
+            $semantic,
+            count($results->semanticOnly),
+        );
+
         return $this->listRenderer->render($request, 'search/search.html.twig', $threads, [
-            'q'        => $raw,
-            'total'    => $results->total,
-            'page'     => $page,
-            'per_page' => 50,
-            'parsed'   => $parsed,
-            'sort'     => $sort,
+            'q'             => $raw,
+            'total'         => $results->total,
+            'page'          => $page,
+            'per_page'      => 50,
+            'parsed'        => $parsed,
+            'sort'          => $sort,
+            'semantic'      => $report,
+            'semantic_only' => $results->semanticOnly,
         ]);
     }
 

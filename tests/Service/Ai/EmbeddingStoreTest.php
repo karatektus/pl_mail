@@ -6,6 +6,8 @@ namespace App\Tests\Service\Ai;
 
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Message;
+use App\Entity\Mail\MessageThread;
+use App\Domain\Enum\Mail\ThreadingMethod;
 use App\Entity\User\User;
 use App\Service\Ai\EmbeddingStore;
 use Doctrine\DBAL\Connection;
@@ -29,6 +31,7 @@ final class EmbeddingStoreTest extends KernelTestCase
     private EntityManagerInterface $em;
     private EmbeddingStore $store;
     private int $messageId;
+    private int $userId;
 
     protected function setUp(): void
     {
@@ -74,8 +77,20 @@ final class EmbeddingStoreTest extends KernelTestCase
         $account->isActive       = true;
         $this->em->persist($account);
 
+        // In a thread, because coverageDetailFor() counts a MAILBOX and walks
+        // message → thread → account to find out whose it is. A loose message
+        // belongs to nobody by that route.
+        $thread                    = new MessageThread();
+        $thread->account           = $account;
+        $thread->subject           = 'Embedding fixture';
+        $thread->normalizedSubject = 'embedding fixture';
+        $thread->threadingMethod   = ThreadingMethod::SubjectFallback;
+        $thread->lastMessageAt     = new \DateTimeImmutable();
+        $this->em->persist($thread);
+
         $message = new Message();
         $message->account        = $account;
+        $message->thread         = $thread;
         $message->subject        = 'Embedding fixture';
         $message->fromAddress    = 'sender@example.test';
         $message->messageId      = 'embed-' . uniqid('', true) . '@example.test';
@@ -86,6 +101,8 @@ final class EmbeddingStoreTest extends KernelTestCase
         $this->em->persist($message);
 
         $this->em->flush();
+
+        $this->userId = (int) $user->id;
 
         return (int) $message->id;
     }
@@ -176,6 +193,61 @@ final class EmbeddingStoreTest extends KernelTestCase
 
         self::assertSame([$this->messageId], $this->store->alreadyStored([$this->messageId], 'old-model'));
         self::assertSame([], $this->store->alreadyStored([$this->messageId], 'new-model'));
+    }
+
+    /**
+     * Coverage is per mailbox, per model, and it counts the vectors that do NOT
+     * match separately.
+     *
+     * The third number is what tells a changed search model apart from a
+     * backfill that has not started: both answer "0 embedded", one of them is
+     * fixed by waiting and the other never is. Reported as the same 0, the
+     * search page would tell somebody to wait for a backfill nobody has asked
+     * for.
+     */
+    public function testCoverageSeparatesThisModelsVectorsFromTheRest(): void
+    {
+        $empty = $this->store->coverageDetailFor($this->userId, 'test-model', 2);
+
+        self::assertSame(1, $empty['eligible']);
+        self::assertSame(0, $empty['embedded']);
+        self::assertSame(0, $empty['stale']);
+
+        $this->store->store($this->messageId, [1.0, 0.0], 'old-model');
+
+        $stale = $this->store->coverageDetailFor($this->userId, 'test-model', 2);
+
+        self::assertSame(0, $stale['embedded'], 'another model is not coverage');
+        self::assertSame(1, $stale['stale']);
+
+        $this->store->store($this->messageId, [1.0, 0.0], 'test-model');
+
+        $covered = $this->store->coverageDetailFor($this->userId, 'test-model', 2);
+
+        self::assertSame(1, $covered['embedded']);
+        self::assertSame(0, $covered['stale']);
+
+        // Same model, different width — which happens when a model is replaced
+        // upstream under the same name. Not comparable, so not coverage.
+        self::assertSame(0, $this->store->coverageDetailFor($this->userId, 'test-model', 1024)['embedded']);
+
+        // ...and the width is optional: the admin panel asks without one, and
+        // gets the same answer it always did.
+        self::assertSame(
+            ['embedded' => 1, 'eligible' => 1],
+            $this->store->coverageFor($this->userId, 'test-model'),
+        );
+    }
+
+    /** One mailbox is not another. */
+    public function testCoverageDoesNotCountSomebodyElsesMail(): void
+    {
+        $this->store->store($this->messageId, [1.0, 0.0], 'test-model');
+
+        self::assertSame(
+            ['embedded' => 0, 'eligible' => 0, 'stale' => 0],
+            $this->store->coverageDetailFor($this->userId + 1_000_000, 'test-model', 2),
+        );
     }
 
     public function testDeletingTheMessageTakesTheVectorWithIt(): void

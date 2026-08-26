@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Service\Ai;
 
+use App\Service\Ai\AiCallRecorder;
 use App\Domain\Enum\Ai\WritingTask;
 use App\Entity\Ai\AiSettings;
 use App\Repository\Ai\AiSettingsRepository;
@@ -159,7 +160,28 @@ final class WritingAssistantTest extends KernelTestCase
         });
 
         return new WritingAssistant(
-            new AiAssistant($this->settings, new OllamaClient($http, new NullLogger()), new NullLogger()),
+            new AiAssistant(
+            $this->settings,
+            new OllamaClient($http, new NullLogger()),
+            $this->recorder(),
+            new NullLogger(),
+        ),
         );
+    }
+
+    /**
+     * A recorder whose database is a mock.
+     *
+     * A stub rather than a mock, deliberately: nothing here asserts anything
+     * about the metrics write, and PHPUnit is right to say so. These are unit
+     * tests over an HTTP mock, there is no database to write to, and the row is
+     * not what any of them are about.
+     *
+     * The REAL recorder rather than a fake, so that a change to its constructor
+     * breaks here, where it is cheap, instead of in production.
+     */
+    private function recorder(): AiCallRecorder
+    {
+        return new AiCallRecorder($this->createStub(Connection::class), new NullLogger());
     }
 }

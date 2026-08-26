@@ -43,6 +43,52 @@ admin:
         threads: 'Konversationen'
     ago: 'her'
     ai:
+        backfill:
+            chip:
+                complete: 'Fertig'
+                failed: 'Abgebrochen'
+                idle: 'Läuft nicht'
+                paused: 'Pausiert'
+                running: 'Läuft'
+                stalled: 'Bewegt sich nicht'
+            eta: 'Etwa %duration%, bei dem Tempo'
+            eta_label: 'Rest'
+            eta_settling: 'Für eine Schätzung zu früh'
+            failed_body: 'Der Modell-Host hat mehrmals hintereinander nichts geliefert, deshalb wurde der Durchlauf beendet. Es ist nichts verloren: Fortsetzen macht dort weiter, wo es war.'
+            failures: '%count% Nachrichten, für die das Modell nichts geliefert hat. Der nächste Durchlauf holt sie nach.'
+            failures_label: 'Übersprungen'
+            finished_label: 'Fertig'
+            heading: 'Suchindex'
+            intro: 'Die Suche nach Bedeutung sieht nur indexierte Mail. Das hier geht einmal durch alle Postfächer; neue Mail wird beim Eintreffen indexiert.'
+            last_activity_label: 'Zuletzt gemeldet'
+            model_label: 'Indexiert mit'
+            no_mail: 'Es gibt noch keine Mail zum Indexieren.'
+            outcome:
+                already_running: 'Es läuft bereits ein Durchlauf.'
+                no_mailboxes: 'Es gibt keine Postfächer, die durchlaufen werden könnten.'
+                not_running: 'Es läuft nichts.'
+                nothing_to_resume: 'Es gibt nichts mehr fortzusetzen.'
+                resumes_itself: 'Es kommt von selbst wieder.'
+                search_off: 'Die Suche nach Bedeutung ist aus, es gibt also nichts zu indexieren.'
+            pause: 'Pausieren'
+            paused:
+                feature_off: 'Angehalten, weil die Suche nach Bedeutung ausgeschaltet wurde.'
+                host_unreachable: 'Wartet darauf, dass der Modell-Host wieder antwortet. Es versucht es von selbst erneut.'
+                interactive: 'Pausiert, solange die KI gerade benutzt wird. Kurz danach läuft es von selbst weiter.'
+                operator: 'Pausiert. Es geht dort weiter, wo es aufgehört hat.'
+            progress: '%embedded% von %eligible% Nachrichten indexiert'
+            rate: '%rate% Nachrichten pro Sekunde, über die letzten fünf Minuten'
+            rate_label: 'Tempo'
+            resume: 'Fortsetzen'
+            search_off: 'Die Suche nach Bedeutung ist aus, es gibt also nichts zu indexieren. Schalte sie oben zuerst ein.'
+            stalled_body: 'Seit einer Weile bewegt sich nichts — der Worker, der das gemacht hat, ist vermutlich weg. Fortsetzen nimmt es dort wieder auf, wo es aufgehört hat.'
+            start: 'Starten'
+            started_label: 'Gestartet'
+            tuning: '%batch% Nachrichten pro Durchgang, %delay% s Pause dazwischen, und es hält sich %cooldown% s zurück, nachdem jemand die KI benutzt hat.'
+        duration:
+            hours: '%count% Std.'
+            minutes: '%count% Min.'
+            seconds: '%count% s'
         field:
             base_url: 'Modell-Host'
             base_url_help: 'Die Adresse eines Ollama-Containers in deinem Netz, mit Port.'
@@ -64,6 +110,58 @@ admin:
             writing_help_help: 'Bietet im Editor Entwürfe und Umformulierungen an, wenn du danach fragst.'
         heading: 'Sprachmodell'
         intro: 'plMail kann ein Sprachmodell benutzen, das du selbst betreibst. Es geht nichts nach außen, nichts wird eingeschaltet, bis du es sagst, und solange das aus ist, funktioniert der Mail-Client genau wie bisher.'
+        perf:
+            by_model: 'Nach Modell'
+            chip:
+                cold: 'Nichts geladen'
+                off: 'Aus'
+                split: 'Teils auf der CPU'
+                unreachable: 'Keine Antwort'
+                warm: 'Geladen'
+            feature:
+                categorise: 'Mail einsortieren'
+                mail_index: 'Mail indexieren'
+                search_query: 'Suche'
+                writing_help: 'Schreibhilfe'
+            heading: 'Modell-Host'
+            latest: 'Letzte Anfrage: %feature% mit %model%'
+            model:
+                chat: 'Schreib-Modell'
+                embedding: 'Such-Modell'
+                missing: 'nicht auf diesem Host'
+                missing_body: 'Ein hier eingetragenes Modell ist auf dem Host nicht installiert. Zieh es dort, oder trag eines ein, das vorhanden ist — bis dahin scheitert jede Anfrage dafür.'
+                none: 'nicht gesetzt'
+                resident: 'im Speicher'
+            no_history: 'In diesem Zeitraum hat nichts ein Modell gefragt. Die Zahlen erscheinen, sobald etwas es tut.'
+            no_host: 'Es ist noch kein Modell-Host eingetragen. Trag oben seine Adresse ein.'
+            off_body: 'Die KI ist aus, es wird also kein Modell gefragt. Hier ist nichts kaputt.'
+            resident:
+                cold_cost: 'Zuletzt hat das etwa %duration% gedauert.'
+                full: '%size% im Speicher, vollständig auf der GPU.'
+                heading: 'Gerade im Speicher'
+                none: 'Es ist kein Modell geladen. Die nächste Anfrage lädt eines.'
+                split: '%vram% von %size% auf der GPU — %percent% %. Die übrigen %cpu% liegen auf der CPU.'
+                split_body: 'Solange das Modell geteilt ist, ist alles um ein Vielfaches langsamer. Gib GPU-Speicher frei oder nimm ein kleineres Modell und lade es neu.'
+                unloading: 'Wird gerade entladen.'
+                unloads_in: 'Wird in %duration% entladen, falls nichts danach fragt.'
+            retrying: 'Wird alle paar Sekunden erneut geprüft.'
+            table:
+                calls: 'Anfragen'
+                cold: 'Kaltstarts'
+                errors: 'Fehler'
+                feature: 'Aufgabe'
+                gen: 'Token/s (p50 / p95)'
+                hint: 'p50 ist die mittlere Anfrage, p95 die langsame: die Hälfte war schneller als p50, jede zwanzigste langsamer als p95. Ein Kaltstart ist eine Anfrage, die warten musste, bis das Modell von der Platte gelesen war.'
+                load: 'Ladezeit'
+            throughput:
+                heading: 'Was die Anfragen gekostet haben'
+            tokens_per_second: '%rate% Token pro Sekunde'
+            unreachable_body: 'Unter %host% antwortet nichts. plMail läuft weiter; die Funktionen, die ein Modell brauchen, tun einfach nichts.'
+            version: 'Ollama %version%'
+            window:
+                day: '24 Stunden'
+                hour: 'Stunde'
+                week: '7 Tage'
         probe:
             missing_model: 'Der Host hat geantwortet, hat aber nicht: %models%. Zieh sie dort erst.'
             no_host: 'Trag zuerst eine Adresse ein.'
@@ -432,6 +530,7 @@ admin:
         page: 'Seite'
         refresh: 'Aktualisieren'
     nav:
+        ai: KI
         backup: Sicherung
         database: Datenbank
         insight_reports: Gemeldete Mails
@@ -1185,14 +1284,32 @@ compose:
     # Wird im Dock gezeigt, wenn ein Klick auf „Schreiben“ kein Fenster
     # hervorbringt — ein 5xx, eine abgelaufene Sitzung, eine tote Verbindung.
     ai:
+        accept: 'Einfügen'
+        disabled: 'Die Schreibhilfe ist ausgeschaltet.'
+        discard: 'Verwerfen'
         disclaimer: 'Von einem Modell geschrieben. Lies es, bevor du es abschickst.'
+        error:
+            not_pulled: 'Der Modell-Host hat dieses Modell nicht. Ein Administrator muss es zuerst laden.'
+            refused: 'Der Modell-Host hat die Anfrage abgelehnt.'
+            timeout: 'Der Modell-Host hat zu lange gebraucht.'
+        failed: 'Die Anfrage konnte nicht gesendet werden.'
         label: 'Beim Schreiben helfen'
-        no_answer: 'Keine Antwort'
+        no_answer: 'Der Modell-Host hat nicht geantwortet.'
+        preview: 'Vorgeschlagener Text, noch nicht in deiner Nachricht'
+        rate: '%count% Tokens · %rate% pro Sekunde'
+        regenerate: 'Nochmal versuchen'
+        slow_hint: 'Die erste Anfrage nach einer Weile dauert etwa fünfzehn Sekunden, solange das Modell lädt.'
+        state:
+            done: 'Fertig. In deiner Nachricht steht noch nichts davon.'
+            sent: 'An das Modell geschickt…'
+            stopped: 'Angehalten. Behalte, was angekommen ist, oder wirf es weg.'
+        stop: 'Anhalten'
         task:
             formal: 'Förmlicher formulieren'
             proofread: 'Rechtschreibung und Grammatik korrigieren'
             reply: 'Antwort entwerfen'
             shorten: 'Kürzer fassen'
+        timing: 'Modell laden %load% s · %count% Tokens in %seconds% s · insgesamt %total% s'
         working: 'Schreibt…'
     open_failed:
         dismiss: Schließen
@@ -1611,6 +1728,8 @@ integration:
 jobs:
     heading: Hintergrundarbeit
     started: '%action% gestartet — das läuft im Hintergrund.'
+    failure:
+        abandoned: 'Unterbrochen — das ist auf halber Strecke stehen geblieben; was schon erledigt war, bleibt erledigt.'
     kind:
         mark_read: Als gelesen markieren
         mark_unread: Als ungelesen markieren
@@ -1945,6 +2064,18 @@ search:
     results:
         count: '%count% Treffer'
         count_one: 1 Treffer
+    semantic:
+        admin_link: 'Fortschritt ansehen'
+        indexing: 'Bedeutung wird über %embedded% von %total% Nachrichten durchsucht — zu %percent%% fertig.'
+        model_changed: 'Das Such-Modell hat sich geändert. Die %count% Nachrichten, die mit dem vorherigen indexiert wurden, werden nicht nach Bedeutung durchsucht, bis sie neu indexiert sind.'
+        nothing_extra: 'Die Suche nach Bedeutung hat nichts gefunden, was die Wörter nicht schon hatten.'
+        skipped:
+            bad_answer: 'Das Modell hat etwas geantwortet, das sich nicht verwenden lässt — deshalb wurde nur nach Wörtern gesucht.'
+            host_unreachable: 'Der Modell-Host hat nicht geantwortet — deshalb wurde nur nach Wörtern gesucht.'
+            model_missing: 'Der Modell-Host hat das Such-Modell nicht — deshalb wurde nur nach Wörtern gesucht.'
+            not_configured: 'Die Suche nach Bedeutung ist an, aber es ist kein Modell-Host eingerichtet — deshalb wurde nur nach Wörtern gesucht.'
+            query_too_short: 'Schreib etwas mehr, dann wird auch nach Bedeutung gesucht.'
+            timed_out: 'Das Modell hat zu lange gebraucht — deshalb wurde nur nach Wörtern gesucht.'
     sort:
         label: Sortieren nach
         recent: Neueste zuerst
@@ -2173,8 +2304,11 @@ settings:
         export: Theme exportieren
         glass:
             heading: Glas
-            paneAlpha: Deckkraft
+            paneAlpha: Deckkraft der Flächen
+            paneAlphaHint: Seitenleiste, Kopfleiste, Hauptbereich und Kalender — der Rahmen, in dem die App liegt. Dahinter liegt nichts außer dem Hintergrund.
             paneBlur: Weichzeichnen
+            popoverAlpha: Deckkraft von Fenstern und Menüs
+            popoverAlphaHint: Das Schreibfenster, Dialoge und Menüs. Jedes davon liegt auf einer Fläche, also scheinen beide Schichten gleichzeitig durch. Nahezu deckend bleiben sie lesbar.
             radius: Eckenradius
             scrimAlpha: Hintergrundabdunklung
             subheading: Wie viel vom Hintergrund durch deine Flächen scheint.
@@ -3114,13 +3248,15 @@ thread_row:
         mark_read: Als gelesen markieren
         mark_unread: Als ungelesen markieren
         snooze: Zurückstellen
+    answer: Neue Antwort auf deine Nachricht
+    answer_badge: Antwort
     has_attachment: Enthält Anhang
     me: ich
+    meaning: 'Über die Bedeutung gefunden, nicht über die eingegebenen Wörter'
+    meaning_badge: 'Bedeutung'
     message_count: "({ count })"
     new: Dir noch nie angezeigt
     new_badge: Neu
-    answer: Neue Antwort auf deine Nachricht
-    answer_badge: Antwort
     no_recipient: (kein Empfänger)
     no_subject: (kein Betreff)
     scheduled: 'Geplant %when%'

@@ -36,6 +36,31 @@ parameters:
     app.demo_impressum_email: '%env(default:app.demo_impressum_blank:APP_DEMO_IMPRESSUM_EMAIL)%'
     app.demo_privacy_host: '%env(default:app.demo_impressum_blank:APP_DEMO_PRIVACY_HOST)%'
 
+    # How hard the embedding backfill is allowed to push, and how quickly it
+    # gets out of the way of somebody using the composer. Timid on purpose —
+    # see App\Service\Ai\BackfillPolicy, which carries the whole argument:
+    # backfill throughput does not matter and interactive latency does, and on
+    # the target box they share one integrated GPU.
+    #
+    # Read through `default:` so an install that never heard of these gets the
+    # tuned numbers. Deliberately NOT rows in the installation reference: the
+    # answer for almost everybody is "leave them alone".
+    app.ai_backfill_batch_size_default: 10
+    app.ai_backfill_batch_size: '%env(default:app.ai_backfill_batch_size_default:int:AI_BACKFILL_BATCH_SIZE)%'
+    # Two seconds of quiet between batches. A gap, not a throttle: it is what
+    # gives a click somewhere else a moment to reach the host first.
+    app.ai_backfill_pause_ms_default: 2000
+    app.ai_backfill_pause_ms: '%env(default:app.ai_backfill_pause_ms_default:int:AI_BACKFILL_PAUSE_MS)%'
+    # How long after the last interactive request the backfill keeps its hands
+    # off. Ninety seconds is far longer than any single request, which is the
+    # point: somebody clicking through several rewrites holds the pause open
+    # instead of leaving a window between clicks for a batch to slip into.
+    app.ai_backfill_cooldown_seconds_default: 90
+    app.ai_backfill_cooldown_seconds: '%env(default:app.ai_backfill_cooldown_seconds_default:int:AI_BACKFILL_COOLDOWN_SECONDS)%'
+    # How long to wait before retrying a host that answered nothing at all.
+    app.ai_backfill_retry_seconds_default: 60
+    app.ai_backfill_retry_seconds: '%env(default:app.ai_backfill_retry_seconds_default:int:AI_BACKFILL_RETRY_SECONDS)%'
+
 services:
     # default configuration for services in *this* file
     _defaults:
@@ -82,6 +107,13 @@ services:
     App\Command\Maintenance\PruneBlobsCommand:
         arguments:
             $projectDir: '%kernel.project_dir%'
+
+    App\Service\Ai\BackfillPolicy:
+        arguments:
+            $batchSize: '%app.ai_backfill_batch_size%'
+            $pauseMs: '%app.ai_backfill_pause_ms%'
+            $cooldownSeconds: '%app.ai_backfill_cooldown_seconds%'
+            $retrySeconds: '%app.ai_backfill_retry_seconds%'
     App\Service\Mail\AttachmentThumbnailer:
         arguments:
             $projectDir: '%kernel.project_dir%'

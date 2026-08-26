@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Repository\Mail;
 
+use App\Domain\DTO\Ai\SemanticSearch;
 use App\Domain\DTO\ParsedSearchQuery;
 use App\Domain\Enum\Mail\LabelRole;
 use App\Domain\Enum\Mail\SearchSortOrder;
@@ -510,12 +511,16 @@ final class MessageSearchTest extends KernelTestCase
         $page = $this->repository->searchPage(
             $this->user,
             $this->parser->parse('meeting minutes'),
-            queryVector: EmbeddingStore::unitLiteral([1.0, 0.0, 0.0]),
+            semantic: $this->semantic([1.0, 0.0, 0.0]),
         );
 
         self::assertCount(1, $page->threads);
         self::assertSame('Notes from the standup', $page->threads[0]->subject);
         self::assertSame(1, $page->total, 'the total has to come from the same statement as the rows');
+
+        // ...and it says so. A person who typed two words that appear nowhere
+        // in this message is owed the reason it is in their list.
+        self::assertSame([(int) $page->threads[0]->id], $page->semanticOnly);
     }
 
     /** Far apart in vector space is not a hit, or the arm would return everything. */
@@ -530,7 +535,7 @@ final class MessageSearchTest extends KernelTestCase
             $this->user,
             $this->parser->parse('meeting minutes'),
             // Orthogonal: cosine distance 1, well past the threshold.
-            queryVector: EmbeddingStore::unitLiteral([0.0, 1.0, 0.0]),
+            semantic: $this->semantic([0.0, 1.0, 0.0]),
         );
 
         self::assertCount(0, $page->threads);
@@ -544,10 +549,109 @@ final class MessageSearchTest extends KernelTestCase
         $page = $this->repository->searchPage(
             $this->user,
             $this->parser->parse('pelican'),
-            queryVector: EmbeddingStore::unitLiteral([1.0, 0.0, 0.0]),
+            semantic: $this->semantic([1.0, 0.0, 0.0]),
         );
 
         self::assertCount(1, $page->threads, 'the LEFT JOIN must not drop rows that have no vector');
+        self::assertSame([], $page->semanticOnly, 'the words found it, so nothing needs explaining');
+    }
+
+    /**
+     * A row the words found is not labelled as a row the vector found, even
+     * when the vector would happily have found it too.
+     *
+     * This is the distinction the provenance column exists to make, and the
+     * easy way to get it wrong is to mark every row with an embedding near the
+     * query — which on a fully indexed mailbox is most of the page.
+     */
+    public function testARowTheWordsFoundIsNeverMarkedAsAMeaningMatch(): void
+    {
+        $this->seedMessage('Quarterly figures', body: 'The pelican audit is attached.');
+        $this->seedMessage('Notes from the standup', body: 'Who is doing what this week.');
+
+        // Both sit at the same point in vector space, so both are inside the
+        // threshold. Only one of them contains the word.
+        $this->store()->store($this->messageId('Quarterly figures'), [1.0, 0.0, 0.0], 'test-model');
+        $this->store()->store($this->messageId('Notes from the standup'), [1.0, 0.0, 0.0], 'test-model');
+
+        $page = $this->repository->searchPage(
+            $this->user,
+            $this->parser->parse('pelican'),
+            semantic: $this->semantic([1.0, 0.0, 0.0]),
+        );
+
+        self::assertCount(2, $page->threads);
+
+        $marked = array_map(
+            fn (int $id): string => (string) $this->connection->fetchOne('SELECT subject FROM message_thread WHERE id = ?', [$id]),
+            $page->semanticOnly,
+        );
+
+        self::assertSame(['Notes from the standup'], $marked);
+    }
+
+    /**
+     * Vectors written by a different model are left where they are.
+     *
+     * Changing the search model in the admin panel invalidates every stored
+     * vector: different space, different width, and the comparison does not
+     * fail — the shipped distance function compares whatever overlaps and
+     * answers a plausible number, so the failure mode is a search that ranks
+     * confidently and wrongly. On an installation with pgvector the same
+     * comparison raises `different vector dimensions`, which is a 500 on
+     * /mail/search for everybody.
+     *
+     * Either way the answer is the same: search what matches the model in hand,
+     * and never mix two spaces in one query.
+     */
+    public function testVectorsFromAnotherModelAreNotSearched(): void
+    {
+        $this->seedMessage('Notes from the standup', body: 'Who is doing what this week.');
+        $this->store()->store($this->messageId('Notes from the standup'), [1.0, 0.0, 0.0], 'previous-model');
+
+        $page = $this->repository->searchPage(
+            $this->user,
+            $this->parser->parse('meeting minutes'),
+            semantic: $this->semantic([1.0, 0.0, 0.0], 'current-model'),
+        );
+
+        self::assertCount(0, $page->threads, 'a vector from another model is not a hit');
+    }
+
+    /** The same, for a model that kept its name and changed its width. */
+    public function testVectorsOfAnotherWidthAreNotSearched(): void
+    {
+        $this->seedMessage('Notes from the standup', body: 'Who is doing what this week.');
+        $this->store()->store($this->messageId('Notes from the standup'), [1.0, 0.0, 0.0], 'test-model');
+
+        $page = $this->repository->searchPage(
+            $this->user,
+            $this->parser->parse('meeting minutes'),
+            semantic: SemanticSearch::ran(
+                (string) EmbeddingStore::unitLiteral([1.0, 0.0, 0.0, 0.0]),
+                'test-model',
+                4,
+            ),
+        );
+
+        self::assertCount(0, $page->threads);
+    }
+
+    private function messageId(string $subject): int
+    {
+        return (int) $this->connection->fetchOne('SELECT id FROM message WHERE subject = ?', [$subject]);
+    }
+
+    /**
+     * @param list<float> $vector
+     */
+    private function semantic(array $vector, string $model = 'test-model'): SemanticSearch
+    {
+        return SemanticSearch::ran(
+            (string) EmbeddingStore::unitLiteral($vector),
+            $model,
+            count($vector),
+        );
     }
 
     private function store(): EmbeddingStore

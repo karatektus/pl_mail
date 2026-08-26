@@ -43,6 +43,52 @@ admin:
         threads: 'Threads'
     ago: 'ago'
     ai:
+        backfill:
+            chip:
+                complete: 'Done'
+                failed: 'Stopped'
+                idle: 'Not running'
+                paused: 'Paused'
+                running: 'Running'
+                stalled: 'Not moving'
+            eta: 'About %duration%, at that rate'
+            eta_label: 'Left'
+            eta_settling: 'Too early to estimate'
+            failed_body: 'The model host answered nothing several times in a row, so the pass stopped. Nothing was lost: resume carries on from where it got to.'
+            failures: '%count% messages the model could not answer for. The next pass picks them up.'
+            failures_label: 'Skipped'
+            finished_label: 'Finished'
+            heading: 'Search index'
+            intro: 'Search by meaning only sees mail that has been indexed. This walks every mailbox once; new mail is indexed as it arrives.'
+            last_activity_label: 'Last checked in'
+            model_label: 'Indexed with'
+            no_mail: 'There is no mail to index yet.'
+            outcome:
+                already_running: 'A pass is already running.'
+                no_mailboxes: 'There are no mailboxes to walk.'
+                not_running: 'Nothing is running.'
+                nothing_to_resume: 'There is nothing left to pick up.'
+                resumes_itself: 'It is already coming back by itself.'
+                search_off: 'Search by meaning is off, so there is nothing to index.'
+            pause: 'Pause'
+            paused:
+                feature_off: 'Stopped because search by meaning was switched off.'
+                host_unreachable: 'Waiting for the model host to answer again. It retries by itself.'
+                interactive: 'Standing aside while the AI is being used. It carries on by itself a moment after.'
+                operator: 'Paused. It picks up where it stopped.'
+            progress: '%embedded% of %eligible% messages indexed'
+            rate: '%rate% messages a second, over the last five minutes'
+            rate_label: 'Rate'
+            resume: 'Resume'
+            search_off: 'Search by meaning is off, so there is nothing to index. Switch it on above first.'
+            stalled_body: 'Nothing has moved for a while — the worker that was doing it is probably gone. Resume picks it up where it stopped.'
+            start: 'Start'
+            started_label: 'Started'
+            tuning: '%batch% messages a batch, %delay% s between batches, and it stands aside for %cooldown% s after anyone uses the AI.'
+        duration:
+            hours: '%count% h'
+            minutes: '%count% min'
+            seconds: '%count% s'
         field:
             base_url: 'Model host'
             base_url_help: 'The address of an Ollama container on your network, including the port.'
@@ -64,6 +110,58 @@ admin:
             writing_help_help: 'Offers drafts and rewrites in the composer, when you ask for them.'
         heading: 'Language model'
         intro: 'plMail can use a language model you run yourself. Nothing is sent anywhere else, nothing is switched on until you say so, and the mail client works exactly as it does now while this is off.'
+        perf:
+            by_model: 'Per model'
+            chip:
+                cold: 'Nothing loaded'
+                off: 'Off'
+                split: 'Partly on the CPU'
+                unreachable: 'No answer'
+                warm: 'Loaded'
+            feature:
+                categorise: 'Sorting mail'
+                mail_index: 'Indexing mail'
+                search_query: 'Search'
+                writing_help: 'Writing help'
+            heading: 'Model host'
+            latest: 'Last call: %feature% on %model%'
+            model:
+                chat: 'Writing model'
+                embedding: 'Search model'
+                missing: 'not on this host'
+                missing_body: 'A model named here is not installed on the host. Pull it there, or name one that is — until then every request for it fails.'
+                none: 'not set'
+                resident: 'in memory'
+            no_history: 'Nothing has asked a model for anything in this window. The numbers appear once something has.'
+            no_host: 'No model host is set yet. Add its address above.'
+            off_body: 'AI is off, so nothing is being asked of a model. Nothing here is a fault.'
+            resident:
+                cold_cost: 'Last time that took about %duration%.'
+                full: '%size% resident, fully on the GPU.'
+                heading: 'In memory now'
+                none: 'No model is loaded. The next request loads one.'
+                split: '%vram% of %size% on the GPU — %percent% %. The other %cpu% is on the CPU.'
+                split_body: 'Everything this model does is several times slower while it is split. Free some GPU memory, or use a smaller model, and load it again.'
+                unloading: 'Unloading now.'
+                unloads_in: 'Unloads in %duration% unless something asks for it.'
+            retrying: 'Checking again every few seconds.'
+            table:
+                calls: 'Calls'
+                cold: 'Cold loads'
+                errors: 'Errors'
+                feature: 'Workload'
+                gen: 'Tokens/s (p50 / p95)'
+                hint: 'p50 is the middle call and p95 the slow one: half were faster than p50, one in twenty slower than p95. A cold load is a request that had to wait for the model to be read off disk.'
+                load: 'Load'
+            throughput:
+                heading: 'What the calls have cost'
+            tokens_per_second: '%rate% tokens a second'
+            unreachable_body: 'Nothing answered at %host%. plMail carries on without it; the features that need a model simply do nothing.'
+            version: 'Ollama %version%'
+            window:
+                day: '24 hours'
+                hour: 'Hour'
+                week: '7 days'
         probe:
             missing_model: 'That host answered, but it is not holding: %models%. Pull them on the host first.'
             no_host: 'Type an address first.'
@@ -426,6 +524,7 @@ admin:
         page: 'Page'
         refresh: 'Refresh'
     nav:
+        ai: AI
         backup: Backup
         database: Database
         insight_reports: Reported mail
@@ -1163,14 +1262,32 @@ compose:
     # a 5xx, an expired session, a dead connection. Turbo's own answer to all
     # three is four words of untranslated English in the corner.
     ai:
+        accept: 'Insert'
+        disabled: 'The writing help is switched off.'
+        discard: 'Discard'
         disclaimer: 'Written by a model. Read it before you send it.'
+        error:
+            not_pulled: 'The model host does not have that model. An administrator has to pull it first.'
+            refused: 'The model host refused the request.'
+            timeout: 'The model host took too long to answer.'
+        failed: 'The request could not be sent.'
         label: 'Help me write'
-        no_answer: 'No answer'
+        no_answer: 'The model host gave no answer.'
+        preview: 'Suggested text, not yet in your message'
+        rate: '%count% tokens · %rate% a second'
+        regenerate: 'Try again'
+        slow_hint: 'The first request after a while takes about fifteen seconds while the model loads.'
+        state:
+            done: 'Finished. Nothing has gone into your message yet.'
+            sent: 'Sent to the model…'
+            stopped: 'Stopped. Keep what arrived, or throw it away.'
+        stop: 'Stop'
         task:
             formal: 'Make it more formal'
             proofread: 'Fix spelling and grammar'
             reply: 'Draft a reply'
             shorten: 'Make it shorter'
+        timing: 'Model load %load%s · %count% tokens in %seconds%s · %total%s in total'
         working: 'Writing…'
     open_failed:
         dismiss: Dismiss
@@ -1605,6 +1722,8 @@ integration:
 jobs:
     heading: Background work
     started: 'Started %action% — this runs in the background.'
+    failure:
+        abandoned: 'Interrupted — this stopped part-way, and whatever it had already done was kept.'
     kind:
         mark_read: Marking as read
         mark_unread: Marking as unread
@@ -1936,6 +2055,18 @@ search:
     results:
         count: '%count% results'
         count_one: 1 result
+    semantic:
+        admin_link: 'Indexing progress'
+        indexing: 'Searching meaning across %embedded% of %total% messages — %percent%% complete.'
+        model_changed: 'The search model changed. The %count% messages indexed with the one before it are not searched by meaning until they have been indexed again.'
+        nothing_extra: 'Searching by meaning found nothing the words had not already.'
+        skipped:
+            bad_answer: 'The model answered with something this cannot use, so this search used words only.'
+            host_unreachable: 'The model host did not answer, so this search used words only.'
+            model_missing: 'The model host does not have the search model, so this search used words only.'
+            not_configured: 'Search by meaning is switched on, but no model host is set up, so this search used words only.'
+            query_too_short: 'Type a little more to search by meaning as well.'
+            timed_out: 'The model took too long, so this search used words only.'
     sort:
         label: Sort by
         recent: Most recent
@@ -2160,8 +2291,11 @@ settings:
         export: Export theme
         glass:
             heading: Glass
-            paneAlpha: Opacity
+            paneAlpha: Panel opacity
+            paneAlphaHint: The sidebar, top bar, main pane and calendar — the frame the app is laid out in. Nothing sits behind these but the background.
             paneBlur: Blur
+            popoverAlpha: Window and menu opacity
+            popoverAlphaHint: The compose window, dialogs and menus. Each of these sits on top of a panel, so both layers show through at once. Keeping them near solid is what keeps them readable.
             radius: Corner radius
             scrimAlpha: Background dimming
             subheading: How much of the background shows through your panels.
@@ -3075,6 +3209,9 @@ thread:
     no_subject: (no subject)
 
 thread_row:
+    # The word in the badge, and the phrase a screen reader gets instead. The
+    # a list, does not say new what.
+    # badge has room for one word; "New" alone, read out on the fortieth row of
     account: 'Received on %account%'
     actions:
         archive: Archive
@@ -3083,16 +3220,15 @@ thread_row:
         mark_read: Mark as read
         mark_unread: Mark as unread
         snooze: Snooze
-    has_attachment: Has attachment
-    me: me
-    message_count: "({ count })"
-    # The word in the badge, and the phrase a screen reader gets instead. The
-    # badge has room for one word; "New" alone, read out on the fortieth row of
-    # a list, does not say new what.
-    new: Not shown to you before
-    new_badge: New
     answer: New reply to your message
     answer_badge: Reply
+    has_attachment: Has attachment
+    me: me
+    meaning: 'Found by meaning, not by the words you typed'
+    meaning_badge: 'meaning'
+    message_count: "({ count })"
+    new: Not shown to you before
+    new_badge: New
     no_recipient: (no recipient)
     no_subject: (no subject)
     scheduled: 'Scheduled %when%'

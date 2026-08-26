@@ -1,0 +1,61 @@
+{#
+    One line under the search box about the half of the search made of meaning.
+
+    WHY THIS IS HERE AT ALL
+    ───────────────────────
+    Without it, four different situations produce the same page: the vector pass
+    ran and added something, ran and added nothing, never ran because the model
+    host is unplugged, and ran over a mailbox that is eight per cent indexed. The
+    results look the same in all four — merely disappointing — and the feature
+    gets blamed for a state that is temporary, knowable, and usually somebody
+    else's switch.
+
+    Deliberately quiet: one line, the same size as the result count beside it, in
+    the muted ink every other aside on this page uses. It is a footnote to the
+    results, not a banner over them.
+
+    Nothing here is rendered when the feature is simply switched off. See
+    SemanticSearchReport::speaks().
+#}
+{% set state = semantic.skipped ? 'skipped' : (semantic.modelChanged ? 'model_changed' : (semantic.indexing ? 'indexing' : 'nothing_extra')) %}
+
+{#
+    The state is on the element, not only in the sentence. What this line says
+    is the feature — "still working" and "found nothing extra" produce the same
+    page otherwise — and a test that asserted on translated prose would be a
+    test of the translation.
+#}
+<li class="px-4 py-2 border-b border-line"
+    data-semantic-notice="{{ state }}"
+    {% if semantic.skipped %}data-semantic-reason="{{ semantic.skipped.value }}"{% endif %}>
+    <p class="text-xs text-ink-faint">
+        <i class="fa-solid fa-circle-info mr-1" aria-hidden="true"></i>
+
+        {% if semantic.skipped %}
+            {{ semantic.skipped.messageKey|trans }}
+        {% elseif semantic.modelChanged %}
+            {{ 'search.semantic.model_changed'|trans({ '%count%': semantic.stale|number_format }) }}
+        {% elseif semantic.indexing %}
+            {{ 'search.semantic.indexing'|trans({
+                '%embedded%': semantic.embedded|number_format,
+                '%total%':    semantic.eligible|number_format,
+                '%percent%':  semantic.percent,
+            }) }}
+        {% else %}
+            {{ 'search.semantic.nothing_extra'|trans }}
+        {% endif %}
+
+        {#
+            The link only for the people it works for. /admin/ai is behind
+            ROLE_ADMIN, and offering everybody else a way to a 403 is worse than
+            offering nothing — on a family install the person searching is very
+            often not the person who set the model up. The sentence above stands
+            on its own without it.
+        #}
+        {% if is_granted('ROLE_ADMIN') and (semantic.indexing or semantic.modelChanged) %}
+            <a href="{{ path('app_admin_ai_settings') }}" class="text-accent hover:underline">
+                {{ 'search.semantic.admin_link'|trans }}
+            </a>
+        {% endif %}
+    </p>
+</li>

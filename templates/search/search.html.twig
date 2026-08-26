@@ -77,6 +77,23 @@
 {% endmacro %}
 
 {% block message_list %}
+    {#
+        Above the results, inside the list, because that is where it is read:
+        the one situation it matters most in is a search that came back with
+        very little, and a footer under an empty list is a footer nobody
+        scrolls to.
+
+        Defaulted rather than assumed. This template is rendered through
+        ThreadListRenderer, which merges its own parameters in, and a missing
+        key here would be a 500 on the search page rather than a missing
+        footnote.
+    #}
+    {% set semantic = semantic|default(null) %}
+
+    {% if semantic is not null and semantic.speaks %}
+        {% include 'search/_semantic_notice.html.twig' with { semantic: semantic } %}
+    {% endif %}
+
     {% if q == '' %}
         {# Empty state — no query yet #}
         <li class="flex flex-col items-center justify-center py-16 text-center px-4">
@@ -100,8 +117,18 @@
             <p class="text-xs text-ink-faint mt-1">{{ 'search.no_results.hint'|trans }}</p>
         </li>
     {% else %}
+        {#
+            `meaning_match` marks the rows that are only in this list because
+            the vector put them there. Somebody who typed a literal string and
+            got back a message that does not contain it is owed the reason, and
+            a row the words found needs no badge — see the provenance column in
+            MessageThreadRepository::buildSearchSql().
+        #}
         {% for thread in threads %}
-            {% include '_partials/_thread_row.html.twig' with { thread: thread } %}
+            {% include '_partials/_thread_row.html.twig' with {
+                thread: thread,
+                meaning_match: thread.id in semantic_only|default([]),
+            } %}
         {% endfor %}
     {% endif %}
 {% endblock %}

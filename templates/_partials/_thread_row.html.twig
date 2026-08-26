@@ -23,6 +23,11 @@ the conversation it answers.
 {# The Snoozed list. Its rows answer "when does this come back", which is the
    only question that list is asked. #}
 {% set snooze_scope = snooze_scope|default(false) %}
+{# Search results, and only the ones the ordinary search would not have found:
+   the row is here because a vector said it is about what was asked, not because
+   anything in it matches the words. Every other list passes nothing and gets no
+   badge — see the `meaning_match` block beside the New badge. #}
+{% set meaning_match = meaning_match|default(false) %}
 {% set item = thread ?? message %}
 {% set isThread = item.messages is defined %}
 
@@ -384,6 +389,29 @@ Threads only. A bare Message row is a message, and only a conversation arrives.
                             <span class="sr-only">
                                 {{ (isAnswer ? 'thread_row.answer' : 'thread_row.new')|trans }}
                             </span>
+                        </span>
+                    {% endif %}
+
+                    {# The same slot as the New badge and deliberately a quieter
+                       thing in it: outlined in the accent rather than filled
+                       with it, which is the vocabulary the search page already
+                       uses for its filter pills. New is news and this is a
+                       footnote about how the row was found, so the two must not
+                       compete — and on a page where several rows carry it, a
+                       column of solid accent badges would read as urgency that
+                       is not there.
+
+                       Visible word aria-hidden with the full phrase in sr-only
+                       beside it, exactly as the New badge does it: "meaning",
+                       announced in a list of fifty rows, does not say meaning
+                       WHAT. #}
+                    {% if meaning_match %}
+                        <span class="shrink-0 inline-flex items-center rounded-full
+                                     bg-accent-soft text-accent border border-accent/20
+                                     px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide leading-none"
+                              data-thread-meaning>
+                            <span aria-hidden="true">{{ 'thread_row.meaning_badge'|trans }}</span>
+                            <span class="sr-only">{{ 'thread_row.meaning'|trans }}</span>
                         </span>
                     {% endif %}
 

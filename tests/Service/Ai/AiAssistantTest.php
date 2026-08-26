@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Tests\Service\Ai;
 
+use App\Domain\Enum\Ai\AiCallFeature;
+use App\Service\Ai\AiCallRecorder;
 use App\Entity\Ai\AiFeature;
 use App\Entity\Ai\AiSettings;
 use App\Repository\Ai\AiSettingsRepository;
@@ -63,7 +65,7 @@ final class AiAssistantTest extends KernelTestCase
 
         $assistant = $this->assistant(new AiSettings(), $calls);
 
-        self::assertNull($assistant->embed('anything'));
+        self::assertNull($assistant->embed(AiCallFeature::SearchQuery, 'anything'));
         self::assertNull($assistant->chat(AiFeature::WritingHelp, [['role' => 'user', 'content' => 'hi']]));
         self::assertSame(0, $calls, 'a switched-off installation must not touch the network');
     }
@@ -81,7 +83,7 @@ final class AiAssistantTest extends KernelTestCase
 
         $calls = 0;
 
-        self::assertNull($this->assistant($settings, $calls)->embed('anything'));
+        self::assertNull($this->assistant($settings, $calls)->embed(AiCallFeature::SearchQuery, 'anything'));
         self::assertSame(0, $calls);
     }
 
@@ -93,7 +95,7 @@ final class AiAssistantTest extends KernelTestCase
 
         $calls = 0;
 
-        self::assertNull($this->assistant($settings, $calls)->embed('anything'));
+        self::assertNull($this->assistant($settings, $calls)->embed(AiCallFeature::SearchQuery, 'anything'));
         self::assertSame(0, $calls);
     }
 
@@ -109,7 +111,7 @@ final class AiAssistantTest extends KernelTestCase
 
         $calls = 0;
 
-        self::assertNull($this->assistant($settings, $calls)->embed('anything'));
+        self::assertNull($this->assistant($settings, $calls)->embed(AiCallFeature::SearchQuery, 'anything'));
         self::assertNull($this->assistant($settings, $calls)->chat(AiFeature::Categorise, [['role' => 'user', 'content' => 'x']]));
         self::assertSame(0, $calls);
     }
@@ -137,7 +139,7 @@ final class AiAssistantTest extends KernelTestCase
 
         $calls = 0;
 
-        self::assertSame([1.0, 2.0], $this->assistant($settings, $calls)->embed('hello'));
+        self::assertSame([1.0, 2.0], $this->assistant($settings, $calls)->embed(AiCallFeature::SearchQuery, 'hello'));
         self::assertGreaterThan(0, $calls);
     }
 
@@ -170,7 +172,7 @@ final class AiAssistantTest extends KernelTestCase
         $calls     = 0;
         $assistant = $this->assistant($settings, $calls);
 
-        self::assertNull($assistant->embed('   '));
+        self::assertNull($assistant->embed(AiCallFeature::SearchQuery, '   '));
         self::assertNull($assistant->chat(AiFeature::WritingHelp, []));
         self::assertSame(0, $calls);
     }
@@ -242,6 +244,27 @@ final class AiAssistantTest extends KernelTestCase
             return new MockResponse(json_encode(['message' => ['content' => 'an answer']]));
         });
 
-        return new AiAssistant($this->repository, new OllamaClient($http, new NullLogger()), new NullLogger());
+        return new AiAssistant(
+            $this->repository,
+            new OllamaClient($http, new NullLogger()),
+            $this->recorder(),
+            new NullLogger(),
+        );
+    }
+
+    /**
+     * A recorder whose database is a mock.
+     *
+     * A stub rather than a mock, deliberately: nothing here asserts anything
+     * about the metrics write, and PHPUnit is right to say so. These are unit
+     * tests over an HTTP mock, there is no database to write to, and the row is
+     * not what any of them are about.
+     *
+     * The REAL recorder rather than a fake, so that a change to its constructor
+     * breaks here, where it is cheap, instead of in production.
+     */
+    private function recorder(): AiCallRecorder
+    {
+        return new AiCallRecorder($this->createStub(Connection::class), new NullLogger());
     }
 }

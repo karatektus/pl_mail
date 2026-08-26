@@ -43,6 +43,52 @@ admin:
         threads: 'Yarns'
     ago: 'ago'
     ai:
+        backfill:
+            chip:
+                complete: 'Done'
+                failed: 'Sunk'
+                idle: 'Becalmed'
+                paused: 'Hove to'
+                running: 'Under way'
+                stalled: 'Adrift'
+            eta: 'About %duration%, at that pace'
+            eta_label: 'Left'
+            eta_settling: 'Too early to reckon'
+            failed_body: "The berth answered nowt several times o'er, so the pass stopped. Nowt were lost: carry on picks up where she got to."
+            failures: "%count% letters the oracle could not answer for. The next pass takes 'em up."
+            failures_label: 'Skipped'
+            finished_label: 'Made port'
+            heading: 'The search charts'
+            intro: "Search by meanin' sees only charted mail. This walks ev'ry mailbox once; new letters be charted as they come."
+            last_activity_label: 'Last sighted'
+            model_label: 'Charted with'
+            no_mail: 'No letters to chart yet.'
+            outcome:
+                already_running: 'A pass be already under way.'
+                no_mailboxes: 'There be no mailboxes to walk.'
+                not_running: "Nowt be runnin'."
+                nothing_to_resume: 'There be nowt left to take up.'
+                resumes_itself: 'She comes back by herself.'
+                search_off: "Search by meanin' be off, so there be nowt to chart."
+            pause: 'Heave to'
+            paused:
+                feature_off: "Stopped 'cause search by meanin' were switched off."
+                host_unreachable: "Waitin' for the berth to answer again. She tries again herself."
+                interactive: "Standin' aside while the oracle be in use. She carries on herself a moment after."
+                operator: 'Hove to. She picks up where she stopped.'
+            progress: "%embedded% o' %eligible% letters charted"
+            rate: "%rate% letters a second, o'er the last five minutes"
+            rate_label: 'Pace'
+            resume: 'Carry on'
+            search_off: "Search by meanin' be off, so there be nowt to chart. Switch her on above first."
+            stalled_body: "Nowt has moved a while — the hand that were doin' it be likely gone. Carry on takes her up where she stopped."
+            start: 'Set out'
+            started_label: 'Set out'
+            tuning: "%batch% letters a batch, %delay% s between 'em, an' she stands aside %cooldown% s after anyone consults the oracle."
+        duration:
+            hours: '%count% h'
+            minutes: '%count% min'
+            seconds: '%count% s'
         field:
             base_url: "Oracle's berth"
             base_url_help: "Where yer Ollama box lies on the network, port an' all."
@@ -64,6 +110,58 @@ admin:
             writing_help_help: "Offers drafts an' rewrites at the writin' desk, when ye ask."
         heading: 'Oracle'
         intro: "plMail can consult an oracle ye run yerself. Nowt leaves yer waters, nowt starts until ye say so, an' while this be off the mail works exactly as it does now."
+        perf:
+            by_model: 'By model'
+            chip:
+                cold: 'Nowt aboard'
+                off: 'Off'
+                split: 'Part ashore on the CPU'
+                unreachable: 'Nowt answers'
+                warm: 'Aboard'
+            feature:
+                categorise: "Sortin' mail"
+                mail_index: "Chartin' mail"
+                search_query: 'Search'
+                writing_help: 'Scrivener'
+            heading: "The oracle's berth"
+            latest: "Last askin': %feature% on %model%"
+            model:
+                chat: 'Scrivener model'
+                embedding: "Divinin' model"
+                missing: 'not at this berth'
+                missing_body: "A model named here be not aboard the berth. Haul her in, or name one that be there — 'til then ev'ry askin' founders."
+                none: 'not set'
+                resident: 'aboard'
+            no_history: "Nowt has asked the oracle in this stretch. The numbers come once somethin' does."
+            no_host: 'No berth be set yet. Write her address above.'
+            off_body: 'The oracle sleeps, so nowt be asked of her. Nowt here be amiss.'
+            resident:
+                cold_cost: 'Last time that took about %duration%.'
+                full: '%size% aboard, all on the GPU.'
+                heading: 'Aboard right now'
+                none: "No model be loaded. The next askin' hauls one aboard."
+                split: "%vram% o' %size% on the GPU — %percent% %. T'other %cpu% sits on the CPU."
+                split_body: "While she be split, ev'rythin' she does be many times slower. Free some GPU room, or take a smaller model, an' load her afresh."
+                unloading: "Goin' ashore now."
+                unloads_in: "Goes ashore in %duration% unless somethin' asks for her."
+            retrying: "Lookin' again ev'ry few seconds."
+            table:
+                calls: "Askin's"
+                cold: 'Cold hauls'
+                errors: 'Founders'
+                feature: 'Work'
+                gen: 'Tokens/s (p50 / p95)'
+                hint: "p50 be the middlin' askin' an' p95 the slow one: half were quicker than p50, one in twenty slower than p95. A cold haul be an askin' that waited while the model came off the disk."
+                load: 'Haul'
+            throughput:
+                heading: "What the askin's have cost"
+            tokens_per_second: '%rate% tokens a second'
+            unreachable_body: 'Nowt answered at %host%. plMail sails on; whatever wants the oracle simply does nowt.'
+            version: 'Ollama %version%'
+            window:
+                day: '24 hours'
+                hour: 'Hour'
+                week: '7 days'
         probe:
             missing_model: "That berth answered, but holds no: %models%. Haul 'em aboard there first."
             no_host: 'Write an address first.'
@@ -299,6 +397,7 @@ admin:
         page: 'Page'
         refresh: 'Refresh'
     nav:
+        ai: Oracle
         database: Database
         insight_reports: 'Reported letters'
         integrations: 'Friendly ports'
@@ -901,14 +1000,32 @@ clipboard:
 
 compose:
     ai:
+        accept: 'Put it in'
+        disabled: "The writin' hand be stowed."
+        discard: 'Heave it over'
         disclaimer: "Writ by an oracle. Read it afore ye send it."
+        error:
+            not_pulled: 'The oracle has no such model aboard. Someone must fetch it first.'
+            refused: "The oracle turned the askin' away."
+            timeout: 'The oracle took too long to answer.'
+        failed: 'The message could not be sent.'
         label: 'Help me write'
-        no_answer: 'No answer'
+        no_answer: 'The oracle gave no answer.'
+        preview: 'Text on offer, not yet in yer letter'
+        rate: '%count% tokens · %rate% a second'
+        regenerate: 'Try again'
+        slow_hint: "The first askin' after a spell takes about fifteen seconds while the oracle wakes."
+        state:
+            done: "Done. Nowt o' it be in yer letter yet."
+            sent: 'Sent to the oracle…'
+            stopped: 'Belayed. Keep what came, or heave it over.'
+        stop: 'Belay'
         task:
             formal: 'Say it more proper'
             proofread: "Mend the spellin'"
             reply: 'Draft a reply'
             shorten: 'Make it shorter'
+        timing: "Oracle wakin' %load%s · %count% tokens in %seconds%s · %total%s all told"
         working: "Writin'…"
     open_failed:
         dismiss: Belay
@@ -1312,6 +1429,8 @@ integration:
 jobs:
     heading: Work below decks
     started: 'Started %action% — she runs below decks.'
+    failure:
+        abandoned: "Cut adrift — she stopped half way, and what were already done stays done."
     kind:
         mark_read: Markin' as read
         mark_unread: Markin' as unread
@@ -1634,6 +1753,18 @@ search:
     results:
         count: '%count% spoils'
         count_one: 1 spoil
+    semantic:
+        admin_link: 'See the progress'
+        indexing: "Divinin' meanin' across %embedded% o' %total% messages — %percent%% done."
+        model_changed: "The divinin' model has changed. The %count% messages read by the old one be not searched by meanin' until they be read again."
+        nothing_extra: "Searchin' by meanin' turned up nowt the words had not."
+        skipped:
+            bad_answer: "The oracle answered with somethin' unusable — so this search used words alone."
+            host_unreachable: 'Nowt answered at the berth — so this search used words alone.'
+            model_missing: "That berth holds no divinin' model — so this search used words alone."
+            not_configured: "Search by meanin' be on, but no berth be set — so this search used words alone."
+            query_too_short: "Write a little more an' the meanin' be searched too."
+            timed_out: 'The oracle took too long — so this search used words alone.'
     sort:
         label: Sort by
         recent: Freshest catch
@@ -1820,8 +1951,10 @@ settings:
         export: Export theme
         glass:
             heading: Spyglass
-            paneAlpha: Opacity
+            paneAlphaHint: "The sidebar, top bar, main pane an' calendar — the frame the ship is laid out in. Naught sits behind these but the backdrop."
             paneBlur: Sea fog
+            popoverAlpha: "Porthole an' menu opacity"
+            popoverAlphaHint: "The writin' porthole, dialogs an' menus. Each o' these sits atop a panel, so both layers show through at once. Keep 'em near solid an' they stay readable."
             radius: Corner radius
             scrimAlpha: Backdrop dimmin'
             subheading: How much o' the backdrop shows through yer panels.
@@ -2698,6 +2831,8 @@ thread_row:
         snooze: Let it drift
     has_attachment: Carries cargo
     me: me
+    meaning: "Found by meanin', not by the words ye typed"
+    meaning_badge: "meanin'"
     message_count: "({ count })"
     new: Never yet laid eyes on
     new_badge: Fresh

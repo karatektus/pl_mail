@@ -1013,23 +1013,176 @@ Variables: form, message, ctx (an App\Domain\DTO\Mail\ComposeContext)
                        ask for a first draft. #}
                     {% if ai_writing_help_enabled() %}
                         <div data-controller="ui--dropdown compose--ai-assist"
-                             data-compose--ai-assist-url-value="{{ path('app_compose_assist') }}"
+                             data-compose--ai-assist-url-value="{{ path('app_compose_assist_stream') }}"
                              {# ctx.replyTo, not a variable of our own: the context object is what
                                 already survives the round trip through both undo streams, so a
                                 reply drafted after a cancelled send still knows what it answers. #}
                              data-compose--ai-assist-in-reply-to-value="{{ ctx.replyTo }}"
+                             {# One value per state, and the states are the point. A single
+                                "busy" label was the whole reported bug: fifteen silent seconds
+                                and a spinner are indistinguishable from a dead button, and the
+                                composer cannot tell them apart without words for each. #}
+                             data-compose--ai-assist-sent-label-value="{{ 'compose.ai.state.sent'|trans }}"
+                             data-compose--ai-assist-waiting-label-value="{{ 'compose.ai.slow_hint'|trans }}"
                              data-compose--ai-assist-busy-label-value="{{ 'compose.ai.working'|trans }}"
-                             data-compose--ai-assist-failed-label-value="{{ 'compose.ai.no_answer'|trans }}">
+                             data-compose--ai-assist-done-label-value="{{ 'compose.ai.state.done'|trans }}"
+                             data-compose--ai-assist-stopped-label-value="{{ 'compose.ai.state.stopped'|trans }}"
+                             {# %count% and %rate% are substituted in the browser. They change
+                                many times a second and Twig only runs once, so the template
+                                supplies the SENTENCE and the controller supplies the numbers. #}
+                             data-compose--ai-assist-rate-label-value="{{ 'compose.ai.rate'|trans }}"
+                             data-compose--ai-assist-timing-label-value="{{ 'compose.ai.timing'|trans }}"
+                             data-compose--ai-assist-failed-label-value="{{ 'compose.ai.failed'|trans }}"
+                             data-compose--ai-assist-no-answer-label-value="{{ 'compose.ai.no_answer'|trans }}"
+                             data-compose--ai-assist-disabled-label-value="{{ 'compose.ai.disabled'|trans }}"
+                             {# The three failures a person can actually do something about:
+                                pull the model, look at the host's log, wait and retry. The
+                                other three collapse into `failed`, which is honest about
+                                them — see the controller's #sentenceFor(). #}
+                             data-compose--ai-assist-timeout-label-value="{{ 'compose.ai.error.timeout'|trans }}"
+                             data-compose--ai-assist-not-pulled-label-value="{{ 'compose.ai.error.not_pulled'|trans }}"
+                             data-compose--ai-assist-refused-label-value="{{ 'compose.ai.error.refused'|trans }}">
                             <button type="button"
                                     data-action="click->ui--dropdown#toggle"
                                     title="{{ 'compose.ai.label'|trans }}"
                                     aria-label="{{ 'compose.ai.label'|trans }}"
                                     class="{{ ic }}"><i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i></button>
 
-                            {# `rise` and `bottom-full` for the reason the menu
-                               below gives: it comes UP out of the action bar,
-                               and a menu sliding down into the button that
-                               opened it reads as the wrong thing arriving. #}
+                            {# ── The live surface ──────────────────────────────
+                               It deliberately does NOT live inside the menu. It used
+                               to, and the same click that starts the request also
+                               closes the menu — so every word this controller said
+                               was written into a subtree that had just been hidden,
+                               and the writer saw literally nothing happen. That is
+                               the whole of the "I press it and nothing happens"
+                               report: the request was running the entire time and
+                               there was no surface left on screen to say so.
+
+                               A sibling of the menu, positioned the same way, so it
+                               appears where the eye already is — and it outlives the
+                               menu, which is the entire point.
+
+                               WHY THE TOKENS LAND HERE AND NOT IN THE EDITOR
+                               ──────────────────────────────────────────────
+                               Streaming into the contenteditable would mean hundreds
+                               of separate DOM insertions, and the browser's undo
+                               stack records them as hundreds of steps — so the first
+                               thing anybody tries, Ctrl+Z to take the generated text
+                               back out, would undo one token and then start eating
+                               what they had written themselves. It also puts a
+                               moving target under a caret the writer may be using:
+                               they can keep typing while this runs, and the saved
+                               range is the fragile piece in every one of the
+                               composer's other insertions.
+
+                               So it accumulates HERE, plainly provisional, and goes
+                               into the document as ONE operation when accepted —
+                               one insertion, one undo step. Nothing is in the draft
+                               until somebody says so.
+
+                               Full width rather than the menu's md:w-64: this holds
+                               prose, and a paragraph of reply in a 16rem column is
+                               unreadable. It anchors to the toolbar BLOCK, which
+                               spans the window (see the `relative` wrapper above),
+                               so it is on screen by construction at every width.
+
+                               `rise` and `bottom-full` for the reason the menu below
+                               gives: it comes UP out of the action bar, and a panel
+                               sliding down into the button that opened it reads as
+                               the wrong thing arriving. The attribute is the only
+                               animation on this surface, and motion.css already
+                               zeroes it under prefers-reduced-motion — the tokens
+                               arriving are the progress indicator, and text
+                               appearing is not motion anybody asked to opt out of. #}
+                            <div data-compose--ai-assist-target="panel" hidden
+                                 data-enter="rise"
+                                 class="absolute bottom-full mb-2 left-2 right-2 md:left-3 md:right-3
+                                        z-30 popover flex flex-col">
+
+                                <div class="flex items-start gap-2 px-3 py-2">
+                                    <div class="min-w-0 flex-1">
+                                        {# `role="status"` with aria-live so the STATE TRANSITIONS
+                                           are announced rather than only drawn. Only transitions:
+                                           the token counter beside it changes about twenty times a
+                                           second, and putting that in a live region would read a
+                                           screen reader user a new number instead of letting them
+                                           hear anything else. Hidden while empty so an idle
+                                           composer carries no furniture. #}
+                                        <p data-compose--ai-assist-target="status"
+                                           role="status"
+                                           aria-live="polite"
+                                           hidden
+                                           class="text-[11px] leading-snug text-ink-muted"></p>
+
+                                        {# The numbers. aria-hidden for the reason above; the
+                                           final count is repeated in the status line's `title`
+                                           where it can be read on purpose rather than at 18 Hz. #}
+                                        <p data-compose--ai-assist-target="meter"
+                                           aria-hidden="true"
+                                           hidden
+                                           class="mt-0.5 text-[11px] leading-snug text-ink-faint tabular-nums"></p>
+                                    </div>
+
+                                    {# A real <button>, so it is in the tab order and answers
+                                       Enter and Space without anything being written here to
+                                       make it. Stopping matters more than it looks: an
+                                       abandoned generation keeps a 20 GiB model busy on a
+                                       machine with one GPU, and everything else queues behind
+                                       it. #}
+                                    <button type="button"
+                                            data-compose--ai-assist-target="stop"
+                                            hidden
+                                            data-action="click->compose--ai-assist#stop"
+                                            class="{{ tb }} shrink-0 text-[11px] hover:text-ink">
+                                        <i class="fa-solid fa-stop text-[9px] mr-1" aria-hidden="true"></i>{{ 'compose.ai.stop'|trans }}
+                                    </button>
+                                </div>
+
+                                {# Not contenteditable, and never focusable for editing: this is a
+                                   quotation of what the model said, not a second place to write.
+                                   `tabindex="0"` only so a keyboard can scroll a long draft.
+                                   `whitespace-pre-wrap` because the model answers plain text with
+                                   real newlines and they are the paragraphing. #}
+                                <div data-compose--ai-assist-target="preview"
+                                     hidden
+                                     tabindex="0"
+                                     role="region"
+                                     aria-label="{{ 'compose.ai.preview'|trans }}"
+                                     class="px-3 pb-2 max-h-[32vh] overflow-y-auto
+                                            text-sm leading-relaxed text-ink
+                                            whitespace-pre-wrap break-words"></div>
+
+                                {# Offered only once there is something to accept. Insert first
+                                   and leftmost because it is what the writer came for; discard
+                                   last because it is the one that throws work away. #}
+                                <div data-compose--ai-assist-target="actions"
+                                     hidden
+                                     class="flex items-center gap-1 px-2 py-1.5 border-t border-line">
+                                    <button type="button"
+                                            data-action="click->compose--ai-assist#accept"
+                                            class="{{ tb }} text-[11px] text-accent hover:text-accent">
+                                        <i class="fa-solid fa-check text-[9px] mr-1" aria-hidden="true"></i>{{ 'compose.ai.accept'|trans }}
+                                    </button>
+                                    <button type="button"
+                                            data-action="click->compose--ai-assist#regenerate"
+                                            class="{{ tb }} text-[11px]">
+                                        <i class="fa-solid fa-rotate-right text-[9px] mr-1" aria-hidden="true"></i>{{ 'compose.ai.regenerate'|trans }}
+                                    </button>
+                                    <button type="button"
+                                            data-action="click->compose--ai-assist#discard"
+                                            class="{{ tb }} text-[11px] ml-auto">
+                                        {{ 'compose.ai.discard'|trans }}
+                                    </button>
+                                </div>
+
+                                {# Said on the surface the text is actually read from, not only
+                                   in the menu that started it — by the time somebody is deciding
+                                   whether to insert this, the menu has been shut for a minute. #}
+                                <p class="px-3 pb-2 text-[11px] leading-snug text-ink-faint">
+                                    {{ 'compose.ai.disclaimer'|trans }}
+                                </p>
+                            </div>
+
                             <div data-ui--dropdown-target="menu" hidden
                                  data-enter="rise"
                                  class="absolute bottom-full mb-2 left-2 right-2
@@ -1058,7 +1211,6 @@ Variables: form, message, ctx (an App\Domain\DTO\Mail\ComposeContext)
                                    and "a machine wrote this and you are about to
                                    send it" is not a thing to mention quietly. #}
                                 <p class="px-3 py-2 text-[11px] leading-snug text-ink-faint">
-                                    <span data-compose--ai-assist-target="status" class="block text-ink-muted"></span>
                                     {{ 'compose.ai.disclaimer'|trans }}
                                 </p>
                             </div>

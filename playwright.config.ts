@@ -106,8 +106,9 @@ export default defineConfig({
     {
       name: "chromium",
       use: { ...devices["Desktop Chrome"] },
-      // integrations.spec.ts and mercure.spec.ts are handled separately below.
-      testIgnore: /(integrations|mercure)\.spec\.ts/,
+      // integrations.spec.ts, mercure.spec.ts and ai-compose.spec.ts are
+      // handled separately below.
+      testIgnore: /(integrations|mercure|ai-compose)\.spec\.ts/,
       // No `storageState` here, and no `setup` project: signing in is now a
       // worker-scoped fixture in tests/e2e/support/test.ts, because the path
       // has to differ per worker and project config is static.
@@ -128,11 +129,18 @@ export default defineConfig({
       // did not ask for it — which is exactly how it first showed up, as an
       // integrations failure that passed on its own.
       //
+      // ai-compose: AiSettings is a singleton with no user column, the same
+      // shape of install-wide state as the two above. Switching writing help on
+      // does not stay inside the spec that asked for it — it puts an extra
+      // button in every composer in the suite, which is how it first showed up:
+      // compose-send-optimistic.spec.ts passed or failed depending on whether
+      // the AI menu happened to be present.
+      //
       // One worker, and `dependencies` so it starts only once everything else
       // has finished.
       name: "chromium-exclusive",
       use: { ...devices["Desktop Chrome"] },
-      testMatch: /(integrations|mercure)\.spec\.ts/,
+      testMatch: /(integrations|mercure|ai-compose)\.spec\.ts/,
       dependencies: ["chromium"],
     },
   ],

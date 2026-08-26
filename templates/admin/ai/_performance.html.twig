@@ -1,0 +1,515 @@
+{% import '_partials/_card_chrome.html.twig' as chrome %}
+{#
+admin/ai/_performance.html.twig — the two telemetry cards under Admin → AI.
+
+Accepts:
+  panel   — App\Service\Ai\AiPerformancePanel::snapshot()
+  outcome — the key a Start/Pause/Resume click answered with, when there was one
+
+Rendered twice over: once into the settings frame on first paint, and again by
+/admin/ai/status on every poll, which is why it is a fragment with no frame of
+its own. The states below are the whole point of the file, and each of them is
+deliberately a DIFFERENT SHAPE rather than the same table with different
+numbers:
+
+  1. the master switch is off      — a sentence, no polling, no error colour
+  2. the host does not answer      — a quiet line, not an alarm
+  3. reachable, nothing resident   — normal; says what the next request costs
+  4. resident, wholly on the GPU   — the good state, stated plainly
+  5. resident, PART OF IT ON CPU   — loud, because nothing else reports it
+  6. no calls recorded yet         — an empty sentence, never a table of zeros
+
+Five is the reason the panel exists. A model that spilled to the CPU still
+answers, still answers correctly, and is several times slower forever, and
+there is no other screen anywhere that would tell you.
+#}
+
+{% set backfill = panel.backfill %}
+
+{# Durations, in the two units anybody reads them in. Defined once here rather
+   than in PHP because the choice between "45 s" and "3 min" is a presentation
+   decision, and the seconds are already in the payload for anything that wants
+   to make it differently. #}
+{% macro duration(seconds) %}
+    {%- if seconds < 90 -%}
+        {{ 'admin.ai.duration.seconds'|trans({ '%count%': seconds }) }}
+    {%- elseif seconds < 5400 -%}
+        {{ 'admin.ai.duration.minutes'|trans({ '%count%': (seconds / 60)|round }) }}
+    {%- else -%}
+        {{ 'admin.ai.duration.hours'|trans({ '%count%': (seconds / 3600)|round(1) }) }}
+    {%- endif -%}
+{% endmacro %}
+
+{% import _self as fmt %}
+
+<div class="space-y-3">
+
+    {# ── The model host ────────────────────────────────────────────────── #}
+    <div class="{{ chrome.shell() }}">
+
+        <div class="flex items-center gap-2.5 {{ chrome.band() }}">
+            <i class="fa-solid fa-microchip text-xs text-zinc-400" aria-hidden="true"></i>
+            <h2 class="text-sm font-semibold text-ink">{{ 'admin.ai.perf.heading'|trans }}</h2>
+
+            {% if not panel.ready %}
+                <span class="ml-auto text-[11px] font-medium px-2 py-0.5 rounded-full bg-raised text-ink-faint">
+                    {{ 'admin.ai.perf.chip.off'|trans }}
+                </span>
+            {% elseif not panel.host.reachable %}
+                {# Not red. A host that is off is a fact about somebody's
+                   network, not a fault in this application, and colouring it as
+                   a failure teaches an operator to ignore the one place that
+                   would tell them something is actually wrong. #}
+                <span class="ml-auto text-[11px] font-medium px-2 py-0.5 rounded-full bg-raised text-ink-faint">
+                    {{ 'admin.ai.perf.chip.unreachable'|trans }}
+                </span>
+            {% elseif panel.anyPartial %}
+                <span class="ml-auto text-[11px] font-medium px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-500">
+                    {{ 'admin.ai.perf.chip.split'|trans }}
+                </span>
+            {% elseif panel.loaded is empty %}
+                <span class="ml-auto text-[11px] font-medium px-2 py-0.5 rounded-full bg-raised text-ink-faint">
+                    {{ 'admin.ai.perf.chip.cold'|trans }}
+                </span>
+            {% else %}
+                <span class="ml-auto text-[11px] font-medium px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-500">
+                    {{ 'admin.ai.perf.chip.warm'|trans }}
+                </span>
+            {% endif %}
+        </div>
+
+        <div class="px-5 py-4 space-y-4">
+
+            {% if not panel.enabled %}
+
+                {# State 1. Off is a configuration, not a fault. #}
+                <p class="text-sm text-ink-soft leading-relaxed">{{ 'admin.ai.perf.off_body'|trans }}</p>
+
+            {% elseif not panel.configured %}
+
+                <p class="text-sm text-ink-soft leading-relaxed">{{ 'admin.ai.perf.no_host'|trans }}</p>
+
+            {% elseif not panel.host.reachable %}
+
+                {# State 2. One calm line and the address, which is the thing
+                   somebody checks first. #}
+                <p class="text-sm text-ink-soft leading-relaxed">
+                    {{ 'admin.ai.perf.unreachable_body'|trans({ '%host%': panel.host.baseUrl }) }}
+                </p>
+                <p class="text-xs text-ink-faint">{{ 'admin.ai.perf.retrying'|trans }}</p>
+
+            {% else %}
+
+                <div class="flex flex-wrap items-baseline gap-x-3 gap-y-1 text-xs text-ink-faint">
+                    <span class="font-mono text-ink-soft break-all">{{ panel.host.baseUrl }}</span>
+                    {% if panel.host.version %}
+                        <span>{{ 'admin.ai.perf.version'|trans({ '%version%': panel.host.version }) }}</span>
+                    {% endif %}
+                </div>
+
+                {# ── Is what the settings name actually on the host? ───────
+                   The commonest configuration mistake there is, and invisible
+                   everywhere else: the feature is on, the form looks complete,
+                   and every request 404s for ever. #}
+                <dl class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 text-xs">
+                    {% for model in panel.models %}
+                        <dt class="text-ink-faint">{{ ('admin.ai.perf.model.' ~ model.role)|trans }}</dt>
+                        <dd class="flex flex-wrap items-center gap-2">
+                            {% if model.name is null %}
+                                <span class="text-ink-faint">{{ 'admin.ai.perf.model.none'|trans }}</span>
+                            {% else %}
+                                <span class="font-mono text-ink-soft break-all">{{ model.name }}</span>
+
+                                {% if model.installed is same as(false) %}
+                                    <span class="text-[11px] font-medium px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-500">
+                                        {{ 'admin.ai.perf.model.missing'|trans }}
+                                    </span>
+                                {% elseif model.resident %}
+                                    <span class="text-[11px] font-medium px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-500">
+                                        {{ 'admin.ai.perf.model.resident'|trans }}
+                                    </span>
+                                {% endif %}
+                            {% endif %}
+                        </dd>
+                    {% endfor %}
+                </dl>
+
+                {% if panel.models|filter(m => m.installed is same as(false))|length > 0 %}
+                    <div role="status" class="flex items-start gap-2.5 rounded-lg bg-amber-500/10 px-3.5 py-3 text-sm text-amber-500">
+                        <i class="fa-solid fa-triangle-exclamation mt-0.5 shrink-0" aria-hidden="true"></i>
+                        <p class="leading-snug">{{ 'admin.ai.perf.model.missing_body'|trans }}</p>
+                    </div>
+                {% endif %}
+
+                {# ── What is in memory right now ──────────────────────────── #}
+                <div class="space-y-2">
+                    <h3 class="text-xs font-semibold text-ink-muted">{{ 'admin.ai.perf.resident.heading'|trans }}</h3>
+
+                    {% if panel.loaded is empty %}
+
+                        {# State 3. Normal, and worth explaining rather than
+                           leaving as an empty list somebody reads as a fault. #}
+                        <p class="text-sm text-ink-soft leading-relaxed">
+                            {{ 'admin.ai.perf.resident.none'|trans }}
+                            {%- if panel.coldLoadMs %}
+                                {{ 'admin.ai.perf.resident.cold_cost'|trans({ '%duration%': fmt.duration((panel.coldLoadMs / 1000)|round) }) }}
+                            {% endif %}
+                        </p>
+
+                    {% else %}
+
+                        <ul class="space-y-3">
+                            {% for model in panel.loaded %}
+                                <li class="space-y-1.5">
+                                    <div class="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                                        <span class="font-mono text-sm text-ink break-all">{{ model.name }}</span>
+                                        {% if model.parameterSize %}
+                                            <span class="text-[11px] text-ink-faint">{{ model.parameterSize }}</span>
+                                        {% endif %}
+                                        {% if model.quantisation %}
+                                            <span class="text-[11px] text-ink-faint">{{ model.quantisation }}</span>
+                                        {% endif %}
+                                    </div>
+
+                                    {% if model.fullyOnGpu %}
+
+                                        {# State 4. The good one. Said in words,
+                                           because "21798711296" is not an
+                                           answer to "is this healthy". #}
+                                        <p class="text-sm text-ink-soft">
+                                            {{ 'admin.ai.perf.resident.full'|trans({ '%size%': model.sizeLabel ?? '—' }) }}
+                                        </p>
+
+                                    {% else %}
+
+                                        {# State 5. The one this panel is for.
+                                           A split bar rather than a number: the
+                                           proportion is the story, and it is
+                                           legible at a glance from across a
+                                           desk. #}
+                                        <div class="flex h-2 rounded-full bg-line overflow-hidden" aria-hidden="true">
+                                            <div class="h-full bg-emerald-500" style="width: {{ model.gpuPercent ?? 0 }}%"></div>
+                                            <div class="h-full bg-amber-500" style="width: {{ 100 - (model.gpuPercent ?? 0) }}%"></div>
+                                        </div>
+
+                                        <p class="text-sm text-amber-500 leading-snug">
+                                            {{ 'admin.ai.perf.resident.split'|trans({
+                                                '%vram%': model.vramLabel ?? '—',
+                                                '%size%': model.sizeLabel ?? '—',
+                                                '%percent%': model.gpuPercent ?? 0,
+                                                '%cpu%': model.cpuLabel ?? '—',
+                                            }) }}
+                                        </p>
+                                        <p class="text-xs text-ink-soft leading-relaxed">
+                                            {{ 'admin.ai.perf.resident.split_body'|trans }}
+                                        </p>
+
+                                    {% endif %}
+
+                                    {% if model.unloadsIn is not null %}
+                                        <p class="text-xs text-ink-faint">
+                                            {% if model.unloadsIn > 0 %}
+                                                {{ 'admin.ai.perf.resident.unloads_in'|trans({ '%duration%': fmt.duration(model.unloadsIn) }) }}
+                                            {% else %}
+                                                {{ 'admin.ai.perf.resident.unloading'|trans }}
+                                            {% endif %}
+                                        </p>
+                                    {% endif %}
+                                </li>
+                            {% endfor %}
+                        </ul>
+
+                    {% endif %}
+                </div>
+
+                {# ── What the calls have cost ─────────────────────────────── #}
+                <div class="space-y-2 pt-1">
+                    <div class="flex flex-wrap items-center gap-2">
+                        <h3 class="text-xs font-semibold text-ink-muted">{{ 'admin.ai.perf.throughput.heading'|trans }}</h3>
+
+                        <div class="ml-auto flex items-center gap-1">
+                            {% for choice in ['hour', 'day', 'week'] %}
+                                <button type="button"
+                                        data-action="admin--ai-status#selectWindow"
+                                        data-window="{{ choice }}"
+                                        class="text-[11px] px-2 py-0.5 rounded-full cursor-pointer transition-colors
+                                               {{ panel.window == choice ? 'bg-raised text-ink font-medium' : 'text-ink-faint hover:text-ink-muted' }}">
+                                    {{ ('admin.ai.perf.window.' ~ choice)|trans }}
+                                </button>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    {% if not panel.hasHistory %}
+
+                        {# State 6. An empty window is a quiet installation, not
+                           a broken one, and a table of zeros would say the
+                           opposite in five columns. #}
+                        <p class="text-sm text-ink-soft leading-relaxed">{{ 'admin.ai.perf.no_history'|trans }}</p>
+
+                    {% else %}
+
+                        {% if panel.latest %}
+                            <p class="text-xs text-ink-faint">
+                                {{ 'admin.ai.perf.latest'|trans({
+                                    '%feature%': ('admin.ai.perf.feature.' ~ panel.latest.feature)|trans,
+                                    '%model%': panel.latest.model,
+                                }) }}
+                                {%- if panel.latest.genTokensPerSecond %}
+                                    · {{ 'admin.ai.perf.tokens_per_second'|trans({ '%rate%': panel.latest.genTokensPerSecond }) }}
+                                {%- endif %}
+                                {%- if not panel.latest.succeeded and panel.latest.errorKind %}
+                                    · <span class="text-danger">{{ panel.latest.errorKind }}</span>
+                                {%- endif %}
+                            </p>
+                        {% endif %}
+
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-xs">
+                                <thead>
+                                    <tr class="text-ink-faint text-left">
+                                        <th class="font-medium py-1 pr-3">{{ 'admin.ai.perf.table.feature'|trans }}</th>
+                                        <th class="font-medium py-1 pr-3 text-right">{{ 'admin.ai.perf.table.calls'|trans }}</th>
+                                        <th class="font-medium py-1 pr-3 text-right">{{ 'admin.ai.perf.table.errors'|trans }}</th>
+                                        <th class="font-medium py-1 pr-3 text-right">{{ 'admin.ai.perf.table.cold'|trans }}</th>
+                                        <th class="font-medium py-1 pr-3 text-right">{{ 'admin.ai.perf.table.gen'|trans }}</th>
+                                        <th class="font-medium py-1 text-right">{{ 'admin.ai.perf.table.load'|trans }}</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-line">
+                                    {% for row in panel.perFeature %}
+                                        <tr class="text-ink-soft">
+                                            <td class="py-1.5 pr-3">
+                                                <span class="text-ink">{{ ('admin.ai.perf.feature.' ~ row.bucket)|trans }}</span>
+                                                {# The bar is the row's share of
+                                                   the busiest workload, drawn
+                                                   as a div. A chart library for
+                                                   four rows would be four
+                                                   hundred kilobytes. #}
+                                                <span class="mt-1 block h-1 rounded-full bg-line overflow-hidden" aria-hidden="true">
+                                                    <span class="block h-full bg-accent" style="width: {{ row.share }}%"></span>
+                                                </span>
+                                            </td>
+                                            <td class="py-1.5 pr-3 text-right tabular-nums">{{ row.calls }}</td>
+                                            <td class="py-1.5 pr-3 text-right tabular-nums {{ row.errors > 0 ? 'text-danger' : '' }}">{{ row.errors }}</td>
+                                            <td class="py-1.5 pr-3 text-right tabular-nums">{{ row.coldLoads }}</td>
+                                            <td class="py-1.5 pr-3 text-right tabular-nums">
+                                                {% if row.genTokensPerSecondP50 %}
+                                                    {{ row.genTokensPerSecondP50 }}
+                                                    <span class="text-ink-faint">/ {{ row.genTokensPerSecondP95 ?? '—' }}</span>
+                                                {% else %}
+                                                    <span class="text-ink-faint">—</span>
+                                                {% endif %}
+                                            </td>
+                                            <td class="py-1.5 text-right tabular-nums">
+                                                {{ row.loadMsP50 is not null ? row.loadMsP50 ~ ' ms' : '—' }}
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <p class="text-[11px] text-ink-faint leading-relaxed">{{ 'admin.ai.perf.table.hint'|trans }}</p>
+
+                        {% if panel.perModel|length > 1 %}
+                            {# Only when there is something to compare. One model
+                               repeats the table above with a different heading. #}
+                            <details class="text-xs">
+                                <summary class="cursor-pointer text-ink-faint hover:text-ink-muted">
+                                    {{ 'admin.ai.perf.by_model'|trans }}
+                                </summary>
+                                <ul class="mt-2 space-y-1">
+                                    {% for row in panel.perModel %}
+                                        <li class="flex items-baseline justify-between gap-3">
+                                            <span class="font-mono text-ink-soft break-all">{{ row.bucket }}</span>
+                                            <span class="text-ink-faint tabular-nums shrink-0">
+                                                {{ 'admin.ai.perf.table.calls'|trans }} {{ row.calls }}
+                                                {%- if row.genTokensPerSecondP50 %} · {{ row.genTokensPerSecondP50 }} tok/s{% endif %}
+                                            </span>
+                                        </li>
+                                    {% endfor %}
+                                </ul>
+                            </details>
+                        {% endif %}
+
+                    {% endif %}
+                </div>
+
+            {% endif %}
+        </div>
+    </div>
+
+    {# ── The search index backfill ─────────────────────────────────────── #}
+    <div class="{{ chrome.shell() }}">
+
+        <div class="flex items-center gap-2.5 {{ chrome.band() }}">
+            <i class="fa-solid fa-layer-group text-xs text-zinc-400" aria-hidden="true"></i>
+            <h2 class="text-sm font-semibold text-ink">{{ 'admin.ai.backfill.heading'|trans }}</h2>
+
+            {% if backfill.stalled %}
+                <span class="ml-auto text-[11px] font-medium px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-500">
+                    {{ 'admin.ai.backfill.chip.stalled'|trans }}
+                </span>
+            {% elseif backfill.status.value == 'running' %}
+                <span class="ml-auto text-[11px] font-medium px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-500">
+                    {{ 'admin.ai.backfill.chip.running'|trans }}
+                </span>
+            {% elseif backfill.status.value == 'failed' %}
+                <span class="ml-auto text-[11px] font-medium px-2 py-0.5 rounded-full alert-danger text-danger">
+                    {{ 'admin.ai.backfill.chip.failed'|trans }}
+                </span>
+            {% elseif backfill.status.value == 'complete' %}
+                <span class="ml-auto text-[11px] font-medium px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-500">
+                    {{ 'admin.ai.backfill.chip.complete'|trans }}
+                </span>
+            {% elseif backfill.status.value == 'paused' %}
+                <span class="ml-auto text-[11px] font-medium px-2 py-0.5 rounded-full bg-raised text-ink-faint">
+                    {{ 'admin.ai.backfill.chip.paused'|trans }}
+                </span>
+            {% else %}
+                <span class="ml-auto text-[11px] font-medium px-2 py-0.5 rounded-full bg-raised text-ink-faint">
+                    {{ 'admin.ai.backfill.chip.idle'|trans }}
+                </span>
+            {% endif %}
+        </div>
+
+        <div class="px-5 py-4 space-y-4">
+
+            <p class="text-sm text-ink-soft leading-relaxed">{{ 'admin.ai.backfill.intro'|trans }}</p>
+
+            {% if outcome is defined and outcome not in ['started', 'paused', 'resumed'] %}
+                {# Only a refusal is worth a line. A start that started is
+                   already visible in the chip and the bar. #}
+                <p role="status" class="text-sm text-ink-soft leading-snug rounded-lg bg-raised px-3.5 py-3">
+                    {{ ('admin.ai.backfill.outcome.' ~ outcome)|trans }}
+                </p>
+            {% endif %}
+
+            {% if backfill.blockedReason %}
+                <p class="text-sm text-ink-soft leading-relaxed">{{ 'admin.ai.backfill.search_off'|trans }}</p>
+            {% endif %}
+
+            {% if backfill.eligible > 0 %}
+                <div class="space-y-1.5">
+                    <div class="flex items-baseline justify-between gap-3">
+                        <p class="text-sm text-ink">
+                            {{ 'admin.ai.backfill.progress'|trans({
+                                '%embedded%': backfill.embedded|number_format(0, '.', ' '),
+                                '%eligible%': backfill.eligible|number_format(0, '.', ' '),
+                            }) }}
+                        </p>
+                        <span class="text-sm text-ink-soft tabular-nums shrink-0">{{ backfill.percent() }}%</span>
+                    </div>
+
+                    <div class="h-2 rounded-full bg-line overflow-hidden" aria-hidden="true">
+                        <div class="h-full bg-accent transition-all duration-500" style="width: {{ backfill.percent() }}%"></div>
+                    </div>
+                </div>
+            {% else %}
+                <p class="text-sm text-ink-soft leading-relaxed">{{ 'admin.ai.backfill.no_mail'|trans }}</p>
+            {% endif %}
+
+            {% if backfill.status.value == 'paused' and backfill.pauseReason %}
+                <p class="text-sm text-ink-soft leading-snug">
+                    {{ ('admin.ai.backfill.paused.' ~ backfill.pauseReason.value)|trans }}
+                </p>
+            {% endif %}
+
+            {% if backfill.stalled %}
+                <p class="text-sm text-amber-500 leading-snug">{{ 'admin.ai.backfill.stalled_body'|trans }}</p>
+            {% endif %}
+
+            {% if backfill.status.value == 'failed' %}
+                <p class="text-sm text-danger leading-snug">{{ 'admin.ai.backfill.failed_body'|trans }}</p>
+            {% endif %}
+
+            <dl class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-xs">
+                {% if backfill.ratePerSecond is not null %}
+                    <dt class="text-ink-faint">{{ 'admin.ai.backfill.rate_label'|trans }}</dt>
+                    <dd class="text-ink-soft tabular-nums">
+                        {{ 'admin.ai.backfill.rate'|trans({ '%rate%': backfill.ratePerSecond }) }}
+                    </dd>
+                {% endif %}
+
+                {% if backfill.status.value != 'complete' and backfill.remaining() > 0 and (backfill.startedAt or backfill.ratePerSecond is not null) %}
+                    <dt class="text-ink-faint">{{ 'admin.ai.backfill.eta_label'|trans }}</dt>
+                    <dd class="text-ink-soft">
+                        {% if backfill.etaSeconds is not null %}
+                            {# Said as an estimate, in words, because it is one:
+                               it assumes the next hours look like the last five
+                               minutes, on a job that stops whenever somebody
+                               uses the composer. #}
+                            {{ 'admin.ai.backfill.eta'|trans({ '%duration%': fmt.duration(backfill.etaSeconds) }) }}
+                        {% else %}
+                            <span class="text-ink-faint">{{ 'admin.ai.backfill.eta_settling'|trans }}</span>
+                        {% endif %}
+                    </dd>
+                {% endif %}
+
+                {% if backfill.failures > 0 %}
+                    <dt class="text-ink-faint">{{ 'admin.ai.backfill.failures_label'|trans }}</dt>
+                    <dd class="text-ink-soft">{{ 'admin.ai.backfill.failures'|trans({ '%count%': backfill.failures }) }}</dd>
+                {% endif %}
+
+                {% if backfill.startedAt %}
+                    <dt class="text-ink-faint">{{ 'admin.ai.backfill.started_label'|trans }}</dt>
+                    <dd class="text-ink-soft font-mono">{{ backfill.startedAt|date('Y-m-d H:i') }}</dd>
+                {% endif %}
+
+                {% if backfill.lastProgressAt %}
+                    <dt class="text-ink-faint">{{ 'admin.ai.backfill.last_activity_label'|trans }}</dt>
+                    <dd class="text-ink-soft font-mono">{{ backfill.lastProgressAt|date('Y-m-d H:i:s') }}</dd>
+                {% endif %}
+
+                {% if backfill.finishedAt %}
+                    <dt class="text-ink-faint">{{ 'admin.ai.backfill.finished_label'|trans }}</dt>
+                    <dd class="text-ink-soft font-mono">{{ backfill.finishedAt|date('Y-m-d H:i') }}</dd>
+                {% endif %}
+
+                {% if backfill.model %}
+                    <dt class="text-ink-faint">{{ 'admin.ai.backfill.model_label'|trans }}</dt>
+                    <dd class="text-ink-soft font-mono break-all">{{ backfill.model }}</dd>
+                {% endif %}
+            </dl>
+
+            <div class="flex flex-wrap items-center gap-2">
+                <button type="button"
+                        data-action="admin--ai-status#start"
+                        {{ backfill.canStart ? '' : 'disabled' }}
+                        class="inline-flex items-center gap-2 h-9 px-4 rounded-lg text-sm font-medium
+                               text-accent-ink bg-accent hover:bg-accent-strong transition-colors cursor-pointer
+                               disabled:opacity-40 disabled:cursor-not-allowed">
+                    <i class="fa-solid fa-play text-xs" aria-hidden="true"></i>
+                    {{ 'admin.ai.backfill.start'|trans }}
+                </button>
+
+                {% if backfill.canResume %}
+                    <button type="button"
+                            data-action="admin--ai-status#resume"
+                            class="inline-flex items-center gap-2 h-9 px-4 rounded-lg text-sm font-medium btn-quiet transition-colors cursor-pointer">
+                        <i class="fa-solid fa-rotate-right text-xs" aria-hidden="true"></i>
+                        {{ 'admin.ai.backfill.resume'|trans }}
+                    </button>
+                {% endif %}
+
+                <button type="button"
+                        data-action="admin--ai-status#pause"
+                        {{ backfill.canPause ? '' : 'disabled' }}
+                        class="inline-flex items-center gap-2 h-9 px-4 rounded-lg text-sm font-medium btn-quiet transition-colors cursor-pointer
+                               disabled:opacity-40 disabled:cursor-not-allowed">
+                    <i class="fa-solid fa-pause text-xs" aria-hidden="true"></i>
+                    {{ 'admin.ai.backfill.pause'|trans }}
+                </button>
+            </div>
+
+            <p class="text-[11px] text-ink-faint leading-relaxed">
+                {{ 'admin.ai.backfill.tuning'|trans({
+                    '%batch%': backfill.batchSize,
+                    '%delay%': (backfill.pauseMs / 1000)|round(1),
+                    '%cooldown%': backfill.cooldownSeconds,
+                }) }}
+            </p>
+        </div>
+    </div>
+</div>
