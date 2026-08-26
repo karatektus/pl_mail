@@ -900,6 +900,16 @@ clipboard:
     copy_failed: Pocketin' failed
 
 compose:
+    ai:
+        disclaimer: "Writ by an oracle. Read it afore ye send it."
+        label: 'Help me write'
+        no_answer: 'No answer'
+        task:
+            formal: 'Say it more proper'
+            proofread: "Mend the spellin'"
+            reply: 'Draft a reply'
+            shorten: 'Make it shorter'
+        working: "Writin'…"
     open_failed:
         dismiss: Belay
         failed: The writin' desk would not open. Give it another go.

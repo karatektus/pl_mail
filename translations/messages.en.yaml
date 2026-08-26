@@ -1162,6 +1162,16 @@ compose:
     # Shown in the dock when clicking Compose does not produce a window —
     # a 5xx, an expired session, a dead connection. Turbo's own answer to all
     # three is four words of untranslated English in the corner.
+    ai:
+        disclaimer: 'Written by a model. Read it before you send it.'
+        label: 'Help me write'
+        no_answer: 'No answer'
+        task:
+            formal: 'Make it more formal'
+            proofread: 'Fix spelling and grammar'
+            reply: 'Draft a reply'
+            shorten: 'Make it shorter'
+        working: 'Writing…'
     open_failed:
         dismiss: Dismiss
         failed: The compose window could not be opened. Please try again.

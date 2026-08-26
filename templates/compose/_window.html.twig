@@ -999,6 +999,72 @@ Variables: form, message, ctx (an App\Domain\DTO\Mail\ComposeContext)
                        and readReceiptRequested to false — that is, the menu
                        being rendered is what makes the fields exist at all.
                        They ride the existing draft/send POSTs; no new route. #}
+                    {# ── Help me write ────────────────────────────────────
+                       Rendered only where an administrator switched it on, and
+                       asked through a Twig FUNCTION rather than a variable: this
+                       window is included from four places — the two routes that
+                       render it and both undo streams, which include it `only` —
+                       and `strict_variables` is on, so a variable threaded
+                       through three of the four is a 500 on the undo path
+                       rather than a missing button.
+
+                       The URL carries no draft id. A window opens before one
+                       exists, which is exactly when somebody is most likely to
+                       ask for a first draft. #}
+                    {% if ai_writing_help_enabled() %}
+                        <div data-controller="ui--dropdown compose--ai-assist"
+                             data-compose--ai-assist-url-value="{{ path('app_compose_assist') }}"
+                             {# ctx.replyTo, not a variable of our own: the context object is what
+                                already survives the round trip through both undo streams, so a
+                                reply drafted after a cancelled send still knows what it answers. #}
+                             data-compose--ai-assist-in-reply-to-value="{{ ctx.replyTo }}"
+                             data-compose--ai-assist-busy-label-value="{{ 'compose.ai.working'|trans }}"
+                             data-compose--ai-assist-failed-label-value="{{ 'compose.ai.no_answer'|trans }}">
+                            <button type="button"
+                                    data-action="click->ui--dropdown#toggle"
+                                    title="{{ 'compose.ai.label'|trans }}"
+                                    aria-label="{{ 'compose.ai.label'|trans }}"
+                                    class="{{ ic }}"><i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i></button>
+
+                            {# `rise` and `bottom-full` for the reason the menu
+                               below gives: it comes UP out of the action bar,
+                               and a menu sliding down into the button that
+                               opened it reads as the wrong thing arriving. #}
+                            <div data-ui--dropdown-target="menu" hidden
+                                 data-enter="rise"
+                                 class="absolute bottom-full mb-2 left-2 right-2
+                                        md:left-auto md:right-3 md:w-64 z-30 popover py-1">
+
+                                {% for task, icon in {
+                                    'reply':     'fa-reply',
+                                    'shorten':   'fa-compress',
+                                    'formal':    'fa-user-tie',
+                                    'proofread': 'fa-spell-check',
+                                } %}
+                                    <button type="button"
+                                            data-action="click->compose--ai-assist#run click->ui--dropdown#close"
+                                            data-compose--ai-assist-task-param="{{ task }}"
+                                            class="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-ink-muted
+                                                   hover:bg-hover hover:text-ink transition-colors text-left">
+                                        <i class="fa-solid {{ icon }} w-4 text-center" aria-hidden="true"></i>
+                                        <span>{{ ('compose.ai.task.' ~ task)|trans }}</span>
+                                    </button>
+                                {% endfor %}
+
+                                <div class="my-1 border-t border-line"></div>
+
+                                {# Said every time rather than once in a tooltip.
+                                   The text lands in somebody's outgoing mail,
+                                   and "a machine wrote this and you are about to
+                                   send it" is not a thing to mention quietly. #}
+                                <p class="px-3 py-2 text-[11px] leading-snug text-ink-faint">
+                                    <span data-compose--ai-assist-target="status" class="block text-ink-muted"></span>
+                                    {{ 'compose.ai.disclaimer'|trans }}
+                                </p>
+                            </div>
+                        </div>
+                    {% endif %}
+
                     <div data-controller="ui--dropdown">
                         <button type="button"
                                 data-action="click->ui--dropdown#toggle"

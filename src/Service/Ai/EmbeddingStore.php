@@ -146,6 +146,25 @@ final readonly class EmbeddingStore
     }
 
     /**
+     * A vector as a PostgreSQL literal, normalised, or null if it cannot be.
+     *
+     * Public and static because the SEARCH needs exactly this too: the stored
+     * vectors are unit length, so the query vector has to be as well or the dot
+     * product the distance function computes is not a cosine and every ranking
+     * is quietly wrong. Two implementations of that would drift, and the
+     * failure mode of drift here is "search ranks badly", which nothing
+     * reports.
+     *
+     * @param list<float> $vector
+     */
+    public static function unitLiteral(array $vector): ?string
+    {
+        $unit = self::normalise($vector);
+
+        return null === $unit ? null : self::toPostgresArray($unit);
+    }
+
+    /**
      * Scale to unit length, or null if that is impossible.
      *
      * @param list<float> $vector

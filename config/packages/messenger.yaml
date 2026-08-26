@@ -124,6 +124,14 @@ framework:
             # rule recognised. A transport of its own would buy isolation from
             # a queue that is empty on almost every installation.
             App\Infrastructure\Messaging\Message\ClassifyMailMessage: ingest
+            # ingest as well: it is mail arriving, and it is the same shape of
+            # work — one round trip per message to a box on the LAN.
+            App\Infrastructure\Messaging\Message\EmbedMessagesMessage: ingest
+            # maintenance, NOT ingest. A backfill re-dispatches itself for hours
+            # and would otherwise sit in front of every arriving message on the
+            # ingest queue — new mail would stop appearing until an old mailbox
+            # had finished being catalogued.
+            App\Infrastructure\Messaging\Message\BackfillEmbeddingsMessage: maintenance
             # ingest, because it is mail arriving — the delay that makes the
             # reply feel like a reply is a DelayStamp, not this queue's doing.
             # Routing it at all is what matters: unrouted it would run inside

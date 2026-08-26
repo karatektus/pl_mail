@@ -1184,6 +1184,16 @@ clipboard:
 compose:
     # Wird im Dock gezeigt, wenn ein Klick auf „Schreiben“ kein Fenster
     # hervorbringt — ein 5xx, eine abgelaufene Sitzung, eine tote Verbindung.
+    ai:
+        disclaimer: 'Von einem Modell geschrieben. Lies es, bevor du es abschickst.'
+        label: 'Beim Schreiben helfen'
+        no_answer: 'Keine Antwort'
+        task:
+            formal: 'Förmlicher formulieren'
+            proofread: 'Rechtschreibung und Grammatik korrigieren'
+            reply: 'Antwort entwerfen'
+            shorten: 'Kürzer fassen'
+        working: 'Schreibt…'
     open_failed:
         dismiss: Schließen
         failed: Das Schreibfenster konnte nicht geöffnet werden. Bitte versuche es erneut.

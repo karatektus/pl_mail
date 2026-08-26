@@ -14,6 +14,7 @@ use App\Entity\Mail\Message;
 use App\Entity\Mail\MessageThread;
 use App\Entity\User\User;
 use App\Repository\Mail\MessageThreadRepository;
+use App\Service\Ai\EmbeddingStore;
 use App\Service\Search\FreeTextCompiler;
 use App\Service\Search\SearchQueryParser;
 use Doctrine\Persistence\ManagerRegistry;
@@ -470,6 +471,88 @@ final class MessageSearchTest extends KernelTestCase
             'the full-text hit was already in hand before the body pass was attempted',
         );
         self::assertSame('Quarterly figures', $page->threads[0]->subject);
+    }
+
+    /**
+     * The semantic arm finds a message the words do not.
+     *
+     * "meeting minutes" shares no term with "Notes from the standup", so every
+     * lexical arm misses it — full-text stems words, the prefix pass matches
+     * prefixes, and the ILIKE passes need the literal string. Only the vector
+     * can reach it, which is what makes this a test of the new arm rather than
+     * of the ones beside it.
+     *
+     * The vectors are hand-written rather than fetched from a model: what is
+     * being tested is the SQL — the UNION arm, the parenthesised inner LIMIT,
+     * the cast of the bound literal, and the 1:1 join the rank reads — none of
+     * which cares where the numbers came from, and all of which would be
+     * hostage to whichever model happened to be installed.
+     */
+    public function testTheSemanticArmFindsAMessageTheWordsDoNot(): void
+    {
+        $this->seedMessage('Notes from the standup', body: 'Who is doing what this week.');
+
+        $id = (int) $this->connection->fetchOne(
+            'SELECT id FROM message WHERE subject = ?',
+            ['Notes from the standup'],
+        );
+
+        $this->store()->store($id, [1.0, 0.0, 0.0], 'test-model');
+
+        // Lexically hopeless.
+        self::assertCount(
+            0,
+            $this->repository->searchPage($this->user, $this->parser->parse('meeting minutes'))->threads,
+            'if the words alone find this, the test is not about the vector',
+        );
+
+        // The same query, with a vector pointing where the message is.
+        $page = $this->repository->searchPage(
+            $this->user,
+            $this->parser->parse('meeting minutes'),
+            queryVector: EmbeddingStore::unitLiteral([1.0, 0.0, 0.0]),
+        );
+
+        self::assertCount(1, $page->threads);
+        self::assertSame('Notes from the standup', $page->threads[0]->subject);
+        self::assertSame(1, $page->total, 'the total has to come from the same statement as the rows');
+    }
+
+    /** Far apart in vector space is not a hit, or the arm would return everything. */
+    public function testTheSemanticArmRespectsItsDistanceThreshold(): void
+    {
+        $this->seedMessage('Notes from the standup', body: 'Who is doing what this week.');
+
+        $id = (int) $this->connection->fetchOne('SELECT id FROM message WHERE subject = ?', ['Notes from the standup']);
+        $this->store()->store($id, [1.0, 0.0, 0.0], 'test-model');
+
+        $page = $this->repository->searchPage(
+            $this->user,
+            $this->parser->parse('meeting minutes'),
+            // Orthogonal: cosine distance 1, well past the threshold.
+            queryVector: EmbeddingStore::unitLiteral([0.0, 1.0, 0.0]),
+        );
+
+        self::assertCount(0, $page->threads);
+    }
+
+    /** A message with no embedding still matches lexically, and ranks. */
+    public function testAMessageWithoutAnEmbeddingIsStillFoundByWords(): void
+    {
+        $this->seedMessage('Quarterly figures', body: 'The pelican audit is attached.');
+
+        $page = $this->repository->searchPage(
+            $this->user,
+            $this->parser->parse('pelican'),
+            queryVector: EmbeddingStore::unitLiteral([1.0, 0.0, 0.0]),
+        );
+
+        self::assertCount(1, $page->threads, 'the LEFT JOIN must not drop rows that have no vector');
+    }
+
+    private function store(): EmbeddingStore
+    {
+        return new EmbeddingStore($this->connection, new \Psr\Log\NullLogger());
     }
 
     /**
