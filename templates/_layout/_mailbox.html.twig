@@ -8,6 +8,29 @@
    further down this file, and it throws on connect wherever they are not.
    Spelled out rather than `parent() ~ mail--mail-pane`, because the parent is
    conditional above and the fragment layout has no such block to inherit. #}
+{#
+A mail list is never restored from Turbo's snapshot cache.
+
+Opening a conversation is an ordinary Drive visit, so Turbo snapshots the list
+as it leaves — and it leaves BEFORE the conversation is marked read, because
+mail--thread-read waits two seconds and then posts. The stream that post renders
+back targets a row that is not on the thread page, so nothing updates the
+snapshot either. Pressing the browser's back button then restored it: the row
+still bold, the unread count still counting it, and no request made that could
+have corrected either.
+
+A poll does correct it, a few seconds later, which is what made this "sometimes"
+— and what makes it easy to write a test that passes against the bug. The list
+is stale at the moment it is shown, and that is the whole of the complaint.
+
+`no-cache` means back re-fetches. That costs one request on a screen whose only
+purpose is to show current state, and whose contents may have changed for a
+dozen other reasons while the conversation was open.
+#}
+{% block turbo_cache_control %}
+    <meta name="turbo-cache-control" content="no-cache">
+{% endblock %}
+
 {% block body_controllers %}core--mercure mail--mail-pane{% endblock %}
 
 {# The one part of a view that varies within its scope: the category tab for the

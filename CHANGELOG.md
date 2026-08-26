@@ -6,6 +6,23 @@ so anything that changes the schema irreversibly is called out explicitly.
 The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, and `sha-…` pins one commit.
 
+## v0.1.42 — 2026-08-26
+
+**No migration. Back from a conversation no longer shows the list as it was before you read it.**
+
+### Fixed
+
+- **Opening a mail and pressing the browser's Back button showed the conversation as unread again.**
+  Opening a conversation is a Turbo visit, so the list is snapshotted on the way out — and it leaves
+  *before* the read happens, because the read is on a two-second timer and the update it renders back
+  targets a row that is no longer on screen. Back restored a picture of the list taken before the
+  read: the row bold, the unread count still counting it, and no request made that could have known
+  better.
+
+  A poll repaired it a few seconds later, which is why it happened "sometimes" and why a reload
+  always fixed it. The mail lists are no longer snapshotted, so Back asks the server, which knows.
+  That costs one request on a screen whose only purpose is to show current state.
+
 ## v0.1.41 — 2026-08-26
 
 **No migration. A hub that is down no longer fails the work it was announcing.**

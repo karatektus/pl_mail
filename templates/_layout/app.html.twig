@@ -86,6 +86,11 @@
        same 'ajax' id — until this tag existed they all sent an empty string. #}
     <meta name="csrf-token" content="{{ csrf_token('ajax') }}">
     <meta name="theme-color" content="#a21caf">
+
+    {# Turbo's snapshot policy for THIS page. Empty by default — most pages are
+       perfectly happy being restored from cache on a back navigation. The mail
+       lists are not; see _layout/_mailbox.html.twig. #}
+    {% block turbo_cache_control %}{% endblock %}
     {# Both spellings. `mobile-web-app-capable` is the standardised one every
        engine now reads and the only one Chrome does not warn about; the Apple
        prefix stays because older iOS is the platform that actually needs it,
