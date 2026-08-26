@@ -59,6 +59,45 @@
             </form>
         </div>
 
+        {# ── What is kept, as opposed to what is shown ────────────────────
+           A second row, and deliberately not another control in the filter row
+           above. The two look alike and mean opposite things: that row narrows
+           what is DISPLAYED out of what was stored, this one decides what gets
+           stored at all. Putting them side by side would invite an admin to
+           change the wrong one and conclude the log is broken.
+
+           Its own form, its own POST, and a full reload rather than a frame
+           swap — the setting changes what the very next request writes, so the
+           page that reports it has to be a fresh one. #}
+        <div class="flex flex-wrap items-center gap-2 px-5 py-2.5 border-t border-line bg-sunken/40">
+            <i class="fa-solid fa-database text-[10px] text-ink-faint" aria-hidden="true"></i>
+            <span class="text-xs text-ink-muted">{{ 'admin.logs.capture.label'|trans }}</span>
+
+            <form method="post" action="{{ path('app_admin_logs_level') }}" data-turbo-frame="_top"
+                  class="flex items-center gap-2">
+                <input type="hidden" name="_token" value="{{ csrf_token('admin_logs_level') }}">
+                <select name="capture"
+                        {{ select.enhance() }}
+                        class="select-field h-8 text-xs"
+                        onchange="this.form.requestSubmit();">
+                    {# The empty option is how an install gets back to following
+                       its environment once a level has been chosen here — see
+                       LogSettings on why that is not the same as storing the
+                       environment's current value. #}
+                    <option value="" {{ capture is null ? 'selected' : '' }}>
+                        {{ 'admin.logs.capture.from_env'|trans({ '%level%': captureEnv }) }}
+                    </option>
+                    {% for value, name in levels %}
+                        <option value="{{ name }}" {{ capture == name ? 'selected' : '' }}>≥ {{ name }}</option>
+                    {% endfor %}
+                </select>
+            </form>
+
+            <span class="text-xs text-ink-faint flex-1 min-w-0">
+                {{ 'admin.logs.capture.hint'|trans }}
+            </span>
+        </div>
+
         {% if entries|length == 0 %}
             <p class="px-5 py-4 text-sm text-ink-faint">{{ 'admin.logs.empty'|trans }}</p>
         {% else %}

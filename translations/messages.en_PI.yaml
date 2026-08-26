@@ -245,6 +245,10 @@ admin:
             push_renew: 'Renew the parrot pacts'
     logs:
         all_channels: 'All channels'
+        capture:
+            from_env: "as the ship's orders say (%level%)"
+            hint: "Owt below this be ne'er written in the log at all."
+            label: 'Keep entries from'
         clear: 'Scuttle'
         clear_confirm: 'Send the %count% entries matchin'' this filter to Davy Jones?'
         copied: 'Stowed'

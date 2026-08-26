@@ -6,6 +6,33 @@ so anything that changes the schema irreversibly is called out explicitly.
 The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, and `sha-…` pins one commit.
 
+## v0.1.44 — 2026-08-26
+
+**Adds a table; the migration runs on boot. The log level is a setting on the page, not a restart.**
+
+### Added
+
+- **Admin → Logs can set how much is kept.** A second row under the filters — *Keep entries at* —
+  decides what reaches the log table at all. It is deliberately not another control in the filter
+  row: that row narrows what is **shown** out of what was stored, this one decides what gets
+  **stored**, and the two side by side would invite changing the wrong one and concluding the log
+  was broken.
+
+  This used to mean editing `APP_DB_LOG_LEVEL` on the host and restarting the stack — at the exact
+  moment that is least convenient, because the reason to change it is that something is wrong and
+  the answer is one level further down. That is how installs end up running on `info` for months.
+
+  The change applies to the next request immediately and to background workers within about ten
+  seconds; each process holds the answer briefly rather than asking the database on every line, and
+  a lookup that fails for any reason falls back to the environment rather than throwing — this code
+  runs inside the logger, and a logger that throws while deciding whether to log is worse than one
+  that is briefly out of date.
+
+  `APP_DB_LOG_LEVEL` remains the default, and an install that never touches the control keeps
+  following it, **including later changes to it**. Choosing *from the environment* hands it back
+  after a level has been set here — which is not the same as picking today's value out of the list,
+  because that would freeze it.
+
 ## v0.1.43 — 2026-08-26
 
 **No migration. A list you have already seen stops animating itself in again.**

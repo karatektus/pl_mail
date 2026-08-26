@@ -96,9 +96,19 @@ A filterable browser over what plMail has written to the database: a minimum lev
 **warning** (the default), error or critical — and a channel, a hundred entries per page, with a
 copy button per entry.
 
-How much reaches the database at all is `APP_DB_LOG_LEVEL`, which defaults to `warning`. Lowering it
-to `info` is what makes successful Gmail push deliveries visible, for instance; they are logged at
-info and otherwise not stored.
+How much reaches the database at all is **Keep entries at**, the second row of the panel. It is a
+different question from the filter above it: the filter narrows what is *shown* out of what was
+stored, this decides what gets *stored*. Lowering it to `info` is what makes successful Gmail push
+deliveries visible, for instance, or the image proxy's reasons for refusing a remote image; both are
+logged at info and otherwise not written down at all.
+
+The change applies to the next request immediately and to background workers within about ten
+seconds — they each hold the answer briefly rather than asking the database on every line.
+
+`APP_DB_LOG_LEVEL` is still the default, and an install that never touches this control keeps
+following it, including a later change to it. Choosing **from the environment** in the dropdown is
+how you hand it back after setting a level here — which is not the same as picking today's value out
+of the list, because that would freeze it.
 
 **Clear** deletes the entries matching the filter currently on screen — what disappears is what you
 were looking at.

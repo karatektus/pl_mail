@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Infrastructure\Doctrine\Logging;
 
+use App\Service\Monitoring\LogLevelResolver;
 use Doctrine\DBAL\Connection;
 use Monolog\Handler\AbstractProcessingHandler;
 use Monolog\Level;
@@ -47,14 +48,48 @@ final class DoctrineLogHandler extends AbstractProcessingHandler
     private const int MAX_CONTEXT_DEPTH = 4;
 
     public function __construct(
-        private readonly Connection   $connection,
-        private readonly ?RequestStack $requests = null,
+        private readonly Connection        $connection,
+        private readonly ?RequestStack     $requests = null,
+        private readonly ?LogLevelResolver $levels = null,
         #[Autowire(env: 'APP_CONTAINER_NAME')]
-        private readonly string       $source = 'app',
+        private readonly string            $source = 'app',
         #[Autowire(env: 'APP_DB_LOG_LEVEL')]
-        string                        $minimumLevel = 'warning',
+        string                             $minimumLevel = 'warning',
     ) {
-        parent::__construct(Level::fromName(ucfirst(strtolower($minimumLevel))), true);
+        // Debug, not the configured level, and isHandling() below is why. The
+        // parent compares against whatever is passed here and there would be no
+        // way back up from it — a floor set at construction cannot be lowered
+        // by an admin at half past two in the morning, which is the entire
+        // point of the setting. The real decision is made per record.
+        //
+        // The configured value is still parsed and kept, because it is the
+        // answer whenever no resolver was given: the handler is constructed
+        // directly in tests, and there it should behave exactly as it always
+        // did.
+        parent::__construct(
+            null === $levels ? Level::fromName(ucfirst(strtolower($minimumLevel))) : Level::Debug,
+            true,
+        );
+    }
+
+    /**
+     * Whether this record is worth a row, asked fresh every time.
+     *
+     * Monolog decides this once, from the level handed to the constructor. That
+     * is right for a handler configured in a file and wrong for one an
+     * administrator can turn down from the page they are reading — so the
+     * question is re-asked, and the resolver behind it does the caching.
+     *
+     * Without a resolver the parent's own comparison stands, which keeps a
+     * directly-constructed handler behaving the way it always has.
+     */
+    public function isHandling(LogRecord $record): bool
+    {
+        if (null === $this->levels) {
+            return parent::isHandling($record);
+        }
+
+        return $record->level->value >= $this->levels->level()->value;
     }
 
     /**

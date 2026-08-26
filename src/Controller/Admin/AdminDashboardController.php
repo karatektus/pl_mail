@@ -8,9 +8,11 @@ use App\Controller\ChecksCsrf;
 use App\Entity\User\User;
 use App\Repository\Insight\InsightReportRepository;
 use App\Repository\Monitoring\LogEntryRepository;
+use App\Repository\Monitoring\LogSettingsRepository;
 use App\Repository\Monitoring\PostgresStatusRepository;
 use App\Service\Monitoring\AdminMonitoringService;
 use App\Service\Monitoring\DbPerformanceService;
+use App\Service\Monitoring\LogLevelResolver;
 use App\Service\Monitoring\QueueMonitor;
 use App\Service\Monitoring\WorkerRestartSignal;
 use DateTimeImmutable;
@@ -48,6 +50,8 @@ final class AdminDashboardController extends AbstractController
     ];
 
     public function __construct(
+        private readonly LogSettingsRepository  $logSettings,
+        private readonly LogLevelResolver       $logLevels,
         private readonly AdminMonitoringService $monitoring,
         private readonly QueueMonitor           $queueMonitor,
         private readonly LogEntryRepository     $logEntryRepository,
@@ -169,6 +173,12 @@ final class AdminDashboardController extends AbstractController
             'channel'  => $channel,
             'levels'   => self::LOG_LEVELS,
             'channels' => $this->logEntryRepository->distinctChannels(),
+            // What is KEPT, as opposed to what is shown above it. Null when the
+            // install has never chosen and is following APP_DB_LOG_LEVEL, which
+            // the template renders as the environment's own value so the page
+            // says what is actually happening either way.
+            'capture'    => $this->logSettings->current()?->minimumLevel,
+            'captureEnv' => $this->logLevels->level()->toPsrLogLevel(),
         ]);
     }
 
@@ -191,6 +201,51 @@ final class AdminDashboardController extends AbstractController
             $minLevel,
             trim((string) $request->request->get('channel', '')),
         );
+
+        return $this->redirectToRoute('app_admin_dashboard', ['section' => 'logs']);
+    }
+
+    /**
+     * How much is kept, as opposed to how much is shown.
+     *
+     * The select beside this one filters the browser; this sets the level at
+     * which entries reach the table at all, which is the setting that used to
+     * mean editing `APP_DB_LOG_LEVEL` on the host and restarting the stack.
+     * That is a poor thing to have to do at the moment it is wanted — something
+     * is wrong and the answer is one level further down — and it is why installs
+     * end up running on `info` for months.
+     *
+     * An empty value clears the row's level rather than storing the
+     * environment's current one, so "follow the configuration" stays reachable
+     * after a choice has been made. See LogSettings.
+     */
+    #[Route('/logs/level', name: 'logs_level', methods: ['POST'])]
+    public function setLogLevel(
+        Request                $request,
+        LogSettingsRepository  $settings,
+        LogLevelResolver       $levels,
+    ): Response {
+        $this->assertCsrf($request, 'admin_logs_level');
+
+        $chosen = trim((string) $request->request->get('capture', ''));
+
+        // The closed set is the browser's own, minus nothing: a level worth
+        // filtering by is a level worth capturing. Anything else — including
+        // the empty string the "follow the environment" option submits — stores
+        // null, which is the documented way back.
+        $names = array_values(self::LOG_LEVELS);
+
+        $stored = $settings->currentOrNew();
+        $stored->minimumLevel = in_array($chosen, $names, true) ? $chosen : null;
+
+        $this->entityManager->persist($stored);
+        $this->entityManager->flush();
+
+        // This process obeys immediately; the others catch up within the
+        // resolver's TTL. Without it the admin changes the level, reloads, and
+        // is told it is still the old one by the very handler they just
+        // configured.
+        $levels->forget();
 
         return $this->redirectToRoute('app_admin_dashboard', ['section' => 'logs']);
     }

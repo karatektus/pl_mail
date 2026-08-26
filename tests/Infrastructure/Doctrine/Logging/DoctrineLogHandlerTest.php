@@ -6,6 +6,7 @@ namespace App\Tests\Infrastructure\Doctrine\Logging;
 
 use App\Infrastructure\Doctrine\Logging\DoctrineLogHandler;
 use Doctrine\DBAL\Connection;
+use App\Service\Monitoring\LogLevelResolver;
 use Monolog\Level;
 use Monolog\LogRecord;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
@@ -39,6 +40,10 @@ final class DoctrineLogHandlerTest extends KernelTestCase
         $this->connection = self::getContainer()->get(Connection::class);
         $this->connection->beginTransaction();
         $this->connection->executeStatement('DELETE FROM log_entry');
+
+        // A stored level would outrank the fallback the tests below hand their
+        // resolver, which is the whole precedence — and would make them lie.
+        $this->connection->executeStatement('DELETE FROM log_settings');
     }
 
     protected function tearDown(): void
@@ -159,6 +164,78 @@ final class DoctrineLogHandlerTest extends KernelTestCase
         );
     }
 
+    /**
+     * The admin-set level decides what is written, per record.
+     *
+     * Monolog fixes a handler's level at construction, which is right for one
+     * configured in a file and wrong for one an administrator can turn down
+     * from the page they are reading. Before this, changing the level meant
+     * editing `APP_DB_LOG_LEVEL` on the host and restarting — at exactly the
+     * moment that is least convenient.
+     */
+    public function testTheStoredLevelDecidesWhatIsKept(): void
+    {
+        $resolver = $this->resolverFixedAt(Level::Error);
+
+        $handler = new DoctrineLogHandler($this->connection, null, $resolver, 'test', 'debug');
+
+        $handler->handle($this->recordAt(Level::Warning, 'below the line'));
+        $handler->handle($this->recordAt(Level::Error, 'at the line'));
+
+        $kept = $this->connection->fetchFirstColumn('SELECT message FROM log_entry ORDER BY id');
+
+        self::assertSame(['at the line'], $kept, 'a warning must not be written when the level is error');
+    }
+
+    /**
+     * Lowering it is the case the feature exists for: something is wrong and
+     * the answer is one level further down.
+     */
+    public function testLoweringTheLevelLetsQuieterRecordsThrough(): void
+    {
+        $handler = new DoctrineLogHandler($this->connection, null, $this->resolverFixedAt(Level::Info), 'test', 'debug');
+
+        $handler->handle($this->recordAt(Level::Info, 'now worth keeping'));
+
+        self::assertSame(
+            ['now worth keeping'],
+            $this->connection->fetchFirstColumn('SELECT message FROM log_entry ORDER BY id'),
+        );
+    }
+
+    /**
+     * Without a resolver the handler behaves exactly as it always did, which is
+     * what keeps every other test in this file — and any direct construction —
+     * meaningful.
+     */
+    public function testWithoutAResolverTheConstructorLevelStillApplies(): void
+    {
+        $handler = new DoctrineLogHandler($this->connection, null, null, 'test', 'error');
+
+        $handler->handle($this->recordAt(Level::Warning, 'below the constructor level'));
+
+        self::assertSame(
+            0,
+            (int) $this->connection->fetchOne('SELECT COUNT(*) FROM log_entry'),
+            'the level passed in must still be honoured when nothing else can answer',
+        );
+    }
+
+    /**
+     * A real resolver with nothing stored, so it answers from the value passed
+     * here and these tests stay about the handler. setUp() clears the settings
+     * row for exactly this reason.
+     */
+    private function resolverFixedAt(Level $level): LogLevelResolver
+    {
+        return new LogLevelResolver($this->connection, $level->toPsrLogLevel());
+    }
+
+    private function recordAt(Level $level, string $message): LogRecord
+    {
+        return new LogRecord(new \DateTimeImmutable(), 'app', $level, $message, []);
+    }
+
     // ── helpers ──────────────────────────────────────────────────────────────
 
     /** A frame that receives a secret, so the trace has one to leak. */
@@ -194,7 +271,7 @@ final class DoctrineLogHandlerTest extends KernelTestCase
 
     private function handler(?RequestStack $stack = null): DoctrineLogHandler
     {
-        return new DoctrineLogHandler($this->connection, $stack, 'test', 'warning');
+        return new DoctrineLogHandler($this->connection, $stack, null, 'test', 'warning');
     }
 
     /** @param array<string,mixed> $context */

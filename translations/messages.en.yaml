@@ -372,6 +372,10 @@ admin:
             push_renew: 'Renew push subscriptions'
     logs:
         all_channels: 'All channels'
+        capture:
+            from_env: 'from the environment (%level%)'
+            hint: 'Anything below this is never written down.'
+            label: 'Keep entries at'
         clear: 'Clear'
         clear_confirm: 'Delete the %count% log entries matching this filter?'
         copied: 'Copied'

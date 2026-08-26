@@ -378,6 +378,10 @@ admin:
             push_renew: 'Push-Abos erneuern'
     logs:
         all_channels: 'Alle Kanäle'
+        capture:
+            from_env: 'aus der Umgebung (%level%)'
+            hint: 'Alles darunter wird gar nicht erst festgehalten.'
+            label: 'Einträge behalten ab'
         clear: 'Leeren'
         clear_confirm: 'Die %count% Einträge dieses Filters löschen?'
         copied: 'Kopiert'

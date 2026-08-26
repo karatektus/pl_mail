@@ -1,4 +1,4 @@
-<!-- translated-from: features/admin.md sha1:ac96ff8eb7734270e5ef353b0889620cb4fc22f4 -->
+<!-- translated-from: features/admin.md sha1:6c52044f191068ed55d661cc493ffc0fd89a3908 -->
 
 # Administration
 
@@ -111,9 +111,20 @@ Ein filterbarer Browser über das, was plMail in die Datenbank geschrieben hat: 
 Mindeststufe — info, notice, **warning** (die Vorgabe), error oder critical — und ein Kanal,
 hundert Einträge pro Seite, mit einem Kopierknopf je Eintrag.
 
-Wie viel überhaupt in die Datenbank gelangt, entscheidet `APP_DB_LOG_LEVEL`, standardmäßig
-`warning`. Es auf `info` zu senken ist zum Beispiel das, was erfolgreiche Gmail-Push-Zustellungen
-sichtbar macht; sie werden auf Info-Stufe protokolliert und sonst nicht gespeichert.
+Wie viel überhaupt in die Datenbank gelangt, entscheidet **Einträge behalten ab** in der zweiten
+Zeile des Panels. Das ist eine andere Frage als der Filter darüber: Der Filter schränkt ein, was von
+den gespeicherten Einträgen *angezeigt* wird, hier entscheidest du, was überhaupt *gespeichert*
+wird. Auf `info` gesenkt siehst du zum Beispiel erfolgreiche Gmail-Push-Zustellungen oder die
+Gründe, aus denen der Bild-Proxy ein entferntes Bild abgelehnt hat; beides wird auf Info-Stufe
+protokolliert und sonst gar nicht festgehalten.
+
+Die Änderung gilt sofort für den nächsten Request und für Hintergrund-Worker nach etwa zehn
+Sekunden — sie merken sich die Antwort kurz, statt bei jeder Zeile die Datenbank zu fragen.
+
+`APP_DB_LOG_LEVEL` bleibt der Standard, und eine Installation, die diese Einstellung nie anfasst,
+folgt ihr weiterhin, auch wenn sie sich später ändert. **Aus der Umgebung** in der Auswahl gibt sie
+wieder zurück, nachdem du hier eine Stufe gesetzt hast — was nicht dasselbe ist, wie den heutigen
+Wert aus der Liste zu wählen, denn das würde ihn einfrieren.
 
 **Leeren** löscht die Einträge, auf die der gerade eingestellte Filter passt — was verschwindet,
 ist das, was du angesehen hast.
