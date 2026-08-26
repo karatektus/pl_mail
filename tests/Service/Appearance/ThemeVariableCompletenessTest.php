@@ -110,6 +110,7 @@ final class ThemeVariableCompletenessTest extends TestCase
         '--rgb-main',
         '--main-alpha',
         '--pane-alpha',
+        '--popover-alpha',
         '--pane-blur',
         '--app-radius',
         '--density-row-y',

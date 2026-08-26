@@ -126,6 +126,11 @@
     --rgb-main:   var(--rgb-surface);
     --main-alpha: var(--pane-alpha);
     --pane-alpha:    1;
+    /* The floating surfaces' own opacity. Its own knob because a popover is
+       read against whatever it covers, and the two translucencies multiply —
+       see @utility pane-flat and @utility popover below, which is where the
+       two groups are actually divided. */
+    --popover-alpha: 1;
     --pane-blur:     0px;
     --app-radius:    0.75rem;
     --density-row-y: 0.5rem;
@@ -2465,7 +2470,7 @@
 
 /* Accessibility: never force glass on people who opted out. */
 @media (prefers-reduced-transparency: reduce) {
-    :root { --pane-alpha: 1; --pane-blur: 0px; --scrim-alpha: 0; --main-alpha: 1;}
+    :root { --pane-alpha: 1; --popover-alpha: 1; --pane-blur: 0px; --scrim-alpha: 0; --main-alpha: 1;}
 }
 
 /* ═══ A section that FILLS its scroll port ══════════════════════════════════
@@ -2821,6 +2826,11 @@
    for the contact layer. Changing the gutter without revisiting these numbers
    brings the arc back.
 */
+/* The STRUCTURAL surfaces read --pane-alpha: the sidebar, the top bar and the
+   insight strip here, the mail/calendar/settings ground in main-pane below.
+   They are the layout, so there is nothing stacked behind them and glass costs
+   them nothing. Everything that floats OVER them reads --popover-alpha
+   instead — see pane-flat and popover further down. */
 @utility pane {
     background-color: rgb(var(--rgb-surface) / var(--pane-alpha));
     backdrop-filter: blur(var(--pane-blur));
@@ -2831,8 +2841,26 @@
     0 2px 4px -2px rgb(var(--rgb-shadow) / var(--shadow-alpha));
 }
 
+/*
+   The compose window, a modal, the confirm dialog, a toast: a surface that
+   FLOATS over the layout rather than being part of it.
+
+   --popover-alpha, not --pane-alpha, and that split is the whole point. These
+   sit on top of a pane that is itself letting the background through, so the
+   two translucencies multiply — a composer at 0.7 over a sidebar at 0.7 leaves
+   a tenth of the wallpaper landing in the middle of what you are typing. The
+   panes can afford glass because nothing is stacked behind them; these cannot.
+
+   `--pane-alpha` is re-pointed at the popover's own value for the SUBTREE, the
+   same move mail-sheet makes with the ink channels. Everything painted inside
+   a floating surface is derived from that variable — `bg-pane-soft` compiles
+   to `calc(var(--pane-alpha) * 0.6)` at the point of use — and an inset strip
+   inside the composer belongs to the composer, not to the sidebar behind it.
+*/
 @utility pane-flat {
-    background-color: rgb(var(--rgb-surface) / var(--pane-alpha));
+    --pane-alpha: var(--popover-alpha);
+
+    background-color: rgb(var(--rgb-surface) / var(--popover-alpha));
     backdrop-filter: blur(var(--pane-blur));
     -webkit-backdrop-filter: blur(var(--pane-blur));
     border: 1px solid rgb(var(--rgb-border) / var(--border-alpha));
@@ -2840,13 +2868,22 @@
 }
 
 /*
-   A menu that floats over content. Unlike pane, the surface is fully opaque:
-   a translucent dropdown lets whatever it covers — toolbar icons, a wall of
-   photos — read straight through the labels, which is illegible rather than
-   airy. The blur stays for the edges, and the shadow does the lifting.
+   A menu that floats over content: the same surface as pane-flat with a
+   deeper shadow, because a dropdown has no backdrop to separate it from what
+   it covers.
+
+   This was hardcoded fully opaque, on the reasoning that a translucent
+   dropdown lets whatever it covers — toolbar icons, a wall of photos — read
+   straight through the labels. That reasoning still holds, and it is now
+   stated as a value rather than as a rule: --popover-alpha defaults to 1 and
+   Appearance::RANGE_POPOVER_ALPHA will not go below 0.5, so the menus are
+   exactly as opaque as they have always been unless somebody deliberately
+   asks otherwise, and even then they cannot become as see-through as a pane.
 */
 @utility popover {
-    background-color: rgb(var(--rgb-surface));
+    --pane-alpha: var(--popover-alpha);
+
+    background-color: rgb(var(--rgb-surface) / var(--popover-alpha));
     backdrop-filter: blur(var(--pane-blur));
     -webkit-backdrop-filter: blur(var(--pane-blur));
     border: 1px solid rgb(var(--rgb-border) / var(--border-alpha));

@@ -899,8 +899,32 @@
                     <p class="text-xs text-ink-faint mt-0.5">{{ 'settings.appearance.glass.subheading'|trans }}</p>
                 </div>
 
+                {# TWO opacity sliders, and the second one is not a refinement of
+                   the first — it is the half the first was getting wrong.
+
+                   `paneAlpha` is the layout: sidebar, top bar, main pane,
+                   calendar. `popoverAlpha` is everything that floats over that
+                   layout: the compose window, modals, menus, toasts. They used
+                   to share one number, and a floating surface has one more
+                   layer behind it than a pane does, so the same 0.7 that reads
+                   as glass on the sidebar reads as the wallpaper coming through
+                   the middle of a half-written message.
+
+                   `hint` is what makes the pair legible as a pair: the labels
+                   alone are two sliders both called Opacity, which is a worse
+                   control than one. The other three carry no hint because
+                   nothing about them is ambiguous.
+
+                   The popover ends come off Appearance::RANGE_POPOVER_ALPHA
+                   rather than being written here, the same way the text scale
+                   reads its own constant: that floor of 0.5 is a design
+                   decision with a paragraph behind it, and a slider that let
+                   somebody drag past it and watch the server refuse would be
+                   the drift the constant exists to prevent. #}
+                {% set popoverRange = constant('App\\Entity\\Embeddable\\Appearance::RANGE_POPOVER_ALPHA') %}
                 {% set sliders = [
-                    { field: 'paneAlpha', var: '--pane-alpha', suffix: '', min: 0.15, max: 1,   step: 0.01, value: a.paneAlpha },
+                    { field: 'paneAlpha', var: '--pane-alpha', suffix: '', min: 0.15, max: 1,   step: 0.01, value: a.paneAlpha, hint: true },
+                    { field: 'popoverAlpha', var: '--popover-alpha', suffix: '', min: popoverRange.min, max: popoverRange.max, step: 0.01, value: a.popoverAlpha, hint: true },
                     { field: 'paneBlur',  var: '--pane-blur',  suffix: 'px', min: 0,  max: 60,  step: 1,    value: a.paneBlur },
                     { field: 'radius',    var: '--app-radius', suffix: 'rem', min: 0, max: 2,   step: 0.125, value: a.radius },
                     { field: 'scrimAlpha', var: '--scrim-alpha', suffix: '', min: 0, max: 0.7, step: 0.05, value: a.scrimAlpha },
@@ -910,6 +934,11 @@
                     {% for slider in sliders %}
                         <label class="block">
                             <span class="text-xs font-medium text-ink-muted">{{ ('settings.appearance.glass.' ~ slider.field)|trans }}</span>
+                            {% if slider.hint is defined %}
+                                <span class="block text-[11px] text-ink-faint mt-0.5">
+                                    {{ ('settings.appearance.glass.' ~ slider.field ~ 'Hint')|trans }}
+                                </span>
+                            {% endif %}
                             <input type="range"
                                    min="{{ slider.min }}" max="{{ slider.max }}" step="{{ slider.step }}"
                                    value="{{ slider.value }}"

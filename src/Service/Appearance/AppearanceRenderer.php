@@ -36,6 +36,10 @@ final readonly class AppearanceRenderer
     {
         $variables = [
             '--pane-alpha'    => rtrim(rtrim(number_format($appearance->paneAlpha, 3, '.', ''), '0'), '.'),
+            // The floating surfaces — composer, modals, menus, toasts — read
+            // this instead of --pane-alpha. See app.css, which is where the
+            // two groups are actually divided up.
+            '--popover-alpha' => self::number($appearance->popoverAlpha),
             '--pane-blur'     => sprintf('%dpx', $appearance->paneBlur),
             '--app-radius'    => sprintf('%srem', rtrim(rtrim(number_format($appearance->radius, 3, '.', ''), '0'), '.')),
             '--density-row-y' => $appearance->density->rowPadding(),
@@ -151,6 +155,11 @@ final readonly class AppearanceRenderer
 
         if (BackgroundKind::Theme !== $appearance->backgroundKind) {
             // Photos need an opacity floor or panel text becomes unreadable.
+            //
+            // --popover-alpha is deliberately absent: its own range starts at
+            // 0.5 (see Appearance::RANGE_POPOVER_ALPHA), so a stored value can
+            // never be below this floor and lifting it here would be arithmetic
+            // that never changes anything.
             $variables['--pane-alpha'] = (string) max(0.45, $appearance->paneAlpha);
 
             if (true === isset($variables['--main-alpha'])) {

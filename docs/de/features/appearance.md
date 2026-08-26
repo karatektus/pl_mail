@@ -1,4 +1,4 @@
-<!-- translated-from: features/appearance.md sha1:a1b8d3fb220de4397af2ae30aac351ee3a0451da -->
+<!-- translated-from: features/appearance.md sha1:aae4388788d2cfec8525f645753fd22cb6afae81 -->
 
 # Darstellung
 
@@ -177,15 +177,30 @@ wählst — **Kompakt** auf dem Telefon kostet dich also nie Fläche zum Antippe
 | Abschnitt | Was er einstellt |
 |---|---|
 | **Hauptbereich** | Ein Hintergrundfarbton und eine Deckkraft für den Inhaltsbereich allein, oder **An Glas-Deckkraft angleichen**, um den Flächen zu folgen |
-| **Glas** | **Deckkraft**, **Weichzeichnen**, **Eckenradius** und **Hintergrundabdunklung** — wie viel vom Hintergrund durch deine Flächen scheint |
+| **Glas** | **Deckkraft der Flächen**, **Deckkraft von Fenstern und Menüs**, **Weichzeichnen**, **Eckenradius** und **Hintergrundabdunklung** — wie viel vom Hintergrund durch deine Flächen scheint |
 | **Text** | Textfarbe sowie **Gedämpft** und **Sehr blass**, oder **Automatisch ableiten**, damit diese beiden aus der Hauptfarbe errechnet werden |
 | **Akzentfarbe** | Die eine Signalfarbe, als Hexwert |
 | **Hintergrund** | **Theme-Standard**, eine einfarbige Fläche, eines von acht mitgelieferten Bildern, oder **Bild hochladen** |
 
+### Zwei Deckkräfte statt einer
+
+**Deckkraft der Flächen** meint das Gerüst: Seitenleiste, Kopfleiste, Hauptbereich und Kalender.
+**Deckkraft von Fenstern und Menüs** meint alles, was über diesem Gerüst schwebt: das
+Schreibfenster, Dialoge und Menüs.
+
+Getrennt sind sie, weil eine schwebende Fläche eine Schicht mehr hinter sich hat als eine Fläche
+des Gerüsts. Ein Menü liegt auf einer Fläche, die den Hintergrund ohnehin schon durchlässt, und
+beide Durchsichtigkeiten multiplizieren sich — bei gleicher Einstellung überlebt ein Zehntel des
+Bildes dahinter beide Schichten und landet mitten im Text. Deshalb startet die Deckkraft von
+Fenstern und Menüs vollständig deckend und geht nie unter 0,5, wie weit du die Flächen auch
+herunterziehst. Menüs und Ausklapplisten waren aus genau diesem Grund immer schon deckend; neu ist
+nur, dass es jetzt ein Wert ist, den du ändern kannst, statt einer Regel, an der du nichts ändern
+kannst.
+
 Jedes Zahlen-Bedienelement ist begrenzt, ein von außen getippter oder importierter Wert wird
-also gekappt statt übernommen: Deckkraft zwischen 0,15 und 1, Weichzeichnen zwischen 0 und 60
-Pixeln, Eckenradius zwischen 0 und 2 rem, Hintergrundabdunklung zwischen 0 und 0,7 und die
-Textgröße zwischen 0,875 und 1,25.
+also gekappt statt übernommen: Deckkraft der Flächen zwischen 0,15 und 1, Deckkraft von Fenstern
+und Menüs zwischen 0,5 und 1, Weichzeichnen zwischen 0 und 60 Pixeln, Eckenradius zwischen 0 und
+2 rem, Hintergrundabdunklung zwischen 0 und 0,7 und die Textgröße zwischen 0,875 und 1,25.
 
 Die Akzentfarbe muss ein sechsstelliger Hexwert mit führendem `#` sein. Alles andere fällt auf
 die Vorgabe zurück, statt gespeichert zu werden, und dasselbe gilt für die drei Textfarben und
@@ -215,7 +230,7 @@ Theme-Standard löst sie sofort und nicht erst beim nächsten Neuladen.
 solche Datei zurück. **Auf Standard zurücksetzen** stellt alles dorthin, wo ein neues Konto
 beginnt.
 
-Der Export trägt die Version, das Theme, das Layout, den Akzent, alle vier Glas-Zahlen, die
+Der Export trägt die Version, das Theme, das Layout, den Akzent, alle fünf Glas-Zahlen, die
 Dichte und die drei bereichseigenen Dichten, die Einstellungen der Nachrichtenliste, Schriftart und
 Textgröße, die Hintergrundwahl, die Textfarben und die Einstellungen des Hauptbereichs. Er trägt
 bewusst **nicht** dein hochgeladenes Hintergrundbild: Ein Dateiname bedeutet auf der

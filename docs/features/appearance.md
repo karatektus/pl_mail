@@ -160,15 +160,28 @@ choosing Compact on a phone never costs you tap-target area.
 | Section | What it sets |
 |---|---|
 | **Main pane** | A background tint and opacity for the content area on its own, or **Match glass opacity** to follow the panels |
-| **Glass** | **Opacity**, **Blur**, **Corner radius** and **Background dimming** — how much of the background shows through your panels |
+| **Glass** | **Panel opacity**, **Window and menu opacity**, **Blur**, **Corner radius** and **Background dimming** — how much of the background shows through your panels |
 | **Text** | Text colour plus **Muted** and **Faint**, or **Auto-derive** to have those two worked out from the main one |
 | **Accent colour** | The single highlight colour, as a hex value |
 | **Background** | **Theme default**, a flat colour, one of eight supplied images, or **Upload image** |
 
+### Two opacities, not one
+
+**Panel opacity** is the layout: the sidebar, the top bar, the main pane and the calendar. **Window
+and menu opacity** is everything that floats over that layout: the compose window, dialogs and
+menus.
+
+They are separate because a floating surface has one more layer behind it than a panel does. A menu
+sits on a panel that is already letting the background through, and the two translucencies multiply
+— at the same setting on both, a tenth of the picture behind them survives both layers and lands in
+the middle of the text. So window and menu opacity starts fully solid and will not go below 0.5,
+however far the panels are taken down. Menus and dropdowns have always been drawn solid for this
+reason; the difference now is that it is a value you can change rather than a rule you cannot.
+
 Each numeric control is bounded, so a value typed or imported from outside the sliders is clamped
-rather than honoured: opacity between 0.15 and 1, blur between 0 and 60 pixels, corner radius
-between 0 and 2 rem, background dimming between 0 and 0.7, and the text scale between 0.875 and
-1.25.
+rather than honoured: panel opacity between 0.15 and 1, window and menu opacity between 0.5 and 1,
+blur between 0 and 60 pixels, corner radius between 0 and 2 rem, background dimming between 0 and
+0.7, and the text scale between 0.875 and 1.25.
 
 The accent colour has to be a six-digit hex value with a leading `#`. Anything else falls back to
 the default rather than being stored, and the same is true of the three text colours and the main
@@ -196,7 +209,7 @@ the next reload.
 **Export theme** downloads `plmail-theme.json`. **Import theme** takes one back. **Reset to
 defaults** puts everything back where a new account starts.
 
-The export carries the version, the theme, the layout, the accent, all four glass numbers, the
+The export carries the version, the theme, the layout, the accent, all five glass numbers, the
 density and the three per-surface density overrides, the mail-list settings, the typeface and text
 scale, the background choice, the text colours and the main pane settings. It deliberately does
 **not** carry your uploaded background image: a filename on someone else's install means nothing, so

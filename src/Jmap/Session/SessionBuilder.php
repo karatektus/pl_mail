@@ -337,6 +337,7 @@ final class SessionBuilder
             // Appearance/set's `updated` map.
             'ranges' => [
                 'paneAlpha' => Appearance::RANGE_PANE_ALPHA,
+                'popoverAlpha' => Appearance::RANGE_POPOVER_ALPHA,
                 'paneBlur' => Appearance::RANGE_PANE_BLUR,
                 'radius' => Appearance::RANGE_RADIUS,
                 'scrimAlpha' => Appearance::RANGE_SCRIM_ALPHA,

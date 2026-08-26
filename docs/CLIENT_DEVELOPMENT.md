@@ -191,7 +191,8 @@ list and clamps:
 | Field | Type | Range | Meaning |
 |---|---|---|---|
 | `accent` | hex | `#rrggbb` | Accent colour. Default `#2563eb`. |
-| `paneAlpha` | float | 0.15 – 1.0 | Opacity of card surfaces. |
+| `paneAlpha` | float | 0.15 – 1.0 | Opacity of the structural surfaces: sidebar, top bar, main pane, calendar. |
+| `popoverAlpha` | float | 0.5 – 1.0 | Opacity of the surfaces that float over those: compose window, modals, menus, toasts. Its floor is higher on purpose — the two translucencies multiply where they overlap. Default 1.0. |
 | `paneBlur` | int | 0 – 60 | Backdrop blur in px. |
 | `radius` | float | 0.0 – 2.0 | Corner radius in rem, for *panes only*. |
 | `scrimAlpha` | float | 0.0 – 0.7 | Black scrim over a custom background image. |
@@ -208,7 +209,7 @@ import. The web UI lets users export/import this as a file.
 > (id `"singleton"`, no `accountId` — it hangs off the `User`), and the Session's appearance
 > capability publishes the vocabularies and ranges: `themes`, `logoStyles`, `layouts`, `densities`,
 > `backgroundKinds`, `backgroundPresets`, `unreadEmphases`, `fontFamilies`, `ranges.previewLines`,
-> `ranges.fontScale`. Model the same two-axis Theme×Layout shape with the same semantic tokens and
+> `ranges.fontScale`, `ranges.popoverAlpha`. Model the same two-axis Theme×Layout shape with the same semantic tokens and
 > read the server's values into it. Two things to know before writing: booleans are validated
 > strictly, so `"1"` and `"0"` are refused rather than coerced; and the three per-surface densities
 > take an explicit JSON `null` to mean "follow the global density", which is a different instruction
@@ -344,8 +345,9 @@ draft.
 
 - **Motion is functional, not decorative.** Drawer slide, pane transition, toast in/out. No spring
   physics, no parallax, no hero animations on mail rows.
-- **Honour reduced-transparency.** The CSS forces `paneAlpha: 1`, `paneBlur: 0`, `scrimAlpha: 0`
-  under `prefers-reduced-transparency: reduce`. Do the same, and honour reduced-motion too.
+- **Honour reduced-transparency.** The CSS forces `paneAlpha: 1`, `popoverAlpha: 1`, `paneBlur: 0`,
+  `scrimAlpha: 0` under `prefers-reduced-transparency: reduce`. Do the same, and honour
+  reduced-motion too.
 - **Safe areas.** The web app runs `viewport-fit=cover` and pads by `env(safe-area-inset-*)`. Native
   clients get this for free but must not let the compose dock or toolbar sit under the home indicator.
 - **The web app has no swipe gestures on rows** — actions are buttons. A native client *should* add

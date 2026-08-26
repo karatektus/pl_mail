@@ -30,6 +30,24 @@ final class Appearance
      * Keyed min/max rather than a tuple: the pairs go over the wire as-is.
      */
     public const array RANGE_PANE_ALPHA = ['min' => 0.15, 'max' => 1.0];
+
+    /**
+     * The floating surfaces' own opacity, and why its floor is not 0.15.
+     *
+     * A popover is read against whatever it covers, and what it covers is
+     * usually a pane that is already letting the wallpaper through. The two
+     * translucencies multiply: a menu at 0.3 over a pane at 0.3 leaves 49% of
+     * the picture behind them both showing through the labels. That is the
+     * complaint this setting was split out of the pane opacity to answer, so
+     * the range itself refuses the bottom of it — half is as see-through as a
+     * surface carrying words over other words is allowed to get.
+     *
+     * The floor is also deliberately above the 0.45 AppearanceRenderer imposes
+     * on --pane-alpha under a photograph, which is why no such floor is needed
+     * here: the range already clears it.
+     */
+    public const array RANGE_POPOVER_ALPHA = ['min' => 0.5, 'max' => 1.0];
+
     public const array RANGE_PANE_BLUR = ['min' => 0, 'max' => 60];
     public const array RANGE_RADIUS = ['min' => 0.0, 'max' => 2.0];
     public const array RANGE_SCRIM_ALPHA = ['min' => 0.0, 'max' => 0.7];
@@ -129,6 +147,29 @@ final class Appearance
     public float $paneAlpha = 1.0 {
         set {
             $this->paneAlpha = max(self::RANGE_PANE_ALPHA['min'], min(self::RANGE_PANE_ALPHA['max'], $value));
+        }
+    }
+
+    /**
+     * The composer, modals, dropdowns, menus and toasts — everything that
+     * floats OVER the layout rather than being part of it.
+     *
+     * Its own knob rather than a share of $paneAlpha because the two are read
+     * in different situations. A pane is the ground you read the app on and
+     * can afford to be glass; a popover is a small box of dense text laid over
+     * that ground, and at the same opacity the row it covers reads straight
+     * through its labels. One slider could not be right for both, and it was
+     * being set for the panes.
+     *
+     * Defaults fully opaque, which is what the floating surfaces already were:
+     * the `popover` utility in app.css has been hardcoded opaque since it was
+     * written, for exactly the reason above. This turns that rule into a value,
+     * so somebody who wants frosted menus can have them.
+     */
+    #[ORM\Column(type: 'float', options: ['default' => 1.0])]
+    public float $popoverAlpha = 1.0 {
+        set {
+            $this->popoverAlpha = max(self::RANGE_POPOVER_ALPHA['min'], min(self::RANGE_POPOVER_ALPHA['max'], $value));
         }
     }
 
@@ -353,6 +394,7 @@ final class Appearance
             'logoLinked' => $this->logoLinked,
             'accent' => $this->accent,
             'paneAlpha' => $this->paneAlpha,
+            'popoverAlpha' => $this->popoverAlpha,
             'paneBlur' => $this->paneBlur,
             'radius' => $this->radius,
             'density' => $this->density->value,
@@ -406,6 +448,10 @@ final class Appearance
 
         if (true === isset($data['paneAlpha'])) {
             $this->paneAlpha = floatval($data['paneAlpha']);
+        }
+
+        if (true === isset($data['popoverAlpha'])) {
+            $this->popoverAlpha = floatval($data['popoverAlpha']);
         }
 
         if (true === isset($data['paneBlur'])) {

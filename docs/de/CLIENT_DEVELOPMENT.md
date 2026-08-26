@@ -1,4 +1,4 @@
-<!-- translated-from: CLIENT_DEVELOPMENT.md sha1:cda359b99fb9079c655c41519cb35052b0ec82b5 -->
+<!-- translated-from: CLIENT_DEVELOPMENT.md sha1:b64a75f8a6792e5edb963f9a282f7d3c44d7dad4 -->
 # Einen Client für plMail bauen
 
 Alles, was eine Entwicklerin (oder ein Agent) braucht, um einen *neuen* plMail-Client zu schreiben
@@ -214,7 +214,8 @@ Ein Layout auszuwählen *setzt* die Regler unten vor; danach kann die Nutzerin j
 | Feld | Typ | Bereich | Bedeutung |
 |---|---|---|---|
 | `accent` | hex | `#rrggbb` | Akzentfarbe. Standard `#2563eb`. |
-| `paneAlpha` | float | 0.15 – 1.0 | Deckkraft der Kartenflächen. |
+| `paneAlpha` | float | 0.15 – 1.0 | Deckkraft der Flächen des Gerüsts: Seitenleiste, Kopfleiste, Hauptbereich, Kalender. |
+| `popoverAlpha` | float | 0.5 – 1.0 | Deckkraft der Flächen, die darüber schweben: Schreibfenster, Dialoge, Menüs, Hinweise. Die Untergrenze liegt absichtlich höher — wo sich beide überlagern, multiplizieren sich die Durchsichtigkeiten. Vorgabe 1.0. |
 | `paneBlur` | int | 0 – 60 | Hintergrundunschärfe in px. |
 | `radius` | float | 0.0 – 2.0 | Eckenradius in rem, *nur für Flächen*. |
 | `scrimAlpha` | float | 0.0 – 0.7 | Schwarzer Schleier über einem eigenen Hintergrundbild. |
@@ -231,9 +232,9 @@ Import. Die Web-Oberfläche lässt Nutzerinnen das als Datei exportieren und imp
 > Singleton-Objekt (Id `"singleton"`, kein `accountId` — es hängt an der `User`-Entität), und die
 > Appearance-Capability der Session veröffentlicht die Vokabulare und Wertebereiche: `themes`,
 > `logoStyles`, `layouts`, `densities`, `backgroundKinds`, `backgroundPresets`, `unreadEmphases`,
-> `fontFamilies`, `ranges.previewLines`, `ranges.fontScale`. Modelliere dieselbe Form mit zwei
-> Achsen aus Theme × Layout mit denselben semantischen Tokens und lies die Werte des Servers
-> hinein. Zwei Dinge solltest du vor dem ersten Schreiben wissen: Booleans werden streng geprüft,
+> `fontFamilies`, `ranges.previewLines`, `ranges.fontScale`, `ranges.popoverAlpha`. Modelliere
+> dieselbe Form mit zwei Achsen aus Theme × Layout mit denselben semantischen Tokens und lies die
+> Werte des Servers hinein. Zwei Dinge solltest du vor dem ersten Schreiben wissen: Booleans werden streng geprüft,
 > `"1"` und `"0"` werden also abgelehnt statt umgewandelt; und die drei Dichten pro Oberfläche
 > brauchen ein ausdrückliches JSON-`null` für „folge der globalen Dichte" — das ist eine andere
 > Anweisung als ein weggelassener Schlüssel. Durchgesetzt wird die Regel „verdrahte keine Palette
@@ -386,9 +387,9 @@ Zeile ihren Entwurf.
 - **Bewegung ist funktional, nicht dekorativ.** Schublade fährt ein, Fläche wechselt, Toast
   kommt und geht. Keine Federphysik, kein Parallaxe-Effekt, keine Heldenanimationen auf
   Mail-Zeilen.
-- **Beachte reduzierte Transparenz.** Das CSS erzwingt `paneAlpha: 1`, `paneBlur: 0`,
-  `scrimAlpha: 0` unter `prefers-reduced-transparency: reduce`. Mach dasselbe, und beachte auch
-  reduzierte Bewegung.
+- **Beachte reduzierte Transparenz.** Das CSS erzwingt `paneAlpha: 1`, `popoverAlpha: 1`,
+  `paneBlur: 0`, `scrimAlpha: 0` unter `prefers-reduced-transparency: reduce`. Mach dasselbe, und
+  beachte auch reduzierte Bewegung.
 - **Sichere Bereiche.** Die Web-App läuft mit `viewport-fit=cover` und polstert per
   `env(safe-area-inset-*)`. Native Clients bekommen das geschenkt, dürfen aber weder das
   Verfassen-Dock noch die Werkzeugleiste unter dem Home-Indikator sitzen lassen.

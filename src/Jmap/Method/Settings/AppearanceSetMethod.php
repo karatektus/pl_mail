@@ -208,7 +208,7 @@ final class AppearanceSetMethod implements JmapMethod
                 'accent' => $this->requireHex($value, $property, false),
                 'backgroundSolid', 'inkColor', 'inkMuted', 'inkFaint', 'mainTint' => $this->requireHex($value, $property, true),
                 'paneBlur', 'previewLines' => $this->requireInt($value, $property),
-                'paneAlpha', 'radius', 'scrimAlpha', 'fontScale' => $this->requireNumber($value, $property, false),
+                'paneAlpha', 'popoverAlpha', 'radius', 'scrimAlpha', 'fontScale' => $this->requireNumber($value, $property, false),
                 'mainAlpha' => $this->requireNumber($value, $property, true),
                 'unreadEmphasis' => $this->requireEnum(UnreadEmphasis::class, $value, $property, false),
                 'fontFamily' => $this->requireEnum(FontFamily::class, $value, $property, false),
