@@ -21,14 +21,14 @@ Variables:
 #}
 {% import '_partials/_select.html.twig' as select %}
 <div class="px-4 py-3">
-    <form method="post" action="{{ path('app_settings_clock_update') }}" data-turbo="false">
+    <form method="post" action="{{ path('app_settings_clock_update') }}" data-turbo="false" data-controller="ui--auto-submit">
         <input type="hidden" name="_token" value="{{ csrf_token('settings-clock') }}">
 
         <label for="settings-clock" class="sr-only">{{ 'settings.clock.label'|trans }}</label>
 
         <select id="settings-clock"
                 name="clock"
-                onchange="this.form.requestSubmit();"
+                data-action="change->ui--auto-submit#submit"
                 {{ select.enhance() }}
                 class="select-field w-full h-9 text-sm">
             <option value="" {{ activeClock is null ? 'selected' : '' }}>

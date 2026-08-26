@@ -46,11 +46,11 @@ deliberately not stored.
             {# Its own row in a narrow pane: three selects are wider than the
                heading beside them and were clipped by the overflow-hidden. #}
             <form method="get" action="{{ path('app_admin_push_deliveries') }}"
-                  class="w-full @2xl:w-auto @2xl:ml-auto flex flex-wrap items-center gap-2">
+                  class="w-full @2xl:w-auto @2xl:ml-auto flex flex-wrap items-center gap-2" data-controller="ui--auto-submit">
                 <select name="usr"
                         {{ select.enhance() }}
                         class="select-field h-8 text-xs"
-                        onchange="this.form.requestSubmit();">
+                        data-action="change->ui--auto-submit#submit">
                     <option value="">{{ 'admin.push.deliveries.all_users'|trans }}</option>
                     {% for candidate in users %}
                         <option value="{{ candidate.id }}" {{ usr == candidate.id ? 'selected' : '' }}>{{ candidate.email }}</option>
@@ -59,7 +59,7 @@ deliberately not stored.
                 <select name="transport"
                         {{ select.enhance() }}
                         class="select-field h-8 text-xs"
-                        onchange="this.form.requestSubmit();">
+                        data-action="change->ui--auto-submit#submit">
                     <option value="">{{ 'admin.push.deliveries.all_transports'|trans }}</option>
                     {% for case in transports %}
                         <option value="{{ case.value }}" {{ transport and transport.value == case.value ? 'selected' : '' }}>
@@ -70,7 +70,7 @@ deliberately not stored.
                 <select name="outcome"
                         {{ select.enhance() }}
                         class="select-field h-8 text-xs"
-                        onchange="this.form.requestSubmit();">
+                        data-action="change->ui--auto-submit#submit">
                     <option value="">{{ 'admin.push.deliveries.all_outcomes'|trans }}</option>
                     {% for case in outcomes %}
                         <option value="{{ case.value }}" {{ outcome and outcome.value == case.value ? 'selected' : '' }}>

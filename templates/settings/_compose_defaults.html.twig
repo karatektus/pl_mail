@@ -38,7 +38,7 @@ Variables:
                 <form method="post"
                       action="{{ path('app_compose_defaults_read_receipt_default', { id: account.id }) }}"
                       data-turbo-stream
-                      class="flex items-center justify-between gap-3 py-1">
+                      class="flex items-center justify-between gap-3 py-1" data-controller="ui--auto-submit">
                     <input type="hidden" name="_token"
                            value="{{ csrf_token('compose-defaults-receipt' ~ account.id) }}">
 
@@ -49,7 +49,7 @@ Variables:
 
                     <select id="receipt-default-{{ account.id }}"
                             name="mode"
-                            onchange="this.form.requestSubmit()"
+                            data-action="change->ui--auto-submit#submit"
                             class="shrink-0 h-9 rounded-lg border border-line bg-surface text-sm px-2 text-ink">
                         {% for mode in modes %}
                             <option value="{{ mode }}" {{ accountMode == mode ? 'selected' : '' }}>
@@ -76,7 +76,7 @@ Variables:
                                 <form method="post"
                                       action="{{ path('app_compose_defaults_read_receipt_alias', { id: account.id, aliasId: alias.id }) }}"
                                       data-turbo-stream
-                                      class="shrink-0">
+                                      class="shrink-0" data-controller="ui--auto-submit">
                                     <input type="hidden" name="_token"
                                            value="{{ csrf_token('compose-defaults-receipt-alias' ~ alias.id) }}">
 
@@ -86,7 +86,7 @@ Variables:
 
                                     <select id="receipt-alias-{{ alias.id }}"
                                             name="mode"
-                                            onchange="this.form.requestSubmit()"
+                                            data-action="change->ui--auto-submit#submit"
                                             class="h-9 rounded-lg border border-line bg-surface text-sm px-2 text-ink">
                                         {# The empty option is what "follow the account
                                            default" posts, and the controller REMOVES the
