@@ -473,6 +473,68 @@ final class MessageSearchTest extends KernelTestCase
     }
 
     /**
+     * A free-text search does not join the label tables at all.
+     *
+     * This is a test about the SHAPE of the SQL rather than about a result,
+     * which needs justifying: the bug it guards was invisible in every result.
+     * `thread_label` and `label` were joined unconditionally, both are
+     * to-many, and every (thread, matching message) row was therefore
+     * multiplied by the number of labels the thread carries — then collapsed
+     * again by the GROUP BY, which hid the duplication perfectly. The answers
+     * were always correct. Only the clock showed it, at two seconds a search
+     * on a real mailbox.
+     *
+     * So there is nothing observable to assert on, and an assertion about the
+     * result set could not fail if the joins came back. This one can.
+     */
+    public function testAFreeTextSearchDoesNotJoinTheLabelTables(): void
+    {
+        $sql = $this->searchSqlFor('amazon');
+
+        self::assertStringNotContainsString('thread_label tl', $sql, 'nothing in a free-text search reads a label');
+        self::assertStringNotContainsString('label lbl', $sql);
+
+        // The trash exclusion is a NOT EXISTS with its own aliases and must
+        // still be there — it is what keeps deleted mail out of results.
+        self::assertStringContainsString('NOT EXISTS', $sql);
+    }
+
+    /**
+     * ...and a search that DOES ask about a label still joins them, or the
+     * filter would have nothing to read.
+     */
+    public function testALabelSearchStillJoinsTheLabelTables(): void
+    {
+        $sql = $this->searchSqlFor('label:Receipts');
+
+        self::assertStringContainsString('thread_label tl', $sql);
+        self::assertStringContainsString('label lbl', $sql);
+    }
+
+    /** The same, for the mailbox role behind `in:`. */
+    public function testAMailboxSearchStillJoinsTheLabelTables(): void
+    {
+        self::assertStringContainsString('label lbl', $this->searchSqlFor('in:spam'));
+    }
+
+    /**
+     * The statement the repository would run, without running it.
+     *
+     * Reflection because buildSearchSql() is private and should stay private —
+     * it is not an API, and the alternative is making a method public purely so
+     * a test can look at it.
+     */
+    private function searchSqlFor(string $query): string
+    {
+        $method = new \ReflectionMethod(MessageThreadRepository::class, 'buildSearchSql');
+
+        /** @var array{string, array<string,mixed>, array<string,mixed>} $built */
+        $built = $method->invoke($this->repository, $this->user, $this->parser->parse($query), false);
+
+        return $built[0];
+    }
+
+    /**
      * Proof that the body pass is genuinely reached, so the two tests around
      * this one are not passing on a pass that never ran.
      *

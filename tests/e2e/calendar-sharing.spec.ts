@@ -279,11 +279,25 @@ test.describe("appointment booking", () => {
 
         // Every day, so the page has slots inside its horizon whichever day the
         // suite runs on — see the describe's docblock.
-        // `force` because the checkbox is `sr-only` and its own <label> is what
-        // receives the pointer — Playwright refuses an ordinary check() when the
-        // thing it would click is covered by the element that styles it.
+        //
+        // Click the <label>, not the box. The input is `sr-only`: clipped to a
+        // single pixel and taken out of flow, so there is nothing to click even
+        // with `force`, and once the modal grew tall enough to scroll this
+        // failed with "Element is outside of the viewport" — a message about
+        // geometry for what is really a wrong target. The label is both what a
+        // person clicks and what toggles the box.
         for (const day of ["Sat", "Sun"]) {
-            await modal.getByLabel(day, { exact: true }).check({ force: true });
+            const box = modal.getByLabel(day, { exact: true });
+
+            if (!(await box.isChecked())) {
+                // From the input to the label that wraps it, rather than
+                // matching the label by its text: the template indents, so the
+                // label's textContent is "\n    Sat\n  " and an anchored regex
+                // never matches it.
+                await box.locator("xpath=ancestor::label[1]").click();
+            }
+
+            await expect(box).toBeChecked();
         }
 
         await modal.getByRole("button", { name: "Save" }).click();

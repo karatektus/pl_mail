@@ -1639,6 +1639,25 @@ class MessageThreadRepository extends ServiceEntityRepository
 
         $whereClause = implode(' AND ', $where);
 
+        // ── The label joins, only when something asks about a label ───────
+        // `lbl` is referenced by exactly two filters — `label:` and the
+        // mailbox role behind `in:` — and by nothing else in this statement.
+        // Joined unconditionally, as they were, they are not merely idle: both
+        // are to-many, so every (thread, matching message) row is multiplied by
+        // the number of labels the thread carries before the GROUP BY collapses
+        // it back down. A mailbox where threads sit in an inbox, a category and
+        // a user label pays three times over, on every free-text search, to
+        // produce a set it then throws away.
+        //
+        // The result was always right, which is why this survived: GROUP BY
+        // hides the duplication perfectly and only the clock shows it.
+        $labelJoins = '';
+
+        if (null !== $query->label || null !== $query->mailboxRole) {
+            $labelJoins = "\n            LEFT JOIN thread_label tl ON tl.message_thread_id = t.id"
+                . "\n            LEFT JOIN label lbl ON lbl.id = tl.label_id";
+        }
+
         $sql = <<<SQL
             SELECT
                 t.id                                              AS thread_id,
@@ -1647,9 +1666,7 @@ class MessageThreadRepository extends ServiceEntityRepository
                 COUNT(*) OVER ()                                  AS total_threads
             FROM message_thread t
             JOIN message m ON m.thread_id = t.id
-           JOIN account a ON a.id = t.account_id
-           LEFT JOIN thread_label tl ON tl.message_thread_id = t.id
-           LEFT JOIN label lbl ON lbl.id = tl.label_id
+            JOIN account a ON a.id = t.account_id{$labelJoins}
             WHERE {$whereClause}
             GROUP BY t.id
         SQL;

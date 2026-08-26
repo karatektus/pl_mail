@@ -6,6 +6,39 @@ so anything that changes the schema irreversibly is called out explicitly.
 The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, and `sha-…` pins one commit.
 
+## v0.1.40 — 2026-08-26
+
+**No migration. Search stops paying for label joins it never reads.**
+
+### Fixed
+
+- **Every search joined the label tables whether or not it asked about a label.** `thread_label` and
+  `label` were part of the statement unconditionally, and only two filters ever read them — `label:`
+  and the mailbox behind `in:`. Both joins are to-many, so every matching row was multiplied by the
+  number of labels its conversation carries and then collapsed again by the `GROUP BY`. A mailbox
+  where conversations sit in an inbox, a category and a user label did three times the work on every
+  free-text search to build a set it immediately threw away.
+
+  The answers were always correct, which is why it went unnoticed: `GROUP BY` hides the duplication
+  perfectly and only the clock shows it. The joins are now added when something asks for them.
+
+  There is a test for the shape of the statement rather than for its results, which is unusual and
+  deliberate — a result-based assertion could not fail if the joins came back.
+
+### Note
+
+If search is still slow after this, check the trigram indexes are present:
+
+```sql
+SELECT indexname FROM pg_indexes WHERE tablename = 'message' AND indexname LIKE '%trgm%';
+```
+
+Four rows are expected — `subject`, `body_text`, `from_name`, `from_address` — plus
+`idx_message_search_vector`. They are created by migrations and deliberately absent from the ORM
+mapping, so **`doctrine:schema:update --force` drops all of them** and turns every search into a
+sequential scan of the whole table. Never run that against a plMail database; migrations are the
+only supported path.
+
 ## v0.1.39 — 2026-08-26
 
 **No migration. A deploy script for demo instances that cannot quietly do nothing.**
