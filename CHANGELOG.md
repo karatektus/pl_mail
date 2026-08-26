@@ -6,6 +6,27 @@ so anything that changes the schema irreversibly is called out explicitly.
 The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, and `sha-…` pins one commit.
 
+## v0.1.39 — 2026-08-26
+
+**No migration. A deploy script for demo instances that cannot quietly do nothing.**
+
+### Added
+
+- **`bin/deploy-demo.sh`** — pull, bring up, prune, in that order and with the failure that matters
+  actually checked. Every deploy leaves its predecessor behind and nothing collects them, so on a
+  host with a modest disk they accumulate until a pull runs out of space part-way through a layer.
+  `up -d --wait` then brings the stack up on the image that is **already there** and reports every
+  container healthy — a deploy that changed nothing looks exactly like one that worked.
+
+  So the script checks for room first, prunes if there is not enough, refuses to pull rather than
+  half-pull, and clears the replaced images afterwards. It pipes the pull nowhere, because through a
+  pipe the exit status belongs to whatever came after it and `pull | tail` reports success no matter
+  what happened. The prune is `-a` (a replaced release is fully tagged, so dangling-only leaves it)
+  and never `--volumes` (the demo database is in one).
+
+  `DEMO_MIN_FREE_MB` sets the floor, `DEMO_COMPOSE_FILES` overrides the overlays. Documented under
+  *Demo mode → Deploying an update*.
+
 ## v0.1.38 — 2026-08-26
 
 **No migration. Errors in the log now carry a stack trace, and a bug can no longer disguise itself

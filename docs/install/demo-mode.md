@@ -89,6 +89,38 @@ is left alone.
 Point people at `/demo` rather than the root. The root is the inbox, which for somebody with no
 session is the login page.
 
+### Deploying an update
+
+`bin/deploy-demo.sh` from this repository, copied next to the compose files and run there:
+
+```bash
+cd /opt/plmail-demo && ./deploy-demo.sh
+```
+
+It picks up `compose.yaml` and `compose.demo.yaml`, adds `compose.proxy.yaml` when the host has one,
+and does four things in an order that matters:
+
+1. **Checks there is room**, and prunes first if there is not.
+2. **Pulls, and stops if that fails.**
+3. Brings the stack up.
+4. **Prunes the images the deploy replaced.**
+
+Steps 1 and 4 are the same problem from both ends. Every deploy leaves its predecessor behind and
+nothing collects them, so on a host with a modest disk they accumulate until a pull runs out of
+space part-way through a layer — and then `up -d --wait` cheerfully brings the stack up on the image
+that is **already there** and reports every container healthy. A deploy that changed nothing looks
+exactly like one that worked, with the only evidence buried in the pull output.
+
+That is why step 2 stops. It is also why nothing in the script pipes the pull anywhere: through a
+pipe the exit status belongs to whatever came after it, so `pull | tail -2` reports success no
+matter what the pull did.
+
+The prune is `docker image prune -af`. The `-a` is load-bearing — the previous release is a fully
+tagged image that nothing references any more, and dangling-only leaves every one of them behind.
+It never passes `--volumes`: the demo's database lives in one.
+
+`DEMO_MIN_FREE_MB` sets the floor (default 3000) and `DEMO_COMPOSE_FILES` overrides the overlays.
+
 ### Keeping it clean
 
 `app:demo:reap` runs every ten minutes on a demo instance and deletes visitors whose stamped expiry
