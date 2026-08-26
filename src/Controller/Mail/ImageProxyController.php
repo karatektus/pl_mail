@@ -6,6 +6,7 @@ namespace App\Controller\Mail;
 
 use App\Service\Mail\ImageProxyFetcher;
 use App\Service\Mail\ImageProxySigner;
+use Psr\Log\LoggerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -56,6 +57,7 @@ final class ImageProxyController extends AbstractController
     public function __construct(
         private readonly ImageProxySigner  $signer,
         private readonly ImageProxyFetcher $fetcher,
+        private readonly LoggerInterface   $logger,
     ) {}
 
     #[Route('/mail/image-proxy', name: 'app_mail_image_proxy', methods: ['GET'])]
@@ -65,12 +67,26 @@ final class ImageProxyController extends AbstractController
         $signature = (string) $request->query->get('s', '');
 
         if ('' === $url || false === $this->signer->isValid($url, $signature)) {
+            // Without this line the refusal is completely invisible. The reader
+            // gets the same 1x1 GIF as every other failure (deliberately, see
+            // above), no fetch is attempted, so ImageProxyFetcher never logs
+            // either -- and the only symptom is one picture in one mail that
+            // quietly does not appear, with nothing anywhere to say why.
+            $this->logger->info('ImageProxyController: refused an unsigned or badly signed image', [
+                'url'          => $url,
+                'hasSignature' => '' !== $signature,
+            ]);
+
             return $this->placeholder();
         }
 
         $image = $this->fetcher->fetch($url);
 
         if (null === $image) {
+            // The fetcher logs the reason it gave up; this is the line that ties
+            // that reason to the picture the reader did not get.
+            $this->logger->info('ImageProxyController: no image to serve', ['url' => $url]);
+
             return $this->placeholder();
         }
 
