@@ -8,9 +8,10 @@ light.
 The model host is an **Ollama container on the operator's own network**. Nothing is sent anywhere
 else, and there is no hosted service to fall back to.
 
-> **Status.** Built: the transport, the gateway, the admin section, the onboarding step,
-> categorisation, and embedding storage. Not built yet: the search integration, the composer's
-> writing help, and the backfill that embeds an existing mailbox.
+> **Status.** All of it is written and passes unit tests and PHPStan; none of it has been run
+> against a real Ollama. One end-to-end test —
+> `compose-send-optimistic.spec.ts:124` — fails in the full suite and passes in isolation, which
+> predates this work.
 
 ## Off is a real state
 
@@ -121,6 +122,56 @@ Vectors are normalised to unit length **on the way in**, which is what lets the 
 a dot product with no square root per row. A zero-length or non-finite vector is refused rather than
 stored: one NaN in that column poisons every `ORDER BY` that touches it, and it would be blamed on
 the search rather than on the model that produced it.
+
+## Semantic search
+
+A vector hit is **another arm of the same UNION**, so it lands in `COUNT(*) OVER ()`, pages
+correctly, and needs no second statement to reconcile with. Four rules hold it together:
+
+- **The query is embedded once**, in the controller. `buildSearchSql()` runs up to four times per
+  search — the cheap pass, the body rescue, and twice more when a page past the end recovers its
+  total — one of them inside a statement-timeout transaction, where a slow model would be reported
+  as a database fault.
+- **The candidate set is bounded** to the most recent `SEMANTIC_CANDIDATES` (2,000) messages.
+- **A distance threshold, never a top-k.** The total rides on the same statement, and "lexical
+  matches plus up to k" is only true on page one.
+- **The inner `LIMIT` is parenthesised.** These arms are joined with a bare `' UNION '`, so an
+  unparenthesised `LIMIT` would bind to the whole union.
+
+The rank join is 1:1 — the property the label joins lost and had to be given back in v0.1.40.
+
+## Writing help
+
+Four tasks, a closed set. A free-form instruction parameter would be a prompt an attacker could
+write, with the user's own mail as context and the answer pasted into the user's own draft. The
+message being replied to is read from the **database** by id with ownership checked, never from the
+page.
+
+The server makes the call. `connect-src 'self'` is enforced, so a browser could not reach the model
+host — and should not: that address is on a private network, and putting it in a page hands it to
+every script the page loads.
+
+The route carries **no draft id**: a composer opens before one exists, which is exactly when
+somebody wants a first draft.
+
+Generated text is **inserted, never substituted** — a rewrite that overwrote the original would be a
+model deleting somebody's words with no undo they can see. It goes in as a plain text node at the
+end of the body, because a styled wrapper is subtracted by the composer's typed-length calculation
+and can stop the draft autosaving.
+
+## Embedding an existing mailbox
+
+`app:ai:embed-mailbox`. New mail is embedded by a post-ingest step; everything already in the
+mailbox needs one pass, and on a large one that is hours.
+
+The job re-dispatches itself with a cursor rather than looping — a single job holding hours of work
+is killed by any worker restart with nothing to show for it. The walk is by ascending id, the one
+ordering nothing can change underneath it. **The vectors already stored are the progress record**,
+so there is no second one to keep in step, and the cursor advances past everything *looked at*
+rather than everything *stored*, so one unanswerable message never becomes a wall it restarts at.
+
+It runs on the **maintenance** transport, not ingest: a backfill in front of the ingest queue would
+stop new mail appearing until an old mailbox had finished being catalogued.
 
 ## Things that bite
 
