@@ -215,6 +215,89 @@ final class ImageProxyFetcherTest extends TestCase
         self::assertNotNull($line);
         self::assertSame('text/html', $line['context']['contentType'], 'the parameters are stripped, the type is kept');
     }
+    /**
+     * An image served without a content type is still an image.
+     *
+     * THE REPORTED BUG. Amazon's return-label QR codes live in an S3 bucket
+     * whose objects were uploaded with no content type, so S3 answers
+     * `application/octet-stream`. The proxy required the header to start with
+     * `image/`, refused a perfectly good 8KB PNG, and the reader got a blank
+     * space where their barcode should have been — with, until the commit
+     * before this one, nothing logged anywhere to say why.
+     *
+     * Verified against the real URL from the report: HTTP 200,
+     * `application/octet-stream`, 8001 bytes of PNG.
+     */
+    public function testAnUnlabelledImageIsServedAsWhatItActuallyIs(): void
+    {
+        $png = (string) base64_decode(
+            'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+M8AAAMEAQA/nHJ7AAAAAElFTkSuQmCC',
+            true,
+        );
+
+        $fetcher = new ImageProxyFetcher(
+            new MockHttpClient(static fn (): MockResponse => new MockResponse(
+                $png,
+                ['response_headers' => ['content-type' => 'application/octet-stream']],
+            )),
+            new NullLogger(),
+            sys_get_temp_dir() . '/plmail-image-proxy-test-' . bin2hex(random_bytes(4)),
+        );
+
+        $result = $fetcher->fetch('https://93.184.216.34/140038045606.png');
+
+        self::assertNotNull($result, 'an unlabelled PNG is the shape S3 serves and must not be refused');
+        self::assertSame('image/png', $result['contentType'], 'typed from its bytes, not from what the sender said');
+        self::assertSame($png, (string) file_get_contents($result['path']));
+    }
+
+    /**
+     * Being unlabelled is not a way in. The bytes still have to be an image.
+     */
+    public function testAnUnlabelledResponseThatIsNotAnImageIsStillRefused(): void
+    {
+        $logger = new CollectingLogger();
+
+        $fetcher = new ImageProxyFetcher(
+            new MockHttpClient(static fn (): MockResponse => new MockResponse(
+                '<html><body>Access denied</body></html>',
+                ['response_headers' => ['content-type' => 'application/octet-stream']],
+            )),
+            $logger,
+            sys_get_temp_dir() . '/plmail-image-proxy-test-' . bin2hex(random_bytes(4)),
+        );
+
+        self::assertNull($fetcher->fetch('https://93.184.216.34/nope.png'));
+        self::assertNotNull($logger->firstContaining('unlabelled response is not an image'));
+    }
+
+    /**
+     * SVG is refused however it arrives, and this is the security half of the
+     * change rather than a detail.
+     *
+     * SVG is the one image format that can carry script. A proxy that served
+     * one would be serving script from plMail's own origin, and "the sender
+     * did not label it" must not become the way to get that past the check.
+     * The sniffed type is held to InlineDisposition's list, which excludes it.
+     */
+    public function testAnUnlabelledSvgIsRefusedBecauseItCanCarryScript(): void
+    {
+        $svg = '<?xml version="1.0"?><svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>';
+
+        $fetcher = new ImageProxyFetcher(
+            new MockHttpClient(static fn (): MockResponse => new MockResponse(
+                $svg,
+                ['response_headers' => ['content-type' => 'application/octet-stream']],
+            )),
+            new NullLogger(),
+            sys_get_temp_dir() . '/plmail-image-proxy-test-' . bin2hex(random_bytes(4)),
+        );
+
+        self::assertNull(
+            $fetcher->fetch('https://93.184.216.34/payload.svg'),
+            'an unlabelled SVG must not become a way to serve script from our origin',
+        );
+    }
 }
 
 /**

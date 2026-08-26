@@ -6,6 +6,25 @@ so anything that changes the schema irreversibly is called out explicitly.
 The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, and `sha-…` pins one commit.
 
+## v0.1.37 — 2026-08-26
+
+**No migration. Images that arrive without a label are images again.**
+
+### Fixed
+
+- **An image served without a content type was refused, and rendered as a blank space.** The image
+  proxy required the response to declare `image/…`. S3 answers `application/octet-stream` for any
+  object uploaded without a type, and a great deal of the web's images live in exactly that state —
+  Amazon's return-label QR codes among them. A perfectly good PNG was refused, the reader got an
+  empty box where their barcode should have been, and nothing anywhere said why.
+
+  An unlabelled response is now identified from its own magic bytes and served as whatever it
+  actually is. This is **less** trust in the sender rather than more: the declared type is discarded
+  and the content decides, held to the same allow-list attachments are held to. That list excludes
+  SVG deliberately — it is the one image format that can carry script, and "the sender did not label
+  it" must not become the way to get script served from plMail's origin. A response that is not an
+  image is still refused, and now says so.
+
 ## v0.1.36 — 2026-08-26
 
 **No migration. Search stops timing out, and the log finally says where a fault happened.**
