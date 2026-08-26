@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Form\Admin;
 
 use App\Entity\Ai\AiSettings;
+use App\Form\PasswordManagerIgnore;
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\Extension\Core\Type\CheckboxType;
 use Symfony\Component\Form\Extension\Core\Type\PasswordType;
@@ -64,7 +65,10 @@ final class AiSettingsType extends AbstractType
                 // Never re-rendered. A stored credential put back on screen is
                 // a credential in a page cache, a screenshot and a browser's
                 // autofill — the same rule FcmConfigType follows.
-                'attr'        => ['autocomplete' => 'new-password', 'placeholder' => $hasToken ? '••••••••' : ''],
+                // Spread, like every other credential field here: without it a
+                // password manager's overlay survives the Turbo frame swap and
+                // sits over the field it was anchored to.
+                'attr'        => [...PasswordManagerIgnore::ATTR, 'placeholder' => $hasToken ? '••••••••' : ''],
             ])
             ->add('chatModel', TextType::class, [
                 'label'    => 'admin.ai.field.chat_model',
