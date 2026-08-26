@@ -6,6 +6,49 @@ so anything that changes the schema irreversibly is called out explicitly.
 The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, and `sha-…` pins one commit.
 
+## v0.1.45 — 2026-08-26
+
+**Adds three tables; the migrations run on boot. plMail can use a language model you run yourself —
+and thirteen settings controls start working again.**
+
+### Added
+
+- **Optional AI features, off by default and off in a way that means something.** plMail is a
+  complete mail client with all of this switched off, which is the state every existing installation
+  is in and where most will stay. Nothing is enabled until an administrator enables it, and nothing
+  leaves your network: the model is an [Ollama](https://ollama.com) container on a machine you own.
+
+  Three separate switches, because they have very different costs. **Search by meaning** adds
+  results matching what you meant rather than only what you typed. **Sort mail into tabs** fills in a
+  category — but only where no rule recognised the message at all, so it can never overrule a header,
+  a Gmail label, or the fact that you have written to somebody. **Help me write** offers drafts and
+  rewrites in the composer, only when asked, and always by appending: it never replaces what you
+  wrote.
+
+  Configured in **Admin → AI**, with a **Test** button that tells you the difference between "nothing
+  answered at that address" and "that host answered but is not holding the model you named". It is
+  also a step in first-time setup, where "no thank you" is a complete answer that is remembered.
+
+  Semantic search needs one pass over an existing mailbox — `app:ai:embed-mailbox` — because
+  switching it on only embeds mail that arrives from then on. It runs on the maintenance worker, is
+  safe to interrupt, and safe to repeat.
+
+  See *Admin → AI* in the handbook, and `docs/internals/ai-assist.md` for why the vector design
+  avoids pgvector.
+
+### Fixed
+
+- **Thirteen settings controls rendered correctly and did nothing when you used them.** The log
+  browser's two filters, the clock and timezone pickers, two compose defaults, two compose-behaviour
+  radios, three push delivery filters, a copy field, the attachment thumbnails' error fallback, and
+  the log level toggle added in v0.1.44 were all inline event handlers — and the enforced Content
+  Security Policy refuses to run those, because neither a nonce nor a hash authorises an inline
+  handler.
+
+  It stayed hidden because an inline handler violates nothing when the page *loads*: the pages were
+  clean, the controls looked right, and the failure was silent unless a console was open. A control
+  that does nothing reads as a broken setting rather than a refused script.
+
 ## v0.1.44 — 2026-08-26
 
 **Adds a table; the migration runs on boot. The log level is a setting on the page, not a restart.**
