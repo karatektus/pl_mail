@@ -56,7 +56,10 @@ test("the browser's back button does not show a list from before the read", asyn
     expect(href, "the row has to link somewhere for this to be a navigation").toBeTruthy();
 
     // A real Drive visit, because a click here only swaps the pane — see (2).
-    await page.evaluate((target) => window.Turbo.visit(target), href);
+    await page.evaluate(
+            (target) => (window as unknown as { Turbo: { visit(u: string): void } }).Turbo.visit(target),
+            href as string,
+        );
     await page.waitForURL("**/mail/thread/**");
 
     // Long enough that the read has definitely been recorded. The reported case

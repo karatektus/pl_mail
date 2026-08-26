@@ -6,6 +6,25 @@ so anything that changes the schema irreversibly is called out explicitly.
 The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, and `sha-…` pins one commit.
 
+## v0.1.43 — 2026-08-26
+
+**No migration. A list you have already seen stops animating itself in again.**
+
+### Fixed
+
+- **The list entrance replayed on every navigation back to it.** Reported as the loading animation
+  being interrupted part-way and starting over. The rows region decided whether to play its
+  staggered entrance by asking whether *it* had been seen before — and it is an element with no id,
+  which that check answers "new" to unconditionally. So the cascade played every time the element
+  was inserted, and Turbo replaces the whole page body on every visit: coming back out of a
+  conversation built a fresh list holding the same conversations and cascaded all of them in again,
+  over whatever was still playing.
+
+  The rows are the things with identity, so they are what gets asked now. A conversation that has
+  been on screen stays still; one that has not drops in. A folder change is all new rows and still
+  plays in full, a single new mail among fifty still announces itself, and returning to a list you
+  were just looking at does nothing at all.
+
 ## v0.1.42 — 2026-08-26
 
 **No migration. Back from a conversation no longer shows the list as it was before you read it.**

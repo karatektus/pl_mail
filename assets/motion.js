@@ -227,7 +227,8 @@ function play(element, batch) {
 }
 
 /**
- * Give a container's children the entrance the container named for them.
+ * Give a container's children the entrance the container named for them —
+ * the ones that have not already had it.
  *
  * Marked as played BEFORE the entrance is written, so that the pass over the
  * rest of the batch — which will reach these same rows a moment later, since
@@ -235,14 +236,45 @@ function play(element, batch) {
  * remembered, because being shown inside a list is still being shown: without
  * it the next background sync would find fifty unseen ids and announce a
  * redrawn list as fifty separate arrivals.
+ *
+ * WHY THE ANSWER IS CONSULTED AND NOT ONLY RECORDED
+ * ────────────────────────────────────────────────
+ * It used to be recorded and thrown away: every child was given the entrance
+ * whatever `remember` said, because the container itself was the thing being
+ * judged. The container is a <ul> with no id, and remember() answers "fresh"
+ * to anything it cannot identify — so the whole cascade replayed every single
+ * time that list was inserted.
+ *
+ * Which is every Turbo navigation. Turbo replaces <body> wholesale, so coming
+ * BACK to a list — the browser's back button, out of a conversation — inserts
+ * a brand new <ul> holding the same fifty conversations, and all fifty
+ * cascaded in again. Reported as the list animation restarting.
+ *
+ * The rows are the things with identity, so they are what gets asked. A row
+ * that has been on screen is a redraw and stays still; a row that has not is
+ * an arrival and drops in. A folder change is all new ids and still plays in
+ * full, one new mail among fifty still announces itself, and returning to a
+ * list you were just looking at does nothing at all — which is the whole of
+ * the complaint.
+ *
+ * Suppressed rows are still marked played, still remembered and still scoped:
+ * skipping that would hand them back to the batch pass, which would give each
+ * one the long single-arrival drop it carries for itself — fifty of them, at
+ * once, which is precisely what the container is here to prevent.
  */
 function playChildren(container) {
     const style = container.getAttribute(ENTER_CHILDREN);
 
     for (const child of container.children) {
+        const fresh = remember(child);
+
         child.setAttribute(PLAYED, "");
-        remember(child);
         child.setAttribute(SCOPE, "list");
+
+        if (false === fresh) {
+            continue;
+        }
+
         child.setAttribute(ENTER, style);
     }
 }

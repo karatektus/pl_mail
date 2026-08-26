@@ -200,4 +200,71 @@ test.describe("returning from a thread", () => {
 
         await expect(page.locator("#inbox-list-frame")).toHaveAttribute("data-list-rendered", "0");
     });
+
+    /**
+     * A list you have already seen does not animate itself in again.
+     *
+     * REPORTED as "the list loading animation gets interrupted in the middle
+     * and restarts". motion.js decided whether to play the cascade by asking
+     * `remember()` about the rows <ul>. It has no id, and remember() answers
+     * "fresh" to anything it cannot identify — so the cascade replayed every
+     * time that element was inserted, which is every Turbo navigation, because
+     * Turbo replaces <body> wholesale. Coming back out of a conversation
+     * inserted a new <ul> holding the same conversations and cascaded all of
+     * them in again, over whatever was still playing.
+     *
+     * It asks the ROWS now, which are the things with identity.
+     *
+     * `data-enter` is the attribute that starts an entrance and the stylesheet
+     * does nothing without it, so its presence on a row that was already on
+     * screen IS the bug. Read one-shot: the attribute is transient, and a
+     * retrying assertion would just wait for the animation to end and call it
+     * absent.
+     */
+    test("returning to a list does not replay its entrance", async ({ page }) => {
+        await page.goto("/mail/inbox");
+
+        const row = mailRow(page, INBOX_SUBJECTS.read);
+        await expect(row).toBeVisible();
+
+        const href = await row.locator("a[href*='/mail/thread/']").first().getAttribute("href");
+        expect(href).toBeTruthy();
+
+        // A real Drive visit out and the browser's Back in — the reported path.
+        // A click only swaps the reading pane here and never navigates.
+        await page.evaluate(
+            (target) => (window as unknown as { Turbo: { visit(u: string): void } }).Turbo.visit(target),
+            href as string,
+        );
+        await page.waitForURL("**/mail/thread/**");
+        await page.waitForTimeout(500);
+
+        await page.goBack();
+        await page.waitForURL("**/mail/inbox**");
+
+        await page.locator(ROWS).first().waitFor({ state: "attached" });
+        await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => r(null))));
+
+        const animating = await page.locator(`${ROWS}[data-enter]`).count();
+
+        expect(await page.locator(ROWS).count()).toBeGreaterThan(0);
+        expect(animating, "rows already seen cascaded in again on the way back").toBe(0);
+    });
+
+    /**
+     * The other half: a list seen for the FIRST time still plays. A "fix" that
+     * simply stopped writing the attribute would pass the test above and break
+     * the feature, so this is the guard against that.
+     */
+    test("a list seen for the first time still plays its entrance", async ({ page }) => {
+        await page.goto("/mail/inbox");
+
+        await page.locator(ROWS).first().waitFor({ state: "attached" });
+        await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => r(null))));
+
+        expect(
+            await page.locator(`${ROWS}[data-enter]`).count(),
+            "a list nobody has seen must still announce itself",
+        ).toBeGreaterThan(0);
+    });
 });
