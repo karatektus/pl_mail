@@ -157,6 +157,7 @@ final class ApplyGraphChangesHandler
             $this->logger->error('ApplyGraphChangesHandler: batch patch failed', [
                 'accountId' => $account->id,
                 'error'     => $e->getMessage(),
+                'exception' => $e,
             ]);
 
             return [];
@@ -236,6 +237,7 @@ final class ApplyGraphChangesHandler
                 'labelId'   => $label->id,
                 'accountId' => $account->id,
                 'error'     => $e->getMessage(),
+                'exception' => $e,
             ]);
 
             return null;
@@ -318,6 +320,7 @@ final class ApplyGraphChangesHandler
             $this->logger->error('ApplyGraphChangesHandler: batch move failed', [
                 'accountId' => $account->id,
                 'error'     => $e->getMessage(),
+                'exception' => $e,
             ]);
 
             return [];
@@ -447,6 +450,7 @@ final class ApplyGraphChangesHandler
             $this->logger->error('ApplyGraphChangesHandler: could not list master categories', [
                 'accountId' => $account->id,
                 'error'     => $e->getMessage(),
+                'exception' => $e,
             ]);
 
             return;
@@ -471,6 +475,7 @@ final class ApplyGraphChangesHandler
                     'accountId' => $account->id,
                     'category'  => $name,
                     'error'     => $e->getMessage(),
+                    'exception' => $e,
                 ]);
             }
         }

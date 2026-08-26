@@ -260,8 +260,9 @@ class MessageSyncer
                 }
             } catch (\Throwable $e) {
                 $this->logger->error('Failed to build message', [
-                    'uid'   => $uid,
-                    'error' => $e->getMessage(),
+                    'uid'       => $uid,
+                    'error'     => $e->getMessage(),
+                    'exception' => $e,
                 ]);
             }
         }

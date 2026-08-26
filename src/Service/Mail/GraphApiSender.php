@@ -70,8 +70,9 @@ class GraphApiSender implements MailSenderInterface
             $this->apiClient->sendMime($account, $mime);
         } catch (\Throwable $e) {
             $this->logger->error('GraphApiSender: send failed', [
-                'account' => $account->id,
-                'error'   => $e->getMessage(),
+                'account'   => $account->id,
+                'error'     => $e->getMessage(),
+                'exception' => $e,
             ]);
 
             return false;

@@ -67,8 +67,9 @@ final readonly class ApplyMailRuleHandler
             $this->walk($rule);
         } catch (Throwable $e) {
             $this->logger->error('ApplyMailRule: run failed', [
-                'ruleId' => $rule->id,
-                'error' => $e->getMessage(),
+                'ruleId'    => $rule->id,
+                'error'     => $e->getMessage(),
+                'exception' => $e,
             ]);
 
             // Recorded rather than swallowed: a run that stopped halfway is

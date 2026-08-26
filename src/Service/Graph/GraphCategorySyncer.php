@@ -63,6 +63,7 @@ final readonly class GraphCategorySyncer
             $this->logger->error('GraphCategorySyncer: listing failed', [
                 'accountId' => $account->id,
                 'error'     => $e->getMessage(),
+                'exception' => $e,
             ]);
 
             return;
@@ -70,6 +71,7 @@ final readonly class GraphCategorySyncer
             $this->logger->error('GraphCategorySyncer: listing failed', [
                 'accountId' => $account->id,
                 'error'     => $e->getMessage(),
+                'exception' => $e,
             ]);
 
             return;

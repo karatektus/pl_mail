@@ -69,7 +69,8 @@ final readonly class JmapPushSubscriber implements EventSubscriberInterface
             // Never let a push failure surface as a request or handler error:
             // the data change already succeeded and is what matters.
             $this->logger->error('JMAP push dispatch failed', [
-                'error' => $exception->getMessage(),
+                'error'     => $exception->getMessage(),
+                'exception' => $exception,
             ]);
         }
     }

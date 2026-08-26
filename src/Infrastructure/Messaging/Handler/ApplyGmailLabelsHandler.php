@@ -102,6 +102,7 @@ final class ApplyGmailLabelsHandler
                 'remove'    => $message->remove,
                 'reason'    => $e->getReason(),
                 'error'     => $e->getMessage(),
+                'exception' => $e,
             ]);
 
             // AND SAID WHERE SOMEBODY WILL SEE IT.
@@ -220,9 +221,10 @@ final class ApplyGmailLabelsHandler
             throw $e;
         } catch (Throwable $e) {
             $this->logger->error('ApplyGmailLabelsHandler: remote label creation failed', [
-                'labelId' => $label->id,
-                'name'    => $label->fullName,
-                'error'   => $e->getMessage(),
+                'labelId'   => $label->id,
+                'name'      => $label->fullName,
+                'error'     => $e->getMessage(),
+                'exception' => $e,
             ]);
 
             return null;

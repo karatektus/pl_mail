@@ -6,6 +6,44 @@ so anything that changes the schema irreversibly is called out explicitly.
 The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, and `sha-…` pins one commit.
 
+## v0.1.38 — 2026-08-26
+
+**No migration. Errors in the log now carry a stack trace, and a bug can no longer disguise itself
+as a network problem.**
+
+### Fixed
+
+- **Ninety-four log entries recorded an exception's message and threw the rest away.** Sites all
+  over the application logged `'error' => $e->getMessage()`, which is a sentence with no class, no
+  file, no line and no cause behind it — and forty-eight of those were at error or critical, where a
+  trace is the whole point. Every one now carries the exception itself alongside the message, so an
+  entry in the dashboard says where it came from and what was underneath it.
+
+- **The image proxy caught every possible failure and called all of them routine.** One
+  `catch (\Throwable)` covered both "the host did not answer" and "this code is broken", and logged
+  the pair at `info` — below the level that gets stored. Found the honest way: a typo introduced
+  while fixing the unlabelled-image bug threw a fatal, was caught as though the network had
+  hiccuped, and then did not appear in the log at all.
+
+  A network failure is still `info`, because an unreachable host is not an application fault and any
+  mailbox with newsletters in it produces a steady trickle of them. Anything else is now `error`,
+  which is stored without anyone lowering a threshold first.
+
+- **The same trap, in five more places.** Listing an IMAP folder, checking whether a UID is still on
+  the server, purging a remote message, issuing a Mercure cookie and running a calendar-data mapper
+  all catch everything and continue — correctly, because those failures are ordinary weather rather
+  than faults. But `\Throwable` also covers `\Error`, and an `\Error` — an undefined method, a
+  wrong type, a wrong argument count — can only ever be a bug in this codebase. Reported at the same
+  level as a network hiccup, and below the stored threshold, one of those is invisible.
+
+  Those sites now choose their level from what was actually caught: ordinary failures stay where
+  they were, a programming error is reported as one. Nothing else changes — the same failures are
+  still tolerated, still swallowed, still return what they returned before.
+
+  Where a site can name the exceptions it expects, naming them is sharper and is preferred; the
+  image proxy does exactly that with the HTTP client's own interface. This is the floor for the many
+  places that legitimately cannot.
+
 ## v0.1.37 — 2026-08-26
 
 **No migration. Images that arrive without a label are images again.**

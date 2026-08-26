@@ -63,8 +63,9 @@ final readonly class InsightHarvester
             } catch (\Throwable $e) {
                 $this->logger->warning('Insight extractor failed on a message', [
                     'extractor' => $extractor::key(),
-                    'message' => $message->id,
-                    'error' => $e->getMessage(),
+                    'message'   => $message->id,
+                    'error'     => $e->getMessage(),
+                    'exception' => $e,
                 ]);
             }
         }

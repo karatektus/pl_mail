@@ -66,6 +66,7 @@ final readonly class EventExtractionRunner
                     'extractor' => $extractor::class,
                     'messageId' => $message->id,
                     'error'     => $e->getMessage(),
+                    'exception' => $e,
                 ]);
 
                 continue;

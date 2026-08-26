@@ -123,6 +123,7 @@ final readonly class BookingConfirmationMailer
                 'bookingId' => $booking->id,
                 'accountId' => $account->id,
                 'error'     => $e->getMessage(),
+                'exception' => $e,
             ]);
 
             return false;

@@ -213,8 +213,9 @@ final readonly class SyncGmailMessageBatchHandler
                 $affectedAccounts[(int) $targetAccount->id] = $targetAccount;
             } catch (\Throwable $e) {
                 $this->logger->error('SyncGmailMessageBatch: build failed', [
-                    'gmailId' => '' !== $gmailId ? $gmailId : '(unknown)',
-                    'error'   => $e->getMessage(),
+                    'gmailId'   => '' !== $gmailId ? $gmailId : '(unknown)',
+                    'error'     => $e->getMessage(),
+                    'exception' => $e,
                 ]);
             }
         }

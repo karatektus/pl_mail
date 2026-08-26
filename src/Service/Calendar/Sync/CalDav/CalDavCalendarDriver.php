@@ -765,8 +765,9 @@ final readonly class CalDavCalendarDriver implements CalendarSyncDriverInterface
             $response = $this->client->request($integration, 'GET', $href, [], [404, 410]);
         } catch (CalendarSyncException $e) {
             $this->logger->info('CalDav: could not read back the etag after a write', [
-                'href'  => $href,
-                'error' => $e->getMessage(),
+                'href'      => $href,
+                'error'     => $e->getMessage(),
+                'exception' => $e,
             ]);
 
             return null;

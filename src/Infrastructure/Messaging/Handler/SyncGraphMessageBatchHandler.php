@@ -135,8 +135,9 @@ final readonly class SyncGraphMessageBatchHandler
                 $built[] = $entity;
             } catch (\Throwable $e) {
                 $this->logger->error('SyncGraphMessageBatch: build failed', [
-                    'graphId' => '' !== $graphId ? $graphId : '(unknown)',
-                    'error'   => $e->getMessage(),
+                    'graphId'   => '' !== $graphId ? $graphId : '(unknown)',
+                    'error'     => $e->getMessage(),
+                    'exception' => $e,
                 ]);
             }
         }
@@ -201,6 +202,7 @@ final readonly class SyncGraphMessageBatchHandler
             $this->logger->error('SyncGraphMessageBatch: attachment listing failed', [
                 'accountId' => $account->id,
                 'error'     => $e->getMessage(),
+                'exception' => $e,
             ]);
 
             return [];

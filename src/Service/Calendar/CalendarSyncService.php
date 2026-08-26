@@ -290,6 +290,7 @@ final readonly class CalendarSyncService
             $this->logger->error('CalendarSync: sync failed and the error could not be recorded', [
                 'calendarId' => $calendar->id,
                 'error'      => $e->getMessage(),
+                'exception'  => $e,
             ]);
 
             // Announced even here. The row could not be written, so a page
@@ -307,6 +308,7 @@ final readonly class CalendarSyncService
             $this->logger->error('CalendarSync: could not record the sync failure', [
                 'calendarId' => $calendar->id,
                 'error'      => $inner->getMessage(),
+                'exception'  => $inner,
             ]);
         }
 

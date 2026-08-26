@@ -103,11 +103,12 @@ final readonly class AlertDeliverer
             $delivered = $channel->deliver($due);
         } catch (\Throwable $e) {
             $this->logger->error('CalendarAlert: the channel threw instead of refusing', [
-                'userId'  => $due->userId,
-                'eventId' => $due->eventId,
-                'action'  => $due->alert->action->value,
-                'channel' => $channel::class,
-                'error'   => $e->getMessage(),
+                'userId'    => $due->userId,
+                'eventId'   => $due->eventId,
+                'action'    => $due->alert->action->value,
+                'channel'   => $channel::class,
+                'error'     => $e->getMessage(),
+                'exception' => $e,
             ]);
 
             return true;

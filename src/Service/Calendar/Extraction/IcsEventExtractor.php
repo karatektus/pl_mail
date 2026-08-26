@@ -150,7 +150,8 @@ final readonly class IcsEventExtractor implements EventExtractorInterface
             // Malformed calendar data is routine — senders emit all sorts —
             // and it costs an event, never the message.
             $this->logger->info('IcsEventExtractor: unreadable calendar data', [
-                'error' => $e->getMessage(),
+                'error'     => $e->getMessage(),
+                'exception' => $e,
             ]);
 
             return [];
@@ -428,8 +429,9 @@ final readonly class IcsEventExtractor implements EventExtractorInterface
             // A part that genuinely cannot be read — expired provider id,
             // missing file, revoked account. One missed event, nothing more.
             $this->logger->info('IcsEventExtractor: calendar part unavailable', [
-                'partId' => $part->id,
-                'error'  => $e->getMessage(),
+                'partId'    => $part->id,
+                'error'     => $e->getMessage(),
+                'exception' => $e,
             ]);
 
             return null;

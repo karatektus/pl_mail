@@ -219,6 +219,7 @@ final readonly class GoogleCalendarPushManager implements CalendarPushSubscripti
             $this->logger->warning('GoogleCalendarPush: watch failed, staying on polling', [
                 'calendarId' => $calendar->id,
                 'error'      => $e->getMessage(),
+                'exception'  => $e,
             ]);
 
             return false;
@@ -288,6 +289,7 @@ final readonly class GoogleCalendarPushManager implements CalendarPushSubscripti
             $this->logger->info('GoogleCalendarPush: could not stop the channel, letting it lapse', [
                 'calendarId' => $calendar->id,
                 'error'      => $e->getMessage(),
+                'exception'  => $e,
             ]);
         }
 

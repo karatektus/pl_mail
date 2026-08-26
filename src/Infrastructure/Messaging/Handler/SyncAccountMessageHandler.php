@@ -126,6 +126,7 @@ final readonly class SyncAccountMessageHandler
             $this->logger->error('Could not record a sync failure on the account', [
                 'accountId' => $accountId,
                 'error'     => $bookkeeping->getMessage(),
+                'exception' => $bookkeeping,
             ]);
         }
     }

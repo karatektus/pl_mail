@@ -112,7 +112,8 @@ final class WebPushSender implements PushSenderInterface
         } catch (\Throwable $exception) {
             $this->logger->error('Web Push send failed', [
                 'subscriptionId' => $subscription->id,
-                'error' => $exception->getMessage(),
+                'error'          => $exception->getMessage(),
+                'exception'      => $exception,
             ]);
 
             $this->recordFailure($subscription, $payload, $exception->getMessage(), $startedAt);

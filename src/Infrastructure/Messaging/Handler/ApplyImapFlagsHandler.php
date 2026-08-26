@@ -178,6 +178,7 @@ final class ApplyImapFlagsHandler
                     'accountId' => $accountId,
                     'action'    => $message->action,
                     'error'     => $e->getMessage(),
+                    'exception' => $e,
                 ]);
 
                 throw $e;
@@ -186,6 +187,7 @@ final class ApplyImapFlagsHandler
                     'accountId' => $accountId,
                     'action'    => $message->action,
                     'error'     => $e->getMessage(),
+                    'exception' => $e,
                 ]);
 
                 $this->refusedThisRun[$accountId] ??= $e->getMessage();
@@ -248,6 +250,7 @@ final class ApplyImapFlagsHandler
                     'mailboxId' => $sourceMailboxId,
                     'action'    => $action,
                     'error'     => $e->getMessage(),
+                    'exception' => $e,
                 ]);
             }
         }
@@ -291,6 +294,7 @@ final class ApplyImapFlagsHandler
                     'uid'       => $uid,
                     'action'    => $envelope->action,
                     'error'     => $e->getMessage(),
+                    'exception' => $e,
                 ]);
 
                 // The silent-divergence case, and the reason this is recorded
@@ -472,6 +476,7 @@ final class ApplyImapFlagsHandler
                 'messageId'   => $msg->id,
                 'destination' => $destinationPath,
                 'error'       => $e->getMessage(),
+                'exception'   => $e,
             ]);
         }
     }

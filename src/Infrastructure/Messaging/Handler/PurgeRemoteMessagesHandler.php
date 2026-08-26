@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Infrastructure\Messaging\Handler;
 
+use App\Domain\Helper\ThrowableSeverity;
 use App\Domain\Helper\ImapConnectionFactory;
 use App\Entity\Mail\Account;
 use App\Infrastructure\Messaging\Message\PurgeRemoteMessagesMessage;
@@ -124,11 +125,12 @@ final readonly class PurgeRemoteMessagesHandler
                     // Already gone is the common case, and it is a success:
                     // the end state this job wants is that the message does
                     // not exist.
-                    $this->logger->info('PurgeRemoteMessages: could not delete by UID', [
+                    $this->logger->log(ThrowableSeverity::level($e), 'PurgeRemoteMessages: could not delete by UID', [
                         'accountId' => $account->id,
                         'folder'    => $path,
                         'uid'       => $uid,
                         'error'     => $e->getMessage(),
+                        'exception' => $e,
                     ]);
                 }
             }
@@ -143,6 +145,7 @@ final readonly class PurgeRemoteMessagesHandler
                     'accountId' => $account->id,
                     'folder'    => $path,
                     'error'     => $e->getMessage(),
+                    'exception' => $e,
                 ]);
             }
         }
@@ -155,10 +158,11 @@ final readonly class PurgeRemoteMessagesHandler
             try {
                 $this->graph->deleteMessage($account, $graphId);
             } catch (Throwable $e) {
-                $this->logger->info('PurgeRemoteMessages: Graph delete failed', [
+                $this->logger->log(ThrowableSeverity::level($e), 'PurgeRemoteMessages: Graph delete failed', [
                     'accountId' => $account->id,
                     'graphId'   => $graphId,
                     'error'     => $e->getMessage(),
+                    'exception' => $e,
                 ]);
             }
         }

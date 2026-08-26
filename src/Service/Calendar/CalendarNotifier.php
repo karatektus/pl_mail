@@ -98,9 +98,10 @@ final readonly class CalendarNotifier
             ));
         } catch (\Throwable $e) {
             $this->logger->warning('CalendarNotifier: publish failed', [
-                'userId' => $userId,
-                'type'   => $data['type'] ?? null,
-                'error'  => $e->getMessage(),
+                'userId'    => $userId,
+                'type'      => $data['type'] ?? null,
+                'error'     => $e->getMessage(),
+                'exception' => $e,
             ]);
         }
     }

@@ -119,6 +119,7 @@ final readonly class PostIngestPipeline
                 $this->logger->error('PostIngest: threading failed', [
                     'messageId' => $message->id,
                     'error'     => $e->getMessage(),
+                    'exception' => $e,
                 ]);
             }
 
@@ -177,8 +178,9 @@ final readonly class PostIngestPipeline
                 $step->afterCommit($result);
             } catch (\Throwable $e) {
                 $this->logger->error('PostIngest: step failed', [
-                    'step'  => $step::class,
-                    'error' => $e->getMessage(),
+                    'step'      => $step::class,
+                    'error'     => $e->getMessage(),
+                    'exception' => $e,
                 ]);
             }
         }

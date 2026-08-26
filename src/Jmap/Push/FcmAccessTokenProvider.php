@@ -100,7 +100,8 @@ final class FcmAccessTokenProvider
             $body = $response->toArray(false);
         } catch (HttpException|\JsonException $exception) {
             $this->logger->error('FCM: could not reach the Google token endpoint.', [
-                'error' => $exception->getMessage(),
+                'error'     => $exception->getMessage(),
+                'exception' => $exception,
             ]);
 
             return null;

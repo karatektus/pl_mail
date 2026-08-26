@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Infrastructure\Event\Subscriber;
 
+use App\Domain\Helper\ThrowableSeverity;
 use App\Entity\User\User;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
@@ -76,8 +77,7 @@ final readonly class MercureCookieSubscriber implements EventSubscriberInterface
                 $this->authorization->createCookie($event->getRequest(), $topics),
             );
         } catch (\Throwable $exception) {
-            $this->logger->info(
-                'Could not issue a Mercure subscriber cookie; live updates will be unavailable.',
+            $this->logger->log(ThrowableSeverity::level($exception), 'Could not issue a Mercure subscriber cookie; live updates will be unavailable.',
                 ['reason' => $exception->getMessage()],
             );
         }

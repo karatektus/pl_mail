@@ -95,6 +95,7 @@ final readonly class PushDeliveryRecorder
                 'deviceClientId' => $subscription->deviceClientId,
                 'outcome'        => $outcome->value,
                 'error'          => $exception->getMessage(),
+                'exception'      => $exception,
             ]);
         }
     }

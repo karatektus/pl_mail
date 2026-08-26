@@ -73,6 +73,7 @@ final readonly class SyncCalendarHandler
                 $this->logger->error('CalendarSync: sync failed', [
                     'calendarId' => $calendar->id,
                     'error'      => $e->getMessage(),
+                    'exception'  => $e,
                     'failures'   => $calendar->syncFailureCount,
                     'nextTry'    => $calendar->syncBackoffUntil?->format(DATE_ATOM),
                 ]);

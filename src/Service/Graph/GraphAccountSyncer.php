@@ -81,6 +81,7 @@ final readonly class GraphAccountSyncer implements AccountSyncerInterface
             $this->logger->warning('GraphAccountSyncer: immutable id probe failed', [
                 'accountId' => $account->id,
                 'error'     => $e->getMessage(),
+                'exception' => $e,
             ]);
 
             return;

@@ -6,6 +6,7 @@ namespace App\Service\Mail;
 
 use App\Domain\Helper\InlineDisposition;
 use Psr\Log\LoggerInterface;
+use Symfony\Contracts\HttpClient\Exception\ExceptionInterface as HttpClientException;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 /**
@@ -95,10 +96,37 @@ final readonly class ImageProxyFetcher
 
         try {
             $fetched = $this->request($url);
-        } catch (\Throwable $exception) {
+        } catch (HttpClientException $exception) {
+            // ROUTINE. The far end did not answer, or answered badly: DNS that
+            // does not resolve, a TLS handshake that fails, a host that times
+            // out. Nothing here is wrong with plMail, it happens constantly on
+            // any mailbox with newsletters in it, and info is the right volume.
             $this->logger->info('ImageProxyFetcher: fetch failed', [
-                'url'   => $url,
-                'error' => $exception->getMessage(),
+                'url'       => $url,
+                'exception' => $exception,
+            ]);
+
+            return null;
+        } catch (\Throwable $exception) {
+            // NOT ROUTINE, and this branch exists because the single
+            // catch(Throwable) it replaces hid a real one. A typo'd method name
+            // in this class threw an Error, was caught as though the network
+            // had hiccuped, and was written at info — one level below what is
+            // stored by default. An outright fatal reported itself as a fetch
+            // problem and then did not appear at all.
+            //
+            // Anything reaching here is a bug in this code, so it is recorded
+            // at error, where it is stored without anyone lowering a threshold
+            // first, and with the exception ITSELF rather than its message so
+            // the handler keeps the class, the line and the trace.
+            //
+            // Still swallowed rather than rethrown, deliberately. This is one
+            // <img> among dozens on a page; turning a bug in it into a 500 per
+            // image would break the reading pane over something now perfectly
+            // visible in the log.
+            $this->logger->error('ImageProxyFetcher: unexpected failure while fetching', [
+                'url'       => $url,
+                'exception' => $exception,
             ]);
 
             return null;

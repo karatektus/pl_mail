@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Service\Calendar\Extraction;
 
+use App\Domain\Helper\ThrowableSeverity;
 use App\Domain\Enum\Calendar\EventSource;
 use App\Domain\Enum\Calendar\EventStatus;
 use App\Domain\Interface\EventExtractorInterface;
@@ -158,10 +159,11 @@ final readonly class StructuredDataEventExtractor implements EventExtractorInter
         try {
             return $mapper->map($node);
         } catch (\Throwable $e) {
-            $this->logger->info('StructuredDataEventExtractor: mapper failed', [
-                'mapper' => $mapper::class,
-                'type'   => $node->type(),
-                'error'  => $e->getMessage(),
+            $this->logger->log(ThrowableSeverity::level($e), 'StructuredDataEventExtractor: mapper failed', [
+                'mapper'    => $mapper::class,
+                'type'      => $node->type(),
+                'error'     => $e->getMessage(),
+                'exception' => $e,
             ]);
 
             return [];

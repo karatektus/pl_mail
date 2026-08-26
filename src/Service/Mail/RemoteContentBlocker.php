@@ -90,7 +90,8 @@ final readonly class RemoteContentBlocker
             // every one of them. The reader gets the text; the pixels do not
             // get the reader.
             $this->logger->warning('RemoteContentBlocker: body did not parse, rendering text only', [
-                'error' => $exception->getMessage(),
+                'error'     => $exception->getMessage(),
+                'exception' => $exception,
             ]);
 
             return new RemoteContent(strip_tags($html), 0, 0);

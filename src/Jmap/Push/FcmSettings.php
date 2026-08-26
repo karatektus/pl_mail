@@ -110,7 +110,8 @@ final class FcmSettings
             $this->config  = $config;
         } catch (InvalidFirebaseCredentialsException $exception) {
             $this->logger->error('FCM: the stored service-account key cannot be read; push over FCM is off.', [
-                'error' => $exception->getMessage(),
+                'error'     => $exception->getMessage(),
+                'exception' => $exception,
             ]);
         }
     }

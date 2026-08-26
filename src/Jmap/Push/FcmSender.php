@@ -223,6 +223,7 @@ final class FcmSender implements PushSenderInterface
             $this->logger->error('FCM send failed', [
                 'subscriptionId' => $subscription->id,
                 'error'          => $exception->getMessage(),
+                'exception'      => $exception,
             ]);
 
             $this->recordFailure($subscription, $payload, $exception->getMessage(), $startedAt);

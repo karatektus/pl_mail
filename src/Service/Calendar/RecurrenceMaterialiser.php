@@ -203,9 +203,10 @@ final readonly class RecurrenceMaterialiser
             $iterator = new RRuleIterator($rrule, \DateTime::createFromInterface($seed));
         } catch (\Throwable $e) {
             $this->logger->warning('Calendar: unusable recurrence rule', [
-                'eventId' => $event->id,
-                'rrule'   => $rrule,
-                'error'   => $e->getMessage(),
+                'eventId'   => $event->id,
+                'rrule'     => $rrule,
+                'error'     => $e->getMessage(),
+                'exception' => $e,
             ]);
 
             $event->isRecurring     = false;

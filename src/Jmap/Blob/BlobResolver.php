@@ -88,8 +88,9 @@ final class BlobResolver
             $path = $this->attachmentResolver->absolutePathFor($part);
         } catch (\Throwable $exception) {
             $this->logger->warning('JMAP blob download: attachment could not be resolved', [
-                'partId' => $partId,
-                'error' => $exception->getMessage(),
+                'partId'    => $partId,
+                'error'     => $exception->getMessage(),
+                'exception' => $exception,
             ]);
 
             return null;

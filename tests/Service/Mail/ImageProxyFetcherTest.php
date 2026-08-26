@@ -8,6 +8,7 @@ use App\Service\Mail\ImageProxyFetcher;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
+use Symfony\Component\HttpClient\Exception\TransportException;
 use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\MockResponse;
 
@@ -297,6 +298,75 @@ final class ImageProxyFetcherTest extends TestCase
             $fetcher->fetch('https://93.184.216.34/payload.svg'),
             'an unlabelled SVG must not become a way to serve script from our origin',
         );
+    }
+    /**
+     * A network failure is routine and stays quiet.
+     *
+     * DNS that does not resolve, a refused connection, a TLS handshake that
+     * fails — none of it is wrong with plMail, and any mailbox with
+     * newsletters in it produces a steady trickle. info is the right volume.
+     */
+    public function testANetworkFailureIsRecordedAsRoutine(): void
+    {
+        $logger = new CollectingLogger();
+
+        $fetcher = new ImageProxyFetcher(
+            new MockHttpClient(static function (): MockResponse {
+                throw new TransportException('Could not resolve host');
+            }),
+            $logger,
+            sys_get_temp_dir() . '/plmail-image-proxy-test-' . bin2hex(random_bytes(4)),
+        );
+
+        self::assertNull($fetcher->fetch('https://93.184.216.34/pixel.png'));
+
+        $line = $logger->firstContaining('fetch failed');
+
+        self::assertNotNull($line);
+        self::assertSame('info', $line['level'], 'an unreachable host is not an application fault');
+    }
+
+    /**
+     * A BUG in this class is not routine, and must not disguise itself as one.
+     *
+     * THE REGRESSION. `fetch()` caught \Throwable and logged everything at
+     * info. While the unlabelled-image fix above was being written, a typo'd
+     * method name threw an Error, was caught as though the network had
+     * hiccuped, and was written one level below what is stored by default — so
+     * an outright fatal reported itself as a fetch problem and then did not
+     * appear anywhere at all.
+     *
+     * It is still swallowed rather than rethrown, on purpose: this is one
+     * <img> among dozens and a 500 per image would break the reading pane. The
+     * fix is the LEVEL, and carrying the exception itself so the handler keeps
+     * the class, the line and the trace.
+     */
+    public function testABugInTheFetcherIsRecordedAsAFaultNotAsRoutine(): void
+    {
+        $logger = new CollectingLogger();
+
+        $fetcher = new ImageProxyFetcher(
+            new MockHttpClient(static function (): MockResponse {
+                throw new \Error('Call to undefined method Nope::there()');
+            }),
+            $logger,
+            sys_get_temp_dir() . '/plmail-image-proxy-test-' . bin2hex(random_bytes(4)),
+        );
+
+        self::assertNull($fetcher->fetch('https://93.184.216.34/pixel.png'), 'the reader still gets a placeholder');
+
+        $line = $logger->firstContaining('unexpected failure');
+
+        self::assertNotNull($line, 'a fatal in this class has to be reported as one');
+        self::assertSame(
+            'error',
+            $line['level'],
+            'info is below APP_DB_LOG_LEVEL\'s default, which is how the last one stayed invisible',
+        );
+
+        // The exception OBJECT, not its message: DoctrineLogHandler expands
+        // that into class, file, line and trace. A string cannot be expanded.
+        self::assertInstanceOf(\Throwable::class, $line['context']['exception']);
     }
 }
 

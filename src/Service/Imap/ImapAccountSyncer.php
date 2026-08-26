@@ -53,6 +53,7 @@ final readonly class ImapAccountSyncer implements AccountSyncerInterface
             $this->logger->error('ImapAccountSyncer: mailbox structure sync failed', [
                 'accountId' => $account->id,
                 'error'     => $e->getMessage(),
+                'exception' => $e,
             ]);
         }
 
@@ -81,6 +82,7 @@ final readonly class ImapAccountSyncer implements AccountSyncerInterface
                     $this->logger->error('ImapAccountSyncer: mailbox sync failed', [
                         'mailboxId' => $mailbox->id,
                         'error'     => $e->getMessage(),
+                        'exception' => $e,
                     ]);
                 }
             }

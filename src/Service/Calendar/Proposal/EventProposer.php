@@ -270,6 +270,7 @@ final readonly class EventProposer
                 'detector'  => $detector::class,
                 'messageId' => $context->message->id,
                 'error'     => $e->getMessage(),
+                'exception' => $e,
             ]);
 
             return null;

@@ -72,8 +72,9 @@ class GmailApiSender implements MailSenderInterface
             }
         } catch (HttpExceptionInterface $e) {
             $this->logger->error('GmailApiSender: request error', [
-                'account' => $account->id,
-                'error'   => $e->getMessage(),
+                'account'   => $account->id,
+                'error'     => $e->getMessage(),
+                'exception' => $e,
             ]);
 
             return false;

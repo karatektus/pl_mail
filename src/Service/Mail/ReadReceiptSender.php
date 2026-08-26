@@ -77,6 +77,7 @@ final readonly class ReadReceiptSender
             $this->logger->error('ReadReceiptSender: MDN could not be sent', [
                 'messageId' => $message->id,
                 'error'     => $e->getMessage(),
+                'exception' => $e,
             ]);
 
             return false;

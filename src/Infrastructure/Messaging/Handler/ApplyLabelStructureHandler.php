@@ -92,6 +92,7 @@ final readonly class ApplyLabelStructureHandler
                 'action'    => $message->action,
                 'label'     => $message->fullName,
                 'error'     => $e->getMessage(),
+                'exception' => $e,
             ]);
 
             throw $e;

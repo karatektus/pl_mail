@@ -373,8 +373,9 @@ final class GmailMessageBuilder
                 // A part we could not store is a missed event, never a failed
                 // import — the message itself is fine.
                 $this->logger->warning('GmailMessageBuilder: inline part not stored', [
-                    'gmailId' => $message->gmailId,
-                    'error'   => $e->getMessage(),
+                    'gmailId'   => $message->gmailId,
+                    'error'     => $e->getMessage(),
+                    'exception' => $e,
                 ]);
 
                 continue;

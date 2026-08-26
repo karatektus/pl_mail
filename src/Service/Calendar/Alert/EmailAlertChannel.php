@@ -97,6 +97,7 @@ final readonly class EmailAlertChannel implements AlertChannelInterface
                 'eventId'   => $due->eventId,
                 'accountId' => $account->id,
                 'error'     => $e->getMessage(),
+                'exception' => $e,
             ]);
 
             return false;

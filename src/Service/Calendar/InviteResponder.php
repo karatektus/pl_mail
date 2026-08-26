@@ -178,6 +178,7 @@ final readonly class InviteResponder
                 'eventId'   => $invite->event->id,
                 'status'    => $status->value,
                 'error'     => $e->getMessage(),
+                'exception' => $e,
             ]);
 
             return false;

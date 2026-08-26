@@ -249,7 +249,8 @@ final readonly class MailBodySanitizer
             return new CssToInlineStyles()->convert($html);
         } catch (\Throwable $e) {
             $this->logger->warning('MailBodySanitizer: CSS inlining failed, sanitizing raw body', [
-                'error' => $e->getMessage(),
+                'error'     => $e->getMessage(),
+                'exception' => $e,
             ]);
 
             return $html;

@@ -82,6 +82,7 @@ final readonly class ExtractEventsHandler
                 $this->logger->error('ExtractEvents: extraction failed for a message', [
                     'messageId' => $messageId,
                     'error'     => $e->getMessage(),
+                    'exception' => $e,
                 ]);
             }
 

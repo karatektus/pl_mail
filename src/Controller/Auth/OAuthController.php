@@ -160,6 +160,7 @@ class OAuthController extends AbstractController
             $this->logger->warning('OAuth token exchange failed', [
                 'provider'   => $provider,
                 'error'      => $e->getMessage(),
+                'exception'  => $e,
                 'aadstsCode' => $translated['code'],
             ]);
 

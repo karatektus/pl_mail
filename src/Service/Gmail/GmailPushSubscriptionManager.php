@@ -117,6 +117,7 @@ final readonly class GmailPushSubscriptionManager implements PushSubscriptionMan
                 'accountId' => $account->id,
                 'topic'     => ($this->pushSettings->topic() ?? ''),
                 'error'     => $e->getMessage(),
+                'exception' => $e,
                 'body'      => $e instanceof HttpExceptionInterface
                     ? $e->getResponse()->getContent(false)
                     : null,

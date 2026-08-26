@@ -90,6 +90,7 @@ final class GmailWatchService
             $this->logger->warning('GmailWatchService: stopWatch failed', [
                 'accountId' => $account->id,
                 'error'     => $e->getMessage(),
+                'exception' => $e,
             ]);
         }
 

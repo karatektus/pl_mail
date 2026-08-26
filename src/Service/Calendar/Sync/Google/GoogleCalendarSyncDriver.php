@@ -315,6 +315,7 @@ final readonly class GoogleCalendarSyncDriver implements CalendarSyncDriverInter
                     'calendarId' => $calendar->id,
                     'eventId'    => $event->id,
                     'error'      => $e->getMessage(),
+                    'exception'  => $e,
                 ]);
 
                 return;
@@ -324,6 +325,7 @@ final readonly class GoogleCalendarSyncDriver implements CalendarSyncDriverInter
                     'eventId'       => $event->id,
                     'originalStart' => $override->originalStart->format(DateTimeInterface::RFC3339),
                     'error'         => $e->getMessage(),
+                    'exception'     => $e,
                 ]);
             }
         }

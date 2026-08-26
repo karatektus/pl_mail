@@ -64,6 +64,7 @@ final readonly class ProposeEventsStep implements PostIngestStepInterface
                 $this->logger->error('EventProposal: proposing failed', [
                     'messageId' => $message->id,
                     'error'     => $e->getMessage(),
+                    'exception' => $e,
                 ]);
             }
         }

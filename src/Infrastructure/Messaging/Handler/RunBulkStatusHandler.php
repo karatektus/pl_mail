@@ -88,9 +88,10 @@ final readonly class RunBulkStatusHandler
             $this->run($job);
         } catch (Throwable $e) {
             $this->logger->error('RunBulkStatusHandler: bulk action failed', [
-                'jobId' => $message->jobId,
-                'kind'  => $job->kind->value,
-                'error' => $e->getMessage(),
+                'jobId'     => $message->jobId,
+                'kind'      => $job->kind->value,
+                'error'     => $e->getMessage(),
+                'exception' => $e,
             ]);
 
             // Recorded on the job, not only logged: the person who started this

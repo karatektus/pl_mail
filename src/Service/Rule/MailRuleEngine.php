@@ -107,6 +107,7 @@ final readonly class MailRuleEngine
                         'ruleId'    => $rule->id,
                         'messageId' => $id,
                         'error'     => $e->getMessage(),
+                        'exception' => $e,
                     ]);
                     continue;
                 }
@@ -134,8 +135,9 @@ final readonly class MailRuleEngine
             // A stored rule whose conditions no longer compile — the
             // vocabulary moved under it, or it predates validation.
             $this->logger->warning('MailRuleEngine: skipping unmatchable rule', [
-                'ruleId' => $rule->id,
-                'error'  => $e->getMessage(),
+                'ruleId'    => $rule->id,
+                'error'     => $e->getMessage(),
+                'exception' => $e,
             ]);
 
             return [];

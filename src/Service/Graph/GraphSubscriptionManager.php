@@ -150,6 +150,7 @@ final readonly class GraphSubscriptionManager implements PushSubscriptionManager
             $this->logger->error('GraphSubscriptionManager: subscription failed, falling back to polling', [
                 'accountId' => $account->id,
                 'error'     => $e->getMessage(),
+                'exception' => $e,
             ]);
 
             return false;
@@ -223,6 +224,7 @@ final readonly class GraphSubscriptionManager implements PushSubscriptionManager
                 $this->logger->warning('GraphSubscriptionManager: renewal failed, handing it back and recreating', [
                     'accountId' => $account->id,
                     'error'     => $e->getMessage(),
+                    'exception' => $e,
                 ]);
 
                 $this->unsubscribe($account);
@@ -256,6 +258,7 @@ final readonly class GraphSubscriptionManager implements PushSubscriptionManager
             $this->logger->info('GraphSubscriptionManager: teardown failed, letting it lapse', [
                 'accountId' => $account->id,
                 'error'     => $e->getMessage(),
+                'exception' => $e,
             ]);
         }
 

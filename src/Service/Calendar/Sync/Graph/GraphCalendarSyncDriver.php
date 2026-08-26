@@ -582,6 +582,7 @@ final readonly class GraphCalendarSyncDriver implements CalendarSyncDriverInterf
             $this->logger->info('GraphCalendarSync: the mailbox time zone could not be read', [
                 'accountId' => $account->id,
                 'error'     => $e->getMessage(),
+                'exception' => $e,
             ]);
 
             return null;
@@ -635,8 +636,9 @@ final readonly class GraphCalendarSyncDriver implements CalendarSyncDriverInterf
                 $this->pushInstance($account, $event, $seriesRemoteId, $override);
             } catch (CalendarSyncThrottledException $e) {
                 $this->logger->warning('GraphCalendarSync: throttled while sending the instances of a series, stopping', [
-                    'eventId' => $event->id,
-                    'error'   => $e->getMessage(),
+                    'eventId'   => $event->id,
+                    'error'     => $e->getMessage(),
+                    'exception' => $e,
                 ]);
 
                 return;
@@ -645,6 +647,7 @@ final readonly class GraphCalendarSyncDriver implements CalendarSyncDriverInterf
                     'eventId'       => $event->id,
                     'originalStart' => $override->originalStart->format('Y-m-d\TH:i:s\Z'),
                     'error'         => $e->getMessage(),
+                    'exception'     => $e,
                 ]);
             }
         }

@@ -80,6 +80,7 @@ final readonly class PushTeardown
                 $this->logger->warning('PushTeardown: could not revoke mail push, continuing', [
                     'accountId' => $account->id,
                     'error'     => $e->getMessage(),
+                    'exception' => $e,
                 ]);
             }
         }
@@ -114,6 +115,7 @@ final readonly class PushTeardown
                 $this->logger->warning('PushTeardown: could not revoke calendar push, continuing', [
                     'calendarId' => $calendar->id,
                     'error'      => $e->getMessage(),
+                    'exception'  => $e,
                 ]);
             }
         }

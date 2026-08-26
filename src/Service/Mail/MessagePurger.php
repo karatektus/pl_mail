@@ -218,8 +218,9 @@ final readonly class MessagePurger
                 $this->attachments->delete($part->storagePath);
             } catch (\Throwable $e) {
                 $this->logger->warning('MessagePurger: could not delete an attachment', [
-                    'part'  => $part->id,
-                    'error' => $e->getMessage(),
+                    'part'      => $part->id,
+                    'error'     => $e->getMessage(),
+                    'exception' => $e,
                 ]);
             }
         }
@@ -228,8 +229,9 @@ final readonly class MessagePurger
             $this->raw->delete($message->rawPath);
         } catch (\Throwable $e) {
             $this->logger->warning('MessagePurger: could not delete a raw source', [
-                'message' => $message->id,
-                'error'   => $e->getMessage(),
+                'message'   => $message->id,
+                'error'     => $e->getMessage(),
+                'exception' => $e,
             ]);
         }
     }

@@ -104,7 +104,8 @@ final class RawMessageResolver
         } catch (\Throwable $exception) {
             $this->logger->warning('Raw message could not be fetched from the provider', [
                 'messageId' => $message->id,
-                'error' => $exception->getMessage(),
+                'error'     => $exception->getMessage(),
+                'exception' => $exception,
             ]);
 
             return null;

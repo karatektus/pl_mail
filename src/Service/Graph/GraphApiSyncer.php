@@ -94,6 +94,7 @@ final class GraphApiSyncer
                     'accountId' => $account->id,
                     'folderId'  => $folderId,
                     'error'     => $e->getMessage(),
+                    'exception' => $e,
                 ]);
 
                 $everyFolderAnswered = false;
@@ -126,6 +127,7 @@ final class GraphApiSyncer
                         'accountId' => $account->id,
                         'folderId'  => $folderId,
                         'error'     => $e->getMessage(),
+                        'exception' => $e,
                     ]);
 
                     $everyFolderAnswered = false;

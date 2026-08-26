@@ -384,6 +384,7 @@ final readonly class ThreadStatusUpdater
                 $this->logger->error('ThreadStatusUpdater: could not queue read receipt', [
                     'messageId' => $id,
                     'error'     => $e->getMessage(),
+                    'exception' => $e,
                 ]);
             }
         }

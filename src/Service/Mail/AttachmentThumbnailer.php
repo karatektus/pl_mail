@@ -87,8 +87,9 @@ final readonly class AttachmentThumbnailer
             // A provider fetch can fail for reasons that have nothing to do
             // with previews; the download link surfaces the real error.
             $this->logger->debug('AttachmentThumbnailer: source unavailable', [
-                'partId' => $part->id,
-                'error'  => $exception->getMessage(),
+                'partId'    => $part->id,
+                'error'     => $exception->getMessage(),
+                'exception' => $exception,
             ]);
 
             return null;

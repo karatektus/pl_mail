@@ -103,7 +103,8 @@ final readonly class JsonLdReader
             // Should not happen — the HTML5 parser has no fatal input — but a
             // body that defeats it costs its events, never the message.
             $this->logger->info('JsonLdReader: body could not be parsed as HTML', [
-                'error' => $e->getMessage(),
+                'error'     => $e->getMessage(),
+                'exception' => $e,
             ]);
 
             return [];
@@ -142,7 +143,8 @@ final readonly class JsonLdReader
             // Routine rather than exceptional: senders emit trailing commas,
             // unescaped newlines and templating that never got substituted.
             $this->logger->info('JsonLdReader: unreadable JSON-LD block', [
-                'error' => $e->getMessage(),
+                'error'     => $e->getMessage(),
+                'exception' => $e,
             ]);
 
             return null;

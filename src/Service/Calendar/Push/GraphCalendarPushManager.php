@@ -339,6 +339,7 @@ final readonly class GraphCalendarPushManager implements CalendarPushSubscriptio
                 'calendarId' => $calendar->id,
                 'method'     => $method,
                 'error'      => $e->getMessage(),
+                'exception'  => $e,
             ]);
 
             return null;

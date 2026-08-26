@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Service\Imap;
 
+use App\Domain\Helper\ThrowableSeverity;
 use App\Entity\Mail\Mailbox;
 use Psr\Log\LoggerInterface;
 use Throwable;
@@ -164,9 +165,10 @@ final readonly class ImapFolderListing
                 'readAt'      => $readAt,
             ];
         } catch (Throwable $e) {
-            $this->logger->info('Could not list a folder in full', [
-                'mailbox' => $path,
-                'error'   => $e->getMessage(),
+            $this->logger->log(ThrowableSeverity::level($e), 'Could not list a folder in full', [
+                'mailbox'   => $path,
+                'error'     => $e->getMessage(),
+                'exception' => $e,
             ]);
 
             return null;

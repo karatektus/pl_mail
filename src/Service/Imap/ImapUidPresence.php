@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Service\Imap;
 
+use App\Domain\Helper\ThrowableSeverity;
 use App\Domain\Helper\ImapConnectionFactory;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Mailbox;
@@ -108,10 +109,11 @@ final class ImapUidPresence
 
             return null !== $found;
         } catch (Throwable $e) {
-            $this->logger->info('Could not establish whether a UID is still on the server', [
-                'mailbox' => $mailbox->fullPath,
-                'uid'     => $uid,
-                'error'   => $e->getMessage(),
+            $this->logger->log(ThrowableSeverity::level($e), 'Could not establish whether a UID is still on the server', [
+                'mailbox'   => $mailbox->fullPath,
+                'uid'       => $uid,
+                'error'     => $e->getMessage(),
+                'exception' => $e,
             ]);
 
             return null;
@@ -135,9 +137,10 @@ final class ImapUidPresence
             // connection will refuse the next fifty just as slowly.
             $this->unavailable = true;
 
-            $this->logger->info('No second IMAP connection for move reconciliation', [
-                'account' => $this->account->id,
-                'error'   => $e->getMessage(),
+            $this->logger->log(ThrowableSeverity::level($e), 'No second IMAP connection for move reconciliation', [
+                'account'   => $this->account->id,
+                'error'     => $e->getMessage(),
+                'exception' => $e,
             ]);
 
             return null;

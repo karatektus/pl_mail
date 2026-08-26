@@ -343,6 +343,7 @@ class ImapIdleCommand extends Command
             $this->logger->warning('ImapIdleCommand: could not record a server alert', [
                 'accountId' => $account->id,
                 'error'     => $e->getMessage(),
+                'exception' => $e,
             ]);
         }
     }

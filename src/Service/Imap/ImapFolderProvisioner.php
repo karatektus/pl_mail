@@ -189,9 +189,10 @@ readonly class ImapFolderProvisioner
                 // Worth a line and not worth failing over: the folder exists
                 // and the mail can be moved into it either way.
                 $this->logger->info('Created an IMAP folder but could not subscribe it', [
-                    'account' => $account->id,
-                    'folder'  => $path,
-                    'error'   => $e->getMessage(),
+                    'account'   => $account->id,
+                    'folder'    => $path,
+                    'error'     => $e->getMessage(),
+                    'exception' => $e,
                 ]);
             }
         } catch (Throwable $e) {
@@ -199,9 +200,10 @@ readonly class ImapFolderProvisioner
             // redeliver and re-attempt a CREATE the server has already refused,
             // on a schedule, forever.
             $this->logger->error('Could not create the IMAP folder a move needed', [
-                'account' => $account->id,
-                'folder'  => $path,
-                'error'   => $e->getMessage(),
+                'account'   => $account->id,
+                'folder'    => $path,
+                'error'     => $e->getMessage(),
+                'exception' => $e,
             ]);
 
             return null;
