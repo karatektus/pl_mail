@@ -1,0 +1,146 @@
+{% import '_partials/_card_chrome.html.twig' as chrome %}
+{#
+admin/ai/_frame.html.twig — Admin → AI.
+
+Accepts:
+  settings — App\Entity\Ai\AiSettings (unsaved when nothing was ever configured)
+  form     — App\Form\Admin\AiSettingsType, bound to it
+  saved    — true immediately after a successful save
+  probe    — App\Domain\DTO\Ai\AiProbe, or null when nothing was tested
+  wanted   — model names typed into the form, for the probe result to check
+
+THE STATUS CHIP IS THE PART WORTH KEEPING. "Off", "configured but off" and
+"running" are three states an administrator has to tell apart at a glance, and
+they are the states people actually get into: a host typed in and never
+switched on, or switched on with nothing behind it. The chip reads the entity's
+own methods, so what this page claims and what the features do cannot drift.
+
+The token is never rendered back. Its field is write-only and its placeholder
+says only whether one exists.
+
+No auto-refresh wraps this frame — it is configuration, not telemetry, and a
+poll would empty a field mid-word.
+#}
+<turbo-frame id="admin-ai" class="block space-y-3">
+
+    <div class="{{ chrome.shell() }}">
+
+        <div class="flex items-center gap-2.5 {{ chrome.band() }}">
+            <i class="fa-solid fa-wand-magic-sparkles text-xs text-zinc-400" aria-hidden="true"></i>
+            <h2 class="text-sm font-semibold text-ink">{{ 'admin.ai.heading'|trans }}</h2>
+
+            {% if settings.isEnabled and settings.isConfigured %}
+                <span class="ml-auto text-[11px] font-medium px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-500">
+                    {{ 'admin.ai.status.on'|trans }}
+                </span>
+            {% elseif settings.isConfigured %}
+                {# A host on file with the switch off is a deliberate pause, not
+                   a half-finished setup, and saying "off" without saying that
+                   would read as the configuration having been lost. #}
+                <span class="ml-auto text-[11px] font-medium px-2 py-0.5 rounded-full bg-raised text-ink-faint">
+                    {{ 'admin.ai.status.paused'|trans }}
+                </span>
+            {% elseif settings.isEnabled %}
+                <span class="ml-auto text-[11px] font-medium px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-500">
+                    {{ 'admin.ai.status.incomplete'|trans }}
+                </span>
+            {% else %}
+                <span class="ml-auto text-[11px] font-medium px-2 py-0.5 rounded-full bg-raised text-ink-faint">
+                    {{ 'admin.ai.status.off'|trans }}
+                </span>
+            {% endif %}
+        </div>
+
+        <div class="px-5 py-4 space-y-4">
+
+            {% if saved %}
+                <div role="status" class="flex items-start gap-2.5 rounded-lg bg-emerald-500/10 px-3.5 py-3 text-sm text-emerald-500">
+                    <i class="fa-solid fa-circle-check mt-0.5 shrink-0" aria-hidden="true"></i>
+                    <p class="leading-snug">{{ 'admin.ai.saved'|trans }}</p>
+                </div>
+            {% endif %}
+
+            <p class="text-sm text-ink-soft leading-relaxed">{{ 'admin.ai.intro'|trans }}</p>
+
+            {# ── What the test found ──────────────────────────────────────────
+               Rendered only when something was tested. Three outcomes, because
+               they send an administrator to three different places: nothing
+               answered, something answered but is not holding the model that
+               was named, or all is well. A single red cross for the first two
+               would send them to the wrong one. #}
+            {% if probe is not null %}
+                {% if probe.reachable %}
+                    {% set missing = [] %}
+                    {% for name in wanted|default([]) %}
+                        {% if name is not empty and not probe.hasModel(name) %}
+                            {% set missing = missing|merge([name]) %}
+                        {% endif %}
+                    {% endfor %}
+
+                    {% if missing is empty %}
+                        <div role="status" class="flex items-start gap-2.5 rounded-lg bg-emerald-500/10 px-3.5 py-3 text-sm text-emerald-500">
+                            <i class="fa-solid fa-plug-circle-check mt-0.5 shrink-0" aria-hidden="true"></i>
+                            <p class="leading-snug">
+                                {{ 'admin.ai.probe.ok'|trans({ '%count%': probe.models|length }) }}
+                                {%- if probe.version %} <span class="opacity-70">({{ probe.version }})</span>{% endif %}
+                            </p>
+                        </div>
+                    {% else %}
+                        <div role="status" class="flex items-start gap-2.5 rounded-lg bg-amber-500/10 px-3.5 py-3 text-sm text-amber-500">
+                            <i class="fa-solid fa-triangle-exclamation mt-0.5 shrink-0" aria-hidden="true"></i>
+                            <p class="leading-snug">
+                                {{ 'admin.ai.probe.missing_model'|trans({ '%models%': missing|join(', ') }) }}
+                            </p>
+                        </div>
+                    {% endif %}
+
+                    {% if probe.models is not empty %}
+                        <details class="text-xs">
+                            <summary class="cursor-pointer text-ink-faint hover:text-ink-muted">
+                                {{ 'admin.ai.probe.models'|trans({ '%count%': probe.models|length }) }}
+                            </summary>
+                            <ul class="mt-2 space-y-0.5 font-mono text-ink-soft">
+                                {% for model in probe.models %}
+                                    <li>{{ model.name }}</li>
+                                {% endfor %}
+                            </ul>
+                        </details>
+                    {% endif %}
+                {% else %}
+                    <div role="alert" class="flex items-start gap-2.5 rounded-lg alert-danger px-3.5 py-3 text-sm text-danger">
+                        <i class="fa-solid fa-plug-circle-xmark mt-0.5 shrink-0" aria-hidden="true"></i>
+                        <p class="leading-snug break-words">
+                            {{ ('admin.ai.probe.' ~ probe.reason)|trans(probe.reasonParams) }}
+                        </p>
+                    </div>
+                {% endif %}
+            {% endif %}
+
+            {{ form_start(form, { attr: { 'data-turbo-frame': 'admin-ai' } }) }}
+                <div class="space-y-4">
+                    {{ form_widget(form) }}
+
+                    <div class="flex flex-wrap justify-end gap-2">
+                        {# Same form, different action. `formaction` so the
+                           address being tested is the one on screen rather than
+                           the one in the database — which is the only moment
+                           the answer is worth anything. #}
+                        <button type="submit"
+                                formaction="{{ path('app_admin_ai_test') }}"
+                                class="inline-flex items-center gap-2 h-9 px-4 rounded-lg text-sm font-medium btn-quiet transition-colors cursor-pointer">
+                            <i class="fa-solid fa-plug text-xs" aria-hidden="true"></i>
+                            {{ 'admin.ai.test'|trans }}
+                        </button>
+
+                        <button type="submit"
+                                class="inline-flex items-center gap-2 h-9 px-4 rounded-lg text-sm font-medium
+                                       text-accent-ink bg-accent hover:bg-accent-strong transition-colors cursor-pointer">
+                            <i class="fa-solid fa-floppy-disk text-xs" aria-hidden="true"></i>
+                            {{ 'admin.ai.save'|trans }}
+                        </button>
+                    </div>
+                </div>
+            {{ form_end(form) }}
+        </div>
+    </div>
+</turbo-frame>

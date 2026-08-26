@@ -42,6 +42,43 @@ admin:
         messages: 'Nachrichten'
         threads: 'Konversationen'
     ago: 'her'
+    ai:
+        field:
+            base_url: 'Modell-Host'
+            base_url_help: 'Die Adresse eines Ollama-Containers in deinem Netz, mit Port.'
+            base_url_invalid: 'Das muss mit http:// oder https:// anfangen.'
+            categorisation: 'Mail in Tabs einsortieren'
+            categorisation_help: 'Läuft bei jeder eingehenden Nachricht. Immer nur als Stichentscheid — zuerst entscheiden die normalen Regeln.'
+            chat_model: 'Schreib-Modell'
+            chat_model_help: 'Für Antworten, Zusammenfassungen und das Einsortieren. Nimm ein instruction-tuned Modell.'
+            embedding_model: 'Such-Modell'
+            embedding_model_help: 'Wandelt Mail in Vektoren um, damit die Suche Bedeutung statt Wörter findet.'
+            enabled: 'Sprachmodell verwenden'
+            enabled_help: 'Standardmäßig aus. Solange das aus ist, wird alles darunter ignoriert.'
+            search: 'Nach Bedeutung suchen'
+            search_help: 'Ergänzt Treffer, die zu dem passen, was du gemeint hast. Die normale Suche bleibt unverändert.'
+            token: 'Token'
+            token_help: 'Nur nötig, wenn du den Host hinter etwas gestellt hast, das danach fragt.'
+            token_help_set: 'Ein Token ist hinterlegt. Leer lassen, um es zu behalten.'
+            writing_help: 'Beim Schreiben helfen'
+            writing_help_help: 'Bietet im Editor Entwürfe und Umformulierungen an, wenn du danach fragst.'
+        heading: 'Sprachmodell'
+        intro: 'plMail kann ein Sprachmodell benutzen, das du selbst betreibst. Es geht nichts nach außen, nichts wird eingeschaltet, bis du es sagst, und solange das aus ist, funktioniert der Mail-Client genau wie bisher.'
+        probe:
+            missing_model: 'Der Host hat geantwortet, hat aber nicht: %models%. Zieh sie dort erst.'
+            no_host: 'Trag zuerst eine Adresse ein.'
+            ok: 'Der Host hat geantwortet und hält %count% Modelle bereit.'
+            models: 'Die %count% vorhandenen Modelle anzeigen'
+            status: 'Der Host hat mit HTTP %status% geantwortet.'
+            unreachable: 'Unter der Adresse hat nichts geantwortet. (%error%)'
+        save: 'Speichern'
+        saved: 'Gespeichert.'
+        status:
+            incomplete: 'Host fehlt'
+            off: 'Aus'
+            on: 'An'
+            paused: 'Pausiert'
+        test: 'Testen'
     config_backup:
         change:
             absent: 'hier noch nicht gesetzt'
@@ -1147,6 +1184,16 @@ clipboard:
 compose:
     # Wird im Dock gezeigt, wenn ein Klick auf „Schreiben“ kein Fenster
     # hervorbringt — ein 5xx, eine abgelaufene Sitzung, eine tote Verbindung.
+    ai:
+        disclaimer: 'Von einem Modell geschrieben. Lies es, bevor du es abschickst.'
+        label: 'Beim Schreiben helfen'
+        no_answer: 'Keine Antwort'
+        task:
+            formal: 'Förmlicher formulieren'
+            proofread: 'Rechtschreibung und Grammatik korrigieren'
+            reply: 'Antwort entwerfen'
+            shorten: 'Kürzer fassen'
+        working: 'Schreibt…'
     open_failed:
         dismiss: Schließen
         failed: Das Schreibfenster konnte nicht geöffnet werden. Bitte versuche es erneut.
@@ -1652,6 +1699,7 @@ message:
         reported_at: 'Gemeldet %datetime%'
     details:
         categorised:
+            ai: 'ein Sprachmodell, weil keine Regel gegriffen hat: '
             correspondent: 'Du hast diesem Absender geschrieben'
             default: 'nichts wies auf Massenmail hin'
             forum: 'ein Mailinglisten-Header: '
@@ -1767,6 +1815,11 @@ onboarding:
             oauth: >-
                 Für Gmail und Outlook nimm stattdessen die Anmelde-Buttons unter
                 Einstellungen → Mail-Konten — dort brauchst du keine Serveradressen.
+        admin_ai:
+            body: 'Die Adresse eines Ollama-Containers in deinem Netz und die Namen zweier Modelle, die dort liegen — eines zum Schreiben, eines für die Suche. Es verlässt nichts dein Netz.'
+            heading: 'Was du brauchst'
+            skip_body: 'Klick auf Weiter, ohne etwas auszufüllen. plMail ist auch ohne das ein vollständiger Mail-Client, und du kannst später jederzeit unter Administration → KI zurückkommen.'
+            skip_heading: 'Kein Interesse?'
         admin_integrations:
             body: Registriere plMail beim Dienst und trage die erhaltenen Zugangsdaten hier ein.
             heading: So richtest du das ein
@@ -1827,6 +1880,10 @@ onboarding:
         account:
             lead: Verbinde das Postfach, das du wirklich liest — plMail beginnt dann zu synchronisieren.
             title: Mail-Konto
+        admin-ai:
+            intro: 'plMail kann ein Sprachmodell benutzen, das du selbst betreibst — zum Suchen nach Bedeutung, zum Einsortieren und als Hilfe beim Schreiben. Das ist völlig optional, du darfst hier alles leer lassen.'
+            lead: 'Optional. Lass es leer, wenn du es nicht willst.'
+            title: 'Sprachmodell'
         admin-integrations:
             lead: Zugangsdaten für die Dienste, aus denen hier alle Dateien anhängen können.
             title: Integrations-Zugangsdaten

@@ -42,6 +42,43 @@ admin:
         messages: 'Bottles'
         threads: 'Yarns'
     ago: 'ago'
+    ai:
+        field:
+            base_url: "Oracle's berth"
+            base_url_help: "Where yer Ollama box lies on the network, port an' all."
+            base_url_invalid: 'That must begin with http:// or https://.'
+            categorisation: 'Sort mail into holds'
+            categorisation_help: "Runs on ev'ry message that arrives. Only breaks a tie — the ordinary rules speak first."
+            chat_model: 'Scrivener model'
+            chat_model_help: "For replies, summaries an' sortin'. Somethin' instruction-tuned."
+            embedding_model: "Divinin' model"
+            embedding_model_help: "Turns mail into vectors so the search finds meanin', not words."
+            enabled: 'Consult an oracle'
+            enabled_help: "Off by default. While this be off, all below be ignored."
+            search: "Search by meanin'"
+            search_help: "Adds hits that match what ye meant. The ordinary search be untouched."
+            token: 'Token'
+            token_help: "Only if ye put a guard in front o' the box."
+            token_help_set: 'A token be on file. Leave it blank to keep it.'
+            writing_help: 'Help me write'
+            writing_help_help: "Offers drafts an' rewrites at the writin' desk, when ye ask."
+        heading: 'Oracle'
+        intro: "plMail can consult an oracle ye run yerself. Nowt leaves yer waters, nowt starts until ye say so, an' while this be off the mail works exactly as it does now."
+        probe:
+            missing_model: "That berth answered, but holds no: %models%. Haul 'em aboard there first."
+            no_host: 'Write an address first.'
+            ok: "That berth answered, an' holds %count% models."
+            models: 'Show the %count% models it holds'
+            status: 'That berth answered with HTTP %status%.'
+            unreachable: 'Nowt answered at that berth. (%error%)'
+        save: 'Save'
+        saved: 'Saved.'
+        status:
+            incomplete: 'Wants a berth'
+            off: 'Off'
+            on: 'On'
+            paused: 'Becalmed'
+        test: 'Test'
     db:
         active:
             empty: 'No queries afoot right now.'
@@ -863,6 +900,16 @@ clipboard:
     copy_failed: Pocketin' failed
 
 compose:
+    ai:
+        disclaimer: "Writ by an oracle. Read it afore ye send it."
+        label: 'Help me write'
+        no_answer: 'No answer'
+        task:
+            formal: 'Say it more proper'
+            proofread: "Mend the spellin'"
+            reply: 'Draft a reply'
+            shorten: 'Make it shorter'
+        working: "Writin'…"
     open_failed:
         dismiss: Belay
         failed: The writin' desk would not open. Give it another go.
@@ -1352,6 +1399,7 @@ message:
         reported_at: "Word came back %datetime%"
     details:
         categorised:
+            ai: "an oracle, for no rule knew it: "
             correspondent: 'ye have written to this one'
             default: 'naught marked it as bilge'
             forum: 'a crew-list header: '
@@ -1457,6 +1505,11 @@ onboarding:
             oauth: >-
                 For Gmail an' Outlook, use the sign-aboard buttons under Riggin' → Mailbags
                 instead — no addresses needed.
+        admin_ai:
+            body: "The berth of an Ollama box on yer network, an' the names o' two models it holds — one for writin', one for searchin'. Nowt leaves yer waters."
+            heading: 'What ye need'
+            skip_body: "Press Next with all of it empty. plMail be a whole mail client without any o' this, an' ye can come back later under Admin -> Oracle."
+            skip_heading: 'Not for ye?'
         admin_integrations:
             body: Register yer ship with the port, then paste the keys it hands ye.
             heading: Riggin' this up
@@ -1516,6 +1569,10 @@ onboarding:
         account:
             lead: Hitch up the mailbag ye actually read, an' plMail starts haulin' it in.
             title: Mailbag
+        admin-ai:
+            intro: "plMail can consult an oracle ye run yerself — for searchin' by meanin', sortin' mail, an' help with writin'. Wholly optional; leave ev'ry box below empty if ye like."
+            lead: "Optional. Leave it be if ye don't want it."
+            title: 'Oracle'
         admin-integrations:
             lead: Keys for the ports every soul aboard can load cargo from.
             title: Port keys

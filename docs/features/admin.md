@@ -280,6 +280,57 @@ delivery.
 
 Retention is 30 days, swept nightly by `app:monitoring:prune`; `--push-days=N` changes it.
 
+## AI
+
+Optional, off by default, and plMail is a complete mail client with it off. Nothing here is switched
+on until you switch it on, and nothing leaves your network: the model runs on a machine you own.
+
+**Model host** is the address of an [Ollama](https://ollama.com) container on your own network,
+including the port — `http://10.0.0.5:11434`. **Token** is only needed if you have put that host
+behind something that asks for one; Ollama itself has no authentication.
+
+Two models, because the jobs are different. The **writing model** should be instruction-tuned and is
+used for drafting and sorting; the **search model** is an embedding model and is usually much
+smaller. `llama3.1:8b` and `nomic-embed-text` are reasonable starting points. Both have to be pulled
+on the host first — plMail never downloads a model.
+
+**Test** asks that host what it is holding, without saving anything. Use it before you save: it will
+tell you the difference between "nothing answered at that address" and "that host answered but is
+not holding the model you named", which send you to two different places.
+
+### The three features are separate switches
+
+They have very different costs, and very different consequences when the model is wrong.
+
+| | What it does | When it runs |
+|---|---|---|
+| **Search by meaning** | Adds results matching what you meant, not only what you typed | On every search, and once over your mailbox |
+| **Sort mail into tabs** | Fills in a category when no rule recognised the message | On every message that arrives |
+| **Help me write** | Offers drafts and rewrites in the composer | Only when you ask |
+
+Sorting is the one to be careful with: it runs unattended. It can only ever act as a tie-breaker —
+if a header, a Gmail label or the fact that you have written to somebody already decided the
+category, the model is not consulted and its opinion is not used. Switching it off needs no cleanup.
+
+Writing help never replaces what you wrote. It appends, so the original is always still there.
+
+### Searching by meaning needs one pass first
+
+Semantic search can only find mail it has embedded, and switching the feature on only embeds mail
+that **arrives** from then on. Everything already in the mailbox needs one pass:
+
+```bash
+docker compose exec php php bin/console app:ai:embed-mailbox --email=you@example.com
+```
+
+It runs on the maintenance worker a chunk at a time and takes hours on a large mailbox. It is safe
+to interrupt and safe to run again — it skips whatever is already embedded, so a second run costs
+almost nothing. Changing the search model invalidates every stored vector, which is how you ask for
+a re-embed: change it, then run the pass again.
+
+Ordinary search is completely unchanged by any of this. If the model host is off, or the pass has
+never been run, search works exactly as it always has.
+
 ## Users
 
 A searchable, paged list of everyone who can sign in, with when they last signed in and whether they

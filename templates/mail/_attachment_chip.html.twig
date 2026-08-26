@@ -68,7 +68,10 @@ console to say why. Turbo leaves a link carrying `download` to the browser.
              alt=""
              loading="lazy"
              decoding="async"
-             onerror="this.remove()"
+             {# A thumbnail may legitimately not exist — see ui--broken-image.
+                Was an inline onerror, which the policy refuses to run. #}
+             data-controller="ui--broken-image"
+             data-action="error->ui--broken-image#remove"
              class="w-8 h-8 shrink-0 rounded object-cover bg-sunken">
     {% else %}
         <i class="fa-solid fa-paperclip text-[11px]" aria-hidden="true"></i>

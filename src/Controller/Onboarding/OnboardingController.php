@@ -47,7 +47,7 @@ final class OnboardingController extends AbstractController
      * progress rail generates a URL for every applicable step. Adding a case
      * without adding it here is what OnboardingStepCoverageTest now checks.
      */
-    public const string STEP_PATTERN = 'admin-mail|admin-integrations|account|profile|security|appearance|integrations';
+    public const string STEP_PATTERN = 'admin-mail|admin-integrations|admin-ai|account|profile|security|appearance|integrations';
 
     public function __construct(
         private readonly OnboardingFlow $flow,

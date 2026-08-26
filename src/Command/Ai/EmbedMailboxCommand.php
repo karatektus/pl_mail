@@ -1,0 +1,117 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Command\Ai;
+
+use App\Entity\Ai\AiFeature;
+use App\Infrastructure\Messaging\Message\BackfillEmbeddingsMessage;
+use App\Repository\Ai\AiSettingsRepository;
+use App\Repository\User\UserRepository;
+use App\Service\Ai\AiAssistant;
+use App\Service\Ai\EmbeddingStore;
+use Symfony\Component\Console\Attribute\AsCommand;
+use Symfony\Component\Console\Command\Command;
+use Symfony\Component\Console\Input\InputInterface;
+use Symfony\Component\Console\Input\InputOption;
+use Symfony\Component\Console\Output\OutputInterface;
+use Symfony\Component\Console\Style\SymfonyStyle;
+use Symfony\Component\Messenger\MessageBusInterface;
+
+/**
+ * Start embedding an existing mailbox.
+ *
+ * Semantic search only sees mail that has been embedded, and the post-ingest
+ * step only embeds mail that ARRIVES. Everything already in the mailbox when
+ * the feature was switched on needs one pass, and on a large mailbox that pass
+ * is measured in hours — so it is started deliberately rather than triggered by
+ * ticking a box, and it is a queue job rather than something that runs inside
+ * this command.
+ *
+ * Safe to run twice. The walk skips anything already embedded under the current
+ * model, so a second run costs one query per chunk and stores nothing — and
+ * after a model change nothing counts as embedded, which is how a re-embed is
+ * asked for.
+ */
+#[AsCommand(
+    name: 'app:ai:embed-mailbox',
+    description: 'Queue a pass that embeds every message in a mailbox for semantic search',
+)]
+final class EmbedMailboxCommand extends Command
+{
+    public function __construct(
+        private readonly UserRepository       $users,
+        private readonly AiAssistant          $ai,
+        private readonly AiSettingsRepository $settings,
+        private readonly EmbeddingStore       $store,
+        private readonly MessageBusInterface  $bus,
+    ) {
+        parent::__construct();
+    }
+
+    protected function configure(): void
+    {
+        $this
+            ->addOption('email', null, InputOption::VALUE_REQUIRED, 'Whose mailbox to embed')
+            ->addOption('all', null, InputOption::VALUE_NONE, 'Every user on this installation');
+    }
+
+    protected function execute(InputInterface $input, OutputInterface $output): int
+    {
+        $io = new SymfonyStyle($input, $output);
+
+        // Refused rather than queued. A backfill against a switched-off feature
+        // would dispatch a job that immediately returns, once, and report
+        // success — which reads as "it is running" to whoever typed it.
+        if (false === $this->ai->isEnabledFor(AiFeature::Search)) {
+            $io->error('Semantic search is off, or no embedding model is configured. See Admin → AI.');
+
+            return Command::FAILURE;
+        }
+
+        $email = $input->getOption('email');
+        $all   = (bool) $input->getOption('all');
+
+        if (null === $email && false === $all) {
+            $io->error('Name a mailbox with --email, or pass --all.');
+
+            return Command::FAILURE;
+        }
+
+        $users = true === $all
+            ? $this->users->findAll()
+            : array_filter([$this->users->findOneBy(['email' => (string) $email])]);
+
+        if ([] === $users) {
+            $io->error('No such user.');
+
+            return Command::FAILURE;
+        }
+
+        $model = (string) $this->settings->currentOrDefault()->embeddingModel;
+
+        foreach ($users as $user) {
+            $id = $user->id;
+
+            if (null === $id) {
+                continue;
+            }
+
+            $this->bus->dispatch(new BackfillEmbeddingsMessage((int) $id));
+
+            $io->writeln(sprintf('Queued a pass over <info>%s</info>.', (string) $user->email));
+        }
+
+        $io->success(sprintf(
+            'Queued. %d messages are already embedded with %s; watch that number climb.',
+            $this->store->countFor($model),
+            $model,
+        ));
+
+        // Said plainly, because the alternative is somebody watching a queue
+        // that is deliberately slow and concluding it has stalled.
+        $io->note('This runs on the maintenance worker, one chunk at a time, and takes hours on a large mailbox. It is safe to interrupt and safe to run again.');
+
+        return Command::SUCCESS;
+    }
+}

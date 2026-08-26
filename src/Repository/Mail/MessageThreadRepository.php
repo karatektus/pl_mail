@@ -1193,23 +1193,24 @@ class MessageThreadRepository extends ServiceEntityRepository
         int               $page = 1,
         int               $perPage = 50,
         SearchSortOrder   $sort = SearchSortOrder::Recent,
+        ?string           $queryVector = null,
     ): SearchPage {
         $offset = ($page - 1) * $perPage;
 
-        $rows = $this->searchRows($user, $query, $sort, $perPage, $offset, false);
+        $rows = $this->searchRows($user, $query, $sort, $perPage, $offset, false, $queryVector);
 
         // Thin, so the expensive pass earns its keep — see the rescue note in
         // buildSearchSql(). Only ever reached on a page that did not fill,
         // which is the same condition the pass exists to serve.
         if (count($rows) < self::SEARCH_RESCUE_BELOW) {
             $rows = $this->rescueRows(
-                fn (): array => $this->searchRows($user, $query, $sort, $perPage, $offset, true),
+                fn (): array => $this->searchRows($user, $query, $sort, $perPage, $offset, true, $queryVector),
                 $rows,
             );
         }
 
         if ([] === $rows) {
-            return new SearchPage([], $this->totalForEmptyPage($user, $query, $sort, $page));
+            return new SearchPage([], $this->totalForEmptyPage($user, $query, $sort, $page, $queryVector));
         }
 
         // Every row carries the same window count, so the first one will do.
@@ -1254,19 +1255,20 @@ class MessageThreadRepository extends ServiceEntityRepository
         ParsedSearchQuery $query,
         SearchSortOrder   $sort,
         int               $page,
+        ?string           $queryVector = null,
     ): int {
         if (1 === $page) {
             return 0;
         }
 
-        $rows = $this->searchRows($user, $query, $sort, 1, 0, false);
+        $rows = $this->searchRows($user, $query, $sort, 1, 0, false, $queryVector);
 
         // Spelled as "nothing at all" rather than searchPage()'s "fewer than a
         // screenful": with a limit of one, that test would fire on every
         // query and put the body scan back on a path that does not need it.
         if ([] === $rows) {
             $rows = $this->rescueRows(
-                fn (): array => $this->searchRows($user, $query, $sort, 1, 0, true),
+                fn (): array => $this->searchRows($user, $query, $sort, 1, 0, true, $queryVector),
                 $rows,
             );
         }
@@ -1302,8 +1304,9 @@ class MessageThreadRepository extends ServiceEntityRepository
         int               $perPage,
         int               $offset,
         bool              $withBodyRescue,
+        ?string           $queryVector = null,
     ): array {
-        [$sql, $params, $types] = $this->buildSearchSql($user, $query, $withBodyRescue);
+        [$sql, $params, $types] = $this->buildSearchSql($user, $query, $withBodyRescue, $queryVector);
 
         $sql .= ' ORDER BY ' . $sort->orderBy() . ' LIMIT :limit OFFSET :offset';
         $params['limit']  = $perPage;
@@ -1326,6 +1329,36 @@ class MessageThreadRepository extends ServiceEntityRepository
      * feature.
      */
     private const int SEARCH_RESCUE_BELOW = 50;
+
+    /**
+     * How many recent messages the semantic arm is allowed to look at.
+     *
+     * The distance function costs about 0.11ms a row, so this is roughly 220ms
+     * — in the same range as the full-text pass beside it (89ms) and the prefix
+     * pass (111ms). Over a whole 100,000-message mailbox the same loop is
+     * eleven seconds, which is worse than the pathology the UNION shape exists
+     * to avoid, so this number is not a tuning knob so much as the thing that
+     * keeps the feature affordable at all.
+     *
+     * Recency is the bound because it is what people search within, because the
+     * planner can serve it from an index, and because it does not change
+     * between pages — a bound that moved would make LIMIT/OFFSET return the
+     * same conversation twice.
+     */
+    private const int SEMANTIC_CANDIDATES = 2000;
+
+    /**
+     * How far apart two unit vectors may be and still count as a hit.
+     *
+     * Cosine distance, so 0 is identical and 1 is unrelated. Deliberately a
+     * THRESHOLD rather than "the nearest k": the total rides on the same
+     * statement as `COUNT(*) OVER ()`, and a top-k arm would make that total
+     * "lexical matches plus up to k", which is only true on the first page.
+     *
+     * Erring tight. A semantic search that quietly widens every result set is
+     * indistinguishable from a search that has stopped working.
+     */
+    private const float SEMANTIC_MAX_DISTANCE = 0.45;
 
     /**
      * How long the body-substring pass gets before it is abandoned.
@@ -1427,6 +1460,7 @@ class MessageThreadRepository extends ServiceEntityRepository
         UserInterface     $user,
         ParsedSearchQuery $query,
         bool              $withBodyRescue = false,
+        ?string           $queryVector = null,
     ): array {
         $params = [];
         $types  = [];
@@ -1502,6 +1536,60 @@ class MessageThreadRepository extends ServiceEntityRepository
                 $cheap[]              = "SELECT m.id FROM message m WHERE {$mine} AND m.search_vector @@ to_tsquery('english', :freePrefix)";
                 $ranks[]              = "ts_rank(m.search_vector, to_tsquery('english', :freePrefix))";
                 $params['freePrefix'] = $free->prefix;
+            }
+
+            // ── The semantic arm ──────────────────────────────────────
+            // Another id-producing arm of the same UNION, so a vector hit is a
+            // candidate on exactly the same footing as a lexical one: it lands
+            // in COUNT(*) OVER (), it pages correctly, and it needs no second
+            // statement to reconcile with.
+            //
+            // NO CALL IS MADE HERE. The vector arrives already computed —
+            // buildSearchSql() runs up to four times per search, once inside
+            // the rescue's timeout transaction, and a round trip to another
+            // machine in any of them would be a search that sometimes takes
+            // four times as long for no reason a user could see.
+            //
+            // BOUNDED, AND THE BOUND IS THE WHOLE DESIGN. The distance function
+            // costs about 0.11ms a row; over 100,000 messages that is eleven
+            // seconds, which is worse than the pathology this UNION was written
+            // to escape. So it only ever runs over the most recent
+            // SEMANTIC_CANDIDATES messages, chosen by an ordering the planner
+            // can serve from an index and which does not change between pages.
+            //
+            // The inner LIMIT is parenthesised because the arms of this UNION
+            // are joined with a bare ' UNION ' — an unparenthesised ORDER BY or
+            // LIMIT would bind to the whole union rather than to this arm.
+            // Already a PostgreSQL literal, normalised by the caller — DBAL
+            // cannot name `real[]` as a parameter type, and the cast below is
+            // what turns the bound string back into an array.
+            if (null !== $queryVector) {
+                $cheap[] = <<<SQL
+                    SELECT m.id
+                      FROM message m
+                      JOIN message_embedding e ON e.message_id = m.id
+                     WHERE {$mine}
+                       AND m.id IN (
+                           SELECT recent.id FROM (
+                               SELECT m2.id FROM message m2
+                                WHERE {$mine}
+                                ORDER BY m2.received_at DESC NULLS LAST, m2.id DESC
+                                LIMIT :semanticCandidates
+                           ) recent
+                       )
+                       AND plmail_embed_distance(e.embedding, CAST(:queryVector AS real[])) <= :semanticDistance
+                SQL;
+
+                // Similarity, so it is on the same "bigger is better" footing
+                // as ts_rank and GREATEST can mix them. Rows with no embedding
+                // give NULL here, which GREATEST ignores.
+                $ranks[] = 'CASE WHEN sem.embedding IS NULL THEN NULL'
+                    . ' ELSE 1 - plmail_embed_distance(sem.embedding, CAST(:queryVector AS real[])) END';
+
+                $params['queryVector']         = $queryVector;
+                $params['semanticDistance']    = self::SEMANTIC_MAX_DISTANCE;
+                $params['semanticCandidates']  = self::SEMANTIC_CANDIDATES;
+                $types['semanticCandidates']   = ParameterType::INTEGER;
             }
 
             if (null !== $free->substring) {
@@ -1651,6 +1739,14 @@ class MessageThreadRepository extends ServiceEntityRepository
         //
         // The result was always right, which is why this survived: GROUP BY
         // hides the duplication perfectly and only the clock shows it.
+        // One row per message, so this cannot multiply anything — which is the
+        // property the label joins above lost and had to be given back in
+        // v0.1.40. LEFT, because most messages have no embedding and every one
+        // of them still has to be able to match lexically.
+        $semanticJoin = null === $queryVector
+            ? ''
+            : "\n            LEFT JOIN message_embedding sem ON sem.message_id = m.id";
+
         $labelJoins = '';
 
         if (null !== $query->label || null !== $query->mailboxRole) {
@@ -1666,7 +1762,7 @@ class MessageThreadRepository extends ServiceEntityRepository
                 COUNT(*) OVER ()                                  AS total_threads
             FROM message_thread t
             JOIN message m ON m.thread_id = t.id
-            JOIN account a ON a.id = t.account_id{$labelJoins}
+            JOIN account a ON a.id = t.account_id{$semanticJoin}{$labelJoins}
             WHERE {$whereClause}
             GROUP BY t.id
         SQL;

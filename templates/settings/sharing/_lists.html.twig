@@ -46,7 +46,8 @@ Variables:
         <input type="text"
                readonly
                value="{{ mintedUrl }}"
-               onclick="this.select()"
+               data-controller="ui--auto-submit"
+               data-action="click->ui--auto-submit#selectAll"
                aria-label="{{ 'calendar.share.minted.heading'|trans }}"
                class="mt-2 w-full h-9 px-3 rounded-lg text-xs font-mono bg-field border border-field text-ink
                       focus:outline-none focus-visible:ring-2 focus-visible:ring-accent">

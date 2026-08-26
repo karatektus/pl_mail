@@ -42,6 +42,43 @@ admin:
         messages: 'Messages'
         threads: 'Threads'
     ago: 'ago'
+    ai:
+        field:
+            base_url: 'Model host'
+            base_url_help: 'The address of an Ollama container on your network, including the port.'
+            base_url_invalid: 'This has to start with http:// or https://.'
+            categorisation: 'Sort mail into tabs'
+            categorisation_help: 'Runs on every message that arrives. Only ever a tie-breaker — the ordinary rules decide first.'
+            chat_model: 'Writing model'
+            chat_model_help: 'Used for replies, summaries and sorting. Something instruction-tuned.'
+            embedding_model: 'Search model'
+            embedding_model_help: 'Turns mail into vectors so search can find meaning rather than words.'
+            enabled: 'Use a language model'
+            enabled_help: 'Off by default. Everything below is ignored while this is off.'
+            search: 'Search by meaning'
+            search_help: 'Adds results that match what you meant. The ordinary search is unchanged.'
+            token: 'Token'
+            token_help: 'Only if you have put the host behind something that asks for one.'
+            token_help_set: 'A token is on file. Leave blank to keep it.'
+            writing_help: 'Help me write'
+            writing_help_help: 'Offers drafts and rewrites in the composer, when you ask for them.'
+        heading: 'Language model'
+        intro: 'plMail can use a language model you run yourself. Nothing is sent anywhere else, nothing is switched on until you say so, and the mail client works exactly as it does now while this is off.'
+        probe:
+            missing_model: 'That host answered, but it is not holding: %models%. Pull them on the host first.'
+            no_host: 'Type an address first.'
+            ok: 'That host answered, and is holding %count% models.'
+            models: 'Show the %count% models it is holding'
+            status: 'That host answered with HTTP %status%.'
+            unreachable: 'Nothing answered at that address. (%error%)'
+        save: 'Save'
+        saved: 'Saved.'
+        status:
+            incomplete: 'Needs a host'
+            off: 'Off'
+            on: 'On'
+            paused: 'Paused'
+        test: 'Test'
     config_backup:
         change:
             absent: 'nothing set here yet'
@@ -1125,6 +1162,16 @@ compose:
     # Shown in the dock when clicking Compose does not produce a window —
     # a 5xx, an expired session, a dead connection. Turbo's own answer to all
     # three is four words of untranslated English in the corner.
+    ai:
+        disclaimer: 'Written by a model. Read it before you send it.'
+        label: 'Help me write'
+        no_answer: 'No answer'
+        task:
+            formal: 'Make it more formal'
+            proofread: 'Fix spelling and grammar'
+            reply: 'Draft a reply'
+            shorten: 'Make it shorter'
+        working: 'Writing…'
     open_failed:
         dismiss: Dismiss
         failed: The compose window could not be opened. Please try again.
@@ -1646,6 +1693,7 @@ message:
         reported_at: 'Reported %datetime%'
     details:
         categorised:
+            ai: 'a language model, because no rule recognised it: '
             correspondent: 'you have written to this sender'
             default: 'nothing marked it as bulk mail'
             forum: 'a mailing-list header: '
@@ -1759,6 +1807,11 @@ onboarding:
             oauth: >-
                 For Gmail and Outlook, use the sign-in buttons under Settings → Mail
                 accounts instead — no server addresses needed.
+        admin_ai:
+            body: 'The address of an Ollama container on your network, and the names of two models it is holding — one for writing, one for search. Nothing leaves your network.'
+            heading: 'What you need'
+            skip_body: 'Press Next with everything empty. plMail is a complete mail client without any of this, and you can come back to it later in Admin → AI.'
+            skip_heading: 'Not interested?'
         admin_integrations:
             body: Register plMail with the service, then paste the credentials it gives you.
             heading: Setting this up
@@ -1818,6 +1871,10 @@ onboarding:
         account:
             lead: Connect the mailbox you actually read, and plMail starts syncing it.
             title: Mail account
+        admin-ai:
+            intro: 'plMail can use a language model you run yourself — for searching by meaning, sorting mail, and help with writing. It is entirely optional, and you can leave every box below empty.'
+            lead: 'Optional. Leave it empty if you do not want it.'
+            title: 'Language model'
         admin-integrations:
             lead: Credentials for the services everyone here can attach files from.
             title: Integration credentials

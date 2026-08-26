@@ -403,6 +403,36 @@ class Message extends MessageModel
     public ?string $bounceDiagnostic = null;
 
     /**
+     * What a language model thought this message was, if one was ever asked.
+     *
+     * A SECOND OPINION, STORED SEPARATELY FROM THE DECISION
+     * ────────────────────────────────────────────────────
+     * Deliberately not written into $category. The category is what the
+     * deterministic rules produced, it is what every list query filters on, and
+     * it must stay explicable without reaching for a machine that may since
+     * have been switched off. Overwriting it would make a tab's contents depend
+     * on which model happened to be installed the week the mail arrived, with
+     * nothing on the row to say so.
+     *
+     * So this sits beside it and is consulted only where the rules had nothing
+     * to say — see MessageCategorizer::explain(). Turning the feature off makes
+     * every message fall straight back to the rules, with no re-processing and
+     * no column to clean up.
+     */
+    #[ORM\Column(name: 'ai_category', enumType: MessageCategory::class, nullable: true)]
+    public ?MessageCategory $aiCategory = null;
+
+    /**
+     * When the model was asked — not when it answered usefully.
+     *
+     * Set even when the answer was unusable, because "asked and got nothing"
+     * and "never asked" need to be distinguishable or a backfill would retry
+     * the same unanswerable message on every pass forever.
+     */
+    #[ORM\Column(name: 'ai_categorised_at', nullable: true)]
+    public ?DateTimeImmutable $aiCategorisedAt = null;
+
+    /**
      * @var Collection<int, Label>
      */
     #[ORM\ManyToMany(targetEntity: Label::class)]

@@ -77,6 +77,7 @@ or extending plMail rather than running it.
 | [Mail ingest](internals/mail-ingest.md) | The pipeline from provider to database, threading, categorisation |
 | [The calendar model](internals/calendar-model.md) | JSCalendar in jsonb, projected columns, occurrences, recurrence and overrides |
 | [The sync engine](internals/calendar-sync-engine.md) | The driver contract every provider implements, push channels, deduplication |
+| [AI assistance](internals/ai-assist.md) | The optional model features: what is off by default, and why the vector design avoids pgvector |
 | [Event extraction](internals/event-extraction.md) | How an invitation and how a sentence become a calendar entry |
 | [JMAP](internals/jmap.md) | What is implemented, what is deliberately not, and the id spaces |
 | [Security model](internals/security-model.md) | Encryption at rest, the secrets file, tokens, and what a public link can reach |

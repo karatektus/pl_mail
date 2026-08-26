@@ -27,7 +27,7 @@ idiom every boolean on the appearance page wears.
    so the four cards on this page have one rhythm. #}
 <div class="px-4 py-3">
 
-<form method="post" action="{{ path('app_settings_compose_behavior_update') }}" data-turbo="false">
+<form method="post" action="{{ path('app_settings_compose_behavior_update') }}" data-turbo="false" data-controller="ui--auto-submit">
     <input type="hidden" name="_token" value="{{ csrf_token('settings-compose-behavior') }}">
 
     <div class="flex items-start justify-between gap-3">
@@ -42,7 +42,7 @@ idiom every boolean on the appearance page wears.
                 <label>
                     <input type="radio" name="forwardQuoteCollapsed" class="peer sr-only"
                            value="{{ folded ? '1' : '0' }}"
-                           onchange="this.form.submit()"
+                           data-action="change->ui--auto-submit#submit"
                            {{ forwardQuoteCollapsed == folded ? 'checked' : '' }}>
                     <span class="{{ segText }}">
                         {{ (folded ? 'settings.compose_behavior.folded' : 'settings.compose_behavior.open')|trans }}
@@ -57,7 +57,7 @@ idiom every boolean on the appearance page wears.
    control submits on change, and a shared form would post both keys every time
    either moved. The controller only writes the key it is sent, so the two
    cannot overwrite each other. #}
-<form method="post" action="{{ path('app_settings_compose_behavior_update') }}" data-turbo="false" class="mt-4">
+<form method="post" action="{{ path('app_settings_compose_behavior_update') }}" data-turbo="false" class="mt-4" data-controller="ui--auto-submit">
     <input type="hidden" name="_token" value="{{ csrf_token('settings-compose-behavior') }}">
 
     <div class="flex items-start justify-between gap-3">
@@ -72,7 +72,7 @@ idiom every boolean on the appearance page wears.
                 <label>
                     <input type="radio" name="sendFeedback" class="peer sr-only"
                            value="{{ option }}"
-                           onchange="this.form.submit()"
+                           data-action="change->ui--auto-submit#submit"
                            {{ sendFeedback == option ? 'checked' : '' }}>
                     <span class="{{ segText }}">
                         {{ ('settings.compose_behavior.send_' ~ option)|trans }}

@@ -123,6 +123,14 @@ test.describe("send closes the composer and puts the undo in a toast", () => {
      */
     test("an inline reply closes too, and the sent mail is in the conversation", async ({ page }) => {
         await page.goto("/mail/inbox");
+
+        // Wait for the row to be on screen before clicking it, as every other
+        // spec does. The list animates in — rows carry an entrance with a
+        // stagger delay and `animation-fill-mode: backwards`, so a row is
+        // deliberately at opacity 0 until its turn comes. Clicking without
+        // waiting is a race with that, and it is the race this spec kept
+        // losing in a full run while passing alone.
+        await expect(mailRow(page, INBOX_SUBJECTS.read)).toBeVisible();
         await mailRow(page, INBOX_SUBJECTS.read).click();
 
         await page.getByRole("link", { name: "Reply", exact: true }).first().click();

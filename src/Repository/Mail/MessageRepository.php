@@ -585,6 +585,40 @@ class MessageRepository extends ServiceEntityRepository
      *
      * @return list<Message>
      */
+    /**
+     * One page of a user's message ids, ascending, for a walk that has to
+     * survive being interrupted.
+     *
+     * Ascending id rather than date because it is the one ordering nothing can
+     * change underneath a walk that takes hours: mail arriving during it gets a
+     * higher id and is met by the pass still coming, and mail deleted during it
+     * is simply absent. A date cursor would have to cope with both, and with
+     * two messages sharing a timestamp.
+     *
+     * Scoped through the account, which is where ownership lives — a message
+     * belongs to a user only by way of one.
+     *
+     * @return list<int>
+     */
+    public function idsForUserAfter(int $userId, ?int $afterId, int $limit): array
+    {
+        /** @var list<int|string> $ids */
+        $ids = $this->getEntityManager()->getConnection()->fetchFirstColumn(
+            <<<'SQL'
+                SELECT m.id
+                  FROM message m
+                  JOIN account a ON a.id = m.account_id
+                 WHERE a.usr_id = :userId
+                   AND (:afterId::int IS NULL OR m.id > :afterId::int)
+                 ORDER BY m.id ASC
+                 LIMIT :limit
+            SQL,
+            ['userId' => $userId, 'afterId' => $afterId, 'limit' => $limit],
+        );
+
+        return array_map(intval(...), $ids);
+    }
+
     public function findByIds(array $ids): array
     {
         if (0 === count($ids)) {

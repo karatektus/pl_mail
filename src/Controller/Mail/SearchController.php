@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controller\Mail;
 
+use App\Service\Ai\SemanticQuery;
 use App\Domain\Enum\Mail\SearchSortOrder;
 use App\Entity\User\User;
 use App\Repository\Mail\MessageThreadRepository;
@@ -25,6 +26,7 @@ final class SearchController extends AbstractController
         private readonly MessageThreadRepository $threadRepository,
         private readonly EntityManagerInterface  $em,
         private readonly ThreadListRenderer      $listRenderer,
+        private readonly SemanticQuery           $semantic,
     ) {}
 
     #[Route('', name: '', methods: ['GET'])]
@@ -70,7 +72,20 @@ final class SearchController extends AbstractController
         // be a second query re-running the whole search, and on a large mailbox
         // it was a third of the wait for a number nobody navigates by. See
         // MessageThreadRepository::searchRows().
-        $results = $this->threadRepository->searchPage($user, $parsed, $page, sort: $sort);
+        // Embedded HERE, once, and handed down. buildSearchSql() runs up to
+        // four times for one search — the cheap pass, the body rescue, and
+        // twice more when a page past the end recovers its total — and one of
+        // those is inside a statement-timeout transaction. A round trip to
+        // another machine in any of them would be a search that sometimes takes
+        // four times as long for no reason a user could see, and inside the
+        // timeout a slow model would be reported as a database fault.
+        //
+        // Null whenever the feature is off, unconfigured, unreachable, or the
+        // query is too short to mean anything — and null makes the search
+        // exactly the search it has always been.
+        $queryVector = $this->semantic->literalFor($parsed->freeText);
+
+        $results = $this->threadRepository->searchPage($user, $parsed, $page, sort: $sort, queryVector: $queryVector);
         $threads = $results->threads;
 
         // The list views have always preloaded and search never did, which is

@@ -19,11 +19,11 @@
             {# Its own row in a narrow pane, where the two selects plus Refresh
                are wider than it and were being clipped by its overflow-hidden. #}
             <form method="get" action="{{ path('app_admin_logs') }}"
-                  class="w-full @2xl:w-auto @2xl:ml-auto flex flex-wrap items-center gap-2">
+                  class="w-full @2xl:w-auto @2xl:ml-auto flex flex-wrap items-center gap-2" data-controller="ui--auto-submit">
                 <select name="level"
                         {{ select.enhance() }}
                         class="select-field h-8 text-xs"
-                        onchange="this.form.requestSubmit();">
+                        data-action="change->ui--auto-submit#submit">
                     {% for value, name in levels %}
                         <option value="{{ value }}" {{ minLevel == value ? 'selected' : '' }}>≥ {{ name }}</option>
                     {% endfor %}
@@ -31,7 +31,7 @@
                 <select name="channel"
                         {{ select.enhance() }}
                         class="select-field h-8 text-xs"
-                        onchange="this.form.requestSubmit();">
+                        data-action="change->ui--auto-submit#submit">
                     <option value="">{{ 'admin.logs.all_channels'|trans }}</option>
                     {% for ch in channels %}
                         <option value="{{ ch }}" {{ channel == ch ? 'selected' : '' }}>{{ ch }}</option>
@@ -46,7 +46,7 @@
 
             {# Deletes the current filter's entries, not the whole table. #}
             <form method="post" action="{{ path('app_admin_logs_clear') }}" data-turbo-frame="_top"
-                  data-turbo-confirm="{{ 'admin.logs.clear_confirm'|trans({ '%count%': total }) }}">
+                  data-turbo-confirm="{{ 'admin.logs.clear_confirm'|trans({ '%count%': total }) }}" data-controller="ui--auto-submit">
                 <input type="hidden" name="_token" value="{{ csrf_token('admin_logs_clear') }}">
                 <input type="hidden" name="level" value="{{ minLevel }}">
                 <input type="hidden" name="channel" value="{{ channel }}">
@@ -74,12 +74,12 @@
             <span class="text-xs text-ink-muted">{{ 'admin.logs.capture.label'|trans }}</span>
 
             <form method="post" action="{{ path('app_admin_logs_level') }}" data-turbo-frame="_top"
-                  class="flex items-center gap-2">
+                  class="flex items-center gap-2" data-controller="ui--auto-submit">
                 <input type="hidden" name="_token" value="{{ csrf_token('admin_logs_level') }}">
                 <select name="capture"
                         {{ select.enhance() }}
                         class="select-field h-8 text-xs"
-                        onchange="this.form.requestSubmit();">
+                        data-action="change->ui--auto-submit#submit">
                     {# The empty option is how an install gets back to following
                        its environment once a level has been chosen here — see
                        LogSettings on why that is not the same as storing the

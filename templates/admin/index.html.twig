@@ -57,7 +57,7 @@
                                 </span>
                             {% endif %}
 
-                            {% if section not in ['logs', 'insight-reports', 'integrations', 'push', 'backup', 'reset'] %}
+                            {% if section not in ['logs', 'insight-reports', 'integrations', 'push', 'ai', 'backup', 'reset'] %}
                                 <span class="ml-auto text-xs text-ink-faint">{{ 'admin.refresh_hint'|trans }}</span>
                             {% endif %}
                         </div>
@@ -124,6 +124,15 @@
                                        class="{{ section == 'push' ? navActive : navInactive }}">
                                         <i class="fa-solid fa-bell w-4 {{ section == 'push' ? 'text-zinc-400' : '' }}" aria-hidden="true"></i>
                                         {{ 'admin.nav.push'|trans }}
+                                    </a>
+                                    {# After push and before users: it configures
+                                       an outside service the way push does, and
+                                       everything below this point is about people
+                                       or about the install as a whole. #}
+                                    <a href="{{ path('app_admin_dashboard', { section: 'ai' }) }}"
+                                       class="{{ section == 'ai' ? navActive : navInactive }}">
+                                        <i class="fa-solid fa-wand-magic-sparkles w-4 {{ section == 'ai' ? 'text-zinc-400' : '' }}" aria-hidden="true"></i>
+                                        {{ 'admin.nav.ai'|trans }}
                                     </a>
                                     <a href="{{ path('app_admin_dashboard', { section: 'users' }) }}"
                                        class="{{ section == 'users' ? navActive : navInactive }}">
@@ -202,6 +211,21 @@
                                            telemetry, and a poll would fight the modal. #}
                                         <turbo-frame id="admin-integrations"
                                                      src="{{ path('app_admin_integrations_list') }}"
+                                                     loading="lazy">
+                                            <div class="py-10 text-center text-sm text-ink-faint">
+                                                <i class="fa-solid fa-circle-notch fa-spin mr-2" aria-hidden="true"></i>{{ 'admin.loading'|trans }}
+                                            </div>
+                                        </turbo-frame>
+
+                                    {% elseif section == 'ai' %}
+
+                                        {# No auto-refresh, for the reason push
+                                           gives: this frame holds a form an
+                                           administrator is typing an address and
+                                           a token into, and a poll would empty it
+                                           mid-word. #}
+                                        <turbo-frame id="admin-ai"
+                                                     src="{{ path('app_admin_ai_settings') }}"
                                                      loading="lazy">
                                             <div class="py-10 text-center text-sm text-ink-faint">
                                                 <i class="fa-solid fa-circle-notch fa-spin mr-2" aria-hidden="true"></i>{{ 'admin.loading'|trans }}
