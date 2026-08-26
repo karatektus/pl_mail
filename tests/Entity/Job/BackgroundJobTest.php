@@ -8,6 +8,7 @@ use App\Domain\Enum\Job\JobKind;
 use App\Domain\Enum\Job\JobState;
 use App\Entity\Job\BackgroundJob;
 use App\Entity\User\User;
+use DateTimeImmutable;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -75,6 +76,62 @@ final class BackgroundJobTest extends TestCase
         $job->finish(JobState::Done);
 
         self::assertNull($job->failureReason, 'a completed job must not keep an old failure');
+    }
+
+    /**
+     * A job is born looking alive, which is what makes a QUEUED job visible.
+     *
+     * The staleness bound in BackgroundJobRepository::findVisibleForUser reads
+     * lastProgressAt and nothing else, so a job that arrived at the stamp some
+     * other way — a second `new DateTimeImmutable()` across a second boundary,
+     * a null left for the reader to interpret — is a job that flickers out of
+     * the indicator between being started and being picked up.
+     */
+    public function testAJobIsBornWithAProgressStampMatchingItsCreation(): void
+    {
+        $job = $this->job();
+
+        self::assertEquals($job->createdAt, $job->lastProgressAt);
+    }
+
+    /**
+     * Planning the work counts as progress.
+     *
+     * Resolving a whole view into threads takes minutes on a large mailbox, and
+     * it happens before the first chunk. Without a stamp here the job's only
+     * evidence of life would be its creation, and app:jobs:reap would fail it
+     * for the time it spent working out what it was.
+     */
+    public function testPlanningTheWorkCountsAsProgress(): void
+    {
+        $job                 = $this->job();
+        $job->lastProgressAt = new DateTimeImmutable('-1 hour');
+
+        $job->begin(1770);
+
+        self::assertSame(JobState::Running, $job->state);
+        self::assertSame(1770, $job->total);
+        self::assertGreaterThan(new DateTimeImmutable('-1 minute'), $job->lastProgressAt);
+    }
+
+    /**
+     * A chunk landing moves the STAMP, not only the counter.
+     *
+     * The two must not come apart, and this is the test that says so. A handler
+     * that wrote `processed` directly would leave a job whose progress bar was
+     * visibly moving right up to the moment the reaper declared it dead — every
+     * time, after exactly the staleness window, which is the sort of symptom
+     * that gets blamed on the queue.
+     */
+    public function testAChunkLandingMovesTheProgressStamp(): void
+    {
+        $job                 = $this->job();
+        $job->lastProgressAt = new DateTimeImmutable('-1 hour');
+
+        $job->advance(1400);
+
+        self::assertSame(1400, $job->processed);
+        self::assertGreaterThan(new DateTimeImmutable('-1 minute'), $job->lastProgressAt);
     }
 
     /** Marking read and unread are one action with a flag, as the controller has it. */

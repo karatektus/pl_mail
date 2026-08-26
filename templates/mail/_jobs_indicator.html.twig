@@ -52,10 +52,20 @@ the record and a missed nudge costs one stale render, never a wrong answer.
                    aria-hidden="true"></i>
             </button>
 
+            {# The `hidden` ATTRIBUTE, not the Tailwind class.
+               ui--dropdown opens a menu by clearing `hidden` as a property, and
+               it never touches classes. With the class instead, the panel was
+               display:none no matter what the controller did — and because the
+               attribute was absent, the FIRST click read the menu as already
+               open and closed it. So the button pulsed away saying work was
+               running, and clicking it did nothing at all, for ever. Every
+               other dropdown in the app uses the attribute; this was the one
+               that did not. #}
             <div
                 data-ui--dropdown-target="menu"
                 data-enter="slide-down"
-                class="hidden absolute right-0 top-full mt-1 z-30 w-80
+                hidden
+                class="absolute right-0 top-full mt-1 z-30 w-80
                        rounded-pane bg-pane-soft backdrop-blur-sm
                        border border-line shadow-pop p-2 text-sm"
             >

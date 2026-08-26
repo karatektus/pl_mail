@@ -124,8 +124,12 @@ final readonly class RunBulkStatusHandler
             true === $job->view['unreadOnly'],
         );
 
-        $job->state = JobState::Running;
-        $job->total = count($threads);
+        // begin() stamps lastProgressAt along with the total, and that stamp is
+        // the point: resolving a whole view into threads is itself minutes of
+        // work on a large mailbox, so without it a job would arrive here
+        // already looking older than the staleness window and app:jobs:reap
+        // would fail it for the time it spent working out what it was.
+        $job->begin(count($threads));
         $this->em->flush();
         $this->notifier->changed($job);
 
@@ -171,7 +175,13 @@ final readonly class RunBulkStatusHandler
             // Assigned rather than incremented, because $processed is counted
             // here and the row is re-read each time: += against a fresh read
             // would be adding this run's total to itself.
-            $fresh->processed = $processed;
+            //
+            // Through advance() rather than by writing the counter, so the
+            // progress stamp moves with it. That stamp is the ONLY evidence
+            // this job is alive: app:jobs:reap reads it, and a chunk that
+            // updated the number without it would be a job quietly reaped while
+            // it was still working.
+            $fresh->advance($processed);
             $this->em->flush();
             $this->notifier->changed($fresh);
         }

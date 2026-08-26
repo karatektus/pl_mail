@@ -71,6 +71,36 @@ class BackgroundJob
     #[ORM\Column]
     public DateTimeImmutable $createdAt;
 
+    /**
+     * When this job last showed a sign of life.
+     *
+     * WHY A SECOND TIMESTAMP HAD TO EXIST
+     *
+     * createdAt and finishedAt together cannot tell an ABANDONED job from a
+     * slow one. A worker killed mid-run — a container restarted during a
+     * deploy, an OOM kill, a fatal that never reaches finish() — leaves the row
+     * in `running` with no finishedAt, which is character for character what a
+     * job still grinding through a large mailbox looks like.
+     *
+     * That is not hypothetical: three "Marking as read" jobs sat in the topbar
+     * indicator at 1400/1770, 600/1180 and 100/1275 for weeks. The query behind
+     * the indicator had no time bound on its active arm at all, so a stranded
+     * job was visible FOREVER and nothing in the application could ever have
+     * cleared it — there was no fact on the row to clear it by.
+     *
+     * This column is that fact. It moves on every chunk (see advance()), so a
+     * job legitimately working through fifty thousand conversations is never
+     * mistaken for a dead one however long it takes, while a job whose worker
+     * is gone stops moving at the same moment the worker does.
+     *
+     * NOT NULLABLE, and stamped in the constructor. A queued job no worker has
+     * picked up yet is alive and should be shown; a null here would have to be
+     * read as either "brand new" or "long dead" by every caller, and the two
+     * want opposite answers.
+     */
+    #[ORM\Column]
+    public DateTimeImmutable $lastProgressAt;
+
     #[ORM\Column(nullable: true)]
     public ?DateTimeImmutable $finishedAt = null;
 
@@ -98,9 +128,16 @@ class BackgroundJob
 
     public function __construct(User $usr, JobKind $kind)
     {
-        $this->usr       = $usr;
-        $this->kind      = $kind;
-        $this->createdAt = new DateTimeImmutable();
+        // One instant read once and used twice, rather than two calls. A job
+        // created across a second boundary would otherwise be born with a
+        // progress stamp older than itself, which is indistinguishable from a
+        // job that has already been sitting still.
+        $now = new DateTimeImmutable();
+
+        $this->usr            = $usr;
+        $this->kind           = $kind;
+        $this->createdAt      = $now;
+        $this->lastProgressAt = $now;
     }
 
     /** Whole percent, floored, and never a lie: 0 until there is a total. */
@@ -116,6 +153,37 @@ class BackgroundJob
     public function isActive(): bool
     {
         return $this->state->isActive();
+    }
+
+    /**
+     * The work has been planned: this is how much of it there is.
+     *
+     * Stamps lastProgressAt as well as writing the total, because resolving a
+     * whole view into threads is itself minutes of work on a large mailbox —
+     * and a reaper that did not count that as progress would fail a job for the
+     * time it spent working out what the job was.
+     */
+    public function begin(int $total): void
+    {
+        $this->state          = JobState::Running;
+        $this->total          = $total;
+        $this->lastProgressAt = new DateTimeImmutable();
+    }
+
+    /**
+     * Another chunk is through.
+     *
+     * The stamp lives HERE rather than at the call site so that "the counter
+     * moved" and "the job is alive" cannot come apart. A handler that wrote
+     * the counter and forgot the timestamp would have its jobs reaped mid-run,
+     * and the only symptom would be work failing after exactly the staleness
+     * window, every time, with a progress bar that had been moving right up to
+     * the moment it was told it had died.
+     */
+    public function advance(int $processed): void
+    {
+        $this->processed      = $processed;
+        $this->lastProgressAt = new DateTimeImmutable();
     }
 
     public function finish(JobState $state, ?string $reason = null): void
