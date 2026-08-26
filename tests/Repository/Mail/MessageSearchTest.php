@@ -14,7 +14,9 @@ use App\Entity\Mail\Message;
 use App\Entity\Mail\MessageThread;
 use App\Entity\User\User;
 use App\Repository\Mail\MessageThreadRepository;
+use App\Service\Search\FreeTextCompiler;
 use App\Service\Search\SearchQueryParser;
+use Doctrine\Persistence\ManagerRegistry;
 use DateTimeImmutable;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
@@ -436,6 +438,106 @@ final class MessageSearchTest extends KernelTestCase
      * @param list<array{name: string, address: string}> $cc
      * @param list<Label>                                $labels
      */
+    /**
+     * The body-substring pass is allowed to run out of time; the search is not
+     * allowed to fall over when it does.
+     *
+     * That pass scans `body_text ILIKE '%needle%'` and cannot be indexed out of
+     * existence — buildSearchSql() explains why at length, and its note already
+     * recorded a term going "from 13 seconds to a 30-second PHP timeout". Being
+     * conditional made it rare rather than bounded, and a live mailbox duly
+     * produced MaxExecutionTimeError at Statement.php:55.
+     *
+     * Run here with a one-millisecond budget, which no query can meet, so the
+     * expiry is certain rather than hoped for. What must survive is what the
+     * cheap full-text pass already found.
+     */
+    public function testAnExpiredBodyPassKeepsTheResultsTheCheapPassFound(): void
+    {
+        $this->seedMessage('Quarterly figures', body: 'The pelican audit is attached.');
+
+        $impatient = new MessageThreadRepository(
+            self::getContainer()->get(ManagerRegistry::class),
+            new FreeTextCompiler(),
+            rescueTimeoutMs: 1,
+        );
+
+        $page = $impatient->searchPage($this->user, $this->parser->parse('pelican'));
+
+        self::assertCount(
+            1,
+            $page->threads,
+            'the full-text hit was already in hand before the body pass was attempted',
+        );
+        self::assertSame('Quarterly figures', $page->threads[0]->subject);
+    }
+
+    /**
+     * Proof that the body pass is genuinely reached, so the two tests around
+     * this one are not passing on a pass that never ran.
+     *
+     * "elica" sits inside "pelican" and nowhere else: full-text stems whole
+     * words, the prefix pass matches `'elica':*` which "pelican" does not
+     * start with, and the subject and sender columns do not contain it. Only
+     * `body_text ILIKE '%elica%'` can find this row.
+     */
+    public function testAnInfixIsFoundOnlyByTheBodyPass(): void
+    {
+        $this->seedMessage('Quarterly figures', body: 'The pelican audit is attached.');
+
+        self::assertCount(
+            1,
+            $this->repository->searchPage($this->user, $this->parser->parse('elica'))->threads,
+            'if this finds nothing the body pass is not running and the budget tests prove nothing',
+        );
+    }
+
+    /**
+     * The same search, with a budget no query can meet: nothing found, and
+     * nothing thrown.
+     *
+     * Before this, the pass ran unbounded and a live mailbox answered with
+     * `MaxExecutionTimeError: Maximum execution time of 30 seconds exceeded`.
+     * Losing the infix is the deliberate price; a 500 was not a price anybody
+     * chose.
+     */
+    public function testAnExpiredBodyPassGivesUpInsteadOfFailing(): void
+    {
+        $this->seedMessage('Quarterly figures', body: 'The pelican audit is attached.');
+
+        $impatient = new MessageThreadRepository(
+            self::getContainer()->get(ManagerRegistry::class),
+            new FreeTextCompiler(),
+            rescueTimeoutMs: 1,
+        );
+
+        $page = $impatient->searchPage($this->user, $this->parser->parse('elica'));
+
+        self::assertCount(0, $page->threads, 'the one row only the expired pass could find');
+        self::assertSame(0, $page->total);
+    }
+
+    /**
+     * And the same budget must not quietly empty an ordinary search: the guard
+     * is on one pass, not on the query as a whole.
+     */
+    public function testTheBudgetDoesNotAffectTheCheapPass(): void
+    {
+        $this->seedMessage('Invoice 88', fromAddress: 'billing@acme.test');
+
+        $impatient = new MessageThreadRepository(
+            self::getContainer()->get(ManagerRegistry::class),
+            new FreeTextCompiler(),
+            rescueTimeoutMs: 1,
+        );
+
+        self::assertCount(
+            1,
+            $impatient->searchPage($this->user, $this->parser->parse('from:billing@acme.test'))->threads,
+            'operator searches never reach the body pass and must be untouched by its budget',
+        );
+    }
+
     private function seedMessage(
         string $subject,
         string $fromAddress = 'sender@example.test',

@@ -15,6 +15,8 @@ use App\Entity\Mail\MessageThread;
 use App\Service\Search\FreeTextCompiler;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\DBAL\ArrayParameterType;
+use Doctrine\DBAL\Connection;
+use Doctrine\DBAL\Exception\DriverException;
 use Doctrine\DBAL\ParameterType;
 use Doctrine\ORM\QueryBuilder;
 use Doctrine\Persistence\ManagerRegistry;
@@ -25,6 +27,13 @@ class MessageThreadRepository extends ServiceEntityRepository
     public function __construct(
         ManagerRegistry $registry,
         private readonly FreeTextCompiler $freeText = new FreeTextCompiler(),
+        /**
+         * Injectable so the give-up path can be tested for what it does rather
+         * than inspected for what it says. A budget nothing ever exercises is a
+         * budget nobody knows the shape of; at 1ms a test can watch the pass
+         * expire and check that the cheap results are still standing.
+         */
+        private readonly int $rescueTimeoutMs = self::SEARCH_RESCUE_TIMEOUT_MS,
     ) {
         parent::__construct($registry, MessageThread::class);
     }
@@ -1193,7 +1202,10 @@ class MessageThreadRepository extends ServiceEntityRepository
         // buildSearchSql(). Only ever reached on a page that did not fill,
         // which is the same condition the pass exists to serve.
         if (count($rows) < self::SEARCH_RESCUE_BELOW) {
-            $rows = $this->searchRows($user, $query, $sort, $perPage, $offset, true);
+            $rows = $this->rescueRows(
+                fn (): array => $this->searchRows($user, $query, $sort, $perPage, $offset, true),
+                $rows,
+            );
         }
 
         if ([] === $rows) {
@@ -1253,7 +1265,10 @@ class MessageThreadRepository extends ServiceEntityRepository
         // screenful": with a limit of one, that test would fire on every
         // query and put the body scan back on a path that does not need it.
         if ([] === $rows) {
-            $rows = $this->searchRows($user, $query, $sort, 1, 0, true);
+            $rows = $this->rescueRows(
+                fn (): array => $this->searchRows($user, $query, $sort, 1, 0, true),
+                $rows,
+            );
         }
 
         return [] === $rows ? 0 : (int) $rows[0]['total_threads'];
@@ -1311,6 +1326,76 @@ class MessageThreadRepository extends ServiceEntityRepository
      * feature.
      */
     private const int SEARCH_RESCUE_BELOW = 50;
+
+    /**
+     * How long the body-substring pass gets before it is abandoned.
+     *
+     * The pass is measured at about 3 seconds on a 300,000-message corpus —
+     * see the rescue note in buildSearchSql() — so this is generous for a
+     * healthy mailbox and a hard stop for one where it is not. It has to be a
+     * DATABASE timeout rather than a PHP one: `max_execution_time` kills the
+     * PHP process and leaves Postgres still running the scan, so the work
+     * continues after the person who asked for it has already been shown a
+     * 500. `statement_timeout` stops the actual query.
+     *
+     * Higher than the type-ahead's 1500ms because the two are different
+     * promises. A dropdown that misses a keystroke costs nothing; a search
+     * somebody typed and pressed enter on has earned a few seconds.
+     */
+    private const int SEARCH_RESCUE_TIMEOUT_MS = 5000;
+
+    /**
+     * Run the body-substring pass under a time budget, keeping whatever the
+     * cheap passes already found if it does not come back in time.
+     *
+     * WHY THIS EXISTS
+     * ───────────────
+     * buildSearchSql() has carried a note for a while saying this pass once
+     * took a term "from 13 seconds to a 30-second PHP timeout". The note was
+     * right and the mitigation was incomplete: making the pass conditional
+     * made it RARE, not bounded, and on a live mailbox it duly produced
+     *
+     *     MaxExecutionTimeError: Maximum execution time of 30 seconds exceeded
+     *
+     * The pass is a last resort by its own docblock — it exists for a needle
+     * full-text cannot see, and since the tokenizer split the index answers
+     * that case directly. Giving up on it costs a genuine edge. Spending the
+     * whole request on it costs the search.
+     *
+     * So: bounded, and on expiry the cheap results stand. A search that
+     * returns the eleven things full-text found is a search; a search that
+     * 500s after thirty seconds is not.
+     *
+     * @param callable(): list<array<string,mixed>> $rescue
+     * @param list<array<string,mixed>>             $fallback
+     *
+     * @return list<array<string,mixed>>
+     */
+    private function rescueRows(callable $rescue, array $fallback): array
+    {
+        try {
+            $budget = $this->rescueTimeoutMs;
+
+            /** @var list<array<string,mixed>> $rows */
+            $rows = $this->getEntityManager()->getConnection()->transactional(
+                static function (Connection $connection) use ($rescue, $budget): array {
+                    // SET LOCAL, so it leaves with the transaction. A plain SET
+                    // would strand the timeout on a pooled connection and hand
+                    // it to whatever ran next — the same reasoning, and the
+                    // same wording, as TypeAheadSearch::fetch().
+                    $connection->executeStatement(
+                        'SET LOCAL statement_timeout = ' . $budget,
+                    );
+
+                    return $rescue();
+                },
+            );
+
+            return $rows;
+        } catch (DriverException) {
+            return $fallback;
+        }
+    }
 
     /**
      * The ids the search may look at, read once and bound as values.
