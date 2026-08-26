@@ -176,6 +176,17 @@ final readonly class ImageProxyFetcher
             if (200 !== $status) {
                 $response->cancel();
 
+                // Logged, because the alternative is what this used to be: a
+                // remote image becomes a transparent placeholder and NOTHING
+                // anywhere says why. An expired signed URL, a host refusing an
+                // unknown user agent and a mistyped link are all the same
+                // silent grey box to the person reading the mail, and were the
+                // same absence of evidence to whoever they asked about it.
+                $this->logger->info('ImageProxyFetcher: refused by the host', [
+                    'url'    => $url,
+                    'status' => $status,
+                ]);
+
                 return null;
             }
 
@@ -183,6 +194,15 @@ final readonly class ImageProxyFetcher
 
             if (false === str_starts_with($contentType, 'image/')) {
                 $response->cancel();
+
+                // Usually an error page served with 200, which is the shape
+                // that most deserves a line: the fetch "worked", the check
+                // correctly refused it, and without this the refusal is
+                // indistinguishable from the image never having been asked for.
+                $this->logger->info('ImageProxyFetcher: response was not an image', [
+                    'url'         => $url,
+                    'contentType' => '' === $contentType ? '(none)' : $contentType,
+                ]);
 
                 return null;
             }

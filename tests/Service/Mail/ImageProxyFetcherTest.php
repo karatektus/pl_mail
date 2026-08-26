@@ -160,4 +160,94 @@ final class ImageProxyFetcherTest extends TestCase
         self::assertSame('image/png', $result['contentType']);
         self::assertSame($png, (string) file_get_contents($result['path']));
     }
+
+    /**
+     * A host that refuses the image says so in the log.
+     *
+     * This path returned null and wrote nothing at all. The reader saw a
+     * transparent placeholder — indistinguishable from a spacer GIF — and an
+     * expired signed URL, a host blocking an unfamiliar user agent and a
+     * mistyped link were the same silent gap with no evidence anywhere. Which
+     * is exactly the position a real bug report about a missing barcode left
+     * everyone in.
+     */
+    public function testAHostRefusingTheImageIsRecordedWithItsStatus(): void
+    {
+        $logger = new CollectingLogger();
+
+        $fetcher = new ImageProxyFetcher(
+            new MockHttpClient(static fn (): MockResponse => new MockResponse('nope', ['http_code' => 403])),
+            $logger,
+            sys_get_temp_dir() . '/plmail-image-proxy-test-' . bin2hex(random_bytes(4)),
+        );
+
+        self::assertNull($fetcher->fetch('https://93.184.216.34/barcode.png'));
+
+        $line = $logger->firstContaining('refused by the host');
+
+        self::assertNotNull($line, 'a refusal has to leave a trace or nobody can answer "why is it blank"');
+        self::assertSame(403, $line['context']['status']);
+        self::assertSame('https://93.184.216.34/barcode.png', $line['context']['url']);
+    }
+
+    /**
+     * An error page served with a 200 is the shape that most deserves a line:
+     * the fetch "worked", the type check correctly refused it, and without a
+     * log the refusal looks identical to never having asked.
+     */
+    public function testAnErrorPageServedAsHtmlIsRecordedWithItsContentType(): void
+    {
+        $logger = new CollectingLogger();
+
+        $fetcher = new ImageProxyFetcher(
+            new MockHttpClient(static fn (): MockResponse => new MockResponse(
+                '<html>Access denied</html>',
+                ['response_headers' => ['content-type' => 'text/html; charset=utf-8']],
+            )),
+            $logger,
+            sys_get_temp_dir() . '/plmail-image-proxy-test-' . bin2hex(random_bytes(4)),
+        );
+
+        self::assertNull($fetcher->fetch('https://93.184.216.34/barcode.png'));
+
+        $line = $logger->firstContaining('not an image');
+
+        self::assertNotNull($line);
+        self::assertSame('text/html', $line['context']['contentType'], 'the parameters are stripped, the type is kept');
+    }
+}
+
+/**
+ * A logger that keeps what it was told, so a test can assert on it.
+ *
+ * NullLogger is right for the tests above, which are about bytes. These two are
+ * about the log line being written at all, and there is nothing to assert
+ * against a logger that discards.
+ */
+final class CollectingLogger extends \Psr\Log\AbstractLogger
+{
+    /** @var list<array{level: mixed, message: string, context: array<string,mixed>}> */
+    public array $lines = [];
+
+    /**
+     * @param array<string,mixed> $context
+     */
+    public function log($level, \Stringable|string $message, array $context = []): void
+    {
+        $this->lines[] = ['level' => $level, 'message' => (string) $message, 'context' => $context];
+    }
+
+    /**
+     * @return array{level: mixed, message: string, context: array<string,mixed>}|null
+     */
+    public function firstContaining(string $needle): ?array
+    {
+        foreach ($this->lines as $line) {
+            if (true === str_contains($line['message'], $needle)) {
+                return $line;
+            }
+        }
+
+        return null;
+    }
 }
