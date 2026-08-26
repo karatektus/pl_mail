@@ -107,7 +107,7 @@ final class CalDavConnectType extends AbstractType
                 'attr'     => [
                     'autocomplete' => 'off',
                     'placeholder'  => true === $isNew ? '' : 'settings.integrations.field.secret_unchanged',
-                ] + PasswordManagerIgnore::ATTR,
+                ] + PasswordManagerIgnore::SECRET,
             ]);
 
         $builder->addEventListener(FormEvents::POST_SUBMIT, $this->assertCredential(...));

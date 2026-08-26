@@ -58,7 +58,7 @@ final class MailProviderConfigType extends AbstractType
                     'placeholder'  => $config instanceof MailProviderConfig && $config->hasClientSecret()
                         ? 'admin.integrations.secret_unchanged'
                         : 'admin.integrations.secret_none',
-                ] + PasswordManagerIgnore::ATTR,
+                ] + PasswordManagerIgnore::SECRET,
             ]);
 
         // Offered only when there is something to clear, so the option cannot
@@ -91,7 +91,7 @@ final class MailProviderConfigType extends AbstractType
                         'placeholder'  => $config instanceof MailProviderConfig && null !== $config->pushVerificationToken
                             ? 'admin.integrations.secret_unchanged'
                             : 'admin.integrations.secret_none',
-                    ] + PasswordManagerIgnore::ATTR,
+                    ] + PasswordManagerIgnore::SECRET,
                 ]);
         }
 

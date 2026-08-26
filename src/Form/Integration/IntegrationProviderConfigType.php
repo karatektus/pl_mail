@@ -73,7 +73,7 @@ final class IntegrationProviderConfigType extends AbstractType
                     'placeholder'  => $config instanceof IntegrationProviderConfig && $config->hasClientSecret()
                         ? 'admin.integrations.secret_unchanged'
                         : 'admin.integrations.secret_none',
-                ] + PasswordManagerIgnore::ATTR,
+                ] + PasswordManagerIgnore::SECRET,
             ]);
 
         if ($config instanceof IntegrationProviderConfig && true === $config->hasClientSecret()) {

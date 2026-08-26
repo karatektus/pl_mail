@@ -68,7 +68,7 @@ final class AiSettingsType extends AbstractType
                 // Spread, like every other credential field here: without it a
                 // password manager's overlay survives the Turbo frame swap and
                 // sits over the field it was anchored to.
-                'attr'        => [...PasswordManagerIgnore::ATTR, 'placeholder' => $hasToken ? '••••••••' : ''],
+                'attr'        => [...PasswordManagerIgnore::SECRET, 'placeholder' => $hasToken ? '••••••••' : ''],
             ])
             ->add('chatModel', TextType::class, [
                 'label'    => 'admin.ai.field.chat_model',

@@ -62,7 +62,7 @@ class AccountType extends AbstractType
                     'placeholder' => '••••••••',
                     'class' => 'form-input',
                     'autocomplete' => 'new-password',
-                ] + PasswordManagerIgnore::ATTR,
+                ] + PasswordManagerIgnore::SECRET,
                 'label' => 'Password',
                 'always_empty' => true,
                 'required' => $options['require_password'],
