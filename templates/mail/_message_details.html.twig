@@ -219,6 +219,33 @@ mailed-by and signed-by were silently missing from every IMAP message.
                         {%- endif -%}
                     </span>
                 </dd>
+
+                {#
+                Only when the provider decided it, and therefore only when the
+                two answers can differ. Gmail's CATEGORY_* labels are
+                authoritative while they arrive, so plMail's own cascade never
+                runs on that mailbox — and takes over the moment the labels stop,
+                having never been checked against real mail. Showing both is what
+                makes the local rules tunable BEFORE that day rather than after.
+
+                Suppressed when Gmail is not deciding, because then this row
+                would repeat the one above it word for word.
+                #}
+                {% if categorised.reason == 'gmail' %}
+                    {% set local = category_explanation_local(message) %}
+                    {% if local %}
+                        <dt class="text-ink-faint text-right">{{ 'message.details.category_local'|trans }}</dt>
+                        <dd class="text-ink-soft break-words">
+                            {{ ('tabs.' ~ local.category)|trans }}
+                            <span class="text-ink-faint">
+                                — {{ ('message.details.categorised.' ~ local.reason)|trans }}
+                                {%- if local.signal %}
+                                    <span class="font-mono">{{ local.signal }}</span>
+                                {%- endif -%}
+                            </span>
+                        </dd>
+                    {% endif %}
+                {% endif %}
             {% endif %}
         </dl>
 

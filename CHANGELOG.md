@@ -6,6 +6,42 @@ so anything that changes the schema irreversibly is called out explicitly.
 The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, and `sha-…` pins one commit.
 
+## v0.1.41 — 2026-08-26
+
+**No migration. A hub that is down no longer fails the work it was announcing.**
+
+### Added
+
+- **The details panel shows what plMail's own rules would have said about a category**, on messages
+  where Gmail decided it. Gmail's `CATEGORY_*` labels are authoritative while they arrive, so the
+  local rules never run on that mailbox — and take over the instant the labels stop, having never
+  been checked against real mail. Both answers are now side by side, so the difference is something
+  to tune before that day rather than discover after it. The extra line is suppressed when Gmail is
+  not deciding, where it would only repeat the line above it.
+
+### Changed
+
+- **The blocked-images bar sits above the message now**, under the attachments rather than beneath
+  the body. On anything longer than a screen it was past the fold: the reader met a message full of
+  gaps, scrolled to the end to find out why, then scrolled back. It is the control for reading the
+  message, not a footnote about it. Still outside the sandboxed frame, which is the part that is not
+  negotiable — a "Show images" button the message could draw for itself is worse than no button.
+
+### Fixed
+
+- **A Mercure hub that was briefly unreachable failed a whole account sync.** Mail was fetched,
+  threaded and committed, and then the handler was sent back for retry because the update saying
+  "your mailbox changed" could not be published. The doorbell failing does not un-deliver the parcel.
+
+  Five of the seven publishers had no guard at all, and two of those were worse than the one that was
+  reported: the background-job notifier is called from a job's own failure handler, where an
+  exception would replace the real error with this one, and the send-outcome notifier announces the
+  result of sending mail. Every publisher now records the failure and carries on. A sixth swallowed
+  its errors silently, which hid bugs as effectively as outages; it logs now too.
+
+  The visible cost of a hub outage is what it always should have been: a screen that waits for its
+  next refresh.
+
 ## v0.1.40 — 2026-08-26
 
 **No migration. Search stops paying for label joins it never reads.**

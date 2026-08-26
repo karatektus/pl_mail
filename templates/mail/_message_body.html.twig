@@ -61,6 +61,57 @@ Variables:
         </div>
     {% endif %}
 
+    {# ── The images bar ─────────────────────────────────────────────────── #}
+    {# ABOVE the frame, with the warnings, and below the attachment chips the
+       thread template draws before this include.
+
+       It used to sit under the body, which put it past the fold on anything
+       longer than a screen: the reader met a message full of gaps, scrolled to
+       the end to find out why, then scrolled back. The bar is not a footnote
+       about what happened — it is the control for reading the message at all,
+       so it belongs where the decision is made, before the reading starts.
+
+       Still outside the frame, which is the part that is not negotiable: a
+       "Show images" button the message could draw for itself is worse than no
+       button. #}
+    {% if render.offersImages %}
+        <div
+            class="flex flex-wrap items-center gap-x-3 gap-y-1.5 mb-3 rounded-lg border border-line bg-raised px-3 py-2"
+            data-testid="images-bar"
+            data-controller="mail--remote-images"
+        >
+            <i class="fa-regular fa-image text-ink-faint text-xs" aria-hidden="true"></i>
+            <span class="text-xs text-ink-muted flex-1 min-w-0">
+                {{ 'message.images.blocked'|trans({'%count%': render.content.blocked}) }}
+            </span>
+
+            <button
+                type="button"
+                data-action="click->mail--remote-images#show"
+                data-testid="show-images"
+                class="text-xs font-medium text-link hover:underline"
+            >{{ 'message.images.show_once'|trans }}</button>
+
+            {# Only offered where it can be honoured. A message in Spam does not
+               load images on an allowlist (see MessageRenderer), so offering to
+               add one here would be a button that visibly does nothing. #}
+            {% if not render.inSpam %}
+                <form
+                    method="post"
+                    action="{{ path('app_mail_images_trust', {'id': message.id}) }}"
+                    data-turbo="true"
+                >
+                    <input type="hidden" name="_token" value="{{ csrf_token('images-trust' ~ message.id) }}">
+                    <button
+                        type="submit"
+                        data-testid="always-show-images"
+                        class="text-xs font-medium text-link hover:underline"
+                    >{{ 'message.images.always'|trans({'%sender%': message.fromAddress}) }}</button>
+                </form>
+            {% endif %}
+        </div>
+    {% endif %}
+
     {# ── The reading frame ──────────────────────────────────────────────── #}
     {% if render.content.html is not empty %}
 
@@ -153,45 +204,6 @@ Variables:
         {# No HTML body: plain text needs no sandbox, because there is no markup
            to sandbox. Twig escapes it, so it is text all the way down. #}
         <pre class="mail-sheet whitespace-pre-wrap break-words font-sans text-sm">{{ render.text }}</pre>
-    {% endif %}
-
-    {# ── The images bar ─────────────────────────────────────────────────── #}
-    {% if render.offersImages %}
-        <div
-            class="flex flex-wrap items-center gap-x-3 gap-y-1.5 mt-3 rounded-lg border border-line bg-raised px-3 py-2"
-            data-testid="images-bar"
-            data-controller="mail--remote-images"
-        >
-            <i class="fa-regular fa-image text-ink-faint text-xs" aria-hidden="true"></i>
-            <span class="text-xs text-ink-muted flex-1 min-w-0">
-                {{ 'message.images.blocked'|trans({'%count%': render.content.blocked}) }}
-            </span>
-
-            <button
-                type="button"
-                data-action="click->mail--remote-images#show"
-                data-testid="show-images"
-                class="text-xs font-medium text-link hover:underline"
-            >{{ 'message.images.show_once'|trans }}</button>
-
-            {# Only offered where it can be honoured. A message in Spam does not
-               load images on an allowlist (see MessageRenderer), so offering to
-               add one here would be a button that visibly does nothing. #}
-            {% if not render.inSpam %}
-                <form
-                    method="post"
-                    action="{{ path('app_mail_images_trust', {'id': message.id}) }}"
-                    data-turbo="true"
-                >
-                    <input type="hidden" name="_token" value="{{ csrf_token('images-trust' ~ message.id) }}">
-                    <button
-                        type="submit"
-                        data-testid="always-show-images"
-                        class="text-xs font-medium text-link hover:underline"
-                    >{{ 'message.images.always'|trans({'%sender%': message.fromAddress}) }}</button>
-                </form>
-            {% endif %}
-        </div>
     {% endif %}
 
     {% if render.senderTrusted and render.content.allowed > 0 %}

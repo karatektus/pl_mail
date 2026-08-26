@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Service\Mail;
 
+use Psr\Log\NullLogger;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Message;
 use App\Entity\User\User;
@@ -134,7 +135,7 @@ final class SendOutcomeNotifierTest extends TestCase
             'mail/_send_outcome.stream.html.twig' => $rendered,
         ]));
 
-        return new SendOutcomeNotifier($hub, $twig);
+        return new SendOutcomeNotifier($hub, $twig, new NullLogger());
     }
 
     private function message(int $userId): Message

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Service\Gmail;
 
+use Psr\Log\NullLogger;
 use App\Domain\Enum\Account\AuthType;
 use App\Domain\Enum\Mail\LabelRole;
 use App\Domain\Enum\Mail\MessageFlag;
@@ -233,7 +234,7 @@ final class GmailInboundReadStateTest extends KernelTestCase
             $container->get('App\Service\HarvestContactsService'),
             // The real notifier publishes to Mercure, which the test kernel has
             // no signing key for. What it announces is not what is under test.
-            new SyncNotifier($this->createStub(HubInterface::class)),
+            new SyncNotifier($this->createStub(HubInterface::class), new NullLogger()),
             $container->get('messenger.default_bus'),
             $container->get('App\Service\Mail\PostIngestPipeline'),
             $this->em,

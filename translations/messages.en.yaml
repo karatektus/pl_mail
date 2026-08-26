@@ -1650,6 +1650,7 @@ message:
             social: 'the sender domain '
             update: 'an automated-mail signal: '
         category: category
+        category_local: 'without Gmail'
         bcc: bcc
         cc: cc
         copy_address: 'Copy address %address%'

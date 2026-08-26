@@ -67,15 +67,30 @@ final class MessageCategorizer
      *
      * @param array<string,true> $correspondentEmails normalised sender addresses
      *                                                the user has mailed; forces Primary
+     * @param bool               $ignoreProviderLabels
+     *     Answer from THIS application's rules alone, as though the account
+     *     were not a Gmail one.
+     *
+     *     Gmail's own CATEGORY_* labels are authoritative when they are there,
+     *     which means the local cascade below never runs on a Gmail mailbox and
+     *     nobody can see what it would have decided. That matters on the day
+     *     the labels stop arriving — an account moved off Gmailify, a mailbox
+     *     migrated to IMAP — because the local rules take over instantly and
+     *     silently, having never been checked against real mail. This is how
+     *     the message view offers both answers side by side, so the difference
+     *     is something to look at rather than something to discover later.
      *
      * @return array{category: MessageCategory, reason: string, signal: string|null}
      */
-    public function explain(Message $message, array $correspondentEmails): array
-    {
+    public function explain(
+        Message $message,
+        array $correspondentEmails,
+        bool $ignoreProviderLabels = false,
+    ): array {
         $gmailLabelIds = $message->gmailLabelIds;
 
         // Gmail account: its own classification is authoritative.
-        if (null !== $gmailLabelIds) {
+        if (null !== $gmailLabelIds && false === $ignoreProviderLabels) {
             return [
                 'category' => MessageCategory::fromGmailLabels($gmailLabelIds),
                 'reason'   => 'gmail',

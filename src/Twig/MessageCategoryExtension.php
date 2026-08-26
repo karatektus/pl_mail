@@ -37,6 +37,7 @@ final class MessageCategoryExtension extends AbstractExtension
     {
         return [
             new TwigFunction('category_explanation', $this->explain(...)),
+            new TwigFunction('category_explanation_local', $this->explainLocal(...)),
         ];
     }
 
@@ -45,6 +46,31 @@ final class MessageCategoryExtension extends AbstractExtension
      *         null when there is no category to explain
      */
     public function explain(Message $message): ?array
+    {
+        return $this->describe($message, ignoreProviderLabels: false);
+    }
+
+    /**
+     * What THIS application's rules would have said, ignoring Gmail's labels.
+     *
+     * Only interesting on a Gmail mailbox, where the provider's own CATEGORY_*
+     * labels are authoritative and the local cascade therefore never runs. The
+     * day those labels stop arriving — an account moved off Gmailify, a mailbox
+     * migrated to plain IMAP — the local rules take over at once, having never
+     * been looked at against real mail. Rendering both answers together makes
+     * that difference something to tune now rather than discover then.
+     *
+     * @return array{category: string, reason: string, signal: string|null}|null
+     */
+    public function explainLocal(Message $message): ?array
+    {
+        return $this->describe($message, ignoreProviderLabels: true);
+    }
+
+    /**
+     * @return array{category: string, reason: string, signal: string|null}|null
+     */
+    private function describe(Message $message, bool $ignoreProviderLabels): ?array
     {
         $user = $this->security->getUser();
 
@@ -57,6 +83,7 @@ final class MessageCategoryExtension extends AbstractExtension
         $explanation = $this->categorizer->explain(
             $message,
             $this->contacts->isCorrespondent($user, $from) ? [$from => true] : [],
+            $ignoreProviderLabels,
         );
 
         return [

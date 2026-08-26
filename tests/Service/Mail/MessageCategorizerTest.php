@@ -214,6 +214,73 @@ final class MessageCategorizerTest extends TestCase
      * @param array<string,mixed> $headers
      * @param list<string>|null   $gmailLabelIds
      */
+    /**
+     * The local cascade, asked directly on a mailbox where Gmail is deciding.
+     *
+     * Gmail's CATEGORY_* labels are authoritative while they arrive, which
+     * means the rules below them never run on that mailbox and nobody can see
+     * what they would have said. They take over the instant the labels stop —
+     * an account moved off Gmailify, a mailbox migrated to plain IMAP — having
+     * never been checked against real mail. So the message view offers both
+     * answers, and this is the switch that produces the second one.
+     */
+    public function testTheLocalRulesCanBeAskedPastGmailsAnswer(): void
+    {
+        // Gmail files it under Updates; the headers say bulk mail.
+        $message = $this->message(
+            ['List-Unsubscribe' => '<https://shop.test/u>'],
+            'newsletter@shop.test',
+            ['INBOX', 'CATEGORY_UPDATES'],
+        );
+
+        $gmail = $this->categorizer->explain($message, []);
+
+        self::assertSame('gmail', $gmail['reason']);
+        self::assertSame(MessageCategory::Updates, $gmail['category']);
+
+        $local = $this->categorizer->explain($message, [], ignoreProviderLabels: true);
+
+        self::assertSame('list-unsubscribe', $local['signal'], 'the header the local rules read');
+        self::assertSame(MessageCategory::Promotions, $local['category']);
+    }
+
+    /**
+     * The correspondent override still outranks everything once Gmail is out
+     * of the way — the local answer has to be the WHOLE local cascade, not
+     * just its header half.
+     */
+    public function testTheLocalAnswerStillHonoursTheCorrespondentOverride(): void
+    {
+        $message = $this->message(
+            ['List-Unsubscribe' => '<https://shop.test/u>'],
+            'kim@example.test',
+            ['INBOX', 'CATEGORY_PROMOTIONS'],
+        );
+
+        $local = $this->categorizer->explain(
+            $message,
+            ['kim@example.test' => true],
+            ignoreProviderLabels: true,
+        );
+
+        self::assertSame(MessageCategory::Primary, $local['category']);
+        self::assertSame('correspondent', $local['reason']);
+    }
+
+    /**
+     * On a mailbox that never had Gmail labels the switch changes nothing —
+     * there was no provider answer to step past.
+     */
+    public function testTheSwitchIsANoOpWithoutProviderLabels(): void
+    {
+        $message = $this->message(['List-Post' => '<mailto:l@x.test>'], 'l@x.test');
+
+        self::assertEquals(
+            $this->categorizer->explain($message, []),
+            $this->categorizer->explain($message, [], ignoreProviderLabels: true),
+        );
+    }
+
     private function message(array $headers, string $from, ?array $gmailLabelIds = null): Message
     {
         $message = new Message();

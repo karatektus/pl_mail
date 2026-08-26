@@ -1656,6 +1656,7 @@ message:
             social: 'die Absenderdomain '
             update: 'ein Hinweis auf automatischen Versand: '
         category: Kategorie
+        category_local: 'ohne Gmail'
         bcc: BCC
         cc: CC
         copy_address: 'Adresse %address% kopieren'

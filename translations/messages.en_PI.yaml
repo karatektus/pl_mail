@@ -1356,6 +1356,7 @@ message:
             social: 'the sender port '
             update: 'a sign of an unmanned sender: '
         category: rank
+        category_local: "by our own reckonin'"
         bcc: bcc
         cc: cc
         copy_address: 'Pocket the address %address%'

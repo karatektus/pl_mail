@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace App\Service\Calendar;
 
+use App\Domain\Helper\ThrowableSeverity;
 use App\Entity\Calendar\Calendar;
 use App\Entity\User\User;
 use Psr\Log\LoggerInterface;
+use Psr\Log\LogLevel;
 use Symfony\Component\Mercure\HubInterface;
 use Symfony\Component\Mercure\Update;
 
@@ -97,7 +99,7 @@ final readonly class CalendarNotifier
                 data: json_encode($data, JSON_THROW_ON_ERROR),
             ));
         } catch (\Throwable $e) {
-            $this->logger->warning('CalendarNotifier: publish failed', [
+            $this->logger->log(ThrowableSeverity::level($e, LogLevel::WARNING), 'CalendarNotifier: publish failed', [
                 'userId'    => $userId,
                 'type'      => $data['type'] ?? null,
                 'error'     => $e->getMessage(),
