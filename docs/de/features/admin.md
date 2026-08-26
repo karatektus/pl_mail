@@ -1,4 +1,4 @@
-<!-- translated-from: features/admin.md sha1:6c52044f191068ed55d661cc493ffc0fd89a3908 -->
+<!-- translated-from: features/admin.md sha1:9d5f035cf3c6661caf56c50e9badccca77129d37 -->
 
 # Administration
 
@@ -315,6 +315,60 @@ Benachrichtigungen**: jedes registrierte Gerät mit Transportweg, ob der Verifik
 abgeschlossen ist, und seiner letzten Zustellung.
 
 Aufbewahrt wird 30 Tage, nächtlich weggeräumt von `app:monitoring:prune`; `--push-days=N` ändert das.
+
+## KI
+
+Optional, standardmäßig aus, und plMail ist auch ohne einen vollständigen Mail-Client. Hier wird
+nichts eingeschaltet, bis du es einschaltest, und es verlässt nichts dein Netz: Das Modell läuft auf
+einer Maschine, die dir gehört.
+
+**Modell-Host** ist die Adresse eines [Ollama](https://ollama.com)-Containers in deinem eigenen Netz,
+mit Port — `http://10.0.0.5:11434`. Ein **Token** brauchst du nur, wenn du den Host hinter etwas
+gestellt hast, das danach fragt; Ollama selbst hat keine Authentifizierung.
+
+Zwei Modelle, weil die Aufgaben verschieden sind. Das **Schreib-Modell** sollte instruction-tuned
+sein und wird zum Entwerfen und Einsortieren benutzt; das **Such-Modell** ist ein Embedding-Modell
+und meist deutlich kleiner. `llama3.1:8b` und `nomic-embed-text` sind brauchbare Startpunkte. Beide
+musst du vorher auf dem Host ziehen — plMail lädt nie ein Modell herunter.
+
+**Testen** fragt den Host, was er bereithält, ohne etwas zu speichern. Nutz das, bevor du speicherst:
+Es sagt dir den Unterschied zwischen „unter der Adresse hat nichts geantwortet“ und „der Host hat
+geantwortet, hat aber nicht das Modell, das du eingetragen hast“ — und das führt an zwei ganz
+verschiedene Stellen.
+
+### Die drei Funktionen sind einzeln schaltbar
+
+Sie kosten sehr Unterschiedliches, und es hat sehr unterschiedliche Folgen, wenn das Modell danebenliegt.
+
+| | Was es tut | Wann es läuft |
+|---|---|---|
+| **Nach Bedeutung suchen** | Ergänzt Treffer, die zu dem passen, was du gemeint hast | Bei jeder Suche, und einmal über dein Postfach |
+| **Mail in Tabs einsortieren** | Setzt eine Kategorie, wenn keine Regel gegriffen hat | Bei jeder eingehenden Nachricht |
+| **Beim Schreiben helfen** | Bietet Entwürfe und Umformulierungen im Editor an | Nur wenn du fragst |
+
+Beim Einsortieren solltest du am ehesten vorsichtig sein: Es läuft unbeaufsichtigt. Es kann immer nur
+den Stichentscheid geben — wenn ein Header, ein Gmail-Label oder die Tatsache, dass du der Person
+schon geschrieben hast, die Kategorie bereits bestimmt hat, wird das Modell gar nicht gefragt.
+Ausschalten erfordert kein Aufräumen.
+
+Die Schreibhilfe ersetzt nie, was du geschrieben hast. Sie hängt an, dein Original bleibt stehen.
+
+### Suchen nach Bedeutung braucht einmal einen Durchlauf
+
+Die semantische Suche findet nur Mail, die eingebettet wurde, und beim Einschalten wird nur Mail
+eingebettet, die ab dann **ankommt**. Alles, was schon im Postfach liegt, braucht einen Durchlauf:
+
+```bash
+docker compose exec php php bin/console app:ai:embed-mailbox --email=du@example.com
+```
+
+Das läuft auf dem Maintenance-Worker in Häppchen und dauert bei einem großen Postfach Stunden. Du
+darfst es unterbrechen und wiederholen — was schon eingebettet ist, wird übersprungen, ein zweiter
+Lauf kostet also fast nichts. Ein Wechsel des Such-Modells macht alle gespeicherten Vektoren
+ungültig; genau so forderst du ein neues Einbetten an: Modell ändern, Durchlauf noch einmal starten.
+
+Die normale Suche bleibt davon völlig unberührt. Ist der Modell-Host aus oder der Durchlauf nie
+gelaufen, sucht plMail genau wie immer.
 
 ## Benutzer
 
