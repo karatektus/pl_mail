@@ -14,11 +14,23 @@ use App\Service\Ai\MessageEmbedder;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 
 /**
- * Embeds a batch of messages that have just arrived.
+ * Embeds a batch of messages, by id.
  *
- * Checks the feature again rather than trusting the step that dispatched it:
- * settings change, and a job already on the queue when somebody switches search
- * off must not still spend requests on another machine.
+ * The one path from "these messages need vectors" to vectors, and every trigger
+ * ends here: the nightly app:ai:index-new-mail, and the small batch queued in
+ * the warm window after somebody searched. Both go through
+ * App\Service\Ai\EmbeddingCatchUp, and neither embeds anything itself — the
+ * skip below, the feature check and the transport with a worker of its own all
+ * live here, and a second path would re-implement the three of them.
+ *
+ * Nothing dispatches this on arrival any more. A post-ingest step used to, which
+ * spent a round trip to the model host on every message the installation ever
+ * received — for a question almost nobody asks, since mail you might search for
+ * is rarely mail you read ten minutes ago.
+ *
+ * Checks the feature again rather than trusting whoever dispatched it: settings
+ * change, and a job already on the queue when somebody switches search off must
+ * not still spend requests on another machine.
  */
 #[AsMessageHandler]
 final readonly class EmbedMessagesHandler

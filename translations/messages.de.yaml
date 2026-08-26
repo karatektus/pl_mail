@@ -59,7 +59,7 @@ admin:
             failures_label: 'Übersprungen'
             finished_label: 'Fertig'
             heading: 'Suchindex'
-            intro: 'Die Suche nach Bedeutung sieht nur indexierte Mail. Das hier geht einmal durch alle Postfächer; neue Mail wird beim Eintreffen indexiert.'
+            intro: 'Die Suche nach Bedeutung sieht nur indexierte Mail. Das hier geht einmal durch alle Postfächer; danach wird neue Mail kurz nach einer Suche indexiert und einmal pro Nacht zur Sicherheit.'
             last_activity_label: 'Zuletzt gemeldet'
             model_label: 'Indexiert mit'
             no_mail: 'Es gibt noch keine Mail zum Indexieren.'
@@ -74,7 +74,7 @@ admin:
             paused:
                 feature_off: 'Angehalten, weil die Suche nach Bedeutung ausgeschaltet wurde.'
                 host_unreachable: 'Wartet darauf, dass der Modell-Host wieder antwortet. Es versucht es von selbst erneut.'
-                interactive: 'Pausiert, solange die KI gerade benutzt wird. Kurz danach läuft es von selbst weiter.'
+                interactive: 'Pausiert, solange die Schreibhilfe gerade benutzt wird. Kurz danach läuft es von selbst weiter.'
                 operator: 'Pausiert. Es geht dort weiter, wo es aufgehört hat.'
             progress: '%embedded% von %eligible% Nachrichten indexiert'
             rate: '%rate% Nachrichten pro Sekunde, über die letzten fünf Minuten'
@@ -84,7 +84,7 @@ admin:
             stalled_body: 'Seit einer Weile bewegt sich nichts — der Worker, der das gemacht hat, ist vermutlich weg. Fortsetzen nimmt es dort wieder auf, wo es aufgehört hat.'
             start: 'Starten'
             started_label: 'Gestartet'
-            tuning: '%batch% Nachrichten pro Durchgang, %delay% s Pause dazwischen, und es hält sich %cooldown% s zurück, nachdem jemand die KI benutzt hat.'
+            tuning: '%batch% Nachrichten pro Durchgang, %delay% s Pause dazwischen, und es hält sich %cooldown% s zurück, nachdem jemand die Schreibhilfe benutzt hat.'
         duration:
             hours: '%count% Std.'
             minutes: '%count% Min.'

@@ -124,8 +124,16 @@ framework:
             # rule recognised. A transport of its own would buy isolation from
             # a queue that is empty on almost every installation.
             App\Infrastructure\Messaging\Message\ClassifyMailMessage: ingest
-            # ingest as well: it is mail arriving, and it is the same shape of
-            # work — one round trip per message to a box on the LAN.
+            # ingest as well: it is mail that arrived, only caught up with
+            # later, and it is the same shape of work — one round trip per
+            # message to a box on the LAN. Nothing dispatches it on arrival any
+            # more; the two triggers are a nightly sweep and the warm window
+            # after somebody searched (see App\Service\Ai\EmbeddingCatchUp), and
+            # both post it in chunks a worker can finish rather than one
+            # envelope holding a whole mailbox. Maintenance would be the other
+            # candidate and is the wrong one: a batch queued while somebody is
+            # sitting at their search results should not be behind an hours-long
+            # backfill on the queue built to hold hours-long backfills.
             App\Infrastructure\Messaging\Message\EmbedMessagesMessage: ingest
             # maintenance, NOT ingest. A backfill re-dispatches itself for hours
             # and would otherwise sit in front of every arriving message on the

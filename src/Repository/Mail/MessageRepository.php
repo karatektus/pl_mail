@@ -619,6 +619,93 @@ class MessageRepository extends ServiceEntityRepository
         return array_map(intval(...), $ids);
     }
 
+    /**
+     * The newest of one user's messages that have no vector from THIS model.
+     *
+     * What the two catch-up triggers walk — the nightly sweep and the batch
+     * queued in the warm minute after somebody searched. See
+     * App\Service\Ai\EmbeddingCatchUp, which is the only caller.
+     *
+     * NEWEST FIRST, which is the opposite of idsForUserAfter() above and for a
+     * reason rather than a preference. That one is a WALK: it has to cover a
+     * whole mailbox exactly once and never lose its place, so it goes forwards
+     * by id and remembers where it stopped. This is a CATCH-UP with a budget:
+     * it will only ever do a few messages, so the few it does should be the
+     * mail somebody might actually search for tomorrow morning. A shared
+     * ordering would make one of the two wrong.
+     *
+     * THE MODEL IS PART OF "INDEXED". Vectors from two embedding models are not
+     * comparable — different space, different width, and the shipped distance
+     * function compares whatever overlaps rather than refusing — so after
+     * somebody changes the model in settings every stored row is dead weight
+     * and every message is outstanding again. Matching the model here is what
+     * makes that true rather than leaving a mailbox that reports itself indexed
+     * and searches like it is not.
+     *
+     * AND DELIBERATELY NOT THE WIDTH. EmbeddingStore::
+     * coverageDetailFor() matches on both, and this deliberately does not, so
+     * here is the trap it avoids. What consumes these ids is
+     * EmbedMessagesHandler, which skips whatever EmbeddingStore::
+     * alreadyStored() reports — and that asks about the MODEL alone. A finder
+     * that tested the width too would, on the one installation where the two
+     * disagree (a model upgraded in place and now answering at a different
+     * width), hand over a full budget of ids that the handler then drops as
+     * already done: a sweep that runs every night, reports itself busy, and
+     * indexes nothing, forever. The width mismatch is a real problem and it
+     * already has an owner — coverageDetailFor()'s third number, which tells
+     * the person their mailbox needs re-indexing rather than quietly trying.
+     *
+     * NOT EXISTS rather than a LEFT JOIN with an IS NULL: it is the same
+     * anti-join to the planner and it cannot accidentally multiply rows if the
+     * embedding table ever stops being keyed one-to-one on the message.
+     *
+     * THE JOIN GOES THROUGH THE THREAD, which is what coverageDetailFor()
+     * counts through. The two have to agree or the notice under somebody's
+     * search box says "4,120 of 4,125 indexed" forever while a sweep that can
+     * see five more messages than the counter can keeps finding nothing to do.
+     *
+     * WHAT IT COSTS WHEN THERE IS NOTHING TO DO. The LIMIT can only stop the
+     * scan early when there IS outstanding mail; a fully indexed mailbox is
+     * walked to the end. That is bounded by the mailbox and it is strictly
+     * cheaper than the coverage count the search page already pays for on the
+     * same request — but it is the reason both callers are rate-limited rather
+     * than run per search.
+     *
+     * @return list<int>
+     */
+    public function unembeddedIdsForUser(int $userId, string $model, int $limit): array
+    {
+        /** @var list<int|string> $ids */
+        $ids = $this->getEntityManager()->getConnection()->fetchFirstColumn(
+            <<<'SQL'
+                SELECT m.id
+                  FROM message m
+                  JOIN message_thread t ON t.id = m.thread_id
+                  JOIN account a ON a.id = t.account_id
+                 WHERE a.usr_id = :userId
+                   AND NOT EXISTS (
+                       SELECT 1
+                         FROM message_embedding e
+                        WHERE e.message_id = m.id
+                          AND e.model = :model
+                   )
+                 ORDER BY m.id DESC
+                 LIMIT :limit
+            SQL,
+            [
+                'userId' => $userId,
+                'model'  => $model,
+                'limit'  => $limit,
+            ],
+            [
+                'userId' => ParameterType::INTEGER,
+                'limit'  => ParameterType::INTEGER,
+            ],
+        );
+
+        return array_map(intval(...), $ids);
+    }
+
     public function findByIds(array $ids): array
     {
         if (0 === count($ids)) {

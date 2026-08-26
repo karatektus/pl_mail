@@ -121,12 +121,31 @@ final readonly class AiCallMetricRepository
     }
 
     /**
-     * When a person last had a model working for them.
+     * When somebody last had the WRITING model working for them.
      *
-     * Only the two interactive workloads, and that distinction is the whole
-     * value of the row: a mail being indexed in the background is the backfill
-     * itself, and a signal that counted it would report the backfill as a
-     * reason to pause the backfill.
+     * ONE FEATURE, AND THAT IS THE WHOLE POINT OF THE METHOD
+     * ─────────────────────────────────────────────────────
+     * The caller is a signal that tells the indexer to stand aside, so the
+     * question is not "was a model busy" but "would indexing now be in front of
+     * a person". Two of the four workloads answer no on their own terms:
+     * `mail_index` IS the indexer, and a signal that counted it would report
+     * the backfill as a reason to pause the backfill.
+     *
+     * `search_query` is the one that changed, and it is not obvious, so:
+     * plMail runs TWO models with completely different costs. The writing model
+     * is 20.3 GiB and about thirteen seconds to load cold; the embedding model
+     * is well under a gigabyte and a couple of seconds. `writing_help` is the
+     * expensive one, and somebody is watching a cursor while it runs — that is
+     * the case this signal was built for. `search_query` is the CHEAP one, and
+     * it is the same model the indexer itself uses: a search that has just
+     * finished has warmed exactly the model the indexing needs, and by the time
+     * the row lands the person has their results. Counting it made a finished
+     * search suppress the very work it had paid the load for.
+     *
+     * So a search is an invitation to index rather than a reason to yield —
+     * which is why this reads as a single equality now and must stay one. See
+     * InteractiveAiActivitySubscriber, which drops the search route for the
+     * same reason and would otherwise put the signal straight back.
      *
      * Bounded by $since so the index (feature, created_at) does the work rather
      * than a scan back through every call this installation has ever made.
@@ -138,7 +157,7 @@ final readonly class AiCallMetricRepository
         $sql = <<<'SQL'
             SELECT MAX(created_at)
               FROM ai_call_metric
-             WHERE feature IN ('search_query', 'writing_help')
+             WHERE feature = 'writing_help'
                AND created_at >= :since
         SQL;
 

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controller\Mail;
 
+use App\Service\Ai\EmbeddingCatchUp;
 use App\Service\Ai\SemanticCoverage;
 use App\Service\Ai\SemanticQuery;
 use App\Domain\Enum\Mail\SearchSortOrder;
@@ -29,6 +30,7 @@ final class SearchController extends AbstractController
         private readonly ThreadListRenderer      $listRenderer,
         private readonly SemanticQuery           $semantic,
         private readonly SemanticCoverage        $coverage,
+        private readonly EmbeddingCatchUp        $catchUp,
     ) {}
 
     #[Route('', name: '', methods: ['GET'])]
@@ -120,11 +122,30 @@ final class SearchController extends AbstractController
         // unrecognised principal reports an empty mailbox, which is a report
         // with nothing to say rather than an error page. Same shape as
         // resolveSort() below.
-        $report = $this->coverage->report(
-            $user instanceof User ? (int) $user->id : 0,
-            $semantic,
-            count($results->semanticOnly),
-        );
+        $userId = $user instanceof User ? (int) $user->id : 0;
+
+        $report = $this->coverage->report($userId, $semantic, count($results->semanticOnly));
+
+        // THE SEARCH JUST PAID FOR A WARM MODEL; SPEND THE REST OF IT.
+        //
+        // New mail is not embedded as it arrives any more — the nightly
+        // app:ai:index-new-mail is the backstop, and this is the trigger that
+        // makes the backstop rarely matter. The embedding model is the SMALL
+        // one, well under a gigabyte, and the query above has just loaded it;
+        // indexing a handful of messages now costs a few seconds of a model
+        // that is already resident, where the same work at three in the morning
+        // pays the cold load again.
+        //
+        // It only ever DISPATCHES — a few ids onto the ingest transport, whose
+        // worker is a different process — so nothing here waits on the model,
+        // and it is throttled to one batch per mailbox per five minutes so that
+        // paging through results does not queue one per page. Both guards live
+        // in EmbeddingCatchUp, which is also what the nightly sweep calls.
+        //
+        // After the coverage report rather than before it: the report is what
+        // the person actually sees, and it should describe the mailbox as it
+        // was searched rather than as it is about to be.
+        $this->catchUp->afterSearch($userId, $semantic);
 
         return $this->listRenderer->render($request, 'search/search.html.twig', $threads, [
             'q'             => $raw,

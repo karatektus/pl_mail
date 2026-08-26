@@ -38,16 +38,37 @@ use Symfony\Component\HttpKernel\KernelEvents;
  * ────────────────────────────────────────
  * The prefix is what makes this survive the routes growing: a streamed variant
  * of the compose assist endpoint is still `app_compose_assist…` and is still
- * interactive work. Search is included whether or not the query ends up going
- * anywhere near a model — when semantic search is on it always does, and when
- * it is off there is no backfill running to be held back.
+ * interactive work.
+ *
+ * THE SEARCH ROUTE IS DELIBERATELY NOT HERE
+ * ─────────────────────────────────────────
+ * It used to be, and putting it back would undo the point of the change that
+ * removed it. plMail runs TWO models and they are nothing alike:
+ *
+ *  · the WRITING model — 20.3 GiB, about thirteen seconds to load cold. Only
+ *    the composer uses it, and somebody is sitting watching a cursor while it
+ *    runs. That is the case this whole signal was built for, and it is the case
+ *    that is left.
+ *  · the EMBEDDING model — well under a gigabyte, a couple of seconds cold.
+ *    BOTH semantic search and the indexer use it, and that shared use is the
+ *    reason a search must not stamp here: indexing right after a search reuses
+ *    the model that search just warmed, and by the time this listener runs on
+ *    the response the person already has their results. A search that suppressed
+ *    indexing for ninety seconds was throwing away the one moment when indexing
+ *    is cheapest — and on an installation where somebody searches often, that
+ *    was most of the day.
+ *
+ * A finished search is an invitation to index, not a reason to stand aside; see
+ * SearchController, which queues a small catch-up batch on exactly that event.
+ * AiCallMetricRepository::lastInteractiveCallAt() narrowed to `writing_help`
+ * for the same reason, and both halves have to agree or the yielding comes back
+ * through the other one.
  */
 final readonly class InteractiveAiActivitySubscriber implements EventSubscriberInterface
 {
     /** @var list<string> */
     private const array INTERACTIVE_ROUTE_PREFIXES = [
         'app_compose_assist',
-        'app_mail_search',
     ];
 
     public function __construct(

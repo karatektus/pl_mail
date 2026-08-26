@@ -59,7 +59,7 @@ admin:
             failures_label: 'Skipped'
             finished_label: 'Made port'
             heading: 'The search charts'
-            intro: "Search by meanin' sees only charted mail. This walks ev'ry mailbox once; new letters be charted as they come."
+            intro: "Search by meanin' sees only charted mail. This walks ev'ry mailbox once; after that, new letters be charted soon after someone searches, an' once a night for safety."
             last_activity_label: 'Last sighted'
             model_label: 'Charted with'
             no_mail: 'No letters to chart yet.'
@@ -74,7 +74,7 @@ admin:
             paused:
                 feature_off: "Stopped 'cause search by meanin' were switched off."
                 host_unreachable: "Waitin' for the berth to answer again. She tries again herself."
-                interactive: "Standin' aside while the oracle be in use. She carries on herself a moment after."
+                interactive: "Standin' aside while the Scrivener be in use. She carries on herself a moment after."
                 operator: 'Hove to. She picks up where she stopped.'
             progress: "%embedded% o' %eligible% letters charted"
             rate: "%rate% letters a second, o'er the last five minutes"
@@ -84,7 +84,7 @@ admin:
             stalled_body: "Nowt has moved a while — the hand that were doin' it be likely gone. Carry on takes her up where she stopped."
             start: 'Set out'
             started_label: 'Set out'
-            tuning: "%batch% letters a batch, %delay% s between 'em, an' she stands aside %cooldown% s after anyone consults the oracle."
+            tuning: "%batch% letters a batch, %delay% s between 'em, an' she stands aside %cooldown% s after anyone consults the Scrivener."
         duration:
             hours: '%count% h'
             minutes: '%count% min'

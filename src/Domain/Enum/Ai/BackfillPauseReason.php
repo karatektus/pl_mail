@@ -23,12 +23,18 @@ enum BackfillPauseReason: string
     case Operator = 'operator';
 
     /**
-     * Somebody is using the AI right now, so the backfill stepped aside.
+     * Somebody is using the COMPOSER right now, so the backfill stepped aside.
      *
      * The whole reason the yielding exists: backfill and the composer share one
      * integrated GPU, and a click that queues behind a batch is the "nothing
      * happens" complaint this work was done to remove. Lifts by itself a
-     * cooldown after the last interactive request.
+     * cooldown after the last such request.
+     *
+     * Searching is not one of them, and used to be. The two models are nothing
+     * alike — the composer's is 20.3 GiB and thirteen seconds cold, while search
+     * and the indexer share one well under a gigabyte — so a finished search is
+     * the moment indexing is CHEAPEST rather than a reason to stand aside. See
+     * InteractiveAiActivity.
      */
     case Interactive = 'interactive';
 

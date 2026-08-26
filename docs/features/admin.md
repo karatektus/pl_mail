@@ -316,8 +316,8 @@ Writing help never replaces what you wrote. It appends, so the original is alway
 
 ### Searching by meaning needs one pass first
 
-Semantic search can only find mail it has embedded, and switching the feature on only embeds mail
-that **arrives** from then on. Everything already in the mailbox needs one pass:
+Semantic search can only find mail it has indexed, and switching the feature on indexes nothing on
+its own. Everything already in the mailbox needs one pass:
 
 ```bash
 docker compose exec php php bin/console app:ai:embed-mailbox --email=you@example.com
@@ -330,6 +330,27 @@ a re-embed: change it, then run the pass again.
 
 Ordinary search is completely unchanged by any of this. If the model host is off, or the pass has
 never been run, search works exactly as it always has.
+
+### New mail is indexed after a search, and once a night
+
+Mail is **not** indexed the moment it arrives. Indexing costs a request to the model host per
+message, and mail you have just read is the mail you are least likely to go searching for — so
+plMail waits for one of two moments instead:
+
+- **Just after you search.** Searching by meaning loads the search model to turn your query into a
+  vector, and indexing uses that same model — so once it is loaded and warm, plMail quietly indexes
+  a small batch of your newest unindexed mail in the background. Your search does not wait for it,
+  and it happens at most once every few minutes however much you search.
+- **Once a night**, as a backstop, so mail still becomes findable if you have not searched for a
+  while.
+
+In practice that means mail that arrived in the last few minutes may not be findable by meaning
+yet. Ordinary search finds it immediately, as it always has, and one search is usually enough to
+pull the rest in.
+
+A mailbox that is a long way behind — the feature was switched on last week, or you changed the
+search model — is not what the nightly pass is for. It has a ceiling per mailbox on purpose. Run
+`app:ai:embed-mailbox` above, and watch **Admin → AI** for how far it has got.
 
 ## Users
 
@@ -432,6 +453,11 @@ Monitoring data is kept by every stage. Clear the logs from **Logs**, and stale 
 - [Architecture](../internals/architecture.md) — what the workers, scheduler and supervisor are.
 
 ## Things that bite
+
+**Mail that arrived a minute ago is not searchable by meaning yet.** Indexing happens after a search
+and once a night, not on arrival — so the first search of the day is the one that pulls the day's
+mail in, and it pulls it in for the search after it, not for itself. Ordinary search finds new mail
+straight away, which is why this is usually invisible.
 
 **The reported-mail export is other people's mail.** It is a plain, unencrypted JSON file holding
 the text of messages your users decided to hand over — unlike the config backup, which is encrypted

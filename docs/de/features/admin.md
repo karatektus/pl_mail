@@ -1,4 +1,4 @@
-<!-- translated-from: features/admin.md sha1:9d5f035cf3c6661caf56c50e9badccca77129d37 -->
+<!-- translated-from: features/admin.md sha1:94efcc5a68bd84ca76d7cdf9677109b7034776a1 -->
 
 # Administration
 
@@ -355,8 +355,8 @@ Die Schreibhilfe ersetzt nie, was du geschrieben hast. Sie hängt an, dein Origi
 
 ### Suchen nach Bedeutung braucht einmal einen Durchlauf
 
-Die semantische Suche findet nur Mail, die eingebettet wurde, und beim Einschalten wird nur Mail
-eingebettet, die ab dann **ankommt**. Alles, was schon im Postfach liegt, braucht einen Durchlauf:
+Die semantische Suche findet nur Mail, die indexiert wurde, und das Einschalten allein indexiert
+nichts. Alles, was schon im Postfach liegt, braucht einen Durchlauf:
 
 ```bash
 docker compose exec php php bin/console app:ai:embed-mailbox --email=du@example.com
@@ -369,6 +369,29 @@ ungültig; genau so forderst du ein neues Einbetten an: Modell ändern, Durchlau
 
 Die normale Suche bleibt davon völlig unberührt. Ist der Modell-Host aus oder der Durchlauf nie
 gelaufen, sucht plMail genau wie immer.
+
+### Neue Mail wird nach einer Suche indexiert, und einmal pro Nacht
+
+Mail wird **nicht** in dem Moment indexiert, in dem sie ankommt. Indexieren kostet pro Nachricht
+eine Anfrage an den Modell-Host, und ausgerechnet nach der Mail, die du gerade gelesen hast, suchst
+du am seltensten — plMail wartet deshalb auf einen von zwei Momenten:
+
+- **Direkt nach einer Suche.** Für die Suche nach Bedeutung wird das Such-Modell geladen, um deine
+  Anfrage in einen Vektor zu verwandeln, und das Indexieren benutzt genau dasselbe Modell — solange
+  es also geladen und warm ist, indexiert plMail im Hintergrund still einen kleinen Schwung deiner
+  neuesten noch nicht indexierten Mail. Deine Suche wartet nicht darauf, und es passiert höchstens
+  alle paar Minuten, egal wie viel du suchst.
+- **Einmal pro Nacht**, als Absicherung, damit Mail auch dann findbar wird, wenn du länger nicht
+  gesucht hast.
+
+In der Praxis heißt das: Mail, die vor ein paar Minuten angekommen ist, ist noch nicht nach
+Bedeutung findbar. Die normale Suche findet sie sofort, wie immer, und eine Suche reicht meistens,
+um den Rest nachzuziehen.
+
+Ein Postfach, das weit hinterherhängt — die Funktion wurde letzte Woche eingeschaltet, oder du hast
+das Such-Modell gewechselt —, ist nicht der Fall für den nächtlichen Durchlauf. Der hat mit Absicht
+eine Obergrenze pro Postfach. Nimm dafür `app:ai:embed-mailbox` von oben, und schau unter
+**Administration → KI**, wie weit er gekommen ist.
 
 ## Benutzer
 
@@ -482,6 +505,11 @@ Monitoring-Daten bleiben auf jeder Stufe erhalten. Die Protokolle leerst du unte
   sind.
 
 ## Fallstricke
+
+**Mail, die vor einer Minute angekommen ist, ist noch nicht nach Bedeutung durchsuchbar.**
+Indexiert wird nach einer Suche und einmal pro Nacht, nicht bei der Ankunft — die erste Suche des
+Tages zieht also die Mail des Tages nach, und zwar für die Suche danach, nicht für sich selbst. Die
+normale Suche findet neue Mail sofort, weshalb das meistens gar nicht auffällt.
 
 **Der Export der gemeldeten Mails sind fremde Mails.** Es ist eine schlichte, unverschlüsselte
 JSON-Datei mit dem Text von Nachrichten, die deine Leute weitergegeben haben — anders als die

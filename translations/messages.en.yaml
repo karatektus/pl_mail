@@ -59,7 +59,7 @@ admin:
             failures_label: 'Skipped'
             finished_label: 'Finished'
             heading: 'Search index'
-            intro: 'Search by meaning only sees mail that has been indexed. This walks every mailbox once; new mail is indexed as it arrives.'
+            intro: 'Search by meaning only sees mail that has been indexed. This walks every mailbox once; after that, new mail is indexed shortly after someone searches, and once a night as a backstop.'
             last_activity_label: 'Last checked in'
             model_label: 'Indexed with'
             no_mail: 'There is no mail to index yet.'
@@ -74,7 +74,7 @@ admin:
             paused:
                 feature_off: 'Stopped because search by meaning was switched off.'
                 host_unreachable: 'Waiting for the model host to answer again. It retries by itself.'
-                interactive: 'Standing aside while the AI is being used. It carries on by itself a moment after.'
+                interactive: 'Standing aside while the writing help is in use. It carries on by itself a moment after.'
                 operator: 'Paused. It picks up where it stopped.'
             progress: '%embedded% of %eligible% messages indexed'
             rate: '%rate% messages a second, over the last five minutes'
@@ -84,7 +84,7 @@ admin:
             stalled_body: 'Nothing has moved for a while — the worker that was doing it is probably gone. Resume picks it up where it stopped.'
             start: 'Start'
             started_label: 'Started'
-            tuning: '%batch% messages a batch, %delay% s between batches, and it stands aside for %cooldown% s after anyone uses the AI.'
+            tuning: '%batch% messages a batch, %delay% s between batches, and it stands aside for %cooldown% s after anyone uses the writing help.'
         duration:
             hours: '%count% h'
             minutes: '%count% min'

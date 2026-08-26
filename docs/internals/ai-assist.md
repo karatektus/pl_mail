@@ -159,10 +159,34 @@ model deleting somebody's words with no undo they can see. It goes in as a plain
 end of the body, because a styled wrapper is subtracted by the composer's typed-length calculation
 and can stop the draft autosaving.
 
+## When new mail gets indexed
+
+Not when it arrives. Mail used to be embedded by a post-ingest step within seconds of landing,
+which spent a round trip to the model host on every message the installation ever received — to
+answer a question almost nobody has, because mail you might search for is rarely mail you read ten
+minutes ago.
+
+Two triggers replaced it, and both live in `App\Service\Ai\EmbeddingCatchUp`:
+
+- **Right after a search.** The embedding model is the small one — well under a gigabyte, a couple
+  of seconds cold — and **search and indexing use the same model**, so a query that has just been
+  embedded has left it warm. `SearchController` queues a batch of at most fifty of the newest
+  unindexed messages onto the ingest transport and returns; nothing on the request path waits for
+  the model. Throttled to one batch per mailbox per five minutes, or paging through results would
+  queue one per page.
+- **`app:ai:index-new-mail`, nightly at 03:20.** The backstop, for somebody who has not searched in
+  a fortnight. Newest first, at most `--limit` messages per mailbox.
+
+The same two-model distinction is why a **search no longer holds the backfill back**. The yielding
+signal — `InteractiveAiActivity` — counts the composer only: 20.3 GiB and thirteen seconds cold,
+with a person watching a cursor. Counting a search there meant a finished search suppressed for
+ninety seconds the very indexing whose model it had just paid to load.
+
 ## Embedding an existing mailbox
 
-`app:ai:embed-mailbox`. New mail is embedded by a post-ingest step; everything already in the
-mailbox needs one pass, and on a large one that is hours.
+`app:ai:embed-mailbox`. Both triggers above are bounded and both work newest-first, so neither ever
+reaches the mail that was already there when the feature was switched on. That needs one pass, and
+on a large mailbox that is hours.
 
 The job re-dispatches itself with a cursor rather than looping — a single job holding hours of work
 is killed by any worker restart with nothing to show for it. The walk is by ascending id, the one
@@ -185,3 +209,12 @@ stop new mail appearing until an old mailbox had finished being catalogued.
   reason.
 - **Filling the page with vector hits would disable the body-substring rescue**, which only fires
   when the page did not fill.
+- **The catch-up finder matches on the model and not on the width**, although the coverage count
+  matches on both. What consumes its ids is `EmbedMessagesHandler`, which skips whatever
+  `EmbeddingStore::alreadyStored()` reports — and that asks about the model alone. A finder that
+  tested the width too would hand over a full budget the handler then drops: a nightly sweep that
+  reports itself busy and indexes nothing.
+- **An unbounded catch-up is a second backfill.** `app:ai:index-new-mail` has a per-mailbox ceiling
+  for that reason: without one, the first night on an install that never ran a pass would queue a
+  hundred thousand messages onto the ingest transport and put new mail behind them — with no state
+  row, no pause button and no panel, because those belong to `app:ai:embed-mailbox`.

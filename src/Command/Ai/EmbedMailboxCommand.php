@@ -20,12 +20,21 @@ use Symfony\Component\Console\Style\SymfonyStyle;
 /**
  * Start embedding an existing mailbox.
  *
- * Semantic search only sees mail that has been embedded, and the post-ingest
- * step only embeds mail that ARRIVES. Everything already in the mailbox when
- * the feature was switched on needs one pass, and on a large mailbox that pass
- * is measured in hours — so it is started deliberately rather than triggered by
- * ticking a box, and it is a queue job rather than something that runs inside
- * this command.
+ * Semantic search only sees mail that has been embedded, and the two triggers
+ * that keep up with new mail — the warm window after a search, and the nightly
+ * `app:ai:index-new-mail` — are both bounded and both work newest-first. Neither
+ * will ever reach the mail that was already in the mailbox when the feature was
+ * switched on. That needs one pass, and on a large mailbox the pass is measured
+ * in hours, so it is started deliberately rather than triggered by ticking a
+ * box, and it is a queue job rather than something that runs inside this
+ * command.
+ *
+ * THE DIVISION OF LABOUR, because the two look similar from outside and are
+ * not: this one claims a state row, walks the WHOLE mailbox forwards by id for
+ * as long as it takes, resumes after a restart, reports progress and can be
+ * paused from the admin panel. `app:ai:index-new-mail` has a ceiling per
+ * mailbox, keeps no state and tops up the top of the pile. A mailbox that is a
+ * long way behind wants this one; nothing else will finish.
  *
  * Safe to run twice. The walk skips anything already embedded under the current
  * model, so a second run costs one query per chunk and stores nothing — and

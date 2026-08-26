@@ -134,6 +134,22 @@ final class MaintenanceSchedule implements ScheduleProviderInterface
                 // Log entries, push deliveries and dead heartbeats.
                 RecurringMessage::cron('30 4 * * *', new RunCommandMessage('app:monitoring:prune')),
 
+                // The backstop for semantic search's index. Mail is no longer
+                // embedded as it arrives — that spent a round trip to the model
+                // host on every message ever received, to answer a question
+                // almost nobody asks, since mail you might search for is rarely
+                // mail you read ten minutes ago. Indexing happens instead in the
+                // warm window after somebody searches, and here.
+                //
+                // Once a day, because that is what "as a backup" means and
+                // because the daytime trigger does the useful half. Bounded per
+                // mailbox: see the command, which explains at length why an
+                // unbounded version of it would be EmbeddingBackfill with no
+                // pause button. Twenty past three, in the gap before the
+                // calendar re-draw at 03:50 — they share one worker, and this
+                // one only dispatches.
+                RecurringMessage::cron('20 3 * * *', new RunCommandMessage('app:ai:index-new-mail')),
+
                 // Counts and durations of model calls. Its own line rather than
                 // a fourth window on app:monitoring:prune above, because it is
                 // the retention of a FEATURE rather than of the deployment: the

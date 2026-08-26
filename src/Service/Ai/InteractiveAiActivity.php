@@ -9,7 +9,7 @@ use App\Repository\Ai\AiCallMetricRepository;
 use DateTimeImmutable;
 
 /**
- * Is a person waiting on the model right now, or were they a moment ago?
+ * Is a person waiting on the WRITING model right now, or were they a moment ago?
  *
  * The question the backfill asks before every batch. It exists because the
  * backfill and the composer share one GPU: a click that lands while a batch is
@@ -17,12 +17,26 @@ use DateTimeImmutable;
  * happened" is the complaint the whole yielding arrangement was built to
  * remove.
  *
+ * THE COMPOSER, AND ONLY THE COMPOSER
+ * ───────────────────────────────────
+ * Search used to count too, and no longer does. The two models this
+ * application loads are not comparable: the composer's is 20.3 GiB and thirteen
+ * seconds cold with a person watching a cursor, while search and the indexer
+ * share one well under a gigabyte and a couple of seconds. Indexing straight
+ * after a search REUSES the model that search just warmed, so treating a
+ * finished search as a reason to stand aside spent the cold load and then threw
+ * away the warm window it bought. Both signals below were narrowed for it —
+ * see AiCallMetricRepository::lastInteractiveCallAt() and
+ * InteractiveAiActivitySubscriber, which carry the full argument.
+ *
  * TWO SIGNALS, BECAUSE ONE OF THEM IS ALWAYS LATE
  * ───────────────────────────────────────────────
  *  · ai_call_metric records a call when it FINISHES. That is the honest record
  *    of what the host has been asked to do, and it covers every caller — the
  *    JMAP clients included — but a streamed draft can run for half a minute
- *    before it produces a row, which is the entire window that matters.
+ *    before it produces a row, which is the entire window that matters. It is
+ *    also the only one of the two that sees a composer call made outside a web
+ *    request at all.
  *  · ai_backfill_state.interactive_seen_at is stamped when an interactive
  *    request STARTS, by a listener in the web process. That covers the request
  *    still in flight, and it is in the database rather than in a cache because
@@ -32,13 +46,15 @@ use DateTimeImmutable;
  * The newer of the two is the answer. Neither alone is enough and both are
  * cheap: one indexed MAX over a bounded window, one single-row read.
  *
- * DELIBERATELY GENEROUS
- * ─────────────────────
- * A search that never touched a model still counts as interactive work, and a
- * cooldown measured in a minute and a half is far longer than any single
- * request. Both are the safe direction to be wrong in: the cost of pausing a
- * backfill that did not need pausing is a slower pass over old mail, and the
- * cost of not pausing one is the thing this is here to fix.
+ * DELIBERATELY GENEROUS, WITHIN THE ONE FEATURE IT WATCHES
+ * ────────────────────────────────────────────────────────
+ * A composer request counts from the moment it arrives whether or not it ever
+ * reaches the host, and a cooldown measured in a minute and a half is far
+ * longer than any single request. Both are the safe direction to be wrong in
+ * for that feature: the cost of pausing a backfill that did not need pausing is
+ * a slower pass over old mail, and the cost of not pausing one is the thing
+ * this is here to fix. Generosity about WHICH feature is a different trade, and
+ * it went the other way — see above.
  */
 final readonly class InteractiveAiActivity
 {
