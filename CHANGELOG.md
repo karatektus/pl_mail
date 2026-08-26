@@ -6,6 +6,50 @@ so anything that changes the schema irreversibly is called out explicitly.
 The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, and `sha-…` pins one commit.
 
+## v0.2.1 — 2026-08-27
+
+**No schema changes. Fixes to the language-model work released earlier today, all of them things that
+only show up once it is actually being used — and a change to when new mail gets indexed.**
+
+### Fixed
+
+- **Asking for a draft died after thirty seconds, mid-sentence.** PHP's own execution limit is well
+  below what the request legitimately takes: a writing model that has fallen out of memory needs
+  around thirteen seconds to be read off disk *before* the first word exists, and a reply worth
+  reading is another half-minute after that. The limit fired inside the wait, so the text stopped
+  half-written, the reader was shown an error, and the model carried on generating for nobody.
+
+- **Generated text landed underneath the quoted message.** A reply opens with the original already
+  in the body, so "the end of the draft" is below it — the answer arrived somewhere nobody scrolls
+  to, under the message it was answering. It now goes where your cursor already is when you start
+  writing a reply: above the quote. Plain-text drafts too.
+
+- **The wait for a model to load looked like a hung window.** There is nothing honest to put in a
+  progress bar — the model host reports no progress at all while it loads — so the sentence saying
+  what is happening now has three dots moving beside it. They stop the moment the first word
+  arrives, because text appearing says it better.
+
+- **Admin → AI was misaligned.** Each card's heading and its contents started four pixels apart.
+
+### Changed
+
+- **The panels in Admin → AI fold away**, and the settings card starts folded once a host and models
+  are on file. Settings are a thing you finish; after that the card is a wall of filled-in fields
+  standing between you and the two panels worth coming back to. It opens itself on a fresh install,
+  straight after a save, and when something you typed was refused.
+
+- **New mail is no longer indexed the moment it arrives.** On a machine with one GPU that is the
+  wrong trade: it is rare to search for mail that has just landed, and paying to index every arrival
+  competes with the things somebody is actually waiting on. Two triggers replace it — **shortly after
+  a search**, because a search has just loaded the model that indexing uses and nobody is waiting on
+  it any more, and **once a night** as the backstop (`app:ai:index-new-mail`, 03:20).
+
+  Indexing also stops standing aside after a *search*. It always should have: the composer spends the
+  20 GiB writing model and is worth keeping out of the way of, but search spends the small embedding
+  model — the same one indexing uses — so a finished search is the best moment to index, not a reason
+  to wait. It still stands aside for the composer.
+
+
 ## v0.2.0 — 2026-08-27
 
 **Adds two tables and two columns; the migrations run on boot. The language model can now be watched
