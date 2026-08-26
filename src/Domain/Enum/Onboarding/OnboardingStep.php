@@ -30,6 +30,10 @@ enum OnboardingStep: string
 {
     case AdminMailCredentials = 'admin-mail';
     case AdminIntegrationCredentials = 'admin-integrations';
+    // After the two credential steps and before anything a person sets up for
+    // themselves: it configures the install, and it is the only one of the
+    // three an admin can reasonably answer with "no".
+    case AdminAi = 'admin-ai';
     case Account = 'account';
     case Integrations = 'integrations';
     case Profile = 'profile';
@@ -48,6 +52,7 @@ enum OnboardingStep: string
         return match ($this) {
             self::AdminMailCredentials        => 'fa-solid fa-key',
             self::AdminIntegrationCredentials => 'fa-solid fa-plug-circle-bolt',
+            self::AdminAi                     => 'fa-solid fa-wand-magic-sparkles',
             self::Account                     => 'fa-solid fa-envelope',
             self::Profile                     => 'fa-solid fa-user',
             self::Security                    => 'fa-solid fa-shield-halved',
@@ -63,7 +68,7 @@ enum OnboardingStep: string
     public function requiresAdmin(): bool
     {
         return match ($this) {
-            self::AdminMailCredentials, self::AdminIntegrationCredentials => true,
+            self::AdminMailCredentials, self::AdminIntegrationCredentials, self::AdminAi => true,
             default                                                       => false,
         };
     }

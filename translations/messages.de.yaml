@@ -1804,6 +1804,11 @@ onboarding:
             oauth: >-
                 Für Gmail und Outlook nimm stattdessen die Anmelde-Buttons unter
                 Einstellungen → Mail-Konten — dort brauchst du keine Serveradressen.
+        admin_ai:
+            body: 'Die Adresse eines Ollama-Containers in deinem Netz und die Namen zweier Modelle, die dort liegen — eines zum Schreiben, eines für die Suche. Es verlässt nichts dein Netz.'
+            heading: 'Was du brauchst'
+            skip_body: 'Klick auf Weiter, ohne etwas auszufüllen. plMail ist auch ohne das ein vollständiger Mail-Client, und du kannst später jederzeit unter Administration → KI zurückkommen.'
+            skip_heading: 'Kein Interesse?'
         admin_integrations:
             body: Registriere plMail beim Dienst und trage die erhaltenen Zugangsdaten hier ein.
             heading: So richtest du das ein
@@ -1864,6 +1869,10 @@ onboarding:
         account:
             lead: Verbinde das Postfach, das du wirklich liest — plMail beginnt dann zu synchronisieren.
             title: Mail-Konto
+        admin-ai:
+            intro: 'plMail kann ein Sprachmodell benutzen, das du selbst betreibst — zum Suchen nach Bedeutung, zum Einsortieren und als Hilfe beim Schreiben. Das ist völlig optional, du darfst hier alles leer lassen.'
+            lead: 'Optional. Lass es leer, wenn du es nicht willst.'
+            title: 'Sprachmodell'
         admin-integrations:
             lead: Zugangsdaten für die Dienste, aus denen hier alle Dateien anhängen können.
             title: Integrations-Zugangsdaten

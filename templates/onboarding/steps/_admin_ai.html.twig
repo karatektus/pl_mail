@@ -1,0 +1,13 @@
+{#
+The optional step. Everything here may be left exactly as it is, and pressing
+Next with nothing filled in is a complete answer — see AdminAiStepHandler on why
+that has to be recorded rather than merely tolerated.
+
+The form is the admin panel's own, so there is one description of these fields
+rather than two that drift apart.
+#}
+<p class="text-sm text-ink-soft leading-relaxed">
+    {{ 'onboarding.step.admin-ai.intro'|trans }}
+</p>
+
+{{ form_widget(form) }}

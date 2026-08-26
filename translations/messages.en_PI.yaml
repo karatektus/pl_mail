@@ -1494,6 +1494,11 @@ onboarding:
             oauth: >-
                 For Gmail an' Outlook, use the sign-aboard buttons under Riggin' → Mailbags
                 instead — no addresses needed.
+        admin_ai:
+            body: "The berth of an Ollama box on yer network, an' the names o' two models it holds — one for writin', one for searchin'. Nowt leaves yer waters."
+            heading: 'What ye need'
+            skip_body: "Press Next with all of it empty. plMail be a whole mail client without any o' this, an' ye can come back later under Admin -> Oracle."
+            skip_heading: 'Not for ye?'
         admin_integrations:
             body: Register yer ship with the port, then paste the keys it hands ye.
             heading: Riggin' this up
@@ -1553,6 +1558,10 @@ onboarding:
         account:
             lead: Hitch up the mailbag ye actually read, an' plMail starts haulin' it in.
             title: Mailbag
+        admin-ai:
+            intro: "plMail can consult an oracle ye run yerself — for searchin' by meanin', sortin' mail, an' help with writin'. Wholly optional; leave ev'ry box below empty if ye like."
+            lead: "Optional. Leave it be if ye don't want it."
+            title: 'Oracle'
         admin-integrations:
             lead: Keys for the ports every soul aboard can load cargo from.
             title: Port keys

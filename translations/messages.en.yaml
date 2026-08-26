@@ -1796,6 +1796,11 @@ onboarding:
             oauth: >-
                 For Gmail and Outlook, use the sign-in buttons under Settings → Mail
                 accounts instead — no server addresses needed.
+        admin_ai:
+            body: 'The address of an Ollama container on your network, and the names of two models it is holding — one for writing, one for search. Nothing leaves your network.'
+            heading: 'What you need'
+            skip_body: 'Press Next with everything empty. plMail is a complete mail client without any of this, and you can come back to it later in Admin → AI.'
+            skip_heading: 'Not interested?'
         admin_integrations:
             body: Register plMail with the service, then paste the credentials it gives you.
             heading: Setting this up
@@ -1855,6 +1860,10 @@ onboarding:
         account:
             lead: Connect the mailbox you actually read, and plMail starts syncing it.
             title: Mail account
+        admin-ai:
+            intro: 'plMail can use a language model you run yourself — for searching by meaning, sorting mail, and help with writing. It is entirely optional, and you can leave every box below empty.'
+            lead: 'Optional. Leave it empty if you do not want it.'
+            title: 'Language model'
         admin-integrations:
             lead: Credentials for the services everyone here can attach files from.
             title: Integration credentials
