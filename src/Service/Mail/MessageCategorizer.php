@@ -138,6 +138,28 @@ final class MessageCategorizer
             return ['category' => MessageCategory::Updates, 'reason' => 'update', 'signal' => $signal];
         }
 
+        // ── The tie-breaker, and only here ────────────────────────────────
+        // Every rule above has now declined to recognise this message, and the
+        // honest answer at this point is "we do not know, so Primary". That is
+        // the ONE place a model's opinion can help without doing harm.
+        //
+        // Above this line it could only ever overrule something that actually
+        // matched a header, which would make a tab's contents depend on which
+        // model happened to be installed — and would silently move mail a
+        // documented rule had placed. Below it there is nothing left to decide.
+        //
+        // No call is made from here. This reads a verdict that was stored
+        // asynchronously if one exists; a categoriser that reached out to
+        // another machine would put an HTTP round trip inside every list
+        // render, every ingest and every explain() the details panel performs.
+        if (null !== $message->aiCategory) {
+            return [
+                'category' => $message->aiCategory,
+                'reason'   => 'ai',
+                'signal'   => null,
+            ];
+        }
+
         return ['category' => MessageCategory::Primary, 'reason' => 'default', 'signal' => null];
     }
 

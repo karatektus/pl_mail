@@ -1389,6 +1389,7 @@ message:
         reported_at: "Word came back %datetime%"
     details:
         categorised:
+            ai: "an oracle, for no rule knew it: "
             correspondent: 'ye have written to this one'
             default: 'naught marked it as bilge'
             forum: 'a crew-list header: '

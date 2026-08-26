@@ -1683,6 +1683,7 @@ message:
         reported_at: 'Reported %datetime%'
     details:
         categorised:
+            ai: 'a language model, because no rule recognised it: '
             correspondent: 'you have written to this sender'
             default: 'nothing marked it as bulk mail'
             forum: 'a mailing-list header: '

@@ -1689,6 +1689,7 @@ message:
         reported_at: 'Gemeldet %datetime%'
     details:
         categorised:
+            ai: 'ein Sprachmodell, weil keine Regel gegriffen hat: '
             correspondent: 'Du hast diesem Absender geschrieben'
             default: 'nichts wies auf Massenmail hin'
             forum: 'ein Mailinglisten-Header: '
