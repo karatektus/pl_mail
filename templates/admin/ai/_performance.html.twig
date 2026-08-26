@@ -45,9 +45,18 @@ there is no other screen anywhere that would tell you.
 <div class="space-y-3">
 
     {# ── The model host ────────────────────────────────────────────────── #}
-    <div class="{{ chrome.shell() }}">
+    {# Collapsible like the settings card above it, and OPEN by default: this
+       is the card somebody came to look at. The fold is for putting it away
+       once they have, not for hiding it on arrival.
 
-        <div class="flex items-center gap-2.5 {{ chrome.band() }}">
+       `open` is a plain attribute, so the browser remembers nothing across the
+       five-second poll — which is exactly right, because the poller replaces
+       this markup wholesale and any state it held would be reset anyway. #}
+    <details open class="{{ chrome.shell() }} group">
+
+        <summary class="flex items-center gap-2.5 cursor-pointer list-none {{ chrome.band() }}">
+            <i class="fa-solid fa-chevron-right w-3 text-xs text-ink-faint transition-transform
+                      group-open:rotate-90" aria-hidden="true"></i>
             <i class="fa-solid fa-microchip text-xs text-zinc-400" aria-hidden="true"></i>
             <h2 class="text-sm font-semibold text-ink">{{ 'admin.ai.perf.heading'|trans }}</h2>
 
@@ -76,9 +85,11 @@ there is no other screen anywhere that would tell you.
                     {{ 'admin.ai.perf.chip.warm'|trans }}
                 </span>
             {% endif %}
-        </div>
+        </summary>
 
-        <div class="px-5 py-4 space-y-4">
+        {# chrome.body(), matching the band's px-4. It was px-5, which set the
+           header's text and the body's text four pixels apart. #}
+        <div class="{{ chrome.body() }} space-y-4">
 
             {% if not panel.enabled %}
 
@@ -338,12 +349,14 @@ there is no other screen anywhere that would tell you.
 
             {% endif %}
         </div>
-    </div>
+    </details>
 
     {# ── The search index backfill ─────────────────────────────────────── #}
-    <div class="{{ chrome.shell() }}">
+    <details open class="{{ chrome.shell() }} group">
 
-        <div class="flex items-center gap-2.5 {{ chrome.band() }}">
+        <summary class="flex items-center gap-2.5 cursor-pointer list-none {{ chrome.band() }}">
+            <i class="fa-solid fa-chevron-right w-3 text-xs text-ink-faint transition-transform
+                      group-open:rotate-90" aria-hidden="true"></i>
             <i class="fa-solid fa-layer-group text-xs text-zinc-400" aria-hidden="true"></i>
             <h2 class="text-sm font-semibold text-ink">{{ 'admin.ai.backfill.heading'|trans }}</h2>
 
@@ -372,9 +385,11 @@ there is no other screen anywhere that would tell you.
                     {{ 'admin.ai.backfill.chip.idle'|trans }}
                 </span>
             {% endif %}
-        </div>
+        </summary>
 
-        <div class="px-5 py-4 space-y-4">
+        {# chrome.body(), matching the band's px-4. It was px-5, which set the
+           header's text and the body's text four pixels apart. #}
+        <div class="{{ chrome.body() }} space-y-4">
 
             <p class="text-sm text-ink-soft leading-relaxed">{{ 'admin.ai.backfill.intro'|trans }}</p>
 
@@ -511,5 +526,5 @@ there is no other screen anywhere that would tell you.
                 }) }}
             </p>
         </div>
-    </div>
+    </details>
 </div>

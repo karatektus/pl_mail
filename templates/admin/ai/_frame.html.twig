@@ -23,9 +23,27 @@ poll would empty a field mid-word.
 #}
 <turbo-frame id="admin-ai" class="block space-y-3">
 
-    <div class="{{ chrome.shell() }}">
+    {# Collapsible, and CLOSED once there is nothing left to do here.
+       Settings are a thing you finish. Once a host and a model are on file this
+       card is a wall of filled-in fields standing between the administrator and
+       the two cards below it, which are the ones worth looking at again — so it
+       folds itself away and the chip in its header keeps saying what state it
+       is in.
 
-        <div class="flex items-center gap-2.5 {{ chrome.band() }}">
+       It opens itself for the three cases where it still wants attention: a
+       fresh install with nothing configured, the moment after a save (so the
+       confirmation is not hidden behind a fold), and a form that came back with
+       errors.
+
+       Native <details>, like the settings pages: keyboard-operable and
+       screen-reader-announced with nothing added, no JavaScript, and nothing for
+       the Content Security Policy to refuse. #}
+    <details class="{{ chrome.shell() }} group"
+             {{ (not settings.isConfigured or saved or not form.vars.valid) ? 'open' : '' }}>
+
+        <summary class="flex items-center gap-2.5 cursor-pointer list-none {{ chrome.band() }}">
+            <i class="fa-solid fa-chevron-right w-3 text-xs text-ink-faint transition-transform
+                      group-open:rotate-90" aria-hidden="true"></i>
             <i class="fa-solid fa-wand-magic-sparkles text-xs text-zinc-400" aria-hidden="true"></i>
             <h2 class="text-sm font-semibold text-ink">{{ 'admin.ai.heading'|trans }}</h2>
 
@@ -49,9 +67,11 @@ poll would empty a field mid-word.
                     {{ 'admin.ai.status.off'|trans }}
                 </span>
             {% endif %}
-        </div>
+        </summary>
 
-        <div class="px-5 py-4 space-y-4">
+        {# px-4, matching chrome.band(). It was px-5, so the header's text and
+           the body's text started four pixels apart down the whole card. #}
+        <div class="{{ chrome.body() }} space-y-4">
 
             {% if saved %}
                 <div role="status" class="flex items-start gap-2.5 rounded-lg bg-emerald-500/10 px-3.5 py-3 text-sm text-emerald-500">
@@ -142,7 +162,7 @@ poll would empty a field mid-word.
                 </div>
             {{ form_end(form) }}
         </div>
-    </div>
+    </details>
 
     {# ── Telemetry, under the configuration ────────────────────────────────
        Below the settings card and inside the same frame, because it answers
