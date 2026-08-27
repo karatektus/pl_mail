@@ -54,6 +54,9 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
  */
 final class ThreadSummaryController extends AbstractController
 {
+    /** Above the upstream's own bound, so it is the upstream that gives up first. */
+    private const int STREAM_TIME_LIMIT_SECONDS = 300;
+
     use ChecksCsrf;
 
     public function __construct(
@@ -204,7 +207,27 @@ final class ThreadSummaryController extends AbstractController
         // is safe: the upstream is held to OllamaClient::GENERATE_TIMEOUT, a
         // dead host trips that and unwinds normally, and a reader who leaves is
         // noticed by connection_aborted() on the next write.
-        set_time_limit(0);
+        // A POSITIVE ceiling, not 0.
+        //
+        // 0 means "cancel the timer", and cancelling is the part that does not
+        // reliably happen: a summary died mid-stream with
+        //
+        //     MaxExecutionTimeError: Maximum execution time of 0 seconds
+        //     exceeded at CurlResponse.php line 370
+        //
+        // and that message is its own diagnosis. Line 370 is curl_multi_select,
+        // the blocking wait for the model's next token, and PHP names the limit
+        // it is enforcing — 0. The value was set; the already-armed timer was
+        // not taken down with it, and it fired while blocked on the socket.
+        //
+        // A positive value RE-ARMS instead, which is the operation that works.
+        // It is also the more honest ceiling: unbounded means a request that
+        // holds a PHP worker for ever if the reader and the model both vanish,
+        // and there is no bound left anywhere to catch it.
+        //
+        // Above OllamaClient::GENERATE_TIMEOUT (120s, an IDLE timeout) plus a
+        // cold load, so this only ever fires when that has failed to.
+        set_time_limit(self::STREAM_TIME_LIMIT_SECONDS);
 
         $tokens = $this->summariser->stream($user, $thread, $transcript);
 
