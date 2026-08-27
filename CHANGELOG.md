@@ -6,6 +6,31 @@ so anything that changes the schema irreversibly is called out explicitly.
 The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, and `sha-…` pins one commit.
 
+## v0.2.6 — 2026-08-27
+
+**No schema changes. Six things that were wrong in ways that looked right.**
+
+### Fixed
+
+- **Asking for a summary could die part-way through.** The request said it wanted no time limit at
+  all, and the limit it got was zero seconds. It names a real ceiling now, above the one the model
+  host is already held to. Drafting was written the same way and would have hit it on any request
+  that took longer than half a minute.
+
+- **A cancelled send could reopen a composer you had just closed** — and a cancel pressed in the
+  moment before the send became cancellable could be dropped entirely, sending the message anyway.
+  Both are gone.
+
+- **An event running over several days showed as an hour.** The details card named the day it
+  started, the time it started and the time it ended — three true things that together said
+  something false. It names both days now. The heading above it said "Title".
+
+- **Two cards on the profile page were touching**, so they read as one card with a line through it.
+
+- **A message's "···" menu was drawn underneath the message below it.**
+
+- **Account health's heading and its cards started at different places** on any window wide enough.
+
 ## v0.2.5 — 2026-08-27
 
 **Adds seven columns and changes one; the migrations run on boot. The prompts behind the assistant are
