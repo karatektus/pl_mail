@@ -3282,6 +3282,53 @@
         padding-inline-start: 0;
         border-radius: 0.5rem;
     }
+
+    /* The rows that carry an unread badge are a <div class="nav-item"> wrapping
+       the link, not a bare <a> — so `nav > a` above never reached them, and the
+       `justify-between` that spaces a label from its badge put the icon at the
+       START of the row once the badge had been hidden by .rail-hide.
+
+       Inbox and Starred therefore sat ten pixels left of Compose, Sent and
+       Drafts, which is visible the moment the rail is narrow enough that the
+       icons are all there is. Measured rather than judged by eye: in a 56px
+       rail every other icon centres on 28 and those two centred on 18.
+
+       `flex: none` on the inner link matters as much as the centring. It is
+       `flex-1` so that a label can take the room a badge leaves, and left at
+       that it stretches to the full row and re-anchors its own contents to the
+       left — centring the row around a box that fills the row changes nothing. */
+    .sidebar-rail #sidebar nav > .nav-item {
+        justify-content: center;
+        padding-inline: 0;
+        gap: 0;
+    }
+
+    .sidebar-rail #sidebar nav > .nav-item > a {
+        flex: none;
+        justify-content: center;
+    }
+
+    /* The new-mail dot is a flex ITEM sitting after the label, so hiding the
+       label with .rail-hide left the dot still taking a slot and a gap — and
+       the icon it belongs to drifted off centre by exactly that much. Inbox
+       measured at 21 against everything else's 28.
+
+       Lifted out of the flow and pinned to the icon's corner rather than
+       hidden: a collapsed rail is precisely where "something arrived in here"
+       is the only signal left, since .rail-hide has already taken the count
+       badge away. Hiding it would centre the icon by removing the one thing
+       the row still had to say. */
+    .sidebar-rail #sidebar nav .nav-item > a > span,
+    .sidebar-rail #sidebar nav > a > span {
+        position: relative;
+        gap: 0;
+    }
+
+    .sidebar-rail #sidebar nav .new-dot {
+        position: absolute;
+        top: -0.125rem;
+        inset-inline-end: -0.3125rem;
+    }
 }
 
 /* Nav rows, Gmail-style: the pill runs off the left edge and caps with a full
