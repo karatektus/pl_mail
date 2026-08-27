@@ -8,6 +8,13 @@ find.
    is one of the few cards that takes the chrome's body inset. Until now it was
    not a card at all — a bare heading and a form, which on a narrow pane sat
    flush against the pane border like security's heading did. #}
+{# Two cards, so they need the gap two cards take. Without it the pair
+   render as adjacent siblings with no margin: one continuous panel with
+   a hairline through it, which reads as one card carrying two headings
+   rather than two subjects. space-y-4 is what the multi-card sections in
+   index.html.twig use. #}
+<div class="space-y-4">
+
 {% embed 'settings/_card.html.twig' with {
     heading:    'settings.profile.heading'|trans,
     subheading: 'settings.profile.subheading'|trans,
@@ -115,3 +122,4 @@ other. This lives beside the avatar, which is what it is: a picture of you.
     </div>
     {% endblock %}
 {% endembed %}
+</div>

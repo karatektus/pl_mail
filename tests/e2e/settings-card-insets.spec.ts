@@ -200,6 +200,15 @@ const TOLERANCE = {
     betweenCards: 1,
     /** A bare heading against a card, which is one border-width further in. */
     aroundCards: 2,
+
+    /**
+     * The smallest gap that still reads as two cards.
+     *
+     * Not a design figure — the sections use space-y-4 (16px) — but the line
+     * below which a pair stops being two things. Two borders sharing an edge is
+     * 0; anything with real air in it is fine.
+     */
+    cardGap: 4,
 };
 
 /**
@@ -502,6 +511,48 @@ async function measure(page: Page, section: string): Promise<Measurement> {
                             `responsive px-0 that cancels its inset, and the card body for a px-5. ` +
                             `The reference is measured from the card's PADDING box, so a decorative ` +
                             `border — the health severity stripe is border-l-4 — is not what moved it.`,
+                    );
+                }
+            }
+
+            /**
+             * Check D — two cards do not touch.
+             *
+             * The other three checks are all about where content starts
+             * HORIZONTALLY, and a pair of cards rendered with no gap satisfies
+             * every one of them: both insets agree, both agree with the
+             * headings, nothing is misaligned by a pixel. They simply read as
+             * one card with a rule through it and two headings in it.
+             *
+             * That is how Settings -> Profile shipped: two `{% embed %}` cards
+             * as adjacent siblings with no `space-y`, reported by the owner
+             * immediately after a sweep that had measured the page and found
+             * nothing — because the property was never being measured.
+             *
+             * Compared against the SMALLEST real gap on the page rather than a
+             * fixed figure, so a section that deliberately packs its cards
+             * tighter than space-y-4 is not forced apart; zero is the only
+             * thing this refuses, and zero is two borders sharing an edge.
+             */
+            for (let i = 1; i < cardList.length; i++) {
+                const above = cardList[i - 1].getBoundingClientRect();
+                const below = cardList[i].getBoundingClientRect();
+
+                // Only cards actually stacked on each other. A split pair side
+                // by side — the appearance section has one — is not this.
+                if (below.top < above.bottom - 1) {
+                    continue;
+                }
+
+                const gap = below.top - above.bottom;
+
+                if (gap < tolerance.cardGap) {
+                    offences.push(
+                        `${section}: two cards are touching — the one ending at ` +
+                            `y=${round(above.bottom)} and the one starting at y=${round(below.top)}, ` +
+                            `${round(gap)}px apart. Cards stacked without a gap render as one card ` +
+                            `with a rule through it and two headings inside it. The multi-card ` +
+                            `sections wrap their cards in space-y-4.`,
                     );
                 }
             }
