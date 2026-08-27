@@ -6,6 +6,43 @@ so anything that changes the schema irreversibly is called out explicitly.
 The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, and `sha-…` pins one commit.
 
+## v0.2.5 — 2026-08-27
+
+**Adds seven columns and changes one; the migrations run on boot. The prompts behind the assistant are
+yours to edit, and a handful of things that were quietly wrong are not any more.**
+
+### Added
+
+- **The system prompts are in Admin → AI.** All seven — the four writing tasks, the summary, the tab
+  sorting, and the sentence that makes the assistant answer in the language of the mail. Leave a box
+  empty to keep the wording plMail ships, so a later update can still improve it; what you type
+  replaces it completely.
+
+  Editing the summary prompt marks summaries already written as out of date. Nothing is deleted —
+  they are rewritten the next time somebody asks.
+
+### Fixed
+
+- **A cancelled send could reopen a composer you had just closed.** With the send behaviour that
+  keeps the window on screen, calling a send off and then closing the window meant the response —
+  whose job is to put the composer back — arrived after you had shut it, and it came back on its own.
+
+- **A message's "···" menu was drawn underneath the message below it.** It was never clipped; it was
+  covered.
+
+- **Account health's heading and cards started at different places** on any window wide enough — and
+  only there, which is why it survived three previous sweeps.
+
+- **The summary card no longer appears before you ask for it.** A conversation nobody has summarised
+  now shows only the control, beside the subject.
+
+- **The calendar could turn one event into six.** Ticking a second calendar that mirrors the same
+  remote calendar as the first made two copies, and once the provider gave the event its own
+  identity the two stopped being recognised as the same meeting and were drawn separately. plMail now
+  keeps the copies together, marks which calendar actually syncs, and refuses to offer the same
+  remote calendar twice. A multi-day event also stops printing its start time on every day it covers
+  — it does not start again on Saturday.
+
 ## v0.2.4 — 2026-08-27
 
 **Adds a table and two columns; the migrations run on boot. Conversations can be summarised, when you
