@@ -1205,12 +1205,23 @@ Variables: form, message, ctx (an App\Domain\DTO\Mail\ComposeContext)
                                  class="absolute bottom-full mb-2 left-2 right-2
                                         md:left-auto md:right-3 md:w-64 z-30 popover py-1">
 
-                                {% for task, icon in {
-                                    'reply':     'fa-reply',
-                                    'shorten':   'fa-compress',
-                                    'formal':    'fa-user-tie',
-                                    'proofread': 'fa-spell-check',
-                                } %}
+                                {# "Draft a reply" only where there is something to reply TO.
+                                   A new message has no ctx.replyTo, so the task was being
+                                   offered with nothing to work from — and the server refuses
+                                   it (WritingAssistant returns null for a reply with neither
+                                   a draft nor a message behind it), so pressing it produced
+                                   the "no answer" sentence. An option that is always there
+                                   and never works reads as a broken feature rather than an
+                                   inapplicable one.
+
+                                   The rewriting tasks stay: they act on whatever is in the
+                                   body, which a new message has as soon as anything is
+                                   typed. #}
+                                {% set tasks = ctx.replyTo is null
+                                    ? { 'shorten': 'fa-compress', 'formal': 'fa-user-tie', 'proofread': 'fa-spell-check' }
+                                    : { 'reply': 'fa-reply', 'shorten': 'fa-compress', 'formal': 'fa-user-tie', 'proofread': 'fa-spell-check' } %}
+
+                                {% for task, icon in tasks %}
                                     <button type="button"
                                             data-action="click->compose--ai-assist#run click->ui--dropdown#close"
                                             data-compose--ai-assist-task-param="{{ task }}"

@@ -1,5 +1,5 @@
 import { test, expect } from "./support/test";
-import { consoleCommand } from "./support/config";
+import { INBOX_SUBJECTS, consoleCommand, mailRow, seed } from "./support/config";
 
 /**
  * What the composer says while a language model is thinking.
@@ -52,7 +52,9 @@ test.describe("composer writing help", () => {
 
         await page.locator(MENU_BUTTON).click();
 
-        const task = page.getByRole("button", { name: "Draft a reply" });
+        // A REWRITING task, not "Draft a reply": this is a new message, and the
+        // reply task is deliberately not offered here — see the test below.
+        const task = page.getByRole("button", { name: "Fix spelling and grammar" });
         await expect(task).toBeVisible();
         await task.click();
 
@@ -67,5 +69,46 @@ test.describe("composer writing help", () => {
         // And it resolves into a plain sentence rather than sitting on "Writing…"
         // for ever, because the host does not answer.
         await expect(status).toHaveText(/gave no answer|could not be sent/i, { timeout: 30_000 });
+    });
+
+    /**
+     * "Draft a reply" is only offered where there is something to reply TO.
+     *
+     * A new message has no message behind it, so the task had nothing to work
+     * from and the server refused it — the option was always there and never
+     * worked, which reads as a broken feature rather than an inapplicable one.
+     *
+     * Both halves are asserted in one test on purpose. Either alone passes for
+     * the wrong reason: "absent on a new message" would pass if the menu never
+     * rendered at all, and "present on a reply" would pass if the task were
+     * simply always there. The pair is the claim.
+     */
+    test("offers to draft a reply only when there is something to reply to", async ({ page }) => {
+        const menu = page.locator(MENU_BUTTON);
+        const replyTask = page.getByRole("button", { name: "Draft a reply" });
+        const rewriteTask = page.getByRole("button", { name: "Fix spelling and grammar" });
+
+        // ── A new message: no reply task, but the menu is there and populated.
+        await page.goto("/mail/inbox");
+        await page.getByRole("link", { name: "Compose" }).first().click();
+        await expect(page.locator(`${DOCK} .ts-control`).first()).toBeVisible();
+
+        await menu.click();
+
+        await expect(rewriteTask).toBeVisible();
+        await expect(replyTask).toHaveCount(0);
+
+        // ── A reply: the task is offered, because now it has a message to read.
+        seed("seed-mail");
+
+        await page.goto("/mail/inbox");
+        await mailRow(page, INBOX_SUBJECTS.read).click();
+        await page.getByRole("link", { name: "Reply", exact: true }).first().click();
+
+        const inlineMenu = page.locator('#compose_inline button[aria-label="Help me write"]');
+        await expect(inlineMenu).toBeVisible();
+        await inlineMenu.click();
+
+        await expect(page.getByRole("button", { name: "Draft a reply" })).toBeVisible();
     });
 });

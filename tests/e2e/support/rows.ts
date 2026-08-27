@@ -20,18 +20,33 @@ import { expect, type Locator, type Page } from "@playwright/test";
  * Archive on already-archived mail, say — still fails, and fails saying so.
  */
 export async function rowAction(row: Locator, name: string | RegExp): Promise<void> {
-    // Hover FIRST. The actions are `visibility: hidden` until the row is
-    // hovered, and a hidden element is not in the accessibility tree — so
-    // getByRole finds nothing at all and the assertion below would report a
-    // missing action for one that is merely unhovered.
-    await row.scrollIntoViewIfNeeded();
-    await row.hover();
-
     const button = row.getByRole("button", { name });
 
-    await expect(button, `the row has no "${name}" action`).toHaveCount(1);
+    // Hover FIRST, and re-hover on every attempt rather than hovering once and
+    // trusting it to stick.
+    //
+    // The actions are `visibility: hidden` until the row is hovered, and a
+    // hidden element is not in the accessibility tree — so getByRole finds
+    // nothing at all, and a plain assertion would report a missing action for
+    // one that is merely unhovered. Retrying does not help by itself either:
+    // the mouse has not moved, so a row replaced by a refresh under a stationary
+    // pointer never receives :hover, and every retry re-reads the same nothing
+    // until it times out.
+    await expect(async () => {
+        await row.scrollIntoViewIfNeeded();
+        await row.hover();
 
-    await button.click({ force: true });
+        await expect(button, `the row has no "${name}" action`).toBeVisible({ timeout: 1_000 });
+    }).toPass({ timeout: 10_000 });
+
+    // NOT force. `force` skips the hit-target check, and skipping it is how this
+    // failed silently rather than loudly: the snooze button was clicked while
+    // invisible, the event went to the coordinates and landed on the ROW, and
+    // the assertion that followed reported a menu that "did not open" — which
+    // was true, and said nothing about why. An honest click hovers the button
+    // itself (keeping the row hovered, since it is inside it), waits for it to
+    // be hittable, and says so if something is covering it.
+    await button.click();
 }
 
 /**

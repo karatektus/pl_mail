@@ -23,8 +23,12 @@ test.beforeEach(() => {
 async function openSnoozeMenu(page: import("@playwright/test").Page, subject: string) {
     const row = mailRow(page, subject);
     await expect(row).toBeVisible();
-    await row.hover();
-    await row.getByRole("button", { name: /snooze/i }).click({ force: true });
+
+    // Through the shared helper rather than a second copy of it. This file used
+    // to hover and force-click by hand, which is how the snooze button came to
+    // be pressed while invisible: the click landed on the row instead, and the
+    // failure read as "the menu did not open" with nothing to say why.
+    await rowAction(row, /snooze/i);
 
     // THIS row's menu. Every row renders its own copy of the partial, and the
     // list toolbar renders another for the selection, so a page-wide `.first()`

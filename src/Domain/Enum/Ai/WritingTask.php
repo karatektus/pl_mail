@@ -31,7 +31,30 @@ enum WritingTask: string
     /** Fix the spelling and grammar and change nothing else. */
     case Proofread = 'proofread';
 
+    /**
+     * Said to every task, because every task gets it wrong the same way.
+     *
+     * These instructions are written in English, and a model reads them as
+     * evidence of the language it is supposed to answer in — so a German mail
+     * came back with an English reply, and proofreading a German draft quietly
+     * translated it. Neither is a thing anybody asked for, and the second one
+     * destroys the text it was asked to correct.
+     *
+     * The last clause is the one doing the work. "Write in the language of the
+     * message" alone is not enough when everything around it is English; the
+     * instruction has to name that pull and refuse it explicitly.
+     */
+    private const string LANGUAGE_RULE = ' Always write in the language of the message you are given:'
+        . ' a German message gets a German answer, an English one an English answer, and so on for'
+        . ' any other language. Never translate the message into another language, and never switch'
+        . ' to English merely because these instructions are written in English.';
+
     public function systemPrompt(): string
+    {
+        return $this->taskPrompt() . self::LANGUAGE_RULE;
+    }
+
+    private function taskPrompt(): string
     {
         return match ($this) {
             self::Reply => 'You draft replies to email. Write only the body of the reply, as plain '
