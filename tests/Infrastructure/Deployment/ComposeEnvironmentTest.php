@@ -64,6 +64,25 @@ final class ComposeEnvironmentTest extends TestCase
     ];
 
     /**
+     * Overlays that define INFRASTRUCTURE rather than the app.
+     *
+     * They get the `.env` check and not the APP_ENV one, and the split is the
+     * point rather than an exemption: an overlay with no app service has no
+     * APP_ENV to hardcode, so putting it in the list above asserts something
+     * that cannot be true and fails for a reason unrelated to what it guards.
+     *
+     * compose.pgvector.yaml redefines `database` alone. It passes the `.env`
+     * check today for a reason that could quietly stop being true: neither
+     * variable it interpolates — POSTGRES_VERSION and PGVECTOR_VERSION —
+     * appears in `.env`, so an operator gets the compose defaults. Add either
+     * one there and the tag this file BUILDS and the tag it RUNS can disagree,
+     * which is a stack that comes up healthy on yesterday's extension.
+     */
+    public const array INFRASTRUCTURE_COMPOSE_FILES = [
+        'compose.pgvector.yaml',
+    ];
+
+    /**
      * DATABASE_URL is the one variable allowed to disagree, on purpose.
      *
      * `.env` sets a credential-less DSN because Doctrine reads the driver out of
@@ -76,6 +95,14 @@ final class ComposeEnvironmentTest extends TestCase
     private const array EXEMPT = ['DATABASE_URL'];
 
     /** @return iterable<string, array{string}> */
+    /** Every committed overlay an operator runs, app-defining or not. */
+    public static function allComposeFiles(): iterable
+    {
+        foreach ([...self::OPERATOR_COMPOSE_FILES, ...self::INFRASTRUCTURE_COMPOSE_FILES] as $file) {
+            yield $file => [$file];
+        }
+    }
+
     public static function operatorComposeFiles(): iterable
     {
         foreach (self::OPERATOR_COMPOSE_FILES as $file) {
@@ -83,7 +110,7 @@ final class ComposeEnvironmentTest extends TestCase
         }
     }
 
-    #[DataProvider('operatorComposeFiles')]
+    #[DataProvider('allComposeFiles')]
     public function testNoComposeDefaultIsOverruledByTheCommittedDotEnv(string $file): void
     {
         $env = self::committedEnvironment();

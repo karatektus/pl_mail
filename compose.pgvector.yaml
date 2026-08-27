@@ -1,0 +1,65 @@
+# pgvector, on the database image this stack already runs. Opt in with:
+#
+#   docker compose -f compose.yaml -f compose.pgvector.yaml up -d --wait
+#
+# and keep both -f flags on every later `up`, `pull` and `down`, or compose goes
+# back to the stock image on the next command.
+#
+# WHY THIS IS AN OVERLAY AND NOT A LINE IN compose.yaml
+# ────────────────────────────────────────────────────
+# pgvector is not required and must never become required. The plpgsql distance
+# function in Version20260826210000 is the shipped path and stays correct; this
+# only makes it faster. Folding the build into compose.yaml would make every
+# `git clone && docker compose up -d` compile a C extension before the database
+# could start, for a feature most installs never switch on — and would take the
+# database off a pinned upstream image for people who never asked for AI at all.
+#
+# The layering matches compose.demo.yaml: this goes on top of compose.yaml, not
+# on top of compose.prod.yaml. It touches one service and changes nothing else.
+#
+# WHY IT IS BUILT LOCALLY RATHER THAN PULLED
+# ──────────────────────────────────────────
+# `pgvector/pgvector:pg18` exists and is the wrong answer here. It is Debian and
+# the shipped image is Alpine, so pulling it swaps musl for glibc UNDER AN
+# EXISTING DATA VOLUME. That was tested rather than reasoned about: index scans
+# return wrong rows, with an empty log, because musl records no collation
+# version — `datcollversion` is NULL, Postgres's mismatch check never fires, and
+# 44 collation-dependent indexes, 18 of them UNIQUE, are walked with the wrong
+# comparator. docs/install/upgrading.md says "Starting the new image IS running
+# it", so a libc change may never arrive by pulling a tag.
+#
+# docker/postgres/Dockerfile builds FROM postgres:${POSTGRES_VERSION}-alpine and
+# adds three files. Same libc, same server binaries, same on-disk format —
+# nothing that compares existing data changes, so there is no index to rebuild
+# and no dump-and-restore to schedule. That file carries the full reasoning.
+#
+# The build is about 30 seconds once and then cached, and adds ~1 MB to a 304 MB
+# image.
+
+# The one place the image is named, and the args that decide what is in it.
+#
+# The tag carries BOTH versions on purpose. A locally built image is not pulled
+# and not digest-checked, so a tag that said only `18` would go on pointing at
+# whatever was built first: bumping PGVECTOR_VERSION would rebuild the layers,
+# retag nothing an already-created container refers to, and leave the operator
+# looking at the old extension while `docker compose config` swore otherwise.
+x-pgvector-database: &pgvector-database
+  image: plmail/postgres-pgvector:${POSTGRES_VERSION:-18}-${PGVECTOR_VERSION:-v0.8.6}
+  build:
+    context: ./docker/postgres
+    args:
+      # Interpolated from the same variable compose.yaml uses for the stock
+      # image, so POSTGRES_VERSION=19 still moves the whole stack together
+      # instead of compiling against 18's headers and loading into 19.
+      POSTGRES_VERSION: ${POSTGRES_VERSION:-18}
+      # v0.8.1 is the earliest tag that compiles against PostgreSQL 18 — 0.8.0
+      # fails on vacuum_delay_point()'s new parameter. This is pinned three
+      # releases later because 0.8.3 and 0.8.4 fixed HNSW index corruption and
+      # a broken graph repair during vacuum, and message_embedding is vacuumed
+      # constantly: it hangs off `message` with ON DELETE CASCADE and mail is
+      # deleted in bulk. docker/postgres/Dockerfile spells that out.
+      PGVECTOR_VERSION: ${PGVECTOR_VERSION:-v0.8.6}
+
+services:
+  database:
+    <<: *pgvector-database

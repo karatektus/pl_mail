@@ -1,4 +1,4 @@
-<!-- translated-from: install/upgrading.md sha1:63d7f67ccfcd3af64bfc2b3b8399fef1a36352c7 -->
+<!-- translated-from: install/upgrading.md sha1:955598218f74f2ecb8e9af61865ceb81d9296df3 -->
 # Aktualisieren
 
 plMail migriert seine eigene Datenbank beim Start. Diese eine Entscheidung prägt alles auf dieser
@@ -119,6 +119,100 @@ das, was `docker compose pull` liefert.
 `main` nennen. Der Commit im Chip ist das Einzige, was sie unterscheidet, und er ist der Grund,
 warum die Bezeichnung allein nicht genügt.
 
+## pgvector einschalten
+
+Die semantische Suche vergleicht zwei Vektoren mit `plmail_embed_distance()`. Das ausgelieferte
+Datenbank-Image hat keine `vector`-Erweiterung, also ist diese Funktion eine plpgsql-Schleife:
+korrekt, und rund 0,107 ms pro Vergleich bei 1024 Dimensionen. Über die 2.000 Kandidaten, die eine
+Suche betrachtet, sind das etwa 0,63 s Rechenzeit pro semantischer Suche.
+
+pgvector ersetzt die Schleife durch eine SIMD-Variante. Gemessen an 74.000 Zeilen mit 1024
+Dimensionen, PostgreSQL 18.4:
+
+| | 20.000 Zeilen | 74.000 Zeilen |
+|---|---|---|
+| plpgsql-Schleife | 2,14 s | 7,70 s |
+| pgvector `<=>` | 1,23 s | 4,51 s |
+
+**1,75× — nicht die Größenordnung, die das Wort „SIMD" nahelegt.** Die Vektoren liegen als `real[]`,
+also zahlt jede Zeile ein Detoast und eine Umwandlung `real[]` → `vector`, bevor überhaupt gerechnet
+wird, und diese Umwandlung ist der größte Teil der Kosten. Es sind echte 0,63 s → 0,36 s im
+semantischen Zweig einer Suche, und es ist nicht das Tausendfache, das ein Index wäre — warum der
+Index eine eigene, größere Aufgabe ist, steht in
+[den KI-Interna](../internals/ai-assist.md).
+
+Das ist optional. Ohne pgvector wird nichts schlechter, und danach muss nichts neu indiziert werden.
+
+### Warum plMail ein eigenes Image baut, statt `pgvector/pgvector` zu ziehen
+
+Weil dieses Image auf Debian beruht und dieser Stack auf Alpine, und weil das eine gegen das andere
+zu tauschen die libc unter einem Datenträger austauscht, auf dem die Datenbank bereits jeden Index
+geschrieben hat. Das wurde getestet: Index-Scans liefern falsche Zeilen, bei leerem Protokoll. musl
+hinterlegt keine Collation-Version, also ist `datcollversion` `NULL`, also greift Postgres' eigene
+Prüfung nie — und jeder collation-abhängige Index, 48 in plMails eigenem Schema, davon 24 `UNIQUE`,
+und 84 samt der System-Kataloge, wird
+stillschweigend mit dem falschen Vergleicher durchlaufen.
+
+`docker/postgres/Dockerfile` baut `FROM postgres:${POSTGRES_VERSION}-alpine` und fügt pgvector
+hinzu. Gleiche libc, gleiche Server-Binaries, gleiches Format auf der Platte; das Image ist 1 MB
+größer und sonst identisch. Es gibt nichts neu zu bauen und keinen Dump-and-Restore einzuplanen.
+
+### So geht es
+
+Nimm ab jetzt eine Datei in jeden compose-Befehl auf:
+
+```bash
+docker compose -f compose.yaml -f compose.pgvector.yaml pull
+docker compose -f compose.yaml -f compose.pgvector.yaml up -d --wait
+```
+
+Der erste Lauf kompiliert pgvector — etwa 30 Sekunden, einmal, danach aus dem Cache. **Behalte beide
+`-f`-Flags in jedem späteren Befehl.** `docker compose up -d` allein liest nur `compose.yaml` und
+setzt das Standard-Image zurück; das ist kein Fehler und erzeugt keine Warnung.
+
+Prüfe, ob es gegriffen hat:
+
+```bash
+docker compose -f compose.yaml -f compose.pgvector.yaml exec database \
+    psql -U app -d app -c "SELECT extversion FROM pg_extension WHERE extname = 'vector'"
+```
+
+### Die Reihenfolge zählt, und genau das ist der Fallstrick
+
+Die Migration, die den Funktionskörper umstellt, fragt die Datenbank, ob pgvector verfügbar ist —
+und sie fragt **einmal**, bei dem Start, an dem sie zuerst läuft. Machst du beides in einem Befehl,
+findet sie die Erweiterung bereits vor. Aktualisierst du erst und tauschst das Datenbank-Image
+nächste Woche, hat sie schon mit „nein" geantwortet, ihre Zeile ins Verzeichnis geschrieben und
+schaut nie wieder nach: `migrate` meldet „already at the latest version", und die Schleife bleibt.
+
+Wenn du an diesem Punkt bist, stelle die Frage neu:
+
+```bash
+docker compose -f compose.yaml -f compose.pgvector.yaml exec php \
+    php bin/console doctrine:migrations:execute --down \
+    'DoctrineMigrations\Version20260901120000' --no-interaction
+docker compose -f compose.yaml -f compose.pgvector.yaml exec php \
+    php bin/console doctrine:migrations:migrate --no-interaction
+```
+
+Diese eine Migration zurückzunehmen ist von Bauart sicher: Ihr `down()` installiert die
+plpgsql-Schleife, die ohnehin schon installiert ist. Es wird nichts verworfen und keine Daten
+angefasst.
+
+### Zurück
+
+Lass `-f compose.pgvector.yaml` weg und fahre den Stack hoch. Die Datenbank kehrt auf demselben
+Datenträger zum Standard-Image zurück — wieder dieselbe libc, also wieder nichts neu zu bauen — und
+`plmail_embed_distance()` behält den Körper, den sie gerade hat. Eine Funktion, die `<=>` gegen
+einen Server aufruft, der diesen Operator nicht mehr hat, scheitert zur Abfragezeit; nimm die
+Migration also in derselben Sitzung zurück:
+
+```bash
+docker compose exec php php bin/console doctrine:migrations:execute --down \
+    'DoctrineMigrations\Version20260901120000' --no-interaction
+docker compose exec php php bin/console doctrine:migrations:migrate --no-interaction
+```
+
 ## Zurückrollen
 
 Es gibt keinen Downgrade-Pfad, und der Grund steht im ersten Abschnitt dieser Seite. Die Migrationen
@@ -170,6 +264,15 @@ kaputte Installation.
 **Worker halten Doctrines Metadaten für ihre gesamte Lebensdauer im Cache.** Alles, was das Schema
 ändert, ohne die Container neu zu erzeugen, braucht anschließend Administration → System → Worker
 neu starten, sonst fragen die Worker weiter nach Spalten, die es nicht mehr gibt.
+
+**Über pgvector wird einmal entschieden, bei dem Start, der seine Migration zuerst ausführt.** Das
+Datenbank-Image danach zu tauschen ändert von sich aus nichts — die zwei Befehle, die die Frage neu
+stellen, stehen unter [pgvector einschalten](#pgvector-einschalten).
+
+**`-f compose.pgvector.yaml` wegzulassen setzt das Datenbank-Image stillschweigend zurück.** Compose
+warnt nicht, wenn ein Dienst, den es neu erzeugt, aus einer Datei stammt, die du nicht mehr
+übergeben hast. Ist `plmail_embed_distance()` dann noch der pgvector-Körper, scheitert jede
+semantische Suche an einem fehlenden Operator.
 
 **`POSTGRES_VERSION` ist nichts, was man während eines Upgrades nebenbei anhebt.** Das Image liefert
 `postgresql-client-18` mit, und `pg_dump` weigert sich, einen Server zu sichern, der neuer ist als

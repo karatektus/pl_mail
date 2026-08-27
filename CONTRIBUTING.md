@@ -68,6 +68,39 @@ therefore hold on both — nothing may assume x86, and any binary fetched during
 resolve an arm64 asset too. ARM is not a niche here: a NAS or a Raspberry Pi is squarely the kind of
 machine plMail is meant to run on.
 
+### The second Dockerfile, and the rule it exists to keep
+
+`docker/postgres/Dockerfile` builds PostgreSQL with pgvector. It is not part of the published image
+and CI never builds it — an operator who wants it builds it locally through
+`compose.pgvector.yaml`, natively on whatever architecture they are on, so the arm64 rule above
+applies to it only in the sense that nothing in it may assume x86.
+
+Two rules govern it, and both have already cost somebody a day:
+
+**pgvector is optional and must never become required.** `plmail_embed_distance()` has two bodies —
+a plpgsql loop and pgvector's `<=>` — chosen by the migration, in SQL, once. Every test, every
+query and every code path has to work with either. If you find yourself writing PHP that branches on
+whether the extension exists, the design has gone wrong; see
+[docs/internals/ai-assist.md](docs/internals/ai-assist.md).
+
+**Nothing may change libc under an existing data volume.** That is why the image is built `FROM
+postgres:${POSTGRES_VERSION}-alpine` instead of pulling `pgvector/pgvector:pg18`, which is Debian.
+musl records no collation version, so `datcollversion` is `NULL`, so Postgres's own mismatch check
+never fires — the swap was tested, and 48 collation-dependent indexes in plMail's own schema (24 of
+them `UNIQUE`; 84 counting the system catalogues) are
+walked with the wrong comparator, returning wrong rows with an empty log. Any future change to the
+database image is subject to the same rule: same base, or it does not ship.
+
+`OPTFLAGS=""` in that Dockerfile is load-bearing for the same class of reason. pgvector's Makefile
+defaults to `-march=native`, which bakes the build machine's instruction set into `vector.so`;
+built on a runner with AVX-512 and run on a host without it, the backend takes SIGILL on the first
+distance and the connection closes mid-query with nothing in the log.
+
+The unit and browser suites deliberately run against the **stock** image, so the shipped plpgsql
+path is what CI exercises. To develop against pgvector instead, add the overlay to the commands in
+[docs/install/upgrading.md](docs/install/upgrading.md) § "Turning on pgvector" — and re-run the
+suite without it before opening a pull request.
+
 ## Tests
 
 Two suites: PHPUnit for unit tests (`tests/`, mirroring `src/`) and Playwright for browser end-to-end

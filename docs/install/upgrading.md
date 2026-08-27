@@ -108,6 +108,97 @@ arguments, or a checkout. Both are legitimate; neither is what `docker compose p
 `main`. The commit in the chip is the only thing that distinguishes them, and it is the reason the
 label alone is not enough.
 
+## Turning on pgvector
+
+Semantic search compares two vectors with `plmail_embed_distance()`. The shipped database image has
+no `vector` extension, so that function is a plpgsql loop: correct, and about 0.107 ms per
+1024-dimension comparison. Over the 2,000 candidates a search considers, that is roughly 0.63 s of
+arithmetic per semantic search.
+
+pgvector replaces the loop with a SIMD one. Measured on 74,000 rows of 1024-dimension vectors,
+PostgreSQL 18.4:
+
+| | 20,000 rows | 74,000 rows |
+|---|---|---|
+| plpgsql loop | 2.14 s | 7.70 s |
+| pgvector `<=>` | 1.23 s | 4.51 s |
+
+**1.75×, not the order of magnitude the word "SIMD" suggests.** The vectors are stored as `real[]`,
+so every row pays a detoast and a `real[]` → `vector` conversion before any arithmetic happens, and
+the conversion is most of the cost. It is a real 0.63 s → 0.36 s on the semantic arm of a search,
+and it is not the thousandfold that an index would be — see
+[the AI internals note](../internals/ai-assist.md) for why the index is a separate, larger job.
+
+This is optional. Nothing degrades without it and nothing needs re-indexing after it.
+
+### Why plMail builds its own image instead of pulling `pgvector/pgvector`
+
+Because that image is Debian and this stack is Alpine, and swapping one for the other under an
+existing data volume changes libc beneath a database that has already written every index. It was
+tested: index scans return wrong rows, with an empty log. musl records no collation version, so
+`datcollversion` is `NULL`, so Postgres's own mismatch check never fires, and every
+collation-dependent index — 48 in plMail's own schema, 24 of them `UNIQUE`, and 84 counting the
+system catalogues — is silently walked with
+the wrong comparator.
+
+`docker/postgres/Dockerfile` builds `FROM postgres:${POSTGRES_VERSION}-alpine` and adds pgvector to
+it. Same libc, same server binaries, same on-disk format; the image is 1 MB larger and identical in
+every other respect. There is nothing to rebuild and no dump-and-restore to schedule.
+
+### Doing it
+
+Add one file to every compose command from now on:
+
+```bash
+docker compose -f compose.yaml -f compose.pgvector.yaml pull
+docker compose -f compose.yaml -f compose.pgvector.yaml up -d --wait
+```
+
+The first run compiles pgvector — about 30 seconds, once, then cached. **Keep both `-f` flags on
+every later command.** `docker compose up -d` on its own reads `compose.yaml` alone and puts the
+stock image back, which is not an error and produces no warning.
+
+Confirm it took:
+
+```bash
+docker compose -f compose.yaml -f compose.pgvector.yaml exec database \
+    psql -U app -d app -c "SELECT extversion FROM pg_extension WHERE extname = 'vector'"
+```
+
+### The order matters, and it is the one thing that bites
+
+The migration that switches the function body asks the database whether pgvector is available, and
+it asks **once** — on the boot where it first runs. Do both in one command and it finds the
+extension already there. Upgrade first and switch the database image next week, and it has already
+answered "no", written its ledger row, and will never look again: `migrate` reports "already at the
+latest version" and the loop stays.
+
+If that is where you are, re-ask the question:
+
+```bash
+docker compose -f compose.yaml -f compose.pgvector.yaml exec php \
+    php bin/console doctrine:migrations:execute --down \
+    'DoctrineMigrations\Version20260901120000' --no-interaction
+docker compose -f compose.yaml -f compose.pgvector.yaml exec php \
+    php bin/console doctrine:migrations:migrate --no-interaction
+```
+
+Reversing that one migration is safe by construction: its `down()` reinstalls the plpgsql loop,
+which is what is already installed. Nothing is dropped and no data is touched.
+
+### Going back
+
+Drop the `-f compose.pgvector.yaml` and bring the stack up. The database returns to the stock image
+on the same volume — same libc again, so again nothing to rebuild — and `plmail_embed_distance()`
+keeps whichever body it has. A function calling `<=>` against a server that no longer has the
+operator fails at query time, so reverse the migration in the same session:
+
+```bash
+docker compose exec php php bin/console doctrine:migrations:execute --down \
+    'DoctrineMigrations\Version20260901120000' --no-interaction
+docker compose exec php php bin/console doctrine:migrations:migrate --no-interaction
+```
+
 ## Rolling back
 
 There is no downgrade path, and the reason is the first section of this page. Migrations ran on
@@ -152,6 +243,14 @@ wrong. Do not read a missing chip as a broken deployment.
 **Workers cache Doctrine metadata for their whole lifetime.** Anything that changes the schema
 without recreating the containers needs Admin → System → restart, or the workers keep asking for
 columns that are gone.
+
+**pgvector is decided once, on the boot that first runs its migration.** Switching the database
+image afterwards changes nothing on its own — see [Turning on pgvector](#turning-on-pgvector) for
+the two commands that re-ask the question.
+
+**Dropping `-f compose.pgvector.yaml` silently reverts the database image.** Compose does not warn
+that a service it is recreating came from a file you no longer passed. If `plmail_embed_distance()`
+is still the pgvector body, every semantic search then fails on a missing operator.
 
 **`POSTGRES_VERSION` is not something to bump casually during an upgrade.** The image ships
 `postgresql-client-18`, and `pg_dump` refuses to dump a server newer than itself — so a Postgres

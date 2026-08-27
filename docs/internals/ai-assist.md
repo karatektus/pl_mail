@@ -70,7 +70,7 @@ The single request lives in `ClassifyMailHandler`, on a worker, after the transa
 for a subset. An ambiguous answer — two category names in one reply — is discarded rather than
 resolved by first match.
 
-## Vectors: no pgvector, and that is the recommendation
+## Vectors: pgvector is optional, and the image is built rather than pulled
 
 The shipped image is `postgres:18-alpine`, which has no `vector` extension. Moving to
 `pgvector/pgvector:pg18` means musl → glibc **on an existing data volume**, and that was tested
@@ -80,30 +80,66 @@ rather than reasoned about:
 > version, so `datcollversion` is NULL, so Postgres's mismatch check never fires. 44
 > collation-dependent indexes — 18 of them UNIQUE — are silently walked with the wrong comparator.
 
-On a stack whose upgrade documentation says *"Starting the new image IS running it"*, that is not a
-hazard worth accepting for a feature nobody has asked to be mandatory. A dump-and-restore migration
-is immune, because it rebuilds every index under the new libc — but that is a manual, downtime
-operation, not something to trigger by pulling a tag.
+That number is now 48, of which 24 are UNIQUE — 84 and 59 counting the system catalogues, which the
+wrong comparator walks too — and `datcollversion` is still NULL. Both re-checked
+against the current schema. On a stack whose upgrade documentation says *"Starting the new image IS
+running it"*, a libc change may never ride in on a pulled tag. **That route stays closed, and a
+dump-and-restore is not offered as the default path either.**
+
+What replaced it is `docker/postgres/Dockerfile`: a two-stage build `FROM
+postgres:${POSTGRES_VERSION}-alpine` that compiles pgvector and copies three files —
+`vector.so` and its two extension scripts — into a copy of the same base image. Same libc, same
+server binaries, same on-disk format, 1 MB larger. Nothing that reads or compares existing data
+changes, so there is no index to rebuild. Opt in with `compose.pgvector.yaml`; the base stack is
+untouched and pgvector never becomes required.
+
+Two things in that Dockerfile are load-bearing and easy to lose:
+
+- **`OPTFLAGS=""`.** pgvector's Makefile defaults to `-march=native`, which bakes the *build*
+  machine's instruction set into `vector.so`. An image built where AVX-512 exists and run where it
+  does not takes SIGILL on the first distance — the connection closes mid-query with nothing in the
+  log.
+- **The pin is v0.8.6, not v0.8.1.** v0.8.0 does not compile against PostgreSQL 18 at all
+  (`vacuum_delay_point()` gained a parameter; `TupleDescData.attrs` went away), and v0.8.1 is the
+  earliest tag that does — verified by building every tag from 0.8.0 to 0.8.6 against
+  `postgres:18-alpine` rather than by reading the changelog. But 0.8.3 fixed *possible index
+  corruption with HNSW vacuuming* and 0.8.4 fixed *`hnsw graph not repaired`*, and
+  `message_embedding` is `ON DELETE CASCADE` from `message` on an installation that deletes mail in
+  bulk, so it is vacuumed constantly. The earliest version that merely compiles would ship two known
+  index-corruption bugs.
 
 ### One function name, two possible bodies
 
-The application only ever writes `plmail_embed_distance(a, b)`. The **migration** picks the body:
+The application only ever writes `plmail_embed_distance(a, b)`. The **migration** picks the body,
+and the choice happens in SQL, once. There is no PHP branch and no second query builder to rot, and
+the same tests exercise whichever body is installed.
 
-| | body | cost |
-|---|---|---|
-| normally | plpgsql dot-product loop | 0.11 ms per 768-dim row |
-| if `vector` exists | `(a::vector) <=> (b::vector)` | ~24× faster, and reaches an HNSW expression index |
+Measured on 74,000 rows of 1024-dimension unit vectors, PostgreSQL 18.4 on musl, single-threaded,
+warm cache:
 
-The second is `LANGUAGE sql` and a single `SELECT`, so Postgres inlines it. Detection lives in SQL,
-once. There is no PHP branch and no second query builder to rot, and the same tests exercise
-whichever body is installed.
+| | 20,000 rows | 74,000 rows | per call |
+|---|---|---|---|
+| plpgsql dot-product loop | 2.14 s | 7.70 s | 0.107 ms |
+| `(a::vector) <=> (b::vector)` | 1.23 s | 4.51 s | 0.061 ms |
+
+**1.75×, and this page previously claimed ~24×.** The correction matters because it points at where
+the time actually goes. pgvector's dot product is SIMD and takes microseconds; what dominates is
+that `embedding` is `real[]`, so every row pays a detoast of a 4 KB array and a fresh `real[]` →
+`vector` conversion before any arithmetic starts. The conversion is the cost, not the distance. It
+is still worth taking — 0.63 s → 0.36 s on the semantic arm — but it is a constant-factor win on a
+scan, not the thing that removes the scan.
+
+`Version20260826210000` installs whichever body fits the database it first meets;
+`Version20260901120000` asks again, once, for installations that gained the extension afterwards.
+Neither ever requires it.
 
 ### The bound is a rule, not a hope
 
 56 ms over 500 candidates is cheaper than the full-text pass that produces them. **11 seconds** over
 100,000 rows is worse than the 9–10 s pathology the search UNION was rewritten to escape. So the
 distance function may only ever be evaluated over a bounded candidate set, and the search
-integration has to keep that rule rather than assume it.
+integration has to keep that rule rather than assume it. Nothing below changes that rule; an index
+would be what finally makes it unnecessary.
 
 ### Storage
 
@@ -116,12 +152,84 @@ property is that the answers stay correct and only the clock shows it.
 A table rather than a column because a 768-dimension `float4` array is 3,092 bytes, past the TOAST
 threshold, so every vector is stored out of line — 391 MB for 100,000 messages. That does not belong
 on `message`. Truncating to 384 dimensions, where the model supports it, keeps the array inline and
-halves the arithmetic.
+halves the arithmetic. Measured at the width the current model answers at, 74,000 rows of 1024
+dimensions is 397 MB of table, essentially all of it TOAST — which is also why the `real[]` → `vector`
+conversion above dominates the distance it feeds.
 
 Vectors are normalised to unit length **on the way in**, which is what lets the distance function be
 a dot product with no square root per row. A zero-length or non-finite vector is refused rather than
 stored: one NaN in that column poisons every `ORDER BY` that touches it, and it would be blamed on
 the search rather than on the model that produced it.
+
+### What it would take to reach an index, and what it would cost
+
+A distance function only ever scans. The reason to want pgvector is HNSW, and **no index is created
+today** — not because it was forgotten, but because three separate things block it. All three were
+verified against pgvector 0.8.6 on PostgreSQL 18.4, and none of them is fixed by trying harder in
+the migration.
+
+**1. The indexable expression and the function's expression are not the same expression.**
+
+```
+CREATE INDEX … USING hnsw ((embedding::vector) vector_cosine_ops);
+ERROR:  column does not have dimensions
+```
+
+HNSW needs a width. Only `(embedding::vector(1024))` builds, and Postgres treats that as a different
+expression from `(embedding::vector)` — a different typmod argument to `array_to_vector()`. An index
+built on one is invisible to a query written with the other. Confirmed both ways with `EXPLAIN`: the
+typmod-bearing query takes `Index Scan using …`, the inlined function's expression takes a `Seq
+Scan` and a `Sort`, **with no error and no notice**.
+
+Spelling the width into the function body is not the fix. The width is whatever the configured model
+returns — `count($unit)` in `EmbeddingStore`, not a setting a migration can read — and a fixed
+`::vector(1024)` raises `expected 1024 dimensions, not 768` for *every* call the moment somebody
+changes the model in the admin panel. A dropdown would 500 `/mail/search` for everybody.
+
+**2. HNSW answers `ORDER BY … LIMIT k`; the search asks a threshold.** The semantic arm is
+`plmail_embed_distance(…) <= 0.45` over the most recent `SEMANTIC_CANDIDATES` messages. No
+approximate-nearest-neighbour index serves a range predicate — neither HNSW nor IVFFlat has an
+operator for it. Reaching an index means the query becoming a top-k ordering.
+
+**3. Building it is not something a boot-time migration can spend.** At 74,000 × 1024, with
+`maintenance_work_mem` left at PostgreSQL's 64 MB default, which is what this stack ships:
+
+```
+CREATE INDEX … USING hnsw ((embedding::vector(1024)) vector_cosine_ops) WHERE dimensions = 1024;
+NOTICE:  hnsw graph no longer fits into maintenance_work_mem after 13928 tuples
+Time: 460363.979 ms (07:40)
+```
+
+578 MB of index — larger than the 397 MB table, because HNSW keeps a full copy of every vector plus
+its graph. At `maintenance_work_mem = 2 GB` the same build takes 1 min 54 s and is the same size.
+Migrations run from the entrypoint of all six services behind one advisory lock, so that is not a
+slow migration, it is a stack that does not come back for eight minutes.
+
+So the shape it would have to take, if someone picks this up:
+
+- **One partial index per width**, `WHERE dimensions = N`, which is what lets a mailbox
+  half-re-indexed after a model change keep both halves.
+- **The width interpolated into the search SQL** rather than bound — it is already an `int` from the
+  model, and `$semantic->dimensions` already exists at that point — so both sides say
+  `::vector(N)`.
+- **A top-k `ORDER BY … LIMIT`** in place of the distance threshold.
+- **Built by hand, `CONCURRENTLY`, once**, by an operator who has been told the eight minutes and
+  the 578 MB — never from a migration.
+
+What that buys, measured on the same 74,000 rows, top-20 nearest:
+
+| | |
+|---|---|
+| exact scan | 3.55 s |
+| HNSW index scan | 3.0 ms (12 ms cold), 2,084 buffers |
+
+**~1,180×**, which is the number that would justify all of the above — and which the function swap
+above emphatically is not. Two caveats on it. Inserts into a table carrying the index cost 9.1 ms
+per row against 0.32 ms without, measured over 2,000 rows, so a full 74,000-message backfill pays
+about 11 extra minutes spread across itself. And the benchmark corpus is uniform random vectors,
+where every pair is near-orthogonal — distances span 0.86–1.14 with a standard deviation of 0.031 —
+so its *recall* number is meaningless and is not quoted here. The timings are sound; measuring
+recall needs real embeddings.
 
 ## Semantic search
 
