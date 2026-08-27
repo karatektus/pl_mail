@@ -4185,3 +4185,27 @@ label:has(> input.sr-only) {
         opacity: 0.55;
     }
 }
+
+/*
+   ── A message header outranks its followers while its menu is open ─────────
+
+   The per-message overflow menu is z-30 and that never helped, because it is
+   painted inside the message header and `sticky` makes that header a stacking
+   context of its own. Thirty among its own siblings is still under the header
+   of the NEXT message, which is also sticky, also z-10, and later in the
+   document — so the menu was drawn beneath the following message every time.
+   It reads as the popover being clipped; it is one header covering another.
+
+   Raising the menu could not have fixed it. The CONTEXT had to be raised, and
+   only while there is something in it worth raising.
+
+   :has() rather than a class the controller toggles, because the state is
+   already in the DOM — the panel carries `hidden` — and a second copy of it in
+   a class list is one more thing to keep in step. Written here rather than as
+   a Tailwind arbitrary variant because that selector does not survive the
+   generator: `has-[[data-…=panel]:not(.hidden)]:z-30` produced no rule at all,
+   silently, which is the worst way for a style to be missing.
+*/
+.thread-message-head:has([data-mail--message-actions-target="panel"]:not(.hidden)) {
+    z-index: 30;
+}

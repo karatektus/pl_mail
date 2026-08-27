@@ -106,7 +106,21 @@ Variables:
        bg-surface, not transparent: `.mail-sheet` re-points --rgb-surface at the
        sheet, so this is the sheet's own colour and the body scrolls *under* it
        rather than through it. z-10 keeps it over the frame. #}
-    <div class="flex items-start gap-3 sticky top-0 z-10 bg-surface pt-2 -mt-2 pb-2">
+    {# z-30 WHILE A MENU INSIDE IT IS OPEN, and that is the whole of the fix.
+
+       The overflow menu is z-30 already, and it never helped: it is painted
+       inside THIS header, and `sticky` makes this header a stacking context of
+       its own. So the menu's 30 is 30 among its siblings in here, and the
+       header of the NEXT message — also sticky, also z-10, and later in the
+       document — outranks the whole context it lives in. The menu was drawn
+       under the following message every time, which reads as the popover being
+       clipped rather than as one header covering another.
+
+       Raising the menu could not have worked; the context had to be raised.
+       `:has()` rather than a class the controller toggles, because the state is
+       already in the DOM — the panel carries `hidden` — and a second copy of it
+       in a class list is a second thing to keep in step. #}
+    <div class="thread-message-head flex items-start gap-3 sticky top-0 z-10 bg-surface pt-2 -mt-2 pb-2">
         {# Same tone the thread list derives for this sender — one person, one
            colour, wherever they appear. The gradient this replaces was a
            hardcoded one-off that predated SenderAvatarExtension: every sender
