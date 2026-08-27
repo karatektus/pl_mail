@@ -74,6 +74,38 @@ final class SearchController extends AbstractController
 
         $user = $this->getUser();
 
+        // The session lock goes back NOW, before any of the slow work below.
+        //
+        // PHP holds an exclusive lock on the session file for the whole
+        // request. Everything after this line is reads — the search, the
+        // embedding round trip, the render — and none of it writes to the
+        // session, so holding the lock across it buys nothing and costs
+        // everything: while one search was running, every OTHER request from
+        // the same person queued behind it and then died at PHP's own limit.
+        // The log said so in the plainest possible terms, and not from this
+        // file:
+        //
+        //     MaxExecutionTimeError: Maximum execution time of 30 seconds
+        //     exceeded at StrictSessionHandler.php line 50
+        //
+        // That is what "I searched and the whole site stopped responding" was.
+        // It is not the search being slow — a slow search should make SEARCH
+        // slow — it is one slow request taking the tab's every other request
+        // down with it. Releasing the lock early fixes that independently of
+        // how fast the query underneath ever gets, which is why it belongs
+        // here rather than in the query work.
+        //
+        // save() flushes and closes. The session stays READABLE for the rest
+        // of this request — anything already loaded is still in memory — so
+        // the render below, the user object and the CSRF token are unaffected.
+        // A write after this point would be lost, which is why this sits after
+        // the last thing that could write one.
+        $session = $request->getSession();
+
+        if (true === $session->isStarted()) {
+            $session->save();
+        }
+
         // One call for the rows AND the total: the pager's "1–50 of N" used to
         // be a second query re-running the whole search, and on a large mailbox
         // it was a third of the wait for a number nobody navigates by. See

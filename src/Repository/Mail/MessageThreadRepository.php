@@ -35,6 +35,13 @@ class MessageThreadRepository extends ServiceEntityRepository
          * expire and check that the cheap results are still standing.
          */
         private readonly int $rescueTimeoutMs = self::SEARCH_RESCUE_TIMEOUT_MS,
+        /**
+         * The same argument as above, for the other pass that can run long.
+         * Separate from $rescueTimeoutMs because the two guard different work
+         * and a test that wants to watch one expire must not have to expire
+         * the other as well.
+         */
+        private readonly int $semanticTimeoutMs = self::SEARCH_SEMANTIC_TIMEOUT_MS,
     ) {
         parent::__construct($registry, MessageThread::class);
     }
@@ -1198,7 +1205,12 @@ class MessageThreadRepository extends ServiceEntityRepository
     ): SearchPage {
         $offset = ($page - 1) * $perPage;
 
-        $rows = $this->searchRows($user, $query, $sort, $perPage, $offset, false, $semantic);
+        // The vector comes back as well as the rows, because it may not have
+        // survived: see cheapRows(). Everything below this line has to use the
+        // one that actually answered — running the body pass with a vector the
+        // cheap pass just gave up on would spend the budget twice over for the
+        // same result.
+        [$rows, $semantic] = $this->cheapRows($user, $query, $sort, $perPage, $offset, $semantic);
 
         // Thin, so the expensive pass earns its keep — see the rescue note in
         // buildSearchSql(). Only ever reached on a page that did not fill,
@@ -1277,7 +1289,7 @@ class MessageThreadRepository extends ServiceEntityRepository
             return 0;
         }
 
-        $rows = $this->searchRows($user, $query, $sort, 1, 0, false, $semantic);
+        [$rows, $semantic] = $this->cheapRows($user, $query, $sort, 1, 0, $semantic);
 
         // Spelled as "nothing at all" rather than searchPage()'s "fewer than a
         // screenful": with a limit of one, that test would fire on every
@@ -1349,12 +1361,18 @@ class MessageThreadRepository extends ServiceEntityRepository
     /**
      * How many recent messages the semantic arm is allowed to look at.
      *
-     * The distance function costs about 0.11ms a row, so this is roughly 220ms
-     * — in the same range as the full-text pass beside it (89ms) and the prefix
-     * pass (111ms). Over a whole 100,000-message mailbox the same loop is
-     * eleven seconds, which is worse than the pathology the UNION shape exists
-     * to avoid, so this number is not a tuning knob so much as the thing that
-     * keeps the feature affordable at all.
+     * The distance function costs about 0.13ms a row at 1024 dimensions, so
+     * this is roughly 260ms of arithmetic — measured at 200ms for the whole CTE
+     * on a 20,000-message corpus, in the same range as the full-text pass
+     * beside it (89ms) and the prefix pass (111ms). Over a whole
+     * 100,000-message mailbox the same loop is thirteen seconds, which is worse
+     * than the pathology the UNION shape exists to avoid, so this number is not
+     * a tuning knob so much as the thing that keeps the feature affordable at
+     * all.
+     *
+     * It is now also exactly how many times the function runs, which it was
+     * not: the outer join used to score every matched row again, twice. See the
+     * CTE in buildSearchSql().
      *
      * Recency is the bound because it is what people search within, because the
      * planner can serve it from an index, and because it does not change
@@ -1392,6 +1410,32 @@ class MessageThreadRepository extends ServiceEntityRepository
      * somebody typed and pressed enter on has earned a few seconds.
      */
     private const int SEARCH_RESCUE_TIMEOUT_MS = 5000;
+
+    /**
+     * How long a search carrying a vector gets before the vector is dropped.
+     *
+     * WHY A SEARCH WITH A VECTOR NEEDS ITS OWN STOP
+     * ─────────────────────────────────────────────
+     * The semantic arm is bounded by SEMANTIC_CANDIDATES, and that bound is
+     * arithmetic the planner is free to ignore: it can decide the CTE is cheap,
+     * push the join the wrong way round, or lose the index that serves the
+     * recency ordering, and then plmail_embed_distance() runs over the mailbox
+     * instead of over two thousand rows. That is not hypothetical — it is what
+     * 47 seconds on /mail/search was, and no amount of correct SQL prevents a
+     * plan nobody can see from a production request.
+     *
+     * Measured at 0.63s for the whole statement over 2,000 candidates of 1024
+     * dimensions, so this is eight times the healthy cost and a hard stop for a
+     * plan that has gone wrong.
+     *
+     * The same 5000 as the body pass, and deliberately: the two are the only
+     * unbounded-in-practice things in a search, so one number is also the
+     * promise — a search spends at most about ten seconds in the database
+     * before it answers with whatever it has. They are separate constants
+     * because they guard separate work, not because they are expected to
+     * differ.
+     */
+    private const int SEARCH_SEMANTIC_TIMEOUT_MS = 5000;
 
     /**
      * Run the body-substring pass under a time budget, keeping whatever the
@@ -1447,6 +1491,92 @@ class MessageThreadRepository extends ServiceEntityRepository
     }
 
     /**
+     * The cheap pass, with its vector under a time budget — and WITHOUT the
+     * vector if the budget runs out.
+     *
+     * WHY THIS EXISTS
+     * ───────────────
+     * Semantic search took 12.9 seconds mean and 47 seconds worst case in
+     * production, and the shape that caused it is fixed above: the distance is
+     * computed once, on candidates only. What is not fixed, and cannot be, is
+     * that a query plan is a decision somebody else makes at runtime. The
+     * arithmetic in buildSearchSql() bounds the work to SEMANTIC_CANDIDATES
+     * rows; it does not bind the planner to agree.
+     *
+     * So the vector gets a budget, and losing it is a DEGRADED SEARCH rather
+     * than a failed one. A page of the eleven things the words found is a
+     * search. A page that arrives after 47 seconds — or does not arrive,
+     * because PHP gave up at 30 — is not.
+     *
+     * WHAT IS AND IS NOT INSIDE THE TRANSACTION
+     * ─────────────────────────────────────────
+     * Only the query. The embedding round trip happens in SearchController,
+     * before any of this, and it must stay there: a slow model inside a
+     * `statement_timeout` transaction would expire the budget and be reported
+     * as a database fault, which is the one diagnosis that would send somebody
+     * looking in the wrong place entirely.
+     *
+     * `SET LOCAL`, so the timeout leaves with the transaction — a plain SET
+     * would strand it on a pooled connection and hand it to whatever ran next.
+     * Same reasoning and same wording as rescueRows() and
+     * TypeAheadSearch::fetch().
+     *
+     * NOT A GUARD ON THE QUERY AS A WHOLE. A search with no vector is not
+     * wrapped at all, so it produces the statement it always did, on a
+     * connection with the server's own timeout — the same distinction
+     * testTheBudgetDoesNotAffectTheCheapPass() draws for the body pass.
+     *
+     * @return array{list<array<string,mixed>>, ?SemanticSearch} the rows, and
+     *         the vector that actually produced them — null when it was dropped
+     */
+    private function cheapRows(
+        UserInterface     $user,
+        ParsedSearchQuery $query,
+        SearchSortOrder   $sort,
+        int               $perPage,
+        int               $offset,
+        ?SemanticSearch   $semantic,
+    ): array {
+        $pass = fn (?SemanticSearch $with): array => $this->searchRows(
+            $user,
+            $query,
+            $sort,
+            $perPage,
+            $offset,
+            false,
+            $with,
+        );
+
+        if (null === $semantic?->literal) {
+            return [$pass(null), null];
+        }
+
+        $budget = $this->semanticTimeoutMs;
+
+        try {
+            /** @var list<array<string,mixed>> $rows */
+            $rows = $this->getEntityManager()->getConnection()->transactional(
+                static function (Connection $connection) use ($pass, $semantic, $budget): array {
+                    $connection->executeStatement(
+                        'SET LOCAL statement_timeout = ' . $budget,
+                    );
+
+                    return $pass($semantic);
+                },
+            );
+
+            return [$rows, $semantic];
+        } catch (DriverException) {
+            // Run again without it, and OUTSIDE the transaction the timeout
+            // was set on: the keyword statement is the one this search has
+            // always been able to afford, and putting the budget that the
+            // vector just exhausted around it as well would turn a degraded
+            // search into an empty one.
+            return [$pass(null), null];
+        }
+    }
+
+    /**
      * The ids the search may look at, read once and bound as values.
      *
      * Takes the id rather than the user, because the caller has already put it
@@ -1491,6 +1621,7 @@ class MessageThreadRepository extends ServiceEntityRepository
         $rankSelect     = 'MAX(0)';
         $semanticColumn = '';
         $semanticRank   = null;
+        $semanticCte    = '';
 
         // ── Free-text ─────────────────────────────────────────────────────
         // Four passes over one question, and how they are COMBINED is the
@@ -1574,81 +1705,141 @@ class MessageThreadRepository extends ServiceEntityRepository
             }
 
             // ── The semantic arm ──────────────────────────────────────
-            // Another id-producing arm of the same UNION, so a vector hit is a
-            // candidate on exactly the same footing as a lexical one: it lands
-            // in COUNT(*) OVER (), it pages correctly, and it needs no second
-            // statement to reconcile with.
-            //
-            // NO CALL IS MADE HERE. The vector arrives already computed —
-            // buildSearchSql() runs up to four times per search, once inside
-            // the rescue's timeout transaction, and a round trip to another
-            // machine in any of them would be a search that sometimes takes
-            // four times as long for no reason a user could see.
-            //
-            // BOUNDED, AND THE BOUND IS THE WHOLE DESIGN. The distance function
-            // costs about 0.11ms a row; over 100,000 messages that is eleven
-            // seconds, which is worse than the pathology this UNION was written
-            // to escape. So it only ever runs over the most recent
-            // SEMANTIC_CANDIDATES messages, chosen by an ordering the planner
-            // can serve from an index and which does not change between pages.
-            //
-            // The inner LIMIT is parenthesised because the arms of this UNION
-            // are joined with a bare ' UNION ' — an unparenthesised ORDER BY or
-            // LIMIT would bind to the whole union rather than to this arm.
-            // Already a PostgreSQL literal, normalised by the caller — DBAL
-            // cannot name `real[]` as a parameter type, and the cast below is
-            // what turns the bound string back into an array.
-            //
-            // SCOPED TO ONE MODEL, AND THAT IS NOT TIDINESS. Vectors from two
-            // embedding models are not comparable, and neither implementation
-            // of plmail_embed_distance() says so: the shipped plpgsql loop
-            // compares whatever the two arrays have in common and answers a
-            // plausible number, and on an installation with pgvector the cast
-            // raises `different vector dimensions` — a 500 on /mail/search for
-            // everybody, caused by a dropdown in the admin panel. Matching on
-            // model AND width means a mailbox half re-indexed after a model
-            // change searches the half that matches and ignores the rest,
-            // instead of mixing two spaces and ranking the result. The index
-            // idx_message_embedding_model is (model, dimensions) for this.
+            // The one pass that is not made of words, and the one that has to
+            // be paid for by the row. Everything about what it costs and why it
+            // is shaped this way is inside the branch, next to the SQL it
+            // describes — this comment used to carry it, and drifted: it still
+            // said 0.11ms and "an inline distance in this arm" a version after
+            // both had stopped being true.
             if (null !== $semantic?->literal) {
-                $cheap[] = <<<SQL
-                    SELECT m.id
-                      FROM message m
-                      JOIN message_embedding e ON e.message_id = m.id
-                                              AND e.model = :semanticModel
-                                              AND e.dimensions = :semanticDimensions
-                     WHERE {$mine}
-                       AND m.id IN (
-                           SELECT recent.id FROM (
-                               SELECT m2.id FROM message m2
-                                WHERE {$mine}
-                                ORDER BY m2.received_at DESC NULLS LAST, m2.id DESC
-                                LIMIT :semanticCandidates
-                           ) recent
-                       )
-                       AND plmail_embed_distance(e.embedding, CAST(:queryVector AS real[])) <= :semanticDistance
-                SQL;
-
-                // Similarity, so it is on the same "bigger is better" footing
-                // as ts_rank and GREATEST can mix them. Rows with no embedding
-                // give NULL here, which GREATEST ignores.
+                // ONE PLACE WHERE THE DISTANCE IS COMPUTED, AND IT IS HERE.
                 //
-                // Held in a variable because the provenance column below binds
-                // the SAME expression, character for character, and that is
-                // what keeps it free: Postgres matches identical aggregate
-                // calls and evaluates their argument once per row. Two
-                // expressions that merely mean the same thing would be two
-                // distance computations on every candidate row, which at
-                // 0.11ms a row is the most expensive thing in this statement.
-                $semanticRank = 'CASE WHEN sem.embedding IS NULL THEN NULL'
-                    . ' ELSE 1 - plmail_embed_distance(sem.embedding, CAST(:queryVector AS real[])) END';
+                // This used to be an inline distance in the arm AND a second
+                // one in the outer query, where a LEFT JOIN to
+                // message_embedding fed plmail_embed_distance() a row at a
+                // time. Two things went wrong with that, and they multiplied.
+                //
+                // The outer join had no candidate restriction, so it scored
+                // every embedded message the statement had matched — including
+                // every row a KEYWORD had found, which is most of them. And
+                // DBAL defeated the sharing the old comment here relied on:
+                // one `:queryVector` written twice is expanded into two
+                // separate positional parameters, so what Postgres saw was two
+                // textually different expressions and it evaluated both.
+                // Measured on 20,000 rows of 1024-dimension vectors, a
+                // 25%-selective term: 12,616 calls and 3.8 SECONDS. Production
+                // ran ~92,000 calls at 0.132ms and took 12.9s mean, 47s max.
+                //
+                // Scored here instead, the function runs exactly
+                // SEMANTIC_CANDIDATES times — 2,000 calls, 0.63s on the same
+                // corpus — and `plmail_embed_distance` does not appear in the
+                // outer query at all. Same rows, same provenance flags; the
+                // measurement is in the commit that introduced this.
+                //
+                // MATERIALIZED IS LOAD-BEARING, NOT DECORATION. sem_hits is
+                // referenced twice below (the UNION arm and the LEFT JOIN), and
+                // an inlined CTE is re-evaluated at every reference — which is
+                // the bug being fixed, reintroduced by the planner. Spelled
+                // NOT MATERIALIZED the same statement measures 4,369 calls and
+                // 2.2s, three and a half times the cost, for identical rows.
+                //
+                // TWO CTEs RATHER THAN ONE, and that is worth 369 calls. With
+                // the threshold applied to a derived table inside sem_scores,
+                // Postgres flattens the subquery, `similarity` lands in both
+                // the filter and the target list, and every row that PASSES is
+                // scored a second time. Materialising the scores and filtering
+                // the materialised output is one evaluation per candidate,
+                // full stop: 2,369 calls became 2,000.
+                //
+                // NO CALL IS MADE FROM PHP HERE. The vector arrives already
+                // computed — buildSearchSql() runs up to four times per search,
+                // once inside a statement-timeout transaction, and a round trip
+                // to another machine in any of them would be a search that
+                // sometimes takes four times as long for no reason a user could
+                // see.
+                //
+                // BOUNDED, AND THE BOUND IS THE WHOLE DESIGN. The distance
+                // function costs about 0.13ms a row at 1024 dimensions; over
+                // 100,000 messages that is thirteen seconds, which is worse
+                // than the pathology the UNION was written to escape. So it
+                // only ever runs over the most recent SEMANTIC_CANDIDATES
+                // messages, chosen by an ordering the planner can serve from an
+                // index and which does not change between pages — a bound that
+                // moved would make LIMIT/OFFSET return the same conversation
+                // twice.
+                //
+                // The inner LIMIT is parenthesised because an unparenthesised
+                // ORDER BY or LIMIT would bind to the wrong query level.
+                // :queryVector is already a PostgreSQL literal, normalised by
+                // the caller — DBAL cannot name `real[]` as a parameter type,
+                // and the cast is what turns the bound string back into an
+                // array. It is now bound EXACTLY ONCE in the whole statement.
+                //
+                // SCOPED TO ONE MODEL, AND THAT IS NOT TIDINESS. Vectors from
+                // two embedding models are not comparable, and neither
+                // implementation of plmail_embed_distance() says so: the
+                // shipped plpgsql loop compares whatever the two arrays have in
+                // common and answers a plausible number, and on an installation
+                // with pgvector the cast raises `different vector dimensions` —
+                // a 500 on /mail/search for everybody, caused by a dropdown in
+                // the admin panel. Matching on model AND width means a mailbox
+                // half re-indexed after a model change searches the half that
+                // matches and ignores the rest. The index
+                // idx_message_embedding_model is (model, dimensions) for this.
+                $semanticCte = <<<SQL
+                    WITH sem_scores AS MATERIALIZED (
+                        SELECT e.message_id,
+                               1 - plmail_embed_distance(e.embedding, CAST(:queryVector AS real[])) AS similarity
+                          FROM message m
+                          JOIN message_embedding e ON e.message_id = m.id
+                                                  AND e.model = :semanticModel
+                                                  AND e.dimensions = :semanticDimensions
+                         WHERE {$mine}
+                           AND m.id IN (
+                               SELECT recent.id FROM (
+                                   SELECT m2.id FROM message m2
+                                    WHERE {$mine}
+                                    ORDER BY m2.received_at DESC NULLS LAST, m2.id DESC
+                                    LIMIT :semanticCandidates
+                               ) recent
+                           )
+                    ), sem_hits AS (
+                        SELECT message_id, similarity FROM sem_scores WHERE similarity >= :semanticSimilarity
+                    )
+
+                    SQL;
+
+                // An id-producing arm of the same UNION, so a vector hit is a
+                // candidate on exactly the same footing as a lexical one: it
+                // lands in COUNT(*) OVER (), it pages correctly, and it needs
+                // no second statement to reconcile with.
+                $cheap[] = 'SELECT message_id FROM sem_hits';
+
+                // A COLUMN NOW, NOT AN EXPRESSION. Similarity, so it is on the
+                // same "bigger is better" footing as ts_rank and GREATEST can
+                // mix them; a message the vector did not find gives NULL here,
+                // which GREATEST ignores.
+                //
+                // Still held in a variable because the provenance column below
+                // binds the SAME text, and Postgres shares identical aggregate
+                // calls — but now that is a convenience rather than the thing
+                // holding the cost down. There is no arithmetic left in it to
+                // share.
+                $semanticRank = 'sem.similarity';
 
                 $ranks[] = $semanticRank;
 
+                // The arm's threshold, said the way the arm reads it. The
+                // constant is a DISTANCE and this is a similarity, and 1 - d is
+                // the conversion — done once, here, so the arm, the rank and
+                // the provenance column below cannot come to disagree about
+                // what counts as a hit. Before this they were two comparisons
+                // (`d <= 0.45` in the arm, `1 - d >= 0.55` in the column) that
+                // agreed everywhere except within one ULP of the boundary.
+                $params['semanticSimilarity']  = 1 - self::SEMANTIC_MAX_DISTANCE;
                 $params['queryVector']         = $semantic->literal;
                 $params['semanticModel']       = $semantic->model;
                 $params['semanticDimensions']  = $semantic->dimensions;
-                $params['semanticDistance']    = self::SEMANTIC_MAX_DISTANCE;
                 $params['semanticCandidates']  = self::SEMANTIC_CANDIDATES;
                 $types['semanticDimensions']   = ParameterType::INTEGER;
                 $types['semanticCandidates']   = ParameterType::INTEGER;
@@ -1744,18 +1935,20 @@ class MessageThreadRepository extends ServiceEntityRepository
             // message with no subject ILIKEs to NULL — and BOOL_OR over nothing
             // but NULLs is NULL, which would make the CASE fall through to a
             // row claiming a provenance it never had.
+            //
+            // The `>= :semanticSimilarity` is now redundant on its face —
+            // sem_hits contains nothing below the threshold, so a non-NULL
+            // MAX() is already a hit. It is kept because it is what makes the
+            // NULL case explicit: a row with no sem_hits match gives NULL, and
+            // `NULL >= x` is NULL, which is what sends the CASE to 0. Written
+            // as `MAX(...) IS NOT NULL` the reader would have to go and find
+            // out where the threshold went.
             if (null !== $semanticRank) {
                 $lexicalHit = '(' . implode(' OR ', $lexical) . ')';
 
                 $semanticColumn = ",\n                CASE WHEN MAX({$semanticRank}) >= :semanticSimilarity"
                     . " AND NOT COALESCE(BOOL_OR({$lexicalHit}), false)"
                     . " THEN 1 ELSE 0 END AS semantic_only";
-
-                // The arm's own threshold, said the other way up: the arm
-                // bounds a distance and this reads a similarity, and 1 - d is
-                // the conversion. One constant, so the column cannot come to
-                // disagree with the arm it describes.
-                $params['semanticSimilarity'] = 1 - self::SEMANTIC_MAX_DISTANCE;
             }
         }
 
@@ -1859,16 +2052,23 @@ class MessageThreadRepository extends ServiceEntityRepository
         // hides the duplication perfectly and only the clock shows it.
         // One row per message, so this cannot multiply anything — which is the
         // property the label joins above lost and had to be given back in
-        // v0.1.40. LEFT, because most messages have no embedding and every one
-        // of them still has to be able to match lexically.
-        // Matched on model and width like the arm above, and for the same
-        // reason: this is the side that FEEDS the distance function, so an
-        // unmatched row here is either a meaningless number or, with pgvector
-        // installed, an error that takes the whole search page with it.
+        // v0.1.40. LEFT, because most messages are not vector hits and every
+        // one of them still has to be able to match lexically.
+        //
+        // TO THE CTE, NOT TO message_embedding. This join used to reach the
+        // embedding table directly with no candidate restriction, and the rank
+        // above it then ran plmail_embed_distance() over every embedded message
+        // the statement had matched — twice, once for `rank` and once for
+        // `semantic_only`. That was the search: 12,616 calls where 2,000 were
+        // needed. Joining the scored candidates instead means the outer query
+        // reads a `real` column, and the only model/width matching left in the
+        // statement is the one inside sem_scores, where it belongs — it guards
+        // the side that FEEDS the distance function, and an unmatched row there
+        // is either a meaningless number or, with pgvector installed, an error
+        // that takes the whole search page with it.
         $semanticJoin = null === $semantic?->literal
             ? ''
-            : "\n            LEFT JOIN message_embedding sem ON sem.message_id = m.id"
-                . "\n                AND sem.model = :semanticModel AND sem.dimensions = :semanticDimensions";
+            : "\n            LEFT JOIN sem_hits sem ON sem.message_id = m.id";
 
         $labelJoins = '';
 
@@ -1877,7 +2077,11 @@ class MessageThreadRepository extends ServiceEntityRepository
                 . "\n            LEFT JOIN label lbl ON lbl.id = tl.label_id";
         }
 
-        $sql = <<<SQL
+        // The CTE rides in front of the SELECT rather than being spliced into
+        // it, so a search with no vector produces byte-for-byte the statement
+        // it always did. searchRows() appends ORDER BY / LIMIT / OFFSET to
+        // whatever comes back, which a leading WITH does not disturb.
+        $sql = $semanticCte . <<<SQL
             SELECT
                 t.id                                              AS thread_id,
                 {$rankSelect}                                     AS rank,

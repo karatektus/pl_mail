@@ -637,6 +637,153 @@ final class MessageSearchTest extends KernelTestCase
         self::assertCount(0, $page->threads);
     }
 
+    /**
+     * The vector is allowed to run out of time; the search is not allowed to
+     * fall over, and it is not allowed to come back empty.
+     *
+     * Semantic search measured 12.9 seconds mean and 47 seconds worst case in
+     * production. The shape that caused it is fixed in buildSearchSql(), but a
+     * query plan is a decision the planner makes at runtime and no amount of
+     * correct SQL binds it — so the vector carries a budget, and losing it
+     * costs the vector rather than the search.
+     *
+     * One millisecond, which no query can meet, so the expiry is certain rather
+     * than hoped for. What must survive is the row the WORDS found.
+     */
+    public function testAnExpiredSemanticPassStillAnswersWithWhatTheWordsFound(): void
+    {
+        $this->seedMessage('Quarterly figures', body: 'The pelican audit is attached.');
+        $this->store()->store($this->messageId('Quarterly figures'), [1.0, 0.0, 0.0], 'test-model');
+
+        $impatient = new MessageThreadRepository(
+            self::getContainer()->get(ManagerRegistry::class),
+            new FreeTextCompiler(),
+            semanticTimeoutMs: 1,
+        );
+
+        $page = $impatient->searchPage(
+            $this->user,
+            $this->parser->parse('pelican'),
+            semantic: $this->semantic([1.0, 0.0, 0.0]),
+        );
+
+        self::assertCount(1, $page->threads, 'the keyword pass answers when the vector cannot');
+        self::assertSame('Quarterly figures', $page->threads[0]->subject);
+        self::assertSame(1, $page->total, 'the total still comes from the statement that answered');
+    }
+
+    /**
+     * And what only the vector could have found is what is given up.
+     *
+     * The deliberate price, stated as a test so that nobody has to infer it:
+     * a degraded search is a search, and this is what "degraded" means here.
+     */
+    public function testAnExpiredSemanticPassGivesUpTheRowsOnlyTheVectorCouldFind(): void
+    {
+        $this->seedMessage('Notes from the standup', body: 'Who is doing what this week.');
+        $this->store()->store($this->messageId('Notes from the standup'), [1.0, 0.0, 0.0], 'test-model');
+
+        $impatient = new MessageThreadRepository(
+            self::getContainer()->get(ManagerRegistry::class),
+            new FreeTextCompiler(),
+            semanticTimeoutMs: 1,
+        );
+
+        $page = $impatient->searchPage(
+            $this->user,
+            $this->parser->parse('meeting minutes'),
+            semantic: $this->semantic([1.0, 0.0, 0.0]),
+        );
+
+        self::assertCount(0, $page->threads);
+        self::assertSame([], $page->semanticOnly);
+    }
+
+    /**
+     * A search with no vector never enters the budget at all.
+     *
+     * The same distinction testTheBudgetDoesNotAffectTheCheapPass() draws for
+     * the body pass: the guard is on one pass, not on the query as a whole, and
+     * an installation with the feature off must produce the search it always
+     * did on a connection nobody has touched.
+     */
+    public function testTheSemanticBudgetDoesNotAffectASearchWithoutAVector(): void
+    {
+        $this->seedMessage('Quarterly figures', body: 'The pelican audit is attached.');
+
+        $impatient = new MessageThreadRepository(
+            self::getContainer()->get(ManagerRegistry::class),
+            new FreeTextCompiler(),
+            semanticTimeoutMs: 1,
+        );
+
+        self::assertCount(
+            1,
+            $impatient->searchPage($this->user, $this->parser->parse('pelican'))->threads,
+            'a keyword search must be untouched by the vector budget',
+        );
+    }
+
+    /**
+     * Every candidate is scored ONCE, and the outer query does no arithmetic.
+     *
+     * THIS IS THE 12.9-SECOND BUG, AND NOTHING ELSE IN THIS FILE CAN SEE IT.
+     * Every other semantic test here passes against the shape that took 47
+     * seconds in production: the rows were right, the flags were right, and the
+     * cost was the defect. So this one reads the statement instead.
+     *
+     * Three properties, each of which was separately false before:
+     *
+     *  - plmail_embed_distance() appears ONCE. It used to be written three
+     *    times — once in the UNION arm and twice in the outer query, for `rank`
+     *    and for `semantic_only`.
+     *  - :queryVector is bound ONCE. DBAL expands each occurrence of a named
+     *    parameter into its own positional parameter, so two textually
+     *    identical expressions arrived at Postgres as two different ones and
+     *    the aggregate sharing the old comment relied on never happened.
+     *    Measured on 20,000 rows: 12,616 calls where 2,000 were needed.
+     *  - The CTE is MATERIALIZED. Spelled NOT MATERIALIZED the planner inlines
+     *    it at both references and re-evaluates it, which is the bug restored:
+     *    4,369 calls and 2.2s against 2,000 calls and 0.63s.
+     *
+     * Reading the SQL is the point rather than a shortcut. There is no result
+     * this can be asserted from — that is exactly why it went unnoticed.
+     */
+    public function testTheDistanceIsComputedOnceOverCandidatesOnly(): void
+    {
+        $build = new \ReflectionMethod($this->repository, 'buildSearchSql');
+
+        [$sql, $params] = $build->invoke(
+            $this->repository,
+            $this->user,
+            $this->parser->parse('pelican'),
+            true,
+            $this->semantic([1.0, 0.0, 0.0]),
+        );
+
+        self::assertSame(
+            1,
+            substr_count($sql, 'plmail_embed_distance'),
+            'the distance belongs in the CTE and nowhere else',
+        );
+        self::assertSame(
+            1,
+            substr_count($sql, ':queryVector'),
+            'a second occurrence is a second positional parameter, and a second scan',
+        );
+        self::assertStringContainsString(
+            'AS MATERIALIZED (',
+            $sql,
+            'an inlined CTE is re-evaluated per reference, which is the bug',
+        );
+        self::assertArrayHasKey('semanticSimilarity', $params);
+        self::assertArrayNotHasKey(
+            'semanticDistance',
+            $params,
+            'one constant: the arm and the provenance column read the same threshold',
+        );
+    }
+
     private function messageId(string $subject): int
     {
         return (int) $this->connection->fetchOne('SELECT id FROM message WHERE subject = ?', [$subject]);
