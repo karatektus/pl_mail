@@ -13,9 +13,11 @@ not a way into a mailbox.
 <turbo-frame id="admin-users" class="block space-y-3">
 
     {# Bare markup, so it carries the rows' own inset rather than borrowing one
-       from the frame around it — which runs edge to edge on a narrow pane. Same
-       figure as the row padding, so the heading lines up with the names. #}
-    <div class="flex items-center gap-3 px-5">
+       from the frame around it — which runs edge to edge on a narrow pane.
+       px-4 is the house inset from _partials/_card_chrome.html.twig, and every
+       other block on this page uses it too, so the heading, the names, the
+       pager and the footnote all begin at the same x. #}
+    <div class="flex items-center gap-3 px-4">
         <h3 class="text-xs font-semibold uppercase tracking-wide text-ink-faint">
             {{ 'admin.users.heading'|trans }}
         </h3>
@@ -45,7 +47,7 @@ not a way into a mailbox.
         {% for user in pagination %}
             {% set isAdmin = 'ROLE_ADMIN' in user.roles %}
 
-            <div class="flex items-center gap-3 px-5 h-14 rounded-pane border border-line bg-pane-soft">
+            <div class="flex items-center gap-3 px-4 h-14 rounded-pane border border-line bg-pane-soft">
                 <i class="fa-solid {{ isAdmin ? 'fa-user-shield text-accent' : 'fa-user text-ink-faint' }}
                           text-base w-5 text-center" aria-hidden="true"></i>
 
@@ -108,19 +110,19 @@ not a way into a mailbox.
                 {% endif %}
             </div>
         {% else %}
-            <p class="px-5 py-8 text-center text-sm text-ink-faint">
+            <p class="px-4 py-8 text-center text-sm text-ink-faint">
                 {{ 'admin.users.none'|trans }}
             </p>
         {% endfor %}
     </div>
 
     {% if pagination.pageCount > 1 %}
-        <div class="flex justify-center px-5 pt-1">
+        <div class="flex justify-center px-4 pt-1">
             {{ knp_pagination_render(pagination) }}
         </div>
     {% endif %}
 
-    <p class="px-5 text-xs text-ink-faint">
+    <p class="px-4 text-xs text-ink-faint">
         <i class="fa-solid fa-circle-info mr-1" aria-hidden="true"></i>
         {{ 'admin.users.console_note'|trans }}
     </p>

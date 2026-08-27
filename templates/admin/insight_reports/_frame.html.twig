@@ -38,7 +38,7 @@ list back, so nothing here navigates the page.
             {# Calmly, and not as a table with no rows in it: nothing being
                reported is the ordinary state of a working install, not an
                empty result somebody should go looking for. #}
-            <div class="px-5 py-6">
+            <div class="{{ chrome.body() }}">
                 <p class="text-sm text-ink-soft">{{ 'admin.insight_reports.empty'|trans }}</p>
                 <p class="mt-1 text-xs text-ink-faint leading-relaxed">{{ 'admin.insight_reports.empty_hint'|trans }}</p>
             </div>
@@ -49,7 +49,7 @@ list back, so nothing here navigates the page.
                        them: a <form> is flow content and may not live inside a
                        <summary>, and a button that did would toggle the fold on
                        its way to being pressed. #}
-                    <div class="flex flex-wrap items-start gap-3 px-5 py-3">
+                    <div class="flex flex-wrap items-start gap-3 px-4 py-3">
 
                         <details class="min-w-0 flex-1 text-sm group">
                             <summary class="flex items-start gap-3 cursor-pointer list-none">
@@ -166,7 +166,7 @@ list back, so nothing here navigates the page.
             <h2 class="text-sm font-semibold text-ink">{{ 'admin.insight_reports.export.heading'|trans }}</h2>
         </div>
 
-        <div class="px-5 py-4 space-y-3">
+        <div class="{{ chrome.body() }} space-y-3">
             <p class="text-sm text-ink-soft leading-relaxed">{{ 'admin.insight_reports.export.intro'|trans }}</p>
             <p class="text-xs text-ink-faint leading-relaxed">
                 <i class="fa-solid fa-triangle-exclamation mr-1 text-warning" aria-hidden="true"></i>
@@ -223,13 +223,20 @@ list back, so nothing here navigates the page.
        for what is about to go — and what goes is the only surviving copy of
        mail somebody took the trouble to report. #}
     {% if handledCount > 0 %}
+    {# Not chrome.shell()/chrome.band(): both of those pin `border-line`, and the
+       tint is the whole point of this card. Two `border-*` colour utilities on
+       one element are resolved by their order in the generated stylesheet, not
+       by the order they are written here, so the danger colour cannot simply be
+       appended to the macro — the figures are repeated instead, and it is only
+       the COLOURS that differ. Same repetition as the reset panel's
+       unrecoverable half, which is the other card that has to say this. #}
     <div class="rounded-pane border border-danger/40 bg-pane-soft overflow-hidden">
         <div class="flex items-center gap-2.5 px-4 py-3.5 border-b border-danger/40 alert-danger">
             <i class="fa-solid fa-broom text-xs text-danger" aria-hidden="true"></i>
             <h2 class="text-sm font-semibold text-danger">{{ 'admin.insight_reports.clear_handled.heading'|trans }}</h2>
         </div>
 
-        <div class="px-5 py-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div class="{{ chrome.body() }} flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <p class="text-sm text-ink-soft leading-relaxed">{{ 'admin.insight_reports.clear_handled.lead'|trans({ '%count%': handledCount }) }}</p>
 
             <form method="post"

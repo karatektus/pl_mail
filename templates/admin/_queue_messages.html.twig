@@ -21,7 +21,7 @@ controller reads to learn whether the filtered queue has more behind this page.
 
 {% macro row(message) %}
     {% import _self as queue %}
-    <div data-queue-row class="flex items-start gap-3 px-5 py-2 text-sm">
+    <div data-queue-row class="flex items-start gap-3 px-4 py-2 text-sm">
         {# Held, waiting, or waiting on a clock: three states, three dots. An
            in-flight message that has been in flight too long is the one worth
            spotting, so only it changes colour. #}

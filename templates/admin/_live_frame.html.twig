@@ -7,6 +7,7 @@
 
 {% import _self as ui %}
 {% import 'admin/_cards.html.twig' as cards %}
+{% import '_partials/_card_chrome.html.twig' as chrome %}
 {# Row markup shared with the pages the queue browser fetches. #}
 {% import 'admin/_queue_messages.html.twig' as queue %}
 
@@ -31,19 +32,19 @@
                only checks the signal once per 60s reconcile poll, plus its
                children's shutdown and the container coming back. #}
             {% if restartRequestedAgo is not null and restartRequestedAgo < 150 %}
-                <div class="flex items-start gap-2.5 px-5 py-3 border-b border-line alert-info text-sm text-accent">
+                <div class="flex items-start gap-2.5 px-4 py-3 border-b border-line alert-info text-sm text-accent">
                     <i class="fa-solid fa-arrows-rotate mt-0.5 shrink-0 text-accent/70" aria-hidden="true"></i>
                     <p>{{ 'admin.maintenance.restart_pending'|trans({ '%seconds%': restartRequestedAgo }) }}</p>
                 </div>
             {% endif %}
 
             {% if heartbeats|length == 0 %}
-                <p class="px-5 py-4 text-sm text-ink-faint">{{ 'admin.processes.empty'|trans }}</p>
+                <p class="{{ chrome.body() }} text-sm text-ink-faint">{{ 'admin.processes.empty'|trans }}</p>
             {% else %}
                 <table class="w-full text-sm">
                     <thead>
                         <tr class="text-left text-xs text-ink-faint">
-                            <th class="px-5 py-2 font-medium"></th>
+                            <th class="px-4 py-2 font-medium"></th>
                             <th class="px-2 py-2 font-medium">{{ 'admin.processes.type'|trans }}</th>
                             <th class="px-2 py-2 font-medium">{{ 'admin.processes.key'|trans }}</th>
                             <th class="px-2 py-2 font-medium">{{ 'admin.processes.pid'|trans }}</th>
@@ -53,7 +54,7 @@
                     <tbody>
                         {% for row in heartbeats %}
                             <tr class="border-t border-line text-ink-soft">
-                                <td class="px-5 py-2 w-8">{{ ui.dot(row.healthy) }}</td>
+                                <td class="px-4 py-2 w-8">{{ ui.dot(row.healthy) }}</td>
                                 <td class="px-2 py-2 font-mono text-xs">{{ row.type }}</td>
                                 <td class="px-2 py-2 font-mono text-xs">{{ row.key }}</td>
                                 <td class="px-2 py-2 font-mono text-xs">{{ row.pid ?? '—' }}</td>
@@ -69,7 +70,7 @@
 
         {# ── Maintenance ───────────────────────────────────────────────── #}
         {{ cards.open('fa-screwdriver-wrench', 'admin.maintenance.heading'|trans, 'maintenance', collapsedPanels) }}
-            <div class="px-5 py-4 space-y-4">
+            <div class="{{ chrome.body() }} space-y-4">
 
                 <div>
                     <p class="text-sm text-ink">{{ 'admin.maintenance.restart_title'|trans }}</p>
@@ -158,11 +159,11 @@
                 'admin.summary.armed'|trans({ '%active%': webhooksArmed, '%total%': webhooks|length }),
                 webhooksArmed < webhooks|length ? 'warn' : null) }}
                 {% if webhooks|length == 0 %}
-                    <p class="px-5 py-4 text-sm text-ink-faint">{{ 'admin.webhooks.empty'|trans }}</p>
+                    <p class="{{ chrome.body() }} text-sm text-ink-faint">{{ 'admin.webhooks.empty'|trans }}</p>
                 {% else %}
                     <div class="divide-y divide-line">
                         {% for row in webhooks %}
-                            <div class="px-5 py-3 text-sm">
+                            <div class="px-4 py-3 text-sm">
                                 <div class="flex items-center gap-2">
                                     {{ ui.dot(row.watchActive) }}
                                     <span class="font-medium text-ink">{{ row.account.email }}</span>
@@ -198,7 +199,7 @@
                    Watch registration and delivery fail independently: the
                    rows above show the former, everything here explains the
                    latter, which is otherwise invisible from inside plMail. #}
-                <div class="border-t border-line px-5 py-3">
+                <div class="border-t border-line px-4 py-3">
                     <h3 class="text-xs font-semibold text-ink-soft">{{ 'admin.webhooks.delivery.heading'|trans }}</h3>
 
                     <dl class="mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 text-xs text-ink-muted">
@@ -284,11 +285,11 @@
                     : 'admin.summary.ok'|trans({ '%count%': tokenHealth|length }),
                 tokensFailing > 0 ? 'danger' : null) }}
                 {% if tokenHealth|length == 0 %}
-                    <p class="px-5 py-4 text-sm text-ink-faint">{{ 'admin.tokens.empty'|trans }}</p>
+                    <p class="{{ chrome.body() }} text-sm text-ink-faint">{{ 'admin.tokens.empty'|trans }}</p>
                 {% else %}
                     <div class="divide-y divide-line">
                         {% for row in tokenHealth %}
-                            <div class="px-5 py-3 text-sm">
+                            <div class="px-4 py-3 text-sm">
                                 <div class="flex items-center gap-2">
                                     {{ ui.dot(row.healthy) }}
                                     <span class="font-medium text-ink">{{ row.account.email }}</span>
@@ -313,7 +314,7 @@
             'admin.summary.queue'|trans({ '%running%': queueRunningTotal, '%waiting%': waitingTotal }),
             waitingTotal > 0 and queueRunningTotal == 0 ? 'warn' : null) }}
             {% if queueStats|length == 0 %}
-                <p class="px-5 py-4 text-sm text-ink-faint">{{ 'admin.queues.empty'|trans }}</p>
+                <p class="{{ chrome.body() }} text-sm text-ink-faint">{{ 'admin.queues.empty'|trans }}</p>
             {% else %}
                 {#
                 In flight first, and above the totals. A queue that is not
@@ -324,7 +325,7 @@
 
                 Never paginated: there is one of these per worker process.
                 #}
-                <div class="px-5 py-3 border-b border-line bg-sunken">
+                <div class="px-4 py-3 border-b border-line bg-sunken">
                     <p class="text-xs font-medium text-ink-faint">
                         {{ 'admin.queues.in_flight'|trans }}
                         <span class="ml-1 text-ink-soft">({{ runningMessages|length }})</span>
@@ -332,7 +333,7 @@
                 </div>
 
                 {% if runningMessages|length == 0 %}
-                    <p class="px-5 py-3 text-sm text-ink-faint border-b border-line">
+                    <p class="px-4 py-3 text-sm text-ink-faint border-b border-line">
                         {{ 'admin.queues.none_running'|trans }}
                     </p>
                 {% else %}
@@ -346,7 +347,7 @@
                 <table class="w-full text-sm">
                     <thead>
                         <tr class="text-left text-xs text-ink-faint">
-                            <th class="px-5 py-2 font-medium">{{ 'admin.queues.queue'|trans }}</th>
+                            <th class="px-4 py-2 font-medium">{{ 'admin.queues.queue'|trans }}</th>
                             <th class="px-2 py-2 font-medium">{{ 'admin.queues.pending'|trans }}</th>
                             <th class="px-2 py-2 font-medium">{{ 'admin.queues.running'|trans }}</th>
                             <th class="px-2 py-2 font-medium">{{ 'admin.queues.oldest'|trans }}</th>
@@ -356,7 +357,7 @@
                     <tbody>
                         {% for row in queueStats %}
                             <tr class="border-t border-line text-ink-soft">
-                                <td class="px-5 py-2 font-mono text-xs">{{ row.queue }}</td>
+                                <td class="px-4 py-2 font-mono text-xs">{{ row.queue }}</td>
                                 <td class="px-2 py-2">{{ row.pending }}</td>
                                 <td class="px-2 py-2">
                                     {% if row.running > 0 %}
@@ -408,7 +409,7 @@
                         them per page without another round trip. #}
                      data-admin--queue-browser-count-template-value="{{ 'admin.queues.showing'|trans }}">
 
-                    <div class="flex items-center gap-2 px-5 py-2 border-b border-line">
+                    <div class="flex items-center gap-2 px-4 py-2 border-b border-line">
                         <i class="fa-solid fa-magnifying-glass text-[10px] text-ink-faint" aria-hidden="true"></i>
                         <input type="search"
                                data-admin--queue-browser-target="input"
@@ -431,11 +432,11 @@
 
                         {% if waitingMessages|length == 0 %}
                             <p data-admin--queue-browser-target="empty"
-                               class="px-5 py-3 text-sm text-ink-faint">{{ 'admin.queues.empty'|trans }}</p>
+                               class="px-4 py-3 text-sm text-ink-faint">{{ 'admin.queues.empty'|trans }}</p>
                         {% endif %}
 
                         <p data-admin--queue-browser-target="loading"
-                           class="hidden px-5 py-2 text-xs text-ink-faint">{{ 'admin.queues.loading'|trans }}</p>
+                           class="hidden px-4 py-2 text-xs text-ink-faint">{{ 'admin.queues.loading'|trans }}</p>
                     </div>
                 </div>
             {% endif %}
@@ -447,11 +448,11 @@
                 : 'admin.summary.none'|trans,
             failedMessages|length > 0 ? 'danger' : null) }}
             {% if failedMessages|length == 0 %}
-                <p class="px-5 py-4 text-sm text-ink-faint">{{ 'admin.failed.empty'|trans }}</p>
+                <p class="{{ chrome.body() }} text-sm text-ink-faint">{{ 'admin.failed.empty'|trans }}</p>
             {% else %}
                 {# Bulk actions: a bad deploy fails messages by the hundred,
                    and the per-row buttons are not a recovery path. #}
-                <div class="flex items-center justify-end gap-2 px-5 py-2.5 border-b border-line bg-sunken">
+                <div class="flex items-center justify-end gap-2 px-4 py-2.5 border-b border-line bg-sunken">
                     <form method="post" action="{{ path('app_admin_system_failed_retry_all') }}" data-turbo-frame="_top"
                           data-turbo-confirm="{{ 'admin.failed.retry_all_confirm'|trans }}">
                         <input type="hidden" name="_token" value="{{ csrf_token('admin_failed_retry_all') }}">
@@ -474,7 +475,7 @@
 
                 <div class="divide-y divide-line">
                     {% for row in failedMessages %}
-                        <div class="px-5 py-3 text-sm">
+                        <div class="px-4 py-3 text-sm">
                             <div class="flex items-start gap-3">
                                 <div class="min-w-0 flex-1">
                                     <p class="font-mono text-xs text-ink truncate">{{ row.class }}</p>
@@ -519,7 +520,7 @@
                 <table class="w-full text-sm">
                     <thead>
                         <tr class="text-left text-xs text-ink-faint">
-                            <th class="px-5 py-2 font-medium">{{ 'admin.accounts.account'|trans }}</th>
+                            <th class="px-4 py-2 font-medium">{{ 'admin.accounts.account'|trans }}</th>
                             <th class="px-2 py-2 font-medium">{{ 'admin.accounts.threads'|trans }}</th>
                             <th class="px-2 py-2 font-medium">{{ 'admin.accounts.messages'|trans }}</th>
                             <th class="px-2 py-2 font-medium">{{ 'admin.accounts.last_activity'|trans }}</th>
@@ -528,7 +529,7 @@
                     <tbody>
                         {% for row in accountOverview %}
                             <tr class="border-t border-line text-ink-soft {{ row.is_active ? '' : 'opacity-50' }}">
-                                <td class="px-5 py-2 text-xs truncate max-w-40">{{ row.email }}</td>
+                                <td class="px-4 py-2 text-xs truncate max-w-40">{{ row.email }}</td>
                                 <td class="px-2 py-2 text-xs">{{ row.threads }}</td>
                                 <td class="px-2 py-2 text-xs">{{ row.messages }}</td>
                                 <td class="px-2 py-2 text-xs">{{ row.last_activity ? row.last_activity|date('Y-m-d H:i') : '—' }}</td>
@@ -545,8 +546,8 @@
                     <tbody>
                         {% for row in tableSizes %}
                             <tr class="border-t border-line first:border-t-0 text-ink-soft">
-                                <td class="px-5 py-2 font-mono text-xs">{{ row.table }}</td>
-                                <td class="px-2 py-2 text-xs text-right pr-5">{{ row.size }}</td>
+                                <td class="px-4 py-2 font-mono text-xs">{{ row.table }}</td>
+                                <td class="px-2 py-2 text-xs text-right pr-4">{{ row.size }}</td>
                             </tr>
                         {% endfor %}
                     </tbody>

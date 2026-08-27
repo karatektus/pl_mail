@@ -69,7 +69,7 @@
            Its own form, its own POST, and a full reload rather than a frame
            swap — the setting changes what the very next request writes, so the
            page that reports it has to be a fresh one. #}
-        <div class="flex flex-wrap items-center gap-2 px-5 py-2.5 border-t border-line bg-sunken/40">
+        <div class="flex flex-wrap items-center gap-2 px-4 py-2.5 border-t border-line bg-sunken/40">
             <i class="fa-solid fa-database text-[10px] text-ink-faint" aria-hidden="true"></i>
             <span class="text-xs text-ink-muted">{{ 'admin.logs.capture.label'|trans }}</span>
 
@@ -99,11 +99,11 @@
         </div>
 
         {% if entries|length == 0 %}
-            <p class="px-5 py-4 text-sm text-ink-faint">{{ 'admin.logs.empty'|trans }}</p>
+            <p class="{{ chrome.body() }} text-sm text-ink-faint">{{ 'admin.logs.empty'|trans }}</p>
         {% else %}
             <div class="divide-y divide-line">
                 {% for entry in entries %}
-                    <details class="px-5 py-2.5 text-sm group">
+                    <details class="px-4 py-2.5 text-sm group">
                         {# Wraps until the pane can seat the message as well as
                            the metadata. Below that the four fixed-width labels
                            are wider than the row on their own, which left the
@@ -161,7 +161,7 @@
             </div>
 
             {% if pages > 1 %}
-                <div class="flex items-center justify-between px-5 py-3 border-t border-line text-xs text-ink-muted">
+                <div class="flex items-center justify-between px-4 py-3 border-t border-line text-xs text-ink-muted">
                     <span>{{ 'admin.logs.page'|trans }} {{ page }} / {{ pages }}</span>
                     <div class="flex items-center gap-2">
                         {% if page > 1 %}

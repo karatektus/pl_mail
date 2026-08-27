@@ -8,6 +8,7 @@
 
 {% import _self as ui %}
 {% import 'admin/_cards.html.twig' as cards %}
+{% import '_partials/_card_chrome.html.twig' as chrome %}
 
 <turbo-frame id="admin-db">
 
@@ -45,7 +46,7 @@
         {# ── Slowest by mean ───────────────────────────────────────────── #}
         {{ cards.open('fa-gauge-high', 'admin.db.slow_mean.heading'|trans, 'db-slow', collapsedPanels,
             'admin.summary.queries'|trans({ '%count%': slowestByMean|length })) }}
-            <div class="flex items-center gap-2 px-5 py-2 border-b border-line">
+            <div class="flex items-center gap-2 px-4 py-2 border-b border-line">
                 <span class="text-xs text-ink-faint">{{ 'admin.db.slow_mean.hint'|trans }}</span>
                 {% if statStatementsAvailable %}
                     <form method="post" action="{{ path('app_admin_db_reset') }}" data-turbo-frame="_top"
@@ -61,7 +62,7 @@
             </div>
 
             {% if statStatementsAvailable == false %}
-                <div class="px-5 py-4 text-sm text-ink-muted">
+                <div class="{{ chrome.body() }} text-sm text-ink-muted">
                     <p class="flex items-center gap-2">
                         <i class="fa-solid fa-circle-info text-amber-500" aria-hidden="true"></i>
                         {{ 'admin.db.extension_missing'|trans }}
@@ -88,7 +89,7 @@ CREATE EXTENSION IF NOT EXISTS pg_stat_statements;</pre>
                     {% endif %}
                 </div>
             {% elseif slowestByMean|length == 0 %}
-                <p class="px-5 py-4 text-sm text-ink-faint">{{ 'admin.db.slow_mean.empty'|trans }}</p>
+                <p class="{{ chrome.body() }} text-sm text-ink-faint">{{ 'admin.db.slow_mean.empty'|trans }}</p>
             {% else %}
                 {{ _self.statement_table(slowestByMean, 'meanMs') }}
             {% endif %}
@@ -98,7 +99,7 @@ CREATE EXTENSION IF NOT EXISTS pg_stat_statements;</pre>
         {% if statStatementsAvailable and heaviestByTotal|length > 0 %}
             {{ cards.open('fa-weight-hanging', 'admin.db.heavy_total.heading'|trans, 'db-heavy', collapsedPanels,
                 'admin.summary.queries'|trans({ '%count%': heaviestByTotal|length })) }}
-                <p class="px-5 py-2 border-b border-line text-xs text-ink-faint">{{ 'admin.db.heavy_total.hint'|trans }}</p>
+                <p class="px-4 py-2 border-b border-line text-xs text-ink-faint">{{ 'admin.db.heavy_total.hint'|trans }}</p>
                 {{ _self.statement_table(heaviestByTotal, 'totalMs') }}
             {{ cards.close() }}
         {% endif %}
@@ -109,11 +110,11 @@ CREATE EXTENSION IF NOT EXISTS pg_stat_statements;</pre>
                 ? 'admin.summary.active'|trans({ '%count%': activeQueries|length })
                 : 'admin.summary.idle'|trans) }}
             {% if activeQueries|length == 0 %}
-                <p class="px-5 py-4 text-sm text-ink-faint">{{ 'admin.db.active.empty'|trans }}</p>
+                <p class="{{ chrome.body() }} text-sm text-ink-faint">{{ 'admin.db.active.empty'|trans }}</p>
             {% else %}
                 <div class="divide-y divide-line">
                     {% for row in activeQueries %}
-                        <div class="px-5 py-3 text-sm">
+                        <div class="px-4 py-3 text-sm">
                             <div class="flex items-center gap-3 text-xs">
                                 <span class="font-mono text-ink-faint">pid {{ row.pid }}</span>
                                 <span class="px-1.5 py-0.5 rounded-md bg-sunken text-ink-soft">{{ row.state }}</span>
@@ -141,19 +142,19 @@ CREATE EXTENSION IF NOT EXISTS pg_stat_statements;</pre>
         <table class="w-full text-sm">
             <thead>
                 <tr class="text-left text-xs text-ink-faint">
-                    <th class="px-5 py-2 font-medium">{{ 'admin.db.col.query'|trans }}</th>
+                    <th class="px-4 py-2 font-medium">{{ 'admin.db.col.query'|trans }}</th>
                     <th class="px-2 py-2 font-medium text-right">{{ 'admin.db.col.calls'|trans }}</th>
                     <th class="px-2 py-2 font-medium text-right">{{ 'admin.db.col.mean'|trans }}</th>
                     <th class="px-2 py-2 font-medium text-right">{{ 'admin.db.col.max'|trans }}</th>
                     <th class="px-2 py-2 font-medium text-right">{{ 'admin.db.col.total'|trans }}</th>
                     <th class="px-2 py-2 font-medium text-right">{{ 'admin.db.col.rows'|trans }}</th>
-                    <th class="px-2 py-2 font-medium text-right pr-5">{{ 'admin.db.col.hit'|trans }}</th>
+                    <th class="px-2 py-2 font-medium text-right pr-4">{{ 'admin.db.col.hit'|trans }}</th>
                 </tr>
             </thead>
             <tbody>
                 {% for row in rows %}
                     <tr class="border-t border-line text-ink-soft align-top">
-                        <td class="px-5 py-2">
+                        <td class="px-4 py-2">
                             <code class="text-xs text-ink-soft break-all">{{ row.query }}</code>
                         </td>
                         <td class="px-2 py-2 text-xs text-right tabular-nums">{{ row.calls|number_format }}</td>
@@ -161,7 +162,7 @@ CREATE EXTENSION IF NOT EXISTS pg_stat_statements;</pre>
                         <td class="px-2 py-2 text-xs text-right tabular-nums">{{ row.maxMs|number_format(2) }}</td>
                         <td class="px-2 py-2 text-xs text-right tabular-nums {{ highlight == 'totalMs' ? 'font-semibold text-ink' : '' }}">{{ (row.totalMs / 1000)|number_format(2) }}s</td>
                         <td class="px-2 py-2 text-xs text-right tabular-nums">{{ row.rows|number_format }}</td>
-                        <td class="px-2 py-2 text-xs text-right pr-5 tabular-nums {{ row.hitPct is not null and row.hitPct < 90 ? 'text-warning' : '' }}">
+                        <td class="px-2 py-2 text-xs text-right pr-4 tabular-nums {{ row.hitPct is not null and row.hitPct < 90 ? 'text-warning' : '' }}">
                             {{ row.hitPct is not null ? row.hitPct ~ '%' : '—' }}
                         </td>
                     </tr>

@@ -87,7 +87,7 @@ deliberately not stored.
         </div>
 
         {% if deliveries|length == 0 %}
-            <p class="px-5 py-4 text-sm text-ink-faint leading-relaxed">
+            <p class="{{ chrome.body() }} text-sm text-ink-faint leading-relaxed">
                 {{ everything == 0
                     ? 'admin.push.deliveries.empty_ever'|trans
                     : 'admin.push.deliveries.empty_filter'|trans }}
@@ -106,7 +106,7 @@ deliberately not stored.
                         neutral: 'badge-neutral',
                     }[tone] %}
 
-                    <div class="flex flex-wrap items-center gap-x-3 gap-y-1 px-5 py-2.5 text-sm @2xl:flex-nowrap">
+                    <div class="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2.5 text-sm @2xl:flex-nowrap">
                         <span class="shrink-0 w-28 text-center text-[10px] font-semibold uppercase tracking-wide rounded-md px-1.5 py-0.5 {{ toneClass }}">
                             {{ ('admin.push.deliveries.outcome.' ~ delivery.outcome.value)|trans }}
                         </span>
@@ -125,7 +125,7 @@ deliberately not stored.
             </div>
 
             {% if pages > 1 %}
-                <div class="flex items-center justify-between px-5 py-3 border-t border-line text-xs text-ink-muted">
+                <div class="flex items-center justify-between px-4 py-3 border-t border-line text-xs text-ink-muted">
                     <span>{{ 'admin.push.deliveries.page'|trans }} {{ page }} / {{ pages }}</span>
                     <div class="flex items-center gap-2">
                         {% if page > 1 %}

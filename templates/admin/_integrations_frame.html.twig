@@ -20,8 +20,12 @@ the same screen as the field.
     <div id="admin-mail-providers" class="space-y-2">
         {# Bare text, so it carries the rows' own inset rather than borrowing
            one from the frame around it — which runs edge to edge on a narrow
-           pane. Same figure as the row padding, so the two line up. #}
-        <h3 class="px-5 text-xs font-semibold uppercase tracking-wide text-ink-faint">
+           pane. px-4 is the house inset, from _partials/_card_chrome.html.twig,
+           so this label, the rows below it and the paragraph under those all
+           begin at the same x. They used to be px-5 against cards that were
+           px-4, which is how one screen came to have the label, the card edge,
+           the card content and the prose at four different positions. #}
+        <h3 class="px-4 text-xs font-semibold uppercase tracking-wide text-ink-faint">
             {{ 'admin.integrations.mail.heading'|trans }}
         </h3>
 
@@ -29,7 +33,7 @@ the same screen as the field.
             {% set mailConfig = mailConfigs[mailProvider.value] ?? null %}
 
             <div id="mail-provider-{{ mailProvider.value }}"
-                 class="flex items-center gap-3 px-5 h-14 rounded-pane border border-line bg-pane-soft">
+                 class="flex items-center gap-3 px-4 h-14 rounded-pane border border-line bg-pane-soft">
                 <i class="fa-brands {{ mailProvider.value == 'google' ? 'fa-google' : 'fa-microsoft' }}
                           text-base w-5 text-center
                           {{ mailConfig is not null and mailConfig.isComplete ? 'text-accent' : 'text-ink-faint' }}"
@@ -65,7 +69,7 @@ the same screen as the field.
         {% endfor %}
     </div>
 
-    <p class="px-5 pt-2 text-sm text-ink-muted">
+    <p class="px-4 pt-2 text-sm text-ink-muted">
         {{ 'admin.integrations.intro'|trans }}
     </p>
 
@@ -80,7 +84,12 @@ the same screen as the field.
         <details id="integration-provider-{{ provider.value }}"
                  class="group/int {{ chrome.shell() }}">
 
-            <summary class="flex items-center gap-3 px-5 h-14 cursor-pointer list-none hover:bg-hover transition-colors select-none">
+            {# h-14 rather than chrome.band(): this summary is a ROW in the list
+               that starts with the mail registrations above, and matching their
+               height is what keeps it reading as one list. Only the inset is
+               shared with the band, which is the part that has to line up with
+               the body below. #}
+            <summary class="flex items-center gap-3 px-4 h-14 cursor-pointer list-none hover:bg-hover transition-colors select-none">
                 <i class="fa-solid fa-chevron-right text-[9px] text-ink-faint w-3 shrink-0
                           transition-transform group-open/int:rotate-90" aria-hidden="true"></i>
 
@@ -117,7 +126,7 @@ the same screen as the field.
                 </span>
             </summary>
 
-            <div class="border-t border-line px-5 py-4 space-y-4">
+            <div class="border-t border-line {{ chrome.body() }} space-y-4">
 
                 {# Current setup, read-only. The secret is never rendered — only
                    whether one is on file. #}

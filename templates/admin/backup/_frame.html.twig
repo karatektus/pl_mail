@@ -33,6 +33,10 @@ is half-typed.
 
     {# ── Review, when there is one ─────────────────────────────────────── #}
     {% if plan is not null %}
+        {# Not chrome.shell(): the border turns green the moment the plan has
+           been applied, and the macro pins `border-line`. Everything else is
+           the macro's — the band and the body below both come from it, so this
+           card's content still starts where every other card's does. #}
         <div class="rounded-pane border {{ plan.applied ? 'border-emerald-500/40' : 'border-line' }} bg-pane-soft overflow-hidden">
             <div class="flex items-center gap-2.5 {{ chrome.band() }}">
                 <i class="fa-solid {{ plan.applied ? 'fa-circle-check text-emerald-500' : 'fa-list-check text-zinc-400' }} text-xs" aria-hidden="true"></i>
@@ -41,7 +45,7 @@ is half-typed.
                 </h2>
             </div>
 
-            <div class="px-5 py-4">
+            <div class="{{ chrome.body() }}">
                 {% include '_partials/_config_backup_plan.html.twig' with { plan: plan } only %}
 
                 {% if not plan.applied %}
@@ -84,7 +88,7 @@ is half-typed.
             <h2 class="text-sm font-semibold text-ink">{{ 'admin.config_backup.export.heading'|trans }}</h2>
         </div>
 
-        <div class="px-5 py-4 space-y-4">
+        <div class="{{ chrome.body() }} space-y-4">
             <p class="text-sm text-ink-soft leading-relaxed">{{ 'admin.config_backup.export.intro'|trans }}</p>
             <p class="text-xs text-ink-faint leading-relaxed">
                 <i class="fa-solid fa-triangle-exclamation mr-1 text-warning" aria-hidden="true"></i>
@@ -156,7 +160,7 @@ is half-typed.
             <h2 class="text-sm font-semibold text-ink">{{ 'admin.config_backup.import.heading'|trans }}</h2>
         </div>
 
-        <div class="px-5 py-4 space-y-4">
+        <div class="{{ chrome.body() }} space-y-4">
             <p class="text-sm text-ink-soft leading-relaxed">{{ 'admin.config_backup.import.intro'|trans }}</p>
 
             <form method="post"

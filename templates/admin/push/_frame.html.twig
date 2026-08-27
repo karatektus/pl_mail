@@ -52,7 +52,7 @@ poll would empty a field mid-paste.
             {% endif %}
         </div>
 
-        <div class="px-5 py-4 space-y-4">
+        <div class="{{ chrome.body() }} space-y-4">
 
             {% if saved %}
                 <div role="status" class="flex items-start gap-2.5 rounded-lg bg-emerald-500/10 px-3.5 py-3 text-sm text-emerald-500">
@@ -109,7 +109,9 @@ poll would empty a field mid-paste.
         </div>
     </div>
 
-    <p class="px-5 text-xs text-ink-faint leading-relaxed">
+    {# px-4, the house inset: this note sits outside the card and has to
+       begin where the card's own content begins, not at its own figure. #}
+    <p class="px-4 text-xs text-ink-faint leading-relaxed">
         <i class="fa-solid fa-circle-info mr-1" aria-hidden="true"></i>
         {{ 'admin.push.webpush_note'|trans }}
     </p>

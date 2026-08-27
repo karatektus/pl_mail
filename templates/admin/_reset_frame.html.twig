@@ -15,6 +15,7 @@ index.html.twig.
 #}
 
 {% import 'admin/_cards.html.twig' as cards %}
+{% import '_partials/_card_chrome.html.twig' as chrome %}
 
 <turbo-frame id="admin-reset">
 
@@ -29,14 +30,14 @@ index.html.twig.
 
         {# ── Recoverable ───────────────────────────────────────────────── #}
         {{ cards.open('fa-eraser', 'admin.reset.heading'|trans, 'reset', []) }}
-            <div class="px-5 py-4">
+            <div class="{{ chrome.body() }}">
                 <p class="text-sm text-ink-soft">{{ 'admin.reset.intro'|trans }}</p>
                 <p class="mt-1 text-xs text-ink-faint">{{ 'admin.reset.monitoring_kept'|trans }}</p>
             </div>
 
             <div class="divide-y divide-line border-t border-line">
                 {% for stage in ordinaryStages %}
-                    <div class="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-start sm:justify-between">
+                    <div class="flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-start sm:justify-between">
                         <div class="min-w-0">
                             <p class="text-sm text-ink">{{ (stage.translationKey ~ '.title')|trans }}</p>
                             <p class="mt-0.5 text-xs text-ink-faint">{{ (stage.translationKey ~ '.deletes')|trans }}</p>
@@ -60,19 +61,26 @@ index.html.twig.
         {{ cards.close() }}
 
         {# ── Unrecoverable ─────────────────────────────────────────────── #}
+        {# Not chrome.shell()/chrome.band(): both pin `border-line`, and the
+           tint is what marks this half as the irreversible one. Two border
+           colour utilities on one element are resolved by their order in the
+           generated stylesheet rather than here, so the colour cannot just be
+           appended — the figures are repeated and only the COLOURS differ. The
+           band was `px-5 h-11` — four pixels of inset, and a height of its own,
+           away from every other card on the page. #}
         <div class="rounded-pane border border-danger/40 bg-pane-soft overflow-hidden">
-            <div class="flex items-center gap-2.5 px-5 h-11 border-b border-danger/40 alert-danger">
+            <div class="flex items-center gap-2.5 px-4 py-3.5 border-b border-danger/40 alert-danger">
                 <i class="fa-solid fa-triangle-exclamation text-xs text-danger" aria-hidden="true"></i>
                 <h2 class="text-sm font-semibold text-danger">{{ 'admin.reset.unrecoverable.heading'|trans }}</h2>
             </div>
 
-            <div class="px-5 py-4">
+            <div class="{{ chrome.body() }}">
                 <p class="text-sm text-ink-soft">{{ 'admin.reset.unrecoverable.lead'|trans }}</p>
             </div>
 
             <div class="divide-y divide-line border-t border-line">
                 {% for stage in unrecoverableStages %}
-                    <div class="px-5 py-4">
+                    <div class="px-4 py-4">
                         <p class="text-sm font-medium text-ink">{{ (stage.translationKey ~ '.title')|trans }}</p>
                         <p class="mt-1 text-xs text-ink-muted leading-relaxed">{{ (stage.translationKey ~ '.deletes')|trans }}</p>
 
