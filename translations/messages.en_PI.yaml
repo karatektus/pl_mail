@@ -744,6 +744,7 @@ calendar:
             same_remote: 'Already accounted for: this mirrors the same almanac as one marked above'
         delete: Scuttle it
         description: The tale of it
+        details_heading: "The reckonin'"
         dismiss: No reckonin' at all
         dismiss_confirm: >-
             Cast this one overboard an' keep it there? Later parrots about the

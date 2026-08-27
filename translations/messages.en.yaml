@@ -1001,6 +1001,7 @@ calendar:
             same_remote: 'Already covered: this mirrors the same calendar as one ticked above'
         delete: Delete
         description: Description
+        details_heading: 'Event'
         dismiss: Not an event
         dismiss_confirm: >-
             Remove this event and stop it coming back? Later emails about the

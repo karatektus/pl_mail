@@ -156,7 +156,12 @@ identity is threaded through a URL that would outlive the render that made it.
        id: event.id,
        instance: occurrence.recurrenceId|date('Y-m-d\\TH:i:s\\Z', 'UTC'),
    }) }}"
-   data-ui--modal-title-value="{{ 'calendar.event.title'|trans }}"
+   {# NOT calendar.event.title — that is the label on the title FIELD in the
+      editor, and reusing it here headed the details dialog with the word
+      "Title" above a card that shows the event's name, its dates and its
+      calendar. A heading naming one field of a form is wrong over a summary of
+      the whole event. #}
+   data-ui--modal-title-value="{{ 'calendar.event.details_heading'|trans }}"
    title="{{ chip_title }}"
    class="w-full text-left flex gap-1.5
           px-1.5 py-0.5 rounded-md

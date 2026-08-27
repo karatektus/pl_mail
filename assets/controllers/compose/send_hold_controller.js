@@ -1,4 +1,5 @@
 import { Controller } from "@hotwired/stimulus";
+import { takePendingCancel } from "../../compose/pending_cancel.js";
 
 /**
  * The send response's only job: tell the window that sent it how to call the
@@ -32,6 +33,28 @@ export default class extends Controller {
         const root  = frame.querySelector('[data-controller~="compose--compose"]');
 
         if (null === root) {
+            // No composer to hand this to — the reader closed the window in
+            // the gap between pressing Send and this markup arriving. Returning
+            // here is right for everything EXCEPT a cancel they pressed in that
+            // same gap: the send is already queued on a worker behind a
+            // ten-second delay, the flag recording the press died with the
+            // controller, and nothing else is going to call it off. The
+            // message would go out ten seconds after somebody cancelled it,
+            // with no error anywhere, because nothing failed.
+            //
+            // This element is the only thing that ever learns the undo URL, so
+            // if a cancel is owing for this frame it has to spend it itself.
+            if (true === takePendingCancel(frame instanceof Element ? frame.id : "")) {
+                // keepalive: the window is already gone and the reader may be
+                // navigating away behind this. A cancel that is dropped because
+                // the page unloaded is the same lost cancel by another route.
+                fetch(this.undoUrlValue, {
+                    method:    "POST",
+                    headers:   { "X-Requested-With": "XMLHttpRequest" },
+                    keepalive: true,
+                }).catch((error) => console.error("[compose] standing cancel failed", error));
+            }
+
             return;
         }
 

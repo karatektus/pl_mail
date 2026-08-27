@@ -112,6 +112,52 @@ final class EventDetailsTest extends WebTestCase
 
     // ── Fixtures ──────────────────────────────────────────────────────────
 
+    /**
+     * A weekend-long event says so, at BOTH ends.
+     *
+     * It printed the start day, the start time and the end time — "Friday 28
+     * August · 15:00 – 16:00" for a festival running to Sunday afternoon. Every
+     * component of that is a real value, which is why it read as correct: it is
+     * an hour on the wrong scale, and the grid beside it drew the span properly
+     * the whole time, so the two disagreed with each other in the same window.
+     */
+    public function testAnEventRunningOverDaysNamesBothOfThem(): void
+    {
+        $client = $this->signIn();
+
+        $start = new DateTimeImmutable('2026-08-28 15:00', new DateTimeZone('Europe/Berlin'));
+
+        $event = $this->writer->write(
+            event:    new CalendarEvent(),
+            calendar: $this->calendar,
+            user:     $this->user,
+            title:    'Konglo Festival',
+            startsAt: $start,
+            // Friday afternoon to Sunday afternoon.
+            endsAt:   $start->modify('+2 days')->modify('+1 hour'),
+            timeZone: 'Europe/Berlin',
+            isAllDay: false,
+            location: 'Burg Herzberg',
+        );
+
+        $this->em->flush();
+
+        $line = $client->request('GET', '/calendar/event/' . $event->id . '/details')
+            ->filter('h2 + p')->first()->text();
+
+        self::assertStringContainsString('August 28', $line, 'the day it starts');
+        self::assertStringContainsString('August 30', $line, 'the day it ends — this was missing');
+
+        // The shape that made it look right: one date carrying two times.
+        // The shape that made the bug look right: ONE day carrying two times.
+        // Both day names present is the claim; how they are spelled is a setting.
+        self::assertSame(
+            2,
+            preg_match_all('/August (28|30)/u', $line),
+            'both days have to be named — naming one and two times reads as an hour',
+        );
+    }
+
     private function event(): CalendarEvent
     {
         $start = new DateTimeImmutable('2026-09-10 09:00', new DateTimeZone('Europe/Berlin'));

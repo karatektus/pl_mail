@@ -51,12 +51,37 @@ provenance link carries it too.
                     {{ title ?: 'calendar.soon.untitled'|trans }}
                 </h2>
 
+                {# The last day the event actually covers.
+                   An all-day event is STORED with an exclusive end — midnight
+                   on the day AFTER the last one — so the day a reader would
+                   name is one before it. Same conversion the toolbar makes for
+                   its range label, see _toolbar_shell.html.twig. A timed event
+                   ends when it says it does. #}
+                {% set lastDay = event.isAllDay ? endsAt|date_modify('-1 day') : endsAt %}
+                {% set spansDays = startsAt|date('Y-m-d', displayZone)
+                                != lastDay|date('Y-m-d', displayZone) %}
+
                 <p class="mt-1 text-sm text-ink-muted">
-                    {{ startsAt|intl_date('EEEE d MMMM', displayZone) }}
-                    {%- if not event.isAllDay %}
-                        · {{ startsAt|date(clock.time, displayZone) }} – {{ endsAt|date(clock.time, displayZone) }}
+                    {%- if spansDays %}
+                        {# BOTH ends, because one date and two times reads as an
+                           hour. A Friday-to-Sunday festival was printed here as
+                           "Friday 28 August · 15:00 – 16:00" — the start day,
+                           the start time and the end time of a different day —
+                           which is a one-hour event on the wrong scale, while
+                           the grid beside it drew the span correctly. #}
+                        {{ startsAt|intl_date('EEEE d MMMM', displayZone) }}
+                        {%- if not event.isAllDay %} · {{ startsAt|date(clock.time, displayZone) }}{% endif %}
+                        – {{ lastDay|intl_date('EEEE d MMMM', displayZone) }}
+                        {%- if not event.isAllDay %} · {{ endsAt|date(clock.time, displayZone) }}
+                        {%- else %} · {{ 'calendar.event.all_day'|trans }}
+                        {%- endif %}
                     {%- else %}
-                        · {{ 'calendar.event.all_day'|trans }}
+                        {{ startsAt|intl_date('EEEE d MMMM', displayZone) }}
+                        {%- if not event.isAllDay %}
+                            · {{ startsAt|date(clock.time, displayZone) }} – {{ endsAt|date(clock.time, displayZone) }}
+                        {%- else %}
+                            · {{ 'calendar.event.all_day'|trans }}
+                        {%- endif %}
                     {%- endif %}
                 </p>
 

@@ -1,5 +1,6 @@
 // assets/controllers/compose_controller.js
 import { Controller } from '@hotwired/stimulus'
+import { forgetPendingCancel, markPendingCancel } from "../../compose/pending_cancel.js";
 
 /**
  * The compose window is the only place a send is announced, and the only place
@@ -2586,6 +2587,14 @@ export default class extends Controller {
 
         this._cancelRequested = true;
 
+        // Remembered OUTSIDE this controller as well, because this controller
+        // may not be here when the answer arrives. The undo URL does not exist
+        // yet (see below), so the only way to honour this press is to hand it
+        // to whatever turns up holding that URL — and if the reader closes the
+        // window in the same gap, the thing that turns up finds no composer at
+        // all. See assets/compose/pending_cancel.js.
+        markPendingCancel(this.#frameId);
+
         // Pressed has to look pressed. The cancel may not be sendable yet —
         // the undo URL only exists once the server has answered with the
         // message's id — so this is often a beat ahead of the request, and a
@@ -2611,6 +2620,11 @@ export default class extends Controller {
      * moment there is a URL to send it to.
      */
     armSendHold({ undoUrl, settleUrl, delay }) {
+        // This composer is alive and owns the request from here, so the copy
+        // kept for the case where it is not must go — a cancel honoured twice
+        // would land the second time on whatever this frame sent next.
+        forgetPendingCancel(this.#frameId);
+
         clearTimeout(this._sendFallback);
 
         this._undoUrl   = undoUrl;

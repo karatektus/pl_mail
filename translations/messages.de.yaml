@@ -1014,6 +1014,7 @@ calendar:
             same_remote: 'Schon abgedeckt: Dieser Kalender spiegelt denselben wie einer weiter oben'
         delete: Löschen
         description: Beschreibung
+        details_heading: 'Termin'
         dismiss: Kein Termin
         dismiss_confirm: >-
             Diesen Termin entfernen und nicht wieder anlegen? Spätere E-Mails zur
