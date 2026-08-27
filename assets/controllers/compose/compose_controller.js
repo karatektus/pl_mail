@@ -80,9 +80,20 @@ export default class extends Controller {
 
     #autosaveTimer = null
 
+    /**
+     * The id of the turbo-frame this window was rendered into.
+     *
+     * Read once, here, because it has to survive the window being taken off
+     * the page: `closest('turbo-frame')` answers null the moment the frame is
+     * emptied, and the one place that needs the id — _cancelSend() answering a
+     * request that outlived its window — is by definition past that point.
+     */
+    #frameId = null
+
     connect() {
         const input = this.element.querySelector('.compose-to[data-prototype]');
         this._ensureEntry(input);
+        this.#frameId = this.element.closest('turbo-frame')?.id ?? null;
         this._submitting = false;
         this._boundHandleSubmit = this._handleSubmit.bind(this);
         this._boundAutosave = this._scheduleAutosave.bind(this);
@@ -2649,7 +2660,60 @@ export default class extends Controller {
             return;
         }
 
-        Turbo.renderStreamMessage(await response.text());
+        // The answer to a cancel is a compose window, and by the time it gets
+        // here the reader may have put that window away themselves — the held
+        // shape leaves it on screen for the whole cancel window, so "Save
+        // draft and close" is one click away for every second this request is
+        // out. Rendering it then reopens, unasked, a composer that was
+        // deliberately shut a beat earlier. Nothing is lost by dropping it:
+        // the cancel has already happened server-side, and the message is a
+        // draft again — which is exactly what close() was asking for.
+        const html = await response.text();
+
+        Turbo.renderStreamMessage(
+            this._stillOnScreen() ? html : this._withoutReopen(html),
+        );
+    }
+
+    /**
+     * Is the window this cancel was clicked in still the window on screen?
+     *
+     * `isConnected` rather than a flag set in close(): close() empties the
+     * frame, discard() takes the row away with it, pop-out moves the editor to
+     * the dock and a fresh Compose navigates the frame — four gestures, all of
+     * which take this element out of the document, and all of which mean the
+     * same thing here. A flag would have covered whichever one it was written
+     * for.
+     */
+    _stillOnScreen() {
+        return true === this.element.isConnected;
+    }
+
+    /**
+     * The same stream message with the part that would put this window back
+     * removed from it.
+     *
+     * Only the streams addressed at this window's own frame go. An inline
+     * cancel also takes the sent message out of the conversation and redraws
+     * the reply zone (compose/_inline_undo.stream.html.twig): that tidying is
+     * about the thread, which is still on screen and still wrong until it
+     * runs. Dropping the whole message would leave a sent mail sitting in a
+     * conversation it was called back out of.
+     *
+     * Parsed rather than matched with a regex — the target is an attribute in
+     * HTML the server wrote, and a pattern over it would be one quoting change
+     * away from silently dropping nothing at all.
+     */
+    _withoutReopen(html) {
+        const doc = new DOMParser().parseFromString(html, 'text/html');
+
+        for (const stream of doc.querySelectorAll('turbo-stream')) {
+            if (stream.getAttribute('target') === this.#frameId) {
+                stream.remove();
+            }
+        }
+
+        return doc.body.innerHTML;
     }
 
     /**
