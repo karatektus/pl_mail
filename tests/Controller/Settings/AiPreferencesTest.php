@@ -87,6 +87,46 @@ final class AiPreferencesTest extends WebTestCase
     }
 
     /**
+     * The fourth feature goes through the same door as the other three.
+     *
+     * Worth its own case rather than trusting the enum loop above: the toggle
+     * writes through a statement-match in AiPreferencesController, and a case
+     * missing an arm there is an UnhandledMatchError on the POST rather than on
+     * the render — so the census test that counts rows would still pass while
+     * the switch did nothing but 500.
+     */
+    public function testSwitchingSummariesOffPersists(): void
+    {
+        [$client] = $this->signedIn();
+
+        $client->request('POST', self::TOGGLE, [
+            'key'     => AiFeature::Summary->value,
+            'enabled' => '0',
+            '_token'  => $this->token($client),
+        ]);
+
+        self::assertSame(200, $client->getResponse()->getStatusCode());
+        self::assertTrue($this->stored()->summaryOff);
+    }
+
+    public function testSwitchingSummariesBackOnPersists(): void
+    {
+        [$client, $user] = $this->signedIn();
+
+        $user->aiPreferences->summaryOff = true;
+        static::getContainer()->get(EntityManagerInterface::class)->flush();
+
+        $client->request('POST', self::TOGGLE, [
+            'key'     => AiFeature::Summary->value,
+            'enabled' => '1',
+            '_token'  => $this->token($client),
+        ]);
+
+        self::assertSame(200, $client->getResponse()->getStatusCode());
+        self::assertFalse($this->stored()->summaryOff);
+    }
+
+    /**
      * The ceiling, from the endpoint's side.
      *
      * A person cannot switch on for themselves something the installation has
@@ -358,7 +398,7 @@ final class AiPreferencesTest extends WebTestCase
      *
      * @return array{KernelBrowser, User}
      */
-    private function signedIn(bool $writingHelp = true): array
+    private function signedIn(bool $writingHelp = true, bool $summary = true): array
     {
         $client = static::createClient();
 
@@ -376,6 +416,7 @@ final class AiPreferencesTest extends WebTestCase
         $settings->searchEnabled         = true;
         $settings->categorisationEnabled = true;
         $settings->writingHelpEnabled    = $writingHelp;
+        $settings->summaryEnabled        = $summary;
 
         $em->persist($settings);
         $em->flush();

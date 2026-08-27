@@ -103,6 +103,8 @@ admin:
             enabled_help: 'Off by default. Everything below is ignored while this is off.'
             search: 'Search by meaning'
             search_help: 'Adds results that match what you meant. The ordinary search is unchanged.'
+            summary: 'Thread summaries'
+            summary_help: 'Uses the writing model. A cold request takes about a minute and holds the GPU for all of it.'
             token: 'Token'
             token_help: 'Only if you have put the host behind something that asks for one.'
             token_help_set: 'A token is on file. Leave blank to keep it.'
@@ -119,6 +121,7 @@ admin:
                 unreachable: 'No answer'
                 warm: 'Loaded'
             feature:
+                thread_summary: 'Summaries'
                 categorise: 'Sorting mail'
                 mail_index: 'Indexing mail'
                 search_query: 'Search'
@@ -383,14 +386,14 @@ admin:
             client_secret: 'Client secret'
             enabled: 'Offer this service to users'
             enabled_help: 'When off, nobody can connect to it and it stays hidden from the compose and save-to menus.'
-            push_token: 'Push verification token'
-            push_token_help: 'Shared secret Google includes in every Pub/Sub push; the webhook rejects notifications without it. Leave empty to fall back to GMAIL_PUBSUB_VERIFICATION_TOKEN.'
             pubsub_topic: 'Pub/Sub topic'
             pubsub_topic_help: 'Full topic name Gmail publishes changes to. Without it, accounts stay on polling instead of push. Leave empty to fall back to GMAIL_PUBSUB_TOPIC.'
+            push_token: 'Push verification token'
+            push_token_help: 'Shared secret Google includes in every Pub/Sub push; the webhook rejects notifications without it. Leave empty to fall back to GMAIL_PUBSUB_VERIFICATION_TOKEN.'
             redirect_uri: 'Redirect URI'
+            redirect_uri_help: 'Paste this into the provider''s console exactly as shown. It cannot be changed later without breaking existing connections.'
             tenant: 'Tenant'
             tenant_help: 'Leave as common for personal and work accounts, organizations for work only, or a tenant ID to restrict to yours. It must match the app registration''s supported account types.'
-            redirect_uri_help: 'Paste this into the provider''s console exactly as shown. It cannot be changed later without breaking existing connections.'
         inherit: 'Reuse %name% credentials'
         inherit_help: 'Copies the client ID and secret across, server-side — the secret is never shown. It does not grant the extra permission the service needs; add that at the provider as the setup steps describe.'
         inherited: 'Credentials copied'
@@ -779,7 +782,6 @@ admin:
         search: Search users…
         two_factor_on: Two-factor authentication is on
         two_factor_short: 2FA
-
     version:
         hint: The build this installation is running — the release, and the commit it was built from.
 alias:
@@ -1731,9 +1733,9 @@ jobs:
         trash: Moving to bin
         restore: Restoring
     state:
-        queued: waiting
         done: '%count% done'
         failed: failed
+        queued: waiting
 label:
     all_accounts: All accounts
     color:
@@ -2083,16 +2085,16 @@ setup:
         field:
             email: Email address
             email_help: This is the address you'll sign in with.
-            public_url: Public address
-            public_url_help: >-
-                Where people reach plMail from outside. Gmail and Outlook send push
-                notifications back to it, so it has to be reachable from the internet
-                and should be https. You can change it later.
             locale: Language
             name_first: First name
             name_last: Last name
             password: Password
             password_repeat: Repeat password
+            public_url: Public address
+            public_url_help: >-
+                Where people reach plMail from outside. Gmail and Outlook send push
+                notifications back to it, so it has to be reachable from the internet
+                and should be https. You can change it later.
         footnote: You'll be able to add mailboxes, and anything else, once you're in.
         heading: Create your account
         lead: This is the first account on this plMail, so it gets full administrator rights.
@@ -2154,6 +2156,8 @@ settings:
             categorise_hint: 'Lets the model break the tie when the ordinary rules cannot place a message. Off leaves those messages where the rules put them.'
             search: 'Search by meaning'
             search_hint: 'Finds mail that means what you asked for, not only mail that spells it the same way. Off stops your mail being indexed as well as searched.'
+            summary: 'Thread summaries'
+            summary_hint: 'Summarise a long conversation when you ask for it. Nothing is summarised on its own.'
             writing_help: 'Help me write'
             writing_help_hint: 'Drafts a reply, shortens, makes formal, proofreads — in the compose window, when you ask for it.'
         features:
@@ -2174,6 +2178,7 @@ settings:
             categorise: 'Sorting: the sender, the subject and the start of the message.'
             heading: 'What the assistant is given'
             search: 'Indexing: the subject, the sender and the start of each message.'
+            summary: 'The messages in a conversation you ask to have summarised'
             writing_help: 'Writing: your subject line, what you have typed, and as much of the conversation as the setting above allows.'
         seg:
             off: 'Off'
@@ -2578,12 +2583,12 @@ settings:
         stop_help: Later filters are skipped for any message this one matches.
         subheading: Sort mail automatically as it arrives.
         summary:
-            every_message: 'this is any message'
             # With an account chosen the scope IS the rule, so it is the
             # subject of the sentence rather than a clause on the end.
+            every_message: 'this is any message'
             every_message_in: 'this is any message in %account%'
-            in_account: '%conditions%, in %account%'
             full: 'If %conditions% → %actions%'
+            in_account: '%conditions%, in %account%'
             no_actions: 'If %conditions% → (no actions yet)'
         then: Then
         when: When
@@ -2870,6 +2875,10 @@ settings:
             base_url_fixed: 'Connecting to %url%, set by your administrator.'
             name: Name
             name_help: 'Only shown to you, so you can tell two connections apart.'
+            permissions:
+                immich: 'asset.read — see your photos and videos|asset.download — attach the original file|asset.view — show previews in the picker|asset.upload — save attachments into Immich|album.read — list and browse your albums|albumAsset.create — file saved attachments into an album'
+            permissions_heading: 'Permissions this key needs'
+            permissions_note: 'Granting the key all permissions also works, and is simpler if you would rather not tick boxes.'
             secret:
                 dropbox: 'Access token'
                 googleDrive: 'Access token'
@@ -2884,10 +2893,6 @@ settings:
                 immich: 'Create one in Immich under Account Settings → API Keys.'
                 nextcloud: 'Create one in Nextcloud under Settings → Security → Devices & sessions. Do not use your login password.'
                 oneDrive: ''
-            permissions:
-                immich: 'asset.read — see your photos and videos|asset.download — attach the original file|asset.view — show previews in the picker|asset.upload — save attachments into Immich|album.read — list and browse your albums|albumAsset.create — file saved attachments into an album'
-            permissions_heading: 'Permissions this key needs'
-            permissions_note: 'Granting the key all permissions also works, and is simpler if you would rather not tick boxes.'
             secret_unchanged: 'Leave blank to keep the stored credential'
             username: Username
         heading: Integrations
@@ -3248,7 +3253,26 @@ tabs:
 
 thread:
     no_subject: (no subject)
-
+    summary:
+        button: 'Summarise this conversation'
+        disclaimer: 'Written by a model from the messages below. Read them if it matters.'
+        error:
+            disabled: 'Summaries are switched off.'
+            generic: 'The summary could not be written.'
+            no_answer: 'The model gave no answer.'
+            timeout: 'The model host took too long to answer.'
+            unreachable: 'The model host could not be reached.'
+        generated: 'Summarised %when%'
+        heading: 'Summary'
+        regenerate: 'Summarise again'
+        stale: 'The conversation has changed since this was written.'
+        state:
+            sent: 'Sent to the model…'
+            stopped: 'Stopped. Nothing was saved.'
+            waiting: 'The first request after a while takes about a minute while the model loads and reads the conversation.'
+            working: 'Summarising…'
+        stop: 'Stop'
+        too_short: 'One message. There is nothing to summarise.'
 thread_row:
     # The word in the badge, and the phrase a screen reader gets instead. The
     # a list, does not say new what.

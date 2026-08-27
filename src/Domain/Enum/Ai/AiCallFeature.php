@@ -10,8 +10,8 @@ use App\Entity\Ai\AiFeature;
  * What a model call was FOR, as recorded.
  *
  * Deliberately not AiFeature. That enum answers a different question — "is this
- * allowed, and with which model" — and its three cases are matched
- * exhaustively in AiSettings::enabledFor(). A fourth case there is an
+ * allowed, and with which model" — and its four cases are matched
+ * exhaustively in AiSettings::enabledFor(). A fifth case there is an
  * UnhandledMatchError on the settings page, which is a strange price to pay for
  * a metric.
  *
@@ -36,21 +36,25 @@ enum AiCallFeature: string
     /** Drafting help in the composer. WritingAssistant. */
     case WritingHelp = 'writing_help';
 
+    /** Summarising one conversation, on request. ThreadSummariser. */
+    case ThreadSummary = 'thread_summary';
+
     /** Which capability gate this workload sits behind. */
     public function gate(): AiFeature
     {
         return match ($this) {
             self::SearchQuery,
-            self::MailIndex   => AiFeature::Search,
-            self::Categorise  => AiFeature::Categorise,
-            self::WritingHelp => AiFeature::WritingHelp,
+            self::MailIndex     => AiFeature::Search,
+            self::Categorise    => AiFeature::Categorise,
+            self::WritingHelp   => AiFeature::WritingHelp,
+            self::ThreadSummary => AiFeature::Summary,
         };
     }
 
     /**
      * The tag for a chat call, derived from the gate it already carries.
      *
-     * All three arms are spelled out rather than defaulted. chat() refuses
+     * All four arms are spelled out rather than defaulted. chat() refuses
      * Search before this is ever reached, and a silent default here would let a
      * future AiFeature case quietly record as the wrong workload instead of
      * failing where somebody would notice.
@@ -60,6 +64,7 @@ enum AiCallFeature: string
         return match ($feature) {
             AiFeature::Categorise  => self::Categorise,
             AiFeature::WritingHelp => self::WritingHelp,
+            AiFeature::Summary     => self::ThreadSummary,
             AiFeature::Search      => self::SearchQuery,
         };
     }

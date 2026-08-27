@@ -82,7 +82,7 @@ final class AiSettingsType extends AbstractType
                 'required' => false,
                 'attr'     => ['placeholder' => 'nomic-embed-text', 'autocomplete' => 'off'],
             ])
-            // The three below are separate because they have very different
+            // The four below are separate because they have very different
             // costs and very different appetites for being wrong. See
             // AiSettings for the argument.
             ->add('searchEnabled', CheckboxType::class, [
@@ -98,6 +98,11 @@ final class AiSettingsType extends AbstractType
             ->add('writingHelpEnabled', CheckboxType::class, [
                 'label'    => 'admin.ai.field.writing_help',
                 'help'     => 'admin.ai.field.writing_help_help',
+                'required' => false,
+            ])
+            ->add('summaryEnabled', CheckboxType::class, [
+                'label'    => 'admin.ai.field.summary',
+                'help'     => 'admin.ai.field.summary_help',
                 'required' => false,
             ]);
     }

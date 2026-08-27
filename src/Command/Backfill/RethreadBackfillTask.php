@@ -65,7 +65,14 @@ final readonly class RethreadBackfillTask implements BackfillTaskInterface
             return Command::SUCCESS;
         }
 
-        $io->note('Threads are discarded and rebuilt. Per-thread starring, snoozing, category and labels are carried over; nothing else on the thread row survives.');
+        // Stored AI summaries are named explicitly because they are the one
+        // loss here that cost somebody half a minute of waiting to produce.
+        // They are NOT carried over, deliberately: the rebuild can change which
+        // messages a thread holds, so the stored source hash would not match
+        // the new transcript and the row would be invisible anyway — carrying
+        // it would buy nothing and add a sixth argument to a carry-over
+        // signature that is already five long.
+        $io->note('Threads are discarded and rebuilt. Per-thread starring, snoozing, category and labels are carried over; nothing else on the thread row survives — including any stored AI summary, which has to be asked for again.');
 
         if (false === $io->confirm('Rebuild all threads now?', false)) {
             return Command::SUCCESS;

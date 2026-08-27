@@ -1,4 +1,4 @@
-<!-- translated-from: features/admin.md sha1:94efcc5a68bd84ca76d7cdf9677109b7034776a1 -->
+<!-- translated-from: features/admin.md sha1:2f8c609c26ea31a6317cecb348deeae0916efa4d -->
 
 # Administration
 
@@ -336,7 +336,7 @@ Es sagt dir den Unterschied zwischen „unter der Adresse hat nichts geantwortet
 geantwortet, hat aber nicht das Modell, das du eingetragen hast“ — und das führt an zwei ganz
 verschiedene Stellen.
 
-### Die drei Funktionen sind einzeln schaltbar
+### Die vier Funktionen sind einzeln schaltbar
 
 Sie kosten sehr Unterschiedliches, und es hat sehr unterschiedliche Folgen, wenn das Modell danebenliegt.
 
@@ -345,6 +345,7 @@ Sie kosten sehr Unterschiedliches, und es hat sehr unterschiedliche Folgen, wenn
 | **Nach Bedeutung suchen** | Ergänzt Treffer, die zu dem passen, was du gemeint hast | Bei jeder Suche, und einmal über dein Postfach |
 | **Mail in Tabs einsortieren** | Setzt eine Kategorie, wenn keine Regel gegriffen hat | Bei jeder eingehenden Nachricht |
 | **Beim Schreiben helfen** | Bietet Entwürfe und Umformulierungen im Editor an | Nur wenn du fragst |
+| **Konversationen zusammenfassen** | Schreibt einen kurzen Abriss eines langen Gesprächs | Nur wenn jemand darum bittet |
 
 Beim Einsortieren solltest du am ehesten vorsichtig sein: Es läuft unbeaufsichtigt. Es kann immer nur
 den Stichentscheid geben — wenn ein Header, ein Gmail-Label oder die Tatsache, dass du der Person
@@ -352,6 +353,14 @@ schon geschrieben hast, die Kategorie bereits bestimmt hat, wird das Modell gar 
 Ausschalten erfordert kein Aufräumen.
 
 Die Schreibhilfe ersetzt nie, was du geschrieben hast. Sie hängt an, dein Original bleibt stehen.
+
+Zusammenfassungen sind die teuerste der vier. Sie nutzen dasselbe Schreibmodell, aber ein ganzes
+Gespräch ist eine deutlich größere Eingabe als ein Entwurf: Auf einem 30B-Modell mit einer GPU
+rechne mit rund einer Minute für die erste Zusammenfassung nach einer ruhigen Phase und etwa der
+Hälfte, solange das Modell warm ist. Die GPU ist die ganze Zeit belegt, auf einer geteilten Maschine
+merken das also alle. Von allein wird nie etwas zusammengefasst — keine eingehende Nachricht, kein
+nächtlicher Durchlauf — und eine geschriebene Zusammenfassung wird aufbewahrt und wieder angezeigt,
+das zweite Öffnen derselben Konversation kostet also nichts.
 
 ### Suchen nach Bedeutung braucht einmal einen Durchlauf
 
@@ -369,6 +378,24 @@ ungültig; genau so forderst du ein neues Einbetten an: Modell ändern, Durchlau
 
 Die normale Suche bleibt davon völlig unberührt. Ist der Modell-Host aus oder der Durchlauf nie
 gelaufen, sucht plMail genau wie immer.
+
+### Eine Zusammenfassung wird einmal geschrieben und dann aufbewahrt
+
+Wenn jemand zum ersten Mal fragt, schreibt plMail die Zusammenfassung und legt sie zur Konversation
+ab — die nächste Person, die sie öffnet, oder dieselbe morgen, liest sie ohne Wartezeit. Ob sie noch
+stimmt, findet plMail selbst heraus: Es vergleicht, was die Konversation *jetzt* sagt, mit dem, was
+zusammengefasst wurde. Eine eingehende Antwort macht die Zusammenfassung damit veraltet, während
+Lesen, Markieren oder Labeln der Konversation das nicht tut.
+
+Eine veraltete Zusammenfassung wird trotzdem angezeigt, ausgegraut, mit dem Datum und einem Knopf,
+um eine neue zu schreiben. Meistens stimmt sie noch weitgehend, und sie zu verstecken würde die
+Wartezeit wegwerfen, die jemand schon bezahlt hat.
+
+Ein Wechsel des **Schreibmodells** sorgt dafür, dass keine gespeicherte Zusammenfassung mehr
+angezeigt wird — genauso, wie ein Wechsel des Such-Modells alle gespeicherten Vektoren ungültig
+macht: Eine Zusammenfassung von einem Modell, das du nicht mehr betreibst, ist nicht deine
+Zusammenfassung. Aufräumen musst du nichts — der alte Text wird schlicht nicht mehr angeboten und
+beim nächsten Fragen ersetzt.
 
 ### Neue Mail wird nach einer Suche indexiert, und einmal pro Nacht
 

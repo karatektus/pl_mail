@@ -45,10 +45,13 @@ use Symfony\Component\HttpKernel\KernelEvents;
  * It used to be, and putting it back would undo the point of the change that
  * removed it. plMail runs TWO models and they are nothing alike:
  *
- *  · the WRITING model — 20.3 GiB, about thirteen seconds to load cold. Only
- *    the composer uses it, and somebody is sitting watching a cursor while it
- *    runs. That is the case this whole signal was built for, and it is the case
- *    that is left.
+ *  · the WRITING model — 20.3 GiB, about eighteen seconds to load cold. The
+ *    composer and the reading pane's thread summaries both use it, and in both
+ *    somebody is sitting watching a cursor while it runs. That is the case this
+ *    whole signal was built for, and those two are the cases that are left.
+ *    The rule is WHICH MODEL, not "writing help specifically": a summary is the
+ *    same 20.3 GiB behind the same one GPU, and a person waiting forty seconds
+ *    for one must not also wait behind an indexing batch.
  *  · the EMBEDDING model — well under a gigabyte, a couple of seconds cold.
  *    BOTH semantic search and the indexer use it, and that shared use is the
  *    reason a search must not stamp here: indexing right after a search reuses
@@ -60,15 +63,17 @@ use Symfony\Component\HttpKernel\KernelEvents;
  *
  * A finished search is an invitation to index, not a reason to stand aside; see
  * SearchController, which queues a small catch-up batch on exactly that event.
- * AiCallMetricRepository::lastInteractiveCallAt() narrowed to `writing_help`
- * for the same reason, and both halves have to agree or the yielding comes back
- * through the other one.
+ * AiCallMetricRepository::lastInteractiveCallAt() names the same workloads for
+ * the same reason, and both halves have to agree or the yielding comes back
+ * through the other one. When the summary route was added here, that predicate
+ * gained 'thread_summary' in the same edit.
  */
 final readonly class InteractiveAiActivitySubscriber implements EventSubscriberInterface
 {
     /** @var list<string> */
     private const array INTERACTIVE_ROUTE_PREFIXES = [
         'app_compose_assist',
+        'app_mail_thread_summary',
     ];
 
     public function __construct(

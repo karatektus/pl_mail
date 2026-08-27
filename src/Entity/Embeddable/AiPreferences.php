@@ -24,7 +24,7 @@ use Doctrine\ORM\Mapping as ORM;
  *
  * A SUBTRACTION, NEVER AN ADDITION
  * ────────────────────────────────
- * The three feature fields are stored as OFF and not as on, which is the rule
+ * The four feature fields are stored as OFF and not as on, which is the rule
  * User::SETTING_INSIGHTS_DISABLED gives its reasons for and which this needs
  * for a second, sharper one: AiSettings is the installation's ceiling, and a
  * field spelled `writingHelpEnabled` here is one `?? $settings->writingHelpEnabled`
@@ -89,6 +89,10 @@ final class AiPreferences
     #[ORM\Column(name: 'writing_help_off', type: 'boolean', options: ['default' => false])]
     public bool $writingHelpOff = false;
 
+    /** The reading pane's offer to summarise a long conversation. */
+    #[ORM\Column(name: 'summary_off', type: 'boolean', options: ['default' => false])]
+    public bool $summaryOff = false;
+
     /**
      * The writer's own standing instruction, appended to the app's.
      *
@@ -139,6 +143,7 @@ final class AiPreferences
             AiFeature::Search      => $this->searchOff,
             AiFeature::Categorise  => $this->categoriseOff,
             AiFeature::WritingHelp => $this->writingHelpOff,
+            AiFeature::Summary     => $this->summaryOff,
         };
     }
 
@@ -159,6 +164,7 @@ final class AiPreferences
             'searchOff'      => $this->searchOff,
             'categoriseOff'  => $this->categoriseOff,
             'writingHelpOff' => $this->writingHelpOff,
+            'summaryOff'     => $this->summaryOff,
             'systemPrompt'   => $this->systemPrompt,
             'aboutMe'        => $this->aboutMe,
             'replyContext'   => $this->replyContext->value,
@@ -170,7 +176,7 @@ final class AiPreferences
      */
     public function applyArray(array $data): static
     {
-        foreach (['searchOff', 'categoriseOff', 'writingHelpOff'] as $flag) {
+        foreach (['searchOff', 'categoriseOff', 'writingHelpOff', 'summaryOff'] as $flag) {
             if (true === isset($data[$flag])) {
                 $this->{$flag} = self::boolean($data[$flag]);
             }

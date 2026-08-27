@@ -185,6 +185,29 @@ through a sanitiser once, at ingest: `cid:` references are rewritten to plMail's
 route, `<style>` blocks are flattened onto the elements they applied to, and scripts, forms,
 iframes and classes are dropped. Links are forced to open away from the app.
 
+### Summarising a long conversation
+
+Where the assistant is switched on — by an administrator, and by you in **Settings → Assistant** —
+a conversation of two or more messages carries a **Summarise this conversation** button above the
+messages. Nothing is summarised until you press it. A summary is the most expensive thing plMail
+asks of a model: expect around a minute the first time after a quiet spell, and around half that
+afterwards, with the text arriving a few words at a time so you can see it working. **Stop** ends
+it and keeps nothing.
+
+The summary is written from the messages themselves and nothing else — not from your notes in
+**Settings → Assistant**, which are for how *you* want to be written for and have no business
+shaping a description of somebody else's mail. A long conversation is summarised from its opening
+and its most recent messages, and if the middle had to be left out the summary says so and says how
+many messages it was. A German conversation gets a German summary.
+
+Once written, it is kept and shown the next time the conversation is opened, at no cost. If a reply
+arrives afterwards, the summary is shown greyed with a note that the conversation has changed and a
+button to write a new one — reading, starring or labelling the conversation does not do that, only
+the messages themselves changing.
+
+It is a model's account of the mail, not the mail. The line under it says so, and the messages are
+directly below.
+
 ## Labels
 
 Labels are yours to create, from **Create label** in the sidebar or **Settings → Labels**. A label

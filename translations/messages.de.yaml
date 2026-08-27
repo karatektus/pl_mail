@@ -103,6 +103,8 @@ admin:
             enabled_help: 'Standardmäßig aus. Solange das aus ist, wird alles darunter ignoriert.'
             search: 'Nach Bedeutung suchen'
             search_help: 'Ergänzt Treffer, die zu dem passen, was du gemeint hast. Die normale Suche bleibt unverändert.'
+            summary: 'Zusammenfassungen von Gesprächen'
+            summary_help: 'Nutzt das Schreibmodell. Eine kalte Anfrage dauert etwa eine Minute und belegt so lange die GPU.'
             token: 'Token'
             token_help: 'Nur nötig, wenn du den Host hinter etwas gestellt hast, das danach fragt.'
             token_help_set: 'Ein Token ist hinterlegt. Leer lassen, um es zu behalten.'
@@ -119,6 +121,7 @@ admin:
                 unreachable: 'Keine Antwort'
                 warm: 'Geladen'
             feature:
+                thread_summary: 'Zusammenfassungen'
                 categorise: 'Mail einsortieren'
                 mail_index: 'Mail indexieren'
                 search_query: 'Suche'
@@ -389,14 +392,14 @@ admin:
             client_secret: 'Client-Secret'
             enabled: 'Diesen Dienst anbieten'
             enabled_help: 'Ausgeschaltet kann sich niemand verbinden und der Dienst bleibt in den Verfassen- und Speichern-Menüs verborgen.'
-            push_token: 'Push-Verifizierungstoken'
-            push_token_help: 'Gemeinsames Geheimnis, das Google jedem Pub/Sub-Push beilegt; der Webhook weist Benachrichtigungen ohne es ab. Leer lassen, um auf GMAIL_PUBSUB_VERIFICATION_TOKEN zurückzufallen.'
             pubsub_topic: 'Pub/Sub-Topic'
             pubsub_topic_help: 'Vollständiger Topic-Name, in den Gmail Änderungen veröffentlicht. Ohne ihn bleiben Konten beim Abrufen statt Push. Leer lassen, um auf GMAIL_PUBSUB_TOPIC zurückzufallen.'
+            push_token: 'Push-Verifizierungstoken'
+            push_token_help: 'Gemeinsames Geheimnis, das Google jedem Pub/Sub-Push beilegt; der Webhook weist Benachrichtigungen ohne es ab. Leer lassen, um auf GMAIL_PUBSUB_VERIFICATION_TOKEN zurückzufallen.'
             redirect_uri: 'Redirect-URI'
+            redirect_uri_help: 'Genau so in die Konsole des Anbieters eintragen. Eine spätere Änderung bricht alle bestehenden Verbindungen.'
             tenant: 'Tenant'
             tenant_help: 'common für private und Geschäftskonten, organizations nur für Geschäftskonten, oder eine Tenant-ID zur Beschränkung auf die eigene Organisation. Muss zu den unterstützten Kontotypen der App-Registrierung passen.'
-            redirect_uri_help: 'Genau so in die Konsole des Anbieters eintragen. Eine spätere Änderung bricht alle bestehenden Verbindungen.'
         inherit: 'Zugangsdaten von %name% übernehmen'
         inherit_help: 'Kopiert Client-ID und Secret serverseitig — das Secret wird nie angezeigt. Die zusätzlich benötigte Berechtigung wird damit nicht erteilt; diese ist beim Anbieter wie in der Einrichtung beschrieben hinzuzufügen.'
         inherited: 'Zugangsdaten kopiert'
@@ -788,7 +791,6 @@ admin:
         search: Benutzer suchen…
         two_factor_on: Zwei-Faktor-Authentifizierung ist aktiv
         two_factor_short: 2FA
-
     version:
         hint: Der Build, den diese Installation ausführt — die Version und der Commit, aus dem sie gebaut wurde.
 alias:
@@ -1737,9 +1739,9 @@ jobs:
         trash: In den Papierkorb verschieben
         restore: Wiederherstellen
     state:
-        queued: wartet
         done: '%count% erledigt'
         failed: fehlgeschlagen
+        queued: wartet
 label:
     all_accounts: Alle Konten
     color:
@@ -2092,16 +2094,16 @@ setup:
         field:
             email: E-Mail-Adresse
             email_help: Mit dieser Adresse meldest du dich an.
-            public_url: Öffentliche Adresse
-            public_url_help: >-
-                Unter dieser Adresse ist plMail von außen erreichbar. Gmail und Outlook
-                schicken Push-Benachrichtigungen dorthin zurück, sie muss also aus dem
-                Internet erreichbar sein und sollte https sein. Später änderbar.
             locale: Sprache
             name_first: Vorname
             name_last: Nachname
             password: Passwort
             password_repeat: Passwort wiederholen
+            public_url: Öffentliche Adresse
+            public_url_help: >-
+                Unter dieser Adresse ist plMail von außen erreichbar. Gmail und Outlook
+                schicken Push-Benachrichtigungen dorthin zurück, sie muss also aus dem
+                Internet erreichbar sein und sollte https sein. Später änderbar.
         footnote: Postfächer und alles Weitere kannst du einrichten, sobald du drin bist.
         heading: Konto anlegen
         lead: Das ist das erste Konto auf dieser plMail-Instanz und bekommt daher volle Administratorrechte.
@@ -2159,6 +2161,8 @@ settings:
             categorise_hint: 'Lässt das Modell entscheiden, wenn die normalen Regeln eine Mail nicht einordnen können. Aus lässt diese Mails dort, wo die Regeln sie abgelegt haben.'
             search: 'Suche nach Bedeutung'
             search_hint: 'Findet Mails, die meinen, wonach du gefragt hast — nicht nur solche, die es genauso schreiben. Aus bedeutet: Deine Mails werden weder durchsucht noch indiziert.'
+            summary: 'Zusammenfassungen'
+            summary_hint: 'Fasst ein langes Gespräch zusammen, wenn du darum bittest. Von allein passiert nichts.'
             writing_help: 'Schreibhilfe'
             writing_help_hint: 'Entwirft Antworten, kürzt, formuliert förmlicher, liest Korrektur — im Schreibfenster, wenn du danach fragst.'
         features:
@@ -2179,6 +2183,7 @@ settings:
             categorise: 'Einsortieren: Absender, Betreff und der Anfang der Mail.'
             heading: 'Was der Assistent bekommt'
             search: 'Indizierung: Betreff, Absender und der Anfang jeder Mail.'
+            summary: 'Die Nachrichten eines Gesprächs, das du zusammenfassen lässt'
             writing_help: 'Schreiben: deine Betreffzeile, was du getippt hast, und so viel vom Gespräch, wie die Einstellung oben zulässt.'
         seg:
             off: 'Aus'
@@ -2590,8 +2595,8 @@ settings:
         summary:
             every_message: 'es sich um irgendeine Nachricht handelt'
             every_message_in: 'es sich um irgendeine Nachricht in %account% handelt'
-            in_account: '%conditions%, in %account%'
             full: 'Wenn %conditions% → %actions%'
+            in_account: '%conditions%, in %account%'
             no_actions: 'Wenn %conditions% → (noch keine Aktionen)'
         then: Dann
         when: Wenn
@@ -2893,6 +2898,10 @@ settings:
             base_url_fixed: 'Verbindung zu %url%, von der Administration festgelegt.'
             name: Name
             name_help: 'Nur für dich sichtbar, um zwei Verbindungen auseinanderzuhalten.'
+            permissions:
+                immich: 'asset.read — Fotos und Videos sehen|asset.download — die Originaldatei anhängen|asset.view — Vorschauen im Dialog anzeigen|asset.upload — Anhänge in Immich speichern|album.read — Alben auflisten und durchsehen|albumAsset.create — gespeicherte Anhänge einem Album zuordnen'
+            permissions_heading: 'Berechtigungen für diesen Schlüssel'
+            permissions_note: 'Ein Schlüssel mit allen Berechtigungen funktioniert ebenfalls und ist einfacher, wenn du nicht einzeln auswählen möchtest.'
             secret:
                 dropbox: 'Zugriffstoken'
                 googleDrive: 'Zugriffstoken'
@@ -2907,10 +2916,6 @@ settings:
                 immich: 'In Immich unter Account Settings → API Keys erzeugen.'
                 nextcloud: 'In Nextcloud unter Einstellungen → Sicherheit → Geräte & Sitzungen erzeugen. Nicht das Anmeldepasswort verwenden.'
                 oneDrive: ''
-            permissions:
-                immich: 'asset.read — Fotos und Videos sehen|asset.download — die Originaldatei anhängen|asset.view — Vorschauen im Dialog anzeigen|asset.upload — Anhänge in Immich speichern|album.read — Alben auflisten und durchsehen|albumAsset.create — gespeicherte Anhänge einem Album zuordnen'
-            permissions_heading: 'Berechtigungen für diesen Schlüssel'
-            permissions_note: 'Ein Schlüssel mit allen Berechtigungen funktioniert ebenfalls und ist einfacher, wenn du nicht einzeln auswählen möchtest.'
             secret_unchanged: 'Leer lassen, um die gespeicherten Zugangsdaten zu behalten'
             username: Benutzername
         heading: Integrationen
@@ -3279,7 +3284,26 @@ tabs:
 
 thread:
     no_subject: (kein Betreff)
-
+    summary:
+        button: 'Gespräch zusammenfassen'
+        disclaimer: 'Von einem Modell aus den Nachrichten unten geschrieben. Lies sie, wenn es darauf ankommt.'
+        error:
+            disabled: 'Zusammenfassungen sind ausgeschaltet.'
+            generic: 'Die Zusammenfassung konnte nicht geschrieben werden.'
+            no_answer: 'Das Modell hat nichts geantwortet.'
+            timeout: 'Der Modell-Host hat zu lange gebraucht.'
+            unreachable: 'Der Modell-Host war nicht erreichbar.'
+        generated: 'Zusammengefasst %when%'
+        heading: 'Zusammenfassung'
+        regenerate: 'Neu zusammenfassen'
+        stale: 'Das Gespräch hat sich geändert, seit das hier geschrieben wurde.'
+        state:
+            sent: 'An das Modell geschickt …'
+            stopped: 'Angehalten. Nichts wurde gespeichert.'
+            waiting: 'Die erste Anfrage nach einer Weile dauert etwa eine Minute, solange das Modell lädt und das Gespräch liest.'
+            working: 'Fasst zusammen …'
+        stop: 'Anhalten'
+        too_short: 'Eine Nachricht. Da gibt es nichts zusammenzufassen.'
 thread_row:
     account: 'Empfangen über %account%'
     actions:

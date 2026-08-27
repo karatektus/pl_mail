@@ -71,6 +71,7 @@ final class SettingsController extends AbstractController
         'search'       => 'fa-solid fa-magnifying-glass',
         'categorise'   => 'fa-solid fa-inbox',
         'writing_help' => 'fa-solid fa-wand-magic-sparkles',
+        'summary'      => 'fa-solid fa-align-left',
     ];
 
     public function __construct(

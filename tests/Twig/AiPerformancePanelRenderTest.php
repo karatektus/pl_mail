@@ -157,7 +157,7 @@ final class AiPerformancePanelRenderTest extends KernelTestCase
             'enabled'    => true,
             'configured' => true,
             'ready'      => true,
-            'features'   => ['search' => true, 'categorise' => false, 'writing' => true],
+            'features'   => ['search' => true, 'categorise' => false, 'writing' => true, 'summary' => false],
             'host'       => ['baseUrl' => 'http://10.0.0.5:11434', 'reachable' => true, 'version' => '0.6.2', 'reason' => null],
             'models'     => [
                 ['role' => 'chat', 'name' => 'qwen2.5:32b', 'installed' => true, 'resident' => true],

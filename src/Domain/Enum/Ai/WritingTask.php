@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Domain\Enum\Ai;
 
+use App\Domain\Ai\PromptRules;
+
 /**
  * The things the composer may ask a model to do.
  *
@@ -32,26 +34,18 @@ enum WritingTask: string
     case Proofread = 'proofread';
 
     /**
-     * Said to every task, because every task gets it wrong the same way.
+     * Said to every task, because every task gets it wrong the same way — and
+     * said to the thread summariser too, which is why it no longer lives here.
      *
-     * These instructions are written in English, and a model reads them as
-     * evidence of the language it is supposed to answer in — so a German mail
-     * came back with an English reply, and proofreading a German draft quietly
-     * translated it. Neither is a thing anybody asked for, and the second one
-     * destroys the text it was asked to correct.
-     *
-     * The last clause is the one doing the work. "Write in the language of the
-     * message" alone is not enough when everything around it is English; the
-     * instruction has to name that pull and refuse it explicitly.
+     * {@see PromptRules::LANGUAGE} carries the sentence and the history of it.
+     * It moved rather than being copied the moment a second feature needed it:
+     * a `private const` here would have forced ThreadSummariser to keep its own
+     * copy, and two copies of a prompt rule diverge into an English summary of
+     * a German thread that nothing reports.
      */
-    private const string LANGUAGE_RULE = ' Always write in the language of the message you are given:'
-        . ' a German message gets a German answer, an English one an English answer, and so on for'
-        . ' any other language. Never translate the message into another language, and never switch'
-        . ' to English merely because these instructions are written in English.';
-
     public function systemPrompt(): string
     {
-        return $this->taskPrompt() . self::LANGUAGE_RULE;
+        return $this->taskPrompt() . PromptRules::LANGUAGE;
     }
 
     private function taskPrompt(): string

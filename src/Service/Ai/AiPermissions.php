@@ -12,7 +12,7 @@ use App\Entity\User\User;
  *
  * There are two switches for every AI feature and they are not peers. The
  * installation's — AiSettings, set by an administrator — is a CEILING: it names
- * a host, names a model, and says which of the three features this box is
+ * a host, names a model, and says which of the four features this box is
  * allowed to be used for at all. The person's is a floor underneath it,
  * subtracting from what they have been offered.
  *
@@ -70,16 +70,16 @@ final readonly class AiPermissions
      * Whether an administrator has switched ANY of this on.
      *
      * The settings section's visibility, and deliberately not a per-user
-     * question: a user who has switched all three of their own off must still
+     * question: a user who has switched all four of their own off must still
      * be able to find the page that switches them back on.
      */
     public function anyAdminEnabled(): bool
     {
-        // The settings row read ONCE and then asked three times, rather than
-        // three calls to isEnabledFor(). AiSettingsRepository::current() goes
+        // The settings row read ONCE and then asked four times, rather than
+        // four calls to isEnabledFor(). AiSettingsRepository::current() goes
         // through findOneBy(), which issues SQL every time — only find()-by-id
         // is answered from Doctrine's identity map — so the obvious loop would
-        // put three queries on every settings page render, on every tab,
+        // put four queries on every settings page render, on every tab,
         // because the navigation asks this to decide whether the entry exists.
         $settings = $this->ai->settings();
 

@@ -13,6 +13,7 @@ use Twig\TwigFunction;
 
 /**
  * `ai_writing_help_enabled()` — whether the composer should offer to help.
+ * `ai_summary_enabled()`      — whether the reading pane should offer a summary.
  * `ai_settings_available()`   — whether the AI settings section exists at all.
  *
  * Functions rather than controller variables, for the reason `signature_map()`
@@ -39,6 +40,7 @@ final class AiAvailabilityExtension extends AbstractExtension
     {
         return [
             new TwigFunction('ai_writing_help_enabled', $this->writingHelp(...)),
+            new TwigFunction('ai_summary_enabled', $this->summary(...)),
             new TwigFunction('ai_settings_available', $this->settingsAvailable(...)),
         ];
     }
@@ -60,9 +62,28 @@ final class AiAvailabilityExtension extends AbstractExtension
     }
 
     /**
+     * The same two switches, for the reading pane's summary card.
+     *
+     * A function rather than a controller variable for the reason above with a
+     * different subject: mail/_thread_content.html.twig is rendered from two
+     * paths — the full page and the bare fragment mail_pane_controller injects
+     * — and is included from mail/thread.html.twig WITHOUT `only`, so a
+     * variable threaded through one of them is a strict_variables 500 on the
+     * other rather than a missing button. The stored summary itself does need
+     * threading, because only a controller can read it; whether the feature
+     * exists does not.
+     */
+    public function summary(): bool
+    {
+        $user = $this->security->getUser();
+
+        return $this->permissions->allows($user instanceof User ? $user : null, AiFeature::Summary);
+    }
+
+    /**
      * The ADMINISTRATOR'S switches only, and deliberately.
      *
-     * If this asked the user's own as well, somebody who had switched all three
+     * If this asked the user's own as well, somebody who had switched all four
      * of theirs off would lose the navigation entry for the page that switches
      * them back on — a setting that can be turned off and not on again.
      */

@@ -87,6 +87,13 @@ self-contained: no {% extends %}, no block dependencies.
         {# What plMail read out of this conversation, before the conversation. #}
         {% include 'mail/_insight_strip.html.twig' with { insights: insights|default([]) } only %}
 
+        {# And what a model made of it, if anybody has asked. Nothing is spent
+           here unless somebody presses the button — see _thread_summary. #}
+        {% include 'mail/_thread_summary.html.twig' with {
+            thread:  thread,
+            summary: summary|default(null),
+        } only %}
+
         {# `messages` is the controller's conversation-ordered list; the raw
            association is the fallback for any include that has not been given
            it (its receivedAt-only order is why the list is passed at all). #}

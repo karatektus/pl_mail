@@ -183,6 +183,12 @@ final class ConfigBackupUsersTest extends KernelTestCase
         self::assertTrue($user->aiPreferences->searchOff);
         self::assertTrue($user->aiPreferences->categoriseOff);
         self::assertTrue($user->aiPreferences->writingHelpOff);
+        // Named literally, because the export-key comparison above is
+        // self-consistent — it compares the document against toArray(), so a
+        // field missing from BOTH toArray() and applyArray() passes it. This is
+        // the assertion that catches a flag added to the embeddable and
+        // forgotten in applyArray()'s hard-coded list.
+        self::assertTrue($user->aiPreferences->summaryOff);
         self::assertSame('Ich repariere Fahrräder in Leipzig.', $user->aiPreferences->aboutMe);
         self::assertSame('Halte dich kurz.', $user->aiPreferences->systemPrompt);
         self::assertSame(ReplyContext::Thread, $user->aiPreferences->replyContext);
@@ -496,6 +502,7 @@ final class ConfigBackupUsersTest extends KernelTestCase
         $user->aiPreferences->searchOff      = true;
         $user->aiPreferences->categoriseOff  = true;
         $user->aiPreferences->writingHelpOff = true;
+        $user->aiPreferences->summaryOff     = true;
         $user->aiPreferences->aboutMe        = 'Ich repariere Fahrräder in Leipzig.';
         $user->aiPreferences->systemPrompt   = 'Halte dich kurz.';
         $user->aiPreferences->replyContext   = ReplyContext::Thread;

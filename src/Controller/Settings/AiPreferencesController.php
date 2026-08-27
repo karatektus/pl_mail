@@ -59,7 +59,7 @@ final class AiPreferencesController extends AbstractController
      * Switch one feature on or off for the current user.
      *
      * The key is validated by AiFeature::tryFrom() rather than against a list
-     * kept here: a second copy of those three strings is a copy that can drift
+     * kept here: a second copy of those four strings is a copy that can drift
      * from the enum the workers read, and an unknown key is a bug in our own
      * page rather than something to write silently.
      */
@@ -99,6 +99,7 @@ final class AiPreferencesController extends AbstractController
             AiFeature::Search      => $user->aiPreferences->searchOff = $off,
             AiFeature::Categorise  => $user->aiPreferences->categoriseOff = $off,
             AiFeature::WritingHelp => $user->aiPreferences->writingHelpOff = $off,
+            AiFeature::Summary     => $user->aiPreferences->summaryOff = $off,
         };
 
         $this->entityManager->flush();

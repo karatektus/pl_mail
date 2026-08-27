@@ -93,6 +93,7 @@ final readonly class AiPerformancePanel
                 'search'     => $settings->searchEnabled,
                 'categorise' => $settings->categorisationEnabled,
                 'writing'    => $settings->writingHelpEnabled,
+                'summary'    => $settings->summaryEnabled,
             ],
             'host' => [
                 'baseUrl'   => $settings->baseUrl,

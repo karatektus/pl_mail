@@ -1,4 +1,4 @@
-<!-- translated-from: features/mail.md sha1:d777287bd7fac42fa84c14411564b74ca31bbe3f -->
+<!-- translated-from: features/mail.md sha1:a1e41b8b463dfc4d12078a0b5fb096d91761b579 -->
 
 # Mail
 
@@ -207,6 +207,30 @@ Text genau einmal, beim Import, durch einen Sanitizer: `cid:`-Verweise werden au
 eigene Anhang-Route umgeschrieben, `<style>`-Blöcke werden auf die Elemente heruntergezogen,
 für die sie galten, und Skripte, Formulare, iframes und Klassen fallen weg. Links werden
 gezwungen, außerhalb der App zu öffnen.
+
+### Ein langes Gespräch zusammenfassen
+
+Wo der Assistent eingeschaltet ist — von einer Administratorin, und von dir unter
+**Einstellungen → Assistent** — trägt eine Konversation aus zwei oder mehr Nachrichten über den
+Nachrichten einen Knopf **Gespräch zusammenfassen**. Vorher wird nichts zusammengefasst. Eine
+Zusammenfassung ist das Teuerste, was plMail von einem Modell verlangt: Rechne beim ersten Mal nach
+einer ruhigen Phase mit rund einer Minute, danach mit etwa der Hälfte. Der Text kommt Stück für
+Stück an, du siehst also, dass etwas passiert. **Anhalten** bricht ab und behält nichts.
+
+Die Zusammenfassung entsteht aus den Nachrichten selbst und aus sonst nichts — nicht aus deinen
+Notizen unter **Einstellungen → Assistent**, die dafür da sind, wie *du* angeschrieben werden
+möchtest, und die in einer Beschreibung fremder Mail nichts zu suchen haben. Ein langes Gespräch
+wird aus seinem Anfang und seinen jüngsten Nachrichten zusammengefasst, und wenn die Mitte
+wegfallen musste, sagt die Zusammenfassung das und sagt, um wie viele Nachrichten es ging. Ein
+deutsches Gespräch bekommt eine deutsche Zusammenfassung.
+
+Einmal geschrieben, wird sie aufbewahrt und beim nächsten Öffnen der Konversation ohne Wartezeit
+wieder angezeigt. Kommt danach eine Antwort, siehst du sie ausgegraut mit dem Hinweis, dass sich das
+Gespräch geändert hat, und einem Knopf für eine neue. Lesen, Markieren oder Labeln der Konversation
+löst das nicht aus — nur die Nachrichten selbst.
+
+Es ist die Darstellung eines Modells, nicht die Mail. Die Zeile darunter sagt das, und die
+Nachrichten stehen direkt darunter.
 
 ## Labels
 

@@ -298,7 +298,7 @@ on the host first — plMail never downloads a model.
 tell you the difference between "nothing answered at that address" and "that host answered but is
 not holding the model you named", which send you to two different places.
 
-### The three features are separate switches
+### The four features are separate switches
 
 They have very different costs, and very different consequences when the model is wrong.
 
@@ -307,12 +307,21 @@ They have very different costs, and very different consequences when the model i
 | **Search by meaning** | Adds results matching what you meant, not only what you typed | On every search, and once over your mailbox |
 | **Sort mail into tabs** | Fills in a category when no rule recognised the message | On every message that arrives |
 | **Help me write** | Offers drafts and rewrites in the composer | Only when you ask |
+| **Thread summaries** | Writes a short account of a long conversation | Only when somebody asks for one |
 
 Sorting is the one to be careful with: it runs unattended. It can only ever act as a tie-breaker —
 if a header, a Gmail label or the fact that you have written to somebody already decided the
 category, the model is not consulted and its opinion is not used. Switching it off needs no cleanup.
 
 Writing help never replaces what you wrote. It appends, so the original is always still there.
+
+Summaries are the most expensive of the four. They use the same writing model, but a whole
+conversation is a much larger prompt than a draft: on a 30B model and one GPU, expect around a
+minute for the first summary after a quiet spell and around half that once the model is warm. The
+GPU is held for the whole of it, so on a shared machine a summary is felt by everybody. Nothing is
+ever summarised on its own — no arriving message, no nightly pass — and a summary that has been
+written is kept and shown again, so opening the same conversation twice costs nothing the second
+time.
 
 ### Searching by meaning needs one pass first
 
@@ -330,6 +339,23 @@ a re-embed: change it, then run the pass again.
 
 Ordinary search is completely unchanged by any of this. If the model host is off, or the pass has
 never been run, search works exactly as it always has.
+
+### A summary is written once and then kept
+
+The first time somebody asks, plMail writes the summary and stores it against the conversation, so
+the next person to open it — or the same person tomorrow — reads it without waiting. plMail works
+out for itself whether it is still true: it compares what the conversation says *now* with what was
+summarised, so a reply arriving marks the summary as out of date while merely reading, starring or
+labelling the conversation does not.
+
+An out-of-date summary is still shown, greyed, with the date it was written and a button to write a
+new one. It is usually still mostly right, and hiding it would throw away the wait somebody has
+already paid for.
+
+Changing the **writing model** stops every stored summary being shown, the same way changing the
+search model invalidates every stored vector: a summary written by a model you no longer run is not
+a summary of yours. Nothing has to be cleaned up — the old text is simply not offered, and is
+replaced the next time anybody asks.
 
 ### New mail is indexed after a search, and once a night
 

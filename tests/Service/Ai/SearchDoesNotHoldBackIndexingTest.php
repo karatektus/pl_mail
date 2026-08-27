@@ -133,6 +133,42 @@ final class SearchDoesNotHoldBackIndexingTest extends KernelTestCase
     }
 
     /**
+     * And a thread summary does too, which is the reason this predicate stopped
+     * being a single equality.
+     *
+     * The rule was never "writing help specifically" — the paragraph above says
+     * it plainly: the EXPENSIVE model, with somebody watching. A summary is the
+     * same 20.3 GiB chat model, takes about forty seconds before its first
+     * token cold, and has a reader looking at a card for the whole of it. If
+     * this goes green the wrong way, somebody has narrowed the predicate back to
+     * its old shorthand and a person waiting a minute for a summary is waiting
+     * behind an indexing batch as well.
+     */
+    public function testAThreadSummaryAlsoMakesTheIndexerStandAside(): void
+    {
+        $now = new DateTimeImmutable();
+
+        $this->recordCall(AiCallFeature::ThreadSummary, $now);
+
+        self::assertNotNull($this->metrics->lastInteractiveCallAt($now->modify('-10 minutes')));
+        self::assertTrue($this->activity->shouldYield(self::COOLDOWN, $now));
+    }
+
+    /**
+     * Categorisation still does not: it runs in a worker, unattended, with
+     * nobody waiting on the answer.
+     */
+    public function testCategorisationDoesNotMakeTheIndexerStandAside(): void
+    {
+        $now = new DateTimeImmutable();
+
+        $this->recordCall(AiCallFeature::Categorise, $now);
+
+        self::assertNull($this->metrics->lastInteractiveCallAt($now->modify('-10 minutes')));
+        self::assertFalse($this->activity->shouldYield(self::COOLDOWN, $now));
+    }
+
+    /**
      * The stamped half, which is the one that covers a request still in flight.
      *
      * A streamed draft runs for half a minute before it records anything, so
@@ -175,6 +211,25 @@ final class SearchDoesNotHoldBackIndexingTest extends KernelTestCase
         $this->dispatchBothEndsOfARequestTo('app_compose_assist_stream');
 
         self::assertNotNull($this->state->current()->interactiveSeenAt);
+    }
+
+    /**
+     * BOTH HALVES AGREE, which is the thing the two docblocks insist on.
+     *
+     * The route stamp and the metric predicate have to name the same workloads
+     * or the yielding comes back through whichever one was left behind — the
+     * stamp covers a request still in flight, the row covers one that has just
+     * finished, and a summary spends forty silent seconds inside exactly the gap
+     * between them.
+     */
+    public function testTheThreadSummaryRouteStampsTheStateRow(): void
+    {
+        $this->enableTheAi();
+
+        $this->dispatchBothEndsOfARequestTo('app_mail_thread_summary');
+
+        self::assertNotNull($this->state->current()->interactiveSeenAt);
+        self::assertTrue($this->activity->shouldYield(self::COOLDOWN));
     }
 
     /** One recorded model call, with the timings a real one would carry. */

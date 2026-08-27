@@ -1,0 +1,320 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Controller\Mail;
+
+use App\Controller\ChecksCsrf;
+use App\Entity\Mail\MessageThread;
+use App\Entity\User\User;
+use App\Security\Voter\OwnershipVoter;
+use App\Service\Ai\OllamaClient;
+use App\Service\Ai\ThreadSummariser;
+use App\Service\Ai\ThreadSummaryStore;
+use App\Service\Ai\ThreadTranscript;
+use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpFoundation\StreamedResponse;
+use Symfony\Component\Routing\Attribute\Route;
+use Symfony\Component\Security\Http\Attribute\IsGranted;
+
+/**
+ * "What is this conversation about?"
+ *
+ * STREAMED, AND AT THIS LENGTH THAT IS NOT A PREFERENCE
+ * ────────────────────────────────────────────────────
+ * Three reasons, and the composer paid for all three already.
+ *
+ * ComposeAssistController measured the same wall and lost: thirteen silent
+ * seconds was "the whole of the 'I press the button and nothing happens'
+ * report." A summary is worse. Measured on the reference host, a cold call is
+ * about forty seconds before the FIRST TOKEN — eighteen loading the model,
+ * twenty-three evaluating a whole conversation — and sixty-four end to end.
+ *
+ * Only the server can know the model is cold. /api/ps is on the operator's
+ * private network and `connect-src 'self'` is enforced in production, so the
+ * `state` frame is the difference between an honest "the model is loading" and
+ * forty seconds of a spinner.
+ *
+ * And cancellation. Closing the pane, opening another thread or navigating away
+ * has to stop a 20.3 GiB model on a one-GPU host, and the only mechanism that
+ * does it is the browser aborting the fetch → this method noticing at
+ * connection_aborted() after a write → returning → the generator frame being
+ * freed → AiAssistant::recorded()'s `finally` running → the upstream response
+ * dropping. A non-streamed POST has no abort path at all.
+ *
+ * WHAT IS STORED, AND WHEN
+ * ────────────────────────
+ * Only a summary somebody stayed for. An abandoned stream writes nothing: the
+ * text is half a summary, and half a summary sitting on the thread the next
+ * time it is opened is worse than no summary, because it reads as a finished
+ * one. See generate().
+ */
+final class ThreadSummaryController extends AbstractController
+{
+    use ChecksCsrf;
+
+    public function __construct(
+        private readonly ThreadSummariser   $summariser,
+        private readonly ThreadTranscript   $transcript,
+        private readonly ThreadSummaryStore $store,
+    ) {
+    }
+
+    /**
+     * `{id}` is constrained to digits so a non-numeric id fails to MATCH the
+     * route and becomes a 404 — MailController::thread() gives the reason:
+     * without it the id reaches the entity resolver, which asks Postgres for a
+     * thread whose bigint id is 'abc' and gets a driver-level type error, i.e.
+     * a 500 for what is only a bad link.
+     *
+     * THE ORDER OF WHAT FOLLOWS IS THE DESIGN. Everything that could refuse the
+     * request, and everything that reads the Request or the session, happens
+     * before the response object exists. Inside the stream the kernel has
+     * finished with the Request, and a denied check there is an exception
+     * thrown at a response already sent.
+     */
+    #[Route('/mail/thread/{id}/summary', name: 'app_mail_thread_summary', requirements: ['id' => '\d+'], methods: ['POST'])]
+    #[IsGranted('IS_AUTHENTICATED')]
+    public function __invoke(Request $request, MessageThread $thread): Response
+    {
+        // A per-action token id and not the shared `ajax` one: this spends real
+        // seconds of somebody else's GPU and returns a paragraph about their
+        // mail. ChecksCsrf's rule — "one token good for every action makes any
+        // one XSS worth all of them" — and AiPreferencesController's precedent.
+        $this->assertCsrf($request, 'thread_summary');
+
+        $user = $this->getUser();
+
+        if (false === $user instanceof User || false === $this->summariser->isAvailableFor($user)) {
+            // 409 rather than 403, matching ComposeAssistController and
+            // AiPreferencesController: nothing is forbidden, the feature is
+            // simply not switched on — for the installation or for this person
+            // — and the browser should stop offering it rather than report an
+            // error they can do nothing about.
+            return new JsonResponse(['error' => 'disabled'], Response::HTTP_CONFLICT);
+        }
+
+        // The same guard MailController::thread() uses, on the same subject.
+        // One check covers the whole conversation: every message in it hangs
+        // off this thread and therefore off this account.
+        $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $thread->account);
+
+        if (false === ThreadSummariser::hasEnoughToSummarise($thread)) {
+            // 409 again rather than 400. The request is well formed and the
+            // caller did nothing wrong; there is simply nothing here to
+            // summarise, which is the same shape of answer as "switched off"
+            // and gets the same treatment in the card.
+            return new JsonResponse(['error' => 'too_short'], Response::HTTP_CONFLICT);
+        }
+
+        // Built HERE, while there is still a controller around the database
+        // read, and captured into the closure. It is needed twice — as the
+        // prompt and as the thing hashed — and building it twice would be two
+        // versions of one fact that disagree the first time either is tuned.
+        $transcript = $this->transcript->forThread($thread);
+        $sourceHash = ThreadTranscript::hash($transcript);
+        $model      = $this->summariser->model();
+
+        // The session lock goes back now, before anything slow.
+        //
+        // PHP holds it exclusively for the whole request and everything from
+        // here on is reads plus one DBAL insert. SearchController records what
+        // happens without this, and not from its own file:
+        //
+        //     MaxExecutionTimeError: Maximum execution time of 30 seconds
+        //     exceeded at StrictSessionHandler.php line 50
+        //
+        // "I searched and the whole site stopped responding." At a cold minute
+        // this is worse: every other request from the same tab — the counts
+        // poll, the next thread the reader opens, the mark-as-read — would
+        // queue behind a paragraph being written and then die at PHP's limit.
+        //
+        // After the last thing that could write to the session (the CSRF check,
+        // getUser() and the ownership check) and before the StreamedResponse
+        // exists, because a write after this point is lost.
+        $session = $request->getSession();
+
+        if (true === $session->isStarted()) {
+            $session->save();
+        }
+
+        // $user and $thread are captured already hydrated, for the reason
+        // ComposeAssistController captures its user: reading a property inside
+        // the callback is free, while a repository lookup there would be a
+        // query against a kernel that has finished with the request.
+        $response = new StreamedResponse(function () use ($user, $thread, $transcript, $sourceHash, $model): void {
+            $this->generate($user, $thread, $transcript, $sourceHash, $model);
+        });
+
+        // Not application/json: this is a sequence of JSON documents and never
+        // parses as one. Naming it honestly also keeps anything that sniffs a
+        // body from trying.
+        $response->headers->set('Content-Type', 'application/x-ndjson');
+
+        // A stream of assertions about somebody's mail. Nothing may hold a copy.
+        $response->headers->set('Cache-Control', 'no-cache, no-store, must-revalidate, private');
+
+        // nginx's opt-out, honoured by nginx and several hosted proxies and
+        // ignored by Caddy, which is what plMail ships. Sent anyway: the
+        // deployment this breaks in is the one behind somebody else's reverse
+        // proxy, and there it is the only thing that helps.
+        $response->headers->set('X-Accel-Buffering', 'no');
+
+        return $response;
+    }
+
+    /**
+     * The body of the stream.
+     *
+     * A method rather than the closure's own body, so the generator lives in a
+     * scope that ENDS. ComposeAssistController's reason, unchanged: a
+     * `use`-captured generator is held by the Closure, which the response
+     * holds, which the kernel holds until the request is torn down — so an
+     * abandoned stream would keep the model generating long after the reader
+     * had gone. A local in a method is freed when the method returns, and
+     * freeing it is what cancels the call.
+     */
+    private function generate(User $user, MessageThread $thread, string $transcript, string $sourceHash, string $model): void
+    {
+        // PHP's default is to kill the script the moment a write finds the
+        // browser gone, which sounds like what we want and is the opposite of
+        // it: the kill lands mid-echo, part-way through the unwinding that
+        // cancels the model call and records the row. Taking the abort into our
+        // own hands means noticing it at a line we chose.
+        ignore_user_abort(true);
+
+        // php.ini sets max_execution_time = 30 for the web SAPI, and this
+        // request legitimately takes twice that cold. The limit fires INSIDE
+        // CurlResponse's read, which skips the unwinding that cancels the call
+        // and records the row — so Ollama carries on generating for a reader
+        // who has already been shown an error.
+        //
+        // Unbounded here is not unbounded overall, which is the only reason it
+        // is safe: the upstream is held to OllamaClient::GENERATE_TIMEOUT, a
+        // dead host trips that and unwinds normally, and a reader who leaves is
+        // noticed by connection_aborted() on the next write.
+        set_time_limit(0);
+
+        $tokens = $this->summariser->stream($user, $thread, $transcript);
+
+        if (null === $tokens) {
+            // Switched off between the check above and here, or a thread whose
+            // messages carry no text at all.
+            $this->frame(['type' => 'error', 'kind' => 'no_answer']);
+
+            return;
+        }
+
+        // Asked BEFORE the generator is iterated, which is the only moment the
+        // answer is true: the request below is what loads the model, so a probe
+        // after it would report warm on precisely the cold call that needed
+        // explaining. Safe to ask at all only because /api/ps is passive — it
+        // reports, it never loads.
+        $this->frame([
+            'type'  => 'state',
+            'value' => true === $this->summariser->isModelWarm() ? 'generating' : 'waiting',
+        ]);
+
+        foreach ($tokens as $token) {
+            $this->frame(['type' => 'token', 'text' => $token]);
+
+            // Checked AFTER a write, because a write is how a PHP process finds
+            // out at all: a browser closing the connection is not an event, it
+            // is a send that fails and is noticed on the next one.
+            if (0 !== connection_aborted()) {
+                break;
+            }
+        }
+
+        // True only if the loop was broken out of — a finished generator is not
+        // valid. Nobody is left to send a frame to, and NOTHING IS STORED: what
+        // exists is half a summary, and half a summary on the thread the next
+        // time it opens reads as a finished one. Falling off the end here is
+        // the whole of the cancellation — it frees $tokens, which runs the
+        // recording in AiAssistant::recorded() and drops the upstream response
+        // so the host stops generating.
+        if (true === $tokens->valid()) {
+            return;
+        }
+
+        $result = $tokens->getReturn();
+
+        if (false === $result->succeeded || null === $result->content) {
+            $this->frame([
+                'type' => 'error',
+                // A category from the closed set, never a message: an HTTP
+                // client's exception text quotes the request body back, and the
+                // request body here is somebody's mail.
+                'kind' => $result->errorKind ?? OllamaClient::ERROR_UNEXPECTED,
+            ]);
+
+            return;
+        }
+
+        // A DBAL write, and safe after the session close because it touches
+        // nothing the session holds. Its failure is logged and swallowed inside
+        // the store: the reader already has their summary on screen, and a
+        // caching miss must not become a 500 on a response that is half sent.
+        $this->store->save((int) $thread->id, $result->content, $sourceHash, $model, ThreadSummariser::PROMPT_VERSION);
+
+        $this->frame([
+            'type' => 'done',
+            // The whole answer again, tidied. The browser has the raw tokens
+            // and could join them itself, but tidy() strips a code fence that
+            // can only be recognised from both ends — so what is SHOWN from
+            // here on is the same string that was just stored, rather than a
+            // browser-side imitation of the same rule that would drift from it.
+            'text'         => $result->content,
+            'promptTokens' => $result->timing->promptTokens,
+            'evalTokens'   => $result->timing->evalTokens,
+            // Milliseconds, converted here. Ollama counts in nanoseconds
+            // because that is what Go's time package hands it; nothing a person
+            // reads wants eleven digits.
+            'loadMs'  => self::millis($result->timing->loadDurationNs),
+            'evalMs'  => self::millis($result->timing->evalDurationNs),
+            'totalMs' => self::millis($result->timing->totalDurationNs),
+        ]);
+    }
+
+    /**
+     * One NDJSON frame, actually on the wire.
+     *
+     * BOTH FLUSHES, IN THIS ORDER, AND NEITHER IS OPTIONAL
+     * ────────────────────────────────────────────────────
+     * They empty different buffers. php.ini-development and php.ini-production
+     * — the two files this image ships — both set `output_buffering = 4096`, so
+     * `echo` lands in a userland buffer that `flush()` does not touch: flush()
+     * pushes the SAPI's buffer out, and the SAPI has not been given anything
+     * yet. ob_flush() is what hands it over.
+     *
+     * With only flush(), a summary shorter than four kilobytes — which is
+     * almost all of them — would arrive in one lump at the end, be
+     * indistinguishable from an unstreamed endpoint, and pass every test that
+     * did not measure the ARRIVAL TIME of individual frames.
+     *
+     * @param array<string, mixed> $frame
+     */
+    private function frame(array $frame): void
+    {
+        // JSON_INVALID_UTF8_SUBSTITUTE rather than letting a bad byte return
+        // false: a token is whatever the model emitted, and one malformed
+        // sequence must cost that token rather than silently ending the stream
+        // with no frame and no reason.
+        echo json_encode($frame, JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE), "\n";
+
+        if (0 < ob_get_level()) {
+            ob_flush();
+        }
+
+        flush();
+    }
+
+    /** Nanoseconds as whole milliseconds, keeping "not measured" distinct from zero. */
+    private static function millis(?int $nanoseconds): ?int
+    {
+        return null === $nanoseconds ? null : intdiv($nanoseconds, 1000000);
+    }
+}

@@ -16,5 +16,9 @@
 {% block reading_hidden %}{% endblock %}
 
 {% block reading_pane %}
-    {% include 'mail/_thread_content.html.twig' with { thread: thread, messages: messages|default(null), latest: latest|default(null) } %}
+    {# No `only` here — `insights` and `summary` reach the fragment through
+       outer-context leakage, which is why they are named in the map as well:
+       strict_variables is on, and a variable threaded through one render path
+       and not the other is a 500 rather than a missing card. #}
+    {% include 'mail/_thread_content.html.twig' with { thread: thread, messages: messages|default(null), latest: latest|default(null), summary: summary|default(null) } %}
 {% endblock %}

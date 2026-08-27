@@ -231,7 +231,7 @@ final readonly class WritingAssistant
      * APPENDED, NEVER SUBSTITUTED, AND NEVER IN THE USER MESSAGE
      * ──────────────────────────────────────────────────────────
      * The app's own instructions come first and whole — including
-     * WritingTask::LANGUAGE_RULE, which is the one that stopped a German mail
+     * PromptRules::LANGUAGE, which is the one that stopped a German mail
      * coming back with an English reply and stopped proofreading a German draft
      * silently translating it. Replacing the system content with a user string
      * would drop that, the plain-text instruction and the "no preamble"

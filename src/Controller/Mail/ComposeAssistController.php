@@ -165,6 +165,27 @@ final class ComposeAssistController extends AbstractController
         $subject = (string) $request->request->get('subject', '');
         $context = $this->context($request, $user);
 
+        // The session lock goes back before the stream starts, for the reason
+        // SearchController spells out at length: PHP holds it exclusively for
+        // the whole request, and everything from here on is reads. A cold
+        // writing model is around twenty-eight seconds on the hardware this
+        // ships to, so without this every OTHER request from the same tab
+        // queues behind the draft being written and then dies at PHP's own
+        // limit — which is not "the assistant is slow", it is the whole
+        // interface going unresponsive while it thinks.
+        //
+        // Search was fixed for this and the composer was not, which is the
+        // worse half: search takes seconds, a cold draft takes half a minute.
+        //
+        // After the last read that could touch the session (context() resolves
+        // a user and checks ownership) and before the response exists, because
+        // a write after this point would be lost.
+        $session = $request->getSession();
+
+        if (true === $session->isStarted()) {
+            $session->save();
+        }
+
         $response = new StreamedResponse(function () use ($user, $task, $draft, $context, $subject): void {
             $this->generate($user, $task, $draft, $context, $subject);
         });

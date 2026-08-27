@@ -1,4 +1,5 @@
 import { Controller } from "@hotwired/stimulus";
+import { readFrames } from "../../ai/ndjson.js";
 import { jsonCsrfHeaders } from "../../csrf.js";
 
 /**
@@ -324,52 +325,19 @@ export default class extends Controller {
     /**
      * Read the NDJSON frames as they land.
      *
-     * A chunk off the wire is NOT a frame: it can carry half an object, or
-     * three of them, and the tail is held back until its newline arrives. The
-     * server does exactly this to Ollama's own stream one hop upstream — the
-     * failure mode for splitting on chunk boundaries instead is a parser that
-     * works perfectly against localhost and silently drops words over a real
-     * network.
+     * The buffering lives in assets/ai/ndjson.js, which the reading pane's
+     * summary card reads with too — the line framing is one thing and had no
+     * business being two. What stays here is what is actually the composer's:
+     * the run guard, and what a frame MEANS to a draft.
+     *
+     * The run guard is passed in rather than checked afterwards, because an
+     * aborted fetch settles asynchronously: without it the old run's frames
+     * keep arriving into a panel the new run has already claimed.
      */
     async #read(body, run) {
-        const reader = body.getReader();
-        const decoder = new TextDecoder();
-        let buffer = "";
+        await readFrames(body, (frame) => this.#apply(frame), () => run === this.#run);
 
-        for (;;) {
-            const { value, done } = await reader.read();
-
-            if (run !== this.#run) return;
-
-            if (true === done) break;
-
-            // `stream: true` so a multi-byte character split across two chunks
-            // is held rather than decoded into a replacement character. Every
-            // umlaut in a German draft sits on that boundary eventually.
-            buffer += decoder.decode(value, { stream: true });
-
-            let cut;
-
-            while (-1 !== (cut = buffer.indexOf("\n"))) {
-                const line = buffer.slice(0, cut).trim();
-                buffer = buffer.slice(cut + 1);
-
-                if ("" === line) continue;
-
-                let frame;
-
-                try {
-                    frame = JSON.parse(line);
-                } catch {
-                    // A truncated final line from a connection that died
-                    // mid-frame. Skipped rather than fatal: the frames before
-                    // it are still the writer's text.
-                    continue;
-                }
-
-                this.#apply(frame);
-            }
-        }
+        if (run !== this.#run) return;
 
         // The stream ended without a `done` or an `error` frame — the
         // connection dropped part-way. Whatever arrived is still worth

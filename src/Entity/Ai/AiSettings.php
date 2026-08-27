@@ -32,9 +32,11 @@ use Doctrine\ORM\Mapping as ORM;
  * Writing help is asked for explicitly, once, by somebody who is looking at the
  * result. Categorisation runs on every message that arrives, unattended, and a
  * model that is confidently wrong quietly misfiles mail. Embedding runs over
- * the entire mailbox once and then on every new message. Somebody may
- * reasonably want the first and not the third, and a single master switch would
- * make that choice for them.
+ * the entire mailbox once and then on every new message. Summarising is asked
+ * for explicitly like writing help, but the answer is read INSTEAD of the mail
+ * rather than beside it, so being wrong is not caught by the person who asked.
+ * Somebody may reasonably want the first and not the third, and a single master
+ * switch would make that choice for them.
  *
  * THE ENDPOINT IS NOT USER INPUT
  * ──────────────────────────────
@@ -120,6 +122,19 @@ class AiSettings
     public bool $writingHelpEnabled = false;
 
     /**
+     * Summarising a conversation, when somebody asks for one.
+     *
+     * The same model writing help uses, and the same appetite for being wrong —
+     * but a longer call: a whole thread is a much larger prompt than a draft,
+     * and the answer is read INSTEAD of the mail rather than beside it. Its own
+     * flag for the reason the three above have theirs: an operator who is happy
+     * to spend half a minute of GPU on a reply somebody will proofread may not
+     * be happy to spend it on a paraphrase somebody will trust.
+     */
+    #[ORM\Column(name: 'summary_enabled', options: ['default' => false])]
+    public bool $summaryEnabled = false;
+
+    /**
      * Whether a model host is configured at all — as opposed to switched on.
      *
      * Switched on with no host is the commonest half-finished state, and the
@@ -147,7 +162,8 @@ class AiSettings
         $model = match ($feature) {
             AiFeature::Search       => $this->embeddingModel,
             AiFeature::Categorise,
-            AiFeature::WritingHelp  => $this->chatModel,
+            AiFeature::WritingHelp,
+            AiFeature::Summary      => $this->chatModel,
         };
 
         if (null === $model || '' === trim($model)) {
@@ -158,6 +174,7 @@ class AiSettings
             AiFeature::Search      => $this->searchEnabled,
             AiFeature::Categorise  => $this->categorisationEnabled,
             AiFeature::WritingHelp => $this->writingHelpEnabled,
+            AiFeature::Summary     => $this->summaryEnabled,
         };
     }
 }

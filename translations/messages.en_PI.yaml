@@ -103,6 +103,8 @@ admin:
             enabled_help: "Off by default. While this be off, all below be ignored."
             search: "Search by meanin'"
             search_help: "Adds hits that match what ye meant. The ordinary search be untouched."
+            summary: 'Yarn-in-short'
+            summary_help: "Uses th' scrivenin' oracle. A cold askin' takes near a minute an' holds th' engine th' whole while."
             token: 'Token'
             token_help: "Only if ye put a guard in front o' the box."
             token_help_set: 'A token be on file. Leave it blank to keep it.'
@@ -119,6 +121,7 @@ admin:
                 unreachable: 'Nowt answers'
                 warm: 'Aboard'
             feature:
+                thread_summary: 'Yarns-in-short'
                 categorise: "Sortin' mail"
                 mail_index: "Chartin' mail"
                 search_query: 'Search'
@@ -265,14 +268,14 @@ admin:
             client_secret: 'Client secret'
             enabled: 'Offer this port to th'' crew'
             enabled_help: 'Struck down, none may moor there and it stays hidden from th'' writin'' desk and th'' stowin'' menus.'
-            push_token: 'Push watchword'
-            push_token_help: 'Shared watchword Google sends with every Pub/Sub call; th'' webhook turns away any without it. Leave empty to fall back to GMAIL_PUBSUB_VERIFICATION_TOKEN.'
             pubsub_topic: 'Pub/Sub topic'
             pubsub_topic_help: 'Full topic name Gmail cries changes into. Without it, crew stay on the lookout instead o'' bein'' hailed. Leave empty to fall back to GMAIL_PUBSUB_TOPIC.'
+            push_token: 'Push watchword'
+            push_token_help: 'Shared watchword Google sends with every Pub/Sub call; th'' webhook turns away any without it. Leave empty to fall back to GMAIL_PUBSUB_VERIFICATION_TOKEN.'
             redirect_uri: 'Return bearing'
+            redirect_uri_help: 'Paste this into th'' harbourmaster''s ledger exactly as writ. Change it later and every moored line snaps.'
             tenant: 'Tenant'
             tenant_help: 'common for private and company hands, organizations for company only, or a tenant ID to keep it to yer own. Must match th'' app registration''s supported account types.'
-            redirect_uri_help: 'Paste this into th'' harbourmaster''s ledger exactly as writ. Change it later and every moored line snaps.'
         inherit: 'Reuse %name% papers'
         inherit_help: 'Copies th'' client ID and secret below decks — th'' secret be never shown. It grants no extra passage; add that at th'' harbourmaster as th'' riggin'' steps say.'
         inherited: 'Papers copied'
@@ -525,7 +528,6 @@ admin:
         search: Search th' roster…
         two_factor_on: Second factor is set
         two_factor_short: 2FA
-
     version:
         hint: The build this ship be sailin' — the release, an' the commit she were built from.
 alias:
@@ -1438,9 +1440,9 @@ jobs:
         trash: Castin' overboard
         restore: Haulin' back
     state:
-        queued: waitin'
         done: '%count% done'
         failed: foundered
+        queued: waitin'
 label:
     color:
         amber: Amber
@@ -1781,16 +1783,16 @@ setup:
         field:
             email: Parrot address
             email_help: This be the address ye sign aboard with.
-            public_url: Yer flag on the open sea
-            public_url_help: >-
-                Where the world finds yer plMail. Gmail an' Outlook holler back to it
-                with their tidings, so it must be reachable from the open sea, an'
-                best be https. Ye can change it later.
             locale: Tongue
             name_first: First name
             name_last: Family name
             password: Secret word
             password_repeat: Say the secret word again
+            public_url: Yer flag on the open sea
+            public_url_help: >-
+                Where the world finds yer plMail. Gmail an' Outlook holler back to it
+                with their tidings, so it must be reachable from the open sea, an'
+                best be https. Ye can change it later.
         footnote: Ye can hoist yer mailbags, an' all else, once yer aboard.
         heading: Claim yer berth
         lead: This be the first soul aboard this plMail, so ye get the cap'n's keys.
@@ -1815,6 +1817,8 @@ settings:
             categorise_hint: "Lets the oracle break the tie when plain rules can't place a message. Off leaves 'em where the rules dropped 'em."
             search: "Divinin' Search"
             search_hint: "Finds mail that means what ye asked, not only mail that spells it so. Off stops yer mail bein' charted as well as searched."
+            summary: 'Yarn-in-short'
+            summary_hint: 'Boils a long yarn down when ye ask. Nowt be boiled unasked.'
             writing_help: "Quill Wranglin'"
             writing_help_hint: "Drafts a reply, shortens, makes fancy, proofreads — in the writin' window, when ye ask."
         features:
@@ -1835,6 +1839,7 @@ settings:
             categorise: "Sortin': the sender, the subject an' the start o' the message."
             heading: 'What the Oracle Be Handed'
             search: "Chartin': the subject, the sender an' the start o' each message."
+            summary: "Th' messages o' a yarn ye ask t' have boiled down"
             writing_help: "Writin': yer subject line, what ye typed, an' as much o' the parley as the setting above allows."
         seg:
             off: 'Nay'
@@ -2234,8 +2239,8 @@ settings:
         summary:
             every_message: 'it be any bottle at all'
             every_message_in: 'it be any bottle at all in %account%'
-            in_account: '%conditions%, aboard %account%'
             full: 'If %conditions% → %actions%'
+            in_account: '%conditions%, aboard %account%'
             no_actions: 'If %conditions% → (no orders yet)'
         then: Then
         when: When
@@ -2510,6 +2515,10 @@ settings:
             base_url_fixed: 'Sailin'' to %url%, set by th'' quartermaster.'
             name: Name
             name_help: 'Only ye see it, to tell two moorings apart.'
+            permissions:
+                immich: 'asset.read — sight yer pictures and moving pictures|asset.download — haul the original aboard|asset.view — show previews in th'' dialog|asset.upload — stow cargo into Immich|album.read — list and browse yer albums|albumAsset.create — file stowed cargo under an album'
+            permissions_heading: 'Papers this key needs'
+            permissions_note: 'A key with all papers works too, and be simpler than tickin'' boxes.'
             secret:
                 dropbox: 'Access token'
                 googleDrive: 'Access token'
@@ -2524,10 +2533,6 @@ settings:
                 immich: 'Mint one in Immich under Account Settings → API Keys.'
                 nextcloud: 'Mint one in Nextcloud under Settings → Security → Devices & sessions. Never hand over yer login password.'
                 oneDrive: ''
-            permissions:
-                immich: 'asset.read — sight yer pictures and moving pictures|asset.download — haul the original aboard|asset.view — show previews in th'' dialog|asset.upload — stow cargo into Immich|album.read — list and browse yer albums|albumAsset.create — file stowed cargo under an album'
-            permissions_heading: 'Papers this key needs'
-            permissions_note: 'A key with all papers works too, and be simpler than tickin'' boxes.'
             secret_unchanged: 'Leave blank to keep th'' stored papers'
             username: Username
         heading: 'Friendly ports'
@@ -2860,7 +2865,26 @@ tabs:
 
 thread:
     no_subject: (no subject)
-
+    summary:
+        button: 'Boil this yarn down'
+        disclaimer: "Writ by th' oracle from th' messages below. Read 'em if it matters."
+        error:
+            disabled: "Th' yarn-boilin' be switched off."
+            generic: "Th' short of it could nay be writ."
+            no_answer: "Th' oracle gave nowt back."
+            timeout: "Th' oracle's berth took o'er long t' answer."
+            unreachable: "Th' oracle's berth could nay be raised."
+        generated: 'Boiled down %when%'
+        heading: "Th' short of it"
+        regenerate: 'Boil her again'
+        stale: "Th' yarn has shifted since this were writ."
+        state:
+            sent: "Sent t' th' oracle…"
+            stopped: 'Belayed. Nowt were kept.'
+            waiting: "Th' first askin' after a spell takes near a minute while th' oracle wakes an' reads th' yarn."
+            working: "Boilin' her down…"
+        stop: 'Belay'
+        too_short: "One message. Nowt t' boil down."
 thread_row:
     account: 'Hauled aboard %account%'
     actions:

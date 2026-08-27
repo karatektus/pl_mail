@@ -10,6 +10,7 @@ use App\Entity\Mail\Account;
 use App\Entity\Mail\Message;
 use App\Entity\Mail\MessageThread;
 use App\Entity\User\User;
+use App\Domain\DTO\Ai\StoredThreadSummary;
 use App\Repository\Insight\MailInsightRepository;
 use App\Repository\Label\LabelRepository;
 use App\Repository\Mail\AccountRepository;
@@ -17,6 +18,9 @@ use App\Repository\Mail\MailboxRepository;
 use App\Repository\Mail\MessageRepository;
 use App\Repository\Mail\MessageThreadRepository;
 use App\Security\Voter\OwnershipVoter;
+use App\Service\Ai\ThreadSummariser;
+use App\Service\Ai\ThreadSummaryStore;
+use App\Service\Ai\ThreadTranscript;
 use App\Service\Mail\NewMailMarkers;
 use App\Service\Mail\SidebarCounts;
 use App\Service\Mail\ThreadListRenderer;
@@ -39,6 +43,9 @@ final class MailController extends AbstractController
         private readonly AccountRepository $accountRepository,
         private readonly ThreadListRenderer $listRenderer,
         private readonly MailInsightRepository $insightRepository,
+        private readonly ThreadSummariser $summariser,
+        private readonly ThreadTranscript $transcript,
+        private readonly ThreadSummaryStore $summaries,
     )
     {
     }
@@ -771,12 +778,15 @@ final class MailController extends AbstractController
         // Same read as message() above, for the same card in the same place.
         $insights = $this->insightRepository->forThread($thread);
 
+        $summary = $this->storedSummary($thread, $messages);
+
         if ($request->headers->get('X-Requested-With') === 'fetch') {
             return $this->render('mail/_thread_content.html.twig', [
                 'thread'   => $thread,
                 'messages' => $messages,
                 'latest'   => $latest,
                 'insights' => $insights,
+                'summary'  => $summary,
             ]);
         }
 
@@ -786,6 +796,60 @@ final class MailController extends AbstractController
             'messages' => $messages,
             'latest'   => $latest,
             'insights' => $insights,
+            'summary'  => $summary,
         ]);
+    }
+
+    /**
+     * The summary this conversation already carries, if any, and whether it
+     * still describes it.
+     *
+     * FRESHNESS IS DERIVED HERE AND MAINTAINED NOWHERE
+     * ────────────────────────────────────────────────
+     * Nothing invalidates a stored summary when mail arrives, is deleted or is
+     * re-threaded — there is no ingest hook, no Messenger job and no cron, and
+     * that is the design rather than an omission. The transcript is rebuilt from
+     * the very messages this method is about to render, hashed, and compared
+     * with what the row was written from. A thread that has changed does not
+     * match; a thread that was merely READ does, because marking read never
+     * appears in a transcript.
+     *
+     * The alternative was a second copy of the freshness rule living in
+     * PostIngestPipeline — which its own interface forbids ("Steps dispatch,
+     * they do not work") — and two copies of one fact is what
+     * Version20260828000000 refuses outright: "they would disagree exactly when
+     * somebody was watching."
+     *
+     * THE COST, AND WHY IT IS AFFORDABLE ON EVERY THREAD OPEN
+     * ──────────────────────────────────────────────────────
+     * The transcript is in-memory string work over $messages, which the render
+     * has already hydrated, plus one primary-key lookup. Both are skipped
+     * entirely when the feature is off for this person, so an installation that
+     * has never switched the AI on pays nothing at all — which is the same
+     * posture AiSettings takes about being a complete mail client with none of
+     * this configured.
+     *
+     * @param list<Message> $messages in conversation order, as rendered
+     */
+    private function storedSummary(MessageThread $thread, array $messages): ?StoredThreadSummary
+    {
+        $user = $this->getUser();
+
+        if (false === $user instanceof User || false === $this->summariser->isAvailableFor($user)) {
+            return null;
+        }
+
+        if (false === ThreadSummariser::hasEnoughToSummarise($thread)) {
+            // The card refuses this thread anyway, so the lookup would be a
+            // query whose answer nothing could use.
+            return null;
+        }
+
+        return $this->summaries->forThread(
+            (int) $thread->id,
+            $this->summariser->model(),
+            ThreadSummariser::PROMPT_VERSION,
+            ThreadTranscript::hash($this->transcript->forMessages($messages)),
+        );
     }
 }

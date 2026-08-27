@@ -21,17 +21,19 @@ they are asked:
 1. the master switch is on,
 2. a host is configured,
 3. a model is named **for that feature** — the embedding model for search, the chat model for the
-   other two.
+   other three.
 
 Two of those are the ones people actually get wrong: switched on with no host, or a host with no
 model. Both produce a feature that appears to exist and never answers, so both are refused before a
 request is spent finding out.
 
-The three features are separate switches because they have very different costs and very different
+The four features are separate switches because they have very different costs and very different
 appetites for being wrong. Writing help is asked for once, deliberately, by somebody looking at the
 result. Categorisation runs unattended on every message that arrives. Embedding runs over the whole
-mailbox. Wanting the first and not the third is reasonable, and one master switch would make that
-choice for people.
+mailbox. Thread summaries are asked for deliberately like writing help, but the answer is read
+*instead of* the mail rather than beside it, so being wrong is not caught by the person who asked.
+Wanting the first and not the third is reasonable, and one master switch would make that choice for
+people.
 
 ## Why the Ollama client ignores every rule the image proxy enforces
 
@@ -267,6 +269,65 @@ model deleting somebody's words with no undo they can see. It goes in as a plain
 end of the body, because a styled wrapper is subtracted by the composer's typed-length calculation
 and can stop the draft autosaving.
 
+## Thread summaries
+
+On demand, and that is the whole design: nothing is summarised until somebody presses the button.
+There is no ingest hook, no Messenger job and no cron, because a summary is the most expensive thing
+plMail can be made to do — about a minute of the 20.3 GiB chat model on one GPU — and spending that
+against a question nobody has asked is the mistake `EmbeddingCatchUp` already records for the
+*small* model.
+
+**The transcript is built forwards**, which is the opposite of the composer's. `ReplyContextReader`
+keeps the newest turns because a reply is shaped by what it answers; a summary is shaped by what the
+thread is *for*, which is stated at the top and never again. So `ThreadTranscript` keeps the head,
+keeps the newest turn as well — where a conversation has got to is the other half of what a reader
+wants — and drops the middle, announcing the gap with `[… N messages omitted here …]`. A model told
+a conversation was cut says so; one handed a silently truncated conversation invents the middle.
+
+**`TRANSCRIPT_BUDGET` is 8000 characters, and it was measured rather than chosen.** Two ceilings
+decide it and the smaller one is silent. Nothing arrives from the host between the request and the
+first token — the model loads, then the whole prompt is evaluated — and on the reference host
+(`qwen3:30b-a3b-instruct-2507-q4_K_M`) that is an 18.5 s cold load plus prompt evaluation at 95–107
+tokens/second over real German business mail at 3.55 characters per token: ~42 s of silence, a third
+of `OllamaClient::GENERATE_TIMEOUT`, which is an *idle* timeout and therefore the only bound that
+matters. The harder ceiling is the context window: `OllamaClient` sends no `num_ctx`, so the model's
+default decides what survives, and Ollama's long-standing default is 4096 tokens. 8000 characters of
+transcript (~2250) plus the system prompt (~230) plus the summary being generated (~350) is ~2830 and
+fits; 12000 characters is ~3980 and would silently drop the head of the conversation on an
+installation running the default. End to end at 8000: **63.6 s cold, 30.9 s warm.**
+
+**Freshness is derived, never maintained.** `thread_summary` stores a SHA-256 of the exact transcript
+that was sent, and `MailController::thread()` recomputes it from the very messages it is about to
+render. Every timestamp candidate fails silently: `lastMessageAt` only moves forward, so deleting the
+newest message leaves it pointing at a message that no longer exists; `messageCount` is recomputed on
+every delete path, so deleting one and receiving one looks identical; and `MAX(message.updated_at)`
+cannot miss but over-invalidates catastrophically, because `ThreadStatusUpdater` writes `seenAt`
+through the ORM and *opening a thread is what marks it read*. The hash moves for a new message, a
+deleted one and a draft edited in place, and does not move for reading, starring, snoozing or
+labelling.
+
+Every read also filters on the **model** and a **prompt version**, for `EmbeddingStore`'s reason: an
+administrator who swaps `chatModel` has changed what a summary *is*, and a row the previous model
+wrote must stop being shown rather than sit there looking current. Bumping
+`ThreadSummariser::PROMPT_VERSION` makes every stored summary invisible in one constant. Nothing is
+deleted by either — the primary key is the thread, so there is at most one row per thread ever.
+
+A summary whose hash no longer matches is **shown, greyed, with a regenerate button** rather than
+hidden: a summary of a thread that has since gained one "thanks" is still mostly true, and hiding it
+makes the half-minute somebody already waited feel wasted.
+
+**No persona.** `WritingAssistant::persona()` appends the writer's own notes because "the only party
+a writer can talk out of the rules is themselves, on their own draft, which they read before they
+send it". A summary is a statement about somebody else's mail presented as fact, and the reader does
+not read the mail underneath — that is the entire point of the feature — so letting "how the writer
+has asked to be written for" shape it produces a summary wrong in the direction the reader asked for,
+with nothing on the page to say so. The **language rule** does apply, and it is literally the same
+sentence: it moved out of `WritingTask` into `App\Domain\Ai\PromptRules` when the second reader
+arrived, rather than being copied.
+
+A thread of fewer than two messages is refused, at the endpoint and in the template. A "summary" of
+one message costs half a minute of GPU to say something reading the message says faster.
+
 ## When new mail gets indexed
 
 Not when it arrives. Mail used to be embedded by a post-ingest step within seconds of landing,
@@ -286,9 +347,13 @@ Two triggers replaced it, and both live in `App\Service\Ai\EmbeddingCatchUp`:
   a fortnight. Newest first, at most `--limit` messages per mailbox.
 
 The same two-model distinction is why a **search no longer holds the backfill back**. The yielding
-signal — `InteractiveAiActivity` — counts the composer only: 20.3 GiB and thirteen seconds cold,
-with a person watching a cursor. Counting a search there meant a finished search suppressed for
-ninety seconds the very indexing whose model it had just paid to load.
+signal — `InteractiveAiActivity` — counts the workloads that run the *expensive* model with somebody
+watching: the composer and thread summaries, 20.3 GiB and eighteen seconds cold. Counting a search
+there meant a finished search suppressed for ninety seconds the very indexing whose model it had just
+paid to load. The signal has **two halves** — a route prefix stamped by
+`InteractiveAiActivitySubscriber` and a predicate in
+`AiCallMetricRepository::lastInteractiveCallAt()` — and they must always name the same workloads, or
+the yielding comes back through whichever one was left behind.
 
 ## Embedding an existing mailbox
 
@@ -307,6 +372,8 @@ stop new mail appearing until an old mailbox had finished being catalogued.
 
 ## Things that bite
 
+- **A model change invalidates every stored summary as well as every stored vector.** Both filter by
+  model on read, and neither deletes anything: the old rows are invisible, not accumulating.
 - **A model change invalidates every stored vector.** A mailbox embedded at one width and searched at
   another returns nonsense rather than an error, so `EmbeddingStore::alreadyStored()` filters by
   model — which is what lets a backfill resume correctly instead of believing it has finished.
