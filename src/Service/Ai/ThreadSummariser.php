@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Service\Ai;
 
-use App\Domain\Ai\PromptRules;
 use App\Domain\DTO\Ai\AiChatResult;
 use App\Entity\Ai\AiFeature;
 use App\Entity\Mail\MessageThread;
@@ -18,13 +17,18 @@ use App\Entity\User\User;
  * argument: "the value arrives in a request body", so a `Summarise` case would
  * be instantly postable to /compose/assist against an arbitrary draft — a fifth
  * composer behaviour nobody designed, reachable by anyone who can POST. It
- * would also need a fifth arm in each of taskPrompt(), instruction(),
+ * would also need a fifth arm in each of shippedPrompt(), instruction(),
  * draftLabel(), temperature() and hasEnoughToWorkFrom(), the last of which is
  * `'' !== $draft` and a summary has no draft at all.
  *
- * The prompt lives here rather than in the controller for WritingAssistant's
- * stated reason: it is the part that will actually be tuned, and hunting for it
- * inside an HTTP action is how it ends up being changed in one of three places.
+ * THE PROMPT ITSELF NO LONGER LIVES HERE. It was a private const, for
+ * WritingAssistant's stated reason — "it is the part that will actually be
+ * tuned, and hunting for it inside an HTTP action is how it ends up being
+ * changed in one of three places" — and that reason now points the other way:
+ * the part that is actually tuned is tuned by an administrator, in Admin → AI,
+ * without a deploy. So the shipped wording is {@see \App\Domain\Ai\PromptRules::SUMMARY}
+ * and what gets SENT comes from {@see PromptLibrary}, which is the only thing
+ * that can resolve an override against it.
  *
  * NO PERSONA, AND THAT IS A DECISION RATHER THAN AN OMISSION
  * ─────────────────────────────────────────────────────────
@@ -89,24 +93,6 @@ final readonly class ThreadSummariser
     public const int TRANSCRIPT_BUDGET = 8000;
 
     /**
-     * Bumped whenever SYSTEM_PROMPT below changes.
-     *
-     * The analogue of `dimensions` in EmbeddingStore, and the argument
-     * transfers: "two models can share a name across an upgrade and answer at a
-     * different width." Two summaries can share a model name across a prompt
-     * edit and mean different things — one written before "never infer an
-     * outcome that is not written down" was added, one after — and the second
-     * is not a better version of the first, it is a different answer. Every
-     * read filters on this, so bumping it makes every older summary invisible
-     * and nothing has to be deleted.
-     *
-     * The transcript's own shape is NOT versioned here, deliberately: it is
-     * already covered by the hash, and two mechanisms for one fact is the thing
-     * Version20260828000000 refuses.
-     */
-    public const int PROMPT_VERSION = 1;
-
-    /**
      * A conversation with one message in it is not summarised.
      *
      * Not a safety rule, a usefulness one: a "summary" of a single message
@@ -119,37 +105,6 @@ final readonly class ThreadSummariser
     public const int MIN_MESSAGES = 2;
 
     /**
-     * What a summary IS, in the register WritingTask's four arms use.
-     *
-     * Three of these sentences are load-bearing and the reasons differ.
-     *
-     * "Plain text, no markdown" because the card renders with textContent and
-     * never innerHTML — this is model output derived from somebody's mail — so
-     * asterisks and hashes would arrive as literal asterisks and hashes on the
-     * page rather than as emphasis.
-     *
-     * "State only what the messages actually say" because the failure mode of a
-     * summary is not being unhelpful, it is being confidently wrong about an
-     * outcome — "they agreed to Thursday" for a thread where Thursday was
-     * proposed and never answered. The reader does not read the mail
-     * underneath; that is the whole point of the feature and the whole of the
-     * risk. The explicit instruction to SAY when something was left unanswered
-     * gives the model somewhere to put an open question other than into an
-     * invented conclusion.
-     *
-     * "Name people the way the messages name them" because a summary that
-     * paraphrases senders into roles ("the supplier", "the client") is not
-     * checkable against the thread it sits above.
-     */
-    private const string SYSTEM_PROMPT = 'You summarise email conversations. Write only the summary,'
-        . ' as plain text: no markdown, no headings, no bullet characters, no preamble about what you'
-        . ' are doing. Begin with a short paragraph saying what the conversation is about and where it'
-        . ' has got to. If there are open questions, decisions, or things somebody has been asked to'
-        . ' do, list them after that paragraph as short lines, one per line. State only what the'
-        . ' messages actually say — never infer an outcome that is not written down, and say so when'
-        . ' something was asked and left unanswered. Name people the way the messages name them.';
-
-    /**
      * Zero, which is Proofread's value and for temperature()'s stated reason:
      * it is one of "the three that must not invent". A summary given room to be
      * creative writes a better-reading account of a conversation that did not
@@ -158,13 +113,19 @@ final readonly class ThreadSummariser
     private const float TEMPERATURE = 0.0;
 
     /**
-     * The gate and the door, both — the pairing WritingAssistant explains: a
-     * service holding only the gate could not make a call, and one holding only
-     * the door could not ask whose mail this is.
+     * The gate, the door and the words — the pairing WritingAssistant explains:
+     * a service holding only the gate could not make a call, and one holding
+     * only the door could not ask whose mail this is.
+     *
+     * The library is the third because the prompt is no longer a constant here:
+     * it is whatever an administrator has left in force, and a summariser that
+     * could not read that would be summarising with instructions the settings
+     * page says are not in use.
      */
     public function __construct(
         private AiAssistant   $ai,
         private AiPermissions $permissions,
+        private PromptLibrary $prompts,
     ) {
     }
 
@@ -205,6 +166,62 @@ final readonly class ThreadSummariser
     public function model(): string
     {
         return (string) $this->ai->settings()->chatModel;
+    }
+
+    /**
+     * A fingerprint of the prompt a summary written right now would be written
+     * by — the second half of the store key, beside model().
+     *
+     * THIS REPLACED A HAND-BUMPED PROMPT_VERSION, AND HAD TO
+     * ──────────────────────────────────────────────────────
+     * There was an integer here whose docblock said "bumped whenever
+     * SYSTEM_PROMPT below changes", and it worked for exactly as long as the
+     * only way to change the prompt was to edit this file in a commit somebody
+     * reviewed. An administrator editing the summary prompt in Admin → AI bumps
+     * nothing, so every summary already on file would keep the old prompt's
+     * output for ever while the pane called it fresh — a feature whose whole
+     * risk is being confidently wrong about somebody else's mail, now also
+     * wrong about which instructions produced it. A cache invalidated by a
+     * human remembering is not invalidated.
+     *
+     * So the key stopped being a number somebody maintains and became a fact
+     * about the request. It is the same move Version20260902100100 already made
+     * for the transcript and gives its reasons for at length: `source_hash` is a
+     * SHA-256 of the exact text sent to the model, so a conversation that
+     * changed produces a different hash and every stale row stops matching
+     * without anything having to notice. This is that, for the other half of
+     * what was sent. Edit the summary prompt, edit the language rule, clear
+     * either back to the shipped wording, or take an upgrade that improves the
+     * shipped wording — each of those is a different string on the wire, so each
+     * produces a different fingerprint, and every row written under the old one
+     * stops being SHOWN. Nothing is deleted; the upsert replaces the row the
+     * moment anybody re-summarises.
+     *
+     * SHA-256 and not crc32 or a substring of one: this sits in the same column
+     * family as `source_hash`, is compared with hash_equals beside it, and a
+     * second digest width in one table is a thing somebody would have to look
+     * up. Hex, 64 characters, which is what the column was widened to hold.
+     *
+     * It reads the prompt from the same method messagesFor() sends, on purpose.
+     * The fingerprint that is STORED must be of the prompt the call actually
+     * used — model()'s own argument, unchanged: "one reader, one answer".
+     */
+    public function promptFingerprint(): string
+    {
+        return hash('sha256', $this->systemPrompt());
+    }
+
+    /**
+     * The system message, resolved: what an administrator has typed if they
+     * have, what we ship if they have not, with the language rule appended.
+     *
+     * Private and used by both messagesFor() and promptFingerprint(), which is
+     * the whole point of it existing — two assemblies of one prompt is a stored
+     * fingerprint that describes a string nobody was sent.
+     */
+    private function systemPrompt(): string
+    {
+        return $this->prompts->forSummary();
     }
 
     /**
@@ -285,7 +302,7 @@ final readonly class ThreadSummariser
         }
 
         return [
-            ['role' => 'system', 'content' => self::SYSTEM_PROMPT . PromptRules::LANGUAGE],
+            ['role' => 'system', 'content' => $this->systemPrompt()],
             ['role' => 'user', 'content' => "The conversation:\n" . $transcript . "\n\nSummarise it."],
         ];
     }

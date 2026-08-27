@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Entity\Ai;
 
 use App\Domain\Trait\TimestampableTrait;
+use App\Entity\Embeddable\AiPrompts;
 use App\Infrastructure\Doctrine\Type\EncryptedStringType;
 use App\Repository\Ai\AiSettingsRepository;
 use Doctrine\ORM\Mapping as ORM;
@@ -133,6 +134,43 @@ class AiSettings
      */
     #[ORM\Column(name: 'summary_enabled', options: ['default' => false])]
     public bool $summaryEnabled = false;
+
+    /**
+     * What an administrator has typed in place of the prompts we ship.
+     *
+     * An embeddable rather than seven properties here, for the reason
+     * User::$aiPreferences is one: this is a fixed set of free text that ends up
+     * inside a prompt, so the bound has to be a column length and a clamping
+     * setter rather than a convention. Keeping it in its own object also keeps
+     * this class about what the installation is ALLOWED to do — which is what
+     * every consumer asks it — rather than about what it says.
+     *
+     * Everything in it is null until somebody edits a prompt, and null means the
+     * shipped text. Nothing here is the answer to "what is sent": see
+     * {@see \App\Service\Ai\PromptLibrary}, which is the one reader that
+     * resolves an override against the default.
+     *
+     * private(set) like User's two embeddables: the fields inside are written
+     * directly, but nobody may swap the whole object out from under a hydrated
+     * row.
+     */
+    #[ORM\Embedded(class: AiPrompts::class, columnPrefix: 'prompt_')]
+    public private(set) AiPrompts $prompts;
+
+    /**
+     * Present only because an embeddable has to be instantiated.
+     *
+     * Doctrine builds an embeddable itself on hydration, so this runs for a
+     * settings object that PHP made — the `new AiSettings()` that
+     * AiSettingsRepository::currentOrDefault() hands back on an installation
+     * that has never configured anything, and which the admin form binds to.
+     * Without it that path is a typed property access error the first time the
+     * page is opened on a fresh install.
+     */
+    public function __construct()
+    {
+        $this->prompts = new AiPrompts();
+    }
 
     /**
      * Whether a model host is configured at all — as opposed to switched on.

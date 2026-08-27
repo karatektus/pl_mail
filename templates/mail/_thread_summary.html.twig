@@ -3,149 +3,240 @@ mail/_thread_summary.html.twig
 ─────────────────────────────────────────────────────────────────────────────
 What a model made of this conversation, on request. Nothing here is spent
 until somebody presses the button: there is no ingest hook, no job and no
-cron, and this include renders a control rather than an answer for every
-thread that has never been summarised.
+cron, and a conversation nobody has asked about carries a control and nothing
+else.
 
-Included with `only` from _thread_content, so it names its whole contract:
+MACROS, NOT AN INCLUDE, because the feature is in two places on the page and
+one Stimulus controller has to own both. The control sits on the right of the
+subject line, where it is there for every conversation; the card sits below
+the insight strip, where it is only there once there is something in it. A
+controller reaches targets inside its own element only, so its element has to
+be an ANCESTOR OF BOTH — the thread's content wrapper in _thread_content —
+and `root()` is what stamps it there. Three insertion points, three macros:
 
-Accepts:
+  root(thread)             the controller and its values, inside the wrapper tag
+  trigger(thread, summary) the control, for the subject row
+  card(thread, summary)    the card, for below the insight strip
+
+Each states the same gate for itself rather than trusting the caller to: a
+page that got one of the three wrong would put a control on a conversation
+that has nowhere to put an answer, or a card with nothing to fill it.
+
+NO CARD UNTIL THERE IS SOMETHING TO PUT IN IT
+─────────────────────────────────────────────
+"Summary" written over an empty box is a box claiming a summary exists. So a
+conversation that has never been summarised renders the card into a
+<template>: markup the browser parses and then does not render, keeps out of
+the accessibility tree, and does not return from querySelectorAll. The
+controller swaps the template for its own contents at the first click — see
+#mount() — which is also what puts the card exactly where this file said it
+goes, without the controller knowing anything about the page around it.
+
+The alternative was building the card in JavaScript, which would put this
+markup, these classes and two translated strings in a second place that can
+rot away from this one.
+
+Accepts (all three macros):
   thread   MessageThread             the open conversation
   summary  StoredThreadSummary|null  what is already stored for it, or null.
            `isFresh` is false when the conversation has changed since it was
-           written — which is SHOWN, greyed, with the regenerate button
-           beside it, rather than hidden. A summary of a thread that has
-           gained one "thanks" is still mostly true, and hiding it makes the
-           half-minute somebody already waited feel wasted.
+           written — which is SHOWN, greyed, with the regenerate offer beside
+           it, rather than hidden. A summary of a thread that has gained one
+           "thanks" is still mostly true, and hiding it makes the half-minute
+           somebody already waited feel wasted.
 
-Renders nothing at all when the feature is off for this person (either
-switch — see ai_summary_enabled()) or when the conversation is a single
-message. A control that is always refused is worse than no control, and a
-"summary" of one message costs half a minute of GPU to say something reading
-the message says faster.
+A STORED SUMMARY IS THERE AT FIRST PAINT. That is the whole point of storing
+it: reopening a summarised conversation must cost no model call and show no
+gap, so `summary is not null` renders the card itself rather than a template.
+
+Nothing renders at all when the feature is off for this person (either switch
+— see ai_summary_enabled()) or when the conversation is a single message. A
+control that is always refused is worse than no control, and a "summary" of
+one message costs half a minute of GPU to say something reading the message
+says faster. `thread.summary.too_short` stays reachable for the case a page
+cannot see coming: a thread that had two messages when it was rendered and has
+one by the time the button is pressed, which the endpoint refuses and the
+controller says in words.
 
 MOTION: the card is STILL when it renders a stored summary and animates only
 when one arrives because somebody asked. _thread_content states the contract
-this follows — "chrome that flinched every time a conversation opened would
-be movement that says nothing" — and a summary that was already there is
-chrome. One that has just been written is a genuine arrival.
+this follows — "chrome that flinched every time a conversation opened would be
+movement that says nothing" — and a summary that was already there is chrome.
+One that has just been written is a genuine arrival, so the copy inside the
+template — the only copy that can ever ARRIVE — is the one carrying data-enter.
 #}
 
-{% set summary = summary|default(null) %}
+{#
+The controller, its endpoint and its vocabulary, stamped inside the tag of
+whatever element hosts the feature.
 
-{# Both switches, and the message count. ThreadSummariser enforces the same
-   two on the endpoint; this is what stops the page offering something that
-   would be refused. `> 1` is the same number the subject line above uses to
-   decide whether a conversation is a conversation at all. #}
-{% if ai_summary_enabled() and thread.messageCount > 1 %}
-    <div class="mb-4"
-         data-controller="mail--thread-summary"
-         data-mail--thread-summary-url-value="{{ path('app_mail_thread_summary', {'id': thread.id}) }}"
-         {# A per-action token, stamped here because assets/csrf.js reads the
-            `csrf-token` meta tag and that tag carries the shared `ajax` one.
-            The precedent is settings/account_order_controller, which csrf.js's
-            own docblock names as the caller left alone on purpose. #}
-         data-mail--thread-summary-token-value="{{ csrf_token('thread_summary') }}"
-         data-mail--thread-summary-sent-label-value="{{ 'thread.summary.state.sent'|trans }}"
-         data-mail--thread-summary-waiting-label-value="{{ 'thread.summary.state.waiting'|trans }}"
-         data-mail--thread-summary-working-label-value="{{ 'thread.summary.state.working'|trans }}"
-         data-mail--thread-summary-stopped-label-value="{{ 'thread.summary.state.stopped'|trans }}"
-         data-mail--thread-summary-failed-label-value="{{ 'thread.summary.error.generic'|trans }}"
-         data-mail--thread-summary-no-answer-label-value="{{ 'thread.summary.error.no_answer'|trans }}"
-         data-mail--thread-summary-disabled-label-value="{{ 'thread.summary.error.disabled'|trans }}"
-         data-mail--thread-summary-timeout-label-value="{{ 'thread.summary.error.timeout'|trans }}"
-         data-mail--thread-summary-unreachable-label-value="{{ 'thread.summary.error.unreachable'|trans }}"
-         data-mail--thread-summary-too-short-label-value="{{ 'thread.summary.too_short'|trans }}"
-    >
-        <p class="mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-ink-faint">
-            {{ 'thread.summary.heading'|trans }}
-        </p>
+It is deliberately not the card's own tag any more: the card is the one part
+of this that does not exist yet when the controller has to be listening.
+#}
+{% macro root(thread) %}
+    {% if ai_summary_enabled() and thread.messageCount > 1 %}
+        data-controller="mail--thread-summary"
+        data-mail--thread-summary-url-value="{{ path('app_mail_thread_summary', {'id': thread.id}) }}"
+        {# A per-action token, stamped here because assets/csrf.js reads the
+           `csrf-token` meta tag and that tag carries the shared `ajax` one.
+           The precedent is settings/account_order_controller, which csrf.js's
+           own docblock names as the caller left alone on purpose. #}
+        data-mail--thread-summary-token-value="{{ csrf_token('thread_summary') }}"
+        data-mail--thread-summary-sent-label-value="{{ 'thread.summary.state.sent'|trans }}"
+        data-mail--thread-summary-waiting-label-value="{{ 'thread.summary.state.waiting'|trans }}"
+        data-mail--thread-summary-working-label-value="{{ 'thread.summary.state.working'|trans }}"
+        data-mail--thread-summary-stopped-label-value="{{ 'thread.summary.state.stopped'|trans }}"
+        data-mail--thread-summary-regenerate-label-value="{{ 'thread.summary.regenerate'|trans }}"
+        data-mail--thread-summary-failed-label-value="{{ 'thread.summary.error.generic'|trans }}"
+        data-mail--thread-summary-no-answer-label-value="{{ 'thread.summary.error.no_answer'|trans }}"
+        data-mail--thread-summary-disabled-label-value="{{ 'thread.summary.error.disabled'|trans }}"
+        data-mail--thread-summary-timeout-label-value="{{ 'thread.summary.error.timeout'|trans }}"
+        data-mail--thread-summary-unreachable-label-value="{{ 'thread.summary.error.unreachable'|trans }}"
+        data-mail--thread-summary-too-short-label-value="{{ 'thread.summary.too_short'|trans }}"
+    {% endif %}
+{% endmacro %}
 
-        {# The insight card's chrome, which is the card shape this pane already
-           has. The mail-sheet utility re-points every colour token, so a card
-           inside it inherits sheet colours for free. #}
-        <div class="rounded-pane border border-line bg-surface px-3 py-2.5 shadow-sm"
-             data-thread-summary>
+{#
+The control, and it is the ONLY one: Summarise, Summarise again and Stop are
+the same control in the same place in every state, because a button that moved
+into the card once the card existed would be a button somebody has to find
+twice.
 
-            <div class="flex items-start gap-2">
-                {# Something moving while nothing is arriving. Between the click
-                   and the first token there can be forty seconds — eighteen of a
-                   30B model coming off disk and twenty-three of the conversation
-                   being read — and Ollama reports no progress through any of it,
-                   so there is nothing to fill a bar with and a still sentence
-                   reads as a hung card. aria-hidden: the status line beside it
-                   already announces the state in words. Held still under
-                   prefers-reduced-motion, where it stays three plain dots. #}
-                <span data-mail--thread-summary-target="pending"
-                      hidden
-                      aria-hidden="true"
-                      class="ai-pending mt-[5px] shrink-0"><i></i><i></i><i></i></span>
+<button>, not an anchor, and that is load-bearing: _reply_zone.html.twig
+records what an anchor costs here — "Turbo Drive prefetches a link on hover,
+and hovering Reply is what you do on the way to clicking it". A hover that
+spent half a minute of GPU would be the same bug with a much larger bill.
 
-                <div class="min-w-0 flex-1">
-                    {# `role="status"` with aria-live so the STATE TRANSITIONS are
-                       announced rather than only drawn. Hidden while empty so a
-                       finished summary carries no furniture above it. #}
-                    <p data-mail--thread-summary-target="status"
-                       role="status"
-                       aria-live="polite"
-                       hidden
-                       class="text-[11px] leading-snug text-ink-muted"></p>
+ml-auto, in a row aligned on the baseline: the pill sits at the right-hand end
+of the subject line and its label sits on the subject's own baseline, which is
+what keeps it reading as part of that line rather than as a second row.
+#}
+{% macro trigger(thread, summary) %}
+    {% if ai_summary_enabled() and thread.messageCount > 1 %}
+        <div class="ml-auto flex shrink-0 items-center gap-1">
+            <button type="button"
+                    data-mail--thread-summary-target="run"
+                    data-action="click->mail--thread-summary#{{ summary is null ? 'run' : 'regenerate' }}"
+                    class="flex items-center gap-1.5 rounded-full border border-line px-2.5 py-1
+                           text-xs font-medium whitespace-nowrap text-ink-muted
+                           hover:bg-hover hover:text-ink transition-colors cursor-pointer">
+                <i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i>
+                {# The label is the accessible name — no aria-label beside it,
+                   because the controller rewrites this text when a run
+                   finishes and a second copy of the name would go stale. #}
+                <span data-mail--thread-summary-target="runLabel"
+                >{{ (summary is null ? 'thread.summary.button' : 'thread.summary.regenerate')|trans }}</span>
+            </button>
 
-                    {# The staleness notice, which only ever goes away: pressing
-                       regenerate clears it by starting a run. #}
-                    <p data-mail--thread-summary-target="stale"
-                       {{ summary is not null and summary.isFresh == false ? '' : 'hidden' }}
-                       class="text-[11px] leading-snug text-ink-muted"
-                    >{{ 'thread.summary.stale'|trans }}</p>
+            <button type="button"
+                    data-mail--thread-summary-target="stop"
+                    hidden
+                    data-action="click->mail--thread-summary#stop"
+                    class="rounded-full border border-line px-2.5 py-1 text-xs font-medium
+                           whitespace-nowrap text-ink-muted
+                           hover:bg-hover hover:text-ink transition-colors cursor-pointer">
+                {{ 'thread.summary.stop'|trans }}
+            </button>
+        </div>
+    {% endif %}
+{% endmacro %}
 
-                    {# whitespace-pre-line, because the model is asked for a
-                       paragraph and then short lines, and those line breaks are
-                       the only structure a plain-text summary has. The greying
-                       is applied server-side to a stale copy and removed by the
-                       controller at the first token of a new run. #}
-                    <p data-mail--thread-summary-target="output"
-                       {{ summary is null ? 'hidden' : '' }}
-                       class="whitespace-pre-line text-sm leading-relaxed text-ink
-                              {{ summary is not null and summary.isFresh == false ? ' opacity-60' : '' }}"
-                    >{{ summary is null ? '' : summary.text }}</p>
+{#
+The card — the answer, and nothing else. Written once and then either rendered
+or parked in a <template>, so the copy that arrives on a click and the copy
+that is there on reopening cannot drift apart.
+#}
+{% macro card(thread, summary) %}
+    {% if ai_summary_enabled() and thread.messageCount > 1 %}
+        {% set isStale = summary is not null and summary.isFresh == false %}
 
-                    {% if summary is not null and summary.writtenAt is not null %}
-                        <p class="mt-1 text-[11px] text-ink-faint">
-                            {{ 'thread.summary.generated'|trans({
-                                '%when%': summary.writtenAt|intl_date('dMMM') ~ ', ' ~ summary.writtenAt|date(clock.time),
-                            }) }}
-                        </p>
-                    {% endif %}
+        {% set markup %}
+            <div class="mb-4"
+                 data-mail--thread-summary-target="card"
+                 {# Only the parked copy can ever ARRIVE; the rendered one was
+                    always there. See the MOTION note above. #}
+                 {% if summary is null %}data-enter="fade"{% endif %}
+            >
+                <p class="mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-ink-faint">
+                    {{ 'thread.summary.heading'|trans }}
+                </p>
 
-                    <p class="mt-1 text-[11px] leading-snug text-ink-faint">
-                        {{ 'thread.summary.disclaimer'|trans }}
-                    </p>
-                </div>
+                {# The insight card's chrome, which is the card shape this pane
+                   already has. The mail-sheet utility re-points every colour
+                   token, so a card inside it inherits sheet colours for free. #}
+                <div class="rounded-pane border border-line bg-surface px-3 py-2.5 shadow-sm"
+                     data-thread-summary>
 
-                {# <button>, not an anchor, and that is load-bearing:
-                   _reply_zone.html.twig records what an anchor costs here —
-                   "Turbo Drive prefetches a link on hover, and hovering Reply is
-                   what you do on the way to clicking it". A hover that spent
-                   half a minute of GPU would be the same bug with a much larger
-                   bill. A button sidesteps it entirely. #}
-                <div class="flex shrink-0 items-center gap-1">
-                    <button type="button"
-                            data-mail--thread-summary-target="run"
-                            data-action="click->mail--thread-summary#{{ summary is null ? 'run' : 'regenerate' }}"
-                            class="rounded-full border border-line px-2.5 py-1 text-xs font-medium
-                                   text-ink-muted hover:bg-hover hover:text-ink transition-colors">
-                        {{ (summary is null ? 'thread.summary.button' : 'thread.summary.regenerate')|trans }}
-                    </button>
+                    <div class="flex items-start gap-2">
+                        {# Something moving while nothing is arriving. Between
+                           the click and the first token there can be forty
+                           seconds — eighteen of a 30B model coming off disk and
+                           twenty-three of the conversation being read — and
+                           Ollama reports no progress through any of it, so
+                           there is nothing to fill a bar with and a still
+                           sentence reads as a hung card. aria-hidden: the
+                           status line beside it already announces the state in
+                           words. Held still under prefers-reduced-motion, where
+                           it stays three plain dots. #}
+                        <span data-mail--thread-summary-target="pending"
+                              hidden
+                              aria-hidden="true"
+                              class="ai-pending mt-[5px] shrink-0"><i></i><i></i><i></i></span>
 
-                    <button type="button"
-                            data-mail--thread-summary-target="stop"
-                            hidden
-                            data-action="click->mail--thread-summary#stop"
-                            class="rounded-full border border-line px-2.5 py-1 text-xs font-medium
-                                   text-ink-muted hover:bg-hover hover:text-ink transition-colors">
-                        {{ 'thread.summary.stop'|trans }}
-                    </button>
+                        <div class="min-w-0 flex-1">
+                            {# `role="status"` with aria-live so the STATE
+                               TRANSITIONS are announced rather than only drawn.
+                               Hidden while empty so a finished summary carries
+                               no furniture above it. The controller waits a
+                               task after mounting this before it writes the
+                               first sentence — a live region inserted with its
+                               text already in it announces nothing. #}
+                            <p data-mail--thread-summary-target="status"
+                               role="status"
+                               aria-live="polite"
+                               hidden
+                               class="text-[11px] leading-snug text-ink-muted"></p>
+
+                            {# The staleness notice, which only ever goes away:
+                               pressing regenerate clears it by starting a run. #}
+                            <p data-mail--thread-summary-target="stale"
+                               {{ isStale ? '' : 'hidden' }}
+                               class="text-[11px] leading-snug text-ink-muted"
+                            >{{ 'thread.summary.stale'|trans }}</p>
+
+                            {# whitespace-pre-line, because the model is asked
+                               for a paragraph and then short lines, and those
+                               line breaks are the only structure a plain-text
+                               summary has. The greying is applied server-side
+                               to a stale copy and removed by the controller at
+                               the first token of a new run. #}
+                            <p data-mail--thread-summary-target="output"
+                               {{ summary is null ? 'hidden' : '' }}
+                               class="whitespace-pre-line text-sm leading-relaxed text-ink
+                                      {{ isStale ? ' opacity-60' : '' }}"
+                            >{{ summary is null ? '' : summary.text }}</p>
+
+                            {% if summary is not null and summary.writtenAt is not null %}
+                                <p class="mt-1 text-[11px] text-ink-faint">
+                                    {{ 'thread.summary.generated'|trans({
+                                        '%when%': summary.writtenAt|intl_date('dMMM') ~ ', ' ~ summary.writtenAt|date(clock.time),
+                                    }) }}
+                                </p>
+                            {% endif %}
+
+                            <p class="mt-1 text-[11px] leading-snug text-ink-faint">
+                                {{ 'thread.summary.disclaimer'|trans }}
+                            </p>
+                        </div>
+                    </div>
                 </div>
             </div>
-        </div>
-    </div>
-{% endif %}
+        {% endset %}
+
+        {% if summary is null %}
+            <template data-mail--thread-summary-target="cardTemplate">{{ markup }}</template>
+        {% else %}
+            {{ markup }}
+        {% endif %}
+    {% endif %}
+{% endmacro %}

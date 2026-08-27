@@ -172,6 +172,37 @@ admin:
             models: 'Show the %count% models it is holding'
             status: 'That host answered with HTTP %status%.'
             unreachable: 'Nothing answered at that address. (%error%)'
+        prompt:
+            categorise:
+                hint: 'Runs on arriving mail that no rule recognised. It must ask for ONE WORD out of primary, social, promotions, updates, forums — plMail matches the answer against exactly those five, and anything else silently leaves the mail where the ordinary rules put it.'
+                label: 'Sort mail into tabs'
+            formal:
+                hint: 'Used when someone asks for the same message in a more formal tone.'
+                label: 'Make it more formal'
+            language:
+                hint: 'Added to the end of every prompt above except sorting. It is what makes a German mail get a German reply — without it the model follows the English these instructions are written in, and proofreading a German draft translates it. You can reword it; you cannot remove it. Empty the box and the shipped wording comes back.'
+                label: 'Always answer in the language of the mail'
+            proofread:
+                hint: 'Used when someone asks for spelling and grammar to be fixed and nothing else. Keep "change nothing else" in it — without that the model rewrites sentences that were already right.'
+                label: 'Proofread'
+            reply:
+                hint: 'Used by "Help me write" when someone asks for a first draft.'
+                label: 'Draft a reply'
+            shorten:
+                hint: 'Used when someone asks for the same message in fewer words.'
+                label: 'Shorten'
+            summary:
+                hint: 'Used by the summary button in the reading pane. Changing this marks every summary already written as out of date — nothing is deleted, they are rewritten the next time somebody asks.'
+                label: 'Summarise a conversation'
+        prompts:
+            changed: '%count% changed'
+            heading: 'System prompts'
+            intro: 'These are the instructions plMail gives the model. Leave a box empty to use the wording plMail ships — that way a later update can still improve it. What you type replaces the shipped wording completely.'
+            reset: 'Back to the shipped wording'
+            save: 'Save prompts'
+            saved: 'Saved. New summaries use these; summaries already written are now out of date.'
+            show_shipped: 'Show the shipped wording'
+            untouched: 'As shipped'
         save: 'Save'
         saved: 'Saved.'
         status:
@@ -965,7 +996,9 @@ calendar:
                 entry once the two no longer match.
             hidden: This calendar is hidden, so the event will not show until you show it
             legend: Calendars
+            mirrored: 'This calendar syncs with its provider, so the event reaches your other devices'
             read_only: This calendar does not accept changes
+            same_remote: 'Already covered: this mirrors the same calendar as one ticked above'
         delete: Delete
         description: Description
         dismiss: Not an event

@@ -14,6 +14,7 @@ use App\Service\Ai\AiAssistant;
 use App\Service\Ai\AiCallRecorder;
 use App\Service\Ai\AiPermissions;
 use App\Service\Ai\OllamaClient;
+use App\Service\Ai\PromptLibrary;
 use App\Service\Ai\ThreadSummariser;
 use DateTimeImmutable;
 use Doctrine\DBAL\Connection;
@@ -395,7 +396,7 @@ final class ThreadSummaryStreamTest extends KernelTestCase
             new NullLogger(),
         );
 
-        return new ThreadSummariser($ai, new AiPermissions($ai));
+        return new ThreadSummariser($ai, new AiPermissions($ai), new PromptLibrary($this->settings));
     }
 
     /**

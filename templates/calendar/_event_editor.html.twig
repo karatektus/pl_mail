@@ -208,10 +208,16 @@ on an empty string, and clearing the location is a thing a user may mean.
                 <div class="rounded-lg border border-line bg-sunken px-3 py-2 space-y-1
                             max-h-28 overflow-y-auto">
                     {% for copy in copies %}
+                        {# Unwritable for either of two reasons, and the markup
+                           is the same for both because the statement to the
+                           user is: this box cannot be ticked. Which reason it
+                           was is what the badge beside the name says. #}
+                        {% set copy_refused = copy.calendar.isReadOnly or copy.isRemoteDuplicate %}
+
                         <label class="flex items-center gap-2 text-sm
-                                      {{ copy.calendar.isReadOnly ? 'text-ink-faint' : 'text-ink' }}">
+                                      {{ copy_refused ? 'text-ink-faint' : 'text-ink' }}">
                             <input type="checkbox" name="calendars[]" value="{{ copy.calendar.id }}"
-                                   {{ copy.calendar.isReadOnly ? 'disabled' : '' }}
+                                   {{ copy_refused ? 'disabled' : '' }}
                                    {{ copy.isChosen ? 'checked' : '' }}
                                    class="rounded border-line text-accent focus:ring-accent">
 
@@ -220,6 +226,38 @@ on an empty string, and clearing the location is a thing a user may mean.
                                   aria-hidden="true"></span>
 
                             <span class="min-w-0 truncate">{{ copy.calendar.name }}</span>
+
+                            {# Which calendars actually reach a provider, said
+                               on the list where the choice is made.
+
+                               Not decoration. A mail account is provisioned a
+                               calendar named after its own address, and a
+                               Google account's primary calendar is called the
+                               same address by Google — so a user who mirrors it
+                               is shown two identical names, one of which syncs
+                               and one of which is local. Ticking both is then
+                               the obvious thing to do, and the copy on the
+                               local one never reaches the phone the user is
+                               ticking it for. #}
+                            {% if copy.calendar.isSynced %}
+                                <i class="fa-solid fa-rotate text-[9px] shrink-0"
+                                   title="{{ 'calendar.event.copies.mirrored'|trans }}"
+                                   aria-label="{{ 'calendar.event.copies.mirrored'|trans }}"></i>
+                            {% endif %}
+
+                            {# A second local calendar mirroring a remote
+                               calendar already listed above. Disabled rather
+                               than hidden, for the reason every calendar is
+                               listed: leaving it out would say the calendar
+                               does not exist, where what is true is that it is
+                               the same destination as the one already ticked
+                               and writing both would put the meeting on that
+                               provider calendar twice. #}
+                            {% if copy.isRemoteDuplicate %}
+                                <i class="fa-solid fa-clone text-[9px] shrink-0"
+                                   title="{{ 'calendar.event.copies.same_remote'|trans }}"
+                                   aria-label="{{ 'calendar.event.copies.same_remote'|trans }}"></i>
+                            {% endif %}
 
                             {% if copy.calendar.isReadOnly %}
                                 <i class="fa-solid fa-lock text-[9px] shrink-0"

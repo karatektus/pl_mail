@@ -848,7 +848,7 @@ final class MailController extends AbstractController
         return $this->summaries->forThread(
             (int) $thread->id,
             $this->summariser->model(),
-            ThreadSummariser::PROMPT_VERSION,
+            $this->summariser->promptFingerprint(),
             ThreadTranscript::hash($this->transcript->forMessages($messages)),
         );
     }

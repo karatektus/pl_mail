@@ -9,7 +9,8 @@ it in the tooltip.
 
 Accepts:
   cluster   OccurrenceCluster — the occurrences that draw this one chip
-  showTime  whether to print the start time (default true; never for all-day)
+  showTime  whether to print the start time (default true; never for all-day,
+            and never on a day the meeting only runs through — see below)
   tall      the chip fills a block that has a height of its own (default false)
 
 `tall` is the time-grid's chip and is deliberately a set of classes rather than
@@ -96,6 +97,29 @@ identity is threaded through a URL that would outlive the render that made it.
    Falls back to `null` — the reader's clock — for a caller that has no view
    zone to offer, which is every context outside the calendar grids. #}
 {% set chip_zone = zone|default(range.zone|default(null)) %}
+
+{# A day this meeting merely RUNS THROUGH, rather than the day it begins.
+
+   CalendarRangeReader deliberately places a multi-day event on every day it
+   touches — otherwise it vanishes from the week whose Monday it began before —
+   and until now every one of those days printed the same start time. A Friday
+   15:00 event ending on Sunday therefore drew "15:00" three times, which reads
+   as three one-hour events rather than as one that lasts the weekend, and that
+   is exactly how it has been reported.
+
+   The start time is simply not a fact about a continuation day: the meeting
+   does not start at 15:00 on Saturday, it is already running. So the time is
+   left off and the title stands alone, which is what an event occupying the
+   whole of a day looks like everywhere else on this screen.
+
+   `dayKey` is the day the caller is drawing and it is ambient rather than
+   passed: the month and agenda shells both set it, and a caller that has none
+   — Happening Soon, a share page's list — falls back to null and nothing here
+   changes. Compared on the chip's own clock, never the reader's default, for
+   the reason chip_zone exists at all. #}
+{% set chip_day = dayKey|default(null) %}
+{% set showTime = showTime and (chip_day is null
+    or occurrence.startsAt|date('Y-m-d', chip_zone) == chip_day) %}
 
 {% set chip_title = event.title ~ (showTime
     ? ' · ' ~ occurrence.startsAt|date(clock.time, chip_zone)

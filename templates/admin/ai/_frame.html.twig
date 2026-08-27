@@ -8,6 +8,8 @@ Accepts:
   saved    — true immediately after a successful save
   probe    — App\Domain\DTO\Ai\AiProbe, or null when nothing was tested
   wanted   — model names typed into the form, for the probe result to check
+  prompts  — the seven editable system prompts; see admin/ai/_prompts.html.twig,
+             which this includes and which reads them out of the same context
 
 THE STATUS CHIP IS THE PART WORTH KEEPING. "Off", "configured but off" and
 "running" are three states an administrator has to tell apart at a glance, and
@@ -163,6 +165,13 @@ poll would empty a field mid-word.
             {{ form_end(form) }}
         </div>
     </details>
+
+    {# ── The prompts, between the configuration and the telemetry ──────────
+       Below the host and the switches because it is the next question in the
+       same order somebody sets this up in — is it on, does it answer, and only
+       then is it saying the right thing — and above the telemetry because the
+       telemetry is what tells you a prompt change was worth making. #}
+    {% include 'admin/ai/_prompts.html.twig' %}
 
     {# ── Telemetry, under the configuration ────────────────────────────────
        Below the settings card and inside the same frame, because it answers

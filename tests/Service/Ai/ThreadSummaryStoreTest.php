@@ -28,16 +28,28 @@ use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
  * paragraph of assertions about somebody's mail with nothing on the page to say
  * it is out of date, and none of them fails anywhere a person would look.
  *
- * The model and the prompt version make a row INVISIBLE; the hash makes it
- * STALE, which is a state the pane renders rather than hides. That split is the
- * subject of half this file.
+ * The model and the prompt fingerprint make a row INVISIBLE; the transcript
+ * hash makes it STALE, which is a state the pane renders rather than hides.
+ * That split is the subject of half this file.
  *
  * Everything happens inside one transaction that is rolled back.
  */
 final class ThreadSummaryStoreTest extends KernelTestCase
 {
     private const string MODEL = 'qwen3:30b';
-    private const int VERSION  = 1;
+
+    /**
+     * Two digests standing in for two prompts, and they are DIGESTS rather than
+     * the integers this column used to hold.
+     *
+     * The version was hand-bumped and could not survive an administrator
+     * editing the prompt from Admin → AI; the key is now a hash of the system
+     * message that was actually sent, so a prompt that changed produces one of
+     * these and a prompt that did not produces the other, with nobody having to
+     * remember anything. See ThreadSummariser::promptFingerprint().
+     */
+    private const string PROMPT       = 'a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f90';
+    private const string OTHER_PROMPT = '0f9e8d7c6b5a493827160f9e8d7c6b5a493827160f9e8d7c6b5a493827160f9e';
 
     private Connection $connection;
     private EntityManagerInterface $em;
@@ -73,14 +85,14 @@ final class ThreadSummaryStoreTest extends KernelTestCase
 
     public function testAThreadWithNoSummaryHasNoSummary(): void
     {
-        self::assertNull($this->store->forThread($this->threadId, self::MODEL, self::VERSION, 'abc'));
+        self::assertNull($this->store->forThread($this->threadId, self::MODEL, self::PROMPT, 'abc'));
     }
 
     public function testTheStoredTextComesBackWithItsFreshnessAndItsTimestamp(): void
     {
-        $this->store->save($this->threadId, 'They agreed on Thursday.', 'hash-one', self::MODEL, self::VERSION);
+        $this->store->save($this->threadId, 'They agreed on Thursday.', 'hash-one', self::MODEL, self::PROMPT);
 
-        $stored = $this->store->forThread($this->threadId, self::MODEL, self::VERSION, 'hash-one');
+        $stored = $this->store->forThread($this->threadId, self::MODEL, self::PROMPT, 'hash-one');
 
         self::assertNotNull($stored);
         self::assertSame('They agreed on Thursday.', $stored->text);
@@ -99,17 +111,26 @@ final class ThreadSummaryStoreTest extends KernelTestCase
      */
     public function testASummaryWrittenByAnotherModelIsNotOffered(): void
     {
-        $this->store->save($this->threadId, 'written by the old model', 'hash-one', 'llama3.1:8b', self::VERSION);
+        $this->store->save($this->threadId, 'written by the old model', 'hash-one', 'llama3.1:8b', self::PROMPT);
 
-        self::assertNull($this->store->forThread($this->threadId, self::MODEL, self::VERSION, 'hash-one'));
+        self::assertNull($this->store->forThread($this->threadId, self::MODEL, self::PROMPT, 'hash-one'));
     }
 
-    /** And so is one written under an older prompt. */
-    public function testASummaryWrittenUnderAnOlderPromptIsNotOffered(): void
+    /**
+     * And so is one written under a different prompt — which is now what an
+     * ADMINISTRATOR EDITING THE PROMPT looks like from here.
+     *
+     * The old shape of this test passed 1 and then 2, standing for somebody
+     * having bumped a constant in a commit. Nobody bumps anything when the
+     * prompt is edited in Admin → AI, so the two values here are what the
+     * summariser's fingerprint returns before and after such an edit: different
+     * prompt on the wire, different digest, row invisible.
+     */
+    public function testASummaryWrittenUnderADifferentPromptIsNotOffered(): void
     {
-        $this->store->save($this->threadId, 'written under prompt 1', 'hash-one', self::MODEL, 1);
+        $this->store->save($this->threadId, 'written under the shipped prompt', 'hash-one', self::MODEL, self::PROMPT);
 
-        self::assertNull($this->store->forThread($this->threadId, self::MODEL, 2, 'hash-one'));
+        self::assertNull($this->store->forThread($this->threadId, self::MODEL, self::OTHER_PROMPT, 'hash-one'));
     }
 
     /**
@@ -124,9 +145,9 @@ final class ThreadSummaryStoreTest extends KernelTestCase
      */
     public function testAConversationThatHasChangedMakesItsSummaryStaleRatherThanAbsent(): void
     {
-        $this->store->save($this->threadId, 'They agreed on Thursday.', 'hash-one', self::MODEL, self::VERSION);
+        $this->store->save($this->threadId, 'They agreed on Thursday.', 'hash-one', self::MODEL, self::PROMPT);
 
-        $stored = $this->store->forThread($this->threadId, self::MODEL, self::VERSION, 'hash-two');
+        $stored = $this->store->forThread($this->threadId, self::MODEL, self::PROMPT, 'hash-two');
 
         self::assertNotNull($stored, 'a stale summary must still be readable');
         self::assertSame('They agreed on Thursday.', $stored->text);
@@ -145,15 +166,15 @@ final class ThreadSummaryStoreTest extends KernelTestCase
      */
     public function testRegeneratingReplacesTheRowRatherThanFailing(): void
     {
-        self::assertTrue($this->store->save($this->threadId, 'first answer', 'hash-one', self::MODEL, self::VERSION));
-        self::assertTrue($this->store->save($this->threadId, 'second answer', 'hash-two', self::MODEL, self::VERSION));
+        self::assertTrue($this->store->save($this->threadId, 'first answer', 'hash-one', self::MODEL, self::PROMPT));
+        self::assertTrue($this->store->save($this->threadId, 'second answer', 'hash-two', self::MODEL, self::PROMPT));
 
         self::assertSame(
             1,
             (int) $this->connection->fetchOne('SELECT COUNT(*) FROM thread_summary WHERE thread_id = :id', ['id' => $this->threadId]),
         );
 
-        $stored = $this->store->forThread($this->threadId, self::MODEL, self::VERSION, 'hash-two');
+        $stored = $this->store->forThread($this->threadId, self::MODEL, self::PROMPT, 'hash-two');
 
         self::assertNotNull($stored);
         self::assertSame('second answer', $stored->text);
@@ -163,12 +184,12 @@ final class ThreadSummaryStoreTest extends KernelTestCase
     /** A model change followed by a regeneration re-points the same row. */
     public function testARegenerationAfterAModelChangeTakesOverTheSameRow(): void
     {
-        $this->store->save($this->threadId, 'old model', 'hash-one', 'llama3.1:8b', self::VERSION);
-        $this->store->save($this->threadId, 'new model', 'hash-one', self::MODEL, self::VERSION);
+        $this->store->save($this->threadId, 'old model', 'hash-one', 'llama3.1:8b', self::PROMPT);
+        $this->store->save($this->threadId, 'new model', 'hash-one', self::MODEL, self::PROMPT);
 
-        self::assertNull($this->store->forThread($this->threadId, 'llama3.1:8b', self::VERSION, 'hash-one'));
+        self::assertNull($this->store->forThread($this->threadId, 'llama3.1:8b', self::PROMPT, 'hash-one'));
 
-        $stored = $this->store->forThread($this->threadId, self::MODEL, self::VERSION, 'hash-one');
+        $stored = $this->store->forThread($this->threadId, self::MODEL, self::PROMPT, 'hash-one');
 
         self::assertNotNull($stored);
         self::assertSame('new model', $stored->text);
@@ -186,7 +207,7 @@ final class ThreadSummaryStoreTest extends KernelTestCase
      */
     public function testDeletingTheThreadTakesTheSummaryWithIt(): void
     {
-        $this->store->save($this->threadId, 'about to be orphaned', 'hash-one', self::MODEL, self::VERSION);
+        $this->store->save($this->threadId, 'about to be orphaned', 'hash-one', self::MODEL, self::PROMPT);
 
         $this->connection->executeStatement('DELETE FROM message_thread WHERE id = :id', ['id' => $this->threadId]);
 
@@ -209,7 +230,7 @@ final class ThreadSummaryStoreTest extends KernelTestCase
     {
         $broken = new ThreadSummaryStore($this->brokenConnection(), new NullLogger());
 
-        self::assertNull($broken->forThread($this->threadId, self::MODEL, self::VERSION, 'hash-one'));
+        self::assertNull($broken->forThread($this->threadId, self::MODEL, self::PROMPT, 'hash-one'));
     }
 
     /**
@@ -223,7 +244,7 @@ final class ThreadSummaryStoreTest extends KernelTestCase
     {
         $broken = new ThreadSummaryStore($this->brokenConnection(), new NullLogger());
 
-        self::assertFalse($broken->save($this->threadId, 'text', 'hash', self::MODEL, self::VERSION));
+        self::assertFalse($broken->save($this->threadId, 'text', 'hash', self::MODEL, self::PROMPT));
     }
 
     // ── Scaffolding ───────────────────────────────────────────────────────

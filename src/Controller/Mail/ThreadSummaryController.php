@@ -118,6 +118,14 @@ final class ThreadSummaryController extends AbstractController
         $sourceHash = ThreadTranscript::hash($transcript);
         $model      = $this->summariser->model();
 
+        // The other half of the store key, resolved HERE for $model's two
+        // reasons at once. It reads AiSettings, so asking for it inside the
+        // callback would be a query against a kernel that has finished with the
+        // request — and it has to be the fingerprint of the prompt this call
+        // actually uses, or the row is filed under a prompt that did not write
+        // it and survives the edit that should have invalidated it.
+        $promptHash = $this->summariser->promptFingerprint();
+
         // The session lock goes back now, before anything slow.
         //
         // PHP holds it exclusively for the whole request and everything from
@@ -145,8 +153,8 @@ final class ThreadSummaryController extends AbstractController
         // ComposeAssistController captures its user: reading a property inside
         // the callback is free, while a repository lookup there would be a
         // query against a kernel that has finished with the request.
-        $response = new StreamedResponse(function () use ($user, $thread, $transcript, $sourceHash, $model): void {
-            $this->generate($user, $thread, $transcript, $sourceHash, $model);
+        $response = new StreamedResponse(function () use ($user, $thread, $transcript, $sourceHash, $model, $promptHash): void {
+            $this->generate($user, $thread, $transcript, $sourceHash, $model, $promptHash);
         });
 
         // Not application/json: this is a sequence of JSON documents and never
@@ -177,7 +185,7 @@ final class ThreadSummaryController extends AbstractController
      * had gone. A local in a method is freed when the method returns, and
      * freeing it is what cancels the call.
      */
-    private function generate(User $user, MessageThread $thread, string $transcript, string $sourceHash, string $model): void
+    private function generate(User $user, MessageThread $thread, string $transcript, string $sourceHash, string $model, string $promptHash): void
     {
         // PHP's default is to kill the script the moment a write finds the
         // browser gone, which sounds like what we want and is the opposite of
@@ -258,7 +266,7 @@ final class ThreadSummaryController extends AbstractController
         // nothing the session holds. Its failure is logged and swallowed inside
         // the store: the reader already has their summary on screen, and a
         // caching miss must not become a 500 on a response that is half sent.
-        $this->store->save((int) $thread->id, $result->content, $sourceHash, $model, ThreadSummariser::PROMPT_VERSION);
+        $this->store->save((int) $thread->id, $result->content, $sourceHash, $model, $promptHash);
 
         $this->frame([
             'type' => 'done',

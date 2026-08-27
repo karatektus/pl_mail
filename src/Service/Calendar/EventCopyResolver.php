@@ -51,6 +51,15 @@ use App\Repository\Calendar\CalendarRepository;
  * three calendars would otherwise produce three UIDs and three chips the moment
  * it was saved — the exact bug the paragraph above exists to prevent.
  *
+ * **Two local calendars mirroring one remote calendar are one destination, not
+ * two.** Nothing at the schema stops that pair existing — one calendar shared
+ * into two mail accounts is enough, and so is a restored backup — and ticking
+ * both would send the meeting to that one provider calendar twice, as two
+ * events with two provider ids and two iCalUIDs. Nothing here could ever merge
+ * those again: they are separate objects to the provider, to every other client
+ * reading it, and to EventClusterer. So the second is offered and refused, the
+ * way a read-only calendar is.
+ *
  * A calendar that already holds a row under this UID never gets a second one,
  * whatever the cluster thinks. A copy on a hidden calendar, or one that has
  * drifted out of agreement with the others, is not a member of the cluster and
@@ -94,18 +103,29 @@ final readonly class EventCopyResolver
         $uid       = $this->uidFor($event);
 
         $options = [];
+        $remotes = [];
 
         foreach ($calendars as $calendar) {
             $isChosen = null === $event
                 ? $calendar === $landing
                 : true === in_array((int) $calendar->id, $merged, true);
 
+            $remote      = $this->remoteKeyOf($calendar);
+            $isDuplicate = null !== $remote && true === in_array($remote, $remotes, true);
+
+            if (null !== $remote) {
+                $remotes[] = $remote;
+            }
+
             $options[] = new EventCopy(
                 $calendar,
                 $rows[(int) $calendar->id] ?? $this->rowFor($calendar, $user, $uid, $event),
                 // A read-only copy is offered and never ticked, so an ordinary
                 // submit cannot name one. chosen() refuses it a second time.
-                false === $calendar->isReadOnly && true === $isChosen,
+                // The second mirror of one remote calendar is treated exactly
+                // the same way and for the same kind of reason — see EventCopy.
+                false === $calendar->isReadOnly && false === $isDuplicate && true === $isChosen,
+                $isDuplicate,
             );
         }
 
@@ -151,6 +171,16 @@ final readonly class EventCopyResolver
                 continue;
             }
 
+            // The second local calendar mirroring one remote calendar, refused
+            // here as flatly as a read-only one and for the same reason: the
+            // template disables the box, and a disabled box is a statement to a
+            // browser rather than a guarantee to a server. Honouring it would
+            // send this meeting to that provider calendar twice — see
+            // EventCopy::$isRemoteDuplicate.
+            if (true === $option->isRemoteDuplicate) {
+                continue;
+            }
+
             if (true === in_array((int) $option->calendar->id, $wanted, true)) {
                 $chosen[] = $option;
             }
@@ -189,6 +219,31 @@ final readonly class EventCopyResolver
     }
 
     // ── Private ───────────────────────────────────────────────────────────────
+
+    /**
+     * The remote calendar this local one denotes, or null when it denotes none.
+     *
+     * The remote id alone, and that is exact rather than approximate for every
+     * calendar that can reach this: Google and Microsoft ids are globally
+     * unique, and a CalDAV collection is named by its absolute URL. The one
+     * driver whose id is not unique is IcsUrlCalendarDriver, whose every
+     * calendar is the constant `feed` — and an ICS feed is a file, so
+     * RemoteCalendar::$isReadOnly is true for all of them and chosen() has
+     * already refused them before this key is compared. Keying on the source as
+     * well would be the safer-looking choice and the wrong one: the twin worth
+     * catching is one calendar mirrored from two mail accounts that both have
+     * access to it, which is the same remote reached through two sources.
+     */
+    private function remoteKeyOf(Calendar $calendar): ?string
+    {
+        $remoteId = $calendar->remoteId;
+
+        if (null === $remoteId || '' === $remoteId || true === $calendar->isReadOnly) {
+            return null;
+        }
+
+        return $remoteId;
+    }
 
     /**
      * Every row this user holds under the meeting's UID, keyed by the calendar

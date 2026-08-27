@@ -172,6 +172,37 @@ admin:
             models: 'Show the %count% models it holds'
             status: 'That berth answered with HTTP %status%.'
             unreachable: 'Nowt answered at that berth. (%error%)'
+        prompt:
+            categorise:
+                hint: "Runs on arrivin' mail no rule knew. It must ask for ONE WORD out o' primary, social, promotions, updates, forums — plMail matches the answer against just those five, an' aught else leaves the letter where the ordinary rules laid it, sayin' nowt."
+                label: 'Sort mail into holds'
+            formal:
+                hint: 'Used when someone asks for the same message in a statelier tone.'
+                label: 'Make it statelier'
+            language:
+                hint: "Hung on the end o' ev'ry order above, save the sortin'. 'Tis what makes a German letter get a German answer — without it the oracle follows the English these orders be writ in, an' proofreadin' a German draft turns it English. Ye may reword her; ye cannot cast her overboard. Empty the box an' the shipped words come back."
+                label: "Answer in the tongue o' the letter"
+            proofread:
+                hint: "Used when someone asks for spellin' an' grammar mended an' nowt else. Keep \"change nowt else\" in it — without that the oracle rewrites lines that were already sound."
+                label: 'Proofread'
+            reply:
+                hint: 'Used by the Scrivener when someone asks for a first draft.'
+                label: 'Draft a reply'
+            shorten:
+                hint: 'Used when someone asks for the same message in fewer words.'
+                label: 'Trim the sail'
+            summary:
+                hint: "Used by the yarn button in the readin' pane. Change this an' ev'ry yarn already writ be stale — nowt goes overboard, they be writ anew next time someone asks."
+                label: 'Yarn-in-short'
+        prompts:
+            changed: '%count% rewritten'
+            heading: "The oracle's standin' orders"
+            intro: "These be the orders plMail gives the oracle. Leave a box empty an' the shipped words stand — that way a later update can still better 'em. What ye write replaces the shipped words entire."
+            reset: 'Back to the shipped words'
+            save: 'Save the orders'
+            saved: 'Saved. New yarns use these; yarns already writ be stale now.'
+            show_shipped: 'Show the shipped words'
+            untouched: 'As shipped'
         save: 'Save'
         saved: 'Saved.'
         status:
@@ -708,7 +739,9 @@ calendar:
                 own entry once the two no longer match.
             hidden: This almanac be stowed below, so the reckonin' stays out o' sight till ye bring it on deck
             legend: Almanacs
+            mirrored: "This almanac sails with its harbour, so the reckonin' reaches yer other spyglasses"
             read_only: This almanac takes no changes
+            same_remote: 'Already accounted for: this mirrors the same almanac as one marked above'
         delete: Scuttle it
         description: The tale of it
         dismiss: No reckonin' at all

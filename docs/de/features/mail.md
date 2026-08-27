@@ -1,4 +1,4 @@
-<!-- translated-from: features/mail.md sha1:a1e41b8b463dfc4d12078a0b5fb096d91761b579 -->
+<!-- translated-from: features/mail.md sha1:ad06e0ff6dce16761444301da1335543aba58998 -->
 
 # Mail
 
@@ -211,8 +211,10 @@ gezwungen, außerhalb der App zu öffnen.
 ### Ein langes Gespräch zusammenfassen
 
 Wo der Assistent eingeschaltet ist — von einer Administratorin, und von dir unter
-**Einstellungen → Assistent** — trägt eine Konversation aus zwei oder mehr Nachrichten über den
-Nachrichten einen Knopf **Gespräch zusammenfassen**. Vorher wird nichts zusammengefasst. Eine
+**Einstellungen → Assistent** — trägt eine Konversation aus zwei oder mehr Nachrichten am rechten
+Ende ihrer Betreffzeile einen Knopf **Gespräch zusammenfassen**. Vorher wird nichts
+zusammengefasst, und vorher gibt es auch nichts anzusehen: Die Karte erscheint über den
+Nachrichten, wenn du danach fragst, und nicht früher. Eine
 Zusammenfassung ist das Teuerste, was plMail von einem Modell verlangt: Rechne beim ersten Mal nach
 einer ruhigen Phase mit rund einer Minute, danach mit etwa der Hälfte. Der Text kommt Stück für
 Stück an, du siehst also, dass etwas passiert. **Anhalten** bricht ab und behält nichts.

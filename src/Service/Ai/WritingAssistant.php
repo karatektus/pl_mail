@@ -50,14 +50,21 @@ final readonly class WritingAssistant
     private const int DRAFT_BUDGET = 3000;
 
     /**
-     * Both, and not one wrapping the other. AiAssistant is the door to the
+     * Three, and not one wrapping the other. AiAssistant is the door to the
      * model and AiPermissions is the gate in front of it; a service that held
      * only the gate could not make a call, and one that held only the door
      * could not ask whose mail this is.
+     *
+     * PromptLibrary is what each task actually SAYS. The prompts stopped being
+     * constants on WritingTask when Admin → AI began letting an administrator
+     * edit them, and an assistant that read the enum directly would put our
+     * wording on the wire on an installation that had replaced it — a tuned
+     * prompt with no effect and nothing to report it.
      */
     public function __construct(
         private AiAssistant   $ai,
         private AiPermissions $permissions,
+        private PromptLibrary $prompts,
     ) {
     }
 
@@ -220,7 +227,7 @@ final readonly class WritingAssistant
         }
 
         return [
-            ['role' => 'system', 'content' => $task->systemPrompt() . $this->persona($user)],
+            ['role' => 'system', 'content' => $this->prompts->forTask($task) . $this->persona($user)],
             ['role' => 'user', 'content' => $this->brief($task, $draft, $context, $subject)],
         ];
     }
@@ -230,8 +237,8 @@ final readonly class WritingAssistant
      *
      * APPENDED, NEVER SUBSTITUTED, AND NEVER IN THE USER MESSAGE
      * ──────────────────────────────────────────────────────────
-     * The app's own instructions come first and whole — including
-     * PromptRules::LANGUAGE, which is the one that stopped a German mail
+     * The app's own instructions come first and whole — including the
+     * language rule, which is the one that stopped a German mail
      * coming back with an English reply and stopped proofreading a German draft
      * silently translating it. Replacing the system content with a user string
      * would drop that, the plain-text instruction and the "no preamble"

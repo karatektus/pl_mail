@@ -45,6 +45,23 @@ use Doctrine\ORM\Mapping as ORM;
 // number of NULLs in a unique index, which is what keeps this usable on the
 // column's ordinary state: a calendar with no channel.
 #[ORM\UniqueConstraint(name: 'uniq_calendar_push_channel_id', columns: ['push_channel_id'])]
+// One local calendar per remote calendar, per source — the partial unique index
+// the class docblock above promised and nothing had. Two rows mirroring one
+// remote calendar are two mirrors of one thing: the sweep pulls its events
+// twice, and the editor offers both as destinations, so ticking them sends one
+// meeting to one provider calendar TWICE as two events with two ids that
+// nothing here can ever merge again. CalendarDiscoverer already declines to
+// subscribe a remote it is mirroring; this is what makes that a fact rather than
+// a convention a race or a restored backup can walk past.
+//
+// Keyed on the SOURCE and the id, never on the user and the id.
+// IcsUrlCalendarDriver::REMOTE_ID is the constant `feed` for every subscribed
+// address — a feed is one calendar, so it has nothing to distinguish — and a
+// user with two of those is ordinary. What tells them apart is the Integration
+// each hangs off. NULLs are distinct in a PostgreSQL unique index, which is what
+// leaves the ordinary state of both columns unconstrained; see the note above.
+#[ORM\UniqueConstraint(name: 'uniq_calendar_account_remote', columns: ['account_id', 'remote_id'])]
+#[ORM\UniqueConstraint(name: 'uniq_calendar_integration_remote', columns: ['integration_id', 'remote_id'])]
 class Calendar
 {
     use TimestampableTrait;

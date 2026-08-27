@@ -599,6 +599,11 @@ final readonly class CalendarPuller
         // and a locally minted UID on an event the remote already identifies
         // would make this row unmatchable by any other client — including the
         // invitation for the same meeting sitting in the mailbox.
+        //
+        // And before the assignment, because it needs the UID this row is
+        // being taken away from — see the method.
+        $this->carryRekeyToLocalCopies($event, $user, $remote->uid);
+
         $event->uid = $remote->uid;
 
         $this->writer->write(
@@ -622,6 +627,81 @@ final readonly class CalendarPuller
         $event->remoteEtag = $remote->etag;
         $event->syncState  = SyncState::Clean;
         $event->syncedAt   = new DateTimeImmutable();
+    }
+
+    /**
+     * When the remote re-keys a meeting plMail created, the meeting's other
+     * local copies are re-keyed with it.
+     *
+     * ── Why this exists ──────────────────────────────────────────────────────
+     * Google mints its own iCalUID and accepts none from us: `events.insert`
+     * has no field for one, only `events.import` does — see
+     * GoogleCalendarSyncDriver::push(). So a row created here and pushed comes
+     * back under a UID nobody in this database has ever seen, and it is written
+     * over the one this application minted, correctly, by the line that calls
+     * this.
+     *
+     * What that quietly destroys is the identity the meeting's COPIES share.
+     * One save can put a meeting on several calendars and every copy carries
+     * the one UID deliberately — see EventCopyResolver, where the whole feature
+     * rests on it — and UID plus start instant is the entirety of what
+     * EventClusterer merges chips on. The moment the provider re-keys one copy,
+     * the copies stop being the same meeting to every reader here: the calendar
+     * draws the meeting twice on every day it touches, the editor opened on
+     * either chip offers only that chip's own calendar ticked, and no later
+     * edit can put them back together, because the editor is keyed on UID too.
+     * A three-day event ticked onto two calendars therefore becomes six chips
+     * that nothing can merge again.
+     *
+     * **Only rows the remote has never seen are carried.** A copy holding a
+     * remoteId is identified at ITS provider by the UID it currently has, and
+     * renaming it here would make it unmatchable there — which is the exact
+     * harm the assignment below this call exists to prevent, done to somebody
+     * else's row. A copy with no remote id has no other client's idea of its
+     * identity to protect.
+     *
+     * A calendar that already holds a row under the new UID is left alone as
+     * well: uniq_calendar_event_calendar_uid refuses two rows under one UID on
+     * one calendar, and a re-key that violated it would turn a sync into a
+     * failed flush.
+     */
+    private function carryRekeyToLocalCopies(CalendarEvent $event, User $user, string $uid): void
+    {
+        $was = $event->uid;
+
+        if ('' === $was || $was === $uid || '' === $uid) {
+            return;
+        }
+
+        foreach ($this->events->findByUidForUser($user, $was) as $copy) {
+            $calendar = $copy->calendar;
+
+            if ($copy === $event || null !== $copy->remoteId || null === $calendar) {
+                continue;
+            }
+
+            if (null !== $this->events->findOneByUid($calendar, $uid)) {
+                continue;
+            }
+
+            $copy->uid = $uid;
+
+            // The canonical object carries the UID too — CalendarEventWriter
+            // writes it there on every save — and an .ics export or a JMAP
+            // client reads that copy rather than the column. Left behind, the
+            // row would answer with two different identities depending on who
+            // asked.
+            $jscalendar        = $copy->jscalendar;
+            $jscalendar['uid'] = $uid;
+            $copy->jscalendar  = $jscalendar;
+
+            $this->logger->info('CalendarSync: the remote re-keyed a meeting, carrying its local copies with it', [
+                'calendarId' => $calendar->id,
+                'eventId'    => $copy->id,
+                'was'        => $was,
+                'now'        => $uid,
+            ]);
+        }
     }
 
     /**

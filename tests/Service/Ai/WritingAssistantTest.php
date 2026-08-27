@@ -13,6 +13,7 @@ use App\Entity\User\User;
 use App\Service\Ai\AiAssistant;
 use App\Service\Ai\AiPermissions;
 use App\Service\Ai\OllamaClient;
+use App\Service\Ai\PromptLibrary;
 use App\Service\Ai\WritingAssistant;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
@@ -190,7 +191,7 @@ final class WritingAssistantTest extends KernelTestCase
 
         // The app's own prompt is still FIRST and still whole — the language
         // rule included, which is the part a replacement would lose.
-        self::assertStringStartsWith(WritingTask::Reply->systemPrompt(), $system);
+        self::assertStringStartsWith((new PromptLibrary($this->settings))->forTask(WritingTask::Reply), $system);
     }
 
     /** No notes, no additions: the prompt is byte for byte what it always was. */
@@ -201,7 +202,7 @@ final class WritingAssistantTest extends KernelTestCase
         $this->assistant(sent: $sent)->write($this->writer(), WritingTask::Reply, '', 'When are you open?');
 
         self::assertIsArray($sent);
-        self::assertSame(WritingTask::Reply->systemPrompt(), $sent['messages'][0]['content']);
+        self::assertSame((new PromptLibrary($this->settings))->forTask(WritingTask::Reply), $sent['messages'][0]['content']);
     }
 
     /**
@@ -296,7 +297,7 @@ final class WritingAssistantTest extends KernelTestCase
             new NullLogger(),
         );
 
-        return new WritingAssistant($ai, new AiPermissions($ai));
+        return new WritingAssistant($ai, new AiPermissions($ai), new PromptLibrary($this->settings));
     }
 
     /**

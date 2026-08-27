@@ -24,11 +24,15 @@ use Throwable;
  *
  * "USABLE" IS THREE CONDITIONS, AND THE READ ENFORCES ALL THREE
  * ────────────────────────────────────────────────────────────
- * The model, the prompt version and the content hash. The first two are
+ * The model, the prompt fingerprint and the content hash. The first two are
  * EmbeddingStore::alreadyStored()'s argument transferred — "changing the model
  * has to make every old row invisible here" — because an administrator who
  * swaps chatModel has changed what a summary IS, and a row written by the
  * previous model must stop being SHOWN rather than sit there looking current.
+ * The same administrator can now swap the PROMPT, from Admin → AI, which
+ * changes what a summary is by at least as much; see
+ * {@see ThreadSummariser::promptFingerprint()} for why that key is a hash of
+ * the prompt actually sent rather than the integer somebody used to bump.
  *
  * The third is what makes this cache honest about mail that moved underneath
  * it. It is compared by the CALLER rather than in the SQL, and that is the
@@ -66,15 +70,15 @@ final readonly class ThreadSummaryStore
      * The summary this thread carries, if the current model and prompt wrote it.
      *
      * Null covers every reason equally — never summarised, written by a model
-     * this installation no longer uses, written under an older prompt, or the
-     * database is unhappy — because the caller's answer to all four is the
-     * same: offer the button.
+     * this installation no longer uses, written under a prompt that has since
+     * been edited or upgraded, or the database is unhappy — because the caller's
+     * answer to all four is the same: offer the button.
      *
      * The hash is NOT in the WHERE clause. See the class docblock: a row that
      * no longer matches the conversation is the interesting case, not the
      * absent one, and the pane needs the old text to grey it out.
      */
-    public function forThread(int $threadId, string $model, int $promptVersion, string $sourceHash): ?StoredThreadSummary
+    public function forThread(int $threadId, string $model, string $promptHash, string $sourceHash): ?StoredThreadSummary
     {
         try {
             $row = $this->connection->fetchAssociative(
@@ -83,10 +87,10 @@ final readonly class ThreadSummaryStore
                       FROM thread_summary
                      WHERE thread_id = :id
                        AND model = :model
-                       AND prompt_version = :version
+                       AND prompt_hash = :prompt
                 SQL,
-                ['id' => $threadId, 'model' => $model, 'version' => $promptVersion],
-                ['id' => ParameterType::INTEGER, 'version' => ParameterType::INTEGER],
+                ['id' => $threadId, 'model' => $model, 'prompt' => $promptHash],
+                ['id' => ParameterType::INTEGER],
             );
         } catch (Throwable $exception) {
             // Answering "no summary" costs a person one button press against a
@@ -137,29 +141,29 @@ final readonly class ThreadSummaryStore
      *
      * @return bool whether anything was stored
      */
-    public function save(int $threadId, string $summary, string $sourceHash, string $model, int $promptVersion): bool
+    public function save(int $threadId, string $summary, string $sourceHash, string $model, string $promptHash): bool
     {
         try {
             $this->connection->executeStatement(
                 <<<'SQL'
-                    INSERT INTO thread_summary (thread_id, summary, source_hash, model, prompt_version, created_at)
-                    VALUES (:id, :summary, :hash, :model, :version, :now)
+                    INSERT INTO thread_summary (thread_id, summary, source_hash, model, prompt_hash, created_at)
+                    VALUES (:id, :summary, :hash, :model, :prompt, :now)
                     ON CONFLICT (thread_id) DO UPDATE
-                        SET summary        = EXCLUDED.summary,
-                            source_hash    = EXCLUDED.source_hash,
-                            model          = EXCLUDED.model,
-                            prompt_version = EXCLUDED.prompt_version,
-                            created_at     = EXCLUDED.created_at
+                        SET summary     = EXCLUDED.summary,
+                            source_hash = EXCLUDED.source_hash,
+                            model       = EXCLUDED.model,
+                            prompt_hash = EXCLUDED.prompt_hash,
+                            created_at  = EXCLUDED.created_at
                 SQL,
                 [
                     'id'      => $threadId,
                     'summary' => $summary,
                     'hash'    => $sourceHash,
                     'model'   => $model,
-                    'version' => $promptVersion,
+                    'prompt'  => $promptHash,
                     'now'     => (new DateTimeImmutable())->format('Y-m-d H:i:s'),
                 ],
-                ['id' => ParameterType::INTEGER, 'version' => ParameterType::INTEGER],
+                ['id' => ParameterType::INTEGER],
             );
 
             return true;

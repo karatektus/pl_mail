@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Domain\Ai;
 
 /**
- * The instructions every feature that puts mail in front of a model has to say,
- * written once.
+ * The prompt text this application ships, for everything that is not one of
+ * WritingTask's four arms.
  *
  * EXTRACTED FROM WritingTask WHEN THE SECOND READER ARRIVED
  * ─────────────────────────────────────────────────────────
@@ -25,8 +25,34 @@ namespace App\Domain\Ai;
  * German thread on one code path and not the other, which nothing reports and
  * nobody can tell from the model simply having a bad day.
  *
+ * AND THEN A SECOND READER ARRIVED FOR ALL OF THEM
+ * ────────────────────────────────────────────────
+ * SUMMARY was a `private const` on ThreadSummariser and CATEGORISE was a string
+ * literal inside ClassifyMailHandler::ask(), for the same good reason LANGUAGE
+ * was private: one reader each. Admin → AI is now the second reader of every
+ * prompt this application sends — it has to show the shipped text beside the
+ * administrator's override and put it back on request — and the argument above
+ * repeats itself exactly. A prompt the admin page believes it is showing the
+ * default of, while a different default is what actually goes on the wire, is
+ * the same silent divergence with an interface built on top of it.
+ *
+ * So the two that had no enum of their own moved here. WritingTask's four did
+ * NOT: they are per-case text that belongs in the same match arm as the
+ * temperature and the instruction for that case — see
+ * {@see \App\Domain\Enum\Ai\WritingTask::shippedPrompt()} — and
+ * {@see \App\Domain\Enum\Ai\PromptSlot} is the one list that names all seven.
+ *
+ * NONE OF THESE IS NECESSARILY WHAT GETS SENT
+ * ───────────────────────────────────────────
+ * They are the SHIPPED text. An administrator may replace any of them from
+ * Admin → AI, and the only thing that knows which is in force is
+ * {@see \App\Service\Ai\PromptLibrary}. Nothing outside that service and the
+ * slot enum should read these constants: reading one directly is how a caller
+ * ends up sending the default to a model on an installation that has overridden
+ * it, which nothing would report.
+ *
  * A class of constants rather than a trait or an interface: nothing here has
- * behaviour, nothing needs a per-feature answer, and both readers want the
+ * behaviour, nothing needs a per-feature answer, and every reader wants the
  * literal text. `App\Domain\Ai` because this is domain vocabulary that
  * services, enums and handlers all read, and it is not an enum, a DTO or a
  * filter.
@@ -34,7 +60,8 @@ namespace App\Domain\Ai;
 final class PromptRules
 {
     /**
-     * Said to every feature, because every feature gets it wrong the same way.
+     * Said to every feature that writes prose, because every one of them gets
+     * it wrong the same way.
      *
      * These instructions are written in English, and a model reads them as
      * evidence of the language it is supposed to answer in — so a German mail
@@ -49,12 +76,80 @@ final class PromptRules
      * message" alone is not enough when everything around it is English; the
      * instruction has to name that pull and refuse it explicitly.
      *
-     * IT BEGINS WITH A SPACE, ON PURPOSE. Both readers append it to a prompt
-     * that ends in a full stop, and the leading space is what keeps this one
-     * string usable by both without either of them owning the join.
+     * IT NO LONGER BEGINS WITH A SPACE. It used to, so that both readers could
+     * append it to a prompt ending in a full stop "without either of them
+     * owning the join" — and that stopped being possible the moment an
+     * administrator could type this text into a textarea, where nothing puts a
+     * leading space and trim() would take one off anyway. The join moved to
+     * PromptLibrary, which is now the only thing that concatenates a prompt,
+     * and it is one space whatever either half looks like.
      */
-    public const string LANGUAGE = ' Always write in the language of the message you are given:'
+    public const string LANGUAGE = 'Always write in the language of the message you are given:'
         . ' a German message gets a German answer, an English one an English answer, and so on for'
         . ' any other language. Never translate the message into another language, and never switch'
         . ' to English merely because these instructions are written in English.';
+
+    /**
+     * What a summary IS, in the register WritingTask's four arms use.
+     *
+     * Three of these sentences are load-bearing and the reasons differ.
+     *
+     * "Plain text, no markdown" because the card renders with textContent and
+     * never innerHTML — this is model output derived from somebody's mail — so
+     * asterisks and hashes would arrive as literal asterisks and hashes on the
+     * page rather than as emphasis.
+     *
+     * "State only what the messages actually say" because the failure mode of a
+     * summary is not being unhelpful, it is being confidently wrong about an
+     * outcome — "they agreed to Thursday" for a thread where Thursday was
+     * proposed and never answered. The reader does not read the mail
+     * underneath; that is the whole point of the feature and the whole of the
+     * risk. The explicit instruction to SAY when something was left unanswered
+     * gives the model somewhere to put an open question other than into an
+     * invented conclusion.
+     *
+     * "Name people the way the messages name them" because a summary that
+     * paraphrases senders into roles ("the supplier", "the client") is not
+     * checkable against the thread it sits above.
+     *
+     * EDITING THIS INVALIDATES EVERY STORED SUMMARY, and so does editing an
+     * administrator's replacement for it. See
+     * {@see \App\Service\Ai\ThreadSummariser::promptFingerprint()}: what is
+     * stored on the row is a hash of the prompt that was actually sent, so the
+     * invalidation is a consequence of the text rather than something somebody
+     * has to remember to do.
+     */
+    public const string SUMMARY = 'You summarise email conversations. Write only the summary,'
+        . ' as plain text: no markdown, no headings, no bullet characters, no preamble about what you'
+        . ' are doing. Begin with a short paragraph saying what the conversation is about and where it'
+        . ' has got to. If there are open questions, decisions, or things somebody has been asked to'
+        . ' do, list them after that paragraph as short lines, one per line. State only what the'
+        . ' messages actually say — never infer an outcome that is not written down, and say so when'
+        . ' something was asked and left unanswered. Name people the way the messages name them.';
+
+    /**
+     * One question, one word back — and the parser depends on the second half
+     * of that.
+     *
+     * The five names are {@see \App\Domain\Enum\Mail\MessageCategory}'s values
+     * spelled out, because a model cannot be handed an enum. The answer is
+     * matched against that set by containment rather than parsed, so a model
+     * that adds a full stop or a sentence around the word is still understood —
+     * but a prompt that stops asking for ONE of those five words produces
+     * answers nothing can interpret, and an uninterpretable answer is a null,
+     * which silently leaves every message where the ordinary rules put it. The
+     * feature would look switched on and do nothing.
+     *
+     * NO LANGUAGE RULE IS APPENDED TO THIS ONE, unlike every other prompt here.
+     * The answer is not prose for a person to read, it is one English token
+     * from a closed set, and telling the model to answer in the language of a
+     * German mail is telling it to answer "Werbung" — which is the model
+     * getting it right in a spelling the parser has never heard of.
+     */
+    public const string CATEGORISE = 'You sort email into exactly one category. Answer with one word and'
+        . ' nothing else, chosen from: primary, social, promotions, updates, forums.'
+        . ' primary is mail from a person that expects a reply. social is from a social'
+        . ' network. promotions is marketing and offers. updates is receipts, bills,'
+        . ' confirmations and automated notices. forums is mailing lists and discussion'
+        . ' groups.';
 }

@@ -188,8 +188,10 @@ iframes and classes are dropped. Links are forced to open away from the app.
 ### Summarising a long conversation
 
 Where the assistant is switched on — by an administrator, and by you in **Settings → Assistant** —
-a conversation of two or more messages carries a **Summarise this conversation** button above the
-messages. Nothing is summarised until you press it. A summary is the most expensive thing plMail
+a conversation of two or more messages carries a **Summarise this conversation** button at the
+right-hand end of its subject line. Nothing is summarised until you press it, and until you do
+there is no summary to look at: the card appears above the messages when you ask for one, and not
+before. A summary is the most expensive thing plMail
 asks of a model: expect around a minute the first time after a quiet spell, and around half that
 afterwards, with the text arriving a few words at a time so you can see it working. **Stop** ends
 it and keeps nothing.

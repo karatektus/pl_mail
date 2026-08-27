@@ -172,6 +172,37 @@ admin:
             models: 'Die %count% vorhandenen Modelle anzeigen'
             status: 'Der Host hat mit HTTP %status% geantwortet.'
             unreachable: 'Unter der Adresse hat nichts geantwortet. (%error%)'
+        prompt:
+            categorise:
+                hint: 'Läuft bei eingehender Mail, die keine Regel erkannt hat. Es muss EIN EINZELNES WORT verlangen, aus primary, social, promotions, updates, forums — plMail gleicht die Antwort genau gegen diese fünf ab; alles andere lässt die Mail stillschweigend dort, wo die normalen Regeln sie hingelegt haben.'
+                label: 'Mail in Tabs einsortieren'
+            formal:
+                hint: 'Wird benutzt, wenn jemand dieselbe Nachricht in förmlicherem Ton will.'
+                label: 'Förmlicher machen'
+            language:
+                hint: 'Wird an jeden Prompt oben angehängt, außer ans Einsortieren. Das ist der Grund, warum eine deutsche Mail eine deutsche Antwort bekommt — ohne das folgt das Modell dem Englisch, in dem diese Anweisungen geschrieben sind, und beim Korrekturlesen übersetzt es deinen deutschen Entwurf. Du kannst es umformulieren, aber nicht entfernen: Wenn du das Feld leerst, gilt wieder der mitgelieferte Text.'
+                label: 'Immer in der Sprache der Mail antworten'
+            proofread:
+                hint: 'Wird benutzt, wenn jemand nur Rechtschreibung und Grammatik korrigiert haben will. Lass "sonst nichts ändern" drin — ohne das schreibt das Modell Sätze um, die schon richtig waren.'
+                label: 'Korrektur lesen'
+            reply:
+                hint: 'Wird von "Beim Schreiben helfen" benutzt, wenn jemand einen ersten Entwurf will.'
+                label: 'Antwort entwerfen'
+            shorten:
+                hint: 'Wird benutzt, wenn jemand dieselbe Nachricht in weniger Worten will.'
+                label: 'Kürzen'
+            summary:
+                hint: 'Wird vom Zusammenfassen-Knopf im Lesebereich benutzt. Wenn du das änderst, gelten alle schon geschriebenen Zusammenfassungen als veraltet — gelöscht wird nichts, sie werden beim nächsten Mal neu geschrieben.'
+                label: 'Gespräch zusammenfassen'
+        prompts:
+            changed: '%count% geändert'
+            heading: 'System-Prompts'
+            intro: 'Das sind die Anweisungen, die plMail dem Modell gibt. Lass ein Feld leer, dann gilt der mitgelieferte Text — so kann ein späteres Update ihn noch verbessern. Was du einträgst, ersetzt den mitgelieferten Text vollständig.'
+            reset: 'Auf den mitgelieferten Text zurücksetzen'
+            save: 'Prompts speichern'
+            saved: 'Gespeichert. Neue Zusammenfassungen nutzen das hier; schon geschriebene sind jetzt veraltet.'
+            show_shipped: 'Mitgelieferten Text anzeigen'
+            untouched: 'Wie ausgeliefert'
         save: 'Speichern'
         saved: 'Gespeichert.'
         status:
@@ -978,7 +1009,9 @@ calendar:
                 erscheint er als eigener Eintrag.
             hidden: Dieser Kalender ist ausgeblendet — der Termin erscheint erst, wenn du ihn einblendest
             legend: Kalender
+            mirrored: 'Dieser Kalender wird mit seinem Anbieter synchronisiert — der Termin landet auch auf deinen anderen Geräten'
             read_only: Dieser Kalender nimmt keine Änderungen an
+            same_remote: 'Schon abgedeckt: Dieser Kalender spiegelt denselben wie einer weiter oben'
         delete: Löschen
         description: Beschreibung
         dismiss: Kein Termin

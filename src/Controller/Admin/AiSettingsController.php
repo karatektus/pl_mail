@@ -7,11 +7,13 @@ namespace App\Controller\Admin;
 use App\Controller\ChecksCsrf;
 use App\Domain\DTO\Ai\AiProbe;
 use App\Domain\Enum\Ai\MetricWindow;
+use App\Domain\Enum\Ai\PromptSlot;
 use App\Form\Admin\AiSettingsType;
 use App\Repository\Ai\AiSettingsRepository;
 use App\Service\Ai\AiAssistant;
 use App\Service\Ai\AiPerformancePanel;
 use App\Service\Ai\EmbeddingBackfill;
+use App\Service\Ai\PromptLibrary;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -51,6 +53,7 @@ final class AiSettingsController extends AbstractController
         private readonly EntityManagerInterface $entityManager,
         private readonly AiPerformancePanel     $panel,
         private readonly EmbeddingBackfill      $backfill,
+        private readonly PromptLibrary          $prompts,
     ) {
     }
 
@@ -93,6 +96,7 @@ final class AiSettingsController extends AbstractController
             'form'     => $form,
             'saved'    => $saved,
             'probe'    => null,
+            'prompts'  => $this->promptRows(),
         ]);
     }
 
@@ -130,6 +134,7 @@ final class AiSettingsController extends AbstractController
                 $submitted['chatModel'] ?? null,
                 $submitted['embeddingModel'] ?? null,
             ])),
+            'prompts'  => $this->promptRows(),
         ]);
     }
 
@@ -210,6 +215,95 @@ final class AiSettingsController extends AbstractController
                 'outcome' => $outcome,
             ]),
         ]);
+    }
+
+    /**
+     * What the seven prompts say, when an administrator does not want what we
+     * ship.
+     *
+     * ITS OWN ACTION, NOT A GROWTH OF THE SETTINGS FORM
+     * ─────────────────────────────────────────────────
+     * The card above is about the host and the switches, which is a thing an
+     * operator finishes and then folds away — its own docblock says so. Seven
+     * textareas of prompt inside it would be seven fields standing between them
+     * and the panels below on every visit, and the two are edited at completely
+     * different times: the host once, a prompt whenever a model starts answering
+     * badly. Separate cards, separate saves, and a Test button that submits the
+     * host form cannot accidentally carry a half-typed prompt with it.
+     *
+     * WRITTEN AS AN ABSENCE, NEVER AS A COPY
+     * ──────────────────────────────────────
+     * An empty box clears the override rather than storing an empty prompt, so
+     * "put it back" needs no knowledge of what the default says and therefore
+     * cannot write a stale copy of it. AiPrompts::normalised() is where that
+     * turn from '' to null happens and where the reasoning lives.
+     *
+     * Every slot is written on every save, including the ones that came back
+     * empty. A partial write would make a cleared box mean nothing at all, which
+     * is exactly the gesture the reset button performs.
+     */
+    #[Route('/prompts', name: 'prompts', methods: ['POST'])]
+    public function prompts(Request $request): Response
+    {
+        // Its own token id and not the shared `ajax` one, the rule ChecksCsrf
+        // states: one token good for every action makes any one XSS worth all of
+        // them — and this action writes what a language model is told to do with
+        // everybody's mail.
+        $this->assertCsrf($request, 'admin-ai-prompts');
+
+        $settings = $this->settings->currentOrDefault();
+
+        /** @var array<string, mixed> $submitted */
+        $submitted = $request->request->all('prompt');
+
+        foreach (PromptSlot::cases() as $slot) {
+            // Keyed by the enum's own value rather than by iterating what was
+            // posted: a field missing from the body is a cleared override, and a
+            // key in the body that is not a slot is a bug in our own page.
+            $settings->prompts->put($slot, (string) ($submitted[$slot->value] ?? ''));
+        }
+
+        $this->entityManager->persist($settings);
+        $this->entityManager->flush();
+
+        return $this->render('admin/ai/_frame.html.twig', [
+            'settings'     => $settings,
+            'form'         => $this->form($settings),
+            'saved'        => false,
+            'probe'        => null,
+            'prompts'      => $this->promptRows(),
+            'promptsSaved' => true,
+        ]);
+    }
+
+    /**
+     * The seven prompts as the page needs them: what is stored, and what we
+     * ship.
+     *
+     * BOTH, and that is the point. The stored value fills the box — empty when
+     * nothing has been overridden — and the shipped text is what the box shows
+     * as its placeholder and what the disclosure underneath prints in full. A
+     * page that could show only one of the two could not answer the question an
+     * administrator actually has, which is "what am I replacing".
+     *
+     * Read through PromptLibrary rather than off the entity, so what this page
+     * calls the default is by construction the same string the model would get.
+     *
+     * @return list<array{slot: string, value: string, shipped: string}>
+     */
+    private function promptRows(): array
+    {
+        $rows = [];
+
+        foreach (PromptSlot::cases() as $slot) {
+            $rows[] = [
+                'slot'    => $slot->value,
+                'value'   => $this->prompts->override($slot) ?? '',
+                'shipped' => $slot->shipped(),
+            ];
+        }
+
+        return $rows;
     }
 
     private function form(object $settings): \Symfony\Component\Form\FormInterface

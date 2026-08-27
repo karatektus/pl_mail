@@ -33,6 +33,29 @@ import { readFrames } from "../../ai/ndjson.js";
  * a pane that also renders that mail. The one thing it must never be is markup.
  * The system prompt asks for plain text; this is what makes asking unnecessary.
  *
+ * WHERE THIS IS ROOTED, AND WHY IT IS NOT THE CARD
+ * ────────────────────────────────────────────────
+ * On the thread's content wrapper, which is an ancestor of both halves of the
+ * feature: the control at the right-hand end of the subject line, and the card
+ * below the insight strip. It cannot be the card, because on a conversation
+ * nobody has summarised THE CARD DOES NOT EXIST — an empty box headed "Summary"
+ * is a box claiming a summary exists — and a controller cannot listen for the
+ * click that creates its own element.
+ *
+ * So the card arrives instead: _thread_summary parks it in a <template>, which
+ * a browser parses and then does not render, does not put in the accessibility
+ * tree and does not return from querySelectorAll, and #mount() swaps the
+ * template for its contents at the first click. A stored summary skips all of
+ * that and is rendered as itself, at first paint, which is what storing it was
+ * for.
+ *
+ * ONE CONTROL, IN ONE PLACE
+ * ─────────────────────────
+ * Summarise, Summarise again and Stop are the same control in the same place in
+ * every state. A button that lived in the card as soon as the card existed
+ * would be a button somebody has to find twice, and the second place would be
+ * one that appears under their cursor half a minute after they clicked.
+ *
  * A STALE SUMMARY IS SHOWN, NOT HIDDEN
  * ────────────────────────────────────
  * The server renders the previous text greyed with a sentence saying the
@@ -42,7 +65,24 @@ import { readFrames } from "../../ai/ndjson.js";
  * state, and it clears it by starting a run — see #run().
  */
 export default class extends Controller {
-    static targets = ["status", "pending", "output", "stale", "run", "stop"];
+    static targets = [
+        "status",
+        "pending",
+        "output",
+        "stale",
+        "run",
+        "runLabel",
+        "stop",
+
+        /**
+         * The card, and the <template> holding a card that is not there yet.
+         * Exactly one of the two is on the page at any moment: the template is
+         * REPLACED by its own contents when the first run starts, so `card`
+         * arriving is `cardTemplate` going.
+         */
+        "card",
+        "cardTemplate",
+    ];
 
     static values = {
         url: String,
@@ -78,6 +118,14 @@ export default class extends Controller {
         workingLabel: { type: String, default: "…" },
         stoppedLabel: { type: String, default: "Stopped" },
 
+        /**
+         * What the control says once it has written one. The offer changes
+         * because the control does not move: "Summarise this conversation"
+         * sitting over a finished summary offers to do something that has just
+         * been done.
+         */
+        regenerateLabel: { type: String, default: "Summarise again" },
+
         failedLabel: { type: String, default: "No answer" },
         noAnswerLabel: { type: String, default: "No answer" },
         disabledLabel: { type: String, default: "No answer" },
@@ -105,6 +153,15 @@ export default class extends Controller {
     #tokens = 0;
 
     /**
+     * Whether the card has been put in by this controller.
+     *
+     * Not read off `hasCardTarget`, which is the same question asked of
+     * Stimulus: it answers through a MutationObserver, so it is still false for
+     * the rest of the task in which the card was inserted.
+     */
+    #mounted = false;
+
+    /**
      * A pane that goes away mid-generation must not leave the model running.
      *
      * This is the cancellation, and it is not a nicety. mail_pane_controller
@@ -121,7 +178,7 @@ export default class extends Controller {
         this.#stopReading();
     }
 
-    /** Write one. The button under an unsummarised conversation. */
+    /** Write one. The offer beside the subject of a conversation nobody has summarised. */
     run(event) {
         event?.preventDefault();
 
@@ -129,7 +186,7 @@ export default class extends Controller {
     }
 
     /**
-     * Write another one. The button beside a summary that is already there.
+     * Write another one. The same offer, beside a summary that is already there.
      *
      * The same request; the difference is entirely in what is on screen when it
      * starts. #start() clears the old text and the staleness notice, which is
@@ -169,11 +226,25 @@ export default class extends Controller {
 
         this.#answer = "";
         this.#tokens = 0;
-        this.#output("");
-        this.#stale(false);
 
         this.#controller = new AbortController();
+
+        // Before anything that can wait: the control is what was just clicked,
+        // it is always on the page, and swapping it for Stop is the receipt.
         this.#stopping(true);
+
+        if (true === this.#mount()) {
+            await this.#adopted();
+
+            // A card takes a task to put in, and a task is long enough to press
+            // Stop in, or to ask for another one. Both take the controller away
+            // — #stopReading() nulls it — and neither wants this run carrying on
+            // into a fetch.
+            if (run !== this.#run || null === this.#controller) return;
+        }
+
+        this.#output("");
+        this.#stale(false);
 
         // Said before the request is even built, so the very first thing after
         // the click is visible — and moving, because what follows can be forty
@@ -288,6 +359,11 @@ export default class extends Controller {
             // status line reading "Summarised" over the summary is furniture.
             this.#settle("");
 
+            // Only on `done`. A run that was stopped or that failed wrote
+            // nothing, so the offer standing over it is still "summarise this",
+            // and relabelling it would claim work that is not there.
+            this.#offerAgain();
+
             return;
         }
 
@@ -330,6 +406,59 @@ export default class extends Controller {
 
         this.#controller = null;
         controller?.abort();
+    }
+
+    /**
+     * Put the card in, once, in the place the markup kept for it.
+     *
+     * The <template> is REPLACED by its own contents, so the card lands exactly
+     * where _thread_summary said it goes — under the insight strip — without
+     * this controller knowing anything about the page around it, and without a
+     * second copy of that markup living in here. The template is consumed by
+     * the swap, which is most of what makes this idempotent; #mounted covers
+     * the rest, because Stimulus has not noticed either the arrival or the
+     * departure yet when this returns.
+     *
+     * Returns whether anything was inserted, because the caller pays a task for
+     * it (see #adopted()) and must not pay it for a card that was already on
+     * the page — the stored-summary case, which is most opens of a summarised
+     * conversation.
+     */
+    #mount() {
+        if (true === this.#mounted || true === this.hasCardTarget) return false;
+        if (false === this.hasCardTemplateTarget) return false;
+
+        this.#mounted = true;
+
+        const template = this.cardTemplateTarget;
+
+        template.replaceWith(template.content.cloneNode(true));
+
+        return true;
+    }
+
+    /**
+     * One task, after the card has been put in. Two reasons, both about that
+     * same instant.
+     *
+     * Stimulus finds targets through a MutationObserver, so the status line and
+     * the dots inside markup inserted a moment ago are not targets yet — they
+     * become targets at the end of this task, and everything written to them
+     * before that is written to nothing at all.
+     *
+     * And an aria-live region announces CHANGES. One that is inserted with its
+     * sentence already inside it is a region the screen reader was not watching
+     * when the sentence arrived, so the first and most important state — "sent,
+     * this will take about a minute" — would be the one nobody hears.
+     *
+     * A task, not a frame: rAF does not run in a background tab, and a summary
+     * is the one thing here somebody deliberately starts and then switches away
+     * from.
+     */
+    #adopted() {
+        return new Promise((resolve) => {
+            setTimeout(resolve, 0);
+        });
     }
 
     // ── The surface ───────────────────────────────────────────────────────
@@ -386,6 +515,19 @@ export default class extends Controller {
         if (true === this.hasRunTarget) {
             this.runTarget.hidden = true === on;
         }
+    }
+
+    /**
+     * The offer, once there is something to make it again about.
+     *
+     * The label is the button's accessible name — there is no aria-label beside
+     * it — so rewriting the text is the whole change, and a screen reader
+     * reaching the control next reads the offer that is actually on it.
+     */
+    #offerAgain() {
+        if (false === this.hasRunLabelTarget) return;
+
+        this.runLabelTarget.textContent = this.regenerateLabelValue;
     }
 
     /**

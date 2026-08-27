@@ -17,6 +17,7 @@ use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
+use Symfony\Component\DomCrawler\Crawler;
 use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\MockResponse;
 
@@ -229,14 +230,18 @@ final class ThreadSummaryTest extends WebTestCase
         $this->post($client, $thread);
 
         $row = $this->connection->fetchAssociative(
-            'SELECT summary, source_hash, model, prompt_version FROM thread_summary WHERE thread_id = :id',
+            'SELECT summary, source_hash, model, prompt_hash FROM thread_summary WHERE thread_id = :id',
             ['id' => $thread->id],
         );
 
         self::assertIsArray($row);
         self::assertSame('A summary.', $row['summary']);
         self::assertSame('qwen3:30b', $row['model']);
-        self::assertSame(ThreadSummariser::PROMPT_VERSION, (int) $row['prompt_version']);
+        self::assertSame(
+            static::getContainer()->get(ThreadSummariser::class)->promptFingerprint(),
+            $row['prompt_hash'],
+            'the row was filed under a fingerprint of a prompt other than the one that was sent',
+        );
         self::assertSame(
             ThreadTranscript::hash(static::getContainer()->get(ThreadTranscript::class)->forThread($thread)),
             $row['source_hash'],
@@ -260,21 +265,7 @@ final class ThreadSummaryTest extends WebTestCase
 
         $this->configureAi();
 
-        $transcript = static::getContainer()->get(ThreadTranscript::class)->forThread($thread);
-
-        $this->connection->executeStatement(
-            <<<'SQL'
-                INSERT INTO thread_summary (thread_id, summary, source_hash, model, prompt_version, created_at)
-                VALUES (:id, :summary, :hash, :model, :version, NOW())
-            SQL,
-            [
-                'id'      => $thread->id,
-                'summary' => 'They agreed on Thursday morning.',
-                'hash'    => ThreadTranscript::hash($transcript),
-                'model'   => 'qwen3:30b',
-                'version' => ThreadSummariser::PROMPT_VERSION,
-            ],
-        );
+        $this->storeSummary($thread, 'They agreed on Thursday morning.', fresh: true);
 
         $before = (int) $this->connection->fetchOne('SELECT COUNT(*) FROM ai_call_metric');
 
@@ -305,19 +296,7 @@ final class ThreadSummaryTest extends WebTestCase
 
         $this->configureAi();
 
-        $this->connection->executeStatement(
-            <<<'SQL'
-                INSERT INTO thread_summary (thread_id, summary, source_hash, model, prompt_version, created_at)
-                VALUES (:id, :summary, :hash, :model, :version, NOW())
-            SQL,
-            [
-                'id'      => $thread->id,
-                'summary' => 'Written before the last message arrived.',
-                'hash'    => str_repeat('0', 64),
-                'model'   => 'qwen3:30b',
-                'version' => ThreadSummariser::PROMPT_VERSION,
-            ],
-        );
+        $this->storeSummary($thread, 'Written before the last message arrived.', fresh: false);
 
         $crawler = $client->request('GET', sprintf('/mail/thread/%d', $thread->id));
 
@@ -332,7 +311,11 @@ final class ThreadSummaryTest extends WebTestCase
         );
     }
 
-    /** A person who has the feature off sees no card at all, not a dead button. */
+    /**
+     * A person who has the feature off sees no card AND no offer — not a dead
+     * button, and not a controller holding a CSRF token for an action that
+     * would be refused.
+     */
     public function testTheCardIsAbsentWhenTheFeatureIsOff(): void
     {
         $client = $this->signIn();
@@ -344,9 +327,19 @@ final class ThreadSummaryTest extends WebTestCase
 
         self::assertResponseIsSuccessful();
         self::assertCount(0, $crawler->filter('[data-thread-summary]'));
+        self::assertCount(0, $crawler->filter('[data-mail--thread-summary-target="run"]'));
+        self::assertCount(0, $crawler->filter('[data-controller="mail--thread-summary"]'));
     }
 
-    /** And so does a one-message thread, which the endpoint refuses anyway. */
+    /**
+     * And so does a one-message thread, which the endpoint refuses anyway.
+     *
+     * The refusal is not a disabled button and not a sentence: there is nothing
+     * on the page at all. A control that is always refused is worse than no
+     * control, and `thread.summary.too_short` is still reachable for the case
+     * a rendered page cannot see coming — a conversation that had two messages
+     * when it was drawn and one by the time the button was pressed.
+     */
     public function testTheCardIsAbsentOnAThreadOfOneMessage(): void
     {
         $client = $this->signIn();
@@ -358,6 +351,132 @@ final class ThreadSummaryTest extends WebTestCase
 
         self::assertResponseIsSuccessful();
         self::assertCount(0, $crawler->filter('[data-thread-summary]'));
+        self::assertCount(0, $crawler->filter('[data-mail--thread-summary-target="run"]'));
+        self::assertCount(0, $crawler->filter('[data-controller="mail--thread-summary"]'));
+    }
+
+    /**
+     * THE STATE THE FEATURE IS IN ALMOST ALWAYS: nobody has asked yet.
+     *
+     * There is an offer beside the subject and NO CARD — a box headed "Summary"
+     * with nothing in it claims a summary exists, and the owner's answer to
+     * that is this test. What is on the page instead is an inert <template>
+     * holding the card until the first click, which is why the assertion is
+     * made against the rendered document rather than the source: see
+     * rendered().
+     */
+    public function testAConversationNobodyHasSummarisedOffersTheButtonAndRendersNoCard(): void
+    {
+        $client = $this->signIn();
+        $thread = $this->seedThread(2);
+
+        $this->configureAi();
+
+        $crawler = $client->request('GET', sprintf('/mail/thread/%d', $thread->id));
+
+        self::assertResponseIsSuccessful();
+
+        self::assertCount(
+            0,
+            $this->rendered($crawler, '@data-thread-summary'),
+            'a conversation nobody has summarised rendered a summary card',
+        );
+
+        $offer = $this->rendered($crawler, '@data-mail--thread-summary-target="run"');
+
+        self::assertCount(1, $offer, 'the offer to summarise was not on the page');
+        self::assertSame('Summarise this conversation', trim($offer->text()));
+        self::assertSame('click->mail--thread-summary#run', $offer->attr('data-action'));
+
+        // The card exists as markup and only as markup, ready for #mount().
+        self::assertCount(1, $crawler->filter('template[data-mail--thread-summary-target="cardTemplate"]'));
+        self::assertCount(1, $crawler->filter('template [data-thread-summary]'));
+    }
+
+    /**
+     * The offer sits at the right-hand end of the subject line, not in the
+     * conversation below it.
+     *
+     * Asserted as "inside the row that holds the <h1>", because that is the
+     * whole of what was asked for and the classes that place it are not: a
+     * button that ended up under the insight strip would still be a button.
+     */
+    public function testTheOfferSitsInTheSubjectRow(): void
+    {
+        $client = $this->signIn();
+        $thread = $this->seedThread(2);
+
+        $this->configureAi();
+
+        $crawler = $client->request('GET', sprintf('/mail/thread/%d', $thread->id));
+
+        self::assertResponseIsSuccessful();
+        self::assertCount(
+            1,
+            $crawler->filterXPath('//div[h1]//*[@data-mail--thread-summary-target="run"]'),
+            'the offer to summarise is not in the subject row',
+        );
+    }
+
+    /**
+     * One controller owns both halves, and that is the load-bearing part of
+     * moving the button out of the card.
+     *
+     * The control has to survive the card not existing, so the element the
+     * controller is bound to has to be an ancestor of both — Stimulus reaches
+     * targets inside its own element and nowhere else. Bind it to the card and
+     * the click that creates the card has nothing listening for it.
+     */
+    public function testOneControllerHoldsBothTheOfferAndTheCard(): void
+    {
+        $client = $this->signIn();
+        $thread = $this->seedThread(2);
+
+        $this->configureAi();
+
+        $crawler = $client->request('GET', sprintf('/mail/thread/%d', $thread->id));
+
+        self::assertResponseIsSuccessful();
+        self::assertCount(1, $crawler->filter('[data-controller="mail--thread-summary"]'));
+        self::assertCount(
+            1,
+            $crawler->filterXPath('//*[@data-controller="mail--thread-summary"]//*[@data-mail--thread-summary-target="run"]'),
+        );
+        self::assertCount(
+            1,
+            $crawler->filterXPath('//*[@data-controller="mail--thread-summary"]//template[@data-mail--thread-summary-target="cardTemplate"]'),
+        );
+    }
+
+    /**
+     * A stored summary is a rendered card at first paint — no template, no
+     * click, no wait — and the offer beside the subject reads as the second
+     * one it is.
+     */
+    public function testAStoredSummaryRendersTheCardAndOffersToWriteAnother(): void
+    {
+        $client = $this->signIn();
+        $thread = $this->seedThread(2);
+
+        $this->configureAi();
+
+        $this->storeSummary($thread, 'They agreed on Thursday morning.', fresh: true);
+
+        $crawler = $client->request('GET', sprintf('/mail/thread/%d', $thread->id));
+
+        self::assertResponseIsSuccessful();
+
+        self::assertCount(1, $this->rendered($crawler, '@data-thread-summary'));
+        self::assertStringContainsString(
+            'They agreed on Thursday morning.',
+            $this->rendered($crawler, '@data-thread-summary')->text(),
+        );
+        self::assertCount(0, $crawler->filter('template[data-mail--thread-summary-target="cardTemplate"]'));
+
+        $offer = $this->rendered($crawler, '@data-mail--thread-summary-target="run"');
+
+        self::assertSame('Summarise again', trim($offer->text()));
+        self::assertSame('click->mail--thread-summary#regenerate', $offer->attr('data-action'));
     }
 
     // ── Scaffolding ───────────────────────────────────────────────────────
@@ -428,6 +547,60 @@ final class ThreadSummaryTest extends WebTestCase
         } finally {
             $stack->pop();
         }
+    }
+
+    /**
+     * The page as a BROWSER sees it: everything that is not inside a <template>.
+     *
+     * DomCrawler parses with libxml, which knows nothing about <template> and
+     * walks straight into one — so `filter('[data-thread-summary]')` finds a
+     * card the browser never renders, never puts in the accessibility tree and
+     * never returns from querySelectorAll. An assertion that there is no card
+     * therefore has to say which of the two documents it means, and it means
+     * the one somebody is looking at.
+     *
+     * Takes an XPath predicate rather than a CSS selector because the exclusion
+     * is itself a predicate, and mixing the two would need two passes.
+     */
+    private function rendered(Crawler $crawler, string $predicate): Crawler
+    {
+        return $crawler->filterXPath(sprintf('//*[%s][not(ancestor::template)]', $predicate));
+    }
+
+    /**
+     * A summary already stored against a thread, the way the store writes one.
+     *
+     * Freshness is not a column: a stored summary is fresh when its hash
+     * matches the transcript the thread would send today, so a stale one is
+     * written with a hash that matches nothing that could ever be sent.
+     */
+    private function storeSummary(MessageThread $thread, string $text, bool $fresh): void
+    {
+        $hash = str_repeat('0', 64);
+
+        if (true === $fresh) {
+            $hash = ThreadTranscript::hash(
+                static::getContainer()->get(ThreadTranscript::class)->forThread($thread),
+            );
+        }
+
+        $this->connection->executeStatement(
+            <<<'SQL'
+                INSERT INTO thread_summary (thread_id, summary, source_hash, model, prompt_hash, created_at)
+                VALUES (:id, :summary, :hash, :model, :prompt, NOW())
+            SQL,
+            [
+                'id'      => $thread->id,
+                'summary' => $text,
+                'hash'    => $hash,
+                'model'   => 'qwen3:30b',
+                // The fingerprint of the prompt in force right now, asked of
+                // the summariser rather than written out here — a literal would
+                // be a second copy of the prompt assembly that goes stale the
+                // first time either half of it is edited.
+                'prompt'  => static::getContainer()->get(ThreadSummariser::class)->promptFingerprint(),
+            ],
+        );
     }
 
     private function configureAi(bool $summaryEnabled = true): void

@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace App\Domain\Enum\Ai;
 
-use App\Domain\Ai\PromptRules;
-
 /**
  * The things the composer may ask a model to do.
  *
@@ -34,21 +32,41 @@ enum WritingTask: string
     case Proofread = 'proofread';
 
     /**
-     * Said to every task, because every task gets it wrong the same way — and
-     * said to the thread summariser too, which is why it no longer lives here.
+     * The slot an administrator edits this task's prompt in.
      *
-     * {@see PromptRules::LANGUAGE} carries the sentence and the history of it.
-     * It moved rather than being copied the moment a second feature needed it:
-     * a `private const` here would have forced ThreadSummariser to keep its own
-     * copy, and two copies of a prompt rule diverge into an English summary of
-     * a German thread that nothing reports.
+     * A method rather than PromptSlot::from($this->value), even though the two
+     * sets of strings match today. That coincidence is not a contract: a fifth
+     * writing task added without a slot would fail here, at the one line whose
+     * job is to answer this question, instead of throwing a ValueError out of
+     * the middle of a streamed response.
      */
-    public function systemPrompt(): string
+    public function promptSlot(): PromptSlot
     {
-        return $this->taskPrompt() . PromptRules::LANGUAGE;
+        return match ($this) {
+            self::Reply     => PromptSlot::Reply,
+            self::Shorten   => PromptSlot::Shorten,
+            self::Formal    => PromptSlot::Formal,
+            self::Proofread => PromptSlot::Proofread,
+        };
     }
 
-    private function taskPrompt(): string
+    /**
+     * The words this release ships for the task — NOT necessarily what is sent.
+     *
+     * There used to be a systemPrompt() here that appended
+     * {@see \App\Domain\Ai\PromptRules::LANGUAGE} and was what WritingAssistant put on the
+     * wire. It is gone rather than kept, and that is the point of the change:
+     * an administrator can now replace any of these from Admin → AI, so an enum
+     * method named systemPrompt() would be a method returning something that is
+     * not the system prompt on every installation that had edited one. Nothing
+     * would report that — it would show up as a tuned prompt quietly having no
+     * effect on drafting.
+     *
+     * {@see \App\Service\Ai\PromptLibrary::forTask()} is the only thing that
+     * answers "what does this task actually say", because it is the only thing
+     * with the overrides in front of it.
+     */
+    public function shippedPrompt(): string
     {
         return match ($this) {
             self::Reply => 'You draft replies to email. Write only the body of the reply, as plain '

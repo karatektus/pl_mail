@@ -6,6 +6,7 @@ and injected as a bare fragment by mail_pane_controller — so it must stay
 self-contained: no {% extends %}, no block dependencies.
 #}
 {% from '_partials/_list_toolbar.html.twig' import tbtn %}
+{% import 'mail/_thread_summary.html.twig' as thread_summary %}
 
 {% set threadLabelIds = [] %}
 {% for label in thread.labels %}
@@ -73,7 +74,14 @@ self-contained: no {% extends %}, no block dependencies.
         request per click. #}
      data-mail--thread-read-was-unread-value="{{ thread.unreadCount > 0 ? 'true' : 'false' }}"
 >
-    <div class="w-full px-4 md:px-6 py-5">
+    {# The summary controller lives HERE rather than on its own card, because
+       its card is the one part of the feature that does not exist yet on a
+       conversation nobody has summarised — and a controller cannot listen for
+       the click that creates it from inside it. This wrapper is the nearest
+       element that holds both the control (in the subject row) and the card
+       (below the insight strip), and it is present on every open. See
+       _thread_summary, which stamps the attributes and owns the vocabulary. #}
+    <div class="w-full px-4 md:px-6 py-5"{{ thread_summary.root(thread) }}>
 
         <div class="flex items-baseline gap-3 mb-6">
             <h1 class="text-xl font-semibold text-ink min-w-0 break-words">
@@ -82,17 +90,22 @@ self-contained: no {% extends %}, no block dependencies.
             {% if thread.messageCount > 1 %}
                 <span class="text-sm text-ink-faint flex-shrink-0">{{ thread.messageCount }}</span>
             {% endif %}
+
+            {# The offer to summarise, at the right-hand end of the subject and
+               on its baseline. It is here and not in a card because there is no
+               card until somebody accepts the offer: an empty box headed
+               "Summary" claims a summary exists. #}
+            {{ thread_summary.trigger(thread, summary|default(null)) }}
         </div>
 
         {# What plMail read out of this conversation, before the conversation. #}
         {% include 'mail/_insight_strip.html.twig' with { insights: insights|default([]) } only %}
 
-        {# And what a model made of it, if anybody has asked. Nothing is spent
-           here unless somebody presses the button — see _thread_summary. #}
-        {% include 'mail/_thread_summary.html.twig' with {
-            thread:  thread,
-            summary: summary|default(null),
-        } only %}
+        {# And what a model made of it, if anybody has asked. On a conversation
+           that has never been summarised this renders no card at all — only the
+           inert template the control fills in on the first click. Nothing is
+           spent here either way; see _thread_summary. #}
+        {{ thread_summary.card(thread, summary|default(null)) }}
 
         {# `messages` is the controller's conversation-ordered list; the raw
            association is the fallback for any include that has not been given

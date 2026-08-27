@@ -1,0 +1,134 @@
+{% import '_partials/_card_chrome.html.twig' as chrome %}
+{#
+admin/ai/_prompts.html.twig — the seven system prompts, editable.
+
+Accepts:
+  prompts      — list of { slot, value, shipped } from AiSettingsController::promptRows()
+                 `value` is what an administrator typed, '' when nothing is overridden
+                 `shipped` is what this release ships, always present
+  promptsSaved — true immediately after a successful save
+
+WHY EVERY BOX CAN BE EMPTY AND THAT IS THE NORMAL STATE
+An empty box means "we ship this", and the shipped text is in the placeholder so
+an empty box still SHOWS what is in force. Nothing ever copies the default into
+the box — a page that pre-filled them would be a page where saving pins this
+installation to today's wording for ever, and the improvement in the next
+release would silently skip it. Clearing a box is how "put it back" is spelled,
+which is why the reset control below sets the field to nothing rather than to
+the default it can see.
+
+Its own card and its own form, deliberately. The card above is the host and the
+switches — a thing an operator finishes once and folds away — and its Test
+button submits that form; sharing one would mean testing a host also posted a
+half-typed prompt.
+
+Native <details> like the card above it: keyboard-operable, screen-reader
+announced, no JavaScript, nothing for the Content Security Policy to refuse.
+Closed unless something was just saved, because on most visits there is nothing
+to do here and the chip in the header already says whether anything was changed.
+#}
+<details class="{{ chrome.shell() }} group" {{ promptsSaved|default(false) ? 'open' : '' }}>
+
+    <summary class="flex items-center gap-2.5 cursor-pointer list-none {{ chrome.band() }}">
+        <i class="fa-solid fa-chevron-right w-3 text-xs text-ink-faint transition-transform
+                  group-open:rotate-90" aria-hidden="true"></i>
+        <i class="fa-solid fa-pen-to-square text-xs text-zinc-400" aria-hidden="true"></i>
+        <h2 class="text-sm font-semibold text-ink">{{ 'admin.ai.prompts.heading'|trans }}</h2>
+
+        {% set changed = prompts|filter(row => row.value is not empty)|length %}
+
+        {% if changed > 0 %}
+            <span class="ml-auto text-[11px] font-medium px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-500">
+                {{ 'admin.ai.prompts.changed'|trans({ '%count%': changed }) }}
+            </span>
+        {% else %}
+            <span class="ml-auto text-[11px] font-medium px-2 py-0.5 rounded-full bg-raised text-ink-faint">
+                {{ 'admin.ai.prompts.untouched'|trans }}
+            </span>
+        {% endif %}
+    </summary>
+
+    <div class="{{ chrome.body() }} space-y-4">
+
+        {% if promptsSaved|default(false) %}
+            <div role="status" class="flex items-start gap-2.5 rounded-lg bg-emerald-500/10 px-3.5 py-3 text-sm text-emerald-500">
+                <i class="fa-solid fa-circle-check mt-0.5 shrink-0" aria-hidden="true"></i>
+                <p class="leading-snug">{{ 'admin.ai.prompts.saved'|trans }}</p>
+            </div>
+        {% endif %}
+
+        <p class="text-sm text-ink-soft leading-relaxed">{{ 'admin.ai.prompts.intro'|trans }}</p>
+
+        <form method="post"
+              action="{{ path('app_admin_ai_prompts') }}"
+              data-turbo-frame="admin-ai"
+              class="space-y-6">
+            <input type="hidden" name="_token" value="{{ csrf_token('admin-ai-prompts') }}">
+
+            {% for row in prompts %}
+                {# One controller per field, so "reset" means this box and not
+                   the six others. No inline handler: the CSP refuses them and a
+                   static test does too. #}
+                <div class="space-y-1.5" data-controller="admin--prompt-field">
+                    <div class="flex items-center gap-2">
+                        <label for="admin-ai-prompt-{{ row.slot }}"
+                               class="block text-xs font-medium text-ink-muted">
+                            {{ ('admin.ai.prompt.' ~ row.slot ~ '.label')|trans }}
+                        </label>
+
+                        {# Always, not only when something is stored: the box may
+                           have been typed into since this page loaded, and that
+                           is exactly the edit somebody wants to take back. It
+                           clears the field and saves nothing — see the
+                           controller for why "put it back" is an empty box. #}
+                        <button type="button"
+                                data-action="admin--prompt-field#reset"
+                                class="ml-auto inline-flex items-center gap-1.5 text-[11px] font-medium
+                                       text-ink-faint hover:text-ink-muted transition-colors cursor-pointer">
+                            <i class="fa-solid fa-rotate-left" aria-hidden="true"></i>
+                            {{ 'admin.ai.prompts.reset'|trans }}
+                        </button>
+                    </div>
+
+                    <p class="text-[11px] text-ink-faint leading-snug">
+                        {{ ('admin.ai.prompt.' ~ row.slot ~ '.hint')|trans }}
+                    </p>
+
+                    {# maxlength is the SAME constant the property hook clamps to.
+                       Two copies of a limit is how a textarea accepts four
+                       thousand characters and reports success while the server
+                       stores twelve hundred. #}
+                    <textarea id="admin-ai-prompt-{{ row.slot }}"
+                              name="prompt[{{ row.slot }}]"
+                              rows="4"
+                              maxlength="{{ constant('App\\Entity\\Embeddable\\AiPrompts::MAX_LENGTH') }}"
+                              placeholder="{{ row.shipped }}"
+                              data-admin--prompt-field-target="field"
+                              class="w-full px-3 py-2 rounded-lg text-sm bg-field border border-field text-ink
+                                     focus:outline-none focus-visible:ring-2 focus-visible:ring-accent">{{ row.value }}</textarea>
+
+                    {% if row.value is not empty %}
+                        {# The placeholder is hidden once there is text in the
+                           box, so the default has to be readable some other way
+                           while somebody is editing against it. #}
+                        <details class="text-xs">
+                            <summary class="cursor-pointer text-ink-faint hover:text-ink-muted">
+                                {{ 'admin.ai.prompts.show_shipped'|trans }}
+                            </summary>
+                            <p class="mt-2 leading-relaxed text-ink-soft">{{ row.shipped }}</p>
+                        </details>
+                    {% endif %}
+                </div>
+            {% endfor %}
+
+            <div class="flex justify-end">
+                <button type="submit"
+                        class="inline-flex items-center gap-2 h-9 px-4 rounded-lg text-sm font-medium
+                               text-accent-ink bg-accent hover:bg-accent-strong transition-colors cursor-pointer">
+                    <i class="fa-solid fa-floppy-disk text-xs" aria-hidden="true"></i>
+                    {{ 'admin.ai.prompts.save'|trans }}
+                </button>
+            </div>
+        </form>
+    </div>
+</details>

@@ -12,6 +12,7 @@ use App\Repository\Mail\ContactRepository;
 use App\Repository\Mail\MessageRepository;
 use App\Service\Ai\AiAssistant;
 use App\Service\Ai\AiPermissions;
+use App\Service\Ai\PromptLibrary;
 use App\Service\Mail\MessageCategorizer;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
@@ -64,6 +65,7 @@ final readonly class ClassifyMailHandler
         private MessageCategorizer     $categorizer,
         private AiAssistant            $ai,
         private AiPermissions          $permissions,
+        private PromptLibrary          $prompts,
         private EntityManagerInterface $entityManager,
         private LoggerInterface        $logger,
     ) {
@@ -149,6 +151,16 @@ final readonly class ClassifyMailHandler
      * itself, answers in another language, or wraps the word in punctuation is
      * the normal case, not an exception. Anything unrecognisable becomes null,
      * which puts the message back where the rules left it.
+     *
+     * THE PROMPT IS NO LONGER A LITERAL HERE. It was, and it was the last of the
+     * seven still inlined at its call site; an administrator can now replace it
+     * from Admin → AI, so the wording comes from PromptLibrary and the shipped
+     * text — with the warning about what interpret() below needs from it — lives
+     * in {@see \App\Domain\Ai\PromptRules::CATEGORISE}.
+     *
+     * forCategorisation() and not forTask(): this is the one prompt that gets no
+     * language rule appended, because the answer wanted is one English token and
+     * not prose. See the library.
      */
     private function ask(Message $mail): ?MessageCategory
     {
@@ -157,12 +169,7 @@ final readonly class ClassifyMailHandler
             [
                 [
                     'role'    => 'system',
-                    'content' => 'You sort email into exactly one category. Answer with one word and '
-                        . 'nothing else, chosen from: primary, social, promotions, updates, forums. '
-                        . 'primary is mail from a person that expects a reply. social is from a social '
-                        . 'network. promotions is marketing and offers. updates is receipts, bills, '
-                        . 'confirmations and automated notices. forums is mailing lists and discussion '
-                        . 'groups.',
+                    'content' => $this->prompts->forCategorisation(),
                 ],
                 [
                     'role'    => 'user',

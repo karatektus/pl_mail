@@ -12,6 +12,7 @@ use App\Service\Ai\AiAssistant;
 use App\Service\Ai\AiCallRecorder;
 use App\Service\Ai\AiPermissions;
 use App\Service\Ai\OllamaClient;
+use App\Service\Ai\PromptLibrary;
 use App\Service\Ai\WritingAssistant;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
@@ -243,7 +244,7 @@ final class WritingStreamTest extends KernelTestCase
 
         self::assertIsArray($sent);
         self::assertStringContainsString('I run a bicycle repair shop in Leipzig.', $sent['messages'][0]['content']);
-        self::assertStringStartsWith(WritingTask::Reply->systemPrompt(), $sent['messages'][0]['content']);
+        self::assertStringStartsWith((new PromptLibrary($this->settings))->forTask(WritingTask::Reply), $sent['messages'][0]['content']);
         self::assertStringNotContainsString('bicycle repair shop', $sent['messages'][1]['content']);
     }
 
@@ -353,7 +354,7 @@ final class WritingStreamTest extends KernelTestCase
             new NullLogger(),
         );
 
-        return new WritingAssistant($ai, new AiPermissions($ai));
+        return new WritingAssistant($ai, new AiPermissions($ai), new PromptLibrary($this->settings));
     }
 
     /**

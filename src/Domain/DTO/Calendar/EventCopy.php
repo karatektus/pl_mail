@@ -27,6 +27,14 @@ use App\Entity\Calendar\CalendarEvent;
  * renders those disabled and EventCopyResolver::chosen() refuses them again,
  * since a disabled checkbox is a statement to a browser and not a guarantee to
  * a server.
+ *
+ * $isRemoteDuplicate is the same shape for a different reason, and it is the
+ * only field here that is a fact about the LIST rather than about this
+ * calendar: a second local calendar mirroring a remote calendar already offered
+ * above it. Writing both would send one meeting to one provider calendar twice,
+ * as two events with two provider ids and two iCalUIDs — a duplicate at the
+ * provider that no later edit here can merge, because the two are separate
+ * objects to everything that reads them.
  */
 final readonly class EventCopy
 {
@@ -34,6 +42,7 @@ final readonly class EventCopy
         public Calendar      $calendar,
         public CalendarEvent $event,
         public bool          $isChosen,
+        public bool          $isRemoteDuplicate = false,
     ) {
     }
 
