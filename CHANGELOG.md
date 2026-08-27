@@ -6,6 +6,45 @@ so anything that changes the schema irreversibly is called out explicitly.
 The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, and `sha-…` pins one commit.
 
+## v0.2.2 — 2026-08-27
+
+**Adds six columns to `user`; the migration runs on boot. Everyone can now configure the assistant
+for themselves, and the admin pages line up.**
+
+### Added
+
+- **Settings → Assistant.** Your administrator decides what the installation offers; this decides
+  what you use of it. Three switches for the three features, two notes the assistant is given before
+  it writes for you — who you are, and how you like to be written for — and one setting for how much
+  of a conversation it reads.
+
+  That last one can now be set to **the whole conversation**, which is new: the assistant stops
+  answering a thread it has only seen the last message of. It costs time rather than anything else —
+  the model runs on your own machine — and a long thread drops its oldest turns first, never the
+  message you are replying to.
+
+  Nothing here can switch on something an administrator has switched off.
+
+### Fixed
+
+- **The collapsed sidebar's icons were not in a straight line.** Inbox and Starred sat ten pixels
+  left of the rest, because they are the two rows that carry an unread badge and are built
+  differently because of it. The new-mail dot now sits on the corner of the icon rather than beside
+  it, so a collapsed rail still says where mail arrived.
+
+- **The admin pages had never agreed on an inset.** Cards, the labels above them and the prose
+  between them each chose their own, so headings and the text beneath them started at different
+  places. Twenty-eight cards now take the same measurement from one place, and two tests keep it
+  that way — one that fails when a card sets its own, and one that measures the rendered page and
+  names every card that disagrees.
+
+- **The writing assistant answered in the wrong language.** A German message came back with an
+  English reply, and proofreading a German draft quietly translated it. It now writes in the
+  language of the message it was given.
+
+- **"Draft a reply" was offered on new messages**, where there is nothing to reply to and it could
+  never work.
+
 ## v0.2.1 — 2026-08-27
 
 **No schema changes. Fixes to the language-model work released earlier today, all of them things that
