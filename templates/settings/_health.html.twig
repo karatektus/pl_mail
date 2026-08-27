@@ -59,8 +59,18 @@
 
        So the heading stays what the payback was written for — content that is
        not itself a card — and pays the -mx-6 back. See the rule as stated in
-       settings/index.html.twig. #}
-    <div class="mb-4 px-4 @2xl:px-0">
+       settings/index.html.twig.
+
+       IT PAYS AT EVERY WIDTH, and dropping the `@2xl:px-0` that used to be here
+       is the fix rather than a regression. The heading and the cards below it
+       are children of the same wrapper, so the -mx-6 moves both of them by the
+       same 24px and cancelling it above @2xl moved only the heading. What was
+       left lined the heading up with the cards' EDGE instead of their CONTENT:
+       measured, the heading began 20px left of the first word under it on a
+       desktop pane and 4px left of it below @2xl. Every other settings section
+       puts its heading in a band and therefore starts it at the same x as the
+       body — this one now does too. #}
+    <div class="mb-4 px-4">
         <h2 class="text-sm font-semibold text-ink">{{ 'settings.health.heading'|trans }}</h2>
         <p class="text-xs text-ink-faint mt-0.5">{{ 'settings.health.subheading'|trans }}</p>
     </div>
@@ -72,7 +82,14 @@
             which is the answer somebody who followed the topbar dot here after
             fixing something needs to see.
         #}
-        <div class="rounded-pane border border-line px-5 py-8 text-center" data-health-empty>
+        {# px-4, the house inset from _partials/_card_chrome.html.twig, not the
+           px-5 this used to carry. It is centred text, so the 4px never showed
+           on its own — but the heading directly above it is inset by px-4, and
+           a pane that starts its content one step further in is one more card
+           on this page disagreeing with the rest. py-8 stays: this is an empty
+           state, and the vertical air is what makes it read as an answer
+           rather than as a card that failed to load. #}
+        <div class="rounded-pane border border-line px-4 py-8 text-center" data-health-empty>
             <i class="fa-solid fa-circle-check text-2xl text-emerald-500 mb-3 block" aria-hidden="true"></i>
             <p class="text-sm font-medium text-ink">{{ 'settings.health.healthy.title'|trans }}</p>
             <p class="text-xs text-ink-faint mt-1 max-w-sm mx-auto">{{ 'settings.health.healthy.body'|trans }}</p>
@@ -91,7 +108,15 @@
                      data-health-kind="{{ issue.kind.value }}"
                      data-health-severity="{{ issue.severity.value }}"
                      {% if issue.isConsequence %}data-health-caused-by="{{ issue.causedBy }}"{% endif %}>
-                    <div class="px-4 py-4 @2xl:px-5">
+                    {# Flat px-4. The `@2xl:px-5` that used to widen this was the
+                       worst of the three insets on this page, because it only
+                       appeared on a wide pane: every issue card quietly stepped
+                       4px further in than the heading above the feed and than
+                       every card in every other settings section, and only on
+                       the screens most people use. py-4 rather than the macro's
+                       py-5 is kept on purpose — these stack at space-y-3 and are
+                       a feed of alerts, not one card's body. #}
+                    <div class="px-4 py-4">
                         <div class="flex items-start gap-3">
                             <i class="fa-solid {{ issue.kind.icon }} mt-0.5 w-4 shrink-0 {{ issue.severity.iconClasses }}" aria-hidden="true"></i>
 

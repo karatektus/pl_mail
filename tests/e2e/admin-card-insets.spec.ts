@@ -37,9 +37,16 @@ import { TEST_ADMIN, login, seedUser } from "./support/config";
  *      catches it.
  *
  * The static counterpart is tests/Infrastructure/Templating/
- * AdminCardsUseTheChromeMacrosTest.php, which reads the markup and therefore
- * sees the branches this run does not render — an empty state, a pager, the
- * tinted card that only appears once something has been handled.
+ * CardsUseTheChromeMacrosTest.php, which reads the markup and therefore sees
+ * the branches this run does not render — an empty state, a pager, the tinted
+ * card that only appears once something has been handled. It lost its `Admin`
+ * prefix when the fourth report turned out to be about admin and settings
+ * disagreeing with each other: it now sweeps both trees against the one house
+ * figure, which is the only way that question has an answer.
+ *
+ * The settings half has a rendered twin of its own, deliberately built to the
+ * same three checks and the same tolerances — tests/e2e/settings-card-insets
+ * .spec.ts. Its header explains the two places it has to differ.
  *
  * Own admin user and own session, for the reason admin-panels.spec.ts gives:
  * /admin needs ROLE_ADMIN and granting it to the shared e2e user mid-run

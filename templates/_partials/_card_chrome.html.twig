@@ -23,6 +23,24 @@ Usage:
         <header class="{{ chrome.band() }}">…</header>
         <div class="{{ chrome.body() }}">…</div>
     </section>
+
+In settings the card is usually already built: embed settings/_card.html.twig
+rather than opening a shell by hand.
+
+THREE TESTS HOLD THIS FILE'S FIGURES, and they exist because the owner reported
+the drift four times — the fourth about admin and settings disagreeing with each
+other, after each side had been fixed on its own:
+
+    tests/Infrastructure/Templating/CardsUseTheChromeMacrosTest.php
+        both trees, statically: nothing insets a card wider than px-4, including
+        behind a variant prefix like `@2xl:`. Sees the branches no run renders.
+    tests/e2e/admin-card-insets.spec.ts
+    tests/e2e/settings-card-insets.spec.ts
+        both trees, in a browser: band against body, card against card, and the
+        headings between the cards against all of them.
+
+Change `px-4` here and all three fail, which is correct — it is the figure, and
+moving it is a decision about both halves of the application at once.
 #}
 
 {# The card itself. `overflow-hidden` so a flush body — a divide-y list, a
