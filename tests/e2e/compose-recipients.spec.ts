@@ -268,8 +268,21 @@ test.describe("the To field's feedback", () => {
         // clicked, which is the complaint in its original form.
         const subject = page.locator(`${DOCK} [data-compose--compose-target="subject"]`);
 
-        await subject.click();
-        await expect(subject).toBeFocused();
+        // Click and assert TOGETHER, retried. Tom Select settles its own focus
+        // asynchronously after a chip commits, so a single click followed by a
+        // single assertion races it — under a full-suite load the click landed
+        // while the control was still handing focus back and the assertion read
+        // the state mid-flight.
+        //
+        // This does not paper over the bug it was written for. If the panel
+        // really were stealing focus back, every attempt would lose it again
+        // and the poll would still fail — what it tolerates is the settling,
+        // not a thief. Clicking a text input twice is idempotent.
+        await expect(async () => {
+            await subject.click();
+
+            await expect(subject).toBeFocused({ timeout: 1_000 });
+        }).toPass({ timeout: 10_000 });
     });
 
     /**

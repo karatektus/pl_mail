@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Service\Backup;
 
 use App\Domain\Enum\Account\EmailAliasSource;
+use App\Domain\Enum\Ai\ReplyContext;
 use App\Domain\Enum\Backup\ConfigBackupChange;
 use App\Domain\Enum\Backup\ConfigBackupDisposition;
 use App\Domain\Enum\Backup\ConfigBackupSection;
@@ -14,6 +15,7 @@ use App\Domain\Enum\Mail\LabelRole;
 use App\Domain\DTO\Backup\ConfigBackupPlan;
 use App\Domain\DTO\Backup\ConfigBackupPlanItem;
 use App\Entity\Calendar\Calendar;
+use App\Entity\Embeddable\AiPreferences;
 use App\Entity\Calendar\CalendarShareLink;
 use App\Entity\Integration\Integration;
 use App\Entity\Label\Label;
@@ -135,6 +137,14 @@ final class ConfigBackupUsersTest extends KernelTestCase
 
         self::assertArrayHasKey(self::EMAIL, $document['users'], 'the export does not carry the user at all');
 
+        // Every field of the embeddable, on the way OUT. Asserted here as well
+        // as after the restore, so a toArray() that quietly stopped listing one
+        // is a failure in the export rather than an ambiguous one downstream.
+        self::assertSame(
+            array_keys((new AiPreferences())->toArray()),
+            array_keys($document['users'][self::EMAIL]['aiPreferences']),
+        );
+
         // Everything past this line is the other install: a different key, and
         // nobody at home.
         $this->becomeADifferentInstallation();
@@ -162,6 +172,20 @@ final class ConfigBackupUsersTest extends KernelTestCase
         self::assertSame([User::ROLE_ADMIN], $user->roles);
         self::assertSame('de', $user->locale);
         self::assertSame('Europe/Berlin', $user->timezone);
+
+        // ── What this person told the assistant ───────────────────────────
+        // Restored through AiPreferences::applyArray(), the same way the
+        // appearance is — so a field added to the embeddable travels without a
+        // line being added to ConfigBackupUsers. This is the assertion that
+        // makes that claim true rather than merely intended: a restore that
+        // silently dropped these would put somebody back on an installation
+        // that had started indexing a mailbox they had switched off.
+        self::assertTrue($user->aiPreferences->searchOff);
+        self::assertTrue($user->aiPreferences->categoriseOff);
+        self::assertTrue($user->aiPreferences->writingHelpOff);
+        self::assertSame('Ich repariere Fahrräder in Leipzig.', $user->aiPreferences->aboutMe);
+        self::assertSame('Halte dich kurz.', $user->aiPreferences->systemPrompt);
+        self::assertSame(ReplyContext::Thread, $user->aiPreferences->replyContext);
 
         // ── The second factor ─────────────────────────────────────────────
         // Read back through the entity, so this is the value the new install's
@@ -464,6 +488,17 @@ final class ConfigBackupUsersTest extends KernelTestCase
         $user->roles     = [User::ROLE_ADMIN];
         $user->locale    = 'de';
         $user->timezone  = 'Europe/Berlin';
+
+        // Every AI preference set to something OTHER than its default, so a
+        // field that fails to travel shows up as a difference rather than as a
+        // coincidence. There is no completeness test that would otherwise catch
+        // one added to the embeddable and forgotten in toArray().
+        $user->aiPreferences->searchOff      = true;
+        $user->aiPreferences->categoriseOff  = true;
+        $user->aiPreferences->writingHelpOff = true;
+        $user->aiPreferences->aboutMe        = 'Ich repariere Fahrräder in Leipzig.';
+        $user->aiPreferences->systemPrompt   = 'Halte dich kurz.';
+        $user->aiPreferences->replyContext   = ReplyContext::Thread;
 
         $user->restoreTwoFactor(self::TOTP_SECRET, new \DateTimeImmutable('2026-02-03T04:05:06+00:00'));
         $user->backupCodes = [User::hashBackupCode('recovery-code-one'), User::hashBackupCode('recovery-code-two')];

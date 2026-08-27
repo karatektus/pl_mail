@@ -12,6 +12,7 @@ use App\Repository\Ai\AiSettingsRepository;
 use App\Repository\Mail\MessageRepository;
 use App\Repository\User\UserRepository;
 use App\Service\Ai\AiAssistant;
+use App\Service\Ai\AiPermissions;
 use App\Service\Ai\BackfillPolicy;
 use App\Service\Ai\EmbeddingStore;
 use App\Service\Ai\InteractiveAiActivity;
@@ -76,6 +77,7 @@ final readonly class BackfillEmbeddingsHandler
         private MessageEmbedder           $embedder,
         private EmbeddingStore            $store,
         private AiAssistant               $ai,
+        private AiPermissions             $permissions,
         private AiSettingsRepository      $settings,
         private AiBackfillStateRepository $state,
         private InteractiveAiActivity     $activity,
@@ -145,6 +147,10 @@ final readonly class BackfillEmbeddingsHandler
             return;
         }
 
+        // Resolved once per DELIVERY and never per message, which matters
+        // because $this->entityManager->clear() runs further down: the object
+        // below is evicted at the end of every chunk and found again by the
+        // next one.
         $user = $this->users->find($message->userId);
 
         if (null === $user) {
@@ -153,6 +159,27 @@ final readonly class BackfillEmbeddingsHandler
             // could never reach "complete".
             $this->state->recordChunk($message->userId, $message->afterMessageId, true, 0, $now);
             $this->finishIfDone($now);
+
+            return;
+        }
+
+        if (false === $this->permissions->allows($user, AiFeature::Search)) {
+            // Finished, not pending — the same answer the deleted mailbox above
+            // gets, and for the same reason: a run that leaves a mailbox pending
+            // can never reach "complete", so the panel would show a walk stuck
+            // at 97% forever.
+            //
+            // NOT a pause. The installation-wide check higher up pauses the
+            // whole run with a reason, because that is one fact about the
+            // installation; this is one mailbox out of many opting out, and
+            // stopping everybody's backfill for it would be the wrong scope.
+            // Its own log line, because the two are different facts.
+            $this->state->recordChunk($message->userId, $message->afterMessageId, true, 0, $now);
+            $this->finishIfDone($now);
+
+            $this->logger->info('BackfillEmbeddings: skipping a mailbox whose owner has search switched off', [
+                'userId' => $message->userId,
+            ]);
 
             return;
         }
@@ -177,7 +204,7 @@ final readonly class BackfillEmbeddingsHandler
         $stored  = 0;
 
         if ([] !== $pending) {
-            $stored = $this->embedder->embedAll($this->messages->findByIds($pending));
+            $stored = $this->embedder->embedAll($user, $this->messages->findByIds($pending));
         }
 
         // A whole chunk that stored nothing, with work to do, is a host that is

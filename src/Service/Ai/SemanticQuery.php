@@ -9,6 +9,7 @@ use App\Domain\Enum\Ai\AiCallFeature;
 use App\Domain\Enum\Ai\SemanticSkipReason;
 use App\Entity\Ai\AiFeature;
 use App\Entity\Ai\AiSettings;
+use App\Entity\User\User;
 use Psr\Log\LoggerInterface;
 
 /**
@@ -58,6 +59,7 @@ final readonly class SemanticQuery
 
     public function __construct(
         private AiAssistant     $ai,
+        private AiPermissions   $permissions,
         private LoggerInterface $logger,
     ) {
     }
@@ -67,19 +69,34 @@ final readonly class SemanticQuery
      *
      * Never null and never throws: every caller gets an object it can ask both
      * questions of, and the search behind it runs either way.
+     *
+     * THE USER IS IN THE SIGNATURE, AND MAY BE NULL
+     * ─────────────────────────────────────────────
+     * Null is what the search page has for a principal it does not recognise —
+     * an API token today, a guest later — and it is answered FeatureOff, which
+     * is silent. That is right for both halves: an unrecognised principal owns
+     * no vectors to match against, and there is nobody to explain it to.
      */
-    public function forQuery(?string $freeText): SemanticSearch
+    public function forQuery(?User $user, ?string $freeText): SemanticSearch
     {
         $text     = trim((string) $freeText);
         $settings = $this->ai->settings();
 
         // Asked BEFORE the length check, which the previous order had the other
-        // way round. The reason is not efficiency — this is one indexed lookup
-        // Doctrine answers from its identity map — it is that "you typed two
+        // way round. The reason is not efficiency — it is that "you typed two
         // letters" is the wrong thing to tell somebody on an installation where
         // the feature is switched off entirely. The truer reason wins.
         if (false === $settings->enabledFor(AiFeature::Search)) {
             return SemanticSearch::skipped(self::whyUnavailable($settings));
+        }
+
+        // The searcher's own answer, under the installation's. FeatureOff and
+        // therefore SILENT, because it is their own decision and a notice under
+        // the search box explaining a setting they made themselves is noise —
+        // the same reason an install that never switched search on says nothing.
+        // See SemanticSkipReason::tellsTheUser().
+        if (false === $this->permissions->allows($user, AiFeature::Search)) {
+            return SemanticSearch::skipped(SemanticSkipReason::FeatureOff);
         }
 
         // Operators and nothing else — `is:unread`, `from:alice`. There is no

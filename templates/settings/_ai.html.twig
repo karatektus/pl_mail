@@ -1,0 +1,241 @@
+{#
+settings/_ai.html.twig
+─────────────────────────────────────────────────────────────────────────────
+What this person wants from the assistant: which of the three features they
+use, what the composer should know about them, and how much of a conversation
+it hands the model.
+
+THE THREE ROWS ARE A CENSUS OF AiFeature, NOT A HAND-KEPT LIST
+The rows come from SettingsController::aiSectionData(), which maps
+AiFeature::cases() — so a fourth feature appears here without this template
+changing, and AiPreferencesTest counts `data-ai-feature` against the enum for
+exactly that reason.
+
+A feature the ADMINISTRATOR has not switched on renders as a row with no
+control and a muted line saying so. That is the ceiling made visible: a switch
+that silently does nothing is worse than no switch, and the row still has to be
+there, or somebody looking for the feature concludes plMail does not have it.
+
+WHAT THESE SETTINGS ARE ABOUT
+Usefulness and speed. plMail talks to a model on the operator's own network, so
+none of this is a choice about where mail goes — it is a choice about which
+features are worth having and how much time a draft may spend. The context
+control is the one to read that way: more of the conversation is a better
+reply and a longer wait on a GPU the indexer is also queueing for.
+
+THREE PEER CARDS, not one card with three bands — the rule index.html.twig
+states at the General section: each of these is a section-grade subject with
+its own heading and subheading in the catalogue.
+
+Variables:
+  aiFeatures      list of { key, icon, adminOn, enabled }
+  aiReplyContext  ReplyContext — how much the composer reads
+  aiAboutMe       string
+  aiSystemPrompt  string
+#}
+
+{# _card.html.twig pads a body only when asked, because most bodies are lists
+   that pad their own rows. These do — `px-4 py-3`, matching the insights card
+   and the clock — and tests/e2e/settings-card-insets.spec.ts MEASURES the
+   result rather than checking class names, so a card that forgets this fails
+   there rather than merely looking wrong. #}
+<div class="space-y-4">
+
+    {% embed 'settings/_card.html.twig' with {
+        heading:    'settings.ai.features.heading'|trans,
+        subheading: 'settings.ai.features.subheading'|trans,
+    } %}
+        {% block body %}
+            {# Set inside the block rather than at the top of the file: an
+               {% embed %} block is compiled against the embedded template's
+               context, so a `{% set %}` in the outer scope is not visible here
+               and `strict_variables` would turn that into a 500. #}
+            {% set segGroup = 'grid grid-flow-col auto-cols-fr w-28 shrink-0 rounded-pane border border-line overflow-hidden' %}
+            {% set segText  = 'flex h-full items-center justify-center px-2 py-1.5 text-center text-[11px] leading-tight text-ink-muted
+                               peer-checked:bg-accent peer-checked:text-accent-ink
+                               peer-focus-visible:ring-2 peer-focus-visible:ring-inset peer-focus-visible:ring-accent
+                               transition-colors' %}
+
+            <div class="px-4 py-3 space-y-3"
+                 data-controller="settings--toggle"
+                 data-settings--toggle-url-value="{{ path('app_settings_ai_toggle') }}"
+                 data-settings--toggle-token-value="{{ csrf_token('ai_preferences_toggle') }}">
+
+                {% for feature in aiFeatures %}
+                    {% set name = ('settings.ai.feature.' ~ feature.key)|trans %}
+                    <div class="flex items-start justify-between gap-3"
+                         data-ai-feature="{{ feature.key }}">
+                        <span class="flex items-start gap-3 min-w-0">
+                            <i class="{{ feature.icon }} w-4 text-zinc-400 mt-0.5 shrink-0" aria-hidden="true"></i>
+                            <span class="min-w-0">
+                                <span class="block text-xs font-medium text-ink-muted">{{ name }}</span>
+                                <span class="block text-[11px] text-ink-faint mt-0.5">
+                                    {{ ('settings.ai.feature.' ~ feature.key ~ '_hint')|trans }}
+                                </span>
+                            </span>
+                        </span>
+
+                        {% if feature.adminOn %}
+                            <div class="{{ segGroup }}" role="radiogroup" aria-label="{{ name }}">
+                                {% for on in [true, false] %}
+                                    <label class="cursor-pointer">
+                                        <input type="radio" name="ai-{{ feature.key }}" class="peer sr-only"
+                                               value="{{ on ? '1' : '0' }}"
+                                               data-key="{{ feature.key }}"
+                                               data-action="change->settings--toggle#toggle"
+                                               aria-label="{{ (on ? 'settings.ai.seg.on' : 'settings.ai.seg.off')|trans }}"
+                                            {{ feature.enabled == on ? 'checked' : '' }}>
+                                        <span class="{{ segText }}">
+                                            {{ (on ? 'settings.ai.seg.on' : 'settings.ai.seg.off')|trans }}
+                                        </span>
+                                    </label>
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            {# No control at all rather than a disabled one. A
+                               greyed switch invites a click that cannot do
+                               anything; a sentence says who to ask. #}
+                            <span class="shrink-0 w-28 text-[11px] leading-tight text-ink-faint text-right"
+                                  data-ai-feature-admin-off>
+                                {{ 'settings.ai.feature.admin_off'|trans }}
+                            </span>
+                        {% endif %}
+                    </div>
+                {% endfor %}
+            </div>
+        {% endblock %}
+    {% endembed %}
+
+    {% embed 'settings/_card.html.twig' with {
+        heading:    'settings.ai.notes.heading'|trans,
+        subheading: 'settings.ai.notes.subheading'|trans,
+    } %}
+        {% block body %}
+            {#
+            ONE form and ONE button for both fields, and deliberately not the
+            auto-submit idiom the segments use. These two are typed rather than
+            clicked and are read together when a draft is built, so a form that
+            posted on every blur would send half-finished sentences — and would
+            post the OTHER field's value alongside them, which is the
+            shared-form problem _compose_behavior.html.twig warns about.
+
+            data-turbo="false" like the other posting forms on this page: the
+            action redirects, and the flash lands on the reload.
+            #}
+            <div class="px-4 py-3">
+                <form method="post" action="{{ path('app_settings_ai_notes') }}" data-turbo="false" class="space-y-4">
+                    <input type="hidden" name="_token" value="{{ csrf_token('settings-ai-notes') }}">
+
+                    <div class="space-y-1.5">
+                        <label for="settings-ai-about-me" class="block text-xs font-medium text-ink-muted">
+                            {{ 'settings.ai.notes.about_me_label'|trans }}
+                        </label>
+                        <p class="text-[11px] text-ink-faint leading-snug">{{ 'settings.ai.notes.about_me_hint'|trans }}</p>
+                        {# maxlength is the SAME constant the property hook
+                           clamps to. Two copies of a limit is how a textarea
+                           accepts four thousand characters and reports success
+                           while the server stores twelve hundred. #}
+                        <textarea id="settings-ai-about-me"
+                                  name="aboutMe"
+                                  rows="4"
+                                  maxlength="{{ constant('App\\Entity\\Embeddable\\AiPreferences::MAX_ABOUT_ME') }}"
+                                  placeholder="{{ 'settings.ai.notes.about_me_placeholder'|trans }}"
+                                  class="w-full px-3 py-2 rounded-lg text-sm bg-field border border-field text-ink
+                                         focus:outline-none focus-visible:ring-2 focus-visible:ring-accent">{{ aiAboutMe }}</textarea>
+                    </div>
+
+                    <div class="space-y-1.5">
+                        <label for="settings-ai-system-prompt" class="block text-xs font-medium text-ink-muted">
+                            {{ 'settings.ai.notes.system_prompt_label'|trans }}
+                        </label>
+                        <p class="text-[11px] text-ink-faint leading-snug">{{ 'settings.ai.notes.system_prompt_hint'|trans }}</p>
+                        <textarea id="settings-ai-system-prompt"
+                                  name="systemPrompt"
+                                  rows="3"
+                                  maxlength="{{ constant('App\\Entity\\Embeddable\\AiPreferences::MAX_SYSTEM_PROMPT') }}"
+                                  placeholder="{{ 'settings.ai.notes.system_prompt_placeholder'|trans }}"
+                                  class="w-full px-3 py-2 rounded-lg text-sm bg-field border border-field text-ink
+                                         focus:outline-none focus-visible:ring-2 focus-visible:ring-accent">{{ aiSystemPrompt }}</textarea>
+                    </div>
+
+                    <button type="submit"
+                            class="inline-flex items-center justify-center h-9 px-4 rounded-lg text-sm font-medium
+                                   text-accent-ink bg-accent hover:bg-accent-strong
+                                   focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-1
+                                   transition-colors duration-100 cursor-pointer">
+                        {{ 'settings.ai.notes.save'|trans }}
+                    </button>
+                </form>
+            </div>
+        {% endblock %}
+    {% endembed %}
+
+    {% embed 'settings/_card.html.twig' with {
+        heading:    'settings.ai.context.heading'|trans,
+        subheading: 'settings.ai.context.subheading'|trans,
+    } %}
+        {% block body %}
+            {% set segText = 'flex h-full items-center justify-center px-3 py-1.5 text-center text-[11px] leading-tight text-ink-muted
+                              peer-checked:bg-accent peer-checked:text-accent-ink
+                              peer-focus-visible:ring-2 peer-focus-visible:ring-inset peer-focus-visible:ring-accent
+                              transition-colors' %}
+
+            <div class="px-4 py-3 space-y-3">
+                {# Submits on change and redirects, like the clock picker: the
+                   choice matters on the next draft, not on this page, so there
+                   is no fragment small enough to be worth swapping back. #}
+                <form method="post" action="{{ path('app_settings_ai_context') }}" data-turbo="false"
+                      data-controller="ui--auto-submit">
+                    <input type="hidden" name="_token" value="{{ csrf_token('settings-ai-context') }}">
+
+                    <div class="grid grid-flow-col auto-cols-fr rounded-pane border border-line overflow-hidden"
+                         role="radiogroup" aria-label="{{ 'settings.ai.context.heading'|trans }}">
+                        {% for depth in ['none', 'message', 'thread'] %}
+                            <label class="cursor-pointer">
+                                <input type="radio" name="depth" class="peer sr-only"
+                                       value="{{ depth }}"
+                                       data-action="change->ui--auto-submit#submit"
+                                       data-ai-context-depth="{{ depth }}"
+                                    {{ aiReplyContext.value == depth ? 'checked' : '' }}>
+                                <span class="{{ segText }}">
+                                    {{ ('settings.ai.context.' ~ depth)|trans }}
+                                </span>
+                            </label>
+                        {% endfor %}
+                    </div>
+                </form>
+
+                {# The hint belongs to the CHOSEN value rather than listing all
+                   three, because the thing worth saying differs per value: one
+                   of them makes "Draft a reply" refuse on an empty composer,
+                   and the other two only cost time. #}
+                <p class="text-[11px] text-ink-faint leading-snug">
+                    {{ ('settings.ai.context.' ~ aiReplyContext.value ~ '_hint')|trans }}
+                </p>
+
+                {#
+                What each feature is actually given, in plain words.
+
+                Here because the commonest question about any of this is "why
+                did it not know that", and the answer is nearly always that the
+                model was handed the first screen of a message rather than the
+                whole of it. Only the features that are actually running are
+                listed — a line about search on an install where search is off
+                explains nothing.
+                #}
+                <div class="pt-3 border-t border-line">
+                    <h3 class="text-[11px] font-semibold uppercase tracking-wide text-ink-faint">
+                        {{ 'settings.ai.reads.heading'|trans }}
+                    </h3>
+                    <ul class="mt-1.5 space-y-1 text-[11px] text-ink-faint leading-snug">
+                        {% for feature in aiFeatures %}
+                            {% if feature.adminOn and feature.enabled %}
+                                <li>{{ ('settings.ai.reads.' ~ feature.key)|trans }}</li>
+                            {% endif %}
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+        {% endblock %}
+    {% endembed %}
+</div>

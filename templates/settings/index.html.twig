@@ -104,6 +104,32 @@
                                    this page was not already paying. #}
                                 {% set attention = accountHealth.attention %}
 
+                                {# THE ASSISTANT ENTRY IS CONDITIONAL, and merged into
+                                   the mail group below rather than branching the whole
+                                   array in two.
+
+                                   It appears only where there is something to configure:
+                                   an installation whose administrator has switched none
+                                   of the three AI features on has no assistant, and a nav
+                                   entry leading to three rows that all say "ask your
+                                   administrator" is a page nobody wanted.
+
+                                   The second half of the condition, section == 'ai', is
+                                   the same not-a-nicety the Health entry documents below:
+                                   the page is still reachable directly, and it must not
+                                   vanish out from under somebody who has it open when an
+                                   administrator flips the switch mid-session — a nav with
+                                   no entry for the page you are looking at has nothing to
+                                   mark aria-current on.
+
+                                   ai_settings_available() asks the ADMINISTRATOR'S
+                                   switches only. If it asked this person's as well,
+                                   somebody who had switched all three of theirs off would
+                                   lose the page that switches them back on.
+
+                                   It sits after insights, its nearest neighbour: both are
+                                   per-user switches over what plMail does to mail on the
+                                   way past. #}
                                 {% set navGroups = [
                                     { label: 'settings.nav.group.personal', items: [
                                         { section: 'profile',       icon: 'fa-solid fa-user' },
@@ -118,8 +144,11 @@
                                         { section: 'labels',        icon: 'fa-solid fa-tag' },
                                         { section: 'filters',       icon: 'fa-solid fa-filter' },
                                         { section: 'insights',      icon: 'fa-solid fa-satellite-dish' },
+                                    ]|merge(ai_settings_available() or section == 'ai'
+                                            ? [{ section: 'ai', icon: 'fa-solid fa-wand-magic-sparkles' }]
+                                            : [])|merge([
                                         { section: 'notifications', icon: 'fa-solid fa-bell' },
-                                    ] },
+                                    ]) },
                                     { label: 'settings.nav.group.calendar', items: [
                                         { section: 'calendars',     icon: 'fa-regular fa-calendar' },
                                         { section: 'sharing',       icon: 'fa-solid fa-share-nodes' },
@@ -500,6 +529,18 @@
                                                 </turbo-frame>
                                             {% endblock %}
                                         {% endembed %}
+
+                                    {% elseif section == 'ai' %}
+                                        {# Three peer cards of its own, so the include
+                                           carries the whole section rather than one card
+                                           body — unlike insights below, which is a single
+                                           list inside a single card. #}
+                                        {% include 'settings/_ai.html.twig' with {
+                                            aiFeatures:     aiFeatures,
+                                            aiReplyContext: aiReplyContext,
+                                            aiAboutMe:      aiAboutMe,
+                                            aiSystemPrompt: aiSystemPrompt,
+                                        } %}
 
                                     {% elseif section == 'insights' %}
                                         {% embed 'settings/_card.html.twig' with {

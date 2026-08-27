@@ -6,6 +6,7 @@ namespace App\Controller\Settings;
 
 use App\Domain\Enum\AppLocale;
 use App\Domain\Enum\User\ClockFormat;
+use App\Entity\Ai\AiFeature;
 use App\Domain\Helper\TimezoneHelper;
 use App\Entity\User\User;
 use App\Form\ApiTokenType;
@@ -25,6 +26,7 @@ use App\Repository\Label\LabelRepository;
 use App\Repository\Rule\MailRuleRepository;
 use App\Service\Calendar\Subscription\CalendarSourceLister;
 use App\Service\Health\AccountHealthInspector;
+use App\Service\Ai\AiAssistant;
 use App\Service\Insight\InsightExtractorInterface;
 use App\Service\Insight\InsightExtractorRegistry;
 use App\Service\Push\PushSubscriptionRegistry;
@@ -54,7 +56,22 @@ final class SettingsController extends AbstractController
     /** Where /settings opens: the first entry in the navigation. */
     private const string DEFAULT_SECTION = 'profile';
 
-    private const array SECTIONS = ['health', 'accounts', 'profile', 'security', 'labels', 'calendars', 'sharing', 'filters', 'insights', 'integrations', 'appearance', 'aliases', 'read-receipts', 'signature', 'app-passwords', 'notifications', 'general'];
+    private const array SECTIONS = ['health', 'accounts', 'profile', 'security', 'labels', 'calendars', 'sharing', 'filters', 'insights', 'ai', 'integrations', 'appearance', 'aliases', 'read-receipts', 'signature', 'app-passwords', 'notifications', 'general'];
+
+    /**
+     * One icon per AI feature, here rather than on the enum.
+     *
+     * AiFeature is domain vocabulary that workers and handlers read; a
+     * FontAwesome class on it would put a stylesheet's spelling inside the
+     * thing that decides whether a model may be asked anything. Keyed by the
+     * enum's own value so a feature added later fails loudly on this page
+     * rather than rendering a row with no icon.
+     */
+    private const array AI_FEATURE_ICONS = [
+        'search'       => 'fa-solid fa-magnifying-glass',
+        'categorise'   => 'fa-solid fa-inbox',
+        'writing_help' => 'fa-solid fa-wand-magic-sparkles',
+    ];
 
     public function __construct(
         private readonly AccountRepository $accountRepository,
@@ -79,6 +96,7 @@ final class SettingsController extends AbstractController
         private readonly ClockFormatResolver $clocks,
         private readonly AccountHealthInspector $healthInspector,
         private readonly InsightExtractorRegistry $insightExtractors,
+        private readonly AiAssistant $ai,
     ) {
     }
 
@@ -133,6 +151,7 @@ final class SettingsController extends AbstractController
             ...$this->timezoneSectionData($section),
             ...$this->healthSectionData($section),
             ...$this->insightsSectionData($section),
+            ...$this->aiSectionData($section),
         ]);
     }
 
@@ -326,6 +345,55 @@ final class SettingsController extends AbstractController
                 ],
                 $this->insightExtractors->all(),
             ),
+        ];
+    }
+
+    /**
+     * The three AI features as the settings cards render them, and only when
+     * that section is on screen — the rule every method around this one
+     * follows, and one this needs more than most: building it off-section
+     * would put a read of ai_settings on every settings tab, and
+     * AiSettingsRepository::current() goes through findOneBy(), which issues
+     * SQL every time rather than being answered from the identity map.
+     *
+     * BOTH ANSWERS PER FEATURE, because the card renders them differently. A
+     * feature the ADMINISTRATOR has switched off shows a muted line instead of
+     * a control — a switch that silently does nothing is worse than no switch —
+     * and a feature they have switched on shows this person's own answer.
+     *
+     * Plain arrays rather than enum cases, the way insightsSectionData() hands
+     * over plain rows: the template touches presentation only.
+     *
+     * @return array<string, mixed>
+     */
+    private function aiSectionData(string $section): array
+    {
+        $user = $this->getUser();
+
+        if ('ai' !== $section || false === $user instanceof User) {
+            return [];
+        }
+
+        $preferences = $user->aiPreferences;
+
+        // Read once and asked three times. AiSettingsRepository::current() goes
+        // through findOneBy(), which issues SQL every call, so three
+        // isEnabledFor() calls would be three queries for one card.
+        $settings = $this->ai->settings();
+
+        return [
+            'aiFeatures' => array_map(
+                fn (AiFeature $feature): array => [
+                    'key'     => $feature->value,
+                    'icon'    => self::AI_FEATURE_ICONS[$feature->value],
+                    'adminOn' => $settings->enabledFor($feature),
+                    'enabled' => $preferences->allows($feature),
+                ],
+                AiFeature::cases(),
+            ),
+            'aiReplyContext' => $preferences->replyContext,
+            'aiAboutMe'      => $preferences->aboutMe,
+            'aiSystemPrompt' => $preferences->systemPrompt,
         ];
     }
 

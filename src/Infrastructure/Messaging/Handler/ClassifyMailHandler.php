@@ -11,6 +11,7 @@ use App\Infrastructure\Messaging\Message\ClassifyMailMessage;
 use App\Repository\Mail\ContactRepository;
 use App\Repository\Mail\MessageRepository;
 use App\Service\Ai\AiAssistant;
+use App\Service\Ai\AiPermissions;
 use App\Service\Mail\MessageCategorizer;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
@@ -62,6 +63,7 @@ final readonly class ClassifyMailHandler
         private ContactRepository      $contacts,
         private MessageCategorizer     $categorizer,
         private AiAssistant            $ai,
+        private AiPermissions          $permissions,
         private EntityManagerInterface $entityManager,
         private LoggerInterface        $logger,
     ) {
@@ -101,7 +103,19 @@ final readonly class ClassifyMailHandler
     }
 
     /**
-     * Only mail that no rule recognised, and only once.
+     * Only mail that no rule recognised, only once, and only for somebody who
+     * still wants this done to their mail.
+     *
+     * The per-user check goes HERE rather than at dispatch, and that is a scope
+     * decision rather than an oversight: one ClassifyMailMessage carries ids
+     * from several accounts and therefore several owners, so narrowing at
+     * dispatch would silence everybody in a batch that contained one opt-out.
+     * ClassifyMailStep keeps the installation-wide check for the reason its own
+     * docblock gives — without it every install with the feature off enqueues a
+     * job per batch for a handler whose body is `return`.
+     *
+     * Asked BEFORE explain(), so an opted-out message also saves the
+     * findCorrespondentEmails() query that check needs.
      */
     private function worthAsking(Message $mail): bool
     {
@@ -112,6 +126,10 @@ final readonly class ClassifyMailHandler
         $user = $mail->account->usr ?? null;
 
         if (null === $user) {
+            return false;
+        }
+
+        if (false === $this->permissions->allows($user, AiFeature::Categorise)) {
             return false;
         }
 

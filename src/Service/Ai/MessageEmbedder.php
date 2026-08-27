@@ -7,6 +7,7 @@ namespace App\Service\Ai;
 use App\Domain\Enum\Ai\AiCallFeature;
 use App\Entity\Ai\AiFeature;
 use App\Entity\Mail\Message;
+use App\Entity\User\User;
 use App\Repository\Ai\AiSettingsRepository;
 use Doctrine\ORM\EntityManagerInterface;
 
@@ -34,6 +35,7 @@ final readonly class MessageEmbedder
 
     public function __construct(
         private AiAssistant            $ai,
+        private AiPermissions          $permissions,
         private EmbeddingStore         $store,
         private AiSettingsRepository   $settings,
         private EntityManagerInterface $entityManager,
@@ -41,17 +43,35 @@ final readonly class MessageEmbedder
     }
 
     /**
+     * Embed one person's mail.
+     *
+     * ONE PERSON'S, BY CONSTRUCTION AND BY SIGNATURE
+     * ──────────────────────────────────────────────
+     * Both callers derive their ids from a per-user query
+     * (MessageRepository::unembeddedIdsForUser and ::idsForUserAfter), so the
+     * batch already belongs to one mailbox. The parameter makes that invariant
+     * something a caller has to state rather than something a reader has to
+     * discover — and it is what carries the per-user switch in, since this is
+     * one of the four places in src/ that build content for a model.
+     *
+     * There is deliberately no per-message `$message->account->usr` check
+     * inside the loop. That would be two lazy ManyToOne hops per message in a
+     * loop that already pays one findOneBy on ai_settings per call, and it
+     * would be guarding against a caller that does not exist.
+     *
      * @param list<Message> $messages
      *
      * @return int how many were stored
      */
-    public function embedAll(array $messages): int
+    public function embedAll(?User $user, array $messages): int
     {
-        $settings = $this->settings->currentOrDefault();
-
-        if (false === $settings->enabledFor(AiFeature::Search)) {
+        // The installation's switch and this person's together. A null user is
+        // refused rather than assumed — see AiPermissions.
+        if (false === $this->permissions->allows($user, AiFeature::Search)) {
             return 0;
         }
+
+        $settings = $this->settings->currentOrDefault();
 
         $model  = (string) $settings->embeddingModel;
         $stored = 0;

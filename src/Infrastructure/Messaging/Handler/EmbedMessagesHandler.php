@@ -8,7 +8,8 @@ use App\Entity\Ai\AiFeature;
 use App\Infrastructure\Messaging\Message\EmbedMessagesMessage;
 use App\Repository\Ai\AiSettingsRepository;
 use App\Repository\Mail\MessageRepository;
-use App\Service\Ai\AiAssistant;
+use App\Repository\User\UserRepository;
+use App\Service\Ai\AiPermissions;
 use App\Service\Ai\EmbeddingStore;
 use App\Service\Ai\MessageEmbedder;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
@@ -30,27 +31,40 @@ use Symfony\Component\Messenger\Attribute\AsMessageHandler;
  *
  * Checks the feature again rather than trusting whoever dispatched it: settings
  * change, and a job already on the queue when somebody switches search off must
- * not still spend requests on another machine.
+ * not still spend requests on another machine. That is now two switches — the
+ * installation's and the mailbox owner's — which is why the envelope carries a
+ * user id at all: this handler had no way to say whose mail it was holding.
  */
 #[AsMessageHandler]
 final readonly class EmbedMessagesHandler
 {
     public function __construct(
         private MessageRepository    $messages,
+        private UserRepository       $users,
         private MessageEmbedder      $embedder,
         private EmbeddingStore       $store,
-        private AiAssistant          $ai,
+        private AiPermissions        $permissions,
         private AiSettingsRepository $settings,
     ) {
     }
 
     public function __invoke(EmbedMessagesMessage $message): void
     {
-        if (false === $this->ai->isEnabledFor(AiFeature::Search)) {
+        // First, because it is the one refusal that costs no query at all.
+        if ([] === $message->messageIds) {
             return;
         }
 
-        if ([] === $message->messageIds) {
+        // One find() by primary key per DELIVERY, not per message — and by id,
+        // so it is answered from Doctrine's identity map for the rest of this
+        // handler. That is cheaper than the ai_settings lookup already paid
+        // below, which goes through findOneBy() and issues SQL every time.
+        $user = null === $message->userId ? null : $this->users->find($message->userId);
+
+        // Replaces the installation-only check that used to be here: allows()
+        // asks the ceiling first, so nothing is lost, and a null user — an
+        // envelope from before the id existed — is refused rather than assumed.
+        if (false === $this->permissions->allows($user, AiFeature::Search)) {
             return;
         }
 
@@ -67,6 +81,6 @@ final readonly class EmbedMessagesHandler
             return;
         }
 
-        $this->embedder->embedAll($this->messages->findByIds($pending));
+        $this->embedder->embedAll($user, $this->messages->findByIds($pending));
     }
 }

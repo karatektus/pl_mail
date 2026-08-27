@@ -280,7 +280,20 @@ export default class extends Controller {
                 headers: jsonCsrfHeaders({ "Content-Type": "application/x-www-form-urlencoded" }),
                 body: new URLSearchParams({
                     task: this.#task,
-                    draft: this.#textOf(editor).trim(),
+                    // What the WRITER has written, not what is in the box.
+                    //
+                    // A reply opens with the quoted original already in the
+                    // body, so sending the whole editor sent that quote as part
+                    // of the draft — while the server was ALSO sending it as
+                    // the context. The model received the same message twice
+                    // and spent a large slice of the draft budget on quotes it
+                    // had already read.
+                    // #writtenBefore() is the same boundary the caret uses, so
+                    // "what is quoted" means one thing in this window.
+                    //
+                    // Unconditional rather than a setting: it removes a
+                    // duplicate, which nobody would ever choose to keep.
+                    draft: this.#writtenBefore(editor).trim(),
                     subject: this.#subject(),
                     inReplyTo: this.inReplyToValue,
                 }),
@@ -674,15 +687,6 @@ export default class extends Controller {
     #subject() {
         return this.element.closest("[data-controller~='compose--compose']")
             ?.querySelector("[data-compose--compose-target='subject']")?.value ?? "";
-    }
-
-    /** What is written, from either surface, without the markup around it. */
-    #textOf(surface) {
-        if (undefined !== surface.value) {
-            return surface.value;
-        }
-
-        return surface.innerText ?? surface.textContent ?? "";
     }
 
     /** Put the caret at the very end, which is where the answer goes. */

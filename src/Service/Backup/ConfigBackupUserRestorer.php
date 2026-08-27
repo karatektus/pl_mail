@@ -193,6 +193,10 @@ final readonly class ConfigBackupUserRestorer
         $user->roles    = $this->roles($document);
 
         $user->appearance->applyArray($this->map($document, 'appearance'));
+        // An empty map leaves the defaults, which is the right answer for a
+        // document written before these existed: the defaults are what the
+        // application already did.
+        $user->aiPreferences->applyArray($this->map($document, 'aiPreferences'));
 
         foreach ($this->map($document, 'settings') as $key => $value) {
             $user->setSetting($key, $value);

@@ -1799,6 +1799,46 @@ setup:
         tagline: Nary a soul aboard yet — let's mend that
 
 settings:
+    ai:
+        context:
+            heading: 'How Deep the Oracle Reads'
+            message: 'The message'
+            message_hint: "The oracle reads the message ye be answerin'. This be how it always was."
+            none: 'Naught'
+            none_hint: "The oracle spies only what ye typed. Fastest — an' \"Draft a reply\" on an empty window has naught to work from, so it'll say it couldn't answer. Shorten, formal an' proofread sail on unaffected."
+            subheading: "More o' the parley makes a better reply an' a longer wait. The oracle runs on this very vessel, so what it costs be time an' little else."
+            thread: 'The whole parley'
+            thread_hint: "The oracle reads the whole parley, oldest first, as much as fits. Better replies in long threads, an' a longer wait."
+        feature:
+            admin_off: 'Not hoisted on this vessel'
+            categorise: "Sortin' the Haul"
+            categorise_hint: "Lets the oracle break the tie when plain rules can't place a message. Off leaves 'em where the rules dropped 'em."
+            search: "Divinin' Search"
+            search_hint: "Finds mail that means what ye asked, not only mail that spells it so. Off stops yer mail bein' charted as well as searched."
+            writing_help: "Quill Wranglin'"
+            writing_help_hint: "Drafts a reply, shortens, makes fancy, proofreads — in the writin' window, when ye ask."
+        features:
+            heading: "Oracle's Talents"
+            subheading: "Which o' the oracle's tricks ye be wantin'. Yer admiral sets what be available; ye choose what ye use."
+        notes:
+            about_me_hint: 'Yer trade, who ye normally write to, aught a stranger would need to answer yer mail well.'
+            about_me_label: 'Who ye be'
+            about_me_placeholder: "I keep a rope-mender's shop an' most o' me mail be customers bookin' repairs."
+            heading: 'Yer Own Tale'
+            save: 'Stow it'
+            saved: 'Stowed.'
+            subheading: "What the oracle should know afore it writes fer ye. Both notes sail with every draft, an' serve naught else."
+            system_prompt_hint: "Preferences, not orders — the ship's own rules come first, includin' writin' in the tongue o' the mail. Keep it short: long notes crowd the message itself out o' the oracle's eye."
+            system_prompt_label: 'How ye like yer words'
+            system_prompt_placeholder: "Short sentences. No shoutin' marks. Sign off with me first name alone."
+        reads:
+            categorise: "Sortin': the sender, the subject an' the start o' the message."
+            heading: 'What the Oracle Be Handed'
+            search: "Chartin': the subject, the sender an' the start o' each message."
+            writing_help: "Writin': yer subject line, what ye typed, an' as much o' the parley as the setting above allows."
+        seg:
+            off: 'Nay'
+            on: 'Aye'
     accounts:
         delete: Put this crew member ashore
         delete_confirm: 'Put %account% ashore? Every bottle hauled aboard for this crew member goes to Davy Jones for good, and there be no gettin'' them back.'
@@ -2616,13 +2656,13 @@ settings:
         heading: Tongue
         subheading: The tongue plMail speaks to ye in. Yer bottles be left as they were writ.
     nav:
-        read_receipts: Read-marks
-        sharing: Sharing
         accounts: Th' crew
+        ai: "Ship's Oracle"
         aliases: Aliases
         app_passwords: Spare keys
         appearance: Look o' the ship
         calendars: Almanacs
+        filters: Sieves
         general: General
         group:
             access: "Boardin' rights"
@@ -2631,12 +2671,13 @@ settings:
             personal: Yerself
         health: "State o' yer crew"
         insights: The spyglass
-        profile: Yer colours
-        filters: Sieves
         integrations: 'Friendly ports'
         labels: Flags
         notifications: Word from the crow's nest
+        profile: Yer colours
+        read_receipts: Read-marks
         security: The ship's lock
+        sharing: Sharing
         signature: Yer marks
     notifications:
         heading: Word from the crow's nest
@@ -2780,8 +2821,8 @@ sidebar:
     new_mail_here: 'Fresh bottles washed up in %where%'
     new_mail_here_count: '%count% fresh bottles washed up in %where%'
     nav:
-        calendar: Almanac
         archive: The hold
+        calendar: Almanac
         drafts: Scrolls in the works
         inbox: Bottles washed ashore
         more: More

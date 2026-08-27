@@ -251,6 +251,12 @@ final readonly class ConfigBackupUsers
             'locale'     => $user->locale,
             'timezone'   => $user->timezone,
             'appearance' => $user->appearance->toArray(),
+            // Beside appearance and for the same reason: it is a fixed,
+            // validated set with its own toArray(), so a field added to it
+            // travels without a line being added here. That is exactly what
+            // USER_SETTINGS' curated allowlist below does not give — it omits
+            // several bag keys today with nothing catching it.
+            'aiPreferences' => $user->aiPreferences->toArray(),
             'settings'   => $this->settingsOf($user),
             'createdAt'  => $user->createdAt->format(DateTimeInterface::ATOM),
             'twoFactor'  => [

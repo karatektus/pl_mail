@@ -6,9 +6,11 @@ namespace App\Tests\Service\Ai;
 
 use App\Domain\Enum\Ai\WritingTask;
 use App\Entity\Ai\AiSettings;
+use App\Entity\User\User;
 use App\Repository\Ai\AiSettingsRepository;
 use App\Service\Ai\AiAssistant;
 use App\Service\Ai\AiCallRecorder;
+use App\Service\Ai\AiPermissions;
 use App\Service\Ai\OllamaClient;
 use App\Service\Ai\WritingAssistant;
 use Doctrine\DBAL\Connection;
@@ -78,7 +80,7 @@ final class WritingStreamTest extends KernelTestCase
     {
         $assistant = $this->assistant($this->ndjson(['Dear ', 'Kim', ',']));
 
-        $tokens = $assistant->stream(WritingTask::Reply, '', 'Can you send the invoice?');
+        $tokens = $assistant->stream($this->writer(), WritingTask::Reply, '', 'Can you send the invoice?');
 
         self::assertNotNull($tokens);
         self::assertSame(['Dear ', 'Kim', ','], iterator_to_array($tokens, false));
@@ -96,7 +98,7 @@ final class WritingStreamTest extends KernelTestCase
     {
         $assistant = $this->assistant($this->ndjson(["```\n", 'Dear Kim.', "\n```"]));
 
-        $tokens = $assistant->stream(WritingTask::Reply, '', 'hello');
+        $tokens = $assistant->stream($this->writer(), WritingTask::Reply, '', 'hello');
 
         self::assertNotNull($tokens);
 
@@ -111,7 +113,7 @@ final class WritingStreamTest extends KernelTestCase
     {
         $assistant = $this->assistant($this->ndjson(['a', 'b']));
 
-        $tokens = $assistant->stream(WritingTask::Reply, '', 'hello');
+        $tokens = $assistant->stream($this->writer(), WritingTask::Reply, '', 'hello');
 
         self::assertNotNull($tokens);
 
@@ -135,7 +137,7 @@ final class WritingStreamTest extends KernelTestCase
     {
         $assistant = $this->assistant($this->ndjson(['a', 'b', 'c']));
 
-        $tokens = $assistant->stream(WritingTask::Reply, '', 'hello');
+        $tokens = $assistant->stream($this->writer(), WritingTask::Reply, '', 'hello');
 
         self::assertNotNull($tokens);
 
@@ -158,7 +160,7 @@ final class WritingStreamTest extends KernelTestCase
     {
         $assistant = $this->assistant(new MockResponse('not found', ['http_code' => 404]));
 
-        $tokens = $assistant->stream(WritingTask::Reply, '', 'hello');
+        $tokens = $assistant->stream($this->writer(), WritingTask::Reply, '', 'hello');
 
         self::assertNotNull($tokens);
         self::assertSame([], iterator_to_array($tokens, false));
@@ -181,8 +183,8 @@ final class WritingStreamTest extends KernelTestCase
         $calls     = 0;
         $assistant = $this->assistant($this->ndjson(['a']), $calls);
 
-        self::assertNull($assistant->stream(WritingTask::Shorten, '   ', 'a message'));
-        self::assertNull($assistant->stream(WritingTask::Reply, '', ''));
+        self::assertNull($assistant->stream($this->writer(), WritingTask::Shorten, '   ', 'a message'));
+        self::assertNull($assistant->stream($this->writer(), WritingTask::Reply, '', ''));
         self::assertSame(0, $calls);
         self::assertCount(0, $this->recorded, 'a call that was never made is not a call');
     }
@@ -192,9 +194,57 @@ final class WritingStreamTest extends KernelTestCase
         $calls     = 0;
         $assistant = $this->assistant($this->ndjson(['a']), $calls, enabled: false);
 
-        self::assertNull($assistant->stream(WritingTask::Reply, '', 'hello'));
+        self::assertNull($assistant->stream($this->writer(), WritingTask::Reply, '', 'hello'));
         self::assertSame(0, $calls);
         self::assertCount(0, $this->recorded);
+    }
+
+    /**
+     * A writer who has switched drafting help off gets nothing, with the
+     * installation's switch fully on — and nothing is recorded, because no call
+     * was made.
+     */
+    public function testAWriterWhoHasSwitchedDraftingHelpOffStreamsNothing(): void
+    {
+        $calls     = 0;
+        $assistant = $this->assistant($this->ndjson(['a']), $calls);
+
+        $writer = $this->writer();
+        $writer->aiPreferences->writingHelpOff = true;
+
+        self::assertNull($assistant->stream($writer, WritingTask::Reply, '', 'hello'));
+        self::assertSame(0, $calls);
+        self::assertCount(0, $this->recorded);
+    }
+
+    /**
+     * The streamed path builds the same prompt as the unstreamed one.
+     *
+     * Both go through messagesFor() precisely so that they cannot diverge, and
+     * this is the assertion that keeps it that way: two copies of the persona
+     * rule would be one that gets a fix and one that does not.
+     */
+    public function testTheStreamedPromptCarriesThePersonaInTheSystemMessage(): void
+    {
+        $sent = null;
+
+        $writer = $this->writer();
+        $writer->aiPreferences->aboutMe = 'I run a bicycle repair shop in Leipzig.';
+
+        $assistant = $this->assistant($this->ndjson(['a']), sent: $sent);
+
+        $tokens = $assistant->stream($writer, WritingTask::Reply, '', 'When are you open?');
+
+        self::assertNotNull($tokens);
+
+        // Iterated, because the request is not made until it is.
+        foreach ($tokens as $ignored) {
+        }
+
+        self::assertIsArray($sent);
+        self::assertStringContainsString('I run a bicycle repair shop in Leipzig.', $sent['messages'][0]['content']);
+        self::assertStringStartsWith(WritingTask::Reply->systemPrompt(), $sent['messages'][0]['content']);
+        self::assertStringNotContainsString('bicycle repair shop', $sent['messages'][1]['content']);
     }
 
     /**
@@ -261,7 +311,8 @@ final class WritingStreamTest extends KernelTestCase
     }
 
     /**
-     * @param array<string, mixed>|null $ps what /api/ps answers, or null for a host that is down
+     * @param array<string, mixed>|null $ps   what /api/ps answers, or null for a host that is down
+     * @param array<string, mixed>|null $sent  the request body the model was actually sent, decoded
      */
     private function assistant(
         MockResponse $chat,
@@ -269,6 +320,7 @@ final class WritingStreamTest extends KernelTestCase
         bool         $enabled = true,
         string       $model = 'llama3.1:8b',
         ?array       $ps = ['models' => []],
+        ?array       &$sent = null,
     ): WritingAssistant {
         $settings                     = new AiSettings();
         $settings->isEnabled          = $enabled;
@@ -279,7 +331,7 @@ final class WritingStreamTest extends KernelTestCase
         $this->em->persist($settings);
         $this->em->flush();
 
-        $http = new MockHttpClient(function (string $method, string $url) use (&$calls, $chat, $ps): MockResponse {
+        $http = new MockHttpClient(function (string $method, string $url, array $options) use (&$calls, &$sent, $chat, $ps): MockResponse {
             if (true === str_contains($url, '/api/ps')) {
                 return null === $ps
                     ? new MockResponse('', ['http_code' => 500])
@@ -288,17 +340,31 @@ final class WritingStreamTest extends KernelTestCase
 
             ++$calls;
 
+            $body = $options['body'] ?? '';
+            $sent = is_string($body) ? json_decode($body, true) : null;
+
             return $chat;
         });
 
-        return new WritingAssistant(
-            new AiAssistant(
-                $this->settings,
-                new OllamaClient($http, new NullLogger()),
-                $this->recorder(),
-                new NullLogger(),
-            ),
+        $ai = new AiAssistant(
+            $this->settings,
+            new OllamaClient($http, new NullLogger()),
+            $this->recorder(),
+            new NullLogger(),
         );
+
+        return new WritingAssistant($ai, new AiPermissions($ai));
+    }
+
+    /**
+     * A user who has not opted out of anything.
+     *
+     * Never persisted: AiPermissions reads the embeddable straight off the
+     * object, so a row would buy nothing and would need cleaning up.
+     */
+    private function writer(): User
+    {
+        return new User();
     }
 
     /**

@@ -6,6 +6,7 @@ use App\Domain\Enum\Calendar\CalendarPaneMode;
 use App\Domain\Enum\Mail\SearchSortOrder;
 use App\Domain\Helper\TimezoneHelper;
 use App\Domain\Model\UserEntityModel;
+use App\Entity\Embeddable\AiPreferences;
 use App\Entity\Embeddable\Appearance;
 use App\Entity\Mail\Account;
 use App\Infrastructure\Doctrine\Type\EncryptedStringType;
@@ -54,6 +55,23 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
 
     #[ORM\Embedded(class: Appearance::class, columnPrefix: 'appearance_')]
     public private(set) Appearance $appearance;
+
+    /**
+     * What this person has decided about the AI features an administrator
+     * switched on for the installation.
+     *
+     * An embeddable beside Appearance rather than a handful of keys in
+     * $settings, for the reason that bag's own docblock draws the line on: this
+     * is a fixed, validated set, and two of its fields are free text that ends
+     * up inside a prompt — where the bound has to be a column length and a
+     * clamping setter rather than a convention readers are trusted to keep.
+     *
+     * private(set) like $appearance: the fields inside are public and are
+     * written directly, but nobody may swap the whole object out from under a
+     * hydrated row.
+     */
+    #[ORM\Embedded(class: AiPreferences::class, columnPrefix: 'ai_')]
+    public private(set) AiPreferences $aiPreferences;
     /**
      * The hashed password
      */
@@ -196,6 +214,7 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
         $this->updatedAt = new \DateTimeImmutable();
         $this->accounts = new ArrayCollection();
         $this->appearance = new Appearance();
+        $this->aiPreferences = new AiPreferences();
     }
 
     /**

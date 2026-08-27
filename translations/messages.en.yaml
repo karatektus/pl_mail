@@ -2138,6 +2138,46 @@ session:
         sign_in_new_tab: Sign in in a new tab
         reload: Reload this page
 settings:
+    ai:
+        context:
+            heading: 'How much the assistant reads'
+            message: 'The message'
+            message_hint: 'The assistant reads the message you are replying to. This is what it has always done.'
+            none: 'Nothing'
+            none_hint: 'The assistant sees only what you have typed. Fastest, and "Draft a reply" on an empty window has nothing to work from — it will say it could not answer. Shorten, make formal and proofread are unaffected.'
+            subheading: 'More of the conversation makes for a better reply and a longer wait. The model runs on this machine, so what it costs is time, not much else.'
+            thread: 'The conversation'
+            thread_hint: 'The assistant reads the whole conversation, oldest first, as much of it as fits. Better replies in long threads, and a longer wait.'
+        feature:
+            admin_off: 'Not switched on for this installation'
+            categorise: 'Sort mail into tabs'
+            categorise_hint: 'Lets the model break the tie when the ordinary rules cannot place a message. Off leaves those messages where the rules put them.'
+            search: 'Search by meaning'
+            search_hint: 'Finds mail that means what you asked for, not only mail that spells it the same way. Off stops your mail being indexed as well as searched.'
+            writing_help: 'Help me write'
+            writing_help_hint: 'Drafts a reply, shortens, makes formal, proofreads — in the compose window, when you ask for it.'
+        features:
+            heading: 'Assistant features'
+            subheading: "Which of the assistant's features you want. Your administrator decides what is available; you decide what you use."
+        notes:
+            about_me_hint: 'Your job, who you usually write to, anything a stranger would need to know to answer your mail well.'
+            about_me_label: 'Who you are'
+            about_me_placeholder: 'I run a bicycle repair shop and most of my mail is from customers booking repairs.'
+            heading: 'About you'
+            save: 'Save'
+            saved: 'Saved.'
+            subheading: 'What the assistant should know before it writes for you. Both notes are sent with every draft, and neither is used for anything else.'
+            system_prompt_hint: "Preferences, not instructions — the app's own rules come first, including writing in the language of the mail. Keep it short: long notes crowd the actual message out of the model's attention."
+            system_prompt_label: 'How you like to be written for'
+            system_prompt_placeholder: 'Short sentences. No exclamation marks. Sign off with just my first name.'
+        reads:
+            categorise: 'Sorting: the sender, the subject and the start of the message.'
+            heading: 'What the assistant is given'
+            search: 'Indexing: the subject, the sender and the start of each message.'
+            writing_help: 'Writing: your subject line, what you have typed, and as much of the conversation as the setting above allows.'
+        seg:
+            off: 'Off'
+            on: 'On'
     accounts:
         delete: Remove account
         delete_confirm: 'Remove %account%? This permanently deletes all synced messages for this account and cannot be undone.'
@@ -2976,13 +3016,13 @@ settings:
         heading: Language
         subheading: The language plMail's interface is shown in. Your mail is left as it was written.
     nav:
-        read_receipts: Read receipts
-        sharing: Sharing
         accounts: Mail accounts
+        ai: 'Assistant'
         aliases: Aliases
         app_passwords: App passwords
         appearance: Appearance
         calendars: Calendars
+        filters: Filters
         general: General
         group:
             access: Access
@@ -2991,12 +3031,13 @@ settings:
             personal: Personal
         health: 'Account health'
         insights: Insights
-        profile: Profile
-        filters: Filters
         integrations: Integrations
         labels: Labels
         notifications: Notifications
+        profile: Profile
+        read_receipts: Read receipts
         security: Security
+        sharing: Sharing
         signature: Signatures
     notifications:
         devices:
@@ -3168,8 +3209,8 @@ sidebar:
     new_mail_here: 'New mail in %where%'
     new_mail_here_count: '%count% new in %where%'
     nav:
-        calendar: Calendar
         archive: Archive
+        calendar: Calendar
         drafts: Drafts
         inbox: Inbox
         more: More

@@ -93,7 +93,7 @@ final class SearchController extends AbstractController
         // switched the feature ON. The search still runs exactly as it always
         // has; what changes is that the page can now say why it is the search
         // it always was. See SemanticQuery.
-        $semantic = $this->semantic->forQuery($parsed->freeText);
+        $semantic = $this->semantic->forQuery($user instanceof User ? $user : null, $parsed->freeText);
 
         $results = $this->threadRepository->searchPage($user, $parsed, $page, sort: $sort, semantic: $semantic);
         $threads = $results->threads;
@@ -145,7 +145,7 @@ final class SearchController extends AbstractController
         // After the coverage report rather than before it: the report is what
         // the person actually sees, and it should describe the mailbox as it
         // was searched rather than as it is about to be.
-        $this->catchUp->afterSearch($userId, $semantic);
+        $this->catchUp->afterSearch($user instanceof User ? $user : null, $semantic);
 
         return $this->listRenderer->render($request, 'search/search.html.twig', $threads, [
             'q'             => $raw,

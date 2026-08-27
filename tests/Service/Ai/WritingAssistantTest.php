@@ -8,7 +8,10 @@ use App\Service\Ai\AiCallRecorder;
 use App\Domain\Enum\Ai\WritingTask;
 use App\Entity\Ai\AiSettings;
 use App\Repository\Ai\AiSettingsRepository;
+use App\Entity\Embeddable\AiPreferences;
+use App\Entity\User\User;
 use App\Service\Ai\AiAssistant;
+use App\Service\Ai\AiPermissions;
 use App\Service\Ai\OllamaClient;
 use App\Service\Ai\WritingAssistant;
 use Doctrine\DBAL\Connection;
@@ -59,8 +62,8 @@ final class WritingAssistantTest extends KernelTestCase
     {
         $assistant = $this->assistant(enabled: false);
 
-        self::assertFalse($assistant->isAvailable());
-        self::assertNull($assistant->write(WritingTask::Shorten, 'some text', null));
+        self::assertFalse($assistant->isAvailableFor($this->writer()));
+        self::assertNull($assistant->write($this->writer(), WritingTask::Shorten, 'some text', null));
     }
 
     /**
@@ -69,7 +72,7 @@ final class WritingAssistantTest extends KernelTestCase
      */
     public function testAReplyCanBeDraftedFromTheMessageAloneWithNoDraft(): void
     {
-        $answer = $this->assistant()->write(WritingTask::Reply, '', 'Can you send the invoice?');
+        $answer = $this->assistant()->write($this->writer(), WritingTask::Reply, '', 'Can you send the invoice?');
 
         self::assertSame('an answer', $answer);
     }
@@ -84,7 +87,7 @@ final class WritingAssistantTest extends KernelTestCase
         $assistant = $this->assistant(calls: $calls);
 
         foreach ([WritingTask::Shorten, WritingTask::Formal, WritingTask::Proofread] as $task) {
-            self::assertNull($assistant->write($task, '   ', 'a message being replied to'));
+            self::assertNull($assistant->write($this->writer(), $task, '   ', 'a message being replied to'));
         }
 
         self::assertSame(0, $calls, 'nothing to work from is not a question worth asking');
@@ -93,7 +96,7 @@ final class WritingAssistantTest extends KernelTestCase
     /** And a reply with neither a draft nor anything to answer is refused too. */
     public function testAReplyWithNothingAtAllIsRefused(): void
     {
-        self::assertNull($this->assistant()->write(WritingTask::Reply, '', ''));
+        self::assertNull($this->assistant()->write($this->writer(), WritingTask::Reply, '', ''));
     }
 
     /**
@@ -104,7 +107,7 @@ final class WritingAssistantTest extends KernelTestCase
     {
         $assistant = $this->assistant(answer: "```\nDear Kim,\n\nThanks.\n```");
 
-        self::assertSame("Dear Kim,\n\nThanks.", $assistant->write(WritingTask::Reply, '', 'hello'));
+        self::assertSame("Dear Kim,\n\nThanks.", $assistant->write($this->writer(), WritingTask::Reply, '', 'hello'));
     }
 
     /** Prose that merely mentions backticks is left alone — guessing would delete lines. */
@@ -112,7 +115,7 @@ final class WritingAssistantTest extends KernelTestCase
     {
         $assistant = $this->assistant(answer: 'Use the `--force` flag.');
 
-        self::assertSame('Use the `--force` flag.', $assistant->write(WritingTask::Reply, '', 'hello'));
+        self::assertSame('Use the `--force` flag.', $assistant->write($this->writer(), WritingTask::Reply, '', 'hello'));
     }
 
     /**
@@ -138,10 +141,134 @@ final class WritingAssistantTest extends KernelTestCase
         self::assertCount(4, WritingTask::cases());
     }
 
+    /**
+     * A user who has switched drafting help off is refused, with the
+     * installation's switch fully on.
+     *
+     * The headline of the whole per-user arrangement seen from this end: the
+     * ceiling being open is not the same as being allowed.
+     */
+    public function testAWriterWhoHasSwitchedDraftingHelpOffIsRefused(): void
+    {
+        $calls  = 0;
+        $writer = $this->writer();
+        $writer->aiPreferences->writingHelpOff = true;
+
+        $assistant = $this->assistant(calls: $calls);
+
+        self::assertFalse($assistant->isAvailableFor($writer));
+        self::assertNull($assistant->write($writer, WritingTask::Reply, '', 'Can you send the invoice?'));
+        self::assertSame(0, $calls, 'a refused writer still reached the model host');
+    }
+
+    /**
+     * The persona goes into the SYSTEM message, after the app's own
+     * instructions, and never into the user message.
+     *
+     * Both halves matter. Appended rather than substituted keeps the language
+     * rule and the plain-text instruction, which a replacement would drop
+     * silently; the system element rather than brief() keeps the mail side of
+     * the prompt separately budgetable.
+     */
+    public function testThePersonaIsAppendedToTheSystemMessageAndNeverToTheUserMessage(): void
+    {
+        $sent   = null;
+        $writer = $this->writer();
+        $writer->aiPreferences->aboutMe      = 'I run a bicycle repair shop in Leipzig.';
+        $writer->aiPreferences->systemPrompt = 'Keep it to three sentences.';
+
+        $this->assistant(sent: $sent)->write($writer, WritingTask::Reply, '', 'When are you open?');
+
+        self::assertIsArray($sent);
+
+        $system = $sent['messages'][0]['content'];
+        $user   = $sent['messages'][1]['content'];
+
+        self::assertStringContainsString('I run a bicycle repair shop in Leipzig.', $system);
+        self::assertStringContainsString('Keep it to three sentences.', $system);
+        self::assertStringNotContainsString('bicycle repair shop', $user);
+
+        // The app's own prompt is still FIRST and still whole — the language
+        // rule included, which is the part a replacement would lose.
+        self::assertStringStartsWith(WritingTask::Reply->systemPrompt(), $system);
+    }
+
+    /** No notes, no additions: the prompt is byte for byte what it always was. */
+    public function testAWriterWithNoNotesGetsTheAppPromptUnchanged(): void
+    {
+        $sent = null;
+
+        $this->assistant(sent: $sent)->write($this->writer(), WritingTask::Reply, '', 'When are you open?');
+
+        self::assertIsArray($sent);
+        self::assertSame(WritingTask::Reply->systemPrompt(), $sent['messages'][0]['content']);
+    }
+
+    /**
+     * A stored note longer than the cap is cut on the way OUT as well.
+     *
+     * Doctrine hydrates through RawValuePropertyAccessor, which skips property
+     * hooks — so a row written by an older build, a config restore or psql has
+     * never been past the setter, and the cap is a budget the message being
+     * answered has to fit inside.
+     */
+    public function testAnOverlongStoredNoteIsTruncatedWhenThePromptIsBuilt(): void
+    {
+        $sent   = null;
+        $writer = $this->writer();
+
+        // setRawValue() and not an assignment, because a property hook
+        // intercepts EVERY write including one from inside the class — which
+        // is the whole reason the clamp cannot be trusted on the way out.
+        // This is the accessor Doctrine hydrates through, so what lands here
+        // is exactly what a stored row would put there.
+        (new \ReflectionProperty(AiPreferences::class, 'aboutMe'))
+            ->setRawValue($writer->aiPreferences, str_repeat('x', AiPreferences::MAX_ABOUT_ME + 500));
+
+        self::assertSame(
+            AiPreferences::MAX_ABOUT_ME + 500,
+            mb_strlen($writer->aiPreferences->aboutMe),
+            'the fixture did not get past the clamping setter, so this asserts nothing',
+        );
+
+        $this->assistant(sent: $sent)->write($writer, WritingTask::Reply, '', 'When are you open?');
+
+        self::assertIsArray($sent);
+        self::assertStringNotContainsString(
+            str_repeat('x', AiPreferences::MAX_ABOUT_ME + 1),
+            $sent['messages'][0]['content'],
+        );
+    }
+
+    /**
+     * A persona is not something to work FROM.
+     *
+     * hasEnoughToWorkFrom() asks whether there is a message; folding a standing
+     * note about the writer into that answer would make an empty composer under
+     * no message start generating invented mail, which is the exact case the
+     * refusal exists to prevent.
+     */
+    public function testAFullPersonaIsStillNothingToWorkFrom(): void
+    {
+        $calls  = 0;
+        $writer = $this->writer();
+        $writer->aiPreferences->aboutMe      = 'I run a bicycle repair shop in Leipzig.';
+        $writer->aiPreferences->systemPrompt = 'Keep it to three sentences.';
+
+        self::assertNull($this->assistant(calls: $calls)->write($writer, WritingTask::Reply, '', ''));
+        self::assertSame(0, $calls);
+    }
+
+    /**
+     * @param array<string, mixed>|null $sent the request body the model was actually
+     *                                        sent, decoded — the only way to assert
+     *                                        WHERE in the prompt something landed
+     */
     private function assistant(
         bool $enabled = true,
         string $answer = 'an answer',
         int &$calls = 0,
+        ?array &$sent = null,
     ): WritingAssistant {
 
         $settings = new AiSettings();
@@ -153,20 +280,34 @@ final class WritingAssistantTest extends KernelTestCase
         $this->em->persist($settings);
         $this->em->flush();
 
-        $http = new MockHttpClient(function () use (&$calls, $answer): MockResponse {
+        $http = new MockHttpClient(function (string $method, string $url, array $options) use (&$calls, &$sent, $answer): MockResponse {
             ++$calls;
+
+            $body = $options['body'] ?? '';
+            $sent = is_string($body) ? json_decode($body, true) : null;
 
             return new MockResponse(json_encode(['message' => ['content' => $answer]]));
         });
 
-        return new WritingAssistant(
-            new AiAssistant(
+        $ai = new AiAssistant(
             $this->settings,
             new OllamaClient($http, new NullLogger()),
             $this->recorder(),
             new NullLogger(),
-        ),
         );
+
+        return new WritingAssistant($ai, new AiPermissions($ai));
+    }
+
+    /**
+     * A user who has not opted out of anything.
+     *
+     * Never persisted: AiPermissions reads the embeddable straight off the
+     * object, so a row would buy nothing and would need cleaning up.
+     */
+    private function writer(): User
+    {
+        return new User();
     }
 
     /**

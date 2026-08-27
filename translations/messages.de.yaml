@@ -2143,6 +2143,46 @@ session:
         sign_in_new_tab: In neuem Tab anmelden
         reload: Seite neu laden
 settings:
+    ai:
+        context:
+            heading: 'Wie viel der Assistent liest'
+            message: 'Die Mail'
+            message_hint: 'Der Assistent liest die Mail, auf die du antwortest. So war es bisher schon.'
+            none: 'Nichts'
+            none_hint: 'Der Assistent sieht nur, was du getippt hast. Am schnellsten — und „Antwort entwerfen“ hat in einem leeren Fenster nichts, womit es arbeiten könnte, und meldet, dass es nicht antworten konnte. Kürzen, Förmlicher und Korrekturlesen sind davon nicht betroffen.'
+            subheading: 'Mehr vom Gesprächsverlauf bedeutet eine bessere Antwort und eine längere Wartezeit. Das Modell läuft auf diesem Rechner — es kostet also vor allem Zeit.'
+            thread: 'Das ganze Gespräch'
+            thread_hint: 'Der Assistent liest das ganze Gespräch, ältestes zuerst, so viel davon wie hineinpasst. Bessere Antworten in langen Verläufen — und längeres Warten.'
+        feature:
+            admin_off: 'Für diese Installation nicht aktiviert'
+            categorise: 'Mails in Tabs einsortieren'
+            categorise_hint: 'Lässt das Modell entscheiden, wenn die normalen Regeln eine Mail nicht einordnen können. Aus lässt diese Mails dort, wo die Regeln sie abgelegt haben.'
+            search: 'Suche nach Bedeutung'
+            search_hint: 'Findet Mails, die meinen, wonach du gefragt hast — nicht nur solche, die es genauso schreiben. Aus bedeutet: Deine Mails werden weder durchsucht noch indiziert.'
+            writing_help: 'Schreibhilfe'
+            writing_help_hint: 'Entwirft Antworten, kürzt, formuliert förmlicher, liest Korrektur — im Schreibfenster, wenn du danach fragst.'
+        features:
+            heading: 'Assistent-Funktionen'
+            subheading: 'Welche Funktionen des Assistenten du nutzen willst. Dein Administrator legt fest, was verfügbar ist — du entscheidest, was du davon verwendest.'
+        notes:
+            about_me_hint: 'Dein Beruf, an wen du normalerweise schreibst — alles, was jemand Fremdes wissen müsste, um deine Mails gut zu beantworten.'
+            about_me_label: 'Wer du bist'
+            about_me_placeholder: 'Ich betreibe eine Fahrradwerkstatt, und die meisten Mails kommen von Kunden, die Reparaturen buchen.'
+            heading: 'Über dich'
+            save: 'Speichern'
+            saved: 'Gespeichert.'
+            subheading: 'Was der Assistent wissen sollte, bevor er für dich schreibt. Beide Notizen werden mit jedem Entwurf mitgeschickt und sonst für nichts verwendet.'
+            system_prompt_hint: 'Vorlieben, keine Anweisungen — die Regeln der App gehen vor, unter anderem die, in der Sprache der Mail zu schreiben. Halte es kurz: Lange Notizen verdrängen die eigentliche Mail aus der Aufmerksamkeit des Modells.'
+            system_prompt_label: 'Wie für dich geschrieben werden soll'
+            system_prompt_placeholder: 'Kurze Sätze. Keine Ausrufezeichen. Als Grußformel nur mein Vorname.'
+        reads:
+            categorise: 'Einsortieren: Absender, Betreff und der Anfang der Mail.'
+            heading: 'Was der Assistent bekommt'
+            search: 'Indizierung: Betreff, Absender und der Anfang jeder Mail.'
+            writing_help: 'Schreiben: deine Betreffzeile, was du getippt hast, und so viel vom Gespräch, wie die Einstellung oben zulässt.'
+        seg:
+            off: 'Aus'
+            on: 'An'
     accounts:
         delete: Konto entfernen
         delete_confirm: '%account% entfernen? Dadurch werden alle synchronisierten Nachrichten dieses Kontos endgültig gelöscht. Das lässt sich nicht rückgängig machen.'
@@ -3001,13 +3041,13 @@ settings:
         heading: Sprache
         subheading: Die Sprache der plMail-Oberfläche. Deine E-Mails bleiben so, wie sie geschrieben wurden.
     nav:
-        read_receipts: Lesebestätigungen
-        sharing: Teilen
         accounts: E-Mail-Konten
+        ai: 'Assistent'
         aliases: Aliase
         app_passwords: App-Passwörter
         appearance: Darstellung
         calendars: Kalender
+        filters: Filter
         general: Allgemein
         group:
             access: Zugriff
@@ -3016,12 +3056,13 @@ settings:
             personal: Persönlich
         health: 'Zustand der Konten'
         insights: Radar
-        profile: Profil
-        filters: Filter
         integrations: Integrationen
         labels: Labels
         notifications: Benachrichtigungen
+        profile: Profil
+        read_receipts: Lesebestätigungen
         security: Sicherheit
+        sharing: Teilen
         signature: Signaturen
     notifications:
         devices:
@@ -3199,8 +3240,8 @@ sidebar:
     new_mail_here: 'Neue Nachrichten in %where%'
     new_mail_here_count: '%count% neu in %where%'
     nav:
-        calendar: Kalender
         archive: Archiv
+        calendar: Kalender
         drafts: Entwürfe
         inbox: Posteingang
         more: Mehr

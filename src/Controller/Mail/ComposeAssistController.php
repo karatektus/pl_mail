@@ -7,9 +7,11 @@ namespace App\Controller\Mail;
 use App\Controller\ChecksCsrf;
 use App\Domain\Enum\Ai\WritingTask;
 use App\Entity\Mail\Message;
+use App\Entity\User\User;
 use App\Repository\Mail\MessageRepository;
 use App\Security\Voter\OwnershipVoter;
 use App\Service\Ai\OllamaClient;
+use App\Service\Ai\ReplyContextReader;
 use App\Service\Ai\WritingAssistant;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -51,8 +53,9 @@ final class ComposeAssistController extends AbstractController
     use ChecksCsrf;
 
     public function __construct(
-        private readonly WritingAssistant  $assistant,
-        private readonly MessageRepository $messages,
+        private readonly WritingAssistant   $assistant,
+        private readonly MessageRepository  $messages,
+        private readonly ReplyContextReader $replyContext,
     ) {
     }
 
@@ -64,7 +67,12 @@ final class ComposeAssistController extends AbstractController
         // their draft, so it is not a thing to leave open to a cross-site post.
         $this->assertCsrf($request, 'ajax');
 
-        if (false === $this->assistant->isAvailable()) {
+        $user = $this->getUser();
+
+        // Two switches, and the user's own is the one this action gained: the
+        // installation's is the ceiling and theirs is the floor under it. See
+        // App\Service\Ai\AiPermissions.
+        if (false === $user instanceof User || false === $this->assistant->isAvailableFor($user)) {
             // 409 rather than 403: nothing is forbidden, the feature is simply
             // not switched on — and the browser should stop offering it rather
             // than report an error the user can do nothing about.
@@ -78,9 +86,10 @@ final class ComposeAssistController extends AbstractController
         }
 
         $text = $this->assistant->write(
+            $user,
             $task,
             (string) $request->request->get('draft', ''),
-            $this->context($request),
+            $this->context($request, $user),
             (string) $request->request->get('subject', ''),
         );
 
@@ -130,7 +139,9 @@ final class ComposeAssistController extends AbstractController
     {
         $this->assertCsrf($request, 'ajax');
 
-        if (false === $this->assistant->isAvailable()) {
+        $user = $this->getUser();
+
+        if (false === $user instanceof User || false === $this->assistant->isAvailableFor($user)) {
             return new JsonResponse(['error' => 'disabled'], Response::HTTP_CONFLICT);
         }
 
@@ -145,12 +156,17 @@ final class ComposeAssistController extends AbstractController
         // behind context() wants to happen while there is still a controller
         // around it to turn a denied ownership check into a 403 — inside the
         // stream it would be an exception thrown at a response already sent.
+        //
+        // The USER is captured for the same reason and one more: it is already
+        // hydrated here, so reading $user->aiPreferences inside the callback is
+        // free, while a repository lookup there would be the failure this
+        // paragraph exists to prevent.
         $draft   = (string) $request->request->get('draft', '');
         $subject = (string) $request->request->get('subject', '');
-        $context = $this->context($request);
+        $context = $this->context($request, $user);
 
-        $response = new StreamedResponse(function () use ($task, $draft, $context, $subject): void {
-            $this->generate($task, $draft, $context, $subject);
+        $response = new StreamedResponse(function () use ($user, $task, $draft, $context, $subject): void {
+            $this->generate($user, $task, $draft, $context, $subject);
         });
 
         // Not application/json: this is a sequence of JSON documents and never
@@ -182,7 +198,7 @@ final class ComposeAssistController extends AbstractController
      * is written to prevent. A local in a method is freed when the method
      * returns, and freeing it is what cancels the call.
      */
-    private function generate(WritingTask $task, string $draft, ?string $context, string $subject): void
+    private function generate(User $user, WritingTask $task, string $draft, ?string $context, string $subject): void
     {
         // PHP's default is to kill the script the moment a write finds the
         // browser gone. That sounds like what we want and is the opposite of
@@ -216,7 +232,7 @@ final class ComposeAssistController extends AbstractController
         // the work and did the most damage when it fired.
         set_time_limit(0);
 
-        $tokens = $this->assistant->stream($task, $draft, $context, $subject);
+        $tokens = $this->assistant->stream($user, $task, $draft, $context, $subject);
 
         if (null === $tokens) {
             // Switched off between the check above and here, or nothing to work
@@ -334,18 +350,34 @@ final class ComposeAssistController extends AbstractController
     }
 
     /**
-     * The message being replied to, read from the server rather than the page.
+     * The conversation being replied to, read from the server rather than the
+     * page, and as much of it as this writer has asked for.
      *
-     * The browser sends an id; the body comes out of the database. Trusting the
-     * page for it would let anything that can post here choose what the model
-     * is told — with the answer landing in the user's own draft, which is
-     * exactly the shape of thing that should not be steerable from outside.
+     * The browser sends an id; the bodies come out of the database. Trusting
+     * the page for them would let anything that can post here choose what the
+     * model is told — with the answer landing in the user's own draft, which is
+     * exactly the shape of thing that should not be steerable from outside. The
+     * DEPTH is read from the user's own row for the same reason: it is a
+     * setting, not a request parameter, so a stale browser tab cannot ask for
+     * more than the person chose.
      *
      * Ownership is checked, so an id belonging to somebody else is refused
-     * rather than summarised.
+     * rather than summarised. One check covers the whole thread as well: every
+     * message in it hangs off the same MessageThread and therefore the same
+     * account.
+     *
+     * How much to say is ReplyContextReader's decision; what this does is the
+     * part only a controller can — resolve an id and refuse a stranger's.
      */
-    private function context(Request $request): ?string
+    private function context(Request $request, User $user): ?string
     {
+        $depth = $user->aiPreferences->replyContext;
+
+        // Before the id is even parsed, so "nothing" costs no query at all.
+        if (false === $depth->readsMail()) {
+            return null;
+        }
+
         $id = $request->request->get('inReplyTo');
 
         if (null === $id || '' === trim((string) $id)) {
@@ -360,6 +392,6 @@ final class ComposeAssistController extends AbstractController
 
         $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $message);
 
-        return $message->bodyText;
+        return $this->replyContext->textFor($depth, $message);
     }
 }

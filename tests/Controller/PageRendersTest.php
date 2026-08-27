@@ -52,6 +52,11 @@ final class PageRendersTest extends WebTestCase
         // renderer only shows up once something asks it for an image.
         yield 'settings security enrolling' => ['/settings?section=security&enrol=1'];
         yield 'settings general' => ['/settings?section=general'];
+        // The AI section renders whether or not an administrator has switched
+        // anything on: a feature that is off is a row with a sentence instead
+        // of a switch, and that branch is the one nothing else walks.
+        yield 'settings ai' => ['/settings?section=ai'];
+        yield 'settings insights' => ['/settings?section=insights'];
         yield 'filters list' => ['/settings/filters/list'];
         yield 'filters editor' => ['/settings/filters/new'];
         yield 'label editor' => ['/labels/new'];

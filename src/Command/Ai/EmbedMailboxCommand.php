@@ -119,6 +119,12 @@ final class EmbedMailboxCommand extends Command
             $io->error(match ($outcome) {
                 EmbeddingBackfill::ALREADY_RUNNING => 'A pass is already running. Pause it in Admin → AI first, or wait for it to finish.',
                 EmbeddingBackfill::SEARCH_OFF      => 'Semantic search is off, or no embedding model is configured. See Admin → AI.',
+                // Named rather than left on the default, because it is now
+                // reachable a second way: every mailbox on the list has search
+                // switched off in its own settings, and "Nothing to do." would
+                // send whoever typed this to look at the admin panel, where
+                // everything is correctly switched on.
+                EmbeddingBackfill::NO_MAILBOXES    => 'No mailbox to walk — every one named has search by meaning switched off in its own settings.',
                 default                            => 'Nothing to do.',
             });
 

@@ -23,5 +23,21 @@ final readonly class EmbedMessagesMessage
      */
     public function __construct(
         public array $messageIds,
+        /**
+         * Whose mail this is.
+         *
+         * NULLABLE AND LAST, which is about upgrades rather than taste:
+         * envelopes serialised by the previous build are already sitting on the
+         * transport, and a required property would deserialise uninitialised
+         * and fatal on the first read.
+         *
+         * Null therefore means "an old envelope, from before anybody could say
+         * how much indexing they wanted". The handler refuses it rather than
+         * embedding it, and the ids come back round on the next nightly
+         * app:ai:index-new-mail with the id present — so the cost of the
+         * refusal is one deployment window's worth of batches arriving a few
+         * hours later than they would have.
+         */
+        public ?int $userId = null,
     ) {}
 }

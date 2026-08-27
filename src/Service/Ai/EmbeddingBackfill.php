@@ -8,6 +8,7 @@ use App\Domain\DTO\Ai\BackfillProgress;
 use App\Domain\Enum\Ai\BackfillPauseReason;
 use App\Domain\Enum\Ai\BackfillStatus;
 use App\Entity\Ai\AiFeature;
+use App\Entity\User\User;
 use App\Infrastructure\Messaging\Message\BackfillEmbeddingsMessage;
 use App\Repository\Ai\AiBackfillStateRepository;
 use App\Repository\Ai\AiSettingsRepository;
@@ -90,6 +91,7 @@ final readonly class EmbeddingBackfill
         private AiBackfillStateRepository $state,
         private AiSettingsRepository      $settings,
         private AiAssistant               $ai,
+        private AiPermissions             $permissions,
         private EmbeddingStore            $store,
         private UserRepository            $users,
         private MessageBusInterface       $bus,
@@ -133,6 +135,13 @@ final readonly class EmbeddingBackfill
                 }
             }
         }
+
+        // Mailboxes whose owner has switched search off come out of the LIST,
+        // not out of the walk. The handler refuses them anyway, so this is not
+        // what makes the opt-out work — it is what stops the panel counting a
+        // mailbox towards a run that will skip it, which reads as a backfill
+        // that never quite finishes.
+        $userIds = $this->allowing($userIds);
 
         if ([] === $userIds) {
             return self::NO_MAILBOXES;
@@ -192,7 +201,11 @@ final readonly class EmbeddingBackfill
             return self::SEARCH_OFF;
         }
 
-        $pending = $run->unfinishedUserIds();
+        // Filtered for the same reason start()'s list is: somebody may have
+        // switched their own search off since the run began, and resuming a
+        // chain over their mailbox would post a delivery whose only outcome is
+        // the handler recording it finished.
+        $pending = $this->allowing($run->unfinishedUserIds());
 
         if ([] === $pending) {
             return self::NOTHING_TO_RESUME;
@@ -265,6 +278,38 @@ final readonly class EmbeddingBackfill
             pauseMs:         $this->policy->pauseMs,
             cooldownSeconds: $this->policy->cooldownSeconds,
         );
+    }
+
+    /**
+     * The mailboxes on that list whose owners still allow indexing.
+     *
+     * By id, and one find() each, which is a primary-key lookup Doctrine
+     * answers from the identity map after the first — this runs once per Start
+     * or Resume, not per chunk. A user id that no longer resolves is dropped
+     * rather than kept: a run cannot walk a mailbox that is not there, and
+     * keeping it would leave the run unable to reach "complete".
+     *
+     * @param list<int> $userIds
+     *
+     * @return list<int>
+     */
+    private function allowing(array $userIds): array
+    {
+        $allowed = [];
+
+        foreach ($userIds as $userId) {
+            $user = $this->users->find($userId);
+
+            if (false === $user instanceof User) {
+                continue;
+            }
+
+            if (true === $this->permissions->allows($user, AiFeature::Search)) {
+                $allowed[] = $userId;
+            }
+        }
+
+        return $allowed;
     }
 
     /**

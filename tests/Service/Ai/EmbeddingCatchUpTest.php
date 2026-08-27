@@ -15,7 +15,7 @@ use App\Entity\User\User;
 use App\Infrastructure\Messaging\Message\EmbedMessagesMessage;
 use App\Repository\Ai\AiSettingsRepository;
 use App\Repository\Mail\MessageRepository;
-use App\Service\Ai\AiAssistant;
+use App\Service\Ai\AiPermissions;
 use App\Service\Ai\BackfillPolicy;
 use App\Service\Ai\EmbeddingCatchUp;
 use App\Service\Ai\EmbeddingStore;
@@ -56,6 +56,7 @@ final class EmbeddingCatchUpTest extends KernelTestCase
     private Connection $connection;
     private EntityManagerInterface $em;
     private EmbeddingStore $store;
+    private User $user;
     private int $userId;
 
     /** @var list<int> oldest first, so the last one is the newest message */
@@ -97,7 +98,7 @@ final class EmbeddingCatchUpTest extends KernelTestCase
     {
         $this->enableSemanticSearch();
 
-        $queued = $this->catchUp()->sweep($this->userId, 4);
+        $queued = $this->catchUp()->sweep($this->user, 4);
 
         self::assertSame(4, $queued);
         self::assertSame(array_slice(array_reverse($this->messageIds), 0, 4), $this->queuedIds());
@@ -115,7 +116,7 @@ final class EmbeddingCatchUpTest extends KernelTestCase
             $this->store->store($id, [1.0, 0.0], 'qwen3-embedding:0.6b');
         }
 
-        self::assertSame(0, $this->catchUp()->sweep($this->userId, 50));
+        self::assertSame(0, $this->catchUp()->sweep($this->user, 50));
         self::assertSame([], $this->queue()->getSent());
     }
 
@@ -135,7 +136,7 @@ final class EmbeddingCatchUpTest extends KernelTestCase
             $this->store->store($id, [1.0, 0.0], 'nomic-embed-text');
         }
 
-        self::assertSame(3, $this->catchUp()->sweep($this->userId, 3));
+        self::assertSame(3, $this->catchUp()->sweep($this->user, 3));
     }
 
     /**
@@ -152,7 +153,7 @@ final class EmbeddingCatchUpTest extends KernelTestCase
 
         $policy = self::getContainer()->get(BackfillPolicy::class);
 
-        $this->catchUp()->sweep($this->userId, 12);
+        $this->catchUp()->sweep($this->user, 12);
 
         $sent = $this->queue()->getSent();
 
@@ -180,12 +181,12 @@ final class EmbeddingCatchUpTest extends KernelTestCase
 
         $catchUp = $this->catchUp();
 
-        self::assertSame(count($this->messageIds), $catchUp->afterSearch($this->userId, $this->searchThatRan()));
+        self::assertSame(count($this->messageIds), $catchUp->afterSearch($this->user, $this->searchThatRan()));
 
         $afterFirst = count($this->queue()->getSent());
 
-        self::assertSame(0, $catchUp->afterSearch($this->userId, $this->searchThatRan()));
-        self::assertSame(0, $catchUp->afterSearch($this->userId, $this->searchThatRan()));
+        self::assertSame(0, $catchUp->afterSearch($this->user, $this->searchThatRan()));
+        self::assertSame(0, $catchUp->afterSearch($this->user, $this->searchThatRan()));
 
         self::assertCount($afterFirst, $this->queue()->getSent(), 'the same batch was queued three times over');
     }
@@ -205,7 +206,7 @@ final class EmbeddingCatchUpTest extends KernelTestCase
         $catchUp = $this->catchUp();
         $skipped = SemanticSearch::skipped(SemanticSkipReason::HostUnreachable);
 
-        self::assertSame(0, $catchUp->afterSearch($this->userId, $skipped));
+        self::assertSame(0, $catchUp->afterSearch($this->user, $skipped));
         self::assertSame([], $this->queue()->getSent());
 
         // The SAME instance, so it is the same quiet window: a search that
@@ -213,7 +214,7 @@ final class EmbeddingCatchUpTest extends KernelTestCase
         // would cost the next five minutes of indexing.
         self::assertSame(
             count($this->messageIds),
-            $catchUp->afterSearch($this->userId, $this->searchThatRan()),
+            $catchUp->afterSearch($this->user, $this->searchThatRan()),
         );
     }
 
@@ -226,13 +227,59 @@ final class EmbeddingCatchUpTest extends KernelTestCase
     {
         $this->enableSemanticSearch(masterSwitch: false);
 
-        self::assertSame(0, $this->catchUp()->sweep($this->userId, 50));
-        self::assertSame(0, $this->catchUp()->afterSearch($this->userId, $this->searchThatRan()));
+        self::assertSame(0, $this->catchUp()->sweep($this->user, 50));
+        self::assertSame(0, $this->catchUp()->afterSearch($this->user, $this->searchThatRan()));
 
         $this->enableSemanticSearch(searchFeature: false);
 
-        self::assertSame(0, $this->catchUp()->sweep($this->userId, 50));
+        self::assertSame(0, $this->catchUp()->sweep($this->user, 50));
         self::assertSame([], $this->queue()->getSent());
+    }
+
+    /**
+     * A mailbox whose owner has switched search off queues nothing, on an
+     * installation where the administrator has switched it on.
+     *
+     * One setting with one meaning: switching search off stops the indexing as
+     * well as the searching, because the two are the same feature seen from its
+     * two ends and indexing a mailbox nobody can search is work nothing reads.
+     */
+    public function testAMailboxWhoseOwnerOptedOutQueuesNothing(): void
+    {
+        $this->enableSemanticSearch();
+
+        $this->user->aiPreferences->searchOff = true;
+        $this->em->flush();
+
+        self::assertSame(0, $this->catchUp()->sweep($this->user, 50));
+        self::assertSame(0, $this->catchUp()->afterSearch($this->user, $this->searchThatRan()));
+        self::assertSame([], $this->queue()->getSent());
+    }
+
+    /**
+     * Every envelope names whose mail it carries.
+     *
+     * The handler is a different process reading a row off a transport, and
+     * without this id there is nothing in it to say whose mailbox the ids came
+     * from — so it would have to guess, and it refuses instead. This is the
+     * assertion that keeps the two ends in step.
+     */
+    public function testEveryQueuedBatchNamesTheMailboxItBelongsTo(): void
+    {
+        $this->enableSemanticSearch();
+
+        $this->catchUp()->sweep($this->user, 12);
+
+        $sent = $this->queue()->getSent();
+
+        self::assertNotSame([], $sent);
+
+        foreach ($sent as $envelope) {
+            $message = $envelope->getMessage();
+
+            self::assertInstanceOf(EmbedMessagesMessage::class, $message);
+            self::assertSame($this->userId, $message->userId);
+        }
     }
 
     /**
@@ -249,7 +296,7 @@ final class EmbeddingCatchUpTest extends KernelTestCase
 
         return new EmbeddingCatchUp(
             $container->get(MessageRepository::class),
-            $container->get(AiAssistant::class),
+            $container->get(AiPermissions::class),
             $container->get(AiSettingsRepository::class),
             $container->get(BackfillPolicy::class),
             $container->get(MessageBusInterface::class),
@@ -368,6 +415,7 @@ final class EmbeddingCatchUpTest extends KernelTestCase
 
         $this->em->flush();
 
+        $this->user       = $user;
         $this->userId     = (int) $user->id;
         $this->messageIds = array_map(static fn (Message $m): int => (int) $m->id, $created);
     }

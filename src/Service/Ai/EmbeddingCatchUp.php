@@ -6,6 +6,7 @@ namespace App\Service\Ai;
 
 use App\Domain\DTO\Ai\SemanticSearch;
 use App\Entity\Ai\AiFeature;
+use App\Entity\User\User;
 use App\Infrastructure\Messaging\Message\EmbedMessagesMessage;
 use App\Repository\Ai\AiSettingsRepository;
 use App\Repository\Mail\MessageRepository;
@@ -86,7 +87,7 @@ final readonly class EmbeddingCatchUp
 
     public function __construct(
         private MessageRepository      $messages,
-        private AiAssistant            $ai,
+        private AiPermissions          $permissions,
         private AiSettingsRepository   $settings,
         private BackfillPolicy         $policy,
         private MessageBusInterface    $bus,
@@ -104,9 +105,9 @@ final readonly class EmbeddingCatchUp
      *
      * @return int how many messages were queued
      */
-    public function sweep(int $userId, int $limit): int
+    public function sweep(User $user, int $limit): int
     {
-        return $this->queue($userId, $limit);
+        return $this->queue($user, $limit);
     }
 
     /**
@@ -119,21 +120,29 @@ final readonly class EmbeddingCatchUp
      * against a host that has just refused a four-word query would be fifty
      * failures in a row on the ingest queue.
      *
-     * That check also covers both switches this has to respect — SemanticQuery
-     * refuses before it embeds unless the master switch and the search feature
-     * are both on — and queue() asks again anyway, because settings change
-     * between one request and the next.
+     * That check also covers the switches this has to respect — SemanticQuery
+     * refuses before it embeds unless the master switch, the search feature and
+     * this person's own answer all say yes — and queue() asks again anyway,
+     * because settings change between one request and the next.
+     *
+     * WHICH MEANS ONE SETTING WITH ONE MEANING, AND THAT IS DELIBERATE.
+     * Somebody who has switched search off stops being indexed as well as
+     * stopping being able to search, because the two are the same feature seen
+     * from its two ends; indexing a mailbox nobody can search would be work
+     * nothing ever reads.
      *
      * @return int how many messages were queued
      */
-    public function afterSearch(int $userId, SemanticSearch $semantic): int
+    public function afterSearch(?User $user, SemanticSearch $semantic): int
     {
-        // A mailbox id of zero is the search page's answer for a principal it
-        // does not recognise — an API token today, a guest later. It owns no
-        // mail, and it is refused before the throttle rather than after, so an
+        // A null user is the search page's answer for a principal it does not
+        // recognise — an API token today, a guest later. It owns no mail, and
+        // it is refused before the throttle rather than after, so an
         // unrecognised principal cannot take the quiet window away from a real
         // one that shares the key.
-        if ($userId <= 0 || false === $semantic->hasVector()) {
+        $userId = null === $user ? 0 : (int) $user->id;
+
+        if (null === $user || $userId <= 0 || false === $semantic->hasVector()) {
             return 0;
         }
 
@@ -141,7 +150,7 @@ final readonly class EmbeddingCatchUp
             return 0;
         }
 
-        return $this->queue($userId, self::AFTER_SEARCH_LIMIT);
+        return $this->queue($user, self::AFTER_SEARCH_LIMIT);
     }
 
     /**
@@ -154,16 +163,18 @@ final readonly class EmbeddingCatchUp
      * envelope would occupy the ingest worker for minutes while mail arrived
      * behind it.
      */
-    private function queue(int $userId, int $limit): int
+    private function queue(User $user, int $limit): int
     {
+        $userId = (int) $user->id;
+
         if ($userId <= 0 || $limit <= 0) {
             return 0;
         }
 
-        // The master switch and the search feature together — a mailbox on an
-        // installation that has switched either off has nothing to catch up on,
-        // and asking is one indexed row Doctrine answers from its identity map.
-        if (false === $this->ai->isEnabledFor(AiFeature::Search)) {
+        // The installation's switches and this person's together — a mailbox on
+        // an installation that has switched search off has nothing to catch up
+        // on, and neither has one whose owner has. See AiPermissions.
+        if (false === $this->permissions->allows($user, AiFeature::Search)) {
             return 0;
         }
 
@@ -175,8 +186,12 @@ final readonly class EmbeddingCatchUp
             return 0;
         }
 
+        // The id travels WITH the batch. The handler is a different process
+        // reading a row off a transport, and without it there is nothing there
+        // to say whose mail it is holding — so it would have to guess, which is
+        // the one thing a worker over somebody's mail must not do.
         foreach (array_chunk($ids, $this->policy->batchSize) as $chunk) {
-            $this->bus->dispatch(new EmbedMessagesMessage(array_values($chunk)));
+            $this->bus->dispatch(new EmbedMessagesMessage(array_values($chunk), $userId));
         }
 
         $this->logger->info('EmbeddingCatchUp: queued mail that had not been indexed', [

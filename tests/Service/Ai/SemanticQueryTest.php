@@ -8,7 +8,9 @@ use App\Domain\Enum\Ai\SemanticSkipReason;
 use App\Service\Ai\AiCallRecorder;
 use App\Entity\Ai\AiSettings;
 use App\Repository\Ai\AiSettingsRepository;
+use App\Entity\User\User;
 use App\Service\Ai\AiAssistant;
+use App\Service\Ai\AiPermissions;
 use App\Service\Ai\OllamaClient;
 use App\Service\Ai\SemanticQuery;
 use Doctrine\DBAL\Connection;
@@ -67,7 +69,7 @@ final class SemanticQueryTest extends KernelTestCase
     public function testASwitchedOffInstallationAsksNothing(): void
     {
         $calls  = 0;
-        $result = $this->query(enabled: false, calls: $calls)->forQuery('quarterly figures');
+        $result = $this->query(enabled: false, calls: $calls)->forQuery($this->searcher(), 'quarterly figures');
 
         self::assertNull($result->literal);
         self::assertSame(SemanticSkipReason::FeatureOff, $result->skipped);
@@ -81,6 +83,45 @@ final class SemanticQueryTest extends KernelTestCase
     }
 
     /**
+     * A searcher who has switched search off asks nothing, and is told nothing.
+     *
+     * Silent on purpose — the two halves of that. Nothing is asked, because
+     * this is one of the four places in src/ that build content for a model and
+     * the user is in the signature of all four. And nothing is said, because it
+     * is their own decision: a notice under the search box explaining a setting
+     * somebody made themselves is the nagging AiSettings refuses.
+     */
+    public function testASearcherWhoHasSwitchedSearchOffAsksNothingAndIsToldNothing(): void
+    {
+        $calls    = 0;
+        $searcher = $this->searcher();
+        $searcher->aiPreferences->searchOff = true;
+
+        $result = $this->query(calls: $calls)->forQuery($searcher, 'quarterly figures');
+
+        self::assertNull($result->literal);
+        self::assertSame(SemanticSkipReason::FeatureOff, $result->skipped);
+        self::assertFalse($result->skipped->tellsTheUser());
+        self::assertSame(0, $calls, 'an opted-out search still reached the model host');
+    }
+
+    /**
+     * A principal the page could not resolve to a mailbox is refused too.
+     *
+     * An API token today, a guest later. It owns no vectors for a search to
+     * match against, so there is nothing for a round trip to buy — and no
+     * person to explain the absence to.
+     */
+    public function testAnUnrecognisedPrincipalAsksNothing(): void
+    {
+        $calls  = 0;
+        $result = $this->query(calls: $calls)->forQuery(null, 'quarterly figures');
+
+        self::assertSame(SemanticSkipReason::FeatureOff, $result->skipped);
+        self::assertSame(0, $calls);
+    }
+
+    /**
      * Switched ON and unusable is not the same as switched off.
      *
      * enabledFor() answers false for both, which is why this was ever one
@@ -91,7 +132,7 @@ final class SemanticQueryTest extends KernelTestCase
     public function testSwitchedOnWithNoHostSaysSoInsteadOfSayingOff(): void
     {
         $calls  = 0;
-        $result = $this->query(baseUrl: null, calls: $calls)->forQuery('quarterly figures');
+        $result = $this->query(baseUrl: null, calls: $calls)->forQuery($this->searcher(), 'quarterly figures');
 
         self::assertSame(SemanticSkipReason::NotConfigured, $result->skipped);
         self::assertTrue($result->skipped->tellsTheUser());
@@ -107,7 +148,7 @@ final class SemanticQueryTest extends KernelTestCase
         $calls = 0;
         $query = $this->query(calls: $calls);
 
-        self::assertSame(SemanticSkipReason::QueryTooShort, $query->forQuery('ab')->skipped);
+        self::assertSame(SemanticSkipReason::QueryTooShort, $query->forQuery($this->searcher(), 'ab')->skipped);
         self::assertSame(0, $calls);
 
         // ...and a query with no words in it at all is a different thing. A
@@ -115,7 +156,7 @@ final class SemanticQueryTest extends KernelTestCase
         // an empty string, and "type a little more to search by meaning" is
         // advice about something the person was not doing. Silent.
         foreach (['   ', null] as $nothing) {
-            $result = $query->forQuery($nothing);
+            $result = $query->forQuery($this->searcher(), $nothing);
 
             self::assertSame(SemanticSkipReason::NoFreeText, $result->skipped);
             self::assertFalse($result->skipped->tellsTheUser());
@@ -130,7 +171,7 @@ final class SemanticQueryTest extends KernelTestCase
 
     public function testAUsableQueryComesBackAsAUnitLengthLiteral(): void
     {
-        $result = $this->query()->forQuery('quarterly figures');
+        $result = $this->query()->forQuery($this->searcher(), 'quarterly figures');
 
         self::assertTrue($result->hasVector());
         self::assertNull($result->skipped);
@@ -153,7 +194,7 @@ final class SemanticQueryTest extends KernelTestCase
      */
     public function testAnUnreachableHostSimplyAnswersNothing(): void
     {
-        $result = $this->query(throws: true)->forQuery('quarterly figures');
+        $result = $this->query(throws: true)->forQuery($this->searcher(), 'quarterly figures');
 
         self::assertNull($result->literal);
         self::assertSame(SemanticSkipReason::HostUnreachable, $result->skipped);
@@ -169,7 +210,7 @@ final class SemanticQueryTest extends KernelTestCase
      */
     public function testAMissingModelIsNotAMissingHost(): void
     {
-        $result = $this->query(status: 404)->forQuery('quarterly figures');
+        $result = $this->query(status: 404)->forQuery($this->searcher(), 'quarterly figures');
 
         self::assertSame(SemanticSkipReason::ModelMissing, $result->skipped);
     }
@@ -177,7 +218,7 @@ final class SemanticQueryTest extends KernelTestCase
     /** A vector that cannot be normalised is not a vector. */
     public function testAZeroVectorIsRefused(): void
     {
-        $result = $this->query(vector: [0, 0, 0])->forQuery('quarterly figures');
+        $result = $this->query(vector: [0, 0, 0])->forQuery($this->searcher(), 'quarterly figures');
 
         self::assertNull($result->literal);
         self::assertSame(SemanticSkipReason::ModelAnsweredBadly, $result->skipped);
@@ -217,15 +258,25 @@ final class SemanticQueryTest extends KernelTestCase
             );
         });
 
-        return new SemanticQuery(
-            new AiAssistant(
+        $ai = new AiAssistant(
             $this->settings,
             new OllamaClient($http, new NullLogger()),
             $this->recorder(),
             new NullLogger(),
-        ),
-            new NullLogger(),
         );
+
+        return new SemanticQuery($ai, new AiPermissions($ai), new NullLogger());
+    }
+
+    /**
+     * A searcher who has not opted out of anything.
+     *
+     * Never persisted: AiPermissions reads the embeddable straight off the
+     * object, so a row would buy nothing and would need cleaning up.
+     */
+    private function searcher(): User
+    {
+        return new User();
     }
 
     /**

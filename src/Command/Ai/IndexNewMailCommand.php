@@ -121,7 +121,7 @@ final class IndexNewMailCommand extends Command
                 return Command::FAILURE;
             }
 
-            $queued = $this->catchUp->sweep((int) $user->id, $limit);
+            $queued = $this->catchUp->sweep($user, $limit);
 
             $io->success(sprintf('Queued %d message(s) from %s.', $queued, (string) $user->email));
 
@@ -145,7 +145,10 @@ final class IndexNewMailCommand extends Command
             foreach ($page as $user) {
                 $lastId = (int) $user->id;
 
-                $queued += $this->catchUp->sweep($lastId, $limit);
+                // The User object rather than its id, because sweep() now has
+                // to ask what its owner wants — and this loop already holds
+                // one, so nothing is looked up twice.
+                $queued += $this->catchUp->sweep($user, $limit);
                 $mailboxes++;
             }
         }
