@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Repository\Mail;
 
+use App\Domain\Enum\Ai\SemanticSkipReason;
 use App\Domain\DTO\Ai\SemanticSearch;
 use App\Domain\DTO\ParsedSearchQuery;
 use App\Domain\Enum\Mail\LabelRole;
@@ -670,6 +671,22 @@ final class MessageSearchTest extends KernelTestCase
         self::assertCount(1, $page->threads, 'the keyword pass answers when the vector cannot');
         self::assertSame('Quarterly figures', $page->threads[0]->subject);
         self::assertSame(1, $page->total, 'the total still comes from the statement that answered');
+
+        // And it SAYS the vector was given up, rather than handing back a
+        // search that looks like one which ran and found nothing extra. That
+        // sentence — "searching by meaning found nothing the words had not
+        // already" — is about a comparison that happened; here none did, and
+        // telling somebody their mail holds nothing similar on the strength of
+        // a comparison nobody made is the silent degradation the skip reasons
+        // exist to prevent. The timeout added to protect the page must not
+        // reintroduce it.
+        self::assertNotNull($page->semantic, 'the page has to carry the search that actually ran');
+        self::assertSame(
+            SemanticSkipReason::TimedOut,
+            $page->semantic->skipped,
+            'an expired vector is reported as expired, not as absent',
+        );
+        self::assertNull($page->semantic->literal, 'and it is not still offering the vector it gave up');
     }
 
     /**

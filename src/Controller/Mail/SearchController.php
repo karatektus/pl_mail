@@ -156,7 +156,13 @@ final class SearchController extends AbstractController
         // resolveSort() below.
         $userId = $user instanceof User ? (int) $user->id : 0;
 
-        $report = $this->coverage->report($userId, $semantic, count($results->semanticOnly));
+        // The search that ANSWERED, which is not always the one that was asked
+        // for: the vector runs under a budget and is given up when it expires.
+        // Reporting the request rather than the answer would tell somebody
+        // their mail holds nothing similar when nothing was ever compared.
+        $answered = $results->semantic ?? $semantic;
+
+        $report = $this->coverage->report($userId, $answered, count($results->semanticOnly));
 
         // THE SEARCH JUST PAID FOR A WARM MODEL; SPEND THE REST OF IT.
         //
@@ -177,7 +183,7 @@ final class SearchController extends AbstractController
         // After the coverage report rather than before it: the report is what
         // the person actually sees, and it should describe the mailbox as it
         // was searched rather than as it is about to be.
-        $this->catchUp->afterSearch($user instanceof User ? $user : null, $semantic);
+        $this->catchUp->afterSearch($user instanceof User ? $user : null, $answered);
 
         return $this->listRenderer->render($request, 'search/search.html.twig', $threads, [
             'q'             => $raw,

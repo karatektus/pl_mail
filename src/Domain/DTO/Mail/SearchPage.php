@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\DTO\Mail;
 
+use App\Domain\DTO\Ai\SemanticSearch;
 use App\Entity\Mail\MessageThread;
 
 /**
@@ -36,6 +37,21 @@ final readonly class SearchPage
         public array $threads,
         public int $total,
         public array $semanticOnly = [],
+        /**
+         * The semantic search as it ACTUALLY ran, which is not always the one
+         * that was handed in.
+         *
+         * The cheap pass runs the vector under a statement budget and gives it
+         * up if that expires, finishing the search on keywords alone. Whoever
+         * describes the result to the reader has to describe THAT search — the
+         * one that was asked for said it would search by meaning, and reporting
+         * it would tell somebody their mail holds nothing similar when in fact
+         * nothing was ever compared.
+         *
+         * Null when the caller passed no vector at all, in which case there is
+         * nothing to correct and the caller's own value is already right.
+         */
+        public ?SemanticSearch $semantic = null,
     ) {
     }
 }

@@ -5,12 +5,13 @@ namespace App\Repository\Mail;
 use App\Domain\DTO\Ai\SemanticSearch;
 use App\Domain\DTO\Mail\SearchPage;
 use App\Domain\DTO\ParsedSearchQuery;
+use App\Domain\Enum\Ai\SemanticSkipReason;
 use App\Domain\Enum\Mail\LabelRole;
 use App\Domain\Enum\Mail\ListSortOrder;
 use App\Domain\Enum\Mail\MessageCategory;
 use App\Domain\Enum\Mail\SearchSortOrder;
-use App\Entity\Mail\Account;
 use App\Entity\Label\Label;
+use App\Entity\Mail\Account;
 use App\Entity\Mail\Message;
 use App\Entity\Mail\MessageThread;
 use App\Service\Search\FreeTextCompiler;
@@ -1223,7 +1224,7 @@ class MessageThreadRepository extends ServiceEntityRepository
         }
 
         if ([] === $rows) {
-            return new SearchPage([], $this->totalForEmptyPage($user, $query, $sort, $page, $semantic));
+            return new SearchPage([], $this->totalForEmptyPage($user, $query, $sort, $page, $semantic), [], $semantic);
         }
 
         // Every row carries the same window count, so the first one will do.
@@ -1264,7 +1265,9 @@ class MessageThreadRepository extends ServiceEntityRepository
             }
         }
 
-        return new SearchPage($ordered, $total, $semanticOnly);
+        // $semantic, not the argument: cheapRows() may have given the vector
+        // up, and the reader has to be told about the search that ran.
+        return new SearchPage($ordered, $total, $semanticOnly, $semantic);
     }
 
     /**
@@ -1572,7 +1575,15 @@ class MessageThreadRepository extends ServiceEntityRepository
             // always been able to afford, and putting the budget that the
             // vector just exhausted around it as well would turn a degraded
             // search into an empty one.
-            return [$pass(null), null];
+            //
+            // SAYING SO, rather than handing back a bare null. A null here
+            // reaches the page as "searching by meaning found nothing the
+            // words had not already" — a sentence about a search that ran and
+            // came up empty, describing one that never finished. That silent
+            // degradation is the exact thing the skip reasons were built to
+            // stop, and it would have been reintroduced by the timeout that
+            // was added to protect the page.
+            return [$pass(null), SemanticSearch::skipped(SemanticSkipReason::TimedOut)];
         }
     }
 
