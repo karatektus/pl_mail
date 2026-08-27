@@ -6,6 +6,45 @@ so anything that changes the schema irreversibly is called out explicitly.
 The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, and `sha-…` pins one commit.
 
+## v0.2.3 — 2026-08-27
+
+**Adds one migration and an optional database image. Search by meaning was taking thirteen seconds
+and taking the rest of the page down with it. Both halves are fixed.**
+
+### Fixed
+
+- **Searching by meaning was slow, and got slower the more mail was indexed.** Thirteen seconds on
+  average, and up to forty-seven. The comparison every semantic search runs was being performed on
+  every message the search matched rather than only on the candidates it was meant to consider —
+  and then performed a second time on each of them. Measured on a test mailbox, one search went from
+  12,616 comparisons to 2,000, and from 3.8 seconds to 0.6.
+
+  A search that still takes too long now gives up the meaning half and returns the keyword matches
+  rather than the page hanging.
+
+- **A slow search made the whole tab stop responding.** That was not the search: a request holds a
+  lock on your session while it runs, so everything else you clicked queued behind it and then died.
+  Search lets go of that lock before it starts working, so a slow search is now just a slow search.
+
+- **Relevance ordering was wrong for keyword results.** Because the comparison above ran on messages
+  the meaning search had never matched, four in five keyword results were being ranked by a
+  similarity score that did not apply to them. They are ranked by their keyword score now, which is
+  what "Relevance" always claimed to mean.
+
+### Added
+
+- **An optional database image with pgvector**, for installations that want it. It is opt-in and
+  nothing requires it: `compose.pgvector.yaml`, layered on like the demo overlay.
+
+  It is built from the same Alpine base plMail already ships rather than swapping to a different
+  one, which matters more than it sounds — changing the C library underneath an existing database
+  makes some indexes silently return wrong rows, and that was measured on this stack rather than
+  taken on trust.
+
+  Worth knowing before you switch: it makes the comparison about **1.75× faster**, not the order of
+  magnitude the internal notes previously claimed. The handbook now says so, along with what
+  reaching a genuinely indexed search would take.
+
 ## v0.2.2 — 2026-08-27
 
 **Adds six columns to `user`; the migration runs on boot. Everyone can now configure the assistant
