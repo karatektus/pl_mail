@@ -6,6 +6,32 @@ so anything that changes the schema irreversibly is called out explicitly.
 The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, and `sha-…` pins one commit.
 
+## v0.2.4 — 2026-08-27
+
+**Adds a table and two columns; the migrations run on boot. Conversations can be summarised, when you
+ask.**
+
+### Added
+
+- **Summarise a conversation.** A control at the top of an opened thread writes a short summary of
+  it. Nothing is summarised on its own — a summary is about a minute of the writing model on a cold
+  start, and spending that on every conversation that arrives would make everything else wait.
+
+  The summary is kept and shown again when you reopen the thread, so it is paid for once. If the
+  conversation changes afterwards, the old summary is still shown but marked as out of date, with the
+  offer to write a new one — a summary of a thread that gained one reply is usually still true, and
+  hiding it would waste the minute you already spent.
+
+  It writes in the language of the conversation, like the rest of the writing help. Off by default,
+  switchable by an administrator for the installation and by each person for themselves.
+
+### Fixed
+
+- **Asking the assistant to write made the rest of the page stop responding.** A request holds a lock
+  on your session while it runs, so everything else you clicked queued behind a draft being written —
+  which on a cold model is most of a minute. Search was fixed for this in v0.2.3 and the composer was
+  not, which was the worse half.
+
 ## v0.2.3 — 2026-08-27
 
 **Adds one migration and an optional database image. Search by meaning was taking thirteen seconds
