@@ -22,11 +22,38 @@
 #}
 {% for hit in hits %}
     <li role="presentation">
+        {# `_top`, and it is the whole of a blank-page bug.
+
+           This was a bare link, and Turbo resolved it against
+           `inbox-list-frame` — so the click became a FRAME navigation. The
+           thread page renders no list, deliberately: mail/thread.html.twig
+           empties `message_list` because the route knows a conversation and not
+           the folder it was opened from. Turbo did exactly what it was told —
+           swapped that empty frame in, emptied the list, and never touched the
+           reading pane, which was still the inbox's empty one. The address bar
+           said the right thing over a mailbox with no rows and no message. At
+           every width, from a link with nothing wrong with its href.
+
+           `_top` says the obvious thing out loud: this opens a conversation,
+           not a list, so it is a page visit. That is already what the KEYBOARD
+           path does — arrowing onto a row and pressing Enter goes through
+           `#apply` to `Turbo.visit`, which is why only the mouse was broken and
+           why the fix is to make the click agree with the key rather than to
+           give it a route of its own.
+
+           Not `mail--mail-pane#open`, which is what a row in the LIST uses.
+           That would open the mail in place, which is nicer, and it would also
+           stop the page from re-rendering — and the box empties itself by
+           re-reading `?q=` from the address bar on `turbo:load` (see
+           mail--search#syncToUrl). Opening in place fires no such event, so the
+           query stayed in the box over the conversation it had just left. The
+           in-place version is a bigger change than this bug is. #}
         <a
             href="{{ path('app_mail_thread', { id: hit.threadId }) }}"
             role="option"
             aria-selected="false"
             data-search-result
+            data-turbo-frame="_top"
             data-action="click->mail--search#selectResult"
             class="w-full flex items-center gap-2.5 px-3 py-2 text-sm no-underline
                    text-ink-soft hover:bg-hover transition-colors"

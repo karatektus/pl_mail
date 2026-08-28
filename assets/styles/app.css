@@ -3298,10 +3298,40 @@
     .search-shell {
         position: absolute;
         top: 100%;
-        left: 0;
-        right: 0;
         z-index: 30;
+
+        /* Edge to edge, and the three declarations are one idea. `left: 0`
+           would be the header's PADDING box — and the header is inset from the
+           screen twice over: once by the shell's gutter, once by its own
+           `px-4` — so the strip stopped short of both screen edges and the mail
+           list showed down either side of it. It read as a floating card rather
+           than as part of the topbar.
+
+           Centring a 100vw box on the header reaches both edges without naming
+           either inset, which matters because both are settings: the gutter
+           moves with the layout (flat drops it) and the padding with the
+           density. Nothing here has to know their values.
+
+           `100vw` is the viewport including any scrollbar, which is right below
+           md — the shell is `overflow: hidden` and a phone's scrollbar is an
+           overlay with no width. */
+        left: 50%;
+        width: 100vw;
+        transform: translateX(-50%);
+
+        /* The horizontal half of this is what keeps the field and the
+           suggestion list off the screen edges while the BACKGROUND runs all
+           the way to them: the dropdown inside is `absolute left-0 right-0`,
+           which resolves against this element's padding box, so it inherits the
+           inset without being told about it. */
         padding: 0.25rem 1rem 0.75rem;
+
+        /* Opaque, always. The list scrolls underneath this and a translucent
+           surface turned the query into something read through moving text.
+           `--rgb-surface` and not the topbar's own `pane`, because the flat
+           layout makes that transparent by design — see `.layout-flat
+           .shell-chrome` — and a see-through search bar is the thing being
+           fixed. */
         background-color: rgb(var(--rgb-surface));
         border-bottom: 1px solid rgb(var(--rgb-line) / var(--line-alpha));
     }

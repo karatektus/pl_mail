@@ -85,6 +85,33 @@ async function openRow(page: Page, label: string) {
     return providerRow(page, label);
 }
 
+/**
+ * Open a row and press a button inside it, as ONE retried unit.
+ *
+ * Opening a row loads its body into the frame, and the frame is replaced
+ * whole — so a response still in flight can land between the button becoming
+ * visible and the click starting. Playwright does retry a detached element,
+ * and that is not enough here: the replacement re-renders every row CLOSED, so
+ * there is nothing left to retry onto and the click waits out the full test
+ * timeout. That is the shape of the failure when it comes —
+ * "element was detached from the DOM, retrying", then thirty seconds of
+ * nothing.
+ *
+ * Asserting the button is visible first narrows the window and cannot close
+ * it, because the gap being raced is the one AFTER the assertion resolves.
+ * Reopening is what recovers, so opening and clicking have to retry together.
+ *
+ * The body is kept to exactly those two steps: `toPass` stops at the first
+ * success, so nothing here can click twice.
+ */
+async function clickInRow(page: Page, label: string, name: RegExp | string) {
+    await expect(async () => {
+        const row = await openRow(page, label);
+
+        await row.getByRole("button", { name }).click({ timeout: 2_000 });
+    }).toPass({ timeout: 20_000 });
+}
+
 async function openIntegrations(page: Page) {
     await login(page, ADMIN.email, ADMIN.password);
     await page.goto("/admin?section=integrations");
@@ -192,17 +219,12 @@ test.describe("admin integrations", () => {
         // raced the replacement — fast enough and it landed, slow enough and
         // the button it had just seen was gone. It failed roughly once a full
         // suite, on the run where the machine was busiest.
-        const drive = await openRow(page, "Google Drive");
-
-        // The wait, not a redundant assertion. Opening a row loads its body
-        // into the frame, and the button does not exist until that lands —
-        // clicking straight through auto-waits for the BUTTON but not for the
-        // frame, so the click can be aimed at a row the response then re-renders
-        // closed. Waiting for it to be visible is waiting for the frame to
-        // settle, and removing this line is what put the flake back.
-        await expect(drive.getByRole("button", { name: /Reuse Gmail sign-in/ })).toBeVisible();
-
-        await drive.getByRole("button", { name: /Reuse Gmail sign-in/ }).click();
+        // Opening and clicking as one retried unit — see clickInRow, which is
+        // where the race and the reason live. Asserting the button visible and
+        // then clicking it is what this used to do, and it still lost the race
+        // about once per full suite: the frame can be replaced in the gap after
+        // the assertion resolves, and the row comes back closed.
+        await clickInRow(page, "Google Drive", /Reuse Gmail sign-in/);
 
         // Wait for the copy to land before reopening: the response replaces the
         // whole frame, so a row opened before then is replaced closed again.

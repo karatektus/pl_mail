@@ -769,15 +769,35 @@ export default class extends Controller {
      * bottom of the screen keeps its bottom rows — the action bar, the send
      * button — underneath the keyboard. That is one fault with two faces:
      *
-     *   • On a phone the window IS the screen, so it is *sized* from
-     *     `visualViewport` and the keyboard ends up below it. Width and
-     *     offsetLeft matter as much as height here: with the keyboard up the
-     *     browser can pan and scale the visual viewport, and a window that only
-     *     tracked the vertical axis left a strip of the page showing down the
-     *     right edge as well as above the keyboard. Rounded up, because these
-     *     are fractional CSS pixels — flooring, or leaving them fractional, is
-     *     what turns a rounding error into a visible hairline of whatever is
-     *     behind the window.
+     *   • On a phone the window IS the screen. It FILLS THE LAYOUT VIEWPORT and
+     *     pads its own bottom by however much of that is covered.
+     *
+     *     Filling the layout viewport is what makes it impossible to leave the
+     *     page showing: a `position: fixed` element is placed against the
+     *     layout viewport, and the mail list behind this one is laid out to the
+     *     same box, so a window that fills it covers the list by construction.
+     *     Sizing to `visualViewport.height` instead — which is what this did —
+     *     is right only while the layout viewport still includes the keyboard,
+     *     and it does not always: `interactive-widget=resizes-content` asks the
+     *     browser to shrink the layout viewport too, and which browsers honour
+     *     it has moved since that meta was written. Where it is honoured, the
+     *     visual viewport stops higher than the layout viewport does and the
+     *     mail list showed through the difference — a strip of somebody else's
+     *     inbox between the action bar and the keys, in a screenshot from an
+     *     iPhone.
+     *
+     *     The padding is then the same subtraction, and it does not care what
+     *     is doing the covering. There is no threshold here and nothing that
+     *     asks which platform this is, which is the point: the previous
+     *     version had to classify a shortfall as "keyboard" or "accessory bar"
+     *     by its size, and got it wrong on a phone nobody here owns.
+     *
+     *     Width and offsetLeft matter as much as height: with the keyboard up
+     *     the browser can pan and scale the visual viewport, and a window that
+     *     only tracked the vertical axis left a strip of the page showing down
+     *     the right edge too. Rounded up, because these are fractional CSS
+     *     pixels — flooring, or leaving them fractional, is what turns a
+     *     rounding error into a visible hairline.
      *
      *   • On a tablet the window is the 520px dock card, and sizing it to the
      *     viewport would be wrong — it has to *move*, and cap its height so the
@@ -800,19 +820,23 @@ export default class extends Controller {
         document.documentElement.style.setProperty('--keyboard-inset', `${keyboard}px`);
 
         if (true === this._isMobile()) {
+            // How much of the window is not visible: the keyboard, the browser
+            // chrome above it, whatever else the platform has put there. One
+            // subtraction, and it never has to be told WHICH of those it is.
+            const covered = Math.max(
+                0,
+                Math.round(window.innerHeight - viewport.offsetTop - viewport.height),
+            );
+
             this.element.style.width     = `${Math.ceil(viewport.width)}px`;
-            this.element.style.height    = `${Math.ceil(viewport.height)}px`;
+            this.element.style.height    = `${Math.ceil(window.innerHeight - viewport.offsetTop)}px`;
             this.element.style.transform = `translate(${viewport.offsetLeft}px, ${viewport.offsetTop}px)`;
 
-            // The home indicator is behind the keyboard, but
-            // `env(safe-area-inset-bottom)` still reports the full 34px: the
-            // safe area describes the LAYOUT viewport, which the keyboard does
-            // not touch. The window is sized to the VISUAL one, so that padding
-            // stops being clearance and becomes a dead strip of window between
-            // the action bar and the top of the keyboard — the gap this looked
-            // like on an iPhone. Android reports 0 either way, which is the
-            // other half of why it looked right there.
-            this.element.style.paddingBottom = 0 === keyboard ? '' : '0px';
+            // The padding is the whole of the keyboard answer, and it replaces
+            // the safe-area inset while it is non-zero: the home indicator is
+            // behind the keyboard, so reserving room for it as well would be
+            // reserving the same room twice.
+            this.element.style.paddingBottom = 0 === covered ? '' : `${covered}px`;
         }
 
         // Half the screen just became keyboard: put the caret back on screen.

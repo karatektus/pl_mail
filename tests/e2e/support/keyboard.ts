@@ -65,6 +65,44 @@ export async function pinchZoom(
     }, { scale, offsetTop });
 }
 
+/**
+ * A keyboard on a browser that shrinks the LAYOUT viewport for it — what
+ * `interactive-widget=resizes-content` asks for, which Android has always done
+ * and which iOS support has moved on.
+ *
+ * The difference that matters is what is left over. Here the layout viewport
+ * has already stopped above the keyboard, so `innerHeight` and
+ * `visualViewport.height` differ only by the accessory bar — the floating strip
+ * of browser chrome above the keys, which draws OVER the page rather than
+ * shortening it. A fullscreen window sized to the visual viewport then stops
+ * short of the page behind it and lets it show through, which is the strip that
+ * turned up in an iPhone screenshot.
+ *
+ * `innerHeight` cannot be assigned, so the layout viewport is staged by
+ * resizing the browser window itself and the visual viewport is overridden the
+ * accessory bar's worth shorter.
+ */
+export async function raiseKeyboardResizingLayout(
+    page: Page,
+    { keyboard, accessoryBar }: { keyboard: number; accessoryBar: number },
+): Promise<void> {
+    const size = page.viewportSize()!;
+
+    // The layout viewport shrinks: this is the half the browser does for us.
+    await page.setViewportSize({ width: size.width, height: size.height - keyboard });
+
+    await page.evaluate((bar) => {
+        const viewport = window.visualViewport!;
+
+        Object.defineProperty(viewport, "height", {
+            configurable: true,
+            get: () => window.innerHeight - bar,
+        });
+
+        viewport.dispatchEvent(new Event("resize"));
+    }, accessoryBar);
+}
+
 /** Put the keyboard away, or undo a zoom. */
 export async function lowerKeyboard(page: Page): Promise<void> {
     await page.evaluate(() => {

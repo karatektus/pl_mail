@@ -54,13 +54,26 @@
        ignores user-scalable anyway, so this only ever disabled zoom on Android
        where nothing was wrong.
 
-       `interactive-widget=resizes-content`: Android's default (resizes-visual)
+       `interactive-widget=resizes-content`: the default (resizes-visual)
        shrinks only the visual viewport for the keyboard and leaves the layout
        viewport — where fixed elements live — at full height, so the page
        behind the fullscreen compose window stayed pannable and showed through
        below it. Resizing the content instead means fixed elements end above
-       the keyboard and there is nothing to pan. iOS ignores this keyword; the
-       compose controller's visualViewport tracking stays as its fallback. #}
+       the keyboard and there is nothing to pan.
+
+       WHICH BROWSERS HONOUR IT HAS MOVED, and nothing here assumes an answer
+       any more. This used to say "iOS ignores this keyword" and treated the
+       compose controller's visualViewport tracking as the fallback for that.
+       Safari has since shipped support, and a window sized to the visual
+       viewport on a browser that HAS resized the layout viewport comes out
+       shorter than the page behind it — which is a strip of mail list under
+       the composer, in a screenshot from an iPhone none of us owns.
+
+       So the controller no longer asks which platform it is on: it fills the
+       layout viewport, whatever that currently is, and pads its own foot by
+       however much of itself is covered. Both readings of this keyword are
+       correct under that rule, which is why the rule names neither. See
+       compose_controller#_trackViewport. #}
     <meta name="viewport"
           content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
     <title>{% block title %}Welcome!{% endblock %}</title>

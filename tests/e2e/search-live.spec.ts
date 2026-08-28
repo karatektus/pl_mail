@@ -81,12 +81,45 @@ test.describe("live search results", () => {
 
         await expect(page).toHaveURL(new RegExp(`${href}$`));
 
+        // AND THE CONVERSATION IS ON THE SCREEN. The URL alone was all this
+        // asserted for a long time, and a URL is exactly what the failure it
+        // missed left intact: the row used to be a bare link, so Turbo resolved
+        // it against `inbox-list-frame` and made the click a FRAME navigation —
+        // and mail/thread.html.twig renders no list, deliberately, because the
+        // route knows a conversation and not the folder it came from. Turbo
+        // swapped that empty frame in, the list emptied, the reading pane was
+        // never touched, and the address bar said the right thing over a blank
+        // page. Reported from a phone and reproduced at every width.
+        const reading = page.locator('[data-mail--mail-pane-target="reading"]');
+
+        await expect(reading).toBeVisible();
+        await expect(reading).toContainText("E2E Star Me");
+
         // The box empties itself on the way, and that is the rule the box has
         // always followed: it shows the query in the address bar, and the
         // conversation just opened has none. Asserted rather than assumed,
         // because a search box still holding a query over an unfiltered page
         // is the bug that rule was written for.
         await expect(page.locator(BOX)).toHaveValue("");
+    });
+
+    /**
+     * The same row, from a page that carries the topbar and NOT the mail panes.
+     * There is no mail--mail-pane controller on settings, so the action matches
+     * nothing and the anchor navigates on its own — which is the path
+     * `data-turbo-frame="_top"` exists to keep unambiguous. Without it Turbo
+     * goes looking for a frame to put a mailbox into.
+     */
+    test("opens the conversation from a page with no mail panes", async ({ page }) => {
+        await page.goto("/settings");
+        await typeAndWait(page, "E2E");
+
+        await page.locator(RESULTS).filter({ hasText: "E2E Star Me" }).first().click();
+
+        await expect(page).toHaveURL(/\/mail\/thread\/\d+/);
+        await expect(
+            page.locator('[data-mail--mail-pane-target="reading"]'),
+        ).toContainText("E2E Star Me");
     });
 
     /**

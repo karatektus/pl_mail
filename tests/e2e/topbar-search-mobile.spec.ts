@@ -118,6 +118,35 @@ test.describe("the search box on a phone", () => {
         expect(panel.width).toBeGreaterThan(after.width - 4);
     });
 
+    /**
+     * The strip is opaque and runs to both screen edges, so it reads as part of
+     * the topbar rather than as a card floating over the list. `left: 0` would
+     * be the header's padding box — and the header is inset twice, by the
+     * shell's gutter and by its own padding — so the list showed down either
+     * side of it.
+     */
+    test("runs its background to both screen edges, with the field inset", async ({ page }) => {
+        await page.goto("/mail/inbox");
+        await page.locator(toggle).click();
+
+        const panel = (await page.locator(shell).boundingBox())!;
+        const input = (await page.locator(field).boundingBox())!;
+        const viewport = page.viewportSize()!;
+
+        expect(panel.x).toBeLessThanOrEqual(0);
+        expect(panel.width).toBeGreaterThanOrEqual(viewport.width);
+
+        // Opaque: the list scrolls under this.
+        const alpha = await page
+            .locator(shell)
+            .evaluate((el) => getComputedStyle(el).backgroundColor);
+        expect(alpha).not.toContain("rgba(0, 0, 0, 0)");
+
+        // The field keeps its margin even though the background does not.
+        expect(input.x).toBeGreaterThan(8);
+        expect(input.x + input.width).toBeLessThan(viewport.width - 8);
+    });
+
     test("closes on a tap outside it", async ({ page }) => {
         await page.goto("/mail/inbox");
         await page.locator(toggle).click();

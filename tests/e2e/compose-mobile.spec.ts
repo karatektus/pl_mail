@@ -1,6 +1,6 @@
 import { test, expect, devices, type Page } from "./support/test";
 import { INBOX_SUBJECTS, mailRow, seed } from "./support/config";
-import { lowerKeyboard, raiseKeyboard } from "./support/keyboard";
+import { lowerKeyboard, raiseKeyboard, raiseKeyboardResizingLayout } from "./support/keyboard";
 
 /**
  * The compose window on a phone.
@@ -99,51 +99,86 @@ test.describe("mobile compose window", () => {
 
         const measured = await page.evaluate(() => {
             const el = document.querySelector("#compose_dock .compose-window") as HTMLElement;
+            const box = el.getBoundingClientRect();
 
             return {
-                height: el.getBoundingClientRect().height,
+                content: box.height - parseFloat(getComputedStyle(el).paddingBottom),
+                height: box.height,
+                layout: window.innerHeight,
                 visual: window.visualViewport!.height,
             };
         });
 
-        // The test above proves the window is *wired* to the visual viewport.
-        // This one shrinks that viewport and watches the window follow, which
-        // is the behaviour the wiring exists for.
-        expect(Math.abs(measured.height - measured.visual)).toBeLessThan(2);
+        // On this browser the layout viewport still HOLDS the keyboard, so the
+        // window fills it — right down behind the keys, where nothing can see
+        // it — and pads that part back. What the reader gets, the window less
+        // its covered foot, is the visible area exactly.
+        expect(measured.height).toBeCloseTo(measured.layout, 0);
+        expect(measured.content).toBeCloseTo(measured.visual, 0);
     });
 
     /**
-     * `env(safe-area-inset-bottom)` describes the LAYOUT viewport, which the
-     * keyboard does not touch, so it goes on reporting the home indicator's
-     * 34px. Against a window sized to the VISUAL viewport — whose bottom edge
-     * IS the top of the keyboard — those 34px stop being clearance and become a
-     * dead strip of window between the action bar and the keys. That was the
-     * gap reported on an iPhone; Android reports no inset here, which is the
-     * other half of why it looked right there.
+     * The home indicator is not reserved on top of the keyboard.
+     *
+     * `env(safe-area-inset-bottom)` describes the LAYOUT viewport, so on a
+     * notched phone it goes on reporting its 34px while the keyboard is over
+     * the very indicator it was reserving room for. Against a window that
+     * stops at the keyboard, those 34px stopped being clearance and became a
+     * dead band of window between the action bar and the keys — the gap first
+     * reported from an iPhone.
+     *
+     * The number asserted is KEYBOARD, which this file chose, and not the
+     * window's own arithmetic read back out of the page. An earlier version of
+     * this test recomputed `innerHeight - offsetTop - visualViewport.height` in
+     * the browser and checked the padding matched it — the same expression the
+     * controller uses, so it would have agreed with a wrong formula just as
+     * happily. A test that can only confirm the code did what the code does is
+     * not a test.
      */
-    test("stops reserving the home indicator while the keyboard covers it", async ({ page }) => {
+    test("pads its foot by exactly what the keyboard covers", async ({ page }) => {
+        const failures: string[] = [];
+
+        page.on("pageerror", (error) => failures.push(`uncaught: ${error.message}`));
+        page.on("console", (message) => {
+            if ("error" === message.type()) {
+                failures.push(`console: ${message.text()}`);
+            }
+        });
+
         await openCompose(page);
-
-        const paddingBottom = () =>
-            page.evaluate(
-                () =>
-                    (document.querySelector("#compose_dock .compose-window") as HTMLElement)
-                        .style.paddingBottom,
-            );
-
-        // The INLINE style, not the computed one. Chromium reports no safe area
-        // at all, so the padding this drops computes to 0 here and the strip is
-        // invisible in this browser — the override is the mechanism under test,
-        // and on an iPhone it is 34px of window.
-        expect(await paddingBottom()).toBe("");
-
         await raiseKeyboard(page, KEYBOARD);
-        expect(await paddingBottom()).toBe("0px");
 
-        // And handed back, or the action bar sits under the home indicator for
-        // the rest of the session once the keyboard drops.
+        const up = await page.evaluate(() => {
+            const el = document.querySelector("#compose_dock .compose-window") as HTMLElement;
+            const box = el.getBoundingClientRect();
+            const padding = parseFloat(getComputedStyle(el).paddingBottom);
+
+            return { padding, contentBottom: box.height - padding, visual: window.visualViewport!.height };
+        });
+
+        // The staged keyboard is 400px, so 400px is what is covered — not that
+        // plus an inset for an indicator the keyboard is already sitting on.
+        expect(up.padding).toBeCloseTo(KEYBOARD, 0);
+
+        // And the reader's half of it ends where the visible area does.
+        expect(up.contentBottom).toBeCloseTo(up.visual, 0);
+
+        // Handed back when the keyboard goes, so the inset applies again.
         await lowerKeyboard(page);
-        expect(await paddingBottom()).toBe("");
+
+        expect(
+            await page.evaluate(
+                () =>
+                    (document.querySelector("#compose_dock .compose-window") as HTMLElement).style
+                        .paddingBottom,
+            ),
+        ).toBe("");
+
+        // The geometry above is written by a controller that runs on every
+        // viewport event. An exception halfway through leaves the styles it had
+        // already set looking plausible, so the console is part of the
+        // assertion rather than something to read afterwards.
+        expect(failures).toEqual([]);
     });
 
     test("covers the visual viewport on both axes, with nothing showing past its edges", async ({ page }) => {
