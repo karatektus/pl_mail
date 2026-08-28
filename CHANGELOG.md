@@ -6,6 +6,25 @@ so anything that changes the schema irreversibly is called out explicitly.
 The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, and `sha-…` pins one commit.
 
+## v0.2.7 — 2026-08-28
+
+**No schema changes. Writing a message on an iPhone or an iPad, with the keyboard up.**
+
+### Fixed
+
+- **On an iPad the compose window stayed put when the keyboard came up**, so its bottom row — the
+  formatting bar, the paperclip, Send — sat behind the keyboard with no gesture that brought it
+  back. The window moves up now, and shrinks instead of climbing off the top of the screen when
+  there is not room to do both.
+
+- **On an iPhone there was a band of empty window between what you were writing and the keyboard.**
+  The space was being held clear of the home indicator, which the keyboard was already covering.
+
+Both are the same misunderstanding: while the keyboard is open, iOS goes on telling a page the
+screen is its full height, and everything anchored to the bottom of that screen believes it.
+Android says otherwise and was never affected — which is why this only ever looked wrong on one
+of them.
+
 ## v0.2.6 — 2026-08-27
 
 **No schema changes. Six things that were wrong in ways that looked right.**
