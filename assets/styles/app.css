@@ -2698,20 +2698,6 @@
         opacity: 0.5;
     }
 
-    /* ── Mobile viewport ───────────────────────────────────────────────────
-       The meta tag pins the scale, but iOS ignores user-scalable and zooms
-       in whenever a focused control renders below 16px — which every
-       text-sm/text-xs field here does. Setting the *computed* size to 16px
-       on small screens is the only thing that actually suppresses it.
-       ────────────────────────────────────────────────────────────────────── */
-    @media (max-width: 767px) {
-        input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
-        select,
-        textarea {
-            font-size: 16px;
-        }
-    }
-
     html {
         /* Pinch-zoom and rubber-band scrolling both let the fixed-height
            shell drift away from the viewport, leaving the app half off
@@ -3213,6 +3199,118 @@
         width: 2.5rem;
         flex-shrink: 0;
         text-align: right;
+    }
+}
+
+/* ═══ iOS zooms into anything under 16px ═══════════════════════════════════
+   Tap a control whose COMPUTED font-size is below 16px on an iPhone and Safari
+   zooms the page in to meet it — and does not zoom back out. There is one
+   documented way to stop that and it is to make the computed size 16px;
+   `maximum-scale=1, user-scalable=no` also works and is not available to us,
+   because it takes pinch-zoom away from everyone who needs it (WCAG 1.4.4, and
+   see the viewport meta in app.html.twig where that was decided).
+
+   THIS RULE ALREADY EXISTED, IN `@layer base`, AND HAD NEVER ONCE FIRED.
+   Tailwind's utilities live in a later layer, so `text-sm` on the element beat
+   it every time — and `text-sm` is on essentially every field in the app.
+   Measured at 390px before moving it: the search box 14px, the login email and
+   password 14px, the compose subject 14px, the compose editor 14px, the
+   formatting bar's selects 12px. Every one of them zoomed. Unlayered, it wins,
+   which is the whole reason the rule is here rather than back where it was.
+
+   `[contenteditable]` belongs in the list: the compose body is a div, not a
+   textarea, and Safari zooms into it on exactly the same rule. The three input
+   types excluded have no text to render and are sized by the UA.
+
+   Below md only. On a desktop 16px everywhere would be a redesign, and no
+   pointer-driven browser zooms on focus.
+   ═══════════════════════════════════════════════════════════════════════════ */
+@media (max-width: 767px) {
+    input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+    select,
+    textarea,
+    [contenteditable="true"] {
+        /* A FLOOR, not a pin. A bare `16px` replaces the utility instead of
+           raising it, which cancels `--app-font-scale` for every field below
+           md — and above about 1.14 it makes fields SMALLER than they were
+           before this rule started firing, and smaller than their own labels.
+           The appearance slider runs to 1.25, so that is five stops of it, and
+           the people standing on those stops are the ones the WCAG argument
+           above is about.
+
+           0.875rem is `text-sm`, which is what nearly every field here carries.
+           CSS cannot say "this element's own size, floored at 16px", so the
+           approximation is to floor the common one: the `text-xs` controls in
+           the compose toolbar come out a little larger than drawn at high
+           scale, which is not a defect for someone who asked for larger text. */
+        font-size: max(16px, 0.875rem);
+    }
+}
+
+/* ═══ The search box on a phone ════════════════════════════════════════════
+   Above md the search box is what it always was: a field in the topbar row,
+   and none of this applies.
+
+   Below md that field had about 120px between the logo and the calendar
+   button — too narrow to read a query back in, and the first thing a thumb
+   hit on the way to anything else. It becomes a magnifying-glass button that
+   opens the field as a full-width row hanging under the topbar, which is what
+   a phone expects and what gives the query somewhere to be read.
+
+   ONE field, moved, rather than a second one for phones. The box is a
+   combobox: it owns `aria-controls`, an id'd listbox, a live region and the
+   recent-search list. A duplicate would have meant duplicate ids — two
+   elements claiming `#search-listbox` — and a screen reader following the
+   wrong one.
+
+   Absolute rather than a second flex row, so the topbar keeps its height:
+   `--pane-header-h` is a published knob and the shell is laid out against it.
+   The containing block is the <header>, which is already `relative` for the
+   dropdown's sake. The dropdown stays inside this element and so keeps
+   positioning against it.
+
+   `(width < 48rem)` — Tailwind's own `max-md:` query, copied verbatim — and
+   NOT a px equivalent. This element's visibility (`md:hidden` on the button),
+   its positioning context (`md:relative`) and its row alignment
+   (`max-md:justify-end`) are all Tailwind variants compiled against 48rem, and
+   rem in a media query resolves against the browser's default-font-size
+   PREFERENCE rather than against `html { font-size }`. So a px boundary here
+   moves independently of those three, and the two disagree for anyone who has
+   changed that preference:
+
+     • Chrome set to "Small" (12px) puts `md:` at 576px. A px panel rule would
+       still be waiting for 768px, so between the two the button is gone AND
+       the panel is hidden — and there is no other way into mail search. It is
+       simply missing, on a page that otherwise renders at a normal size.
+
+     • Set to 20px, `md:` lands at 960px: the button and the inline field both
+       render, the button becomes a no-op that still reports `aria-expanded`,
+       and `md:relative` does not match — so the shell computes `static` and
+       the suggestions dropdown anchors to <header> and paints across the whole
+       topbar.
+
+   The two `max-width: 767px` font rules elsewhere in this file stay in px on
+   purpose: they exist to clear a 16px threshold that iOS measures in device
+   pixels, and expressing them in rem would push 16px fields onto a desktop
+   whose owner has merely asked for larger text.
+   ═══════════════════════════════════════════════════════════════════════════ */
+@media (width < 48rem) {
+    .search-shell {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        z-index: 30;
+        padding: 0.25rem 1rem 0.75rem;
+        background-color: rgb(var(--rgb-surface));
+        border-bottom: 1px solid rgb(var(--rgb-line) / var(--line-alpha));
+    }
+
+    /* Closed is the server-rendered state, so a phone that never runs the
+       controller gets the button and no panel rather than a panel stuck open
+       under the topbar. */
+    .search-shell[data-open="false"] {
+        display: none;
     }
 }
 
@@ -3991,6 +4089,27 @@ html {
 [data-compose--compose-toolbar-target="editor"] {
     font-size: 14px;
     line-height: 1.625;
+}
+
+/*
+   16px of it on a phone, and the pin above is not weakened by saying so: what
+   that rule exists to escape is the REM cascade, so that `--app-font-scale`
+   cannot move the editor under a sender who is judging their own message by
+   eye. A second absolute px value, chosen per width, escapes it exactly as
+   well.
+
+   The reason for the second value is the one in the iOS block near the top of
+   this file: Safari zooms the whole page into any focused control under 16px
+   and does not zoom back out, and the editor is a `contenteditable`, which it
+   treats like any other. 14px meant that every tap into the message body
+   zoomed the app. The cost is that a message written on a phone is composed
+   two pixels larger than one written at a desk; the alternative was a composer
+   you had to pinch your way out of after every tap.
+*/
+@media (max-width: 767px) {
+    [data-compose--compose-toolbar-target="editor"] {
+        font-size: 16px;
+    }
 }
 
 /* ── A visually-hidden input must not escape its own label ─────────────────

@@ -1656,11 +1656,13 @@ header:
         heading: Labels
         none: Noch keine Labels
     search:
+        close: Suche schließen
         live:
             status: '%count% passende Unterhaltungen'
             status_none: Keine passende Mail
             status_one: 1 passende Unterhaltung
             title: Mail
+        open: Mails durchsuchen
         placeholder: E-Mails durchsuchen…
         recents:
             clear: Leeren

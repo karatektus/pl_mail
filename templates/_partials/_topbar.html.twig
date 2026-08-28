@@ -45,17 +45,56 @@
         ></span>
     </a>
 
-    {# ── Search + calendar ─────────────────────────────────────────────── #}
-    <div class="flex-1 max-w-2xl mx-auto flex items-center gap-2 min-w-0">
+    {# ── Search + calendar ───────────────────────────────────────────────
+       `justify-end` below md, because the search box leaves the row there:
+       it becomes the button below and a panel under the topbar (see
+       `.search-shell` in app.css), so what is left in this group is two icons
+       that belong beside the account controls rather than adrift in the
+       middle of an empty row. #}
+    <div class="flex-1 max-w-2xl mx-auto flex items-center gap-2 min-w-0 max-md:justify-end"
+         data-controller="ui--mobile-search"
+         {# On the controller element, where Stimulus reads values from — not on
+            the button, which is only a target. Both labels are rendered here
+            rather than spelled in the JavaScript, the same arrangement the
+            compose window and ui--select use, so the button does not go back to
+            English in a German topbar. #}
+         data-ui--mobile-search-open-label-value="{{ 'header.search.open'|trans }}"
+         data-ui--mobile-search-close-label-value="{{ 'header.search.close'|trans }}">
+
+        {# The way in on a phone, and nothing at all above md. It is a
+           disclosure, so it says whether it is open — an icon that toggles a
+           panel and never reports its state is a button a screen reader
+           announces identically in both. #}
+        <button
+            type="button"
+            class="md:hidden flex items-center justify-center w-9 h-9 rounded-lg
+                   text-ink-muted hover:bg-hover transition-colors flex-shrink-0"
+            aria-expanded="false"
+            aria-controls="search-shell"
+            aria-label="{{ 'header.search.open'|trans }}"
+            title="{{ 'header.search.open'|trans }}"
+            data-ui--mobile-search-target="toggle"
+            data-action="click->ui--mobile-search#toggle"
+        >
+            <i class="fa-solid fa-magnifying-glass text-base" aria-hidden="true"></i>
+        </button>
+
     {# The search box is a combobox in the ARIA sense — a text field with a
        popup list attached — and the parts of that live in three places: the
        input carries the state, the listbox carries the options, and the
        controller keeps aria-activedescendant pointing at whichever one the
        arrow keys landed on. The section titles are values rather than strings
        in the JavaScript because they are shown to people and therefore
-       translated. #}
+       translated.
+
+       `md:relative` rather than a plain `relative`: below md `.search-shell`
+       makes this element `absolute`, and two position utilities on one element
+       leave which one wins to stylesheet order. Each width names its own. #}
     <div
-        class="flex-1 relative min-w-0"
+        id="search-shell"
+        class="search-shell flex-1 md:relative min-w-0"
+        data-open="false"
+        data-ui--mobile-search-target="panel"
         data-controller="mail--search"
         data-mail--search-suggest-url-value="{{ path('app_mail_search_suggest') }}"
         data-mail--search-recents-title-value="{{ 'header.search.recents.title'|trans }}"
@@ -84,6 +123,7 @@
                 aria-autocomplete="list"
                 aria-label="{{ 'header.search.placeholder'|trans }}"
                 data-mail--search-target="input"
+                data-ui--mobile-search-target="field"
                 data-action="keydown->mail--search#onKeydown focus->mail--search#onFocus input->mail--search#onInput"
                 class="w-full pl-10 pr-4 py-2 text-sm
                        bg-sunken

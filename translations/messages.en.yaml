@@ -1650,11 +1650,13 @@ header:
         heading: Labels
         none: No labels yet
     search:
+        close: Close search
         live:
             status: '%count% matching conversations'
             status_none: No matching mail
             status_one: 1 matching conversation
             title: Mail
+        open: Search mail
         placeholder: Search mail…
         recents:
             clear: Clear

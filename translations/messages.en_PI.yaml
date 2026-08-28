@@ -1357,11 +1357,13 @@ header:
         heading: Flags
         none: No flags yet
     search:
+        close: Batten the hunt
         live:
             status: "%count% matchin' parleys"
             status_none: Nary a matchin' letter
             status_one: 1 matchin' parley
             title: Post
+        open: Search the hold
         placeholder: Search the hold…
         recents:
             clear: Scuttle
