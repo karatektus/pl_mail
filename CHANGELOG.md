@@ -6,6 +6,24 @@ so anything that changes the schema irreversibly is called out explicitly.
 The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, and `sha-…` pins one commit.
 
+## v0.2.9 — 2026-08-28
+
+**No schema changes. Writing on a phone, and a search result that opened nothing.**
+
+### Fixed
+
+- **A search suggestion opened a blank page.** Picking one of the conversations that appear under the
+  search box changed the address bar and then showed an empty mailbox — on every device, and for
+  longer than we would like. Choosing the same row with the arrow keys and Enter always worked, which
+  is why it went unnoticed.
+
+- **On an iPhone, a strip of the mail list showed between the composer and the keyboard.** The window
+  now covers everything behind it, whatever the browser has done with the keyboard, and keeps what
+  you are writing above the keys.
+
+- **The search bar on a phone reaches both edges of the screen**, instead of leaving the list showing
+  down either side of it.
+
 ## v0.2.8 — 2026-08-28
 
 **No schema changes. The search box on a phone, and the zoom that came with tapping anything.**
