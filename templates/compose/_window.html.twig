@@ -170,7 +170,10 @@ Variables: form, message, ctx (an App\Domain\DTO\Mail\ComposeContext)
           reason.
 
           90vh still caps it on a short screen, and the height is under that on
-          anything taller than about 670px. #}
+          anything taller than about 670px. With a keyboard up the cap becomes
+          90vh minus the keyboard — see `.compose-dock .compose-window` in
+          app.css, which is what keeps a card lifted clear of an iPad's keyboard
+          from running off the top of the screen instead. #}
        h-[600px] max-h-[90vh] w-[520px] rounded-pane shadow-float
        pane-flat border border-line mb-4
        {% endif %}
@@ -181,7 +184,14 @@ Variables: form, message, ctx (an App\Domain\DTO\Mail\ComposeContext)
           takes it over from visualViewport, so the virtual keyboard shrinks
           the window instead of covering its bottom row. The safe-area padding
           sits here rather than on body: a fixed element is outside body's
-          box. #}
+          box.
+
+          The bottom half of that padding is dropped by the controller while the
+          keyboard is up. `env(safe-area-inset-bottom)` describes the layout
+          viewport, which the keyboard does not touch, so it keeps reporting the
+          home indicator's 34px — and against a window sized to the VISUAL
+          viewport those 34px are no longer clearance, just a dead strip of
+          window between the action bar and the keyboard. #}
        max-md:fixed max-md:inset-x-0 max-md:top-0 max-md:z-50
        max-md:w-full max-md:h-[100dvh] max-md:max-h-none
        max-md:m-0 max-md:rounded-none max-md:border-0 max-md:shadow-none

@@ -1,5 +1,6 @@
 import { test, expect, devices, type Page } from "./support/test";
 import { INBOX_SUBJECTS, mailRow, seed } from "./support/config";
+import { lowerKeyboard, raiseKeyboard } from "./support/keyboard";
 
 /**
  * The compose window on a phone.
@@ -9,11 +10,13 @@ import { INBOX_SUBJECTS, mailRow, seed } from "./support/config";
  * the virtual keyboard rather than under it, and no control may be off screen
  * or clipped.
  *
- * The keyboard itself cannot be raised from Playwright — Chromium's headless
- * visual viewport never shrinks. What *is* checkable, and what actually makes
- * the keyboard behave, is that the window takes its height from
- * `window.visualViewport` instead of the layout viewport: once that holds, a
- * shrinking visual viewport shrinks the window by construction.
+ * The keyboard itself cannot be raised by any gesture Playwright has —
+ * Chromium's headless visual viewport never shrinks — but the shape one leaves
+ * behind can be staged, and support/keyboard.ts does that: the real visual
+ * viewport, reporting a height short of the layout viewport's, announcing it
+ * with a `resize`. What the window does about it is then testable directly.
+ * The dock card's answer on a tablet, which is a different one, is in
+ * compose-keyboard.spec.ts.
  *
  * These specs never type five characters into the body, so the autosave never
  * mints a draft and the suite leaves nothing behind to clean up.
@@ -51,6 +54,9 @@ async function openReply(page: Page) {
     await expect(page.locator(composeWindow)).toBeVisible();
 }
 
+/** How much screen the staged keyboard takes. Deep enough to be unambiguous. */
+const KEYBOARD = 400;
+
 test.describe("mobile compose window", () => {
     test("fills the screen", async ({ page }) => {
         await openCompose(page);
@@ -84,6 +90,60 @@ test.describe("mobile compose window", () => {
         // visual viewport rather than inheriting a CSS height.
         expect(measured.inlineHeight).not.toBe("");
         expect(Math.abs(measured.height - measured.visual)).toBeLessThan(2);
+    });
+
+    test("gives the keyboard the height it takes", async ({ page }) => {
+        await openCompose(page);
+
+        await raiseKeyboard(page, KEYBOARD);
+
+        const measured = await page.evaluate(() => {
+            const el = document.querySelector("#compose_dock .compose-window") as HTMLElement;
+
+            return {
+                height: el.getBoundingClientRect().height,
+                visual: window.visualViewport!.height,
+            };
+        });
+
+        // The test above proves the window is *wired* to the visual viewport.
+        // This one shrinks that viewport and watches the window follow, which
+        // is the behaviour the wiring exists for.
+        expect(Math.abs(measured.height - measured.visual)).toBeLessThan(2);
+    });
+
+    /**
+     * `env(safe-area-inset-bottom)` describes the LAYOUT viewport, which the
+     * keyboard does not touch, so it goes on reporting the home indicator's
+     * 34px. Against a window sized to the VISUAL viewport — whose bottom edge
+     * IS the top of the keyboard — those 34px stop being clearance and become a
+     * dead strip of window between the action bar and the keys. That was the
+     * gap reported on an iPhone; Android reports no inset here, which is the
+     * other half of why it looked right there.
+     */
+    test("stops reserving the home indicator while the keyboard covers it", async ({ page }) => {
+        await openCompose(page);
+
+        const paddingBottom = () =>
+            page.evaluate(
+                () =>
+                    (document.querySelector("#compose_dock .compose-window") as HTMLElement)
+                        .style.paddingBottom,
+            );
+
+        // The INLINE style, not the computed one. Chromium reports no safe area
+        // at all, so the padding this drops computes to 0 here and the strip is
+        // invisible in this browser — the override is the mechanism under test,
+        // and on an iPhone it is 34px of window.
+        expect(await paddingBottom()).toBe("");
+
+        await raiseKeyboard(page, KEYBOARD);
+        expect(await paddingBottom()).toBe("0px");
+
+        // And handed back, or the action bar sits under the home indicator for
+        // the rest of the session once the keyboard drops.
+        await lowerKeyboard(page);
+        expect(await paddingBottom()).toBe("");
     });
 
     test("covers the visual viewport on both axes, with nothing showing past its edges", async ({ page }) => {

@@ -3216,6 +3216,73 @@
     }
 }
 
+/* ═══ The virtual keyboard ═════════════════════════════════════════════════
+   `--keyboard-inset` is how much of the layout viewport the on-screen keyboard
+   has taken. The compose controller publishes it on <html> from
+   `window.visualViewport` and clears it when the window closes; everything
+   anchored to the bottom of the SCREEN has to subtract it.
+
+   It exists because a fixed element is placed against the LAYOUT viewport and
+   iOS does not shrink that one for the keyboard — so the dock kept sitting
+   `bottom: 1rem` from a screen edge that was now behind a keyboard, and an
+   iPad's compose window had its send row underneath it. Android shrinks the
+   layout viewport instead (`interactive-widget=resizes-content`, see
+   app.html.twig), reports an inset of 0 here, and needs none of this; that is
+   why the same window looked right there and wrong on iOS.
+
+   Unlayered on purpose, same as the block below: the first rule stands in for
+   the `bottom-4` the dock wrapper used to carry and the second has to beat the
+   `max-h-[90vh]` it still does, and unlayered declarations outrank anything in
+   Tailwind's cascade layers.
+   ═══════════════════════════════════════════════════════════════════════════ */
+.compose-dock {
+    /* What the dock actually moves by, which is not always the whole keyboard.
+       There has to be somewhere to move TO: at 20rem the card is down to its
+       own chrome plus a few lines of message, and lifting it any further only
+       trades a covered send row for a header above the top of the screen.
+
+       A phone held sideways is the case that needs the clamp, and it is not a
+       corner: an iPhone 15 in landscape is 844x390, a Pro Max 926x428, a mini
+       780x360 — all of them WIDER than md, so all of them get the dock card
+       rather than the fullscreen window, on 390-ish pixels of screen with a
+       200px keyboard on it. Uncapped, the lift puts the card's header off the
+       top and the cap below squeezes the scroller — From, To, Subject and the
+       message, which share one scroll region — to nothing.
+
+       22rem is the 20rem the card is allowed to keep plus the 2rem of dock
+       margin below it (`bottom-4` here, `mb-4` on the card).
+
+       Declared HERE and not on :root, which belongs to the theme palette and
+       to the appearance knobs and holds nothing else — ThemeVariableCompleteness
+       Test enforces that, and it is right to. The expanded window reads this
+       through inheritance: it is `position: fixed`, but it is still a DOM
+       descendant of the dock. */
+    --keyboard-lift: min(var(--keyboard-inset, 0px), max(0px, 100dvh - 22rem));
+
+    bottom: calc(1rem + var(--keyboard-lift, 0px));
+}
+
+/* Moving the dock up is only half of it: the card is 600px tall, capped at
+   90vh, and 90vh is measured against the layout viewport — so the cap says
+   nothing about the room left ABOVE a keyboard, and a card lifted clear of one
+   would run off the top of the screen instead. Capping against what is left
+   makes it shrink rather than climb.
+
+   `max()` and not a bare `calc()`, for the same reason the lift is clamped: on
+   a short screen 90vh less the keyboard falls under the card's own furniture,
+   and a box shorter than its `shrink-0` children does not shrink them — it
+   spills them out through the bottom edge, past the painted card and back
+   under the keyboard, with the scroller in between collapsed to 0px. The floor
+   is what stops the fix from breaking the case it cannot fix.
+
+   Above md only. Below it the window is fullscreen and takes its height from
+   `visualViewport` directly, and `max-md:max-h-none` has to keep winning. */
+@media (min-width: 768px) {
+    .compose-dock .compose-window {
+        max-height: max(20rem, 90vh - var(--keyboard-inset, 0px));
+    }
+}
+
 /* ═══ Shell chrome ═════════════════════════════════════════════════════════
    Unlayered on purpose (same reason as the channel block at the top): these
    rules have to beat the `pane` utility, and unlayered declarations outrank

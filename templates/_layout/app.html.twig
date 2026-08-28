@@ -241,8 +241,18 @@
 
        `z-50` here because a fixed element creates a stacking context: left at
        `auto` the whole dock painted below the topbar (z-20) and the mobile
-       drawer (z-40), which the fullscreen compose window below md has to cover. #}
-    <div class="fixed bottom-4 right-6 z-50 flex items-end gap-3"
+       drawer (z-40), which the fullscreen compose window below md has to cover.
+
+       `compose-dock` rather than `bottom-4`: the distance from the bottom is
+       one rem PLUS whatever the virtual keyboard has taken — clamped, on a
+       screen too short to move that far — and that sum lives in app.css
+       because Tailwind has no arbitrary value for it. A fixed element is
+       placed against the layout viewport, which iOS does not shrink for the
+       keyboard, so without the correction an iPad put the dock window's send
+       row underneath it. See `--keyboard-inset` and `--keyboard-lift` in
+       app.css, and the compose controller's _trackViewport, which is what
+       publishes the first of them. #}
+    <div class="compose-dock fixed right-6 z-50 flex items-end gap-3"
          data-controller="compose--dock"
          data-compose--dock-i18n-value="{{ {
              failed:    'compose.open_failed.failed'|trans,

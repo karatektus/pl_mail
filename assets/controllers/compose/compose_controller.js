@@ -31,6 +31,15 @@ export default class extends Controller {
     /** Below this the dock window is the whole screen — matches Tailwind's md. */
     static MOBILE_QUERY = '(max-width: 767px)';
     /**
+     * Below this many pixels, a visual viewport shorter than the layout one is
+     * a rounding artefact or a browser toolbar mid-animation rather than a
+     * keyboard. Deliberately far below the shortest thing that IS one: iOS's
+     * bare accessory bar, the ~55px strip an external keyboard on an iPad
+     * leaves behind, covers the dock's send row as thoroughly as a full
+     * keyboard does and has to count.
+     */
+    static KEYBOARD_INSET_MIN = 24;
+    /**
      * An address the window will accept as a chip.
      *
      * Deliberately the same shape as the `createFilter` ContactAutocompleteField
@@ -654,13 +663,22 @@ export default class extends Controller {
             return;
         }
 
-        this._unwatchViewport();
-        // Every property _trackViewport sets, or the desktop window keeps a
-        // phone's width the next time the viewport crosses the breakpoint.
-        this.element.style.width     = '';
-        this.element.style.height    = '';
-        this.element.style.transform = '';
-        document.body.style.overflow = '';
+        // Every property the phone branch of _trackViewport sets, or the
+        // desktop window keeps a phone's width the next time the viewport
+        // crosses the breakpoint.
+        this.element.style.width         = '';
+        this.element.style.height        = '';
+        this.element.style.transform     = '';
+        this.element.style.paddingBottom = '';
+        document.body.style.overflow     = '';
+
+        // Still watching, though. The dock window is covered by the keyboard
+        // on a tablet exactly as the fullscreen one was on a phone — it just
+        // needs moving rather than resizing, which is what the desktop half of
+        // _trackViewport does. Re-adding a listener that is already on with the
+        // same bound function is a no-op, so crossing the breakpoint twice does
+        // not stack them.
+        this._watchViewport();
     }
 
     _watchViewport() {
@@ -674,25 +692,101 @@ export default class extends Controller {
     _unwatchViewport() {
         window.visualViewport?.removeEventListener('resize', this._boundViewport);
         window.visualViewport?.removeEventListener('scroll', this._boundViewport);
+
+        // --keyboard-inset is read by markup outside this element — the dock
+        // wrapper in app.html.twig — so it has to go when the window does, or
+        // the dock stays hitched up over a keyboard that closed with it.
+        //
+        // Only when it is the LAST one, though. Above md a dock window and an
+        // inline reply are open at once by design (ComposeContext namespaces
+        // the inline form's ids for exactly that), and both publish. Clearing
+        // the property on behalf of the survivor drops the dock back under the
+        // keyboard with nothing to put it back: _trackViewport runs on
+        // visualViewport events only, and the keyboard is still up, so no
+        // resize and no scroll is coming.
+        //
+        // That is not a hypothetical. _settleSend() empties the inline frame
+        // from a timer 8 seconds after a send — no gesture, no blur, keyboard
+        // untouched — so a dock window opened during the cancel window would
+        // have lost its lift mid-sentence.
+        //
+        // Read from the DOM rather than counted in a variable: querySelectorAll
+        // returns only connected elements, a controller can be connected twice
+        // for one element across a re-render, and a count that drifts is a dock
+        // that never comes down again.
+        const survivors = Array.from(
+            document.querySelectorAll('[data-controller~="compose--compose"]'),
+        ).filter((el) => el !== this.element);
+
+        if (0 === survivors.length) {
+            document.documentElement.style.removeProperty('--keyboard-inset');
+        }
     }
 
     /**
-     * Size and place the window against the *visual* viewport, on both axes.
+     * How much of the layout viewport the virtual keyboard has taken.
      *
-     * The virtual keyboard shrinks that but not the layout viewport a fixed
-     * element is measured against, so a `100dvh` window keeps its bottom rows
-     * — the action bar, the send button — underneath the keyboard, which is
-     * exactly the thing that made composing on a phone unusable. Taking the
-     * size from `visualViewport` instead puts the keyboard *below* the window.
+     * `window.innerHeight` is the LAYOUT viewport — the box a fixed element is
+     * placed against — and iOS leaves it at full height when the keyboard comes
+     * up. Whatever it has over the visual viewport, once that viewport's own
+     * offset is taken off, is keyboard.
      *
-     * Width and offsetLeft matter as much as height: with the keyboard up the
-     * browser can pan and scale the visual viewport, and a window that only
-     * tracked the vertical axis left a strip of the page showing down the right
-     * edge as well as above the keyboard.
+     * Android answers ~0 here and that is correct rather than a failure to
+     * detect: `interactive-widget=resizes-content` (see app.html.twig) shrinks
+     * the layout viewport too, so the two agree, fixed elements already end up
+     * above the keyboard, and there is nothing left to correct. It is why the
+     * phone layout has always looked right there and wrong on iOS.
+     */
+    _keyboardInset(viewport) {
+        // Pinch zoom first, because at any scale but 1 the subtraction below
+        // measures something else entirely. `innerHeight` is zoom-invariant
+        // while `visualViewport.height` is not, so zooming to 2x on a tablet
+        // reports about half the screen as keyboard with no keyboard anywhere —
+        // and `scroll` is subscribed as well as `resize`, so panning would
+        // resize the card continuously under the user's finger. There is no
+        // arithmetic that separates keyboard from zoom here; not correcting is
+        // the honest answer, and the viewport is the user's to place while they
+        // are holding it. Zoom is deliberately available (see the viewport meta
+        // in app.html.twig — WCAG 1.4.4), so this is a reachable state, not a
+        // corner.
+        if (Math.abs((viewport.scale ?? 1) - 1) > 0.01) {
+            return 0;
+        }
+
+        const inset = window.innerHeight - viewport.height - viewport.offsetTop;
+
+        // Under the threshold it is a fractional-pixel artefact or a browser
+        // toolbar mid-animation, not a keyboard, and acting on it would twitch
+        // the dock every time the URL bar moved.
+        return inset < this.constructor.KEYBOARD_INSET_MIN ? 0 : Math.round(inset);
+    }
+
+    /**
+     * Answer the keyboard. Two shapes, because the window has two.
      *
-     * Rounded up, because these are fractional CSS pixels. Flooring — or
-     * leaving them fractional — is what turns a rounding error into a visible
-     * hairline of whatever is behind the window.
+     * The virtual keyboard shrinks the visual viewport but not the layout
+     * viewport a fixed element is measured against, so anything anchored to the
+     * bottom of the screen keeps its bottom rows — the action bar, the send
+     * button — underneath the keyboard. That is one fault with two faces:
+     *
+     *   • On a phone the window IS the screen, so it is *sized* from
+     *     `visualViewport` and the keyboard ends up below it. Width and
+     *     offsetLeft matter as much as height here: with the keyboard up the
+     *     browser can pan and scale the visual viewport, and a window that only
+     *     tracked the vertical axis left a strip of the page showing down the
+     *     right edge as well as above the keyboard. Rounded up, because these
+     *     are fractional CSS pixels — flooring, or leaving them fractional, is
+     *     what turns a rounding error into a visible hairline of whatever is
+     *     behind the window.
+     *
+     *   • On a tablet the window is the 520px dock card, and sizing it to the
+     *     viewport would be wrong — it has to *move*, and cap its height so the
+     *     move does not push its title bar off the top. That is published as
+     *     `--keyboard-inset` and read by the dock wrapper and the .compose-dock
+     *     rules in app.css, rather than written here as inline styles, because
+     *     the element that has to move is the wrapper this window sits in and
+     *     because expandedValueChanged() wipes this element's inline styles
+     *     wholesale every time the window is expanded or restored.
      */
     _trackViewport() {
         const viewport = window.visualViewport;
@@ -701,11 +795,28 @@ export default class extends Controller {
             return;
         }
 
-        this.element.style.width     = `${Math.ceil(viewport.width)}px`;
-        this.element.style.height    = `${Math.ceil(viewport.height)}px`;
-        this.element.style.transform = `translate(${viewport.offsetLeft}px, ${viewport.offsetTop}px)`;
+        const keyboard = this._keyboardInset(viewport);
+
+        document.documentElement.style.setProperty('--keyboard-inset', `${keyboard}px`);
+
+        if (true === this._isMobile()) {
+            this.element.style.width     = `${Math.ceil(viewport.width)}px`;
+            this.element.style.height    = `${Math.ceil(viewport.height)}px`;
+            this.element.style.transform = `translate(${viewport.offsetLeft}px, ${viewport.offsetTop}px)`;
+
+            // The home indicator is behind the keyboard, but
+            // `env(safe-area-inset-bottom)` still reports the full 34px: the
+            // safe area describes the LAYOUT viewport, which the keyboard does
+            // not touch. The window is sized to the VISUAL one, so that padding
+            // stops being clearance and becomes a dead strip of window between
+            // the action bar and the top of the keyboard — the gap this looked
+            // like on an iPhone. Android reports 0 either way, which is the
+            // other half of why it looked right there.
+            this.element.style.paddingBottom = 0 === keyboard ? '' : '0px';
+        }
 
         // Half the screen just became keyboard: put the caret back on screen.
+        // True of the shortened dock card as much as of the phone window.
         requestAnimationFrame(() => this._revealCaret());
     }
 
@@ -1221,12 +1332,30 @@ export default class extends Controller {
         if (expanded) {
             this.minimizedValue = false;
 
+            // `bottom` after `inset`, and `max-height: none` after the
+            // .compose-dock cap in app.css would otherwise apply: expanded, the
+            // window is anchored top and bottom, so clearing the keyboard is a
+            // matter of lifting its bottom edge and letting `height: auto` take
+            // the difference — no cap needed, and a cap would only leave a
+            // second gap under it.
+            //
+            // `--keyboard-lift` rather than `--keyboard-inset`, and a
+            // `min-height` under it, for the reason app.css gives where the two
+            // are defined: on a screen short enough that the lift leaves less
+            // room than the window's own header and action bar, a box anchored
+            // top and bottom spills those out of its bottom edge instead of
+            // shrinking them. `min-height` over-constrains the box on purpose —
+            // `bottom` is the declaration that loses, which is the right one to
+            // lose, since the alternative is a title bar off the top.
             el.style.cssText = `
                 position: fixed;
                 inset: 1rem;
+                bottom: calc(1rem + var(--keyboard-lift, 0px));
                 width: auto;
                 max-width: none;
                 height: auto;
+                max-height: none;
+                min-height: 20rem;
                 margin: 0;
                 z-index: 50;
                 display: flex;
