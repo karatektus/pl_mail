@@ -6,6 +6,22 @@ so anything that changes the schema irreversibly is called out explicitly.
 The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, and `sha-…` pins one commit.
 
+## v0.2.10 — 2026-08-28
+
+**No schema changes. Summaries get to the point.**
+
+### Changed
+
+- **A conversation summary is at most three short lines, and reads as a list.** It used to open with a
+  paragraph, because that is what we asked the model for — and most of that paragraph was greetings,
+  thanks and sign-offs, which are what a mail thread is made of and never what it is about. It now
+  says what happened and what is still open, and nothing else. For the rest, the messages are right
+  underneath.
+
+  Every stored summary is rewritten on next open; there is nothing to clear. **If you have replaced
+  the summary prompt yourself in Admin → AI, yours still wins** — press "Back to the shipped wording"
+  on that card if you would rather have this one.
+
 ## v0.2.9 — 2026-08-28
 
 **No schema changes. Writing on a phone, and a search result that opened nothing.**
