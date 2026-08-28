@@ -6,6 +6,28 @@ so anything that changes the schema irreversibly is called out explicitly.
 The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, and `sha-…` pins one commit.
 
+## v0.2.8 — 2026-08-28
+
+**No schema changes. The search box on a phone, and the zoom that came with tapping anything.**
+
+### Changed
+
+- **Search is a button on a phone now, not a sliver of a field.** It had about 120px of the topbar
+  to live in, which was too narrow to read back what you had typed and wide enough to be the first
+  thing a thumb landed on reaching for something else. Tapping the magnifying glass drops the full
+  width of the box out from under the topbar with the cursor already in it. Nothing changes on a
+  desktop.
+
+### Fixed
+
+- **Tapping a text field on an iPhone zoomed the whole page in, and it did not zoom back out.** The
+  search box, the login form, the composer — anything you could type into. iOS does that to any
+  field whose text is smaller than 16px, and everything here was 12 or 14. Fields are at least 16px
+  on a phone now, and they still grow with the text size set in Settings → Appearance.
+
+  A message written on a phone is composed very slightly larger than one written at a desk as a
+  result. That is the trade for a composer you do not have to pinch your way out of after every tap.
+
 ## v0.2.7 — 2026-08-28
 
 **No schema changes. Writing a message on an iPhone or an iPad, with the keyboard up.**
