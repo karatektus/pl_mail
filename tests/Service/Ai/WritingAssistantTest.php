@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Service\Ai;
 
 use App\Service\Ai\AiCallRecorder;
+use App\Domain\Enum\Ai\PromptSlot;
 use App\Domain\Enum\Ai\WritingTask;
 use App\Entity\Ai\AiSettings;
 use App\Repository\Ai\AiSettingsRepository;
@@ -192,6 +193,57 @@ final class WritingAssistantTest extends KernelTestCase
         // The app's own prompt is still FIRST and still whole — the language
         // rule included, which is the part a replacement would lose.
         self::assertStringStartsWith((new PromptLibrary($this->settings))->forTask(WritingTask::Reply), $system);
+    }
+
+    /**
+     * AN ADMINISTRATOR'S OWN WORDING REACHES THE MODEL.
+     *
+     * The two assertions above compare what was sent against
+     * `new PromptLibrary(...)->forTask(...)` — both sides of the comparison move
+     * together, so they hold just as well on an installation whose overrides are
+     * being silently ignored: the library would return the shipped text, the
+     * assistant would send the shipped text, and the test would agree.
+     *
+     * So the seam between "the library resolves an override" (PromptLibraryTest)
+     * and "the library's answer is what goes on the wire" (above) had nothing
+     * standing in it. This is the join: a distinctive sentence is stored the way
+     * the admin page stores one, and the assertion is against THAT LITERAL, not
+     * against anything re-derived from the code under test.
+     *
+     * It exists because somebody asked whether custom prompts were used at all,
+     * and neither the code nor the suite could answer without this.
+     */
+    public function testAnAdministratorsOwnWordingIsWhatTheModelIsSent(): void
+    {
+        $sent   = null;
+        $custom = 'Answer as a Swiss notary would, and cite the file reference.';
+
+        $assistant = $this->assistant(sent: $sent);
+
+        // Stored exactly as AiSettingsController::prompts() stores it.
+        $settings = $this->settings->currentOrDefault();
+        $settings->prompts->put(PromptSlot::Reply, $custom);
+        $this->em->persist($settings);
+        $this->em->flush();
+
+        $assistant->write($this->writer(), WritingTask::Reply, '', 'When are you open?');
+
+        self::assertIsArray($sent);
+
+        $system = $sent['messages'][0]['content'];
+
+        self::assertStringContainsString($custom, $system);
+
+        // And it REPLACED the shipped wording rather than being added to it —
+        // an override that is appended is an override the model can average out.
+        self::assertStringNotContainsString(PromptSlot::Reply->shipped(), $system);
+
+        // The language rule still rides along, because it is structural: it is
+        // what stops a German mail coming back answered in English.
+        self::assertStringContainsString(
+            (new PromptLibrary($this->settings))->language(),
+            $system,
+        );
     }
 
     /** No notes, no additions: the prompt is byte for byte what it always was. */

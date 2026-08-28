@@ -204,17 +204,64 @@ that is there on reopening cannot drift apart.
                                class="text-[11px] leading-snug text-ink-muted"
                             >{{ 'thread.summary.stale'|trans }}</p>
 
-                            {# whitespace-pre-line, because the model is asked
-                               for a paragraph and then short lines, and those
-                               line breaks are the only structure a plain-text
-                               summary has. The greying is applied server-side
-                               to a stale copy and removed by the controller at
-                               the first token of a new run. #}
-                            <p data-mail--thread-summary-target="output"
-                               {{ summary is null ? 'hidden' : '' }}
-                               class="whitespace-pre-line text-sm leading-relaxed text-ink
-                                      {{ isStale ? ' opacity-60' : '' }}"
-                            >{{ summary is null ? '' : summary.text }}</p>
+                            {# A LIST, because three findings in a block of
+                               prose is three findings nobody separates while
+                               skimming — which is the only way a summary is
+                               ever read.
+
+                               The model is asked for one short line per point
+                               and NO bullet characters: the marker and the
+                               hanging indent are the card's, so a wrapped line
+                               aligns under its own first word instead of under
+                               a dash. A leading dash is stripped anyway, since
+                               older stored summaries were written when the
+                               prompt asked for one and a model can always
+                               oblige unasked.
+
+                               THE SAME SPLIT LIVES IN mail--thread-summary's
+                               #output(), which rebuilds this list token by
+                               token while a summary is being written. Two
+                               implementations of one rule, in two languages,
+                               and they have to agree: change one, change the
+                               other. The alternative was leaving the streamed
+                               copy as a block of text and rewriting it into a
+                               list at the end, which is a different shape on
+                               screen at the moment the reader is already
+                               reading it.
+
+                               The greying is applied server-side to a stale
+                               copy and removed by the controller at the first
+                               token of a new run. #}
+                            <ul data-mail--thread-summary-target="output"
+                                {{ summary is null ? 'hidden' : '' }}
+                                class="flex flex-col gap-1.5 list-disc pl-4 text-sm leading-relaxed
+                                       text-ink marker:text-ink-faint
+                                       {{ isStale ? ' opacity-60' : '' }}"
+                            >
+                                {% for raw in (summary is null ? '' : summary.text)|split('\n') %}
+                                    {% set line = raw|trim %}
+                                    {# LEADING marker only, and not a `replace`:
+                                       that would take the dash out of "Backend
+                                       / Python – Cara Care" too, which is a
+                                       sentence the model was right to write.
+
+                                       Flat rather than a loop over the markers,
+                                       because Twig scopes `set` to the `for`
+                                       that encloses it — a marker loop would
+                                       strip the dash and then hand the untouched
+                                       line to the `li` below. Every marker here
+                                       is one character and a space, so one
+                                       slice serves them all. #}
+                                    {% if line starts with '– ' or line starts with '— '
+                                        or line starts with '- ' or line starts with '* '
+                                        or line starts with '• ' %}
+                                        {% set line = line|slice(2)|trim %}
+                                    {% endif %}
+                                    {% if line is not empty %}
+                                        <li>{{ line }}</li>
+                                    {% endif %}
+                                {% endfor %}
+                            </ul>
 
                             {% if summary is not null and summary.writtenAt is not null %}
                                 <p class="mt-1 text-[11px] text-ink-faint">

@@ -485,11 +485,48 @@ export default class extends Controller {
         this.pendingTarget.hidden = false === on;
     }
 
+    /**
+     * The summary as a list, rebuilt from the whole accumulated text on every
+     * token.
+     *
+     * REBUILT, not appended to. A token can land anywhere — mid-word, mid-line,
+     * or as the newline that starts the next point — so there is no such thing
+     * as "the current item" to push a character onto. Re-splitting three short
+     * lines a few hundred times costs nothing measurable and removes the entire
+     * class of bug where a line break arrives and the item it should have ended
+     * keeps growing.
+     *
+     * Rendered as a list WHILE it streams rather than as prose that becomes a
+     * list at the end: the reader is already reading it by then, and text that
+     * rearranges itself under them is worse than either shape on its own.
+     *
+     * Still textContent and never innerHTML — see the class docblock. The
+     * elements are built here and only their text comes from the model, so the
+     * rule holds exactly as it did when this was one paragraph.
+     *
+     * THE SAME SPLIT LIVES IN _thread_summary.html.twig, which renders a stored
+     * summary server-side. Two implementations of one rule; change one, change
+     * the other.
+     */
     #output(text) {
         if (false === this.hasOutputTarget) return;
 
-        // textContent, never innerHTML. See the class docblock.
-        this.outputTarget.textContent = text;
+        this.outputTarget.replaceChildren();
+
+        for (const raw of String(text).split("\n")) {
+            const line = this.#unmarked(raw.trim());
+
+            if ("" === line) {
+                continue;
+            }
+
+            const item = document.createElement("li");
+
+            // textContent, never innerHTML. See the class docblock.
+            item.textContent = line;
+            this.outputTarget.appendChild(item);
+        }
+
         this.outputTarget.hidden = "" === text;
 
         // The greying belongs to the stored, stale copy. Text arriving now is
@@ -497,6 +534,24 @@ export default class extends Controller {
         // rather than at the end — a summary being written must not look like
         // one that is out of date.
         this.outputTarget.classList.remove("opacity-60");
+    }
+
+    /**
+     * A leading bullet the model wrote anyway, taken off.
+     *
+     * The prompt asks for none, because the card draws its own — but a summary
+     * stored before it did asks for one, and a model obliges unasked often
+     * enough that stripping is cheaper than trusting. Leading only: the dash in
+     * "Backend / Python – Cara Care" is part of the sentence.
+     */
+    #unmarked(line) {
+        for (const marker of ["– ", "— ", "- ", "* ", "• "]) {
+            if (line.startsWith(marker)) {
+                return line.slice(marker.length).trim();
+            }
+        }
+
+        return line;
     }
 
     /** The "this is out of date" notice, which only ever goes away. */

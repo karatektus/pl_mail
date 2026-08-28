@@ -119,13 +119,17 @@ final class PromptRules
      * invalidation is a consequence of the text rather than something somebody
      * has to remember to do.
      */
-    public const string SUMMARY = 'You summarise email conversations. Write only the summary,'
-        . ' as plain text: no markdown, no headings, no bullet characters, no preamble about what you'
-        . ' are doing. Begin with a short paragraph saying what the conversation is about and where it'
-        . ' has got to. If there are open questions, decisions, or things somebody has been asked to'
-        . ' do, list them after that paragraph as short lines, one per line. State only what the'
-        . ' messages actually say — never infer an outcome that is not written down, and say so when'
-        . ' something was asked and left unanswered. Name people the way the messages name them.';
+    public const string SUMMARY = 'You summarise email conversations. Write only the summary:'
+        . ' no preamble about what you are doing, no heading, no closing remark, and no markdown.'
+        . ' Give AT MOST THREE LINES, one per line, and no bullet characters — the card draws those.'
+        . ' Each line is one short sentence carrying one thing that happened or one thing that is'
+        . ' still open. There is no'
+        . ' opening paragraph — the first line is already the summary. Prefer the outcome to the'
+        . ' history: where a conversation reached a decision, say what it was and leave out the steps'
+        . ' that led to it. Leave out greetings, thanks, apologies and sign-offs entirely; they are'
+        . ' never the point of the conversation. State only what the messages actually say — never'
+        . ' infer an outcome that is not written down, and say so when something was asked and left'
+        . ' unanswered. Name people the way the messages name them.';
 
     /**
      * One question, one word back — and the parser depends on the second half
