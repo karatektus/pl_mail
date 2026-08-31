@@ -6,6 +6,49 @@ so anything that changes the schema irreversibly is called out explicitly.
 The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, and `sha-…` pins one commit.
 
+## v0.2.13 — 2026-08-31
+
+**Adds one column to the user table. Nothing is removed and nothing is rewritten. If you hold
+configuration backups, this release changes what new ones carry — old files still import.**
+
+### Fixed
+
+- **A configuration restore could bring back a user you had removed.** Live, and signable-in, with
+  their old password hash, two-factor secret, recovery codes and every mailbox credential — listed
+  on the review page as an ordinary new account, indistinguishable from a colleague you had just
+  added. It happened because removing someone frees their email address on purpose, and freeing it
+  was also what the restore relied on to recognise them.
+
+  plMail now remembers the address a removed account held, so a restore can tell the difference and
+  leaves them removed. **One limit, stated plainly:** accounts removed *before* this release have no
+  address on record and cannot be recognised — for those, the old behaviour stands. There is nothing
+  to recover it from, and guessing would be worse.
+
+- **Four things you had configured were missing from every backup taken since they shipped.** They
+  were absent rather than wrong, so a restore reported success and simply came back without them:
+
+  - the **whole assistant configuration** — the model host and its access token, both model names,
+    the feature switches, and every prompt you had rewritten. Each person's *own* assistant
+    preferences had always been carried, so a restore returned those pointing at a host that was
+    gone;
+  - **account signatures** and read-receipt defaults, per account and per alias. Composed by hand and
+    stored nowhere else, so on a move to a new host they were unrecoverable;
+  - the **log level** chosen in the admin panel, which looked covered because the environment
+    variable beside it was restored;
+  - five interface choices — insight extractors, the insight strip, forward-quote and send
+    behaviour, preview width — and the scopes an OAuth provider had granted.
+
+- **A restore that collided with a leftover app password failed with a blank error page.** It now
+  says what happened and why, and still changes nothing.
+
+- **Backups now keep the date an app password was created**, instead of stamping the restore.
+
+- **A malformed backup file could produce a blank error page** instead of "that is not a plMail
+  backup", including on the restore step of a fresh install.
+
+- **The admin handbook said the backup file contains "no user accounts".** It contains every one,
+  with their secrets. Corrected in both languages, along with the lists of what the file carries.
+
 ## v0.2.12 — 2026-08-31
 
 **Everything in v0.2.11, which never produced an image. Same schema change as below: one added
