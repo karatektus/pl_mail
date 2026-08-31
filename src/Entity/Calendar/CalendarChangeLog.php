@@ -16,12 +16,15 @@ use Doctrine\ORM\Mapping as ORM;
  *
  * The autoincrement primary key *is* the token, exactly as in jmap_change_log:
  * a reader's position is the highest sequence it has seen, and "what changed"
- * is `sequence > since`. CalendarState's docblock asks for this table in so many
- * words — it explains that calendars have no recorder, that a log covering some
- * of the writers "is a lie with a number on it", and that the fixed state string
- * exists only until one arrives.
+ * is `sequence > since`.
  *
- * ── Why not jmap_change_log, which CalendarState suggested ────────────────
+ * Before it, every calendar method answered with the constant string "fixed",
+ * and the note explaining that was blunt about why: calendars had no recorder,
+ * a log covering some of the writers "is not a weaker version of it, it is a
+ * lie with a number on it", and the constant would stand until a complete one
+ * arrived. This is that log.
+ *
+ * ── Why not jmap_change_log, the obvious home ─────────────────────────────
  *
  * That table is keyed `(account_id, object_type, sequence)`, and neither half of
  * the key fits a calendar.
@@ -84,20 +87,32 @@ class CalendarChangeLog
     public private(set) int $userId;
 
     /**
-     * The collection the change happened in. An event moved between calendars
-     * writes two rows — destroyed in the old, created in the new — because that
-     * is what each collection's readers have to be told, and a single "updated"
-     * row would leave the old collection claiming a resource it no longer has.
+     * The collection the change happened in, or the collection that changed.
+     *
+     * An event moved between calendars writes two rows — destroyed in the old,
+     * created in the new — because that is what each collection's readers have
+     * to be told, and a single "updated" row would leave the old collection
+     * claiming a resource it no longer has.
      */
     #[ORM\Column(name: 'calendar_id')]
     public private(set) int $calendarId;
 
-    #[ORM\Column(name: 'event_id')]
-    public private(set) int $eventId;
+    /**
+     * Null when the row is about the calendar itself rather than something in
+     * it — a rename, a recolour, a calendar created or removed.
+     *
+     * The absence is the discriminator, and it is the only one: an explicit
+     * target column beside it would be a second thing to keep true, and the two
+     * would eventually disagree without saying so. Every reader filters on it,
+     * because nothing wants both kinds at once — see the migration that made it
+     * nullable for what each one asks for.
+     */
+    #[ORM\Column(name: 'event_id', nullable: true)]
+    public private(set) ?int $eventId;
 
     /** RFC 5545 UID, copied so a tombstone still names its resource. */
-    #[ORM\Column(name: 'event_uid', length: 255)]
-    public private(set) string $eventUid;
+    #[ORM\Column(name: 'event_uid', length: 255, nullable: true)]
+    public private(set) ?string $eventUid;
 
     #[ORM\Column(name: 'change_kind', length: 16, enumType: CalendarChangeKind::class)]
     public private(set) CalendarChangeKind $changeKind;
@@ -105,8 +120,8 @@ class CalendarChangeLog
     public function __construct(
         int $userId,
         int $calendarId,
-        int $eventId,
-        string $eventUid,
+        ?int $eventId,
+        ?string $eventUid,
         CalendarChangeKind $changeKind,
     ) {
         $this->userId     = $userId;

@@ -19,8 +19,7 @@ use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 /**
  * The change log is complete, including the writes that never touch the writer.
  *
- * This is the claim CalendarState's docblock says must hold before a state token
- * can mean anything: "a log that recorded a quarter of the writes would be worse
+ * This is the claim that had to hold before a state token could mean anything: "a log that recorded a quarter of the writes would be worse
  * than none… it is a lie with a number on it". Calendars are written from many
  * places and CalendarEvent exposes public properties, so the ones worth pinning
  * are the writes that assign a field and let the flush carry it — an RSVP, a

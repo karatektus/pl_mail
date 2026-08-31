@@ -79,6 +79,36 @@ final class CalendarChangeLogRepository extends ServiceEntityRepository
         return $this->delta('userId', $userId, $since, $limit);
     }
 
+    /** The JMAP state string for a user's calendars themselves. */
+    public function latestCollectionSequenceForUser(int $userId): int
+    {
+        return $this->aggregate($this->collections($userId), 'MAX');
+    }
+
+    public function oldestCollectionSequenceForUser(int $userId): int
+    {
+        return $this->aggregate($this->collections($userId), 'MIN');
+    }
+
+    /**
+     * Collection changes strictly newer than $since, oldest first.
+     *
+     * @return list<CalendarChangeLog>
+     */
+    public function collectionChangesSinceForUser(int $userId, int $since, int $limit): array
+    {
+        /** @var list<CalendarChangeLog> $rows */
+        $rows = $this->collections($userId)
+            ->andWhere('c.sequence > :since')
+            ->setParameter('since', $since)
+            ->orderBy('c.sequence', 'ASC')
+            ->setMaxResults($limit + 1)
+            ->getQuery()
+            ->getResult();
+
+        return $rows;
+    }
+
     /**
      * The newest sequence recorded for each event in one collection.
      *
@@ -99,6 +129,7 @@ final class CalendarChangeLogRepository extends ServiceEntityRepository
         $rows = $this->createQueryBuilder('c')
             ->select('c.eventId AS eventId', 'MAX(c.sequence) AS seq')
             ->where('c.calendarId = :id')
+            ->andWhere('c.eventId IS NOT NULL')
             ->setParameter('id', $calendarId)
             ->groupBy('c.eventId')
             ->getQuery()
@@ -142,7 +173,12 @@ final class CalendarChangeLogRepository extends ServiceEntityRepository
      */
     private function boundary(string $field, int $id, string $aggregate): int
     {
-        $result = $this->scoped($field, $id)
+        return $this->aggregate($this->scoped($field, $id), $aggregate);
+    }
+
+    private function aggregate(QueryBuilder $builder, string $aggregate): int
+    {
+        $result = $builder
             ->select(sprintf('%s(c.sequence)', $aggregate))
             ->getQuery()
             ->getSingleScalarResult();
@@ -168,10 +204,32 @@ final class CalendarChangeLogRepository extends ServiceEntityRepository
             ->getResult();
     }
 
+    /**
+     * Rows in one scope that are about events.
+     *
+     * The event filter is here rather than at each call site because forgetting
+     * it is not a wrong number — it is a renamed calendar reported to a client
+     * as a changed event, whose href would then be built from a null UID.
+     */
     private function scoped(string $field, int $id): QueryBuilder
+    {
+        return $this->events($field, $id);
+    }
+
+    private function events(string $field, int $id): QueryBuilder
     {
         return $this->createQueryBuilder('c')
             ->where(sprintf('c.%s = :id', $field))
+            ->andWhere('c.eventId IS NOT NULL')
             ->setParameter('id', $id);
+    }
+
+    /** The mirror of events(): rows about the collections themselves. */
+    private function collections(int $userId): QueryBuilder
+    {
+        return $this->createQueryBuilder('c')
+            ->where('c.userId = :id')
+            ->andWhere('c.eventId IS NULL')
+            ->setParameter('id', $userId);
     }
 }

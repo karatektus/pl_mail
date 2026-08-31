@@ -17,9 +17,9 @@ use Doctrine\ORM\Events;
  * Writes the calendar change log, from inside the flush that causes the change.
  *
  * A listener rather than a recorder the writers call, and the difference is the
- * whole point. CalendarState's docblock rejects a partial log in the strongest
- * terms — "a log that recorded a quarter of the writes would be worse than
- * none… it is a lie with a number on it" — and then reaches for a recorder
+ * whole point. The design note this replaced rejected a partial log in the
+ * strongest terms — "a log that recorded a quarter of the writes would be worse
+ * than none… it is a lie with a number on it" — and then reached for a recorder
  * beside MailChangeRecorder, called by every writer. Mail can be served that
  * way because its JMAP-visible properties move through a small number of
  * intentional services.
@@ -49,6 +49,14 @@ use Doctrine\ORM\Events;
  * tombstone is the one row that has to survive it. But an insert has no id yet
  * at onFlush, because the database assigns it. So onFlush collects and
  * postFlush writes, by which time every id exists.
+ *
+ * ── Calendars, not only what is in them ───────────────────────────────────
+ *
+ * A row with no event is about the collection itself — created, renamed,
+ * recoloured, removed. It is recorded here for the same reason and by the same
+ * mechanism: Calendar has public mutable properties too, the settings UI writes
+ * them directly, and a recorder somebody had to remember to call would be
+ * exactly as incomplete.
  *
  * ── Why postFlush writes SQL rather than persisting entities ──────────────
  *
@@ -91,9 +99,32 @@ final class CalendarChangeLogListener
     ];
 
     /**
+     * The Calendar equivalent: sync state, push-channel plumbing and the
+     * provider's own ids. What is left — name, colour, zone, order, the three
+     * flags and the settings blob — is what a client draws.
+     */
+    private const array IGNORED_CALENDAR = [
+        'createdAt',
+        'updatedAt',
+        'account',
+        'integration',
+        'remoteId',
+        'syncToken',
+        'lastSyncedAt',
+        'lastSyncError',
+        'syncFailureCount',
+        'syncBackoffUntil',
+        'syncFailureWasNews',
+        'pushChannelId',
+        'pushResourceId',
+        'pushSecret',
+        'pushExpiresAt',
+    ];
+
+    /**
      * Rows to write once the flush that produced them has finished.
      *
-     * @var list<array{user:int,calendar:int,event:?int,entity:?CalendarEvent,uid:string,kind:CalendarChangeKind}>
+     * @var list<array{user:int,calendar:?int,collection:?Calendar,event:?int,entity:?CalendarEvent,uid:?string,kind:CalendarChangeKind}>
      */
     private array $pending = [];
 
@@ -113,19 +144,33 @@ final class CalendarChangeLogListener
             if ($entity instanceof CalendarEvent) {
                 $this->queue($entity, CalendarChangeKind::Created, deferId: true);
             }
+
+            if ($entity instanceof Calendar) {
+                $this->queueCollection($entity, CalendarChangeKind::Created);
+            }
         }
 
         foreach ($uow->getScheduledEntityUpdates() as $entity) {
-            if (false === $entity instanceof CalendarEvent) {
-                continue;
+            if ($entity instanceof CalendarEvent) {
+                $this->queueUpdate($entity, $uow->getEntityChangeSet($entity));
             }
 
-            $this->queueUpdate($entity, $uow->getEntityChangeSet($entity));
+            if ($entity instanceof Calendar) {
+                $visible = array_diff(array_keys($uow->getEntityChangeSet($entity)), self::IGNORED_CALENDAR);
+
+                if ([] !== $visible) {
+                    $this->queueCollection($entity, CalendarChangeKind::Updated);
+                }
+            }
         }
 
         foreach ($uow->getScheduledEntityDeletions() as $entity) {
             if ($entity instanceof CalendarEvent) {
                 $this->queue($entity, CalendarChangeKind::Destroyed);
+            }
+
+            if ($entity instanceof Calendar) {
+                $this->queueCollection($entity, CalendarChangeKind::Destroyed);
             }
         }
     }
@@ -143,16 +188,26 @@ final class CalendarChangeLogListener
         $now        = (new DateTimeImmutable())->format('Y-m-d H:i:s');
 
         foreach ($rows as $row) {
-            // An insert's id was assigned by the flush that just finished.
-            $eventId = $row['event'] ?? $row['entity']?->id;
+            // An insert's id was assigned by the flush that just finished, so
+            // both the event's and a newly created calendar's are readable now.
+            $eventId    = $row['event'] ?? $row['entity']?->id;
+            $calendarId = $row['calendar'] ?? $row['collection']?->id;
 
-            if (null === $eventId) {
+            if (null === $calendarId) {
+                continue;
+            }
+
+            // An event row whose id never arrived would be a change nobody
+            // could fetch, so it is dropped; a collection row has no event by
+            // definition and is complete without one. They are told apart by
+            // whether an event was ever queued, not by what postFlush resolved.
+            if (null === $eventId && null !== $row['uid']) {
                 continue;
             }
 
             $connection->insert('calendar_change_log', [
                 'user_id'     => $row['user'],
-                'calendar_id' => $row['calendar'],
+                'calendar_id' => $calendarId,
                 'event_id'    => $eventId,
                 'event_uid'   => $row['uid'],
                 'change_kind' => $row['kind']->value,
@@ -212,6 +267,35 @@ final class CalendarChangeLogListener
         $this->push($event, (int) $event->calendar->id, $kind, $deferId);
     }
 
+    /**
+     * Queue a row about a calendar itself.
+     *
+     * The id is taken now whenever there is one, and deferred only for an
+     * insert that has not got one yet. It cannot be deferred in every case,
+     * which is what this did first: Doctrine clears an entity's identifier once
+     * the delete has run, so by postFlush a removed calendar reports null and
+     * the row that says it was removed is the one silently dropped. Exactly the
+     * failure the event tombstone exists to avoid, in the other direction.
+     */
+    private function queueCollection(Calendar $calendar, CalendarChangeKind $kind): void
+    {
+        $userId = $calendar->usr?->id;
+
+        if (null === $userId) {
+            return;
+        }
+
+        $this->pending[] = [
+            'user'       => $userId,
+            'calendar'   => $calendar->id,
+            'collection' => null === $calendar->id ? $calendar : null,
+            'event'      => null,
+            'entity'     => null,
+            'uid'        => null,
+            'kind'       => $kind,
+        ];
+    }
+
     private function push(CalendarEvent $event, int $calendarId, CalendarChangeKind $kind, bool $deferId = false): void
     {
         $userId = $event->usr?->id;
@@ -221,12 +305,13 @@ final class CalendarChangeLogListener
         }
 
         $this->pending[] = [
-            'user'     => $userId,
-            'calendar' => $calendarId,
-            'event'    => true === $deferId ? null : $event->id,
-            'entity'   => true === $deferId ? $event : null,
-            'uid'      => $event->uid,
-            'kind'     => $kind,
+            'user'       => $userId,
+            'calendar'   => $calendarId,
+            'collection' => null,
+            'event'      => true === $deferId ? null : $event->id,
+            'entity'     => true === $deferId ? $event : null,
+            'uid'        => $event->uid,
+            'kind'       => $kind,
         ];
     }
 }

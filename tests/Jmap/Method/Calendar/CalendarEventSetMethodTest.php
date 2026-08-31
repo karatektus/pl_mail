@@ -290,6 +290,52 @@ final class CalendarEventSetMethodTest extends CalendarMethodTestCase
      *
      * @return array<string,mixed>
      */
+    /**
+     * ifInState used to be refused on the ground that the calendar state was a
+     * constant, so the promise could never be broken and a client relying on it
+     * would be relying on nothing. With a real token the promise is keepable,
+     * and this is the JMAP half of the protection If-Match gives CalDAV.
+     */
+    public function testAStaleIfInStateIsRefusedRatherThanApplied(): void
+    {
+        $calendar = $this->seedCalendar('Work');
+        $event    = $this->seedEvent($calendar, 'Kickoff', $this->baseDay());
+
+        $stale = 'not-the-current-state';
+
+        try {
+            $this->method->handle([
+                'accountId'  => $this->accountId(),
+                'ifInState'  => $stale,
+                'update'     => [(string) $event->id => ['title' => 'Renamed']],
+            ], $this->context());
+
+            self::fail('a stale ifInState must not be applied');
+        } catch (MethodException $e) {
+            self::assertSame('stateMismatch', $e->errorType);
+        }
+
+        self::assertSame('Kickoff', $event->title, 'nothing may be written when the guard fails');
+    }
+
+    public function testTheCurrentStateSatisfiesIfInState(): void
+    {
+        $calendar = $this->seedCalendar('Work');
+        $event    = $this->seedEvent($calendar, 'Kickoff', $this->baseDay());
+
+        $changes = self::getContainer()->get(\App\Service\Calendar\Change\CalendarChangeReader::class);
+        $current = $changes->stateForUser((int) $this->user->id);
+
+        $result = $this->method->handle([
+            'accountId' => $this->accountId(),
+            'ifInState' => $current,
+            'update'    => [(string) $event->id => ['title' => 'Renamed']],
+        ], $this->context());
+
+        self::assertArrayHasKey((string) $event->id, $result['updated']);
+        self::assertSame('Renamed', $event->title);
+    }
+
     private function create(array $create): array
     {
         return $this->method->handle([

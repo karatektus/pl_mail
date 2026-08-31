@@ -47,6 +47,33 @@ final class CalendarChangeReader
         return (string) $this->log->latestSequenceForUser($userId);
     }
 
+    /**
+     * The JMAP state string for the user's calendars themselves.
+     *
+     * A separate number from stateForUser(), which counts event changes. They
+     * come from one sequence and are therefore comparable integers, which means
+     * nothing: JMAP states are opaque per object type, and a client that tried
+     * to reason across the two would be inventing a relationship the protocol
+     * does not have.
+     */
+    public function stateForUserCollections(int $userId): string
+    {
+        return (string) $this->log->latestCollectionSequenceForUser($userId);
+    }
+
+    /** What changed about the calendars themselves, for Calendar/changes. */
+    public function collectionsSinceForUser(int $userId, ?string $sinceState, ?int $maxChanges = null): CalendarDelta
+    {
+        return $this->delta(
+            $sinceState,
+            $maxChanges,
+            $this->log->latestCollectionSequenceForUser($userId),
+            $this->log->oldestCollectionSequenceForUser($userId),
+            fn (int $since, int $limit): array => $this->log->collectionChangesSinceForUser($userId, $since, $limit),
+            byCalendar: true,
+        );
+    }
+
     public function sinceForCalendar(int $calendarId, ?string $sinceState, ?int $maxChanges = null): CalendarDelta
     {
         return $this->delta(
@@ -78,6 +105,7 @@ final class CalendarChangeReader
         int $latest,
         int $oldest,
         callable $fetch,
+        bool $byCalendar = false,
     ): CalendarDelta {
         if (null === $sinceState) {
             throw new CalendarStateTokenException('A state token is required.');
@@ -126,7 +154,7 @@ final class CalendarChangeReader
             $rows = array_slice($rows, 0, $limit);
         }
 
-        return $this->collapse($since, $rows, $hasMore);
+        return $this->collapse($since, $rows, $hasMore, $byCalendar);
     }
 
     /**
@@ -140,7 +168,7 @@ final class CalendarChangeReader
      *
      * @param list<CalendarChangeLog> $rows
      */
-    private function collapse(int $since, array $rows, bool $hasMore): CalendarDelta
+    private function collapse(int $since, array $rows, bool $hasMore, bool $byCalendar = false): CalendarDelta
     {
         $newState = $since;
 
@@ -149,16 +177,20 @@ final class CalendarChangeReader
 
         foreach ($rows as $row) {
             $newState = (int) $row->sequence;
-            $id       = (string) $row->eventId;
+
+            // A collection row is identified by the calendar it is about; an
+            // event row by the event, with the calendar merely saying where.
+            $id  = (string) (true === $byCalendar ? $row->calendarId : $row->eventId);
+            $uid = $row->eventUid ?? '';
 
             if (false === array_key_exists($id, $seen)) {
-                $seen[$id] = ['uid' => $row->eventUid, 'created' => false, 'destroyed' => false];
+                $seen[$id] = ['uid' => $uid, 'created' => false, 'destroyed' => false];
             }
 
             // The uid of the newest row wins: an event whose uid was rewritten
             // is, to a CalDAV client, a different resource, and the later name
             // is the one the href has to carry.
-            $seen[$id]['uid'] = $row->eventUid;
+            $seen[$id]['uid'] = $uid;
 
             if (CalendarChangeKind::Created === $row->changeKind) {
                 $seen[$id]['created'] = true;

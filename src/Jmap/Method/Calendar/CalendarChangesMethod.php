@@ -12,28 +12,25 @@ use App\Jmap\Protocol\JmapContext;
 use App\Service\Calendar\Change\CalendarChangeReader;
 
 /**
- * "CalendarEvent/changes". The method that could not exist while calendars had
- * no change log.
+ * "Calendar/changes": what happened to the calendars themselves.
  *
- * It could not, because there was no log: events are written from the sync
- * engine, from extraction, from the web editor and from CalendarEvent/set, and
- * a token that only one of them moved would have been a number a client could
- * not trust. calendar_change_log closed that — it is written by a Doctrine
- * listener, so a change is recorded because Doctrine saw it, not because a
- * caller remembered to say so.
+ * The last of the fixed states to go. When CalendarEvent/changes landed this
+ * one was left behind on the argument that the gap was small — a user has a
+ * handful of calendars and Calendar/get returns all of them by default, so
+ * re-running it is cheap. That is true about cost and beside the point about
+ * correctness: a state that never moves is a claim that nothing changed, and a
+ * client is entitled to believe it. Renaming a calendar left the old name in
+ * the sidebar until something unrelated forced a reload.
  *
- * Scoped to the user, not the account. CalendarAccountResolver has already
- * proved the accountId is the one that serves calendars, and past that point
- * the objects belong to the user; a delta filtered by account would answer for
- * a set the ids do not come from.
+ * Scoped to the user, like every other calendar method, after
+ * CalendarAccountResolver has proved the accountId is the one that serves them.
  *
- * Every refusal is "cannotCalculateChanges", which is JMAP's way of saying
- * "start over" and is what a token this server cannot place deserves — whether
- * it is malformed, ahead of the log, or older than what pruning kept. The
- * client re-runs its query and is correct again; there is no partial answer
- * worth inventing.
+ * The delta reports calendar ids, not event ids — the rows behind it are the
+ * ones with no event, and the collapse keys them by the calendar they are
+ * about. An event moving between calendars is not a change here: both
+ * collections still exist and neither was renamed.
  */
-final class CalendarEventChangesMethod implements JmapMethod
+final class CalendarChangesMethod implements JmapMethod
 {
     public function __construct(
         private readonly CalendarAccountResolver $accountResolver,
@@ -43,7 +40,7 @@ final class CalendarEventChangesMethod implements JmapMethod
 
     public function name(): string
     {
-        return 'CalendarEvent/changes';
+        return 'Calendar/changes';
     }
 
     public function handle(array $arguments, JmapContext $context): array
@@ -63,7 +60,11 @@ final class CalendarEventChangesMethod implements JmapMethod
         }
 
         try {
-            $delta = $this->changes->sinceForUser((int) $context->user->id, $sinceState, $maxChanges);
+            $delta = $this->changes->collectionsSinceForUser(
+                (int) $context->user->id,
+                $sinceState,
+                $maxChanges,
+            );
         } catch (CalendarStateTokenException $e) {
             throw new MethodException('cannotCalculateChanges', $e->getMessage());
         }

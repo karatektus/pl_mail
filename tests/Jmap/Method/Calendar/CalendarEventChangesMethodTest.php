@@ -11,8 +11,8 @@ use App\Jmap\Protocol\Exception\MethodException;
  * CalendarEvent/changes answers a real delta, and refuses rather than guesses.
  *
  * The method exists because calendar_change_log does; before it, every calendar
- * method returned the string "fixed" and CalendarState explained that a token
- * nobody could trust was worse than none. So the claims worth pinning are the
+ * method returned the string "fixed", on the stated ground that a token nobody
+ * could trust was worse than none. So the claims worth pinning are the
  * ones that make a token trustworthy: that a delta is complete between two
  * states, that asking again with the new state is empty, and — the half that
  * protects clients — that a token this server cannot place is refused outright
