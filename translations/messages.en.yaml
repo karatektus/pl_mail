@@ -790,7 +790,11 @@ admin:
         watch_expiry: 'Watch expiry'
     users:
         add: Add user
-        console_note: 'Passwords and two-factor recovery are handled from the server console, not here. An administrator who could change either would be a second way into every mailbox on this install.'
+        console_note: 'Passwords and two-factor recovery are handled from the server console, not here — `app:user:password` and `app:user:2fa-disable`. An administrator who could change either from a browser would be a second way into every mailbox on this install.'
+        deactivate: Switch off
+        deactivate_confirm: 'Switch off %name%? They will not be able to sign in, and any mail client already connected stops too. Nothing of theirs is deleted, and you can switch them back on here.'
+        deactivated: 'Switched off'
+        deactivated_since: 'Switched off since %when%'
         delete: Remove user
         delete_confirm: 'Remove %name%? Their mail stays in the database but they can no longer sign in.'
         edit: Edit user
@@ -801,13 +805,18 @@ admin:
             name_first: First name
             name_last: Last name
             password: Initial password
-            password_help: 'Set once, when the account is created. Change it later from the account itself, or reset it from the server console.'
+            password_help: 'Set once, when the account is created. There is no way to change it from here afterwards: a forgotten password is reset from the server console with `app:user:password`.'
+        flash:
+            deactivated: 'Switched off. They cannot sign in until you switch them back on.'
+            demote_last_refused: 'That is the last administrator, so the checkbox was left as it was — promote somebody else first.'
+            demote_self_refused: 'You cannot take administrator away from yourself. Everything else on the form was saved.'
+            reactivated: 'Switched back on. They can sign in again.'
         heading: Users
         last_login: 'Last seen %when%'
         never_signed_in: Never signed in
         no_password_edit: 'Passwords cannot be changed from here. Setting someone else''s password would make an admin session a way into their mailbox — the same reason removing a second factor is a console command.'
         none: No users yet.
-        password_too_short: 'Use at least 12 characters — this password is being chosen for someone else.'
+        reactivate: Switch back on
         role:
             admin: Admin
         search: Search users…
@@ -3132,6 +3141,19 @@ settings:
         unconfigured: >-
             Push is not configured on this server — no VAPID keys are set.
             Run "bin/console app:push:generate-vapid-keys".
+    password:
+        field:
+            current: Current password
+            new: New password
+            new_help: 'At least %count% characters. Nothing else is required of it — a long thing you can remember beats a short thing you cannot.'
+            repeat: Repeat the new password
+        flash:
+            changed: 'Password changed. Every device you ticked "keep me logged in" on will ask for it again.'
+            refused: 'Nothing was changed — see the message under the field.'
+        heading: Password
+        remember_me_note: 'Changing your password signs out every remembered browser except this one. That is what makes it worth doing when a device goes missing.'
+        subheading: 'What you sign in with. Only you can change it — not even an administrator can set it for you.'
+        submit: Change password
     security:
         codes:
             copy: Copy codes

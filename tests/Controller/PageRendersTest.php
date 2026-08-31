@@ -19,9 +19,11 @@ use Symfony\Component\DomCrawler\Crawler;
  * Needs the seeded admin (`app:test:seed-user --admin`); skips itself without
  * one so a fresh checkout does not fail on missing fixtures.
  *
- * `/admin/user` is deliberately absent — it 500s today for reasons that have
- * nothing to do with rendering (its template has never existed). See "Findings
- * worth fixing" in todo.md; add it back here once it answers 200.
+ * The user panel is in the list below rather than excluded from it. It used to
+ * be the one route this test refused to walk — `/admin/user`, whose template
+ * had never existed — and the exclusion outlived the fix by long enough that
+ * the panel was reported missing while it was sitting in the admin nav. A route
+ * left out of a render sweep is a route nothing tells you about.
  */
 final class PageRendersTest extends WebTestCase
 {
@@ -81,6 +83,14 @@ final class PageRendersTest extends WebTestCase
         // renders a pending-count badge that the frame itself never draws —
         // a badge that 500s on an empty pile would break only this URL.
         yield 'admin insight reports section' => ['/admin?section=insight-reports'];
+        // Was excluded from this provider for as long as it was broken, and
+        // then for a good while after it was not — see the note above. The
+        // create form is listed separately because it is the only half that
+        // renders a password field, and the edit half cannot be reached from a
+        // static provider: it needs a user id.
+        yield 'admin users' => ['/admin/users'];
+        yield 'admin users, searched' => ['/admin/users?search=admin'];
+        yield 'admin user create form' => ['/admin/users/create'];
         yield 'admin push deliveries' => ['/admin/push/deliveries'];
         // Every filter at once, and each one spelled wrong: the delivery
         // browser is reached by editing a query string, so an unparseable

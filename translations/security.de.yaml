@@ -1,0 +1,7 @@
+# Anmeldefehler, in der Domain, in der Symfony sie auflöst.
+#
+# Siehe security.en.yaml: die Login-Seite übersetzt die Meldung in der Domain
+# `security`, nicht in `messages` — ein dort abgelegter Schlüssel erscheint
+# roh auf dem Bildschirm.
+account.deactivated: Dein Konto wurde von der Administration abgeschaltet. Wende dich an sie, wenn es wieder eingeschaltet werden soll — gelöscht wurde nichts.
+account.removed: Dieses Konto wurde entfernt und kann sich nicht mehr anmelden.

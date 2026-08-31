@@ -319,7 +319,21 @@ class UserRepository extends ServiceEntityRepository implements PasswordUpgrader
     {
         $qb = $this->createUndeletedQueryBuilder();
 
-        if (null !== $search && 2 < strlen($search)) {
+        // Any length, including one character.
+        //
+        // This used to require three (`2 < strlen($search)`) and then fall
+        // through, so a one- or two-character search silently returned every
+        // user on the install — the same list as no search at all, with the
+        // term still sitting in the box claiming to have been applied. There is
+        // no third answer available to a caller that hands back a QueryBuilder,
+        // which is why the floor could only ever have been a lie: it cannot say
+        // "too short" from here.
+        //
+        // Nothing was bought by it either. The floor is the sort of rule that
+        // protects a full-text index over millions of rows; this is a LIKE over
+        // one page of a table with one row per person on the install, and "b"
+        // is a perfectly good way to find Bea when there are nine of you.
+        if (null !== $search) {
             // Same discarded-expression bug as createUndeletedQueryBuilder had:
             // orX() was built and never passed to andWhere(), so searching did
             // nothing at all and every search returned the unfiltered list.

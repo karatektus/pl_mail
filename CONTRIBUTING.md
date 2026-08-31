@@ -779,6 +779,7 @@ php bin/mirror-wiki.php --check
 | `app:prune:blobs [--days=N] [--dry-run]` | Expire staged JMAP uploads and delete files orphaned by deleted rows |
 | `app:user:promote <email> [--revoke]` | Grant or revoke `ROLE_ADMIN` |
 | `app:user:2fa-disable <email> [--force]` | Turn off 2FA for someone locked out — see "Two-factor authentication" |
+| `app:user:password <email> [--password=…]` | Set a new password for a user who can no longer sign in. Prompted for, hidden and twice, unless `--password` is given. Console-only for the same reason as `app:user:2fa-disable`: an administrator who could do it from a browser would be a second way into that person's mailbox |
 | `app:monitoring:prune [--days=N] [--push-days=N]` | Prune old log entries, push deliveries and dead process heartbeats |
 | `app:jobs:reap [--stale-seconds=N] [--dry-run]` | Fail background jobs that have stopped reporting progress, so the topbar indicator stops showing work whose worker died. Runs every 5 minutes; a job counts as abandoned after 15 minutes without a chunk |
 | `app:backup [dir] [--skip-secrets] [--skip-storage]` | Write a restorable snapshot: `pg_dump`, the stored files, and the generated secrets. Says explicitly when `APP_ENCRYPTION_KEY` is *not* in it |
@@ -812,7 +813,9 @@ each.
 - [ ] Incoming IMAP flag sync over the IDLE stream — flags currently travel outward only, so marking a message read in another client does not reflect back
 - [ ] Avatar fetching (partially done: `Service/User/AvatarFromIntegration.php`; still needs OAuth avatar scopes)
 - [ ] Per-identity signatures — no `signature` field exists on `User`, `Account` or `EmailAlias`
-- [ ] Password reset (recovery is console-only today, which is why the login form no longer offers a link)
+- [ ] Password reset for somebody who cannot sign in (still console-only, `app:user:password`, which is why
+      the login form offers no link). Changing your own password from Settings → Security is done — that is a
+      different problem, and finishing it does not tick this one
 
 > Keep this honest. Three items above were finished long before anyone ticked
 > them, and a roadmap that under-reports is worse than none — it is the document

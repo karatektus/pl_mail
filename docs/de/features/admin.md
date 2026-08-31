@@ -1,4 +1,4 @@
-<!-- translated-from: features/admin.md sha1:2f8c609c26ea31a6317cecb348deeae0916efa4d -->
+<!-- translated-from: features/admin.md sha1:9d952340eb64ada7916cef0e196a14028c8677f8 -->
 
 # Administration
 
@@ -435,11 +435,40 @@ Admin-Sitzung darf kein zweiter Weg in jedes Postfach dieser Installation werden
 
 - **Das Passwort eines bestehenden Benutzers ändern.** Das Feld gibt es beim Anlegen und nicht
   beim Bearbeiten. Wer sich noch nie angemeldet hat, hat keine Mail, sein erstes Passwort zu
-  setzen gibt also nichts preis; es danach zu ändern schon.
+  setzen gibt also nichts preis; es danach zu ändern schon. Ein vergessenes Passwort setzt du
+  mit `app:user:password` auf der Konsole zurück.
 - **Jemandem den zweiten Faktor abnehmen.** Das ist `app:user:2fa-disable` auf der Konsole, und
   nur dort.
 - **Die Mail von irgendjemandem lesen.** Nichts in diesem Bereich fasst ein Konto oder eine
   Nachricht an.
+
+Das Suchfeld filtert nach Adresse und Name, ab dem ersten Zeichen. Es ist ein einfacher
+Teilstring-Vergleich, `an` findet also sowohl Anna als auch Yohanna.
+
+### Ein Konto abschalten
+
+Das Schloss in einer Zeile schaltet das Konto ab. Die Person kann sich nicht mehr anmelden, jedes
+mit einem App-Passwort verbundene Mail-Programm hört ebenfalls auf, und eine noch offene Sitzung
+endet beim nächsten Seitenaufruf — aber **nichts von ihr wird angefasst**. Adresse, Name, Passwort,
+zweiter Faktor, Konten, Mails und Labels bleiben genau dort, wo sie waren, und das offene Schloss
+schaltet das Konto wieder ein.
+
+Das ist die Antwort auf eine Kollegin im Urlaub, ein Gerät, das kompromittiert aussieht, oder
+jemanden, dessen Zugang ruhen soll, während der Grund geklärt wird. Es ist bewusst nicht dieselbe
+Entscheidung wie das Entfernen, das sich nicht zurücknehmen lässt.
+
+Dein **eigenes** Konto abzuschalten wird abgelehnt, aus demselben Grund, aus dem du es nicht
+entfernen kannst: Es ist ein Klick davon entfernt, dass es niemanden mehr gibt, der es rückgängig
+machen kann. Ein Konto wieder **einzuschalten** wird nie abgelehnt — genau das Konto, das es am
+ehesten braucht, wäre von einer strengeren Regel eingesperrt worden.
+
+Ein abgeschaltetes Konto trägt in der Liste die Markierung **Abgeschaltet** und bleibt, wo es war,
+auffindbar über dieselbe Suche wie zuvor. Wer abgeschaltet ist und sich anmelden will, erfährt, dass
+die Administration das Konto abgeschaltet hat — aber erst, nachdem das richtige Passwort getippt
+wurde, damit das Anmeldeformular kein Weg ist, herauszufinden, welche Adressen dieser Installation
+abgeschaltet sind.
+
+### Jemanden entfernen
 
 **Benutzer entfernen** ist ein weiches Löschen. Die Adresse und der Anzeigename werden
 freigegeben — die Adresse ist eindeutig, sie stehen zu lassen würde also verhindern, dieselbe
@@ -447,10 +476,22 @@ Person je wieder hinzuzufügen — und die Zeile kann sich nicht mehr anmelden, 
 Nachrichten, Labels und App-Passwörter daran bleiben, wo sie sind. Eine Kaskade aus einem
 Fehlklick in einem Admin-Panel ist kein behebbarer Fehler.
 
+**Es gibt keine Schaltfläche zum Wiederherstellen, und das mit Absicht.** Das Entfernen gibt die
+Adresse frei, indem es sie überschreibt — eine entfernte Zeile weiß danach nicht mehr, wer sie war:
+Die Adresse lautet `deleted-<id>@invalid`, der Name „Deleted User“, und der Passwort-Hash ist weg.
+Ein Wiederherstellen müsste alle drei erfinden, und die frühere Adresse gehört inzwischen vielleicht
+jemand anderem. Wenn du „diese Person soll sich vorerst nicht anmelden und später wieder“ meinst,
+ist das **das Konto abschalten** weiter oben — dafür gibt es das. Die Mail einer entfernten Person
+liegt weiterhin in der Datenbank, und wer Datenbankzugriff hat, kommt noch heran.
+
 Zwei Entfernungen werden rundheraus abgelehnt: dein eigenes Konto und die letzte verbliebene
 Administratorin. Die zweite ist die, die im Moment gut aussieht — jemand entfernt eine Kollegin,
 und niemand merkt es, bis das nächste Mal jemand das Panel braucht. Dich selbst oder die letzte
-Administratorin herabzustufen wird aus demselben Grund abgelehnt.
+Administratorin herabzustufen wird aus demselben Grund abgelehnt — und das Panel sagt das jetzt,
+statt den Rest des Formulars zu speichern und das Häkchen kaputt aussehen zu lassen.
+
+Dein **eigenes** Passwort änderst du gar nicht hier, sondern unter
+[Sicherheit](security.md#dein-passwort-ändern), in den eigenen Einstellungen.
 
 ## Sicherung
 
@@ -581,7 +622,19 @@ delegierte Berechtigung muss weiterhin beim Anbieter ergänzt werden, sonst sche
 Verbinden bei der Zustimmung.
 
 **Die letzte Administratorin oder dich selbst kannst du nicht entfernen.** Beides wird abgelehnt
-statt mit einer Warnung versehen, was gelegentlich wie ein kaputter Knopf aussieht.
+statt mit einer Warnung versehen, was gelegentlich wie ein kaputter Knopf aussieht. Dasselbe Paar
+lässt sich auch nicht abschalten, und wenn du bei deinem eigenen Konto das Häkchen
+**Administrator** entfernst, sagt das Panel jetzt warum, statt es stillschweigend nicht zu
+speichern.
+
+**Eine entfernte Person lässt sich nicht wiederherstellen.** Das Entfernen überschreibt Adresse und
+Namen, um die Adresse wieder freizugeben, es ist also nichts mehr da, worauf sich etwas
+zurückholen ließe. Schalte das Konto stattdessen ab, wann immer die Antwort später „doch wieder
+hereinlassen“ lauten könnte.
+
+**Ein Konto abzuschalten meldet die Person nicht sofort aus einem Mail-Programm ab.** Die
+Web-Sitzung endet beim nächsten Seitenaufruf, ein App-Passwort hört bei der nächsten Anfrage auf —
+ein Programm, das gerade nichts tut, merkt es aber erst beim nächsten Abgleich.
 
 **`APP_ENCRYPTION_KEY` zu wechseln nimmt den Firebase-Schlüssel mit.** Das Dienstkonto-JSON liegt
 verschlüsselt wie jedes andere Geheimnis, ein geänderter Schlüssel macht es also unlesbar — Push

@@ -1,4 +1,4 @@
-<!-- translated-from: README.md sha1:6068a5de0b9b1f1c887145d2aa12895e74623be9 -->
+<!-- translated-from: README.md sha1:4b74a1a04ac86bed54de961461b843a44958943b -->
 
 # plMail-Dokumentation
 
@@ -37,10 +37,10 @@ wo der Mechanismus dahinter steht.
 | [Verbundene Kalender](features/calendar-sync.md) | Google-, Microsoft- und CalDAV-Kalender abonnieren, Abgleich in beide Richtungen, ICS-Import, -Export und Feed-Abonnements, doppelte Termine |
 | [Teilen und Buchen](features/calendar-sharing.md) | Freigabelinks und was jeder preisgibt, Buchungsseiten, wie eine Buchung ankommt |
 | [Dateien und Integrationen](features/integrations.md) | Anhängen aus und Speichern in Drive, Photos, OneDrive, Dropbox, Nextcloud und Immich |
-| [Sicherheit](features/security.md) | Zwei-Faktor-Authentifizierung, Wiederherstellungscodes, gemerkte Geräte, App-Passwörter, Sitzungen |
+| [Sicherheit](features/security.md) | Dein Passwort ändern, Zwei-Faktor-Authentifizierung, Wiederherstellungscodes, gemerkte Geräte, App-Passwörter, Sitzungen |
 | [Andere Clients](features/clients.md) | Einen JMAP-Client verbinden, Passwörter pro App, die PWA und Browser-Benachrichtigungen |
 | [Darstellung](features/appearance.md) | Themes, eigene Farben und Hintergrund, die Live-Vorschau, was eine Listenzeile zeigt, Schriftart und Textgröße, Dichte je Bereich, Import und Export, Sprache |
-| [Administration](features/admin.md) | Benutzer und Rollen, Integrationen freischalten, Monitoring, Warteschlangen und der Versions-Chip |
+| [Administration](features/admin.md) | Benutzer und Rollen, ein Konto abschalten, Integrationen freischalten, Monitoring, Warteschlangen und der Versions-Chip |
 
 ## Installieren und betreiben
 

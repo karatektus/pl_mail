@@ -168,7 +168,10 @@ bindings**, a label's identity on a provider, which the first sync re-derives; *
 cursors, history ids, watch registrations, calendar push channels, backfill counters — which belongs
 to the host that did the syncing; and **avatars and background images**, which are filenames in a
 storage volume this file does not carry. Soft-deleted users are not exported: `deletedAt` is a
-decision, and a restore honours it.
+decision, and a restore honours it. An account an administrator has **switched off** is exported and
+comes back switched off, for the same reason — it is also a decision, and a restore that quietly
+handed the account its sign-in back would report success on the one screen you read to check the
+right file went in.
 
 Mail, calendar entries, contacts and logs are not here at all. That boundary has not moved.
 

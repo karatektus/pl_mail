@@ -100,7 +100,9 @@ final class GermanIsInformalTest extends TestCase
         return $hits;
     }
 
-    /** @return array<string, string> every leaf of the German catalogue */
+    /**
+     * @return array<string, string> every leaf of every German catalogue
+     */
     private function strings(): array
     {
         $flat = [];
@@ -119,10 +121,24 @@ final class GermanIsInformalTest extends TestCase
             }
         };
 
-        $walk(
-            (array) Yaml::parseFile(dirname(__DIR__, 2) . '/translations/messages.de.yaml'),
-            '',
-        );
+        // Every `*.de.yaml`, not just `messages`. The register is a decision
+        // about what the product sounds like, and the product says things from
+        // three catalogues: `messages` on screen, `validators` under a field
+        // the reader has just got wrong, and `security` on the login form. The
+        // last two are exactly where a translator reaches for the formal voice,
+        // because both are the software telling somebody they have made a
+        // mistake — and both were outside this test until a sentence in
+        // `security` needed writing.
+        //
+        // Globbed rather than listed, so a catalogue added next release is
+        // covered without anybody remembering this file.
+        $catalogues = glob(dirname(__DIR__, 2) . '/translations/*.de.yaml') ?: [];
+
+        self::assertNotSame([], $catalogues, 'no German catalogues found — the glob is looking in the wrong place');
+
+        foreach ($catalogues as $catalogue) {
+            $walk((array) Yaml::parseFile($catalogue), basename($catalogue, '.de.yaml'));
+        }
 
         return $flat;
     }

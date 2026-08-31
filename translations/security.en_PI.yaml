@@ -1,0 +1,3 @@
+# Sign-in failures, in the domain Symfony resolves them in. See security.en.yaml.
+account.deactivated: Yer berth be locked by th' cap'n. Ask 'em t' unlock it — none o' yer booty be thrown overboard.
+account.removed: This berth be struck from th' articles an' cannot sign aboard.

@@ -304,7 +304,19 @@
                                     {% elseif section == 'profile' %}
                                         {% include 'settings/_profile.html.twig' %}
                                     {% elseif section == 'security' %}
-                                        {% include 'settings/_security.html.twig' %}
+                                        {# Two peer cards: the password, then the
+                                           second factor. The wrapping div is not
+                                           decoration — it is the Turbo Stream
+                                           target the change endpoint replaces,
+                                           so the id has to survive here and in
+                                           settings/_password.stream.html.twig
+                                           identically. #}
+                                        <div class="space-y-4">
+                                            <div id="settings-password">
+                                                {% include 'settings/_password.html.twig' %}
+                                            </div>
+                                            {% include 'settings/_security.html.twig' %}
+                                        </div>
                                     {% elseif section == 'general' %}
                                         {# Three peer cards, not one card with three bands:
                                            language, zone and clock are each a section-grade

@@ -47,7 +47,13 @@ not a way into a mailbox.
         {% for user in pagination %}
             {% set isAdmin = 'ROLE_ADMIN' in user.roles %}
 
-            <div class="flex items-center gap-3 px-4 h-14 rounded-pane border border-line bg-pane-soft">
+            {# Dimmed rather than hidden or moved to a section of its own: a
+               suspended account is still one of the people on this install and
+               still has to be findable by the search that found it before. The
+               row keeps every control it had, because the one thing an admin
+               comes here to do to it is switch it back on. #}
+            <div class="flex items-center gap-3 px-4 h-14 rounded-pane border border-line bg-pane-soft
+                        {{ user.isDeactivated ? 'opacity-60' : '' }}">
                 <i class="fa-solid {{ isAdmin ? 'fa-user-shield text-accent' : 'fa-user text-ink-faint' }}
                           text-base w-5 text-center" aria-hidden="true"></i>
 
@@ -55,6 +61,13 @@ not a way into a mailbox.
                     <div class="text-sm font-semibold text-ink truncate">{{ user.name }}</div>
                     <div class="text-xs text-ink-faint truncate">{{ user.email }}</div>
                 </div>
+
+                {% if user.isDeactivated %}
+                    <span class="text-[11px] font-medium px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-500"
+                          title="{{ 'admin.users.deactivated_since'|trans({'%when%': user.deactivatedAt|date('Y-m-d')}) }}">
+                        {{ 'admin.users.deactivated'|trans }}
+                    </span>
+                {% endif %}
 
                 {% if isAdmin %}
                     <span class="text-[11px] font-medium px-2 py-0.5 rounded-full bg-accent/15 text-accent">
@@ -87,6 +100,34 @@ not a way into a mailbox.
                         aria-label="{{ 'admin.users.edit'|trans }}">
                     <i class="fa-solid fa-pen text-xs" aria-hidden="true"></i>
                 </button>
+
+                {#
+                    Switch off / switch on, and the reactivating direction is
+                    offered unconditionally.
+
+                    The guards below apply to suspending only — see
+                    DefaultController::assertSuspendable() — so a suspended
+                    account always shows its way back, including the one an
+                    administrator suspended by mistake a moment ago. Hiding the
+                    control on the same rule as the delete button would have
+                    made "the last administrator" a state nothing could leave.
+                #}
+                {% if user.isDeactivated or (user != app.user and not (isAdmin and adminCount <= 1)) %}
+                    <form method="post"
+                          action="{{ path('app_admin_user_default_toggle_active', { id: user.id }) }}"
+                          data-turbo-frame="_top"
+                          {% if not user.isDeactivated %}
+                              data-turbo-confirm="{{ 'admin.users.deactivate_confirm'|trans({'%name%': user.name}) }}"
+                          {% endif %}>
+                        <input type="hidden" name="_token" value="{{ csrf_token('admin-user-active-' ~ user.id) }}">
+                        <button type="submit"
+                                class="shrink-0 h-8 w-8 flex items-center justify-center rounded-lg text-ink-faint
+                                       bg-field border border-field hover:bg-hover hover:text-ink transition-colors"
+                                aria-label="{{ (user.isDeactivated ? 'admin.users.reactivate' : 'admin.users.deactivate')|trans }}">
+                            <i class="fa-solid {{ user.isDeactivated ? 'fa-lock-open' : 'fa-lock' }} text-xs" aria-hidden="true"></i>
+                        </button>
+                    </form>
+                {% endif %}
 
                 {#
                     Absent rather than disabled for the two accounts that must

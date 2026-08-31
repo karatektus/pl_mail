@@ -15,6 +15,7 @@ use App\Service\User\ProfileSectionViewData;
 use App\Service\User\UserTimezoneResolver;
 use App\Service\User\TwoFactor\SecuritySectionViewData;
 use App\Form\Factory\AliasAddFormFactory;
+use App\Form\Factory\ChangePasswordFormFactory;
 use App\Repository\Calendar\BookingPageRepository;
 use App\Repository\Calendar\CalendarRepository;
 use App\Repository\Calendar\CalendarShareLinkRepository;
@@ -86,6 +87,7 @@ final class SettingsController extends AbstractController
         private readonly PushDeliveryRepository $pushDeliveries,
         private readonly ApiTokenRepository $apiTokenRepository,
         private readonly AliasAddFormFactory $aliasAddForms,
+        private readonly ChangePasswordFormFactory $passwordForms,
         #[Autowire('%env(VAPID_PUBLIC_KEY)%')]
         private readonly string $vapidPublicKey,
         #[Autowire('%kernel.default_locale%')]
@@ -418,10 +420,17 @@ final class SettingsController extends AbstractController
         // TwoFactorController about why recovery codes travel this way.
         $codes = $request->getSession()->getFlashBag()->get(TwoFactorController::FLASH_BACKUP_CODES);
 
-        return $this->securitySection->build(
-            $this->getUser(),
-            $request,
-            [] === $codes ? null : array_values((array) $codes),
-        );
+        return [
+            // The password card, which is a peer of the 2FA one rather than
+            // part of it — hence a variable here and not a key inside
+            // SecuritySectionViewData, whose subject is the second factor and
+            // whose namespace says so.
+            'passwordForm' => $this->passwordForms->create()->createView(),
+            ...$this->securitySection->build(
+                $this->getUser(),
+                $request,
+                [] === $codes ? null : array_values((array) $codes),
+            ),
+        ];
     }
 }

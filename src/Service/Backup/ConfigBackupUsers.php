@@ -259,6 +259,15 @@ final readonly class ConfigBackupUsers
             'aiPreferences' => $user->aiPreferences->toArray(),
             'settings'   => $this->settingsOf($user),
             'createdAt'  => $user->createdAt->format(DateTimeInterface::ATOM),
+            // Carried for the reason export() gives about deletedAt: being
+            // switched off is a decision somebody took, and a restore honours
+            // decisions. Left out, a document written on a host where an
+            // account was suspended would put that account back able to sign
+            // in — silently, on the one screen an operator reads to check that
+            // the right file went in. Null for everybody who is not suspended,
+            // and absent altogether from documents written before this existed,
+            // which the restorer reads as the same thing.
+            'deactivatedAt' => $user->deactivatedAt?->format(DateTimeInterface::ATOM),
             'twoFactor'  => [
                 // Decrypted here and re-encrypted on the way in; see the class
                 // docblock. Anyone holding this can mint valid codes forever,

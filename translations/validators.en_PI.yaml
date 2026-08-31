@@ -1,6 +1,7 @@
+# Symfony be translatin' validation messages in the `validators` domain.
 admin.integrations.client_id_missing: Name th' client ID that goes with this secret.
 admin.integrations.secret_missing: Enter th' client secret an' all — an ID alone signs nobody aboard.
-# Symfony be translatin' validation messages in the `validators` domain.
+admin.users.password_too_short: {{ limit }} marks at least — ye be choosin' this one for somebody else.
 alias.invalid: That be no proper parrot address, matey.
 app_password.name_required: Give the ship's key a name, lest ye forget which lock it opens.
 caldav.address_required: Name the address o' yer CalDAV port — without one there be nobody to hail.
@@ -10,5 +11,10 @@ caldav.username_required: Give the name yer CalDAV port knows ye by.
 calendar.name_required: Name the almanac, else ye'll not tell it from the rest.
 compose.recipient_invalid: "“{{ address }}” be no proper address, matey."
 compose.recipient_required: Name at least one soul afore ye cast off.
+settings.password.current_required: Say yer current word — 'tis what keeps a passing hand from changing it at yer open desk.
+settings.password.current_wrong: That be not yer current word.
+settings.password.mismatch: Th' two new words don't match.
+settings.password.too_short: Use at least {{ limit }} characters.
 setup.install.password_mismatch: Them two secret words don't match, matey.
 setup.install.password_too_short: Use {{ limit }} marks at least. There be no gettin' this one back.
+user.email_taken: Another soul sails under that address already. One address, one shipmate.

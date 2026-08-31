@@ -95,6 +95,28 @@ once.
 
 **There is no password reset flow.** The login form says so rather than offering a link that goes
 nowhere: recovery runs from the server console, and an administrator can set a new password there.
+That is the path for somebody who *cannot get in*. Somebody who can is covered by the next section.
+
+## Changing your password
+
+**Settings → Security → Password**. It asks for your current password, then the new one twice, and
+the new one has to be at least twelve characters — the same floor an administrator's create form
+applies, because it is the same question.
+
+Asking for the current password is not ceremony. Being signed in is not proof that the person at the
+keyboard is you: an unlocked screen is the whole threat, and without the check a passer-by could
+take the account rather than merely read it. It is the same reason turning two-factor authentication
+off asks for a code even though you are already signed in.
+
+Changing your password ends every **Keep me logged in** cookie you were issued, everywhere, because
+those are signed with the password hash rather than stored. The browser you are sitting at keeps its
+session. That makes a password change the closest thing plMail has to "sign out everywhere", and it
+is the right move when a device goes missing.
+
+**Nobody else can do this for you.** An administrator's user form has no password field for an
+existing account, on purpose — see [Administration](admin.md#users). If you have forgotten the
+password and cannot sign in at all, an operator with a shell on the host runs `app:user:password`;
+that is a deliberately higher bar than a browser session.
 
 ## App passwords
 
@@ -161,4 +183,14 @@ any screen. The recovery is to revoke and generate another.
 because distinguishing them would confirm which codes had once been real.
 
 **An administrator cannot reset your password or your second factor from the panel.** Both are
-console operations, and that is a design decision rather than a missing feature.
+console operations, and that is a design decision rather than a missing feature. Changing your own
+password is a browser operation and always has been available to you alone.
+
+**Changing your password signs out your other browsers but not your mail clients.** App passwords
+are separate credentials and survive it — revoke them in **Settings → App passwords** if that is
+what you meant to do.
+
+**An administrator can switch your account off, and it is not the same as removing it.** You keep
+everything; you simply cannot sign in, and the login form tells you so once you have typed the right
+password. Only an administrator can switch it back on — see
+[Administration](admin.md#switching-an-account-off).

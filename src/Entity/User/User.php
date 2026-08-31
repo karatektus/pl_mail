@@ -23,6 +23,7 @@ use Scheb\TwoFactorBundle\Model\BackupCodeInterface;
 use Scheb\TwoFactorBundle\Model\Totp\TotpConfiguration;
 use Scheb\TwoFactorBundle\Model\Totp\TotpConfigurationInterface;
 use Scheb\TwoFactorBundle\Model\Totp\TwoFactorInterface;
+use Symfony\Bridge\Doctrine\Validator\Constraints\UniqueEntity;
 use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\Component\Validator\Constraints\DateTime;
@@ -30,6 +31,18 @@ use Symfony\Component\Validator\Constraints\DateTime;
 #[ORM\Entity(repositoryClass: UserRepository::class)]
 #[ORM\Table(name: '`user`')]
 #[ORM\HasLifecycleCallbacks]
+// On the entity rather than in one form, because the column is unique and every
+// form bound to a User therefore fails the same way: the admin panel answered
+// 500 on an address that already existed, because nothing looked before
+// Postgres did. One rule where the invariant lives beats a copy of the check in
+// UserFormType, FirstAdminType and whatever binds a User next.
+//
+// Deliberately not scoped to undeleted rows, which is why it does not reach for
+// UserRepository::findOneByEmailExcept(). The unique index covers soft-deleted
+// rows too, so a validator that skipped them would hand the 500 straight back
+// for the one address that can still collide — `deleted-<id>@invalid`, which
+// the admin delete action writes and which nothing stops someone typing.
+#[UniqueEntity(fields: ['email'], message: 'user.email_taken')]
 class User extends UserEntityModel implements UserInterface, PasswordAuthenticatedUserInterface, TwoFactorInterface, BackupCodeInterface
 {
     use TimestampableTrait;
@@ -37,6 +50,24 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
     /* Core roles */
     public const string ROLE_ADMIN = 'ROLE_ADMIN';
     public const string ROLE_USER = 'ROLE_USER';
+
+    /**
+     * The shortest password this install accepts, in characters.
+     *
+     * On the entity rather than in the form that first needed it, because three
+     * places have to agree and until now they agreed by coincidence:
+     * UserFormType, where an administrator creates somebody; `app:user:password`,
+     * where an operator repairs somebody; and ChangePasswordType, where a person
+     * changes their own. The first two each held a literal 12 with a comment
+     * saying it matched the other, which is a convention rather than a fact —
+     * and the third would have been a third chance to pick a different number.
+     *
+     * FirstAdminType is the one form that does NOT read this, and its lower
+     * floor is left alone deliberately. Raising it here would change what the
+     * install wizard demands of the very first password on an install, which is
+     * a decision about onboarding rather than about this constant.
+     */
+    public const int PASSWORD_MIN_LENGTH = 12;
 
     #[ORM\Id]
     #[ORM\GeneratedValue]
@@ -201,6 +232,42 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
 
     #[ORM\Column(nullable: true)]
     public ?\DateTimeImmutable $deletedAt = null;
+
+    /**
+     * When an administrator suspended this account, if they have.
+     *
+     * The middle setting between "can sign in" and "removed", and the one the
+     * panel had no way to express: a colleague on leave, a shared machine that
+     * should be shut out for a fortnight, an account that looks compromised.
+     * Until this existed the only answer was removal, which frees the address
+     * and tombstones the name — a decision far larger than the question being
+     * asked, and one nothing here can undo.
+     *
+     * A timestamp rather than a boolean, mirroring $deletedAt beside it. "When"
+     * answers "is it" for free, and an admin looking at a suspended account a
+     * month later usually wants to know how long it has been that way. The
+     * column is the whole of the state: nothing else is written, nothing is
+     * renamed, and every account, message, label and app password stays exactly
+     * where it was, so reactivating is clearing this one field.
+     *
+     * What enforces it is App\Security\UserChecker, which refuses the account
+     * at authentication, and UserProvider::refreshUser(), which ends a session
+     * that was already open. Neither is expressible as a column, so both are
+     * named here — a flag nothing reads is a flag that quietly means nothing.
+     */
+    #[ORM\Column(nullable: true)]
+    public ?\DateTimeImmutable $deactivatedAt = null;
+
+    /**
+     * Whether this account is currently suspended.
+     *
+     * A property rather than an `isDeactivated()` method: it takes nothing and
+     * answers about one field, which is the rule §4.4 of CODESTYLE states.
+     * `isDeleted()` next door is a method only because it predates the rule.
+     */
+    public bool $isDeactivated {
+        get => null !== $this->deactivatedAt;
+    }
 
     /**
      * @var Collection<int, Account>

@@ -30,9 +30,12 @@ use Symfony\Component\Validator\Constraints\NotBlank;
  * session" — and it applies here for identical reasons. A *new* user has no
  * mail yet, so setting the initial password discloses nothing.
  *
- * Someone locked out is recovered from the console, where physical or shell
- * access to the host is already the trust boundary. That is a deliberately
- * higher bar than a browser session, and it is the point.
+ * Someone locked out is recovered from the console with `app:user:password`,
+ * where physical or shell access to the host is already the trust boundary.
+ * That is a deliberately higher bar than a browser session, and it is the
+ * point. The command is named here because for a while it was not: this
+ * docblock and two strings on screen described a recovery path that had never
+ * been written, so the one honest reading of "not here" was "nowhere".
  *
  * Roles are a single "administrator" checkbox rather than a role list. ROLE_USER
  * is implied for everyone and ROLE_ADMIN is the only other role the application
@@ -69,11 +72,14 @@ final class UserFormType extends AbstractType
                 'mapped'      => false,
                 'constraints' => [
                     new NotBlank(),
-                    // Matches nothing else in the app because nothing else sets
-                    // a password for someone: the length floor is the only
-                    // control available when the person choosing the password
-                    // is not the person who will use it.
-                    new Length(min: 12, minMessage: 'admin.users.password_too_short'),
+                    // The length floor is the only control available when the
+                    // person choosing the password is not the person who will
+                    // use it. Read from User::PASSWORD_MIN_LENGTH rather than
+                    // written here: `app:user:password` and ChangePasswordType
+                    // have to demand the same thing, and until the constant
+                    // existed they agreed only by each carrying a copy of the
+                    // number with a comment pointing at the others.
+                    new Length(min: User::PASSWORD_MIN_LENGTH, minMessage: 'admin.users.password_too_short'),
                 ],
                 'attr' => ['autocomplete' => 'new-password'],
             ]);

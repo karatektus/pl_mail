@@ -1,11 +1,32 @@
 {#
-Response to creating, editing or removing a user: refresh the list and close.
+Response to creating, editing, removing or suspending a user: refresh the list
+and close.
 
 The whole frame is replaced rather than one row, for the same reason the
 integrations list is: adding or removing an administrator changes what the
 *other* rows may do — the delete button disappears from the last admin — and
 the list is small enough that redrawing it costs nothing.
+
+Accepts:
+    toastMessage  optional message key; a refusal to report, or a suspension
+                  to confirm. Null on the ordinary save, which needs no toast:
+                  the row redrawing with the new name IS the confirmation.
+    toastType     'error' | 'success' | 'info', see _partials/_toast.html.twig
 #}
+{% if toastMessage is defined and toastMessage is not null %}
+    {# Before the list, so the toast is appended even if rendering the frame
+       below fails on something — a refusal that is swallowed by a template
+       error is the exact failure this variable exists to end. #}
+    <turbo-stream action="append" target="toast-region">
+        <template>
+            {% include '_partials/_toast.html.twig' with {
+                message: toastMessage|trans,
+                type:    toastType|default('error'),
+            } only %}
+        </template>
+    </turbo-stream>
+{% endif %}
+
 <turbo-stream action="replace" target="admin-users">
     <template>
         {% include 'admin/user/_users_frame.html.twig' %}

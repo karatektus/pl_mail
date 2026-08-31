@@ -1,7 +1,8 @@
-admin.integrations.client_id_missing: Trage die Client-ID ein, die zu diesem Secret gehört.
-admin.integrations.secret_missing: Trage auch das Client-Secret ein — mit der Client-ID allein kann sich niemand anmelden.
 # Symfony übersetzt Validierungsmeldungen in der Domain `validators`, nicht in
 # `messages` — ein Schlüssel in messages.*.yaml erscheint unübersetzt.
+admin.integrations.client_id_missing: Trage die Client-ID ein, die zu diesem Secret gehört.
+admin.integrations.secret_missing: Trage auch das Client-Secret ein — mit der Client-ID allein kann sich niemand anmelden.
+admin.users.password_too_short: Mindestens {{ limit }} Zeichen — dieses Passwort wählst du für jemand anderen.
 alias.invalid: Gib eine gültige E-Mail-Adresse ein.
 app_password.name_required: Gib dem App-Passwort einen Namen, damit du es später wiedererkennst.
 caldav.address_required: Gib die Adresse deines CalDAV-Servers ein — ohne sie hat plMail niemanden zu fragen.
@@ -11,5 +12,10 @@ caldav.username_required: Gib den Benutzernamen ein, unter dem dich dein CalDAV-
 calendar.name_required: Gib dem Kalender einen Namen — daran erkennst du ihn zwischen den anderen.
 compose.recipient_invalid: "„{{ address }}“ ist keine gültige E-Mail-Adresse."
 compose.recipient_required: Füge mindestens einen Empfänger hinzu, bevor du sendest.
+settings.password.current_required: Gib dein aktuelles Passwort ein — es verhindert, dass jemand an deinem offenen Bildschirm es einfach ändert.
+settings.password.current_wrong: Das ist nicht dein aktuelles Passwort.
+settings.password.mismatch: Die beiden neuen Passwörter stimmen nicht überein.
+settings.password.too_short: Mindestens {{ limit }} Zeichen.
 setup.install.password_mismatch: Die beiden Passwörter stimmen nicht überein.
 setup.install.password_too_short: Mindestens {{ limit }} Zeichen. Für dieses Konto gibt es keine Passwort-Zurücksetzung.
+user.email_taken: Diese Adresse benutzt schon jemand. Jede Adresse dieser Installation gehört genau einer Person.

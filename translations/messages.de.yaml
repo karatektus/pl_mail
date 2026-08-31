@@ -799,7 +799,11 @@ admin:
         watch_expiry: 'Watch läuft ab'
     users:
         add: Benutzer hinzufügen
-        console_note: 'Passwörter und die Wiederherstellung der Zwei-Faktor-Authentifizierung laufen über die Server-Konsole, nicht hier. Wer beides ändern könnte, hätte einen zweiten Weg in jedes Postfach dieser Installation.'
+        console_note: 'Passwörter und die Wiederherstellung der Zwei-Faktor-Authentifizierung laufen über die Server-Konsole, nicht hier — `app:user:password` und `app:user:2fa-disable`. Wer beides im Browser ändern könnte, hätte einen zweiten Weg in jedes Postfach dieser Installation.'
+        deactivate: Abschalten
+        deactivate_confirm: '%name% abschalten? Eine Anmeldung ist dann nicht mehr möglich, und schon verbundene Mail-Programme hören ebenfalls auf. Gelöscht wird nichts, und du kannst das Konto hier wieder einschalten.'
+        deactivated: 'Abgeschaltet'
+        deactivated_since: 'Abgeschaltet seit %when%'
         delete: Benutzer entfernen
         delete_confirm: '%name% entfernen? Die Mails bleiben in der Datenbank, eine Anmeldung ist aber nicht mehr möglich.'
         edit: Benutzer bearbeiten
@@ -810,13 +814,18 @@ admin:
             name_first: Vorname
             name_last: Nachname
             password: Erstes Passwort
-            password_help: 'Wird einmalig beim Anlegen gesetzt. Später ändert es das Konto selbst, oder es wird über die Server-Konsole zurückgesetzt.'
+            password_help: 'Wird einmalig beim Anlegen gesetzt. Danach lässt es sich hier nicht mehr ändern: Ein vergessenes Passwort setzt du auf der Server-Konsole mit `app:user:password` zurück.'
+        flash:
+            deactivated: 'Abgeschaltet. Eine Anmeldung ist erst wieder möglich, wenn du das Konto einschaltest.'
+            demote_last_refused: 'Das ist die letzte Person mit Administratorrechten — das Häkchen blieb, wie es war. Ernenne zuerst jemand anderen.'
+            demote_self_refused: 'Du kannst dir die Administratorrechte nicht selbst entziehen. Alles andere im Formular wurde gespeichert.'
+            reactivated: 'Wieder eingeschaltet. Eine Anmeldung ist wieder möglich.'
         heading: Benutzer
         last_login: 'Zuletzt gesehen %when%'
         never_signed_in: Noch nie angemeldet
         no_password_edit: 'Passwörter lassen sich hier nicht ändern. Ein fremdes Passwort zu setzen würde eine Admin-Sitzung zum Weg in dieses Postfach machen — aus demselben Grund ist das Entfernen eines zweiten Faktors ein Konsolenbefehl.'
         none: Noch keine Benutzer.
-        password_too_short: 'Mindestens 12 Zeichen — dieses Passwort wird für jemand anderen gewählt.'
+        reactivate: Wieder einschalten
         role:
             admin: Admin
         search: Benutzer suchen…
@@ -3161,6 +3170,19 @@ settings:
             Push ist auf diesem Server nicht konfiguriert — es sind keine
             VAPID-Schlüssel hinterlegt. Führe
             "bin/console app:push:generate-vapid-keys" aus.
+    password:
+        field:
+            current: Aktuelles Passwort
+            new: Neues Passwort
+            new_help: 'Mindestens %count% Zeichen. Mehr wird nicht verlangt — etwas Langes, das du dir merken kannst, ist besser als etwas Kurzes, das du vergisst.'
+            repeat: Neues Passwort wiederholen
+        flash:
+            changed: 'Passwort geändert. Jedes Gerät, auf dem du „angemeldet bleiben“ gesetzt hattest, fragt wieder danach.'
+            refused: 'Es wurde nichts geändert — die Meldung steht unter dem Feld.'
+        heading: Passwort
+        remember_me_note: 'Ein Passwortwechsel meldet jeden gemerkten Browser ab, außer diesem. Genau deshalb lohnt er sich, wenn ein Gerät abhandenkommt.'
+        subheading: 'Womit du dich anmeldest. Nur du kannst es ändern — nicht einmal die Administration kann es für dich setzen.'
+        submit: Passwort ändern
     security:
         codes:
             copy: Codes kopieren

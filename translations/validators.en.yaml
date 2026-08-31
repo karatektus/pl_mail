@@ -1,8 +1,9 @@
-admin.integrations.client_id_missing: Enter the client ID that goes with this secret.
-admin.integrations.secret_missing: Enter the client secret too — a client ID on its own cannot sign anyone in.
 # Constraint messages. Symfony translates validation output in the `validators`
 # domain, not `messages` — a key put in messages.*.yaml renders as the raw key,
 # which is how "setup.install.password_too_short" ended up on screen.
+admin.integrations.client_id_missing: Enter the client ID that goes with this secret.
+admin.integrations.secret_missing: Enter the client secret too — a client ID on its own cannot sign anyone in.
+admin.users.password_too_short: Use at least {{ limit }} characters — this password is being chosen for someone else.
 alias.invalid: Enter a valid email address.
 app_password.name_required: Give the app password a name so you can recognise it later.
 caldav.address_required: Enter the address of your CalDAV server — plMail has nothing to ask without one.
@@ -12,5 +13,10 @@ caldav.username_required: Enter the username your CalDAV server knows you by.
 calendar.name_required: Give the calendar a name — it is what tells it apart from the others.
 compose.recipient_invalid: "“{{ address }}” is not a valid email address."
 compose.recipient_required: Add at least one recipient before sending.
+settings.password.current_required: Enter your current password — it is what stops somebody at your unlocked screen changing it.
+settings.password.current_wrong: That is not your current password.
+settings.password.mismatch: The two new passwords don't match.
+settings.password.too_short: Use at least {{ limit }} characters.
 setup.install.password_mismatch: The two passwords don't match.
 setup.install.password_too_short: Use at least {{ limit }} characters. This account has no password reset.
+user.email_taken: Somebody already uses that address. Every address on this install belongs to exactly one person.

@@ -18,6 +18,12 @@ security:
             pattern: ^/(jmap|\.well-known/jmap)
             stateless: true
             provider: app_user_provider
+            # Suspended and removed accounts are refused here too, and that is
+            # the half that matters most: an app password outlives the browser
+            # session it was minted from, so a check only on `main` would shut
+            # somebody out of the web UI and leave every mail client they had
+            # already connected syncing. See App\Security\UserChecker.
+            user_checker: App\Security\UserChecker
             # Two credential types share this firewall: long-lived app
             # passwords (third-party clients, Bearer or Basic) and short-lived
             # JWTs (the future first-party app). ApiTokenAuthenticator::supports()
@@ -30,6 +36,11 @@ security:
             lazy: true
             provider: app_user_provider
             custom_authenticator: App\Security\LoginFormAuthenticator
+            # Refuses an account an administrator has suspended or removed, and
+            # does it after the password has been verified rather than before —
+            # the class says why at length. A session that was already open is
+            # the other half, and is ended by UserProvider::refreshUser().
+            user_checker: App\Security\UserChecker
             # A password form on an instance meant to be reachable from the
             # internet, with no limit on how fast it could be guessed. The
             # per-username limit is the one that matters; the global IP limit

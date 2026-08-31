@@ -68,6 +68,27 @@ class UserProvider implements UserProviderInterface, PasswordUpgraderInterface
             throw new UserNotFoundException();
         }
 
+        // Suspended or removed while signed in: the session ends on the next
+        // request rather than whenever it would have expired anyway.
+        //
+        // This has to be here and cannot be App\Security\UserChecker, which
+        // states the same two rules for the way IN. Symfony runs user checkers
+        // during authentication only — ContextListener rehydrates a session
+        // token straight through this method and consults no checker — so an
+        // administrator suspending somebody who is currently reading their mail
+        // would have changed nothing they could observe. A remember-me cookie
+        // goes through here too, so the sixty-day one the login form issues
+        // stops working at the same moment.
+        //
+        // UserNotFoundException rather than an AccountStatusException, because
+        // that is the vocabulary a provider has: ContextListener catches it and
+        // clears the token, which is what "you are signed out now" means here.
+        // What the person is TOLD happens on their next sign-in attempt, where
+        // the checker has a message and a form to put it on.
+        if (true === $user->isDeleted() || true === $user->isDeactivated) {
+            throw new UserNotFoundException();
+        }
+
         return $user;
     }
 

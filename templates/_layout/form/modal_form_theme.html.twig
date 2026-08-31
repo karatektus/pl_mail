@@ -379,7 +379,14 @@ Keyed on the block prefix Symfony builds from CalendarType + the field.
         {# text-ink-faint, not -muted: help is subordinate to its field, and at
            the same weight as a label it competed with the next one. #}
         <p class="text-[12px] text-ink-faint leading-snug">
-            {{ help|trans({}, translation_domain) }}
+            {# help_translation_parameters, not `{}`. Symfony's own theme passes
+               them and this one dropped them, so the first field to use one
+               rendered the placeholder: ChangePasswordType states its length
+               floor from User::PASSWORD_MIN_LENGTH rather than spelling the
+               number out in three catalogues, and the reader was told to use
+               "at least %count% characters". Every existing help string passes
+               no parameters, so this is empty for all of them. #}
+            {{ help|trans(help_translation_parameters, translation_domain) }}
         </p>
     {% endif %}
 {% endblock %}

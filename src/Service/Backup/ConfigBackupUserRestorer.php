@@ -218,6 +218,12 @@ final readonly class ConfigBackupUserRestorer
             $user->restoreCreatedAt($createdAt);
         }
 
+        // A suspended account comes back suspended. Absent from a document
+        // written before the column existed, and moment() answers null for
+        // that — which is also what every account that was not suspended
+        // carries, so the two cases need no telling apart.
+        $user->deactivatedAt = $this->moment($document, 'deactivatedAt');
+
         return $user;
     }
 

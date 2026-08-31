@@ -536,7 +536,11 @@ admin:
         watch_expiry: 'Watch ends'
     users:
         add: Sign on a hand
-        console_note: 'Secret words and second-factor rescues are done from th'' ship''s console, not here. A quartermaster who could change either would be a second way into every hold aboard.'
+        console_note: 'Secret words and second-factor rescues are done from th'' ship''s console, not here — `app:user:password` an'' `app:user:2fa-disable`. A quartermaster who could change either from a browser would be a second way into every hold aboard.'
+        deactivate: Clap in irons
+        deactivate_confirm: 'Clap %name% in irons? They''ll board no ship an'' every spyglass already trained on their hold goes dark. Nothin'' o'' theirs be thrown overboard, an'' ye can strike th'' irons here.'
+        deactivated: 'In irons'
+        deactivated_since: 'In irons since %when%'
         delete: Put ashore
         delete_confirm: 'Put %name% ashore? Their post stays in th'' hold, but they''ll board no more.'
         edit: Edit hand
@@ -547,13 +551,18 @@ admin:
             name_first: Given name
             name_last: Family name
             password: First secret word
-            password_help: 'Set once, when th'' hand signs on. Changed later by th'' hand, or reset from th'' console.'
+            password_help: 'Set once, when th'' hand signs on. No changin'' it from here after: a forgotten word be reset at th'' console with `app:user:password`.'
+        flash:
+            deactivated: 'Clapped in irons. No boardin'' until ye strike them.'
+            demote_last_refused: 'That be th'' last quartermaster, so th'' mark stayed as it were — raise another first.'
+            demote_self_refused: 'Ye cannot strip yer own quartermaster''s stripes. All else on th'' form were logged.'
+            reactivated: 'Irons struck. They may board again.'
         heading: Th' crew roster
         last_login: 'Last sighted %when%'
         never_signed_in: Never came aboard
         no_password_edit: 'Secret words cannot be changed here. Setting another hand''s word would make a quartermaster''s session a way into their hold — same reason pulling a second factor is a console affair.'
         none: No hands aboard yet.
-        password_too_short: 'Twelve characters at least — ye''re choosing this for somebody else.'
+        reactivate: Strike th' irons
         role:
             admin: Quartermaster
         search: Search th' roster…
@@ -2748,6 +2757,19 @@ settings:
         unconfigured: >-
             No cannon rigged on this ship — no VAPID keys be set. Run
             "bin/console app:push:generate-vapid-keys".
+    password:
+        field:
+            current: Current secret word
+            new: New secret word
+            new_help: 'At least %count% characters. Naught else be asked of it — a long thing ye can recall beats a short thing ye cannot.'
+            repeat: Say th' new word again
+        flash:
+            changed: 'Secret word changed. Every deck ye marked "keep me aboard" on will ask for it anew.'
+            refused: 'Naught were changed — read th'' note under th'' field.'
+        heading: Secret word
+        remember_me_note: 'Changing yer secret word puts every remembered deck ashore but this one. That be why it be worth doing when a spyglass goes missing.'
+        subheading: 'What ye board with. Only ye can change it — not even a quartermaster may set it for ye.'
+        submit: Change th' secret word
     security:
         codes:
             copy: Copy the tokens

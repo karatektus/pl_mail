@@ -251,6 +251,67 @@ final class ConfigBackupUsersTest extends KernelTestCase
     }
 
     /**
+     * A suspended account comes back suspended.
+     *
+     * The export's own docblock states the rule this follows: "`deletedAt` is a
+     * decision, and a restore honours decisions." Being switched off is the
+     * same kind of decision, and dropping it would be the quiet failure — the
+     * restore screen an operator reads to check the right file went in would
+     * report the account restored, correctly, while having handed it back the
+     * ability to sign in.
+     */
+    public function testASuspendedUserComesBackSuspended(): void
+    {
+        $this->seedTheOperator();
+
+        $user = static::getContainer()->get(UserRepository::class)->findOneBy(['email' => self::EMAIL]);
+        self::assertInstanceOf(User::class, $user);
+        $user->deactivatedAt = new \DateTimeImmutable('2026-03-04T05:06:07+00:00');
+        $this->entityManager->flush();
+
+        $document = $this->exporter->document();
+
+        $this->becomeADifferentInstallation();
+        $this->importer->apply($document);
+
+        $this->entityManager->flush();
+        $this->entityManager->clear();
+
+        $restored = static::getContainer()->get(UserRepository::class)->findOneBy(['email' => self::EMAIL]);
+
+        self::assertInstanceOf(User::class, $restored, 'the user was not created');
+        self::assertNotNull($restored->deactivatedAt, 'a suspended account was restored able to sign in');
+        self::assertSame(
+            '2026-03-04T05:06:07+00:00',
+            $restored->deactivatedAt->format(\DateTimeInterface::ATOM),
+            'the suspension came back with a different date',
+        );
+    }
+
+    /**
+     * Everybody else comes back able to sign in, which is the other half of the
+     * claim above — a restorer that simply stamped every account would be one
+     * that made the assertion above pass and the feature useless.
+     */
+    public function testAnAccountThatWasNotSuspendedIsRestoredActive(): void
+    {
+        $this->seedTheOperator();
+
+        $document = $this->exporter->document();
+
+        $this->becomeADifferentInstallation();
+        $this->importer->apply($document);
+
+        $this->entityManager->flush();
+        $this->entityManager->clear();
+
+        $restored = static::getContainer()->get(UserRepository::class)->findOneBy(['email' => self::EMAIL]);
+
+        self::assertInstanceOf(User::class, $restored);
+        self::assertNull($restored->deactivatedAt, 'a restore suspended somebody nobody had switched off');
+    }
+
+    /**
      * The ids inside a filter are the source database's, and a restore that
      * wrote one through would attach somebody's rule to a stranger's label.
      *

@@ -1,4 +1,4 @@
-<!-- translated-from: features/security.md sha1:6275fce35b7c54658526ced8c515cc815b533a37 -->
+<!-- translated-from: features/security.md sha1:3846154feea3ee70da0ee20ea88354b20ef00d60 -->
 
 # Sicherheit
 
@@ -110,7 +110,29 @@ Angemeldet-bleiben-Cookie auf einmal.
 **Es gibt keinen Ablauf zum Zurücksetzen des Passworts.** Das Anmeldeformular sagt das, statt
 einen Link anzubieten, der ins Leere führt: Die Wiederherstellung läuft über die
 Server-Konsole, und dort kann eine Administratorin oder ein Administrator ein neues Passwort
-setzen.
+setzen. Das ist der Weg für jemanden, der *nicht mehr hereinkommt*. Wer hereinkommt, ist im
+nächsten Abschnitt.
+
+## Dein Passwort ändern
+
+**Einstellungen → Sicherheit → Passwort**. Gefragt wird nach deinem aktuellen Passwort, dann
+zweimal nach dem neuen, und das neue braucht mindestens zwölf Zeichen — dieselbe Untergrenze, die
+das Anlege-Formular einer Administratorin anwendet, weil es dieselbe Frage ist.
+
+Nach dem aktuellen Passwort zu fragen ist keine Formsache. Angemeldet zu sein ist kein Beweis, dass
+du selbst an der Tastatur sitzt: Ein offener Bildschirm ist der ganze Angriff, und ohne diese Prüfung
+könnte jemand im Vorbeigehen das Konto übernehmen, statt es nur zu lesen. Aus demselben Grund fragt
+das Abschalten der Zwei-Faktor-Authentifizierung nach einem Code, obwohl du längst angemeldet bist.
+
+Eine Passwortänderung beendet überall jedes **Angemeldet bleiben**-Cookie, das je für dich
+ausgestellt wurde, denn die sind mit dem Passwort-Hash signiert und nicht gespeichert. Der Browser,
+an dem du gerade sitzt, behält seine Sitzung. Damit ist eine Passwortänderung das, was plMail einem
+„überall abmelden“ am nächsten kommt, und der richtige Zug, wenn ein Gerät abhandenkommt.
+
+**Niemand sonst kann das für dich tun.** Das Benutzerformular einer Administratorin hat für ein
+bestehendes Konto absichtlich kein Passwortfeld — siehe [Administration](admin.md#benutzer). Wenn du
+das Passwort vergessen hast und dich gar nicht mehr anmelden kannst, führt jemand mit einer Shell
+auf dem Host `app:user:password` aus; das ist bewusst eine höhere Hürde als eine Browser-Sitzung.
 
 ## App-Passwörter
 
@@ -188,4 +210,14 @@ echt gewesen sind.
 
 **Die Administration kann dein Passwort oder deinen zweiten Faktor nicht aus dem Panel heraus
 zurücksetzen.** Beides sind Konsolenoperationen, und das ist eine Entwurfsentscheidung und
-keine fehlende Funktion.
+keine fehlende Funktion. Dein eigenes Passwort zu ändern ist dagegen eine Browser-Operation und
+steht immer nur dir offen.
+
+**Eine Passwortänderung meldet deine anderen Browser ab, deine Mail-Programme aber nicht.**
+App-Passwörter sind eigene Zugangsdaten und überleben sie — widerrufe sie unter **Einstellungen →
+App-Passwörter**, wenn du das gemeint hast.
+
+**Die Administration kann dein Konto abschalten, und das ist nicht dasselbe wie es zu entfernen.**
+Dir bleibt alles; du kannst dich nur nicht anmelden, und das Anmeldeformular sagt dir das, sobald du
+das richtige Passwort getippt hast. Wieder einschalten kann es nur die Administration — siehe
+[Administration](admin.md#ein-konto-abschalten).

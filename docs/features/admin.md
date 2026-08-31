@@ -393,19 +393,57 @@ become a second way into every mailbox on the install:
 
 - **Change an existing user's password.** The field exists on create and not on edit. Someone who
   has not signed in yet has no mail, so setting their initial password discloses nothing; changing
-  it afterwards would.
+  it afterwards would. A forgotten password is reset with `app:user:password` on the console.
 - **Remove anyone's second factor.** That is `app:user:2fa-disable` on the console, and only there.
 - **Read anyone's mail.** Nothing in this area touches an account or a message.
+
+The search box filters on address and name, from the first character you type. It is a plain
+substring match, so `an` finds both Anna and Yohanna.
+
+### Switching an account off
+
+The padlock on a row suspends the account. The person cannot sign in, every mail client already
+connected with an app password stops too, and any session they had open ends on their next page
+load — but **nothing of theirs is touched**. The address, the name, the password, the second
+factor, the accounts, the mail and the labels are all exactly where they were, and the open
+padlock switches the account back on.
+
+This is the answer to a colleague on leave, a machine that looks compromised, or somebody whose
+access should stop while the reason is worked out. It is deliberately not the same decision as
+removal, which cannot be taken back.
+
+Switching your **own** account off is refused, for the same reason removing it is: it is one click
+from having nobody who can undo it. Switching an account back **on** is never refused — the account
+most likely to need it is exactly the one a stricter rule would have trapped.
+
+A suspended account shows a **Switched off** badge in the list and stays where it was, findable by
+the same search that found it before. Somebody suspended who tries to sign in is told the account
+was switched off by an administrator — but only once they have typed the right password, so the
+login form is not a way to discover which addresses on the install are suspended.
+
+### Removing someone
 
 **Remove user** is a soft delete. The address and the display name are freed — the address is unique,
 so leaving it would stop the same person ever being re-added — and the row stops being able to
 authenticate, but the accounts, messages, labels and app passwords hanging off it stay where they
 are. A cascade from a misclick in an admin panel is not a recoverable mistake.
 
+**There is no Restore button, and there deliberately is not one.** Removal frees the address by
+overwriting it, so a removed row no longer knows who it was: the address is `deleted-<id>@invalid`,
+the name is "Deleted User", and the password hash is gone. Restoring would have to invent all three,
+and the address it used to hold may by then belong to somebody else. If what you want is "stop this
+person signing in, and let them back later", that is **switching the account off** above — which is
+why it exists. The mail of a removed user is still in the database and an operator with database
+access can still reach it.
+
 Two removals are refused outright: your own account, and the last remaining administrator. The
 second is the one that looks fine at the time — an admin removes a colleague, and nobody notices
 until the next time somebody needs the panel. Demoting yourself, or the last administrator, is
-refused for the same reason.
+refused for the same reason, and the panel now says so rather than saving the rest of the form and
+leaving the checkbox looking broken.
+
+Changing your **own** password is not here at all — it is in
+[Security](security.md#changing-your-password), under each person's own settings.
 
 ## Backup
 
@@ -523,7 +561,16 @@ and secret and nothing else; the scope or delegated permission still has to be a
 provider, or connecting fails at consent time.
 
 **You cannot remove the last administrator, or yourself.** Both are refused rather than warned
-about, which occasionally reads as a broken button.
+about, which occasionally reads as a broken button. The same pair cannot be switched off either,
+and unticking **Administrator** on your own account now says why instead of quietly not saving it.
+
+**A removed user cannot be restored.** Removal overwrites the address and the name in order to free
+the address for reuse, so there is nothing left to restore them to. Switch the account off instead
+whenever the answer might later be "let them back in".
+
+**Switching an account off does not sign the person out of a mail client immediately.** The web
+session ends on their next page load, and an app password stops working on its next request — but a
+client that is idle will not notice until it next syncs.
 
 **Rotating `APP_ENCRYPTION_KEY` takes the Firebase key with it.** The service-account JSON is stored
 encrypted like every other credential, so a changed key makes it unreadable — push over FCM goes

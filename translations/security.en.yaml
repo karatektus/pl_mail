@@ -1,0 +1,15 @@
+# Sign-in failures, in the domain Symfony resolves them in.
+#
+# templates/security/login.html.twig renders the authentication error as
+# `error.messageKey|trans(error.messageData, 'security')`, so a message put in
+# messages.*.yaml reaches the login form as its own key — the same trap
+# validators.en.yaml documents at the top, one domain over. SecurityBundle
+# ships this catalogue with the framework's own keys ("Invalid credentials."
+# and friends); the entries below are added to it, not instead of it.
+#
+# Both are thrown by App\Security\UserChecker, and only after the password has
+# already been verified. That is why they may say something specific: the
+# reader has proved they are the account holder, and telling them nothing would
+# leave a correct password looking broken.
+account.deactivated: Your account has been switched off by an administrator. Ask them to switch it back on — nothing of yours has been deleted.
+account.removed: This account has been removed and cannot be used to sign in.

@@ -1,4 +1,4 @@
-<!-- translated-from: install/config-backup.md sha1:0bbd8a8890f142674320983fd6641f1cfd82d9c5 -->
+<!-- translated-from: install/config-backup.md sha1:1b2da571a74bb6dd836d8871b339201ef3188675 -->
 # Konfigurationssicherung
 
 Die *Konfiguration* einer Installation ist nicht dasselbe wie ihre *Daten*, und beide gehen auf
@@ -178,7 +178,11 @@ Synchronisierung neu herleitet; **Synchronisierungsstand** — Cursor, History-I
 Watch-Registrierungen, Kalender-Push-Kanäle, Backfill-Zähler —, der zu dem Host gehört, der
 synchronisiert hat; und **Avatare und Hintergrundbilder**, die Dateinamen in einem Storage-Volume
 sind, das diese Datei nicht mitführt. Soft-gelöschte Benutzer werden nicht exportiert: `deletedAt`
-ist eine Entscheidung, und eine Wiederherstellung respektiert sie.
+ist eine Entscheidung, und eine Wiederherstellung respektiert sie. Ein Konto, das die
+Administration **abgeschaltet** hat, wird exportiert und kommt abgeschaltet zurück — aus demselben
+Grund: Auch das ist eine Entscheidung, und eine Wiederherstellung, die dem Konto die Anmeldung still
+zurückgäbe, würde auf genau dem Bildschirm Erfolg melden, den du liest, um zu prüfen, ob die
+richtige Datei hineingegangen ist.
 
 E-Mails, Kalendereinträge, Kontakte und Logs sind überhaupt nicht dabei. Diese Grenze hat sich nicht
 verschoben.
