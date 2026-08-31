@@ -154,9 +154,22 @@ test.describe("K-06 · remote images", () => {
         // And still nothing reached the sender.
         expect(hits, `trusting a sender must not contact ${REMOTE_HOST}`).toHaveLength(0);
 
-        // Put it back, so this spec leaves the user as it found them.
+        // Put it back, so this spec leaves the user as it found them — though it
+        // is no longer the only thing that does. app:test:seed-rendering clears
+        // the trusted senders too, because when this line was the sole way back
+        // a failure ANYWHERE above it left the sender trusted for good, and
+        // every later run failed thirty lines earlier at a "Show images always"
+        // button that is not offered for a sender already trusted. One flake
+        // read as a second, unrelated bug.
+        //
+        // Asserted in both directions rather than only on the bar returning:
+        // the standing permission disappearing is the optimistic half of the
+        // swap and lands immediately, while the bar is the server's answer
+        // coming back — so the two failures say different things, and a longer
+        // budget is given to the half that involves a round trip.
         await body.getByRole("button", { name: /Stop showing/i }).click();
-        await expect(body.getByTestId("images-bar")).toBeVisible();
+        await expect(body.getByTestId("images-trusted")).toHaveCount(0);
+        await expect(body.getByTestId("images-bar")).toBeVisible({ timeout: 15_000 });
     });
 
     /**

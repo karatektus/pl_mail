@@ -10,6 +10,7 @@ use App\Domain\Enum\Mail\ThreadingMethod;
 use App\Domain\Helper\AttachmentStorageHelper;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Message;
+use App\Entity\Mail\TrustedImageSender;
 use App\Entity\Mail\MessagePart;
 use App\Entity\Mail\MessageThread;
 use App\Jmap\State\JmapObjectType;
@@ -144,6 +145,8 @@ final class SeedRenderingCommand extends Command
         foreach ([self::SUBJECT_REMOTE, self::SUBJECT_PHISH, self::SUBJECT_LONG, self::SUBJECT_FETCHABLE, self::SUBJECT_QUOTED] as $subject) {
             $this->removePreviousSeed($account, $subject);
         }
+
+        $this->forgetTrustedSenders($user);
 
         $inbox = $this->labelResolver->systemLabel(LabelRole::Inbox, $account);
         $spam  = $this->labelResolver->systemLabel(LabelRole::Spam, $account);
@@ -439,6 +442,33 @@ final class SeedRenderingCommand extends Command
         $this->entityManager->flush();
 
         return $account;
+    }
+
+    /**
+     * Forget every sender this user has decided to trust with remote images.
+     *
+     * Part of seeding rather than a separate step, because a seed's job is to
+     * put the mailbox into a KNOWN state and "which senders am I already
+     * trusting" is part of that state. Reseeding the messages while leaving the
+     * decisions about them behind produces a mailbox no run ever started from.
+     *
+     * The spec that needs this restores its own trust at the end, and that was
+     * the only thing restoring it. So the first failure anywhere above that line
+     * left the sender trusted for good, and every later run failed differently
+     * and earlier — at the "Show images always" button, which is not offered for
+     * a sender already trusted. One flake became a permanent failure that looked
+     * like a second, unrelated bug. That is exactly how it presented in CI: one
+     * run failing at the cleanup, its retry failing thirty lines earlier.
+     *
+     * A DELETE rather than a cascade off the messages: the row is keyed by
+     * address and outlives every message from that sender, which is the whole
+     * point of it.
+     */
+    private function forgetTrustedSenders(object $user): void
+    {
+        $this->entityManager->createQuery(
+            'DELETE FROM ' . TrustedImageSender::class . ' trusted WHERE trusted.usr = :user',
+        )->setParameter('user', $user)->execute();
     }
 
     private function removePreviousSeed(Account $account, string $subject): void
