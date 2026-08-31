@@ -6,6 +6,52 @@ so anything that changes the schema irreversibly is called out explicitly.
 The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, and `sha-…` pins one commit.
 
+## v0.2.11 — 2026-08-31
+
+**Adds one column to the user table. Nothing is removed and nothing is rewritten, so an upgrade
+costs you nothing and a downgrade only forgets which accounts were switched off.**
+
+### Added
+
+- **You can change your own password.** Settings → Security, at the top. Until now nobody could:
+  not from the app, not by mail — an administrator set one for you and that was the only way it
+  ever changed. It asks for your current password before it will take a new one.
+
+- **An account can be switched off instead of deleted.** There was nothing between leaving a user
+  alone and destroying them, so "this person has left, keep their mail" meant deletion. An
+  administrator can now suspend an account from Admin → Users: everything they own stays exactly
+  where it is, and they cannot sign in until somebody switches it back on.
+
+  It takes effect everywhere at once, including sessions that are already open and mail clients
+  that are already connected — an app password outlives the browser it was created in, and stopping
+  the login form alone would have left every connected client syncing.
+
+- **An inbox tab says in colour when it is holding unread mail.** The category icon wears its own
+  colour — blue for Social, green for Promotions — while there is something unread behind it. No
+  second number: the tab still shows only the "3 new" pill.
+
+  This is most useful under **Unread only**, where the tab strip used to say nothing at all. Every
+  row on screen is unread there, so bold text separates nothing, and the Inbox badge in the sidebar
+  is one total that cannot tell you which tab the mail is in — a full tab looked exactly like an
+  empty one, and finding your mail meant clicking each tab in turn.
+
+- **A forgotten password can be reset from the console**, with `app:user:password`. The interface
+  said this was possible for a while before it was.
+
+### Fixed
+
+- **The inbox tabs and the page count included conversations you had moved to the bin.** Binning a
+  conversation adds a Trash label rather than removing the Inbox one, and the lists have always
+  known that while the numbers beside them did not. A tab could point at mail that was not there,
+  and the pager could offer you a page that did not exist.
+
+- **Searching users in the admin panel ignored anything shorter than three characters** and quietly
+  handed back the full list instead of saying so.
+
+- **Declining to remove your own administrator rights reported success**, having changed nothing.
+
+- **A password field's help text showed `at least %count% characters`** instead of the number.
+
 ## v0.2.10 — 2026-08-28
 
 **No schema changes. Summaries get to the point.**
