@@ -6,6 +6,20 @@ so anything that changes the schema irreversibly is called out explicitly.
 The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, and `sha-…` pins one commit.
 
+## v0.2.12 — 2026-08-31
+
+**Everything in v0.2.11, which never produced an image. Same schema change as below: one added
+column, nothing removed or rewritten.**
+
+### Fixed
+
+- **v0.2.11 could not be built.** One translation in the pirate locale opened with its placeholder
+  rather than a word, which YAML reads as structure instead of a sentence, and the container build
+  compiles every locale. Nothing shipped under that number — if you are on v0.2.10, this is the
+  upgrade.
+
+  The catalogues are now parsed by the test suite, which had never opened one.
+
 ## v0.2.11 — 2026-08-31
 
 **Adds one column to the user table. Nothing is removed and nothing is rewritten, so an upgrade
