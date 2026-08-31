@@ -1,4 +1,4 @@
-<!-- translated-from: features/admin.md sha1:9d952340eb64ada7916cef0e196a14028c8677f8 -->
+<!-- translated-from: features/admin.md sha1:1e7dbf6f8a7e45b8aaf88ec306e398dd8fe29c3b -->
 
 # Administration
 
@@ -496,7 +496,9 @@ Dein **eigenes** Passwort änderst du gar nicht hier, sondern unter
 ## Sicherung
 
 Alles, womit diese Installation *konfiguriert* ist, in einer passwortverschlüsselten Datei — und der
-Weg zurück. Keine E-Mails: keine Nachrichten, keine Kalender, keine Benutzerkonten. Die ganze
+Weg zurück. Keine E-Mails: keine Nachrichten, keine Kalendertermine, keine Anhänge. Die Personen
+**sind** dabei — jedes Konto der Installation, mit Passwort-Hashes, Zwei-Faktor-Geheimnissen,
+App-Passwörtern und allen gespeicherten Postfach-Zugangsdaten. Die ganze
 Geschichte samt Dateiformat steht in der [Konfigurationssicherung](../install/config-backup.md); das
 Format ist dokumentiert, damit die Datei nie davon abhängt, dass plMail läuft.
 
@@ -516,12 +518,14 @@ Die Prüfung hat drei Teile, in absteigender Reihenfolge dessen, was dich besch�
   Umgebungswert, in `var/secrets/generated.env` und die Dateien daneben. Das sind die Dateien, die
   der Container-Entrypoint beim Start liest, sie liegen also sofort bereit und sind nach einem
   Neustart *in Kraft*. Die Seite sagt das einmal, für die ganze Liste.
-- **Was noch bei dir liegt**, und das sind auf einem unveränderten Stack höchstens zwei oder drei
-  Namen: Ein Wert, den deine Compose-Datei auf etwas Nichtleeres festlegt, überschreibt beim
-  nächsten Start den wiederhergestellten, und `POSTGRES_PASSWORD` gehört zu einer Rolle in einer
-  Datenbank, deren Client plMail nur ist. Jeder kommt mit der exakten Zeile und dem Grund zurück.
-- **Gut zu wissen**: `APP_ENCRYPTION_KEY`, der bewusst nicht geschrieben wird, weil die Zugangsdaten,
-  die der Import gerade geschrieben hat, mit dem aktuell geltenden Schlüssel verschlüsselt sind.
+- **Was noch bei dir liegt**, und das sollte auf einem unveränderten Stack leer sein: Die Liste
+  füllt sich nur, wenn deine Compose-Datei einen Wert auf etwas Nichtleeres festlegt, der dann beim
+  nächsten Start den wiederhergestellten überschreibt. Jeder kommt mit der exakten Zeile und dem
+  Grund zurück — eine nicht leere Liste liest man besser, als sie zu überfliegen.
+- Ein aufklappbarer Hinweis **„Stellst du auch die alte Datenbank wieder her? Dann brauchst du ihren
+  alten Verschlüsselungskey"**, der erklärt, warum `APP_ENCRYPTION_KEY` bewusst nicht geschrieben
+  wird: Die Zugangsdaten, die der Import gerade geschrieben hat, sind mit dem aktuell geltenden
+  Schlüssel verschlüsselt.
 
 Jede Zeile sagt außerdem, ob der Wert hier neu ist, etwas anderes ersetzt oder bereits
 übereinstimmt. Bei diesem mittleren Zustand lohnt es sich innezuhalten: Eine Wiederherstellung auf

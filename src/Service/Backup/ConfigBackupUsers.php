@@ -111,7 +111,7 @@ final readonly class ConfigBackupUsers
      *
      * @var list<string>
      */
-    private const array USER_SETTINGS = [
+    public const array USER_SETTINGS = [
         User::SETTING_CLOCK,
         User::SETTING_CALENDAR_PANE_OPEN,
         User::SETTING_CALENDAR_PANE_WIDTH,
@@ -127,6 +127,17 @@ final readonly class ConfigBackupUsers
         User::SETTING_ONBOARDING_STEP,
         User::SETTING_ONBOARDING_SKIPPED,
         User::SETTING_ONBOARDING_DONE_STEPS,
+        // All five shipped after this list was written and none of them was
+        // added to it, which is what the completeness test below now prevents
+        // rather than what this comment apologises for. Every one is a choice
+        // somebody made about their own screen, holds no id, and means the same
+        // thing on any install — so there was never an argument for leaving
+        // them out, only an absence of one.
+        User::SETTING_APPEARANCE_PREVIEW_WIDTH,
+        User::SETTING_INSIGHTS_DISABLED,
+        User::SETTING_INSIGHT_PANE_DISABLED,
+        User::SETTING_COMPOSE_FORWARD_QUOTE_COLLAPSED,
+        User::SETTING_COMPOSE_SEND_FEEDBACK,
     ];
 
     /**
@@ -147,9 +158,43 @@ final readonly class ConfigBackupUsers
      *
      * @var list<string>
      */
-    private const array ACCOUNT_SETTINGS = [
+    public const array ACCOUNT_SETTINGS = [
         Account::SETTING_BACKFILL_TARGET,
         Account::SETTING_CALENDAR_TARGET,
+        // Added late, and the reason they were missing for months is the whole
+        // argument for the completeness test that now guards this list: an
+        // allowlist silently stops carrying anything that ships after it.
+        Account::SETTING_SIGNATURE,
+        Account::SETTING_READ_RECEIPT_DEFAULT,
+    ];
+
+    /**
+     * The keys of {@see User::$settings} a backup deliberately does NOT carry,
+     * each with the reason.
+     *
+     * A list rather than a paragraph, because {@see ConfigBackupCompletenessTest}
+     * reads it: every `User::SETTING_*` constant must appear either here or in
+     * USER_SETTINGS above, so a setting that ships tomorrow fails the suite
+     * until somebody has decided which it is. That decision is cheap; noticing
+     * it was never made is what took months.
+     *
+     * @var array<string, string>
+     */
+    public const array EXCLUDED_USER_SETTINGS = [
+        User::SETTING_LOGS_SEEN_AT => 'a read marker against log rows, which do not travel',
+        User::SETTING_SIDEBAR_ACCOUNT => 'an account id from the source database — on the target that is nothing, or somebody else',
+        User::SETTING_INSIGHT_PANE_DISMISSED_AT => 'a read marker like admin.logs_seen_at: it says when this person last waved the strip away, not what they chose',
+    ];
+
+    /**
+     * The keys of {@see Account::$settings} a backup deliberately does not
+     * carry. Read by the same test, for the same reason.
+     *
+     * @var array<string, string>
+     */
+    public const array EXCLUDED_ACCOUNT_SETTINGS = [
+        Account::SETTING_BACKFILL_RAN_AT => 'a counter about a sync that happened on the other host',
+        Account::SETTING_BACKFILL_ATTEMPTS => 'the same, and resetting it on the target is the correct start',
     ];
 
     public function __construct(
@@ -374,6 +419,13 @@ final readonly class ConfigBackupUsers
                 'oauthAccessToken'  => $account->oauthAccessToken,
                 'oauthRefreshToken' => $account->oauthRefreshToken,
                 'oauthTokenExpiry'  => $account->oauthTokenExpiry?->format(DateTimeInterface::ATOM),
+                // Not sync state, though it sits among things that are: it
+                // describes what the provider granted to the refresh token this
+                // file carries, so it belongs to the token and moves hosts with
+                // it. Left behind, every restored connection reads "not known"
+                // again and the health card built on it goes quiet for
+                // connections that are working fine.
+                'oauthGrantedScopes' => $account->oauthGrantedScopes,
                 'isActive'          => $account->isActive,
                 'pushEnabled'       => $account->pushEnabled,
                 'settings'          => $this->settingsOfAccount($account),
@@ -401,6 +453,21 @@ final readonly class ConfigBackupUsers
                 'displayName' => $alias->displayName,
                 'status'      => $alias->status->value,
                 'source'      => $alias->source->value,
+                // The two per-alias overrides travel INSIDE the alias rather
+                // than in the account's settings bag, and that is the whole
+                // reason they travel at all. They live in the bag under keys
+                // that embed the alias's row id — `compose.signature.alias.41`
+                // — and an id from this database names somebody else's alias on
+                // the target, or nothing. An exact-key allowlist cannot carry a
+                // key whose name is data, so ACCOUNT_SETTINGS never did, and
+                // every alias signature an operator had written was quietly
+                // dropped by a restore.
+                //
+                // Written back under the new id once the aliases have ids —
+                // {@see ConfigBackupUserRestorer::applyAliasOverrides()}, which
+                // is the same post-flush remap `calendar.target_id` gets.
+                'signature'          => $account->getSetting(Account::signatureAliasSetting($alias->id ?? 0)),
+                'readReceiptDefault' => $account->getSetting(Account::readReceiptAliasSetting($alias->id ?? 0)),
             ];
         }
 
@@ -439,6 +506,7 @@ final readonly class ConfigBackupUsers
                 'oauthAccessToken'  => $integration->oauthAccessToken,
                 'oauthRefreshToken' => $integration->oauthRefreshToken,
                 'oauthTokenExpiry'  => $integration->oauthTokenExpiry?->format(DateTimeInterface::ATOM),
+                'oauthGrantedScopes' => $integration->oauthGrantedScopes,
                 'isActive'          => $integration->isActive,
                 'settings'          => $integration->settings,
             ];

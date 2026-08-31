@@ -157,6 +157,15 @@ final class DefaultController extends AbstractController
         // an administrator browses.
         $tombstone = sprintf('deleted-%d@invalid', $user->id);
 
+        // Kept before the rewrite destroys it, and this is the only copy. A
+        // config restore has to be able to tell that the person in the file is
+        // somebody who was removed here rather than somebody this install has
+        // never had — otherwise it recreates them, live, with the password hash
+        // and mailbox credentials the removal was meant to end. It could not
+        // tell, because the address it matches on is the one being overwritten
+        // on the next line. See User::$emailAtDeletion.
+        $user->emailAtDeletion = $user->email;
+
         $user->email = $tombstone;
         $user->nameFirst = 'Deleted';
         $user->nameLast = sprintf('User %d', $user->id);

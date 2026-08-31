@@ -146,6 +146,15 @@ final class ConfigBackupCipherTest extends TestCase
             ConfigBackupFailure::NotABackup,
         ];
 
+        // The other end, which had no guard at all. Below libsodium's floor
+        // argon2id does not weaken — it throws — so this used to leave the
+        // class as an uncaught SodiumException, past both controllers, onto a
+        // blank error page. One of the doors it reached is anonymous.
+        yield 'a memlimit below what argon2id accepts' => [
+            [...$valid, 'kdf' => [...$valid['kdf'], 'memlimit' => 1]],
+            ConfigBackupFailure::NotABackup,
+        ];
+
         yield 'an opslimit that would never finish' => [
             [...$valid, 'kdf' => [...$valid['kdf'], 'opslimit' => 4000000]],
             ConfigBackupFailure::NotABackup,

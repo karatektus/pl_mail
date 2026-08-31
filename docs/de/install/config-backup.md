@@ -1,4 +1,4 @@
-<!-- translated-from: install/config-backup.md sha1:1b2da571a74bb6dd836d8871b339201ef3188675 -->
+<!-- translated-from: install/config-backup.md sha1:aea7c7b52f687249d5b959194d61ddb6e0fb84d2 -->
 # Konfigurationssicherung
 
 Die *Konfiguration* einer Installation ist nicht dasselbe wie ihre *Daten*, und beide gehen auf
@@ -31,7 +31,7 @@ Betreibers und sie überschreibt niemals eine Person.
 |---|---|---|
 | **Die Datei mit den erzeugten Geheimnissen** | `APP_ENCRYPTION_KEY`, die VAPID-Schlüssel, die OAuth-Zugangsdaten, `APP_PUBLIC_URL` — `var/secrets/generated.env`, beim ersten Start erzeugt und vom Entrypoint geladen, bevor sonst irgendetwas läuft. (`APP_SECRET` und `MERCURE_JWT_SECRET` liegen ebenfalls hier, bleiben aber außerhalb der Sicherung — jede Maschine behält ihre eigenen) | **Ja**, und die Werte wirken ab dem nächsten Containerstart |
 | **Das Secrets-Volume** | `jwt/private.pem`, `jwt/public.pem` — Dateien daneben, auf dem Volume `app_secrets`, das jeder Dienst einbindet | **Ja.** Pro Datei und pro Installation gemessen |
-| **Die Datenbank** | Das Firebase-Projekt, die Mail-OAuth-Registrierungen, die Einstellungen der Integrationsanbieter — alles, was ein Administrator in ein Formular getippt hat statt in eine Datei | **Ja**, sofort |
+| **Die Datenbank** | Das Firebase-Projekt, die Mail-OAuth-Registrierungen, die Einstellungen der Integrationsanbieter, die Assistenten-Konfiguration, die gewählte Log-Stufe — alles, was ein Administrator in ein Formular getippt hat statt in eine Datei | **Ja**, sofort |
 | **Die Datenbank, noch einmal** | Die Benutzer, und je Benutzer die Mailkonten samt Zugangsdaten, Aliasse, Integrationen, Filter, Labels, Kalender und veröffentlichte Links | **Ja**, sofort — aber nur solche, die diese Installation noch nicht hat. Siehe [Benutzer](#benutzer) |
 
 **Das ist nicht dieselbe Aussage, die plMail früher gemacht hat.** Frühere Versionen führten jeden
@@ -141,7 +141,19 @@ mailProviders         pro Anbieter (google, microsoft): Client-ID, Client-Secret
                       der Pub/Sub-Verifizierungstoken, der Einstellungs-Bag
 integrationProviders  pro Anbieter (nextcloud, immich, googleDrive, …): aktiviert,
                       Basis-URL, Client-ID, Client-Secret, der Einstellungs-Bag
+aiSettings            der Assistent: ob er an ist, der Modell-Host und sein
+                      Zugangstoken, das Chat- und das Embedding-Modell samt
+                      Embedding-Größe, die vier Funktionsschalter und jeder
+                      Prompt, den die Administration umgeschrieben hat
+logSettings           die im Panel gewählte Log-Stufe — null, wenn die
+                      Installation stattdessen APP_DB_LOG_LEVEL folgt; dann wird
+                      auch null exportiert und nicht die Stufe, die dabei
+                      herauskäme
 ```
+
+Jeder der fünf fehlt in der Datei, wenn nichts konfiguriert ist, und ein fehlender bleibt beim
+Import unangetastet — deinen Firebase-Key wiederherzustellen kann also niemandem den Assistenten
+abschalten.
 
 <a id="benutzer"></a>
 **Benutzer** — ein Objekt mit der E-Mail-Adresse als Schlüssel, denn danach ordnet ein Import zu.
@@ -150,14 +162,19 @@ Pro Person:
 ```
 das Konto            Anzeigename, Passwort-HASH (nie ein Passwort — den Klartext
                      gibt es nirgends), Administratorrolle, Sprache, Zeitzone,
-                     Erscheinungsbild, Oberflächen-Einstellungen, Onboarding-Stand
+                     Erscheinungsbild, Oberflächen-Einstellungen,
+                     Assistenten-Einstellungen, Onboarding-Stand
 zweiter Faktor       das TOTP-Geheimnis, sein Bestätigungsdatum und die noch
                      ungenutzten Wiederherstellungscodes (bereits SHA-256-Digests)
 App-Passwörter       Name, Hinweis und Hash je Zugangsdatum, mit lastUsedAt und
                      revokedAt. Sie sind es, die JMAP-Clients angemeldet halten
 Mailkonten           IMAP-/SMTP-Host, Port und Verschlüsselung, Benutzername,
                      Passwort, OAuth-Anbieter samt Access- und Refresh-Token,
-                     dazu die Aliasse jedes Kontos
+                     die vom Anbieter erteilten Scopes, Reihenfolge und Farbe,
+                     die du vergeben hast, welches Konto standardmäßig sendet,
+                     Signatur und Lesebestätigungs-Vorgabe des Kontos — dazu
+                     jeder Alias, mit eigener Signatur und eigener
+                     Lesebestätigungs-Vorgabe, wo du eine gesetzt hast
 Integrationen        je Verbindung: Anbieter, Basis-URL, Benutzername, Secret oder
                      OAuth-Token, der Einstellungs-Bag
 Filter               Bedingungen und Aktionen; die Label-, Konto- und
@@ -176,8 +193,15 @@ Gerät ist es ein *übersprungener zweiter Faktor*, dessen Wiederherstellung das
 umziehen würde; **Label-Bindungen**, also die Identität eines Labels beim Anbieter, die die erste
 Synchronisierung neu herleitet; **Synchronisierungsstand** — Cursor, History-IDs,
 Watch-Registrierungen, Kalender-Push-Kanäle, Backfill-Zähler —, der zu dem Host gehört, der
-synchronisiert hat; und **Avatare und Hintergrundbilder**, die Dateinamen in einem Storage-Volume
-sind, das diese Datei nicht mitführt. Soft-gelöschte Benutzer werden nicht exportiert: `deletedAt`
+synchronisiert hat; und **Avatare, Hintergrundbilder und eine gespeicherte handschriftliche
+Unterschrift**, die Dateinamen in einem Storage-Volume sind, das diese Datei nicht mitführt — den
+Namen eines Bildes wiederherzustellen, das nicht da ist, wäre schlechter als gar nichts. Zwei
+Lesemarken bleiben aus demselben Grund zurück, aus dem ein Lesezeichen nicht mit dem Buch reist:
+**wann du zuletzt auf die Log-Seite gesehen hast** und **wann du zuletzt den Insight-Streifen
+weggeklickt hast** (die Entscheidung, ihn abzuschalten, reist mit). **Vertraute Bild-Absender** —
+die Adressen, von denen plMail Bilder laden darf — sind ebenfalls nicht dabei; Bilder sind danach
+wieder blockiert, was die sichere Richtung ist, und die Entscheidung ist ein Klick pro Absender,
+sobald die Mail eintrifft. Soft-gelöschte Benutzer werden nicht exportiert: `deletedAt`
 ist eine Entscheidung, und eine Wiederherstellung respektiert sie. Ein Konto, das die
 Administration **abgeschaltet** hat, wird exportiert und kommt abgeschaltet zurück — aus demselben
 Grund: Auch das ist eine Entscheidung, und eine Wiederherstellung, die dem Konto die Anmeldung still

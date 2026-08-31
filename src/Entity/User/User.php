@@ -234,6 +234,29 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
     public ?\DateTimeImmutable $deletedAt = null;
 
     /**
+     * The address this user held when they were removed.
+     *
+     * Removal frees the address on purpose — the delete action rewrites $email
+     * to `deleted-<id>@invalid` so the same person can be added back later —
+     * and that rewrite destroys the only copy of what they were called. This is
+     * the second copy, written at the same moment and never afterwards.
+     *
+     * It exists because a config restore has to be able to recognise somebody
+     * an administrator removed. {@see ConfigBackupUserRestorer} refuses to
+     * recreate a removed user, on the grounds that quietly returning a password
+     * hash, a TOTP secret and every mailbox credential to a removed account is
+     * worse than restoring nothing — but it can only refuse what it can
+     * identify, and after the rewrite there was nothing left to match on. The
+     * restore had been recreating them, live, as ordinary new users.
+     *
+     * Deliberately not unique and deliberately not backfilled: an address may
+     * be held and released more than once, and rows tombstoned before this
+     * column existed have no address left to record. See the migration.
+     */
+    #[ORM\Column(length: 180, nullable: true)]
+    public ?string $emailAtDeletion = null;
+
+    /**
      * When an administrator suspended this account, if they have.
      *
      * The middle setting between "can sign in" and "removed", and the one the

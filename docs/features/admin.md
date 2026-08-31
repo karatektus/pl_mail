@@ -448,7 +448,9 @@ Changing your **own** password is not here at all — it is in
 ## Backup
 
 Everything this installation is *configured* with, in one password-encrypted file — and the way to
-put it back. Not mail: no messages, no calendars, no user accounts. See
+put it back. Not mail: no messages, no calendar events, no attachments. It **does** carry the people
+— every account on the install, with their password hashes, two-factor secrets, app passwords and
+every mailbox credential they have saved. See
 [Configuration backup](../install/config-backup.md) for the whole story, including the file format,
 which is documented so the file never depends on plMail being able to run.
 
@@ -467,12 +469,13 @@ has three parts, in descending order of how much they should concern you:
   the files beside it. Those are the files the container entrypoint reads when it starts, so they
   are in place at once and *in force* after one restart. The page says that once, for the whole
   list.
-- **What is still yours to do**, which on a stock stack is two or three names at most: a value your
-  compose file pins to something non-empty overrides the restored one at the next start, and
-  `POSTGRES_PASSWORD` belongs to a role inside a database plMail is only a client of. Each comes
-  back with the exact line and the reason it is here.
-- **Worth knowing**: `APP_ENCRYPTION_KEY`, which is deliberately not written, because the
-  credentials the import just wrote are encrypted with the key currently in force.
+- **What is still yours to do**, which on a stock stack should be empty: it fills only when your
+  compose file pins a value to something non-empty, which then overrides the restored one at the
+  next start. Each comes back with the exact line and the reason it is here, and a list that is not
+  empty is worth reading rather than skimming.
+- A disclosure headed **"Also restoring the old database? You will need its old encryption key"**,
+  which explains why `APP_ENCRYPTION_KEY` is deliberately not written: the credentials the import
+  just wrote are encrypted with the key currently in force.
 
 Each line also says whether it is new here, replaces something different, or already matches. That
 middle state is worth stopping at: restoring onto a running install replaces live credentials.

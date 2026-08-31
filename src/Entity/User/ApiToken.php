@@ -124,6 +124,7 @@ class ApiToken
         string $hint,
         ?DateTimeImmutable $lastUsedAt,
         ?DateTimeImmutable $revokedAt,
+        ?DateTimeImmutable $createdAt = null,
     ): self {
         $token = new self($usr, $name);
 
@@ -131,6 +132,19 @@ class ApiToken
         $token->hint       = $hint;
         $token->lastUsedAt = $lastUsedAt;
         $token->revokedAt  = $revokedAt;
+
+        // The export has always written this and the restore has always thrown
+        // it away, leaving TimestampableTrait to stamp the moment of the
+        // restore instead — so every app password came back created today, and
+        // the settings page, which orders by it, listed them in an order their
+        // owner never had. The user row beside them already solves this with
+        // restoreCreatedAt(); this was inconsistency rather than policy.
+        //
+        // Nullable and defaulted, because a version 1 or 2 document may not
+        // carry it and the trait's own stamp is the right answer then.
+        if (null !== $createdAt) {
+            $token->createdAt = $createdAt;
+        }
 
         return $token;
     }

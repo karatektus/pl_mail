@@ -12,6 +12,7 @@ use App\Domain\Enum\Backup\ConfigBackupDisposition;
 use App\Domain\Enum\Backup\ConfigBackupSection;
 use App\Domain\Enum\Integration\Provider;
 use App\Domain\Exception\ConfigBackupException;
+use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use App\Infrastructure\Backup\ConfigBackupCipher;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
@@ -280,19 +281,45 @@ final readonly class ConfigBackupImporter
      *
      * @return list<ConfigBackupPlanItem>
      */
+    /**
+     * The database-section keys that are one row rather than a family.
+     *
+     * @var list<string>
+     */
+    private const array SINGLETON_TABLES = [
+        ConfigBackupDatabase::FCM_CONFIG,
+        ConfigBackupDatabase::AI_SETTINGS,
+        ConfigBackupDatabase::LOG_SETTINGS,
+    ];
+
     private function databaseItems(array $database): array
     {
         $current = $this->database->current();
         $items   = [];
 
-        $fcm        = $database[ConfigBackupDatabase::FCM_CONFIG] ?? null;
-        $currentFcm = $current[ConfigBackupDatabase::FCM_CONFIG] ?? null;
+        // The singletons — one row each, one item each, keyed by the section
+        // name with no dot in it. A loop rather than three copies of the same
+        // six lines: the FCM one stood alone for months and neither of the two
+        // added since would have been noticed missing from a shape that has to
+        // be repeated to be extended.
+        //
+        // Absent stays absent. A document with no aiSettings key produces no
+        // item, and applyDatabase() therefore never touches the live row — the
+        // same rule the providers follow, and the reason restoring "just my
+        // Firebase key" cannot quietly switch somebody's assistant off.
+        foreach (self::SINGLETON_TABLES as $table) {
+            $values = $database[$table] ?? null;
 
-        if (is_array($fcm)) {
+            if (false === is_array($values)) {
+                continue;
+            }
+
+            $live = $current[$table] ?? null;
+
             $items[] = new ConfigBackupPlanItem(
                 ConfigBackupSection::Database,
-                ConfigBackupDatabase::FCM_CONFIG,
-                $this->changeForArray(is_array($currentFcm) ? $currentFcm : null, $fcm),
+                $table,
+                $this->changeForArray(is_array($live) ? $live : null, $values),
                 ConfigBackupDisposition::Applied,
             );
         }
@@ -402,9 +429,20 @@ final readonly class ConfigBackupImporter
 
             [$table, $key] = array_pad(explode('.', $item->key, 2), 2, '');
 
-            if (ConfigBackupDatabase::FCM_CONFIG === $table) {
-                $fcm = $database[ConfigBackupDatabase::FCM_CONFIG] ?? [];
-                $this->database->restoreFcmConfig(is_array($fcm) ? $fcm : []);
+            if (in_array($table, self::SINGLETON_TABLES, true)) {
+                $values = $database[$table] ?? [];
+                $values = is_array($values) ? $values : [];
+
+                // No default arm: the in_array() above has already narrowed
+                // $table to these three, and an unhandled one should be a loud
+                // UnhandledMatchError rather than a silent skip — a singleton
+                // added to SINGLETON_TABLES and forgotten here would otherwise
+                // plan a row and quietly not write it.
+                match ($table) {
+                    ConfigBackupDatabase::FCM_CONFIG   => $this->database->restoreFcmConfig($values),
+                    ConfigBackupDatabase::AI_SETTINGS  => $this->database->restoreAiSettings($values),
+                    ConfigBackupDatabase::LOG_SETTINGS => $this->database->restoreLogSettings($values),
+                };
 
                 continue;
             }
@@ -448,8 +486,29 @@ final readonly class ConfigBackupImporter
 
             $document = $users[$item->key] ?? null;
 
-            if (is_array($document)) {
+            if (false === is_array($document)) {
+                continue;
+            }
+
+            // Translated rather than demoted, and that is forced rather than
+            // chosen. The principle everywhere else here is that a failed write
+            // demotes its own item and lets the rest through — but a violated
+            // constraint aborts the PostgreSQL transaction this runs inside, so
+            // there is no "rest" to let through: the next statement would fail
+            // too, with a message about the transaction rather than about the
+            // cause. The honest shape is to stop and say why.
+            //
+            // Reachable because some of the rows a user owns are unique across
+            // the WHOLE install rather than per person — api_token.token_hash,
+            // and the two token digests on share links and booking pages — and
+            // a soft delete cascades nothing, so a removed user's tokens are
+            // still there holding those values. It escaped as an uncaught 500
+            // before this, on the exact path the handbook tells an operator to
+            // take.
+            try {
                 $this->restorer->restore($item->key, $document);
+            } catch (UniqueConstraintViolationException $e) {
+                throw ConfigBackupException::collision($item->key, $e->getMessage());
             }
         }
     }

@@ -105,8 +105,22 @@ final readonly class ConfigBackupUserRestorer
      * The id of the user this install already has under that address, deleted
      * or not, without hydrating them.
      *
-     * Deleted ones count, because this answers "may I create one" and the
-     * unique index on `email` does not care that a row is soft deleted.
+     * Deleted ones count, and finding them takes two columns rather than one.
+     * This used to ask about `email` alone, on the stated grounds that a
+     * tombstone still holds the address against the unique index. It stopped:
+     * the admin delete action frees the address on purpose, rewriting it to
+     * `deleted-<id>@invalid` so the same person can be added back — and from
+     * then on this returned null for every removed user, the plan called them
+     * Absent, and the restore recreated them live, with the password hash, TOTP
+     * secret, recovery codes and mailbox credentials the removal had ended.
+     * Listed on the review page as an ordinary creation, indistinguishable from
+     * a genuinely new colleague.
+     *
+     * `emailAtDeletion` is the copy the rewrite would otherwise have destroyed,
+     * so the question this asks is now the question the policy depends on: has
+     * this install ever had somebody under that address. Rows tombstoned before
+     * that column existed have nothing recorded and remain invisible here —
+     * a finite set that only shrinks, and better than a guess.
      *
      * **An id and not an entity, and that is not a micro-optimisation.**
      * findOneBy() builds a User, and building a User decrypts its TOTP secret —
@@ -120,9 +134,24 @@ final readonly class ConfigBackupUserRestorer
      */
     public function existingId(string $email): ?int
     {
+        // Live first, tombstone second, and asked as two queries rather than
+        // one OR with an ordering. An address can be held, released and taken
+        // again, so both may match — and the live row must win, because
+        // liveVersionOf() can read a real user from it and the review then says
+        // "differs" instead of the "deleted or unreadable" a null forces it to.
+        // Expressing that preference inside one query means ordering by
+        // deletedAt and depending on where the engine puts NULLs, which in
+        // PostgreSQL is last for ASC — the wrong end, and wrong quietly.
+        return $this->idWhere('user.email = :email', $email)
+            ?? $this->idWhere('user.emailAtDeletion = :email', $email);
+    }
+
+    /** One indexed lookup answering with an id and nothing else. */
+    private function idWhere(string $predicate, string $email): ?int
+    {
         $id = $this->users->createQueryBuilder('user')
             ->select('user.id')
-            ->andWhere('user.email = :email')
+            ->andWhere($predicate)
             ->setParameter('email', $email)
             ->setMaxResults(1)
             ->getQuery()
@@ -162,6 +191,7 @@ final readonly class ConfigBackupUserRestorer
         $this->entityManager->flush();
 
         $this->retargetAccountCalendars($accounts, $calendars);
+        $this->applyAliasOverrides($accounts, $this->rows($document, 'accounts'));
         $this->createRules($user, $this->rows($document, 'rules'), $accounts, $labels, $integrations);
 
         $this->entityManager->flush();
@@ -287,6 +317,7 @@ final readonly class ConfigBackupUserRestorer
             $account->oauthAccessToken  = $this->text($row, 'oauthAccessToken');
             $account->oauthRefreshToken = $this->text($row, 'oauthRefreshToken');
             $account->oauthTokenExpiry  = $this->moment($row, 'oauthTokenExpiry');
+            $account->oauthGrantedScopes = $this->text($row, 'oauthGrantedScopes');
             $account->isActive          = true === ($row['isActive'] ?? false);
             $account->pushEnabled       = true === ($row['pushEnabled'] ?? false);
 
@@ -373,6 +404,7 @@ final readonly class ConfigBackupUserRestorer
             $integration->oauthAccessToken  = $this->text($row, 'oauthAccessToken');
             $integration->oauthRefreshToken = $this->text($row, 'oauthRefreshToken');
             $integration->oauthTokenExpiry  = $this->moment($row, 'oauthTokenExpiry');
+            $integration->oauthGrantedScopes = $this->text($row, 'oauthGrantedScopes');
             $integration->isActive          = true === ($row['isActive'] ?? true);
             $integration->settings          = $this->map($row, 'settings');
 
@@ -491,6 +523,7 @@ final readonly class ConfigBackupUserRestorer
                 (string) ($this->text($row, 'hint') ?? ''),
                 $this->moment($row, 'lastUsedAt'),
                 $this->moment($row, 'revokedAt'),
+                $this->moment($row, 'createdAt'),
             ));
         }
     }
@@ -651,6 +684,70 @@ final readonly class ConfigBackupUserRestorer
             }
 
             $account->setSetting(Account::SETTING_CALENDAR_TARGET, ($calendars[$target] ?? null)?->id);
+        }
+    }
+
+    /**
+     * Put the per-alias signature and read-receipt overrides back, under the
+     * ids the aliases have on THIS install.
+     *
+     * The account settings bag keys them by alias row id, so they cannot be
+     * copied across verbatim — `compose.signature.alias.41` on the source names
+     * alias 41 there, which on the target is a different person's address or no
+     * row at all. Carrying them in the bag would have been worse than dropping
+     * them, and dropping them is what happened.
+     *
+     * So they travel inside their alias, where the ADDRESS identifies them, and
+     * are written here once the inserts have handed out ids. The same shape and
+     * the same moment as retargetAccountCalendars() above.
+     *
+     * Matched by address rather than by position: an alias the document lists
+     * but the restore skipped (no address, so no row) would otherwise shift
+     * every override after it onto the wrong address — signing mail from one
+     * account with another one's footer, which is the kind of wrong that is
+     * only noticed after it has been sent.
+     *
+     * @param array<int, Account>        $accounts keyed by the id they had in the file
+     * @param list<array<string, mixed>> $rows     the account rows from the document
+     */
+    private function applyAliasOverrides(array $accounts, array $rows): void
+    {
+        foreach ($rows as $row) {
+            $account = $accounts[$this->number($row, 'id') ?? 0] ?? null;
+
+            if (null === $account) {
+                continue;
+            }
+
+            $byAddress = [];
+
+            foreach ($account->aliases as $alias) {
+                if (true === $alias instanceof EmailAlias && null !== $alias->id) {
+                    $byAddress[$alias->address] = $alias->id;
+                }
+            }
+
+            foreach ($this->rows($row, 'aliases') as $aliasRow) {
+                $address = $this->text($aliasRow, 'address');
+                $id      = null === $address ? null : ($byAddress[$address] ?? null);
+
+                if (null === $id) {
+                    continue;
+                }
+
+                // Presence, not truthiness. An empty-string signature is a
+                // deliberate "this alias signs with nothing", which is a
+                // different statement from inheriting the account's — see
+                // Account::SETTING_SIGNATURE — and a null-check that treated
+                // them alike would turn the first into the second.
+                if (array_key_exists('signature', $aliasRow) && null !== $aliasRow['signature']) {
+                    $account->setSetting(Account::signatureAliasSetting($id), $aliasRow['signature']);
+                }
+
+                if (array_key_exists('readReceiptDefault', $aliasRow) && null !== $aliasRow['readReceiptDefault']) {
+                    $account->setSetting(Account::readReceiptAliasSetting($id), $aliasRow['readReceiptDefault']);
+                }
+            }
         }
     }
 

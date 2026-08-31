@@ -26,7 +26,7 @@ oppositely — it overwrites the operator's settings and it never overwrites a p
 |---|---|---|
 | **The generated secrets file** | `APP_ENCRYPTION_KEY`, the VAPID keys, the OAuth client credentials, `APP_PUBLIC_URL` — `var/secrets/generated.env`, minted on first start and loaded by the entrypoint before anything else runs. (`APP_SECRET` and `MERCURE_JWT_SECRET` live here too but stay out of the backup — each machine keeps its own) | **Yes**, and the values take effect at the next container start |
 | **The secrets volume** | `jwt/private.pem`, `jwt/public.pem` — files beside that one, on the `app_secrets` volume every service mounts | **Yes.** Measured per file, per install |
-| **The database** | The Firebase project, the mail OAuth registrations, the integration provider settings — everything an admin typed into a form rather than into a file | **Yes**, immediately |
+| **The database** | The Firebase project, the mail OAuth registrations, the integration provider settings, the assistant configuration, the chosen log level — everything an admin typed into a form rather than into a file | **Yes**, immediately |
 | **The database, again** | The users, and per user their mail accounts and credentials, aliases, integrations, filters, labels, calendars and published links | **Yes**, immediately — but only ones this install does not already have. See [Users](#users) |
 
 **This is not the same claim plMail used to make.** Earlier versions listed every environment value
@@ -133,7 +133,17 @@ mailProviders         per provider (google, microsoft): client id, client secret
                       the Pub/Sub verification token, the settings bag
 integrationProviders  per provider (nextcloud, immich, googleDrive, …): enabled,
                       base URL, client id, client secret, the settings bag
+aiSettings            the assistant: whether it is on, the model host and its
+                      access token, the chat and embedding models and the
+                      embedding size, the four feature switches, and any prompt
+                      an administrator has rewritten
+logSettings           the log level chosen in the panel — null when the install
+                      is following APP_DB_LOG_LEVEL instead, which is exported
+                      as null rather than as the level that variable resolves to
 ```
+
+Each of the five is *absent* from the file when nothing is configured, and an absent one is left
+alone on import — restoring your Firebase key cannot switch somebody's assistant off.
 
 <a id="users"></a>
 **Users** — an object keyed by email address, because that is what an import matches on. Per person:
@@ -141,14 +151,18 @@ integrationProviders  per provider (nextcloud, immich, googleDrive, …): enable
 ```
 the account          display name, password HASH (never a password — the
                      plaintext exists nowhere), admin role, locale, timezone,
-                     appearance, interface preferences, onboarding state
+                     appearance, interface preferences, assistant preferences,
+                     onboarding state
 two-factor           the TOTP secret, its confirmation date, and the unused
                      recovery codes (already SHA-256 digests)
 app passwords        name, hint and hash per credential, with lastUsedAt and
                      revokedAt. These are what keeps JMAP clients signed in
 mail accounts        IMAP/SMTP host, port and encryption, username, password,
-                     OAuth provider and its access/refresh tokens, plus each
-                     account's aliases
+                     OAuth provider and its access/refresh tokens, the scopes
+                     the provider granted, the order and colour you gave them
+                     and which one sends by default, the account's signature
+                     and read-receipt default — plus each alias, with its own
+                     signature and read-receipt default where you set one
 integrations         per connection: provider, base URL, username, secret or
                      OAuth tokens, the settings bag
 filters              conditions and actions, with the label, account and
@@ -166,8 +180,14 @@ subscriptions**, which are grants to one browser or one phone and, in the truste
 *skipped second factor* — restoring those would weaken the account rather than move it; **label
 bindings**, a label's identity on a provider, which the first sync re-derives; **sync state** —
 cursors, history ids, watch registrations, calendar push channels, backfill counters — which belongs
-to the host that did the syncing; and **avatars and background images**, which are filenames in a
-storage volume this file does not carry. Soft-deleted users are not exported: `deletedAt` is a
+to the host that did the syncing; and **avatars, background images and a saved handwritten
+signature**, which are filenames in a storage volume this file does not carry — restoring the name
+of a picture that is not there is worse than restoring nothing. Two read markers stay behind for the
+same reason a bookmark does not travel with a book: **when you last looked at the log page**, and
+**when you last dismissed the insight strip** (the choice to switch that strip off does travel).
+**Trusted image senders** — the addresses you have told plMail it may load pictures from — are not
+carried either; images go back to blocked, which is the safe direction, and the decision is one
+click each as the mail arrives. Soft-deleted users are not exported: `deletedAt` is a
 decision, and a restore honours it. An account an administrator has **switched off** is exported and
 comes back switched off, for the same reason — it is also a decision, and a restore that quietly
 handed the account its sign-in back would report success on the one screen you read to check the

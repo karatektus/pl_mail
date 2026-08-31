@@ -63,8 +63,20 @@ final readonly class ConfigBackupExporter
      * document opened by a v0.0.20 plMail is refused outright by that same
      * check, which is the correct answer: it would otherwise restore the
      * configuration and silently drop every account in the file.
+     *
+     * **3** — added `database.aiSettings` and `database.logSettings`: the two
+     * admin-configured singletons the section had never carried. The same
+     * bargain as the bump before it. A version 2 document simply has neither
+     * key, the planner produces no item for an absent singleton, and the live
+     * rows are left alone — which is the right answer, since a file that never
+     * described the assistant should not be able to switch it off.
+     *
+     * The bump is what stops the reverse: a version 3 file opened by a plMail
+     * that predates these keys would restore everything else and silently leave
+     * the assistant unconfigured, on an install whose operator had just been
+     * told their configuration was restored. Refusing outright says so.
      */
-    public const int DOCUMENT_VERSION = 2;
+    public const int DOCUMENT_VERSION = 3;
 
     public function __construct(
         private ConfigBackupCipher      $cipher,

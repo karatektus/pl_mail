@@ -68,6 +68,19 @@ final readonly class ConfigBackupCipher
     public const int MEMLIMIT = SODIUM_CRYPTO_PWHASH_MEMLIMIT_INTERACTIVE;
 
     /**
+     * argon2id's own lower bound for memlimit, in bytes.
+     *
+     * libsodium refuses anything smaller by THROWING rather than by returning a
+     * weaker key, so this bounds what may reach sodium at all — it is not a
+     * policy about strength. bounded() had a ceiling and no floor, and an
+     * envelope declaring `memlimit: 1` therefore passed every check here and
+     * took a SodiumException out through open(), past two controllers that
+     * catch only ConfigBackupException, onto a blank error page. One of those
+     * doors is the anonymous /install/restore.
+     */
+    private const int MEMLIMIT_FLOOR = 8192;
+
+    /**
      * The shortest password this will seal a file with.
      *
      * Argon2id makes a short password expensive to guess, not safe: this file
@@ -87,12 +100,23 @@ final readonly class ConfigBackupCipher
         $nonce = random_bytes(SODIUM_CRYPTO_SECRETBOX_NONCEBYTES);
         $key   = $this->deriveKey($password, $salt);
 
-        $plaintext = json_encode($document, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES);
+        // try/finally, because the guarantee this makes is about the ABNORMAL
+        // path as much as the normal one. json_encode() throws on malformed
+        // UTF-8, and a throw between here and the memzero below left the
+        // derived key — and the whole decrypted document — sitting in the
+        // request arena for the rest of the process, which is the one case the
+        // wiping exists for.
+        try {
+            $plaintext = json_encode($document, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES);
 
-        $sealed = sodium_crypto_secretbox($plaintext, $nonce, $key);
+            $sealed = sodium_crypto_secretbox($plaintext, $nonce, $key);
+        } finally {
+            if (true === isset($plaintext) && is_string($plaintext)) {
+                sodium_memzero($plaintext);
+            }
 
-        sodium_memzero($plaintext);
-        sodium_memzero($key);
+            sodium_memzero($key);
+        }
 
         return json_encode([
             'format'  => self::FORMAT,
@@ -166,11 +190,13 @@ final readonly class ConfigBackupCipher
             throw ConfigBackupException::wrongPassword();
         }
 
-        $document = $this->decodeJson($plaintext, 'document');
-
-        sodium_memzero($plaintext);
-
-        return $document;
+        // Same reason as seal(): decodeJson() throws on a document that opened
+        // but is not JSON, and the plaintext must be gone either way.
+        try {
+            return $this->decodeJson($plaintext, 'document');
+        } finally {
+            sodium_memzero($plaintext);
+        }
     }
 
     // ── Private ───────────────────────────────────────────────────────────────
@@ -191,6 +217,30 @@ final readonly class ConfigBackupCipher
 
         if (false === is_int($value) || $value < 1) {
             throw ConfigBackupException::notABackup(sprintf('The KDF "%s" is missing or not a positive integer.', $name));
+        }
+
+        // libsodium has floors of its own, and below them argon2id does not
+        // return a weaker key — it throws. There was a ceiling here and no
+        // floor, so an envelope declaring `memlimit: 1` passed every check in
+        // this class and then took a SodiumException out through open(), past
+        // two controllers that catch only ConfigBackupException, and onto an
+        // error page with no message. One of those doors is the anonymous
+        // /install/restore.
+        //
+        // Stated here rather than caught later, which is what the class docblock
+        // promises: every check before the expensive one, and nothing reaching
+        // sodium that sodium will refuse.
+        // Spelled out rather than read from a constant: libsodium defines
+        // crypto_pwhash_MEMLIMIT_MIN in its C headers and PHP's extension does
+        // not re-export it, so there is nothing to reference. opslimit needs no
+        // floor of its own — its minimum is 1, which the positive-integer check
+        // above already enforces.
+        if ('memlimit' === $name && $value < self::MEMLIMIT_FLOOR) {
+            throw ConfigBackupException::notABackup(sprintf(
+                'The KDF "memlimit" of %d is below what argon2id accepts (%d).',
+                $value,
+                self::MEMLIMIT_FLOOR,
+            ));
         }
 
         // Four times what this writes: room for a backup made by a future

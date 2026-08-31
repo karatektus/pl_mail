@@ -250,6 +250,11 @@ admin:
             unsupported-version: >-
                 That backup was written by a newer plMail than this one, in a format this
                 version cannot read. Upgrade first, then import it.
+            collision: >-
+                That file describes somebody this installation already holds part of — an app
+                password, a share link or a booking page whose token is still registered here,
+                usually left behind by an account that was removed. Nothing has been changed.
+                Remove those leftovers, or import onto an installation that does not have them.
             wrong-password: >-
                 That password does not open this file — or the file has been altered since
                 it was written. Nothing has been changed.
@@ -310,7 +315,6 @@ admin:
                 a photograph of a moment that has passed, and writing it over a live
                 account is how somebody is locked out of their own mail without a word
                 anywhere.
-            notes: 'Worth knowing'
             old_key_summary: 'Also restoring the old database? You will need its old encryption key.'
             restart: >-
                 Most of this is read when the stack starts, so plMail writes it into the

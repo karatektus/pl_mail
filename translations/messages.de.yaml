@@ -255,6 +255,12 @@ admin:
                 Diese Sicherung stammt aus einer neueren plMail-Version und liegt in einem
                 Format vor, das diese Version nicht lesen kann. Aktualisiere zuerst, dann
                 importiere sie.
+            collision: >-
+                Die Datei beschreibt jemanden, von dem diese Installation noch Reste hat — ein
+                App-Passwort, einen Freigabe-Link oder eine Buchungsseite, deren Token hier noch
+                registriert ist, meist von einem entfernten Konto übrig geblieben. Es wurde
+                nichts geändert. Entferne diese Reste, oder importiere auf eine Installation
+                ohne sie.
             wrong-password: >-
                 Mit diesem Passwort lässt sich die Datei nicht öffnen — oder die Datei
                 wurde seit dem Schreiben verändert. Es wurde nichts geändert.
@@ -316,7 +322,6 @@ admin:
                 hatten. Eine Sicherung ist die Momentaufnahme eines vergangenen Zeitpunkts,
                 und sie über ein lebendes Konto zu schreiben ist der Weg, auf dem jemand
                 ohne ein Wort irgendwo aus seiner eigenen Mail ausgesperrt wird.
-            notes: 'Gut zu wissen'
             old_key_summary: 'Spielst du auch die alte Datenbank ein? Dann brauchst du ihren alten Verschlüsselungsschlüssel.'
             restart: >-
                 Das meiste davon wird beim Start des Stacks gelesen, deshalb schreibt es

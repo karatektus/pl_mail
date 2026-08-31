@@ -50,6 +50,23 @@ final class ConfigBackupException extends RuntimeException
         return new self(ConfigBackupFailure::MalformedDocument, $detail);
     }
 
+    /**
+     * A write inside the import hit a unique index.
+     *
+     * The email names the user being restored when it happened, which is the
+     * only handle an operator has on it — the colliding row is a hash or a
+     * digest and naming that would help nobody. The underlying exception goes
+     * in the message, for the log.
+     */
+    public static function collision(string $email, string $detail): self
+    {
+        return new self(ConfigBackupFailure::Collision, sprintf(
+            'Restoring %s hit a unique constraint: %s',
+            $email,
+            $detail,
+        ));
+    }
+
     public static function wrongPassword(): self
     {
         return new self(

@@ -9,6 +9,8 @@ use App\Domain\Enum\Ai\ReplyContext;
 use App\Domain\Enum\Backup\ConfigBackupChange;
 use App\Domain\Enum\Backup\ConfigBackupDisposition;
 use App\Domain\Enum\Backup\ConfigBackupSection;
+use App\Domain\Enum\Backup\ConfigBackupFailure;
+use App\Domain\Exception\ConfigBackupException;
 use App\Domain\Enum\Calendar\CalendarRole;
 use App\Domain\Enum\Integration\Provider;
 use App\Domain\Enum\Mail\LabelRole;
@@ -431,7 +433,27 @@ final class ConfigBackupUsersTest extends KernelTestCase
 
         $document = $this->exporter->document();
 
-        $this->connection->executeStatement('UPDATE "user" SET deleted_at = now() WHERE email = ?', [self::EMAIL]);
+        // Tombstoned the way the application actually tombstones — the address
+        // is FREED, not kept. The previous version of this test wrote
+        // `deleted_at` and left the email in place, which is a row
+        // Admin\User\DefaultController::delete() cannot produce: it rewrites
+        // the address to `deleted-<id>@invalid` first, precisely so the same
+        // person can be added back later. Holding the address was also the
+        // stated reason a removed user was safe from a restore, so testing the
+        // state the code never reaches meant the test passed while the
+        // behaviour it names had been broken for months. Every field below is
+        // one that action writes.
+        $this->connection->executeStatement(
+            'UPDATE "user"'
+            . ' SET email_at_deletion = email,'
+            . '     email = \'deleted-\' || id || \'@invalid\','
+            . '     name_first = \'Deleted\','
+            . '     name_last = \'User \' || id,'
+            . '     password = \'\','
+            . '     deleted_at = now()'
+            . ' WHERE email = ?',
+            [self::EMAIL],
+        );
         $this->entityManager->clear();
 
         $plan = $this->importer->apply($document);
@@ -443,13 +465,79 @@ final class ConfigBackupUsersTest extends KernelTestCase
         self::assertSame(ConfigBackupChange::Differs, $item->change);
 
         self::assertSame(
-            1,
+            0,
             (int) $this->connection->fetchOne('SELECT count(*) FROM "user" WHERE email = ?', [self::EMAIL]),
-            'the deleted user was resurrected or duplicated',
+            'the removed user was recreated under their old address — live, with the credentials the removal ended',
         );
-        self::assertNotNull(
-            $this->connection->fetchOne('SELECT deleted_at FROM "user" WHERE email = ?', [self::EMAIL]),
-            'the deletion was undone',
+        self::assertSame(
+            1,
+            (int) $this->connection->fetchOne(
+                'SELECT count(*) FROM "user" WHERE email_at_deletion = ? AND deleted_at IS NOT NULL',
+                [self::EMAIL],
+            ),
+            'the tombstone stopped being the only row for that address',
+        );
+    }
+
+    /**
+     * A row tombstoned before `email_at_deletion` existed is still invisible,
+     * and that is stated rather than pretended away.
+     *
+     * The column is the only copy of an address the delete action overwrites,
+     * so it cannot be backfilled — for rows removed before the migration there
+     * is nothing left to record, and inventing one would be a guess written
+     * into the column whose whole purpose is to be believed. Those users remain
+     * resurrectable by a restore. The set is finite and only shrinks.
+     *
+     * Held as a test because it is the honest limit of the fix above, and a
+     * limit nobody wrote down is indistinguishable from a bug nobody found.
+     */
+    public function testATombstoneFromBeforeTheColumnExistedIsNotRecognised(): void
+    {
+        $this->seedTheOperator();
+
+        $document = $this->exporter->document();
+
+        // The old shape exactly: address freed, nothing recorded.
+        $this->connection->executeStatement(
+            'UPDATE "user"'
+            . ' SET email = \'deleted-\' || id || \'@invalid\','
+            . '     email_at_deletion = NULL,'
+            . '     deleted_at = now()'
+            . ' WHERE email = ?',
+            [self::EMAIL],
+        );
+        $this->entityManager->clear();
+
+        $plan = $this->importer->plan($document);
+        $item = $this->itemFor($plan, ConfigBackupSection::Users, self::EMAIL);
+
+        self::assertSame(
+            ConfigBackupDisposition::Applied,
+            $item->disposition,
+            'nothing identifies this row, so the plan intends to create the user — the documented limit',
+        );
+
+        // What actually happens when it tries, and the second half of the same
+        // story. The tombstoned user still owns their app password, whose hash
+        // is unique across the whole install, so the write is refused. It used
+        // to escape as an uncaught UniqueConstraintViolationException and reach
+        // the operator as a blank 500; it is now a stated failure with a
+        // sentence attached, and the transaction still leaves nothing behind.
+        try {
+            $this->importer->apply($document);
+            self::fail('the colliding app password should have refused the restore');
+        } catch (ConfigBackupException $e) {
+            self::assertSame(ConfigBackupFailure::Collision, $e->failure);
+            self::assertStringContainsString(self::EMAIL, $e->getMessage(), 'the log line names who was being restored');
+        }
+
+        $this->entityManager->clear();
+
+        self::assertSame(
+            0,
+            (int) $this->connection->fetchOne('SELECT count(*) FROM "user" WHERE email = ?', [self::EMAIL]),
+            'the refused restore still wrote a user',
         );
     }
 
