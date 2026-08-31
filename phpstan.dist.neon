@@ -73,7 +73,7 @@ parameters:
             # Generated: 54 migrations nobody edits by hand, and a ~1000-line
             # dump of the framework config tree that exists to be read.
             - migrations
-            - config/reference.php
+            - config/reference.php (?)
             # Twig extensions lifted from upstream rather than written here.
             # NOTE: only Vendor/ — the rest of src/Twig is application code
             # (SidebarCounts and friends) and must stay analysed.

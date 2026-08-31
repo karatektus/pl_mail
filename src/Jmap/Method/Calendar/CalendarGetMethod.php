@@ -86,9 +86,11 @@ final class CalendarGetMethod implements JmapMethod
 
         return [
             'accountId' => (string) $account->id,
-            // Fixed, and CalendarState says why at length: calendars are
-            // written from four places and only this one could record a change,
-            // so a token here would sit still while a sync replaced the day.
+            // Still fixed, and now the only method that is: the change log
+            // records events, not the collections holding them, so a rename or
+            // a recolour moves nothing. CalendarState says what that costs —
+            // little, because a user has a handful of calendars and this method
+            // returns all of them by default.
             'state' => CalendarState::FIXED,
             'list' => $list,
             'notFound' => $notFound,

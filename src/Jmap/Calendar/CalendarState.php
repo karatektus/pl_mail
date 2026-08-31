@@ -5,36 +5,41 @@ declare(strict_types=1);
 namespace App\Jmap\Calendar;
 
 /**
- * The state string every calendar method returns, and why it is a constant.
+ * The state string Calendar/get returns, and why it alone is still a constant.
  *
- * Mail's state is a real token: `StateManager` writes one `jmap_change_log` row
- * per mutation and the autoincrement PK *is* the token, so `Email/get` can hand
- * a client a number that `Email/changes` will honour. That works because every
- * path that changes a JMAP-visible mail property calls `StateManager::record*`
- * — through `MailChangeRecorder`, which exists exactly so five callers cannot
- * each forget the same two things.
+ * This class used to explain why *every* calendar method answered with a fixed
+ * string: events are written from the sync engine, from extraction, from the
+ * web editor and from CalendarEvent/set, only the last of which lives in
+ * src/Jmap/, and a log recording a quarter of the writes "is not a weaker
+ * version of it, it is a lie with a number on it".
  *
- * Calendars have no such recorder, and could not be given one from inside this
- * directory. An event changes from four places: the sync engine pulling a
- * remote calendar, extraction reading a message, the web editor, and
- * `CalendarEvent/set` here. Only the last is in `src/Jmap/`. **A log that
- * recorded a quarter of the writes would be worse than none**: the token would
- * sit still while a pull replaced the whole day, and a client comparing states
- * would conclude nothing had changed and never refetch. Mail's log is
- * trustworthy because it is complete; a partial one is not a weaker version of
- * it, it is a lie with a number on it.
+ * That is fixed. `calendar_change_log` records every event write, and it is
+ * written by a Doctrine listener rather than by the writers — completeness by
+ * construction rather than by asking four callers to remember, which is what
+ * makes it trustworthy where a recorder would not have been. CalendarEvent/get,
+ * /query and /set now return real sequences, and CalendarEvent/changes exists.
  *
- * So the state is fixed and the methods say so in the only other way the
- * protocol offers: `canCalculateChanges` is false, there is no
- * `Calendar/changes` or `CalendarEvent/changes`, and a client re-runs its query
- * — which is what `Email/query` already asks for and is spec-legal.
+ * ── What is still fixed, and why that is honest ───────────────────────────
  *
- * The value is deliberately not a number. Should calendars later join the
- * change log — a `CalendarChangeRecorder` beside `MailChangeRecorder`, called by
- * all four writers, and `JmapObjectType` cases to match — tokens become
- * sequences, and a client still holding this one fails `ctype_digit` in
- * `StateManager::changesSince()` and is told to resync. That is the correct
- * degradation, and it is free.
+ * Calendars themselves. The log records events, keyed by the collection they
+ * are in; a calendar being renamed, recoloured, reordered or removed writes
+ * nothing. So Calendar/get keeps a constant state and there is no
+ * Calendar/changes — the same refusal as before, now covering one object type
+ * instead of two.
+ *
+ * That is a smaller gap than it sounds. A user has a handful of calendars and
+ * Calendar/get returns all of them by default, so re-running it is cheap and is
+ * what a client does anyway; there is no /query to page through. CalDAV, the
+ * other reader of this data, does not need it at all — a client discovers the
+ * collection set with a PROPFIND on the calendar-home-set, which is a live read
+ * and holds no token.
+ *
+ * ── If calendars later join the log ───────────────────────────────────────
+ *
+ * The shape is already there: give CalendarChangeLog a nullable event_id, or a
+ * sibling table, and record collection writes from the same listener. Clients
+ * holding this string then fail ctype_digit in CalendarChangeReader and are
+ * told to resync, which is the correct degradation and is free.
  */
 final class CalendarState
 {

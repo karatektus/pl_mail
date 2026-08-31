@@ -8,12 +8,12 @@ use App\Entity\Calendar\Calendar;
 use App\Entity\Calendar\CalendarEvent;
 use App\Infrastructure\Messaging\Message\SyncCalendarMessage;
 use App\Jmap\Account\CalendarAccountResolver;
-use App\Jmap\Calendar\CalendarState;
 use App\Jmap\Calendar\JmapEventWriter;
 use App\Jmap\Calendar\OccurrenceId;
 use App\Jmap\Method\JmapMethod;
 use App\Jmap\Protocol\Exception\MethodException;
 use App\Jmap\Protocol\JmapContext;
+use App\Service\Calendar\Change\CalendarChangeReader;
 use App\Repository\Calendar\CalendarEventRepository;
 use App\Service\Calendar\CalendarEventWriter;
 use Doctrine\ORM\EntityManagerInterface;
@@ -60,6 +60,7 @@ final class CalendarEventSetMethod implements JmapMethod
         private readonly CalendarEventWriter $writer,
         private readonly MessageBusInterface $bus,
         private readonly EntityManagerInterface $entityManager,
+        private readonly CalendarChangeReader $changes,
     ) {
     }
 
@@ -90,14 +91,21 @@ final class CalendarEventSetMethod implements JmapMethod
         $this->applyUpdates($context, $arguments['update'] ?? null, $updated, $notUpdated, $touched);
         $this->applyDestroys($context, $arguments['destroy'] ?? null, $destroyed, $notDestroyed, $touched);
 
+        // Read before the flush and again after it: the listener writes the
+        // log during that flush, so these two calls are what oldState and
+        // newState actually mean.
+        $oldState = $this->changes->stateForUser((int) $context->user->id);
+
         $this->entityManager->flush();
+
+        $newState = $this->changes->stateForUser((int) $context->user->id);
 
         $this->dispatchSync($touched);
 
         return [
             'accountId' => (string) $account->id,
-            'oldState' => CalendarState::FIXED,
-            'newState' => CalendarState::FIXED,
+            'oldState' => $oldState,
+            'newState' => $newState,
             'created' => 0 === count($created) ? new \stdClass() : $created,
             'notCreated' => 0 === count($notCreated) ? new \stdClass() : $notCreated,
             'updated' => 0 === count($updated) ? new \stdClass() : $updated,
