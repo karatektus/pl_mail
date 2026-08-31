@@ -6,6 +6,44 @@ so anything that changes the schema irreversibly is called out explicitly.
 The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, and `sha-…` pins one commit.
 
+## v0.2.14 — 2026-08-31
+
+**Adds one table; the migrations run on boot. Nothing is removed and nothing is rewritten. Your
+calendars can now be opened in the calendar app you already use — and the calendar finally knows
+what changed, which is what makes that fast.**
+
+### Added
+
+- **Your calendars, in Thunderbird, DAVx5, Evolution or Apple Calendar.** plMail speaks CalDAV now.
+  Point a client at your plMail address, sign in with an app password — the same kind that syncs
+  mail — and every calendar on the account appears, each as its own entry carrying the name, colour
+  and order it has here. Events can be created, edited and deleted from the client and land in
+  plMail. A calendar that mirrors Google or another server is offered read-only, because it is: an
+  edit that appeared to succeed and never left plMail would be worse than no edit at all.
+
+  The address is the only thing to type. Autodiscovery does the rest.
+
+  **Two limits, stated plainly.** A client can manage events but not calendars — creating, renaming
+  and recolouring a calendar stays in plMail's own settings. And invitations are still handled the
+  way plMail already handles them rather than over CalDAV, so scheduling and free/busy are
+  deliberately not offered: two systems sending invitations would send every RSVP twice.
+
+- **The calendar knows what changed, so syncing it is quick.** Until now every calendar sync was a
+  full re-read. The state a client is given never moved, and there was no way to ask what had
+  happened since — because an event changes from four different places, and a record that caught
+  only some of them would have been a number no client could trust. There is a complete one now,
+  written from inside the change itself rather than by anything that has to remember to call it. A
+  sync costs one request and the entries that actually moved.
+
+  This makes the phone app's calendar quicker too, whether or not you ever connect anything else.
+
+### Changed
+
+- **Two clients can no longer overwrite each other in silence.** Editing the same appointment from
+  two places used to mean the second write won and the first was gone, with nothing said. Both the
+  app and a CalDAV client now write against the calendar's state, and a change made on top of a
+  version that has since moved on is refused rather than applied.
+
 ## v0.2.13 — 2026-08-31
 
 **Adds one column to the user table. Nothing is removed and nothing is rewritten. If you hold
