@@ -1,7 +1,7 @@
 # Symfony be translatin' validation messages in the `validators` domain.
 admin.integrations.client_id_missing: Name th' client ID that goes with this secret.
 admin.integrations.secret_missing: Enter th' client secret an' all — an ID alone signs nobody aboard.
-admin.users.password_too_short: {{ limit }} marks at least — ye be choosin' this one for somebody else.
+admin.users.password_too_short: "{{ limit }} marks at least — ye be choosin' this one for somebody else."
 alias.invalid: That be no proper parrot address, matey.
 app_password.name_required: Give the ship's key a name, lest ye forget which lock it opens.
 caldav.address_required: Name the address o' yer CalDAV port — without one there be nobody to hail.
