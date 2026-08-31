@@ -115,6 +115,17 @@ final class IndexNewMailCommandTest extends KernelTestCase
 
     /**
      * It walks every mailbox when told to, which is how the schedule runs it.
+     *
+     * Asserted as "this mailbox was reached", not as "the queue is exactly
+     * this". The distinction is the one the first test's own docblock draws and
+     * this test used to ignore: unscoped, the command walks every mailbox in the
+     * install, so an equality here is an assertion about whatever else the test
+     * database happens to hold. That was safe only while the other seeded
+     * mailboxes were empty, and they stopped being empty — it passed in CI
+     * against a fresh database and failed on a machine that had run the app.
+     *
+     * The claim worth holding does not need equality anyway: the mailbox nobody
+     * named still got swept, and the ceiling is still spent on its newest mail.
      */
     public function testItSweepsEveryMailboxWhenNoneIsNamed(): void
     {
@@ -123,7 +134,20 @@ final class IndexNewMailCommandTest extends KernelTestCase
         $this->command->execute(['--limit' => (string) self::CEILING]);
 
         self::assertSame(Command::SUCCESS, $this->command->getStatusCode());
-        self::assertSame(array_slice(array_reverse($this->messageIds), 0, self::CEILING), $this->queuedIds());
+
+        $newest = array_slice(array_reverse($this->messageIds), 0, self::CEILING);
+
+        self::assertSame(
+            $newest,
+            array_values(array_intersect($this->queuedIds(), $newest)),
+            'the sweep reached a mailbox it was never told about, newest mail first',
+        );
+
+        self::assertSame(
+            [],
+            array_intersect($this->queuedIds(), array_slice(array_reverse($this->messageIds), self::CEILING)),
+            'and stopped at the ceiling rather than draining the mailbox',
+        );
     }
 
     /**

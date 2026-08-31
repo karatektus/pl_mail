@@ -36,6 +36,22 @@ final class AiBackfillStateRepositoryTest extends KernelTestCase
         $this->repository = self::getContainer()->get(AiBackfillStateRepository::class);
 
         $this->connection->beginTransaction();
+
+        // The transaction unwinds what these tests write; it cannot unwind what
+        // was already there. The table is a singleton, and on any machine that
+        // has run the app or the e2e suite its one row is present before the
+        // first test starts — carrying, among other things, a real
+        // interactive_seen_at from whenever somebody last opened the composer.
+        //
+        // touchInteractive() refuses to move that stamp backwards, which is the
+        // behaviour it exists to guarantee, so a row stamped later than the
+        // fixed date a test picks makes that test fail against its own input.
+        // It passed in CI and failed on a developer's machine, which is the
+        // shape of every inherited-state bug.
+        //
+        // Cleared here so each test establishes the state it asserts on rather
+        // than inheriting one. The rollback puts the original row back.
+        $this->connection->executeStatement('DELETE FROM ai_backfill_state');
     }
 
     protected function tearDown(): void
