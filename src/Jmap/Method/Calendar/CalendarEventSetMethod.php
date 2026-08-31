@@ -8,12 +8,12 @@ use App\Entity\Calendar\Calendar;
 use App\Entity\Calendar\CalendarEvent;
 use App\Infrastructure\Messaging\Message\SyncCalendarMessage;
 use App\Jmap\Account\CalendarAccountResolver;
-use App\Jmap\Calendar\CalendarState;
 use App\Jmap\Calendar\JmapEventWriter;
 use App\Jmap\Calendar\OccurrenceId;
 use App\Jmap\Method\JmapMethod;
 use App\Jmap\Protocol\Exception\MethodException;
 use App\Jmap\Protocol\JmapContext;
+use App\Service\Calendar\Change\CalendarChangeReader;
 use App\Repository\Calendar\CalendarEventRepository;
 use App\Service\Calendar\CalendarEventWriter;
 use Doctrine\ORM\EntityManagerInterface;
@@ -45,11 +45,13 @@ use Symfony\Component\Messenger\MessageBusInterface;
  * message per calendar, dispatched after the flush so the worker reads a
  * committed row.
  *
- * `ifInState` is refused rather than honoured. It asks the server to promise
- * that nothing has changed since a token was issued, and the calendar state is
- * fixed (see CalendarState) — so honouring it would always answer "nothing has
- * changed", which is not something this server knows. A guard that cannot fail
- * is worse than no guard, because a client would rely on it.
+ * `ifInState` is honoured now, and used to be refused. The refusal was right
+ * while the calendar state was a constant: a guard that can never fail is worse
+ * than no guard, because a client relies on it. With calendar_change_log behind
+ * the token the promise is one this server can actually keep, so a client that
+ * read at one state and writes expecting it to still hold is told
+ * `stateMismatch` rather than allowed to overwrite what it never saw. It is the
+ * same protection If-Match gives a CalDAV client, from the same number.
  */
 final class CalendarEventSetMethod implements JmapMethod
 {
@@ -60,6 +62,7 @@ final class CalendarEventSetMethod implements JmapMethod
         private readonly CalendarEventWriter $writer,
         private readonly MessageBusInterface $bus,
         private readonly EntityManagerInterface $entityManager,
+        private readonly CalendarChangeReader $changes,
     ) {
     }
 
@@ -72,16 +75,24 @@ final class CalendarEventSetMethod implements JmapMethod
     {
         $account = $this->accountResolver->resolve($context->user, $arguments['accountId'] ?? null);
 
-        if (true === array_key_exists('ifInState', $arguments) && null !== $arguments['ifInState']) {
-            throw new MethodException('invalidArguments', 'ifInState cannot be honoured: the calendar state is fixed, so it could only ever answer "nothing has changed".');
-        }
-
         $created = [];
         $notCreated = [];
         $updated = [];
         $notUpdated = [];
         $destroyed = [];
         $notDestroyed = [];
+
+        // Read before anything is applied: this is both the promise ifInState
+        // is checked against and the oldState the answer carries, and they have
+        // to be the same reading or the answer describes a different moment
+        // than the guard did.
+        $oldState = $this->changes->stateForUser((int) $context->user->id);
+
+        $ifInState = $arguments['ifInState'] ?? null;
+
+        if (is_string($ifInState) && $ifInState !== $oldState) {
+            throw new MethodException('stateMismatch', 'The calendars have changed since that state.');
+        }
 
         /** @var list<Calendar> $touched */
         $touched = [];
@@ -92,12 +103,14 @@ final class CalendarEventSetMethod implements JmapMethod
 
         $this->entityManager->flush();
 
+        $newState = $this->changes->stateForUser((int) $context->user->id);
+
         $this->dispatchSync($touched);
 
         return [
             'accountId' => (string) $account->id,
-            'oldState' => CalendarState::FIXED,
-            'newState' => CalendarState::FIXED,
+            'oldState' => $oldState,
+            'newState' => $newState,
             'created' => 0 === count($created) ? new \stdClass() : $created,
             'notCreated' => 0 === count($notCreated) ? new \stdClass() : $notCreated,
             'updated' => 0 === count($updated) ? new \stdClass() : $updated,

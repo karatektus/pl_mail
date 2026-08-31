@@ -7,7 +7,13 @@ and push over both EventSource and Web Push. Plus calendars, recipient
 autocomplete and the user's appearance, all under vendor URNs rather than an
 unratified draft's.
 
-**27 methods**, 6 HTTP endpoints. Tested against ltt.rs (Bearer) and Sterna
+Calendars count in their own log rather than `jmap_change_log` — see
+`App\Entity\Calendar\CalendarChangeLog` for why neither half of that table's
+key fits one — and `App\Service\Calendar\Change\CalendarChangeReader` is the
+`StateManager` equivalent behind `Calendar/changes` and `CalendarEvent/changes`.
+The same log is what CalDAV's sync-collection counts in.
+
+**29 methods**, 6 HTTP endpoints. Tested against ltt.rs (Bearer) and Sterna
 Mail (Basic).
 
 | | |
@@ -19,8 +25,8 @@ Mail (Basic).
 | `Identity/` | `get`, `set` |
 | `EmailSubmission/` | `get`, `set`, `changes` |
 | `SearchSnippet/` | `get` |
-| `Calendar/` | `get` |
-| `CalendarEvent/` | `get`, `query`, `set` |
+| `Calendar/` | `get`, `changes` |
+| `CalendarEvent/` | `get`, `query`, `changes`, `set` |
 | `Appearance/` | `get`, `set` (plMail extension: the user's theme, a singleton) |
 | `Contact/` | `autocomplete` (plMail extension: recipient suggestions) |
 
@@ -87,7 +93,6 @@ rather than leaking.
   was asked to expand recurrences, and why it is spelled the way it is.
 - `Calendar/JmapEventWriter` — reads a JSCalendar object off the wire and hands
   it to `CalendarEventWriter`; nothing here assigns a column.
-- `Calendar/CalendarState` — why the calendar state string is a constant.
 
 **State — the sync engine**
 - `State/ChangeLog` (entity) — append-only; the autoincrement PK *is* the state

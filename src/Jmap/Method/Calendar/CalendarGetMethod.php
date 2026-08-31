@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace App\Jmap\Method\Calendar;
 
 use App\Jmap\Account\CalendarAccountResolver;
-use App\Jmap\Calendar\CalendarState;
 use App\Jmap\Mapper\CalendarMapper;
 use App\Jmap\Method\JmapMethod;
 use App\Jmap\Protocol\Exception\MethodException;
 use App\Jmap\Protocol\JmapContext;
+use App\Service\Calendar\Change\CalendarChangeReader;
 use App\Repository\Calendar\CalendarRepository;
 
 /**
@@ -32,6 +32,7 @@ final class CalendarGetMethod implements JmapMethod
         private readonly CalendarAccountResolver $accountResolver,
         private readonly CalendarRepository $calendars,
         private readonly CalendarMapper $mapper,
+        private readonly CalendarChangeReader $changes,
     ) {
     }
 
@@ -86,10 +87,7 @@ final class CalendarGetMethod implements JmapMethod
 
         return [
             'accountId' => (string) $account->id,
-            // Fixed, and CalendarState says why at length: calendars are
-            // written from four places and only this one could record a change,
-            // so a token here would sit still while a sync replaced the day.
-            'state' => CalendarState::FIXED,
+            'state' => $this->changes->stateForUserCollections((int) $context->user->id),
             'list' => $list,
             'notFound' => $notFound,
         ];

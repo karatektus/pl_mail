@@ -5,12 +5,12 @@ declare(strict_types=1);
 namespace App\Jmap\Method\Calendar;
 
 use App\Jmap\Account\CalendarAccountResolver;
-use App\Jmap\Calendar\CalendarState;
 use App\Jmap\Calendar\OccurrenceId;
 use App\Jmap\Mapper\CalendarEventMapper;
 use App\Jmap\Method\JmapMethod;
 use App\Jmap\Protocol\Exception\MethodException;
 use App\Jmap\Protocol\JmapContext;
+use App\Service\Calendar\Change\CalendarChangeReader;
 use App\Repository\Calendar\CalendarEventOccurrenceRepository;
 use App\Repository\Calendar\CalendarEventRepository;
 
@@ -55,6 +55,7 @@ final class CalendarEventGetMethod implements JmapMethod
         private readonly CalendarEventRepository $events,
         private readonly CalendarEventOccurrenceRepository $occurrences,
         private readonly CalendarEventMapper $mapper,
+        private readonly CalendarChangeReader $changes,
     ) {
     }
 
@@ -126,7 +127,7 @@ final class CalendarEventGetMethod implements JmapMethod
 
         return [
             'accountId' => (string) $account->id,
-            'state' => CalendarState::FIXED,
+            'state' => $this->changes->stateForUser((int) $context->user->id),
             'list' => $list,
             'notFound' => $notFound,
         ];

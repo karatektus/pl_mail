@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace App\Jmap\Method\Calendar;
 
 use App\Jmap\Account\CalendarAccountResolver;
-use App\Jmap\Calendar\CalendarState;
 use App\Jmap\Method\JmapMethod;
 use App\Jmap\Protocol\Exception\MethodException;
 use App\Jmap\Protocol\JmapContext;
+use App\Service\Calendar\Change\CalendarChangeReader;
 use App\Jmap\Query\CalendarEventQueryRunner;
 
 /**
@@ -43,6 +43,7 @@ final class CalendarEventQueryMethod implements JmapMethod
     public function __construct(
         private readonly CalendarAccountResolver $accountResolver,
         private readonly CalendarEventQueryRunner $runner,
+        private readonly CalendarChangeReader $changes,
     ) {
     }
 
@@ -106,11 +107,13 @@ final class CalendarEventQueryMethod implements JmapMethod
 
         return [
             'accountId' => (string) $account->id,
-            'queryState' => CalendarState::FIXED,
-            // No CalendarEvent/queryChanges, and no /changes for it to diff
-            // against — CalendarState explains why there is no state to hold a
-            // delta from. Clients re-run the query, which is spec-legal and is
-            // what Email/query already asks for.
+            'queryState' => $this->changes->stateForUser((int) $context->user->id),
+            // A real token now — calendar_change_log moves it — but still no
+            // CalendarEvent/queryChanges, which is a different promise: a query
+            // delta has to account for rows entering and leaving the *filter*,
+            // and a log of what changed cannot say whether a change moved an
+            // event across the window a filter describes. Clients re-run the
+            // query, which is spec-legal and what Email/query already asks for.
             'canCalculateChanges' => false,
             'position' => $result->position,
             'ids' => $result->ids,
