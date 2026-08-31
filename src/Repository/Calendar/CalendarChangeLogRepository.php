@@ -80,6 +80,40 @@ final class CalendarChangeLogRepository extends ServiceEntityRepository
     }
 
     /**
+     * The newest sequence recorded for each event in one collection.
+     *
+     * Feeds DavEtag, so that a resource's ETag and the collection's sync-token
+     * come from the same number and cannot disagree about whether something
+     * changed. One grouped query rather than one per resource: a PROPFIND on a
+     * collection asks for every ETag at once, and a year of events would
+     * otherwise be a year of round trips.
+     *
+     * Events with no row are simply absent from the result — the caller falls
+     * back, and an isset() check is cheaper than materialising a null per event.
+     *
+     * @return array<int,int> event id => highest sequence
+     */
+    public function latestSequencesForCalendar(int $calendarId): array
+    {
+        /** @var list<array{eventId:int,seq:string|int}> $rows */
+        $rows = $this->createQueryBuilder('c')
+            ->select('c.eventId AS eventId', 'MAX(c.sequence) AS seq')
+            ->where('c.calendarId = :id')
+            ->setParameter('id', $calendarId)
+            ->groupBy('c.eventId')
+            ->getQuery()
+            ->getResult();
+
+        $sequences = [];
+
+        foreach ($rows as $row) {
+            $sequences[(int) $row['eventId']] = (int) $row['seq'];
+        }
+
+        return $sequences;
+    }
+
+    /**
      * Prune rows older than $before for one collection.
      *
      * A bulk DELETE, like ChangeLogRepository::pruneOlderThan(): retention that

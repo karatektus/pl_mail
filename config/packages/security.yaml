@@ -32,6 +32,21 @@ security:
                 - App\Security\ApiTokenAuthenticator
             entry_point: App\Security\ApiTokenAuthenticator
             jwt: ~
+        caldav:
+            pattern: ^/(caldav|\.well-known/caldav)
+            stateless: true
+            provider: app_user_provider
+            # The same two reasons the jmap firewall gives, and the same
+            # authenticator object: a CalDAV client authenticates with an app
+            # password over Basic, which is exactly what ApiTokenAuthenticator
+            # already claims. Nothing new is minted for calendars — a password
+            # that syncs mail syncs the calendar beside it, and revoking it
+            # stops both.
+            user_checker: App\Security\UserChecker
+            custom_authenticators:
+                - App\Security\ApiTokenAuthenticator
+            entry_point: App\Security\ApiTokenAuthenticator
+
         main:
             lazy: true
             provider: app_user_provider
@@ -92,6 +107,14 @@ security:
         # Google itself and holds no session. Authenticity is the channel token
         # in X-Goog-Channel-Token; see App\Controller\Webhook\GoogleCalendarPushController.
         - { path: ^/webhook/google/calendar$, roles: PUBLIC_ACCESS }
+        # RFC 6764's signpost, and public where its JMAP neighbour below is
+        # not. The difference is what each returns: /.well-known/jmap answers
+        # with the session object, which is the user's own data, while this
+        # answers with a 301 to a constant path and nothing else. A client asks
+        # it before it has anything to authenticate with — that is the whole
+        # point of "just type your server address" — and several read a 401
+        # here as "no CalDAV on this host" rather than as a challenge.
+        - { path: ^/\.well-known/caldav$, roles: PUBLIC_ACCESS }
         - { path: ^/\.well-known/jmap, roles: IS_AUTHENTICATED }
         - { path: ^/jmap, roles: IS_AUTHENTICATED }
         - { path: ^/admin, roles: ROLE_ADMIN }
