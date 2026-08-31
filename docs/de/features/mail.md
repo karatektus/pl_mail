@@ -1,4 +1,4 @@
-<!-- translated-from: features/mail.md sha1:ad06e0ff6dce16761444301da1335543aba58998 -->
+<!-- translated-from: features/mail.md sha1:2b3becdea14254b65aaa211e8e71ee2b8963bad2 -->
 
 # Mail
 
@@ -84,6 +84,21 @@ Badge in der Seitenleiste und die fetten Zeilen selbst, also behält der Tab das
 sagen kann. Die Leiste ist live — Fähnchen und Absendernamen aktualisieren sich an Ort und
 Stelle, wenn Post eintrifft, ohne auf ein Neuladen zu warten, und ein Hinweis verschwindet in
 dem Moment, in dem du seinen Tab anschaust.
+
+Ein Tab mit ungelesener Post trägt außerdem die Farbe seiner Kategorie auf dem Symbol. Nicht der
+Tab, auf dem du gerade bist — dessen Post steht ohnehin in der Liste darunter, und die Farbe soll
+auf das zeigen, was du *nicht* siehst. Weiterhin keine zweite Zahl: Die Farbe sagt *hier liegt
+etwas*, und der Kopf der Liste sagt, wie viel.
+
+Am meisten bringt das unter **Nur ungelesene**, wo die Leiste sonst stumm ist: Jede Zeile auf dem
+Schirm ist ungelesen, fette Schrift unterscheidet also nichts mehr, und der Posteingangs-Badge in
+der Seitenleiste ist eine einzige Summe, die nicht sagen kann, in welchem Tab seine Post liegt.
+Ohne die Farbe sieht ein voller Tab genauso aus wie ein leerer, und der einzige Weg zur Post ist,
+alle Tabs der Reihe nach anzuklicken. Im normalen Posteingang wird sie ebenfalls gezeichnet,
+damit die Leiste überall dasselbe bedeutet.
+
+Eine Konversation, die du in den Papierkorb geschoben hast, zählt nicht mehr mit — genauso wenig,
+wie sie noch in der Liste auftaucht. Ein farbiger Tab öffnet sich also immer auf Post.
 
 Eine Ausnahme lohnt sich zu kennen: Ein Absender, dem du selbst geschrieben hast, wird zurück
 nach Allgemein geholt, ganz gleich, welcher Massenmail-Header auf der Nachricht steht. Öffne

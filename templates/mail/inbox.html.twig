@@ -56,6 +56,36 @@
         forums:     'bg-violet-600 text-white',
     } %}
 
+    {# The same five identity colours as ink rather than as fill, for the icon
+       tint that says "there is unread mail behind this tab".
+
+       The case that asked for it is the unread filter, where the strip is
+       otherwise mute: every row on screen is unread, so boldness distinguishes
+       nothing, and the sidebar's Inbox badge is a single total with no way to
+       say which tab its mail is in — a tab could sit there looking exactly like
+       a full one and open on "No messages in this tab". It is drawn on the
+       ordinary inbox too, by decision: "which tabs have anything waiting" is
+       worth answering before you have filtered for it, and answering it in only
+       one view would make the strip mean different things in two places.
+
+       It coexists with the "N new" pill rather than competing: the pill is a
+       number about ARRIVALS, the tint is a colour about UNREAD, and they are
+       distinguishable because only one of them is a number. That is the same
+       vocabulary split the rows use — a "New" pill against an unread dot.
+
+       The -600/-400 pair is the app's established way of holding one identity
+       colour readable in both themes (see the health and notification
+       partials): -600 has the contrast against a light sheet, -400 against a
+       dark one. No counter — presence is the whole statement, and the number is
+       already downstairs in the list header. #}
+    {% set tabIconTones = {
+        primary:    'text-red-600 dark:text-red-400',
+        social:     'text-blue-600 dark:text-blue-400',
+        promotions: 'text-green-600 dark:text-green-400',
+        updates:    'text-amber-600 dark:text-amber-400',
+        forums:     'text-violet-600 dark:text-violet-400',
+    } %}
+
     {# A lone Primary tab is a heading pretending to be a choice — when no
        other category has mail, the whole row stays home. #}
     {# What a tab link carries with it.
@@ -79,6 +109,27 @@
                 {% set isActive = tabCase === tab %}
                 {% set tabName = ('tabs.' ~ tabCase.value)|trans %}
                 {% set newCount = newMail.forCategory(tabCase) %}
+
+                {# Rendered on every tab except the one being looked at. The tint answers "where
+                   is the mail I cannot see"; the active tab is the one place on
+                   the strip that question is already answered, out loud, by the
+                   list underneath it. Colouring it there says nothing and costs
+                   something: the active tab is accent-coloured throughout —
+                   label, underline, filled glyph — and an identity colour
+                   dropped into the middle of that reads as a fault rather than
+                   as a signal, which is exactly how it was reported.
+
+                   The attributes ride along on the same terms as every other
+                   patched marker: emitted whatever the number is so the sidebar
+                   controller can find them after a sync, since an element that
+                   was never rendered cannot be re-coloured. Withholding them on
+                   the active tab is therefore also what stops a sync from
+                   tinting the one tab the server deliberately left alone. The
+                   tone travels in an attribute because the patcher has no way to
+                   know which of the five a given tab wears. #}
+                {% set tintable  = false === isActive %}
+                {% set unreadHere = tintable ? (tab_unread[tabCase.value]|default(0)) : 0 %}
+                {% set iconTone  = tabIconTones[tabCase.value]|default('') %}
                 {% set senderNames = newCount > 0 ? newMail.sendersForCategory(tabCase)|join(', ') : '' %}
 
                 {# min-h rather than padding for the vertical size: the tab is
@@ -94,11 +145,13 @@
                     class="flex items-center gap-2.5 px-5 py-1.5 min-h-14 font-medium border-b-2 -mb-px transition-colors min-w-0 {{ isActive ? 'text-accent border-accent' : 'text-ink-muted hover:text-gray-700 border-transparent hover:border-gray-300' }}"
                 >
                     {% if isActive %}
-                        <svg class="w-5 h-5 shrink-0" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                        <svg class="w-5 h-5 shrink-0{{ unreadHere > 0 ? ' ' ~ iconTone : '' }}" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"
+                             {% if tintable %}data-tab-icon data-count-key="category:{{ tabCase.value }}" data-tone-class="{{ iconTone }}"{% endif %}>
                             <path fill-rule="evenodd" clip-rule="evenodd" d="{{ tabIconsSolid[tabCase.value] }}"/>
                         </svg>
                     {% else %}
-                        <svg class="w-5 h-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                        <svg class="w-5 h-5 shrink-0{{ unreadHere > 0 ? ' ' ~ iconTone : '' }}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"
+                             {% if tintable %}data-tab-icon data-count-key="category:{{ tabCase.value }}" data-tone-class="{{ iconTone }}"{% endif %}>
                             <path stroke-linecap="round" stroke-linejoin="round" d="{{ tabIcons[tabCase.value] }}"/>
                         </svg>
                     {% endif %}

@@ -223,6 +223,12 @@ final class MailController extends AbstractController
         // here.
         $tabTotals  = $this->threadRepository->countByCategoryForUnifiedInbox($user);
 
+        // Which tabs hold unread, for the icon tint. One grouped query, the
+        // same shape and cost as the totals above, on every inbox render — the
+        // tint is not limited to the unread filter, so this cannot be either.
+        // See the tab strip in mail/inbox.html.twig.
+        $tabUnread  = $this->threadRepository->countUnreadByCategoryForUnifiedInbox($user);
+
         // A tab nobody's mail lands in is a door to an empty room — Gmail
         // itself has quietly retired Forums. Primary always shows, a category
         // shows while it holds anything at all, and the tab being LOOKED AT
@@ -240,6 +246,7 @@ final class MailController extends AbstractController
         return $this->renderList($request, 'mail/inbox.html.twig', $threads, [
             'tab'         => $tab,
             'tabs'        => $tabs,
+            'tab_unread'  => $tabUnread,
             'page'        => $page,
             'total'       => $total,
             'per_page'    => self::PER_PAGE,
@@ -671,15 +678,28 @@ final class MailController extends AbstractController
         // an unread key — the mark means something different and must never be
         // fed to a badge that would print it as a number.
         //
-        // A category tab makes two statements, so two families go out per
-        // category: its new-arrivals count ("new:category:") and the senders
-        // of those arrivals ("senders:category:" — the one whose values are
-        // strings, which is exactly why it has a namespace of its own). No
-        // unread count: the tabs deliberately do not show one — new is the
-        // only number a tab can say that nothing else already says.
+        // A category tab makes three statements, so three families go out per
+        // category: its new-arrivals count ("new:category:"), the senders of
+        // those arrivals ("senders:category:" — the one whose values are
+        // strings, which is exactly why it has a namespace of its own), and its
+        // unread count ("category:", the unprefixed namespace every other
+        // unread number here already uses — "role:", "label:").
+        //
+        // The unread one is NOT a number the tab prints, and that distinction is
+        // the whole reason it can exist without reopening the argument it used
+        // to lose. A tab still shows one figure and one only. This feeds the
+        // icon tint in the unread-only view, where the reasoning that kept
+        // unread off the tabs — the sidebar badge and the bold rows already say
+        // it — stops holding: every row on screen is unread, so the rows say
+        // nothing that distinguishes them, and the sidebar's Inbox badge is one
+        // total that cannot say WHICH tab its mail is sitting in. The tint is
+        // the only thing on the page that can, and it says it without counting.
+        $tabUnread = $this->threadRepository->countUnreadByCategoryForUnifiedInbox($this->getUser());
+
         foreach (MessageCategory::cases() as $category) {
             $payload[NewMailMarkers::categoryKey($category)]        = $newMail->forCategory($category);
             $payload[NewMailMarkers::categorySendersKey($category)] = implode(', ', $newMail->sendersForCategory($category));
+            $payload['category:' . $category->value]                = $tabUnread[$category->value] ?? 0;
         }
 
         // forRoleBadge(), not forRole(): Trash and Drafts show a total rather

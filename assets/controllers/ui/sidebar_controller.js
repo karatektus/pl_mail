@@ -224,6 +224,42 @@ function patchTabMarks(counts) {
     });
 }
 
+/**
+ * The category-tab icon tint, from the same payload.
+ *
+ * The "category:" family is an unread count, and the only one on this page that
+ * is never printed. It decides a colour instead: tinted means there is unread
+ * mail behind that tab, untinted means there is not. See the tabIconTones
+ * comment in mail/inbox.html.twig for why the tint exists at all and why only
+ * the unread-only view draws it.
+ *
+ * The tone class travels on the element rather than living here, because which
+ * of the five a tab wears is the template's business — this only knows whether
+ * to put it on. Split on whitespace: the tone is a pair (a light value and its
+ * dark: variant) and classList takes them one at a time.
+ *
+ * Only the unread-only view renders these attributes at all, so on every other
+ * list this selector matches nothing and the function costs one query. Same
+ * document-wide reach and the same idempotence as the two patchers above.
+ */
+function patchTabIcons(counts) {
+    document.querySelectorAll("[data-tab-icon]").forEach((icon) => {
+        const count = counts[icon.dataset.countKey];
+
+        if (count === undefined) {
+            return;
+        }
+
+        const tone = (icon.dataset.toneClass || "").split(" ").filter(Boolean);
+
+        if (tone.length === 0) {
+            return;
+        }
+
+        tone.forEach((cls) => icon.classList.toggle(cls, count > 0));
+    });
+}
+
 export default class extends Controller {
     static targets = ["link", "badge", "scroller", "collapseSummary"];
     static values = { countsUrl: String, collapseUrl: String, i18n: Object };
@@ -429,6 +465,7 @@ export default class extends Controller {
 
         patchNewDots(counts);
         patchTabMarks(counts);
+        patchTabIcons(counts);
 
         this._updateTitle(counts);
     }

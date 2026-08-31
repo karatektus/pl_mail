@@ -148,18 +148,18 @@ class MessageThreadRepository extends ServiceEntityRepository
             ->setParameter('inbox', LabelRole::Inbox)
             ->setParameter('category', $category);
 
+        // The same exclusion findForUnifiedInbox() applies, and it was missing
+        // here. A thread keeps its Inbox label when it goes to the bin — the
+        // Trash label is added, not swapped — so without this the total counted
+        // conversations the list beside it refuses to show. That is the failure
+        // the DISTINCT above is written out to prevent, arriving by the other
+        // road: a paginator offering a page that does not exist.
+        $this->excludeTrashed($qb);
         $this->narrowToUnread($qb, $unreadOnly);
 
         return (int) $qb->getQuery()->getSingleScalarResult();
     }
 
-    /**
-     * Unread threads per category in one grouped read.
-     *
-     * A GROUP BY with an aggregate, which Doctrine's API has no form of at all
-     * — count() answers one number, and asking it per category would be one
-     * query per tab on every page load.
-     */
     /**
      * Threads per category regardless of read state, same grouped shape as
      * countNewByCategoryForUnifiedInbox(). This one decides which tabs exist
@@ -170,7 +170,7 @@ class MessageThreadRepository extends ServiceEntityRepository
      */
     public function countByCategoryForUnifiedInbox(UserInterface $user): array
     {
-        $rows = $this->createQueryBuilder('t')
+        $qb = $this->createQueryBuilder('t')
             ->select('t.category AS category', 'COUNT(DISTINCT t.id) AS threadCount')
             ->join('t.account', 'a')
             ->join('t.labels', 'l')
@@ -179,9 +179,59 @@ class MessageThreadRepository extends ServiceEntityRepository
             ->andWhere('l.role = :inbox')
             ->groupBy('t.category')
             ->setParameter('user', $user)
-            ->setParameter('inbox', LabelRole::Inbox)
-            ->getQuery()
-            ->getResult();
+            ->setParameter('inbox', LabelRole::Inbox);
+
+        $this->excludeTrashed($qb);
+
+        $rows = $qb->getQuery()->getResult();
+
+        $counts = [];
+
+        foreach ($rows as $row) {
+            $categoryValue = $row['category'];
+
+            if ($categoryValue instanceof MessageCategory) {
+                $categoryValue = $categoryValue->value;
+            }
+
+            $counts[$categoryValue] = (int) $row['threadCount'];
+        }
+
+        return $counts;
+    }
+
+    /**
+     * Unread threads per category in one grouped read.
+     *
+     * A GROUP BY with an aggregate, which Doctrine's API has no form of at all
+     * — count() answers one number, and asking it per category would be one
+     * query per tab on every page load.
+     *
+     * Same shape and the same joins as countByCategoryForUnifiedInbox() above,
+     * narrowed to unread, so the number here and the list a tab opens are
+     * answering one question. That agreement is the whole point: this feeds the
+     * tab strip in the unread-only view, where a tab that lights up and then
+     * opens on "No messages in this tab" would be worse than no mark at all.
+     *
+     * @return array<string, int>
+     */
+    public function countUnreadByCategoryForUnifiedInbox(UserInterface $user): array
+    {
+        $qb = $this->createQueryBuilder('t')
+            ->select('t.category AS category', 'COUNT(DISTINCT t.id) AS threadCount')
+            ->join('t.account', 'a')
+            ->join('t.labels', 'l')
+            ->where('a.usr = :user')
+            ->andWhere('a.isActive = true')
+            ->andWhere('l.role = :inbox')
+            ->andWhere('t.unreadCount > 0')
+            ->groupBy('t.category')
+            ->setParameter('user', $user)
+            ->setParameter('inbox', LabelRole::Inbox);
+
+        $this->excludeTrashed($qb);
+
+        $rows = $qb->getQuery()->getResult();
 
         $counts = [];
 

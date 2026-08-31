@@ -73,6 +73,20 @@ only number on a tab: unread already has the sidebar badge and the bold rows, so
 the one thing only it can say. The strip is live — pill and sender names update in place when
 mail arrives, without waiting for a reload, and a hint is retired the moment you look at its tab.
 
+A tab holding unread mail also wears its category's colour on the icon. Not the tab you are on —
+its mail is already in the list underneath it, and the tint is there to point at what you
+*cannot* see. Still no second number: the colour says *there is something here* and the list
+header says how much.
+
+It matters most under **Unread only**, where the strip is otherwise mute — every row on screen
+is unread, so boldness no longer separates anything, and the sidebar's Inbox badge is a single
+total that cannot name the tab its mail is sitting in. Without the colour a full tab looks
+exactly like an empty one and the only way to find the mail is to click each tab in turn. It is
+drawn on the ordinary inbox too, so the strip means the same thing wherever you meet it.
+
+A conversation you have moved to the bin stops counting towards it, the same way it stops
+appearing in the list, so a coloured tab always opens on mail.
+
 There is one override worth knowing: a sender you have written to yourself is pulled back into
 Primary regardless of any bulk-mail header on the message. Open a message's **Details** panel and
 the `category` row says which rule decided, and which header or domain it matched on.
