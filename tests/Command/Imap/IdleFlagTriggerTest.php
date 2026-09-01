@@ -74,4 +74,68 @@ final class IdleFlagTriggerTest extends TestCase
     {
         self::assertFalse(ImapIdleCommand::announcesFlagChange('+ idling'));
     }
+
+    /**
+     * The line names the message, so nothing has to be asked of the server.
+     *
+     * This is the whole of the fix. The old code read exactly this line, learnt
+     * only that "something about flags happened", and answered it by opening an
+     * IMAP session and re-reading every UID in the folder to rediscover what
+     * the line had just told it.
+     */
+    public function testAFlagChangeCarryingAUidIsReadRatherThanRecognised(): void
+    {
+        $notice = ImapIdleCommand::readFlagChange('* 12 FETCH (UID 5001 FLAGS (\\Seen \\Flagged))');
+
+        self::assertNotNull($notice);
+        self::assertTrue($notice->isResolvable());
+        self::assertSame(5001, $notice->uid);
+        self::assertSame(12, $notice->sequence);
+        self::assertTrue($notice->hasFlag('\\Seen'));
+        self::assertTrue($notice->hasFlag('\\Flagged'));
+    }
+
+    /**
+     * Without a UID there is only a POSITION, and positions move under every
+     * expunge — so this must NOT be resolvable, and the caller falls back to
+     * the listing rather than writing somebody else's flags onto the wrong
+     * message.
+     */
+    public function testAFlagChangeWithoutAUidIsNotResolvable(): void
+    {
+        $notice = ImapIdleCommand::readFlagChange('* 4 FETCH (FLAGS (\\Seen))');
+
+        self::assertNotNull($notice);
+        self::assertFalse($notice->isResolvable());
+        self::assertNull($notice->uid);
+    }
+
+    /**
+     * `FLAGS ()` is a real notification and the one that most wants to arrive
+     * quickly: every flag cleared is "marked unread on my phone". Read as an
+     * empty list, never as nothing to do — the server sends the COMPLETE set,
+     * so absence is the fact.
+     */
+    public function testAnEmptyFlagListIsAChangeAndNotAnAbsence(): void
+    {
+        $notice = ImapIdleCommand::readFlagChange('* 9 FETCH (UID 77 FLAGS ())');
+
+        self::assertNotNull($notice);
+        self::assertTrue($notice->isResolvable());
+        self::assertSame([], $notice->flags);
+        self::assertFalse($notice->hasFlag('\\Seen'));
+    }
+
+    /**
+     * The two lines every SELECT answers with describe what the folder PERMITS,
+     * not what any message now has. Reading one as a flag change is a folder
+     * listing that learns nothing — and under the old substring test the only
+     * thing keeping them out was that neither happens to contain "FETCH".
+     */
+    public function testTheFolderCapabilityLinesAreStillNotFlagChanges(): void
+    {
+        self::assertNull(ImapIdleCommand::readFlagChange('* FLAGS (\\Answered \\Flagged \\Deleted \\Seen)'));
+        self::assertNull(ImapIdleCommand::readFlagChange('* OK [PERMANENTFLAGS (\\Answered \\Seen \\*)] Limited'));
+        self::assertNull(ImapIdleCommand::readFlagChange('* 23 EXISTS'));
+    }
 }

@@ -47,6 +47,24 @@ this release changes how the AI feels, not what it does.**
 
 ### Fixed
 
+- **An idle mailbox could talk to itself, forever, at ten megabits a second.**
+  When another client changed a message's flags — a phone marking mail read — the server told
+  plMail, and plMail answered by re-reading *every* message in the folder to find out what had
+  changed. On a 1832-message inbox that is one full listing per flag. Worse, the listing itself
+  prompted the server to send another notification, which prompted another listing: once started it
+  never stopped, roughly twice a second, with nine identical sync jobs sitting in the queue at any
+  moment. Nothing was lost or corrupted — it was pure waste, and it looked exactly like a busy
+  mailbox.
+
+  Three things changed. The notification is now **read** rather than merely noticed: it already says
+  which message and what its flags now are, so when the server includes the message's UID — most do —
+  the change is applied directly and nothing is asked of anybody. Where the message cannot be
+  identified, the fallback listing is **debounced**, so a screenful of mail marked read on a phone
+  costs one listing instead of thirty. And the sync itself now refuses a duplicate that another job
+  performed seconds ago, so no future caller can rebuild the pile-up.
+
+  **If your instance has been unusually busy, this is very likely why.**
+
 - **A search test asserted how fast your machine was.** The guard that stops an expensive
   last-resort search pass from running away is real and unchanged; the test proving it fired had a
   one-millisecond budget and one row to scan, so on quick hardware the pass simply finished in time

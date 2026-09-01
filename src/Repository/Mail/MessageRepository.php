@@ -1028,6 +1028,19 @@ class MessageRepository extends ServiceEntityRepository
     }
 
     /**
+     * One message in one folder, by the UID the server calls it.
+     *
+     * `(mailbox_id, imap_uid)` is unique by constraint, so this is a point
+     * lookup rather than a search — which is what makes it a fit answer to a
+     * flag notification that already named exactly one message. The only reply
+     * the IDLE loop used to have to one of those was to list the whole folder.
+     */
+    public function findOneInMailboxByUid(Mailbox $mailbox, int $uid): ?Message
+    {
+        return $this->findOneBy(['mailbox' => $mailbox, 'imapUid' => $uid]);
+    }
+
+    /**
      * The rows a flag pass has decided it actually needs to change.
      *
      * @param list<int> $ids

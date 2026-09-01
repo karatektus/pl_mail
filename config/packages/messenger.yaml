@@ -93,6 +93,11 @@ framework:
             Symfony\Component\Notifier\Message\ChatMessage: export
             Symfony\Component\Notifier\Message\SmsMessage: export
             App\Infrastructure\Messaging\Message\SyncImapMailboxMessage: ingest
+            # ingest, beside the sync it replaces for the common case: it is
+            # mail state arriving from the server, and it must not queue behind
+            # the maintenance work that a read receipt would wait on. It is also
+            # the cheap one — a point lookup and a flag write, no IMAP at all.
+            App\Infrastructure\Messaging\Message\ApplyRemoteFlagsMessage: ingest
             App\Infrastructure\Messaging\Message\SyncAccountMessage: ingest
             App\Infrastructure\Messaging\Message\SendMessageMessage: export
             App\Infrastructure\Messaging\Message\ApplyImapFlagsMessage: export

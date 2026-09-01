@@ -2,7 +2,9 @@
 
 namespace App\Command\Imap;
 
+use App\Domain\DTO\Mail\ImapFlagNotice;
 use App\Domain\Helper\ImapConnectionFactory;
+use App\Infrastructure\Messaging\Message\ApplyRemoteFlagsMessage;
 use App\Infrastructure\Messaging\Message\SyncImapMailboxMessage;
 use App\Entity\Mail\Account;
 use App\Repository\Mail\AccountRepository;
@@ -30,10 +32,50 @@ class ImapIdleCommand extends Command
     private const MAX_RETRIES       = 10;
     private const HEARTBEAT_MIN_GAP = 30;   // min seconds between idle-loop keepalive beats
 
+    /**
+     * The shortest gap between two full mailbox syncs dispatched from here.
+     *
+     * THIS EXISTS BECAUSE THE LOOP FED ITSELF
+     * ───────────────────────────────────────
+     * Every notification used to dispatch its own SyncImapMailboxMessage, with
+     * nothing anywhere checking whether one was already queued. A sync opens a
+     * session and runs `UID FETCH 1:* (FLAGS)` over the whole folder, and a
+     * server broadcasts flag state to an idling session when another session
+     * asks for it — so the sync provoked the notification that dispatched the
+     * next sync. Observed in the wild at roughly two per second, indefinitely,
+     * on a 1832-message inbox: nine identical jobs in the queue at a time and a
+     * sustained ten megabits a second of a machine talking to itself.
+     *
+     * Five seconds because it is long enough to swallow the burst a phone
+     * makes when somebody reads a screenful of mail, and short enough that the
+     * folder listing still feels immediate on the rare occasion it is needed.
+     * With the flag path now answering directly, the listing is the rare
+     * occasion.
+     */
+    private const SYNC_MIN_GAP = 5;
+
     private bool $shouldStop = false;
 
     /** Unix time of the last heartbeat, to throttle the idle-loop keepalive. */
     private int $lastBeatAt = 0;
+
+    /** Unix time of the last sync dispatched from this loop. See SYNC_MIN_GAP. */
+    private int $lastSyncAt = 0;
+
+    /**
+     * A sync asked for inside the quiet window and not yet sent.
+     *
+     * A TRAILING flush, not a dropped one, and the distinction is the whole
+     * correctness of the debounce: the notification that arrives one second
+     * after a sync is usually the only evidence of a change, so swallowing it
+     * would lose mail state rather than merely delay it. It is held and sent
+     * when the window closes — including from the read-timeout path, so a
+     * mailbox that goes quiet immediately after a burst still gets its sync.
+     */
+    private bool $syncPending = false;
+
+    /** Whether the held sync also needs the expensive full-folder listing. */
+    private bool $sweepPending = false;
 
     public function __construct(
         private readonly MailboxRepository       $mailboxRepository,
@@ -185,6 +227,14 @@ class ImapIdleCommand extends Command
                     // Beat (throttled) so liveness is detected far faster than
                     // the 29-minute IDLE re-issue would allow.
                     $this->beat($mailbox, $account);
+
+                    // And this is where a held sync actually leaves. The loop
+                    // blocks on the socket, so a burst that ends the moment it
+                    // starts — one phone, one screenful of mail — would
+                    // otherwise leave the trailing dispatch sitting in a
+                    // condition nothing reaches until the next notification,
+                    // which on a quiet mailbox may be tomorrow.
+                    $this->flushSync($mailboxId, $io);
                     continue;
                 }
                 throw $e;
@@ -210,13 +260,8 @@ class ImapIdleCommand extends Command
 
             if (true === str_contains($line, 'EXISTS')) {
                 $this->beat($mailbox, $account, true);
-                $io->text(sprintf('[%s] Notification received — dispatching sync.', date('H:i:s')));
-                try {
-                    $envelope = $this->bus->dispatch(new SyncImapMailboxMessage($mailboxId));
-                    $io->text(sprintf('[%s] Dispatch returned envelope.', date('H:i:s')));
-                } catch (\Throwable $e) {
-                    $io->error(sprintf('[%s] Dispatch failed: %s', date('H:i:s'), $e->getMessage()));
-                }
+                $io->text(sprintf('[%s] Notification received — sync queued.', date('H:i:s')));
+                $this->wantSync($mailboxId, $io, sweep: false);
             }
 
             // The server announces every deletion to an idling client as an
@@ -229,13 +274,12 @@ class ImapIdleCommand extends Command
             // in seconds instead of within two fifteen-minute cycles.
             if (true === str_contains($line, 'EXPUNGE')) {
                 $this->beat($mailbox, $account, true);
-                $io->text(sprintf('[%s] Expunge seen — sweeping now.', date('H:i:s')));
-                try {
-                    $this->mailboxRepository->markSweepDue($mailboxId);
-                    $this->bus->dispatch(new SyncImapMailboxMessage($mailboxId));
-                } catch (\Throwable $e) {
-                    $io->error(sprintf('[%s] Sweep dispatch failed: %s', date('H:i:s'), $e->getMessage()));
-                }
+                $io->text(sprintf('[%s] Expunge seen — sweep queued.', date('H:i:s')));
+                // A deletion genuinely needs the listing: the line carries a
+                // sequence number and nothing else, and which UID has gone is
+                // exactly what a listing establishes. Unchanged in kind, only
+                // in cadence.
+                $this->wantSync($mailboxId, $io, sweep: true);
             }
 
             // `* 4 FETCH (FLAGS (\Seen))` — what a server sends an idling
@@ -253,14 +297,39 @@ class ImapIdleCommand extends Command
             //
             // FLAGS as well as FETCH, because an untagged FETCH can carry other
             // data items and only this one is worth a round trip for.
-            if (true === self::announcesFlagChange($line)) {
+            $notice = self::readFlagChange($line);
+
+            if (null !== $notice) {
                 $this->beat($mailbox, $account, true);
-                $io->text(sprintf('[%s] Flag change seen — refreshing now.', date('H:i:s')));
-                try {
-                    $this->mailboxRepository->markSweepDue($mailboxId);
-                    $this->bus->dispatch(new SyncImapMailboxMessage($mailboxId));
-                } catch (\Throwable $e) {
-                    $io->error(sprintf('[%s] Flag refresh dispatch failed: %s', date('H:i:s'), $e->getMessage()));
+
+                // THE LINE ALREADY SAID WHAT HAPPENED, so when it named the
+                // message there is nothing left to ask anybody: no connection,
+                // no folder listing, no round trip. This is the branch that
+                // took the traffic from ten megabits a second to nothing — the
+                // old code answered this exact line by re-reading all 1832
+                // UIDs to rediscover what it had just been told.
+                if (true === $notice->isResolvable()) {
+                    $io->text(sprintf(
+                        '[%s] Flag change for UID %d — applying directly.',
+                        date('H:i:s'),
+                        $notice->uid,
+                    ));
+
+                    try {
+                        $this->bus->dispatch(new ApplyRemoteFlagsMessage($mailboxId, $notice->uid, $notice->flags));
+                    } catch (\Throwable $e) {
+                        $io->error(sprintf('[%s] Flag apply dispatch failed: %s', date('H:i:s'), $e->getMessage()));
+                    }
+                } else {
+                    // No UID, so the line named a POSITION and positions move.
+                    // There is no honest way to turn one into a message here,
+                    // and guessing would write somebody else's flags onto the
+                    // wrong mail — so this is the case the listing exists for.
+                    // Debounced like the rest; on a server that never sends
+                    // UIDs this is the old behaviour with a five-second floor
+                    // under it instead of none.
+                    $io->text(sprintf('[%s] Flag change without a UID — refresh queued.', date('H:i:s')));
+                    $this->wantSync($mailboxId, $io, sweep: true);
                 }
             }
         }
@@ -269,20 +338,135 @@ class ImapIdleCommand extends Command
     /**
      * Whether a line the server pushed is announcing that flags changed.
      *
-     * `* 4 FETCH (FLAGS (\Seen))` is the shape, and both halves are required.
-     * An untagged FETCH can carry other data items, and a line mentioning
-     * FLAGS without being a FETCH — the FLAGS and PERMANENTFLAGS lines every
-     * SELECT answers with — describes what the folder *permits* rather than
-     * what any message now has. Waking a folder listing for either would be a
-     * round trip that learns nothing.
-     *
-     * Static and public so that which lines count is a stated behaviour with a
-     * test on it rather than a condition buried in a socket loop no test can
-     * reach.
+     * Kept as the question it always was, answered now by reading the line
+     * rather than by sniffing it for two words. See {@see readFlagChange()}.
      */
     public static function announcesFlagChange(string $line): bool
     {
-        return true === str_contains($line, 'FETCH') && true === str_contains($line, 'FLAGS');
+        return null !== self::readFlagChange($line);
+    }
+
+    /**
+     * The same line, READ rather than recognised.
+     *
+     * `* 12 FETCH (UID 5001 FLAGS (\Seen \Flagged))` is the shape, and it
+     * already contains the entire answer: which message, and its complete new
+     * flag set. This used to be `str_contains($line, 'FETCH') &&
+     * str_contains($line, 'FLAGS')` — enough to know that SOMETHING changed,
+     * and nothing else, so the only available response was to go and list the
+     * whole folder to find out what. On a 1832-message inbox that is one full
+     * `UID FETCH 1:* (FLAGS)` per message somebody marked read on their phone,
+     * and it is how an idle installation came to hold a sustained ten megabits
+     * a second against its own mailbox.
+     *
+     * WHAT THE REGEX REFUSES, AND WHY EACH ONE MATTERS
+     * ───────────────────────────────────────────────
+     * The sequence number is REQUIRED, which is what excludes `* FLAGS (…)` and
+     * `* OK [PERMANENTFLAGS (…)]` — the two lines every SELECT answers with.
+     * Those describe what the folder *permits* rather than what any message
+     * now has, and the substring test only excluded them by accident of not
+     * containing "FETCH".
+     *
+     * FLAGS is required too. An untagged FETCH can carry other data items, and
+     * only this one is worth acting on.
+     *
+     * An EMPTY flag list is a real notification and is kept: `FLAGS ()` means
+     * every flag was cleared, which is exactly the "marked unread elsewhere"
+     * case that most wants to arrive quickly.
+     *
+     * Static and public so that which lines count, and what they are read as,
+     * is stated behaviour with a test on it rather than a condition buried in a
+     * socket loop no test can reach.
+     */
+    public static function readFlagChange(string $line): ?ImapFlagNotice
+    {
+        if (1 !== preg_match('~^\*\s+(\d+)\s+FETCH\s+\((.*)\)\s*$~i', trim($line), $announcement)) {
+            return null;
+        }
+
+        if (1 !== preg_match('~\bFLAGS\s+\(([^)]*)\)~i', $announcement[2], $flags)) {
+            return null;
+        }
+
+        // Optional by RFC 3501 and required by RFC 9051, so present on most
+        // servers and absent on some. Its absence is what sends the caller back
+        // to the folder listing — see ImapFlagNotice.
+        $uid = null;
+
+        if (1 === preg_match('~\bUID\s+(\d+)~i', $announcement[2], $identified)) {
+            $uid = (int) $identified[1];
+        }
+
+        return new ImapFlagNotice(
+            sequence: (int) $announcement[1],
+            uid:      $uid,
+            flags:    array_values(array_filter(
+                preg_split('~\s+~', trim($flags[1])) ?: [],
+                static fn (string $flag): bool => '' !== $flag,
+            )),
+        );
+    }
+
+    /**
+     * Ask for a sync, and send it only if one has not just gone.
+     *
+     * The leading edge of the debounce: the first notification after a quiet
+     * spell dispatches immediately, so nothing about how fast new mail appears
+     * changes. Everything inside the window is coalesced into the single held
+     * request that {@see flushSync()} sends when the window closes.
+     *
+     * $sweep is sticky on purpose. The listing is the expensive half, and a
+     * window containing one expunge and four other notifications needs it once
+     * — but it does need it, so an ordinary notification arriving afterwards
+     * must not clear the flag an expunge set.
+     */
+    private function wantSync(int $mailboxId, SymfonyStyle $io, bool $sweep): void
+    {
+        $this->syncPending  = true;
+        $this->sweepPending = $this->sweepPending || $sweep;
+
+        $this->flushSync($mailboxId, $io);
+    }
+
+    /**
+     * Send the held sync, if there is one and the window has closed.
+     *
+     * markSweepDue() moved here from the notification branches, and that is
+     * half the saving. It backdates the sweep clock so the next sync performs
+     * the full `UID FETCH 1:* (FLAGS)` listing rather than skipping it on its
+     * quarter-hour cadence — which is right once per burst and was being done
+     * once per line, turning the cheapest possible trigger into the most
+     * expensive possible response.
+     */
+    private function flushSync(int $mailboxId, SymfonyStyle $io): void
+    {
+        if (false === $this->syncPending) {
+            return;
+        }
+
+        if (time() - $this->lastSyncAt < self::SYNC_MIN_GAP) {
+            return;
+        }
+
+        $sweep = $this->sweepPending;
+
+        // Cleared BEFORE the dispatch, not after. A throw below must not leave
+        // this loop believing a sync is still owed forever, re-dispatching on
+        // every subsequent line — which is the shape of the bug being fixed.
+        $this->syncPending  = false;
+        $this->sweepPending = false;
+        $this->lastSyncAt   = time();
+
+        try {
+            if (true === $sweep) {
+                $this->mailboxRepository->markSweepDue($mailboxId);
+            }
+
+            $this->bus->dispatch(new SyncImapMailboxMessage($mailboxId));
+            $io->text(sprintf('[%s] Sync dispatched%s.', date('H:i:s'), $sweep ? ' with a full listing' : ''));
+        } catch (\Throwable $e) {
+            $io->error(sprintf('[%s] Dispatch failed: %s', date('H:i:s'), $e->getMessage()));
+        }
     }
 
     /**
