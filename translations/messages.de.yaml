@@ -1363,6 +1363,13 @@ compose:
         label: 'Beim Schreiben helfen'
         no_answer: 'Der Modell-Host hat nicht geantwortet.'
         preview: 'Vorgeschlagener Text, noch nicht in deiner Nachricht'
+        prompt:
+            toggle: 'Anweisungen'
+            title: 'Die Anweisungen für den nächsten Versuch ändern'
+            label: 'Wie für dich geschrieben werden soll'
+            placeholder: 'z. B. Höchstens drei Sätze, und fang nie mit „ich hoffe, es geht dir gut“ an.'
+            retry: 'Damit noch mal versuchen'
+            hint: 'Nur in diesem Fenster. Dauerhaft änderst du das unter Einstellungen → KI.'
         rate: '%count% Tokens · %rate% pro Sekunde'
         regenerate: 'Nochmal versuchen'
         slow_hint: 'Die erste Anfrage nach einer Weile dauert etwa fünfzehn Sekunden, solange das Modell lädt.'

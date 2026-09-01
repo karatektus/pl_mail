@@ -1074,6 +1074,13 @@ compose:
         label: 'Help me write'
         no_answer: 'The oracle gave no answer.'
         preview: 'Text on offer, not yet in yer letter'
+        prompt:
+            toggle: 'Orders'
+            title: 'Change yer orders afore the next attempt'
+            label: 'How ye want to be written for'
+            placeholder: 'e.g. Three sentences, no more, and no fancy greetin''s.'
+            retry: 'Have another go with this'
+            hint: 'This window only. Settin''s → AI be where it sticks.'
         rate: '%count% tokens · %rate% a second'
         regenerate: 'Try again'
         slow_hint: "The first askin' after a spell takes about fifteen seconds while the oracle wakes."

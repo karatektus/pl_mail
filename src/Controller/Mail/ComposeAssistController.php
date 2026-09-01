@@ -94,6 +94,7 @@ final class ComposeAssistController extends AbstractController
             (string) $request->request->get('draft', ''),
             $this->context($request, $user),
             (string) $request->request->get('subject', ''),
+            $this->note($request),
         );
 
         if (null === $text) {
@@ -167,6 +168,7 @@ final class ComposeAssistController extends AbstractController
         $draft   = (string) $request->request->get('draft', '');
         $subject = (string) $request->request->get('subject', '');
         $context = $this->context($request, $user);
+        $note    = $this->note($request);
 
         // The session lock goes back before the stream starts, for the reason
         // SearchController spells out at length: PHP holds it exclusively for
@@ -189,8 +191,8 @@ final class ComposeAssistController extends AbstractController
             $session->save();
         }
 
-        $response = new StreamedResponse(function () use ($user, $task, $draft, $context, $subject): void {
-            $this->generate($user, $task, $draft, $context, $subject);
+        $response = new StreamedResponse(function () use ($user, $task, $draft, $context, $subject, $note): void {
+            $this->generate($user, $task, $draft, $context, $subject, $note);
         });
 
         // Not application/json: this is a sequence of JSON documents and never
@@ -212,6 +214,40 @@ final class ComposeAssistController extends AbstractController
     }
 
     /**
+     * This attempt's standing instruction, or null to leave the stored one in
+     * force.
+     *
+     * ABSENT AND EMPTY ARE DIFFERENT ANSWERS, so this reads has() rather than
+     * get('systemPrompt', ''). A composer that sends nothing is one whose
+     * writer never opened the box, and their saved note applies exactly as it
+     * did before this field existed. A composer that sends an EMPTY box is a
+     * person who has deliberately cleared it for this attempt — which is the
+     * more useful half of the feature, because working out why a draft keeps
+     * coming out wrong means being able to take an instruction away, not only
+     * to pile another one on top. Collapsing the two would make the empty box
+     * unreachable.
+     *
+     * No length check here. WritingAssistant::persona() clamps to
+     * AiPreferences::MAX_SYSTEM_PROMPT, which is where the same bound is
+     * applied to the stored note and to anything a config restore wrote past
+     * the setter — one place, so a long paste cannot mean two different things
+     * depending on which door it came through.
+     *
+     * Nothing is saved. The box is prefilled from the writer's stored note and
+     * edits to it live as long as the composer does; Settings → AI is still
+     * where a lasting one is written. That is the difference between trying a
+     * sentence out and adopting it, and it should take a different gesture.
+     */
+    private function note(Request $request): ?string
+    {
+        if (false === $request->request->has('systemPrompt')) {
+            return null;
+        }
+
+        return (string) $request->request->get('systemPrompt', '');
+    }
+
+    /**
      * The body of the stream.
      *
      * A method rather than the closure's own body, so that the generator lives
@@ -222,8 +258,14 @@ final class ComposeAssistController extends AbstractController
      * is written to prevent. A local in a method is freed when the method
      * returns, and freeing it is what cancels the call.
      */
-    private function generate(User $user, WritingTask $task, string $draft, ?string $context, string $subject): void
-    {
+    private function generate(
+        User $user,
+        WritingTask $task,
+        string $draft,
+        ?string $context,
+        string $subject,
+        ?string $note = null,
+    ): void {
         // PHP's default is to kill the script the moment a write finds the
         // browser gone. That sounds like what we want and is the opposite of
         // it: the kill lands mid-echo, part-way through the unwinding that
@@ -276,7 +318,7 @@ final class ComposeAssistController extends AbstractController
         // cold load, so this only ever fires when that has failed to.
         set_time_limit(self::STREAM_TIME_LIMIT_SECONDS);
 
-        $tokens = $this->assistant->stream($user, $task, $draft, $context, $subject);
+        $tokens = $this->assistant->stream($user, $task, $draft, $context, $subject, $note);
 
         if (null === $tokens) {
             // Switched off between the check above and here, or nothing to work

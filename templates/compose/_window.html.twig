@@ -1163,6 +1163,36 @@ Variables: form, message, ctx (an App\Domain\DTO\Mail\ComposeContext)
                                             class="{{ tb }} shrink-0 text-[11px] hover:text-ink">
                                         <i class="fa-solid fa-stop text-[9px] mr-1" aria-hidden="true"></i>{{ 'compose.ai.stop'|trans }}
                                     </button>
+
+                                    {# ── The standing instruction, opened from here ──
+                                       In the HEADER rather than in the actions row below,
+                                       and the difference is which failures it survives. The
+                                       actions row only exists once there is an answer to
+                                       accept — so putting it there would offer the box after
+                                       a good draft and withhold it after a bad one, which is
+                                       exactly backwards: the moment somebody wants to change
+                                       the instruction is the moment the answer came out
+                                       wrong, and "no answer" is the wrongest it gets.
+
+                                       Here it is on screen for the whole life of the panel:
+                                       while the model is thinking, after it finishes, and
+                                       after it fails. #}
+                                    <button type="button"
+                                            data-compose--ai-assist-target="promptToggle"
+                                            data-action="click->compose--ai-assist#togglePrompt"
+                                            aria-expanded="false"
+                                            {# The pair, not aria-expanded on its own: expanded
+                                               says THAT something opened and controls says
+                                               what, which is the difference between a screen
+                                               reader announcing a state change and announcing
+                                               a state change about nothing. #}
+                                            aria-controls="{{ form.vars.id }}_ai_prompt_section"
+                                            title="{{ 'compose.ai.prompt.title'|trans }}"
+                                            class="{{ tb }} shrink-0 text-[11px] hover:text-ink">
+                                        <i class="fa-solid fa-sliders text-[9px] mr-1" aria-hidden="true"></i>{{ 'compose.ai.prompt.toggle'|trans }}
+                                        <i data-compose--ai-assist-target="promptChevron"
+                                           class="fa-solid fa-chevron-down text-[8px] ml-1 transition-transform" aria-hidden="true"></i>
+                                    </button>
                                 </div>
 
                                 {# Not contenteditable, and never focusable for editing: this is a
@@ -1178,6 +1208,80 @@ Variables: form, message, ctx (an App\Domain\DTO\Mail\ComposeContext)
                                      class="px-3 pb-2 max-h-[32vh] overflow-y-auto
                                             text-sm leading-relaxed text-ink
                                             whitespace-pre-wrap break-words"></div>
+
+                                {# ── The standing instruction, for this composer only ──
+                                   Prefilled with what the writer saved in Settings → AI, and
+                                   editable in place so a sentence can be TRIED before it is
+                                   adopted. Nothing here is saved: this box lives as long as
+                                   the window does, and the note under it says where a lasting
+                                   one is written.
+
+                                   That split is deliberate rather than a shortcut. Tuning a
+                                   prompt is a loop — change a clause, generate, read, change
+                                   it back — and a loop that writes to the user's account on
+                                   every turn leaves them with whichever experiment they
+                                   happened to stop on. Trying and adopting should take
+                                   different gestures.
+
+                                   WHAT IT CAN AND CANNOT REACH
+                                   ─────────────────────────────
+                                   It replaces the writer's own standing note and nothing
+                                   above it. The task instructions — reply in the language of
+                                   the mail, plain text, no preamble — belong to the
+                                   application and to the administrator's Admin → AI prompts,
+                                   and a box in the composer that could switch those off would
+                                   be doing it in the one place nobody would think to look.
+                                   See WritingAssistant::persona().
+
+                                   `maxlength` is the same constant the settings textarea
+                                   publishes and the same one the server clamps to, so a long
+                                   paste is refused where it is typed rather than silently cut
+                                   in half two layers down.
+
+                                   A plain <textarea> and not a contenteditable: this is an
+                                   instruction, not prose with formatting, and everything on
+                                   the wire is plain text by construction. #}
+                                <div data-compose--ai-assist-target="prompt"
+                                     id="{{ form.vars.id }}_ai_prompt_section"
+                                     hidden
+                                     class="px-3 pb-2 border-t border-line pt-2">
+                                    {# form.vars.id, the same handle every other id in this
+                                       window is built on: the composer can be on screen more
+                                       than once — a dock window beside an inline reply — and a
+                                       literal id would put two of them in the document, so a
+                                       click on one label would focus the other one's box. #}
+                                    <label class="block text-[11px] font-medium text-ink-muted mb-1"
+                                           for="{{ form.vars.id }}_ai_system_prompt">
+                                        {{ 'compose.ai.prompt.label'|trans }}
+                                    </label>
+
+                                    <textarea data-compose--ai-assist-target="promptField"
+                                              id="{{ form.vars.id }}_ai_system_prompt"
+                                              rows="3"
+                                              maxlength="{{ constant('App\\Entity\\Embeddable\\AiPreferences::MAX_SYSTEM_PROMPT') }}"
+                                              placeholder="{{ 'compose.ai.prompt.placeholder'|trans }}"
+                                              class="w-full resize-y rounded-lg px-2 py-1.5
+                                                     text-sm leading-snug text-ink
+                                                     bg-field border border-field
+                                                     focus:outline-none focus-visible:ring-2 focus-visible:ring-accent
+                                                     transition-colors">{{ app.user ? app.user.aiPreferences.systemPrompt : '' }}</textarea>
+
+                                    <div class="flex items-center gap-2 mt-1.5">
+                                        {# Its own "try again", beside the box rather than only
+                                           down in the actions row. After a failure that row is
+                                           not on screen at all, and the whole reason somebody
+                                           opened this is to have another go. #}
+                                        <button type="button"
+                                                data-action="click->compose--ai-assist#regenerate"
+                                                class="{{ tb }} text-[11px] text-accent hover:text-accent">
+                                            <i class="fa-solid fa-rotate-right text-[9px] mr-1" aria-hidden="true"></i>{{ 'compose.ai.prompt.retry'|trans }}
+                                        </button>
+
+                                        <p class="text-[11px] leading-snug text-ink-faint">
+                                            {{ 'compose.ai.prompt.hint'|trans }}
+                                        </p>
+                                    </div>
+                                </div>
 
                                 {# Offered only once there is something to accept. Insert first
                                    and leftmost because it is what the writer came for; discard

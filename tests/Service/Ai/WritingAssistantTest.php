@@ -246,6 +246,71 @@ final class WritingAssistantTest extends KernelTestCase
         );
     }
 
+    /**
+     * The composer's own copy of the note REPLACES the saved one.
+     *
+     * Appending would make the feature useless for the thing it exists for.
+     * Somebody works out why a draft keeps coming back too formal by taking the
+     * instruction out and trying again; with both in one message the sentence
+     * under test is still in the prompt, and the answer means nothing.
+     */
+    public function testANoteFromTheComposerReplacesTheWritersSavedOne(): void
+    {
+        $sent   = null;
+        $writer = $this->writer();
+        $writer->aiPreferences->systemPrompt = 'Always sign off with Kind regards.';
+
+        $this->assistant(sent: $sent)->write(
+            $writer,
+            WritingTask::Reply,
+            '',
+            'When are you open?',
+            null,
+            'Keep it to three sentences.',
+        );
+
+        self::assertIsArray($sent);
+
+        $system = $sent['messages'][0]['content'];
+
+        self::assertStringContainsString('Keep it to three sentences.', $system);
+        self::assertStringNotContainsString('Kind regards', $system, 'both notes went out; the trial answers nothing');
+
+        // And it reaches only the writer's own block. The task instructions
+        // still come first and whole — a box in the composer that could switch
+        // off the language rule would be switching it off where nobody would
+        // look for it.
+        self::assertStringStartsWith((new PromptLibrary($this->settings))->forTask(WritingTask::Reply), $system);
+    }
+
+    /**
+     * An EMPTY box is an answer, not an absence.
+     *
+     * This is the half of the feature that cannot be reached any other way:
+     * clearing the note for one attempt. If empty collapsed into "say nothing"
+     * the saved note would come back, and the one experiment somebody most
+     * wants to run — what does this look like with no instruction at all —
+     * would be impossible from the composer.
+     */
+    public function testAnEmptyNoteFromTheComposerDropsTheSavedOneForThisAttempt(): void
+    {
+        $sent   = null;
+        $writer = $this->writer();
+        $writer->aiPreferences->systemPrompt = 'Always sign off with Kind regards.';
+
+        $this->assistant(sent: $sent)->write(
+            $writer,
+            WritingTask::Reply,
+            '',
+            'When are you open?',
+            null,
+            '',
+        );
+
+        self::assertIsArray($sent);
+        self::assertStringNotContainsString('Kind regards', $sent['messages'][0]['content']);
+    }
+
     /** No notes, no additions: the prompt is byte for byte what it always was. */
     public function testAWriterWithNoNotesGetsTheAppPromptUnchanged(): void
     {

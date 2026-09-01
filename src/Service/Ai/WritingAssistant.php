@@ -102,10 +102,20 @@ final readonly class WritingAssistant
      *                             appended to the app's own instructions
      * @param string|null $draft   what is in the composer now
      * @param string|null $context the conversation being replied to, if any
+     * @param string|null $note    this attempt's standing instruction, edited
+     *                             in the composer and never saved; null leaves
+     *                             the writer's stored one in force. See
+     *                             persona().
      */
-    public function write(User $user, WritingTask $task, ?string $draft, ?string $context, ?string $subject = null): ?string
-    {
-        $messages = $this->messagesFor($user, $task, $draft, $context, $subject);
+    public function write(
+        User $user,
+        WritingTask $task,
+        ?string $draft,
+        ?string $context,
+        ?string $subject = null,
+        ?string $note = null,
+    ): ?string {
+        $messages = $this->messagesFor($user, $task, $draft, $context, $subject, $note);
 
         if (null === $messages) {
             return null;
@@ -142,12 +152,20 @@ final readonly class WritingAssistant
      * @param User        $user    whose composer this is; see write()
      * @param string|null $draft   what is in the composer now
      * @param string|null $context the conversation being replied to, if any
+     * @param string|null $note    this attempt's standing instruction; see
+     *                             write() and persona()
      *
      * @return \Generator<int, string, void, AiChatResult>|null
      */
-    public function stream(User $user, WritingTask $task, ?string $draft, ?string $context, ?string $subject = null): ?\Generator
-    {
-        $messages = $this->messagesFor($user, $task, $draft, $context, $subject);
+    public function stream(
+        User $user,
+        WritingTask $task,
+        ?string $draft,
+        ?string $context,
+        ?string $subject = null,
+        ?string $note = null,
+    ): ?\Generator {
+        $messages = $this->messagesFor($user, $task, $draft, $context, $subject, $note);
 
         if (null === $messages) {
             return null;
@@ -208,8 +226,14 @@ final readonly class WritingAssistant
      *
      * @return list<array{role: string, content: string}>|null
      */
-    private function messagesFor(User $user, WritingTask $task, ?string $draft, ?string $context, ?string $subject): ?array
-    {
+    private function messagesFor(
+        User $user,
+        WritingTask $task,
+        ?string $draft,
+        ?string $context,
+        ?string $subject,
+        ?string $note = null,
+    ): ?array {
         if (false === $this->isAvailableFor($user)) {
             return null;
         }
@@ -227,7 +251,7 @@ final readonly class WritingAssistant
         }
 
         return [
-            ['role' => 'system', 'content' => $this->prompts->forTask($task) . $this->persona($user)],
+            ['role' => 'system', 'content' => $this->prompts->forTask($task) . $this->persona($user, $note)],
             ['role' => 'user', 'content' => $this->brief($task, $draft, $context, $subject)],
         ];
     }
@@ -262,9 +286,34 @@ final readonly class WritingAssistant
      * Re-truncated here even though the setter truncates. Property hooks are
      * skipped on hydration (see User::$timezone), so a row written by an older
      * build, a config restore or psql has never been past the setter — and the
-     * cap is a budget the message itself has to fit inside.
+     * cap is a budget the message itself has to fit inside. It is also what
+     * bounds $note, which arrives from a request body and has been past no
+     * setter at all.
+     *
+     * WHAT $note IS
+     * ─────────────
+     * The composer's own copy of the standing instruction, edited in place for
+     * one attempt and never saved. It REPLACES the stored one rather than
+     * joining it, and that is the whole point of the feature: somebody trying
+     * to work out why a draft keeps coming out too formal needs to be able to
+     * take the instruction out, not only add another one underneath it. Two
+     * notes in one message, one of them the very sentence being tested, would
+     * answer a different question than the one being asked.
+     *
+     * Null and empty string are different answers, and the plumbing above
+     * keeps them apart: null means the composer said nothing, so the stored
+     * note stands; '' means it sent an empty box, which is a person asking for
+     * this attempt to carry no standing instruction at all.
+     *
+     * It replaces only THIS block. aboutMe above is a fact about the writer
+     * rather than a request about the writing, and everything ahead of both —
+     * the task instructions, the language rule, the plain-text rule — belongs
+     * to the application and to the administrator. A composer field that could
+     * overwrite those would be a text box that switches off the rules the rest
+     * of the feature is built on, in the one place where nobody would think to
+     * look for them.
      */
-    private function persona(User $user): string
+    private function persona(User $user, ?string $note = null): string
     {
         $prefs  = $user->aiPreferences;
         $blocks = [];
@@ -274,9 +323,15 @@ final readonly class WritingAssistant
                 . trim(mb_substr($prefs->aboutMe, 0, AiPreferences::MAX_ABOUT_ME));
         }
 
-        if ('' !== trim($prefs->systemPrompt)) {
+        // The composer's own copy of the note, when it sent one, and otherwise
+        // the stored one. See the parameter's note above for why replacing
+        // rather than appending is the only reading that lets somebody take an
+        // instruction OUT for one attempt.
+        $instruction = $note ?? $prefs->systemPrompt;
+
+        if ('' !== trim($instruction)) {
             $blocks[] = "How the writer has asked to be written for:\n"
-                . trim(mb_substr($prefs->systemPrompt, 0, AiPreferences::MAX_SYSTEM_PROMPT));
+                . trim(mb_substr($instruction, 0, AiPreferences::MAX_SYSTEM_PROMPT));
         }
 
         if ([] === $blocks) {

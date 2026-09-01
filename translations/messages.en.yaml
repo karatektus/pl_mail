@@ -1340,6 +1340,20 @@ compose:
         label: 'Help me write'
         no_answer: 'The model host gave no answer.'
         preview: 'Suggested text, not yet in your message'
+        prompt:
+            # The disclosure in the assistant's panel that opens the writer's
+            # own standing instruction for editing. Deliberately not "system
+            # prompt" on the button: the box holds the writer's note, not the
+            # application's instructions, and naming it after the whole prompt
+            # would promise reach it does not have.
+            toggle: 'Instructions'
+            title: 'Change the instructions for the next attempt'
+            label: 'How you want to be written for'
+            placeholder: 'e.g. Keep it to three sentences and never open with "I hope this finds you well".'
+            retry: 'Try again with this'
+            # Says the two things somebody will otherwise find out the hard way:
+            # this attempt only, and Settings is where it sticks.
+            hint: 'This composer only. Settings → AI is where a lasting one is saved.'
         rate: '%count% tokens · %rate% a second'
         regenerate: 'Try again'
         slow_hint: 'The first request after a while takes about fifteen seconds while the model loads.'

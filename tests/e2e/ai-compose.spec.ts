@@ -31,6 +31,8 @@ import { INBOX_SUBJECTS, consoleCommand, mailRow, seed } from "./support/config"
 const DOCK = "#compose_dock";
 const MENU_BUTTON = `${DOCK} button[aria-label="Help me write"]`;
 const STATUS = `${DOCK} [data-compose--ai-assist-target="status"]`;
+const PROMPT_TOGGLE = `${DOCK} [data-compose--ai-assist-target="promptToggle"]`;
+const PROMPT_FIELD = `${DOCK} [data-compose--ai-assist-target="promptField"]`;
 
 test.beforeAll(() => {
     consoleCommand("app:test:ai-writing-help on");
@@ -110,5 +112,63 @@ test.describe("composer writing help", () => {
         await inlineMenu.click();
 
         await expect(page.getByRole("button", { name: "Draft a reply" })).toBeVisible();
+    });
+
+    /**
+     * The standing instruction can be changed in the composer, for one attempt.
+     *
+     * Asserted on the REQUEST BODY, which is the only place the claim is
+     * legible. What the box does to the draft is a model's business and this
+     * host answers nothing; what has to be true is that the field is absent
+     * until somebody opens the box and carries their text afterwards — and that
+     * distinction is invisible from the page, because both cases look like a
+     * request that failed.
+     *
+     * Absence is half the test and the more important half. The server reads
+     * presence, not emptiness (see ComposeAssistController::note()), so a
+     * composer that always sent the field would make "no standing instruction
+     * for this attempt" unsayable — and would silently overwrite the saved note
+     * with a prefilled copy of itself for every writer who never opened the box.
+     */
+    test("the standing instruction is editable for one attempt, and absent until it is", async ({ page }) => {
+        const bodies: string[] = [];
+
+        await page.route("**/compose/assist/stream", async (route) => {
+            bodies.push(route.request().postData() ?? "");
+            await route.continue();
+        });
+
+        await page.goto("/mail/inbox");
+        await page.getByRole("link", { name: "Compose" }).first().click();
+        await expect(page.locator(`${DOCK} .ts-control`).first()).toBeVisible();
+
+        await page.locator(MENU_BUTTON).click();
+        await page.getByRole("button", { name: "Fix spelling and grammar" }).click();
+
+        await expect(page.locator(STATUS)).toBeVisible();
+        expect(bodies).toHaveLength(1);
+        expect(new URLSearchParams(bodies[0]).has("systemPrompt")).toBe(false);
+
+        // The box is reachable while the panel is open — including after this
+        // request has failed, which is when somebody actually wants it.
+        const toggle = page.locator(PROMPT_TOGGLE);
+        await expect(toggle).toBeVisible();
+        await expect(toggle).toHaveAttribute("aria-expanded", "false");
+
+        await toggle.click();
+        await expect(toggle).toHaveAttribute("aria-expanded", "true");
+
+        const field = page.locator(PROMPT_FIELD);
+        await expect(field).toBeVisible();
+        await field.fill("Answer in exactly one sentence.");
+
+        await page.getByRole("button", { name: "Try again with this" }).click();
+
+        await expect.poll(() => bodies.length).toBe(2);
+
+        // Parsed rather than string-matched: this is a form body, so the spaces
+        // are `+` and a `toContain` on the readable sentence fails against a
+        // request that is perfectly correct.
+        expect(new URLSearchParams(bodies[1]).get("systemPrompt")).toBe("Answer in exactly one sentence.");
     });
 });

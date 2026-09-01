@@ -51,6 +51,24 @@ somebody drags one onto a category tab.**
   strip that appeared mid-gesture would push the list down under the pointer that had just picked a
   row up.
 
+- **Change what the writing assistant has been told, without leaving the message.** The assistant's
+  panel has an **Instructions** disclosure now, holding your own standing note — the one from
+  Settings → AI — editable in place, with "Try again with this" beside it.
+
+  Tuning a prompt is a loop: change a clause, generate, read it, change it back. Doing that through
+  the settings page means abandoning a half-written mail, saving, coming back and starting the draft
+  again, so in practice nobody did and the note stayed whatever it was on the day it was written.
+
+  **Nothing is saved.** The box lives as long as the composer does, and Settings → AI is still where
+  a lasting instruction is written — trying a sentence out and adopting it should take different
+  gestures, or you are left with whichever experiment you happened to stop on. Clearing the box is a
+  real answer too: that attempt goes out with no standing instruction at all, which is the one
+  experiment you could not run before.
+
+  It replaces your note and reaches nothing above it. Answer in the language of the mail, plain text,
+  no preamble and the administrator's own prompts are the application's, and a box in the composer
+  that could switch those off would be doing it where nobody would think to look.
+
 ## v0.2.15 — 2026-09-01
 
 **Adds two columns to the AI settings table; the migrations run on boot. Nothing is removed and

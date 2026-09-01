@@ -52,6 +52,26 @@ import { jsonCsrfHeaders } from "../../csrf.js";
  * original with it means a model deleted their words with no undo they can see,
  * so the answer is always INSERTED and the original always stays. Deciding
  * which to keep is the writer's job and takes one keystroke.
+ *
+ * WHY THE STANDING INSTRUCTION IS EDITABLE HERE AND NOT ONLY IN SETTINGS
+ * ──────────────────────────────────────────────────────────────────────
+ * Tuning a prompt is a loop: change a clause, generate, read it, change it
+ * back. Doing that through Settings → AI means leaving the half-written mail,
+ * saving, coming back and starting the draft again — so in practice nobody
+ * does, and the note stays whatever it was on the day it was written.
+ *
+ * So the panel carries the note itself, prefilled with the saved one and
+ * editable in place, and "try again" is next to it. Nothing is saved: the box
+ * lives as long as this composer, and Settings → AI is still where a lasting
+ * instruction is written. Trying a sentence out and adopting it should take
+ * different gestures, or the writer is left with whichever experiment they
+ * happened to stop on.
+ *
+ * The box replaces the writer's own note and reaches nothing above it. The
+ * task instructions — answer in the language of the mail, plain text, no
+ * preamble — belong to the application and to the administrator's prompts, and
+ * a field in the composer that could switch those off would be doing it where
+ * nobody would think to look for them. See WritingAssistant::persona().
  */
 export default class extends Controller {
     static values = {
@@ -88,7 +108,11 @@ export default class extends Controller {
         refusedLabel: { type: String, default: "No answer" },
     };
 
-    static targets = ["panel", "status", "meter", "preview", "stop", "actions", "pending"];
+    static targets = [
+        "panel", "status", "meter", "preview", "stop", "actions", "pending",
+        // The standing instruction, editable for the length of this composer.
+        "prompt", "promptToggle", "promptChevron", "promptField",
+    ];
 
     /**
      * How often the token counter may be redrawn, in milliseconds.
@@ -114,6 +138,23 @@ export default class extends Controller {
 
     /** The task of the run on screen, so "try again" knows what to repeat. */
     #task = null;
+
+    /**
+     * Whether the writer has taken charge of the standing instruction.
+     *
+     * Set the first time the box is opened, and never unset — including when it
+     * is folded away again, which is the case that decides the rule. Once
+     * somebody has seen and possibly changed that text, it is what they expect
+     * to be used; reverting to the saved note the moment the section is closed
+     * would undo an edit they can no longer see, which is the worst of both.
+     *
+     * It is also what keeps this feature invisible to everybody else. Until the
+     * box is opened, the request carries no `systemPrompt` field at all and the
+     * server behaves exactly as it did before — see
+     * ComposeAssistController::note(), where absent and empty are deliberately
+     * different answers.
+     */
+    #promptClaimed = false;
 
     /** What #accept() would put in the draft. */
     #answer = "";
@@ -155,6 +196,49 @@ export default class extends Controller {
         if (null === this.#task) return;
 
         this.#start();
+    }
+
+    /**
+     * Fold the standing instruction out, and take charge of it.
+     *
+     * The panel is a popover over a composer, so the section is disclosed in
+     * place rather than opened as a second layer: a menu over a menu over an
+     * editor is three things to dismiss in the right order, and this one holds
+     * a textarea somebody is going to type a paragraph into.
+     */
+    togglePrompt(event) {
+        event?.preventDefault();
+
+        if (false === this.hasPromptTarget) return;
+
+        const open = true === this.promptTarget.hidden;
+
+        this.promptTarget.hidden = false === open;
+
+        if (true === this.hasPromptToggleTarget) {
+            this.promptToggleTarget.setAttribute("aria-expanded", open ? "true" : "false");
+        }
+
+        // Purely decorative — the chevron says which way the section will go
+        // next. The state a screen reader reads is aria-expanded above.
+        //
+        // hasXTarget and not `?.`: Stimulus's generated getter THROWS on a
+        // missing target rather than returning undefined, so optional chaining
+        // on it is a guard that never runs.
+        if (this.hasPromptChevronTarget) {
+            this.promptChevronTarget.classList.toggle("rotate-180", open);
+        }
+
+        if (false === open) return;
+
+        this.#promptClaimed = true;
+
+        // Focus follows the disclosure, because there is exactly one thing to
+        // do in there. `preventScroll`: the panel is pinned above the action
+        // bar and the browser's own scroll-into-view drags the whole composer.
+        if (this.hasPromptFieldTarget) {
+            this.promptFieldTarget.focus({ preventScroll: true });
+        }
     }
 
     /**
@@ -297,6 +381,12 @@ export default class extends Controller {
                     draft: this.#writtenBefore(editor).trim(),
                     subject: this.#subject(),
                     inReplyTo: this.inReplyToValue,
+                    // Spread, so the key is genuinely ABSENT until the writer
+                    // has opened the box — the server reads presence, not
+                    // emptiness, and an always-sent field would make "no
+                    // standing instruction for this attempt" unsayable. See
+                    // ComposeAssistController::note().
+                    ...this.#noteField(),
                 }),
                 signal: this.#controller.signal,
             });
@@ -438,6 +528,22 @@ export default class extends Controller {
         this.#actions(false);
         this.#stopping(false);
 
+        // Folded away, but NOT forgotten: #promptClaimed and the text in the
+        // box both survive, so the next task in this composer is written under
+        // the instruction the writer arrived at rather than quietly reverting
+        // to their saved one. The panel is closing, not the composer.
+        if (true === this.hasPromptTarget) {
+            this.promptTarget.hidden = true;
+        }
+
+        if (true === this.hasPromptToggleTarget) {
+            this.promptToggleTarget.setAttribute("aria-expanded", "false");
+        }
+
+        if (true === this.hasPromptChevronTarget) {
+            this.promptChevronTarget.classList.remove("rotate-180");
+        }
+
         if (true === this.hasPanelTarget) {
             this.panelTarget.hidden = true;
         }
@@ -457,6 +563,21 @@ export default class extends Controller {
 
         this.#controller = null;
         controller?.abort();
+    }
+
+    /**
+     * The standing instruction to send with this run, if any.
+     *
+     * An object rather than a string so the CALLER can spread it: `{}` puts no
+     * key in the body at all, which is the only way to say "leave the saved
+     * note alone" in a form encoding where every field is a string.
+     */
+    #noteField() {
+        if (false === this.#promptClaimed || false === this.hasPromptFieldTarget) {
+            return {};
+        }
+
+        return { systemPrompt: this.promptFieldTarget.value };
     }
 
     // ── The surface ───────────────────────────────────────────────────────
