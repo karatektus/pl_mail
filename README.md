@@ -38,12 +38,16 @@ provider doesn't.
   friends, completed as you type.
 - **Filters as a tree** — any/all/none, nested, restated in plain English and counted against real
   mail before you save. Apply one to mail that arrived before it existed.
+- **Filed where you drop it** — drag a conversation onto a folder in the sidebar or onto one of the
+  inbox tabs, several at once if they are ticked. Only the folders that will take it light up, and a
+  tab you choose by hand stays chosen when the next message in the thread arrives.
 - **A calendar beside the mail** — two-way sync with Google, Microsoft and CalDAV, drag-to-move
   week grid, invitations answered in place, share and booking links.
 - **Files where you keep them** — attach from and save to Drive, Photos, OneDrive, Dropbox,
   Nextcloud and Immich.
 - **A language model, if you want one** — point plMail at an Ollama box on your own network and it
-  can search by meaning, draft replies, summarise a thread and sort mail into tabs. Off by default,
+  can search by meaning, draft replies, summarise a thread and sort mail into tabs. What it has been
+  told about how you write is editable in the composer, for one attempt at a time. Off by default,
   each of the four switched on separately, and nothing ever leaves your network.
 - **Yours** — two-factor auth, per-app JMAP passwords, 41 themes, English, German and Pirate.
 

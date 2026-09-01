@@ -6,7 +6,7 @@ so anything that changes the schema irreversibly is called out explicitly.
 The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, and `sha-…` pins one commit.
 
-## Unreleased
+## v0.2.16 — 2026-09-01
 
 **Adds one column to the conversations table; the migration runs on boot. Nothing is removed and
 nothing is rewritten — the column starts empty on every existing conversation and only fills in when
