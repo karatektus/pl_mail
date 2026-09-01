@@ -6,7 +6,7 @@ so anything that changes the schema irreversibly is called out explicitly.
 The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, and `sha-…` pins one commit.
 
-## Unreleased
+## v0.2.17 — 2026-09-01
 
 **Nothing in the application changed. This is the test suite and the workflow that runs it.**
 
