@@ -34,7 +34,21 @@
            anchor being both — the badge beside it is a link of its own now, and
            an <a> inside an <a> is not markup that survives parsing. Same shape
            the system rows and the label tree use. #}
+        {# Somewhere a conversation from THIS account can be dropped.
+
+           Account-scoped, unlike the shared label rows above: a label spans
+           every account, but the folder behind it does not — the binding that
+           links a label to a real IMAP mailbox is per account. Dropping a
+           conversation from one mailbox onto another's Receipts would attach a
+           label with no folder on that side, and the mail would be filed by a
+           fallback rather than where it was let go. mail--dnd refuses it.
+
+           Sent, Drafts and Snoozed take no drops. See
+           LabelRole::acceptsMoves(), which is also what the server checks. #}
+        {% import '_partials/_sidebar.html.twig' as sidebarMacros %}
+        {% set droppable = label.role is null or label.role.acceptsMoves %}
         <div class="nav-item flex items-center justify-between text-xs transition-colors text-ink-muted"
+             {% if droppable %}{{ sidebarMacros.drop_target(label.id, account) }}{% endif %}
              data-nav-tier="tree"
              style="--label-depth: {{ 12 + label.depth * 12 }}px">
             <a

@@ -6,10 +6,12 @@ namespace App\Service\Mail;
 
 use App\Domain\DTO\Mail\RemoteFlagState;
 use App\Domain\Enum\Mail\LabelRole;
+use App\Domain\Enum\Mail\MessageCategory;
 use App\Domain\Enum\Mail\MessageFlag;
 use App\Entity\Label\Label;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Message;
+use App\Entity\Mail\MessageThread;
 use App\Infrastructure\Messaging\Message\SendReadReceiptMessage;
 use App\Jmap\State\JmapObjectType;
 use App\Jmap\State\StateManager;
@@ -234,6 +236,90 @@ final readonly class ThreadStatusUpdater
         }
 
         $this->finish($messages);
+    }
+
+    /**
+     * Put a set of messages IN a folder, taking them out of the one they are
+     * in now.
+     *
+     * The difference between this and applyLabel(attach: true) is the whole
+     * reason it exists. Labelling is additive — a conversation gains "Receipts"
+     * and stays in the inbox — and that is the right answer for a menu you tick
+     * boxes in. Dragging a row onto a folder is not that gesture: nobody drags
+     * something onto a folder and expects to find it in both places, and a drag
+     * that quietly left the mail where it was would look like a failed drag.
+     *
+     * Which labels count as "where it is now" is the only judgement here, and
+     * it is deliberately narrow: the four system locations, plus custom labels
+     * that are bound to a real folder on this account. A plain tag survives the
+     * move, because a tag is not a place — moving a conversation from Inbox to
+     * Archive has never stripped "Receipts" off it and this must not either.
+     *
+     * The three system destinations delegate rather than reimplement. Each
+     * carries provider semantics this method has no way to reproduce — Gmail
+     * wants a real trash operation, not a label swap, and archive/restore each
+     * have a documented history of getting the local half wrong. A fourth
+     * arm for Spam would be a "mark as junk" action, which the interface does
+     * not otherwise have; it goes through the generic path below, where
+     * attaching Spam and detaching Inbox is resolved into a physical move by
+     * LabelChangePropagator::resolveDestinationMailbox(), which prefers a
+     * system Trash/Spam label over anything else the mail carries.
+     *
+     * @param list<Message> $messages
+     */
+    public function move(array $messages, Label $destination): void
+    {
+        $this->dropSnooze($messages);
+
+        match ($destination->role) {
+            LabelRole::Inbox   => $this->restore($messages),
+            LabelRole::Archive => $this->archive($messages),
+            LabelRole::Trash   => $this->trash($messages),
+            default            => $this->moveToFolder($messages, $destination),
+        };
+    }
+
+    /**
+     * Put a conversation in an inbox category and record that a person chose
+     * it.
+     *
+     * The pin is the point. Writing $thread->category alone would hold until
+     * the next message in the conversation arrived and MessageThreader adopted
+     * ITS derived category — most-recent-wins — at which point the tab strip
+     * would quietly undo the move. See MessageThread::$categoryPinnedAt for
+     * the two writers that read the flag.
+     *
+     * Local only, deliberately. Gmail has CATEGORY_* labels of its own and this
+     * does not touch them, so a Gmail thread moved here reads as Primary in
+     * plMail and stays where it was in Gmail's own web interface. Pushing it
+     * would be a second, arguable feature — Gmail's categories are inbox tabs
+     * for the Gmail UI, not a property of the mail — and getting it wrong would
+     * write to somebody's real mailbox. What matters is that the local choice
+     * cannot be overwritten by the sync, and the pin is what guarantees that.
+     *
+     * @return bool whether anything changed
+     */
+    public function setCategory(MessageThread $thread, MessageCategory $category): bool
+    {
+        if ($category === $thread->category && null !== $thread->categoryPinnedAt) {
+            return false;
+        }
+
+        $thread->category         = $category;
+        $thread->categoryPinnedAt = new DateTimeImmutable();
+
+        // The thread's own row moved between two tabs; no message changed, so
+        // there is nothing to tell the Email state about. recordThreadsTouched
+        // is what JMAP clients watch for a Thread/changes — see
+        // ThreadGetMethod, which already returns `category`.
+        $this->stateManager->recordThreadsTouched(
+            (int) $thread->account->id,
+            [(int) $thread->id],
+        );
+
+        $this->em->flush();
+
+        return true;
     }
 
     /**
@@ -568,6 +654,179 @@ final readonly class ThreadStatusUpdater
     }
 
     // ── Private ───────────────────────────────────────────────────────────────
+
+    /**
+     * The generic half of move(): into a folder that is not one of the three
+     * system destinations with methods of their own.
+     *
+     * ORDERING IS THE WHOLE OF THIS METHOD
+     * ────────────────────────────────────
+     * The destination is attached, and its arrival propagated, BEFORE anything
+     * is detached. LabelChangePropagator::detachLabel() decides where a plain
+     * IMAP message physically goes by looking at the labels the message still
+     * carries after the detach — so detaching first would ask it to choose a
+     * destination from a set the destination is not in yet, and the mail would
+     * be moved to whatever else happened to be attached, or archived as a
+     * fallback when nothing was. Attach first and the answer is the folder the
+     * person dropped it on.
+     *
+     * The detaches then run one label at a time rather than as a set, because
+     * that is the only granularity the propagator offers and each one has to be
+     * followed by its own provider dispatch. In the overwhelmingly common case
+     * there is exactly one: mail lives in one place.
+     *
+     * @param list<Message> $messages
+     */
+    private function moveToFolder(array $messages, Label $destination): void
+    {
+        $sources = [];
+
+        foreach ($messages as $message) {
+            foreach ($this->locationLabelsOf($message) as $label) {
+                if ($label === $destination) {
+                    // Already here. Detaching and re-attaching the same label
+                    // would be a physical move to the folder the mail is in,
+                    // which some servers answer by giving it a new UID and
+                    // others by refusing outright.
+                    continue;
+                }
+
+                $sources[spl_object_id($label)] ??= ['label' => $label, 'messages' => []];
+                $sources[spl_object_id($label)]['messages'][] = $message;
+            }
+
+            $message->addLabel($destination);
+        }
+
+        $this->propagator->attachLabel($messages, $destination);
+
+        foreach ($sources as $source) {
+            foreach ($source['messages'] as $message) {
+                $message->removeLabel($source['label']);
+            }
+
+            // Handles the IMAP location-label replacement (physical move)
+            // internally; must run before flush.
+            $this->propagator->detachLabel($source['messages'], $source['label']);
+        }
+
+        $this->finish($messages);
+    }
+
+    /**
+     * The labels on a message that say WHERE IT IS, as opposed to what it is
+     * about.
+     *
+     * A system label with a folder behind it is a location by definition —
+     * those are the app's own folders, and LabelRole::hasProviderFolder() is
+     * the existing spelling of "the server has one of these too". A custom
+     * label is one only when it is bound to a real folder on this account,
+     * which is what LabelBinding::$mailbox records: a label that exists as an
+     * IMAP folder is somewhere mail can be, and a label that is only a row in
+     * our database is a tag the mail wears wherever it lives.
+     *
+     * Getting this wrong in the generous direction — treating every label as a
+     * location — would make a move strip every tag off the conversation, and
+     * the tags are the part nobody could get back.
+     *
+     * Snoozed falls out of this for free, and must: it is the one role with no
+     * folder anywhere, so detaching it as though it were a source location
+     * would ask the propagator to move mail out of a place that does not exist.
+     * The snooze itself is dropped in move(), where the column can be cleared
+     * alongside it.
+     *
+     * @return list<Label>
+     */
+    private function locationLabelsOf(Message $message): array
+    {
+        $account   = $this->accountOf($message);
+        $locations = [];
+
+        foreach ($message->labels as $label) {
+            $role = $label->role;
+
+            if (null !== $role) {
+                if (true === $role->hasProviderFolder()) {
+                    $locations[] = $label;
+                }
+
+                continue;
+            }
+
+            if (null !== $label->bindingFor($account)?->mailbox) {
+                $locations[] = $label;
+            }
+        }
+
+        return $locations;
+    }
+
+    /**
+     * Filing a conversation ends the wait it was put on.
+     *
+     * A snoozed thread is out of the inbox with a time on it, and the sweep
+     * puts it back when that time comes. Moving one somewhere without saying
+     * anything about the snooze produces the worst kind of failure this feature
+     * could have: the drag works, the row lands in the folder, and then hours
+     * later the sweep pulls the whole conversation back into the inbox and
+     * marks it unread — an action with no visible cause, arriving long after
+     * the one that provoked it.
+     *
+     * So the move supersedes the snooze. Not through ThreadSnoozeService::wake(),
+     * which is a different statement: waking means "the wait is over, here it is
+     * again", and it says so by putting the thread back in the inbox and marking
+     * every message unread. Neither is wanted by somebody who has just decided
+     * where this conversation goes.
+     *
+     * Only move() calls this. archive()/trash()/restore() have the same latent
+     * problem when reached from their own buttons, and that is a separate
+     * report with its own history; fixing it here would change what three
+     * long-standing actions do on the way past.
+     *
+     * @param list<Message> $messages
+     */
+    private function dropSnooze(array $messages): void
+    {
+        // Which threads were snoozed is read BEFORE anything is cleared, and
+        // that ordering is load-bearing: a thread's messages arrive here one
+        // after another, so clearing snoozedUntil on the first one would make
+        // the second look un-snoozed and leave it holding the Snoozed label
+        // the first one shed. Half a thread in a place that no longer exists.
+        $snoozed = [];
+
+        foreach ($messages as $message) {
+            $thread = $message->thread;
+
+            if (null !== $thread && null !== $thread->snoozedUntil) {
+                $snoozed[spl_object_id($thread)] = $thread;
+            }
+        }
+
+        if ([] === $snoozed) {
+            return;
+        }
+
+        $snoozedLabel = $this->labels->findOneByRoleForUser(
+            LabelRole::Snoozed,
+            $this->accountOf($messages[0])->usr,
+        );
+
+        foreach ($snoozed as $thread) {
+            $thread->snoozedUntil = null;
+        }
+
+        if (null === $snoozedLabel) {
+            return;
+        }
+
+        foreach ($messages as $message) {
+            $thread = $message->thread;
+
+            if (null !== $thread && true === isset($snoozed[spl_object_id($thread)])) {
+                $message->removeLabel($snoozedLabel);
+            }
+        }
+    }
 
     /**
      * The tail every label mutation shares: re-derive the thread's labels from

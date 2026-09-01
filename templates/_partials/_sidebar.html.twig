@@ -105,6 +105,32 @@ disclosure toggling.
 Hover-revealed, but focus-visible brings it back for keyboard users, and it
 keeps its accessible name either way.
 #}
+{#
+The attributes that make a nav row somewhere a conversation can be dropped.
+
+One macro rather than the attributes written out at each of the nine rows that
+carry them, because the contract is mail--dnd's and a row that spelled it
+slightly differently would simply stop accepting drops — silently, with no
+console error and nothing to grep for. See assets/controllers/mail/dnd_controller.js.
+
+`labelId` is null on a role the user has no label for yet. System labels are
+created lazily — the first archive, the first snooze, the first folder sync — so
+a fresh install genuinely has no Archive row to point at, and emitting
+data-dnd-folder="" would produce a target that accepts a drop and posts a zero.
+Nothing is emitted instead, and the row is an ordinary link.
+
+`account` narrows a row to one mailbox, for the folder lists under each account.
+Absent means the row takes mail from any of them, which is right for the shared
+label section and for the system rows — those resolve their destination per
+account inside ThreadStatusUpdater.
+#}
+{% macro drop_target(labelId, account = null) %}
+    {%- if labelId is not null -%}
+        data-dnd-folder="{{ labelId }}"
+        {%- if account is not null %} data-dnd-account="{{ account.id }}"{% endif -%}
+    {%- endif -%}
+{% endmacro %}
+
 {% macro label_edit(label) %}
     <button
         data-controller="ui--modal"
@@ -143,6 +169,10 @@ keeps its accessible name either way.
                  {{ sidebarCounts.isCollapsed(_treeKey) ? '' : 'open' }}>
             <summary class="nav-item group/label flex items-center gap-1 cursor-pointer list-none
                             transition-colors"
+                     {# A parent label takes drops like any other. It is a real
+                        folder with real mail in it; having children does not
+                        make it a heading. #}
+                     {{ macros.drop_target(label.id) }}
                      data-nav-tier="tree"
                      aria-expanded="{{ sidebarCounts.isCollapsed(_treeKey) ? 'false' : 'true' }}"
                      data-ui--sidebar-target="collapseSummary"
@@ -177,6 +207,7 @@ keeps its accessible name either way.
         </details>
     {% else %}
         <div class="nav-item group/label flex items-center gap-2 transition-colors"
+             {{ macros.drop_target(label.id) }}
              data-nav-tier="tree"
              style="--label-depth: {{ depth * 14 + 16 }}px">
             {{ macros.label_dot(label.color) }}
@@ -273,7 +304,12 @@ controller instead — the scroll position and which trees are open.
          data-ui--sidebar-target="scroller"
          data-action="scroll->ui--sidebar#rememberScroll">
 
-        <div class="nav-item flex items-center justify-between gap-2 px-3 rounded-lg transition-colors">
+        <div class="nav-item flex items-center justify-between gap-2 px-3 rounded-lg transition-colors"
+             {# Dropping a conversation here is the same operation as the row's
+                own "back to the inbox" button: out of the bin, out of spam, out
+                of the archive. See ThreadStatusUpdater::move(), which sends
+                every system role to the action that already owns it. #}
+             {{ macros.drop_target(sidebarCounts.roleLabelId(enum('App\\Domain\\Enum\\Mail\\LabelRole').Inbox)) }}>
             {# The tier rides on the LINK, not on the pill around it. The pill is
                what you see — .nav-item draws it — but the row's height comes from
                padding-block, and padding on the wrapper is area the anchor does not
@@ -423,7 +459,8 @@ controller instead — the scroll position and which trees are open.
                 {{ macros.unread_badge(sidebarCounts.forRoleBadge(enum('App\\Domain\\Enum\\Mail\\LabelRole').Snoozed), 'role:snoozed', path('app_mail_snoozed', { unread: 1 })) }}
             </div>
         {% endif %}
-            <div class="nav-item flex items-center justify-between gap-2 pl-9 pr-3 rounded-lg transition-colors">
+            <div class="nav-item flex items-center justify-between gap-2 pl-9 pr-3 rounded-lg transition-colors"
+                 {{ macros.drop_target(sidebarCounts.roleLabelId(enum('App\\Domain\\Enum\\Mail\\LabelRole').Archive)) }}>
                 {# The tier rides on the LINK, not on the pill around it. The pill is
                    what you see — .nav-item draws it — but the row's height comes from
                    padding-block, and padding on the wrapper is area the anchor does not
@@ -453,7 +490,11 @@ controller instead — the scroll position and which trees are open.
            did nothing observable anywhere. Sits above Trash because that is
            where LabelRole::sortOrder() already put it. #}
         {% if sidebarCounts.hasVisibleRole(enum('App\\Domain\\Enum\\Mail\\LabelRole').Spam) %}
-            <div class="nav-item flex items-center justify-between gap-2 pl-9 pr-3 rounded-lg transition-colors">
+            <div class="nav-item flex items-center justify-between gap-2 pl-9 pr-3 rounded-lg transition-colors"
+                 {# "This is junk", said by dropping. The only way to say it in
+                    the interface: there is no mark-as-spam button anywhere, and
+                    the row is here because the folder is. #}
+                 {{ macros.drop_target(sidebarCounts.roleLabelId(enum('App\\Domain\\Enum\\Mail\\LabelRole').Spam)) }}>
                 {# The tier rides on the LINK, not on the pill around it. The pill is
                    what you see — .nav-item draws it — but the row's height comes from
                    padding-block, and padding on the wrapper is area the anchor does not
@@ -479,6 +520,7 @@ controller instead — the scroll position and which trees are open.
 
         <a href="{{ path('app_mail_trash') }}"
            class="nav-item flex items-center justify-between gap-2 pl-9 pr-3 rounded-lg transition-colors"
+           {{ macros.drop_target(sidebarCounts.roleLabelId(enum('App\\Domain\\Enum\\Mail\\LabelRole').Trash)) }}
            data-nav-tier="row"
            data-ui--sidebar-target="link"
            data-action="{{ _drawerClose }}"

@@ -1350,6 +1350,9 @@ demo:
             addresses for th' usual reasons o' seamanship an' be turned over.
         source_title: Ship's plans
         source: 'plMail be free vessels, under th'' AGPL-3.0 articles:'
+dnd:
+    dragging: '%count% parcels in tow'
+
 drafts:
     empty: No scrolls in the works.
     heading: Scrolls in the works
@@ -2986,7 +2989,9 @@ thread_row:
     unstar: Rub out the X
 
 toast:
+    categorised: 'Stowed under %category%'
     dismiss: Away with ye
+    moved: 'Hauled off to %folder%'
     schedule_cancelled: The castin' off be belayed.
     send_cancelled: Castin' off belayed — back to yer scroll.
     send_too_late: Too late, matey — that message has already sailed.

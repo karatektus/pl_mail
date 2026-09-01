@@ -37,6 +37,17 @@ class SidebarCounts implements ResetInterface
     private array $accountLabels = [];
     /** @var array<int, array<int,int>> account id => (label id => unread) */
     private array $accountLabelCounts = [];
+    /**
+     * role value => that role's label id, or null when the user has none.
+     *
+     * Null is a cached ANSWER, not an empty slot, which is why every read goes
+     * through array_key_exists rather than ??=: a fresh install has no Archive
+     * label, the sidebar asks on every render, and `??=` would re-query for it
+     * each time to be told the same thing.
+     *
+     * @var array<string, int|null>
+     */
+    private array $roleLabelIds = [];
 
     /**
      * Worker-mode hygiene - see LogAlertGlobal::reset(), the sibling whose
@@ -54,6 +65,7 @@ class SidebarCounts implements ResetInterface
         $this->visibleLabels      = null;
         $this->accountLabels      = [];
         $this->accountLabelCounts = [];
+        $this->roleLabelIds       = [];
     }
 
     public function __construct(
@@ -386,6 +398,42 @@ class SidebarCounts implements ResetInterface
         }
 
         return false;
+    }
+
+    /**
+     * The id of the user's label for a system role, or null if they have none
+     * yet.
+     *
+     * The sidebar's system rows are hand-written anchors to routes —
+     * app_mail_inbox, app_mail_archive — and a route is not a thing a
+     * conversation can be moved into. Dropping a row on "Archive" has to name
+     * the Archive LABEL, because that is what /status/{type}/{id}/move takes
+     * and what ThreadStatusUpdater::move() dispatches on.
+     *
+     * Null is a real answer and the templates treat it as one: system labels
+     * are created lazily, the first time something is archived or snoozed or
+     * synced from a folder, so a fresh install genuinely has no Archive row to
+     * point at. A row with no id renders as a plain link and takes no drops,
+     * which is better than a drop that posts a zero and comes back 403.
+     *
+     * Not filtered by visibility, unlike hasVisibleRole() above: whether a row
+     * is SHOWN is the template's question and it has already answered it by
+     * the time it asks this one. Inbox and Trash are always shown and are
+     * routinely not "visible" labels.
+     */
+    public function roleLabelId(LabelRole $role): ?int
+    {
+        $roleValue = $role->value;
+
+        if (false === array_key_exists($roleValue, $this->roleLabelIds)) {
+            $user = $this->security->getUser();
+
+            $this->roleLabelIds[$roleValue] = null === $user
+                ? null
+                : $this->labelRepository->findOneByRoleForUser($role, $user)?->id;
+        }
+
+        return $this->roleLabelIds[$roleValue];
     }
 
     /**

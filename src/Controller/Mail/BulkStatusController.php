@@ -7,9 +7,12 @@ namespace App\Controller\Mail;
 use App\Controller\ChecksCsrf;
 use App\Controller\RendersTurboStreams;
 use App\Domain\Enum\Job\JobKind;
+use App\Domain\Enum\Mail\LabelRole;
+use App\Domain\Enum\Mail\MessageCategory;
 use App\Entity\Job\BackgroundJob;
 use App\Entity\User\User;
 use App\Infrastructure\Messaging\Message\RunBulkStatusMessage;
+use App\Repository\Label\LabelRepository;
 use App\Repository\Mail\MessageThreadRepository;
 use App\Security\Voter\OwnershipVoter;
 use App\Service\Mail\ThreadStatusUpdater;
@@ -38,8 +41,21 @@ final class BulkStatusController extends AbstractController
     use ChecksCsrf;
     use RendersTurboStreams;
 
+    /**
+     * The actions that refuse a whole-view selection.
+     *
+     * Both of them are drop targets and nothing else: a drag names the rows it
+     * is carrying, so "everything in this view" is not a shape either one can
+     * arrive in. Spelled as a list rather than inline so the guard below and
+     * this reasoning stay in one place if a third joins them.
+     *
+     * @var list<string>
+     */
+    private const array EXPLICIT_ONLY = ['move', 'category'];
+
     public function __construct(
         private readonly MessageThreadRepository $threadRepository,
+        private readonly LabelRepository         $labelRepository,
         private readonly ThreadStatusUpdater     $status,
         private readonly EntityManagerInterface  $entityManager,
         private readonly MessageBusInterface     $bus,
@@ -64,7 +80,7 @@ final class BulkStatusController extends AbstractController
      *      than as the URL the user is on — it is resolved by
      *      RunBulkStatusHandler now, where the work happens.
      */
-    #[Route('/{action}', name: 'run', methods: ['POST'], requirements: ['action' => 'archive|trash|read|restore'])]
+    #[Route('/{action}', name: 'run', methods: ['POST'], requirements: ['action' => 'archive|trash|read|restore|move|category'])]
     public function bulk(Request $request, string $action): Response
     {
         $this->assertCsrf($request, 'ajax');
@@ -74,6 +90,18 @@ final class BulkStatusController extends AbstractController
 
         $body = json_decode($request->getContent(), true);
         $body = is_array($body) ? $body : [];
+
+        // Only a drag posts move or category, and a drag carries the rows it
+        // picked up. There is no "select every conversation in this view and
+        // drop it" gesture, so the whole-view path below has no caller for
+        // these two and no JobKind to run them under — JobKind::forAction()
+        // would throw for them, deep inside startJob(). Refused here instead,
+        // where the reason is legible.
+        if (true === ($body['all'] ?? false) && true === in_array($action, self::EXPLICIT_ONLY, true)) {
+            throw $this->createAccessDeniedException(
+                sprintf('The "%s" action takes an explicit list of conversations.', $action),
+            );
+        }
 
         // A WHOLE VIEW GOES TO A WORKER. An explicit list of ids does not.
         //
@@ -91,6 +119,53 @@ final class BulkStatusController extends AbstractController
         // the result would make every ordinary archive feel slower.
         if (true === ($body['all'] ?? false)) {
             return $this->startJob($user, $action, $body);
+        }
+
+        // THE DROP PAYLOADS ARE READ AND REFUSED BEFORE ANY WORK IS DONE.
+        //
+        // Both used to be resolved down where they are used, which put them
+        // after the "nothing was selected" early return — so a request naming a
+        // category that does not exist answered 200 as long as its id list was
+        // empty. That is the difference between a route that refuses bad input
+        // and one that refuses it only when it happens to have something to do.
+        $category    = null;
+        $destination = null;
+
+        if ('category' === $action) {
+            $category = MessageCategory::tryFrom((string) ($body['category'] ?? ''));
+
+            // tryFrom and a refusal, where MailController falls back to Primary
+            // on the same input. The difference is what the two are: `?tab=` is
+            // a URL somebody may have mistyped, and showing them the inbox is
+            // the kind answer. This is a write, and "filed it under Primary
+            // because I did not recognise what you asked for" is not something
+            // an interface should do quietly.
+            if (null === $category) {
+                throw $this->createAccessDeniedException('Unknown inbox category.');
+            }
+        }
+
+        if ('move' === $action) {
+            $destination = $this->labelRepository->find((int) ($body['labelId'] ?? 0));
+
+            if (null === $destination) {
+                throw $this->createAccessDeniedException('Unknown destination folder.');
+            }
+
+            $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $destination);
+
+            // Sent, Drafts and Snoozed are not places mail can be filed —
+            // LabelRole::acceptsMoves() holds the whole argument. The sidebar
+            // renders no drop target for them, and this is the other half of
+            // that: a rule stated only in a template is a rule the next caller
+            // does not have.
+            $role = $destination->role;
+
+            if (null !== $role && false === $role->acceptsMoves()) {
+                throw $this->createAccessDeniedException(
+                    sprintf('Mail cannot be moved into %s.', $role->value),
+                );
+            }
         }
 
         $threads = $this->threadRepository->findBy(['id' => array_map(intval(...), (array) ($body['ids'] ?? []))]);
@@ -122,6 +197,49 @@ final class BulkStatusController extends AbstractController
             ]);
         }
 
+        // A CATEGORY IS A FACT ABOUT A CONVERSATION, NOT ABOUT ITS MESSAGES.
+        //
+        // Every other action here mutates labels, which live on messages, so
+        // they all go through the per-account grouping below. The inbox tabs
+        // filter on MessageThread::$category — one column, on the row the tab
+        // strip counts — so this one is applied to the threads directly and
+        // returns before the grouping it has no use for.
+        if ('category' === $action) {
+            foreach ($threads as $thread) {
+                $this->status->setCategory($thread, $category);
+            }
+
+            return $this->renderTurboStream('thread/status/_category.stream.html.twig', [
+                'count'    => count($threads),
+                'threads'  => $threads,
+                'category' => $category,
+            ]);
+        }
+
+        // A branch of its own rather than a fifth arm in the match below,
+        // because a match arm reading `$this->status->move($messages,
+        // $destination)` makes a promise about a variable the arms around it
+        // know nothing about, and only the reader can see that the two
+        // conditions are the same condition.
+        if ('move' === $action) {
+            foreach ($byAccount as $messages) {
+                $this->status->move($messages, $destination);
+            }
+
+            // Its own template rather than a flag on the shared one, and the
+            // difference is a toast. Every other action here is a button whose
+            // label already said what it would do and whose result is somewhere
+            // the user can go and look at. A move is a drop — aimed by pointer
+            // at a row a couple of dozen pixels tall — that ends with the
+            // conversation gone from the list and nothing on screen saying
+            // where it went.
+            return $this->renderTurboStream('thread/status/_move.stream.html.twig', [
+                'count'   => count($threads),
+                'threads' => $threads,
+                'label'   => $destination,
+            ]);
+        }
+
         foreach ($byAccount as $messages) {
             match ($action) {
                 'archive' => $this->status->archive($messages),
@@ -133,6 +251,10 @@ final class BulkStatusController extends AbstractController
             // Stated rather than assumed, because the day someone widens the
             // requirement and forgets this arm, a silent no-op is the worst
             // possible answer for an action that says it deleted things.
+            //
+            // move and category are not here on purpose: each is handled by a
+            // branch of its own above, which is where the payload they need is
+            // resolved.
                 default   => throw $this->createNotFoundException(sprintf('Unknown bulk action "%s".', $action)),
             };
         }

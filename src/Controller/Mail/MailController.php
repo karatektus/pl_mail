@@ -241,11 +241,26 @@ final class MailController extends AbstractController
                 || ($tabTotals[$case->value] ?? 0) > 0,
         ));
 
+        // The categories the strip does NOT show, so a drag has somewhere to
+        // put mail that no thread is in yet.
+        //
+        // The rule above — a tab exists while it holds something — is right for
+        // reading and wrong for filing: it means the only categories you can
+        // move a conversation INTO are the ones it could already be in, so
+        // Forums stays empty forever because nothing can be dropped there until
+        // something is already there. These render as ghost tabs, visible only
+        // while a drag is in flight. See mail/inbox.html.twig.
+        $dropTabs = array_values(array_filter(
+            MessageCategory::cases(),
+            static fn (MessageCategory $case): bool => false === in_array($case, $tabs, true),
+        ));
+
         $this->threadRepository->preloadForRows($threads);
 
         return $this->renderList($request, 'mail/inbox.html.twig', $threads, [
             'tab'         => $tab,
             'tabs'        => $tabs,
+            'drop_tabs'   => $dropTabs,
             'tab_unread'  => $tabUnread,
             'page'        => $page,
             'total'       => $total,

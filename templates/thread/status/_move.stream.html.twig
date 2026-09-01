@@ -1,0 +1,47 @@
+{#
+After a drop on a folder.
+
+Wraps the shared bulk answer rather than restating it: the rows leave, and the
+client re-reads the list frame for the pager and the empty state — see
+thread/status/_bulk.stream.html.twig, which holds the whole argument for why a
+list-shaped action needs both halves. `leaves` is hard-coded true here because a
+move is one by definition; there is no variant of this action that leaves the
+conversation in the list it was dragged from.
+
+Dropping something on the folder it is already in would make that a lie, and it
+is prevented at the other end: the sidebar row for the list you are looking at
+takes no drops. See mail--dnd.
+
+WHY THIS FILE EXISTS AT ALL — the toast.
+
+Every other bulk action is a button. Its label said what it would do before it
+was pressed, and where the mail went is a place you can navigate to and look at.
+A move is a drop, aimed by pointer at a sidebar row a couple of dozen pixels
+tall, and it ends with the conversation gone from the list and no statement
+anywhere about where it landed. Naming the folder is what turns "it vanished"
+into "it is in Receipts".
+
+No undo offered, deliberately. It would have to remember the label each
+conversation came out of, which for a selection spanning folders is not one
+value; and unlike a send there is no window in which the thing can still be
+called back — the move has landed, and the way back is the folder now named on
+screen.
+
+Variables:
+  count    how many conversations were moved
+  threads  the conversations, so their rows can be removed
+  label    the destination, for the toast
+#}
+{% include 'thread/status/_bulk.stream.html.twig' with {
+    count:   count,
+    threads: threads,
+    leaves:  true,
+} only %}
+
+<turbo-stream action="append" target="toast-region">
+    <template>
+        {% include '_partials/_toast.html.twig' with {
+            message: 'toast.moved'|trans({ '%folder%': label|label_name }),
+        } only %}
+    </template>
+</turbo-stream>

@@ -46,6 +46,28 @@ class MessageThread
     #[ORM\Column(nullable: true, enumType: MessageCategory::class)]
     public ?MessageCategory $category = null;
 
+    /**
+     * When somebody put this conversation in its category by hand.
+     *
+     * Null — every row, until a person drags one onto a tab — means the
+     * category beside it is derived, and every writer of a category is free to
+     * recompute it. Set means the opposite, and the two writers that exist both
+     * check: MessageThreader::adoptCategory() leaves a pinned thread where it
+     * is when the next message arrives, and the `category` backfill excludes
+     * pinned rows from its UPDATE.
+     *
+     * Without it the choice does not survive the conversation: most-recent-wins
+     * would put the next issue of a newsletter back in Promotions and take the
+     * whole thread with it, minutes or days after the person moved it, with
+     * nothing on screen connecting the two events.
+     *
+     * A timestamp rather than a boolean, matching listedAt and starredAt above:
+     * the code only asks whether it is null, and the value answers "when" for
+     * free.
+     */
+    #[ORM\Column(nullable: true)]
+    public ?\DateTimeImmutable $categoryPinnedAt = null;
+
     #[ORM\Column(nullable: true)]
     public ?\DateTimeImmutable $starredAt = null;
 

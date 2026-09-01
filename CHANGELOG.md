@@ -6,6 +6,51 @@ so anything that changes the schema irreversibly is called out explicitly.
 The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, and `sha-…` pins one commit.
 
+## Unreleased
+
+**Adds one column to the conversations table; the migration runs on boot. Nothing is removed and
+nothing is rewritten — the column starts empty on every existing conversation and only fills in when
+somebody drags one onto a category tab.**
+
+### Added
+
+- **Drag a conversation where you want it.** Pick a row up and drop it on a folder in the sidebar,
+  or on one of the inbox's category tabs. Both are moves in the ordinary sense: the conversation
+  leaves the list it was dragged from and is in the one it was dropped on, and any labels it wears —
+  "Receipts", "Family" — come with it, because a label is a thing a conversation IS and a folder is
+  a place it lives.
+
+  While a drag is in flight, every folder that will take it grows a dashed edge and the one under
+  the pointer fills in. Only the ones that will actually accept it light up: not the folder you are
+  already looking at, not Sent or Drafts, and not another account's folders — a conversation belongs
+  to one mailbox, and the folder behind a label is per account even though the label itself spans
+  them all. A row that offered to take the drop and then declined would read as a failed drag.
+
+  Because the drop ends with the row gone from the list, it says where it went: **"Moved to
+  Receipts"**. That is the whole of the feedback for a gesture aimed by pointer at a target a couple
+  of dozen pixels tall.
+
+  Dragging a row that is **ticked** takes every ticked row with it. Dragging any other row takes that
+  one alone and leaves your selection alone with it.
+
+  **A category you have chosen stays chosen.** The tabs are worked out from each message's headers,
+  most-recent-wins, so before this a conversation moved out of Promotions would have been put back by
+  the next issue of the newsletter — days later, with nothing on screen connecting the two. A
+  category set by hand is now marked as such, and neither an arriving message nor a run of
+  `app:backfill category` overwrites it.
+
+  **The tab you are dropping onto does not have to exist yet.** The strip only shows categories that
+  hold mail, which is right for reading and would make an empty Forums permanently unreachable — so
+  while a drag is in progress the missing ones appear as dashed placeholders beside the real tabs.
+
+  Two limitations worth knowing. **It is a mouse gesture**: HTML5 drag does not fire from a finger,
+  and on a phone the sidebar is a closed drawer while the list is on screen, so there is nothing to
+  drag onto — the label menu and the row's own buttons are still the way there. And **on an inbox
+  where every message is in Primary there is no tab strip at all**, so there is nowhere to drop for a
+  category; the placeholders join a strip that is already on screen and cannot conjure one, because a
+  strip that appeared mid-gesture would push the list down under the pointer that had just picked a
+  row up.
+
 ## v0.2.15 — 2026-09-01
 
 **Adds two columns to the AI settings table; the migrations run on boot. Nothing is removed and

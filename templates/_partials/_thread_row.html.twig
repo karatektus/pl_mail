@@ -229,11 +229,36 @@ Threads only. A bare Message row is a message, and only a conversation arrives.
    page — is silent too: those rows are new ids, but they come inside the <ul>
    playing its own fade, and motion.js suppresses a child whose ancestor is
    announcing it. One arrival, one gesture. #}
+{# Draggable, and only where a drag would mean something.
+
+   Threads only: the destinations are folders and category tabs, both of which
+   are properties of a conversation, and the bulk endpoint a drop posts to takes
+   thread ids. A bare Message row — which this partial also renders, for the
+   streams under compose/ — has nothing to send.
+
+   Not drafts. A draft's row opens the composer rather than the conversation,
+   and filing an unsent message into Receipts is not a gesture anybody makes;
+   the Drafts folder is where a draft lives until it is sent or thrown away.
+
+   `draggable` is what makes the whole row the handle, deliberately: a grip
+   would be one more thing on a row that already carries five hover controls,
+   and every mail client makes the row itself the thing you pick up. The gesture
+   itself lives in mail--dnd, on <body> — see that controller for why the
+   sidebar and the tab strip cannot be reached from here. #}
+{% set draggable = isThread and false == draft %}
 <li
     data-enter-new="slide-down"
     id="thread_{{ rowId }}"
     class="group relative hover:shadow-sm"
     data-controller="mail--message-row"
+    {% if draggable %}
+        draggable="true"
+        data-dnd-thread="{{ rowId }}"
+        {# Which account this conversation is in, so an account's own folder
+           rows can refuse mail from another one. A label spans every account,
+           but the FOLDER behind it is per-account — see mail--dnd#targetFor. #}
+        {% if rowAccount %}data-dnd-account="{{ rowAccount.id }}"{% endif %}
+    {% endif %}
     {# Every user label on this row, so the bulk label menu can show the truth.
        The chips beside the subject cannot serve: they stop at three and carry no
        ids. Without this the menu opened with nothing ticked however many labels
@@ -267,6 +292,14 @@ Threads only. A bare Message row is a message, and only a conversation arrives.
     class="pointer-events-auto absolute inset-0 z-0"
     aria-label="{{ subject }}"
     tabindex="-1"
+    {# A link is draggable whether anyone asked for it or not, and this one
+       covers the whole row. Left alone, a drag starting anywhere over it was a
+       LINK drag — the browser's own, carrying the href and drawn as a ghost of
+       an element with no content in it, so the pointer travelled to the sidebar
+       holding an empty rectangle. Switched off, the row itself is the drag
+       source everywhere, which is what the <li> above is marked draggable for.
+       #}
+    draggable="false"
     ></a>
 
     {# Which account this row arrived on: a small triangle tucked into the row's

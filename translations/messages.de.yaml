@@ -1645,6 +1645,9 @@ demo:
             rotiert.
         source_title: Quellcode
         source: 'plMail ist freie Software unter der AGPL-3.0:'
+dnd:
+    dragging: '%count% Unterhaltungen'
+
 drafts:
     empty: Keine Entwürfe.
     heading: Entwürfe
@@ -3412,7 +3415,9 @@ thread_row:
     unstar: Markierung dieser Nachricht entfernen
 
 toast:
+    categorised: 'Nach %category% verschoben'
     dismiss: Schließen
+    moved: 'Nach %folder% verschoben'
     schedule_cancelled: Geplanter Versand abgebrochen.
     send_cancelled: Senden abgebrochen — zurück zu deinem Entwurf.
     send_too_late: Zu spät — diese Nachricht wurde bereits gesendet.

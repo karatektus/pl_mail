@@ -1636,6 +1636,13 @@ demo:
             rotated.
         source_title: Source
         source: 'plMail is free software, licensed AGPL-3.0:'
+dnd:
+    # The pill the pointer carries when several conversations are dragged at
+    # once. %count% is substituted in the browser, so the placeholder is left
+    # in the translated string — see _layout/_mailbox.html.twig. Always
+    # plural: a single conversation drags a picture of its own row instead.
+    dragging: '%count% conversations'
+
 drafts:
     empty: No drafts.
     heading: Drafts
@@ -3383,7 +3390,16 @@ thread_row:
     unstar: Unstar this message
 
 toast:
+    # After a conversation is dropped on a category tab. The row it names
+    # has just disappeared off the list, and the tab it went to may not be
+    # on the strip at all — the strip only shows categories holding mail —
+    # so this is the only thing on screen saying where it landed.
+    categorised: 'Moved to %category%'
     dismiss: Dismiss
+    # After a conversation is dropped on a folder. Names the folder for the
+    # same reason: the row is gone from the list that was open, and a drop
+    # is aimed at a small target.
+    moved: 'Moved to %folder%'
     schedule_cancelled: Scheduled send cancelled.
     send_cancelled: Send cancelled — back to your draft.
     # Shown when the cancel lost the race to the send. Deliberately blunt: the

@@ -2166,6 +2166,14 @@ class MessageThreadRepository extends ServiceEntityRepository
      * and because this is an UPDATE ... FROM over a derived table: the ORM's
      * write path is per-entity, so the alternative is loading every thread and
      * its messages to compute in PHP what the database can answer in one pass.
+     *
+     * Threads whose category was chosen by hand are excluded, which is the same
+     * rule MessageThreader::adoptCategory() applies one row at a time. It has
+     * to be stated in both places: the backfill does not go through the
+     * threader, so a run of `app:backfill category` would otherwise wipe every
+     * category anybody had ever dragged a conversation into — the whole install
+     * at once, which is worse than the arrival-time case the flag was written
+     * for.
      */
     public function recomputeCategoriesForAccount(Account $account): int
     {
@@ -2178,7 +2186,9 @@ class MessageThreadRepository extends ServiceEntityRepository
             WHERE m.category IS NOT NULL
             ORDER BY m.thread_id, m.received_at DESC NULLS LAST
         ) sub
-        WHERE t.id = sub.thread_id AND t.account_id = :accountId
+        WHERE t.id = sub.thread_id
+          AND t.account_id = :accountId
+          AND t.category_pinned_at IS NULL
         SQL;
 
         return (int) $this->getEntityManager()->getConnection()->executeStatement(

@@ -1,0 +1,30 @@
+{#
+After a drop on a category tab.
+
+The same shape as thread/status/_move.stream.html.twig, and for the same
+reasons — the rows leave, the frame is re-read, one toast names where they went.
+
+The toast earns its place even more plainly here. A category is the one
+destination in this interface you cannot go and look at on spec: the tab strip
+only renders categories that hold mail, so a conversation filed into an empty
+Forums lands somewhere with no door on screen until the strip is next drawn.
+Saying where it went is the whole of the feedback.
+
+Variables:
+  count     how many conversations were re-filed
+  threads   the conversations, so their rows can be removed
+  category  the destination tab, for the toast
+#}
+{% include 'thread/status/_bulk.stream.html.twig' with {
+    count:   count,
+    threads: threads,
+    leaves:  true,
+} only %}
+
+<turbo-stream action="append" target="toast-region">
+    <template>
+        {% include '_partials/_toast.html.twig' with {
+            message: 'toast.categorised'|trans({ '%category%': ('tabs.' ~ category.value)|trans }),
+        } only %}
+    </template>
+</turbo-stream>

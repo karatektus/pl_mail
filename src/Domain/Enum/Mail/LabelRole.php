@@ -49,6 +49,34 @@ enum LabelRole: string
         return self::Snoozed !== $this;
     }
 
+    /**
+     * Whether a conversation can be MOVED into this role's folder.
+     *
+     * Four of the seven are places mail lives and can be filed into, and three
+     * are not:
+     *
+     * - **Sent** and **Drafts** describe how a message came to exist, not where
+     *   it is kept. Dropping a received mail into Sent would make the folder
+     *   lie about every row in it, and on a real IMAP server it would put the
+     *   message somewhere the Sent view has no business showing it.
+     * - **Snoozed** is a wait with a time on it rather than a location — see
+     *   the note on the case. A conversation moved there would have no wake
+     *   time, so nothing would ever take it out again.
+     *
+     * Read in two places that must agree: the sidebar decides which rows accept
+     * a drop, and BulkStatusController refuses a move to anything this says no
+     * to. An interface that hides a control while the route behind it stays
+     * open is not a rule, it is a habit — the same argument MailPlacement makes
+     * for existing at all.
+     */
+    public function acceptsMoves(): bool
+    {
+        return match ($this) {
+            self::Inbox, self::Archive, self::Trash, self::Spam => true,
+            self::Sent, self::Drafts, self::Snoozed            => false,
+        };
+    }
+
     public static function fromSpecialUse(MailboxSpecialUse $specialUse): self
     {
         return match ($specialUse) {

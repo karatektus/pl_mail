@@ -102,6 +102,27 @@
        would fix today's filter and quietly lose the next one. #}
     {% set tabQuery = app.request.query.all|filter((v, k) => k not in ['tab', 'page']) %}
 
+    {# The strip exists when more than one category holds mail, unchanged.
+
+       A LIMITATION WORTH STATING, because it is a decision and not an
+       oversight: on an inbox where everything is Primary there is no strip, so
+       there is nowhere to drop a conversation and that inbox can never acquire
+       a second category by dragging. The ghost tabs below fix this for every
+       other inbox and cannot fix it for that one.
+
+       Rendering the strip there anyway, hidden until a drag, was built and
+       taken out again. It works, and it makes the list jump: the strip appears
+       the instant a row is picked up and pushes every row down by its height,
+       under a pointer that is still over them. A gesture whose first effect is
+       to move the thing you just grabbed is worse than a gesture you cannot
+       start. The honest answer is a preference — "always show the category
+       tabs", which is how Gmail solves the same problem — and that is a
+       different change.
+
+       Nothing about the multi-category case shifts: the ghosts join a row of
+       tabs that is already on screen, so they only widen it. #}
+    {% set _dropTabs = drop_tabs|default([]) %}
+
     {% if tabs|length > 1 %}
     <div class="border-b border-line px-1">
         <nav class="flex text-sm">
@@ -139,9 +160,15 @@
                    justify-center are the other half of that deal — a hintless
                    tab centres its label beside the icon instead of sitting on
                    an invisible second line. #}
+                {# Somewhere a conversation can be dropped, on every tab but the
+                   one being looked at. That one is where the row already is, so
+                   accepting it would remove the row from the list and put it
+                   back on the next refresh, which reads as a glitch rather than
+                   as "nothing to do". #}
                 <a
                     href="{{ path('app_mail_inbox', tabQuery|merge({tab: tabCase.value})) }}"
                     data-turbo-frame="inbox-list-frame"
+                    {% if false == isActive %}data-dnd-category="{{ tabCase.value }}"{% endif %}
                     class="flex items-center gap-2.5 px-5 py-1.5 min-h-14 font-medium border-b-2 -mb-px transition-colors min-w-0 {{ isActive ? 'text-accent border-accent' : 'text-ink-muted hover:text-gray-700 border-transparent hover:border-gray-300' }}"
                 >
                     {% if isActive %}
@@ -193,6 +220,36 @@
                         >{{ senderNames }}</span>
                     </span>
                 </a>
+            {% endfor %}
+
+            {# The categories nothing is in yet.
+
+               Not shown, until a drag starts. The strip's rule is that a tab
+               exists while it holds mail — a door to an empty room is worse
+               than no door, and Gmail itself has quietly retired Forums — and
+               that rule is right for reading. It is wrong for FILING, and in a
+               way that cannot fix itself: the only categories a conversation
+               could be moved into were the ones it might already be in, so an
+               empty Forums stayed empty forever.
+
+               So they are rendered and hidden, and app.css reveals them while
+               html carries data-dnd-active. Rendered rather than fetched
+               because a target that arrives a request after the drag has begun
+               is a target the pointer has already travelled past.
+
+               Deliberately plainer than a real tab: no icon, no counts, no
+               senders line, and a dashed edge. It is not a place you can go —
+               clicking it would open a list with nothing in it — which is why
+               it is a <span> rather than a link. It is a slot to put something
+               in, and it should look like one. #}
+            {% for tabCase in _dropTabs %}
+                <span
+                    data-dnd-category="{{ tabCase.value }}"
+                    data-dnd-ghost
+                    class="flex items-center px-5 py-1.5 min-h-14 text-sm font-medium
+                           text-ink-faint border-b-2 border-dashed border-transparent
+                           whitespace-nowrap transition-colors"
+                >{{ ('tabs.' ~ tabCase.value)|trans }}</span>
             {% endfor %}
         </nav>
     </div>

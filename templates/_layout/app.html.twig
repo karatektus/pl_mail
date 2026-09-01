@@ -225,6 +225,14 @@
                      mail--list-toolbar:writing->mail--mail-pane#hold
                      mail--list-toolbar:written->mail--mail-pane#release"
         data-mail--mail-pane-open-value="{% block pane_open %}false{% endblock %}"
+        {# Room for a layout below this one to put ITS body controller's values
+           here. A Stimulus value has to sit on the same element as the
+           controller that reads it, and body_controllers above is a block
+           precisely so a layout can add one — without this there was nowhere to
+           configure what it added, and the value ended up on the nearest
+           element with a block, where it was silently never read. First filled
+           by _layout/_mailbox.html.twig for mail--dnd. #}
+        {% block body_values %}{% endblock %}
     {% endif %}
 >
     {% block body %}{% endblock %}

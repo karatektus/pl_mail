@@ -31,7 +31,25 @@ dozen other reasons while the conversation was open.
     <meta name="turbo-cache-control" content="no-cache">
 {% endblock %}
 
-{% block body_controllers %}core--mercure mail--mail-pane{% endblock %}
+{# mail--dnd is here rather than in the base layout for the same reason
+   mail--mail-pane is: it is about a mail LIST. It listens on <body> because
+   the two ends of a drag — the rows in the list frame and the folders in the
+   sidebar, of which there are two copies — have no closer common ancestor. #}
+{% block body_controllers %}core--mercure mail--mail-pane mail--dnd{% endblock %}
+
+{% block body_values %}
+    {# Two whole URLs rather than a base the controller appends an action to.
+       A route is the router's to spell, and `path()` cannot be asked for a
+       prefix — building one by trimming the end off a generated path is a
+       string operation that keeps working right up until the route changes. #}
+    data-mail--dnd-move-url-value="{{ path('app_status_bulk_run', { action: 'move' }) }}"
+    data-mail--dnd-category-url-value="{{ path('app_status_bulk_run', { action: 'category' }) }}"
+    {# The placeholder is left in deliberately — the controller substitutes it.
+       Same shape as the calendar grid's pending/reverted announcements. Always
+       plural because the pill it fills is only drawn for two or more; a single
+       conversation drags a picture of its own row. #}
+    data-mail--dnd-dragging-value="{{ 'dnd.dragging'|trans }}"
+{% endblock %}
 
 {# The one part of a view that varies within its scope: the category tab for the
    inbox, the label id for a label view. Empty for every list where the scope is

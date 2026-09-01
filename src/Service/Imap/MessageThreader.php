@@ -444,9 +444,20 @@ final class MessageThreader
      * Without this a thread would keep whatever category it was created with
      * and the inbox tabs — which filter on the thread, not the message — would
      * only ever move after a backfill run.
+     *
+     * A category somebody CHOSE is the exception, and it has to be an exception
+     * here rather than only in the interface. Dragging a conversation onto
+     * another tab writes categoryPinnedAt, and this line is what that flag
+     * exists to stop: the next message in the thread would otherwise carry the
+     * cascade's opinion back in and undo the move, days later, with no visible
+     * cause. See MessageThread::$categoryPinnedAt.
      */
     private function adoptCategory(Message $message, MessageThread $thread): void
     {
+        if (null !== $thread->categoryPinnedAt) {
+            return;
+        }
+
         $category = $message->category;
 
         if (null !== $category) {
