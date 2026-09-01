@@ -906,28 +906,60 @@ final class MessageSearchTest extends KernelTestCase
     }
 
     /**
-     * The same search, with a budget no query can meet: nothing found, and
-     * nothing thrown.
+     * A body pass that blows its budget: the cheap results stand, and nothing
+     * is thrown.
      *
-     * Before this, the pass ran unbounded and a live mailbox answered with
-     * `MaxExecutionTimeError: Maximum execution time of 30 seconds exceeded`.
-     * Losing the infix is the deliberate price; a 500 was not a price anybody
-     * chose.
+     * Before this guard existed the pass ran unbounded and a live mailbox
+     * answered with `MaxExecutionTimeError: Maximum execution time of 30
+     * seconds exceeded`. Losing the infix is the deliberate price; a 500 was
+     * not a price anybody chose.
+     *
+     * IT NO LONGER ASKS POSTGRES TO BE SLOW, AND THAT IS THE FIX
+     * ─────────────────────────────────────────────────────────
+     * This used to build a repository with `rescueTimeoutMs: 1`, run a real
+     * search and assert it came back empty — which asserts how fast the machine
+     * is, not what this code does. One seeded row is a scan Postgres finishes
+     * well inside a millisecond, so on a quick box the pass SUCCEEDS, finds the
+     * row the test called "the one row only the expired pass could find", and
+     * fails with "actual size 1 matches expected size 0". Green on slow
+     * hardware and red on fast is not a test of anything.
+     *
+     * `pg_sleep` removes the race instead of widening the assertion. One second
+     * against a one-millisecond budget cannot finish in time on any machine, so
+     * the cancel is certain — and it is a REAL cancel, arriving as SQLSTATE
+     * 57014 through the same path a genuine overrun takes. All three halves of
+     * the guard are exercised: the budget is set, the statement is killed, and
+     * the fallback rows are returned instead of the exception escaping.
+     *
+     * The rescue callable is handed in by reflection because the method is
+     * private and should stay private — the same access this file already takes
+     * for buildSearchSql(), and for the same reason: the seam is where the bug
+     * lives. Going through searchPage() instead is what forced the timing
+     * assumption in the first place.
      */
     public function testAnExpiredBodyPassGivesUpInsteadOfFailing(): void
     {
-        $this->seedMessage('Quarterly figures', body: 'The pelican audit is attached.');
-
         $impatient = new MessageThreadRepository(
             self::getContainer()->get(ManagerRegistry::class),
             new FreeTextCompiler(),
             rescueTimeoutMs: 1,
         );
 
-        $page = $impatient->searchPage($this->user, $this->parser->parse('elica'));
+        $connection = self::getContainer()->get(EntityManagerInterface::class)->getConnection();
 
-        self::assertCount(0, $page->threads, 'the one row only the expired pass could find');
-        self::assertSame(0, $page->total);
+        // What the cheap pass already found. Identity is the assertion below:
+        // the guard must hand back exactly this, not an empty page.
+        $fallback = [['thread_id' => 7]];
+
+        $rows = new \ReflectionMethod(MessageThreadRepository::class, 'rescueRows')->invoke(
+            $impatient,
+            // The same connection rescueRows() put the budget on — a second one
+            // would be a different session and would never see the timeout.
+            static fn (): array => $connection->fetchAllAssociative('SELECT pg_sleep(1)'),
+            $fallback,
+        );
+
+        self::assertSame($fallback, $rows, 'the cheap results have to stand when the rescue pass is killed');
     }
 
     /**

@@ -95,8 +95,12 @@ admin:
             base_url_invalid: 'That must begin with http:// or https://.'
             categorisation: 'Sort mail into holds'
             categorisation_help: "Runs on ev'ry message that arrives. Only breaks a tie — the ordinary rules speak first."
+            chat_keep_alive: "Keep the scrivener aboard for"
+            chat_keep_alive_help: "5m, 30m, 4h, or a plain count o' seconds. -1 keeps it aboard for good, 0 puts it ashore after ev'ry errand. Longer means the first reply comes quicker — but the berth stays taken the whole while. Leave it empty to sail by whatever the host itself says."
             chat_model: 'Scrivener model'
             chat_model_help: "For replies, summaries an' sortin'. Somethin' instruction-tuned."
+            embedding_keep_alive: "Keep the diviner aboard for"
+            embedding_keep_alive_help: "Same shape as above. This one be small an' called for constantly, so -1 — aboard for good — mostly costs barely a crumb an' spares a wait on ev'ry search; worth settin' if the host has the hold to spare. Leave it empty to sail by whatever the host itself says."
             embedding_model: "Divinin' model"
             embedding_model_help: "Turns mail into vectors so the search finds meanin', not words."
             enabled: 'Consult an oracle'
@@ -211,6 +215,19 @@ admin:
             on: 'On'
             paused: 'Becalmed'
         test: 'Test'
+        warmup:
+            button: 'Rouse it now'
+            failed: "Nothin' came back. Try again."
+            loaded_ms: 'Model roused in %count% ms — it were already aboard.'
+            loaded_seconds: 'Model roused in %count% s.'
+            loading: "Rousin' the model…"
+            model_missing: "That host carries no model named “%model%”. Haul it aboard there, or name one that be. (%error%)"
+            no_host: "Name a model host first, an' stow it."
+            no_model: "Name a scrivener model first, an' stow it."
+            status: 'The host refused with HTTP %status%. (%error%)'
+            timeout: "Four minutes an' the host were still haulin', so plMail stopped waitin'. It may yet finish — like as not the model be too heavy for the hold it has."
+            unexpected: "Somethin' went wrong afore the host could answer. (%error%)"
+            unreachable: "Nothin' answered at that address. (%error%)"
     db:
         active:
             empty: 'No queries afoot right now.'

@@ -42,6 +42,9 @@ provider doesn't.
   week grid, invitations answered in place, share and booking links.
 - **Files where you keep them** — attach from and save to Drive, Photos, OneDrive, Dropbox,
   Nextcloud and Immich.
+- **A language model, if you want one** — point plMail at an Ollama box on your own network and it
+  can search by meaning, draft replies, summarise a thread and sort mail into tabs. Off by default,
+  each of the four switched on separately, and nothing ever leaves your network.
 - **Yours** — two-factor auth, per-app JMAP passwords, 41 themes, English, German and Pirate.
 
 ## A look around

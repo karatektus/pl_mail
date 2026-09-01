@@ -1,4 +1,5 @@
 # Symfony be translatin' validation messages in the `validators` domain.
+admin.ai.keep_alive_invalid: "Give a spell like 5m, 30m or 4h, a plain count o' seconds, or -1 to keep it aboard for good — leave it empty an' the host's own word stands."
 admin.integrations.client_id_missing: Name th' client ID that goes with this secret.
 admin.integrations.secret_missing: Enter th' client secret an' all — an ID alone signs nobody aboard.
 admin.users.password_too_short: "{{ limit }} marks at least — ye be choosin' this one for somebody else."

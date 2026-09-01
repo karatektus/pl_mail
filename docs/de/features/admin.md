@@ -1,4 +1,4 @@
-<!-- translated-from: features/admin.md sha1:1e7dbf6f8a7e45b8aaf88ec306e398dd8fe29c3b -->
+<!-- translated-from: features/admin.md sha1:faeaf526e9b3731a114abd4448183ca3b4348abd -->
 
 # Administration
 
@@ -335,6 +335,37 @@ musst du vorher auf dem Host ziehen — plMail lädt nie ein Modell herunter.
 Es sagt dir den Unterschied zwischen „unter der Adresse hat nichts geantwortet“ und „der Host hat
 geantwortet, hat aber nicht das Modell, das du eingetragen hast“ — und das führt an zwei ganz
 verschiedene Stellen.
+
+### Wie lange die Modelle geladen bleiben
+
+Ollama wirft ein Modell ein paar Minuten nach der letzten Anfrage aus dem Speicher, und es wieder
+von der Platte zu lesen ist die ganze Wartezeit beim ersten „Hilf mir schreiben“ nach einer Pause —
+ein 20-GB-Modell braucht dafür Dutzende Sekunden, in denen der Host überhaupt nichts liefert. Mit
+**Schreib-Modell geladen lassen für** und **Such-Modell geladen lassen für** legst du fest, wie lange
+plMail den Host bittet, das jeweilige Modell zu halten.
+
+Trag eine Dauer ein — `5m`, `30m`, `4h` — oder einfach eine Zahl in Sekunden. `-1` lässt das Modell
+dauerhaft geladen, `0` entlädt es nach jeder Anfrage. Je länger, desto schneller kommt die erste
+Antwort; der Host hält den Speicher dafür die ganze Zeit belegt, ob ihn jemand braucht oder nicht.
+
+Beide starten bei `5m` — das ist Ollamas eigene Voreinstellung. plMail ändert also von sich aus
+nichts daran, wie dein Host sich verhält; die Felder sagen nur, was ohnehin schon passiert.
+
+**Für das Such-Modell lohnt sich `-1`**, und es ist nur deshalb nicht voreingestellt, weil plMail
+nicht sehen kann, wie viel Speicher dein Host hat. Dieses Modell ist klein und wird ständig
+gebraucht — bei jeder Suche nach Bedeutung und bei jeder Nachricht, die indiziert wird. Es
+festzuhalten kostet meist kaum Speicher und spart jedes Mal eine Wartezeit. Wenn der Host den
+Speicher übrig hat, stell es um.
+
+Lass ein Feld **leer**, dann schickt plMail gar nichts mit, und es gilt, was am Host selbst in
+`OLLAMA_KEEP_ALIVE` steht. plMail kann diese Variable nicht lesen — ein leeres Feld ist also die
+einzige Möglichkeit zu sagen „das überlasse ich dem Host“.
+
+**Jetzt vorladen** lädt das Schreib-Modell sofort und sagt dir, wie lange das gedauert hat. „Modell
+in 41 s geladen“ heißt: es kam von der Platte. „Modell in 30 ms geladen“ heißt: es war schon im
+Speicher und der Klick hat nichts gebracht. Praktisch nach einem Neustart — und um herauszufinden,
+was ein kalter Ladevorgang auf deiner Hardware wirklich kostet, bevor du entscheidest, wie lange du
+das Modell hältst.
 
 ### Die vier Funktionen sind einzeln schaltbar
 

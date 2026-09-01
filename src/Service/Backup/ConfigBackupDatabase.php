@@ -12,6 +12,7 @@ use App\Entity\Push\FcmConfig;
 use App\Repository\Integration\IntegrationProviderConfigRepository;
 use App\Repository\Integration\MailProviderConfigRepository;
 use App\Repository\Push\FcmConfigRepository;
+use App\Domain\Ai\KeepAlive;
 use App\Entity\Ai\AiSettings;
 use App\Entity\Monitoring\LogSettings;
 use App\Repository\Ai\AiSettingsRepository;
@@ -238,7 +239,9 @@ final readonly class ConfigBackupDatabase
             'baseUrl'               => $settings->baseUrl,
             'apiToken'              => $settings->apiToken,
             'chatModel'             => $settings->chatModel,
+            'chatKeepAlive'         => $settings->chatKeepAlive,
             'embeddingModel'        => $settings->embeddingModel,
+            'embeddingKeepAlive'    => $settings->embeddingKeepAlive,
             'embeddingDimensions'   => $settings->embeddingDimensions,
             'searchEnabled'         => $settings->searchEnabled,
             'categorisationEnabled' => $settings->categorisationEnabled,
@@ -282,6 +285,15 @@ final readonly class ConfigBackupDatabase
         $settings->apiToken              = $this->string($values, 'apiToken');
         $settings->chatModel             = $this->string($values, 'chatModel');
         $settings->embeddingModel        = $this->string($values, 'embeddingModel');
+        // Through KeepAlive::normalised() rather than string() alone, because
+        // this is the one writer that is not the form. A file can carry
+        // whitespace where the form's constraint would have refused it, and a
+        // column holding "  " shows an administrator a value they cannot save
+        // again. Absent from an older backup means null, which is the
+        // host's-own-default state and the right answer for a file written
+        // before this setting existed.
+        $settings->chatKeepAlive         = KeepAlive::normalised($this->string($values, 'chatKeepAlive'));
+        $settings->embeddingKeepAlive    = KeepAlive::normalised($this->string($values, 'embeddingKeepAlive'));
         $settings->embeddingDimensions   = is_int($values['embeddingDimensions'] ?? null) ? $values['embeddingDimensions'] : null;
         $settings->searchEnabled         = true === ($values['searchEnabled'] ?? false);
         $settings->categorisationEnabled = true === ($values['categorisationEnabled'] ?? false);

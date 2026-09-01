@@ -21,6 +21,7 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
+use Symfony\Contracts\Translation\TranslatorInterface;
 
 /**
  * Admin → AI: which model host this installation talks to, and what it may do.
@@ -47,6 +48,12 @@ final class AiSettingsController extends AbstractController
 {
     use ChecksCsrf;
 
+    /**
+     * Above OllamaClient::PRELOAD_TIMEOUT, so the upstream gives up first and
+     * this only ever catches a request that has escaped every other bound.
+     */
+    private const int WARMUP_TIME_LIMIT_SECONDS = 300;
+
     public function __construct(
         private readonly AiSettingsRepository   $settings,
         private readonly AiAssistant            $assistant,
@@ -54,6 +61,7 @@ final class AiSettingsController extends AbstractController
         private readonly AiPerformancePanel     $panel,
         private readonly EmbeddingBackfill      $backfill,
         private readonly PromptLibrary          $prompts,
+        private readonly TranslatorInterface    $translator,
     ) {
     }
 
@@ -81,6 +89,14 @@ final class AiSettingsController extends AbstractController
                 $settings->apiToken = $token;
             }
 
+            // The two keep-alive fields are NOT normalised here, and that is
+            // deliberate rather than an omission. An emptied TextType bound to
+            // a nullable property yields null already, and KeepAlive::PATTERN
+            // has no room in it for surrounding whitespace — so by the time a
+            // form is valid the value is null or exactly one of the accepted
+            // spellings. A second pass would imply the first cannot be trusted.
+            // The writer that DOES need it is the config restore, which reads a
+            // file rather than a validated form; see ConfigBackupDatabase.
             $this->entityManager->persist($settings);
             $this->entityManager->flush();
 
@@ -214,6 +230,77 @@ final class AiSettingsController extends AbstractController
                 'panel'   => $snapshot,
                 'outcome' => $outcome,
             ]),
+        ]);
+    }
+
+    /**
+     * Load the writing model now, and say how long it took.
+     *
+     * The one control on this page that asks the host to DO something rather
+     * than to report. Ollama's `/api/generate` with a model and no prompt loads
+     * the weights and returns, so the round trip is the cold-load cost — which
+     * is the number the keep-alive field above is really about, and the only
+     * way to see it without making somebody go and click "Help me write" and
+     * count.
+     *
+     * WHY PHP'S EXECUTION LIMIT IS RAISED HERE
+     * ────────────────────────────────────────
+     * It is 30 s in this stack, and a cold load of an eighteen-gigabyte model is
+     * not. Without this the button 500s with MaxExecutionTimeError on precisely
+     * the slow load it exists to measure, which is the same failure
+     * ComposeAssistController documents at length — and the same fix, a
+     * POSITIVE value rather than 0, because 0 cancels the timer without taking
+     * down the one already armed and it fires anyway while blocked on the
+     * socket. Above OllamaClient::PRELOAD_TIMEOUT, so the upstream is what
+     * gives up first and this is only ever the backstop.
+     *
+     * A SENTENCE, NOT A KEY, and this is the one place on this page that
+     * answers that way. The panel next door ships rendered HTML because it has
+     * six states and a table; this has one line of text on a button, and
+     * shipping a fragment for it would be markup where a string will do. What
+     * it must not do is build the sentence in JavaScript — that is where copy
+     * goes to be missed by translators — so the translation happens here and
+     * the controller sends the finished line, the way ComposeAttachmentController
+     * answers its uploads.
+     */
+    #[Route('/warmup', name: 'warmup', methods: ['POST'])]
+    public function warmUp(Request $request): JsonResponse
+    {
+        // Its own token id rather than the shared `ajax` one, the rule
+        // ChecksCsrf states: this makes another machine reserve eighteen
+        // gigabytes of memory, which is not something a single stolen token
+        // should be good for alongside everything else.
+        $this->assertCsrf($request, 'admin-ai-warmup');
+
+        set_time_limit(self::WARMUP_TIME_LIMIT_SECONDS);
+
+        $result = $this->assistant->warmUp();
+
+        if (true === $result->loaded) {
+            return $this->json([
+                'ok'      => true,
+                'millis'  => $result->milliseconds,
+                'message' => $this->translator->trans(
+                    // Milliseconds below a second, whole seconds above it. Not
+                    // a decimal in either case: the distinction that matters is
+                    // "already resident" against "read off disk", and those are
+                    // 40 ms and 40 s. A shared format would print 0.0 s for the
+                    // first, which is the one reading that tells you nothing.
+                    $result->milliseconds < 1000 ? 'admin.ai.warmup.loaded_ms' : 'admin.ai.warmup.loaded_seconds',
+                    ['%count%' => $result->milliseconds < 1000
+                        ? $result->milliseconds
+                        : (int) round($result->milliseconds / 1000)],
+                ),
+            ]);
+        }
+
+        return $this->json([
+            'ok'      => false,
+            'millis'  => $result->milliseconds,
+            'message' => $this->translator->trans(
+                'admin.ai.warmup.' . (string) $result->reason,
+                $result->reasonParams,
+            ),
         ]);
     }
 

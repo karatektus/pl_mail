@@ -298,6 +298,35 @@ on the host first — plMail never downloads a model.
 tell you the difference between "nothing answered at that address" and "that host answered but is
 not holding the model you named", which send you to two different places.
 
+### How long each model stays loaded
+
+Ollama drops a model out of memory a few minutes after the last request, and reading it back off
+disk is the whole of the wait on the first "Help me write" after a quiet spell — a 20 GB model takes
+tens of seconds to load, during which the host produces nothing at all. The **keep the writing model
+loaded for** and **keep the search model loaded for** fields are how long plMail asks the host to
+hold each one.
+
+Write a duration — `5m`, `30m`, `4h` — or a plain number of seconds. `-1` keeps the model loaded
+indefinitely, `0` unloads it as soon as each request finishes. Longer means a faster first answer,
+and the host keeps that memory reserved for the whole time whether anyone uses it or not.
+
+Both ship at `5m`, which is Ollama's own default — so out of the box plMail changes nothing about
+how your host behaves, and the boxes simply say what is already happening.
+
+**`-1` is worth considering for the search model**, and it does not ship that way only because plMail
+cannot see how much memory your host has. That model is small and asked for constantly — every
+search by meaning, and every message being indexed — so pinning it usually costs a rounding error of
+memory and saves a wait every single time. If the host has the memory to spare, set it.
+
+Leave either box **empty** to send nothing at all, in which case whatever `OLLAMA_KEEP_ALIVE` says
+on the host itself applies. plMail cannot read that variable, so an empty box is the only way to say
+"leave this to the host".
+
+**Warm up now** loads the writing model straight away and tells you how long it took. "Loaded in
+41 s" means it came off disk; "loaded in 30 ms" means it was already resident and the click bought
+nothing. Useful after a restart, and useful for finding out what a cold load actually costs on your
+hardware before you decide how long to hold it.
+
 ### The four features are separate switches
 
 They have very different costs, and very different consequences when the model is wrong.

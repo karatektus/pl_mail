@@ -8,6 +8,7 @@ use App\Domain\DTO\Ai\AiCallTiming;
 use App\Domain\DTO\Ai\AiChatResult;
 use App\Domain\DTO\Ai\AiEmbedResult;
 use App\Domain\DTO\Ai\AiProbe;
+use App\Domain\DTO\Ai\AiWarmUp;
 use App\Domain\Enum\Ai\AiCallFeature;
 use App\Entity\Ai\AiFeature;
 use App\Entity\Ai\AiSettings;
@@ -152,7 +153,12 @@ final readonly class AiAssistant
 
         $model = (string) $settings->embeddingModel;
 
-        $result = $this->client->embed((string) $settings->baseUrl, $model, $text);
+        $result = $this->client->embed(
+            (string) $settings->baseUrl,
+            $model,
+            $text,
+            $settings->keepAliveFor(AiFeature::Search),
+        );
 
         // Recorded here rather than in the client, because the client knows the
         // numbers and this knows what they were FOR.
@@ -194,7 +200,13 @@ final readonly class AiAssistant
 
         $model = (string) $settings->chatModel;
 
-        $result = $this->client->chat((string) $settings->baseUrl, $model, $messages, $temperature);
+        $result = $this->client->chat(
+            (string) $settings->baseUrl,
+            $model,
+            $messages,
+            $temperature,
+            $settings->keepAliveFor($feature),
+        );
 
         $this->recorder->record(
             AiCallFeature::forChat($feature),
@@ -261,7 +273,13 @@ final readonly class AiAssistant
         return $this->recorded(
             AiCallFeature::forChat($feature),
             $model,
-            $this->client->chatStream((string) $settings->baseUrl, $model, $messages, $temperature),
+            $this->client->chatStream(
+                (string) $settings->baseUrl,
+                $model,
+                $messages,
+                $temperature,
+                $settings->keepAliveFor($feature),
+            ),
         );
     }
 
@@ -413,5 +431,57 @@ final readonly class AiAssistant
         }
 
         return $this->client->probe($target);
+    }
+
+    /**
+     * Load the writing model now, so the next person to ask does not wait.
+     *
+     * WHY THE MASTER SWITCH IS NOT CONSULTED
+     * ──────────────────────────────────────
+     * probe()'s reasoning, and the same situation: an administrator setting
+     * this up has not turned anything on yet, and the cost of a cold load is
+     * precisely what they are trying to find out before they do. A button that
+     * answered "disabled" would refuse at the only moment the number is worth
+     * measuring.
+     *
+     * A HOST AND A MODEL ARE STILL REQUIRED, and they get separate answers
+     * because they are separate mistakes with separate fixes — one is a field
+     * above this button, the other is a different field above this button, and
+     * "nothing happened" would send somebody to check the network for neither
+     * of them.
+     *
+     * WHAT IT DELIBERATELY DOES NOT DO
+     * ────────────────────────────────
+     * It reads the SAVED settings, where the Test button reads what is on
+     * screen. The two are different errands: Test answers "is this address any
+     * good" before you commit to it, while this one asks a host to reserve
+     * eighteen gigabytes on behalf of the configuration that is actually in
+     * force. Warming a model nothing is going to use — because the form has not
+     * been saved — would be the wrong machine doing real work for a setting
+     * that does not exist yet.
+     *
+     * It also warms only the writing model. The search model is the one that is
+     * cheap to pin and is pinned by default, and a second button for it would
+     * be a control whose correct use is "never".
+     */
+    public function warmUp(): AiWarmUp
+    {
+        $settings = $this->settings();
+
+        if (false === $settings->isConfigured()) {
+            return AiWarmUp::failed('no_host');
+        }
+
+        $model = $settings->chatModel;
+
+        if (null === $model || '' === trim($model)) {
+            return AiWarmUp::failed('no_model');
+        }
+
+        return $this->client->preload(
+            (string) $settings->baseUrl,
+            trim($model),
+            $settings->keepAliveFor(AiFeature::WritingHelp),
+        );
     }
 }

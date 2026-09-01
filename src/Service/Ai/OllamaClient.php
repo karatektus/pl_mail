@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace App\Service\Ai;
 
+use App\Domain\Ai\KeepAlive;
 use App\Domain\DTO\Ai\AiCallTiming;
 use App\Domain\DTO\Ai\AiChatResult;
 use App\Domain\DTO\Ai\AiEmbedResult;
 use App\Domain\DTO\Ai\AiProbe;
+use App\Domain\DTO\Ai\AiWarmUp;
 use App\Domain\DTO\Ai\LoadedModel;
 use App\Domain\DTO\Ai\OllamaModel;
 use DateTimeImmutable;
@@ -90,6 +92,24 @@ final readonly class OllamaClient
      * that hangs is worse than one that says no.
      */
     private const float PROBE_TIMEOUT = 5.0;
+
+    /**
+     * Longer than GENERATE_TIMEOUT, which looks wrong and is not.
+     *
+     * Every one of these timeouts is an IDLE timeout — the longest the host may
+     * go without saying anything — and on a streamed completion the first token
+     * resets it, so 120 s covers a cold load and then never applies again.
+     * {@see preload()} has no tokens. It is the one call that is ENTIRELY the
+     * cold load: the host says nothing whatsoever until eighteen gigabytes are
+     * in memory, and off a spinning disk that is comfortably past two minutes.
+     * Held to 120 s the button would report a timeout for a load that was
+     * proceeding perfectly well, which is the exact confusion it exists to end.
+     *
+     * Below the caller's own ceiling, so it is this that gives up first — see
+     * AiSettingsController::warmUp(), which raises PHP's execution limit above
+     * this and says why.
+     */
+    private const float PRELOAD_TIMEOUT = 240.0;
 
     public function __construct(
         private HttpClientInterface $http,
@@ -263,22 +283,27 @@ final readonly class OllamaClient
      * as broken rather than as out of date.
      *
      * Both attempts collapse into ONE result, and therefore one recorded call.
+     *
+     * The keep-alive rides on both. The older dialect predates the field and
+     * ignores what it does not recognise, so sending it costs nothing there and
+     * omitting it would mean the setting silently stopped applying on exactly
+     * the hosts that pay the most for a reload.
      */
-    public function embed(string $baseUrl, string $model, string $text): AiEmbedResult
+    public function embed(string $baseUrl, string $model, string $text, ?string $keepAlive = null): AiEmbedResult
     {
-        $modern = $this->tryEmbed($baseUrl, '/api/embed', [
+        $modern = $this->tryEmbed($baseUrl, '/api/embed', self::withKeepAlive([
             'model' => $model,
             'input' => $text,
-        ], static fn (array $body): ?array => $body['embeddings'][0] ?? null);
+        ], $keepAlive), static fn (array $body): ?array => $body['embeddings'][0] ?? null);
 
         if (true === $modern->succeeded) {
             return $modern;
         }
 
-        $legacy = $this->tryEmbed($baseUrl, '/api/embeddings', [
+        $legacy = $this->tryEmbed($baseUrl, '/api/embeddings', self::withKeepAlive([
             'model'  => $model,
             'prompt' => $text,
-        ], static fn (array $body): ?array => $body['embedding'] ?? null);
+        ], $keepAlive), static fn (array $body): ?array => $body['embedding'] ?? null);
 
         if (true === $legacy->succeeded) {
             // The older dialect answered, so the embedding worked. Its timings
@@ -313,13 +338,13 @@ final readonly class OllamaClient
      *
      * @param list<array{role: string, content: string}> $messages
      */
-    public function chat(string $baseUrl, string $model, array $messages, ?float $temperature = null): AiChatResult
+    public function chat(string $baseUrl, string $model, array $messages, ?float $temperature = null, ?string $keepAlive = null): AiChatResult
     {
-        $payload = [
+        $payload = self::withKeepAlive([
             'model'    => $model,
             'messages' => $messages,
             'stream'   => false,
-        ];
+        ], $keepAlive);
 
         if (null !== $temperature) {
             $payload['options'] = ['temperature' => $temperature];
@@ -434,13 +459,13 @@ final readonly class OllamaClient
      *
      * @return \Generator<int, string, void, AiChatResult>
      */
-    public function chatStream(string $baseUrl, string $model, array $messages, ?float $temperature = null): \Generator
+    public function chatStream(string $baseUrl, string $model, array $messages, ?float $temperature = null, ?string $keepAlive = null): \Generator
     {
-        $payload = [
+        $payload = self::withKeepAlive([
             'model'    => $model,
             'messages' => $messages,
             'stream'   => true,
-        ];
+        ], $keepAlive);
 
         if (null !== $temperature) {
             $payload['options'] = ['temperature' => $temperature];
@@ -529,6 +554,158 @@ final readonly class OllamaClient
         }
 
         return AiChatResult::ok($whole, $timing);
+    }
+
+    /**
+     * Load a model into the host's memory and generate nothing.
+     *
+     * A `/api/generate` with a model and NO prompt is Ollama's documented way
+     * to say "have this ready". The host reads the weights in and answers as
+     * soon as they are resident, so the round trip IS the cold-load cost — the
+     * number an operator actually wants, and one nothing else here can report:
+     * /api/ps says whether a model is loaded but never how long getting it
+     * there took.
+     *
+     * It is a WRITE in every sense that matters — it reserves gigabytes on
+     * somebody else's machine for as long as the keep-alive says — which is why
+     * it is only ever reached from an administrator pressing a button, and why
+     * nothing polls it. ps() is the passive question.
+     *
+     * NOT RECORDED IN THE METRICS TABLE, and that is deliberate rather than
+     * forgotten. AiCallRecorder accounts for WORKLOADS — five of them, each
+     * gated by a feature — and this is not one: it generates no tokens, it
+     * serves no user's request, and giving it a sixth AiCallFeature case would
+     * put a row in the throughput table with nothing to put in any of its
+     * columns. The timing goes back to the button that asked for it, which is
+     * the only reader there is.
+     *
+     * Answers a value object rather than throwing, like probe(): the caller is
+     * an administrator who wants to be told what happened, in the same three
+     * shapes — it worked, nothing answered, or something answered and refused.
+     */
+    public function preload(string $baseUrl, string $model, ?string $keepAlive = null): AiWarmUp
+    {
+        $started = microtime(true);
+
+        try {
+            $response = $this->http->request('POST', $this->url($baseUrl, '/api/generate'), [
+                'json'    => self::withKeepAlive([
+                    'model'  => $model,
+                    'stream' => false,
+                ], $keepAlive),
+                'timeout' => self::PRELOAD_TIMEOUT,
+            ]);
+
+            $status = $response->getStatusCode();
+
+            if (200 !== $status) {
+                // 404 is its own answer because it is the one an operator can
+                // fix from where they are standing: the host is up, it is
+                // talking, and the model named in the settings above is simply
+                // not pulled on it. Told "the host is unreachable" they would
+                // go and check the network instead.
+                if (404 === $status) {
+                    return AiWarmUp::failed('model_missing', [
+                        'model' => $model,
+                        'error' => self::refusal($response->getContent(false)),
+                    ], self::elapsed($started));
+                }
+
+                return AiWarmUp::failed('status', [
+                    'status' => $status,
+                    'error'  => self::refusal($response->getContent(false)),
+                ], self::elapsed($started));
+            }
+
+            // Read so the response is complete before the clock is stopped —
+            // the status line arrives with the headers, and on this endpoint
+            // that is the whole of the wait. Not read for its content: a
+            // preload answers `done: true` with an empty response, which is
+            // success and would fail any check for text.
+            $response->getContent(false);
+
+            return AiWarmUp::loaded(self::elapsed($started));
+        } catch (TimeoutExceptionInterface $exception) {
+            $this->logger->warning('OllamaClient: preload timed out', [
+                'model'     => $model,
+                'error'     => $exception->getMessage(),
+                'exception' => $exception,
+            ]);
+
+            return AiWarmUp::failed('timeout', [], self::elapsed($started));
+        } catch (HttpClientException $exception) {
+            $this->logger->warning('OllamaClient: preload could not reach the host', [
+                'model'     => $model,
+                'error'     => $exception->getMessage(),
+                'exception' => $exception,
+            ]);
+
+            return AiWarmUp::failed('unreachable', ['error' => $exception->getMessage()], self::elapsed($started));
+        } catch (Throwable $exception) {
+            $this->logger->error('OllamaClient: preload failed unexpectedly', [
+                'model'     => $model,
+                'error'     => $exception->getMessage(),
+                'exception' => $exception,
+            ]);
+
+            return AiWarmUp::failed('unexpected', ['error' => $exception->getMessage()], self::elapsed($started));
+        }
+    }
+
+    /**
+     * The request body with `keep_alive` in it, or exactly as it was.
+     *
+     * One helper for all four bodies, because the rule is the same everywhere
+     * and the thing being avoided is a fifth call site that sends `null` — an
+     * explicit null in the JSON is NOT the same as omitting the field: Ollama
+     * decodes it to a zero duration and unloads the model the moment the
+     * request finishes, which is the exact opposite of "we did not want to
+     * say".
+     *
+     * @param array<string, mixed> $payload
+     *
+     * @return array<string, mixed>
+     */
+    private static function withKeepAlive(array $payload, ?string $keepAlive): array
+    {
+        $value = KeepAlive::forBody($keepAlive);
+
+        if (null === $value) {
+            return $payload;
+        }
+
+        $payload['keep_alive'] = $value;
+
+        return $payload;
+    }
+
+    /** Whole milliseconds, which is the resolution anybody reads this at. */
+    private static function elapsed(float $started): int
+    {
+        return (int) round((microtime(true) - $started) * 1000);
+    }
+
+    /**
+     * What the host said when it refused, short enough to put on a page.
+     *
+     * Ollama answers `{"error": "model 'qwen3' not found"}`, and that sentence
+     * is the most useful thing on the screen — it names the model as the host
+     * understood it, which is how a trailing space or a wrong tag gets found.
+     * The raw body is the fallback for a reverse proxy answering its own HTML,
+     * clipped because that can be a whole error page.
+     *
+     * Safe to show here in a way it would not be from chat(): this request body
+     * carries a model name and nothing else. No mail has ever been near it.
+     */
+    private static function refusal(string $body): string
+    {
+        $decoded = json_decode($body, true);
+
+        if (true === is_array($decoded) && true === is_string($decoded['error'] ?? null)) {
+            return $decoded['error'];
+        }
+
+        return mb_substr(trim($body), 0, 200);
     }
 
     /**

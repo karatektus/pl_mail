@@ -140,7 +140,90 @@ poll would empty a field mid-word.
 
             {{ form_start(form, { attr: { 'data-turbo-frame': 'admin-ai' } }) }}
                 <div class="space-y-4">
-                    {{ form_widget(form) }}
+                    {# Rendered row by row rather than with form_widget(form),
+                       for one reason: the warm-up button has to sit with the
+                       writing model and its keep-alive, and a single
+                       form_widget emits all eleven rows in one go with nowhere
+                       to put anything between them. The wrapper carries the
+                       space-y-5 that modal_form_theme's form_widget_compound
+                       adds for a root form, and form_rest() below still emits
+                       the CSRF token — dropping it is how this kind of
+                       hand-rendered form silently stops validating. #}
+                    <div class="space-y-5">
+                        {{ form_errors(form) }}
+
+                        {{ form_row(form.isEnabled) }}
+                        {{ form_row(form.baseUrl) }}
+                        {{ form_row(form.apiToken) }}
+
+                        {{ form_row(form.chatModel) }}
+                        {{ form_row(form.chatKeepAlive) }}
+
+                        {# ── Warm up now ──────────────────────────────────
+                           Here rather than beside Save, because it is about
+                           the two fields above it and nothing else on the
+                           page: it loads THAT model and holds it for THAT
+                           long. Beside Save it would read as another way of
+                           submitting the form, which it is not — it writes
+                           nothing, and it acts on what is stored rather than
+                           on what is on screen.
+
+                           type="button", so a stray Enter in a text field
+                           above cannot make it the form's default submit. #}
+                        <div data-controller="admin--ai-warmup"
+                             data-admin--ai-warmup-url-value="{{ path('app_admin_ai_warmup') }}"
+                             data-admin--ai-warmup-csrf-value="{{ csrf_token('admin-ai-warmup') }}"
+                             data-admin--ai-warmup-idle-label-value="{{ 'admin.ai.warmup.button'|trans }}"
+                             data-admin--ai-warmup-busy-label-value="{{ 'admin.ai.warmup.loading'|trans }}"
+                             data-admin--ai-warmup-failed-label-value="{{ 'admin.ai.warmup.failed'|trans }}"
+                             class="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+
+                            <button type="button"
+                                    data-admin--ai-warmup-target="button"
+                                    data-action="admin--ai-warmup#warmUp"
+                                    class="inline-flex items-center gap-2 h-8 px-3 rounded-lg text-[13px] font-medium
+                                           btn-quiet transition-colors cursor-pointer
+                                           disabled:opacity-50 disabled:cursor-not-allowed">
+                                {# Each icon is WRAPPED, and the wrapper is what
+                                   gets hidden. Font Awesome's own rule sets
+                                   `display: var(--fa-display, inline-block)` on
+                                   the <i>, which beats the `hidden` attribute's
+                                   UA `display: none` — so hiding the <i>
+                                   directly leaves both icons on screen at once,
+                                   the same cascade trap as Tailwind's `.hidden`
+                                   losing to `.inline-block`. A bare <span> has
+                                   no display rule of its own and obeys. #}
+                                <span data-admin--ai-warmup-target="icon">
+                                    <i class="fa-solid fa-fire text-xs" aria-hidden="true"></i>
+                                </span>
+                                <span data-admin--ai-warmup-target="spinner" hidden>
+                                    <i class="fa-solid fa-circle-notch fa-spin text-xs" aria-hidden="true"></i>
+                                </span>
+                                <span data-admin--ai-warmup-target="label">{{ 'admin.ai.warmup.button'|trans }}</span>
+                            </button>
+
+                            {# aria-live, because the answer arrives up to a
+                               minute after the click and a screen reader user
+                               who has moved on would otherwise never learn
+                               what happened. Polite: it is a result, not an
+                               interruption. #}
+                            <p data-admin--ai-warmup-target="result"
+                               role="status"
+                               aria-live="polite"
+                               hidden
+                               class="text-[12px] leading-snug"></p>
+                        </div>
+
+                        {{ form_row(form.embeddingModel) }}
+                        {{ form_row(form.embeddingKeepAlive) }}
+
+                        {{ form_row(form.searchEnabled) }}
+                        {{ form_row(form.categorisationEnabled) }}
+                        {{ form_row(form.writingHelpEnabled) }}
+                        {{ form_row(form.summaryEnabled) }}
+
+                        {{ form_rest(form) }}
+                    </div>
 
                     <div class="flex flex-wrap justify-end gap-2">
                         {# Same form, different action. `formaction` so the

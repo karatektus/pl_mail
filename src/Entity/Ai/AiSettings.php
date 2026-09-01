@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Entity\Ai;
 
+use App\Domain\Ai\KeepAlive;
 use App\Domain\Trait\TimestampableTrait;
 use App\Entity\Embeddable\AiPrompts;
 use App\Infrastructure\Doctrine\Type\EncryptedStringType;
@@ -94,9 +95,46 @@ class AiSettings
     #[ORM\Column(name: 'chat_model', length: 128, nullable: true)]
     public ?string $chatModel = null;
 
+    /**
+     * How long the host is asked to hold the writing model after a request.
+     *
+     * The setting people actually feel. This model is around eighteen
+     * gigabytes, so a request that arrives after it has been evicted spends the
+     * first thirteen seconds or more reading it off disk and produces nothing
+     * at all while it does — which is the "the AI button does nothing" report,
+     * every time. Longer here buys a faster first answer; the price is that the
+     * host keeps the memory reserved for the whole window whether anybody
+     * writes anything or not, and on a single-GPU box that memory is the
+     * scarce thing.
+     *
+     * NULL IS A REAL SETTING AND NOT AN UNFINISHED ONE. It means send no
+     * keep_alive field, so whatever the operator put in OLLAMA_KEEP_ALIVE on
+     * the host stands — a choice somebody may have made deliberately and which
+     * plMail has no way to read and no business overriding by accident. See
+     * {@see KeepAlive}, which owns the format and the wire representation.
+     */
+    #[ORM\Column(name: 'chat_keep_alive', length: 16, nullable: true, options: ['default' => KeepAlive::DEFAULT_CHAT])]
+    public ?string $chatKeepAlive = KeepAlive::DEFAULT_CHAT;
+
     /** The model that turns text into vectors. Usually a much smaller one. */
     #[ORM\Column(name: 'embedding_model', length: 128, nullable: true)]
     public ?string $embeddingModel = null;
+
+    /**
+     * The same question for the search model, and a separate answer to it.
+     *
+     * Its own column rather than one setting for both, because the two models
+     * are nothing alike even when the value is. This one is a few hundred
+     * megabytes and it is asked for constantly — every search by meaning, and
+     * every message the backfill walks — so paying a cold load for it is close
+     * to the worst bargain on offer, and `-1` is usually right here where it
+     * would rarely be right above. It is not what SHIPS, for the reason
+     * {@see KeepAlive::DEFAULT_EMBEDDING} gives: plMail cannot see how much
+     * memory that host has, and `-1` is the one value that never gives any
+     * back.
+     */
+    #[ORM\Column(name: 'embedding_keep_alive', length: 16, nullable: true, options: ['default' => KeepAlive::DEFAULT_EMBEDDING])]
+    public ?string $embeddingKeepAlive = KeepAlive::DEFAULT_EMBEDDING;
 
     /**
      * How many components the embedding model produces.
@@ -213,6 +251,31 @@ class AiSettings
             AiFeature::Categorise  => $this->categorisationEnabled,
             AiFeature::WritingHelp => $this->writingHelpEnabled,
             AiFeature::Summary     => $this->summaryEnabled,
+        };
+    }
+
+    /**
+     * How long to ask the host to hold the model this feature uses.
+     *
+     * The same split enabledFor() makes and for the same reason: a feature does
+     * not get "the" model, it gets the one chosen for its job, and the setting
+     * that governs how long it stays resident has to follow the model rather
+     * than the feature. Three of the four features share the writing model, so
+     * three of the four arms share its answer — asking per feature is what
+     * stops a caller having to know that.
+     *
+     * The raw stored spelling, not the wire value. {@see KeepAlive::forBody()}
+     * is the one place that turns it into something a request body can carry,
+     * because the difference between the number -1 and the string "-1" matters
+     * to the host and to nothing else.
+     */
+    public function keepAliveFor(AiFeature $feature): ?string
+    {
+        return match ($feature) {
+            AiFeature::Search      => $this->embeddingKeepAlive,
+            AiFeature::Categorise,
+            AiFeature::WritingHelp,
+            AiFeature::Summary     => $this->chatKeepAlive,
         };
     }
 }

@@ -6,6 +6,52 @@ so anything that changes the schema irreversibly is called out explicitly.
 The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, and `sha-…` pins one commit.
 
+## v0.2.15 — 2026-09-01
+
+**Adds two columns to the AI settings table; the migrations run on boot. Nothing is removed and
+nothing is rewritten, and the values it fills in are the ones your model host was already using — so
+this release changes how the AI feels, not what it does.**
+
+### Added
+
+- **How long a model stays loaded is yours to set.** The first "Help me write" after a quiet spell
+  used to take a small age and show nothing at all while it did. That is not the model thinking: it
+  is your Ollama host reading twenty gigabytes back off disk, because it had dropped the model out of
+  memory a few minutes after the last request. How long it waits before doing that is
+  `OLLAMA_KEEP_ALIVE`, an environment variable on the host — a machine plMail can talk to but cannot
+  configure, so until now the only way to change it was to go and edit the host and restart it.
+
+  Admin → AI now has a box under each model. Write a duration — `5m`, `30m`, `4h` — or a plain number
+  of seconds; `-1` keeps the model loaded for good and `0` unloads it after every request. Longer
+  means a faster first answer, and the host keeps that memory reserved for the whole time either way.
+  Every request plMail makes carries the setting, so it covers drafting, summaries, sorting mail into
+  tabs and the search index alike.
+
+  **Both boxes start at `5m`, which is exactly what Ollama does on its own** — so nothing about your
+  host changes until you decide it should. The boxes simply say out loud what was already happening.
+
+  **`-1` is worth considering for the search model.** It is small, and it is asked for constantly —
+  every search by meaning, and every message being indexed — so pinning it usually costs a rounding
+  error of memory and saves a wait every single time. It is not the shipped setting only because
+  plMail cannot see how much memory your host has, and that is not a decision to make on your behalf.
+
+  **Leaving a box empty is a real answer too**, and it means "send nothing, and let the host decide".
+  If you have set `OLLAMA_KEEP_ALIVE` deliberately, that is how you keep it.
+
+- **Warm up now.** A button beside the writing model that loads it straight away and tells you how
+  long it took. "Model loaded in 41 s" means it came off disk; "loaded in 230 ms — it was already in
+  memory" means the click bought nothing. Useful after a restart, and the only way to find out what a
+  cold load actually costs on your hardware before deciding how long to hold it. A host that cannot
+  be reached and a model that is not on the host are told apart, because they send you to two
+  different places.
+
+### Fixed
+
+- **A search test asserted how fast your machine was.** The guard that stops an expensive
+  last-resort search pass from running away is real and unchanged; the test proving it fired had a
+  one-millisecond budget and one row to scan, so on quick hardware the pass simply finished in time
+  and the test failed. It now provokes a genuine cancellation instead of hoping for one.
+
 ## v0.2.14 — 2026-08-31
 
 **Adds one table; the migrations run on boot. Nothing is removed and nothing is rewritten. Your
