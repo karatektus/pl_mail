@@ -2,11 +2,15 @@ name: E2E
 
 # Releases, and anything proposed for one. NOT every push.
 #
-# This job is the expensive one in the repository — it builds the app's own
+# This is the expensive workflow in the repository — it builds the app's own
 # FrankenPHP image, brings up Postgres, a Mercure hub and the app, downloads a
-# Chromium, and runs PHPStan, PHPUnit and ~250 browser tests — and running it on
+# Chromium, and runs PHPStan, PHPUnit and ~690 browser tests — and running it on
 # every commit to a branch nobody is releasing from spends most of the account's
 # capacity proving the same thing repeatedly.
+#
+# ("~250" is what this said for a long time. It is ~690 across ~95 files as of
+# v0.2.16 — counted with `npx playwright test --list`, which is worth doing
+# before reasoning about shard counts from a number in a comment.)
 #
 # The trade, stated so it is a decision rather than a surprise: `main` is no
 # longer verified commit by commit. A regression pushed to main is found when a
@@ -16,15 +20,36 @@ name: E2E
 #
 #   npm run test:unit:docker && npm run test:e2e:docker
 #
-# Those two commands are now literally what the job below runs. It used to be a
-# different thing wearing the same name: PHP on the runner, dependencies
-# installed on the runner, and the suite served by `php -S` behind a router
-# script written for the occasion. Everything that server could not do by itself
-# had an accommodation here — a php.ini copied into the scan dir with sudo,
-# PHP_CLI_SERVER_WORKERS, a restart loop around it because it segfaulted
-# mid-suite once — and none of it proved anything about FrankenPHP, which is the
-# only server plMail is ever served by. The stack below is the one in
-# compose.test.yaml, built from this repository's Dockerfile.
+# ── WHY IT IS SIX JOBS AND NOT ONE ──────────────────────────────────────────
+#
+# It was one job that did the setup once and then ran PHPStan, then PHPUnit,
+# then the browser suite, in that order, on a runner with two cores. Everything
+# waited for everything, and the browser suite — which is the great majority of
+# it — waited for two static checks that have no bearing on whether a page
+# renders.
+#
+# Now the browser suite is split with Playwright's own `--shard`, and the pieces
+# run at once on runners of their own. The static checks run beside them rather
+# than in front of them.
+#
+# WHAT THIS COSTS, said plainly: the preparation — image, dependencies, stack,
+# browser — is per JOB, so six jobs pay it six times. That is more machine
+# minutes for less wall-clock, which is the trade sharding always is. It is only
+# worth it because the preparation is nearly all cache: the image is built once
+# in `image` below and read from the layer cache by everyone else, and Composer
+# and the browser come from actions/cache. A cold cache makes this workflow
+# slower than the one it replaced, which is a thing to know before blaming a
+# shard.
+#
+# WHY EACH SHARD GETS ITS OWN STACK rather than sharing one. Two reasons, and
+# the second is the interesting one. A single app container was already the
+# ceiling on worker count, so pointing eight browsers at one of them would have
+# bought nothing. And a stack per job is what finally lets the four specs that
+# own install-wide state — the AI settings singleton, the integration provider
+# rows, the Mercure hub that one spec restarts — run at the same time as
+# everything else instead of queueing behind all of it in a single worker. They
+# were never slow; they were serialised, because there was one install to
+# collide over.
 on:
     push:
         tags: ['v*']
@@ -35,212 +60,282 @@ on:
         branches: [main]
     workflow_dispatch:
 
+# Six runners per push adds up, so a superseded pull request stops paying for
+# itself. Pushing a second commit to a branch under review cancels the run for
+# the first — nobody is waiting on an answer about a tree that no longer exists.
+#
+# Tags and manual runs are NOT cancelled, which is what the expression is for
+# rather than a bare `true`: a release is the one run whose result is kept and
+# looked at later, and two tags in a row are two different questions.
+concurrency:
+    group: e2e-${{ github.ref }}
+    cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+    # compose.test.yaml's own default, and playwright.config.ts falls back to
+    # the same number. Stated here only to be explicit.
+    TEST_HTTP_PORT: "8001"
+
 jobs:
-    playwright:
-        name: Playwright
+    # Nothing but the image, so that the five jobs below start from a warm layer
+    # cache instead of five cold builds racing to write the same scope.
+    #
+    # It is the ONLY writer — every other job reads. Six `cache-to`s on one
+    # scope is not a faster cache, it is six uploads overwriting each other, and
+    # the winner is whichever finished last rather than whichever is most
+    # complete.
+    #
+    # The cost is honest: on a warm cache this adds its own minute to the front
+    # of the run. What it buys is that the minute is paid once instead of five
+    # times over, and that a cold cache is filled by one build rather than by
+    # five simultaneous ones.
+    image:
+        name: Image
         runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v7
+            - uses: ./.github/actions/test-stack
+              with:
+                  write-cache: "true"
+                  stack: "false"
 
-        # No `env:` block, and no Postgres service container. Both were here to
-        # configure an app this workflow was running itself; the stack now
-        # carries its own database and its own environment, in compose.test.yaml,
-        # where a developer running the suite locally reads the same values. Two
-        # copies of DATABASE_URL that had to agree are one.
-        #
-        # TEST_HTTP_PORT is the single exception, and it is here only to be
-        # explicit: it is compose.test.yaml's own default and playwright.config.ts
-        # falls back to the same number.
-        env:
-            TEST_HTTP_PORT: "8001"
-
+    # PHPStan and PHPUnit, beside the browser suite rather than in front of it.
+    #
+    # Both need the stack: phpstan-symfony resolves service ids out of the
+    # compiled test container, and PHPUnit wants a database. Neither needs a
+    # browser, which is why this job does not download one.
+    #
+    # Deliberately NOT sharded. It is a single PHP process and it finishes in
+    # about a minute; splitting it across runners would spend more time starting
+    # stacks than it saved, and the point of this workflow is wall-clock rather
+    # than the appearance of parallelism.
+    static:
+        name: PHPStan and PHPUnit
+        runs-on: ubuntu-latest
+        needs: image
         steps:
             - uses: actions/checkout@v7
 
-            # Every host path a container is about to write through, created
-            # HERE so that the runner user owns it.
-            #
-            # Docker creates a missing bind-mount source — and any missing
-            # parent of it — itself, as root. That is a rule with a long reach,
-            # and both halves of it broke this job on its first real run:
-            #
-            #   ~/.cache/composer is mounted into the composer container below.
-            #   On a cache miss nothing had created it, so Docker created
-            #   ~/.cache as root too, and `npx playwright install` then died on
-            #   EACCES trying to mkdir a SIBLING of it, ~/.cache/ms-playwright.
-            #   Nothing was wrong with the composer cache; it was the parent.
-            #
-            #   var/ and public/assets/ are where compose.test.yaml mounts its
-            #   named volumes, so Docker creates them in the checkout as the
-            #   mount points — empty, root-owned. `mkdir -p var/log` in the log
-            #   step then failed, which is how a green suite would still have
-            #   lost its artifact.
-            #
-            # Pre-creating is the whole fix, and it is deliberately preferred to
-            # running those containers with `--user $(id -u)`: the image's PHP
-            # tooling expects root (COMPOSER_ALLOW_SUPERUSER, the entrypoint's
-            # setfacl), and root-owned FILES were never the problem — tar reads
-            # mode-644 files it does not own, so the artifact upload and the
-            # cache save are both fine. Only creating a directory inside a
-            # root-owned one ever failed, and a directory that already exists is
-            # never created by Docker.
-            #
-            # vendor/ and assets/vendor/ are left alone on purpose. Containers
-            # write them as root and no runner-user step reads or writes either,
-            # so there is nothing to fix and a chown would only be ceremony.
-            - name: Prepare the paths containers write through
-              run: mkdir -p ~/.cache/composer var/log public/assets
+            - uses: ./.github/actions/test-stack
 
-            - name: Set up Buildx
-              uses: docker/setup-buildx-action@v4
-
-            # Built here rather than by `compose up --build`, for the layer
-            # cache alone: the base stage installs a Debian toolchain, the PGDG
-            # client and nine PHP extensions, which is minutes of work that has
-            # nothing to do with the commit under test. docker.yml caches the
-            # prod target this same way.
-            #
-            # Its own scope. The dev target diverges from prod at the top of the
-            # tree — xdebug, a different php.ini — so sharing a scope with
-            # docker.yml would have the two evicting each other's layers.
-            #
-            # `load`, and this exact tag: compose.test.yaml names the image
-            # `pl_mail_test-app` explicitly so that it can be built ahead of
-            # time. The `up` below then finds it and does not build anything.
-            - name: Build the test image
-              uses: docker/build-push-action@v7
-              with:
-                  context: .
-                  target: frankenphp_dev
-                  tags: pl_mail_test-app
-                  load: true
-                  cache-from: type=gha,scope=frankenphp_dev-amd64
-                  cache-to: type=gha,mode=max,scope=frankenphp_dev-amd64
-
-            # The image deliberately carries no vendor/ — the dev target is
-            # built for a bind mount, and compose.test.yaml mounts the checkout
-            # over /app. So the dependencies have to be installed into the
-            # checkout, and this is a cache of the downloads, not of vendor/
-            # itself: `composer install` still runs and still runs its
-            # post-install scripts, it just stops fetching the same archives
-            # every time.
-            - name: Cache Composer downloads
-              uses: actions/cache@v6
-              with:
-                  path: ~/.cache/composer
-                  key: composer-${{ hashFiles('**/composer.lock') }}
-                  restore-keys: composer-
-
-            # In a container, with the project's own PHP, rather than a
-            # setup-php on the runner. That is the whole point of the rework:
-            # there is one PHP in this job and it is the one the app ships with,
-            # so a version or extension the image lacks fails here instead of
-            # passing here and failing in production.
-            #
-            # --no-deps because nothing is up yet and none of this needs the
-            # database. app-init would do the same install if it found no
-            # vendor/ (see compose.test.yaml) — doing it here is only so the
-            # cache above can be attached to it.
-            - name: Install PHP dependencies
-              run: |
-                  docker compose -f compose.test.yaml run --rm --no-deps \
-                    --volume "$HOME/.cache/composer:/composer-cache" \
-                    --env COMPOSER_CACHE_DIR=/composer-cache \
-                    --entrypoint docker-php-entrypoint \
-                    app composer install --prefer-dist --no-progress --no-interaction
-
-            # `npm run test:env:up` without the --build it would otherwise do,
-            # because the image is already built and loaded above.
-            #
-            # --wait blocks on the healthcheck in the Dockerfile, which asks the
-            # app's /healthz — not Caddy's admin port — so it goes green only
-            # once PHP can reach Postgres. app-init has run migrations, built the
-            # assets and seeded both fixture users by then; there are no
-            # separate steps for those here because the stack already does them
-            # for every developer.
-            - name: Start the test stack
-              run: docker compose -f compose.test.yaml up -d --wait app
-
-            - name: Setup Node
-              uses: actions/setup-node@v7
-              with:
-                  # From .nvmrc rather than pinned here. The two drifted —
-                  # .nvmrc said 22, this said 20, and the machine the suite was
-                  # actually developed on ran 24 — so "works locally, fails in
-                  # CI" had three plausible causes instead of none.
-                  node-version-file: .nvmrc
-                  cache: npm
-
-            - name: Install Node dependencies
-              run: npm ci
-
-            - name: Resolve Playwright version
-              id: playwright-version
-              run: echo "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
-
-            - name: Cache Playwright browsers
-              id: playwright-cache
-              uses: actions/cache@v6
-              with:
-                  path: ~/.cache/ms-playwright
-                  key: playwright-${{ runner.os }}-${{ steps.playwright-version.outputs.version }}
-
-            - name: Install Playwright browsers
-              if: steps.playwright-cache.outputs.cache-hit != 'true'
-              run: npx playwright install --with-deps chromium
-
-            # Browsers came from cache; the apt libs they link against did not.
-            - name: Install Playwright system dependencies
-              if: steps.playwright-cache.outputs.cache-hit == 'true'
-              run: npx playwright install-deps chromium
-
-            # After the stack is up, not before: phpstan-symfony resolves service
-            # ids out of the compiled test container, and the kernel boots
-            # app-init did while migrating and seeding are what produced it.
-            # `--no-deps` because the stack is already running and this only
-            # needs to join it.
+            # After the stack is up, not before: phpstan-symfony resolves
+            # service ids out of the compiled test container, and the kernel
+            # boot app-init did while migrating and seeding is what produced it.
             - name: Run PHPStan
               run: |
                   docker compose -f compose.test.yaml run --rm --no-deps \
                     --entrypoint docker-php-entrypoint app composer stan
 
-            # Fast and dependency-free, so it runs before the browser suite:
-            # a failure here is far quicker to read than a Playwright trace.
-            #
-            # This is `npm run test:unit:docker`, character for character —
-            # which is the point. PHPUnit used to run bare on the runner in this
-            # job while every developer ran it in a container, so the two could
-            # disagree about anything the image decides: PHP version, extensions,
-            # upload limits.
+            # `npm run test:unit:docker` minus the `up`, which has already
+            # happened. PHPUnit used to run bare on the runner while every
+            # developer ran it in a container, so the two could disagree about
+            # anything the image decides: PHP version, extensions, upload limits.
             - name: Run PHPUnit tests
-              run: npm run test:unit:docker
+              run: |
+                  docker compose -f compose.test.yaml run --rm --no-deps \
+                    --entrypoint docker-php-entrypoint app sh bin/test-unit.sh
 
-            # And this is `npm run test:e2e:docker` minus the `up`, which has
-            # already happened. playwright.config.ts needs nothing else: it
-            # defaults to 127.0.0.1:$TEST_HTTP_PORT and to a console that goes
-            # through `docker compose exec`.
-            - name: Run Playwright tests
-              run: npx playwright test
+            - name: Collect the stack's log
+              if: ${{ !cancelled() }}
+              run: |
+                  mkdir -p var/log
+                  docker compose -f compose.test.yaml logs --no-color --timestamps > var/log/static-server.log
 
-            # The web server's own log goes up with the report, and now comes
-            # from the containers rather than a redirect. It is kept out of the
-            # console because it is ~400 lines per page load, but it is the only
-            # place a PHP fatal that never reached the kernel is recorded — a
-            # trace cannot show what was never a response.
+            - name: Upload the stack's log
+              if: ${{ !cancelled() }}
+              uses: actions/upload-artifact@v7
+              with:
+                  name: log-static
+                  path: var/log/static-server.log
+                  retention-days: 14
+
+    # The browser suite, in quarters.
+    browser:
+        name: Playwright ${{ matrix.shard }}/${{ matrix.shardTotal }}
+        runs-on: ubuntu-latest
+        needs: image
+
+        strategy:
+            # A failing shard must not cancel its siblings. They are testing
+            # different things, the report at the end is assembled from all of
+            # them, and a cancelled shard contributes no blob — so fail-fast
+            # would answer "one shard failed" with "and we no longer know about
+            # the other three".
+            fail-fast: false
+            matrix:
+                # THE TWO NUMBERS HAVE TO AGREE. `shard` is the list of indices
+                # and `shardTotal` is what they are out of; adding a fifth index
+                # without changing the total gives shard 5 of 4, which Playwright
+                # refuses. Kept in one block, as Playwright's own documentation
+                # writes it, so they are read together.
+                #
+                # Four, because the ceiling is not the split but the runner:
+                # each of these has two cores, the app container is on it, and
+                # playwright.config.ts already caps CI at two workers for that
+                # reason. Four shards is eight browsers against four app
+                # containers.
+                #
+                # MEASURED, so the next person tuning this starts from data.
+                # Four workers on a developer machine, whole suite 4m55s:
+                #
+                #   1/4   168 tests   2.8m    account-*, admin-*, appearance*, calendar*
+                #   2/4   169 tests   1.3m
+                #   3/4   155 tests   1.4m
+                #   4/4   137 tests   0.7m
+                #   exclusive  23     1.1m    its own job, below
+                #
+                # Playwright divides by test COUNT, and the counts are even. The
+                # DURATIONS are not: the first quarter holds the calendar and
+                # appearance specs, which navigate and measure layout, so it
+                # takes four times what the last one does. Since the run is only
+                # as fast as its slowest shard, that is where a further gain is
+                # — and more shards is the lever, since there is no
+                # duration-aware split to reach for. Six would cut that block in
+                # two, for two more runners' worth of setup. Four is the trade
+                # taken here, not a limit.
+                shard: [1, 2, 3, 4]
+                shardTotal: [4]
+
+        steps:
+            - uses: actions/checkout@v7
+
+            - uses: ./.github/actions/test-stack
+              with:
+                  playwright: "true"
+
+            # --project=chromium, so the four install-wide specs are left to the
+            # job below. Their project declares `dependencies: ["chromium"]`,
+            # which under sharding would mean every shard running the whole of
+            # chromium first — naming the project is what keeps that from
+            # happening as well as what divides the work.
             #
-            # The whole project, not just `app`: when the failure is that the
-            # stack never came up, the line explaining why is in app-init's
-            # migration output or in Postgres', and neither is anywhere else.
+            # `blob`, not html: a shard's HTML report describes a quarter of the
+            # suite and cannot say anything about the rest. The blobs are merged
+            # into one report at the end. It also replaces the `github`
+            # reporter for the duration — annotations come from the merge, where
+            # they can be attributed to the whole run.
+            - name: Run Playwright tests
+              run: npx playwright test --project=chromium --shard=${{ matrix.shard }}/${{ matrix.shardTotal }} --reporter=blob
+
+            # The web server's own log, which is the only place a PHP fatal that
+            # never reached the kernel is recorded — a trace cannot show what was
+            # never a response. The whole project, not just `app`: when the
+            # failure is that the stack never came up, the line explaining why is
+            # in app-init's migration output or in Postgres'.
             - name: Collect the stack's log
               if: ${{ !cancelled() }}
               run: |
                   mkdir -p var/log
                   docker compose -f compose.test.yaml logs --no-color --timestamps > var/log/e2e-server.log
 
-            - name: Upload Playwright report
+            - name: Upload the blob report
               if: ${{ !cancelled() }}
               uses: actions/upload-artifact@v7
               with:
+                  name: blob-chromium-${{ matrix.shard }}
+                  path: blob-report/
+                  retention-days: 14
+
+            - name: Upload the stack's log
+              if: ${{ !cancelled() }}
+              uses: actions/upload-artifact@v7
+              with:
+                  name: log-chromium-${{ matrix.shard }}
+                  path: var/log/e2e-server.log
+                  retention-days: 14
+
+    # The four specs that own install-wide state, on an install of their own.
+    #
+    # In the single-job workflow this project ran last, alone, on one worker,
+    # after everything else had finished — because AiSettings, the integration
+    # provider rows and the Mercure hub are one per INSTALLATION and no
+    # per-worker fixture can isolate them. On its own runner with its own stack
+    # there is nothing left to collide with, so it runs beside the shards and
+    # its wall-clock cost falls to whatever it takes on its own.
+    #
+    # --no-deps is the other half of that. The project declares
+    # `dependencies: ["chromium"]`, which is what enforces the ordering for
+    # anybody running the suite locally against ONE stack, where it is still
+    # exactly right. Here the stack is not shared, so the dependency would only
+    # mean running the entire rest of the suite again before starting.
+    browser-exclusive:
+        name: Playwright (install-wide)
+        runs-on: ubuntu-latest
+        needs: image
+        steps:
+            - uses: actions/checkout@v7
+
+            - uses: ./.github/actions/test-stack
+              with:
+                  playwright: "true"
+
+            - name: Run Playwright tests
+              run: npx playwright test --project=chromium-exclusive --no-deps --reporter=blob
+
+            - name: Collect the stack's log
+              if: ${{ !cancelled() }}
+              run: |
+                  mkdir -p var/log
+                  docker compose -f compose.test.yaml logs --no-color --timestamps > var/log/e2e-server.log
+
+            - name: Upload the blob report
+              if: ${{ !cancelled() }}
+              uses: actions/upload-artifact@v7
+              with:
+                  name: blob-exclusive
+                  path: blob-report/
+                  retention-days: 14
+
+            - name: Upload the stack's log
+              if: ${{ !cancelled() }}
+              uses: actions/upload-artifact@v7
+              with:
+                  name: log-exclusive
+                  path: var/log/e2e-server.log
+                  retention-days: 14
+
+    # One report for the whole suite, assembled from the shards' blobs.
+    #
+    # Without this a run leaves five partial reports and no single answer to
+    # "what failed" — which is worse than the unsharded workflow was, and would
+    # be a poor trade for the minutes sharding saves. The merge also emits the
+    # `github` annotations the shards deliberately did not, so a failure is
+    # attributed once rather than four times.
+    #
+    # `always()` rather than `success()`: this is at its most useful exactly
+    # when a shard has failed.
+    report:
+        name: Report
+        runs-on: ubuntu-latest
+        needs: [browser, browser-exclusive]
+        if: ${{ !cancelled() }}
+        steps:
+            - uses: actions/checkout@v7
+
+            - uses: actions/setup-node@v7
+              with:
+                  node-version-file: .nvmrc
+                  cache: npm
+
+            - name: Install Node dependencies
+              run: npm ci
+
+            # Every shard's blob into one directory. `merge-multiple` flattens
+            # them, which is what merge-reports expects — it reads a directory
+            # of blobs, not a directory of directories.
+            - name: Download the blob reports
+              uses: actions/download-artifact@v7
+              with:
+                  path: blob-report
+                  pattern: blob-*
+                  merge-multiple: true
+
+            - name: Merge into one report
+              run: npx playwright merge-reports --reporter=html,github ./blob-report
+
+            - name: Upload the Playwright report
+              uses: actions/upload-artifact@v7
+              with:
                   name: playwright-report
-                  path: |
-                      playwright-report/
-                      var/log/e2e-server.log
+                  path: playwright-report/
                   retention-days: 14

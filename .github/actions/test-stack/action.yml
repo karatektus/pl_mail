@@ -1,0 +1,191 @@
+name: Test stack
+description: >-
+  Everything a job needs before it can run part of plMail's test suite: the
+  app image, its PHP dependencies, the compose stack, and optionally a browser.
+
+# WHY THIS IS A COMPOSITE ACTION AND NOT REPEATED YAML
+# ────────────────────────────────────────────────────
+# The E2E workflow used to be one job that did the setup once and then ran
+# everything in sequence. Sharding turned it into six jobs that each need the
+# identical eighty lines of preparation, and eighty lines copied six times is
+# six places to fix a cache key — the same argument compose.test.yaml makes for
+# owning DATABASE_URL rather than having the workflow restate it.
+#
+# The reasoning for each step is kept here, where the step is, rather than in
+# the workflow that calls it.
+
+inputs:
+  write-cache:
+    description: >-
+      Populate the shared layer cache as well as reading it. Exactly one job in
+      a run should do this. Six jobs writing the same scope at once is not a
+      faster cache, it is six uploads racing to overwrite each other, and the
+      one that wins is whichever finished last rather than whichever is most
+      complete.
+    default: "false"
+  stack:
+    description: >-
+      Install PHP dependencies and bring the compose stack up. False for a job
+      that only wants the image built.
+    default: "true"
+  playwright:
+    description: >-
+      Install Node and a Chromium. False for the static-analysis job, which
+      saves it around a minute and a half of downloading a browser it will
+      never open.
+    default: "false"
+
+runs:
+  using: composite
+  steps:
+    # Every host path a container is about to write through, created HERE so
+    # that the runner user owns it.
+    #
+    # Docker creates a missing bind-mount source — and any missing parent of it
+    # — itself, as root. That is a rule with a long reach, and both halves of it
+    # broke this job on its first real run:
+    #
+    #   ~/.cache/composer is mounted into the composer container below. On a
+    #   cache miss nothing had created it, so Docker created ~/.cache as root
+    #   too, and `npx playwright install` then died on EACCES trying to mkdir a
+    #   SIBLING of it, ~/.cache/ms-playwright. Nothing was wrong with the
+    #   composer cache; it was the parent.
+    #
+    #   var/ and public/assets/ are where compose.test.yaml mounts its named
+    #   volumes, so Docker creates them in the checkout as the mount points —
+    #   empty, root-owned. `mkdir -p var/log` in the log step then failed, which
+    #   is how a green suite would still have lost its artifact.
+    #
+    # Pre-creating is the whole fix, and it is deliberately preferred to running
+    # those containers with `--user $(id -u)`: the image's PHP tooling expects
+    # root (COMPOSER_ALLOW_SUPERUSER, the entrypoint's setfacl), and root-owned
+    # FILES were never the problem — tar reads mode-644 files it does not own,
+    # so the artifact upload and the cache save are both fine. Only creating a
+    # directory inside a root-owned one ever failed, and a directory that
+    # already exists is never created by Docker.
+    #
+    # vendor/ and assets/vendor/ are left alone on purpose. Containers write
+    # them as root and no runner-user step reads or writes either.
+    - name: Prepare the paths containers write through
+      shell: bash
+      run: mkdir -p ~/.cache/composer var/log public/assets
+
+    - name: Set up Buildx
+      uses: docker/setup-buildx-action@v4
+
+    # Built here rather than by `compose up --build`, for the layer cache alone:
+    # the base stage installs a Debian toolchain, the PGDG client and nine PHP
+    # extensions, which is minutes of work that has nothing to do with the
+    # commit under test. docker.yml caches the prod target this same way.
+    #
+    # Its own scope. The dev target diverges from prod at the top of the tree —
+    # xdebug, a different php.ini — so sharing a scope with docker.yml would
+    # have the two evicting each other's layers.
+    #
+    # `load`, and this exact tag: compose.test.yaml names the image
+    # `pl_mail_test-app` explicitly so that it can be built ahead of time. The
+    # `up` below then finds it and does not build anything.
+    - name: Build the test image
+      uses: docker/build-push-action@v7
+      with:
+        context: .
+        target: frankenphp_dev
+        tags: pl_mail_test-app
+        load: true
+        cache-from: type=gha,scope=frankenphp_dev-amd64
+        cache-to: ${{ inputs.write-cache == 'true' && 'type=gha,mode=max,scope=frankenphp_dev-amd64' || '' }}
+
+    # The image deliberately carries no vendor/ — the dev target is built for a
+    # bind mount, and compose.test.yaml mounts the checkout over /app. So the
+    # dependencies have to be installed into the checkout, and this is a cache
+    # of the downloads, not of vendor/ itself: `composer install` still runs and
+    # still runs its post-install scripts, it just stops fetching the same
+    # archives every time.
+    - name: Cache Composer downloads
+      if: inputs.stack == 'true'
+      uses: actions/cache@v6
+      with:
+        path: ~/.cache/composer
+        key: composer-${{ hashFiles('**/composer.lock') }}
+        restore-keys: composer-
+
+    # In a container, with the project's own PHP, rather than a setup-php on the
+    # runner. That is the whole point of the rework this replaced: there is one
+    # PHP in this job and it is the one the app ships with, so a version or
+    # extension the image lacks fails here instead of passing here and failing
+    # in production.
+    #
+    # --no-deps because nothing is up yet and none of this needs the database.
+    # app-init would do the same install if it found no vendor/ (see
+    # compose.test.yaml) — doing it here is only so the cache above can be
+    # attached to it.
+    - name: Install PHP dependencies
+      if: inputs.stack == 'true'
+      shell: bash
+      run: |
+        docker compose -f compose.test.yaml run --rm --no-deps \
+          --volume "$HOME/.cache/composer:/composer-cache" \
+          --env COMPOSER_CACHE_DIR=/composer-cache \
+          --entrypoint docker-php-entrypoint \
+          app composer install --prefer-dist --no-progress --no-interaction
+
+    # `npm run test:env:up` without the --build it would otherwise do, because
+    # the image is already built and loaded above.
+    #
+    # --wait blocks on the healthcheck in the Dockerfile, which asks the app's
+    # /healthz — not Caddy's admin port — so it goes green only once PHP can
+    # reach Postgres. app-init has run migrations, built the assets and seeded
+    # both fixture users by then.
+    #
+    # EACH JOB GETS ITS OWN STACK, and that is what makes sharding possible at
+    # all rather than being an incidental consequence of it. The specs that
+    # cannot share a worker — the AI settings singleton, the integration
+    # provider rows, the Mercure hub one spec restarts — cannot share an
+    # INSTALL, which is why they were pinned behind everything else in one
+    # worker. Give them a stack of their own and the constraint is gone: there
+    # is nothing to collide with.
+    - name: Start the test stack
+      if: inputs.stack == 'true'
+      shell: bash
+      run: docker compose -f compose.test.yaml up -d --wait app
+
+    - name: Setup Node
+      if: inputs.playwright == 'true'
+      uses: actions/setup-node@v7
+      with:
+        # From .nvmrc rather than pinned here. The two drifted — .nvmrc said 22,
+        # this said 20, and the machine the suite was actually developed on ran
+        # 24 — so "works locally, fails in CI" had three plausible causes
+        # instead of none.
+        node-version-file: .nvmrc
+        cache: npm
+
+    - name: Install Node dependencies
+      if: inputs.playwright == 'true'
+      shell: bash
+      run: npm ci
+
+    - name: Resolve Playwright version
+      if: inputs.playwright == 'true'
+      id: playwright-version
+      shell: bash
+      run: echo "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
+
+    - name: Cache Playwright browsers
+      if: inputs.playwright == 'true'
+      id: playwright-cache
+      uses: actions/cache@v6
+      with:
+        path: ~/.cache/ms-playwright
+        key: playwright-${{ runner.os }}-${{ steps.playwright-version.outputs.version }}
+
+    - name: Install Playwright browsers
+      if: inputs.playwright == 'true' && steps.playwright-cache.outputs.cache-hit != 'true'
+      shell: bash
+      run: npx playwright install --with-deps chromium
+
+    # Browsers came from cache; the apt libs they link against did not.
+    - name: Install Playwright system dependencies
+      if: inputs.playwright == 'true' && steps.playwright-cache.outputs.cache-hit == 'true'
+      shell: bash
+      run: npx playwright install-deps chromium

@@ -6,6 +6,43 @@ so anything that changes the schema irreversibly is called out explicitly.
 The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, and `sha-…` pins one commit.
 
+## Unreleased
+
+**Nothing in the application changed. This is the test suite and the workflow that runs it.**
+
+### Changed
+
+- **The E2E workflow runs in parallel instead of in a queue.** It was one job on one two-core runner
+  doing PHPStan, then PHPUnit, then ~690 browser tests, in that order — the browser suite waiting on
+  two static checks that say nothing about whether a page renders. It is now six jobs: one builds the
+  image so the rest start from a warm layer cache, one runs the static checks beside the others
+  rather than in front of them, four run the browser suite in quarters through Playwright's own
+  `--shard`, and a last one merges their reports into the single HTML report you download.
+
+  **Each job gets its own stack**, and that is what makes it work rather than being incidental to it.
+  A single app container was already the ceiling on how many browsers were worth pointing at it. It
+  also frees the four specs that own install-wide state — the AI settings singleton, the integration
+  provider rows, the Mercure hub one of them restarts — which used to run last, alone, in one worker,
+  behind everything else. They were never slow; they were serialised, because there was one
+  installation to collide over. On a runner of their own there is nothing to collide with.
+
+  The cost, stated because it is a real one: preparation is per job, so six jobs pay for it six
+  times. That is more machine minutes for less waiting, which is the trade sharding always is, and it
+  only pays because nearly all of that preparation is cache. A cold cache makes this slower than what
+  it replaced.
+
+  A pull request also stops paying for superseded runs now: pushing a second commit cancels the first
+  one's. Tags and manual runs are never cancelled — a release is the run whose answer gets kept.
+
+### Fixed
+
+- **An admin layout test had been failing since v0.2.15, and taking two minutes to do it.** It waits
+  for each admin section to finish loading by checking that no spinner is left in the frame, and
+  counts elements rather than visible ones — so when the AI card grew a "Warm up now" button whose
+  spinner sits beside its icon, rendered and hidden, waiting for a click, the wait began looking for
+  something that is never removed. Every run spent the timeout on a section that had loaded
+  perfectly. It asks for visible spinners now, which is what it always meant.
+
 ## v0.2.16 — 2026-09-01
 
 **Adds one column to the conversations table; the migration runs on boot. Nothing is removed and

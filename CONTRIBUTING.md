@@ -163,12 +163,33 @@ The test app is served at `http://127.0.0.1:8001` (override with `TEST_HTTP_PORT
 reseed their own fixtures, so tests are independent and re-runnable.
 
 CI runs the same suites the same way — it boots this very stack from `compose.test.yaml` and then
-runs `npm run test:unit:docker` and the Playwright suite against it, so "works locally, fails in CI"
-no longer has a serving path to hide in. See
-[.github/workflows/e2e.yml](.github/workflows/e2e.yml). It runs **only on a release tag, on a pull
-request, or when you start it by hand:** it is the expensive workflow in this repository, and
-running it on every commit to `main` spent most of the account's capacity proving the same thing
-over and over.
+runs the same commands against it, so "works locally, fails in CI" no longer has a serving path to
+hide in. See [.github/workflows/e2e.yml](.github/workflows/e2e.yml). It runs **only on a release
+tag, on a pull request, or when you start it by hand:** it is the expensive workflow in this
+repository, and running it on every commit to `main` spent most of the account's capacity proving
+the same thing over and over.
+
+**It is six jobs, not one, and each has a stack of its own.** One builds the image so that the rest
+start from a warm layer cache; one runs PHPStan and PHPUnit; four run the browser suite in quarters
+through Playwright's `--shard`; and a last one merges their blob reports into the single HTML report
+you download. A fifth browser job runs the install-wide specs beside the shards rather than after
+them.
+
+That last point is the interesting one, and it is why `--no-deps` appears in the workflow. The
+`chromium-exclusive` project declares `dependencies: ["chromium"]`, and that is exactly right for
+anybody running the suite locally against ONE stack — those specs write state there is only one of
+per installation, so they have to wait for everything else. In CI they have an installation to
+themselves, so there is nothing left to collide with and the dependency would only mean running the
+whole suite twice.
+
+The cost is stated where it lives: preparation is per job, so six jobs pay for it six times. That is
+more machine minutes for less wall-clock, which is the trade sharding always is, and it only pays
+because nearly all of that preparation is cache. **A cold cache makes the workflow slower than the
+one it replaced** — worth knowing before blaming a shard.
+
+Changing the shard count means changing two numbers in the same `matrix` block, `shard` and
+`shardTotal`. They are kept together for that reason: a fifth index without a matching total asks
+Playwright for shard 5 of 4, which it refuses.
 
 The consequence is worth being explicit about: **`main` is not verified commit by commit.** A
 regression pushed there is found when a version is tagged, which may be several commits later, and
@@ -226,7 +247,9 @@ ordering without declaring anything.
 
 **`integrations.spec.ts` runs alone, last.** `IntegrationProviderConfig` and `MailProviderConfig` are
 unique on `provider` with no user column, so that state is install-wide and no amount of per-worker
-users isolates it. It has its own `chromium-exclusive` project with `dependencies` on the main one.
+users isolates it. It has its own `chromium-exclusive` project with `dependencies` on the main one —
+which is the rule for one stack. In CI that project gets a stack to itself and runs concurrently
+with the shards; see the note on `--no-deps` above.
 
 Two smaller things: `video` is off (the trace is the useful artifact and costs nothing on a passing
 run), and nothing waits for a TOTP window to roll over — otphp accepts a code minted in window `W`

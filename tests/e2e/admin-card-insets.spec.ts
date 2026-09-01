@@ -100,13 +100,22 @@ const TOLERANCE = {
  * fetches its telemetry panel a second time from inside the frame — so "no
  * spinner left anywhere in here" is the one condition that covers both without
  * naming either.
+ *
+ * VISIBLE spinners, and the qualifier is not caution. `toHaveCount` counts what
+ * is in the DOM whether or not anything can see it, and the AI card grew a
+ * "Warm up now" button in v0.2.15 whose own spinner sits beside its icon,
+ * rendered and `hidden`, waiting for a click. From that release on this waited
+ * for an element that is never removed, so it failed after its timeout on every
+ * run — the section had loaded perfectly and the assertion was reading a
+ * control rather than a placeholder. What the wait means is "nothing is still
+ * showing a spinner", which is what it now asks.
  */
 async function openSection(page: Page, section: string): Promise<void> {
     await page.goto(`/admin?section=${section}`);
 
     for (const frame of SECTIONS[section]) {
         await expect(page.locator(`#${frame}`)).toBeAttached();
-        await expect(page.locator(`#${frame} .fa-circle-notch`)).toHaveCount(0);
+        await expect(page.locator(`#${frame} .fa-circle-notch:visible`)).toHaveCount(0);
     }
 }
 
