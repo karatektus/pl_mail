@@ -10,7 +10,11 @@ last signed in — the three things needed to decide whether an account should
 still be there. It shows nothing about anyone's mail, because an admin panel is
 not a way into a mailbox.
 #}
-<turbo-frame id="admin-users" class="block space-y-3">
+{# Layout classes belong on the placeholder in admin/index.html.twig, not
+   here: Turbo transplants this frame's CHILDREN into the frame already on
+   the page and never copies its attributes, so a class written here reaches
+   nothing. See tests/Infrastructure/Templating/TurboFrameClassesTest.php. #}
+<turbo-frame id="admin-users">
 
     {# Bare markup, so it carries the rows' own inset rather than borrowing one
        from the frame around it — which runs edge to edge on a narrow pane.

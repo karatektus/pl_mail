@@ -180,6 +180,7 @@
                                     {% if section == 'database' %}
 
                                         <turbo-frame id="admin-db"
+                                                     class="block"
                                                      src="{{ path('app_admin_db') }}"
                                                      loading="lazy"
                                                      data-controller="mail--auto-refresh"
@@ -199,6 +200,7 @@
                                            from under a <details> somebody has
                                            opened to read a mail body inside. #}
                                         <turbo-frame id="admin-insight-reports"
+                                                     class="block space-y-3"
                                                      src="{{ path('app_admin_insight_reports_panel') }}"
                                                      loading="lazy">
                                             <div class="py-10 text-center text-sm text-ink-faint">
@@ -211,6 +213,7 @@
                                         {# No auto-refresh: this is configuration, not
                                            telemetry, and a poll would fight the modal. #}
                                         <turbo-frame id="admin-integrations"
+                                                     class="block space-y-3"
                                                      src="{{ path('app_admin_integrations_list') }}"
                                                      loading="lazy">
                                             <div class="py-10 text-center text-sm text-ink-faint">
@@ -226,6 +229,7 @@
                                            a token into, and a poll would empty it
                                            mid-word. #}
                                         <turbo-frame id="admin-ai"
+                                                     class="block space-y-3"
                                                      src="{{ path('app_admin_ai_settings') }}"
                                                      loading="lazy">
                                             <div class="py-10 text-center text-sm text-ink-faint">
@@ -240,6 +244,7 @@
                                            in here takes a two-kilobyte paste,
                                            and a poll would empty it mid-word. #}
                                         <turbo-frame id="admin-push"
+                                                     class="block space-y-3"
                                                      src="{{ path('app_admin_push_settings') }}"
                                                      loading="lazy">
                                             <div class="py-10 text-center text-sm text-ink-faint">
@@ -269,6 +274,7 @@
                                            integrations: a poll would fight the
                                            modal an admin is typing into. #}
                                         <turbo-frame id="admin-users"
+                                                     class="block space-y-3"
                                                      src="{{ path('app_admin_user_default_index') }}"
                                                      loading="lazy">
                                             <div class="py-10 text-center text-sm text-ink-faint">
@@ -288,6 +294,7 @@
                                            its own request and would not see a
                                            flash set for the page around it. #}
                                         <turbo-frame id="admin-backup"
+                                                     class="block space-y-3"
                                                      src="{{ path('app_admin_config_backup_panel', app.request.query.get('error') ? { error: app.request.query.get('error') } : {}) }}"
                                                      loading="lazy">
                                             <div class="py-10 text-center text-sm text-ink-faint">
@@ -305,6 +312,7 @@
                                            the frame is loaded by its own request and would
                                            not see a flash set for the page around it. #}
                                         <turbo-frame id="admin-reset"
+                                                     class="block"
                                                      src="{{ path('app_admin_reset_panel', app.request.query.get('error') ? { error: app.request.query.get('error') } : {}) }}"
                                                      loading="lazy">
                                             <div class="py-10 text-center text-sm text-ink-faint">
@@ -315,6 +323,7 @@
                                     {% elseif section == 'logs' %}
 
                                         <turbo-frame id="admin-logs"
+                                                     class="block"
                                                      src="{{ path('app_admin_logs') }}"
                                                      loading="lazy">
                                             <div class="py-10 text-center text-sm text-ink-faint">
@@ -325,6 +334,7 @@
                                     {% else %}
 
                                         <turbo-frame id="admin-live"
+                                                     class="block"
                                                      src="{{ path('app_admin_live') }}"
                                                      loading="lazy"
                                                      data-controller="mail--auto-refresh"

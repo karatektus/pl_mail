@@ -31,7 +31,11 @@ row holds: see the PushDelivery docblock for why a StateChange's contents are
 deliberately not stored.
 #}
 {% import '_partials/_select.html.twig' as select %}
-<turbo-frame id="admin-push-deliveries" class="block">
+{# Layout classes belong on the placeholder in admin/index.html.twig, not
+   here: Turbo transplants this frame's CHILDREN into the frame already on
+   the page and never copies its attributes, so a class written here reaches
+   nothing. See tests/Infrastructure/Templating/TurboFrameClassesTest.php. #}
+<turbo-frame id="admin-push-deliveries">
 
     {# A container, so the rows reflow on this pane's width rather than the
        viewport's — the admin section nav takes 180px at 768px and the two are

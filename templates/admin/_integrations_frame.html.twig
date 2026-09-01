@@ -10,7 +10,11 @@ Each row is a <details> so the tutorial is inline rather than behind another
 navigation step: an admin filling in a client secret wants the instructions on
 the same screen as the field.
 #}
-<turbo-frame id="admin-integrations" class="block space-y-3">
+{# Layout classes belong on the placeholder in admin/index.html.twig, not
+   here: Turbo transplants this frame's CHILDREN into the frame already on
+   the page and never copies its attributes, so a class written here reaches
+   nothing. See tests/Infrastructure/Templating/TurboFrameClassesTest.php. #}
+<turbo-frame id="admin-integrations">
 
     {# ── Mail sign-in ──
        Above the services, because it is the prerequisite: a Google or Microsoft

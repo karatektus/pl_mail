@@ -23,7 +23,11 @@ No auto-refresh wraps this frame — see the note where it is embedded in
 index.html.twig. The mutating forms post into this frame and get the re-rendered
 list back, so nothing here navigates the page.
 #}
-<turbo-frame id="admin-insight-reports" class="block space-y-3">
+{# Layout classes belong on the placeholder in admin/index.html.twig, not
+   here: Turbo transplants this frame's CHILDREN into the frame already on
+   the page and never copies its attributes, so a class written here reaches
+   nothing. See tests/Infrastructure/Templating/TurboFrameClassesTest.php. #}
+<turbo-frame id="admin-insight-reports">
 
     {# ── The pile ──────────────────────────────────────────────────────── #}
     <section class="@container {{ chrome.shell() }}">

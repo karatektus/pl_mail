@@ -65,6 +65,14 @@ this release changes how the AI feels, not what it does.**
 
   **If your instance has been unusually busy, this is very likely why.**
 
+- **Six admin sections had no space between their cards.** Language model, Search index, Users,
+  Integrations, Push and Backup all rendered their panels stacked flush against one another. The
+  cause was invisible in the obvious place: Turbo puts the *contents* of a response frame into the
+  frame already on the page and throws the response's own frame away, attributes and all — so the
+  `class` that laid those cards out was written on an element that never reached the browser, in a
+  template that looked entirely correct. The spacing now lives on the element that persists, and a
+  test refuses any frame that declares layout it cannot keep.
+
 - **A search test asserted how fast your machine was.** The guard that stops an expensive
   last-resort search pass from running away is real and unchanged; the test proving it fired had a
   one-millisecond budget and one row to scan, so on quick hardware the pass simply finished in time
