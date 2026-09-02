@@ -177,46 +177,75 @@ readonly class ImapFolderProvisioner
         ?MailboxSpecialUse $specialUse,
         bool               $record = true,
     ): ?string {
+        $created = true;
+
         try {
             $client->createFolder($path, expunge: false);
-
-            // Servers differ on whether a created folder is subscribed. An
-            // unsubscribed one is invisible in most other clients, so a folder
-            // plMail made would be a folder only plMail could see.
-            try {
-                $client->getConnection()->subscribeFolder($path);
-            } catch (Throwable $e) {
-                // Worth a line and not worth failing over: the folder exists
-                // and the mail can be moved into it either way.
-                $this->logger->info('Created an IMAP folder but could not subscribe it', [
+        } catch (Throwable $e) {
+            // A FOLDER THAT IS ALREADY THERE IS NOT A FAILURE.
+            //
+            // This caught every Throwable alike and gave up, which turned the
+            // one outcome that already satisfies the request into a refusal:
+            // the server answers `NO [ALREADYEXISTS] Mailbox already exists`,
+            // the provisioner returned null, and the caller reported
+            // "destination not resolvable" and abandoned the move. The folder
+            // was sitting right there.
+            //
+            // It happens whenever the server has a folder plMail has not
+            // recorded — a mailbox created in another client since the last
+            // LIST, one whose name differs only in case, one under a namespace
+            // the sync did not walk. The mail then never moved, and the only
+            // sign was a warning in the worker log.
+            //
+            // Falling through rather than returning: the subscribe below is
+            // still worth attempting, and record() is the half that actually
+            // matters here — the folder exists on the server and NOT in our
+            // database, which is precisely why the caller could not resolve it.
+            if (false === $this->alreadyExists($e)) {
+                // The caller is a Messenger handler. Throwing here would have
+                // it redeliver and re-attempt a CREATE the server has already
+                // refused, on a schedule, forever.
+                $this->logger->error('Could not create the IMAP folder a move needed', [
                     'account'   => $account->id,
                     'folder'    => $path,
                     'error'     => $e->getMessage(),
                     'exception' => $e,
                 ]);
+
+                return null;
             }
+
+            $created = false;
+        }
+
+        $this->logger->info(
+            true === $created
+                ? 'Created the IMAP folder this account was missing'
+                : 'The IMAP folder a move needed was already on the server',
+            ['account' => $account->id, 'folder' => $path],
+        );
+
+        // Servers differ on whether a created folder is subscribed. An
+        // unsubscribed one is invisible in most other clients, so a folder
+        // plMail made would be a folder only plMail could see. Attempted on the
+        // already-exists path too: a folder somebody made elsewhere may be
+        // unsubscribed for this account, and subscribing it is free.
+        try {
+            $client->getConnection()->subscribeFolder($path);
         } catch (Throwable $e) {
-            // The caller is a Messenger handler. Throwing here would have it
-            // redeliver and re-attempt a CREATE the server has already refused,
-            // on a schedule, forever.
-            $this->logger->error('Could not create the IMAP folder a move needed', [
+            // Worth a line and not worth failing over: the folder exists and
+            // the mail can be moved into it either way.
+            $this->logger->info('Could not subscribe an IMAP folder', [
                 'account'   => $account->id,
                 'folder'    => $path,
                 'error'     => $e->getMessage(),
                 'exception' => $e,
             ]);
-
-            return null;
         }
 
         if (true === $record) {
             $this->record($account, $path, $specialUse);
         }
-
-        $this->logger->info('Created the IMAP folder this account was missing', [
-            'account' => $account->id,
-            'folder'  => $path,
-        ]);
 
         return $path;
     }
@@ -225,6 +254,22 @@ readonly class ImapFolderProvisioner
     {
         $separator = $this->separatorFor($account);
         $segments  = explode($separator, $path);
+
+        // Reused rather than built, when there is already a row for this path.
+        //
+        // It matters because of the already-exists path above: that one arrives
+        // here for a folder the SERVER has and our database may or may not, and
+        // building unconditionally would put a second Mailbox row on the same
+        // full path — two destinations for one folder, and every later lookup
+        // picking whichever came back first. Harmless in the ordinary case,
+        // where the CREATE succeeded precisely because nothing had it.
+        $mailbox = $this->mailboxes->findOneBy(['account' => $account, 'fullPath' => $path]);
+
+        if (null !== $mailbox) {
+            $this->bind($account, $mailbox, $segments, $specialUse);
+
+            return;
+        }
 
         $mailbox = new Mailbox();
         $mailbox->account       = $account;
@@ -240,6 +285,26 @@ readonly class ImapFolderProvisioner
         // has to be managed by then or the binding's FK points at nothing.
         $this->em->persist($mailbox);
 
+        $this->bind($account, $mailbox, $segments, $specialUse);
+    }
+
+    /**
+     * Point the label at the mailbox and commit.
+     *
+     * Split out so the reuse path above gets it too: a folder the server
+     * already had may well have no binding on our side — that is the same gap
+     * that made the caller unable to resolve a destination in the first place —
+     * so recording the mailbox without binding it would fix half of the problem
+     * and leave the move with nowhere to go a second time.
+     *
+     * @param list<string> $segments
+     */
+    private function bind(
+        Account            $account,
+        Mailbox            $mailbox,
+        array              $segments,
+        ?MailboxSpecialUse $specialUse,
+    ): void {
         $label = null !== $specialUse
             ? $this->labels->systemLabel(LabelRole::fromSpecialUse($specialUse), $account)
             : $this->labels->customChain($segments, $account);
@@ -249,6 +314,27 @@ readonly class ImapFolderProvisioner
         }
 
         $this->em->flush();
+    }
+
+    /**
+     * Did the server refuse a CREATE because the folder is already there?
+     *
+     * The response code is the reliable half — RFC 5530 gives `[ALREADYEXISTS]`
+     * exactly this meaning, and Dovecot, Cyrus and Courier all send it. The
+     * prose is checked too because not every server bothers with the code, and
+     * the cost of missing one is a move that silently does not happen.
+     *
+     * Deliberately narrow. Anything else — no permission, a name the server
+     * will not take, a namespace that is not writable — is a real failure and
+     * has to stay one, or the caller would go on to record a local destination
+     * for a folder that does not exist.
+     */
+    private function alreadyExists(Throwable $e): bool
+    {
+        $message = mb_strtolower($e->getMessage());
+
+        return str_contains($message, 'alreadyexists')
+            || str_contains($message, 'already exists');
     }
 
     /**

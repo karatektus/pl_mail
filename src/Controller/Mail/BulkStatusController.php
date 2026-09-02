@@ -51,7 +51,7 @@ final class BulkStatusController extends AbstractController
      *
      * @var list<string>
      */
-    private const array EXPLICIT_ONLY = ['move', 'category'];
+    private const array EXPLICIT_ONLY = ['move', 'label', 'category'];
 
     public function __construct(
         private readonly MessageThreadRepository $threadRepository,
@@ -80,7 +80,7 @@ final class BulkStatusController extends AbstractController
      *      than as the URL the user is on — it is resolved by
      *      RunBulkStatusHandler now, where the work happens.
      */
-    #[Route('/{action}', name: 'run', methods: ['POST'], requirements: ['action' => 'archive|trash|read|restore|move|category'])]
+    #[Route('/{action}', name: 'run', methods: ['POST'], requirements: ['action' => 'archive|trash|read|restore|move|label|category'])]
     public function bulk(Request $request, string $action): Response
     {
         $this->assertCsrf($request, 'ajax');
@@ -91,8 +91,8 @@ final class BulkStatusController extends AbstractController
         $body = json_decode($request->getContent(), true);
         $body = is_array($body) ? $body : [];
 
-        // Only a drag posts move or category, and a drag carries the rows it
-        // picked up. There is no "select every conversation in this view and
+        // Only a drag posts move, label or category, and a drag carries the
+        // rows it picked up. There is no "select every conversation in this view and
         // drop it" gesture, so the whole-view path below has no caller for
         // these two and no JobKind to run them under — JobKind::forAction()
         // would throw for them, deep inside startJob(). Refused here instead,
@@ -213,6 +213,48 @@ final class BulkStatusController extends AbstractController
                 'count'    => count($threads),
                 'threads'  => $threads,
                 'category' => $category,
+            ]);
+        }
+
+        // ATTACHING A LABEL, WHICH IS NOT MOVING INTO ONE.
+        //
+        // A drop on a folder and a drop on a label are two gestures now, and
+        // the difference is which half of the sidebar was dropped on: the rows
+        // above LABELS are places, so landing there means the conversation IS
+        // there and nowhere else; a label is a thing a conversation wears, so
+        // landing on one adds it and leaves the mail where it was.
+        //
+        // The rule is a property of the TARGET rather than of the label, and it
+        // has to be: the same custom label appears twice in the sidebar, once
+        // under LABELS meaning "everywhere" and once under an account meaning
+        // "that account's folder". Which one was dropped on is the question,
+        // and only the drop knows.
+        //
+        // System labels are refused, exactly as /status/{type}/{id}/label
+        // refuses them: attaching Inbox or Trash without detaching what the
+        // mail already carries is a half-move, and leaves a conversation
+        // claiming to be in two places. Those rows send `move` instead.
+        if ('label' === $action) {
+            $label = $this->labelRepository->find((int) ($body['labelId'] ?? 0));
+
+            if (null === $label) {
+                throw $this->createAccessDeniedException('Unknown label.');
+            }
+
+            $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $label);
+
+            if (true === $label->isSystem) {
+                throw $this->createAccessDeniedException('System state is moved into, not labelled with.');
+            }
+
+            foreach ($byAccount as $messages) {
+                $this->status->applyLabel($messages, $label, true);
+            }
+
+            return $this->renderTurboStream('thread/status/_labelled.stream.html.twig', [
+                'count'   => count($threads),
+                'threads' => $threads,
+                'label'   => $label,
             ]);
         }
 

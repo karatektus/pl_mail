@@ -1,0 +1,33 @@
+{#
+After a drop on a label.
+
+`leaves: false`, and that one flag is the whole difference from
+thread/status/_move.stream.html.twig. A label is additive — the conversation
+gains it and stays exactly where it was — so the rows are REDRAWN rather than
+removed, which is also what puts the new chip beside the subject without a
+reload.
+
+The toast still names the destination, for the same reason a move's does: the
+drop was aimed by pointer at a sidebar row a couple of dozen pixels tall. It is
+the more necessary of the two here, if anything — a move at least announces
+itself by the row disappearing, and this one changes a chip most of the way
+across the screen from where the pointer let go.
+
+Variables:
+  count    how many conversations were labelled
+  threads  the conversations, so their rows can be redrawn with the new chip
+  label    what was attached, for the toast
+#}
+{% include 'thread/status/_bulk.stream.html.twig' with {
+    count:   count,
+    threads: threads,
+    leaves:  false,
+} only %}
+
+<turbo-stream action="append" target="toast-region">
+    <template>
+        {% include '_partials/_toast.html.twig' with {
+            message: 'toast.labelled'|trans({ '%label%': label|label_name }),
+        } only %}
+    </template>
+</turbo-stream>

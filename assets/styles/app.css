@@ -4469,6 +4469,7 @@ label:has(> input.sr-only) {
    and they are left alone here. Lighting up a row that then declines the drop
    is worse than lighting up nothing: the refusal reads as a failed drag. */
 html[data-dnd-active] [data-dnd-folder]:not([data-dnd-refused]),
+html[data-dnd-active] [data-dnd-label]:not([data-dnd-refused]),
 html[data-dnd-active] [data-dnd-category]:not([data-dnd-refused]) {
     outline: 1px dashed rgb(var(--rgb-accent) / 0.45);
     outline-offset: -1px;
@@ -4480,6 +4481,7 @@ html[data-dnd-active] [data-dnd-category]:not([data-dnd-refused]) {
    about to receive the drop. Same accent-soft fill the sidebar's own selected
    row uses, so the answer is drawn in a vocabulary the sidebar already has. */
 html[data-dnd-active] [data-dnd-folder][data-dnd-over],
+html[data-dnd-active] [data-dnd-label][data-dnd-over],
 html[data-dnd-active] [data-dnd-category][data-dnd-over] {
     outline: 2px solid rgb(var(--rgb-accent));
     background-color: rgb(var(--rgb-accent) / 0.14);

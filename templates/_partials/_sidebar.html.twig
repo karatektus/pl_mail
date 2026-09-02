@@ -113,6 +113,26 @@ carry them, because the contract is mail--dnd's and a row that spelled it
 slightly differently would simply stop accepting drops — silently, with no
 console error and nothing to grep for. See assets/controllers/mail/dnd_controller.js.
 
+TWO ATTRIBUTES, BECAUSE A DROP MEANS TWO DIFFERENT THINGS
+────────────────────────────────────────────────────────
+`data-dnd-folder` MOVES: the conversation ends up there and nowhere else.
+`data-dnd-label` ATTACHES: it gains the label and stays exactly where it was.
+
+Which one a row gets is decided by where the row IS, not by what the label is —
+and it has to be, because the same custom label appears twice in this sidebar.
+Under LABELS it means "everywhere", and dropping there is tagging. Under an
+account it names that account's own folder, and dropping there is filing. One
+label, two rows, two meanings, and only the row knows which.
+
+The rows above LABELS are the system ones — Inbox, Archive, Spam, Trash — and
+they are places by definition, so they always move. Attaching Inbox to a
+conversation that already carries Trash would be a half-move that leaves it
+claiming to be in two places; the server refuses it for exactly that reason.
+
+Separate attributes rather than a `mode="move|label"` string because the
+controller has to select on them (`[data-dnd-folder], [data-dnd-label]`) and a
+selector for an attribute VALUE is one typo away from matching nothing quietly.
+
 `labelId` is null on a role the user has no label for yet. System labels are
 created lazily — the first archive, the first snooze, the first folder sync — so
 a fresh install genuinely has no Archive row to point at, and emitting
@@ -124,9 +144,9 @@ Absent means the row takes mail from any of them, which is right for the shared
 label section and for the system rows — those resolve their destination per
 account inside ThreadStatusUpdater.
 #}
-{% macro drop_target(labelId, account = null) %}
+{% macro drop_target(labelId, account = null, moves = false) %}
     {%- if labelId is not null -%}
-        data-dnd-folder="{{ labelId }}"
+        {{ moves ? 'data-dnd-folder' : 'data-dnd-label' }}="{{ labelId }}"
         {%- if account is not null %} data-dnd-account="{{ account.id }}"{% endif -%}
     {%- endif -%}
 {% endmacro %}
@@ -309,7 +329,7 @@ controller instead — the scroll position and which trees are open.
                 own "back to the inbox" button: out of the bin, out of spam, out
                 of the archive. See ThreadStatusUpdater::move(), which sends
                 every system role to the action that already owns it. #}
-             {{ macros.drop_target(sidebarCounts.roleLabelId(enum('App\\Domain\\Enum\\Mail\\LabelRole').Inbox)) }}>
+             {{ macros.drop_target(sidebarCounts.roleLabelId(enum('App\\Domain\\Enum\\Mail\\LabelRole').Inbox), null, true) }}>
             {# The tier rides on the LINK, not on the pill around it. The pill is
                what you see — .nav-item draws it — but the row's height comes from
                padding-block, and padding on the wrapper is area the anchor does not
@@ -460,7 +480,7 @@ controller instead — the scroll position and which trees are open.
             </div>
         {% endif %}
             <div class="nav-item flex items-center justify-between gap-2 pl-9 pr-3 rounded-lg transition-colors"
-                 {{ macros.drop_target(sidebarCounts.roleLabelId(enum('App\\Domain\\Enum\\Mail\\LabelRole').Archive)) }}>
+                 {{ macros.drop_target(sidebarCounts.roleLabelId(enum('App\\Domain\\Enum\\Mail\\LabelRole').Archive), null, true) }}>
                 {# The tier rides on the LINK, not on the pill around it. The pill is
                    what you see — .nav-item draws it — but the row's height comes from
                    padding-block, and padding on the wrapper is area the anchor does not
@@ -494,7 +514,7 @@ controller instead — the scroll position and which trees are open.
                  {# "This is junk", said by dropping. The only way to say it in
                     the interface: there is no mark-as-spam button anywhere, and
                     the row is here because the folder is. #}
-                 {{ macros.drop_target(sidebarCounts.roleLabelId(enum('App\\Domain\\Enum\\Mail\\LabelRole').Spam)) }}>
+                 {{ macros.drop_target(sidebarCounts.roleLabelId(enum('App\\Domain\\Enum\\Mail\\LabelRole').Spam), null, true) }}>
                 {# The tier rides on the LINK, not on the pill around it. The pill is
                    what you see — .nav-item draws it — but the row's height comes from
                    padding-block, and padding on the wrapper is area the anchor does not
@@ -520,7 +540,7 @@ controller instead — the scroll position and which trees are open.
 
         <a href="{{ path('app_mail_trash') }}"
            class="nav-item flex items-center justify-between gap-2 pl-9 pr-3 rounded-lg transition-colors"
-           {{ macros.drop_target(sidebarCounts.roleLabelId(enum('App\\Domain\\Enum\\Mail\\LabelRole').Trash)) }}
+           {{ macros.drop_target(sidebarCounts.roleLabelId(enum('App\\Domain\\Enum\\Mail\\LabelRole').Trash), null, true) }}
            data-nav-tier="row"
            data-ui--sidebar-target="link"
            data-action="{{ _drawerClose }}"

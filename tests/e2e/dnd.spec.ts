@@ -37,13 +37,15 @@ import { settled } from "./support/motion";
 const ROWS = "#message-list li[data-dnd-thread]";
 
 /**
- * The folder dropped onto.
+ * The custom label dropped onto, which ATTACHES rather than moves.
  *
- * A custom label rather than a system row, deliberately: it is the case with
- * the most moving parts, and the only one that resolves its destination through
- * the label's binding rather than through a role.
+ * The two halves of the sidebar mean different things: the rows above LABELS
+ * are places and a drop there files the conversation, the LABELS section is
+ * tags and a drop there adds one and leaves the mail where it was. Both are
+ * exercised below, because the pair is the claim — either alone passes for a
+ * build in which a drop does only one thing.
  */
-const FOLDER = "E2E Label";
+const LABEL = "E2E Label";
 
 test.beforeAll(() => {
     seed("seed-label");
@@ -144,41 +146,90 @@ async function subjectOf(row: Locator): Promise<string> {
 }
 
 test.describe("dragging a conversation", () => {
-    test("onto a folder in the sidebar files it there", async ({ page }) => {
+    test("onto a label adds it and leaves the conversation where it was", async ({ page }) => {
         await page.goto("/mail/inbox");
         await settled(page);
 
         // A row the mail fixture recreates on every run, so this spec can be
-        // run twice: it MOVES a conversation out of the inbox, and one picked
-        // by position would be gone the second time.
+        // run twice: these tests move conversations about, and one picked by
+        // position would be somewhere else the second time.
         const row = mailRow(page, INBOX_SUBJECTS.read);
         await expect(row).toBeVisible();
 
         const subject = await subjectOf(row);
 
-        const folder = page
-            .locator("#sidebar [data-dnd-folder]")
-            .filter({ hasText: FOLDER })
+        const label = page
+            .locator("#sidebar [data-dnd-label]")
+            .filter({ hasText: LABEL })
             .first();
-        await expect(folder).toBeVisible();
+        await expect(label).toBeVisible();
 
-        await dragOnto(page, row, folder);
+        await dragOnto(page, row, label);
 
-        // The row leaves the list it was dragged from. Waited for rather than
-        // asserted immediately: the drop posts, the answer removes the row, and
-        // the list frame is re-read afterwards — so "gone" has to survive the
-        // refresh, not just the stream.
-        await expect(page.locator(ROWS).filter({ hasText: subject })).toHaveCount(0);
+        await expect(page.getByText(`Labelled ${LABEL}`)).toBeVisible();
 
-        // And it says where it went. This is the whole of the feedback for a
-        // gesture that ends with the row gone; a move that worked and said
-        // nothing is indistinguishable from a drag that missed.
-        await expect(page.getByText(`Moved to ${FOLDER}`)).toBeVisible();
-
-        // The other half, and the one a stream alone could fake: it is actually
-        // in the folder now.
-        await folder.locator("a").first().click();
+        // STAYS. This is the whole difference from a move, and it is asserted
+        // after the frame refresh rather than straight after the stream — the
+        // row being redrawn and the row surviving a re-read are two different
+        // claims, and only the second one means the mail is still in the inbox.
         await expect(page.locator(ROWS).filter({ hasText: subject })).toHaveCount(1);
+
+        // And it really has the label, not just a toast saying so.
+        await label.locator("a").first().click();
+        await expect(page.locator(ROWS).filter({ hasText: subject })).toHaveCount(1);
+    });
+
+    /**
+     * Dropped on Inbox from the archive, because Inbox is the one system row
+     * this fixture is guaranteed to have.
+     *
+     * System labels are created lazily — the first archive, the first snooze,
+     * the first folder sync — so a freshly seeded user has no Trash or Archive
+     * LABEL and those rows carry no drop target at all. Inbox always exists.
+     *
+     * It cannot be dropped on from the inbox, though: there it is the open
+     * folder and refuses drops by design, since moving a conversation into the
+     * list it is already in is a no-op that would make the row vanish and come
+     * straight back. So the conversation is archived first and dragged home,
+     * which is a real move in a direction somebody actually makes.
+     */
+    test("onto a folder above the labels moves it out of the list", async ({ page }) => {
+        await page.goto("/mail/inbox");
+        await settled(page);
+
+        const staged = mailRow(page, INBOX_SUBJECTS.archive);
+        await expect(staged).toBeVisible();
+
+        const subject = await subjectOf(staged);
+        const id      = Number((await staged.getAttribute("id"))?.replace("thread_", ""));
+        const token   = await page.locator('meta[name="csrf-token"]').getAttribute("content");
+
+        const archived = await page.request.post("/status/bulk/archive", {
+            headers: { "Content-Type": "application/json", "X-CSRF-Token": token ?? "" },
+            data: { ids: [id] },
+        });
+        expect(archived.ok()).toBe(true);
+
+        await page.goto("/mail/archive");
+        await settled(page);
+
+        const row = page.locator(ROWS).filter({ hasText: subject });
+        await expect(row).toHaveCount(1);
+
+        const inbox = page
+            .locator("#sidebar [data-dnd-folder]")
+            .filter({ hasText: "Inbox" })
+            .first();
+        await expect(inbox).toBeVisible();
+
+        await dragOnto(page, row.first(), inbox);
+
+        // GONE from the archive, which is what makes this a move rather than a
+        // label. Waited for rather than asserted immediately: the drop posts,
+        // the answer removes the row, and the list frame is re-read afterwards
+        // — so "gone" has to survive the refresh, not just the stream.
+        await expect(page.locator(ROWS).filter({ hasText: subject })).toHaveCount(0);
+        await expect(page.getByText(/^Moved to /)).toBeVisible();
     });
 
     /**
@@ -223,12 +274,12 @@ test.describe("dragging a conversation", () => {
 
         const subject = await subjectOf(row);
 
-        const folder = page
-            .locator("#sidebar [data-dnd-folder]")
-            .filter({ hasText: FOLDER })
+        const label = page
+            .locator("#sidebar [data-dnd-label]")
+            .filter({ hasText: LABEL })
             .first();
 
-        await dragOnto(page, row, folder);
+        await dragOnto(page, row, label);
 
         const handed = await page.evaluate(
             () => (window as unknown as { __dragImages: string[] }).__dragImages,

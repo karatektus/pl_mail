@@ -57,6 +57,14 @@ final class ImapFolderProvisionerTest extends KernelTestCase
 
     private bool $serverAccepts = true;
 
+    /**
+     * What the server says when it refuses, because the two refusals that
+     * matter are told apart by their message: `[ALREADYEXISTS]` means the
+     * folder is there and the request is already satisfied, anything else means
+     * it is not.
+     */
+    private string $refusal = 'CREATE refused';
+
     protected function setUp(): void
     {
         self::bootKernel();
@@ -70,6 +78,7 @@ final class ImapFolderProvisionerTest extends KernelTestCase
 
         $this->created       = [];
         $this->serverAccepts = true;
+        $this->refusal       = 'CREATE refused';
 
         $this->connection->beginTransaction();
 
@@ -216,10 +225,70 @@ final class ImapFolderProvisionerTest extends KernelTestCase
      * here would have it re-attempt the same rejected CREATE on a schedule
      * forever, which is a worse outcome than the archive not happening.
      */
+    /**
+     * A server that says the folder is already there has given us what we
+     * asked for, and the move must go ahead.
+     *
+     * Every refusal used to be the same refusal: the provisioner caught the
+     * lot, returned null, and the caller reported "destination not resolvable"
+     * and abandoned the move — for a folder sitting on the server the whole
+     * time. It happens whenever the server has a mailbox plMail has not
+     * recorded: one made in another client since the last LIST, one differing
+     * only in case, one under a namespace the sync did not walk.
+     *
+     * Recording it is the half that matters. The folder existing on the server
+     * and NOT in our database is exactly why the destination could not be
+     * resolved, so a fix that returned the path without writing the row would
+     * fail the same way on the next move.
+     */
+    public function testAFolderTheServerAlreadyHasIsUsedRatherThanRefused(): void
+    {
+        $this->folder('INBOX', 'INBOX', '.');
+        $this->serverAccepts = false;
+        $this->refusal       = 'NO [ALREADYEXISTS] Mailbox already exists (0.001 + 0.000 secs).';
+
+        $path = $this->provisioner->ensureExactPath($this->account, $this->client(), 'INBOX.spambucket');
+
+        self::assertSame('INBOX.spambucket', $path, 'the move was abandoned over a folder that exists');
+
+        self::assertNotNull(
+            $this->em->getRepository(Mailbox::class)
+                ->findOneBy(['account' => $this->account, 'fullPath' => 'INBOX.spambucket']),
+            'the folder has to be recorded, or the next move cannot resolve it either',
+        );
+    }
+
+    /**
+     * And it is not recorded twice when we already knew about it.
+     *
+     * The already-exists path reaches record() for a folder our database may
+     * well have, and a second Mailbox row on the same full path means two
+     * destinations for one folder with every later lookup taking whichever came
+     * back first.
+     */
+    public function testAFolderAlreadyKnownLocallyIsNotRecordedASecondTime(): void
+    {
+        $this->folder('INBOX', 'INBOX', '.');
+        $this->folder('spambucket', 'INBOX.spambucket', '.');
+
+        $this->serverAccepts = false;
+        $this->refusal       = 'NO [ALREADYEXISTS] Mailbox already exists';
+
+        $this->provisioner->ensureExactPath($this->account, $this->client(), 'INBOX.spambucket');
+
+        self::assertCount(
+            1,
+            $this->em->getRepository(Mailbox::class)
+                ->findBy(['account' => $this->account, 'fullPath' => 'INBOX.spambucket']),
+        );
+    }
+
+    /** Any other refusal is still a refusal — this must not swallow them. */
     public function testARefusedCreateReturnsNullRatherThanThrowing(): void
     {
         $this->folder('INBOX', 'INBOX', '.');
         $this->serverAccepts = false;
+        $this->refusal       = 'NO [CANNOT] Permission denied';
 
         $path = $this->provisioner->ensureSpecialUse($this->account, $this->client(), MailboxSpecialUse::ARCHIVE);
 
@@ -263,7 +332,7 @@ final class ImapFolderProvisionerTest extends KernelTestCase
         $client->method('createFolder')->willReturnCallback(
             function (string $path): Folder {
                 if (false === $this->serverAccepts) {
-                    throw new \RuntimeException('CREATE refused');
+                    throw new \RuntimeException($this->refusal);
                 }
 
                 $this->created[] = $path;

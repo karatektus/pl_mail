@@ -6,6 +6,39 @@ so anything that changes the schema irreversibly is called out explicitly.
 The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, and `sha-…` pins one commit.
 
+## Unreleased
+
+### Changed
+
+- **A drop on a label now adds it; a drop on a folder still moves.** Dragging a conversation onto
+  "Receipts" took it out of the inbox, because every drop was a move. That is right for the rows
+  above LABELS in the sidebar — Inbox, Archive, Spam, Trash, and each account's own folders are
+  *places*, and dropping into one means the mail is there and nowhere else. It is wrong for a label,
+  which is a thing a conversation wears: dropping on one attaches it and leaves the mail exactly
+  where it was, the same as the "Label as" menu has always done.
+
+  Which meaning you get is decided by the row you drop on, not by the label — and it has to be,
+  because the same custom label is in the sidebar twice. Under LABELS it means "everywhere" and
+  tags; under an account it names that account's folder and files. One label, two rows, two
+  meanings.
+
+### Fixed
+
+- **A move into a folder the server already had was abandoned instead of made.** When plMail needs a
+  destination folder it does not know about, it creates it — and if the server answers
+  `NO [ALREADYEXISTS] Mailbox already exists`, it used to treat that like any other refusal, give up
+  with "destination not resolvable" in the worker log, and leave the mail where it was. The folder
+  was sitting right there the whole time.
+
+  It happens whenever the server has a mailbox plMail has not recorded: one made in another client
+  since the last folder listing, one differing only in case, one under a namespace the sync did not
+  walk. The only sign was a warning in the log, so a drag would simply not take on the server while
+  looking as though it had.
+
+  A folder that already exists now counts as success, and — the half that actually matters — gets
+  recorded locally, since the folder existing on the server and not in plMail's database is exactly
+  why the destination could not be resolved. Any other refusal is still a refusal.
+
 ## v0.2.18 — 2026-09-02
 
 **Adds one column to the message table; the migration runs on boot and backfills the rows it can

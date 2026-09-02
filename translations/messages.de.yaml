@@ -3429,6 +3429,7 @@ thread_row:
 toast:
     categorised: 'Nach %category% verschoben'
     dismiss: Schließen
+    labelled: 'Label %label% vergeben'
     moved: 'Nach %folder% verschoben'
     schedule_cancelled: Geplanter Versand abgebrochen.
     send_cancelled: Senden abgebrochen — zurück zu deinem Entwurf.

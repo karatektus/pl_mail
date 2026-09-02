@@ -3003,6 +3003,7 @@ thread_row:
 toast:
     categorised: 'Stowed under %category%'
     dismiss: Away with ye
+    labelled: 'Flyin'' the %label% flag'
     moved: 'Hauled off to %folder%'
     schedule_cancelled: The castin' off be belayed.
     send_cancelled: Castin' off belayed — back to yer scroll.

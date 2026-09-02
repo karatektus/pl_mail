@@ -13,6 +13,7 @@ import { announceWrite } from "../../mail_writes.js";
  *
  * Values:
  *   moveUrl      where a drop on a folder posts
+ *   labelUrl     where a drop on a label posts
  *   categoryUrl  where a drop on a category tab posts
  *   dragging     what the drag image says when several rows travel together;
  *                %count% is substituted
@@ -24,14 +25,31 @@ import { announceWrite } from "../../mail_writes.js";
  *   [data-dnd-thread]           a draggable row. Value is the thread id.
  *   [data-dnd-account]          on the same row: which account it belongs to.
  *
- *   [data-dnd-folder]           a drop target. Value is the destination label id.
+ *   [data-dnd-folder]           a drop target that MOVES. Value is the
+ *                               destination label id.
+ *   [data-dnd-label]            a drop target that ATTACHES. Value is the label
+ *                               id. The conversation stays where it is.
  *   [data-dnd-category]         a drop target. Value is a MessageCategory.
  *   [data-dnd-account]          on a target: only rows from this account may
  *                               land. Absent means "any".
  *
  * Routes used:
  *   POST {moveUrl}      { ids, labelId }
+ *   POST {labelUrl}     { ids, labelId }
  *   POST {categoryUrl}  { ids, category }
+ *
+ * ── A DROP MEANS TWO DIFFERENT THINGS, DECIDED BY WHERE IT LANDS ────────────
+ *
+ * The rows above LABELS in the sidebar are PLACES — Inbox, Archive, Spam,
+ * Trash, and each account's own folders. Dropping there moves: the conversation
+ * is in that one place afterwards. The LABELS section is TAGS. Dropping there
+ * attaches and leaves the mail where it was, which is what the label menu has
+ * always done and what somebody dragging onto "Receipts" turns out to mean.
+ *
+ * The distinction belongs to the target rather than to the label, because the
+ * same custom label is rendered in both halves: under LABELS it means
+ * "everywhere", under an account it names that account's folder. Nothing about
+ * the label can tell those apart — only which row was dropped on can.
  *
  * ── The gesture is HTML5 drag-and-drop, not pointer events ──────────────────
  *
@@ -67,6 +85,7 @@ import { announceWrite } from "../../mail_writes.js";
 export default class extends Controller {
     static values = {
         moveUrl: String,
+        labelUrl: String,
         categoryUrl: String,
         dragging: { type: String, default: "%count% conversations" },
     };
@@ -81,7 +100,7 @@ export default class extends Controller {
     static REFUSED_ATTRIBUTE = "dndRefused";
 
     /** Every drop target on the page, of either kind. */
-    static TARGETS = "[data-dnd-folder], [data-dnd-category]";
+    static TARGETS = "[data-dnd-folder], [data-dnd-label], [data-dnd-category]";
 
     /** The conversations in flight, or null when nothing is being dragged. */
     #carrying = null;
@@ -214,17 +233,23 @@ export default class extends Controller {
         event.preventDefault();
 
         const ids = this.#carrying.ids;
-        const folder = target.dataset.dndFolder;
+        const { dndFolder, dndLabel, dndCategory } = target.dataset;
 
         this.#teardown();
 
-        if (undefined !== folder) {
-            await this.#post(this.moveUrlValue, "move", { ids, labelId: Number(folder) });
+        if (undefined !== dndFolder) {
+            await this.#post(this.moveUrlValue, "move", { ids, labelId: Number(dndFolder) });
 
             return;
         }
 
-        await this.#post(this.categoryUrlValue, "category", { ids, category: target.dataset.dndCategory });
+        if (undefined !== dndLabel) {
+            await this.#post(this.labelUrlValue, "label", { ids, labelId: Number(dndLabel) });
+
+            return;
+        }
+
+        await this.#post(this.categoryUrlValue, "category", { ids, category: dndCategory });
     }
 
     /**

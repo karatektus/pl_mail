@@ -3431,6 +3431,10 @@ toast:
     # After a conversation is dropped on a folder. Names the folder for the
     # same reason: the row is gone from the list that was open, and a drop
     # is aimed at a small target.
+    # After a conversation is dropped on a label rather than a folder. The row
+    # stays where it is — the chip beside the subject is the only other sign,
+    # and it is most of the way across the screen from where the pointer let go.
+    labelled: 'Labelled %label%'
     moved: 'Moved to %folder%'
     schedule_cancelled: Scheduled send cancelled.
     send_cancelled: Send cancelled — back to your draft.

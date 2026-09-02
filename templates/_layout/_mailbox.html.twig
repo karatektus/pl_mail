@@ -43,6 +43,7 @@ dozen other reasons while the conversation was open.
        prefix — building one by trimming the end off a generated path is a
        string operation that keeps working right up until the route changes. #}
     data-mail--dnd-move-url-value="{{ path('app_status_bulk_run', { action: 'move' }) }}"
+    data-mail--dnd-label-url-value="{{ path('app_status_bulk_run', { action: 'label' }) }}"
     data-mail--dnd-category-url-value="{{ path('app_status_bulk_run', { action: 'category' }) }}"
     {# The placeholder is left in deliberately — the controller substitutes it.
        Same shape as the calendar grid's pending/reverted announcements. Always

@@ -44,11 +44,18 @@
            fallback rather than where it was let go. mail--dnd refuses it.
 
            Sent, Drafts and Snoozed take no drops. See
-           LabelRole::acceptsMoves(), which is also what the server checks. #}
+           LabelRole::acceptsMoves(), which is also what the server checks.
+
+           MOVES, not labels, and that is the difference between this list and
+           the LABELS section above it. A row here names one account's actual
+           FOLDER — dropping into a folder puts the mail in it, which is what a
+           folder is. The same label under LABELS means "everywhere" and
+           dropping there tags instead. One label, two rows, two meanings; see
+           the drop_target macro. #}
         {% import '_partials/_sidebar.html.twig' as sidebarMacros %}
         {% set droppable = label.role is null or label.role.acceptsMoves %}
         <div class="nav-item flex items-center justify-between text-xs transition-colors text-ink-muted"
-             {% if droppable %}{{ sidebarMacros.drop_target(label.id, account) }}{% endif %}
+             {% if droppable %}{{ sidebarMacros.drop_target(label.id, account, true) }}{% endif %}
              data-nav-tier="tree"
              style="--label-depth: {{ 12 + label.depth * 12 }}px">
             <a
