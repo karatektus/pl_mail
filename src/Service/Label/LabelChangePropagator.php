@@ -378,9 +378,9 @@ final readonly class LabelChangePropagator
                 continue;
             }
 
-            $account = $this->accountOf($message);
+            $account = $this->gmailAccountFor($message);
 
-            if (false === $account->isGmail()) {
+            if (null === $account) {
                 continue;
             }
 
@@ -433,6 +433,46 @@ final readonly class LabelChangePropagator
 
             $this->bus->dispatch(new ApplyGraphChangesMessage($accountId, $messageIds, $moveToLabel));
         }
+    }
+
+    /**
+     * The account that can tell Gmail about this message, or null if none can.
+     *
+     * Normally the message's own — a native Gmail row belongs to the account
+     * that fetched it. The exception is Gmailify, and it is not a rare one for
+     * anybody using it: Google fetches another mailbox into Gmail, both are
+     * connected here, and SyncGmailMessageBatchHandler merges the two copies
+     * onto the IMAP row rather than keeping both. That row then carries a
+     * gmailId while belonging to an account with no Gmail credentials.
+     *
+     * This asked `accountOf($message)->isGmail()` and therefore answered "no
+     * Gmail here" for every one of those, silently. The message had a usable
+     * Gmail id and a Gmail account sitting beside it, and archive, trash,
+     * restore, star, mark-read and every label change stopped at IMAP. The
+     * symptom is a mail dragged out of spam that Hetzner obeys and Gmail files
+     * straight back, because Gmail was never told.
+     *
+     * The carrier is stored rather than looked up. A gmailId is issued by one
+     * Gmail mailbox and means nothing to another, so on an install with two
+     * Google accounts there is no deriving which one — see
+     * Message::$gmailCarrierAccount.
+     *
+     * A carrier that is somehow no longer a Gmail account is refused rather
+     * than used. The column is set null when the account is disconnected, but
+     * an account can also be re-authenticated as something else, and pushing a
+     * Gmail id at whatever it is now is worse than not pushing it.
+     */
+    private function gmailAccountFor(Message $message): ?Account
+    {
+        $own = $this->accountOf($message);
+
+        if (true === $own->isGmail()) {
+            return $own;
+        }
+
+        $carrier = $message->gmailCarrierAccount;
+
+        return null !== $carrier && true === $carrier->isGmail() ? $carrier : null;
     }
 
     private function graphDestinationLabelId(Account $account, LabelRole $role): ?int

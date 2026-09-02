@@ -423,6 +423,37 @@ class Message extends MessageModel
     public ?MessageCategory $aiCategory = null;
 
     /**
+     * The Gmail account that can act on this message, when it is not this
+     * message's own account.
+     *
+     * GMAILIFY PUTS A GMAIL IDENTITY ON AN IMAP ROW
+     * ─────────────────────────────────────────────
+     * Google can fetch another mailbox into Gmail. With both connected here,
+     * every message arrives twice, and SyncGmailMessageBatchHandler merges the
+     * pair rather than skipping one: the IMAP row keeps its location and its
+     * flags and gains what the Gmail copy knows — $gmailId, $gmailLabelIds,
+     * the translated labels. See that handler's "Gmailify dedup" block.
+     *
+     * So a row can carry a Gmail id while belonging to an account that has no
+     * way of talking to Gmail. Every push asked the row's OWN account whether
+     * it was a Gmail account, got no, and dropped the change — archive, trash,
+     * restore, star, mark-read and every label change alike, applied locally
+     * and never anywhere Google could see. This column is what the push asks
+     * instead.
+     *
+     * Null on the ordinary rows, which is nearly all of them: a native Gmail
+     * message needs no carrier because its own account is one, and a message
+     * with no Gmail identity has nothing to carry.
+     *
+     * ON DELETE SET NULL — disconnecting the Gmail account must not take the
+     * IMAP mailbox's mail with it. The row simply stops being pushed to Gmail,
+     * which is right, because there is no longer an account that could.
+     */
+    #[ORM\ManyToOne]
+    #[ORM\JoinColumn(name: 'gmail_carrier_account_id', nullable: true, onDelete: 'SET NULL')]
+    public ?Account $gmailCarrierAccount = null;
+
+    /**
      * When the model was asked — not when it answered usefully.
      *
      * Set even when the answer was unusable, because "asked and got nothing"

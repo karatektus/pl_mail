@@ -103,6 +103,64 @@ final class LabelChangePropagatorTest extends KernelTestCase
         self::assertCount(0, $this->sentOfType(ApplyGmailLabelsMessage::class));
     }
 
+    /**
+     * GMAILIFY: an IMAP row carrying a Gmail identity still reaches Gmail.
+     *
+     * Google can fetch another mailbox into Gmail. Connect both here and every
+     * message arrives twice, and SyncGmailMessageBatchHandler merges the pair
+     * onto the IMAP row rather than keeping two — so the row belongs to an
+     * account with no Gmail credentials and carries a perfectly good gmailId.
+     *
+     * This asked the row's OWN account whether to tell Gmail, got no, and
+     * dropped the change. Every push: archive, trash, restore, star, mark-read,
+     * every label. The report was a mail dragged out of spam that Hetzner
+     * obeyed and Gmail filed straight back, because Gmail was never told.
+     *
+     * The job goes out under the CARRIER's id, which is what ApplyGmailLabels
+     * needs — it uses the account for credentials and takes the gmail ids off
+     * the rows.
+     */
+    public function testAGmailifiedImapMessageReachesGmailThroughItsCarrier(): void
+    {
+        $carrier = $this->gmailAccount();
+        $imap    = $this->account(AuthType::Password);
+        $message = $this->messageOn($imap, mailbox: $this->mailbox($imap), uid: 42, gmailId: 'g-carried');
+
+        $message->gmailCarrierAccount = $carrier;
+        $this->em->flush();
+
+        $this->propagator->markRead([$message], true);
+
+        $jobs = $this->sentOfType(ApplyGmailLabelsMessage::class);
+
+        self::assertCount(1, $jobs, 'the Gmailified row never reached Gmail');
+        self::assertSame((int) $carrier->id, $jobs[0]->accountId, 'the job went out under the wrong account');
+
+        // And the IMAP side is untouched by the fix: the row still has a
+        // mailbox and a uid, and that half was always working.
+        self::assertCount(1, $this->sentOfType(ApplyImapFlagsMessage::class));
+    }
+
+    /**
+     * A carrier that is no longer a Gmail account is refused rather than used.
+     *
+     * The column is nulled when the account is disconnected, but an account can
+     * also be re-authenticated as something else — and pushing a Gmail id at
+     * whatever it is now is worse than not pushing it.
+     */
+    public function testACarrierThatIsNoLongerGmailIsRefused(): void
+    {
+        $imap    = $this->account(AuthType::Password);
+        $message = $this->messageOn($imap, mailbox: $this->mailbox($imap), uid: 42, gmailId: 'g-carried');
+
+        $message->gmailCarrierAccount = $this->account(AuthType::OAuth2, 'microsoft');
+        $this->em->flush();
+
+        $this->propagator->markRead([$message], true);
+
+        self::assertCount(0, $this->sentOfType(ApplyGmailLabelsMessage::class));
+    }
+
     /** IMAP needs a mailbox and a UID; without both there is nothing to act on. */
     public function testAnImapMessageWithoutAUidIsSkipped(): void
     {

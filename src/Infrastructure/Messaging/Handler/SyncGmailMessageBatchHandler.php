@@ -293,6 +293,27 @@ final readonly class SyncGmailMessageBatchHandler
             $existing->gmailId = $gmailId;
         }
 
+        // WHO CAN ACT ON THIS ID LATER.
+        //
+        // The line above gives an IMAP row a Gmail identity, and an identity
+        // nobody can use is worse than none: LabelChangePropagator asked the
+        // row's own account whether to tell Gmail about a change, and for a
+        // Gmailified row that account is the IMAP one, so the answer was always
+        // no. Archive, trash, restore, star and every label change stopped at
+        // the local database and at IMAP.
+        //
+        // Recorded here because here is the only place that knows. The carrier
+        // is the account whose sync recognised this message; it cannot be
+        // re-derived afterwards, since a user may have two Gmail accounts and a
+        // gmailId means something to exactly one of them.
+        //
+        // Only when the carrier is somebody else. A native Gmail row's own
+        // account is already the one that can act, and pointing the column at
+        // it would be a second copy of account_id to keep in step.
+        if ($carrier !== $target) {
+            $existing->gmailCarrierAccount = $carrier;
+        }
+
         $existing->gmailLabelIds = $labelIds;
 
         $this->messageBuilder->applyTranslatedLabels($existing, $labelIds, $target, $carrier);

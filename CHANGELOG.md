@@ -8,6 +8,32 @@ The published image tags: `latest` follows the most recent release below,
 
 ## Unreleased
 
+**Adds one column to the message table; the migration runs on boot and backfills the rows it can
+answer for without guessing. Nothing is removed.**
+
+### Fixed
+
+- **Gmailified mail never reached Gmail.** If Google fetches another mailbox into Gmail and you have
+  both connected here, every message arrives twice — once through the Gmail account, once straight
+  from IMAP. plMail already merges the pair rather than showing you two rows: the IMAP copy keeps its
+  location and its flags and gains what the Gmail copy knows, its id and its labels. That part was
+  right.
+
+  What was wrong is what happened afterwards. Before telling Gmail about a change, plMail asked the
+  account the row belongs to whether it was a Gmail account — and for a merged row that is the IMAP
+  account, so the answer was always no. The message had a perfectly good Gmail id and a Gmail account
+  sitting right beside it, and **every push was dropped**: archive, trash, restore, star, mark as
+  read, and every label change alike. All of them applied locally and on IMAP and nowhere Google
+  could see.
+
+  Reported as a mail dragged out of spam that came straight back — the IMAP server obeyed, Gmail
+  never heard, and the next sync put it where Gmail still thought it belonged.
+
+  The row now records which Gmail account carried it, and the push asks that one. Existing mail is
+  backfilled where the answer is not a guess: if you have exactly one Google account there is only
+  one account the id could have come from. With two or more it is left alone and filled in the next
+  time the Gmail sync sees the message, which is the same path that stamped it in the first place.
+
 ### Changed
 
 - **The details panel now shows every answer about which tab a message belongs in.** Opening a
