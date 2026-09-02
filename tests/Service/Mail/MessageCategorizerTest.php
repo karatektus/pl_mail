@@ -281,6 +281,53 @@ final class MessageCategorizerTest extends TestCase
         );
     }
 
+    /**
+     * The model's verdict can be asked past, and that is what makes the two
+     * answers comparable.
+     *
+     * The details panel puts "the rules" beside "the model" on every message,
+     * and it can only do that if the rules can be asked a question the model is
+     * not already part of the answer to. Without the switch the tie-break would
+     * hand back the model's category and call it a rule.
+     */
+    public function testTheRulesCanBeAskedPastTheModelsVerdict(): void
+    {
+        // Nothing in it any rule recognises, so the tie-break is reached — the
+        // only place the stored verdict is ever read.
+        $message = $this->message([], 'someone@example.test');
+        $message->aiCategory = MessageCategory::Promotions;
+
+        $withModel = $this->categorizer->explain($message, []);
+
+        self::assertSame('ai', $withModel['reason']);
+        self::assertSame(MessageCategory::Promotions, $withModel['category']);
+
+        $rulesOnly = $this->categorizer->explain($message, [], ignoreAi: true);
+
+        self::assertSame('default', $rulesOnly['reason']);
+        self::assertSame(MessageCategory::Primary, $rulesOnly['category']);
+    }
+
+    /**
+     * And a message a rule DID recognise keeps that rule's answer, whatever the
+     * model said about it.
+     *
+     * This is what makes asking the model about every message safe rather than
+     * merely informative: the verdict is stored beside the decision and read
+     * only where the rules gave up, so a second opinion on record is not a
+     * second decider. See ClassifyMailHandler::worthAsking().
+     */
+    public function testAStoredVerdictNeverOverrulesARuleThatMatched(): void
+    {
+        $message = $this->message(['List-Post' => '<mailto:l@x.test>'], 'l@x.test');
+        $message->aiCategory = MessageCategory::Promotions;
+
+        $explained = $this->categorizer->explain($message, []);
+
+        self::assertSame('forum', $explained['reason']);
+        self::assertSame(MessageCategory::Forums, $explained['category']);
+    }
+
     private function message(array $headers, string $from, ?array $gmailLabelIds = null): Message
     {
         $message = new Message();

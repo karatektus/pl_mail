@@ -67,6 +67,12 @@ final class MessageCategorizer
      *
      * @param array<string,true> $correspondentEmails normalised sender addresses
      *                                                the user has mailed; forces Primary
+     * @param bool               $ignoreAi
+     *     Answer without the model's opinion, as though it had never been
+     *     asked. The tie-break at the bottom is the only place a stored
+     *     verdict is read, so this is what "the rules alone" means — and it is
+     *     what the message details panel puts beside the model's answer, so the
+     *     two can be compared on the same mail rather than argued about.
      * @param bool               $ignoreProviderLabels
      *     Answer from THIS application's rules alone, as though the account
      *     were not a Gmail one.
@@ -86,6 +92,7 @@ final class MessageCategorizer
         Message $message,
         array $correspondentEmails,
         bool $ignoreProviderLabels = false,
+        bool $ignoreAi = false,
     ): array {
         $gmailLabelIds = $message->gmailLabelIds;
 
@@ -152,7 +159,7 @@ final class MessageCategorizer
         // asynchronously if one exists; a categoriser that reached out to
         // another machine would put an HTTP round trip inside every list
         // render, every ingest and every explain() the details panel performs.
-        if (null !== $message->aiCategory) {
+        if (false === $ignoreAi && null !== $message->aiCategory) {
             return [
                 'category' => $message->aiCategory,
                 'reason'   => 'ai',

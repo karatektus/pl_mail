@@ -13,12 +13,40 @@ use Twig\Extension\AbstractExtension;
 use Twig\TwigFunction;
 
 /**
- * Why a message landed in the category it did, for the details popover.
+ * Every answer there is about which tab a message belongs in, for the details
+ * popover.
  *
- * The answer is recomputed from the same class that decided it in the first
- * place, rather than read from a column: a stored reason would be written by
- * whatever version of the rules ran at sync time, and would quietly go on
- * explaining a decision the current rules no longer make.
+ * ONE FUNCTION RETURNING EVERYTHING, RATHER THAN ONE PER ANSWER
+ * ─────────────────────────────────────────────────────────────
+ * There were two — `category_explanation` and `category_explanation_local` —
+ * and the template decided between them with a condition of its own
+ * (`reason == 'gmail'`). That put the rule for WHICH answers are worth showing
+ * in the markup, one `{% if %}` away from the rules that produce them, and it
+ * meant the panel could only ever show two of the four things there are to say.
+ * A caller that wants a comparison should be handed the comparison.
+ *
+ * WHAT THE FOUR ANSWERS ARE, AND WHY EACH IS SEPARATELY INTERESTING
+ * ────────────────────────────────────────────────────────────────
+ *   effective  what actually decided this message's tab, whatever that was —
+ *              a Gmail label, a header, a known correspondent, the model, or
+ *              nothing at all.
+ *   rules      what plMail's own deterministic cascade says with no model and
+ *              no provider label in the way. This is the one that takes over
+ *              the day a mailbox leaves Gmailify, and until then it never runs,
+ *              so it is worth being able to look at before that day rather than
+ *              after it.
+ *   ai         what a language model said, if one was asked. Stored beside the
+ *              decision and never inside it — see Message::$aiCategory — so
+ *              this can disagree with `effective` without anything having moved.
+ *   pinned     when somebody put this conversation in its category by hand, in
+ *              which case none of the above is where the mail actually is. The
+ *              tab is theirs and the rest of the panel is the reasoning it
+ *              overrode.
+ *
+ * Recomputed from the same class that decided it in the first place rather than
+ * read from a column: a stored reason would be written by whatever version of
+ * the rules ran at sync time, and would quietly go on explaining a decision the
+ * current rules no longer make.
  *
  * The correspondent check is per-address rather than the whole set the
  * categoriser is normally handed — one message is being explained, not a
@@ -36,41 +64,19 @@ final class MessageCategoryExtension extends AbstractExtension
     public function getFunctions(): array
     {
         return [
-            new TwigFunction('category_explanation', $this->explain(...)),
-            new TwigFunction('category_explanation_local', $this->explainLocal(...)),
+            new TwigFunction('category_report', $this->report(...)),
         ];
     }
 
     /**
-     * @return array{category: string, reason: string, signal: string|null}|null
-     *         null when there is no category to explain
+     * @return array{
+     *     effective: array{category: string, reason: string, signal: string|null},
+     *     rules: array{category: string, reason: string, signal: string|null},
+     *     ai: array{category: string|null, asked: bool},
+     *     pinnedAt: \DateTimeImmutable|null,
+     * }|null null when there is nobody to answer for
      */
-    public function explain(Message $message): ?array
-    {
-        return $this->describe($message, ignoreProviderLabels: false);
-    }
-
-    /**
-     * What THIS application's rules would have said, ignoring Gmail's labels.
-     *
-     * Only interesting on a Gmail mailbox, where the provider's own CATEGORY_*
-     * labels are authoritative and the local cascade therefore never runs. The
-     * day those labels stop arriving — an account moved off Gmailify, a mailbox
-     * migrated to plain IMAP — the local rules take over at once, having never
-     * been looked at against real mail. Rendering both answers together makes
-     * that difference something to tune now rather than discover then.
-     *
-     * @return array{category: string, reason: string, signal: string|null}|null
-     */
-    public function explainLocal(Message $message): ?array
-    {
-        return $this->describe($message, ignoreProviderLabels: true);
-    }
-
-    /**
-     * @return array{category: string, reason: string, signal: string|null}|null
-     */
-    private function describe(Message $message, bool $ignoreProviderLabels): ?array
+    public function report(Message $message): ?array
     {
         $user = $this->security->getUser();
 
@@ -80,10 +86,44 @@ final class MessageCategoryExtension extends AbstractExtension
 
         $from = mb_strtolower(trim((string) $message->fromAddress));
 
+        // Looked up once and handed to both calls. It is a database read, and
+        // the two answers must agree about who this person writes to or the
+        // comparison is between two different questions.
+        $correspondents = $this->contacts->isCorrespondent($user, $from) ? [$from => true] : [];
+
+        return [
+            'effective' => $this->describe($message, $correspondents, false, false),
+            // Both flags, and they are not the same exclusion. `ignoreAi` takes
+            // the model's opinion out; `ignoreProviderLabels` takes Gmail's out.
+            // "The rules" means plMail's own cascade, which is neither.
+            'rules'     => $this->describe($message, $correspondents, true, true),
+            'ai'        => [
+                'category' => $message->aiCategory?->value,
+                // Asked and answered, asked and got nothing, never asked — the
+                // panel says something different for each, and only the stamp
+                // can tell the middle case from the last.
+                'asked'    => null !== $message->aiCategorisedAt,
+            ],
+            'pinnedAt'  => $message->thread?->categoryPinnedAt,
+        ];
+    }
+
+    /**
+     * @param array<string,true> $correspondents
+     *
+     * @return array{category: string, reason: string, signal: string|null}
+     */
+    private function describe(
+        Message $message,
+        array $correspondents,
+        bool $ignoreProviderLabels,
+        bool $ignoreAi,
+    ): array {
         $explanation = $this->categorizer->explain(
             $message,
-            $this->contacts->isCorrespondent($user, $from) ? [$from => true] : [],
+            $correspondents,
             $ignoreProviderLabels,
+            $ignoreAi,
         );
 
         return [

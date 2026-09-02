@@ -8,12 +8,10 @@ use App\Domain\Enum\Mail\MessageCategory;
 use App\Entity\Ai\AiFeature;
 use App\Entity\Mail\Message;
 use App\Infrastructure\Messaging\Message\ClassifyMailMessage;
-use App\Repository\Mail\ContactRepository;
 use App\Repository\Mail\MessageRepository;
 use App\Service\Ai\AiAssistant;
 use App\Service\Ai\AiPermissions;
 use App\Service\Ai\PromptLibrary;
-use App\Service\Mail\MessageCategorizer;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
@@ -59,10 +57,13 @@ final readonly class ClassifyMailHandler
      */
     private const int BODY_BUDGET = 1200;
 
+    // No MessageCategorizer and no ContactRepository any more. Both were here
+    // to answer "did the deterministic cascade fall through?", which is the
+    // question worthAsking() stopped needing to ask — see its docblock. The
+    // correspondent lookup was a query per batch, so dropping it is a small
+    // saving as well as one fewer collaborator.
     public function __construct(
         private MessageRepository      $messages,
-        private ContactRepository      $contacts,
-        private MessageCategorizer     $categorizer,
         private AiAssistant            $ai,
         private AiPermissions          $permissions,
         private PromptLibrary          $prompts,
@@ -105,8 +106,31 @@ final readonly class ClassifyMailHandler
     }
 
     /**
-     * Only mail that no rule recognised, only once, and only for somebody who
-     * still wants this done to their mail.
+     * Every message, once, for anybody who still wants this done to their mail.
+     *
+     * IT USED TO BE ONLY THE MAIL NO RULE RECOGNISED — `'default' === reason`,
+     * which is where the verdict is actually consulted. That was the cheaper
+     * thing to do and it made the feature impossible to judge: the model was
+     * asked exactly where the rules had already given up, so there was never a
+     * message with both a rule's answer and a model's answer to compare, and
+     * "is the classifier any good" had no evidence behind it either way.
+     *
+     * Asking about everything is what puts both answers on the same mail. The
+     * message details panel shows them side by side, which is the whole point:
+     * a disagreement is now a thing to look at.
+     *
+     * NOTHING ABOUT WHERE MAIL LANDS CHANGES, and that is not a happy accident
+     * — it is why this is safe. MessageCategorizer::explain() reads the stored
+     * verdict at its tie-break and nowhere else, so a message a rule matched
+     * keeps that rule's answer no matter what the model says about it. The
+     * extra calls buy a second opinion on record, not a second decider.
+     *
+     * The cost is real and worth stating: one model call per message rather
+     * than per unrecognised message, on the same host the composer and the
+     * search index already queue behind. It is bounded by the three checks
+     * below — the installation switch, the person's own, and aiCategorisedAt,
+     * which is stamped whether or not the answer was usable, so no message is
+     * ever asked about twice.
      *
      * The per-user check goes HERE rather than at dispatch, and that is a scope
      * decision rather than an oversight: one ClassifyMailMessage carries ids
@@ -131,16 +155,7 @@ final readonly class ClassifyMailHandler
             return false;
         }
 
-        if (false === $this->permissions->allows($user, AiFeature::Categorise)) {
-            return false;
-        }
-
-        $explanation = $this->categorizer->explain(
-            $mail,
-            $this->contacts->findCorrespondentEmails($user),
-        );
-
-        return 'default' === $explanation['reason'];
+        return $this->permissions->allows($user, AiFeature::Categorise);
     }
 
     /**

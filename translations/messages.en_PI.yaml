@@ -1593,15 +1593,20 @@ message:
     details:
         categorised:
             ai: "an oracle, for no rule knew it: "
+            ai_differs: 'the rules say otherwise'
+            ai_no_answer: 'asked, naught useful back'
+            ai_not_asked: 'not asked'
             correspondent: 'ye have written to this one'
             default: 'naught marked it as bilge'
             forum: 'a crew-list header: '
             gmail: 'Gmail swore it: '
+            pinned: 'ye hauled it here yerself'
             promotion: 'a bulk-cargo header: '
             social: 'the sender port '
             update: 'a sign of an unmanned sender: '
         category: rank
-        category_local: "by our own reckonin'"
+        category_ai: 'the oracle'
+        category_rules: "our own reckonin'"
         bcc: bcc
         cc: cc
         copy_address: 'Pocket the address %address%'

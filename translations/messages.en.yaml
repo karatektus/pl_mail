@@ -1902,15 +1902,33 @@ message:
     details:
         categorised:
             ai: 'a language model, because no rule recognised it: '
+            # When the model disagrees with the rules. Said rather than left to
+            # be noticed, because the two rows are what this panel is for and a
+            # difference between them is the finding.
+            ai_differs: 'the rules disagree'
+            # Asked, and what came back was not one of the five categories. Kept
+            # apart from "not asked": one means the model has nothing useful to
+            # say about this mail, the other means nobody has asked it.
+            ai_no_answer: 'asked, no usable answer'
+            ai_not_asked: 'not asked'
             correspondent: 'you have written to this sender'
             default: 'nothing marked it as bulk mail'
             forum: 'a mailing-list header: '
             gmail: 'Gmail said so: '
+            # A category somebody chose by dragging the conversation onto a tab.
+            # Nothing below the first row can move it while this holds.
+            pinned: 'you moved it here'
             promotion: 'a bulk-mail header: '
             social: 'the sender domain '
             update: 'an automated-mail signal: '
         category: category
-        category_local: 'without Gmail'
+        # What a language model made of it — asked about every message now, and
+        # deciding nothing on its own.
+        category_ai: 'the model'
+        # plMail's own cascade with neither Gmail nor the model in the way. On a
+        # Gmail mailbox this is the answer that takes over the day the provider's
+        # labels stop arriving, so it is worth being able to see before then.
+        category_rules: 'the rules'
         bcc: bcc
         cc: cc
         copy_address: 'Copy address %address%'

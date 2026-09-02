@@ -10,6 +10,32 @@ The published image tags: `latest` follows the most recent release below,
 
 ### Changed
 
+- **The details panel now shows every answer about which tab a message belongs in.** Opening a
+  message's details used to say where it landed and, on Gmail mail only, what plMail's own rules
+  would have said instead. That was enough to report the decision and not enough to judge it. It now
+  always shows three lines: **category** (where it is, and what put it there — or "you moved it
+  here" if you dragged it), **the rules** (plMail's own cascade with neither Gmail's labels nor the
+  model in the way), and **the model**.
+
+  The rows disagreeing is the useful part rather than a fault. A header rule and a language model
+  reaching different conclusions about the same mail is the thing worth looking at, and until now
+  there was never a message carrying both answers to compare.
+
+- **The model is asked about every message, not only the ones no rule recognised.** It used to be
+  asked exactly where the deterministic rules had already given up — which is where its verdict is
+  actually used, and which made the classifier impossible to assess: there was no mail with both a
+  rule's answer and a model's answer side by side.
+
+  **Nothing about where mail lands changes, and that is why this is safe.** The verdict is stored
+  beside the decision and read only at the tie-break, so a message a rule matched keeps that rule's
+  answer however loudly the model disagrees. What you get is a second opinion on record, not a
+  second decider.
+
+  The cost is real: one model call per message rather than per unrecognised message, on the same
+  host the composer and the search index already queue behind. It stays bounded by the three checks
+  that were always there — the installation switch in Admin → AI, each person's own switch, and the
+  fact that no message is ever asked about twice.
+
 - **A drag now carries a small pill instead of the whole row.** Dragging one conversation used to
   drag a picture of its row — which the browser gives you for free and which is the most literal
   answer to "what am I holding", and which is also a thousand pixels wide, because that is how wide

@@ -203,49 +203,90 @@ mailed-by and signed-by were silently missing from every IMAP message.
             {% endif %}
 
             {#
-            Which tab this landed in, and what put it there. Recomputed from
-            the stored headers rather than read off the row, so it explains
-            the rules as they are now — see MessageCategoryExtension.
+            EVERY ANSWER THERE IS ABOUT WHICH TAB THIS BELONGS IN.
+
+            It used to be one row, plus a second one only on Gmail mail. That
+            was enough to say where the message went and not enough to judge
+            whether it went to the right place — which is what somebody opening
+            this panel is actually asking. So all of it is here, always, and the
+            rows disagreeing with each other is the useful part rather than a
+            fault: a header rule and a language model reaching different
+            conclusions about the same mail is exactly the thing worth seeing.
+
+            Recomputed from the rules as they stand now rather than read off the
+            row — see MessageCategoryExtension, which also explains why this is
+            one call and not four.
             #}
-            {% set categorised = category_explanation(message) %}
-            {% if categorised %}
+            {% set category = category_report(message) %}
+            {% if category %}
+                {#
+                Where it is. Normally that is whatever decided it; once somebody
+                has dragged the conversation onto a tab it is their choice and
+                nothing below can move it, so the row says so out loud. The
+                other rows stay — they are the reasoning that was overridden,
+                which is the whole reason to look.
+                #}
                 <dt class="text-ink-faint text-right">{{ 'message.details.category'|trans }}</dt>
                 <dd class="text-ink-soft break-words">
-                    {{ ('tabs.' ~ categorised.category)|trans }}
+                    {% if category.pinnedAt %}
+                        {{ ('tabs.' ~ (message.thread.category.value ?? category.effective.category))|trans }}
+                        <span class="text-ink-faint">— {{ 'message.details.categorised.pinned'|trans }}</span>
+                    {% else %}
+                        {{ ('tabs.' ~ category.effective.category)|trans }}
+                        <span class="text-ink-faint">
+                            — {{ ('message.details.categorised.' ~ category.effective.reason)|trans }}
+                            {%- if category.effective.signal %}
+                                <span class="font-mono">{{ category.effective.signal }}</span>
+                            {%- endif -%}
+                        </span>
+                    {% endif %}
+                </dd>
+
+                {#
+                plMail's own cascade, with neither Gmail's labels nor the model
+                in the way. On a Gmail mailbox this never runs — the provider's
+                CATEGORY_* labels are authoritative while they arrive — and it
+                takes over the moment they stop, having never been checked
+                against real mail. On any other mailbox it is what actually
+                decided, and repeating it costs a line and removes the need to
+                work out from the row above whether it did.
+                #}
+                <dt class="text-ink-faint text-right">{{ 'message.details.category_rules'|trans }}</dt>
+                <dd class="text-ink-soft break-words">
+                    {{ ('tabs.' ~ category.rules.category)|trans }}
                     <span class="text-ink-faint">
-                        — {{ ('message.details.categorised.' ~ categorised.reason)|trans }}
-                        {%- if categorised.signal %}
-                            <span class="font-mono">{{ categorised.signal }}</span>
+                        — {{ ('message.details.categorised.' ~ category.rules.reason)|trans }}
+                        {%- if category.rules.signal %}
+                            <span class="font-mono">{{ category.rules.signal }}</span>
                         {%- endif -%}
                     </span>
                 </dd>
 
                 {#
-                Only when the provider decided it, and therefore only when the
-                two answers can differ. Gmail's CATEGORY_* labels are
-                authoritative while they arrive, so plMail's own cascade never
-                runs on that mailbox — and takes over the moment the labels stop,
-                having never been checked against real mail. Showing both is what
-                makes the local rules tunable BEFORE that day rather than after.
+                And the model, which is now asked about every message rather
+                than only the ones no rule recognised — the point being to have
+                both answers on the same mail. It still decides nothing on its
+                own: the tie-break in MessageCategorizer is the only place the
+                verdict is read, so a message a rule matched keeps the rule's
+                answer however loudly this row disagrees.
 
-                Suppressed when Gmail is not deciding, because then this row
-                would repeat the one above it word for word.
+                Three states, and they are genuinely different: never asked
+                (the feature is off, or this arrived before it was on), asked
+                and got nothing usable back, and an answer.
                 #}
-                {% if categorised.reason == 'gmail' %}
-                    {% set local = category_explanation_local(message) %}
-                    {% if local %}
-                        <dt class="text-ink-faint text-right">{{ 'message.details.category_local'|trans }}</dt>
-                        <dd class="text-ink-soft break-words">
-                            {{ ('tabs.' ~ local.category)|trans }}
-                            <span class="text-ink-faint">
-                                — {{ ('message.details.categorised.' ~ local.reason)|trans }}
-                                {%- if local.signal %}
-                                    <span class="font-mono">{{ local.signal }}</span>
-                                {%- endif -%}
-                            </span>
-                        </dd>
+                <dt class="text-ink-faint text-right">{{ 'message.details.category_ai'|trans }}</dt>
+                <dd class="text-ink-soft break-words">
+                    {% if category.ai.category %}
+                        {{ ('tabs.' ~ category.ai.category)|trans }}
+                        {% if category.ai.category != category.rules.category %}
+                            <span class="text-ink-faint">— {{ 'message.details.categorised.ai_differs'|trans }}</span>
+                        {% endif %}
+                    {% elseif category.ai.asked %}
+                        <span class="text-ink-faint">{{ 'message.details.categorised.ai_no_answer'|trans }}</span>
+                    {% else %}
+                        <span class="text-ink-faint">{{ 'message.details.categorised.ai_not_asked'|trans }}</span>
                     {% endif %}
-                {% endif %}
+                </dd>
             {% endif %}
         </dl>
 

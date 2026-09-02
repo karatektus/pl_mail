@@ -1898,15 +1898,20 @@ message:
     details:
         categorised:
             ai: 'ein Sprachmodell, weil keine Regel gegriffen hat: '
+            ai_differs: 'die Regeln sehen das anders'
+            ai_no_answer: 'gefragt, keine brauchbare Antwort'
+            ai_not_asked: 'nicht gefragt'
             correspondent: 'Du hast diesem Absender geschrieben'
             default: 'nichts wies auf Massenmail hin'
             forum: 'ein Mailinglisten-Header: '
             gmail: 'laut Gmail: '
+            pinned: 'du hast sie hierher verschoben'
             promotion: 'ein Massenmail-Header: '
             social: 'die Absenderdomain '
             update: 'ein Hinweis auf automatischen Versand: '
         category: Kategorie
-        category_local: 'ohne Gmail'
+        category_ai: 'das Modell'
+        category_rules: 'die Regeln'
         bcc: BCC
         cc: CC
         copy_address: 'Adresse %address% kopieren'
