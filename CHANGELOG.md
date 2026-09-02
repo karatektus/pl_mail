@@ -6,6 +6,32 @@ so anything that changes the schema irreversibly is called out explicitly.
 The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, and `sha-…` pins one commit.
 
+## Unreleased
+
+### Fixed
+
+- **The `main` image stopped being published, and the reason was a two-line ordering mistake.** The
+  Dockerfile stamps the build's version and commit into the image so the admin panel can say which
+  build it is. Those two `ENV`s sat above `composer install` — and every layer after an `ENV` is
+  keyed on its value, so a commit hash that is different on every commit meant the vendor layer was
+  never once reused. The line directly above it promises the opposite: "prevent the reinstallation
+  of vendors at every changes in the source code".
+
+  So every build of every branch and every tag re-downloaded 111 packages, and the per-architecture
+  layer cache the workflow is careful to scope could only ever hit the layers above that point. It
+  was a build-time cost and, more importantly, an exposure: a step that runs on every build needs
+  the network on every build, and a package host having a bad minute failed the build outright. That
+  is what happened — twice on `main`, while the release tag of the identical commit went through on
+  a retry.
+
+  Moved below the install, the vendors are keyed on `composer.lock` alone: they change when the
+  dependencies change, which is what was always meant. **If you self-host from the `main` tag, that
+  image had been stale since the failure; it publishes again from this commit.**
+
+  Worth being straight about the limit of this: it removes the exposure rather than explaining the
+  upstream failure. The build no longer needs a network round trip on a commit that changed nothing
+  about the dependencies, so a bad minute at a package host can no longer reach it.
+
 ## v0.2.17 — 2026-09-01
 
 **Nothing in the application changed. This is the test suite and the workflow that runs it.**

@@ -116,18 +116,6 @@ FROM frankenphp_base AS frankenphp_prod
 ENV APP_ENV=prod
 ENV FRANKENPHP_CONFIG="import worker.Caddyfile"
 
-# Which build this is, for the admin panel to show.
-#
-# It has to arrive here as an argument, because the image has no history to ask:
-# the source is copied in and .git stays behind. Left empty by a plain
-# `docker build`, which is correct — an image nobody stamped honestly does not
-# know what it is, and AppVersion says "development" rather than guessing.
-# The release workflow passes both from the metadata action.
-ARG APP_VERSION=""
-ARG APP_COMMIT=""
-ENV APP_VERSION=$APP_VERSION
-ENV APP_COMMIT=$APP_COMMIT
-
 RUN mv "$PHP_INI_DIR/php.ini-production" "$PHP_INI_DIR/php.ini"
 
 COPY --link frankenphp/conf.d/20-app.prod.ini $PHP_INI_DIR/conf.d/
@@ -137,6 +125,37 @@ COPY --link frankenphp/worker.Caddyfile /etc/frankenphp/worker.Caddyfile
 COPY --link composer.* symfony.* ./
 RUN set -eux; \
 	composer install --no-cache --prefer-dist --no-dev --no-autoloader --no-scripts --no-progress
+
+# Which build this is, for the admin panel to show.
+#
+# It has to arrive here as an argument, because the image has no history to ask:
+# the source is copied in and .git stays behind. Left empty by a plain
+# `docker build`, which is correct — an image nobody stamped honestly does not
+# know what it is, and AppVersion says "development" rather than guessing.
+# The release workflow passes both from the metadata action.
+#
+# BELOW THE VENDOR INSTALL, AND THAT IS THE WHOLE POINT OF WHERE IT SITS.
+# These two lines were above it, which quietly defeated the line the comment
+# four lines up promises: every layer after an ENV is keyed on that ENV's value,
+# and APP_COMMIT is a different value on every single commit. So the vendor
+# layer was never once reused — every build of every branch re-ran
+# `composer install` and re-downloaded 111 packages, and the cache the workflow
+# carefully scopes per architecture could only ever hit the layers ABOVE this
+# point.
+#
+# It is a build-time cost and it was also a reliability one, which is how it was
+# found: a step that runs on every build is a step that needs the network on
+# every build, and `composer install` failing on a release is a release that
+# does not ship until somebody presses a button. Moved down, the vendors are
+# keyed on composer.lock alone — they change when the dependencies change, which
+# is what the original comment always meant.
+#
+# It cannot move any further down: `composer dump-env prod` below snapshots the
+# environment into .env.local.php, and these have to be in it by then.
+ARG APP_VERSION=""
+ARG APP_COMMIT=""
+ENV APP_VERSION=$APP_VERSION
+ENV APP_COMMIT=$APP_COMMIT
 
 # copy sources
 COPY --link . ./
