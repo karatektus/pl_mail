@@ -38,9 +38,10 @@ provider doesn't.
   friends, completed as you type.
 - **Filters as a tree** — any/all/none, nested, restated in plain English and counted against real
   mail before you save. Apply one to mail that arrived before it existed.
-- **Filed where you drop it** — drag a conversation onto a folder in the sidebar or onto one of the
-  inbox tabs, several at once if they are ticked. Only the folders that will take it light up, and a
-  tab you choose by hand stays chosen when the next message in the thread arrives.
+- **Filed where you drop it** — drag a conversation onto a folder, a label or one of the inbox tabs,
+  several at once if they are ticked. A folder moves it and a label just adds itself, so dropping on
+  "Receipts" does not take the mail out of your inbox. Only the targets that will accept it light up,
+  and a tab you choose by hand stays chosen when the next message in the thread arrives.
 - **A calendar beside the mail** — two-way sync with Google, Microsoft and CalDAV, drag-to-move
   week grid, invitations answered in place, share and booking links.
 - **Files where you keep them** — attach from and save to Drive, Photos, OneDrive, Dropbox,
