@@ -116,7 +116,12 @@ final class CalendarController extends AbstractController
     #[Route('', name: 'index', methods: ['GET'])]
     public function index(Request $request): Response
     {
-        return $this->render('calendar/index.html.twig', $this->viewData($request, CalendarView::Week));
+        // Whatever this person last chose here, and Week until they choose —
+        // which is what this opened on before it remembered anything.
+        return $this->render(
+            'calendar/index.html.twig',
+            $this->viewData($request, $this->currentUser()->calendarView),
+        );
     }
 
     /**
@@ -128,15 +133,36 @@ final class CalendarController extends AbstractController
     {
         return $this->render(
             'calendar/_pane_frame.html.twig',
-            $this->viewData($request, CalendarView::Agenda, isPane: true),
+            $this->viewData($request, $this->currentUser()->calendarPaneView, isPane: true),
         );
     }
 
-    /** One view at one date. The grid frame re-renders into itself. */
+    /**
+     * One view at one date. The grid frame re-renders into itself.
+     *
+     * AND REMEMBERS, which is the only reason a GET writes anything here.
+     *
+     * A view is a route segment rather than client state — see the class note —
+     * so arriving at this route IS the act of choosing one, and there is no
+     * later moment to record it at. The alternative was a second request fired
+     * from the browser after every view change, which is a request, a token and
+     * a controller to keep in step with a fact the server already had.
+     *
+     * The same route serves both shapes and they remember separately, because
+     * the page and a 380px strip do not want the same view — see
+     * User::SETTING_CALENDAR_PANE_VIEW.
+     *
+     * Written before the render rather than after: this ends in a render, not a
+     * redirect, so there is no second request to carry the value, and the
+     * frame that comes back should already be describing the state the next
+     * visit will find.
+     */
     #[Route('/{view}/{date}', name: 'view', requirements: ['view' => 'day|week|month|agenda'], methods: ['GET'])]
     public function view(Request $request, string $view, ?string $date = null): Response
     {
         $isPane = $request->query->getBoolean('pane');
+
+        $this->remember(CalendarView::from($view), $isPane);
 
         $data = $this->viewData(
             $request,
@@ -151,6 +177,32 @@ final class CalendarController extends AbstractController
                 : 'calendar/index.html.twig',
             $data,
         );
+    }
+
+    /**
+     * Keep this view as the one its shape opens on next time.
+     *
+     * Written only when it CHANGES. This route is reached by every calendar
+     * navigation — every next week, every previous month, every click on a day
+     * — and each of those already names the view it is staying in, so writing
+     * unconditionally would be an UPDATE per navigation to store the value
+     * already there.
+     */
+    private function remember(CalendarView $view, bool $isPane): void
+    {
+        $user = $this->currentUser();
+
+        if ($view === ($isPane ? $user->calendarPaneView : $user->calendarView)) {
+            return;
+        }
+
+        if (true === $isPane) {
+            $user->calendarPaneView = $view;
+        } else {
+            $user->calendarView = $view;
+        }
+
+        $this->em->flush();
     }
 
     /** The editor, empty or filled, rendered into the body-level modal frame. */

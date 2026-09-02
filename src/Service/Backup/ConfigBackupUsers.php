@@ -116,6 +116,13 @@ final readonly class ConfigBackupUsers
         User::SETTING_CALENDAR_PANE_OPEN,
         User::SETTING_CALENDAR_PANE_WIDTH,
         User::SETTING_CALENDAR_PANE_MODE,
+        // Which view each shape opens on. In the backup for the same reason the
+        // pane's width and mode are: it is a preference somebody set, it costs
+        // one short string, and a restore that put the calendar back on Week
+        // would be the kind of small wrongness that makes a restore feel like a
+        // different installation.
+        User::SETTING_CALENDAR_VIEW,
+        User::SETTING_CALENDAR_PANE_VIEW,
         User::SETTING_SEARCH_SORT,
         User::SETTING_ADMIN_COLLAPSED_PANELS,
         // Travels, unlike its `sidebar.expanded_account` neighbour, and the

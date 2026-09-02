@@ -3,6 +3,7 @@
 namespace App\Entity\User;
 
 use App\Domain\Enum\Calendar\CalendarPaneMode;
+use App\Domain\Enum\Calendar\CalendarView;
 use App\Domain\Enum\Mail\SearchSortOrder;
 use App\Domain\Helper\TimezoneHelper;
 use App\Domain\Model\UserEntityModel;
@@ -578,6 +579,26 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
      */
     public const string SETTING_CALENDAR_PANE_MODE = 'calendar.pane_mode';
 
+    /**
+     * Which of day/week/month/agenda the calendar opens on, remembered per
+     * SHAPE — the full page and the docked pane keep their own.
+     *
+     * TWO KEYS, NOT ONE, and the reason is the pane's width. The two surfaces
+     * have always opened on different views on purpose: the page on Week, the
+     * pane on Agenda, because seven columns in a 380px strip are seven slivers.
+     * Remembering one view for both would carry a choice made on a full-width
+     * page into a strip that has to widen itself to honour it — see
+     * CalendarView::minimumPaneWidth(), which makes picking Month in the pane
+     * WIDEN the pane. That is right when somebody picks it there and surprising
+     * when it happens because of something they did somewhere else.
+     *
+     * So each shape remembers what was last chosen in it, and the defaults
+     * below are what each opened on before this existed. Nobody's calendar
+     * moves until they move it.
+     */
+    public const string SETTING_CALENDAR_VIEW = 'calendar.view';
+    public const string SETTING_CALENDAR_PANE_VIEW = 'calendar.pane_view';
+
     /** Matches the clamp in ui--split; the server is what enforces it. */
     public const int CALENDAR_PANE_MIN_WIDTH = 320;
     public const int CALENDAR_PANE_MAX_WIDTH = 900;
@@ -743,6 +764,37 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
         );
         set (CalendarPaneMode $mode) {
             $this->setSetting(self::SETTING_CALENDAR_PANE_MODE, $mode->value);
+        }
+    }
+
+    /**
+     * The view the full calendar page opens on. Week until somebody chooses
+     * otherwise, which is what it always did.
+     *
+     * Virtual, out of the settings bag, for the reason $calendarPaneWidth
+     * gives. `tryFrom` rather than `from`: the bag is JSON that a config
+     * restore or an older build may have written, and an unrecognised value is
+     * a reason to open on the default rather than to fail rendering the
+     * calendar.
+     */
+    public CalendarView $calendarView {
+        get => CalendarView::tryFrom((string) $this->getSetting(self::SETTING_CALENDAR_VIEW, ''))
+            ?? CalendarView::Week;
+        set (CalendarView $view) {
+            $this->setSetting(self::SETTING_CALENDAR_VIEW, $view->value);
+        }
+    }
+
+    /**
+     * The same for the docked pane, which opens on Agenda by default and keeps
+     * its own answer — see SETTING_CALENDAR_PANE_VIEW for why the two are not
+     * one setting.
+     */
+    public CalendarView $calendarPaneView {
+        get => CalendarView::tryFrom((string) $this->getSetting(self::SETTING_CALENDAR_PANE_VIEW, ''))
+            ?? CalendarView::Agenda;
+        set (CalendarView $view) {
+            $this->setSetting(self::SETTING_CALENDAR_PANE_VIEW, $view->value);
         }
     }
 

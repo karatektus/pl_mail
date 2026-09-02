@@ -6,6 +6,25 @@ so anything that changes the schema irreversibly is called out explicitly.
 The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, and `sha-…` pins one commit.
 
+## Unreleased
+
+### Added
+
+- **The calendar opens on the view you left it in.** Day, week, month or agenda — whichever you last
+  chose is what you get next time, instead of the page always starting on Week and the docked pane
+  always on Agenda.
+
+  **The page and the pane remember separately**, which is the one part worth explaining. They have
+  always opened on different views on purpose: seven columns in a 380px strip are seven slivers, and
+  picking Month in the pane makes the pane widen itself to fit. One shared setting would carry a
+  choice made on a full-width page into that strip and widen it on open — something happening to you
+  rather than something you did. So each shape keeps its own answer, and the defaults are exactly
+  what each opened on before, so nobody's calendar moves until they move it.
+
+  It rides in the user settings alongside the pane's width and mode, so it travels in a config
+  backup, and a value the settings bag cannot make sense of opens on the default rather than failing
+  to draw the calendar.
+
 ## v0.2.19 — 2026-09-02
 
 ### Changed
