@@ -12,12 +12,14 @@ use App\Entity\Mail\Mailbox;
 use App\Entity\Mail\Message;
 use App\Entity\Mail\MessageThread;
 use App\Entity\User\User;
+use App\Infrastructure\Messaging\Message\ApplyImapFlagsMessage;
 use App\Service\Imap\MessageThreader;
 use App\Service\Label\LabelResolver;
 use App\Service\Mail\ThreadStatusUpdater;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
+use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;
 
 /**
  * What dropping a conversation on a folder, and on a category tab, actually
@@ -140,6 +142,46 @@ final class ThreadMoveTest extends KernelTestCase
     }
 
     /**
+     * The move reaches the mail server, and is not just a row in our database.
+     *
+     * This is the question a person actually has about a drag: did the mail
+     * move, or did plMail only change its mind about where it thinks the mail
+     * is? Every other assertion in this class is about local state — the labels,
+     * the mailbox pointer — and all of them would hold just as well for a move
+     * that never left the building.
+     *
+     * The job carries the DESTINATION PATH, and that is the part worth pinning.
+     * Everything else propagates by naming rows and letting the handler look
+     * them up, which works because the rows survive; a move has to say where,
+     * because the folder is not derivable from a message id once the local
+     * mailbox pointer has already been swung over to it.
+     */
+    public function testAMoveIsSentToTheMailServer(): void
+    {
+        $inbox    = $this->labelResolver->systemLabel(LabelRole::Inbox, $this->account);
+        $receipts = $this->folderLabel('Receipts', $this->receiptsMailbox);
+
+        $this->labelResolver->bindMailbox($inbox, $this->inboxMailbox);
+
+        $thread  = $this->thread();
+        $message = $thread->messages->first();
+
+        $message->addLabel($inbox);
+        $this->em->flush();
+
+        $this->status->move([$message], $receipts);
+
+        $moves = array_values(array_filter(
+            $this->dispatched(),
+            static fn (ApplyImapFlagsMessage $job): bool => 'move' === $job->action,
+        ));
+
+        self::assertCount(1, $moves, 'nothing was queued for the mail server');
+        self::assertSame($this->receiptsMailbox->fullPath, $moves[0]->destinationPath);
+        self::assertContains((int) $message->id, array_keys($moves[0]->messageIds));
+    }
+
+    /**
      * The reason MessageThread::$categoryPinnedAt exists.
      *
      * recordActivity() is the arrival path — it is what adopts a new message's
@@ -196,6 +238,34 @@ final class ThreadMoveTest extends KernelTestCase
     }
 
     // ── fixture ──────────────────────────────────────────────────────────────
+
+    /**
+     * What went out to the provider, from the transport the flag jobs use.
+     *
+     * `export` is where messenger.yaml routes all three of the outbound
+     * families — IMAP flags, Gmail labels, Graph changes — and in the test
+     * environment it is in-memory, so the envelope can be read back rather
+     * than inferred.
+     *
+     * @return list<ApplyImapFlagsMessage>
+     */
+    private function dispatched(): array
+    {
+        /** @var InMemoryTransport $transport */
+        $transport = self::getContainer()->get('messenger.transport.export');
+
+        $found = [];
+
+        foreach ($transport->getSent() as $envelope) {
+            $message = $envelope->getMessage();
+
+            if ($message instanceof ApplyImapFlagsMessage) {
+                $found[] = $message;
+            }
+        }
+
+        return $found;
+    }
 
     /** A custom label with a real folder behind it — a place mail can be. */
     private function folderLabel(string $name, Mailbox $mailbox): \App\Entity\Label\Label

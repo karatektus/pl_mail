@@ -181,6 +181,62 @@ test.describe("dragging a conversation", () => {
         await expect(page.locator(ROWS).filter({ hasText: subject })).toHaveCount(1);
     });
 
+    /**
+     * What the pointer carries, which is the one part of a drag no screenshot
+     * can show — the drag image is drawn by the compositor, outside the page,
+     * so it is absent from every capture Playwright takes.
+     *
+     * So the assertion is on what the page HANDS the browser. It is worth
+     * making: a single row used to drag a snapshot of itself, a thousand pixels
+     * of mail list travelling under the pointer to a sidebar a third that wide,
+     * and the target spent the whole gesture behind it. Nothing visible would
+     * have caught that going back.
+     */
+    test("carries a pill naming the conversation, not a picture of the whole row", async ({ page }) => {
+        // Before the first navigation, so the hook is in place when dragstart
+        // fires. It records rather than replaces: the real setDragImage still
+        // runs, so the drag behaves exactly as it does for a person.
+        await page.addInitScript(() => {
+            const original = DataTransfer.prototype.setDragImage;
+
+            (window as unknown as { __dragImages: string[] }).__dragImages = [];
+
+            DataTransfer.prototype.setDragImage = function (image, x, y) {
+                (window as unknown as { __dragImages: string[] }).__dragImages.push(
+                    `${(image as HTMLElement).className}|${image.textContent ?? ""}`,
+                );
+
+                return original.call(this, image, x, y);
+            };
+        });
+
+        await page.goto("/mail/inbox");
+        await settled(page);
+
+        // A row of its own. Every test in this file MOVES the conversation it
+        // drags, and the mail fixture is seeded once per worker rather than
+        // once per test — so two tests naming the same row means the second one
+        // looking for something the first filed away. Read is the folder test's,
+        // Star and Archive are the category test's, and this one takes Trash.
+        const row = mailRow(page, INBOX_SUBJECTS.trash);
+        await expect(row).toBeVisible();
+
+        const subject = await subjectOf(row);
+
+        const folder = page
+            .locator("#sidebar [data-dnd-folder]")
+            .filter({ hasText: FOLDER })
+            .first();
+
+        await dragOnto(page, row, folder);
+
+        const handed = await page.evaluate(
+            () => (window as unknown as { __dragImages: string[] }).__dragImages,
+        );
+
+        expect(handed).toEqual([`dnd-drag-image|${subject}`]);
+    });
+
     test("onto a category tab re-files it, including one with no mail yet", async ({ page }) => {
         await page.goto("/mail/inbox");
         await settled(page);

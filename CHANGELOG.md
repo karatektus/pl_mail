@@ -8,6 +8,19 @@ The published image tags: `latest` follows the most recent release below,
 
 ## Unreleased
 
+### Changed
+
+- **A drag now carries a small pill instead of the whole row.** Dragging one conversation used to
+  drag a picture of its row — which the browser gives you for free and which is the most literal
+  answer to "what am I holding", and which is also a thousand pixels wide, because that is how wide
+  a row in a mail list is. It travelled under the pointer to a sidebar a third of that, so the folder
+  being aimed at spent the whole gesture hidden behind the thing aiming at it. That is the one part
+  of a drag you cannot work around by moving the mouse, since the image goes where the pointer goes.
+
+  Dragging several has always carried a pill saying how many. Dragging one now carries the same pill
+  saying the subject, cut with an ellipsis if it is long — a pill wide enough for any subject would
+  be the row again under another name.
+
 ### Fixed
 
 - **The `main` image stopped being published, and the reason was a two-line ordering mistake.** The

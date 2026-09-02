@@ -329,33 +329,62 @@ export default class extends Controller {
     }
 
     /**
-     * What the pointer carries while it travels.
+     * What the pointer carries while it travels: a small pill, always.
      *
-     * A single row drags its own element, which the browser snapshots for free
-     * and which is the most legible possible answer to "what am I holding". A
-     * multi-row drag cannot do that — there is no one element — so it gets a
-     * built pill saying how many.
+     * A single row used to drag ITSELF — the browser snapshots the source
+     * element for free, and a picture of the actual conversation is the most
+     * literal possible answer to "what am I holding". It is also a thousand
+     * pixels wide, because that is how wide a row in a mail list is, and it
+     * travels under the pointer to a sidebar three hundred pixels across. So
+     * the thing being aimed at spent the whole gesture behind the thing being
+     * aimed with. Reported exactly that way, and it is the one part of a drag
+     * you cannot design around by moving the pointer — the image follows it.
+     *
+     * A pill is small enough to leave the target visible and still says which
+     * conversation it is. One carries the subject; several carry the count,
+     * because there is no subject that would be true of all of them. The width
+     * is capped in app.css and a long subject is cut with an ellipsis: the
+     * point of this is to be small, and a pill wide enough for any subject
+     * would be the row again under another name.
      *
      * The pill has to be IN the document when setDragImage is called, or the
      * browser has nothing to rasterise and the drag goes out with the default
      * ghost. It is put off-screen rather than hidden, because a display:none
      * element rasterises to nothing at all, and removed on the next frame —
      * by which point the snapshot has been taken.
+     *
+     * The 12px offsets put it down and to the right of the pointer rather than
+     * under it, so the cursor — which is what says whether this target will
+     * take the drop — stays readable.
      */
     #setDragImage(event, carried) {
-        if (carried.ids.length < 2) {
-            return;
-        }
-
         const pill = document.createElement("div");
 
         pill.className = "dnd-drag-image";
-        pill.textContent = this.draggingValue.replace("%count%", String(carried.ids.length));
+        pill.textContent = this.#dragLabel(carried);
         document.body.append(pill);
 
         event.dataTransfer.setDragImage(pill, 12, 12);
 
         requestAnimationFrame(() => pill.remove());
+    }
+
+    /**
+     * What the pill says.
+     *
+     * The subject for one conversation, the count for several. The count also
+     * covers a row whose subject is somehow empty — every row renders a
+     * fallback for that (see thread_row.no_subject), so it should not happen,
+     * and an empty pill would be worse than a slightly vaguer one.
+     */
+    #dragLabel(carried) {
+        const subject = carried.subject.trim();
+
+        if (1 === carried.ids.length && "" !== subject) {
+            return subject;
+        }
+
+        return this.draggingValue.replace("%count%", String(carried.ids.length));
     }
 
     async #post(url, action, body) {

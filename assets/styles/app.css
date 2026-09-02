@@ -4502,11 +4502,21 @@ html[data-dnd-active] [data-dnd-ghost] {
     border-bottom-color: rgb(var(--rgb-accent) / 0.45);
 }
 
-/* ── The multi-row drag image ─────────────────────────────────────────────
-   What the pointer carries when several conversations travel at once. A single
-   row drags a snapshot of itself, which the browser does for free and which is
-   the most legible answer available; there is no such element for a set, so
-   this pill is built and handed to setDragImage.
+/* ── The drag image ───────────────────────────────────────────────────────
+   What the pointer carries: a pill, whatever is being dragged.
+
+   A single row used to drag a snapshot of ITSELF, which the browser does for
+   free and which is the most literal answer to "what am I holding" — and which
+   is a thousand pixels wide, because that is how wide a row in a mail list is.
+   It travelled under the pointer to a sidebar a third of that, so the target
+   spent the whole gesture hidden behind the thing being aimed with. This is the
+   one part of a drag you cannot design around by moving the pointer, since the
+   image goes where the pointer goes.
+
+   `max-width` and the ellipsis are the whole point rather than tidiness: a pill
+   that grew to fit any subject would be the row again under another name. 22rem
+   is about a third of a comfortable list, which leaves the sidebar clear at
+   every width the app lays out for.
 
    Positioned off-screen rather than hidden, and removed on the next frame: the
    browser has to be able to rasterise it at the moment of the call, and a
@@ -4516,6 +4526,8 @@ html[data-dnd-active] [data-dnd-ghost] {
     position: fixed;
     top: -1000px;
     left: -1000px;
+    max-width: 22rem;
+    overflow: hidden;
     padding: 0.375rem 0.75rem;
     border-radius: 9999px;
     background-color: rgb(var(--rgb-accent));
@@ -4523,5 +4535,6 @@ html[data-dnd-active] [data-dnd-ghost] {
     font-size: 0.75rem;
     font-weight: 600;
     white-space: nowrap;
+    text-overflow: ellipsis;
     pointer-events: none;
 }
