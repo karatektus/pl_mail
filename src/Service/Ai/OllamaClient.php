@@ -514,49 +514,11 @@ final readonly class OllamaClient
         try {
             $response = $this->http->request('POST', $this->url($baseUrl, '/api/chat'), [
                 'json' => $payload,
-                // The caller's, when it has one. This is an IDLE timeout and
-                // the stretch it actually guards is the silence before the
-                // first token — the model loading and the whole prompt being
-                // evaluated — so it belongs to whoever knows how big the prompt
-                // is. GENERATE_TIMEOUT is sized for the ordinary case and is
-                // the floor for everything that does not ask.
-                // SHORT, ALWAYS, and the caller's number is spent differently
-                // now — see the loop below. This is how often the client wakes
-                // up during a silence, not how long the silence may last.
+                // SHORT, ALWAYS. This is how often the client wakes up while
+                // the host says nothing, not how long the silence may last.
+                // The caller's budget is counted below instead.
                 'timeout' => self::HEARTBEAT_SECONDS,
             ]);
-
-            $status = $response->getStatusCode();
-
-            if (200 !== $status) {
-                // READ, AND SAID OUT LOUD. This used to return the category and
-                // drop the body on the floor, and the body is the diagnosis:
-                // Ollama answers a missing model with
-                // `{"error":"model 'llama3.1:8b' not found"}`, which names the
-                // model as the host understood it and is how a wrong tag, a
-                // trailing space or a model nobody ever pulled gets found.
-                //
-                // What it cost to discard: a summary card reading "the summary
-                // could not be written" for an installation whose chat model
-                // was simply not on the host, with nothing in any log, on every
-                // thread, for as long as it stayed unpulled. The one sentence
-                // that would have ended it had already been sent by Ollama and
-                // was being thrown away here.
-                //
-                // Safe to log, and only to log: the request body carries a
-                // model name and the whole of somebody's conversation, so the
-                // ANSWER is quotable and the request is not. refusal() clips
-                // it, for a proxy that replies with its own HTML page.
-                $this->logger->error('OllamaClient: streamed chat refused', [
-                    'model'  => $model,
-                    'status' => $status,
-                    'error'  => self::refusal($response->getContent(false)),
-                ]);
-
-                return AiChatResult::failed(
-                    404 === $status ? self::ERROR_HTTP_404 : self::ERROR_HTTP_STATUS,
-                );
-            }
 
             // Newline-delimited JSON, one object per token. A chunk off the
             // wire is NOT a line: it can carry half an object, or three of
@@ -567,99 +529,152 @@ final readonly class OllamaClient
             $budget  = $timeout ?? self::GENERATE_TIMEOUT;
             $started = microtime(true);
 
-            foreach ($this->http->stream($response) as $chunk) {
-                if (true === $chunk->isTimeout()) {
-                    // A TIMEOUT CHUNK IS NOT THE END ANY MORE, and treating it
-                    // as one is what made long summaries impossible to deliver
-                    // through anything but a direct connection.
-                    //
-                    // Symfony yields one of these whenever the idle timeout
-                    // elapses and lets the loop carry on waiting. The old code
-                    // gave up on the first, which made the idle timeout the
-                    // total budget — and a long prompt is ONE enormous silence,
-                    // because nothing arrives from the host between the request
-                    // and the first token.
-                    //
-                    // Two things go wrong with a single long idle timeout, and
-                    // only one of them is plMail's. The first is that the
-                    // budget cannot be expressed: "wait ten minutes for the
-                    // first token" and "give up after ten seconds of silence
-                    // mid-answer" are different rules and there was one number
-                    // for both. The second is that NOTHING IS ON THE WIRE for
-                    // the whole of that silence, and a reverse proxy between
-                    // the reader and this process is entitled to close an idle
-                    // connection — most default to well under the several
-                    // minutes a full conversation needs. The stream then dies
-                    // with no error, no log and no frame, which reaches the
-                    // reader as the blankest sentence the card has.
-                    //
-                    // So the wake-up is short and frequent, the budget is
-                    // counted here, and each tick yields an empty string. The
-                    // caller writes a frame for it, which keeps the connection
-                    // demonstrably alive and gives the proxy nothing to reap.
-                    // Empty is a safe sentinel: real tokens are only yielded
-                    // below when they are non-empty.
-                    $waited = microtime(true) - $started;
+            // TWO LOOPS, AND THE OUTER ONE IS NOT DECORATION.
+            //
+            // stream() ENDS when it yields a timeout chunk — verified against
+            // CurlHttpClient rather than assumed: a single foreach that
+            // `continue`s past the timeout gets no further chunks at all, and
+            // the response comes back empty as though the host had answered
+            // nothing. Waiting longer means calling stream() AGAIN, which
+            // resumes the same response where it left off. With an eight-second
+            // wake-up against a host that took twenty-five seconds to send its
+            // headers: three timeout chunks, then the headers, then the body.
+            //
+            // Why wait at all instead of giving up on the first: a long prompt
+            // is ONE enormous silence, because nothing arrives from the host
+            // between the request and the first token. Treating the first
+            // timeout as fatal made the idle timeout the total budget, which
+            // conflates "wait ten minutes for the first token" with "give up
+            // after ten seconds of silence mid-answer". And for the whole of
+            // that silence NOTHING IS ON THE WIRE, so a reverse proxy between
+            // the reader and this process is entitled to close the connection —
+            // most default to well under the several minutes a full
+            // conversation needs, and the stream then dies with no error, no
+            // frame and no log.
+            //
+            // So: wake often, count the budget here, and yield an empty string
+            // each time for the caller to turn into a frame. Empty is a safe
+            // sentinel — a real token is only ever yielded when it is non-empty.
+            while (true) {
+                $timedOut = false;
 
-                    if ($waited > $budget) {
-                        // THE NUMBERS, because "timeout" on its own has now
-                        // been reported three times and answered nothing. What
-                        // is missing every time is how long it actually waited
-                        // and what it was allowed — the difference between a
-                        // budget that is slightly short and one that is off by
-                        // a factor of five, which are fixed by different
-                        // numbers. A category with no measurement in it is a
-                        // second round of guessing.
-                        $this->logger->error('OllamaClient: gave up waiting for a streamed answer', [
-                            'model'          => $model,
-                            'waited_seconds' => round($waited),
-                            'budget_seconds' => round($budget),
-                            'tokens_so_far'  => mb_strlen($whole),
-                        ]);
+                foreach ($this->http->stream($response) as $chunk) {
+                    if (true === $chunk->isTimeout()) {
+                        $timedOut = true;
 
-                        return AiChatResult::failed(self::ERROR_TIMEOUT, $timing);
+                        break;
                     }
 
-                    yield '';
+                    // THE STATUS IS READ HERE, INSIDE THE LOOP.
+                    //
+                    // getStatusCode() BLOCKS until the response headers arrive,
+                    // and Ollama sends none until it begins generating — so on
+                    // a long prompt it waits out the whole silent evaluation.
+                    // Called before the loop it sits outside every heartbeat:
+                    // the short wake-up applies to it as a hard idle timeout,
+                    // Symfony raises TimeoutExceptionInterface, and the catch
+                    // below turns that into a timeout after ten seconds
+                    // whatever the budget says. Which is exactly what it did —
+                    // `kind: timeout` inside thirty seconds against a budget of
+                    // minutes, with no "gave up waiting" line beside it,
+                    // because that path never reached the budget check.
+                    //
+                    // isFirst() is the chunk that says the headers are in, so
+                    // asking here cannot block.
+                    if (true === $chunk->isFirst()) {
+                        $status = $response->getStatusCode();
 
-                    continue;
+                        if (200 !== $status) {
+                            // READ, AND SAID OUT LOUD. This used to return the
+                            // category and drop the body on the floor, and the
+                            // body is the diagnosis: Ollama answers a missing
+                            // model with `{"error":"model 'x' not found"}`,
+                            // naming the model as the host understood it, which
+                            // is how a wrong tag or a model nobody pulled gets
+                            // found.
+                            //
+                            // Safe to log, and only to log: the request body
+                            // carries the whole of somebody's conversation, so
+                            // the ANSWER is quotable and the request is not.
+                            // refusal() clips it, for a proxy that replies with
+                            // its own HTML page.
+                            $this->logger->error('OllamaClient: streamed chat refused', [
+                                'model'  => $model,
+                                'status' => $status,
+                                'error'  => self::refusal($response->getContent(false)),
+                            ]);
+
+                            return AiChatResult::failed(
+                                404 === $status ? self::ERROR_HTTP_404 : self::ERROR_HTTP_STATUS,
+                            );
+                        }
+
+                        continue;
+                    }
+
+                    if (true === $chunk->isLast()) {
+                        break 2;
+                    }
+
+                    $buffer .= $chunk->getContent();
+
+                    while (false !== ($break = strpos($buffer, "\n"))) {
+                        $line   = trim(substr($buffer, 0, $break));
+                        $buffer = substr($buffer, $break + 1);
+
+                        if ('' === $line) {
+                            continue;
+                        }
+
+                        $object = json_decode($line, true);
+
+                        if (false === is_array($object)) {
+                            continue;
+                        }
+
+                        $token = $object['message']['content'] ?? null;
+
+                        if (true === is_string($token) && '' !== $token) {
+                            $whole .= $token;
+
+                            yield $token;
+                        }
+
+                        // The final object carries the whole timing block, and
+                        // it is the only one that does.
+                        if (true === ($object['done'] ?? false)) {
+                            $timing = AiCallTiming::fromBody($object);
+                        }
+                    }
                 }
 
-                if (true === $chunk->isLast()) {
+                // The stream ran out without a last chunk. Nothing left to wait
+                // for, so this is the end whatever else it is.
+                if (false === $timedOut) {
                     break;
                 }
 
-                $buffer .= $chunk->getContent();
+                $waited = microtime(true) - $started;
 
-                while (false !== ($break = strpos($buffer, "\n"))) {
-                    $line   = trim(substr($buffer, 0, $break));
-                    $buffer = substr($buffer, $break + 1);
+                if ($waited > $budget) {
+                    // THE NUMBERS, because "timeout" on its own was reported
+                    // three times and answered nothing. How long it waited
+                    // against what it was allowed is the difference between a
+                    // budget that is slightly short and one out by a factor of
+                    // five, and those are fixed by different numbers.
+                    $this->logger->error('OllamaClient: gave up waiting for a streamed answer', [
+                        'model'          => $model,
+                        'waited_seconds' => round($waited),
+                        'budget_seconds' => round($budget),
+                        'chars_so_far'   => mb_strlen($whole),
+                    ]);
 
-                    if ('' === $line) {
-                        continue;
-                    }
-
-                    $object = json_decode($line, true);
-
-                    if (false === is_array($object)) {
-                        continue;
-                    }
-
-                    $token = $object['message']['content'] ?? null;
-
-                    if (true === is_string($token) && '' !== $token) {
-                        $whole .= $token;
-
-                        yield $token;
-                    }
-
-                    // The final object carries the whole timing block, and it
-                    // is the only one that does.
-                    if (true === ($object['done'] ?? false)) {
-                        $timing = AiCallTiming::fromBody($object);
-                    }
+                    return AiChatResult::failed(self::ERROR_TIMEOUT, $timing);
                 }
+
+                yield '';
             }
+
         } catch (TimeoutExceptionInterface) {
             return AiChatResult::failed(self::ERROR_TIMEOUT, $timing);
         } catch (TransportExceptionInterface) {
