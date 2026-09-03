@@ -1843,6 +1843,8 @@ search:
             model_missing: "That berth holds no divinin' model — so this search used words alone."
             not_configured: "Search by meanin' be on, but no berth be set — so this search used words alone."
             query_too_short: "Write a little more an' the meanin' be searched too."
+            search_failed: "The search by meanin' ran aground — so this search used words alone. The ship's log says why."
+            search_too_slow: "Searchin' by meanin' took too long in these waters — so this search used words alone."
             timed_out: 'The oracle took too long — so this search used words alone.'
     sort:
         label: Sort by

@@ -22,6 +22,8 @@ use Doctrine\DBAL\Exception\DriverException;
 use Doctrine\DBAL\ParameterType;
 use Doctrine\ORM\QueryBuilder;
 use Doctrine\Persistence\ManagerRegistry;
+use Psr\Log\LoggerInterface;
+use Psr\Log\NullLogger;
 use Symfony\Component\Security\Core\User\UserInterface;
 
 class MessageThreadRepository extends ServiceEntityRepository
@@ -43,6 +45,16 @@ class MessageThreadRepository extends ServiceEntityRepository
          * the other as well.
          */
         private readonly int $semanticTimeoutMs = self::SEARCH_SEMANTIC_TIMEOUT_MS,
+        /**
+         * The first logger this repository has ever had, and it is here for
+         * one call site: the vector arm's give-up path, which discarded the
+         * exception it caught and told the person searching that the model had
+         * been slow. See cheapRows().
+         *
+         * Defaulted so that the several tests which build this by hand keep
+         * working unchanged; autowiring hands the real one to the application.
+         */
+        private readonly LoggerInterface $logger = new NullLogger(),
     ) {
         parent::__construct($registry, MessageThread::class);
     }
@@ -1491,6 +1503,19 @@ class MessageThreadRepository extends ServiceEntityRepository
     private const int SEARCH_SEMANTIC_TIMEOUT_MS = 5000;
 
     /**
+     * `query_canceled` — what `statement_timeout` raises when it fires.
+     *
+     * Spelled here because DBAL does not name it. Its PostgreSQL
+     * ExceptionConverter maps deadlocks, constraint violations, syntax errors
+     * and half a dozen others onto dedicated classes and lets 57014 fall
+     * through to a plain DriverException, so "the budget fired" and "the query
+     * is broken" arrive at cheapRows() as the same type. The SQLSTATE is the
+     * only thing that tells them apart, and the difference is which machine
+     * somebody is sent to look at.
+     */
+    private const string SQLSTATE_QUERY_CANCELED = '57014';
+
+    /**
      * Run the body-substring pass under a time budget, keeping whatever the
      * cheap passes already found if it does not come back in time.
      *
@@ -1619,7 +1644,7 @@ class MessageThreadRepository extends ServiceEntityRepository
             );
 
             return [$rows, $semantic];
-        } catch (DriverException) {
+        } catch (DriverException $exception) {
             // Run again without it, and OUTSIDE the transaction the timeout
             // was set on: the keyword statement is the one this search has
             // always been able to afford, and putting the budget that the
@@ -1633,7 +1658,51 @@ class MessageThreadRepository extends ServiceEntityRepository
             // degradation is the exact thing the skip reasons were built to
             // stop, and it would have been reintroduced by the timeout that
             // was added to protect the page.
-            return [$pass(null), SemanticSearch::skipped(SemanticSkipReason::TimedOut)];
+            //
+            // AND SAYING WHICH, WHICH IS THE PART THIS USED TO GET WRONG.
+            // It answered TimedOut for everything it caught, and TimedOut
+            // prints "the model took too long" — a sentence about the OTHER
+            // machine. The model had already answered before this method was
+            // entered; SemanticQuery does the embedding in the controller,
+            // precisely so that a slow model is never reported as a database
+            // fault. This was the same confusion pointing the other way, and
+            // it is the worse direction: an operator reading "the model took
+            // too long" goes to the model host, where the panel shows every
+            // search_query call succeeding in single-digit milliseconds, and
+            // there is nothing else for them to find.
+            //
+            // Worse still, DriverException is not "the statement was
+            // cancelled". It is every fault the driver can raise — a
+            // plmail_embed_distance() that is not installed, a stored width
+            // that disagrees with its vector, a connection dropped mid-query —
+            // and each of those is DETERMINISTIC. They do not degrade a search
+            // occasionally under load; they degrade EVERY search, instantly,
+            // for as long as the cause stands, while reporting a timeout that
+            // never happened and logging nothing at all.
+            $cancelled = self::SQLSTATE_QUERY_CANCELED === $exception->getSQLState();
+
+            // Both branches log, and both log the SQLSTATE. The give-up path is
+            // meant to be rare, and a rare thing that leaves no trace is
+            // indistinguishable from a common one — which is exactly how this
+            // stayed invisible.
+            $this->logger->log(
+                $cancelled ? 'warning' : 'error',
+                $cancelled
+                    ? 'Search: the semantic pass was cancelled at its budget; results are lexical only'
+                    : 'Search: the semantic pass failed; results are lexical only',
+                [
+                    'sqlstate'  => $exception->getSQLState(),
+                    'budget_ms' => $budget,
+                    'exception' => $exception,
+                ],
+            );
+
+            return [
+                $pass(null),
+                SemanticSearch::skipped(
+                    $cancelled ? SemanticSkipReason::SearchTooSlow : SemanticSkipReason::SearchFailed,
+                ),
+            ];
         }
     }
 

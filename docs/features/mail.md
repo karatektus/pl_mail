@@ -314,7 +314,10 @@ judging the results:
 |---|---|
 | *Searching meaning across 4,120 of 48,900 messages — 8% complete* | The index is still being built. Anything it has not reached cannot be found by meaning yet, so the answer will get better on its own. |
 | *The search model changed…* | Every vector stored before the change belongs to a different model and cannot be compared with the new one. Nothing is searched by meaning until the mailbox has been indexed again. |
-| *…so this search used words only* | The pass did not run: the model host did not answer, the model is not on it, it took too long, or the feature is switched on without a host. Your results are the ordinary search, complete and correct. |
+| *The model took too long…* / *the model host did not answer…* / *does not have the search model…* / *no model host is set up…* | The pass never got a vector, and the sentence names which of those it was. All four are about the **model host**; the search itself was never asked to run. |
+| *Searching by meaning took too long here…* | The vector arrived, and the **database** gave up scoring it inside its five-second budget. Nothing is wrong with the model host — this one is about the mailbox being larger or the machine busier than the budget allows. |
+| *Searching by meaning could not be completed…* | The scoring query failed outright rather than running out of time, so it will fail on every search until somebody looks. The reason is in the server log, at error level, with its SQLSTATE. |
+| *…so this search used words only* (any of the above) | Whatever the reason, your results are the ordinary search, complete and correct. Only the extra pass is missing. |
 | *found nothing the words had not already* | It ran, over a finished index, and had nothing to add. |
 
 The difference between the first and the last is the one that matters: "not yet" and "there was

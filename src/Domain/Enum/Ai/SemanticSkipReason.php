@@ -54,6 +54,40 @@ enum SemanticSkipReason: string
     /** The host is there and the model did not answer in time. */
     case TimedOut = 'timed_out';
 
+    /**
+     * The model answered, and the DATABASE gave up on the search that used it.
+     *
+     * NOT THE SAME FAULT AS TimedOut, AND IT USED TO BE REPORTED AS ONE.
+     * MessageThreadRepository::cheapRows() runs the vector arm under a
+     * statement timeout and re-runs without it on expiry; that give-up path
+     * answered TimedOut, so a mailbox whose vector arm was too slow told
+     * everybody searching that "the model took too long". The model had already
+     * answered — in milliseconds, recorded as a success in ai_call_metric — and
+     * the operator sent to look at the model host finds nothing wrong with it,
+     * because there is nothing wrong with it.
+     *
+     * The two failures live in different machines and are fixed by different
+     * people. They get different sentences.
+     */
+    case SearchTooSlow = 'search_too_slow';
+
+    /**
+     * The vector arm did not time out; it errored.
+     *
+     * The catch that produced SearchTooSlow above is on DriverException, which
+     * is every driver fault Postgres can raise and not merely a cancelled
+     * statement: a missing plmail_embed_distance(), `different vector
+     * dimensions` from a row whose stored width disagrees with its column, a
+     * connection dropped mid-statement. All of those arrived as "the model took
+     * too long" — instantly, on every search, with nothing logged anywhere —
+     * which is the most misleading sentence available for a deterministic
+     * failure that has nothing to do with the model.
+     *
+     * The specifics belong in the log and are put there. This is the sentence
+     * that tells somebody the log is worth reading.
+     */
+    case SearchFailed = 'search_failed';
+
     /** Something came back and it was not a vector this can use. */
     case ModelAnsweredBadly = 'bad_answer';
 

@@ -1,4 +1,4 @@
-<!-- translated-from: features/mail.md sha1:2b3becdea14254b65aaa211e8e71ee2b8963bad2 -->
+<!-- translated-from: features/mail.md sha1:75906ba33b88ccd8efd121f0ba99cfa471a42b57 -->
 
 # Mail
 
@@ -347,7 +347,10 @@ sich, bevor du die Ergebnisse beurteilst:
 |---|---|
 | *Bedeutung wird über 4.120 von 48.900 Nachrichten durchsucht — zu 8% fertig* | Der Index wird noch aufgebaut. Was er noch nicht erreicht hat, ist über die Bedeutung noch nicht auffindbar — die Antwort wird also von allein besser. |
 | *Das Such-Modell hat sich geändert …* | Jeder Vektor, der vor der Änderung gespeichert wurde, gehört zu einem anderen Modell und ist mit dem neuen nicht vergleichbar. Bis das Postfach neu indexiert ist, wird nichts nach Bedeutung durchsucht. |
-| *… deshalb wurde nur nach Wörtern gesucht* | Der Durchgang lief nicht: der Modell-Host hat nicht geantwortet, das Modell liegt nicht darauf, es hat zu lange gedauert, oder die Funktion ist ohne Host eingeschaltet. Deine Ergebnisse sind die der normalen Suche, vollständig und richtig. |
+| *Das Modell hat zu lange gebraucht …* / *der Modell-Host hat nicht geantwortet …* / *hat das Such-Modell nicht …* / *kein Modell-Host eingerichtet …* | Der Durchgang hat nie einen Vektor bekommen, und der Satz sagt, woran es lag. Alle vier drehen sich um den **Modell-Host**; die Suche selbst wurde nie danach gefragt. |
+| *Die Suche nach Bedeutung hat hier zu lange gebraucht …* | Der Vektor war da, und die **Datenbank** hat es innerhalb ihrer fünf Sekunden nicht geschafft, ihn zu verrechnen. Am Modell-Host liegt es nicht — hier ist das Postfach größer oder die Maschine beschäftigter, als das Zeitbudget erlaubt. |
+| *Die Suche nach Bedeutung konnte nicht abgeschlossen werden …* | Die Abfrage ist nicht in der Zeit gescheitert, sondern überhaupt — sie wird bei jeder Suche scheitern, bis jemand nachsieht. Der Grund steht im Server-Log, als Fehler, mit seinem SQLSTATE. |
+| *… deshalb wurde nur nach Wörtern gesucht* (bei allen oben) | Woran es auch lag: deine Ergebnisse sind die der normalen Suche, vollständig und richtig. Es fehlt nur der zusätzliche Durchgang. |
 | *hat nichts gefunden, was die Wörter nicht schon hatten* | Er lief, über einen fertigen Index, und hatte nichts hinzuzufügen. |
 
 Der Unterschied zwischen der ersten und der letzten Zeile ist der, auf den es ankommt: „noch nicht“

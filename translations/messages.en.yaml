@@ -2173,6 +2173,8 @@ search:
             model_missing: 'The model host does not have the search model, so this search used words only.'
             not_configured: 'Search by meaning is switched on, but no model host is set up, so this search used words only.'
             query_too_short: 'Type a little more to search by meaning as well.'
+            search_failed: 'Searching by meaning could not be completed, so this search used words only. An administrator can find out why in the server log.'
+            search_too_slow: 'Searching by meaning took too long here, so this search used words only.'
             timed_out: 'The model took too long, so this search used words only.'
     sort:
         label: Sort by

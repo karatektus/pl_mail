@@ -681,12 +681,60 @@ final class MessageSearchTest extends KernelTestCase
         // exist to prevent. The timeout added to protect the page must not
         // reintroduce it.
         self::assertNotNull($page->semantic, 'the page has to carry the search that actually ran');
+
+        // SearchTooSlow, NOT TimedOut, and the difference is the whole point of
+        // there being two. TimedOut prints "the model took too long" — and the
+        // model was never asked anything here: SemanticQuery embedded in the
+        // controller long before this method was entered, and on a real
+        // installation that call is sitting in ai_call_metric marked a success.
+        // Reporting this as a model fault sends an operator to a host where
+        // there is nothing to find.
         self::assertSame(
-            SemanticSkipReason::TimedOut,
+            SemanticSkipReason::SearchTooSlow,
             $page->semantic->skipped,
-            'an expired vector is reported as expired, not as absent',
+            'a statement killed at its budget is the database giving up, not the model',
         );
         self::assertNull($page->semantic->literal, 'and it is not still offering the vector it gave up');
+    }
+
+    /**
+     * A vector pass that FAILS is not a vector pass that ran out of time.
+     *
+     * The give-up path catches DriverException, which is every driver fault
+     * Postgres can raise — and it answered "the model took too long" for all of
+     * them, logging nothing. That is the wrong sentence twice over: it names
+     * the wrong machine, and it describes as an occasional overrun a class of
+     * fault that is DETERMINISTIC. A plmail_embed_distance() that is not
+     * installed degrades every search, instantly, for as long as it is missing,
+     * while the page insists something was slow.
+     *
+     * Dropped rather than made slow, so this cannot pass by accident on a busy
+     * machine: 42883 is not 57014 under any load. The DROP is inside the test's
+     * transaction and leaves with it.
+     */
+    public function testAFailedSemanticPassIsNotReportedAsATimeout(): void
+    {
+        $this->seedMessage('Quarterly figures', body: 'The pelican audit is attached.');
+        $this->store()->store($this->messageId('Quarterly figures'), [1.0, 0.0, 0.0], 'test-model');
+
+        $this->connection->executeStatement('DROP FUNCTION plmail_embed_distance(real[], real[])');
+
+        $page = $this->repository->searchPage(
+            $this->user,
+            $this->parser->parse('pelican'),
+            semantic: $this->semantic([1.0, 0.0, 0.0]),
+        );
+
+        // Still a search. The scoring being broken costs the scoring.
+        self::assertCount(1, $page->threads, 'the keyword pass answers when the vector arm is broken');
+        self::assertSame('Quarterly figures', $page->threads[0]->subject);
+
+        self::assertNotNull($page->semantic);
+        self::assertSame(
+            SemanticSkipReason::SearchFailed,
+            $page->semantic->skipped,
+            'a broken scoring query must not be dressed up as a slow model',
+        );
     }
 
     /**

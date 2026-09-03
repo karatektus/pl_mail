@@ -2159,6 +2159,8 @@ search:
             model_missing: 'Der Modell-Host hat das Such-Modell nicht — deshalb wurde nur nach Wörtern gesucht.'
             not_configured: 'Die Suche nach Bedeutung ist an, aber es ist kein Modell-Host eingerichtet — deshalb wurde nur nach Wörtern gesucht.'
             query_too_short: 'Schreib etwas mehr, dann wird auch nach Bedeutung gesucht.'
+            search_failed: 'Die Suche nach Bedeutung konnte nicht abgeschlossen werden — deshalb wurde nur nach Wörtern gesucht. Warum, steht im Server-Log.'
+            search_too_slow: 'Die Suche nach Bedeutung hat hier zu lange gebraucht — deshalb wurde nur nach Wörtern gesucht.'
             timed_out: 'Das Modell hat zu lange gebraucht — deshalb wurde nur nach Wörtern gesucht.'
     sort:
         label: Sortieren nach
