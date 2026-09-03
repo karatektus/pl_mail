@@ -308,7 +308,7 @@ final class EmbeddingCatchUpTest extends KernelTestCase
     /** A search that got a vector back, which is the only kind that triggers. */
     private function searchThatRan(): SemanticSearch
     {
-        return SemanticSearch::ran('{0.6,0.8}', 'qwen3-embedding:0.6b', 2);
+        return SemanticSearch::ran('{0.6,0.8}', 'qwen3-embedding:0.6b', 2, 0.55);
     }
 
     /** @return list<int> the ids actually posted, in the order they were posted */

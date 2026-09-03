@@ -36,18 +36,35 @@ final readonly class SemanticSearch
         public ?string             $literal,
         public ?string             $model,
         public ?int                $dimensions,
+        /**
+         * How close a match has to be, on the scale the model above answers on.
+         *
+         * TRAVELS WITH THE VECTOR FOR THE SAME REASON THE MODEL DOES. It used
+         * to be a constant in MessageThreadRepository — one number for every
+         * installation — and cosine similarity is not comparable between
+         * models. qwen3-embedding:0.6b wants 0.42 with its instruction and 0.20
+         * without; all-minilm wants 0.20 where nomic-embed-text wants 0.45. A
+         * threshold that does not know which model produced the vector it is
+         * filtering is a threshold that is wrong on most installations, and
+         * silently: too tight finds nothing, too loose finds everything, and
+         * both look like the feature simply not being very good.
+         *
+         * Null exactly when there is no vector, so the repository never has to
+         * ask whether a skipped pass has a threshold.
+         */
+        public ?float              $minSimilarity,
         public ?SemanticSkipReason $skipped,
     ) {
     }
 
-    public static function ran(string $literal, string $model, int $dimensions): self
+    public static function ran(string $literal, string $model, int $dimensions, float $minSimilarity): self
     {
-        return new self($literal, $model, $dimensions, null);
+        return new self($literal, $model, $dimensions, $minSimilarity, null);
     }
 
     public static function skipped(SemanticSkipReason $reason): self
     {
-        return new self(null, null, null, $reason);
+        return new self(null, null, null, null, $reason);
     }
 
     /**

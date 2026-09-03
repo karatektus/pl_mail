@@ -111,7 +111,34 @@ final readonly class SemanticQuery
             return SemanticSearch::skipped(SemanticSkipReason::QueryTooShort);
         }
 
-        $result = $this->ai->embedResult(AiCallFeature::SearchQuery, $text);
+        // THE INSTRUCTION GOES ON, AND ONLY HERE.
+        //
+        // Embedding models are asymmetric — trained to be told which side of a
+        // search they are looking at — and an unlabelled query is treated as
+        // one more document. A mailbox is mostly boilerplate, so an unlabelled
+        // query lands nearest the most boilerplate thing in it: measured on
+        // qwen3-embedding:0.6b, "mails about food" ranked five newsletters and
+        // login links above every mail that was actually about food, and
+        // "essen" ranked all seven of them above all five. With the model's own
+        // instruction, none. Precision went from 0.42 to 1.00.
+        //
+        // NOT APPLIED TO STORED DOCUMENTS, which is what makes it free to
+        // change: MessageEmbedder embeds a message as itself, so nothing in the
+        // mailbox has to be re-indexed when this setting moves, and there is no
+        // window in which half the vectors were made under one rule. Qwen wants
+        // exactly this arrangement. A model that also wants its documents
+        // labelled is a different piece of work and EmbeddingPreset says so
+        // rather than half-doing it.
+        //
+        // The LENGTH CHECK ABOVE COUNTS THE PERSON'S WORDS, not this. "Type a
+        // little more" has to be about what they typed; measuring the sentence
+        // plMail adds would make MIN_LENGTH meaningless the moment an
+        // instruction is configured, and every three-letter query would sail
+        // past a guard that exists to stop it.
+        $result = $this->ai->embedResult(
+            AiCallFeature::SearchQuery,
+            $settings->searchQueryInstruction . $text,
+        );
 
         if (null === $result->vector) {
             return SemanticSearch::skipped(self::fromErrorKind($result->errorKind));
@@ -131,7 +158,12 @@ final readonly class SemanticQuery
         // model name is the one the call was actually made with. Both are bound
         // into the SQL so that the search only ever compares this vector with
         // vectors from the same model at the same width — see SemanticSearch.
-        return SemanticSearch::ran($literal, (string) $settings->embeddingModel, count($result->vector));
+        return SemanticSearch::ran(
+            $literal,
+            (string) $settings->embeddingModel,
+            count($result->vector),
+            $settings->semanticMinSimilarity,
+        );
     }
 
     /**

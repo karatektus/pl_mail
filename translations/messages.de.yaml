@@ -89,6 +89,11 @@ admin:
             hours: '%count% Std.'
             minutes: '%count% Min.'
             seconds: '%count% s'
+        embedding_preset:
+            heading: 'Gemessene Voreinstellungen — ein Klick setzt Modell, Anweisung und Schwelle gemeinsam:'
+            all-minilm: 'Klein und schnell: 45 MB und 384 Dimensionen, für Maschinen mit wenig Speicher. Vor allem Englisch — auf deutscher Mail also das schwächste hier. Braucht keine Anweisung.'
+            nomic-embed-text: 'Was plMail früher empfohlen hat, für Installationen, die schon darauf laufen. Ehrlich gesagt nur halb unterstützt: es will auch seine Dokumente beschriftet haben, nicht nur die Anfragen, und das macht plMail nicht — gemessen bringt die Anweisung allein nichts.'
+            qwen3-embedding_0_6b: 'Die Voreinstellung, und ohne besonderen Grund die richtige Wahl. Mehrsprachig, was für ein Postfach, das nicht nur eine Sprache spricht, mehr zählt als jeder Benchmark — und das einzige hier, das im Test perfekte Präzision erreicht hat. 639 MB.'
         field:
             base_url: 'Modell-Host'
             base_url_help: 'Die Adresse eines Ollama-Containers in deinem Netz, mit Port.'
@@ -103,6 +108,10 @@ admin:
             embedding_keep_alive_help: 'Gleiches Format wie oben. Dieses Modell ist klein und wird ständig gebraucht, deshalb kostet -1 — dauerhaft geladen — meist kaum etwas und spart bei jeder Suche eine Wartezeit; wenn der Host den Speicher übrig hat, lohnt es sich. Leer lassen, um das zu nehmen, was am Host selbst eingestellt ist.'
             embedding_model: 'Such-Modell'
             embedding_model_help: 'Wandelt Mail in Vektoren um, damit die Suche Bedeutung statt Wörter findet.'
+            search_query_instruction: 'Anweisung für die Suchanfrage'
+            search_query_instruction_help: 'Wird vor den Suchtext gesetzt, bevor er in einen Vektor umgewandelt wird. Die meisten Modelle brauchen eine und antworten ohne sie schlecht; für Modelle ohne lässt du das Feld leer. Betrifft nur Suchanfragen — du musst deine Mail dafür nie neu indexieren.'
+            semantic_min_similarity: 'Mindest-Ähnlichkeit'
+            semantic_min_similarity_help: 'Wie nah ein Treffer sein muss, von 0 bis 1. Jedes Modell hat seine eigene Skala, deshalb gehört der Wert zum Modell darüber: zu hoch findet nichts, zu niedrig liefert das ganze Postfach.'
             enabled: 'Sprachmodell verwenden'
             enabled_help: 'Standardmäßig aus. Solange das aus ist, wird alles darunter ignoriert.'
             search: 'Nach Bedeutung suchen'

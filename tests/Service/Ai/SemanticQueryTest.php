@@ -234,19 +234,30 @@ final class SemanticQueryTest extends KernelTestCase
         int &$calls = 0,
         ?string $baseUrl = 'http://10.0.0.5:11434',
         int $status = 200,
+        ?string $instruction = null,
+        float $minSimilarity = AiSettings::DEFAULT_MIN_SIMILARITY,
+        ?string &$sentInput = null,
     ): SemanticQuery {
 
         $settings = new AiSettings();
-        $settings->isEnabled      = $enabled;
-        $settings->baseUrl        = $baseUrl;
-        $settings->embeddingModel = 'nomic-embed-text';
-        $settings->searchEnabled  = $enabled;
+        $settings->isEnabled              = $enabled;
+        $settings->baseUrl                = $baseUrl;
+        $settings->embeddingModel         = 'nomic-embed-text';
+        $settings->searchEnabled          = $enabled;
+        $settings->searchQueryInstruction = $instruction;
+        $settings->semanticMinSimilarity  = $minSimilarity;
 
         $this->em->persist($settings);
         $this->em->flush();
 
-        $http = new MockHttpClient(function () use (&$calls, $vector, $throws, $status): MockResponse {
+        $http = new MockHttpClient(function (string $method, string $url, array $options) use (&$calls, &$sentInput, $vector, $throws, $status): MockResponse {
             ++$calls;
+
+            // The body as it actually goes on the wire, which is the only place
+            // the instruction can be checked: everything above it is plMail's
+            // own strings, and the question is what the MODEL was asked.
+            $body      = json_decode((string) ($options['body'] ?? '{}'), true);
+            $sentInput = is_array($body) ? ($body['input'] ?? null) : null;
 
             if (true === $throws) {
                 throw new TransportException('Connection refused');
@@ -266,6 +277,90 @@ final class SemanticQueryTest extends KernelTestCase
         );
 
         return new SemanticQuery($ai, new AiPermissions($ai), new NullLogger());
+    }
+
+    /**
+     * The instruction reaches the model, in front of what somebody typed.
+     *
+     * THIS IS THE WHOLE OF SEARCH QUALITY, in one string. Embedding models are
+     * asymmetric — trained to be told which side of a search they are looking
+     * at — and an unlabelled query is treated as one more document. A mailbox
+     * is mostly boilerplate, so an unlabelled query lands nearest the most
+     * boilerplate thing in it. Measured on qwen3-embedding:0.6b over twelve
+     * messages: "mails about food" put five newsletters and login links above
+     * every mail that was about food, and "essen" put all seven of them above
+     * all five. With the instruction, none, and precision went 0.42 to 1.00.
+     *
+     * Asserted on the request body rather than on a score, because a score is
+     * the model's opinion and this is plMail's contract: the configured string,
+     * then the query, concatenated, once.
+     */
+    public function testTheQueryInstructionIsSentInFrontOfTheQuery(): void
+    {
+        $sent = null;
+        $query = $this->query(
+            instruction: "Instruct: Given a search query, retrieve email messages\nQuery: ",
+            sentInput: $sent,
+        );
+
+        $query->forQuery($this->searcher(), 'mails about food');
+
+        self::assertSame(
+            "Instruct: Given a search query, retrieve email messages\nQuery: mails about food",
+            $sent,
+            'the instruction goes in front of the query, and the newline survives',
+        );
+    }
+
+    /**
+     * And an installation that has not set one sends exactly what was typed.
+     *
+     * Null has to stay a working configuration rather than a half-finished one:
+     * some models were not trained to be instructed, and prefixing those adds
+     * tokens that mean nothing to them and move every score by an amount nobody
+     * has measured. It is also every installation that upgrades into this.
+     */
+    public function testWithoutAnInstructionTheQueryIsSentUnchanged(): void
+    {
+        $sent = null;
+        $query = $this->query(instruction: null, sentInput: $sent);
+
+        $query->forQuery($this->searcher(), 'mails about food');
+
+        self::assertSame('mails about food', $sent);
+    }
+
+    /**
+     * The threshold travels with the vector.
+     *
+     * It was a constant in MessageThreadRepository, one number for every
+     * installation, and cosine similarity is not comparable between models —
+     * measured, qwen3-embedding:0.6b wants 0.42 with its instruction and 0.20
+     * without, all-minilm wants 0.20, nomic-embed-text 0.45. A search that
+     * carried the vector but not the scale it lives on would filter it with
+     * somebody else's number.
+     */
+    public function testTheConfiguredThresholdTravelsWithTheVector(): void
+    {
+        $search = $this->query(minSimilarity: 0.31)->forQuery($this->searcher(), 'mails about food');
+
+        self::assertTrue($search->hasVector());
+        self::assertSame(0.31, $search->minSimilarity);
+    }
+
+    /**
+     * A skipped pass has no threshold, because it has nothing to filter.
+     *
+     * Pinned so the repository never has to ask whether a reason-carrying
+     * result also carries a number: null vector and null threshold are the same
+     * state, and they cannot come apart.
+     */
+    public function testASkippedPassCarriesNoThreshold(): void
+    {
+        $search = $this->query(enabled: false)->forQuery($this->searcher(), 'mails about food');
+
+        self::assertFalse($search->hasVector());
+        self::assertNull($search->minSimilarity);
     }
 
     /**

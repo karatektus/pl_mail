@@ -542,6 +542,45 @@ final class MessageSearchTest extends KernelTestCase
         self::assertCount(0, $page->threads);
     }
 
+    /**
+     * And the threshold is the SEARCH's, not a number baked into this file.
+     *
+     * The same vector pair, twice, with only the threshold moved. It used to be
+     * `SEMANTIC_MAX_DISTANCE = 0.45` — one constant for every installation —
+     * and cosine similarity is not comparable between models: measured,
+     * qwen3-embedding:0.6b wants a minimum similarity of 0.42 with its
+     * instruction and 0.20 without, all-minilm wants 0.20, nomic-embed-text
+     * 0.45. A number that cannot move is wrong on most installations, and
+     * silently: too tight finds nothing, too loose returns the mailbox, and
+     * both read as the feature simply not being very good.
+     *
+     * 0.6 similarity between these two vectors, so one threshold sits either
+     * side of it and neither is near enough to the boundary for floating point
+     * to have an opinion.
+     */
+    public function testTheThresholdComesFromTheSearchAndNotAConstant(): void
+    {
+        $this->seedMessage('Notes from the standup', body: 'Who is doing what this week.');
+        $this->store()->store($this->messageId('Notes from the standup'), [1.0, 0.0, 0.0], 'test-model');
+
+        $query = $this->parser->parse('meeting minutes');
+
+        // cos = 0.6 exactly: a 3-4-0 unit vector against 1-0-0.
+        $vector = [3.0, 4.0, 0.0];
+
+        self::assertCount(
+            1,
+            $this->repository->searchPage($this->user, $query, semantic: $this->semantic($vector, minSimilarity: 0.5))->threads,
+            'a threshold below the similarity has to admit the row',
+        );
+
+        self::assertCount(
+            0,
+            $this->repository->searchPage($this->user, $query, semantic: $this->semantic($vector, minSimilarity: 0.7))->threads,
+            'and one above it has to exclude the same row, from the same statement',
+        );
+    }
+
     /** A message with no embedding still matches lexically, and ranks. */
     public function testAMessageWithoutAnEmbeddingIsStillFoundByWords(): void
     {
@@ -632,6 +671,7 @@ final class MessageSearchTest extends KernelTestCase
                 (string) EmbeddingStore::unitLiteral([1.0, 0.0, 0.0, 0.0]),
                 'test-model',
                 4,
+                0.55,
             ),
         );
 
@@ -908,12 +948,13 @@ final class MessageSearchTest extends KernelTestCase
     /**
      * @param list<float> $vector
      */
-    private function semantic(array $vector, string $model = 'test-model'): SemanticSearch
+    private function semantic(array $vector, string $model = 'test-model', float $minSimilarity = 0.55): SemanticSearch
     {
         return SemanticSearch::ran(
             (string) EmbeddingStore::unitLiteral($vector),
             $model,
             count($vector),
+            $minSimilarity,
         );
     }
 

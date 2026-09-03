@@ -291,8 +291,32 @@ behind something that asks for one; Ollama itself has no authentication.
 
 Two models, because the jobs are different. The **writing model** should be instruction-tuned and is
 used for drafting and sorting; the **search model** is an embedding model and is usually much
-smaller. `llama3.1:8b` and `nomic-embed-text` are reasonable starting points. Both have to be pulled
-on the host first — plMail never downloads a model.
+smaller. `llama3.1:8b` and `qwen3-embedding:0.6b` are reasonable starting points. Both have to be
+pulled on the host first — plMail never downloads a model.
+
+### The search model comes with two settings, and they are not optional
+
+Underneath the search model are a **query instruction** and a **minimum similarity**, and the three
+fields are really one decision. Any two of them from different models produce a search that is
+confidently wrong rather than obviously broken, which is the worst way for this to fail: the results
+look ordered and complete and simply are not about what you asked for.
+
+- The **query instruction** goes in front of your search text before it becomes a vector. Most
+  embedding models are trained to be told which side of a search they are looking at, and a query
+  that arrives unlabelled is treated as one more document — so it lands nearest whatever is most
+  boilerplate, which in a mailbox means login links and newsletters. It only ever affects searches,
+  so changing it never means indexing your mail again.
+- The **minimum similarity** is how close a match has to be, from 0 to 1. Every model answers on its
+  own scale and there is no number that is right twice. Too high finds nothing; too low returns the
+  whole mailbox in a meaningless order.
+
+The row of **presets** above them fills all three at once from models this release has actually been
+measured against, each with a line on what it is good and bad at. The model field stays free text —
+run whatever you like — but if you type a name that is not one of the presets, the instruction and
+the threshold are yours to set, and neither has a sensible guess plMail could make for you.
+
+`qwen3-embedding:0.6b` is the default because it is multilingual, which matters more than any
+benchmark score for a mailbox that is not all in one language.
 
 **Test** asks that host what it is holding, without saving anything. Use it before you save: it will
 tell you the difference between "nothing answered at that address" and "that host answered but is

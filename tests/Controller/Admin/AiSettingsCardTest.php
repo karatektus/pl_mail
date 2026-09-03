@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Controller\Admin;
 
+use App\Domain\Ai\EmbeddingPreset;
 use App\Entity\User\User;
 use App\Repository\Ai\AiSettingsRepository;
 use App\Repository\User\UserRepository;
@@ -80,6 +81,66 @@ final class AiSettingsCardTest extends WebTestCase
             $this->settingsCardIsOpen(),
             'nothing is configured, so there is still something to do in this card',
         );
+    }
+
+    /**
+     * The presets are on the page, carrying all three values.
+     *
+     * Rendered rather than reasoned about: the buttons hand their values to a
+     * Stimulus controller through data attributes, so a rename on either side
+     * is a button that silently does nothing when pressed. There is no error,
+     * no console message and no failing request — the administrator simply
+     * finds that clicking a preset fills nothing in.
+     */
+    public function testThePresetsOfferModelInstructionAndThresholdTogether(): void
+    {
+        $crawler = $this->client->request('GET', '/admin/ai');
+
+        self::assertResponseIsSuccessful();
+
+        $buttons = $crawler->filter('[data-action="admin--embedding-preset#apply"]');
+
+        self::assertCount(count(EmbeddingPreset::cases()), $buttons, 'every preset is offered');
+
+        $default = $buttons->reduce(
+            static fn ($node): bool => EmbeddingPreset::Qwen3Embedding06b->value === $node->attr('data-model'),
+        );
+
+        self::assertCount(1, $default, 'the default preset is one of them');
+        self::assertSame(
+            EmbeddingPreset::Qwen3Embedding06b->queryInstruction(),
+            $default->attr('data-instruction'),
+            'the instruction travels with the model, newline and all',
+        );
+        self::assertSame(
+            (string) EmbeddingPreset::Qwen3Embedding06b->minSimilarity(),
+            $default->attr('data-similarity'),
+        );
+    }
+
+    /**
+     * And the two new fields are really bound to the entity.
+     *
+     * A form field that does not map writes nothing and reports success, which
+     * on this page means an administrator choosing a preset, pressing Save,
+     * seeing no error, and getting exactly the search they had before.
+     */
+    public function testTheInstructionAndThresholdAreSaved(): void
+    {
+        $crawler = $this->client->request('GET', '/admin/ai');
+        $form    = $crawler->filter('form[name="ai_settings"]')->form();
+
+        $form['ai_settings[embeddingModel]']         = EmbeddingPreset::Qwen3Embedding06b->value;
+        $form['ai_settings[searchQueryInstruction]'] = "Instruct: find mail\nQuery: ";
+        $form['ai_settings[semanticMinSimilarity]']  = '0.42';
+
+        $this->client->submit($form);
+
+        $this->em->clear();
+        $stored = $this->settings->currentOrDefault();
+
+        self::assertSame("Instruct: find mail\nQuery: ", $stored->searchQueryInstruction);
+        self::assertSame(0.42, $stored->semanticMinSimilarity);
     }
 
     /** A host and both models on file: folded away, with the chip still speaking. */

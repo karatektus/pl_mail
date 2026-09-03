@@ -1,4 +1,4 @@
-<!-- translated-from: features/admin.md sha1:faeaf526e9b3731a114abd4448183ca3b4348abd -->
+<!-- translated-from: features/admin.md sha1:ec531d531e541c2fb65c1c072a91ecaddf96f561 -->
 
 # Administration
 
@@ -328,8 +328,34 @@ gestellt hast, das danach fragt; Ollama selbst hat keine Authentifizierung.
 
 Zwei Modelle, weil die Aufgaben verschieden sind. Das **Schreib-Modell** sollte instruction-tuned
 sein und wird zum Entwerfen und Einsortieren benutzt; das **Such-Modell** ist ein Embedding-Modell
-und meist deutlich kleiner. `llama3.1:8b` und `nomic-embed-text` sind brauchbare Startpunkte. Beide
-musst du vorher auf dem Host ziehen — plMail lädt nie ein Modell herunter.
+und meist deutlich kleiner. `llama3.1:8b` und `qwen3-embedding:0.6b` sind brauchbare Startpunkte.
+Beide musst du vorher auf dem Host ziehen — plMail lädt nie ein Modell herunter.
+
+### Zum Such-Modell gehören zwei Einstellungen, und die sind nicht optional
+
+Unter dem Such-Modell stehen eine **Anweisung für die Suchanfrage** und eine **Mindest-Ähnlichkeit**,
+und die drei Felder sind in Wahrheit eine einzige Entscheidung. Zwei davon von verschiedenen Modellen
+ergeben eine Suche, die selbstbewusst falsch ist statt sichtbar kaputt — und das ist die
+unangenehmste Art zu scheitern: Die Ergebnisse sehen sortiert und vollständig aus und haben mit
+deiner Frage nichts zu tun.
+
+- Die **Anweisung** wird vor deinen Suchtext gesetzt, bevor daraus ein Vektor wird. Die meisten
+  Embedding-Modelle sind darauf trainiert, gesagt zu bekommen, welche Seite einer Suche sie gerade
+  vor sich haben — eine Anfrage ohne diese Kennzeichnung behandeln sie wie ein weiteres Dokument und
+  landen damit bei dem, was am meisten nach Standardtext aussieht: Login-Links und Newsletter. Es
+  betrifft ausschließlich Suchanfragen, du musst deine Mail dafür also nie neu indexieren.
+- Die **Mindest-Ähnlichkeit** sagt, wie nah ein Treffer sein muss, von 0 bis 1. Jedes Modell hat
+  seine eigene Skala, und es gibt keine Zahl, die zweimal richtig ist. Zu hoch findet nichts, zu
+  niedrig liefert das ganze Postfach in beliebiger Reihenfolge.
+
+Die **Voreinstellungen** darüber füllen alle drei Felder auf einmal — mit Modellen, gegen die dieses
+Release tatsächlich gemessen wurde, jeweils mit einer Zeile dazu, was sie gut und was sie schlecht
+können. Das Modellfeld bleibt freier Text, du kannst also betreiben, was du willst; wenn du aber
+einen Namen einträgst, der nicht dabei ist, gehören Anweisung und Schwelle dir — für beide gibt es
+keine sinnvolle Vermutung, die plMail für dich anstellen könnte.
+
+`qwen3-embedding:0.6b` ist die Voreinstellung, weil es mehrsprachig ist. Für ein Postfach, das nicht
+nur eine Sprache spricht, zählt das mehr als jeder Benchmark-Wert.
 
 **Testen** fragt den Host, was er bereithält, ohne etwas zu speichern. Nutz das, bevor du speicherst:
 Es sagt dir den Unterschied zwischen „unter der Adresse hat nichts geantwortet“ und „der Host hat

@@ -89,6 +89,11 @@ admin:
             hours: '%count% h'
             minutes: '%count% min'
             seconds: '%count% s'
+        embedding_preset:
+            heading: 'Measured presets — one click sets the model, its instruction and its threshold together:'
+            all-minilm: 'Small and fast: 45 MB and 384 dimensions, for a machine that cannot spare the memory. English-first, so expect it to be the weakest of these on German mail. Needs no instruction.'
+            nomic-embed-text: 'What plMail recommended before, kept for installations already on it. Half-supported honestly: it wants its documents labelled as well as its queries, which plMail does not do, and measured the query instruction alone changes nothing.'
+            qwen3-embedding_0_6b: 'The default, and the one to pick unless you have a reason. Multilingual, which matters more than any benchmark for a mailbox that is not all in one language, and the only one here that reached perfect precision in testing. 639 MB.'
         field:
             base_url: 'Model host'
             base_url_help: 'The address of an Ollama container on your network, including the port.'
@@ -103,6 +108,10 @@ admin:
             embedding_keep_alive_help: 'Same format as above. This model is small and asked for constantly, so -1 — loaded for good — usually costs little and saves a wait on every search; it is worth setting if the host has the memory to spare. Leave empty to use whatever the host itself is set to.'
             embedding_model: 'Search model'
             embedding_model_help: 'Turns mail into vectors so search can find meaning rather than words.'
+            search_query_instruction: 'Query instruction'
+            search_query_instruction_help: 'Put in front of the search text before it is embedded. Most models need one and answer badly without it; leave it empty for models that do not. Only searches are affected, so changing it never means indexing your mail again.'
+            semantic_min_similarity: 'Minimum similarity'
+            semantic_min_similarity_help: 'How close a match has to be, from 0 to 1. Every model answers on its own scale, so this belongs with the model above: too high finds nothing, too low returns the whole mailbox.'
             enabled: 'Use a language model'
             enabled_help: 'Off by default. Everything below is ignored while this is off.'
             search: 'Search by meaning'

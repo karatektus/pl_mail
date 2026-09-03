@@ -218,7 +218,46 @@ poll would empty a field mid-word.
                                class="text-[12px] leading-snug"></p>
                         </div>
 
-                        {{ form_row(form.embeddingModel) }}
+                        {# The model, its query instruction and its threshold
+                           are one decision written in three boxes: any two of
+                           them from different models produce a search that is
+                           confidently wrong rather than obviously broken. So
+                           they sit together, under a row of presets that fills
+                           all three at once. See EmbeddingPreset for the
+                           measurements behind each. #}
+                        <div data-controller="admin--embedding-preset"
+                             class="flex flex-col gap-3">
+                            {{ form_row(form.embeddingModel) }}
+
+                            {# Autocomplete on the free-text field. A closed
+                               dropdown would refuse a model that works; this
+                               only offers. #}
+                            <datalist id="embedding-model-presets">
+                                {% for preset in embedding_presets() %}
+                                    <option value="{{ preset.model }}"></option>
+                                {% endfor %}
+                            </datalist>
+
+                            <div class="flex flex-col gap-1.5">
+                                <p class="text-[12px] text-muted">{{ 'admin.ai.embedding_preset.heading'|trans }}</p>
+
+                                {% for preset in embedding_presets() %}
+                                    <button type="button"
+                                            data-action="admin--embedding-preset#apply"
+                                            data-model="{{ preset.model }}"
+                                            data-instruction="{{ preset.instruction }}"
+                                            data-similarity="{{ preset.similarity }}"
+                                            class="text-left rounded-lg border border-subtle px-3 py-2 hover:bg-surface-hover transition-colors cursor-pointer">
+                                        <span class="block text-sm font-medium">{{ preset.model }}</span>
+                                        <span class="block text-[12px] leading-snug text-muted">{{ preset.summary|trans }}</span>
+                                    </button>
+                                {% endfor %}
+                            </div>
+
+                            {{ form_row(form.searchQueryInstruction) }}
+                            {{ form_row(form.semanticMinSimilarity) }}
+                        </div>
+
                         {{ form_row(form.embeddingKeepAlive) }}
 
                         {{ form_row(form.searchEnabled) }}

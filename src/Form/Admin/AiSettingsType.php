@@ -4,15 +4,19 @@ declare(strict_types=1);
 
 namespace App\Form\Admin;
 
+use App\Domain\Ai\EmbeddingPreset;
 use App\Domain\Ai\KeepAlive;
 use App\Entity\Ai\AiSettings;
 use App\Form\PasswordManagerIgnore;
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\Extension\Core\Type\CheckboxType;
+use Symfony\Component\Form\Extension\Core\Type\NumberType;
 use Symfony\Component\Form\Extension\Core\Type\PasswordType;
+use Symfony\Component\Form\Extension\Core\Type\TextareaType;
 use Symfony\Component\Form\Extension\Core\Type\TextType;
 use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\OptionsResolver\OptionsResolver;
+use Symfony\Component\Validator\Constraints\Range;
 use Symfony\Component\Validator\Constraints\Regex;
 
 /**
@@ -87,11 +91,64 @@ final class AiSettingsType extends AbstractType
                 'admin.ai.field.chat_keep_alive_help',
                 KeepAlive::DEFAULT_CHAT,
             ))
+            // STILL FREE TEXT, with a datalist over it. Anybody may run
+            // anything, and a closed dropdown would go stale between releases
+            // and refuse a model that works. The list is a shortcut, not a
+            // gate — see the preset buttons in the template, which are where
+            // the up- and downsides are actually written down.
             ->add('embeddingModel', TextType::class, [
                 'label'    => 'admin.ai.field.embedding_model',
                 'help'     => 'admin.ai.field.embedding_model_help',
                 'required' => false,
-                'attr'     => ['placeholder' => 'nomic-embed-text', 'autocomplete' => 'off'],
+                'attr'     => [
+                    'placeholder'                        => EmbeddingPreset::Qwen3Embedding06b->value,
+                    'autocomplete'                       => 'off',
+                    'list'                               => 'embedding-model-presets',
+                    'data-admin--embedding-preset-target' => 'model',
+                ],
+            ])
+            // A TEXTAREA AND NOT AN INPUT, for one unglamorous reason: Qwen's
+            // instruction contains a newline, and the model was trained on it.
+            // A single-line input cannot hold one, so the field that exists to
+            // carry the string would quietly drop the part that makes it work.
+            ->add('searchQueryInstruction', TextareaType::class, [
+                'label'    => 'admin.ai.field.search_query_instruction',
+                'help'     => 'admin.ai.field.search_query_instruction_help',
+                'required' => false,
+                // TRIM OFF, AND IT IS LOAD-BEARING. Symfony trims text fields
+                // by default, and every instruction that works ends in a
+                // separator: Qwen's is "…\nQuery: " and nomic's is
+                // "search_query: ". Trimmed, the query is glued onto the colon
+                // — "Query:mails about food" — which tokenises differently from
+                // what the model was trained on, and nothing anywhere reports
+                // it. A caught test failure rather than a guess: this field
+                // silently dropped that space the first time it was saved.
+                'trim'     => false,
+                'attr'     => [
+                    'rows'                                => 2,
+                    'autocomplete'                        => 'off',
+                    'data-admin--embedding-preset-target' => 'instruction',
+                ],
+            ])
+            ->add('semanticMinSimilarity', NumberType::class, [
+                'label'       => 'admin.ai.field.semantic_min_similarity',
+                'help'        => 'admin.ai.field.semantic_min_similarity_help',
+                'required'    => true,
+                'scale'       => 2,
+                'html5'       => true,
+                // Range and not Positive: the failure this guards is a number
+                // outside the scale entirely. Above 1 nothing can ever match
+                // and the feature goes silently dead; at or below 0 everything
+                // matches and the results are the whole mailbox in an arbitrary
+                // order. Both look like a broken search rather than a bad
+                // setting, so neither is allowed to be saved.
+                'constraints' => [new Range(min: 0.01, max: 1.0)],
+                'attr'        => [
+                    'step'                                => '0.01',
+                    'min'                                 => '0.01',
+                    'max'                                 => '1',
+                    'data-admin--embedding-preset-target' => 'similarity',
+                ],
             ])
             ->add('embeddingKeepAlive', TextType::class, self::keepAlive(
                 'admin.ai.field.embedding_keep_alive',

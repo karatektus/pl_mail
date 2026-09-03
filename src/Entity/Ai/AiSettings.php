@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Entity\Ai;
 
+use App\Domain\Ai\EmbeddingPreset;
 use App\Domain\Ai\KeepAlive;
 use App\Domain\Trait\TimestampableTrait;
 use App\Entity\Embeddable\AiPrompts;
@@ -56,6 +57,16 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\HasLifecycleCallbacks]
 class AiSettings
 {
+    /**
+     * The threshold a fresh installation starts on.
+     *
+     * The measured value for the default preset, not a round number chosen to
+     * look neutral: an installation that takes the shipped model should also
+     * take the threshold that model was measured to want, or the default pair
+     * is half a default. See {@see EmbeddingPreset::Qwen3Embedding06b}.
+     */
+    public const float DEFAULT_MIN_SIMILARITY = 0.42;
+
     use TimestampableTrait;
 
     #[ORM\Id]
@@ -119,6 +130,54 @@ class AiSettings
     /** The model that turns text into vectors. Usually a much smaller one. */
     #[ORM\Column(name: 'embedding_model', length: 128, nullable: true)]
     public ?string $embeddingModel = null;
+
+    /**
+     * What is put in front of the search text before it is embedded.
+     *
+     * NOT COSMETIC, AND NOT A PROMPT. Modern embedding models are asymmetric:
+     * they are trained to be told which side of a search they are looking at,
+     * and a query that arrives unlabelled is treated as one more document.
+     * Documents in a mailbox are mostly boilerplate, so an unlabelled query
+     * lands nearest the most boilerplate thing there is — which is how
+     * "mails about food" came back with a page of login links, ranked
+     * confidently, with nothing anywhere saying the search had gone wrong.
+     *
+     * Measured on qwen3-embedding:0.6b over twelve messages and three queries:
+     * without the instruction, precision 0.42; with it, 1.00. See
+     * {@see EmbeddingPreset}, which holds the string for every model this
+     * release has been measured against.
+     *
+     * QUERY SIDE ONLY, and that is what keeps this cheap. Stored vectors are
+     * untouched, so changing it costs one embedding of one search box — no
+     * re-indexing, and no wrong answers in between. A model that also wants its
+     * DOCUMENTS labelled cannot be served from here, and nomic-embed-text is
+     * the example; EmbeddingPreset says so rather than pretending otherwise.
+     *
+     * Empty is a real setting. Some models were not trained to be instructed,
+     * and prefixing those adds tokens that mean nothing and move every score by
+     * an unmeasured amount.
+     */
+    #[ORM\Column(name: 'search_query_instruction', type: 'text', nullable: true)]
+    public ?string $searchQueryInstruction = null;
+
+    /**
+     * How close a match has to be before the meaning pass counts it, 0 to 1.
+     *
+     * ONE NUMBER CANNOT SERVE TWO MODELS, which is why this is a column and not
+     * the constant it used to be. Cosine similarity is not comparable across
+     * models, and it is not even comparable across the instructed and
+     * uninstructed forms of one model: qwen3-embedding:0.6b wants 0.20 without
+     * its instruction and 0.42 with it, and all-minilm wants 0.20 where nomic
+     * wants 0.45. plMail shipped 0.55 for all of them, which is above every one
+     * of those numbers.
+     *
+     * Erring tight is still right — a meaning pass that quietly widens every
+     * result set is indistinguishable from one that has stopped working — but
+     * "tight" is a property of the scale the configured model answers on, and
+     * only that model knows where it is.
+     */
+    #[ORM\Column(name: 'semantic_min_similarity', type: 'float', options: ['default' => self::DEFAULT_MIN_SIMILARITY])]
+    public float $semanticMinSimilarity = self::DEFAULT_MIN_SIMILARITY;
 
     /**
      * The same question for the search model, and a separate answer to it.

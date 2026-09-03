@@ -1467,17 +1467,25 @@ class MessageThreadRepository extends ServiceEntityRepository
     private const int SEMANTIC_CANDIDATES = 2000;
 
     /**
-     * How far apart two unit vectors may be and still count as a hit.
+     * The threshold is NOT HERE ANY MORE, and its absence is the fix.
      *
-     * Cosine distance, so 0 is identical and 1 is unrelated. Deliberately a
-     * THRESHOLD rather than "the nearest k": the total rides on the same
-     * statement as `COUNT(*) OVER ()`, and a top-k arm would make that total
-     * "lexical matches plus up to k", which is only true on the first page.
+     * This was `SEMANTIC_MAX_DISTANCE = 0.45` — one cosine distance for every
+     * installation, whatever model was configured. Cosine similarity is not
+     * comparable between models, and not even between the instructed and
+     * uninstructed forms of one model: measured, qwen3-embedding:0.6b wants a
+     * minimum similarity of 0.42 with its instruction and 0.20 without, while
+     * all-minilm wants 0.20 and nomic-embed-text 0.45. The shipped constant
+     * worked out to 0.55, which is above all four.
      *
-     * Erring tight. A semantic search that quietly widens every result set is
-     * indistinguishable from a search that has stopped working.
+     * So it travels on {@see SemanticSearch}, next to the model and the width
+     * it has to agree with, and it is a setting rather than a release. See
+     * {@see \App\Domain\Ai\EmbeddingPreset} for the measurements.
+     *
+     * It stays a THRESHOLD rather than becoming "the nearest k", and that part
+     * is unchanged: the total rides on the same statement as
+     * `COUNT(*) OVER ()`, and a top-k arm would make that total "lexical
+     * matches plus up to k", which is only true on the first page.
      */
-    private const float SEMANTIC_MAX_DISTANCE = 0.45;
 
     /**
      * How long the body-substring pass gets before it is abandoned.
@@ -2018,14 +2026,18 @@ class MessageThreadRepository extends ServiceEntityRepository
 
                 $ranks[] = $semanticRank;
 
-                // The arm's threshold, said the way the arm reads it. The
-                // constant is a DISTANCE and this is a similarity, and 1 - d is
-                // the conversion — done once, here, so the arm, the rank and
-                // the provenance column below cannot come to disagree about
-                // what counts as a hit. Before this they were two comparisons
-                // (`d <= 0.45` in the arm, `1 - d >= 0.55` in the column) that
-                // agreed everywhere except within one ULP of the boundary.
-                $params['semanticSimilarity']  = 1 - self::SEMANTIC_MAX_DISTANCE;
+                // The arm's threshold, bound once so the arm, the rank and the
+                // provenance column cannot come to disagree about what counts
+                // as a hit. They used to be two comparisons — `d <= 0.45` in
+                // the arm, `1 - d >= 0.55` in the column — that agreed
+                // everywhere except within one ULP of the boundary.
+                //
+                // A SIMILARITY ALL THE WAY DOWN NOW. It arrives as one from
+                // AiSettings, where an administrator reads it as "how close a
+                // match has to be" on the same 0-to-1 scale the results show,
+                // rather than as a distance they would have to invert in their
+                // head to compare with anything.
+                $params['semanticSimilarity']  = $semantic->minSimilarity;
                 $params['queryVector']         = $semantic->literal;
                 $params['semanticModel']       = $semantic->model;
                 $params['semanticDimensions']  = $semantic->dimensions;
