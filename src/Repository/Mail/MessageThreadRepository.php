@@ -46,6 +46,18 @@ class MessageThreadRepository extends ServiceEntityRepository
          */
         private readonly int $semanticTimeoutMs = self::SEARCH_SEMANTIC_TIMEOUT_MS,
         /**
+         * And the third, for the same reason as the first two: a bound nothing
+         * exercises is a bound nobody knows the shape of.
+         *
+         * This one guards WHICH messages are eligible rather than how long they
+         * may take, and the bug that made it injectable was invisible at two
+         * thousand — the candidate subquery filtered the wrong table alias, so
+         * the window was shared with every other account on the installation.
+         * A test cannot afford to seed 2,000 messages to see that; at 2 it is a
+         * three-row fixture. See buildSearchSql().
+         */
+        private readonly int $semanticCandidates = self::SEMANTIC_CANDIDATES,
+        /**
          * The first logger this repository has ever had, and it is here for
          * one call site: the vector arm's give-up path, which discarded the
          * exception it caught and told the person searching that the model had
@@ -1439,10 +1451,18 @@ class MessageThreadRepository extends ServiceEntityRepository
      * not: the outer join used to score every matched row again, twice. See the
      * CTE in buildSearchSql().
      *
-     * Recency is the bound because it is what people search within, because the
-     * planner can serve it from an index, and because it does not change
-     * between pages — a bound that moved would make LIMIT/OFFSET return the
-     * same conversation twice.
+     * Recency is the bound because it is what people search within, and because
+     * it does not change between pages — a bound that moved would make
+     * LIMIT/OFFSET return the same conversation twice.
+     *
+     * NOT because an index serves it, which this used to claim. There is no
+     * index on (account_id, received_at) and adding one changes nothing
+     * measurable: on 40,000 messages of 1024 dimensions the arm runs in 188 ms,
+     * and building that index moves it to 186 ms. Picking the candidates is a
+     * bitmap scan and a top-N heapsort of a few hundred buffers; the 2,000
+     * distance calls are the entire cost. The claim was plausible, unmeasured
+     * and load-bearing for nothing, and it would have sent somebody off to
+     * build an index that buys 1%.
      */
     private const int SEMANTIC_CANDIDATES = 2000;
 
@@ -1803,12 +1823,40 @@ class MessageThreadRepository extends ServiceEntityRepository
                 $where[]    = 'false';
                 $rankSelect = 'MAX(0)';
 
-                $mine = 'false';
+                $mine       = 'false';
+                $mineRecent = 'false';
             } else {
                 $params['searchAccounts'] = $accountIds;
                 $types['searchAccounts']  = ArrayParameterType::INTEGER;
 
                 $mine = 'm.account_id IN (:searchAccounts)';
+
+                // THE SAME PREDICATE FOR THE OTHER ALIAS, AND IT IS NOT
+                // DUPLICATION FOR ITS OWN SAKE.
+                //
+                // The semantic arm's candidate subquery scans `message` a
+                // second time under the alias `m2`, and it used to be handed
+                // $mine — which names `m`. That is legal SQL and it means
+                // something entirely different: a reference to the OUTER row,
+                // which correlates the subquery, and a scan of `m2` with no
+                // filter on it whatsoever.
+                //
+                // Postgres showed both halves of the damage in one plan. The
+                // account test became `One-Time Filter: (m.account_id = ANY
+                // (...))` — a per-outer-row constant — over a bare
+                // `Seq Scan on message m2`, and the whole Limit/Sort landed on
+                // the inner side of a nested loop, so the ENTIRE message table
+                // was sorted again for every candidate row being tested.
+                //
+                // The correctness half is the quieter one and it outlives any
+                // plan: LIMIT 2000 was taking the 2,000 most recent rows in the
+                // TABLE and only then filtering to this user's accounts. The
+                // outer WHERE keeps that safe — nobody ever saw another
+                // mailbox — but on any installation with more than one busy
+                // account, most of the window was spent on mail that was
+                // filtered away, and the searcher got a fraction of the 2,000
+                // candidates the constant promises.
+                $mineRecent = 'm2.account_id IN (:searchAccounts)';
             }
 
             $cheap = ["SELECT m.id FROM message m WHERE {$mine} AND m.search_vector @@ websearch_to_tsquery('english', :freeText)"];
@@ -1893,10 +1941,21 @@ class MessageThreadRepository extends ServiceEntityRepository
                 // 100,000 messages that is thirteen seconds, which is worse
                 // than the pathology the UNION was written to escape. So it
                 // only ever runs over the most recent SEMANTIC_CANDIDATES
-                // messages, chosen by an ordering the planner can serve from an
-                // index and which does not change between pages — a bound that
-                // moved would make LIMIT/OFFSET return the same conversation
-                // twice.
+                // messages, chosen by an ordering that does not change between
+                // pages — a bound that moved would make LIMIT/OFFSET return the
+                // same conversation twice.
+                //
+                // THAT BOUND WAS NOT HOLDING, AND THE ALIAS IS WHY. The
+                // subquery below scans `message` again as `m2`, and it was
+                // given $mine, which names `m`. Postgres read that as a
+                // reference to the outer row, correlated the subquery, and put
+                // the whole Limit/Sort on the inner side of a nested loop with
+                // `Seq Scan on message m2` carrying no filter at all — the
+                // entire table re-sorted for every candidate row tested.
+                // Measured on 40,000 messages: cancelled at the 5,000 ms
+                // budget, every time, which reaches the searcher as
+                // SearchTooSlow. With $mineRecent it is a Hash Semi Join
+                // evaluated once, 2,000 rows scored, 188 ms.
                 //
                 // The inner LIMIT is parenthesised because an unparenthesised
                 // ORDER BY or LIMIT would bind to the wrong query level.
@@ -1928,7 +1987,7 @@ class MessageThreadRepository extends ServiceEntityRepository
                            AND m.id IN (
                                SELECT recent.id FROM (
                                    SELECT m2.id FROM message m2
-                                    WHERE {$mine}
+                                    WHERE {$mineRecent}
                                     ORDER BY m2.received_at DESC NULLS LAST, m2.id DESC
                                     LIMIT :semanticCandidates
                                ) recent
@@ -1970,7 +2029,7 @@ class MessageThreadRepository extends ServiceEntityRepository
                 $params['queryVector']         = $semantic->literal;
                 $params['semanticModel']       = $semantic->model;
                 $params['semanticDimensions']  = $semantic->dimensions;
-                $params['semanticCandidates']  = self::SEMANTIC_CANDIDATES;
+                $params['semanticCandidates']  = $this->semanticCandidates;
                 $types['semanticDimensions']   = ParameterType::INTEGER;
                 $types['semanticCandidates']   = ParameterType::INTEGER;
             }

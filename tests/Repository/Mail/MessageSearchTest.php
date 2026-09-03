@@ -765,6 +765,57 @@ final class MessageSearchTest extends KernelTestCase
     }
 
     /**
+     * The candidate window is THIS mailbox's, not the installation's.
+     *
+     * The vector arm scores the most recent SEMANTIC_CANDIDATES messages, and
+     * the subquery that picks them scans `message` a second time as `m2` — but
+     * it was handed the predicate written for the OUTER alias, `m.account_id`.
+     * Legal SQL, entirely different meaning: `m2` was never filtered at all, so
+     * LIMIT took the most recent rows in the TABLE and the outer WHERE threw
+     * away whatever belonged to somebody else afterwards.
+     *
+     * Nobody ever saw another mailbox — the outer filter held — so the whole
+     * cost of this landed on the searcher as absence. On a box with two busy
+     * accounts each one got half the candidates the constant promises; measured
+     * on 40,000 messages across two accounts, 1,000 instead of 2,000. The mail
+     * that fell out of the window is simply not findable by meaning, and the
+     * page says nothing, because as far as it knows the pass ran.
+     *
+     * Two candidates rather than two thousand, so the fixture is three rows
+     * instead of an unrunnable one. The property is the same at either size.
+     */
+    public function testTheCandidateWindowIsNotSharedWithOtherMailboxes(): void
+    {
+        // Somebody else's mail, newer than ours, and enough of it to fill a
+        // two-message window on its own.
+        $stranger = $this->seedAccount($this->seedUser());
+        $this->seedMessage('Stranger one', receivedAt: '2026-06-01', account: $stranger);
+        $this->seedMessage('Stranger two', receivedAt: '2026-06-02', account: $stranger);
+
+        // Ours, older, and the only message any of this is looking for.
+        $this->seedMessage('Notes from the standup', body: 'Who is doing what this week.', receivedAt: '2026-01-01');
+        $this->store()->store($this->messageId('Notes from the standup'), [1.0, 0.0, 0.0], 'test-model');
+
+        $narrow = new MessageThreadRepository(
+            self::getContainer()->get(ManagerRegistry::class),
+            new FreeTextCompiler(),
+            semanticCandidates: 2,
+        );
+
+        $page = $narrow->searchPage(
+            $this->user,
+            $this->parser->parse('meeting minutes'),
+            semantic: $this->semantic([1.0, 0.0, 0.0]),
+        );
+
+        self::assertCount(
+            1,
+            $page->threads,
+            'the two most recent messages in OUR mailbox are the candidates; a stranger cannot crowd them out',
+        );
+    }
+
+    /**
      * A search with no vector never enters the budget at all.
      *
      * The same distinction testTheBudgetDoesNotAffectTheCheapPass() draws for
