@@ -2979,6 +2979,7 @@ thread:
         generated: 'Boiled down %when%'
         heading: "Th' short of it"
         regenerate: 'Boil her again'
+        partial: "This yarn were too long t' send whole, so th' short of it were writ from but a part."
         stale: "Th' yarn has shifted since this were writ."
         state:
             sent: "Sent t' th' oracle…"

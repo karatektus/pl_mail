@@ -69,7 +69,7 @@ export default class extends Controller {
         "status",
         "pending",
         "output",
-        "stale",
+        "stale", "partial",
         "run",
         "runLabel",
         "stop",
@@ -356,6 +356,12 @@ export default class extends Controller {
                 this.#output(this.#answer);
             }
 
+            // Whether the model was shown the whole conversation. Sent with
+            // the answer rather than assumed from the previous render: the
+            // thread may have grown since the page was drawn, and this run's
+            // transcript is the only one that describes what was just read.
+            this.#partial(true === frame.partial);
+
             // No sentence at all. A finished summary explains itself, and a
             // status line reading "Summarised" over the summary is furniture.
             this.#settle("");
@@ -560,6 +566,23 @@ export default class extends Controller {
         if (false === this.hasStaleTarget) return;
 
         this.staleTarget.hidden = false === on;
+    }
+
+    /**
+     * The "it did not see all of this" notice.
+     *
+     * Set BOTH WAYS from the run's own answer, unlike #stale which only ever
+     * clears. Staleness is a fact about the past — the thread moved on after
+     * the summary was written — so starting a run always ends it. Partialness
+     * is a fact about the conversation as it stands: a thread too long to fit
+     * is still too long after regenerating, and a notice that vanished on a
+     * click would tell the reader the second summary saw everything when it saw
+     * exactly as little as the first.
+     */
+    #partial(on) {
+        if (false === this.hasPartialTarget) return;
+
+        this.partialTarget.hidden = false === on;
     }
 
     /** Stop replaces Summarise for the length of a run, and never sits beside it. */

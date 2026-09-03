@@ -880,11 +880,18 @@ final class MailController extends AbstractController
             return null;
         }
 
+        // Built once and asked two questions. It was inlined into the hash
+        // call; the card now also needs to know whether it is trimmed, and
+        // building it a second time for that would be the same string computed
+        // twice with nothing keeping the two in step.
+        $transcript = $this->transcript->forMessages($messages);
+
         return $this->summaries->forThread(
             (int) $thread->id,
             $this->summariser->model(),
             $this->summariser->promptFingerprint(),
-            ThreadTranscript::hash($this->transcript->forMessages($messages)),
+            ThreadTranscript::hash($transcript),
+            ThreadTranscript::isPartial($transcript),
         );
     }
 }

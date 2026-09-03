@@ -33,11 +33,20 @@ final readonly class StoredThreadSummary
      * @param DateTimeImmutable|null $writtenAt null only when the stored timestamp
      *                                          could not be parsed, which costs the
      *                                          "summarised on…" line and nothing else
+     * @param bool                   $isPartial whether the model was shown less than
+     *                                          the whole conversation. Not stored: it
+     *                                          is read off the transcript the freshness
+     *                                          check already rebuilds, so it describes
+     *                                          the thread AS IT IS NOW rather than as
+     *                                          it was when the row was written — which
+     *                                          is the truthful answer to "did it see
+     *                                          all of this", and free
      */
     public function __construct(
         public string $text,
         public bool $isFresh,
         public ?DateTimeImmutable $writtenAt,
+        public bool $isPartial = false,
     ) {
     }
 }

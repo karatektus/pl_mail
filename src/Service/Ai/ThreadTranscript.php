@@ -58,6 +58,15 @@ final readonly class ThreadTranscript
      */
     private const string ELISION = '[… %d messages omitted here …]';
 
+    /**
+     * The part of ELISION that carries no placeholder.
+     *
+     * isPartial() has to recognise a marker that has already been formatted,
+     * and sprintf'ing a dummy count to search for would be a second spelling of
+     * the same string — right until somebody edits one of them.
+     */
+    private const string ELISION_MARK = ' messages omitted here …]';
+
     /** The same honesty, one level down: this turn is not all here. */
     private const string CLIPPED = '[… the rest of this message is not shown …]';
 
@@ -120,6 +129,28 @@ final readonly class ThreadTranscript
     public static function hash(string $transcript): string
     {
         return hash('sha256', $transcript);
+    }
+
+    /**
+     * Whether the model was shown less than the whole conversation.
+     *
+     * READ BACK OFF THE TRANSCRIPT rather than reported alongside it, and that
+     * is deliberate. The freshness check already rebuilds this exact string on
+     * every thread open — see MailController::storedSummary() — so asking it
+     * this question costs one substring search and needs no column, no second
+     * return value and no third thing that can disagree with the first two. A
+     * flag carried separately would be a second copy of a fact the string
+     * already holds, which is what Version20260828000000 refuses.
+     *
+     * BOTH KINDS OF ABSENCE COUNT, because the reader's question is not which
+     * mechanism trimmed it. Whole turns dropped from the middle and a single
+     * turn clipped at its end are the same sentence to somebody deciding
+     * whether to read the thread underneath: the model did not see all of it.
+     */
+    public static function isPartial(string $transcript): bool
+    {
+        return str_contains($transcript, self::CLIPPED)
+            || str_contains($transcript, self::ELISION_MARK);
     }
 
     /**

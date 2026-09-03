@@ -78,8 +78,22 @@ final readonly class ThreadSummaryStore
      * no longer matches the conversation is the interesting case, not the
      * absent one, and the pane needs the old text to grey it out.
      */
-    public function forThread(int $threadId, string $model, string $promptHash, string $sourceHash): ?StoredThreadSummary
-    {
+    public function forThread(
+        int    $threadId,
+        string $model,
+        string $promptHash,
+        string $sourceHash,
+        /**
+         * Whether the transcript this thread produces RIGHT NOW is trimmed.
+         *
+         * Passed in rather than derived here, because the caller has already
+         * built the transcript for the freshness hash and building it twice
+         * would be two copies of one fact. Not read from the row either: the
+         * question the card answers is whether the model saw all of THIS
+         * conversation, and the conversation is what it is now.
+         */
+        bool   $isPartial = false,
+    ): ?StoredThreadSummary {
         try {
             $row = $this->connection->fetchAssociative(
                 <<<'SQL'
@@ -127,6 +141,7 @@ final readonly class ThreadSummaryStore
             // one is reachable by an attacker.
             hash_equals((string) $row['source_hash'], $sourceHash),
             $writtenAt,
+            $isPartial,
         );
     }
 

@@ -317,6 +317,12 @@ final class ThreadSummaryController extends AbstractController
 
         $this->frame([
             'type' => 'done',
+            // Whether the model was shown the whole conversation. Sent with the
+            // answer because it is a property of THIS run: the reader is about
+            // to be given a paragraph of assertions about their mail, and
+            // "written from part of it" is the one caveat they cannot get from
+            // reading the paragraph.
+            'partial' => ThreadTranscript::isPartial($transcript),
             // The whole answer again, tidied. The browser has the raw tokens
             // and could join them itself, but tidy() strips a code fence that
             // can only be recognised from both ends — so what is SHOWN from

@@ -3395,6 +3395,7 @@ thread:
         generated: 'Summarised %when%'
         heading: 'Summary'
         regenerate: 'Summarise again'
+        partial: 'This conversation was too long to send in full, so the summary was written from part of it.'
         stale: 'The conversation has changed since this was written.'
         state:
             sent: 'Sent to the model…'

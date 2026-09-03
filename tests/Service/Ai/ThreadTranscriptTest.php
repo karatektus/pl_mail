@@ -211,6 +211,44 @@ final class ThreadTranscriptTest extends KernelTestCase
     }
 
     /**
+     * isPartial() is what the card reads, so it has to answer both trims.
+     *
+     * The reader's question is not which mechanism trimmed the conversation —
+     * whole turns dropped from the middle and one turn clipped at its end are
+     * the same sentence to somebody deciding whether to read the thread
+     * underneath. Getting either wrong means a summary written from part of a
+     * conversation presented as one written from all of it, which is the exact
+     * silent degradation the elision marker already exists to prevent one level
+     * up.
+     *
+     * seedThread() builds its own user, account and thread on every call, so
+     * the three cases here do not share a fixture.
+     */
+    public function testPartialIsTrueForBothKindsOfTrimAndFalseForNeither(): void
+    {
+        $this->seedThread(['short one', 'short two']);
+        self::assertFalse(
+            ThreadTranscript::isPartial($this->transcript->forThread($this->thread)),
+            'a conversation that fits was shown in full',
+        );
+
+        $this->seedThread([
+            'FIRST ' . str_repeat('a', ThreadSummariser::TRANSCRIPT_BUDGET * 5),
+            'LAST '  . str_repeat('b', ThreadSummariser::TRANSCRIPT_BUDGET * 5),
+        ]);
+        self::assertTrue(
+            ThreadTranscript::isPartial($this->transcript->forThread($this->thread)),
+            'a clipped turn is a partial conversation',
+        );
+
+        $this->seedThread(array_fill(0, 12, str_repeat('c', 2000)));
+        self::assertTrue(
+            ThreadTranscript::isPartial($this->transcript->forThread($this->thread)),
+            'dropped turns are a partial conversation',
+        );
+    }
+
+    /**
      * A turn with no text part still appears, as its sender line.
      *
      * ReplyContextReader's reason, unchanged: dropping it would silently close

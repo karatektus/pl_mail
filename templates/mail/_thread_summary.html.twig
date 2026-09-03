@@ -205,6 +205,27 @@ that is there on reopening cannot drift apart.
                                class="text-[11px] leading-snug text-ink-muted"
                             >{{ 'thread.summary.stale'|trans }}</p>
 
+                            {# "It did not see all of this."
+
+                               A separate line from the staleness one, and both
+                               can be on at once, because they are different
+                               warnings about the same paragraph: stale means
+                               the thread moved on AFTER this was written,
+                               partial means the model was never shown the whole
+                               of it in the first place. Regenerating fixes the
+                               first and cannot fix the second, so collapsing
+                               them into one sentence would offer a button that
+                               does nothing about half of what it claims.
+
+                               Unlike the staleness notice this one does NOT
+                               only ever go away: a regenerate on a thread that
+                               is still too long is still partial, so the
+                               controller sets it from the run's own answer. #}
+                            <p data-mail--thread-summary-target="partial"
+                               {{ summary is not null and summary.isPartial ? '' : 'hidden' }}
+                               class="text-[11px] leading-snug text-ink-muted"
+                            >{{ 'thread.summary.partial'|trans }}</p>
+
                             {# A LIST, because three findings in a block of
                                prose is three findings nobody separates while
                                skimming — which is the only way a summary is

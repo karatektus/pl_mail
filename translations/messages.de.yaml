@@ -3403,6 +3403,7 @@ thread:
         generated: 'Zusammengefasst %when%'
         heading: 'Zusammenfassung'
         regenerate: 'Neu zusammenfassen'
+        partial: 'Das Gespräch war zu lang, um es ganz zu schicken — die Zusammenfassung ist aus einem Teil davon geschrieben.'
         stale: 'Das Gespräch hat sich geändert, seit das hier geschrieben wurde.'
         state:
             sent: 'An das Modell geschickt …'
