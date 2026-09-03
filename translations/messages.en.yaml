@@ -3403,6 +3403,7 @@ thread:
             sent: 'Sent to the model…'
             stopped: 'Stopped. Nothing was saved.'
             waiting: 'The first request after a while takes about a minute while the model loads and reads the conversation.'
+            reading: 'Still reading the conversation — %elapsed% so far. Nothing appears until it has finished.'
             waiting_full: 'Reading the whole conversation. This can take several minutes on a long thread, and nothing appears until it has finished reading.'
             working: 'Summarising…'
         stop: 'Stop'

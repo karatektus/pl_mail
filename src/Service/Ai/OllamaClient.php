@@ -82,6 +82,16 @@ final readonly class OllamaClient
     public const float GENERATE_TIMEOUT = 120.0;
 
     /**
+     * How often a streamed call wakes up while the host is saying nothing.
+     *
+     * Short enough to stay under the idle timeout of any reverse proxy anybody
+     * is likely to have in front of this — nginx defaults to 60 seconds and
+     * several hosted proxies to less — and long enough that the wake-ups cost
+     * nothing at all next to a model that is thinking.
+     */
+    private const float HEARTBEAT_SECONDS = 10.0;
+
+    /**
      * Embeddings are small and fast once the model is resident. The same
      * cold-start argument applies, so this is not as tight as it looks.
      */
@@ -510,7 +520,10 @@ final readonly class OllamaClient
                 // evaluated — so it belongs to whoever knows how big the prompt
                 // is. GENERATE_TIMEOUT is sized for the ordinary case and is
                 // the floor for everything that does not ask.
-                'timeout' => $timeout ?? self::GENERATE_TIMEOUT,
+                // SHORT, ALWAYS, and the caller's number is spent differently
+                // now — see the loop below. This is how often the client wakes
+                // up during a silence, not how long the silence may last.
+                'timeout' => self::HEARTBEAT_SECONDS,
             ]);
 
             $status = $response->getStatusCode();
@@ -550,11 +563,66 @@ final readonly class OllamaClient
             // them, so the tail is held back until its newline arrives.
             // Splitting on chunk boundaries instead is the classic way to get
             // a parser that works locally and drops tokens over a real network.
-            $buffer = '';
+            $buffer  = '';
+            $budget  = $timeout ?? self::GENERATE_TIMEOUT;
+            $started = microtime(true);
 
             foreach ($this->http->stream($response) as $chunk) {
                 if (true === $chunk->isTimeout()) {
-                    return AiChatResult::failed(self::ERROR_TIMEOUT, $timing);
+                    // A TIMEOUT CHUNK IS NOT THE END ANY MORE, and treating it
+                    // as one is what made long summaries impossible to deliver
+                    // through anything but a direct connection.
+                    //
+                    // Symfony yields one of these whenever the idle timeout
+                    // elapses and lets the loop carry on waiting. The old code
+                    // gave up on the first, which made the idle timeout the
+                    // total budget — and a long prompt is ONE enormous silence,
+                    // because nothing arrives from the host between the request
+                    // and the first token.
+                    //
+                    // Two things go wrong with a single long idle timeout, and
+                    // only one of them is plMail's. The first is that the
+                    // budget cannot be expressed: "wait ten minutes for the
+                    // first token" and "give up after ten seconds of silence
+                    // mid-answer" are different rules and there was one number
+                    // for both. The second is that NOTHING IS ON THE WIRE for
+                    // the whole of that silence, and a reverse proxy between
+                    // the reader and this process is entitled to close an idle
+                    // connection — most default to well under the several
+                    // minutes a full conversation needs. The stream then dies
+                    // with no error, no log and no frame, which reaches the
+                    // reader as the blankest sentence the card has.
+                    //
+                    // So the wake-up is short and frequent, the budget is
+                    // counted here, and each tick yields an empty string. The
+                    // caller writes a frame for it, which keeps the connection
+                    // demonstrably alive and gives the proxy nothing to reap.
+                    // Empty is a safe sentinel: real tokens are only yielded
+                    // below when they are non-empty.
+                    $waited = microtime(true) - $started;
+
+                    if ($waited > $budget) {
+                        // THE NUMBERS, because "timeout" on its own has now
+                        // been reported three times and answered nothing. What
+                        // is missing every time is how long it actually waited
+                        // and what it was allowed — the difference between a
+                        // budget that is slightly short and one that is off by
+                        // a factor of five, which are fixed by different
+                        // numbers. A category with no measurement in it is a
+                        // second round of guessing.
+                        $this->logger->error('OllamaClient: gave up waiting for a streamed answer', [
+                            'model'          => $model,
+                            'waited_seconds' => round($waited),
+                            'budget_seconds' => round($budget),
+                            'tokens_so_far'  => mb_strlen($whole),
+                        ]);
+
+                        return AiChatResult::failed(self::ERROR_TIMEOUT, $timing);
+                    }
+
+                    yield '';
+
+                    continue;
                 }
 
                 if (true === $chunk->isLast()) {

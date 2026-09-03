@@ -144,13 +144,24 @@ final readonly class ThreadSummariser
      * Prompt-evaluation rate assumed when sizing a full run's patience, in
      * tokens per second.
      *
-     * The reference host measured 95–107 on a cold cache; 70 is below the floor
-     * of that on purpose. This number divides tokens to get seconds, so a
-     * smaller one buys MORE time, and the cost of erring high is the exact
-     * failure this constant was added for — a request abandoned while the host
-     * was working on it perfectly well.
+     * The reference host measured 95–107 on a cold cache AT THE ORDINARY
+     * BUDGET, and that is the measurement's limit: prompt evaluation does not
+     * hold its rate as the window grows, and this model is a mixture-of-experts
+     * whose behaviour at 32k is not what it is at 2k. Sized at 70 on the
+     * strength of the small-context figure, a full run still timed out.
+     *
+     * So: 25, which is a quarter of the measured rate and is chosen to be
+     * WRONG IN THE SAFE DIRECTION rather than to be accurate. This number
+     * divides tokens to get seconds, so a smaller one buys more time, and the
+     * two outcomes are not symmetric — waiting too long costs a reader who
+     * pressed a button marked "slower" some more of the same, while giving up
+     * too early costs them the entire wait and produces nothing.
+     *
+     * It is a guess where a measurement belongs, and it is labelled as one.
+     * OllamaClient now logs what it actually waited against what it was
+     * allowed, so the next timeout carries the number this should have been.
      */
-    private const int PROMPT_EVAL_TOKENS_PER_SECOND = 70;
+    private const int PROMPT_EVAL_TOKENS_PER_SECOND = 25;
 
     /**
      * Added on top, for the model being read off disk before any of it starts.
@@ -187,8 +198,22 @@ final readonly class ThreadSummariser
         $tokens  = (int) ceil(mb_strlen($transcript) / self::CHARS_PER_TOKEN);
         $seconds = (int) ceil($tokens / self::PROMPT_EVAL_TOKENS_PER_SECOND) + self::COLD_LOAD_ALLOWANCE_SECONDS;
 
-        return (float) max((int) OllamaClient::GENERATE_TIMEOUT, $seconds);
+        return (float) min(
+            self::FULL_MAX_WAIT_SECONDS,
+            max((int) OllamaClient::GENERATE_TIMEOUT, $seconds),
+        );
     }
+
+    /**
+     * The longest a full run may wait for its first token.
+     *
+     * Fifteen minutes, and the ceiling is here because the wait is not free to
+     * anybody but the reader: a streamed response holds a PHP worker for the
+     * whole of it. One deliberate press occupying one worker for a quarter of
+     * an hour is a fair trade for a summary somebody asked for twice; an
+     * unbounded one is a way to run out of workers.
+     */
+    private const int FULL_MAX_WAIT_SECONDS = 900;
 
     /**
      * The context window to ask for, for a transcript of this size.

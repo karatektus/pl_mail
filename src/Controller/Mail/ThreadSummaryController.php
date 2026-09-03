@@ -307,8 +307,38 @@ final class ThreadSummaryController extends AbstractController
             },
         ]);
 
+        // When the reading started, so each heartbeat can say how long it has
+        // been going. See the ping frame below.
+        $readingSince = microtime(true);
+
         foreach ($tokens as $token) {
-            $this->frame(['type' => 'token', 'text' => $token]);
+            // An EMPTY token is the client's heartbeat, not something the model
+            // said — OllamaClient yields one every few seconds while the host
+            // is silent, and a long prompt is one long silence. It must not
+            // reach the card as a token: the first token is what stops the
+            // "still reading" line, and a heartbeat would stop it while nothing
+            // had been written yet.
+            //
+            // It still gets a FRAME, which is the whole point. Something on the
+            // wire every few seconds is what keeps a reverse proxy from closing
+            // an idle connection part-way through a summary that is going
+            // perfectly well — and it is what makes the abort check below
+            // reachable during the silence instead of only once tokens start,
+            // so a reader who leaves now frees the model call within seconds
+            // rather than at the end of it.
+            // ELAPSED, AND NOTHING ELSE. Ollama sends nothing at all while it
+            // evaluates a prompt and reports prompt_eval_count only in the
+            // final frame, so there is no "message 40 of 120" to be had and any
+            // bar drawn here would be an animation of an assumption. What IS
+            // true and worth saying is that time is passing and this end is
+            // still connected — which is the actual question somebody has at
+            // four minutes into a silent card, and the one a spinner cannot
+            // answer.
+            $this->frame(
+                '' === $token
+                    ? ['type' => 'ping', 'elapsed' => (int) round(microtime(true) - $readingSince)]
+                    : ['type' => 'token', 'text' => $token],
+            );
 
             // Checked AFTER a write, because a write is how a PHP process finds
             // out at all: a browser closing the connection is not an event, it

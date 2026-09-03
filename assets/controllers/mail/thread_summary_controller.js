@@ -116,6 +116,7 @@ export default class extends Controller {
         sentLabel: { type: String, default: "Sent" },
         waitingLabel: { type: String, default: "The model is loading." },
         waitingFullLabel: { type: String, default: "The model is reading the whole conversation." },
+        readingLabel: { type: String, default: "Still reading — %elapsed% so far." },
         workingLabel: { type: String, default: "…" },
         stoppedLabel: { type: String, default: "Stopped" },
 
@@ -374,6 +375,24 @@ export default class extends Controller {
             return;
         }
 
+        if ("ping" === frame.type) {
+            // The host is still working and this end is still connected. Said
+            // as elapsed time rather than as a bar, because a bar would be
+            // drawn against an estimate — Ollama reports nothing at all while
+            // it reads a prompt — and a bar that is really a clock in disguise
+            // is worse than a clock.
+            //
+            // Only while nothing has been written yet: once tokens arrive, the
+            // text IS the progress and a timer beside it is furniture.
+            if (0 === this.#tokens) {
+                this.#say(
+                    this.readingLabelValue.replace("%elapsed%", this.constructor.#clock(frame.elapsed)),
+                );
+            }
+
+            return;
+        }
+
         if ("token" === frame.type) {
             if (0 === this.#tokens) {
                 // The first token is the moment "waiting" stops being true —
@@ -615,6 +634,19 @@ export default class extends Controller {
         }
 
         return line;
+    }
+
+    /**
+     * Seconds as m:ss.
+     *
+     * Static and tiny, because the alternative is Intl.RelativeTimeFormat
+     * saying "4 minutes ago" about something that is happening now, or a raw
+     * second count that reads as an error code once it passes 200.
+     */
+    static #clock(seconds) {
+        const total = Math.max(0, Math.round(Number(seconds) || 0));
+
+        return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, "0")}`;
     }
 
     /** The "this is out of date" notice, which only ever goes away. */

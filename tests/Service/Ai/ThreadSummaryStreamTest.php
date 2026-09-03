@@ -148,6 +148,39 @@ final class ThreadSummaryStreamTest extends KernelTestCase
         );
     }
 
+    /**
+     * A silence is heartbeaten rather than given up on.
+     *
+     * THE OLD RULE WAS "FIRST TIMEOUT CHUNK ENDS IT", and that made the idle
+     * timeout the total budget — which is wrong twice over. A long prompt is
+     * ONE enormous silence, because nothing arrives from the host between the
+     * request and the first token; and for the whole of that silence there was
+     * nothing on the wire, so any reverse proxy between the reader and this
+     * process was entitled to close the connection. That reached the reader as
+     * the blankest sentence the card has, with no error, no frame and no log —
+     * reported three times before it was understood.
+     *
+     * Empty strings are the heartbeat, and they are safe as a sentinel because
+     * a real token is only ever yielded when it is non-empty.
+     *
+     * MockHttpClient cannot produce a timeout chunk, so this pins the half that
+     * can be tested here: an ordinary answer yields no empty tokens at all, so
+     * anything downstream may treat one as a heartbeat and nothing else.
+     */
+    public function testAnOrdinaryAnswerYieldsNoHeartbeats(): void
+    {
+        $summariser = $this->summariser($this->ndjson(['They agreed ', '', 'on Thursday.']));
+
+        $tokens = $summariser->stream($this->reader(), $this->thread, 'a transcript');
+
+        self::assertNotNull($tokens);
+        self::assertSame(
+            ['They agreed ', 'on Thursday.'],
+            iterator_to_array($tokens, false),
+            'an empty content field is dropped, so an empty yield can only be a heartbeat',
+        );
+    }
+
     /** One row, on the ordinary ending, tagged as the summary workload. */
     public function testAFinishedStreamIsRecordedOnceAsAThreadSummary(): void
     {
