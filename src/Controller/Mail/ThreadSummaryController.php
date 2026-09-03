@@ -14,6 +14,7 @@ use App\Service\Ai\ThreadSummaryStore;
 use App\Service\Ai\ThreadTranscript;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
+use Psr\Log\LoggerInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -63,6 +64,7 @@ final class ThreadSummaryController extends AbstractController
         private readonly ThreadSummariser   $summariser,
         private readonly ThreadTranscript   $transcript,
         private readonly ThreadSummaryStore $store,
+        private readonly LoggerInterface    $logger,
     ) {
     }
 
@@ -274,12 +276,34 @@ final class ThreadSummaryController extends AbstractController
         $result = $tokens->getReturn();
 
         if (false === $result->succeeded || null === $result->content) {
+            $kind = $result->errorKind ?? OllamaClient::ERROR_UNEXPECTED;
+
+            // SAID SERVER-SIDE AS WELL, and not only sent to the browser.
+            //
+            // Two of the kinds — http_status and unexpected — render as "the
+            // summary could not be written", which is the honest sentence for
+            // them and a dead end for anybody trying to find out why. There was
+            // no other trace: the frame went to a reader who cannot act on it,
+            // the request finished 200 because the stream had already started,
+            // and the log had nothing at all. A thread that failed every time
+            // while every other thread worked was undiagnosable from the
+            // outside, and it took a live report to notice.
+            //
+            // The thread id is here because this is reported per thread — "this
+            // one never summarises" — and it is the only handle on which mail
+            // was involved. The mail itself is not logged.
+            $this->logger->warning('Thread summary failed', [
+                'thread' => $thread->id,
+                'kind'   => $kind,
+                'model'  => $model,
+            ]);
+
             $this->frame([
                 'type' => 'error',
                 // A category from the closed set, never a message: an HTTP
                 // client's exception text quotes the request body back, and the
                 // request body here is somebody's mail.
-                'kind' => $result->errorKind ?? OllamaClient::ERROR_UNEXPECTED,
+                'kind' => $kind,
             ]);
 
             return;

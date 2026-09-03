@@ -58,6 +58,9 @@ final readonly class ThreadTranscript
      */
     private const string ELISION = '[… %d messages omitted here …]';
 
+    /** The same honesty, one level down: this turn is not all here. */
+    private const string CLIPPED = '[… the rest of this message is not shown …]';
+
     public function __construct(private MessageRepository $messages)
     {
     }
@@ -129,9 +132,45 @@ final readonly class ThreadTranscript
      */
     private static function block(Message $turn): string
     {
+        $body = trim((string) ($turn->bodyText ?? ''));
+
+        // CLIPPED PER TURN, because dropping whole turns is not a bound.
+        //
+        // trimmed() below drops turns until the total fits, and it keeps the
+        // first and the last WHATEVER THEY COST — deliberately, and stated in
+        // its own docblock. The consequence was never stated: on a two-message
+        // thread the first and the last are the whole thread, so the budget was
+        // not applied at all. Not "rarely" — by construction, on every such
+        // thread, which is most of them.
+        //
+        // What that costs is not theoretical. One deeply forwarded mail — a
+        // chain somebody has replied through a dozen times, quoted in full each
+        // time — is a single turn of several hundred kilobytes, and it went to
+        // the model whole. Ollama does not refuse it: measured, an 800,000
+        // character prompt answers HTTP 200 and is silently truncated to fit
+        // num_ctx. So the failure has no error in it anywhere. The model reads
+        // whatever end of the chain survived the truncation and summarises
+        // that, and the summary is confidently about the wrong message.
+        //
+        // Two thirds of the whole budget, so a single turn can still be most of
+        // a conversation — a thread that really is one long mail and one "yes"
+        // should summarise the long mail — while two oversized turns together
+        // cannot exceed it by more than a third.
+        $limit = intdiv(ThreadSummariser::TRANSCRIPT_BUDGET * 2, 3);
+
+        if (mb_strlen($body) > $limit) {
+            // Cut from the END, keeping the head. Same argument as trimmed()
+            // makes for keeping the opening turn: a forwarded chain is newest
+            // first, so the head is the message this thread is actually about
+            // and the tail is the history it was built on. Announced, for the
+            // reason the elision marker exists — a summary written from half a
+            // message must not read as one written from all of it.
+            $body = mb_substr($body, 0, $limit) . "\n" . self::CLIPPED;
+        }
+
         return trim(implode("\n", [
             'From: ' . trim(((string) $turn->fromName) . ' <' . ((string) $turn->fromAddress) . '>'),
-            trim((string) ($turn->bodyText ?? '')),
+            $body,
         ]));
     }
 

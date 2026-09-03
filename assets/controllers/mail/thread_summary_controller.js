@@ -130,6 +130,7 @@ export default class extends Controller {
         noAnswerLabel: { type: String, default: "No answer" },
         disabledLabel: { type: String, default: "No answer" },
         timeoutLabel: { type: String, default: "No answer" },
+        modelMissingLabel: { type: String, default: "No answer" },
         unreachableLabel: { type: String, default: "No answer" },
         tooShortLabel: { type: String, default: "No answer" },
     };
@@ -594,17 +595,29 @@ export default class extends Controller {
      * Collapsing them into one line is how a fixable configuration reads as a
      * broken feature.
      *
-     * The kinds not listed — http_404, http_status, bad_response, unexpected —
-     * fall through to the general sentence deliberately: nothing more specific
-     * than "it could not be written" is actually known about them from in here,
-     * and the composer's panel is where a missing model is worth naming because
-     * that is where an administrator meets it first.
+     * http_404 IS NAMED NOW, and the reasoning that kept it quiet was wrong.
+     * This used to send it to the general sentence on the grounds that "the
+     * composer's panel is where a missing model is worth naming because that is
+     * where an administrator meets it first". Two things are wrong with that.
+     * The reader of a thread is not always an administrator and cannot be sent
+     * to a panel they may not be able to open; and the summary card is where
+     * this failure is actually met, every time a thread is opened, for as long
+     * as the model stays unpulled. Search has never hidden it — "the model host
+     * does not have the search model" — and this is the same sentence about the
+     * other model.
+     *
+     * The kinds still not listed — http_status, unexpected — do fall through
+     * deliberately: nothing more specific than "it could not be written" is
+     * known about them from in here. What changed is that they are now written
+     * to the server log with the host's own words, so "could not be written"
+     * has somewhere to lead.
      */
     #sentenceFor(kind) {
         if ("disabled" === kind) return this.disabledLabelValue;
         if ("too_short" === kind) return this.tooShortLabelValue;
         if ("timeout" === kind) return this.timeoutLabelValue;
         if ("unreachable" === kind) return this.unreachableLabelValue;
+        if ("http_404" === kind) return this.modelMissingLabelValue;
         if ("no_answer" === kind || "bad_response" === kind) return this.noAnswerLabelValue;
 
         return this.failedLabelValue;

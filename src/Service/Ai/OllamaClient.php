@@ -291,6 +291,8 @@ final readonly class OllamaClient
      */
     public function embed(string $baseUrl, string $model, string $text, ?string $keepAlive = null): AiEmbedResult
     {
+        $text = $this->utf8($text, $model);
+
         $modern = $this->tryEmbed($baseUrl, '/api/embed', self::withKeepAlive([
             'model' => $model,
             'input' => $text,
@@ -342,7 +344,7 @@ final readonly class OllamaClient
     {
         $payload = self::withKeepAlive([
             'model'    => $model,
-            'messages' => $messages,
+            'messages' => $this->cleanMessages($messages, $model),
             'stream'   => false,
         ], $keepAlive);
 
@@ -463,7 +465,7 @@ final readonly class OllamaClient
     {
         $payload = self::withKeepAlive([
             'model'    => $model,
-            'messages' => $messages,
+            'messages' => $this->cleanMessages($messages, $model),
             'stream'   => true,
         ], $keepAlive);
 
@@ -483,6 +485,30 @@ final readonly class OllamaClient
             $status = $response->getStatusCode();
 
             if (200 !== $status) {
+                // READ, AND SAID OUT LOUD. This used to return the category and
+                // drop the body on the floor, and the body is the diagnosis:
+                // Ollama answers a missing model with
+                // `{"error":"model 'llama3.1:8b' not found"}`, which names the
+                // model as the host understood it and is how a wrong tag, a
+                // trailing space or a model nobody ever pulled gets found.
+                //
+                // What it cost to discard: a summary card reading "the summary
+                // could not be written" for an installation whose chat model
+                // was simply not on the host, with nothing in any log, on every
+                // thread, for as long as it stayed unpulled. The one sentence
+                // that would have ended it had already been sent by Ollama and
+                // was being thrown away here.
+                //
+                // Safe to log, and only to log: the request body carries a
+                // model name and the whole of somebody's conversation, so the
+                // ANSWER is quotable and the request is not. refusal() clips
+                // it, for a proxy that replies with its own HTML page.
+                $this->logger->error('OllamaClient: streamed chat refused', [
+                    'model'  => $model,
+                    'status' => $status,
+                    'error'  => self::refusal($response->getContent(false)),
+                ]);
+
                 return AiChatResult::failed(
                     404 === $status ? self::ERROR_HTTP_404 : self::ERROR_HTTP_STATUS,
                 );
@@ -706,6 +732,75 @@ final readonly class OllamaClient
         }
 
         return mb_substr(trim($body), 0, 200);
+    }
+
+    /**
+     * Every message's content, guaranteed encodable.
+     *
+     * @param list<array{role: string, content: string}> $messages
+     *
+     * @return list<array{role: string, content: string}>
+     */
+    private function cleanMessages(array $messages, string $model): array
+    {
+        return array_map(
+            fn (array $message): array => [
+                'role'    => $message['role'],
+                'content' => $this->utf8($message['content'], $model),
+            ],
+            $messages,
+        );
+    }
+
+    /**
+     * Mail, made encodable — and the fault said out loud rather than papered
+     * over.
+     *
+     * WHY THIS EXISTS, WHICH IS NOT OBVIOUS FROM ANY ERROR IT PREVENTS.
+     * Symfony's `json` option refuses malformed UTF-8 outright:
+     *
+     *     InvalidArgumentException: Invalid value for "json" option:
+     *     Malformed UTF-8 characters, possibly incorrectly encoded
+     *
+     * It is thrown BEFORE the request is made, so nothing reaches the host and
+     * no timeout, status or model behaviour is involved. In chatStream() it
+     * landed in the catch-all and reached the reader as "the summary could not
+     * be written"; in embed() it was one more failed embedding, retried
+     * nightly, failing identically every time — so a message with a single bad
+     * byte was permanently invisible to search by meaning as well.
+     *
+     * ONE STRAY BYTE IS ENOUGH, and mail is full of them. A forwarded chain
+     * that has been through a gateway which believed it was Latin-1 carries an
+     * `0xFC` where an `ü` was meant, and the whole thread stops summarising
+     * while every other thread in the mailbox works — which is exactly how this
+     * was reported.
+     *
+     * SCRUBBED, NOT REFUSED. The alternative is failing the call, and that
+     * spends the reader's feature to protest about a byte they did not write
+     * and cannot fix. mb_scrub replaces the invalid sequences and the rest of
+     * the message is intact, which is a better summary than none.
+     *
+     * LOGGED WHEN IT BITES, because the real bug is upstream: bodyText should
+     * not hold invalid UTF-8, and this is the only place that currently knows
+     * it does. A quiet fix here would remove the last evidence of that.
+     */
+    private function utf8(string $text, string $model): string
+    {
+        if (true === mb_check_encoding($text, 'UTF-8')) {
+            return $text;
+        }
+
+        $scrubbed = mb_scrub($text, 'UTF-8');
+
+        $this->logger->warning('OllamaClient: repaired malformed UTF-8 before sending', [
+            'model' => $model,
+            // The bytes themselves are somebody's mail and are not logged. The
+            // count is enough to tell one stray byte from a body that is not
+            // text at all.
+            'bytes' => strlen($text) - strlen($scrubbed),
+        ]);
+
+        return $scrubbed;
     }
 
     /**

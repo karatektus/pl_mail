@@ -2972,6 +2972,7 @@ thread:
         error:
             disabled: "Th' yarn-boilin' be switched off."
             generic: "Th' short of it could nay be writ."
+            model_missing: "That berth holds no writin' oracle. Somebody with the captain's keys must haul it aboard first."
             no_answer: "Th' oracle gave nowt back."
             timeout: "Th' oracle's berth took o'er long t' answer."
             unreachable: "Th' oracle's berth could nay be raised."

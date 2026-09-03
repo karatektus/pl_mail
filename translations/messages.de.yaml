@@ -3396,6 +3396,7 @@ thread:
         error:
             disabled: 'Zusammenfassungen sind ausgeschaltet.'
             generic: 'Die Zusammenfassung konnte nicht geschrieben werden.'
+            model_missing: 'Der Modell-Host hat das Schreib-Modell nicht. Jemand mit Admin-Rechten muss es erst ziehen.'
             no_answer: 'Das Modell hat nichts geantwortet.'
             timeout: 'Der Modell-Host hat zu lange gebraucht.'
             unreachable: 'Der Modell-Host war nicht erreichbar.'

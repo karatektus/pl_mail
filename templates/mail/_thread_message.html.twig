@@ -172,9 +172,19 @@ Variables:
                    setting: the two answer different questions and only one of
                    them is a property of the language. Sent mail has no
                    receivedAt — it was never received — so it shows its sentAt
-                   and stops being the one message in a thread with no date. #}
+                   and stops being the one message in a thread with no date.
+
+                   WITH THE YEAR, unlike the message list. The list is sorted by
+                   recency and read top to bottom, so "3 Aug" is unambiguous
+                   there by position alone. A thread is neither: a forwarded
+                   chain can carry a reply from 2019 directly above one from
+                   this morning, and "3 Aug" over a quoted message is a date
+                   the reader cannot place at all. The skeleton flips field
+                   order per locale on its own — "Aug 3, 2026" and
+                   "3. Aug. 2026" — which is why this is a skeleton and not a
+                   pattern. See LocaleDateExtension. #}
                 {% set shownAt = message.receivedAt ?? message.sentAt %}
-                {{ shownAt ? shownAt|intl_date('dMMM') ~ ', ' ~ shownAt|date(clock.time) : '' }}
+                {{ shownAt ? shownAt|intl_date('dMMMy') ~ ', ' ~ shownAt|date(clock.time) : '' }}
             </span>
 
             {% include 'mail/_message_actions.html.twig' with { message: message } only %}

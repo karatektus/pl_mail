@@ -163,6 +163,54 @@ final class ThreadTranscriptTest extends KernelTestCase
     }
 
     /**
+     * A two-message thread is bounded, which it was not.
+     *
+     * trimmed() drops whole TURNS, and it keeps the first and the last whatever
+     * they cost. On a two-message thread the first and the last are the entire
+     * thread, so TRANSCRIPT_BUDGET was not applied at all — not rarely, by
+     * construction, on most threads there are.
+     *
+     * One deeply forwarded mail is a single turn of several hundred kilobytes,
+     * and it went to the model whole. Nothing reported it: measured, Ollama
+     * answers an 800,000-character prompt with HTTP 200 and silently truncates
+     * it to num_ctx. So the model read whichever end of the chain survived the
+     * truncation and summarised that — a summary confidently about the wrong
+     * message, with no error anywhere.
+     *
+     * The assertion is on the ORDER of magnitude rather than an exact length:
+     * the clip is per turn, so two clipped turns plus their header lines can
+     * exceed the budget somewhat, and pinning the arithmetic would make this a
+     * test of intdiv() rather than of the bound existing at all.
+     */
+    public function testATwoTurnThreadOfHugeMessagesIsStillBounded(): void
+    {
+        $this->seedThread([
+            'FIRST ' . str_repeat('a', ThreadSummariser::TRANSCRIPT_BUDGET * 5),
+            'LAST '  . str_repeat('b', ThreadSummariser::TRANSCRIPT_BUDGET * 5),
+        ]);
+
+        $transcript = $this->transcript->forThread($this->thread);
+
+        self::assertLessThan(
+            ThreadSummariser::TRANSCRIPT_BUDGET * 2,
+            mb_strlen($transcript),
+            'two oversized turns must not hand the model ten times the budget',
+        );
+
+        // Both turns still present, and both said to be incomplete. A clipped
+        // message that does not announce itself is the silent failure again in
+        // a smaller place: a summary written from the first third of a mail
+        // must not read as one written from all of it.
+        self::assertStringContainsString('FIRST', $transcript);
+        self::assertStringContainsString('LAST', $transcript);
+        self::assertSame(
+            2,
+            substr_count($transcript, 'is not shown'),
+            'each clipped turn says so',
+        );
+    }
+
+    /**
      * A turn with no text part still appears, as its sender line.
      *
      * ReplyContextReader's reason, unchanged: dropping it would silently close
