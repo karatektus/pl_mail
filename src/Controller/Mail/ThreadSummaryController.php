@@ -78,6 +78,17 @@ final class ThreadSummaryController extends AbstractController
     }
 
     /**
+     * How much of the answer reached the browser before it stopped listening.
+     *
+     * Only read by the abandonment log, and it is the second half of that
+     * diagnosis: nothing written means the connection died during the silence
+     * before the first token — which is where a proxy's read timeout falls —
+     * while a partial answer means it died mid-stream, which is a reader
+     * navigating away or a total-duration limit.
+     */
+    private int $written = 0;
+
+    /**
      * `{id}` is constrained to digits so a non-numeric id fails to MATCH the
      * route and becomes a 404 — MailController::thread() gives the reason:
      * without it the id reaches the entity resolver, which asks Postgres for a
@@ -310,6 +321,7 @@ final class ThreadSummaryController extends AbstractController
         // When the reading started, so each heartbeat can say how long it has
         // been going. See the ping frame below.
         $readingSince = microtime(true);
+        $this->written = 0;
 
         foreach ($tokens as $token) {
             // An EMPTY token is the client's heartbeat, not something the model
@@ -343,6 +355,8 @@ final class ThreadSummaryController extends AbstractController
             // Checked AFTER a write, because a write is how a PHP process finds
             // out at all: a browser closing the connection is not an event, it
             // is a send that fails and is noticed on the next one.
+            $this->written += mb_strlen($token);
+
             if (0 !== connection_aborted()) {
                 break;
             }
@@ -356,6 +370,31 @@ final class ThreadSummaryController extends AbstractController
         // recording in AiAssistant::recorded() and drops the upstream response
         // so the host stops generating.
         if (true === $tokens->valid()) {
+            // SAID OUT LOUD, and this was the last silent path in the feature.
+            //
+            // It is reached when the reader's connection has gone — which is
+            // a normal thing for somebody navigating away, and is also what a
+            // proxy closing the stream looks like from in here. The two are
+            // indistinguishable to this process and only one of them is fine,
+            // so leaving it silent meant a card reading "the summary could not
+            // be written", nothing in the log, and a `cancelled` row in the
+            // metrics panel that reads as a reader who changed their mind.
+            //
+            // The elapsed time is what tells them apart. Somebody who gave up
+            // did it at a human moment; a proxy does it at its configured one,
+            // and the same round number every time is the whole diagnosis. See
+            // docs/install/reverse-proxy.md, which configures streaming for the
+            // Mercure endpoint and — until this was found — said nothing about
+            // this one, which is the other long-lived stream plMail serves.
+            $this->logger->warning('Thread summary abandoned before it finished', [
+                'thread'           => $thread->id,
+                'model'            => $model,
+                'full'             => $full,
+                'transcript_chars' => mb_strlen($transcript),
+                'elapsed_seconds'  => (int) round(microtime(true) - $readingSince),
+                'chars_so_far'     => $this->written,
+            ]);
+
             return;
         }
 

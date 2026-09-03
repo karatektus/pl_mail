@@ -1,4 +1,4 @@
-<!-- translated-from: install/reverse-proxy.md sha1:6a493660819c759ccbe2a6bbda4d7909a2537be9 -->
+<!-- translated-from: install/reverse-proxy.md sha1:97f1ea6185294b50988ab2e0a9dc93ff18ee8b74 -->
 # Hinter einem Reverse-Proxy
 
 Alles, was von außerhalb des eigenen Netzes erreichbar ist, will ein echtes Zertifikat davor, und
@@ -151,9 +151,12 @@ mail.example.com {
 }
 ```
 
-nginx braucht sie ausgeschrieben, und es braucht noch etwas — der Mercure-Stream besteht aus
-Server-Sent Events, und ein Proxy, der Antworten puffert, hält die Ereignisse fest, statt sie
-durchzureichen:
+nginx braucht sie ausgeschrieben, und es braucht noch etwas — plMail liefert **zwei** lang laufende
+Streams, und ein Proxy, der puffert oder zu früh abbricht, macht beide kaputt. Der Mercure-Stream
+besteht aus Server-Sent Events, und ein puffernder Proxy hält die Ereignisse fest, statt sie
+durchzureichen. Den Streams des Assistenten setzt vor allem das Standard-Lesetimeout zu: Eine
+Zusammenfassung schickt gar nichts, solange das Modell das Gespräch liest, und bei einem langen
+Verlauf sind das Minuten.
 
 ```nginx
 location / {
@@ -173,7 +176,31 @@ location /.well-known/mercure {
     proxy_buffering off;
     proxy_read_timeout 24h;
 }
+
+# Der Assistent streamt seine Antwort Stück für Stück und schweigt, solange das
+# Modell liest. nginx' Standard-Lesetimeout sind 60 Sekunden — weniger, als die
+# Zusammenfassung eines langen Gesprächs berechtigterweise braucht.
+location ~ ^/mail/(thread/\d+/summary|compose-assist) {
+    proxy_pass http://127.0.0.1:8080;
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_buffering off;
+    proxy_read_timeout 20m;
+}
 ```
+
+**Das Fehlerbild ist eine Zusammenfassung, die nach einer Wartezeit scheitert, ohne dass im Log
+steht, warum.** Der Proxy schließt die Verbindung während der Stille; plMail merkt nur, dass die
+lesende Person weg ist — und das ist nicht davon zu unterscheiden, dass jemand einfach weggeklickt
+hat. Auf der Karte steht dann *„Die Zusammenfassung konnte nicht geschrieben werden“*, und im
+Leistungs-Panel des Assistenten taucht der Aufruf als **abgebrochen** auf. Seit 0.2 steht im
+Server-Log `Thread summary abandoned before it finished` mit den vergangenen Sekunden — und eine
+Verbindung, die jedes Mal bei derselben runden Zahl stirbt, ist ein Proxy-Timeout und keine Person.
+
+plMail schickt bei diesen Antworten `X-Accel-Buffering: no`. nginx und etliche gehostete Proxys
+halten sich daran, Caddy ignoriert es, weil Caddy ohnehin nicht puffert. Gegen ein Lesetimeout hilft
+es nicht — dafür braucht es den Block oben.
 
 Anhänge laufen über denselben Weg, eine Größenbegrenzung für Anfragekörper im Proxy muss also das
 zulassen, was PHP selbst akzeptiert: `upload_max_filesize` ist `25M` und `post_max_size` ist `60M`

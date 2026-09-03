@@ -138,8 +138,11 @@ mail.example.com {
 }
 ```
 
-nginx needs them spelled out, and needs one more thing — the Mercure stream is Server-Sent Events,
-and a proxy that buffers responses will hold the events instead of passing them through:
+nginx needs them spelled out, and needs one more thing — plMail serves **two** long-lived streaming
+responses, and a proxy that buffers or times out will break both. The Mercure stream is Server-Sent
+Events and a buffering proxy holds the events instead of passing them through. The assistant's
+streaming endpoints are worse served by the default read timeout: a thread summary sends nothing at
+all while the model reads the conversation, and on a long thread that silence is minutes.
 
 ```nginx
 location / {
@@ -159,7 +162,30 @@ location /.well-known/mercure {
     proxy_buffering off;
     proxy_read_timeout 24h;
 }
+
+# The assistant streams its answers a token at a time, and says nothing at all
+# while the model is reading. nginx's default read timeout is 60 seconds, which
+# is shorter than a summary of a long conversation legitimately takes.
+location ~ ^/mail/(thread/\d+/summary|compose-assist) {
+    proxy_pass http://127.0.0.1:8080;
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_buffering off;
+    proxy_read_timeout 20m;
+}
 ```
+
+**The failure mode is a summary that fails after a wait, with nothing in the log to say why.** The
+proxy closes the connection during the silence; plMail notices only that the reader has gone, which
+is indistinguishable from somebody navigating away. It shows as *"The summary could not be written"*
+on the card and a **cancelled** call in the assistant's performance panel. Since 0.2, the server log
+carries `Thread summary abandoned before it finished` with the elapsed seconds — and a connection
+that dies at the same round number every time is a proxy timeout rather than a reader.
+
+plMail sends `X-Accel-Buffering: no` on these responses, which nginx and several hosted proxies
+honour and Caddy ignores because Caddy does not buffer in the first place. It does not help with a
+read timeout, which is why the block above is still needed.
 
 Attachments go through the same path, so a proxy body-size limit has to clear what PHP itself
 accepts: `upload_max_filesize` is `25M` and `post_max_size` is `60M` in the image.
