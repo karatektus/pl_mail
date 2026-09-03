@@ -3394,6 +3394,7 @@ thread:
         button: 'Gespräch zusammenfassen'
         disclaimer: 'Von einem Modell aus den Nachrichten unten geschrieben. Lies sie, wenn es darauf ankommt.'
         error:
+            connection_lost: 'Die Verbindung zu plMail ist abgerissen, während die Zusammenfassung geschrieben wurde. Am Modell-Host liegt es nicht — irgendetwas zwischen diesem Browser und dem Server hat die Verbindung geschlossen.'
             disabled: 'Zusammenfassungen sind ausgeschaltet.'
             generic: 'Die Zusammenfassung konnte nicht geschrieben werden.'
             model_missing: 'Der Modell-Host hat das Schreib-Modell nicht. Jemand mit Admin-Rechten muss es erst ziehen.'

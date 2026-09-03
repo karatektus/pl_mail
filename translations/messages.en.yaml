@@ -3386,6 +3386,7 @@ thread:
         button: 'Summarise this conversation'
         disclaimer: 'Written by a model from the messages below. Read them if it matters.'
         error:
+            connection_lost: 'The connection to plMail was lost while the summary was being written. The model host is not involved; something between this browser and the server closed the connection.'
             disabled: 'Summaries are switched off.'
             generic: 'The summary could not be written.'
             model_missing: 'The model host does not have the writing model. An administrator has to pull it first.'

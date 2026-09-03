@@ -2970,6 +2970,7 @@ thread:
         button: 'Boil this yarn down'
         disclaimer: "Writ by th' oracle from th' messages below. Read 'em if it matters."
         error:
+            connection_lost: "Th' line to plMail parted while th' short of it were bein' writ. Th' oracle's berth be blameless — summat betwixt this glass an' th' server cut it."
             disabled: "Th' yarn-boilin' be switched off."
             generic: "Th' short of it could nay be writ."
             model_missing: "That berth holds no writin' oracle. Somebody with the captain's keys must haul it aboard first."

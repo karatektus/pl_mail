@@ -134,6 +134,7 @@ export default class extends Controller {
         timeoutLabel: { type: String, default: "No answer" },
         modelMissingLabel: { type: String, default: "No answer" },
         refusedLabel: { type: String, default: "No answer" },
+        connectionLostLabel: { type: String, default: "The connection was lost." },
         unreachableLabel: { type: String, default: "No answer" },
         tooShortLabel: { type: String, default: "No answer" },
     };
@@ -324,7 +325,19 @@ export default class extends Controller {
             // to read. Anything else is a model host that is off, a proxy that
             // gave up, a network that went away.
             if ("AbortError" !== error?.name && run === this.#run) {
-                this.#settle(this.failedLabelValue);
+                // THE CONNECTION, NOT THE SUMMARY. Everything that reaches here
+                // is a fetch or a body read that failed — the request never got
+                // an answer, or the answer stopped arriving part-way. That is a
+                // different fact from "the model could not write one", and
+                // saying the second for the first sent four rounds of diagnosis
+                // at the model host while the fault was between the browser and
+                // this application.
+                //
+                // The server has the other half: a run killed this way logs
+                // "Thread summary abandoned before it finished" with how long
+                // it lasted, because from in there a cut connection and a
+                // reader who navigated away are the same event.
+                this.#settle(this.connectionLostLabelValue);
             }
         }
     }
