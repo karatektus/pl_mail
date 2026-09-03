@@ -79,7 +79,7 @@ final readonly class OllamaClient
      * anything, and a timeout tuned for a warm host reports that as a failure
      * every time an install is not busy.
      */
-    private const float GENERATE_TIMEOUT = 120.0;
+    public const float GENERATE_TIMEOUT = 120.0;
 
     /**
      * Embeddings are small and fast once the model is resident. The same
@@ -461,7 +461,7 @@ final readonly class OllamaClient
      *
      * @return \Generator<int, string, void, AiChatResult>
      */
-    public function chatStream(string $baseUrl, string $model, array $messages, ?float $temperature = null, ?string $keepAlive = null, ?int $numCtx = null): \Generator
+    public function chatStream(string $baseUrl, string $model, array $messages, ?float $temperature = null, ?string $keepAlive = null, ?int $numCtx = null, ?float $timeout = null): \Generator
     {
         $payload = self::withKeepAlive([
             'model'    => $model,
@@ -503,8 +503,14 @@ final readonly class OllamaClient
 
         try {
             $response = $this->http->request('POST', $this->url($baseUrl, '/api/chat'), [
-                'json'    => $payload,
-                'timeout' => self::GENERATE_TIMEOUT,
+                'json' => $payload,
+                // The caller's, when it has one. This is an IDLE timeout and
+                // the stretch it actually guards is the silence before the
+                // first token — the model loading and the whole prompt being
+                // evaluated — so it belongs to whoever knows how big the prompt
+                // is. GENERATE_TIMEOUT is sized for the ordinary case and is
+                // the floor for everything that does not ask.
+                'timeout' => $timeout ?? self::GENERATE_TIMEOUT,
             ]);
 
             $status = $response->getStatusCode();

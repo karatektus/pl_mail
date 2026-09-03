@@ -10,6 +10,7 @@ use App\Entity\Mail\Message;
 use App\Entity\Mail\MessageThread;
 use App\Entity\User\User;
 use App\Repository\Mail\MessageRepository;
+use App\Service\Ai\OllamaClient;
 use App\Service\Ai\ThreadSummariser;
 use App\Service\Ai\ThreadTranscript;
 use DateTimeImmutable;
@@ -302,6 +303,49 @@ final class ThreadTranscriptTest extends KernelTestCase
         self::assertGreaterThan($small, $large, 'a longer conversation asks for a longer window');
         self::assertLessThanOrEqual(32768, $large, 'and never more than a host can be expected to allocate');
         self::assertSame(0, $large % 1024, 'windows are sized in whole blocks');
+    }
+
+    /**
+     * The patience scales with the prompt, and never shrinks below the ordinary
+     * one.
+     *
+     * THE FULL OPTION SHIPPED WITHOUT THIS AND DID NOT WORK. The client's
+     * timeout is an IDLE timeout, and a full run is by design one enormous
+     * silence: nothing arrives from the host between the request and the first
+     * token, because the model loads and the whole prompt is evaluated first.
+     * At 8,000 characters that silence is around 42 seconds cold, which is what
+     * 120 was chosen to cover; at the full ceiling it is twelve times that, and
+     * every full run on a conversation big enough to need one was abandoned at
+     * two minutes with kind: timeout while the host was still working on it.
+     *
+     * Asserted as a relationship rather than against exact seconds — the
+     * numbers are measured constants that should be free to move together
+     * without a test that only re-states them.
+     */
+    public function testAFullRunWaitsLongerForALongerConversation(): void
+    {
+        $short = ThreadSummariser::timeoutFor(str_repeat('a', 8000));
+        $long  = ThreadSummariser::timeoutFor(str_repeat('a', ThreadSummariser::FULL_TRANSCRIPT_CEILING));
+
+        self::assertGreaterThanOrEqual(
+            OllamaClient::GENERATE_TIMEOUT,
+            $short,
+            'a full run is never more impatient than an ordinary one',
+        );
+
+        self::assertGreaterThan(
+            $short * 2,
+            $long,
+            'a conversation at the ceiling is a far longer silence and has to be waited out',
+        );
+
+        // The number that actually mattered: the ceiling's silent window is
+        // several minutes on the reference host, and 120 s is where this broke.
+        self::assertGreaterThan(
+            300.0,
+            $long,
+            'the ceiling must not be abandoned inside the prompt evaluation it asked for',
+        );
     }
 
     /**

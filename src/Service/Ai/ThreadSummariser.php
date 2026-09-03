@@ -141,6 +141,56 @@ final readonly class ThreadSummariser
     private const int FULL_CONTEXT_RESERVE_TOKENS = 800;
 
     /**
+     * Prompt-evaluation rate assumed when sizing a full run's patience, in
+     * tokens per second.
+     *
+     * The reference host measured 95–107 on a cold cache; 70 is below the floor
+     * of that on purpose. This number divides tokens to get seconds, so a
+     * smaller one buys MORE time, and the cost of erring high is the exact
+     * failure this constant was added for — a request abandoned while the host
+     * was working on it perfectly well.
+     */
+    private const int PROMPT_EVAL_TOKENS_PER_SECOND = 70;
+
+    /**
+     * Added on top, for the model being read off disk before any of it starts.
+     *
+     * A cold load of this class of model is around eighteen seconds on the
+     * reference host and considerably worse off a spinning disk, and it lands
+     * inside the same silence.
+     */
+    private const int COLD_LOAD_ALLOWANCE_SECONDS = 90;
+
+    /**
+     * How long to wait for a full run's first token.
+     *
+     * THIS IS THE CONSTANT THE FULL OPTION SHIPPED WITHOUT, and the omission
+     * broke it outright: OllamaClient::GENERATE_TIMEOUT is 120 seconds and it
+     * is an IDLE timeout, while a full run is by design one enormous silence.
+     * Nothing arrives from the host between the request and the first token —
+     * the model loads, the whole prompt is evaluated, and only then does
+     * generation start — so the silent window scales with the transcript. At
+     * the ordinary 8,000-character budget it is around 42 seconds cold, which
+     * is what 120 was chosen to cover. At FULL_TRANSCRIPT_CEILING it is twelve
+     * times that, and every full run on a large conversation was abandoned at
+     * two minutes with `kind: timeout` while the host was still working.
+     *
+     * Sized from the same transcript as the context window rather than fixed,
+     * for the same reason: a thread that is barely over the ordinary budget
+     * should not wait as long as one at the ceiling.
+     *
+     * Never BELOW GENERATE_TIMEOUT, so a full run is never more impatient than
+     * an ordinary one.
+     */
+    public static function timeoutFor(string $transcript): float
+    {
+        $tokens  = (int) ceil(mb_strlen($transcript) / self::CHARS_PER_TOKEN);
+        $seconds = (int) ceil($tokens / self::PROMPT_EVAL_TOKENS_PER_SECOND) + self::COLD_LOAD_ALLOWANCE_SECONDS;
+
+        return (float) max((int) OllamaClient::GENERATE_TIMEOUT, $seconds);
+    }
+
+    /**
      * The context window to ask for, for a transcript of this size.
      *
      * Rounded up to a whole number of 1024-token blocks, which is how these
@@ -347,6 +397,11 @@ final readonly class ThreadSummariser
             $messages,
             self::TEMPERATURE,
             true === $full ? self::contextFor($transcript) : null,
+            // The patience goes with the window, and both only on a full run.
+            // A larger window is a longer silence before the first token, and
+            // sending one without the other is what made the option fail every
+            // time it was used on a conversation big enough to need it.
+            true === $full ? self::timeoutFor($transcript) : null,
         );
 
         // Not a generator function, for the reason AiAssistant::chatStream()

@@ -248,7 +248,7 @@ final readonly class AiAssistant
      *
      * @return \Generator<int, string, void, AiChatResult>|null
      */
-    public function chatStream(AiFeature $feature, array $messages, ?float $temperature = null, ?int $numCtx = null): ?\Generator
+    public function chatStream(AiFeature $feature, array $messages, ?float $temperature = null, ?int $numCtx = null, ?float $timeout = null): ?\Generator
     {
         if (AiFeature::Search === $feature) {
             $this->logger->error('AiAssistant: a streamed chat was requested on behalf of the search feature', [
@@ -280,6 +280,7 @@ final readonly class AiAssistant
                 $temperature,
                 $settings->keepAliveFor($feature),
                 $numCtx,
+                $timeout,
             ),
         );
     }

@@ -115,6 +115,7 @@ export default class extends Controller {
          */
         sentLabel: { type: String, default: "Sent" },
         waitingLabel: { type: String, default: "The model is loading." },
+        waitingFullLabel: { type: String, default: "The model is reading the whole conversation." },
         workingLabel: { type: String, default: "…" },
         stoppedLabel: { type: String, default: "Stopped" },
 
@@ -131,6 +132,7 @@ export default class extends Controller {
         disabledLabel: { type: String, default: "No answer" },
         timeoutLabel: { type: String, default: "No answer" },
         modelMissingLabel: { type: String, default: "No answer" },
+        refusedLabel: { type: String, default: "No answer" },
         unreachableLabel: { type: String, default: "No answer" },
         tooShortLabel: { type: String, default: "No answer" },
     };
@@ -267,6 +269,21 @@ export default class extends Controller {
         this.#output("");
         this.#stale(false);
 
+        // Both go with the old summary they were about. The notice describes
+        // how a paragraph that is no longer on screen was written, and the
+        // offer is one the reader has just taken — leaving either up means the
+        // card explains a summary it has already thrown away, and goes on
+        // offering something that is already happening.
+        //
+        // Cleared HERE rather than only in #full(), because it is true of every
+        // run: an ordinary regenerate replaces the same paragraph, and the
+        // notice attached to it is no more current than the text was. `done`
+        // sets both again from what this run actually sent, so a regenerate
+        // that is still partial says so the moment it has an answer to say it
+        // about.
+        this.#partial(false);
+        this.#offerFull(false);
+
         // Said before the request is even built, so the very first thing after
         // the click is visible — and moving, because what follows can be forty
         // silent seconds.
@@ -342,7 +359,17 @@ export default class extends Controller {
             // operator's private network. "waiting" means the model is not
             // resident and the next forty seconds produce nothing at all,
             // which is the difference between an honest wait and a dead button.
-            this.#say("waiting" === frame.value ? this.waitingLabelValue : this.workingLabelValue);
+            // Three states, not two. "waiting_full" is its own sentence
+            // because the wait it describes is minutes rather than the
+            // "about a minute" the cold-load line promises — a progress
+            // message that under-promises the wait by an order of magnitude is
+            // how somebody decides the button is broken and reloads the page
+            // half way through the thing they asked for.
+            if ("waiting_full" === frame.value) {
+                this.#say(this.waitingFullLabelValue);
+            } else {
+                this.#say("waiting" === frame.value ? this.waitingLabelValue : this.workingLabelValue);
+            }
 
             return;
         }
@@ -677,6 +704,15 @@ export default class extends Controller {
         if ("timeout" === kind) return this.timeoutLabelValue;
         if ("unreachable" === kind) return this.unreachableLabelValue;
         if ("http_404" === kind) return this.modelMissingLabelValue;
+
+        // SPLIT OUT OF THE GENERAL SENTENCE. "Refused" and "we do not know" are
+        // different errands: a refusal means the host answered and said no —
+        // most often because it could not give the request what it asked for,
+        // which is what a context window too large for the machine looks like
+        // from here — and that is a thing an administrator can act on. Leaving
+        // it in the general bucket meant the one failure with a known shape
+        // read identically to the ones with none.
+        if ("http_status" === kind) return this.refusedLabelValue;
         if ("no_answer" === kind || "bad_response" === kind) return this.noAnswerLabelValue;
 
         return this.failedLabelValue;

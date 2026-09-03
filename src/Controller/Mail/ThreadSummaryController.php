@@ -58,6 +58,15 @@ final class ThreadSummaryController extends AbstractController
     /** Above the upstream's own bound, so it is the upstream that gives up first. */
     private const int STREAM_TIME_LIMIT_SECONDS = 300;
 
+    /**
+     * How far above the client's timeout PHP's own ceiling sits on a full run.
+     *
+     * Enough for the streamed answer itself plus the tidy, the insert and the
+     * closing frames — none of which is bounded by the idle timeout, because
+     * tokens are arriving by then.
+     */
+    private const int STREAM_TIME_LIMIT_MARGIN_SECONDS = 180;
+
     use ChecksCsrf;
 
     public function __construct(
@@ -198,6 +207,26 @@ final class ThreadSummaryController extends AbstractController
      * had gone. A local in a method is freed when the method returns, and
      * freeing it is what cancels the call.
      */
+    /**
+     * PHP's ceiling for this run, always above the client's own.
+     *
+     * The margin is what the request does AFTER the last token — tidying,
+     * one insert, the closing frames — plus room for the client's timeout to
+     * fire and unwind normally, which is the outcome this ordering exists to
+     * guarantee. An ordinary run keeps exactly the 300 s it has always had.
+     */
+    private static function streamTimeLimitFor(string $transcript, bool $full): int
+    {
+        if (false === $full) {
+            return self::STREAM_TIME_LIMIT_SECONDS;
+        }
+
+        return max(
+            self::STREAM_TIME_LIMIT_SECONDS,
+            (int) ceil(ThreadSummariser::timeoutFor($transcript)) + self::STREAM_TIME_LIMIT_MARGIN_SECONDS,
+        );
+    }
+
     private function generate(User $user, MessageThread $thread, string $transcript, string $sourceHash, string $model, string $promptHash, bool $full = false): void
     {
         // PHP's default is to kill the script the moment a write finds the
@@ -237,7 +266,16 @@ final class ThreadSummaryController extends AbstractController
         //
         // Above OllamaClient::GENERATE_TIMEOUT (120s, an IDLE timeout) plus a
         // cold load, so this only ever fires when that has failed to.
-        set_time_limit(self::STREAM_TIME_LIMIT_SECONDS);
+        // SCALED WITH THE RUN, because a fixed 300 s is below what a full run
+        // legitimately needs. The whole argument above — this must sit above
+        // the upstream's own bound so the upstream gives up first — stops being
+        // true the moment the upstream's bound moves, and for a full run it
+        // does: ThreadSummariser::timeoutFor() can reach several minutes on a
+        // conversation at the ceiling. Left at 300 the two would be the wrong
+        // way round, and PHP would kill the request while the client was still
+        // waiting patiently — which is the failure this line exists to prevent,
+        // reintroduced by the feature that needed it most.
+        set_time_limit(self::streamTimeLimitFor($transcript, $full));
 
         $tokens = $this->summariser->stream($user, $thread, $transcript, $full);
 
@@ -254,9 +292,19 @@ final class ThreadSummaryController extends AbstractController
         // after it would report warm on precisely the cold call that needed
         // explaining. Safe to ask at all only because /api/ps is passive — it
         // reports, it never loads.
+        // A THIRD STATE, and it exists because the other two would both be
+        // lies here. A full run's silence is not the cold load the "waiting"
+        // line describes — it is the model reading a conversation twelve times
+        // longer than the ordinary budget, which on the reference host is
+        // minutes rather than the "about a minute" that line promises. Warm or
+        // cold barely moves it, so residency is not even the question any more.
         $this->frame([
             'type'  => 'state',
-            'value' => true === $this->summariser->isModelWarm() ? 'generating' : 'waiting',
+            'value' => match (true) {
+                true === $full                             => 'waiting_full',
+                true === $this->summariser->isModelWarm()  => 'generating',
+                default                                    => 'waiting',
+            },
         ]);
 
         foreach ($tokens as $token) {
@@ -300,7 +348,15 @@ final class ThreadSummaryController extends AbstractController
             // The thread id is here because this is reported per thread — "this
             // one never summarises" — and it is the only handle on which mail
             // was involved. The mail itself is not logged.
-            $this->logger->warning('Thread summary failed', [
+            // ERROR AND NOT WARNING, which is not a judgement about severity so
+            // much as about findability. This line exists for exactly one
+            // situation — somebody reporting a card that says the summary could
+            // not be written — and at warning it is filterable by the capture
+            // level on the admin log page, which is a setting an operator
+            // raises to quieten a noisy install. The one line that answers the
+            // question would then be the one the setting removed. It is also a
+            // user-visible operation that failed, which is what error means.
+            $this->logger->error('Thread summary failed', [
                 'thread' => $thread->id,
                 'kind'   => $kind,
                 'model'  => $model,
