@@ -390,6 +390,15 @@ final class ThreadSummaryController extends AbstractController
                 'thread' => $thread->id,
                 'kind'   => $kind,
                 'model'  => $model,
+                // WHICH RUN THIS WAS, which the category never said. "Timeout"
+                // on an ordinary run and on a full one are different faults
+                // with different fixes — the first means the host is slower
+                // than the shipped budget, the second that the full budget is
+                // still short — and three reports of `kind: timeout` could not
+                // be told apart because neither the mode nor the size was in
+                // the record.
+                'full'             => $full,
+                'transcript_chars' => mb_strlen($transcript),
             ]);
 
             $this->frame([

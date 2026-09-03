@@ -511,6 +511,15 @@ final readonly class OllamaClient
         $whole  = '';
         $timing = AiCallTiming::none();
 
+        // ABOVE THE TRY, so the catch blocks can say how long they had been
+        // waiting and what they were allowed. Inside it they could not, and
+        // that is precisely the gap that made three separate reports of
+        // `kind: timeout` unanswerable: the budget check logs its numbers, the
+        // exception path logged nothing at all, and from the outside the two
+        // are the same word.
+        $budget  = $timeout ?? self::GENERATE_TIMEOUT;
+        $started = microtime(true);
+
         try {
             $response = $this->http->request('POST', $this->url($baseUrl, '/api/chat'), [
                 'json' => $payload,
@@ -525,9 +534,7 @@ final readonly class OllamaClient
             // them, so the tail is held back until its newline arrives.
             // Splitting on chunk boundaries instead is the classic way to get
             // a parser that works locally and drops tokens over a real network.
-            $buffer  = '';
-            $budget  = $timeout ?? self::GENERATE_TIMEOUT;
-            $started = microtime(true);
+            $buffer = '';
 
             // TWO LOOPS, AND THE OUTER ONE IS NOT DECORATION.
             //
@@ -675,9 +682,37 @@ final readonly class OllamaClient
                 yield '';
             }
 
-        } catch (TimeoutExceptionInterface) {
+        } catch (TimeoutExceptionInterface $exception) {
+            // SAID OUT LOUD, because this path is why `kind: timeout` could not
+            // be diagnosed. It returns the same category as the budget check
+            // above and used to return it in silence, so a timeout that came
+            // from here was indistinguishable from one that came from there —
+            // and they mean opposite things. The budget check means the host
+            // was given the time it was promised and did not answer; this means
+            // something ELSE timed out, somewhere the budget never governed,
+            // and the number to change is not the budget.
+            $this->logger->error('OllamaClient: a streamed chat timed out below the budget', [
+                'model'          => $model,
+                'waited_seconds' => round(microtime(true) - $started),
+                'budget_seconds' => round($budget),
+                'heartbeat'      => self::HEARTBEAT_SECONDS,
+                'error'          => $exception->getMessage(),
+                'exception'      => $exception,
+            ]);
+
             return AiChatResult::failed(self::ERROR_TIMEOUT, $timing);
-        } catch (TransportExceptionInterface) {
+        } catch (TransportExceptionInterface $exception) {
+            // The other silent one. "Unreachable" covers a host that was never
+            // there and a connection that died half way through, and the
+            // message is the only thing that tells them apart.
+            $this->logger->error('OllamaClient: a streamed chat lost its connection', [
+                'model'          => $model,
+                'waited_seconds' => round(microtime(true) - $started),
+                'chars_so_far'   => mb_strlen($whole),
+                'error'          => $exception->getMessage(),
+                'exception'      => $exception,
+            ]);
+
             return AiChatResult::failed(self::ERROR_UNREACHABLE, $timing);
         } catch (Throwable $exception) {
             $this->logger->error('OllamaClient: streamed chat failed unexpectedly', [
