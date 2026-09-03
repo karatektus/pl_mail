@@ -88,6 +88,15 @@ export default class extends Controller {
         url: String,
 
         /**
+         * Which conversation this card is for.
+         *
+         * Needed because one Mercure topic carries the whole mailbox: a
+         * summary finishing for a thread the reader has since left must not
+         * redraw the one in front of them.
+         */
+        thread: Number,
+
+        /**
          * Its own per-action CSRF token, taken as a Stimulus value rather than
          * from the `csrf-token` meta tag.
          *
@@ -135,6 +144,7 @@ export default class extends Controller {
         modelMissingLabel: { type: String, default: "No answer" },
         refusedLabel: { type: String, default: "No answer" },
         connectionLostLabel: { type: String, default: "The connection was lost." },
+        queuedLabel: { type: String, default: "Queued." },
         unreachableLabel: { type: String, default: "No answer" },
         tooShortLabel: { type: String, default: "No answer" },
     };
@@ -221,7 +231,103 @@ export default class extends Controller {
     full(event) {
         event?.preventDefault();
 
-        this.#start(true);
+        this.#queue();
+    }
+
+    /**
+     * The nudge from the worker, for a job this card asked for.
+     *
+     * Wired from the thread's own markup to core--mercure:summary-finished.
+     * Filtered by thread id because one Mercure topic carries the whole
+     * mailbox: a summary finishing for a conversation the reader has since
+     * left must not redraw the one they are looking at.
+     */
+    finished(event) {
+        if (Number(event?.detail?.threadId) !== Number(this.threadValue)) {
+            return;
+        }
+
+        if ("ready" !== event?.detail?.state) {
+            this.#settle(this.failedLabelValue);
+            this.#stopping(false);
+
+            return;
+        }
+
+        this.#adopt();
+    }
+
+    /**
+     * Ask for a full run and stop holding the connection.
+     *
+     * The POST returns as soon as the work is queued, so there is nothing to
+     * stream and nothing to keep open — which is the entire point of the job.
+     * What the card does next is wait for the nudge, and it waits just as well
+     * across a reload, because the answer is going to the store rather than
+     * down this request.
+     */
+    async #queue() {
+        this.#stopReading();
+        this.#mount();
+        await this.#adopted();
+
+        this.#output("");
+        this.#stale(false);
+        this.#partial(false);
+        this.#offerFull(false);
+        this.#say(this.queuedLabelValue);
+
+        try {
+            const response = await fetch(this.urlValue, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/x-www-form-urlencoded",
+                    "X-CSRF-Token": this.tokenValue,
+                },
+                body: new URLSearchParams({ full: "1" }),
+            });
+
+            if (false === response.ok) {
+                this.#settle(await this.#reasonFor(response));
+            }
+        } catch {
+            // Only the ASKING failed, which is a short request that either
+            // arrives or does not. Nothing is running, so there is nothing to
+            // explain beyond that the request did not land.
+            this.#settle(this.connectionLostLabelValue);
+        }
+    }
+
+    /**
+     * Read what the worker stored and show it.
+     *
+     * A fetch rather than a page reload: the reader may be part-way down a long
+     * thread, and replacing the document to deliver a paragraph would move them
+     * — which is the cost the composer's own notes give for a Turbo visit.
+     */
+    async #adopt() {
+        try {
+            const response = await fetch(this.urlValue, { headers: { Accept: "application/json" } });
+
+            if (false === response.ok) {
+                this.#settle(await this.#reasonFor(response));
+
+                return;
+            }
+
+            const stored = await response.json();
+
+            this.#answer = stored.text ?? "";
+            this.#output(this.#answer);
+            this.#stale(false === stored.fresh);
+            this.#partial(true === stored.partial);
+            this.#offerFull(true === stored.partial);
+            this.#settle("");
+            this.#stopping(false);
+            this.#offerAgain();
+        } catch {
+            this.#settle(this.connectionLostLabelValue);
+        }
     }
 
     /**

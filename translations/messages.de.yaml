@@ -3412,6 +3412,7 @@ thread:
             sent: 'An das Modell geschickt …'
             stopped: 'Angehalten. Nichts wurde gespeichert.'
             waiting: 'Die erste Anfrage nach einer Weile dauert etwa eine Minute, solange das Modell lädt und das Gespräch liest.'
+            queued: 'In der Warteschlange. Das ganze Gespräch wird im Hintergrund zusammengefasst — du kannst das hier zumachen und später wiederkommen, dann ist es da.'
             reading: 'Liest das Gespräch noch — %elapsed% bisher. Bis es fertig ist, passiert sichtbar nichts.'
             waiting_full: 'Liest das ganze Gespräch. Bei einem langen Verlauf kann das mehrere Minuten dauern, und bis es fertig gelesen hat, passiert sichtbar nichts.'
             working: 'Fasst zusammen …'

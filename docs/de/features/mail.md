@@ -1,4 +1,4 @@
-<!-- translated-from: features/mail.md sha1:58b0384fc5c26659556b26d1f222ea00bc7d69ce -->
+<!-- translated-from: features/mail.md sha1:5e458cda7e18efb07344c406c74ae6962b63eee4 -->
 
 # Mail
 
@@ -258,12 +258,24 @@ In beiden Fällen steht auf der Karte *„Das Gespräch war zu lang, um es ganz 
 darunter **Stattdessen das ganze Gespräch zusammenfassen**.
 
 Dieser Knopf tut, was er sagt: Er schickt alles und bittet den Modell-Host, dafür Platz zu machen.
-Rechne mit deutlich mehr Zeit, und damit, dass es der Maschine hinter dem Modell mehr abverlangt —
-auf einer schwächeren kann das langsam genug sein, dass es sich nur für ein Gespräch lohnt, das du
-wirklich brauchst. Es wird nichts gemerkt: Es gilt für die eine Zusammenfassung, um die du gebeten
-hast, und für keine andere. Ist das Gespräch so lang, dass selbst das nicht reicht, bekommst du
-trotzdem eine Zusammenfassung, der Hinweis bleibt stehen, und der Knopf verschwindet, statt dich
-zweimal dasselbe abwarten zu lassen.
+Rechne mit deutlich mehr Zeit — bei einem langen Verlauf eher Minuten als Sekunden — und damit, dass
+es der Maschine hinter dem Modell mehr abverlangt. Es wird nichts gemerkt: Es gilt für die eine
+Zusammenfassung, um die du gebeten hast, und für keine andere. Ist das Gespräch so lang, dass selbst
+das nicht reicht, bekommst du trotzdem eine Zusammenfassung, der Hinweis bleibt stehen, und der
+Knopf verschwindet, statt dich zweimal dasselbe abwarten zu lassen.
+
+**Das läuft im Hintergrund, du musst nicht dabeibleiben.** Auf der Karte steht, dass es in der
+Warteschlange ist, und danach bist du frei: Mach die Konversation zu, geh zu einer anderen, schließ
+den Tab ganz. Die Zusammenfassung wird von einem Worker geschrieben und gespeichert, wenn sie fertig
+ist — beim nächsten Öffnen des Gesprächs ist sie da, und wenn du noch draufschaust, taucht sie von
+allein auf.
+
+Das ist keine Bequemlichkeit, sondern der einzige Weg, auf dem es zuverlässig funktioniert. Eine
+normale Zusammenfassung ist schnell genug, um ihr beim Ankommen zuzusehen — deshalb streamt sie. Eine
+vollständige schweigt minutenlang, während das Modell liest, und eine Browser-Verbindung, die über
+diese Stille offen gehalten wird, hat einen Proxy, ein Netzwerk und ein zuklappendes Notebook in
+sich — jedes davon kann sie beenden, ohne jemandem Bescheid zu sagen. Die Arbeit an einen Worker zu
+geben, beseitigt diese Abhängigkeit, statt sie zu überdauern zu versuchen.
 
 Einmal geschrieben, wird sie aufbewahrt und beim nächsten Öffnen der Konversation ohne Wartezeit
 wieder angezeigt. Kommt danach eine Antwort, siehst du sie ausgegraut mit dem Hinweis, dass sich das

@@ -6,6 +6,7 @@ namespace App\Controller\Mail;
 
 use App\Controller\ChecksCsrf;
 use App\Entity\Mail\MessageThread;
+use App\Infrastructure\Messaging\Message\SummariseThreadMessage;
 use App\Entity\User\User;
 use App\Security\Voter\OwnershipVoter;
 use App\Service\Ai\OllamaClient;
@@ -17,6 +18,7 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
@@ -58,15 +60,6 @@ final class ThreadSummaryController extends AbstractController
     /** Above the upstream's own bound, so it is the upstream that gives up first. */
     private const int STREAM_TIME_LIMIT_SECONDS = 300;
 
-    /**
-     * How far above the client's timeout PHP's own ceiling sits on a full run.
-     *
-     * Enough for the streamed answer itself plus the tidy, the insert and the
-     * closing frames — none of which is bounded by the idle timeout, because
-     * tokens are arriving by then.
-     */
-    private const int STREAM_TIME_LIMIT_MARGIN_SECONDS = 180;
-
     use ChecksCsrf;
 
     public function __construct(
@@ -74,6 +67,7 @@ final class ThreadSummaryController extends AbstractController
         private readonly ThreadTranscript   $transcript,
         private readonly ThreadSummaryStore $store,
         private readonly LoggerInterface    $logger,
+        private readonly MessageBusInterface $bus,
     ) {
     }
 
@@ -147,7 +141,33 @@ final class ThreadSummaryController extends AbstractController
         // to send is not that, and it is the one decision the card offers.
         $full = $request->request->getBoolean('full');
 
-        $transcript = $this->transcript->forThread($thread, $full);
+        // A FULL RUN NEVER STREAMS, and that is the whole change.
+        //
+        // It is silent for minutes while the model reads, and for the whole of
+        // that silence the answer depended on a browser connection staying
+        // open. Measured on a real installation: abandoned after 40 seconds
+        // with nothing written, four heartbeats already on the wire, and a
+        // model host that was up for seven days either side. Nothing here
+        // closed it; a held-open connection has a proxy, a browser and a
+        // network in it, and any of them may end it without telling this
+        // application. No timeout could fix that, and three were tried.
+        //
+        // So it becomes a job. The worker has no connection to lose, and the
+        // reader may close the tab and still find the summary waiting. Since
+        // this returns before any model call, $transcript below is only ever
+        // the ordinary one — which also retires a bug that never shipped: the
+        // freshness hash is computed from what was SENT, and a full run stored
+        // a hash the reader's page could never reproduce, so every full summary
+        // would have shown as permanently out of date.
+        if (true === $full) {
+            $this->bus->dispatch(new SummariseThreadMessage((int) $thread->id, (int) $user->id));
+
+            // 202 and not 200: the work has been accepted and has not happened.
+            // The card shows it as queued and waits for the Mercure nudge.
+            return new JsonResponse(['status' => 'queued'], Response::HTTP_ACCEPTED);
+        }
+
+        $transcript = $this->transcript->forThread($thread);
         $sourceHash = ThreadTranscript::hash($transcript);
         $model      = $this->summariser->model();
 
@@ -186,8 +206,8 @@ final class ThreadSummaryController extends AbstractController
         // ComposeAssistController captures its user: reading a property inside
         // the callback is free, while a repository lookup there would be a
         // query against a kernel that has finished with the request.
-        $response = new StreamedResponse(function () use ($user, $thread, $transcript, $sourceHash, $model, $promptHash, $full): void {
-            $this->generate($user, $thread, $transcript, $sourceHash, $model, $promptHash, $full);
+        $response = new StreamedResponse(function () use ($user, $thread, $transcript, $sourceHash, $model, $promptHash): void {
+            $this->generate($user, $thread, $transcript, $sourceHash, $model, $promptHash);
         });
 
         // Not application/json: this is a sequence of JSON documents and never
@@ -219,26 +239,56 @@ final class ThreadSummaryController extends AbstractController
      * freeing it is what cancels the call.
      */
     /**
-     * PHP's ceiling for this run, always above the client's own.
+     * What is stored for this conversation, for a card that has been nudged.
      *
-     * The margin is what the request does AFTER the last token — tidying,
-     * one insert, the closing frames — plus room for the client's timeout to
-     * fire and unwind normally, which is the outcome this ordering exists to
-     * guarantee. An ordinary run keeps exactly the 300 s it has always had.
+     * The other half of the background job: Mercure says "look again" and
+     * carries nothing, which is the shape JobNotifier and the insights strip
+     * already use — the store is the record, and a nudge that is missed costs
+     * one stale render rather than a wrong one. It also keeps a paragraph of
+     * assertions about somebody's mail off a message bus that has never carried
+     * any.
+     *
+     * GET and not part of the POST above, because the two are different events
+     * separated by minutes: one asks for the work, this reads the result, and a
+     * reader who reloaded the page in between must be able to do the second
+     * without repeating the first.
      */
-    private static function streamTimeLimitFor(string $transcript, bool $full): int
+    #[Route('/mail/thread/{id}/summary', name: 'app_mail_thread_summary_stored', requirements: ['id' => '\\d+'], methods: ['GET'])]
+    #[IsGranted('IS_AUTHENTICATED')]
+    public function stored(MessageThread $thread): Response
     {
-        if (false === $full) {
-            return self::STREAM_TIME_LIMIT_SECONDS;
+        $user = $this->getUser();
+
+        if (false === $user instanceof User || false === $this->summariser->isAvailableFor($user)) {
+            return new JsonResponse(['error' => 'disabled'], Response::HTTP_CONFLICT);
         }
 
-        return max(
-            self::STREAM_TIME_LIMIT_SECONDS,
-            (int) ceil(ThreadSummariser::timeoutFor($transcript)) + self::STREAM_TIME_LIMIT_MARGIN_SECONDS,
+        $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $thread->account);
+
+        $transcript = $this->transcript->forThread($thread);
+        $summary    = $this->store->forThread(
+            (int) $thread->id,
+            $this->summariser->model(),
+            $this->summariser->promptFingerprint(),
+            ThreadTranscript::hash($transcript),
+            ThreadTranscript::isPartial($transcript),
         );
+
+        if (null === $summary) {
+            // Nothing stored under the current model and prompt. A job that
+            // failed leaves exactly this, and the card says so from the nudge's
+            // own state rather than inferring it from an absence.
+            return new JsonResponse(['error' => 'no_answer'], Response::HTTP_NOT_FOUND);
+        }
+
+        return new JsonResponse([
+            'text'    => $summary->text,
+            'fresh'   => $summary->isFresh,
+            'partial' => $summary->isPartial,
+        ]);
     }
 
-    private function generate(User $user, MessageThread $thread, string $transcript, string $sourceHash, string $model, string $promptHash, bool $full = false): void
+    private function generate(User $user, MessageThread $thread, string $transcript, string $sourceHash, string $model, string $promptHash): void
     {
         // PHP's default is to kill the script the moment a write finds the
         // browser gone, which sounds like what we want and is the opposite of
@@ -286,9 +336,9 @@ final class ThreadSummaryController extends AbstractController
         // way round, and PHP would kill the request while the client was still
         // waiting patiently — which is the failure this line exists to prevent,
         // reintroduced by the feature that needed it most.
-        set_time_limit(self::streamTimeLimitFor($transcript, $full));
+        set_time_limit(self::STREAM_TIME_LIMIT_SECONDS);
 
-        $tokens = $this->summariser->stream($user, $thread, $transcript, $full);
+        $tokens = $this->summariser->stream($user, $thread, $transcript);
 
         if (null === $tokens) {
             // Switched off between the check above and here, or a thread whose
@@ -311,11 +361,7 @@ final class ThreadSummaryController extends AbstractController
         // cold barely moves it, so residency is not even the question any more.
         $this->frame([
             'type'  => 'state',
-            'value' => match (true) {
-                true === $full                             => 'waiting_full',
-                true === $this->summariser->isModelWarm()  => 'generating',
-                default                                    => 'waiting',
-            },
+            'value' => true === $this->summariser->isModelWarm() ? 'generating' : 'waiting',
         ]);
 
         // When the reading started, so each heartbeat can say how long it has
@@ -389,7 +435,6 @@ final class ThreadSummaryController extends AbstractController
             $this->logger->warning('Thread summary abandoned before it finished', [
                 'thread'           => $thread->id,
                 'model'            => $model,
-                'full'             => $full,
                 'transcript_chars' => mb_strlen($transcript),
                 'elapsed_seconds'  => (int) round(microtime(true) - $readingSince),
                 'chars_so_far'     => $this->written,
@@ -436,7 +481,6 @@ final class ThreadSummaryController extends AbstractController
                 // still short — and three reports of `kind: timeout` could not
                 // be told apart because neither the mode nor the size was in
                 // the record.
-                'full'             => $full,
                 'transcript_chars' => mb_strlen($transcript),
             ]);
 
@@ -455,7 +499,7 @@ final class ThreadSummaryController extends AbstractController
         // nothing the session holds. Its failure is logged and swallowed inside
         // the store: the reader already has their summary on screen, and a
         // caching miss must not become a 500 on a response that is half sent.
-        $this->store->save((int) $thread->id, $result->content, $sourceHash, $model, $promptHash, $full);
+        $this->store->save((int) $thread->id, $result->content, $sourceHash, $model, $promptHash);
 
         $this->frame([
             'type' => 'done',
@@ -465,12 +509,10 @@ final class ThreadSummaryController extends AbstractController
             // "written from part of it" is the one caveat they cannot get from
             // reading the paragraph.
             'partial' => ThreadTranscript::isPartial($transcript),
-            // Whether this run sent the whole conversation, so the card knows
-            // the offer has been taken up and stops making it. Distinct from
-            // `partial`: a thread past FULL_TRANSCRIPT_CEILING is both — sent
-            // in full mode and still trimmed — and the reader needs to be told
-            // that pressing it again will not help.
-            'full'    => $full,
+            // Always false from here: a full run is a job now and never
+            // reaches this frame. Kept in the contract because the card reads
+            // it to decide whether the offer still stands.
+            'full'    => false,
             // The whole answer again, tidied. The browser has the raw tokens
             // and could join them itself, but tidy() strips a code fence that
             // can only be recognised from both ends — so what is SHOWN from

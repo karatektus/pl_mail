@@ -213,6 +213,49 @@ final class ThreadSummaryTest extends WebTestCase
     }
 
     /**
+     * A full run is QUEUED, not streamed, and nothing is held open.
+     *
+     * The whole reason the job exists. A full-conversation run is silent for
+     * minutes while the model reads, and for that whole silence the answer used
+     * to depend on a browser connection staying open. Measured on a real
+     * installation: abandoned after 40 seconds with nothing yet written, four
+     * heartbeats already delivered, and a model host that was up for seven days
+     * either side of it. Nothing in plMail closed that connection — a proxy, a
+     * browser and a network are all in it, and any of them may end it without
+     * saying so. Three rounds of timeout tuning could not fix that, because a
+     * timeout was never what went wrong.
+     *
+     * So this asserts the absence: 202, a JSON body, and NO ndjson stream. If
+     * this ever goes back to 200 with a Content-Type of application/x-ndjson,
+     * the connection dependency is back and so is the bug.
+     */
+    public function testAFullRunIsQueuedRatherThanStreamed(): void
+    {
+        $client = $this->signIn();
+        $thread = $this->seedThread(2);
+
+        $this->configureAi();
+
+        $client->request(
+            'POST',
+            sprintf('/mail/thread/%d/summary', $thread->id),
+            parameters: ['full' => '1'],
+            server: ['HTTP_X_CSRF_TOKEN' => $this->token($client)],
+        );
+
+        self::assertSame(202, $client->getResponse()->getStatusCode());
+        self::assertJsonStringEqualsJsonString(
+            '{"status":"queued"}',
+            (string) $client->getResponse()->getContent(),
+        );
+        self::assertStringNotContainsString(
+            'ndjson',
+            (string) $client->getResponse()->headers->get('Content-Type'),
+            'a full run must not stream, or it depends on a connection again',
+        );
+    }
+
+    /**
      * A finished run is stored, so the next open costs nothing.
      *
      * The write happens after the last token and before the `done` frame, and

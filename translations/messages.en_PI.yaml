@@ -2988,6 +2988,7 @@ thread:
             sent: "Sent t' th' oracle…"
             stopped: 'Belayed. Nowt were kept.'
             waiting: "Th' first askin' after a spell takes near a minute while th' oracle wakes an' reads th' yarn."
+            queued: "In th' queue. Th' whole yarn be boiled down below decks — ye may close this an' come back; it be waitin'."
             reading: "Still readin' th' yarn — %elapsed% so far. Nowt shows till she be done."
             waiting_full: "Readin' th' whole yarn. On a long one that be several minutes, an' nowt shows till she has read it through."
             working: "Boilin' her down…"

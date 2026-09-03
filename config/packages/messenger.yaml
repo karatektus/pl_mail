@@ -92,6 +92,13 @@ framework:
             Symfony\Component\Mailer\Messenger\SendEmailMessage: export
             Symfony\Component\Notifier\Message\ChatMessage: export
             Symfony\Component\Notifier\Message\SmsMessage: export
+            # maintenance, and the choice is between two bad neighbours. This
+            # holds a consumer for minutes — the model reads the whole
+            # conversation before it writes a word — so it must not sit on
+            # ingest, where mail arriving would queue behind somebody's summary.
+            # maintenance is the transport whose work is already long and
+            # already nobody's foreground.
+            App\Infrastructure\Messaging\Message\SummariseThreadMessage: maintenance
             App\Infrastructure\Messaging\Message\SyncImapMailboxMessage: ingest
             # ingest, beside the sync it replaces for the common case: it is
             # mail state arriving from the server, and it must not queue behind

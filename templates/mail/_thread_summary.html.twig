@@ -77,6 +77,11 @@ of this that does not exist yet when the controller has to be listening.
     {% if ai_summary_enabled() and thread.messageCount > 1 %}
         data-controller="mail--thread-summary"
         data-mail--thread-summary-url-value="{{ path('app_mail_thread_summary', {'id': thread.id}) }}"
+        data-mail--thread-summary-thread-value="{{ thread.id }}"
+        {# The worker's nudge. Full-conversation summaries are a background job
+           — see SummariseThreadMessage for why — so the answer arrives here
+           rather than down the request that asked for it. #}
+        data-action="core--mercure:summary-finished@document->mail--thread-summary#finished"
         {# A per-action token, stamped here because assets/csrf.js reads the
            `csrf-token` meta tag and that tag carries the shared `ajax` one.
            The precedent is settings/account_order_controller, which csrf.js's
@@ -97,6 +102,7 @@ of this that does not exist yet when the controller has to be listening.
         data-mail--thread-summary-waiting-full-label-value="{{ 'thread.summary.state.waiting_full'|trans }}"
         data-mail--thread-summary-reading-label-value="{{ 'thread.summary.state.reading'|trans }}"
         data-mail--thread-summary-connection-lost-label-value="{{ 'thread.summary.error.connection_lost'|trans }}"
+        data-mail--thread-summary-queued-label-value="{{ 'thread.summary.state.queued'|trans }}"
         data-mail--thread-summary-too-short-label-value="{{ 'thread.summary.too_short'|trans }}"
     {% endif %}
 {% endmacro %}

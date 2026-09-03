@@ -428,6 +428,14 @@ export default class extends Controller {
             if ("string" === typeof data.stream && "" !== data.stream) {
                 Turbo.renderStreamMessage(data.stream);
             }
+        } else if (data.type === "summary.finished") {
+            // Published by App\Service\Ai\ThreadSummaryNotifier when the
+            // background job that writes a full-conversation summary has
+            // landed. Carries no text — the store is the record and the card
+            // re-reads it — for the reason every nudge here carries none, plus
+            // one of its own: what it would be carrying is a paragraph about
+            // somebody's mail, on a channel that has never held any.
+            this.dispatch("summary-finished", {detail: data});
         } else if (data.type === "insights.changed") {
             // Published by App\Service\Insight\InsightNotifier when a sync
             // actually landed insights for this user. The strip above the mail

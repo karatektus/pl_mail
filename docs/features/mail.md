@@ -232,11 +232,22 @@ When either happens, the card says *"This conversation was too long to send in f
 was written from part of it"*, with **Summarise the whole conversation instead** underneath.
 
 That second button does what it says: it sends everything and asks the model host to make room for
-it. Expect it to take noticeably longer, and expect it to ask more of the machine running the model —
-on a modest one it may be slow enough to be worth doing only for a conversation you actually need.
-Nothing is remembered, so it applies to the one summary you asked for and no others. If the
-conversation is so long that even this cannot hold it, you still get a summary, the note stays, and
-the button withdraws rather than inviting the same wait twice.
+it. Expect it to take noticeably longer — minutes rather than seconds on a long thread — and expect
+it to ask more of the machine running the model. Nothing is remembered, so it applies to the one
+summary you asked for and no others. If the conversation is so long that even this cannot hold it,
+you still get a summary, the note stays, and the button withdraws rather than inviting the same wait
+twice.
+
+**It runs in the background, and you do not have to wait for it.** The card says it is queued and
+then you are free: close the conversation, go to another one, close the tab entirely. The summary is
+written by a worker and stored when it is finished, and it will be on the card the next time you
+open the thread — or it will appear there by itself if you are still looking at it.
+
+That is not a convenience, it is the only way it works reliably. An ordinary summary is quick enough
+to watch arrive, so it streams. A full one is silent for minutes while the model reads, and a
+browser connection held open across that silence has a proxy, a network and a sleeping laptop in it
+— any of which can end it without telling anyone. Handing the work to a worker removes the
+dependency rather than trying to outlast it.
 
 Once written, it is kept and shown the next time the conversation is opened, at no cost. If a reply
 arrives afterwards, the summary is shown greyed with a note that the conversation has changed and a
