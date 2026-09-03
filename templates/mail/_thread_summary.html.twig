@@ -226,6 +226,29 @@ that is there on reopening cannot drift apart.
                                class="text-[11px] leading-snug text-ink-muted"
                             >{{ 'thread.summary.partial'|trans }}</p>
 
+                            {# The way out, beside the notice that explains why
+                               it is there. Not a setting: it costs a much
+                               longer wait and asks the host to reserve a far
+                               larger context window, which on a modest machine
+                               is slow and can fail outright. Fair to spend once
+                               on a thread somebody cares about, wrong as a
+                               default for every summary in the mailbox — so the
+                               cost is in the label rather than in a tooltip
+                               nobody opens.
+
+                               Shown on exactly the same condition as the notice
+                               at first paint, and withdrawn by the controller
+                               once a full run has answered: a thread that is
+                               still partial AFTER one is past the ceiling, and
+                               pressing again would spend the wait to be told
+                               the same thing. #}
+                            <button type="button"
+                                    data-mail--thread-summary-target="full"
+                                    data-action="click->mail--thread-summary#full"
+                                    {{ summary is not null and summary.isPartial ? '' : 'hidden' }}
+                                    class="self-start text-[11px] leading-snug underline underline-offset-2 text-ink-muted hover:text-ink transition-colors cursor-pointer"
+                            >{{ 'thread.summary.send_full'|trans }}</button>
+
                             {# A LIST, because three findings in a block of
                                prose is three findings nobody separates while
                                skimming — which is the only way a summary is

@@ -249,6 +249,62 @@ final class ThreadTranscriptTest extends KernelTestCase
     }
 
     /**
+     * A full run sends the conversation, and is still bounded.
+     *
+     * Both halves matter. It has to actually send more — otherwise the button
+     * spends a much longer wait to produce the same summary — and it must still
+     * stop somewhere, because the whole mechanism behind it is asking the host
+     * to reserve a context window, and a window is memory. An unbounded
+     * "send everything" would let one absurd thread ask a modest machine for an
+     * allocation it cannot make, and a failed allocation costs the reader the
+     * entire wait and produces nothing.
+     */
+    public function testAFullRunSendsMoreButStillStopsSomewhere(): void
+    {
+        $this->seedThread([
+            'FIRST ' . str_repeat('a', ThreadSummariser::TRANSCRIPT_BUDGET * 40),
+            'LAST '  . str_repeat('b', ThreadSummariser::TRANSCRIPT_BUDGET * 40),
+        ]);
+
+        $normal = $this->transcript->forThread($this->thread);
+        $full   = $this->transcript->forThread($this->thread, true);
+
+        self::assertGreaterThan(
+            mb_strlen($normal) * 4,
+            mb_strlen($full),
+            'a full run has to send substantially more, or the wait buys nothing',
+        );
+
+        self::assertLessThanOrEqual(
+            ThreadSummariser::FULL_TRANSCRIPT_CEILING * 2 + 500,
+            mb_strlen($full),
+            'and it still has a ceiling, because num_ctx is memory on somebody else\'s machine',
+        );
+
+        // Past the ceiling it is STILL partial, and says so. The button is
+        // withdrawn on that answer rather than inviting a second identical wait.
+        self::assertTrue(ThreadTranscript::isPartial($full));
+    }
+
+    /**
+     * The context window asked for follows the transcript, and is bounded.
+     *
+     * Sized rather than fixed: a window is allocated whole whether the prompt
+     * fills it or not, so asking for the maximum on every full run would make
+     * a two-message thread as expensive as a hundred-message one.
+     */
+    public function testTheContextWindowIsSizedToTheTranscriptAndCapped(): void
+    {
+        $small = ThreadSummariser::contextFor(str_repeat('a', 1000));
+        $large = ThreadSummariser::contextFor(str_repeat('a', 90000));
+
+        self::assertGreaterThanOrEqual(4096, $small, 'never below the default the host would have used');
+        self::assertGreaterThan($small, $large, 'a longer conversation asks for a longer window');
+        self::assertLessThanOrEqual(32768, $large, 'and never more than a host can be expected to allocate');
+        self::assertSame(0, $large % 1024, 'windows are sized in whole blocks');
+    }
+
+    /**
      * A turn with no text part still appears, as its sender line.
      *
      * ReplyContextReader's reason, unchanged: dropping it would silently close

@@ -3404,6 +3404,7 @@ thread:
         heading: 'Zusammenfassung'
         regenerate: 'Neu zusammenfassen'
         partial: 'Das Gespräch war zu lang, um es ganz zu schicken — die Zusammenfassung ist aus einem Teil davon geschrieben.'
+        send_full: 'Stattdessen das ganze Gespräch zusammenfassen — dauert länger und verlangt dem Modell-Host mehr ab.'
         stale: 'Das Gespräch hat sich geändert, seit das hier geschrieben wurde.'
         state:
             sent: 'An das Modell geschickt …'

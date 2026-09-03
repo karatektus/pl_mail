@@ -93,6 +93,71 @@ final readonly class ThreadSummariser
     public const int TRANSCRIPT_BUDGET = 8000;
 
     /**
+     * The most a full-conversation run will send, in characters.
+     *
+     * "Full" is bounded, and the bound is the point rather than a caveat. The
+     * whole reason this option exists is that the ordinary budget is sized for
+     * a context window plMail cannot see and does not set — but the cure is
+     * asking for a bigger window, and a window is MEMORY. Ollama allocates the
+     * KV cache for the whole of num_ctx whether the prompt fills it or not, so
+     * an unbounded "send everything" would let one absurd thread ask a modest
+     * host for an allocation it cannot make, and the failure is the host
+     * refusing or thrashing rather than anything plMail can catch.
+     *
+     * 96,000 characters is about 32,000 tokens at the 3.0 chars/token this
+     * sizes with, which lands the request just inside FULL_MAX_CONTEXT_TOKENS
+     * once the prompt and the answer are reserved. It is twelve times the
+     * ordinary budget: a conversation that does not fit in it is not a thread
+     * anybody is going to read either, and it still gets a summary — clipped,
+     * and the card still says so.
+     */
+    public const int FULL_TRANSCRIPT_CEILING = 96000;
+
+    /**
+     * The largest context window a full run will ask a host for.
+     *
+     * Chosen as a number the models plMail is used with actually support and a
+     * mid-range GPU can still allocate. Above this the honest move is to send
+     * less rather than to ask for a window the host may not have — a request
+     * that fails to allocate costs the reader the whole wait and produces
+     * nothing, where a clipped transcript produces a summary and a sentence
+     * saying it is partial.
+     */
+    private const int FULL_MAX_CONTEXT_TOKENS = 32768;
+
+    /**
+     * Characters per token, for sizing num_ctx only.
+     *
+     * DELIBERATELY BELOW the 3.55 measured on real German business mail, and
+     * the direction matters: this divides characters to get tokens, so a
+     * smaller number OVERESTIMATES how many tokens the transcript needs and
+     * asks for a slightly larger window than strictly necessary. Erring the
+     * other way would silently truncate the conversation inside a feature whose
+     * entire purpose is not to, which is the failure this exists to end.
+     */
+    private const float CHARS_PER_TOKEN = 3.0;
+
+    /** The system prompt plus room for the summary being written, in tokens. */
+    private const int FULL_CONTEXT_RESERVE_TOKENS = 800;
+
+    /**
+     * The context window to ask for, for a transcript of this size.
+     *
+     * Rounded up to a whole number of 1024-token blocks, which is how these
+     * windows are conventionally sized and keeps the request from looking like
+     * a number somebody typed. Never below Ollama's own 4096 default: asking
+     * for less than the host would have used anyway can only make a short
+     * conversation worse.
+     */
+    public static function contextFor(string $transcript): int
+    {
+        $tokens = (int) ceil(mb_strlen($transcript) / self::CHARS_PER_TOKEN) + self::FULL_CONTEXT_RESERVE_TOKENS;
+        $blocks = (int) ceil($tokens / 1024) * 1024;
+
+        return max(4096, min(self::FULL_MAX_CONTEXT_TOKENS, $blocks));
+    }
+
+    /**
      * A conversation with one message in it is not summarised.
      *
      * Not a safety rule, a usefulness one: a "summary" of a single message
@@ -262,7 +327,7 @@ final readonly class ThreadSummariser
      *
      * @return \Generator<int, string, void, AiChatResult>|null
      */
-    public function stream(User $user, MessageThread $thread, string $transcript): ?\Generator
+    public function stream(User $user, MessageThread $thread, string $transcript, bool $full = false): ?\Generator
     {
         $messages = $this->messagesFor($user, $thread, $transcript);
 
@@ -270,7 +335,19 @@ final readonly class ThreadSummariser
             return null;
         }
 
-        $tokens = $this->ai->chatStream(AiFeature::Summary, $messages, self::TEMPERATURE);
+        // num_ctx ONLY for a full run, and sized from the transcript in hand.
+        //
+        // Not sent otherwise, so every ordinary summary keeps the shape it has
+        // always had — the budget above is chosen to fit the 4096 default and
+        // sending a window would change nothing except the memory the host
+        // reserves. A full run is the case where the default is the problem,
+        // and it is the reader's own deliberate press.
+        $tokens = $this->ai->chatStream(
+            AiFeature::Summary,
+            $messages,
+            self::TEMPERATURE,
+            true === $full ? self::contextFor($transcript) : null,
+        );
 
         // Not a generator function, for the reason AiAssistant::chatStream()
         // gives: the refusals above have to happen when this is CALLED, not

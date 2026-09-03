@@ -109,6 +109,45 @@ final class ThreadSummaryStreamTest extends KernelTestCase
         self::assertSame('They agreed.', $tokens->getReturn()->content);
     }
 
+    /**
+     * num_ctx goes on the wire for a full run, and only for a full run.
+     *
+     * THIS IS THE ONLY THING THAT MAKES THE BUTTON MEAN ANYTHING. Ollama's
+     * default window is 4096 tokens and everything past it is dropped with no
+     * error and no way for the caller to notice — four docblocks in this
+     * codebase size their budgets around exactly that. So a "send the whole
+     * conversation" that did not also ask for a window to put it in would send
+     * more, have it silently truncated at a point nobody chose, and cost the
+     * reader a much longer wait for a summary written from no more than before.
+     *
+     * The other half is that an ordinary summary is UNCHANGED. Sending a window
+     * makes the host reserve memory for the whole of it whether the prompt
+     * fills it or not, and every summary in the mailbox paying that so one
+     * thread can be complete is the wrong trade — which is why the option is a
+     * press and not a setting.
+     */
+    public function testTheContextWindowIsSentOnlyForAFullRun(): void
+    {
+        $sent = null;
+        $summariser = $this->summariser($this->ndjson(['done.']), sent: $sent);
+
+        iterator_to_array($summariser->stream($this->reader(), $this->thread, 'a transcript'), false);
+        self::assertArrayNotHasKey(
+            'num_ctx',
+            $sent['options'] ?? [],
+            'an ordinary summary must not make the host reserve a window it did not need',
+        );
+
+        $transcript = str_repeat('a', 30000);
+        iterator_to_array($summariser->stream($this->reader(), $this->thread, $transcript, true), false);
+
+        self::assertSame(
+            ThreadSummariser::contextFor($transcript),
+            $sent['options']['num_ctx'] ?? null,
+            'a full run asks for a window sized to what it is actually sending',
+        );
+    }
+
     /** One row, on the ordinary ending, tagged as the summary workload. */
     public function testAFinishedStreamIsRecordedOnceAsAThreadSummary(): void
     {

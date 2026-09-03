@@ -83,9 +83,9 @@ final readonly class ThreadTranscript
      * thread whose replies were all at the end would describe an argument in
      * which one side spoke only after the other had finished.
      */
-    public function forThread(MessageThread $thread): string
+    public function forThread(MessageThread $thread, bool $full = false): string
     {
-        return $this->forMessages($this->messages->forThreadInConversationOrder($thread));
+        return $this->forMessages($this->messages->forThreadInConversationOrder($thread), $full);
     }
 
     /**
@@ -99,15 +99,26 @@ final readonly class ThreadTranscript
      *
      * @param list<Message> $messages oldest first
      */
-    public function forMessages(array $messages): string
+    public function forMessages(array $messages, bool $full = false): string
     {
-        $blocks = array_map(self::block(...), $messages);
+        // FULL IS STILL BOUNDED, and calling it "full" anyway is deliberate: it
+        // is the whole conversation for every thread anyone actually has, and
+        // the ceiling exists so that the one thread that is not cannot ask the
+        // host for a context window it has no memory to allocate. Above it the
+        // clip still applies and the card still says the summary is partial,
+        // which is the honest answer rather than a promise this cannot keep.
+        // See ThreadSummariser::FULL_TRANSCRIPT_CEILING.
+        $limit  = $full ? ThreadSummariser::FULL_TRANSCRIPT_CEILING : self::turnLimit();
+        $blocks = array_map(static fn (Message $turn): string => self::block($turn, $limit), $messages);
 
         if ([] === $blocks) {
             return '';
         }
 
-        return implode("\n\n", self::trimmed($blocks));
+        // Whole turns are only ever dropped to fit the ordinary budget. In full
+        // mode the point is that nothing is dropped, so every turn stands and
+        // the ceiling above is what holds the total down.
+        return implode("\n\n", $full ? $blocks : self::trimmed($blocks));
     }
 
     /**
@@ -161,7 +172,13 @@ final readonly class ThreadTranscript
      * a gap in the conversation, and "somebody replied here and we cannot show
      * you what they said" is more use to a model than a turn that never appears.
      */
-    private static function block(Message $turn): string
+    /** Two thirds of the ordinary budget. See block() for why a turn is capped at all. */
+    private static function turnLimit(): int
+    {
+        return intdiv(ThreadSummariser::TRANSCRIPT_BUDGET * 2, 3);
+    }
+
+    private static function block(Message $turn, int $limit): string
     {
         $body = trim((string) ($turn->bodyText ?? ''));
 
@@ -183,12 +200,11 @@ final readonly class ThreadTranscript
         // whatever end of the chain survived the truncation and summarises
         // that, and the summary is confidently about the wrong message.
         //
-        // Two thirds of the whole budget, so a single turn can still be most of
-        // a conversation — a thread that really is one long mail and one "yes"
-        // should summarise the long mail — while two oversized turns together
-        // cannot exceed it by more than a third.
-        $limit = intdiv(ThreadSummariser::TRANSCRIPT_BUDGET * 2, 3);
-
+        // Two thirds of the whole budget by default, so a single turn can still
+        // be most of a conversation — a thread that really is one long mail and
+        // one "yes" should summarise the long mail — while two oversized turns
+        // together cannot exceed it by more than a third. The caller raises it
+        // for a full-conversation run.
         if (mb_strlen($body) > $limit) {
             // Cut from the END, keeping the head. Same argument as trimmed()
             // makes for keeping the opening turn: a forwarded chain is newest

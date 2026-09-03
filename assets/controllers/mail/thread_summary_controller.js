@@ -69,7 +69,7 @@ export default class extends Controller {
         "status",
         "pending",
         "output",
-        "stale", "partial",
+        "stale", "partial", "full",
         "run",
         "runLabel",
         "stop",
@@ -201,6 +201,26 @@ export default class extends Controller {
     }
 
     /**
+     * Write one from the whole conversation, however long it is.
+     *
+     * Offered only beside the notice saying the last one was not — the reader
+     * learns something was left out and the way to fix it is in the same
+     * breath, rather than in a setting they would have to know exists.
+     *
+     * A SEPARATE ACTION AND NOT A CHECKBOX, because it is not a preference. It
+     * costs a much longer wait and asks the model host to reserve a far larger
+     * context window, which on a modest machine is slow and can fail to
+     * allocate. That is a fair thing to spend once on a thread somebody cares
+     * about and a poor default for every summary in the mailbox, so it is a
+     * press with a warning on it and nothing is remembered.
+     */
+    full(event) {
+        event?.preventDefault();
+
+        this.#start(true);
+    }
+
+    /**
      * Stop, and keep nothing.
      *
      * The abort reaches the server, whose next write fails, whose loop breaks,
@@ -217,7 +237,7 @@ export default class extends Controller {
         this.#say(this.stoppedLabelValue);
     }
 
-    async #start() {
+    async #start(full = false) {
         // Every run past the first is a REPLACEMENT, so the previous one's
         // fetch has to go before this one's counter moves — otherwise two
         // streams write into the same card.
@@ -260,12 +280,14 @@ export default class extends Controller {
                     "Content-Type": "application/x-www-form-urlencoded",
                     "X-CSRF-Token": this.tokenValue,
                 },
-                // A form-encoded body with nothing in it. Everything the server
-                // needs is the thread id already in the URL and the person
-                // already in the session: what gets summarised is never taken
-                // from the page, or anything that could post here would choose
-                // what the model is told about somebody's mail.
-                body: new URLSearchParams({}),
+                // ONE field, and it is not "what to summarise". Everything the
+                // server needs to decide THAT is the thread id already in the
+                // URL and the person already in the session: what gets
+                // summarised is never taken from the page, or anything that
+                // could post here would choose what the model is told about
+                // somebody's mail. How much of their own thread to send is a
+                // different question, and it is the one the card asks.
+                body: new URLSearchParams(true === full ? { full: "1" } : {}),
                 signal: this.#controller.signal,
             });
 
@@ -361,6 +383,13 @@ export default class extends Controller {
             // thread may have grown since the page was drawn, and this run's
             // transcript is the only one that describes what was just read.
             this.#partial(true === frame.partial);
+
+            // The offer is only worth making while it would change something.
+            // A run that already sent everything has nothing more to send, and
+            // a thread past the ceiling is still partial after a full run — so
+            // the button goes either way, and the notice standing alone says
+            // the honest thing: this is as much as it can see.
+            this.#offerFull(true === frame.partial && true !== frame.full);
 
             // No sentence at all. A finished summary explains itself, and a
             // status line reading "Summarised" over the summary is furniture.
@@ -583,6 +612,13 @@ export default class extends Controller {
         if (false === this.hasPartialTarget) return;
 
         this.partialTarget.hidden = false === on;
+    }
+
+    /** The "send the whole thing" offer, which only stands while it would help. */
+    #offerFull(on) {
+        if (false === this.hasFullTarget) return;
+
+        this.fullTarget.hidden = false === on;
     }
 
     /** Stop replaces Summarise for the length of a run, and never sits beside it. */

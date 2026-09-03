@@ -97,7 +97,7 @@ final readonly class ThreadSummaryStore
         try {
             $row = $this->connection->fetchAssociative(
                 <<<'SQL'
-                    SELECT summary, source_hash, created_at
+                    SELECT summary, source_hash, created_at, full_context
                       FROM thread_summary
                      WHERE thread_id = :id
                        AND model = :model
@@ -141,7 +141,13 @@ final readonly class ThreadSummaryStore
             // one is reachable by an attacker.
             hash_equals((string) $row['source_hash'], $sourceHash),
             $writtenAt,
-            $isPartial,
+            // Partial only if the conversation is trimmable AND this row was
+            // not written from all of it. Both halves are needed: the thread
+            // answers the first and only the row can answer the second, and a
+            // full run on a thread that is still too long to trim normally
+            // would otherwise keep a notice saying the model had not seen
+            // everything — after a much longer wait during which it did.
+            $isPartial && false === (bool) $row['full_context'],
         );
     }
 
@@ -156,19 +162,20 @@ final readonly class ThreadSummaryStore
      *
      * @return bool whether anything was stored
      */
-    public function save(int $threadId, string $summary, string $sourceHash, string $model, string $promptHash): bool
+    public function save(int $threadId, string $summary, string $sourceHash, string $model, string $promptHash, bool $fullContext = false): bool
     {
         try {
             $this->connection->executeStatement(
                 <<<'SQL'
-                    INSERT INTO thread_summary (thread_id, summary, source_hash, model, prompt_hash, created_at)
-                    VALUES (:id, :summary, :hash, :model, :prompt, :now)
+                    INSERT INTO thread_summary (thread_id, summary, source_hash, model, prompt_hash, full_context, created_at)
+                    VALUES (:id, :summary, :hash, :model, :prompt, :full, :now)
                     ON CONFLICT (thread_id) DO UPDATE
-                        SET summary     = EXCLUDED.summary,
-                            source_hash = EXCLUDED.source_hash,
-                            model       = EXCLUDED.model,
-                            prompt_hash = EXCLUDED.prompt_hash,
-                            created_at  = EXCLUDED.created_at
+                        SET summary      = EXCLUDED.summary,
+                            source_hash  = EXCLUDED.source_hash,
+                            model        = EXCLUDED.model,
+                            prompt_hash  = EXCLUDED.prompt_hash,
+                            full_context = EXCLUDED.full_context,
+                            created_at   = EXCLUDED.created_at
                 SQL,
                 [
                     'id'      => $threadId,
@@ -176,9 +183,10 @@ final readonly class ThreadSummaryStore
                     'hash'    => $sourceHash,
                     'model'   => $model,
                     'prompt'  => $promptHash,
+                    'full'    => $fullContext,
                     'now'     => (new DateTimeImmutable())->format('Y-m-d H:i:s'),
                 ],
-                ['id' => ParameterType::INTEGER],
+                ['id' => ParameterType::INTEGER, 'full' => ParameterType::BOOLEAN],
             );
 
             return true;

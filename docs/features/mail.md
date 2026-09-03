@@ -212,9 +212,31 @@ it and keeps nothing.
 
 The summary is written from the messages themselves and nothing else — not from your notes in
 **Settings → Assistant**, which are for how *you* want to be written for and have no business
-shaping a description of somebody else's mail. A long conversation is summarised from its opening
-and its most recent messages, and if the middle had to be left out the summary says so and says how
-many messages it was. A German conversation gets a German summary.
+shaping a description of somebody else's mail. A German conversation gets a German summary.
+
+#### When the conversation is too long to send whole
+
+There is a limit on how much of a conversation goes to the model at once, and it is not plMail's
+choice: a model can only hold so much text at a time, and anything past that is dropped without a
+word — so a summary of a conversation that overran would quietly describe whichever end happened to
+survive. Rather than let that happen silently, plMail trims first and says that it did.
+
+Two kinds of trimming, and the card names either:
+
+- A long conversation is summarised from its **opening and its most recent messages**, and the middle
+  is left out with a note saying how many messages it was.
+- A single enormous message — a chain that has been forwarded and quoted a dozen times is one
+  message, not a dozen — is **cut short**.
+
+When either happens, the card says *"This conversation was too long to send in full, so the summary
+was written from part of it"*, with **Summarise the whole conversation instead** underneath.
+
+That second button does what it says: it sends everything and asks the model host to make room for
+it. Expect it to take noticeably longer, and expect it to ask more of the machine running the model —
+on a modest one it may be slow enough to be worth doing only for a conversation you actually need.
+Nothing is remembered, so it applies to the one summary you asked for and no others. If the
+conversation is so long that even this cannot hold it, you still get a summary, the note stays, and
+the button withdraws rather than inviting the same wait twice.
 
 Once written, it is kept and shown the next time the conversation is opened, at no cost. If a reply
 arrives afterwards, the summary is shown greyed with a note that the conversation has changed and a

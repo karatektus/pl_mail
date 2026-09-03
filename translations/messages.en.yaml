@@ -3396,6 +3396,7 @@ thread:
         heading: 'Summary'
         regenerate: 'Summarise again'
         partial: 'This conversation was too long to send in full, so the summary was written from part of it.'
+        send_full: 'Summarise the whole conversation instead — slower, and it asks more of the model host.'
         stale: 'The conversation has changed since this was written.'
         state:
             sent: 'Sent to the model…'

@@ -461,7 +461,7 @@ final readonly class OllamaClient
      *
      * @return \Generator<int, string, void, AiChatResult>
      */
-    public function chatStream(string $baseUrl, string $model, array $messages, ?float $temperature = null, ?string $keepAlive = null): \Generator
+    public function chatStream(string $baseUrl, string $model, array $messages, ?float $temperature = null, ?string $keepAlive = null, ?int $numCtx = null): \Generator
     {
         $payload = self::withKeepAlive([
             'model'    => $model,
@@ -469,8 +469,33 @@ final readonly class OllamaClient
             'stream'   => true,
         ], $keepAlive);
 
+        $options = [];
+
         if (null !== $temperature) {
-            $payload['options'] = ['temperature' => $temperature];
+            $options['temperature'] = $temperature;
+        }
+
+        // THE FIRST num_ctx THIS CLIENT HAS EVER SENT, and its absence was
+        // load-bearing: four docblocks across the codebase size their budgets
+        // around "OllamaClient sends no num_ctx, so the model's default decides
+        // what survives". That default is Ollama's 4096, and everything past it
+        // is dropped with no error, no warning and no way for the caller to
+        // find out — which is why every budget here is small and why a thread
+        // too long to fit was summarised from whichever end happened to remain.
+        //
+        // Sent ONLY when a caller asks for it, so nothing that worked before
+        // changes shape. It is not free: the KV cache is allocated for the
+        // whole window whether the prompt fills it or not, so a large value on
+        // a modest host is slower and can fail to allocate at all. That is why
+        // no default is applied here and why the one caller that passes it —
+        // the full-conversation summary — is a button somebody presses rather
+        // than a setting that applies to every request.
+        if (null !== $numCtx) {
+            $options['num_ctx'] = $numCtx;
+        }
+
+        if ([] !== $options) {
+            $payload['options'] = $options;
         }
 
         $whole  = '';

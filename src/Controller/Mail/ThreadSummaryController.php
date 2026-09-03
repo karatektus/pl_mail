@@ -119,7 +119,15 @@ final class ThreadSummaryController extends AbstractController
         // read, and captured into the closure. It is needed twice — as the
         // prompt and as the thing hashed — and building it twice would be two
         // versions of one fact that disagree the first time either is tuned.
-        $transcript = $this->transcript->forThread($thread);
+        // WHAT THE READER ASKED FOR, and the only thing this endpoint takes
+        // off the request. The thread comes from the URL and the person from
+        // the session — see the body comment in the controller that calls this
+        // — so a post that chose WHICH mail to summarise would be a way to aim
+        // the model at somebody else's. Choosing how much of their own thread
+        // to send is not that, and it is the one decision the card offers.
+        $full = $request->request->getBoolean('full');
+
+        $transcript = $this->transcript->forThread($thread, $full);
         $sourceHash = ThreadTranscript::hash($transcript);
         $model      = $this->summariser->model();
 
@@ -158,8 +166,8 @@ final class ThreadSummaryController extends AbstractController
         // ComposeAssistController captures its user: reading a property inside
         // the callback is free, while a repository lookup there would be a
         // query against a kernel that has finished with the request.
-        $response = new StreamedResponse(function () use ($user, $thread, $transcript, $sourceHash, $model, $promptHash): void {
-            $this->generate($user, $thread, $transcript, $sourceHash, $model, $promptHash);
+        $response = new StreamedResponse(function () use ($user, $thread, $transcript, $sourceHash, $model, $promptHash, $full): void {
+            $this->generate($user, $thread, $transcript, $sourceHash, $model, $promptHash, $full);
         });
 
         // Not application/json: this is a sequence of JSON documents and never
@@ -190,7 +198,7 @@ final class ThreadSummaryController extends AbstractController
      * had gone. A local in a method is freed when the method returns, and
      * freeing it is what cancels the call.
      */
-    private function generate(User $user, MessageThread $thread, string $transcript, string $sourceHash, string $model, string $promptHash): void
+    private function generate(User $user, MessageThread $thread, string $transcript, string $sourceHash, string $model, string $promptHash, bool $full = false): void
     {
         // PHP's default is to kill the script the moment a write finds the
         // browser gone, which sounds like what we want and is the opposite of
@@ -231,7 +239,7 @@ final class ThreadSummaryController extends AbstractController
         // cold load, so this only ever fires when that has failed to.
         set_time_limit(self::STREAM_TIME_LIMIT_SECONDS);
 
-        $tokens = $this->summariser->stream($user, $thread, $transcript);
+        $tokens = $this->summariser->stream($user, $thread, $transcript, $full);
 
         if (null === $tokens) {
             // Switched off between the check above and here, or a thread whose
@@ -313,7 +321,7 @@ final class ThreadSummaryController extends AbstractController
         // nothing the session holds. Its failure is logged and swallowed inside
         // the store: the reader already has their summary on screen, and a
         // caching miss must not become a 500 on a response that is half sent.
-        $this->store->save((int) $thread->id, $result->content, $sourceHash, $model, $promptHash);
+        $this->store->save((int) $thread->id, $result->content, $sourceHash, $model, $promptHash, $full);
 
         $this->frame([
             'type' => 'done',
@@ -323,6 +331,12 @@ final class ThreadSummaryController extends AbstractController
             // "written from part of it" is the one caveat they cannot get from
             // reading the paragraph.
             'partial' => ThreadTranscript::isPartial($transcript),
+            // Whether this run sent the whole conversation, so the card knows
+            // the offer has been taken up and stops making it. Distinct from
+            // `partial`: a thread past FULL_TRANSCRIPT_CEILING is both — sent
+            // in full mode and still trimmed — and the reader needs to be told
+            // that pressing it again will not help.
+            'full'    => $full,
             // The whole answer again, tidied. The browser has the raw tokens
             // and could join them itself, but tidy() strips a code fence that
             // can only be recognised from both ends — so what is SHOWN from

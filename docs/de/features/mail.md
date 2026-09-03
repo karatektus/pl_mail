@@ -1,4 +1,4 @@
-<!-- translated-from: features/mail.md sha1:75906ba33b88ccd8efd121f0ba99cfa471a42b57 -->
+<!-- translated-from: features/mail.md sha1:58b0384fc5c26659556b26d1f222ea00bc7d69ce -->
 
 # Mail
 
@@ -236,10 +236,34 @@ Stück an, du siehst also, dass etwas passiert. **Anhalten** bricht ab und behä
 
 Die Zusammenfassung entsteht aus den Nachrichten selbst und aus sonst nichts — nicht aus deinen
 Notizen unter **Einstellungen → Assistent**, die dafür da sind, wie *du* angeschrieben werden
-möchtest, und die in einer Beschreibung fremder Mail nichts zu suchen haben. Ein langes Gespräch
-wird aus seinem Anfang und seinen jüngsten Nachrichten zusammengefasst, und wenn die Mitte
-wegfallen musste, sagt die Zusammenfassung das und sagt, um wie viele Nachrichten es ging. Ein
-deutsches Gespräch bekommt eine deutsche Zusammenfassung.
+möchtest, und die in einer Beschreibung fremder Mail nichts zu suchen haben. Ein deutsches Gespräch
+bekommt eine deutsche Zusammenfassung.
+
+#### Wenn das Gespräch zu lang ist, um es ganz zu schicken
+
+Es gibt eine Grenze dafür, wie viel von einem Gespräch auf einmal zum Modell geht, und die sucht
+plMail sich nicht aus: Ein Modell kann nur eine bestimmte Menge Text auf einmal halten, und alles
+darüber fällt kommentarlos weg — eine Zusammenfassung eines übergroßen Gesprächs würde also
+stillschweigend beschreiben, welches Ende zufällig übrig geblieben ist. Statt das passieren zu
+lassen, kürzt plMail vorher und sagt, dass es gekürzt hat.
+
+Zwei Arten von Kürzung, und die Karte benennt beide:
+
+- Ein langes Gespräch wird aus **Anfang und jüngsten Nachrichten** zusammengefasst; die Mitte fällt
+  weg, mit einem Hinweis, um wie viele Nachrichten es ging.
+- Eine einzelne riesige Nachricht — eine Kette, die ein Dutzend Mal weitergeleitet und zitiert wurde,
+  ist *eine* Nachricht und nicht zwölf — wird **abgeschnitten**.
+
+In beiden Fällen steht auf der Karte *„Das Gespräch war zu lang, um es ganz zu schicken“*, und
+darunter **Stattdessen das ganze Gespräch zusammenfassen**.
+
+Dieser Knopf tut, was er sagt: Er schickt alles und bittet den Modell-Host, dafür Platz zu machen.
+Rechne mit deutlich mehr Zeit, und damit, dass es der Maschine hinter dem Modell mehr abverlangt —
+auf einer schwächeren kann das langsam genug sein, dass es sich nur für ein Gespräch lohnt, das du
+wirklich brauchst. Es wird nichts gemerkt: Es gilt für die eine Zusammenfassung, um die du gebeten
+hast, und für keine andere. Ist das Gespräch so lang, dass selbst das nicht reicht, bekommst du
+trotzdem eine Zusammenfassung, der Hinweis bleibt stehen, und der Knopf verschwindet, statt dich
+zweimal dasselbe abwarten zu lassen.
 
 Einmal geschrieben, wird sie aufbewahrt und beim nächsten Öffnen der Konversation ohne Wartezeit
 wieder angezeigt. Kommt danach eine Antwort, siehst du sie ausgegraut mit dem Hinweis, dass sich das

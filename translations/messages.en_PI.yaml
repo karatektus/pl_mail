@@ -2980,6 +2980,7 @@ thread:
         heading: "Th' short of it"
         regenerate: 'Boil her again'
         partial: "This yarn were too long t' send whole, so th' short of it were writ from but a part."
+        send_full: "Boil down th' whole yarn instead — slower, an' it asks more o' th' oracle's berth."
         stale: "Th' yarn has shifted since this were writ."
         state:
             sent: "Sent t' th' oracle…"
