@@ -260,4 +260,156 @@ list back, so nothing here navigates the page.
     </div>
     {% endif %}
 
+    {# What the SORTING has been getting wrong, beside what the insights have.
+       Two different reports about two different features, and they live
+       together because of where somebody looks for them.
+
+       This started in Admin → AI, on the reasoning that a report should sit
+       beside the thing it is evidence about — the prompt and the model are
+       configured there. That lost to the plainer fact that this section is
+       called "Reported mail": somebody who has just pressed a button labelled
+       Report goes looking for what it did under the heading that matches, finds
+       an empty list, and concludes the button is broken. Which is exactly what
+       happened.
+
+       The product is the TEXT, not the table. Whoever reads this is going to
+       paste it somewhere — into a prompt, an issue, a message to whoever is
+       changing a rule — so the copy button takes the whole block and the rows
+       are there to be skimmed before deciding whether it is worth pasting. #}
+    {% set reports = category_reports() %}
+    {% if reports.count > 0 %}
+        {# GROUPED BY THE PROBLEM, not listed by date. Twenty reports are rarely
+           twenty problems — they are "this shop keeps landing in Primary" six
+           times and one odd one — and the person reading this is deciding
+           whether to change a rule, which is a decision about a group. The
+           selection exists so they can take the group that is about their rule
+           and leave the four that are not.
+
+           Copying is ui--clipboard's, on the same wrapper: the selection
+           controller only keeps the hidden block in step with the ticks, so the
+           execCommand path that a plain-HTTP installation needs stays in one
+           place rather than being written twice. #}
+        <section class="{{ chrome.shell() }} mt-3"
+                 data-controller="admin--report-selection ui--clipboard"
+                 data-admin--report-selection-count-label-value="{{ 'admin.ai.reports.selected'|trans({'%count%': '%count%'}) }}"
+                 data-admin--report-selection-filename-value="category-reports.txt"
+                 data-ui--clipboard-confirm-text-value="{{ 'clipboard.copied'|trans }}"
+                 data-ui--clipboard-failed-text-value="{{ 'clipboard.copy_failed'|trans }}">
+
+            {# The selected lines, and the only thing either button acts on. #}
+            <pre class="hidden"
+                 data-admin--report-selection-target="sink"
+                 data-ui--clipboard-target="source"></pre>
+
+            <div class="flex items-start justify-between gap-3 {{ chrome.band() }}">
+                <div class="min-w-0">
+                    <h2 class="text-sm font-semibold text-ink">{{ 'admin.ai.reports.heading'|trans }}</h2>
+                    <p class="text-xs text-ink-faint mt-0.5">
+                        {{ 'admin.ai.reports.subheading'|trans({'%count%': reports.count}) }}
+                    </p>
+                </div>
+
+                <div class="flex items-center gap-1.5 shrink-0">
+                    <span class="text-[11px] text-ink-faint tabular-nums mr-1"
+                          data-admin--report-selection-target="count"></span>
+
+                    <button type="button"
+                            data-action="click->ui--clipboard#copy"
+                            data-admin--report-selection-target="action"
+                            class="inline-flex items-center gap-1.5 h-8 px-3 rounded-pane border border-line
+                                   text-[11px] text-ink-muted hover:bg-hover cursor-pointer transition-colors
+                                   disabled:opacity-40 disabled:cursor-not-allowed">
+                        <i data-ui--clipboard-target="icon" class="fa-solid fa-copy text-[10px]" aria-hidden="true"></i>
+                        <span data-ui--clipboard-target="label">{{ 'admin.ai.reports.copy'|trans }}</span>
+                    </button>
+
+                    <button type="button"
+                            data-action="click->admin--report-selection#download"
+                            data-admin--report-selection-target="action"
+                            class="inline-flex items-center gap-1.5 h-8 px-3 rounded-pane border border-line
+                                   text-[11px] text-ink-muted hover:bg-hover cursor-pointer transition-colors
+                                   disabled:opacity-40 disabled:cursor-not-allowed">
+                        <i class="fa-solid fa-download text-[10px]" aria-hidden="true"></i>
+                        <span>{{ 'admin.ai.reports.download'|trans }}</span>
+                    </button>
+
+                    {# Clearing is how a list of grievances stops being a list of
+                       the same grievance twenty times. These are somebody's
+                       observations about their own mail and nothing regenerates
+                       them, so it asks first. #}
+                    <form method="post" action="{{ path('app_admin_ai_reports_clear') }}"
+                          data-turbo-confirm="{{ 'admin.ai.reports.clear_confirm'|trans }}">
+                        <input type="hidden" name="_token" value="{{ csrf_token('admin_ai_reports_clear') }}">
+                        <button type="submit"
+                                class="inline-flex items-center justify-center h-8 w-8 rounded-pane
+                                       text-ink-faint hover:bg-hover cursor-pointer transition-colors">
+                            <span class="sr-only">{{ 'admin.ai.reports.clear'|trans }}</span>
+                            <i class="fa-solid fa-trash text-[10px]" aria-hidden="true"></i>
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <label class="flex items-center gap-2 px-4 py-2 border-b border-line cursor-pointer
+                          text-[11px] text-ink-faint hover:bg-hover transition-colors">
+                <input type="checkbox" checked
+                       data-admin--report-selection-target="all"
+                       data-action="change->admin--report-selection#toggleAll"
+                       class="size-3.5 accent-accent cursor-pointer">
+                {{ 'admin.ai.reports.select_all'|trans }}
+            </label>
+
+            <div class="max-h-96 overflow-y-auto">
+                {% for group in reports.groups %}
+                    <div class="border-b border-line last:border-b-0">
+                        <label class="flex items-center gap-2 px-4 py-2 bg-hover/40 cursor-pointer
+                                      hover:bg-hover transition-colors">
+                            <input type="checkbox" checked
+                                   data-group="{{ group.key }}"
+                                   data-admin--report-selection-target="group"
+                                   data-action="change->admin--report-selection#toggleGroup"
+                                   class="size-3.5 accent-accent cursor-pointer">
+
+                            <span class="text-[11px] font-medium text-ink">
+                                {{ ('tabs.' ~ group.filed)|trans }}
+                                <i class="fa-solid fa-arrow-right text-[9px] text-ink-faint mx-0.5" aria-hidden="true"></i>
+                                {{ ('tabs.' ~ group.shouldBe)|trans }}
+                            </span>
+
+                            <span class="text-[10px] text-ink-faint tabular-nums">{{ group.count }}</span>
+                        </label>
+
+                        {% for row in group.rows %}
+                            <label class="flex items-start gap-2 px-4 py-2 cursor-pointer
+                                          hover:bg-hover transition-colors">
+                                <input type="checkbox" checked
+                                       data-group="{{ group.key }}"
+                                       data-line="{{ row.line }}"
+                                       data-admin--report-selection-target="row"
+                                       data-action="change->admin--report-selection#toggleRow"
+                                       class="size-3.5 mt-0.5 accent-accent cursor-pointer shrink-0">
+
+                                <span class="min-w-0 flex-1">
+                                    <span class="flex items-baseline gap-2 min-w-0">
+                                        <span class="text-[10px] text-ink-faint tabular-nums shrink-0">{{ row.date }}</span>
+                                        <span class="text-[11px] text-ink-muted truncate">{{ row.from }}</span>
+                                    </span>
+
+                                    <span class="block text-[11px] text-ink truncate mt-0.5">{{ row.subject }}</span>
+
+                                    {# The line itself, on one row. It IS the
+                                       product, so it is on screen to be skimmed
+                                       before deciding whether the group is worth
+                                       taking; the full text goes to the
+                                       clipboard, not to this element. #}
+                                    <span class="block font-mono text-[10px] text-ink-faint truncate mt-0.5"
+                                          title="{{ row.line }}">{{ row.line }}</span>
+                                </span>
+                            </label>
+                        {% endfor %}
+                    </div>
+                {% endfor %}
+            </div>
+        </section>
+    {% endif %}
 </turbo-frame>

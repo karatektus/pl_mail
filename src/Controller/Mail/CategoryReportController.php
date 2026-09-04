@@ -70,7 +70,28 @@ final class CategoryReportController extends AbstractController
             return new Response(status: Response::HTTP_BAD_REQUEST);
         }
 
-        $em->persist($this->recorder->record($user, $message, $shouldBe));
+        $report = $this->recorder->record($user, $message, $shouldBe);
+
+        // ALREADY THERE, so there is nothing to report.
+        //
+        // The page offers every tab EXCEPT the one the conversation is in, so
+        // a reader can only ever choose a different one — but the report is
+        // written against the category as it stands when the button is pressed,
+        // and a re-sort or a re-classification between those two moments moves
+        // it. What lands then is a row saying a message should be where it
+        // already is: true, and carrying nothing.
+        //
+        // Cheap to guard and worth guarding, because a handful of these in a
+        // list of twenty is enough to make somebody distrust the whole list.
+        //
+        // 409 rather than 400: the request was well formed and the reader did
+        // nothing wrong. Their page is behind, which is what the card says
+        // back to them.
+        if ($report->filed === $shouldBe) {
+            return new Response(status: Response::HTTP_CONFLICT);
+        }
+
+        $em->persist($report);
         $em->flush();
 
         // 204 and no redirect: this is pressed inside a popover on a thread the

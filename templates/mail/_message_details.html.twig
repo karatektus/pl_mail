@@ -228,12 +228,17 @@ mailed-by and signed-by were silently missing from every IMAP message.
                 #}
                 <dt class="text-ink-faint text-right">{{ 'message.details.category'|trans }}</dt>
                 <dd class="text-ink-soft break-words">
-                    {# WHERE IT ACTUALLY IS, off the row. The three lines below
-                       are recomputations — "what would each of them say" — and
-                       this one is the answer to a different question entirely.
-                       Reading it off the row is also the only way the panel can
-                       be honest when they disagree, which they do whenever a
-                       re-file is still queued. #}
+                    {# WHERE IT ACTUALLY IS, off the THREAD's row — the one the
+                       tabs are a filter over. The three lines below are
+                       recomputations, "what would each of them say"; this one
+                       answers a different question entirely, and reading it off
+                       a row is the only way the panel can be honest when they
+                       disagree, which they do whenever a re-file is queued.
+
+                       It read the MESSAGE's row until it put a report's name to
+                       the problem: a conversation sitting in Primary, described
+                       here as Updates, because a sibling message carried the
+                       thread and this panel was reading a column no tab shows. #}
                     {{ ('tabs.' ~ (category.filed ?? category.effective.category))|trans }}
                     <span class="text-ink-faint">
                         {%- if category.pinnedAt %}
@@ -254,6 +259,20 @@ mailed-by and signed-by were silently missing from every IMAP message.
                        are SUPPOSED to differ. #}
                     {% if not category.pinnedAt and category.filed and category.filed != category.effective.category %}
                         <span class="block text-ink-faint">{{ 'message.details.categorised.awaiting_resort'|trans }}</span>
+                    {% endif %}
+
+                    {# THE CONVERSATION IS NOT WHERE THIS MESSAGE WOULD PUT IT.
+                       A thread takes one category for all of it, most recent
+                       wins, so a reply can carry the whole conversation out of
+                       the tab an earlier message belongs in. Without this the
+                       panel reads as simply wrong: every line agrees on Updates
+                       and the mail is plainly sitting in Primary. #}
+                    {% if category.filedMessage %}
+                        <span class="block text-ink-faint">
+                            {{ 'message.details.categorised.thread_differs'|trans({
+                                '%category%': ('tabs.' ~ category.filedMessage)|trans,
+                            }) }}
+                        </span>
                     {% endif %}
                 </dd>
 
@@ -356,7 +375,8 @@ mailed-by and signed-by were silently missing from every IMAP message.
                  data-mail--category-report-url-value="{{ path('app_mail_category_report', {'id': message.id}) }}"
                  data-mail--category-report-token-value="{{ csrf_token('category_report') }}"
                  data-mail--category-report-sent-label-value="{{ 'message.details.report.sent'|trans }}"
-                 data-mail--category-report-failed-label-value="{{ 'message.details.report.failed'|trans }}">
+                 data-mail--category-report-failed-label-value="{{ 'message.details.report.failed'|trans }}"
+                 data-mail--category-report-stale-label-value="{{ 'message.details.report.stale'|trans }}">
                 <div class="flex items-center gap-2">
                     <span class="text-ink-faint shrink-0">{{ 'message.details.report.label'|trans }}</span>
 

@@ -91,9 +91,13 @@ admin:
             seconds: '%count% s'
         reports:
             clear: 'Meldungen leeren'
-            copy: 'Alles kopieren'
+            clear_confirm: 'Wirklich alle Meldungen löschen? Die kommen nicht wieder — es ist das, was jemand an der eigenen Mail aufgefallen ist.'
+            copy: 'Auswahl kopieren'
+            download: Herunterladen
             heading: 'Als falsch einsortiert gemeldet'
-            subheading: '%count% Nachrichten, die jemand im falschen Tab gefunden hat. Kopier die Liste, um herauszufinden, was sich ändern muss — eine Regel, die Anweisung oder das Modell.'
+            select_all: 'Alle auswählen'
+            selected: '%count% ausgewählt'
+            subheading: '%count% Nachrichten, die jemand im falschen Tab gefunden hat, gruppiert nach dem Problem. Nimm dir die Gruppe, um die es dir geht — eine Regel, die Anweisung oder das Modell.'
         embedding_preset:
             heading: 'Gemessene Voreinstellungen — ein Klick setzt Modell, Anweisung und Schwelle gemeinsam:'
             all-minilm: 'Klein und schnell: 45 MB und 384 Dimensionen, für Maschinen mit wenig Speicher. Vor allem Englisch — auf deutscher Mail also das schwächste hier. Braucht keine Anweisung.'
@@ -418,8 +422,8 @@ admin:
             lead: '%count% Meldung(en) hast du als erledigt markiert. Was noch wartet, bleibt liegen.'
         delete: 'Diese Meldung löschen'
         delete_confirm: 'Diese Meldung löschen? Die Kopie der Mail verschwindet mit ihr.'
-        empty: 'Es wurde noch nichts gemeldet.'
-        empty_hint: 'Hier landen Meldungen, wenn jemand plMail sagt, dass eine Mail eine Info hätte liefern sollen und es nicht getan hat.'
+        empty: 'Keine Info-Meldungen.'
+        empty_hint: 'Die landen hier, wenn jemand plMail sagt, dass eine Mail eine Info hätte liefern sollen und es nicht getan hat. Mail, die als falsch einsortiert gemeldet wurde, steht darunter.'
         export:
             heading: 'Für die Arbeit außerhalb exportieren'
             intro: 'Eine JSON-Datei mit allen Kopien: Absender, Betreff, Eingangszeitpunkt, Text und das, was die meldende Person erwartet hat. Daraus schreibst du eine neue Auswertung.'
@@ -1926,6 +1930,7 @@ message:
             pinned: 'du hast sie hierher verschoben'
             promotion: 'ein Massenmail-Header: '
             social: 'die Absenderdomain '
+            thread_differs: 'Diese Nachricht allein wäre %category% — eine Unterhaltung übernimmt die Kategorie ihrer neuesten Nachricht.'
             update: 'ein Hinweis auf automatischen Versand: '
         category: Kategorie
         category_ai: 'das Modell'
@@ -1939,6 +1944,7 @@ message:
             failed: 'Konnte nicht gemeldet werden'
             label: 'Falscher Tab? Gehört nach'
             send: Melden
+            stale: 'Liegt schon da — neu laden'
             sent: Gemeldet
         date: Datum
         from: von

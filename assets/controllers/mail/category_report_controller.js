@@ -20,6 +20,7 @@ export default class extends Controller {
         token: String,
         sentLabel: { type: String, default: "Reported" },
         failedLabel: { type: String, default: "Could not report" },
+        staleLabel: { type: String, default: "Already there — reload" },
     };
 
     async send() {
@@ -40,6 +41,16 @@ export default class extends Controller {
                     shouldBe: this.hasCategoryTarget ? this.categoryTarget.value : "",
                 }),
             });
+
+            // 409 means the message is already in the tab that was chosen —
+            // this page was drawn before something moved it. Its own sentence,
+            // because "could not report" would send somebody looking for a
+            // fault when the answer is that they got what they wanted.
+            if (409 === response.status) {
+                this.#settle(this.staleLabelValue, "fa-rotate", false);
+
+                return;
+            }
 
             if (false === response.ok) {
                 this.#settle(this.failedLabelValue, "fa-triangle-exclamation", true);

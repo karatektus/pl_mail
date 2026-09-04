@@ -91,9 +91,13 @@ admin:
             seconds: '%count% s'
         reports:
             clear: "Empty th' reports"
-            copy: "Copy the lot"
+            clear_confirm: "Scuttle every report? Naught brings 'em back — 'tis what somebody spied in their own mail."
+            copy: "Copy what be picked"
+            download: "Haul it down"
             heading: "Reported as wrongly stowed"
-            subheading: "%count% messages somebody found in th' wrong tab. Copy th' list to work out what wants changin' — a rule, th' orders, or th' oracle."
+            select_all: "Pick the lot"
+            selected: "%count% picked"
+            subheading: "%count% messages somebody found in th' wrong tab, sorted by th' trouble they tell of. Take th' bundle that be about yer rule — a rule, th' orders, or th' oracle."
         embedding_preset:
             heading: "Measured settin's — one click sets model, orders an' threshold as one:"
             all-minilm: "Small an' swift: 45 MB an' 384 dimensions, for a vessel short on memory. English first, so the weakest here on German mail. Wants no orders."
@@ -290,7 +294,7 @@ admin:
         delete: 'Sink this report'
         delete_confirm: 'Sink this report? Th'' copy o'' th'' letter goes down with it.'
         empty: 'Naught has been reported.'
-        empty_hint: 'Reports wash up here when a hand tells plMail a letter should have yielded a findin'' an'' did not.'
+        empty_hint: 'These wash up here when a hand tells plMail a letter should have yielded a findin'' an'' did not. Post reported as wrongly stowed shows below.'
         export:
             heading: 'Haul it ashore'
             intro: 'One JSON chest holdin'' every copy: who sent it, th'' heading, when it made port, th'' text, an'' what th'' hand reportin'' it expected to see. That be what a new spyglass gets built from.'
@@ -1621,6 +1625,7 @@ message:
             pinned: 'ye hauled it here yerself'
             promotion: 'a bulk-cargo header: '
             social: 'the sender port '
+            thread_differs: "This message alone would be %category% — a yarn takes th' category o' its newest message."
             update: 'a sign of an unmanned sender: '
         category: rank
         category_ai: 'the oracle'
@@ -1634,6 +1639,7 @@ message:
             failed: "Could nay be reported"
             label: "Wrong tab? Belongs in"
             send: Report her
+            stale: "Already stowed there — reload"
             sent: Reported
         date: date
         from: from

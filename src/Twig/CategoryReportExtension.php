@@ -19,9 +19,15 @@ use Twig\TwigFunction;
  * connection test, which is exactly when somebody is fiddling with the model
  * and most likely to want to see what it has been getting wrong.
  *
- * Flattened to lines here rather than handed over as entities, because the
- * PRODUCT of this feature is text somebody pastes somewhere else. The template
- * renders what it is given and owns no format.
+ * Grouped by the PROBLEM here rather than handed over as entities, because
+ * that is the unit somebody acts on. Twenty reports are rarely twenty problems:
+ * they are "shop mail keeps landing in Primary" four times and "a person keeps
+ * landing in Promotions" once, and the fix for one is not the fix for the other.
+ * Grouping by `filed → should` puts each of those together and lets whoever is
+ * changing a rule take the group that is about their rule and leave the rest.
+ *
+ * The line itself is still built on the entity — it is the PRODUCT, and a format
+ * assembled here would be a format that changes with the panel.
  */
 final class CategoryReportExtension extends AbstractExtension
 {
@@ -36,14 +42,61 @@ final class CategoryReportExtension extends AbstractExtension
         ];
     }
 
-    /** @return array{lines: list<string>, count: int} */
+    /**
+     * @return array{
+     *     count: int,
+     *     lines: list<string>,
+     *     groups: list<array{
+     *         key: string,
+     *         filed: string,
+     *         shouldBe: string,
+     *         count: int,
+     *         rows: list<array{id: int, line: string, date: string, from: string, subject: string}>,
+     *     }>,
+     * }
+     */
     private function reports(): array
     {
-        $rows = $this->reports->recent();
+        $rows   = $this->reports->recent();
+        $groups = [];
+
+        foreach ($rows as $report) {
+            $key = $report->filed->value . '>' . $report->shouldBe->value;
+
+            if (false === isset($groups[$key])) {
+                $groups[$key] = [
+                    'key'      => $key,
+                    'filed'    => $report->filed->value,
+                    'shouldBe' => $report->shouldBe->value,
+                    'count'    => 0,
+                    'rows'     => [],
+                ];
+            }
+
+            ++$groups[$key]['count'];
+
+            $groups[$key]['rows'][] = [
+                'id'      => (int) $report->id,
+                'line'    => $report->asLine(),
+                'date'    => $report->createdAt->format('Y-m-d'),
+                // One string: the table has a column for "who", and a name
+                // without its address is not enough to write a rule against
+                // while an address without its name is unreadable.
+                'from'    => '' === $report->fromName
+                    ? $report->fromAddress
+                    : $report->fromName . ' <' . $report->fromAddress . '>',
+                'subject' => $report->subject,
+            ];
+        }
+
+        // Biggest problem first. A group of six is a rule worth changing; a
+        // group of one is somebody's odd mail, and it belongs below.
+        usort($groups, static fn (array $a, array $b): int => $b['count'] <=> $a['count']);
 
         return [
-            'lines' => array_map(static fn (CategoryReport $r): string => $r->asLine(), $rows),
-            'count' => count($rows),
+            'count'  => count($rows),
+            'lines'  => array_map(static fn (CategoryReport $r): string => $r->asLine(), $rows),
+            'groups' => $groups,
         ];
     }
 }

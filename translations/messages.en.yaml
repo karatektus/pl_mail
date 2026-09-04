@@ -91,9 +91,13 @@ admin:
             seconds: '%count% s'
         reports:
             clear: 'Clear the reports'
-            copy: 'Copy all'
+            clear_confirm: 'Delete every report? Nothing regenerates these — they are what somebody noticed about their own mail.'
+            copy: 'Copy selected'
+            download: Download
             heading: 'Reported as wrongly sorted'
-            subheading: '%count% messages somebody said were in the wrong tab. Copy the list to work out what needs changing — a rule, the prompt, or the model.'
+            select_all: 'Select all'
+            selected: '%count% selected'
+            subheading: '%count% messages somebody said were in the wrong tab, grouped by the problem they describe. Take the group that is about your rule — a rule, the prompt, or the model.'
         embedding_preset:
             heading: 'Measured presets — one click sets the model, its instruction and its threshold together:'
             all-minilm: 'Small and fast: 45 MB and 384 dimensions, for a machine that cannot spare the memory. English-first, so expect it to be the weakest of these on German mail. Needs no instruction.'
@@ -411,8 +415,8 @@ admin:
             lead: '%count% report(s) are marked handled. Deleting them leaves anything still waiting alone.'
         delete: 'Delete this report'
         delete_confirm: 'Delete this report? The copy of the mail it carries goes with it.'
-        empty: 'Nothing has been reported.'
-        empty_hint: 'Reports land here when someone tells plMail that a mail should have produced an insight and did not.'
+        empty: 'No insight reports.'
+        empty_hint: 'These land here when someone tells plMail that a mail should have produced an insight and did not. Mail reported as sorted into the wrong tab appears below.'
         export:
             heading: 'Export for offline work'
             intro: 'One JSON file holding every snapshot: sender, subject, when the mail arrived, the text, and what the person reporting it expected to see. That is what a new extractor gets written from.'
@@ -1938,6 +1942,12 @@ message:
             pinned: 'you moved it here'
             promotion: 'a bulk-mail header: '
             social: 'the sender domain '
+            # A conversation takes ONE category, from its newest message, so a
+            # reply can carry the whole thread out of the tab this message
+            # belongs in. Said outright, because without it the panel reads as
+            # simply wrong: every line agreeing on one category while the mail
+            # sits plainly in another.
+            thread_differs: 'This message on its own would be %category% — a conversation takes its category from its newest message.'
             update: 'an automated-mail signal: '
         category: category
         # What a language model made of it — asked about every message now, and
@@ -1956,6 +1966,7 @@ message:
             failed: 'Could not report'
             label: 'Wrong tab? Should be'
             send: Report
+            stale: 'Already there — reload'
             sent: Reported
         date: date
         from: from

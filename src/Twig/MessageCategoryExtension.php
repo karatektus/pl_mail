@@ -72,6 +72,7 @@ final class MessageCategoryExtension extends AbstractExtension
     /**
      * @return array{
      *     filed: string|null,
+     *     filedMessage: string|null,
      *     effective: array{category: string, reason: string, signal: string|null},
      *     gmail: string|null,
      *     rules: array{category: string, reason: string, signal: string|null},
@@ -98,18 +99,38 @@ final class MessageCategoryExtension extends AbstractExtension
         $sorting = $user->categorySorting;
 
         return [
-            // WHERE IT ACTUALLY IS, read straight off the row rather than
-            // worked out again — and this row is why the panel was wrong.
+            // WHERE IT ACTUALLY IS — off the THREAD, which is the row the
+            // tabs are a filter over.
             //
-            // Everything else here is a RECOMPUTATION, which is the right shape
-            // for "what would each of them say"; it is the wrong shape for
-            // "where is this mail". The two came apart the moment sorting
-            // became a setting: the effective line was computed with the
-            // shipped defaults and announced "Updates — Gmail said so" about a
-            // message sitting in Primary, because the reader had asked for the
-            // model and for Gmail to be overruled. A panel that explains a
-            // mailbox it is not looking at is worse than one that says nothing.
-            'filed'     => $message->category?->value,
+            // Two mistakes have been made here and this is the second one. The
+            // first was recomputing it: everything else in this array is a
+            // recomputation, which is the right shape for "what would each of
+            // them say" and the wrong shape for "where is this mail", and the
+            // panel announced "Updates — Gmail said so" about a message sitting
+            // in Primary. So it was read off the row instead.
+            //
+            // It was read off the WRONG row. The mailbox lists threads and
+            // filters on `thread.category`; `message.category` is an input to
+            // that, resolved most-recent-wins across the conversation and
+            // overridden entirely by a pin. On any thread with more than one
+            // message the two are free to differ, and when they do it is the
+            // thread that decides which tab the reader is looking at. A report
+            // filed from this panel said `filed:updates` about a conversation
+            // sitting in Primary, which is a true statement about a column
+            // nobody can see.
+            //
+            // Falls back to the message for a message not yet threaded.
+            'filed'     => ($message->thread->category ?? $message->category)?->value,
+
+            // The message's own row, and only when it disagrees with the
+            // thread. Not decoration: a disagreement means the conversation is
+            // being decided by a sibling message or a pin rather than by
+            // anything on this one, which is the difference between a rule to
+            // fix and nothing to fix at all.
+            'filedMessage' => null !== $message->thread?->category
+                && $message->thread->category !== $message->category
+                    ? $message->category?->value
+                    : null,
 
             // The same cascade the reader's own settings produce, so the reason
             // beside the category above is the reason for THAT category.
