@@ -50,10 +50,24 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
  *
  * WHAT IS STORED, AND WHEN
  * ────────────────────────
- * Only a summary somebody stayed for. An abandoned stream writes nothing: the
- * text is half a summary, and half a summary sitting on the thread the next
- * time it is opened is worse than no summary, because it reads as a finished
- * one. See generate().
+ * Every summary the model finishes, whether or not anybody was still there.
+ *
+ * This used to be "only a summary somebody stayed for", and the reasoning was
+ * that an abandoned stream holds half a summary — which reads as a finished one
+ * the next time the thread is opened, and is worse than none. That is true of
+ * the TOKENS and false of the answer. Draining the generator after the reader
+ * has gone produces the WHOLE summary, not half of one, and discarding it made
+ * somebody whose connection dropped at ninety per cent pay the entire cost
+ * again.
+ *
+ * Connections drop here for reasons this application cannot see — a proxy, a
+ * network, a laptop closing — and on at least one real installation they
+ * demonstrably do. Finishing turns that from "you lost the work" into "reload
+ * and it is there".
+ *
+ * The price is stated where it is paid, in generate(): a reader who genuinely
+ * navigated away keeps the model busy until it finishes, where it used to be
+ * released at once.
  */
 final class ThreadSummaryController extends AbstractController
 {
@@ -369,7 +383,19 @@ final class ThreadSummaryController extends AbstractController
         $readingSince = microtime(true);
         $this->written = 0;
 
+        // Whether the reader is still there. Once this is true the frames stop
+        // — there is nobody to send them to — and the LOOP CARRIES ON, which is
+        // the whole change.
+        $lostTheReader = false;
+
         foreach ($tokens as $token) {
+            if (true === $lostTheReader) {
+                // Drained, not delivered. The model is already generating and
+                // the expensive part — reading the conversation — is behind it,
+                // so the cheapest thing left to do is let it finish.
+                continue;
+            }
+
             // An EMPTY token is the client's heartbeat, not something the model
             // said — OllamaClient yields one every few seconds while the host
             // is silent, and a long prompt is one long silence. It must not
@@ -404,45 +430,42 @@ final class ThreadSummaryController extends AbstractController
             $this->written += mb_strlen($token);
 
             if (0 !== connection_aborted()) {
-                break;
+                $lostTheReader = true;
+
+                // KEPT, NOT ABANDONED, which reverses what this used to do.
+                //
+                // It broke here and stored nothing, on the grounds that what
+                // exists is half a summary and half a summary reads as a
+                // finished one. That was right about the TOKENS and wrong about
+                // the answer: draining the generator to the end produces the
+                // whole summary, not half of one, and discarding it makes
+                // somebody whose connection dropped at ninety per cent pay the
+                // entire cost again.
+                //
+                // Connections here drop for reasons plMail cannot see — a
+                // proxy, a network, a laptop closing — and on this installation
+                // they demonstrably do. Finishing turns that from "you lost the
+                // work" into "reload and it is there".
+                //
+                // The price, plainly: a reader who genuinely navigated away
+                // keeps the model busy until it finishes, where before it was
+                // released at once. That is the trade — some seconds of GPU
+                // against a summary somebody waited for and lost.
+                $this->logger->warning('Thread summary lost its reader; finishing it anyway', [
+                    'thread'           => $thread->id,
+                    'model'            => $model,
+                    'transcript_chars' => mb_strlen($transcript),
+                    'elapsed_seconds'  => (int) round(microtime(true) - $readingSince),
+                    'chars_so_far'     => $this->written,
+                ]);
             }
         }
 
-        // True only if the loop was broken out of — a finished generator is not
-        // valid. Nobody is left to send a frame to, and NOTHING IS STORED: what
-        // exists is half a summary, and half a summary on the thread the next
-        // time it opens reads as a finished one. Falling off the end here is
-        // the whole of the cancellation — it frees $tokens, which runs the
-        // recording in AiAssistant::recorded() and drops the upstream response
-        // so the host stops generating.
-        if (true === $tokens->valid()) {
-            // SAID OUT LOUD, and this was the last silent path in the feature.
-            //
-            // It is reached when the reader's connection has gone — which is
-            // a normal thing for somebody navigating away, and is also what a
-            // proxy closing the stream looks like from in here. The two are
-            // indistinguishable to this process and only one of them is fine,
-            // so leaving it silent meant a card reading "the summary could not
-            // be written", nothing in the log, and a `cancelled` row in the
-            // metrics panel that reads as a reader who changed their mind.
-            //
-            // The elapsed time is what tells them apart. Somebody who gave up
-            // did it at a human moment; a proxy does it at its configured one,
-            // and the same round number every time is the whole diagnosis. See
-            // docs/install/reverse-proxy.md, which configures streaming for the
-            // Mercure endpoint and — until this was found — said nothing about
-            // this one, which is the other long-lived stream plMail serves.
-            $this->logger->warning('Thread summary abandoned before it finished', [
-                'thread'           => $thread->id,
-                'model'            => $model,
-                'transcript_chars' => mb_strlen($transcript),
-                'elapsed_seconds'  => (int) round(microtime(true) - $readingSince),
-                'chars_so_far'     => $this->written,
-            ]);
-
-            return;
-        }
-
+        // NO EARLY RETURN FOR A LOST READER ANY MORE. The loop above drains to
+        // the end either way, so the generator is always finished by here —
+        // which also means AiAssistant::recorded() files what actually happened
+        // instead of stamping the call `cancelled`, a word that was never true
+        // of a run the model completed.
         $result = $tokens->getReturn();
 
         if (false === $result->succeeded || null === $result->content) {
@@ -484,13 +507,17 @@ final class ThreadSummaryController extends AbstractController
                 'transcript_chars' => mb_strlen($transcript),
             ]);
 
-            $this->frame([
-                'type' => 'error',
-                // A category from the closed set, never a message: an HTTP
-                // client's exception text quotes the request body back, and the
-                // request body here is somebody's mail.
-                'kind' => $kind,
-            ]);
+            // Only if there is somebody to tell. A frame written to a closed
+            // connection is not an error, it is just nothing.
+            if (false === $lostTheReader) {
+                $this->frame([
+                    'type' => 'error',
+                    // A category from the closed set, never a message: an HTTP
+                    // client's exception text quotes the request body back, and
+                    // the request body here is somebody's mail.
+                    'kind' => $kind,
+                ]);
+            }
 
             return;
         }
@@ -499,7 +526,14 @@ final class ThreadSummaryController extends AbstractController
         // nothing the session holds. Its failure is logged and swallowed inside
         // the store: the reader already has their summary on screen, and a
         // caching miss must not become a 500 on a response that is half sent.
+        // STORED WHETHER OR NOT ANYBODY IS STILL LISTENING, which is the point
+        // of finishing the drain: the reader whose connection dropped reloads
+        // the thread and the summary is simply there.
         $this->store->save((int) $thread->id, $result->content, $sourceHash, $model, $promptHash);
+
+        if (true === $lostTheReader) {
+            return;
+        }
 
         $this->frame([
             'type' => 'done',

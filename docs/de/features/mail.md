@@ -1,4 +1,4 @@
-<!-- translated-from: features/mail.md sha1:5e458cda7e18efb07344c406c74ae6962b63eee4 -->
+<!-- translated-from: features/mail.md sha1:c5db2aeca54ea8e2e42d08139b63af32af14dead -->
 
 # Mail
 
@@ -276,6 +276,12 @@ vollständige schweigt minutenlang, während das Modell liest, und eine Browser-
 diese Stille offen gehalten wird, hat einen Proxy, ein Netzwerk und ein zuklappendes Notebook in
 sich — jedes davon kann sie beenden, ohne jemandem Bescheid zu sagen. Die Arbeit an einen Worker zu
 geben, beseitigt diese Abhängigkeit, statt sie zu überdauern zu versuchen.
+
+**Reißt die Verbindung ab, während sie geschrieben wird, wird sie trotzdem fertiggestellt.** Lad die
+Konversation neu, dann ist die Zusammenfassung da. Das deckt ein zuklappendes Notebook ab, ein
+wegbrechendes Netz und einen Reverse Proxy, der bei einer langsamen Antwort aufgibt — nichts davon
+kann plMail sehen, und alles davon hat die Arbeit früher an der Stelle weggeworfen, an der es
+passiert ist.
 
 Einmal geschrieben, wird sie aufbewahrt und beim nächsten Öffnen der Konversation ohne Wartezeit
 wieder angezeigt. Kommt danach eine Antwort, siehst du sie ausgegraut mit dem Hinweis, dass sich das

@@ -258,10 +258,11 @@ final class ThreadSummaryTest extends WebTestCase
     /**
      * A finished run is stored, so the next open costs nothing.
      *
-     * The write happens after the last token and before the `done` frame, and
-     * only for a generator that actually finished — see the controller, where
-     * falling off the end of an abandoned loop is the cancellation and stores
-     * nothing.
+     * The write happens after the last token and before the `done` frame, for
+     * every generator that finishes — which is now every generator, because a
+     * lost reader no longer breaks the loop. See the controller: it drains to
+     * the end and stores the whole answer, so a connection that dropped at
+     * ninety per cent costs a reload rather than the entire run again.
      */
     public function testAFinishedRunIsStoredAgainstTheModelAndTheTranscript(): void
     {
