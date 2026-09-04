@@ -158,9 +158,20 @@ drawn on the ordinary inbox too, so the strip means the same thing wherever you 
 A conversation you have moved to the bin stops counting towards it, the same way it stops
 appearing in the list, so a coloured tab always opens on mail.
 
-There is one override worth knowing: a sender you have written to yourself is pulled back into
-Primary regardless of any bulk-mail header on the message. Open a message's **Details** panel and
-the `category` row says which rule decided, and which header or domain it matched on.
+Open a message's **Details** panel to see why it is where it is. The first row is the tab the
+conversation is actually in; below it, what each of Gmail, the rules and the assistant said, with the
+one that decided marked — the three disagree more often than you would think, and seeing which one
+won is the difference between changing a setting and changing nothing.
+
+Two things the panel will tell you that are easy to mistake for bugs. A conversation takes **one**
+category, from its newest message, so a reply can carry the whole thread out of the tab an earlier
+message belongs in; the panel says so when that has happened. And a category you set by dragging the
+conversation onto a tab holds against everything else, which the panel also says.
+
+If it is simply wrong, **Report** at the bottom of the panel says where it should have gone. That
+goes to your administrator under [Reported mail](admin.md#reported-mail), with the three verdicts and
+the evidence behind them — which is what a rule or a prompt gets changed on the strength of. It sends
+the sender, the subject and the decision; it does not send the message.
 
 ## The "New" marker
 

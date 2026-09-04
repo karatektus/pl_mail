@@ -1,4 +1,4 @@
-<!-- translated-from: features/admin.md sha1:ec531d531e541c2fb65c1c072a91ecaddf96f561 -->
+<!-- translated-from: features/admin.md sha1:797937556024689eb52157c7b6af428141871041 -->
 
 # Administration
 
@@ -167,27 +167,49 @@ eines Stacktrace soll einem nicht mitten im Scrollen alles weggerissen werden.
 
 ## Gemeldete Mails
 
-Hier landet **Fehlendes Insight melden**. Jede Zeile ist eine Mail, bei der jemand fand, das Radar
-hätte sie verstehen müssen — festgehalten als Momentaufnahme statt als Verweis: Absender, Betreff,
-Ankunftszeit, der Anfang des Textes und die Notiz, was plMail hätte erkennen sollen. Die
-Momentaufnahme ist der Punkt — die Mail selbst wird archiviert, gelöscht oder verschwindet vom
-Server, und eine Meldung, die auf nichts mehr zeigt, sagt nur noch, dass irgendwann etwas übersehen
-wurde.
+Alles, was jemand plMail als falsch gemeldet hat, in einer Liste. Es gibt zwei Sorten, und sie stehen
+zusammen, weil die Frage, mit der du auf diese Seite kommst — *was ist noch offen* — keine zwei
+Antworten hat:
 
-Der Eintrag in der Navigation trägt die Zahl dessen, was noch wartet.
+- **Keine Info** — eine Mail, aus der der Radar etwas hätte holen sollen. Als Momentaufnahme
+  gespeichert, nicht als Verweis: Absender, Betreff, Eingangszeitpunkt, der Anfang des Textes und die
+  Notiz der meldenden Person, was plMail hätte erkennen sollen. Die Momentaufnahme ist der Punkt —
+  die Mail selbst wird archiviert, gelöscht oder verschwindet vom Server, und eine Meldung, die ins
+  Leere zeigt, sagt nur noch, dass einmal etwas übersehen wurde.
+- **Falscher Tab** — eine Mail, die jemand in der falschen Kategorie gefunden hat. Hier wird die
+  *Entscheidung* festgehalten, nicht die Nachricht: was Gmail, die Header-Regeln und das Modell
+  jeweils gesagt haben, wer davon entschieden hat, welche Massenmail-Header die Mail trug und ob es
+  überhaupt Klartext für das Modell zu lesen gab. Kein Mailtext wird gespeichert; das meiste, was
+  falsch einsortiert wird, ist reines HTML — eine Textspalte wäre also ausgerechnet bei der Mail leer,
+  die am häufigsten gemeldet wird.
 
-**Exportieren** gibt dir den Stapel als eine JSON-Datei zurück: ein Kopf, der sagt, wann sie
-gezogen wurde, aus welchem Build, und ob sie alles enthält oder nur das Unerledigte, danach jede
-Momentaufnahme in der Reihenfolge, in der die Mails ankamen. Aus dieser Datei wird ein neuer
-Extraktor geschrieben. Es ist ein POST und kein Link, aus demselben Grund wie beim Export unter
-[Sicherung](#sicherung): Zurück kommen fremde Mails, und eine URL, die das liefert, ließe sich von
-einer Seite anderswo mit deinen eigenen Cookies abrufen.
+Der Navigationseintrag zeigt, wie viel noch offen ist.
 
-**Herunterladen ändert hier nichts.** Eine Meldung gilt als erledigt, wenn du *Als erledigt
-markieren* drückst, nicht wenn sie exportiert wurde — sonst käme der zweite Export leer zurück und
-die Arbeit wäre als getan verbucht von jemandem, der nicht damit angefangen hat. *Erledigte
-Meldungen löschen* räumt den erledigten Stapel dann weg; die Karte erscheint nur, wenn etwas darin
-liegt, und nennt, wie viel.
+**Die Chips über der Liste sind die Auswahl.** Eine Reihe filtert nach Stand — offen oder erledigt —,
+die nächste nach dem Problem selbst, ein Chip pro Uneinigkeit, die diese Installation tatsächlich
+hervorgebracht hat (*Allgemein → Werbung*, *Keine Info*). Sie entstehen aus den Zeilen und nicht aus
+einer festen Liste, denn beim falschen Tab *ist* das Problem ein Paar von Kategorien, und welche Paare
+vorkommen, weiß nur deine Mail.
+
+Hak die Zeilen an, die du willst, oder filtere auf ein Problem und drück *Alles Gezeigte auswählen*.
+Filtern hakt nie etwas ab, eine über zwei Chips aufgebaute Auswahl bleibt also erhalten.
+
+**Exportieren** gibt die Auswahl als eine JSON-Datei zurück: ein Kopf mit Zeitpunkt und Build, dann
+jede Meldung vollständig — alle Urteile, die Header, auf denen sie beruhen, der Mailtext, wo es einen
+gibt, und dieselbe einzeilige Zusammenfassung, die auch die Liste zeigt. Wählst du nichts aus,
+bekommst du alles. Aus dieser Datei wird eine Regel oder eine neue Auswertung geschrieben. Es ist ein
+POST und kein Link, aus demselben Grund wie beim Export unter [Sicherung](#sicherung): zurück kommen
+fremde Mails, und eine URL, die das liefert, ließe sich von irgendeiner anderen Seite aus mit deinen
+eigenen Cookies abrufen.
+
+**Auswahl kopieren** legt dieselben Meldungen stattdessen als einfache Zeilen in die Zwischenablage —
+die Form, die man in eine Anweisung, ein Ticket oder eine Nachricht an die Person einfügt, die die
+Regel ändert.
+
+**Der Download ändert nichts.** Erledigt ist eine Meldung, wenn du *Als erledigt markieren* drückst,
+nicht wenn sie heruntergeladen wurde — sonst käme der zweite Export leer zurück und die Arbeit wäre
+als getan verbucht von jemandem, der nicht angefangen hat. *Erledigte Meldungen löschen* räumt dann
+den erledigten Stapel ab; der Knopf erscheint nur, wenn etwas darin liegt, und nennt die Anzahl.
 
 ## Integrationen
 

@@ -1,4 +1,4 @@
-<!-- translated-from: features/mail.md sha1:6f3511664e8b90caf319852096db630fd040d87e -->
+<!-- translated-from: features/mail.md sha1:18987bc807bfd29e4f726b4a17bc34276b36ef3f -->
 
 # Mail
 
@@ -176,10 +176,21 @@ damit die Leiste überall dasselbe bedeutet.
 Eine Konversation, die du in den Papierkorb geschoben hast, zählt nicht mehr mit — genauso wenig,
 wie sie noch in der Liste auftaucht. Ein farbiger Tab öffnet sich also immer auf Post.
 
-Eine Ausnahme lohnt sich zu kennen: Ein Absender, dem du selbst geschrieben hast, wird zurück
-nach Allgemein geholt, ganz gleich, welcher Massenmail-Header auf der Nachricht steht. Öffne
-den Bereich **Details** einer Nachricht, dann sagt die Zeile **Kategorie**, welche Regel
-entschieden hat und auf welchen Header oder welche Domain sie angesprungen ist.
+Öffne den Bereich **Details** einer Nachricht, um zu sehen, warum sie dort liegt, wo sie liegt. Die
+erste Zeile ist der Tab, in dem die Konversation tatsächlich steckt; darunter steht, was Gmail, die
+Regeln und der Assistent jeweils gesagt haben, und welcher davon entschieden hat — die drei sind sich
+öfter uneinig, als man denkt, und zu sehen, wer gewonnen hat, ist der Unterschied zwischen „eine
+Einstellung ändern“ und „gar nichts ändern“.
+
+Zwei Dinge sagt dir der Bereich, die leicht wie Fehler aussehen. Eine Konversation hat **eine**
+Kategorie, die ihrer neuesten Nachricht — eine Antwort kann also die ganze Unterhaltung aus dem Tab
+tragen, in den eine ältere Nachricht gehört; steht das an, sagt der Bereich es. Und eine Kategorie,
+die du per Drag auf einen Tab selbst gesetzt hast, hält gegen alles andere, was ebenfalls dort steht.
+
+Ist es schlicht falsch, sagst du mit **Melden** unten im Bereich, wohin es gehört hätte. Das landet
+bei deiner Administration unter [Gemeldete Mails](admin.md#gemeldete-mails), zusammen mit den drei
+Urteilen und den Belegen dahinter — daraus wird eine Regel oder eine Anweisung geändert. Gesendet
+werden Absender, Betreff und die Entscheidung; die Nachricht selbst nicht.
 
 ## Die Markierung „Neu“
 

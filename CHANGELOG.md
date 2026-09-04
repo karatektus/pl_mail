@@ -8,7 +8,52 @@ The published image tags: `latest` follows the most recent release below,
 
 ## Unreleased
 
+## v0.2.20 — 2026-09-04
+
 ### Added
+
+- **You choose what sorts your mail into tabs.** Under **Settings → General → What sorts your mail**,
+  *Sorted by* picks what decides: **Rules** reads headers — a mailing-list header, an unsubscribe
+  link, a sender you have written to before — and answers the same way every time for the same
+  message without asking a model anything; **The assistant** has the model read each message and
+  decide what it is for, which is better at mail that does not announce itself and occasionally
+  confidently wrong. Anything the assistant has not reached yet falls back to the rules, so a tab
+  fills in as it works rather than being wrong until it does.
+
+  **On Gmail accounts** decides whether any of that is allowed to disagree with Google. The default
+  keeps Google's categories, because they are already there and two systems sorting one mailbox is
+  worse than either — but if Google has never sorted your mail the way you want, this is the switch
+  that lets plMail answer for itself.
+
+  It is **per person**, not per installation, and changing it **re-sorts your mailbox in the
+  background** rather than applying only to mail that arrives afterwards. Nothing is asked of a
+  model to do that: every verdict is already stored, so a re-sort is a scan and a column write, which
+  is why it is a job your settings page starts rather than a command to ask an administrator for. It
+  shows up in the jobs indicator like any other.
+
+- **Summarise the whole conversation, however long it is.** A summary has always been written from as
+  much of the thread as fits the model's context, and now it says so — and offers to do the other
+  thing. **Summarise everything** runs as a background job with a context window sized to the
+  conversation, so a thread forwarded eleven times gets read whole instead of from its last few
+  screens. It runs detached: close the tab and it finishes and stores the summary anyway.
+
+- **Tell your administrator when mail lands in the wrong tab.** A **Report** button in a message's
+  Details panel says where the mail should have gone. What it records is the *decision* rather than
+  the message — what each of Gmail, the header rules and the model said, which was deciding, the bulk
+  headers the mail carried, and whether there was any plain text for the model to read at all. That
+  is what a rule or a prompt gets changed on the strength of. Sender, subject and the decision travel;
+  the message does not.
+
+- **Ask the model again about the mail you already have.** *Sort recent mail again* in the AI settings
+  hands the newest few hundred messages back to the classifier, forced, so a better prompt or a
+  different model can be tried on real mail instead of only on whatever arrives next. It runs as a
+  tracked job with a count, because a button whose only feedback is the page reloading is a button you
+  press twice.
+
+- **The appearance preview is a working miniature.** Picking a theme used to show a few coloured
+  swatches. It now shows a real list you can click through, a real message, a real header dropdown
+  and a real compose window — static content, but the actual templates, so what you are choosing
+  between is what you will get.
 
 - **The calendar opens on the view you left it in.** Day, week, month or agenda — whichever you last
   chose is what you get next time, instead of the page always starting on Week and the docked pane
@@ -24,6 +69,72 @@ The published image tags: `latest` follows the most recent release below,
   It rides in the user settings alongside the pane's width and mode, so it travels in a config
   backup, and a value the settings bag cannot make sense of opens on the default rather than failing
   to draw the calendar.
+
+### Changed
+
+- **Reported mail is one section, and the export is a selection.** Missed insights and wrongly-sorted
+  mail were two piles behind two panels with two export buttons; they are now one list, because the
+  question an administrator brings to that page — what is still mine to do — does not have two
+  answers. Each row says which kind it is, both can be marked handled, and the chips above the list
+  filter by state and by the problem itself, one chip per disagreement this installation has actually
+  produced.
+
+  The export used to offer a fixed scope: everything, or only the unhandled part. That answers the
+  question you have on your first visit and none of the ones you have afterwards — the one that comes
+  up is *these six, the ones about the shop*. So the export now takes whatever is ticked, in full,
+  with every verdict and the headers behind it; filtering never unticks anything, so a selection built
+  across two chips survives. The document is `plmail.reported-mail` version 2, a new name rather than
+  a bumped version alone, so anything written against the old one fails cleanly instead of
+  half-reading a file it only partly understands.
+
+- **Semantic search is tuned per model.** The embedding model is a dropdown of measured presets with
+  their trade-offs written out, and picking one sets the model, its query instruction and its
+  similarity threshold together — the three are one decision, and a threshold carried over from a
+  different model is what makes good results look like a broken feature. It stays a free-text field
+  underneath, so an unlisted model is still yours to configure. **qwen3-embedding** is the default,
+  being the one of them that is genuinely multilingual.
+
+- **The categorisation prompt was rewritten.** The old one could be talked out of its answer by a
+  message that simply said what it wanted to be, and it never saw the headers that make a mailing a
+  mailing — so it now gets told which bulk headers a message carries, and it is asked the bulk
+  question before it is asked what the mail is about.
+
+### Fixed
+
+- **Semantic search stopped blaming the model for being slow.** Every search reported *"The model took
+  too long, so this search used words only."* Two faults, one message: the candidate-window subquery
+  filtered on the wrong table alias, which turned it into a correlated subquery that re-sorted the
+  whole table for every row and duly hit the statement timeout; and every database error, whatever it
+  was, was reported as that timeout. A cancelled statement and a failed one now say different things
+  and both are logged. Measured on the same query: 5000 ms and cancelled, then 188 ms.
+
+- **A summary that cannot be written says why.** *"The summary could not be written."* covered a model
+  that was not there, a connection that failed, a request that timed out and a reply that came back
+  empty — four different problems, one sentence, nothing in the log. Each says which it was now, and
+  the timeout says *which* timeout: the model's own, or plMail's wait for it.
+
+- **A mailing beats having written to the sender.** The rule that pulls mail from people you
+  correspond with back into Primary was doing something else as well: one enquiry to a shop's `info@`
+  about a broken part pinned every sale that shop ever sent into Primary, for ever. A person you
+  correspond with does not send you mail with an unsubscribe link in it — their marketing platform
+  does, from the same address. Mail that is plainly a mailing is now sorted as one whoever it is from;
+  anything weaker than that still loses to somebody you have written to.
+
+- **`Feedback-ID` no longer means "marketing".** It marks mail sent by a large sending platform, which
+  a recruiter's request for documents and a shop's sale both are. It was filing the first under
+  Promotions.
+
+- **The Details panel named the wrong category.** It recomputed the answer with the shipped defaults
+  instead of reading it, so it announced *"Updates — Gmail said so"* about a message sitting in
+  Primary for somebody who had asked for the model and for Gmail to be overruled. It now reads the
+  row, names all three verdicts separately, and marks the one in force. It then read the *wrong* row —
+  the message's category rather than the conversation's, which is the one the tabs filter on — so it
+  also now says when a conversation is being carried by a newer message than the one you are looking
+  at.
+
+- **The maintenance worker stopped looking dead during long jobs.** Messenger reports a worker as
+  alive between messages, so a handler that runs for twenty minutes emits no heartbeat and the admin
+  dashboard calls it stale after two. Long handlers now beat while they work.
 
 ## v0.2.19 — 2026-09-02
 

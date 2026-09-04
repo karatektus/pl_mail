@@ -148,24 +148,46 @@ yanked away mid-scroll.
 
 ## Reported mail
 
-Where **Report a missed insight** ends up. Each row is a mail somebody thought the radar should have
-understood, kept as a snapshot rather than a link: sender, subject, when the mail arrived, the
-beginning of its text, and the reporter's own note about what plMail should have spotted. The
-snapshot is the point — the mail itself gets archived, deleted or vanishes from the server, and a
-report that resolves to nothing is a report saying only that something was missed once.
+Everything anybody has told plMail it got wrong about a mail, in one list. There are two kinds and
+they sit together, because the question you bring to this page — *what is still mine to do* — does
+not have two answers:
+
+- **No insight** — a mail somebody thought the radar should have understood. Kept as a snapshot
+  rather than a link: sender, subject, when it arrived, the beginning of its text, and the reporter's
+  own note about what plMail should have spotted. The snapshot is the point — the mail itself gets
+  archived, deleted or vanishes from the server, and a report that resolves to nothing is a report
+  saying only that something was missed once.
+- **Wrong tab** — a mail somebody found in the wrong inbox category. This one records the *decision*
+  rather than the message: what each of Gmail, the header rules and the model said, which of them was
+  deciding, which bulk headers the mail carried, and whether there was any plain text for the model
+  to read at all. No body is kept; most of what gets misfiled is HTML-only, so a body column would be
+  empty for exactly the mail most often reported.
 
 The nav entry carries a count of what is still waiting.
 
-**Export** hands the pile back as one JSON file: a header saying when it was taken, off which build,
-and whether it holds everything or only the unhandled part, then every snapshot in the order the
-mails arrived. That file is what a new extractor gets written from. It is a POST rather than a
+**The chips above the list are the selector.** One row of them filters by state — waiting or handled
+— and the next by the problem itself, one chip per disagreement this installation has actually
+produced (*Primary → Promotions*, *No insight*). They are built from the rows rather than from a
+fixed list, because for a wrong tab the problem *is* a pair of categories and only your mail knows
+which pairs occur.
+
+Tick the rows you want, or filter to a problem and press *Select everything shown*. Filtering never
+unticks anything, so a selection built across two chips survives.
+
+**Export** hands the selection back as one JSON file: a header saying when it was taken and off which
+build, then each report in full — every verdict, the headers it was decided on, the message text
+where there is any, and the same one-line summary the list shows. Select nothing and you get
+everything. That file is what a rule or a new extractor gets written from. It is a POST rather than a
 link, for the reason the [Backup](#backup) export is: what comes back is other people's mail, and a
 URL that produced it could be fetched with your own cookies from a page somewhere else.
 
+**Copy selected** puts the same reports on the clipboard as plain lines instead — the form to paste
+into a prompt, an issue, or a message to whoever is changing the rule.
+
 **Downloading changes nothing.** A report counts as handled when you press *Mark handled*, not when
-it has been exported — otherwise a second export would come back empty and the work would be
-recorded as done by somebody who had not started it. *Delete handled reports* then sweeps the done
-pile; it appears only when there is something in it, and names how many.
+it has been exported — otherwise a second export would come back empty and the work would be recorded
+as done by somebody who had not started it. *Delete handled reports* then sweeps the done pile; it
+appears only when there is something in it, and names how many.
 
 ## Integrations
 
