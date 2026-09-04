@@ -15,6 +15,7 @@ use App\Repository\User\UserRepository;
 use App\Service\Job\JobNotifier;
 use App\Service\Ai\AiPermissions;
 use Doctrine\ORM\EntityManagerInterface;
+use App\Service\Monitoring\ProcessHeartbeatService;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 
@@ -61,6 +62,7 @@ final readonly class ReclassifyRecentHandler
         private AiPermissions          $permissions,
         private ClassifyMailHandler    $classify,
         private JobNotifier            $jobs,
+        private ProcessHeartbeatService $heartbeats,
         private EntityManagerInterface $em,
         private LoggerInterface        $logger,
     ) {
@@ -107,6 +109,10 @@ final readonly class ReclassifyRecentHandler
             // where this job already is and where long work belongs, and reuses
             // the asking, the batching, the per-message permission check and
             // the re-filing rather than growing a second copy of them.
+            // Twenty model calls is minutes; the worker is silent to the
+            // dashboard for all of it unless it says otherwise.
+            $this->heartbeats->beatWhileBusy();
+
             ($this->classify)(new ClassifyMailMessage(array_values($batch), true));
 
             // Per batch and not per message: the indicator moves in visible
@@ -117,6 +123,29 @@ final readonly class ReclassifyRecentHandler
             $job->advance($done);
             $this->em->flush();
             $this->jobs->changed($job);
+
+            // CLEARED EVERY BATCH, and the worker's memory limit is why.
+            //
+            // Each batch hydrates twenty messages with their bodies, threads
+            // and accounts, and nothing detached them: five hundred messages
+            // held at once is tens of megabytes of mail against the worker's
+            // 256M ceiling. Messenger answers that ceiling by stopping the
+            // worker mid-job — which is a job left "running" for ever and a
+            // worker that looks like it died.
+            //
+            // $job and $user are detached by this too, so both are re-read
+            // below. The id survives the clear; the object does not.
+            $jobId = (int) $job->id;
+
+            $this->em->clear();
+
+            $found = $this->em->find(BackgroundJob::class, $jobId);
+
+            if (null === $found) {
+                return;
+            }
+
+            $job = $found;
         }
 
         $job->finish(JobState::Done);

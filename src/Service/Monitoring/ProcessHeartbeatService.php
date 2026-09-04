@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Service\Monitoring;
 
+use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use App\Repository\Monitoring\ProcessHeartbeatRepository;
 
 /**
@@ -65,9 +66,49 @@ final class ProcessHeartbeatService
      */
     private const int PRUNE_STALE_FACTOR = 4;
 
+    /** Seconds between beats from a handler that is busy. Matches the listener's. */
+    private const int BUSY_INTERVAL_SECONDS = 30;
+
+    private int $lastBusyBeatAt = 0;
+
     public function __construct(
         private readonly ProcessHeartbeatRepository $heartbeats,
+        #[Autowire(env: 'APP_CONTAINER_NAME')]
+        private readonly string $containerName = 'worker',
     ) {}
+
+    /**
+     * A beat from inside a handler that is going to be a while.
+     *
+     * WHY THE LISTENER IS NOT ENOUGH. WorkerHeartbeatListener beats on
+     * WorkerRunningEvent, which fires between messages — so a worker beats
+     * happily while idle and goes silent the moment it has something long to
+     * do. TYPE_MESSENGER_WORKER goes stale after 120 seconds, and this
+     * application now has handlers that legitimately run for many minutes: a
+     * full-conversation summary, a mailbox re-file, a run of model calls over
+     * recent mail. Every one of them makes the admin dashboard report a dead
+     * worker while the worker is doing exactly what it was asked to.
+     *
+     * That is the worst shape of monitoring failure — it cries wolf precisely
+     * when the system is working hardest, so the one time the indicator is
+     * red for a real reason it has already been learned to ignore.
+     *
+     * Throttled like the listener, so a handler may call it as often as it
+     * likes: per batch, per token, per loop. Cheap enough to be unconditional
+     * and idempotent enough that a double call costs one upsert.
+     */
+    public function beatWhileBusy(): void
+    {
+        $now = time();
+
+        if (($now - $this->lastBusyBeatAt) < self::BUSY_INTERVAL_SECONDS) {
+            return;
+        }
+
+        $this->lastBusyBeatAt = $now;
+
+        $this->beat(self::TYPE_MESSENGER_WORKER, $this->containerName, ['busy' => true]);
+    }
 
     public static function staleThreshold(string $type): int
     {

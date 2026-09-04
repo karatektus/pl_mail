@@ -319,8 +319,24 @@ final readonly class ClassifyMailHandler
     {
         $headers = array_change_key_case($mail->headers ?? [], CASE_LOWER);
 
+        // ONLY THE HEADERS THAT MEAN "SENT TO MANY", and the ones left out are
+        // the point.
+        //
+        // feedback-id and auto-submitted were here and had to go. They are
+        // deliverability and automation markers: an ESP stamps feedback-id on
+        // everything it sends, transactional mail included. Paired with a
+        // prompt that says bulk is never primary, that line filed a recruiter
+        // asking an applicant for missing documents under Promotions — a
+        // one-to-one letter, from a named person, expecting a reply, sent
+        // through an HR system that happens to use an ESP.
+        //
+        // What is left is the set that actually implies a mailing: an
+        // unsubscribe mechanism, a list id, an explicit bulk precedence.
+        // Marketing is legally obliged to carry the first of those, which is
+        // why its ABSENCE beside a feedback-id is itself evidence — the mail is
+        // machine-sent and not mass-sent.
         $present = array_values(array_filter(
-            ['list-unsubscribe', 'list-id', 'precedence', 'feedback-id', 'auto-submitted'],
+            ['list-unsubscribe', 'list-id', 'precedence'],
             static fn (string $name): bool => '' !== trim((string) ($headers[$name] ?? '')),
         ));
 

@@ -11,6 +11,7 @@ use App\Repository\Mail\MessageRepository;
 use App\Repository\Mail\MessageThreadRepository;
 use App\Repository\User\UserRepository;
 use App\Service\Mail\MessageCategorizer;
+use App\Service\Monitoring\ProcessHeartbeatService;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
@@ -48,6 +49,7 @@ final readonly class ResortMailboxHandler
         private ContactRepository       $contacts,
         private MessageCategorizer      $categorizer,
         private EntityManagerInterface  $em,
+        private ProcessHeartbeatService $heartbeats,
         private LoggerInterface         $logger,
     ) {
     }
@@ -84,6 +86,7 @@ final readonly class ResortMailboxHandler
                     ++$filed;
                 }
 
+                $this->heartbeats->beatWhileBusy();
                 $this->em->flush();
 
                 // Cleared per batch, so the identity map never holds the

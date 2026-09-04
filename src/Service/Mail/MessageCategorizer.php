@@ -252,7 +252,22 @@ final class MessageCategorizer
      */
     private function promotionSignal(array $headers): ?string
     {
-        foreach (['list-unsubscribe', 'feedback-id', 'x-csa-complaints'] as $name) {
+        // feedback-id IS NOT ON THIS LIST ANY MORE, and its removal is a fix
+        // rather than a tidy-up.
+        //
+        // It is a feedback-loop identifier an ESP stamps on everything it
+        // sends, transactional mail included, so on its own it says the mail
+        // went through a sending service and nothing about what the mail is
+        // for. It filed a recruiter's request for missing application
+        // documents — a one-to-one letter from a named person, expecting a
+        // reply — as Promotions, on the strength of the HR system's mail
+        // provider.
+        //
+        // The two that stay both mean a MAILING: an unsubscribe mechanism, and
+        // the German CSA's complaint address. Marketing is legally obliged to
+        // offer the first, which is what makes it the reliable signal and what
+        // makes its absence beside a feedback-id informative in its own right.
+        foreach (['list-unsubscribe', 'x-csa-complaints'] as $name) {
             if ('' !== $this->header($headers, $name)) {
                 return $name;
             }

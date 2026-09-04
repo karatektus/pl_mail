@@ -429,6 +429,44 @@ final class MessageCategorizerTest extends TestCase
     }
 
     /**
+     * A feedback-id on its own is not a mailing, and does not mean Promotions.
+     *
+     * It is a feedback-loop identifier an ESP stamps on everything it sends,
+     * transactional mail included — so on its own it says the mail went through
+     * a sending service and nothing at all about what the mail is for. It filed
+     * a recruiter's request for missing application documents under Promotions:
+     * a one-to-one letter, from a named person, expecting a reply, sent through
+     * an HR system that happens to use an ESP.
+     *
+     * list-unsubscribe stays, and the asymmetry is the reasoning. Marketing is
+     * legally obliged to offer an unsubscribe mechanism, which is what makes it
+     * the reliable signal — and what makes its ABSENCE beside a feedback-id
+     * evidence in its own right that the mail is machine-sent rather than
+     * mass-sent.
+     */
+    public function testAFeedbackIdAloneIsNotPromotional(): void
+    {
+        $recruiter = $this->message(
+            ['Feedback-ID' => 'a:b:c:hrworks'],
+            'dr-schnell@communication.hrworks.de',
+        );
+
+        self::assertSame(
+            MessageCategory::Primary,
+            $this->categorizer->categorize($recruiter, []),
+            'one-to-one mail through a sending service is not marketing',
+        );
+
+        // And the header that does mean a mailing still does.
+        $mailing = $this->message(
+            ['Feedback-ID' => 'a:b:c:shop', 'List-Unsubscribe' => '<https://shop.test/u>'],
+            'news@shop.test',
+        );
+
+        self::assertSame(MessageCategory::Promotions, $this->categorizer->categorize($mailing, []));
+    }
+
+    /**
      * The bulk headers reach the model, and their VALUES do not.
      *
      * This is the line that fixed the bug the whole feature was reported for.
