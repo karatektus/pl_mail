@@ -2922,7 +2922,7 @@ settings:
         saved: 'Set down.'
         subheading: 'What be carved at the foot o'' the scrolls ye write.'
     sorting:
-        applies_to_new: "Changin' either o' these decides how post arrivin' from now on be stowed. What be already in yer tabs stays put till somebody with the captain's keys re-stows the hold."
+        applies_to_new: "Changin' either o' these re-stows the post ye already have, below decks — a big hold takes a few minutes, so give the tabs a moment. Yarns ye stowed by hand yerself be left be."
         heading: "What stows yer post"
         override:
             hint: "A Gmail account arrives already stowed by Google. This decides whether plMail leaves it be or answers for itself."

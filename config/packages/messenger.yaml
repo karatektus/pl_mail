@@ -99,6 +99,11 @@ framework:
             # maintenance is the transport whose work is already long and
             # already nobody's foreground.
             App\Infrastructure\Messaging\Message\SummariseThreadMessage: maintenance
+            # maintenance too, and for the plainer of the two reasons: it is a
+            # scan of rows the database already has, so it is neither urgent nor
+            # anybody's foreground. It must not sit on ingest, where a person
+            # changing a setting would put arriving mail behind their mailbox.
+            App\Infrastructure\Messaging\Message\ResortMailboxMessage: maintenance
             App\Infrastructure\Messaging\Message\SyncImapMailboxMessage: ingest
             # ingest, beside the sync it replaces for the common case: it is
             # mail state arriving from the server, and it must not queue behind

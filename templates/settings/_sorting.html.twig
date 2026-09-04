@@ -90,12 +90,11 @@ Accepts:
     </div>
 </form>
 
-{# Said once, under both, because it is true of both and it is the thing
-   somebody will otherwise report as a bug: the category is recomputed from
-   stored data, so changing either of these decides how mail arriving from now
-   on is sorted and leaves what is already there alone. Re-sorting an existing
-   mailbox is `app:backfill category`, which is an operator's call — a hundred
-   thousand messages is not work to start from a settings toggle. #}
+{# Said once, under both, because it is true of both and it is the question
+   anybody will have: what happens to the mail already in the tabs. It is
+   re-filed, in the background, and a large mailbox takes a few minutes — which
+   is worth saying, because a tab that has not changed yet otherwise reads as a
+   setting that did nothing. #}
 <p class="text-[11px] text-ink-faint mt-4 pt-3 border-t border-line">
     {{ 'settings.sorting.applies_to_new'|trans }}
 </p>

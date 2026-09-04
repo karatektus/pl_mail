@@ -3346,7 +3346,7 @@ settings:
         saved: 'Gespeichert.'
         subheading: 'Was am Ende der Nachrichten steht, die du schreibst.'
     sorting:
-        applies_to_new: Wenn du hier etwas änderst, gilt das für Mail, die ab jetzt ankommt. Was schon in deinen Tabs liegt, bleibt liegen, bis jemand mit Admin-Rechten das Postfach neu einsortiert.
+        applies_to_new: Wenn du hier etwas änderst, wird deine vorhandene Mail im Hintergrund neu einsortiert — bei einem großen Postfach dauert das ein paar Minuten, gib den Tabs also einen Moment. Gespräche, die du selbst in einen Tab geschoben hast, bleiben, wo sie sind.
         heading: Was deine Mail einsortiert
         override:
             hint: Ein Gmail-Konto kommt bereits von Google sortiert an. Hier entscheidest du, ob plMail das so lässt oder selbst antwortet.

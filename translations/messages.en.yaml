@@ -3338,7 +3338,7 @@ settings:
         saved: 'Saved.'
         subheading: 'What is added to the bottom of the messages you write.'
     sorting:
-        applies_to_new: Changing either of these decides how mail arriving from now on is sorted. What is already in your tabs stays where it is until an administrator re-sorts the mailbox.
+        applies_to_new: Changing either of these re-files the mail you already have, in the background — a large mailbox takes a few minutes, so give the tabs a moment to settle. Conversations you moved to a tab yourself are left alone.
         heading: What sorts your mail
         override:
             hint: A Gmail account arrives already sorted by Google. This decides whether plMail leaves that alone or answers for itself.

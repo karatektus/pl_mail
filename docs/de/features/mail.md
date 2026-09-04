@@ -1,4 +1,4 @@
-<!-- translated-from: features/mail.md sha1:db78f44797602be42d9d8e6e76d5b546ed9b426d -->
+<!-- translated-from: features/mail.md sha1:49fe32f99fbc521ddee94ab47299f11f1db10464 -->
 
 # Mail
 
@@ -99,10 +99,14 @@ Googles Kategorien, weil sie ohnehin schon da sind und zwei Systeme, die dasselb
 sortieren, schlechter sind als jedes für sich — aber wenn Google deine Mail auf eine Art einsortiert,
 die dir noch nie gefallen hat, ist das der Schalter, mit dem plMail selbst antwortet.
 
-Keine der beiden Einstellungen sortiert von sich aus etwas um. Sie legen fest, wie ab jetzt
-ankommende Mail einsortiert wird; was schon in deinen Tabs liegt, bleibt liegen, bis jemand mit
-Admin-Rechten `app:backfill category` laufen lässt — das rechnet alles aus den gespeicherten Daten
-neu aus.
+**Wenn du eine der beiden änderst, wird deine vorhandene Mail neu einsortiert.** Das passiert im
+Hintergrund — bei einem großen Postfach dauert es ein paar Minuten, gib den Tabs also einen Moment —
+und es kostet außerhalb von plMail nichts: Die Kategorie wird aus Daten berechnet, die ohnehin schon
+an jeder Nachricht hängen, es wird also nichts neu geladen und kein Modell gefragt. Gespräche, die
+du selbst in einen Tab geschoben hast, bleiben genau da, wo du sie hingelegt hast.
+
+(`app:backfill category` gibt es weiterhin und macht dieselbe Arbeit für alle Postfächer auf einmal —
+das will jemand mit Admin-Rechten, wenn die Regeln selbst sich geändert haben.)
 
 > **Beim Upgrade von vor 0.2:** Das Urteil des Assistenten wurde bisher als stiller Stichentscheid
 > herangezogen — nur dort, wo die Regeln nichts gefunden hatten, ohne Möglichkeit, es zu sehen, zu

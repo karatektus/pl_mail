@@ -87,9 +87,14 @@ keeps Google's categories, because they are already there and two systems sortin
 worse than either — but if Google sorts your mail in a way you have never liked, this is the switch
 that lets plMail answer for itself.
 
-Neither setting re-sorts anything on its own. They decide how mail arriving from now on is filed;
-what is already in your tabs stays where it is until an administrator runs
-`app:backfill category`, which recomputes the lot from stored data.
+**Changing either one re-files the mail you already have.** It happens in the background — a large
+mailbox takes a few minutes, so give the tabs a moment to settle — and it costs nothing outside
+plMail: the category is worked out from data already stored on each message, so nothing is
+re-downloaded and no model is asked anything. Conversations you moved to a tab by hand are left
+exactly where you put them.
+
+(`app:backfill category` still exists and does the same work for every mailbox at once, which is
+what an administrator wants after changing the rules themselves.)
 
 > **Upgrading from before 0.2:** the assistant's verdict used to be consulted as a silent
 > tie-break — used only where the rules found nothing, with no way to see it, prefer it, or switch
