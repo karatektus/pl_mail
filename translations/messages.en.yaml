@@ -2532,15 +2532,38 @@ settings:
             heading: Preview
             hide: Hide preview
             resize: Resize the preview
+            compose_body: A reply, part-written, so the composer has something in it. Nothing here is sent.
+            compose_heading: New message
+            compose_send: Send
+            compose_subject: 'Re: Notes on the Analytical Engine'
+            compose_to: ada@plmail.test
+            field_date: Date
+            field_from: From
+            field_subject: Subject
+            field_to: To
+            reply: Reply
             sender1: Ada Lovelace
             sender2: Grace Hopper
             sender3: Kathleen Booth
+            sender4: Margaret Hamilton
+            sender5: Barbara Liskov
+            sender6: Karen Spärck Jones
+            sender7: Radia Perlman
+            sender8: Frances Allen
             show: Show preview
             snippet: This is what a preview line looks like, and how much of one fits before the row runs out of room for it.
             subheading: Your settings, on a sample list. Nothing here is loaded from your mail.
+            to: to you
+            value_from: Ada Lovelace <ada@plmail.test>
+            value_to: you@plmail.test
             subject1: Notes on the Analytical Engine
             subject2: 'Re: the compiler draft'
             subject3: Assembly notes, as promised
+            subject4: Guidance software — the priority list
+            subject5: 'Re: abstraction and the type hierarchy'
+            subject6: Term weighting, and why it matters
+            subject7: Spanning tree draft for review
+            subject8: 'Optimising the inner loop: results'
         reset: Reset to defaults
         subheading: Theme, density, type and background — the whole look of the app, in one place.
         seg:

@@ -108,13 +108,44 @@ the stacked behaviour — which is the one the second line exists for.
            takes what is left, which is what the pane it is a picture of does.
            It grows and never shrinks (`min-height` is left at `auto`), so on a
            short window the card's own scroll is what gives, not the sample. #}
+        {# aria-hidden STAYS, and the rows being buttons does not change that.
+           Nothing in here goes anywhere: pressing a row swaps which sample
+           message is shown, which is a picture changing, not a place to be. A
+           screen-reader user gets no information from any of it that the
+           controls beside it do not already give them by name — and eight
+           invented senders in the tab order between one control and the next
+           would be worse than useless. `tabindex="-1"` on the buttons keeps
+           them out of it even though the subtree is hidden, because
+           aria-hidden and focusability disagreeing is the one combination that
+           produces a focus stop announcing nothing at all. #}
         <div class="rounded-pane border border-line overflow-hidden
                     pane-fill-grow pane-fill-stack" aria-hidden="true">
-            <div data-surface="list" class="@container divide-y divide-line pane-fill-keep">
+            {# THE LIST IS WHAT FILLS NOW, and the pair of utilities swapped
+               round to do it. It was `pane-fill-keep` — content height — with
+               the reading half taking everything left, which on a full-height
+               card put eight rows in 168px above 1,900px of one sample message.
+               The setting being watched is density, and density needs the list.
+
+               `min-h-0` is the load-bearing half of the swap: a flex item's
+               automatic minimum size is its content, so without it the list
+               would push the card taller instead of scrolling inside it. #}
+            <div data-surface="list" class="@container divide-y divide-line pane-fill-grow min-h-0 overflow-y-auto">
+                {# EIGHT, not three, and the number is the point rather than a
+                   preference: this card is as tall as the controls beside it,
+                   and three rows left most of that height empty — the setting
+                   somebody is watching is DENSITY, which is a property of a
+                   list long enough to have a rhythm. The list scrolls inside
+                   itself once the card runs out, so a short window shows fewer
+                   rows rather than a squashed card. #}
                 {% for row in [
-                    { unread: true,  seed: 'ada@plmail.test',    tone: 'bg-sky-500/20 text-sky-700 dark:text-sky-300' },
-                    { unread: false, seed: 'grace@plmail.test',  tone: 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-300' },
-                    { unread: false, seed: 'kathleen@plmail.test', tone: 'bg-amber-500/20 text-amber-700 dark:text-amber-300' },
+                    { unread: true,  tone: 'bg-sky-500/20 text-sky-700 dark:text-sky-300' },
+                    { unread: true,  tone: 'bg-violet-500/20 text-violet-700 dark:text-violet-300' },
+                    { unread: false, tone: 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-300' },
+                    { unread: false, tone: 'bg-amber-500/20 text-amber-700 dark:text-amber-300' },
+                    { unread: false, tone: 'bg-rose-500/20 text-rose-700 dark:text-rose-300' },
+                    { unread: false, tone: 'bg-teal-500/20 text-teal-700 dark:text-teal-300' },
+                    { unread: false, tone: 'bg-indigo-500/20 text-indigo-700 dark:text-indigo-300' },
+                    { unread: false, tone: 'bg-lime-500/20 text-lime-700 dark:text-lime-300' },
                 ] %}
                     {# `relative`, because the Strong emphasis bar is an ::before on
                        this element and an absolute child needs a positioned parent
@@ -125,7 +156,18 @@ the stacked behaviour — which is the one the second line exists for.
                                   class="pointer-events-none absolute bottom-0 left-0 h-2.5 w-2.5 bg-sky-500 [clip-path:polygon(0_0,0_100%,100%_100%)]"></span>
                         {% endif %}
 
-                        <div class="flex items-center gap-3 pl-3 pr-3 list-row-y
+                        {# A button, so the row can be pressed to change which
+                           sample the reading half shows. `w-full text-left`
+                           because a button is neither by default and the row
+                           has to keep the list's geometry exactly — this is the
+                           same arrangement of the same parts, and a row that
+                           centred itself would be a drawing of one. #}
+                        <button type="button"
+                                tabindex="-1"
+                                data-preview-open="{{ loop.index }}"
+                                data-action="click->settings--appearance#pickPreviewRow"
+                                class="w-full text-left cursor-pointer flex items-center gap-3 pl-3 pr-3 list-row-y
+                                       {{ loop.index == 1 ? 'bg-hover' : '' }}
                                     {{ row.unread ? 'row-unread' : 'bg-transparent' }}">
                             <span data-row-avatar-face
                                   class="flex items-center justify-center rounded-full w-8 h-8 text-xs font-semibold select-none shrink-0 {{ row.tone }}">
@@ -145,7 +187,7 @@ the stacked behaviour — which is the one the second line exists for.
                             </span>
 
                             <span class="text-xs text-ink-faint shrink-0">{{ 'now'|date(clock.time) }}</span>
-                        </div>
+                        </button>
                     </div>
                 {% endfor %}
             </div>
@@ -155,15 +197,153 @@ the stacked behaviour — which is the one the second line exists for.
                reading pane switches to the theme's light sheet in every theme, and
                a preview that kept the app's surface would show the setting against
                the wrong background. #}
-            <div data-surface="reading" class="mail-sheet border-t border-line px-3 pane-fill-grow">
-                <div class="reading-y">
-                    <div class="flex items-center gap-2">
-                        <span class="w-6 h-6 rounded-full bg-sky-500/20 text-sky-700 text-[10px] font-semibold flex items-center justify-center shrink-0">
-                            {{ 'settings.appearance.preview.sender1'|trans|first|upper }}
-                        </span>
-                        <span class="text-xs font-semibold text-ink truncate">{{ 'settings.appearance.preview.sender1'|trans }}</span>
+            {# And the reading half keeps its content height, so it sits under
+               the list at whatever size the sample needs rather than swallowing
+               the card. It still grows when the composer opens, which is the
+               one time it should. #}
+            <div data-surface="reading" class="mail-sheet border-t border-line px-3 pane-fill-keep">
+                {# One pane per row, all rendered, one shown. The alternative is
+                   building the sample in JavaScript, which would put eight
+                   senders and a body in a second place and translate them a
+                   second time — the thing this file's own header refuses about
+                   the thread row. Toggling `hidden` keeps every string in the
+                   catalogue where it already is. #}
+                {% for row in [
+                    { tone: 'bg-sky-500/20 text-sky-700' },
+                    { tone: 'bg-violet-500/20 text-violet-700' },
+                    { tone: 'bg-emerald-500/20 text-emerald-700' },
+                    { tone: 'bg-amber-500/20 text-amber-700' },
+                    { tone: 'bg-rose-500/20 text-rose-700' },
+                    { tone: 'bg-teal-500/20 text-teal-700' },
+                    { tone: 'bg-indigo-500/20 text-indigo-700' },
+                    { tone: 'bg-lime-500/20 text-lime-700' },
+                ] %}
+                    <div class="reading-y {{ loop.index == 1 ? '' : 'hidden' }}"
+                         data-preview-message="{{ loop.index }}">
+                        <div class="flex items-start gap-2">
+                            <span class="w-6 h-6 rounded-full text-[10px] font-semibold flex items-center justify-center shrink-0 {{ row.tone }}">
+                                {{ ('settings.appearance.preview.sender' ~ loop.index)|trans|first|upper }}
+                            </span>
+
+                            <span class="min-w-0 flex-1">
+                                <span class="block text-xs font-semibold text-ink truncate">
+                                    {{ ('settings.appearance.preview.sender' ~ loop.index)|trans }}
+                                </span>
+
+                                {# The recipient line and its chevron, the way a
+                                   real message carries them. Static: pressing
+                                   it opens the block below rather than a
+                                   popover, because a popover is positioned
+                                   against a viewport this card is a miniature
+                                   of and would hang outside it. #}
+                                <button type="button"
+                                        tabindex="-1"
+                                        data-action="click->settings--appearance#togglePreviewDetails"
+                                        class="inline-flex items-center gap-1 text-[11px] text-ink-faint hover:text-ink-muted cursor-pointer transition-colors">
+                                    {{ 'settings.appearance.preview.to'|trans }}
+                                    <i class="fa-solid fa-chevron-down text-[8px]" aria-hidden="true"></i>
+                                </button>
+                            </span>
+
+                            <span class="text-[11px] text-ink-faint shrink-0">{{ 'now'|date(clock.time) }}</span>
+                        </div>
+
+                        {# The header dropdown, closed. Same fields the real one
+                           shows — from, to, date — so the density and type
+                           settings have the same block to act on. #}
+                        <dl data-preview-details
+                            class="hidden mt-2 rounded-pane bg-hover/60 px-2.5 py-2 text-[11px] leading-relaxed">
+                            {% for field in ['from', 'to', 'date'] %}
+                                <div class="flex gap-2">
+                                    <dt class="w-10 shrink-0 text-ink-faint">{{ ('settings.appearance.preview.field_' ~ field)|trans }}</dt>
+                                    <dd class="min-w-0 flex-1 truncate text-ink-soft">
+                                        {# The date through intl_date and the time
+                                           through the user's 12/24-hour setting,
+                                           composed here — the two answer different
+                                           questions and only one is a property of
+                                           the language. Same split every date in
+                                           the app makes; see LocaleDateExtension. #}
+                                        {{ 'date' == field
+                                            ? 'now'|intl_date('dMMMy') ~ ', ' ~ 'now'|date(clock.time)
+                                            : ('settings.appearance.preview.value_' ~ field)|trans }}
+                                    </dd>
+                                </div>
+                            {% endfor %}
+                        </dl>
+
+                        <p class="text-xs text-ink-soft mt-1.5 leading-relaxed">
+                            {{ 'settings.appearance.preview.body'|trans }}
+                        </p>
+
+                        {# The composer, from the one place it can be opened in
+                           a picture. Reply is the button a reader actually
+                           reaches for, so it is the one that opens the sample
+                           window below. #}
+                        <div class="mt-2 flex gap-1.5">
+                            <button type="button"
+                                    tabindex="-1"
+                                    data-action="click->settings--appearance#togglePreviewCompose"
+                                    class="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-pane border border-line
+                                           text-[11px] text-ink-muted hover:bg-hover cursor-pointer transition-colors">
+                                <i class="fa-solid fa-reply text-[9px]" aria-hidden="true"></i>
+                                {{ 'settings.appearance.preview.reply'|trans }}
+                            </button>
+                        </div>
                     </div>
-                    <p class="text-xs text-ink-soft mt-1.5 leading-relaxed">{{ 'settings.appearance.preview.body'|trans }}</p>
+                {% endfor %}
+
+                {# The compose window, closed, and OUTSIDE the per-message loop
+                   so switching rows does not shut it — somebody comparing
+                   densities wants it to stay put while they click about.
+
+                   A miniature of the real window's parts, not the window: that
+                   one is a Turbo frame with a live editor, a draft, an
+                   attachment queue and its own controller, and none of it can
+                   be rendered without a message to hang it on. What the
+                   appearance settings actually change here is the sheet, the
+                   border radius, the density and the type — all of which this
+                   carries. #}
+                <div data-preview-compose
+                     class="hidden mt-2 mb-3 rounded-pane border border-line bg-surface overflow-hidden">
+                    <div class="flex items-center justify-between gap-2 px-2.5 py-1.5 border-b border-line">
+                        <span class="text-[11px] font-semibold text-ink truncate">
+                            {{ 'settings.appearance.preview.compose_heading'|trans }}
+                        </span>
+                        <button type="button"
+                                tabindex="-1"
+                                data-action="click->settings--appearance#togglePreviewCompose"
+                                class="shrink-0 w-5 h-5 inline-flex items-center justify-center rounded-pane
+                                       text-ink-faint hover:bg-hover cursor-pointer transition-colors">
+                            <i class="fa-solid fa-xmark text-[9px]" aria-hidden="true"></i>
+                        </button>
+                    </div>
+
+                    <div class="px-2.5 py-2 space-y-1.5">
+                        {% for field in ['to', 'subject'] %}
+                            <div class="flex items-center gap-2 border-b border-line/60 pb-1">
+                                <span class="w-10 shrink-0 text-[11px] text-ink-faint">
+                                    {{ ('settings.appearance.preview.field_' ~ field)|trans }}
+                                </span>
+                                <span class="min-w-0 flex-1 truncate text-[11px] text-ink-soft">
+                                    {{ ('settings.appearance.preview.compose_' ~ field)|trans }}
+                                </span>
+                            </div>
+                        {% endfor %}
+
+                        <p class="text-[11px] text-ink-soft leading-relaxed pt-0.5">
+                            {{ 'settings.appearance.preview.compose_body'|trans }}
+                        </p>
+                    </div>
+
+                    <div class="flex items-center gap-1.5 px-2.5 py-1.5 border-t border-line">
+                        <span class="inline-flex items-center gap-1.5 h-6 px-2 rounded-pane bg-accent text-accent-ink text-[11px] font-medium">
+                            <i class="fa-solid fa-paper-plane text-[8px]" aria-hidden="true"></i>
+                            {{ 'settings.appearance.preview.compose_send'|trans }}
+                        </span>
+                        <span class="w-6 h-6 inline-flex items-center justify-center rounded-pane text-ink-faint">
+                            <i class="fa-solid fa-paperclip text-[9px]" aria-hidden="true"></i>
+                        </span>
+                    </div>
                 </div>
             </div>
         </div>

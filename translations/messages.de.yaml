@@ -2522,15 +2522,38 @@ settings:
             heading: Vorschau
             hide: Vorschau ausblenden
             resize: Vorschau in der Breite ändern
+            compose_body: Eine halb geschriebene Antwort, damit im Fenster etwas steht. Hier wird nichts verschickt.
+            compose_heading: Neue Nachricht
+            compose_send: Senden
+            compose_subject: 'Re: Notizen zur Analytical Engine'
+            compose_to: ada@plmail.test
+            field_date: Datum
+            field_from: Von
+            field_subject: Betreff
+            field_to: An
+            reply: Antworten
             sender1: Ada Lovelace
             sender2: Grace Hopper
             sender3: Kathleen Booth
+            sender4: Margaret Hamilton
+            sender5: Barbara Liskov
+            sender6: Karen Spärck Jones
+            sender7: Radia Perlman
+            sender8: Frances Allen
             show: Vorschau anzeigen
             snippet: So sieht eine Vorschauzeile aus, und so viel davon passt hinein, bevor der Platz in der Zeile ausgeht.
             subheading: Deine Einstellungen an einer Beispielliste. Hier wird nichts aus deinen Nachrichten geladen.
+            to: an dich
+            value_from: Ada Lovelace <ada@plmail.test>
+            value_to: du@plmail.test
             subject1: Notizen zur Analytical Engine
             subject2: 'Re: Entwurf des Compilers'
             subject3: Assembler-Notizen, wie versprochen
+            subject4: Steuerungssoftware — die Prioritätenliste
+            subject5: 'Re: Abstraktion und die Typhierarchie'
+            subject6: Termgewichtung, und warum sie zählt
+            subject7: Entwurf für den Spanning Tree
+            subject8: 'Die innere Schleife optimieren: Ergebnisse'
         reset: Auf Standard zurücksetzen
         subheading: Farbschema, Dichte, Schrift und Hintergrund — das ganze Erscheinungsbild der App an einem Ort.
         seg:

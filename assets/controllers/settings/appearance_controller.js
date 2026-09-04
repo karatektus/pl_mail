@@ -105,6 +105,63 @@ export default class extends Controller {
      * how a live preview comes to disagree with a reload. Twig writes both
      * from the same enum.
      */
+    /**
+     * Show the sample message for the row that was pressed.
+     *
+     * Every pane is in the markup already and this toggles which one is not
+     * `hidden`. The alternative — building the sample in JavaScript — would put
+     * eight senders and a body in a second place and translate them a second
+     * time, which is exactly what _appearance_preview.html.twig refuses to do
+     * about the thread row it is a miniature of.
+     *
+     * Scoped to the preview region rather than the whole controller element:
+     * the controller owns the entire appearance panel, and a stray
+     * `[data-preview-message]` anywhere else in it would be swept up by a
+     * document-wide query.
+     */
+    pickPreviewRow(event) {
+        const index = event.currentTarget?.dataset?.previewOpen;
+
+        if (undefined === index) {
+            return;
+        }
+
+        this.element.querySelectorAll('[data-preview-message]').forEach((pane) => {
+            pane.classList.toggle('hidden', pane.dataset.previewMessage !== index);
+        });
+
+        // The pressed row carries the list's selected ground. Cleared from all
+        // of them first, so two rows can never look chosen at once.
+        this.element.querySelectorAll('[data-preview-open]').forEach((row) => {
+            row.classList.toggle('bg-hover', row.dataset.previewOpen === index);
+        });
+
+        // The details block belongs to the message that was open, not to the
+        // card, so a new message starts closed the way a real one does.
+        this.element
+            .querySelectorAll('[data-preview-details]')
+            .forEach((block) => block.classList.add('hidden'));
+    }
+
+    /** The "to …" chevron on the sample message. */
+    togglePreviewDetails(event) {
+        const block = event.currentTarget
+            ?.closest('[data-preview-message]')
+            ?.querySelector('[data-preview-details]');
+
+        block?.classList.toggle('hidden');
+    }
+
+    /**
+     * The sample compose window.
+     *
+     * Outside the per-message panes on purpose — see the template — so that
+     * clicking through rows to compare densities does not keep shutting it.
+     */
+    togglePreviewCompose() {
+        this.element.querySelector('[data-preview-compose]')?.classList.toggle('hidden');
+    }
+
     applyVars(event) {
         const source = event.currentTarget.selectedOptions
             ? event.currentTarget.selectedOptions[0]

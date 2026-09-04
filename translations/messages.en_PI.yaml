@@ -2163,15 +2163,38 @@ settings:
             heading: Lookout
             hide: Stow the lookout
             resize: Shift the lookout's width
+            compose_body: "A reply half writ, so th' writin' window has summat in it. Nowt here be sent."
+            compose_heading: "New dispatch"
+            compose_send: "Send her"
+            compose_subject: "Re: Notes on th' Analytical Engine"
+            compose_to: ada@plmail.test
+            field_date: Date
+            field_from: From
+            field_subject: Subject
+            field_to: To
+            reply: Answer
             sender1: Ada Lovelace
             sender2: Grace Hopper
             sender3: Kathleen Booth
+            sender4: Margaret Hamilton
+            sender5: Barbara Liskov
+            sender6: Karen Spärck Jones
+            sender7: Radia Perlman
+            sender8: Frances Allen
             show: Show the lookout
             snippet: This be what a peek line looks like, an' how much o' one fits afore the row runs clean out o' deck fer it.
             subheading: Yer settings on a make-believe manifest. Nary a thing here be hauled from yer own post.
+            to: to ye
+            value_from: Ada Lovelace <ada@plmail.test>
+            value_to: ye@plmail.test
             subject1: Notes on the Analytical Engine
             subject2: 'Re: the compiler draft'
             subject3: Assembly notes, as promised
+            subject4: "Guidance software — th' priority list"
+            subject5: "Re: abstraction an' the type hierarchy"
+            subject6: "Term weightin', an' why it matters"
+            subject7: "Spannin' tree draft for review"
+            subject8: "Optimisin' th' inner loop: results"
         reset: Back to how she came
         subheading: Colours, crampedness, letterin' an' the backdrop — the whole look o' the ship, all in one spot.
         seg:

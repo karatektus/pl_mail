@@ -140,6 +140,46 @@ final class AppearancePaneStateTest extends WebTestCase
     }
 
     /** Signed out, there is nothing to remember and nothing to attack. */
+    /**
+     * The preview is a working miniature, not a still.
+     *
+     * All of it is static — no query, no `messages` variable, no route — and
+     * that is the one rule the preview file states about itself. What these
+     * pin is that the moving parts are actually present and wired, because
+     * every one of them is markup a refactor can quietly drop: the rows are
+     * buttons that swap the sample message, the reading half has a message per
+     * row, and the details block and the composer are both there and closed.
+     *
+     * The list is EIGHT rows because the setting somebody is watching is
+     * density, and density is a property of a list long enough to have a
+     * rhythm. Three rows left most of a full-height card empty.
+     */
+    public function testThePreviewOffersEveryPartItClaimsTo(): void
+    {
+        [$client] = $this->signedIn();
+        $crawler  = $client->request('GET', '/settings?section=appearance');
+
+        self::assertResponseIsSuccessful();
+
+        self::assertCount(8, $crawler->filter('[data-preview-open]'), 'the list is long enough to show a rhythm');
+        self::assertCount(8, $crawler->filter('[data-preview-message]'), 'one sample message per row');
+
+        // Exactly one open at first paint, and it is the first row.
+        self::assertCount(
+            7,
+            $crawler->filter('[data-preview-message].hidden'),
+            'one message is shown and the rest are not',
+        );
+
+        self::assertCount(8, $crawler->filter('[data-preview-details]'), 'each message carries its header block');
+        self::assertCount(1, $crawler->filter('[data-preview-compose]'), 'and the card carries one composer');
+
+        // Closed to begin with — both are things you open, and a preview that
+        // started with everything open would be a picture of a mess.
+        self::assertCount(8, $crawler->filter('[data-preview-details].hidden'));
+        self::assertCount(1, $crawler->filter('[data-preview-compose].hidden'));
+    }
+
     public function testItIsBehindTheLogin(): void
     {
         $client = static::createClient();
