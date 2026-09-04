@@ -2921,6 +2921,22 @@ settings:
         save: 'Set down yer mark'
         saved: 'Set down.'
         subheading: 'What be carved at the foot o'' the scrolls ye write.'
+    sorting:
+        applies_to_new: "Changin' either o' these decides how post arrivin' from now on be stowed. What be already in yer tabs stays put till somebody with the captain's keys re-stows the hold."
+        heading: "What stows yer post"
+        override:
+            hint: "A Gmail account arrives already stowed by Google. This decides whether plMail leaves it be or answers for itself."
+            label: "On Gmail accounts"
+            plmail: "Stow it meself"
+            provider: "Keep Google's"
+        source:
+            assistant: "Th' oracle"
+            assistant_help: "Th' oracle reads each message an' decides what it be for. Better at post that don't announce itself, an' now an' then confidently wrong. Owt it has not reached falls back to th' rules."
+            label: "Stowed by"
+            rules: Rules
+            rules_help: "Headers alone — a list header, an unsubscribe link, a known sender. Predictable an' literal, an' it never asks th' oracle owt."
+            unavailable: "Stowin' by oracle needs th' sortin' switched on for this vessel, an' for ye."
+        subheading: "Which tab a message lands in, an' who decides."
     timezone:
         heading: Ship's bells
         subheading: The clock yer times be told by. Naught be rewrit — the same moment, read off yer own glass.

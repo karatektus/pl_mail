@@ -66,6 +66,36 @@ The inbox is split into the five Gmail categories — **Primary**, **Social**, *
 For everything else it works the category out from headers that were already stored, which is why
 re-categorisation never needs a resync.
 
+### Choosing what sorts your mail
+
+Both of those defaults are yours to change, under **Settings → General → What sorts your mail**.
+
+**Sorted by** picks what decides. **Rules** reads headers — a mailing-list header, an unsubscribe
+link, a sender you have written to before — and answers the same way every time for the same
+message, without asking a model anything. **The assistant** has the model read each message and
+decide what it is for: better at mail that does not announce itself, and occasionally confidently
+wrong. Anything the assistant has not reached yet falls back to the rules, so a tab fills in as it
+works rather than being wrong until it does. The assistant option needs mail sorting switched on for
+the installation *and* for you, and says so when it is not.
+
+One thing the assistant never overrules: a sender you correspond with stays in Primary. That rule is
+not a guess about the mail, it is a fact about you, and a model above it would file a colleague under
+Promotions on one bad afternoon.
+
+**On Gmail accounts** decides whether any of that is allowed to disagree with Google. The default
+keeps Google's categories, because they are already there and two systems sorting one mailbox is
+worse than either — but if Google sorts your mail in a way you have never liked, this is the switch
+that lets plMail answer for itself.
+
+Neither setting re-sorts anything on its own. They decide how mail arriving from now on is filed;
+what is already in your tabs stays where it is until an administrator runs
+`app:backfill category`, which recomputes the lot from stored data.
+
+> **Upgrading from before 0.2:** the assistant's verdict used to be consulted as a silent
+> tie-break — used only where the rules found nothing, with no way to see it, prefer it, or switch
+> it off. That is now what choosing **The assistant** means, and **Rules** means what it says. If
+> you had mail sorting switched on and liked what it did, pick the assistant.
+
 Each tab reads the way Gmail's do: an icon — filled in on the tab you are on — and, while a
 category holds mail you have never been shown, a **"3 new"** pill in that category's colour with
 a second line naming who that new mail is from, newest arrival first. That is deliberately the

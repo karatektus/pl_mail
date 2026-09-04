@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Service\Mail;
 
 use App\Domain\Enum\Mail\MessageCategory;
+use App\Entity\Embeddable\CategorySorting;
 use App\Entity\Mail\Message;
 
 /**
@@ -47,9 +48,26 @@ final class MessageCategorizer
      * @param array<string,true> $correspondentEmails normalised sender addresses
      *                                                the user has mailed; forces Primary
      */
-    public function categorize(Message $message, array $correspondentEmails): MessageCategory
-    {
-        return $this->explain($message, $correspondentEmails)['category'];
+    public function categorize(
+        Message $message,
+        array $correspondentEmails,
+        /**
+         * Whose preference decides, or null for the shipped behaviour.
+         *
+         * Null rather than a default object, so a caller that genuinely has no
+         * user — the Gmail enrichment path re-deriving a category for a row it
+         * just wrote — is answered the way it always was rather than silently
+         * given somebody else's settings.
+         */
+        ?CategorySorting $sorting = null,
+    ): MessageCategory {
+        return $this->explain(
+            $message,
+            $correspondentEmails,
+            true === $sorting?->overrideProvider,
+            true === $sorting?->ignoresAi(),
+            true === $sorting?->assistantFirst(),
+        )['category'];
     }
 
     /**
@@ -93,6 +111,7 @@ final class MessageCategorizer
         array $correspondentEmails,
         bool $ignoreProviderLabels = false,
         bool $ignoreAi = false,
+        bool $aiFirst = false,
     ): array {
         $gmailLabelIds = $message->gmailLabelIds;
 
@@ -114,6 +133,29 @@ final class MessageCategorizer
                 'category' => MessageCategory::Primary,
                 'reason'   => 'correspondent',
                 'signal'   => $from,
+            ];
+        }
+
+        // THE ASSISTANT, WHEN IT HAS BEEN CHOSEN TO DECIDE. Below the
+        // correspondence override and above everything else, and both halves
+        // of that placement are deliberate.
+        //
+        // Above the cascade, because that is what choosing it means. Read only
+        // as a tie-break — which is where the verdict sat before this was a
+        // setting — a newsletter carrying List-Unsubscribe is Promotions
+        // whatever the model made of it, and nothing on screen says so.
+        //
+        // Below the correspondent override, because that rule is not a
+        // classification at all: it says this is somebody you have written to,
+        // which is a fact about the reader rather than about the mail. Putting
+        // a model above it would let mail from a person they correspond with
+        // land in Promotions on a bad guess, and that is the one mistake in
+        // this whole cascade anybody would actually notice.
+        if (true === $aiFirst && false === $ignoreAi && null !== $message->aiCategory) {
+            return [
+                'category' => $message->aiCategory,
+                'reason'   => 'ai',
+                'signal'   => null,
             ];
         }
 

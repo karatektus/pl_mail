@@ -8,6 +8,7 @@ use App\Domain\Enum\Mail\SearchSortOrder;
 use App\Domain\Helper\TimezoneHelper;
 use App\Domain\Model\UserEntityModel;
 use App\Entity\Embeddable\AiPreferences;
+use App\Entity\Embeddable\CategorySorting;
 use App\Entity\Embeddable\Appearance;
 use App\Entity\Mail\Account;
 use App\Infrastructure\Doctrine\Type\EncryptedStringType;
@@ -104,6 +105,19 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
      */
     #[ORM\Embedded(class: AiPreferences::class, columnPrefix: 'ai_')]
     public private(set) AiPreferences $aiPreferences;
+
+    /**
+     * How this person's mail is sorted into tabs.
+     *
+     * Its own embeddable rather than two more fields in $aiPreferences,
+     * because only half of it is about the assistant: whether plMail's sorting
+     * overrules the provider's applies just as much on an installation with no
+     * model at all. See {@see CategorySorting}.
+     *
+     * private(set) like the two above.
+     */
+    #[ORM\Embedded(class: CategorySorting::class, columnPrefix: 'category_')]
+    public private(set) CategorySorting $categorySorting;
     /**
      * The hashed password
      */
@@ -306,6 +320,7 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
         $this->accounts = new ArrayCollection();
         $this->appearance = new Appearance();
         $this->aiPreferences = new AiPreferences();
+        $this->categorySorting = new CategorySorting();
     }
 
     /**

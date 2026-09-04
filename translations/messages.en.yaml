@@ -3337,6 +3337,22 @@ settings:
         save: 'Save signature'
         saved: 'Saved.'
         subheading: 'What is added to the bottom of the messages you write.'
+    sorting:
+        applies_to_new: Changing either of these decides how mail arriving from now on is sorted. What is already in your tabs stays where it is until an administrator re-sorts the mailbox.
+        heading: What sorts your mail
+        override:
+            hint: A Gmail account arrives already sorted by Google. This decides whether plMail leaves that alone or answers for itself.
+            label: On Gmail accounts
+            plmail: Sort it myself
+            provider: Keep Google's
+        source:
+            assistant: The assistant
+            assistant_help: The assistant reads each message and decides what it is for. Better at mail that does not announce itself, and occasionally confidently wrong. Anything it has not reached yet falls back to the rules.
+            label: Sorted by
+            rules: Rules
+            rules_help: Headers only — a mailing-list header, an unsubscribe link, a known sender. Predictable and literal, and it never asks the model anything.
+            unavailable: Sorting by assistant needs mail sorting switched on for this installation, and for you.
+        subheading: Which tab a message lands in, and who decides.
     timezone:
         heading: Time zone
         subheading: The clock times and dates are shown in. Nothing is rewritten — the same instant is simply read on your own clock.

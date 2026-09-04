@@ -336,7 +336,16 @@ final readonly class SyncGmailMessageBatchHandler
         // Empty correspondent map on purpose: gmailLabelIds is non-null by the
         // line above, so the categorizer takes its Gmail branch and never
         // reaches the correspondence override that map feeds.
-        $existing->category = $this->categorizer->categorize($existing, []);
+        // The reader's own preference, which is what decides whether Gmail's
+        // labels are authoritative here at all. Without it this path would
+        // re-derive the category from the shipped default and quietly undo the
+        // choice of anybody who asked plMail to overrule Google — on the very
+        // account where they asked for it.
+        $existing->category = $this->categorizer->categorize(
+            $existing,
+            [],
+            $existing->account->usr?->categorySorting,
+        );
 
         if (true === $ownsFlags) {
             // One row at a time because enrichment is one row at a time, and

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Service\Mail;
 
 use App\Domain\Enum\Mail\MessageCategory;
+use App\Entity\Embeddable\CategorySorting;
 use App\Entity\Mail\Message;
 use App\Service\Mail\MessageCategorizer;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -326,6 +327,104 @@ final class MessageCategorizerTest extends TestCase
 
         self::assertSame('forum', $explained['reason']);
         self::assertSame(MessageCategory::Forums, $explained['category']);
+    }
+
+    /**
+     * The preference decides, and the two halves of it are independent.
+     *
+     * This is the whole feature in one fixture: mail Gmail files under Updates,
+     * whose headers say Promotions, and whose stored model verdict says Social.
+     * Every combination of the two settings picks a different one of those
+     * three, which is exactly what makes them worth being settings.
+     */
+    #[DataProvider('preferences')]
+    public function testThePreferenceDecidesWhatSortsTheMail(
+        string $source,
+        bool $overrideProvider,
+        MessageCategory $expected,
+        string $because,
+    ): void {
+        $message = $this->message(
+            ['List-Unsubscribe' => '<https://shop.test/u>'],
+            'newsletter@shop.test',
+            ['INBOX', 'CATEGORY_UPDATES'],
+        );
+
+        $message->aiCategory = MessageCategory::Social;
+
+        $sorting                   = new CategorySorting();
+        $sorting->source           = $source;
+        $sorting->overrideProvider = $overrideProvider;
+
+        self::assertSame($expected, $this->categorizer->categorize($message, [], $sorting), $because);
+    }
+
+    /** @return iterable<string, array{string, bool, MessageCategory, string}> */
+    public static function preferences(): iterable
+    {
+        yield 'rules, provider wins' => [
+            'rules', false, MessageCategory::Updates,
+            "Gmail already sorted it and nothing was asked to disagree",
+        ];
+
+        yield 'assistant, provider wins' => [
+            'assistant', false, MessageCategory::Updates,
+            'choosing the assistant does not on its own overrule the provider',
+        ];
+
+        yield 'rules, plMail decides' => [
+            'rules', true, MessageCategory::Promotions,
+            'the header cascade reads List-Unsubscribe and the model is never asked',
+        ];
+
+        yield 'assistant, plMail decides' => [
+            'assistant', true, MessageCategory::Social,
+            'the model outranks the cascade, which is what choosing it means',
+        ];
+    }
+
+    /**
+     * The model does not outrank somebody you have written to.
+     *
+     * The correspondent rule is not a classification: it says this is a person
+     * the reader corresponds with, which is a fact about them rather than about
+     * the mail. A model above it would put a colleague in Promotions on one bad
+     * guess, and that is the only mistake in this cascade anybody would notice.
+     */
+    public function testTheAssistantDoesNotOutrankACorrespondent(): void
+    {
+        $message = $this->message(['List-Unsubscribe' => '<https://shop.test/u>'], 'kim@example.test');
+
+        $message->aiCategory = MessageCategory::Promotions;
+
+        $sorting                   = new CategorySorting();
+        $sorting->source           = 'assistant';
+        $sorting->overrideProvider = true;
+
+        self::assertSame(
+            MessageCategory::Primary,
+            $this->categorizer->categorize($message, ['kim@example.test' => true], $sorting),
+        );
+    }
+
+    /**
+     * No preference is the shipped behaviour, unchanged.
+     *
+     * Every caller that has no user — the Gmail enrichment path re-deriving a
+     * category for a row it just wrote — comes through here, and it must not be
+     * silently handed somebody else's settings.
+     */
+    public function testWithoutAPreferenceNothingChanges(): void
+    {
+        $message = $this->message(['List-Unsubscribe' => '<https://shop.test/u>'], 'newsletter@shop.test');
+
+        $message->aiCategory = MessageCategory::Social;
+
+        self::assertSame(
+            MessageCategory::Promotions,
+            $this->categorizer->categorize($message, []),
+            'the cascade answers and the verdict stays where it always sat, below it',
+        );
     }
 
     private function message(array $headers, string $from, ?array $gmailLabelIds = null): Message

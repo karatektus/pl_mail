@@ -14,6 +14,7 @@ use Twig\TwigFunction;
 /**
  * `ai_writing_help_enabled()` — whether the composer should offer to help.
  * `ai_summary_enabled()`      — whether the reading pane should offer a summary.
+ * `ai_categorisation_enabled()` — whether sorting by assistant can be chosen.
  * `ai_settings_available()`   — whether the AI settings section exists at all.
  *
  * Functions rather than controller variables, for the reason `signature_map()`
@@ -41,6 +42,7 @@ final class AiAvailabilityExtension extends AbstractExtension
         return [
             new TwigFunction('ai_writing_help_enabled', $this->writingHelp(...)),
             new TwigFunction('ai_summary_enabled', $this->summary(...)),
+            new TwigFunction('ai_categorisation_enabled', $this->categorisation(...)),
             new TwigFunction('ai_settings_available', $this->settingsAvailable(...)),
         ];
     }
@@ -73,6 +75,21 @@ final class AiAvailabilityExtension extends AbstractExtension
      * threading, because only a controller can read it; whether the feature
      * exists does not.
      */
+    /**
+     * The same two switches again, for the sorting card on the settings page.
+     *
+     * That card OFFERS the choice either way and disables the half that cannot
+     * be honoured, rather than hiding it — a setting that vanishes is how
+     * somebody concludes the feature does not exist. So this answers "may it be
+     * chosen", not "should the control be drawn".
+     */
+    public function categorisation(): bool
+    {
+        $user = $this->security->getUser();
+
+        return $this->permissions->allows($user instanceof User ? $user : null, AiFeature::Categorise);
+    }
+
     public function summary(): bool
     {
         $user = $this->security->getUser();

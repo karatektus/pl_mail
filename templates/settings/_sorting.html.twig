@@ -1,0 +1,103 @@
+{#
+settings/_sorting.html.twig
+─────────────────────────────────────────────────────────────────────────────
+What sorts this person's mail into tabs, and whether it outranks the provider.
+
+Two independent questions, two forms, exactly like the compose-behaviour card
+beside it: each control submits on change, and a shared form would post both
+keys whenever either moved. The controller writes only the key it is sent, so
+they cannot overwrite one another.
+
+The same two-segment idiom every boolean on these pages wears.
+
+Accepts:
+  source            'rules' | 'assistant'
+  overrideProvider  bool
+  assistantOffered  bool — whether categorisation is available to this person
+                    at all. The choice is still SHOWN when it is not, because
+                    hiding a setting is how somebody concludes the feature does
+                    not exist; it is disabled and says why instead.
+#}
+{% set segText = 'flex h-full items-center justify-center px-3 py-1.5 text-center text-[11px] leading-tight text-ink-muted
+                  peer-checked:bg-accent peer-checked:text-accent-ink
+                  peer-focus-visible:ring-2 peer-focus-visible:ring-inset peer-focus-visible:ring-accent
+                  peer-disabled:opacity-50 peer-disabled:cursor-not-allowed
+                  transition-colors cursor-pointer' %}
+
+<div class="px-4 py-3">
+
+<form method="post" action="{{ path('app_settings_sorting_update') }}" data-turbo="false" data-controller="ui--auto-submit">
+    <input type="hidden" name="_token" value="{{ csrf_token('settings-sorting') }}">
+
+    <div class="flex items-start justify-between gap-3">
+        <span class="min-w-0">
+            <span class="block text-xs font-medium text-ink-muted">{{ 'settings.sorting.source.label'|trans }}</span>
+            <span class="block text-[11px] text-ink-faint mt-0.5">
+                {{ ('settings.sorting.source.' ~ source ~ '_help')|trans }}
+            </span>
+        </span>
+
+        <div class="grid grid-flow-col auto-cols-fr shrink-0 rounded-pane border border-line overflow-hidden"
+             role="radiogroup" aria-label="{{ 'settings.sorting.source.label'|trans }}">
+            {% for option in ['rules', 'assistant'] %}
+                <label>
+                    {# The assistant option is refused rather than hidden when
+                       categorisation is not available: an administrator has to
+                       switch it on for the installation and the reader has to
+                       not have switched it off for themselves, and a control
+                       that vanished would leave somebody wondering which. #}
+                    <input type="radio" name="source" class="peer sr-only"
+                           value="{{ option }}"
+                           data-action="change->ui--auto-submit#submit"
+                           {{ 'assistant' == option and not assistantOffered ? 'disabled' : '' }}
+                           {{ source == option ? 'checked' : '' }}>
+                    <span class="{{ segText }}">
+                        {{ ('settings.sorting.source.' ~ option)|trans }}
+                    </span>
+                </label>
+            {% endfor %}
+        </div>
+    </div>
+
+    {% if not assistantOffered %}
+        <p class="text-[11px] text-ink-faint mt-2">{{ 'settings.sorting.source.unavailable'|trans }}</p>
+    {% endif %}
+</form>
+
+<form method="post" action="{{ path('app_settings_sorting_update') }}" data-turbo="false" class="mt-4" data-controller="ui--auto-submit">
+    <input type="hidden" name="_token" value="{{ csrf_token('settings-sorting') }}">
+
+    <div class="flex items-start justify-between gap-3">
+        <span class="min-w-0">
+            <span class="block text-xs font-medium text-ink-muted">{{ 'settings.sorting.override.label'|trans }}</span>
+            <span class="block text-[11px] text-ink-faint mt-0.5">{{ 'settings.sorting.override.hint'|trans }}</span>
+        </span>
+
+        <div class="grid grid-flow-col auto-cols-fr shrink-0 rounded-pane border border-line overflow-hidden"
+             role="radiogroup" aria-label="{{ 'settings.sorting.override.label'|trans }}">
+            {% for override in [false, true] %}
+                <label>
+                    <input type="radio" name="overrideProvider" class="peer sr-only"
+                           value="{{ override ? '1' : '0' }}"
+                           data-action="change->ui--auto-submit#submit"
+                           {{ overrideProvider == override ? 'checked' : '' }}>
+                    <span class="{{ segText }}">
+                        {{ (override ? 'settings.sorting.override.plmail' : 'settings.sorting.override.provider')|trans }}
+                    </span>
+                </label>
+            {% endfor %}
+        </div>
+    </div>
+</form>
+
+{# Said once, under both, because it is true of both and it is the thing
+   somebody will otherwise report as a bug: the category is recomputed from
+   stored data, so changing either of these decides how mail arriving from now
+   on is sorted and leaves what is already there alone. Re-sorting an existing
+   mailbox is `app:backfill category`, which is an operator's call — a hundred
+   thousand messages is not work to start from a settings toggle. #}
+<p class="text-[11px] text-ink-faint mt-4 pt-3 border-t border-line">
+    {{ 'settings.sorting.applies_to_new'|trans }}
+</p>
+
+</div>

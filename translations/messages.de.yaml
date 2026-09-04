@@ -3345,6 +3345,22 @@ settings:
         save: 'Signatur speichern'
         saved: 'Gespeichert.'
         subheading: 'Was am Ende der Nachrichten steht, die du schreibst.'
+    sorting:
+        applies_to_new: Wenn du hier etwas änderst, gilt das für Mail, die ab jetzt ankommt. Was schon in deinen Tabs liegt, bleibt liegen, bis jemand mit Admin-Rechten das Postfach neu einsortiert.
+        heading: Was deine Mail einsortiert
+        override:
+            hint: Ein Gmail-Konto kommt bereits von Google sortiert an. Hier entscheidest du, ob plMail das so lässt oder selbst antwortet.
+            label: Bei Gmail-Konten
+            plmail: Selbst sortieren
+            provider: Googles behalten
+        source:
+            assistant: Der Assistent
+            assistant_help: Der Assistent liest jede Nachricht und entscheidet, worum es geht. Besser bei Mail, die sich nicht selbst ankündigt — und gelegentlich selbstbewusst daneben. Was er noch nicht erreicht hat, übernehmen die Regeln.
+            label: Sortiert nach
+            rules: Regeln
+            rules_help: Nur Header — ein Mailinglisten-Header, ein Abmeldelink, ein bekannter Absender. Vorhersagbar und wörtlich, und es fragt nie ein Modell.
+            unavailable: Sortieren per Assistent setzt voraus, dass die Mail-Sortierung für diese Installation und für dich eingeschaltet ist.
+        subheading: In welchem Tab eine Nachricht landet — und wer das entscheidet.
     timezone:
         heading: Zeitzone
         subheading: Die Uhr, nach der Zeiten und Daten angezeigt werden. Es wird nichts umgeschrieben — derselbe Zeitpunkt wird nur auf deiner Uhr gelesen.

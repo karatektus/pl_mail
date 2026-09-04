@@ -105,7 +105,7 @@ final readonly class CategoryBackfillTask implements BackfillTaskInterface
             foreach ($messages as $message) {
                 $lastId = (int) $message->id;
 
-                $message->category = $this->categorizer->categorize($message, $correspondents);
+                $message->category = $this->categorizer->categorize($message, $correspondents, $account->usr?->categorySorting);
 
                 ++$processed;
                 $io->progressAdvance();

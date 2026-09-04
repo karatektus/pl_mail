@@ -378,6 +378,19 @@
                                                     } %}
                                                 {% endblock %}
                                             {% endembed %}
+
+                                            {% embed 'settings/_card.html.twig' with {
+                                                heading:    'settings.sorting.heading'|trans,
+                                                subheading: 'settings.sorting.subheading'|trans,
+                                            } %}
+                                                {% block body %}
+                                                    {% include 'settings/_sorting.html.twig' with {
+                                                        source:           app.user.categorySorting.source,
+                                                        overrideProvider: app.user.categorySorting.overrideProvider,
+                                                        assistantOffered: ai_categorisation_enabled(),
+                                                    } %}
+                                                {% endblock %}
+                                            {% endembed %}
                                         </div>
                                     {% elseif section == 'aliases' %}
                                         <div class="space-y-4">

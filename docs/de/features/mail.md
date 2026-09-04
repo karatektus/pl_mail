@@ -1,4 +1,4 @@
-<!-- translated-from: features/mail.md sha1:c5db2aeca54ea8e2e42d08139b63af32af14dead -->
+<!-- translated-from: features/mail.md sha1:db78f44797602be42d9d8e6e76d5b546ed9b426d -->
 
 # Mail
 
@@ -75,6 +75,39 @@ Netzwerke**, **Werbung**, **Updates** und **Foren**. Bei einem Gmail-Konto vertr
 Gmails eigenen `CATEGORY_*`-Labels. Bei allem anderen leitet es die Kategorie aus Headern ab,
 die ohnehin schon gespeichert sind — darum braucht eine Neukategorisierung nie eine erneute
 Synchronisierung.
+
+### Auswählen, was deine Mail einsortiert
+
+Beide Voreinstellungen kannst du ändern, unter **Einstellungen → Allgemein → Was deine Mail
+einsortiert**.
+
+**Sortiert nach** legt fest, wer entscheidet. **Regeln** liest Header — einen Mailinglisten-Header,
+einen Abmeldelink, einen Absender, dem du schon geschrieben hast — und antwortet bei derselben
+Nachricht immer gleich, ohne je ein Modell zu fragen. Bei **Der Assistent** liest das Modell jede
+Nachricht und entscheidet, worum es geht: besser bei Mail, die sich nicht selbst ankündigt, und
+gelegentlich selbstbewusst daneben. Was der Assistent noch nicht erreicht hat, übernehmen die
+Regeln — der Tab füllt sich also nach und nach, statt bis dahin falsch zu sein. Die Assistenten-
+Option setzt voraus, dass die Mail-Sortierung für die Installation *und* für dich eingeschaltet ist;
+sonst sagt sie das.
+
+Eines überstimmt der Assistent nie: Wer dir schreibt und dem du schon geschrieben hast, bleibt in
+Allgemein. Diese Regel ist keine Vermutung über die Mail, sondern eine Tatsache über dich — ein
+Modell darüber würde an einem schlechten Nachmittag eine Kollegin unter Werbung einsortieren.
+
+**Bei Gmail-Konten** entscheidet, ob das alles Google widersprechen darf. Die Voreinstellung behält
+Googles Kategorien, weil sie ohnehin schon da sind und zwei Systeme, die dasselbe Postfach
+sortieren, schlechter sind als jedes für sich — aber wenn Google deine Mail auf eine Art einsortiert,
+die dir noch nie gefallen hat, ist das der Schalter, mit dem plMail selbst antwortet.
+
+Keine der beiden Einstellungen sortiert von sich aus etwas um. Sie legen fest, wie ab jetzt
+ankommende Mail einsortiert wird; was schon in deinen Tabs liegt, bleibt liegen, bis jemand mit
+Admin-Rechten `app:backfill category` laufen lässt — das rechnet alles aus den gespeicherten Daten
+neu aus.
+
+> **Beim Upgrade von vor 0.2:** Das Urteil des Assistenten wurde bisher als stiller Stichentscheid
+> herangezogen — nur dort, wo die Regeln nichts gefunden hatten, ohne Möglichkeit, es zu sehen, zu
+> bevorzugen oder abzuschalten. Genau das heißt jetzt **Der Assistent**, und **Regeln** heißt, was
+> dasteht. Wenn du die Mail-Sortierung anhattest und mochtest, was sie tat, wähl den Assistenten.
 
 Jeder Tab liest sich wie bei Gmail: ein Symbol — ausgefüllt auf dem Tab, auf dem du gerade bist
 — und, solange in einer Kategorie Post liegt, die dir nie gezeigt wurde, ein Fähnchen **„3 neu”**

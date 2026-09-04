@@ -111,7 +111,7 @@ final readonly class PostIngestPipeline
                 thread: null,
             );
 
-            $message->category = $this->categorizer->categorize($message, $correspondents);
+            $message->category = $this->categorizer->categorize($message, $correspondents, $user?->categorySorting);
 
             try {
                 $this->messageThreader->assignThread($message, $item->account);
