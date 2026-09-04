@@ -106,6 +106,21 @@ It is bounded because it costs a model call each — a few hundred is minutes on
 mailbox is hours. Recent mail is where a wrong tab gets noticed anyway. Nothing asks again on its
 own, and nothing should.
 
+### Telling plMail it got one wrong
+
+Open a message's **to …** dropdown and the bottom row asks whether it is in the wrong tab. Pick where
+it belongs and press **Report**. Nothing moves — this is not a way to file a message by hand, which
+is what dragging a conversation onto a tab is for — it records the DECISION so somebody can work out
+what needs changing.
+
+What is kept is the evidence: what Gmail, the rules and the assistant each said, which bulk headers
+the message carries, who sent it and the subject. Not the body — it is the most sensitive part of a
+message and the least useful here, since most marketing mail has no plain-text part at all.
+
+An administrator finds the collected reports in **Admin → AI**, with a button that copies them as
+text. That text is the point: it is what you hand to whoever is going to change a rule, the prompt or
+the model.
+
 **Watch it in the topbar.** The run appears in the background-work indicator beside the search box,
 with a count as it goes and a note if it fails — the same place a "mark all read" over five thousand
 messages reports from. You can close the settings page; it carries on.

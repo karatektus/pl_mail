@@ -89,6 +89,11 @@ admin:
             hours: '%count% h'
             minutes: '%count% min'
             seconds: '%count% s'
+        reports:
+            clear: "Empty th' reports"
+            copy: "Copy the lot"
+            heading: "Reported as wrongly stowed"
+            subheading: "%count% messages somebody found in th' wrong tab. Copy th' list to work out what wants changin' — a rule, th' orders, or th' oracle."
         embedding_preset:
             heading: "Measured settin's — one click sets model, orders an' threshold as one:"
             all-minilm: "Small an' swift: 45 MB an' 384 dimensions, for a vessel short on memory. English first, so the weakest here on German mail. Wants no orders."
@@ -1625,6 +1630,11 @@ message:
         cc: cc
         copy_address: 'Pocket the address %address%'
         copy_headers: Pocket the headers
+        report:
+            failed: "Could nay be reported"
+            label: "Wrong tab? Belongs in"
+            send: Report her
+            sent: Reported
         date: date
         from: from
         hide_all_headers: Furl all headers

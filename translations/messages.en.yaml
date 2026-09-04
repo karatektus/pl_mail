@@ -89,6 +89,11 @@ admin:
             hours: '%count% h'
             minutes: '%count% min'
             seconds: '%count% s'
+        reports:
+            clear: 'Clear the reports'
+            copy: 'Copy all'
+            heading: 'Reported as wrongly sorted'
+            subheading: '%count% messages somebody said were in the wrong tab. Copy the list to work out what needs changing — a rule, the prompt, or the model.'
         embedding_preset:
             heading: 'Measured presets — one click sets the model, its instruction and its threshold together:'
             all-minilm: 'Small and fast: 45 MB and 384 dimensions, for a machine that cannot spare the memory. English-first, so expect it to be the weakest of these on German mail. Needs no instruction.'
@@ -1947,6 +1952,11 @@ message:
         cc: cc
         copy_address: 'Copy address %address%'
         copy_headers: Copy headers
+        report:
+            failed: 'Could not report'
+            label: 'Wrong tab? Should be'
+            send: Report
+            sent: Reported
         date: date
         from: from
         hide_all_headers: Hide all headers

@@ -1,4 +1,4 @@
-<!-- translated-from: features/mail.md sha1:8e23225ce1b3767c8ffaa8ec7af2673d20c55be2 -->
+<!-- translated-from: features/mail.md sha1:e3fa69c5b07eeeef13d8040f0e4deafb66867891 -->
 
 # Mail
 
@@ -118,6 +118,22 @@ oder 500 Nachrichten noch einmal.
 Es ist begrenzt, weil es pro Nachricht einen Modell-Aufruf kostet — ein paar hundert sind Minuten
 auf einem warmen Host, ein ganzes Postfach Stunden. Und bei der neuesten Mail fällt ein falscher Tab
 ohnehin zuerst auf. Von allein fragt nichts noch einmal nach, und das ist auch richtig so.
+
+### plMail sagen, dass es danebenlag
+
+Öffne bei einer Nachricht das **an …**-Klappmenü: Die unterste Zeile fragt, ob sie im falschen Tab
+liegt. Wähl aus, wohin sie gehört, und drück **Melden**. Es verschiebt sich nichts — das hier ist
+kein Weg, eine Nachricht von Hand einzusortieren, dafür ziehst du das Gespräch auf einen Tab —
+sondern es hält die ENTSCHEIDUNG fest, damit jemand herausfinden kann, was sich ändern muss.
+
+Festgehalten wird, worauf sie beruhte: was Gmail, die Regeln und der Assistent jeweils gesagt haben,
+welche Bulk-Header die Nachricht trägt, wer sie geschickt hat und der Betreff. Nicht der Text — er
+ist der heikelste Teil einer Nachricht und hier der am wenigsten nützliche, denn die meiste
+Werbemail hat gar keinen Klartext-Teil.
+
+Wer Admin-Rechte hat, findet die gesammelten Meldungen unter **Admin → KI**, mit einem Knopf, der
+sie als Text kopiert. Um diesen Text geht es: Er ist das, was du demjenigen gibst, der eine Regel,
+die Anweisung oder das Modell ändern wird.
 
 **Zusehen kannst du in der Topbar.** Der Lauf taucht in der Anzeige für Hintergrundarbeit neben dem
 Suchfeld auf, mit einem Zähler und einem Hinweis, falls etwas schiefgeht — dieselbe Stelle, an der

@@ -336,6 +336,55 @@ mailed-by and signed-by were silently missing from every IMAP message.
             {% endif %}
         </dl>
 
+        {# "This is in the wrong tab."
+
+           Only where there is a category to be wrong about, which is the whole
+           of the condition: category_report() answers null for a principal it
+           does not recognise, and the rows above are absent then too.
+
+           A SELECT AND A BUTTON rather than five buttons. Knowing a message was
+           misfiled is a fraction as useful as knowing where it belonged —
+           "promotions, not primary" is a rule somebody can act on, "wrong" is a
+           shrug — and the closed set is five, which is a select.
+
+           It posts and stays put: this is pressed inside a popover on a thread
+           the reader is in the middle of, and navigating them away to
+           acknowledge a button would cost more than the button is worth. #}
+        {% if category %}
+            <div class="border-t border-line px-4 py-2"
+                 data-controller="mail--category-report"
+                 data-mail--category-report-url-value="{{ path('app_mail_category_report', {'id': message.id}) }}"
+                 data-mail--category-report-token-value="{{ csrf_token('category_report') }}"
+                 data-mail--category-report-sent-label-value="{{ 'message.details.report.sent'|trans }}"
+                 data-mail--category-report-failed-label-value="{{ 'message.details.report.failed'|trans }}">
+                <div class="flex items-center gap-2">
+                    <span class="text-ink-faint shrink-0">{{ 'message.details.report.label'|trans }}</span>
+
+                    <select data-mail--category-report-target="category"
+                            class="min-w-0 flex-1 h-7 rounded-pane border border-line bg-surface px-1.5
+                                   text-ink-soft cursor-pointer">
+                        {% for option in ['primary', 'social', 'promotions', 'updates', 'forums'] %}
+                            {# The one it is already in is not offered: "it
+                               should be where it is" is not a report. #}
+                            {% if option != (category.filed ?? category.effective.category) %}
+                                <option value="{{ option }}">{{ ('tabs.' ~ option)|trans }}</option>
+                            {% endif %}
+                        {% endfor %}
+                    </select>
+
+                    <button type="button"
+                            data-action="click->mail--category-report#send"
+                            data-mail--category-report-target="button"
+                            class="shrink-0 inline-flex items-center gap-1.5 h-7 px-2 rounded-pane
+                                   border border-line text-ink-faint hover:text-ink-soft hover:bg-hover
+                                   cursor-pointer transition-colors">
+                        <i data-mail--category-report-target="icon" class="fa-solid fa-flag w-3" aria-hidden="true"></i>
+                        <span data-mail--category-report-target="label">{{ 'message.details.report.send'|trans }}</span>
+                    </button>
+                </div>
+            </div>
+        {% endif %}
+
         {# Copy the whole block. The source is hidden rather than assembled in
            JavaScript: the text owed to the clipboard is the panel's own
            rendering, translations and all, and Twig is where that already
