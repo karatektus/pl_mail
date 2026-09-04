@@ -1915,6 +1915,9 @@ message:
             # be noticed, because the two rows are what this panel is for and a
             # difference between them is the finding.
             ai_differs: 'the rules disagree'
+            awaiting_resort: 'Being re-filed — you changed how mail is sorted, and this one has not moved yet.'
+            gmail_overruled: 'not used — you asked plMail to sort this itself'
+            in_force: 'this one decides'
             # Asked, and what came back was not one of the five categories. Kept
             # apart from "not asked": one means the model has nothing useful to
             # say about this mail, the other means nobody has asked it.
@@ -1934,6 +1937,7 @@ message:
         # What a language model made of it — asked about every message now, and
         # deciding nothing on its own.
         category_ai: 'the model'
+        category_gmail: 'Gmail says'
         # plMail's own cascade with neither Gmail nor the model in the way. On a
         # Gmail mailbox this is the answer that takes over the day the provider's
         # labels stop arriving, so it is worth being able to see before then.

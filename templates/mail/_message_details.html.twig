@@ -228,19 +228,53 @@ mailed-by and signed-by were silently missing from every IMAP message.
                 #}
                 <dt class="text-ink-faint text-right">{{ 'message.details.category'|trans }}</dt>
                 <dd class="text-ink-soft break-words">
-                    {% if category.pinnedAt %}
-                        {{ ('tabs.' ~ (message.thread.category.value ?? category.effective.category))|trans }}
-                        <span class="text-ink-faint">— {{ 'message.details.categorised.pinned'|trans }}</span>
-                    {% else %}
-                        {{ ('tabs.' ~ category.effective.category)|trans }}
-                        <span class="text-ink-faint">
+                    {# WHERE IT ACTUALLY IS, off the row. The three lines below
+                       are recomputations — "what would each of them say" — and
+                       this one is the answer to a different question entirely.
+                       Reading it off the row is also the only way the panel can
+                       be honest when they disagree, which they do whenever a
+                       re-file is still queued. #}
+                    {{ ('tabs.' ~ (category.filed ?? category.effective.category))|trans }}
+                    <span class="text-ink-faint">
+                        {%- if category.pinnedAt %}
+                            — {{ 'message.details.categorised.pinned'|trans }}
+                        {%- else %}
                             — {{ ('message.details.categorised.' ~ category.effective.reason)|trans }}
                             {%- if category.effective.signal %}
                                 <span class="font-mono">{{ category.effective.signal }}</span>
                             {%- endif -%}
-                        </span>
+                        {%- endif -%}
+                    </span>
+
+                    {# The row and a fresh answer disagreeing is not a fault, it
+                       is a re-file that has not run yet — the sorting setting
+                       queues one and a large mailbox takes minutes. Saying so
+                       is the difference between "give it a moment" and a bug
+                       report. Never shown for a pinned thread, where the two
+                       are SUPPOSED to differ. #}
+                    {% if not category.pinnedAt and category.filed and category.filed != category.effective.category %}
+                        <span class="block text-ink-faint">{{ 'message.details.categorised.awaiting_resort'|trans }}</span>
                     {% endif %}
                 </dd>
+
+                {#
+                Gmail's own answer, on its own line.
+
+                It used to appear only as a footnote on the line above, and only
+                while it was the thing that had decided — so a reader who asked
+                plMail to overrule Google lost the one number they most wanted to
+                compare against. Null on any other account, where the row is
+                omitted rather than filled with an answer Gmail never gave.
+                #}
+                {% if category.gmail %}
+                    <dt class="text-ink-faint text-right">{{ 'message.details.category_gmail'|trans }}</dt>
+                    <dd class="text-ink-soft break-words">
+                        {{ ('tabs.' ~ category.gmail)|trans }}
+                        {% if category.source == 'rules' or category.effective.reason != 'gmail' %}
+                            <span class="text-ink-faint">— {{ 'message.details.categorised.gmail_overruled'|trans }}</span>
+                        {% endif %}
+                    </dd>
+                {% endif %}
 
                 {#
                 plMail's own cascade, with neither Gmail's labels nor the model
@@ -258,17 +292,25 @@ mailed-by and signed-by were silently missing from every IMAP message.
                         — {{ ('message.details.categorised.' ~ category.rules.reason)|trans }}
                         {%- if category.rules.signal %}
                             <span class="font-mono">{{ category.rules.signal }}</span>
+                        {%- endif %}
+                        {%- if category.source == 'rules' %}
+                            · {{ 'message.details.categorised.in_force'|trans }}
                         {%- endif -%}
                     </span>
                 </dd>
 
                 {#
-                And the model, which is now asked about every message rather
-                than only the ones no rule recognised — the point being to have
-                both answers on the same mail. It still decides nothing on its
-                own: the tie-break in MessageCategorizer is the only place the
-                verdict is read, so a message a rule matched keeps the rule's
-                answer however loudly this row disagrees.
+                And the model, asked about every message rather than only the
+                ones no rule recognised — the point being to have all three
+                answers on the same mail.
+
+                Whether it DECIDES is now the reader's own setting. It used to
+                be read only as a tie-break, where a message any rule matched
+                kept the rule's answer however loudly this row disagreed; that
+                is still what happens under "Rules", and under "The assistant"
+                this row is the one that wins. Which is in force is marked
+                rather than left to be inferred from three categories and a
+                memory of a settings page.
 
                 Three states, and they are genuinely different: never asked
                 (the feature is off, or this arrived before it was on), asked
@@ -278,9 +320,13 @@ mailed-by and signed-by were silently missing from every IMAP message.
                 <dd class="text-ink-soft break-words">
                     {% if category.ai.category %}
                         {{ ('tabs.' ~ category.ai.category)|trans }}
-                        {% if category.ai.category != category.rules.category %}
-                            <span class="text-ink-faint">— {{ 'message.details.categorised.ai_differs'|trans }}</span>
-                        {% endif %}
+                        <span class="text-ink-faint">
+                            {%- if category.source == 'assistant' %}
+                                — {{ 'message.details.categorised.in_force'|trans }}
+                            {%- elseif category.ai.category != category.rules.category %}
+                                — {{ 'message.details.categorised.ai_differs'|trans }}
+                            {%- endif -%}
+                        </span>
                     {% elseif category.ai.asked %}
                         <span class="text-ink-faint">{{ 'message.details.categorised.ai_no_answer'|trans }}</span>
                     {% else %}

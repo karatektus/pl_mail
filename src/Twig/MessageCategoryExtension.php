@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Twig;
 
+use App\Domain\Enum\Mail\MessageCategory;
 use App\Entity\Mail\Message;
 use App\Entity\User\User;
 use App\Repository\Mail\ContactRepository;
@@ -70,9 +71,12 @@ final class MessageCategoryExtension extends AbstractExtension
 
     /**
      * @return array{
+     *     filed: string|null,
      *     effective: array{category: string, reason: string, signal: string|null},
+     *     gmail: string|null,
      *     rules: array{category: string, reason: string, signal: string|null},
      *     ai: array{category: string|null, asked: bool},
+     *     source: string,
      *     pinnedAt: \DateTimeImmutable|null,
      * }|null null when there is nobody to answer for
      */
@@ -91,8 +95,41 @@ final class MessageCategoryExtension extends AbstractExtension
         // comparison is between two different questions.
         $correspondents = $this->contacts->isCorrespondent($user, $from) ? [$from => true] : [];
 
+        $sorting = $user->categorySorting;
+
         return [
-            'effective' => $this->describe($message, $correspondents, false, false),
+            // WHERE IT ACTUALLY IS, read straight off the row rather than
+            // worked out again — and this row is why the panel was wrong.
+            //
+            // Everything else here is a RECOMPUTATION, which is the right shape
+            // for "what would each of them say"; it is the wrong shape for
+            // "where is this mail". The two came apart the moment sorting
+            // became a setting: the effective line was computed with the
+            // shipped defaults and announced "Updates — Gmail said so" about a
+            // message sitting in Primary, because the reader had asked for the
+            // model and for Gmail to be overruled. A panel that explains a
+            // mailbox it is not looking at is worse than one that says nothing.
+            'filed'     => $message->category?->value,
+
+            // The same cascade the reader's own settings produce, so the reason
+            // beside the category above is the reason for THAT category.
+            'effective' => $this->describe(
+                $message,
+                $correspondents,
+                $sorting->overrideProvider,
+                $sorting->ignoresAi(),
+                $sorting->assistantFirst(),
+            ),
+
+            // Gmail's own answer, on its own line, because it is one of the
+            // three things a reader is comparing and it was only ever visible
+            // as a footnote on the line above — which vanished entirely once
+            // somebody chose to overrule it. Null on any other account: not
+            // "Primary", which would be an answer Gmail never gave.
+            'gmail'     => null === $message->gmailLabelIds
+                ? null
+                : MessageCategory::fromGmailLabels($message->gmailLabelIds)->value,
+
             // Both flags, and they are not the same exclusion. `ignoreAi` takes
             // the model's opinion out; `ignoreProviderLabels` takes Gmail's out.
             // "The rules" means plMail's own cascade, which is neither.
@@ -104,6 +141,11 @@ final class MessageCategoryExtension extends AbstractExtension
                 // can tell the middle case from the last.
                 'asked'    => null !== $message->aiCategorisedAt,
             ],
+
+            // Which of the three is in force, so the panel can mark it rather
+            // than leaving the reader to infer it from three categories and
+            // their own memory of a settings page.
+            'source'    => $sorting->source,
             'pinnedAt'  => $message->thread?->categoryPinnedAt,
         ];
     }
@@ -118,12 +160,14 @@ final class MessageCategoryExtension extends AbstractExtension
         array $correspondents,
         bool $ignoreProviderLabels,
         bool $ignoreAi,
+        bool $aiFirst = false,
     ): array {
         $explanation = $this->categorizer->explain(
             $message,
             $correspondents,
             $ignoreProviderLabels,
             $ignoreAi,
+            $aiFirst,
         );
 
         return [

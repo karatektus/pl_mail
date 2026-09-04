@@ -1908,6 +1908,9 @@ message:
         categorised:
             ai: 'ein Sprachmodell, weil keine Regel gegriffen hat: '
             ai_differs: 'die Regeln sehen das anders'
+            awaiting_resort: 'Wird neu einsortiert — du hast geändert, wie Mail sortiert wird, und diese hier ist noch nicht umgezogen.'
+            gmail_overruled: 'wird nicht benutzt — du hast plMail gebeten, selbst zu sortieren'
+            in_force: 'das hier entscheidet'
             ai_no_answer: 'gefragt, keine brauchbare Antwort'
             ai_not_asked: 'nicht gefragt'
             correspondent: 'Du hast diesem Absender geschrieben'
@@ -1920,6 +1923,7 @@ message:
             update: 'ein Hinweis auf automatischen Versand: '
         category: Kategorie
         category_ai: 'das Modell'
+        category_gmail: 'Gmail sagt'
         category_rules: 'die Regeln'
         bcc: BCC
         cc: CC

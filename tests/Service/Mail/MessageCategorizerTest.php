@@ -7,6 +7,7 @@ namespace App\Tests\Service\Mail;
 use App\Domain\Enum\Mail\MessageCategory;
 use App\Entity\Embeddable\CategorySorting;
 use App\Entity\Mail\Message;
+use App\Infrastructure\Messaging\Handler\ClassifyMailHandler;
 use App\Service\Mail\MessageCategorizer;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -425,6 +426,45 @@ final class MessageCategorizerTest extends TestCase
             $this->categorizer->categorize($message, []),
             'the cascade answers and the verdict stays where it always sat, below it',
         );
+    }
+
+    /**
+     * The bulk headers reach the model, and their VALUES do not.
+     *
+     * This is the line that fixed the bug the whole feature was reported for.
+     * ClassifyMailHandler used to send a sender, a subject and a body with every
+     * header stripped — and a marketing mail with no plain-text part is sent as
+     * literally "(no plain text part)", so the model was left with a human
+     * sender name and a personal subject and nothing else at all. Measured
+     * against the model on a live installation, qwen3:30b-a3b-instruct: that
+     * input comes back `primary` under both the old prompt and a rewritten one,
+     * and `promotions` under both once this line is present. The prompt was
+     * never what was wrong; the evidence was missing.
+     *
+     * Names only. The unsubscribe URL is a tracking link with an account
+     * identifier in it and there is nothing to learn from sending it that its
+     * existence has not already said.
+     */
+    public function testTheModelIsToldWhichBulkHeadersAreThere(): void
+    {
+        // bulkLine() rather than describe(): it is the whole of the change,
+        // and it is static, where describe() would need the handler's five
+        // collaborators built to answer a question about a header map.
+        $line = new \ReflectionMethod(ClassifyMailHandler::class, 'bulkLine');
+
+        $bulk = $this->message(
+            ['List-Unsubscribe' => '<https://shop.test/u?id=secret>', 'Precedence' => 'bulk'],
+            'newsletter@shop.test',
+        );
+
+        $described = (string) $line->invoke(null, $bulk);
+
+        self::assertStringContainsString('Bulk headers: list-unsubscribe, precedence', $described);
+        self::assertStringNotContainsString('secret', $described, 'the value is a tracking link, not evidence');
+
+        // And ordinary correspondence carries no such line, so its absence is
+        // as informative as its presence.
+        self::assertSame('', (string) $line->invoke(null, $this->message([], 'kim@example.test')));
     }
 
     private function message(array $headers, string $from, ?array $gmailLabelIds = null): Message

@@ -150,10 +150,59 @@ final class PromptRules
      * German mail is telling it to answer "Werbung" — which is the model
      * getting it right in a spelling the parser has never heard of.
      */
-    public const string CATEGORISE = 'You sort email into exactly one category. Answer with one word and'
-        . ' nothing else, chosen from: primary, social, promotions, updates, forums.'
-        . ' primary is mail from a person that expects a reply. social is from a social'
-        . ' network. promotions is marketing and offers. updates is receipts, bills,'
-        . ' confirmations and automated notices. forums is mailing lists and discussion'
-        . ' groups.';
+    /**
+     * ORDERED, AND THE ORDER IS THE FIX.
+     *
+     * The previous version defined primary as "mail from a person that expects
+     * a reply" and left the model to work out the rest. That definition is
+     * precisely what personalised marketing is built to imitate, so the model
+     * was being asked to distinguish real correspondence from mail engineered
+     * to be indistinguishable from it — using the one test the mail was
+     * designed to pass.
+     *
+     * It failed exactly as you would expect. A job-matching mail from a
+     * recruitment platform — a named human sender, the reader's first name in
+     * the subject, prose in the second person, and an unsubscribe footer —
+     * came back `primary`. Gmail said updates and the header rules said
+     * promotions; the model was the only one of the three that was clearly
+     * wrong, on the mail whose whole design is to be read as personal.
+     *
+     * So the bulk question is asked FIRST and answered from things marketing
+     * cannot hide — an unsubscribe footer, a no-reply address, a tracking
+     * link, a template layout — and primary is what is left when the answer is
+     * no. That reverses the burden: a message has to fail to look automated
+     * before the personal test is applied at all, rather than passing the
+     * personal test on the strength of a greeting.
+     *
+     * The signs are named individually rather than left as "looks like
+     * marketing", because a smaller model given an abstraction reasons about
+     * the abstraction and a model given a checklist looks for the items.
+     *
+     * NO LANGUAGE RULE, deliberately, and PromptLibrary is where that is
+     * enforced. Every other prompt gets PromptRules::LANGUAGE appended because
+     * its answer is prose somebody reads; this one answers a single English
+     * token from a closed set, and telling it to reply in the reader's language
+     * would ask for `Werbung` where the parser expects `promotions`.
+     *
+     * Kept well under AiPrompts::MAX_PROMPT so an administrator has room to
+     * improve it — a cap the shipped text already fills is a cap that only ever
+     * bites the person this feature exists for.
+     */
+    public const string CATEGORISE = 'You sort one email into exactly one category.'
+        . ' Answer with one word and nothing else, chosen from:'
+        . ' primary, social, promotions, updates, forums.'
+        . "\n\nFirst: is this bulk mail, sent by a system to many people? Signs are an"
+        . ' unsubscribe link, a no-reply or team sender, tracking links, or a template'
+        . ' layout. Bulk mail is NEVER primary, however personal it reads — not when it'
+        . " uses the reader's name, not when a named person signs it."
+        . "\n\nIf it is bulk:"
+        . "\nsocial — a social network: follows, likes, mentions, new posts."
+        . "\nforums — a mailing list or group, where replies reach many people."
+        . "\npromotions — selling, offering or recommending: adverts, deals, newsletters,"
+        . ' product news, job matches, suggestions of things to look at.'
+        . "\nupdates — a system reporting what already happened on the reader's own"
+        . ' account: receipts, bookings, deliveries, password resets, security alerts.'
+        . "\nIf both fit: promotions wants you to act, updates records a fact."
+        . "\n\nOtherwise: primary — a message one person wrote to this reader and would"
+        . ' notice a reply to.';
 }

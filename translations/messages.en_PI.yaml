@@ -1603,6 +1603,9 @@ message:
         categorised:
             ai: "an oracle, for no rule knew it: "
             ai_differs: 'the rules say otherwise'
+            awaiting_resort: "Bein' re-stowed — ye changed how post be sorted, an' this one has not shifted yet."
+            gmail_overruled: "not used — ye asked plMail to stow this itself"
+            in_force: 'this one decides'
             ai_no_answer: 'asked, naught useful back'
             ai_not_asked: 'not asked'
             correspondent: 'ye have written to this one'
@@ -1615,6 +1618,7 @@ message:
             update: 'a sign of an unmanned sender: '
         category: rank
         category_ai: 'the oracle'
+        category_gmail: 'Gmail says'
         category_rules: "our own reckonin'"
         bcc: bcc
         cc: cc

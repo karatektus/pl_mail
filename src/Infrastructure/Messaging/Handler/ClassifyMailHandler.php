@@ -214,12 +214,49 @@ final readonly class ClassifyMailHandler
             $body = '(no plain text part)';
         }
 
-        return implode("\n", [
+        return implode("\n", array_filter([
             'From: ' . trim(((string) $mail->fromName) . ' <' . ((string) $mail->fromAddress) . '>'),
             'Subject: ' . trim((string) $mail->subject),
+            self::bulkLine($mail),
             '',
             mb_substr($body, 0, self::BODY_BUDGET),
-        ]);
+        ], static fn (string $line): bool => '' !== $line));
+    }
+
+    /**
+     * The headers that say "this was sent to a list", named for the model.
+     *
+     * WITHOUT THIS THE PROMPT ASKS AN IMPOSSIBLE QUESTION. It tells the model to
+     * decide first whether the mail is bulk, and names an unsubscribe link as
+     * the sign — and then this method used to hand over a sender, a subject and
+     * a body, with every header stripped. The one piece of evidence that
+     * marketing cannot fake its way around was the piece being withheld.
+     *
+     * What that cost, measured on qwen3:4b-instruct: a newsletter with a human
+     * sender name, the reader's first name in the subject and second-person
+     * prose came back `primary`. Both the old prompt and a rewritten one got it
+     * wrong, because neither could see what made it bulk. With this line, both
+     * get it right — the fix was never the wording.
+     *
+     * NAMES ONLY, NOT VALUES. `list-unsubscribe` is the fact; the URL it points
+     * at is a tracking link with an account identifier in it, and there is no
+     * reason to send that to a model to be told what it already says by
+     * existing. It also keeps the line to a handful of tokens.
+     *
+     * The same header names MessageCategorizer reads, so the two halves of this
+     * feature are looking at the same evidence and can be compared on the same
+     * mail — which is the entire point of the details panel showing both.
+     */
+    private static function bulkLine(Message $mail): string
+    {
+        $headers = array_change_key_case($mail->headers ?? [], CASE_LOWER);
+
+        $present = array_values(array_filter(
+            ['list-unsubscribe', 'list-id', 'precedence', 'feedback-id', 'auto-submitted'],
+            static fn (string $name): bool => '' !== trim((string) ($headers[$name] ?? '')),
+        ));
+
+        return [] === $present ? '' : 'Bulk headers: ' . implode(', ', $present);
     }
 
     /**
