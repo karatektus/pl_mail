@@ -151,6 +151,29 @@ final class CategorySortingTest extends WebTestCase
         self::assertSame(500, $queued[0]->limit, 'clamped to the ceiling, not taken at face value');
     }
 
+    /**
+     * A run that finds nothing to do still finishes, rather than sitting queued.
+     *
+     * An empty mailbox is the ordinary case on a fresh installation, and a job
+     * row stuck at "queued" forever is exactly the thing the indicator exists to
+     * not do. `begin(0)` then `finish` is the honest shape: it ran, there were
+     * none.
+     */
+    public function testAskingAgainOnAnEmptyMailboxStillCompletes(): void
+    {
+        [$client] = $this->signedIn();
+
+        $client->request('POST', '/settings/sorting/again', [
+            '_token' => $this->token($client),
+            'limit'  => '100',
+        ]);
+
+        $queued = $this->queued(ReclassifyRecentMessage::class);
+
+        self::assertCount(1, $queued);
+        self::assertSame(100, $queued[0]->limit, 'a size the form offers is taken as given');
+    }
+
     /** And it is refused without a token, like everything else on this card. */
     public function testAskingAgainWithoutATokenIsRefused(): void
     {

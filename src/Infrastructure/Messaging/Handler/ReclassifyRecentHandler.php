@@ -4,12 +4,17 @@ declare(strict_types=1);
 
 namespace App\Infrastructure\Messaging\Handler;
 
+use App\Domain\Enum\Job\JobKind;
+use App\Domain\Enum\Job\JobState;
+use App\Entity\Job\BackgroundJob;
 use App\Entity\Ai\AiFeature;
 use App\Infrastructure\Messaging\Message\ClassifyMailMessage;
 use App\Infrastructure\Messaging\Message\ReclassifyRecentMessage;
 use App\Repository\Mail\MessageRepository;
 use App\Repository\User\UserRepository;
+use App\Service\Job\JobNotifier;
 use App\Service\Ai\AiPermissions;
+use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 
@@ -51,11 +56,13 @@ final readonly class ReclassifyRecentHandler
     private const int BATCH_SIZE = 20;
 
     public function __construct(
-        private UserRepository     $users,
-        private MessageRepository  $messages,
-        private AiPermissions      $permissions,
-        private ClassifyMailHandler $classify,
-        private LoggerInterface    $logger,
+        private UserRepository         $users,
+        private MessageRepository      $messages,
+        private AiPermissions          $permissions,
+        private ClassifyMailHandler    $classify,
+        private JobNotifier            $jobs,
+        private EntityManagerInterface $em,
+        private LoggerInterface        $logger,
     ) {
     }
 
@@ -68,6 +75,23 @@ final readonly class ReclassifyRecentHandler
         }
 
         $ids = $this->messages->findRecentIdsForUser($message->userId, $message->limit);
+
+        // A JOB ROW, so this can be watched.
+        //
+        // It is the odd one out among the kinds — every other is a bulk action
+        // over a mail view — and it is here because what a reader needs from a
+        // run of model calls is exactly what the jobs indicator already gives:
+        // is it running, how far has it got, did it fail. This ran fire-and-
+        // forget first, which answered a request for a button with a button
+        // whose only feedback was the page reloading.
+        $job = new BackgroundJob($user, JobKind::Reclassify);
+
+        $this->em->persist($job);
+        $job->begin(count($ids));
+        $this->em->flush();
+        $this->jobs->changed($job);
+
+        $done = 0;
 
         foreach (array_chunk($ids, self::BATCH_SIZE) as $batch) {
             // INVOKED, NOT DISPATCHED, and the transport is why.
@@ -84,7 +108,20 @@ final readonly class ReclassifyRecentHandler
             // the asking, the batching, the per-message permission check and
             // the re-filing rather than growing a second copy of them.
             ($this->classify)(new ClassifyMailMessage(array_values($batch), true));
+
+            // Per batch and not per message: the indicator moves in visible
+            // steps, and a Mercure publish per model call would be twenty
+            // notifications a minute saying almost the same thing.
+            $done += count($batch);
+
+            $job->advance($done);
+            $this->em->flush();
+            $this->jobs->changed($job);
         }
+
+        $job->finish(JobState::Done);
+        $this->em->flush();
+        $this->jobs->changed($job);
 
         $this->logger->info('Recent mail asked about again', [
             'user'     => $message->userId,

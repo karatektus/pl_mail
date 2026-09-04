@@ -1520,6 +1520,7 @@ jobs:
         archive: Stowin'
         trash: Castin' overboard
         restore: Haulin' back
+        reclassify: Stowin' recent post again
     state:
         done: '%count% done'
         failed: foundered

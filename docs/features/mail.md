@@ -106,6 +106,10 @@ It is bounded because it costs a model call each — a few hundred is minutes on
 mailbox is hours. Recent mail is where a wrong tab gets noticed anyway. Nothing asks again on its
 own, and nothing should.
 
+**Watch it in the topbar.** The run appears in the background-work indicator beside the search box,
+with a count as it goes and a note if it fails — the same place a "mark all read" over five thousand
+messages reports from. You can close the settings page; it carries on.
+
 > **Upgrading from before 0.2:** the assistant's verdict used to be consulted as a silent
 > tie-break — used only where the rules found nothing, with no way to see it, prefer it, or switch
 > it off. That is now what choosing **The assistant** means, and **Rules** means what it says. If

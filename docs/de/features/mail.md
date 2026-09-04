@@ -1,4 +1,4 @@
-<!-- translated-from: features/mail.md sha1:c78d5a57938740498d0153cf70f8dce07da7caf5 -->
+<!-- translated-from: features/mail.md sha1:8e23225ce1b3767c8ffaa8ec7af2673d20c55be2 -->
 
 # Mail
 
@@ -118,6 +118,11 @@ oder 500 Nachrichten noch einmal.
 Es ist begrenzt, weil es pro Nachricht einen Modell-Aufruf kostet — ein paar hundert sind Minuten
 auf einem warmen Host, ein ganzes Postfach Stunden. Und bei der neuesten Mail fällt ein falscher Tab
 ohnehin zuerst auf. Von allein fragt nichts noch einmal nach, und das ist auch richtig so.
+
+**Zusehen kannst du in der Topbar.** Der Lauf taucht in der Anzeige für Hintergrundarbeit neben dem
+Suchfeld auf, mit einem Zähler und einem Hinweis, falls etwas schiefgeht — dieselbe Stelle, an der
+auch „alle 5.455 als gelesen markieren“ Bescheid gibt. Du kannst die Einstellungen zumachen, es
+läuft weiter.
 
 > **Beim Upgrade von vor 0.2:** Das Urteil des Assistenten wurde bisher als stiller Stichentscheid
 > herangezogen — nur dort, wo die Regeln nichts gefunden hatten, ohne Möglichkeit, es zu sehen, zu

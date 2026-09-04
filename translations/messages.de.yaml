@@ -1824,6 +1824,7 @@ jobs:
         archive: Archivieren
         trash: In den Papierkorb verschieben
         restore: Wiederherstellen
+        reclassify: Sortiert neueste Mail neu
     state:
         done: '%count% erledigt'
         failed: fehlgeschlagen
