@@ -2315,6 +2315,47 @@ class MessageThreadRepository extends ServiceEntityRepository
      * at once, which is worse than the arrival-time case the flag was written
      * for.
      */
+    /**
+     * The same resolution, for a handful of threads rather than a mailbox.
+     *
+     * recomputeCategoriesForAccount() below is right for a backfill and wrong
+     * for a batch: it runs `DISTINCT ON (thread_id)` across every message the
+     * account has, which is the correct shape once and a scan of a hundred
+     * thousand rows if it runs after each batch of arriving mail. This is the
+     * same statement with the threads named, so the plan is bounded by the
+     * batch instead of by the mailbox.
+     *
+     * `category_pinned_at IS NULL` is carried over verbatim, and it is the part
+     * that must not be lost in the narrowing: a conversation somebody dragged
+     * onto a tab keeps it, whatever any model or rule now says.
+     *
+     * @param list<int> $threadIds
+     */
+    public function recomputeCategoriesForThreads(array $threadIds): int
+    {
+        if ([] === $threadIds) {
+            return 0;
+        }
+
+        return (int) $this->getEntityManager()->getConnection()->executeStatement(
+            <<<'SQL'
+            UPDATE message_thread t
+            SET category = sub.category
+            FROM (
+                SELECT DISTINCT ON (m.thread_id) m.thread_id, m.category
+                FROM message m
+                WHERE m.category IS NOT NULL
+                  AND m.thread_id IN (:threadIds)
+                ORDER BY m.thread_id, m.received_at DESC NULLS LAST
+            ) sub
+            WHERE t.id = sub.thread_id
+              AND t.category_pinned_at IS NULL
+            SQL,
+            ['threadIds' => $threadIds],
+            ['threadIds' => ArrayParameterType::INTEGER],
+        );
+    }
+
     public function recomputeCategoriesForAccount(Account $account): int
     {
         $sql = <<<'SQL'

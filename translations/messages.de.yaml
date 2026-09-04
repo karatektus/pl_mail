@@ -3350,6 +3350,10 @@ settings:
         saved: 'Gespeichert.'
         subheading: 'Was am Ende der Nachrichten steht, die du schreibst.'
     sorting:
+        again:
+            button: Nochmal fragen
+            hint: Der Assistent antwortet einmal pro Nachricht und behält die Antwort. Frag noch einmal, wenn sich Modell, Anweisung oder eine plMail-Version geändert haben — es kostet einen Modell-Aufruf pro Nachricht und gilt deshalb nur für deine neueste Mail.
+            label: Neueste Mail neu einsortieren
         applies_to_new: Wenn du hier etwas änderst, wird deine vorhandene Mail im Hintergrund neu einsortiert — bei einem großen Postfach dauert das ein paar Minuten, gib den Tabs also einen Moment. Gespräche, die du selbst in einen Tab geschoben hast, bleiben, wo sie sind.
         heading: Was deine Mail einsortiert
         override:

@@ -96,6 +96,16 @@ exactly where you put them.
 (`app:backfill category` still exists and does the same work for every mailbox at once, which is
 what an administrator wants after changing the rules themselves.)
 
+**Sort recent mail again** is a different button, and only appears when the assistant is available.
+The assistant answers once per message, when it arrives, and keeps the answer — right, because the
+message does not change. What changes is the question: the prompt is editable, the model is a
+setting, and what plMail sends the model alongside a message changes between releases. This asks
+again about your newest 100, 200 or 500 messages.
+
+It is bounded because it costs a model call each — a few hundred is minutes on a warm host, a whole
+mailbox is hours. Recent mail is where a wrong tab gets noticed anyway. Nothing asks again on its
+own, and nothing should.
+
 > **Upgrading from before 0.2:** the assistant's verdict used to be consulted as a silent
 > tie-break — used only where the rules found nothing, with no way to see it, prefer it, or switch
 > it off. That is now what choosing **The assistant** means, and **Rules** means what it says. If

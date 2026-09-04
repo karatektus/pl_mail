@@ -6,6 +6,7 @@ namespace App\Controller\Settings;
 
 use App\Domain\Enum\Mail\CategorySource;
 use App\Entity\User\User;
+use App\Infrastructure\Messaging\Message\ReclassifyRecentMessage;
 use App\Infrastructure\Messaging\Message\ResortMailboxMessage;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -53,6 +54,16 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 #[IsGranted('ROLE_USER')]
 final class CategorySortingController extends AbstractController
 {
+    /**
+     * The most mail one press may re-ask about.
+     *
+     * Five hundred model calls is the better part of an hour on a warm host and
+     * rather more on a cold one, and it is one person's press on a host
+     * everybody shares. Above this the honest answer is the backfill command,
+     * which an operator runs deliberately and can watch.
+     */
+    private const int MAX_RECLASSIFY = 500;
+
     public function __construct(private readonly MessageBusInterface $bus)
     {
     }
@@ -106,6 +117,45 @@ final class CategorySortingController extends AbstractController
             // setting is on it.
             $this->bus->dispatch(new ResortMailboxMessage((int) $user->id));
         }
+
+        return $this->redirectToRoute('app_settings_index', ['section' => 'general']);
+    }
+
+    /**
+     * Ask the model again about the newest few hundred messages.
+     *
+     * WHY THIS IS A BUTTON AND NOT AUTOMATIC. A message is asked about once, on
+     * arrival, and the answer is kept — right, because the mail does not
+     * change. What changes is the QUESTION: the prompt is editable, the model
+     * is a setting, and what plMail sends alongside a message has changed too.
+     * Verdicts stored before the bulk-header line went in were reached without
+     * evidence the model now gets, and demonstrably differ because of it.
+     *
+     * Nothing re-asks on its own and nothing should. A model call per message
+     * is the most expensive thing here, and spending an afternoon of somebody
+     * else's GPU because an administrator edited a prompt is not a decision to
+     * take on their behalf.
+     *
+     * BOUNDED to what somebody is actually looking at. Recent mail is where a
+     * wrong tab gets noticed; the whole mailbox is hours, and
+     * `app:backfill category` already exists for anybody who wants that.
+     */
+    #[Route('/again', name: 'again', methods: ['POST'])]
+    public function again(Request $request): Response
+    {
+        /** @var User $user */
+        $user = $this->getUser();
+
+        if (false === $this->isCsrfTokenValid('settings-sorting', (string) $request->request->get('_token'))) {
+            throw $this->createAccessDeniedException();
+        }
+
+        // Clamped rather than trusted: the form offers three sizes and this is
+        // a POST, so anything else arrived by hand. The ceiling is what one
+        // press may cost the shared model host.
+        $limit = max(50, min(self::MAX_RECLASSIFY, $request->request->getInt('limit', 200)));
+
+        $this->bus->dispatch(new ReclassifyRecentMessage((int) $user->id, $limit));
 
         return $this->redirectToRoute('app_settings_index', ['section' => 'general']);
     }

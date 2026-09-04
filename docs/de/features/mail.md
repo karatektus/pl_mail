@@ -1,4 +1,4 @@
-<!-- translated-from: features/mail.md sha1:49fe32f99fbc521ddee94ab47299f11f1db10464 -->
+<!-- translated-from: features/mail.md sha1:c78d5a57938740498d0153cf70f8dce07da7caf5 -->
 
 # Mail
 
@@ -107,6 +107,17 @@ du selbst in einen Tab geschoben hast, bleiben genau da, wo du sie hingelegt has
 
 (`app:backfill category` gibt es weiterhin und macht dieselbe Arbeit für alle Postfächer auf einmal —
 das will jemand mit Admin-Rechten, wenn die Regeln selbst sich geändert haben.)
+
+**Neueste Mail neu einsortieren** ist ein anderer Knopf und taucht nur auf, wenn der Assistent
+verfügbar ist. Der Assistent antwortet einmal pro Nachricht, wenn sie ankommt, und behält die
+Antwort — richtig so, denn die Nachricht ändert sich nicht. Was sich ändert, ist die Frage: Die
+Anweisung ist editierbar, das Modell ist eine Einstellung, und was plMail dem Modell neben der
+Nachricht mitschickt, ändert sich zwischen Versionen. Das hier fragt für deine neuesten 100, 200
+oder 500 Nachrichten noch einmal.
+
+Es ist begrenzt, weil es pro Nachricht einen Modell-Aufruf kostet — ein paar hundert sind Minuten
+auf einem warmen Host, ein ganzes Postfach Stunden. Und bei der neuesten Mail fällt ein falscher Tab
+ohnehin zuerst auf. Von allein fragt nichts noch einmal nach, und das ist auch richtig so.
 
 > **Beim Upgrade von vor 0.2:** Das Urteil des Assistenten wurde bisher als stiller Stichentscheid
 > herangezogen — nur dort, wo die Regeln nichts gefunden hatten, ohne Möglichkeit, es zu sehen, zu

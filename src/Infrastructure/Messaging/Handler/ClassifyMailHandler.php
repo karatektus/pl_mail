@@ -9,6 +9,9 @@ use App\Entity\Ai\AiFeature;
 use App\Entity\Mail\Message;
 use App\Infrastructure\Messaging\Message\ClassifyMailMessage;
 use App\Repository\Mail\MessageRepository;
+use App\Repository\Mail\ContactRepository;
+use App\Repository\Mail\MessageThreadRepository;
+use App\Service\Mail\MessageCategorizer;
 use App\Service\Ai\AiAssistant;
 use App\Service\Ai\AiPermissions;
 use App\Service\Ai\PromptLibrary;
@@ -63,8 +66,11 @@ final readonly class ClassifyMailHandler
     // correspondent lookup was a query per batch, so dropping it is a small
     // saving as well as one fewer collaborator.
     public function __construct(
-        private MessageRepository      $messages,
-        private AiAssistant            $ai,
+        private MessageRepository       $messages,
+        private MessageThreadRepository $threads,
+        private ContactRepository       $contacts,
+        private MessageCategorizer      $categorizer,
+        private AiAssistant             $ai,
         private AiPermissions          $permissions,
         private PromptLibrary          $prompts,
         private EntityManagerInterface $entityManager,
@@ -85,10 +91,10 @@ final readonly class ClassifyMailHandler
             return;
         }
 
-        $touched = false;
+        $touched = [];
 
         foreach ($this->messages->findByIds($message->messageIds) as $mail) {
-            if (false === $this->worthAsking($mail)) {
+            if (false === $this->worthAsking($mail, $message->force)) {
                 continue;
             }
 
@@ -97,12 +103,72 @@ final readonly class ClassifyMailHandler
             // Stamped whether or not the answer was usable — see the docblock.
             $mail->aiCategorisedAt = new DateTimeImmutable();
             $mail->aiCategory      = $verdict;
-            $touched               = true;
+            $touched[]             = $mail;
         }
 
-        if (true === $touched) {
-            $this->entityManager->flush();
+        if ([] === $touched) {
+            return;
         }
+
+        $this->refile($touched);
+    }
+
+    /**
+     * Put the mail we just asked about where the answer says it belongs.
+     *
+     * WITHOUT THIS THE VERDICT NEVER REACHES A TAB. Nothing else recomputes a
+     * category once ingest has written one: PostIngestPipeline files a message
+     * as it arrives, this handler runs afterwards and asynchronously, and until
+     * now it stored the answer and stopped. While sorting was rules-only that
+     * was invisible — the verdict was a tie-break nobody could see. It stopped
+     * being invisible the day sorting became a setting: somebody chooses the
+     * assistant, new mail keeps arriving into whatever the rules said, and the
+     * choice appears to do nothing at all.
+     *
+     * Scoped to the threads actually touched rather than to the account,
+     * because this runs after every batch of arriving mail and the per-account
+     * statement scans every message the account has.
+     *
+     * The reader's own preference decides, exactly as everywhere else: a
+     * verdict stored for somebody sorting by rules moves nothing, which is what
+     * choosing the rules means.
+     *
+     * @param list<Message> $mail
+     */
+    private function refile(array $mail): void
+    {
+        $threadIds      = [];
+        $correspondents = [];
+
+        foreach ($mail as $row) {
+            $user = $row->account->usr;
+
+            if (null === $user) {
+                continue;
+            }
+
+            $userId = (int) $user->id;
+
+            // One lookup per mailbox rather than per message: a batch is
+            // usually one account's arriving mail, and this is a query.
+            $correspondents[$userId] ??= $this->contacts->findCorrespondentEmails($user);
+
+            $row->category = $this->categorizer->categorize(
+                $row,
+                $correspondents[$userId],
+                $user->categorySorting,
+            );
+
+            if (null !== $row->thread?->id) {
+                $threadIds[(int) $row->thread->id] = true;
+            }
+        }
+
+        // Flushed BEFORE the threads are resolved, because that resolution is
+        // raw SQL reading the very columns written above.
+        $this->entityManager->flush();
+
+        $this->threads->recomputeCategoriesForThreads(array_keys($threadIds));
     }
 
     /**
@@ -143,9 +209,11 @@ final readonly class ClassifyMailHandler
      * Asked BEFORE explain(), so an opted-out message also saves the
      * findCorrespondentEmails() query that check needs.
      */
-    private function worthAsking(Message $mail): bool
+    private function worthAsking(Message $mail, bool $force): bool
     {
-        if (null !== $mail->aiCategorisedAt) {
+        // The stamp means "already asked", which is the right reason to skip on
+        // ingest and the wrong one when the ANSWER is what has gone stale.
+        if (false === $force && null !== $mail->aiCategorisedAt) {
             return false;
         }
 

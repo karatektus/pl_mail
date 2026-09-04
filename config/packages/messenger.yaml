@@ -104,6 +104,11 @@ framework:
             # anybody's foreground. It must not sit on ingest, where a person
             # changing a setting would put arriving mail behind their mailbox.
             App\Infrastructure\Messaging\Message\ResortMailboxMessage: maintenance
+            # The dispatcher is trivial; what it queues is ClassifyMailMessage,
+            # which is already routed to its own transport below. Here so the
+            # settings request answers at once rather than waiting on a query
+            # over the mailbox.
+            App\Infrastructure\Messaging\Message\ReclassifyRecentMessage: maintenance
             App\Infrastructure\Messaging\Message\SyncImapMailboxMessage: ingest
             # ingest, beside the sync it replaces for the common case: it is
             # mail state arriving from the server, and it must not queue behind

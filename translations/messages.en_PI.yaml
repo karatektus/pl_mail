@@ -2926,6 +2926,10 @@ settings:
         saved: 'Set down.'
         subheading: 'What be carved at the foot o'' the scrolls ye write.'
     sorting:
+        again:
+            button: "Ask again"
+            hint: "Th' oracle answers once per message an' keeps th' answer. Ask again when th' oracle, its orders or a plMail release have changed — it costs an askin' per message, so it be bounded to yer newest post."
+            label: "Stow recent post again"
         applies_to_new: "Changin' either o' these re-stows the post ye already have, below decks — a big hold takes a few minutes, so give the tabs a moment. Yarns ye stowed by hand yerself be left be."
         heading: "What stows yer post"
         override:

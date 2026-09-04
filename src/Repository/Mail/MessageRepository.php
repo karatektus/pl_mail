@@ -706,6 +706,40 @@ class MessageRepository extends ServiceEntityRepository
         return array_map(intval(...), $ids);
     }
 
+    /**
+     * The newest message ids across one person's active accounts.
+     *
+     * Ids and not entities: the only caller hands them to a Messenger envelope
+     * a batch at a time, and hydrating a few hundred messages to read their
+     * primary keys would be a waste of an identity map.
+     *
+     * Ordered by arrival with the id as the tiebreaker, so "the last 200" is a
+     * stable set rather than whatever the planner felt like returning — mail
+     * with no receivedAt (this account's own sent copies) sorts last rather
+     * than first, which is what NULLS LAST buys.
+     *
+     * @return list<int>
+     */
+    public function findRecentIdsForUser(int $userId, int $limit): array
+    {
+        /** @var list<int> $ids */
+        $ids = $this->getEntityManager()->getConnection()->fetchFirstColumn(
+            <<<'SQL'
+            SELECT m.id
+              FROM message m
+              JOIN account a ON a.id = m.account_id
+             WHERE a.usr_id = :userId
+               AND a.is_active = true
+             ORDER BY m.received_at DESC NULLS LAST, m.id DESC
+             LIMIT :limit
+            SQL,
+            ['userId' => $userId, 'limit' => $limit],
+            ['userId' => ParameterType::INTEGER, 'limit' => ParameterType::INTEGER],
+        );
+
+        return array_map(intval(...), $ids);
+    }
+
     public function findByIds(array $ids): array
     {
         if (0 === count($ids)) {

@@ -3342,6 +3342,10 @@ settings:
         saved: 'Saved.'
         subheading: 'What is added to the bottom of the messages you write.'
     sorting:
+        again:
+            button: Ask again
+            hint: The assistant answers once per message and keeps the answer. Ask again after the model, the prompt or a plMail release has changed — it costs a model call per message, so it is bounded to your newest mail.
+            label: Sort recent mail again
         applies_to_new: Changing either of these re-files the mail you already have, in the background — a large mailbox takes a few minutes, so give the tabs a moment to settle. Conversations you moved to a tab yourself are left alone.
         heading: What sorts your mail
         override:

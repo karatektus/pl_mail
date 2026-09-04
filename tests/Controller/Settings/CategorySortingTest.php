@@ -6,6 +6,7 @@ namespace App\Tests\Controller\Settings;
 
 use App\Domain\Enum\Mail\CategorySource;
 use App\Entity\User\User;
+use App\Infrastructure\Messaging\Message\ReclassifyRecentMessage;
 use App\Infrastructure\Messaging\Message\ResortMailboxMessage;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
@@ -125,6 +126,42 @@ final class CategorySortingTest extends WebTestCase
         self::assertSame(CategorySource::Rules->value, $this->reread()->categorySorting->source);
     }
 
+    /**
+     * Asking again queues the work, clamped to what one press may cost.
+     *
+     * The ceiling is the point of the test. Five hundred model calls is the
+     * better part of an hour on a host everybody shares, and the field is a
+     * `<select>` — so anything else arrived by hand, and the charitable reading
+     * is the one that does not let a hand-edited request spend the afternoon.
+     */
+    public function testAskingAgainQueuesABoundedRun(): void
+    {
+        [$client] = $this->signedIn();
+
+        $client->request('POST', '/settings/sorting/again', [
+            '_token' => $this->token($client),
+            'limit'  => '99999',
+        ]);
+
+        self::assertResponseRedirects();
+
+        $queued = $this->queued(ReclassifyRecentMessage::class);
+
+        self::assertCount(1, $queued);
+        self::assertSame(500, $queued[0]->limit, 'clamped to the ceiling, not taken at face value');
+    }
+
+    /** And it is refused without a token, like everything else on this card. */
+    public function testAskingAgainWithoutATokenIsRefused(): void
+    {
+        [$client] = $this->signedIn();
+
+        $client->request('POST', '/settings/sorting/again', ['limit' => '200']);
+
+        self::assertSame(403, $client->getResponse()->getStatusCode());
+        self::assertCount(0, $this->queued(ReclassifyRecentMessage::class));
+    }
+
     public function testAPostWithoutATokenIsRefused(): void
     {
         [$client] = $this->signedIn();
@@ -164,15 +201,19 @@ final class CategorySortingTest extends WebTestCase
         return $user;
     }
 
-    /** @return list<object> */
-    private function queued(): array
+    /**
+     * @param class-string $type
+     *
+     * @return list<object>
+     */
+    private function queued(string $type = ResortMailboxMessage::class): array
     {
         /** @var InMemoryTransport $transport */
         $transport = self::getContainer()->get('messenger.transport.maintenance');
 
         return array_values(array_filter(
             array_map(static fn (object $envelope): object => $envelope->getMessage(), $transport->getSent()),
-            static fn (object $message): bool => $message instanceof ResortMailboxMessage,
+            static fn (object $message): bool => $message instanceof $type,
         ));
     }
 
