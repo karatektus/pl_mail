@@ -183,4 +183,105 @@
 
     </section>
 
+    {# ── What broke in the browser ──────────────────────────────────────────
+       Its own card, below the log and not inside it, because these are a
+       different kind of thing. A server error is one event in one request; a
+       broken line in a controller runs on every page load for every user, so a
+       row here is a distinct FAULT with a count and a lifetime rather than an
+       occurrence. Merged into the list above, one bug would be four hundred
+       rows and the log nobody could read past.
+
+       Most of what a browser reports is not ours — extensions inject scripts
+       and those scripts throw — so what reaches this table has been filtered
+       twice, in assets/client_errors.js and again in ClientErrorRecorder. An
+       empty card is the ordinary state and says so. #}
+    <section class="@container {{ chrome.shell() }} mt-3">
+
+        <div class="flex flex-wrap items-center gap-3 {{ chrome.band() }}">
+            <i class="fa-solid fa-bug text-xs text-zinc-400" aria-hidden="true"></i>
+            <h2 class="text-sm font-semibold text-ink">{{ 'admin.client_errors.heading'|trans }}</h2>
+            <span class="text-xs text-ink-faint">
+                {{ 'admin.client_errors.count'|trans({'%count%': clientErrorsTotal}) }}
+            </span>
+
+            {% if clientErrorsTotal > 0 %}
+                <form method="post" action="{{ path('app_admin_client_errors_clear') }}"
+                      data-turbo-frame="_top" class="ml-auto"
+                      data-turbo-confirm="{{ 'admin.client_errors.clear_confirm'|trans }}">
+                    <input type="hidden" name="_token" value="{{ csrf_token('admin_client_errors_clear') }}">
+                    <button type="submit"
+                            class="inline-flex items-center gap-1.5 h-8 px-3 rounded-pane border border-line
+                                   text-[11px] text-ink-muted hover:bg-hover cursor-pointer transition-colors">
+                        <i class="fa-solid fa-trash text-[10px]" aria-hidden="true"></i>
+                        {{ 'admin.client_errors.clear'|trans }}
+                    </button>
+                </form>
+            {% endif %}
+        </div>
+
+        {% if clientErrors is empty %}
+            <div class="{{ chrome.body() }}">
+                <p class="text-sm text-ink-soft">{{ 'admin.client_errors.empty'|trans }}</p>
+                <p class="mt-1 text-xs text-ink-faint leading-relaxed">{{ 'admin.client_errors.empty_hint'|trans }}</p>
+            </div>
+        {% else %}
+            <div class="divide-y divide-line">
+                {% for error in clientErrors %}
+                    <details class="group">
+                        <summary class="flex items-start gap-3 px-4 py-3 cursor-pointer list-none hover:bg-hover/50 transition-colors">
+                            <i class="fa-solid fa-chevron-right mt-1 shrink-0 text-[9px] text-ink-faint w-3
+                                      transition-transform group-open:rotate-90" aria-hidden="true"></i>
+
+                            <div class="min-w-0 flex-1">
+                                <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
+                                    <span class="text-[10px] font-semibold uppercase tracking-wide rounded-md px-1.5 py-0.5
+                                                 {{ error.kind == 'csp' ? 'badge-warning' : 'badge-danger' }}">
+                                        {{ ('admin.client_errors.kind.' ~ error.kind)|trans }}
+                                    </span>
+
+                                    {# The count is the whole reason these are grouped: one
+                                       fault seen twice is a curiosity, the same one seen
+                                       four hundred times is what to fix first. #}
+                                    <span class="text-[11px] text-ink-muted tabular-nums">
+                                        {{ 'admin.client_errors.occurrences'|trans({'%count%': error.occurrences}) }}
+                                    </span>
+
+                                    <span class="text-xs text-ink-faint font-mono">{{ error.lastSeenAt|date('Y-m-d H:i') }}</span>
+                                </div>
+
+                                <p class="mt-1 text-sm text-ink break-words">{{ error.message }}</p>
+
+                                {% if error.origin %}
+                                    <p class="mt-0.5 truncate font-mono text-[11px] text-ink-muted">{{ error.origin }}</p>
+                                {% endif %}
+                            </div>
+                        </summary>
+
+                        <div class="px-4 pb-3 pl-11 space-y-2">
+                            <dl class="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs">
+                                <dt class="text-ink-faint">{{ 'admin.client_errors.first_seen'|trans }}</dt>
+                                <dd class="text-ink-soft font-mono">{{ error.firstSeenAt|date('Y-m-d H:i') }}</dd>
+
+                                {% if error.url %}
+                                    <dt class="text-ink-faint">{{ 'admin.client_errors.page'|trans }}</dt>
+                                    <dd class="text-ink-soft font-mono break-all min-w-0">{{ error.url }}</dd>
+                                {% endif %}
+
+                                {% if error.userAgent %}
+                                    <dt class="text-ink-faint">{{ 'admin.client_errors.browser'|trans }}</dt>
+                                    <dd class="text-ink-soft break-all min-w-0">{{ error.userAgent }}</dd>
+                                {% endif %}
+                            </dl>
+
+                            {% if error.stack %}
+                                <pre class="max-h-72 overflow-auto rounded-lg bg-zinc-500/10 px-3 py-2 text-[11px]
+                                            font-mono text-ink-soft whitespace-pre-wrap break-all">{{ error.stack }}</pre>
+                            {% endif %}
+                        </div>
+                    </details>
+                {% endfor %}
+            </div>
+        {% endif %}
+    </section>
+
 </turbo-frame>

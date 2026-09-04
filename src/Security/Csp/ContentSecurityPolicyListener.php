@@ -80,7 +80,8 @@ final readonly class ContentSecurityPolicyListener
      * for finding out. A wrong `default-src` does not warn, it breaks the app.
      */
     private const string ENFORCED =
-        "object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'self'";
+        "object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'self'; "
+        . "report-uri /csp-report";
 
     /**
      * The target, soaking. `%nonce%` is replaced per request.
@@ -111,7 +112,15 @@ final readonly class ContentSecurityPolicyListener
         . "object-src 'none'; "
         . "base-uri 'none'; "
         . "form-action 'self'; "
-        . "frame-ancestors 'self'";
+        . "frame-ancestors 'self'; "
+        // Where a violation goes. Worth having precisely because this policy is
+        // ENFORCED in production: what arrives at that route is a list of
+        // things this installation actually blocked in somebody's real browser,
+        // which nothing else can tell you. `report-uri` is deprecated in favour
+        // of the Reporting API and is still the one every browser implements;
+        // when that changes, the endpoint stays and the directive beside it
+        // gains a `report-to`.
+        . "report-uri /csp-report";
 
     public function __construct(
         private CspNonce           $nonce,

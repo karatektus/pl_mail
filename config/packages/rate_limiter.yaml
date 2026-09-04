@@ -49,6 +49,25 @@ framework:
             limit: 6
             interval: '1 hour'
 
+        # Browser error reports. The page posts these by itself, unprompted, and
+        # that is exactly what makes a bound necessary: a fault inside a
+        # requestAnimationFrame loop or a Turbo navigation fires thousands of
+        # times a minute, and the browser is not the thing deciding how much of
+        # that is worth a row. The client caps itself at five per page load and
+        # de-duplicates within one, but a cap that lives only in the code being
+        # reported on is a cap that stops working precisely when it is needed.
+        #
+        # Keyed per IP, like booking_attempt: /csp-report is sent by the browser
+        # itself and carries no session at all, so there is no account to key on
+        # for half the traffic. Thirty an hour is far above what a real page
+        # produces once its own cap is in play and far below what a loop does in
+        # a second. Exhausting it costs nothing anybody notices — the report is
+        # dropped, and the fault will be reported again by the next page load.
+        client_error_report:
+            policy: 'fixed_window'
+            limit: 30
+            interval: '1 hour'
+
         # Provisioning a demo visitor. GET /demo creates a user, an account,
         # ten threads and ten contacts, which is by far the most expensive
         # thing an anonymous caller can ask this install to do — and on a

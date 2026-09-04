@@ -7,6 +7,7 @@ namespace App\Controller\Admin;
 use App\Controller\ChecksCsrf;
 use App\Entity\User\User;
 use App\Repository\Insight\InsightReportRepository;
+use App\Repository\Monitoring\ClientErrorRepository;
 use App\Repository\Monitoring\LogEntryRepository;
 use App\Repository\Monitoring\LogSettingsRepository;
 use App\Repository\Monitoring\PostgresStatusRepository;
@@ -55,6 +56,7 @@ final class AdminDashboardController extends AbstractController
         private readonly AdminMonitoringService $monitoring,
         private readonly QueueMonitor           $queueMonitor,
         private readonly LogEntryRepository     $logEntryRepository,
+        private readonly ClientErrorRepository  $clientErrors,
         private readonly DbPerformanceService   $dbPerformance,
         private readonly WorkerRestartSignal    $restartSignal,
         private readonly PostgresStatusRepository $statistics,
@@ -179,6 +181,14 @@ final class AdminDashboardController extends AbstractController
             // says what is actually happening either way.
             'capture'    => $this->logSettings->current()?->minimumLevel,
             'captureEnv' => $this->logLevels->level()->toPsrLogLevel(),
+
+            // The browser's own faults, in their own card below the log. They
+            // are a different kind of thing from a server error — a population
+            // with a count and a lifetime rather than one event in one request
+            // — and mixing them puts a list nobody can read past in front of
+            // the log somebody actually came here to read.
+            'clientErrors'      => $this->clientErrors->recent(),
+            'clientErrorsTotal' => $this->clientErrors->countAll(),
         ]);
     }
 
@@ -201,6 +211,26 @@ final class AdminDashboardController extends AbstractController
             $minLevel,
             trim((string) $request->request->get('channel', '')),
         );
+
+        return $this->redirectToRoute('app_admin_dashboard', ['section' => 'logs']);
+    }
+
+    /**
+     * Empties the browser-error card.
+     *
+     * All of it, unlike the log's own clear button, which takes only what the
+     * current filter shows. There is no filter here and there does not need to
+     * be: the card holds distinct faults rather than occurrences, so it is a
+     * short list by construction, and what an administrator does with it is
+     * read it, fix something, and clear it to see whether the fixed one comes
+     * back.
+     */
+    #[Route('/client-errors/clear', name: 'client_errors_clear', methods: ['POST'])]
+    public function clearClientErrors(Request $request): Response
+    {
+        $this->assertCsrf($request, 'admin_client_errors_clear');
+
+        $this->clientErrors->clearAll();
 
         return $this->redirectToRoute('app_admin_dashboard', ['section' => 'logs']);
     }

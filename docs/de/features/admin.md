@@ -1,4 +1,4 @@
-<!-- translated-from: features/admin.md sha1:797937556024689eb52157c7b6af428141871041 -->
+<!-- translated-from: features/admin.md sha1:594fa9f46d1bc532e467fb7b632c98a4ad38d0d0 -->
 
 # Administration
 
@@ -164,6 +164,41 @@ Geheimnisse ansammeln:
 
 Anders als die System-Panels aktualisiert sich dieser Abschnitt nicht von selbst — beim Lesen
 eines Stacktrace soll einem nicht mitten im Scrollen alles weggerissen werden.
+
+### Browser-Fehler
+
+Eine eigene Karte unter dem Protokoll, denn hier steht etwas anderes. Ein Serverfehler ist ein
+Ereignis in einer Anfrage; eine kaputte Zeile in einem Skript läuft bei jedem Seitenaufruf für jede
+Person. Eine Zeile hier ist deshalb ein einzelner **Fehler** — Meldung, Datei, Zeile — mit Zähler und
+erstem und letztem Auftreten, und nicht eine Zeile pro Vorkommen. Im Protokoll oben stünden für einen
+einzigen Bug vierhundert Zeilen, und niemand käme daran vorbei.
+
+Der Zähler sagt, bei wie vielen **Seitenaufrufen** der Fehler auftrat, nicht wie oft er ausgelöst
+wurde: Der Browser meldet jeden Fehler einmal pro Seite, und genau das hält eine kaputte Zeile in
+einer Animationsschleife davon ab, tausend Anfragen über sich selbst zu schicken. Die nützlichere
+Zahl ist es ohnehin — sie sagt, wie viele Leute darüber stolpern.
+
+**Das meiste, was ein Browser meldet, ist nicht plMail.** Erweiterungen schieben Analyse- und
+Formularskripte in die Seite, und die werfen Fehler; eine Karte, die alles annimmt, füllt sich mit
+fremden Bugs und wird nicht mehr gelesen. Eine Meldung wird also nur behalten, wenn sie einem Skript
+zuzuordnen ist, das dieser Server ausgeliefert hat — ein eingeschleustes Skript hat gar keine URL,
+dafür steht Chromes `VM947`, und ein Skript von fremder Herkunft wird als blankes `Script error.`
+gemeldet, ohne Datei, Zeile oder Meldung. Der Filter läuft im Browser und noch einmal auf dem Server,
+denn die Browser-Hälfte gehört zu dem Code, über den berichtet wird.
+
+Drei Sorten stehen hier:
+
+- **Fehler** — eine nicht abgefangene Ausnahme, mit Stack.
+- **Rejection** — ein Promise, um das sich niemand gekümmert hat. Es trägt keinen Dateinamen und wird
+  deshalb nur behalten, wenn sein Stack diesen Server nennt.
+- **Blockiert** — ein Verstoß gegen die [Content-Security-Policy](../internals/security-model.md), vom
+  Browser selbst gemeldet und nicht von plMail. In der Produktion gilt die Richtlinie scharf, hier
+  steht also, was diese Installation im echten Browser tatsächlich abgelehnt hat — anders ist das
+  nicht zu erfahren. Eine blockierte Ressource ist meist entweder eine Erweiterung oder ein echter
+  Fehler in der Richtlinie; die Meldung nennt Direktive und URI, damit du beides unterscheiden kannst.
+
+*Leeren* räumt die Karte ab. Verloren geht nichts, was noch auftritt — ein lebender Fehler wird beim
+nächsten Seitenaufruf erneut gemeldet, und genau so prüfst du auch, ob eine Behebung gewirkt hat.
 
 ## Gemeldete Mails
 

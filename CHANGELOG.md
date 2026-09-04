@@ -8,6 +8,34 @@ The published image tags: `latest` follows the most recent release below,
 
 ## Unreleased
 
+### Added
+
+- **Browser errors reach the admin panel.** Uncaught exceptions and rejected promises from plMail's
+  own scripts now land in their own card under **Admin → Logs**, alongside the things the
+  Content-Security-Policy blocked. Until now a JavaScript fault was visible only to whoever happened
+  to have the console open, which on a self-hosted mailbox means nobody.
+
+  **It is a card of its own, not rows in the log, because it holds a different kind of thing.** A
+  server error is one event in one request; a broken line in a script runs on every page load for
+  every user. So a row here is a distinct *fault* — message, file and line — with a count and a
+  first- and last-seen time. Merged into the log, one bug would be four hundred rows and the log
+  would be unreadable. The count is how many page loads hit the fault rather than how many times it
+  fired: the browser reports each fault once per page, which is what stops a broken line inside an
+  animation frame from posting a thousand requests about itself, and it is the more useful number
+  anyway — it says how many people are running into it.
+
+  **Most of what a browser reports is not plMail**, and that is the hard part. Extensions inject
+  analytics and form scrapers into the page and those scripts throw; a panel that accepted all of it
+  would fill with other people's bugs and stop being read. A report is kept only when it can be
+  attributed to a script this server sent — an injected script has no URL at all, and a cross-origin
+  one is reported as the bare string `Script error.` with nothing in it. The filter runs in the
+  browser and again on the server, because the browser half is part of the code being reported on.
+
+  CSP violations arrive at the same card. The full policy is *enforced* in production rather than
+  report-only, so these are things this installation actually refused to load in somebody's real
+  browser — which nothing else can tell you.
+
+
 ## v0.2.20 — 2026-09-04
 
 ### Added

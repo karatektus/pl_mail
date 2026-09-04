@@ -146,6 +146,40 @@ secrets accumulate:
 Unlike the System panels this section does not auto-refresh — reading a stack trace should not get
 yanked away mid-scroll.
 
+### Browser errors
+
+Its own card below the log, because it holds a different kind of thing. A server error is one event
+in one request; a broken line in a script runs on every page load for every user, so a row here is a
+distinct **fault** — message, file and line — with a count and a first- and last-seen time, rather
+than one row per occurrence. Merged into the log above, a single bug would be four hundred rows and
+the log would be unreadable.
+
+The count is how many **page loads** hit the fault, not how many times it fired: the browser reports
+each distinct fault once per page, which is what stops one broken line inside an animation frame from
+posting a thousand requests about itself. It is the more useful number anyway — it says how many
+people are running into it.
+
+**Most of what a browser reports is not plMail.** Extensions inject analytics and form scrapers into
+the page and those scripts throw; a panel that accepted all of it would fill with other people's bugs
+and stop being read. So a report is kept only when it can be attributed to a script this server sent
+— an injected script has no URL at all, which is what Chrome's `VM947` means, and a cross-origin one
+is reported as the bare string `Script error.` with no file, line or message. The filter runs in the
+browser and again on the server, because the browser half is part of the code being reported on.
+
+Three kinds appear here:
+
+- **Error** — an uncaught exception, with its stack.
+- **Rejection** — a promise nobody handled. It carries no filename, so it is kept only when its stack
+  mentions this server.
+- **Blocked** — a [Content-Security-Policy](../internals/security-model.md) violation, sent by the browser
+  itself rather than by plMail. The policy is enforced in production, so these are things this
+  installation actually refused to load in somebody's real browser, which nothing else can tell you.
+  A blocked resource is usually either an extension or a genuine mistake in the policy, and the
+  message names the directive and the URI so you can tell which.
+
+*Clear* empties the card. Nothing is lost that is still happening — a live fault is reported again by
+the next page load, which is also how you check that a fix worked.
+
 ## Reported mail
 
 Everything anybody has told plMail it got wrong about a mail, in one list. There are two kinds and

@@ -237,6 +237,21 @@ admin:
             timeout: "Four minutes an' the host were still haulin', so plMail stopped waitin'. It may yet finish — like as not the model be too heavy for the hold it has."
             unexpected: "Somethin' went wrong afore the host could answer. (%error%)"
             unreachable: "Nothin' answered at that address. (%error%)"
+    client_errors:
+        browser: 'Browser'
+        clear: 'Empty it'
+        clear_confirm: 'Sink every browser fault? They come back on their own if they still be happenin''.'
+        count: '{0}naught reported|{1}1 fault|]1,Inf[ %count% faults'
+        empty: 'No browser faults.'
+        empty_hint: 'Uncaught faults from plMail''s own scripts wash up here, gathered by fault. Faults from browser add-ons be filtered out — most o'' what a browser reports be none o'' this vessel''s doin''.'
+        first_seen: 'First sighted'
+        heading: 'Browser faults'
+        kind:
+            csp: 'Blocked'
+            error: 'Fault'
+            unhandledrejection: 'Rejection'
+        occurrences: '{1}on 1 page load|]1,Inf[ on %count% page loads'
+        page: 'Last page'
     db:
         active:
             empty: 'No queries afoot right now.'

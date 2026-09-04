@@ -97,6 +97,13 @@ security:
         # only what such a caller could infer by trying the app anyway — see
         # App\Controller\HealthController on why it stays deliberately vague.
         - { path: ^/healthz$, roles: PUBLIC_ACCESS }
+        # CSP violation reports. The browser sends these itself, about a
+        # resource its own policy refused to load, so there is nothing of ours
+        # in the request: no token, no header we chose, and on the login page no
+        # session either. It cannot be authenticated and still be received. The
+        # `client_error_report` limiter is the bound; see
+        # App\Controller\Monitoring\ClientErrorController for what it keeps.
+        - { path: ^/csp-report$, roles: PUBLIC_ACCESS }
         - { path: ^/gmail/push, roles: PUBLIC_ACCESS }
         # Covers /webhook/graph/notify and /webhook/graph/lifecycle for mail,
         # and /webhook/graph/calendar for a mirrored calendar's events. All

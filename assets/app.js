@@ -3,6 +3,7 @@ import './password_manager_ignore.js';
 import './nav_origin.js';
 import './motion.js';
 import './confirm.js';
+import './client_errors.js';
 /*
  * The stylesheets are NOT imported here, and their absence is deliberate.
  *

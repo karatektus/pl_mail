@@ -237,6 +237,21 @@ admin:
             timeout: 'Der Host hat nach vier Minuten immer noch geladen, plMail hat aufgehört zu warten. Gut möglich, dass er fertig wird — vermutlich ist das Modell aber zu groß für seinen Speicher.'
             unexpected: 'Etwas ist schiefgegangen, bevor der Host antworten konnte. (%error%)'
             unreachable: 'Unter der Adresse hat nichts geantwortet. (%error%)'
+    client_errors:
+        browser: 'Browser'
+        clear: 'Leeren'
+        clear_confirm: 'Wirklich alle Browser-Fehler löschen? Sie kommen von allein wieder, wenn sie noch auftreten.'
+        count: '{0}nichts gemeldet|{1}1 Fehler|]1,Inf[ %count% Fehler'
+        empty: 'Keine Browser-Fehler.'
+        empty_hint: 'Hier landen nicht abgefangene Fehler aus plMails eigenen Skripten, nach Fehler gruppiert. Fehler aus Browser-Erweiterungen werden herausgefiltert — das meiste, was ein Browser meldet, kommt nicht von dieser Anwendung.'
+        first_seen: 'Zuerst gesehen'
+        heading: 'Browser-Fehler'
+        kind:
+            csp: 'Blockiert'
+            error: 'Fehler'
+            unhandledrejection: 'Rejection'
+        occurrences: '{1}bei 1 Seitenaufruf|]1,Inf[ bei %count% Seitenaufrufen'
+        page: 'Letzte Seite'
     config_backup:
         change:
             absent: 'hier noch nicht gesetzt'

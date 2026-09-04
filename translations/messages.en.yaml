@@ -237,6 +237,21 @@ admin:
             timeout: 'The host was still loading after four minutes and plMail stopped waiting. It may well finish; the model is very likely too big for the memory it has.'
             unexpected: 'Something went wrong before the host could answer. (%error%)'
             unreachable: 'Nothing answered at that address. (%error%)'
+    client_errors:
+        browser: 'Browser'
+        clear: 'Clear'
+        clear_confirm: 'Delete every browser error? They come back on their own if they are still happening.'
+        count: '{0}nothing reported|{1}1 fault|]1,Inf[ %count% faults'
+        empty: 'No browser errors.'
+        empty_hint: 'Uncaught errors from plMail''s own scripts land here, grouped by fault. Errors from browser extensions are filtered out — most of what a browser reports is not this application.'
+        first_seen: 'First seen'
+        heading: 'Browser errors'
+        kind:
+            csp: 'Blocked'
+            error: 'Error'
+            unhandledrejection: 'Rejection'
+        occurrences: '{1}on 1 page load|]1,Inf[ on %count% page loads'
+        page: 'Last page'
     config_backup:
         change:
             absent: 'nothing set here yet'
