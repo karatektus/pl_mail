@@ -1,4 +1,4 @@
-<!-- translated-from: features/mail.md sha1:e3fa69c5b07eeeef13d8040f0e4deafb66867891 -->
+<!-- translated-from: features/mail.md sha1:6f3511664e8b90caf319852096db630fd040d87e -->
 
 # Mail
 
@@ -93,6 +93,13 @@ sonst sagt sie das.
 Eines überstimmt der Assistent nie: Wer dir schreibt und dem du schon geschrieben hast, bleibt in
 Allgemein. Diese Regel ist keine Vermutung über die Mail, sondern eine Tatsache über dich — ein
 Modell darüber würde an einem schlechten Nachmittag eine Kollegin unter Werbung einsortieren.
+
+Eine Grenze hat sie, und die braucht sie, weil die Regel sonst zu großzügig war: Mail, die
+offensichtlich ein **Massenversand** ist — mit Abmeldelink, Mailinglisten-Kennung oder einem Header,
+der schlicht „bulk“ sagt — wird auch dann als solcher einsortiert, wenn du an die Absenderadresse
+schon geschrieben hast. Sonst heftet eine einzige Anfrage an das `info@` eines Shops wegen eines
+kaputten Teils jeden Sale dieses Shops auf ewig nach Allgemein. Wer dir persönlich schreibt, schickt
+keine Mail mit Abmeldelink; seine Marketing-Plattform tut das, von derselben Adresse aus.
 
 **Bei Gmail-Konten** entscheidet, ob das alles Google widersprechen darf. Die Voreinstellung behält
 Googles Kategorien, weil sie ohnehin schon da sind und zwei Systeme, die dasselbe Postfach

@@ -82,6 +82,13 @@ One thing the assistant never overrules: a sender you correspond with stays in P
 not a guess about the mail, it is a fact about you, and a model above it would file a colleague under
 Promotions on one bad afternoon.
 
+It has one limit, and it is there because the rule was too generous without it. Mail that is plainly
+a **mailing** — it carries an unsubscribe link, a mailing-list id, or says outright that it is bulk —
+is sorted as one even when you have written to the address it came from. Otherwise a single enquiry
+to a shop's `info@` about a broken part pins every sale that shop ever sends into Primary, for ever.
+A person you correspond with does not send you mail with an unsubscribe link in it; their marketing
+platform does, from the same address.
+
 **On Gmail accounts** decides whether any of that is allowed to disagree with Google. The default
 keeps Google's categories, because they are already there and two systems sorting one mailbox is
 worse than either — but if Google sorts your mail in a way you have never liked, this is the switch

@@ -129,10 +129,19 @@ final class MessageCategorizerTest extends TestCase
      * The one rule that overrides the cascade rather than sitting in it: bulk
      * headers do not decide where mail from somebody you write to belongs.
      */
-    public function testAKnownCorrespondentGoesToPrimaryWhateverTheHeadersSay(): void
+    public function testAKnownCorrespondentGoesToPrimaryDespiteWeakBulkMarkers(): void
     {
+        // NOT list-unsubscribe or precedence: bulk any more, and the rename is
+        // the point. This used to say "whatever the headers say", which is what
+        // pinned a shop's anniversary sale into Primary for ever on the
+        // strength of one enquiry to its info@ address years earlier. A mailing
+        // beats the rescue now — see
+        // testAMailingBeatsHavingWrittenToTheSender().
+        //
+        // What the rescue is FOR is still exactly this: a person whose mail
+        // carries a marker that is about the sending, not the sending list.
         $message = $this->message(
-            ['List-Unsubscribe' => '<https://x.test/u>', 'Precedence' => 'bulk'],
+            ['Feedback-ID' => 'a:b:c:d', 'Auto-Submitted' => 'auto-generated'],
             'Kim@Example.test',
         );
 
@@ -253,8 +262,13 @@ final class MessageCategorizerTest extends TestCase
      */
     public function testTheLocalAnswerStillHonoursTheCorrespondentOverride(): void
     {
+        // A weak marker rather than an unsubscribe link: the point of this test
+        // is that taking Gmail out of the way leaves the WHOLE local cascade
+        // and not just its header half, and the correspondent rule is the part
+        // of that cascade being checked. A mailing would now beat it, which
+        // would make this a test of the wrong rule.
         $message = $this->message(
-            ['List-Unsubscribe' => '<https://shop.test/u>'],
+            ['Feedback-ID' => 'a:b:c:d'],
             'kim@example.test',
             ['INBOX', 'CATEGORY_PROMOTIONS'],
         );
@@ -394,7 +408,12 @@ final class MessageCategorizerTest extends TestCase
      */
     public function testTheAssistantDoesNotOutrankACorrespondent(): void
     {
-        $message = $this->message(['List-Unsubscribe' => '<https://shop.test/u>'], 'kim@example.test');
+        // No mailing header, because a mailing now beats the correspondent rule
+        // and would decide this before the model was ever reached — making it a
+        // test of that rule instead of this one. What is being pinned here is
+        // the model losing to a correspondent, so the mail has to be one the
+        // correspondent rule still rescues.
+        $message = $this->message(['Feedback-ID' => 'a:b:c:d'], 'kim@example.test');
 
         $message->aiCategory = MessageCategory::Promotions;
 
@@ -426,6 +445,48 @@ final class MessageCategorizerTest extends TestCase
             $this->categorizer->categorize($message, []),
             'the cascade answers and the verdict stays where it always sat, below it',
         );
+    }
+
+    /**
+     * Writing to a shop once does not make its sales Primary for ever.
+     *
+     * The correspondence override says "you have written to this sender, so
+     * this belongs in Primary" — the right rescue for a person whose mail
+     * happens to carry a bulk-ish header, and something else entirely in
+     * practice: one enquiry to a shop's info@ address about a broken part
+     * pinned every anniversary sale that shop ever sent into Primary.
+     *
+     * A person you correspond with does not send you mail with an unsubscribe
+     * link in it. Their marketing platform does, from the same address, and the
+     * address was all the rule could see.
+     */
+    public function testAMailingBeatsHavingWrittenToTheSender(): void
+    {
+        $known = ['info@biqu.equipment' => true];
+
+        $sale = $this->message(
+            ['List-Unsubscribe' => '<https://biqu.equipment/u>'],
+            'info@biqu.equipment',
+        );
+
+        self::assertSame(
+            MessageCategory::Promotions,
+            $this->categorizer->categorize($sale, $known),
+            'an unsubscribe link means a mailing, whoever it is from',
+        );
+
+        // And the rescue still rescues, which is the half that must not break:
+        // an ordinary reply from the same address is still Primary.
+        $reply = $this->message([], 'info@biqu.equipment');
+
+        self::assertSame(MessageCategory::Primary, $this->categorizer->categorize($reply, $known));
+
+        // As is one carrying only a weak marker — a feedback-id is an ESP
+        // stamp, not a mailing, and losing a correspondent to it would be the
+        // recruiter bug wearing the other rule's clothes.
+        $throughEsp = $this->message(['Feedback-ID' => 'a:b:c:d'], 'info@biqu.equipment');
+
+        self::assertSame(MessageCategory::Primary, $this->categorizer->categorize($throughEsp, $known));
     }
 
     /**

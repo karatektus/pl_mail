@@ -126,9 +126,37 @@ final class MessageCategorizer
 
         $from = mb_strtolower(trim((string) $message->fromAddress));
 
-        // Correspondence override sits on top of the cascade: if the user has
-        // mailed this sender, it belongs in Primary regardless of bulk headers.
-        if ('' !== $from && true === isset($correspondentEmails[$from])) {
+        $headers = $this->normaliseKeys($message->headers ?? []);
+
+        // Order matters: discussion lists also carry List-Unsubscribe, so
+        // Forums must be tested before Promotions. Both are computed here
+        // rather than in the cascade below because the correspondence override
+        // now has to know whether either matched — see immediately below.
+        $forum     = $this->forumSignal($headers);
+        $promotion = null !== $forum ? null : $this->promotionSignal($headers);
+
+        // THE CORRESPONDENCE OVERRIDE, AND IT NO LONGER BEATS A MAILING.
+        //
+        // It says: you have written to this sender, so this belongs in Primary.
+        // That is the right rescue for a person whose mail happens to carry a
+        // bulk-ish header, and it was doing something else entirely — writing
+        // once to a shop's info@ address, years ago, about a broken part, pinned
+        // every anniversary sale that shop ever sent into Primary for ever.
+        //
+        // The distinction it was missing is that a person you correspond with
+        // does not send you mail with an unsubscribe link in it. Their
+        // marketing platform does, from the same address, and the address is
+        // all this rule could see.
+        //
+        // So it now rescues mail that is not a MAILING — which is the case it
+        // was written for. A message carrying a list header, a list id or an
+        // explicit bulk precedence is a mailing whoever it is from, and the
+        // cascade below files it as one. Everything weaker than that — a
+        // feedback-id, an automation marker, an unfamiliar sending domain —
+        // still loses to somebody the reader has written to, which is the whole
+        // point of the rule.
+        if ('' !== $from && true === isset($correspondentEmails[$from])
+            && null === $forum && null === $promotion) {
             return [
                 'category' => MessageCategory::Primary,
                 'reason'   => 'correspondent',
@@ -159,17 +187,11 @@ final class MessageCategorizer
             ];
         }
 
-        $headers = $this->normaliseKeys($message->headers ?? []);
-
-        // Order matters: discussion lists also carry List-Unsubscribe, so
-        // Forums must be tested before Promotions.
-        $signal = $this->forumSignal($headers);
-
-        if (null !== $signal) {
-            return ['category' => MessageCategory::Forums, 'reason' => 'forum', 'signal' => $signal];
+        if (null !== $forum) {
+            return ['category' => MessageCategory::Forums, 'reason' => 'forum', 'signal' => $forum];
         }
 
-        $signal = $this->promotionSignal($headers);
+        $signal = $promotion;
 
         if (null !== $signal) {
             return ['category' => MessageCategory::Promotions, 'reason' => 'promotion', 'signal' => $signal];
