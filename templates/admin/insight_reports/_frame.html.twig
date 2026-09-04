@@ -1,23 +1,30 @@
 {% import '_partials/_card_chrome.html.twig' as chrome %}
-{% import '_partials/_select.html.twig' as select %}
 {#
 admin/insight_reports/_frame.html.twig — Admin → Reported mail.
 
 Accepts:
-  reports      — list<App\Entity\Insight\InsightReport>, newest first
+  reports      — list<App\Domain\Monitoring\ReportedMail>, newest first, both kinds
+  problems     — list<{problem, kind, count}>, biggest first, derived from `reports`
   pendingCount — how many of the whole table are unhandled, not how many of the list
+  handledCount — how many are done, for the card that sweeps them away
 
-Three cards, in the order the work happens: the pile first, because an admin
-who opened this section came to read it, and the export under it, because that
-is what you do once you have seen there is something worth writing a parser
-for. The card that empties the done pile is last and tinted, the way the reset
-section puts its irreversible half below its recoverable one.
+ONE LIST, TWO KINDS. A mail an extractor should have understood and did not, and
+a mail somebody found in the wrong tab. These were two panels with two export
+buttons, which made sense to whoever wrote them and to nobody using them: the
+question an admin brings to this page is "what is still mine to do", and that
+question does not have two answers. The rows carry a badge saying which kind
+they are, and everything else — triage, filters, selection, export — is the
+same for both.
 
-Every row is a native <details>, exactly as the log browser's rows are. An
-admin here is triaging — deciding which of forty mails is a shape worth an
-extractor — and forty mail bodies rendered flat is a page nobody scrolls to the
-bottom of. The summary carries everything that decision needs (when, who,
-sender, subject, and the user's own words); the body is one click away.
+THE CHIPS ARE THE SELECTOR. Filtering is not decoration here: the export takes
+what is ticked, and the way somebody ticks "the six about wrongly-sorted shop
+mail" is to filter to that problem and press select-all. Which chips exist is
+derived from the rows, because for a wrong tab the problem IS a pair of
+categories and only this install knows which pairs it has produced.
+
+Every row is a native <details>, exactly as the log browser's rows are. An admin
+here is triaging — deciding which of forty mails is a shape worth acting on —
+and forty mail bodies rendered flat is a page nobody scrolls to the bottom of.
 
 No auto-refresh wraps this frame — see the note where it is embedded in
 index.html.twig. The mutating forms post into this frame and get the re-rendered
@@ -29,13 +36,67 @@ list back, so nothing here navigates the page.
    nothing. See tests/Infrastructure/Templating/TurboFrameClassesTest.php. #}
 <turbo-frame id="admin-insight-reports">
 
+    {% macro problem_label(problem) %}
+        {%- if problem == 'no-insight' -%}
+            {{ 'admin.insight_reports.problem.no_insight'|trans }}
+        {%- else -%}
+            {%- set pair = problem|split('>') -%}
+            {{ ('tabs.' ~ pair[0])|trans }}<i class="fa-solid fa-arrow-right text-[9px] text-ink-faint mx-1" aria-hidden="true"></i>{{ ('tabs.' ~ pair[1])|trans }}
+        {%- endif -%}
+    {% endmacro %}
+    {% import _self as report %}
+
     {# ── The pile ──────────────────────────────────────────────────────── #}
-    <section class="@container {{ chrome.shell() }}">
+    <section class="@container {{ chrome.shell() }}"
+             data-controller="admin--report-selection ui--clipboard"
+             {# `{n}` and not `%count%`: the number is substituted in the
+                browser, but a literal `%count%` in the rendered page is
+                indistinguishable from a translation that failed to interpolate
+                — and there is a test asserting none reaches the HTML. #}
+             data-admin--report-selection-count-label-value="{{ 'admin.insight_reports.selected'|trans({'%count%': '{n}'}) }}"
+             data-admin--report-selection-filename-value="reported-mail.txt"
+             data-ui--clipboard-confirm-text-value="{{ 'clipboard.copied'|trans }}"
+             data-ui--clipboard-failed-text-value="{{ 'clipboard.copy_failed'|trans }}">
+
+        {# The selected lines. ui--clipboard copies this; the download button
+           saves it; the export form beside it posts the keys instead. #}
+        <pre class="hidden"
+             data-admin--report-selection-target="sink"
+             data-ui--clipboard-target="source"></pre>
 
         <div class="flex flex-wrap items-center gap-3 {{ chrome.band() }}">
             <i class="fa-solid fa-flag text-xs text-zinc-400" aria-hidden="true"></i>
             <h2 class="text-sm font-semibold text-ink">{{ 'admin.insight_reports.heading'|trans }}</h2>
             <span class="text-xs text-ink-faint">{{ 'admin.insight_reports.pending'|trans({ '%count%': pendingCount }) }}</span>
+
+            {% if reports|length > 0 %}
+                <div class="ml-auto flex items-center gap-1.5">
+                    <span class="text-[11px] text-ink-faint tabular-nums mr-1"
+                          data-admin--report-selection-target="count"></span>
+
+                    <button type="button"
+                            data-action="click->ui--clipboard#copy"
+                            data-admin--report-selection-target="action"
+                            title="{{ 'admin.insight_reports.copy_hint'|trans }}"
+                            class="inline-flex items-center gap-1.5 h-8 px-3 rounded-pane border border-line
+                                   text-[11px] text-ink-muted hover:bg-hover cursor-pointer transition-colors
+                                   disabled:opacity-40 disabled:cursor-not-allowed">
+                        <i data-ui--clipboard-target="icon" class="fa-solid fa-copy text-[10px]" aria-hidden="true"></i>
+                        <span data-ui--clipboard-target="label">{{ 'admin.insight_reports.copy'|trans }}</span>
+                    </button>
+
+                    <button type="button"
+                            data-action="click->admin--report-selection#download"
+                            data-admin--report-selection-target="action"
+                            title="{{ 'admin.insight_reports.download_hint'|trans }}"
+                            class="inline-flex items-center gap-1.5 h-8 px-3 rounded-pane border border-line
+                                   text-[11px] text-ink-muted hover:bg-hover cursor-pointer transition-colors
+                                   disabled:opacity-40 disabled:cursor-not-allowed">
+                        <i class="fa-solid fa-download text-[10px]" aria-hidden="true"></i>
+                        <span>{{ 'admin.insight_reports.download'|trans }}</span>
+                    </button>
+                </div>
+            {% endif %}
         </div>
 
         {% if reports|length == 0 %}
@@ -47,14 +108,82 @@ list back, so nothing here navigates the page.
                 <p class="mt-1 text-xs text-ink-faint leading-relaxed">{{ 'admin.insight_reports.empty_hint'|trans }}</p>
             </div>
         {% else %}
-            <div class="divide-y divide-line">
-                {% for report in reports %}
-                    {# The row is a <details> beside its buttons, not around
-                       them: a <form> is flow content and may not live inside a
-                       <summary>, and a button that did would toggle the fold on
-                       its way to being pressed. #}
-                    <div class="flex flex-wrap items-start gap-3 px-4 py-3">
 
+            {# ── The chips ─────────────────────────────────────────────────
+               Two groups, and they are not the same question. Status is about
+               the work — is this one still mine — and problem is about the
+               subject. An admin normally wants one of each: "the unhandled
+               ones about mail landing in Promotions". #}
+            <div class="flex flex-wrap items-center gap-1.5 px-4 py-2.5 border-b border-line">
+                <span class="text-[10px] uppercase tracking-wide text-ink-faint mr-1">
+                    {{ 'admin.insight_reports.filter'|trans }}
+                </span>
+
+                {% for status in ['pending', 'handled'] %}
+                    <button type="button"
+                            data-status="{{ status }}"
+                            data-admin--report-selection-target="chip"
+                            data-action="click->admin--report-selection#filter"
+                            class="chip-filter">
+                        {{ ('admin.insight_reports.filter_' ~ status)|trans }}
+                    </button>
+                {% endfor %}
+
+                {% if problems|length > 1 %}
+                    <span class="w-px h-4 bg-line mx-1" aria-hidden="true"></span>
+
+                    {% for group in problems %}
+                        <button type="button"
+                                data-problem="{{ group.problem }}"
+                                data-admin--report-selection-target="chip"
+                                data-action="click->admin--report-selection#filter"
+                                class="chip-filter">
+                            {{ report.problem_label(group.problem) }}
+                            <span class="text-ink-faint tabular-nums ml-1">{{ group.count }}</span>
+                        </button>
+                    {% endfor %}
+                {% endif %}
+            </div>
+
+            <label class="flex items-center gap-2 px-4 py-2 border-b border-line cursor-pointer
+                          text-[11px] text-ink-faint hover:bg-hover transition-colors">
+                <input type="checkbox"
+                       data-admin--report-selection-target="all"
+                       data-action="change->admin--report-selection#toggleAll"
+                       class="size-3.5 accent-accent cursor-pointer">
+                {{ 'admin.insight_reports.select_all'|trans }}
+            </label>
+
+            <div class="divide-y divide-line">
+                {% for item in reports %}
+                    {# A <div> and not a <label>, though a label around the whole
+                       row would give the checkbox a generous hit target: a
+                       label may not contain a <form> or a <details>, and both
+                       are here. Browsers happen not to forward label activation
+                       from a nested button today, which means the invalid
+                       version works — until the row is read by something that
+                       is not this browser. The checkbox carries the subject as
+                       its accessible name instead.
+
+                       `data-report-row` is what the controller hides when a
+                       chip filters this row out. #}
+                    <div data-report-row
+                         class="flex flex-wrap items-start gap-3 px-4 py-3 hover:bg-hover/50 transition-colors">
+
+                        <input type="checkbox"
+                               aria-label="{{ item.subject|default('') ?: 'admin.insight_reports.no_subject'|trans }}"
+                               data-key="{{ item.key }}"
+                               data-line="{{ item.asLine }}"
+                               data-problem="{{ item.problem }}"
+                               data-status="{{ item.isPending ? 'pending' : 'handled' }}"
+                               data-admin--report-selection-target="row"
+                               data-action="change->admin--report-selection#toggleRow"
+                               class="size-3.5 mt-1.5 accent-accent cursor-pointer shrink-0">
+
+                        {# The fold is a <details> beside the buttons, not around
+                           them: a <form> is flow content and may not live inside
+                           a <summary>, and a button that did would toggle the
+                           fold on its way to being pressed. #}
                         <details class="min-w-0 flex-1 text-sm group">
                             <summary class="flex items-start gap-3 cursor-pointer list-none">
                                 <i class="fa-solid fa-chevron-right mt-1 shrink-0 text-[9px] text-ink-faint w-3
@@ -62,16 +191,27 @@ list back, so nothing here navigates the page.
 
                                 <div class="min-w-0 flex-1">
                                     <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
-                                        <span class="text-xs text-ink-faint font-mono">{{ report.createdAt|date('Y-m-d H:i') }}</span>
+                                        <span class="text-xs text-ink-faint font-mono">{{ item.reportedAt|date('Y-m-d H:i') }}</span>
+
+                                        {# WHICH KIND, on every row. The list holds
+                                           two things that read almost alike at a
+                                           glance — same date, same sender, same
+                                           subject — and what an admin does about
+                                           one is nothing like what they do about
+                                           the other. #}
+                                        <span class="text-[10px] font-semibold uppercase tracking-wide rounded-md px-1.5 py-0.5
+                                                     {{ item.kind.value == 'category' ? 'badge-info' : 'badge-neutral' }}">
+                                            {{ item.kind.labelKey|trans }}
+                                        </span>
 
                                         {# Handled state on the row rather than
                                            only in a filter: the list is read top
                                            to bottom and "is this one still mine
                                            to do" has to be answerable without
                                            looking anywhere else. #}
-                                        {% if report.handledAt is not null %}
+                                        {% if item.handledAt is not null %}
                                             <span class="text-[10px] font-semibold uppercase tracking-wide rounded-md px-1.5 py-0.5 badge-neutral"
-                                                  title="{{ 'admin.insight_reports.handled_at'|trans({ '%when%': report.handledAt|date('Y-m-d H:i') }) }}">
+                                                  title="{{ 'admin.insight_reports.handled_at'|trans({ '%when%': item.handledAt|date('Y-m-d H:i') }) }}">
                                                 {{ 'admin.insight_reports.handled'|trans }}
                                             </span>
                                         {% else %}
@@ -80,62 +220,114 @@ list back, so nothing here navigates the page.
                                             </span>
                                         {% endif %}
 
+                                        {% if item.problem != 'no-insight' %}
+                                            <span class="text-[11px] text-ink-muted">{{ report.problem_label(item.problem) }}</span>
+                                        {% endif %}
+
                                         <span class="min-w-0 truncate text-xs text-ink-muted">
                                             {{ 'admin.insight_reports.reported_by'|trans({
-                                                '%who%': report.reportedBy ? report.reportedBy.email : 'admin.insight_reports.reporter_gone'|trans,
+                                                '%who%': item.reportedBy ?: 'admin.insight_reports.reporter_gone'|trans,
                                             }) }}
                                         </span>
                                     </div>
 
                                     <p class="mt-1 truncate text-sm text-ink">
-                                        {{ report.subject|default('') ?: 'admin.insight_reports.no_subject'|trans }}
+                                        {{ item.subject|default('') ?: 'admin.insight_reports.no_subject'|trans }}
                                     </p>
 
                                     <p class="mt-0.5 truncate text-xs text-ink-muted">
-                                        {% if report.fromName %}{{ report.fromName }} {% endif %}
-                                        <span class="font-mono text-ink-faint">{{ report.fromAddress|default('') ?: 'admin.insight_reports.no_sender'|trans }}</span>
+                                        {% if item.fromName %}{{ item.fromName }} {% endif %}
+                                        <span class="font-mono text-ink-faint">{{ item.fromAddress|default('') ?: 'admin.insight_reports.no_sender'|trans }}</span>
                                     </p>
 
-                                    {# The user's own words, on the summary and
-                                       not inside the fold. InsightReport calls
-                                       it the single most valuable column in the
+                                    {# The reporter's own words, on the summary and
+                                       not inside the fold. InsightReport calls it
+                                       the single most valuable column in the
                                        export, and it is the single most valuable
-                                       line here for the same reason: it names
-                                       the fact a reader would otherwise guess
-                                       at. #}
-                                    {% if report.note %}
+                                       line here for the same reason: it names the
+                                       fact a reader would otherwise guess at. #}
+                                    {% if item.kind.value == 'insight' and item.source.note %}
                                         <p class="mt-1.5 text-xs text-ink-soft leading-relaxed">
-                                            <i class="fa-solid fa-quote-left mr-1 text-[9px] text-ink-faint" aria-hidden="true"></i>{{ report.note }}
+                                            <i class="fa-solid fa-quote-left mr-1 text-[9px] text-ink-faint" aria-hidden="true"></i>{{ item.source.note }}
                                         </p>
                                     {% endif %}
                                 </div>
                             </summary>
 
                             <div class="mt-3 space-y-2 pl-6">
-                                {% if report.receivedAt is not null %}
-                                    <p class="text-xs text-ink-faint">
-                                        {{ 'admin.insight_reports.received_at'|trans({ '%when%': report.receivedAt|date('Y-m-d H:i') }) }}
-                                    </p>
-                                {% endif %}
+                                {# THE LINE, for both kinds. It is what the copy
+                                   button copies and what somebody pastes into a
+                                   prompt or an issue, so it is on the page to be
+                                   read before it is taken rather than discovered
+                                   afterwards in a text file. #}
+                                <pre class="text-[11px] leading-relaxed text-ink-soft whitespace-pre-wrap break-words
+                                            rounded-lg bg-zinc-500/10 px-3 py-2">{{ item.asLine }}</pre>
 
-                                {# The body, and the only wall of text on the
-                                   page — behind the fold, scrolling inside its
-                                   own box, so a sixteen-kilobyte newsletter
-                                   cannot push the next report off the screen. #}
-                                {% if report.bodyText %}
-                                    <pre class="max-h-72 overflow-auto rounded-lg bg-zinc-500/10 px-3 py-2 text-xs text-ink-soft whitespace-pre-wrap break-words">{{ report.bodyText }}</pre>
+                                {% if item.kind.value == 'insight' %}
+                                    {% if item.source.receivedAt is not null %}
+                                        <p class="text-xs text-ink-faint">
+                                            {{ 'admin.insight_reports.received_at'|trans({ '%when%': item.source.receivedAt|date('Y-m-d H:i') }) }}
+                                        </p>
+                                    {% endif %}
+
+                                    {# The body, and the only wall of text on the
+                                       page — behind the fold, scrolling inside
+                                       its own box, so a sixteen-kilobyte
+                                       newsletter cannot push the next report off
+                                       the screen. #}
+                                    {% if item.source.bodyText %}
+                                        <pre class="max-h-72 overflow-auto rounded-lg bg-zinc-500/10 px-3 py-2 text-xs text-ink-soft whitespace-pre-wrap break-words">{{ item.source.bodyText }}</pre>
+                                    {% else %}
+                                        <p class="text-xs text-ink-faint">{{ 'admin.insight_reports.no_body'|trans }}</p>
+                                    {% endif %}
                                 {% else %}
-                                    <p class="text-xs text-ink-faint">{{ 'admin.insight_reports.no_body'|trans }}</p>
+                                    {# The three answers, side by side and named.
+                                       The line above says the same thing in a
+                                       form built for pasting; this says it in a
+                                       form built for reading, and which one an
+                                       admin wants depends on whether they are
+                                       about to change a rule or about to send it
+                                       to somebody who will. #}
+                                    <dl class="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs">
+                                        {% for row in [
+                                            { key: 'gmail', value: item.source.gmail, signal: null },
+                                            { key: 'rules', value: item.source.rules, signal: item.source.rulesSignal },
+                                            { key: 'model', value: item.source.model, signal: null },
+                                        ] %}
+                                            <dt class="text-ink-faint">{{ ('admin.insight_reports.verdict.' ~ row.key)|trans }}</dt>
+                                            <dd class="text-ink-soft min-w-0">
+                                                {% if row.value %}
+                                                    {{ ('tabs.' ~ row.value.value)|trans }}
+                                                    {%- if row.signal %} <span class="font-mono text-ink-faint">{{ row.signal }}</span>{% endif %}
+                                                {% elseif row.key == 'model' and not item.source.aiAsked %}
+                                                    {{ 'admin.insight_reports.verdict.not_asked'|trans }}
+                                                {% else %}
+                                                    <span class="text-ink-faint">—</span>
+                                                {% endif %}
+                                            </dd>
+                                        {% endfor %}
+
+                                        <dt class="text-ink-faint">{{ 'admin.insight_reports.verdict.headers'|trans }}</dt>
+                                        <dd class="text-ink-soft font-mono break-words min-w-0">
+                                            {{ item.source.bulkHeaders ?: 'admin.insight_reports.verdict.none'|trans }}
+                                            {%- if item.source.listId %} {{ item.source.listId }}{% endif %}
+                                        </dd>
+
+                                        <dt class="text-ink-faint">{{ 'admin.insight_reports.verdict.body'|trans }}</dt>
+                                        <dd class="text-ink-soft">
+                                            {{ ('admin.insight_reports.verdict.body_' ~ (item.source.hasPlainText ? 'text' : 'none'))|trans }}
+                                        </dd>
+                                    </dl>
                                 {% endif %}
                             </div>
                         </details>
 
                         <div class="flex shrink-0 items-center gap-1.5">
-                            {% if report.handledAt is null %}
+                            {% if item.handledAt is null %}
                                 <form method="post"
-                                      action="{{ path('app_admin_insight_reports_handled', { id: report.id }) }}"
+                                      action="{{ path('app_admin_insight_reports_handled', { kind: item.kind.value, id: item.id }) }}"
                                       data-turbo-frame="admin-insight-reports">
-                                    <input type="hidden" name="_token" value="{{ csrf_token('insight_report_handled_' ~ report.id) }}">
+                                    <input type="hidden" name="_token" value="{{ csrf_token('insight_report_handled_' ~ item.kind.value ~ '_' ~ item.id) }}">
                                     <button type="submit"
                                             class="inline-flex items-center gap-1.5 px-2.5 h-8 rounded-lg text-xs font-medium btn-quiet transition-colors cursor-pointer">
                                         <i class="fa-solid fa-check" aria-hidden="true"></i>
@@ -145,10 +337,10 @@ list back, so nothing here navigates the page.
                             {% endif %}
 
                             <form method="post"
-                                  action="{{ path('app_admin_insight_reports_delete', { id: report.id }) }}"
+                                  action="{{ path('app_admin_insight_reports_delete', { kind: item.kind.value, id: item.id }) }}"
                                   data-turbo-frame="admin-insight-reports"
                                   data-turbo-confirm="{{ 'admin.insight_reports.delete_confirm'|trans }}">
-                                <input type="hidden" name="_token" value="{{ csrf_token('insight_report_delete_' ~ report.id) }}">
+                                <input type="hidden" name="_token" value="{{ csrf_token('insight_report_delete_' ~ item.kind.value ~ '_' ~ item.id) }}">
                                 <button type="submit"
                                         aria-label="{{ 'admin.insight_reports.delete'|trans }}"
                                         class="inline-flex items-center gap-1.5 px-2.5 h-8 rounded-lg text-xs font-medium btn-quiet hover:text-danger hover:bg-danger-soft transition-colors cursor-pointer">
@@ -160,47 +352,31 @@ list back, so nothing here navigates the page.
                     </div>
                 {% endfor %}
             </div>
-        {% endif %}
-    </section>
 
-    {# ── Export ────────────────────────────────────────────────────────── #}
-    <div class="{{ chrome.shell() }}">
-        <div class="flex items-center gap-2.5 {{ chrome.band() }}">
-            <i class="fa-solid fa-file-arrow-down text-xs text-zinc-400" aria-hidden="true"></i>
-            <h2 class="text-sm font-semibold text-ink">{{ 'admin.insight_reports.export.heading'|trans }}</h2>
-        </div>
-
-        <div class="{{ chrome.body() }} space-y-3">
-            <p class="text-sm text-ink-soft leading-relaxed">{{ 'admin.insight_reports.export.intro'|trans }}</p>
-            <p class="text-xs text-ink-faint leading-relaxed">
-                <i class="fa-solid fa-triangle-exclamation mr-1 text-warning" aria-hidden="true"></i>
-                {{ 'admin.insight_reports.export.warning'|trans }}
-            </p>
-
-            {#
+            {# ── Export ────────────────────────────────────────────────────
                 data-turbo="false", so the browser performs this submission
                 itself. Turbo cannot render a download — it would swap the JSON
                 into the frame and leave a blank panel. Every other form here
                 posts into the frame as usual.
-            #}
+
+                The ticked keys are written into it by the selection controller,
+                and an empty post still means everything — which is what a
+                browser with JavaScript off sends, and a download that silently
+                returned nothing would be worse than a large file. #}
             <form method="post"
                   action="{{ path('app_admin_insight_reports_export') }}"
                   data-turbo="false"
-                  class="flex flex-col gap-2 sm:flex-row sm:items-end">
+                  class="flex flex-wrap items-center gap-3 px-4 py-3 border-t border-line">
                 <input type="hidden" name="_token" value="{{ csrf_token('insight_reports_export') }}">
+                <span data-admin--report-selection-target="keys"></span>
 
-                <div class="flex-1 min-w-0">
-                    <label for="insight-reports-scope" class="block text-xs text-ink-muted">
-                        {{ 'admin.insight_reports.export.scope'|trans }}
-                    </label>
-                    {# Unhandled first, and so the default the browser preselects:
-                       that is the pile with work left in it. #}
-                    <select id="insight-reports-scope" name="scope"
-                            {{ select.enhance() }}
-                            class="select-field mt-1 h-9 text-sm">
-                        <option value="pending">{{ 'admin.insight_reports.export.scope_pending'|trans }}</option>
-                        <option value="all">{{ 'admin.insight_reports.export.scope_all'|trans }}</option>
-                    </select>
+                <div class="min-w-0 flex-1">
+                    <p class="text-xs text-ink-soft leading-relaxed">{{ 'admin.insight_reports.export.intro'|trans }}</p>
+                    <p class="mt-0.5 text-[11px] text-ink-faint leading-relaxed">
+                        <i class="fa-solid fa-triangle-exclamation mr-1 text-warning" aria-hidden="true"></i>
+                        {{ 'admin.insight_reports.export.warning'|trans }}
+                        {{ 'admin.insight_reports.export.not_handled'|trans }}
+                    </p>
                 </div>
 
                 <button type="submit" id="insight-reports-export"
@@ -210,13 +386,8 @@ list back, so nothing here navigates the page.
                     {{ 'admin.insight_reports.export.submit'|trans }}
                 </button>
             </form>
-
-            {# Said on the page and not only in the controller: an admin who
-               expected the download to clear the pile would otherwise discover
-               the opposite by exporting twice. #}
-            <p class="text-xs text-ink-faint leading-relaxed">{{ 'admin.insight_reports.export.not_handled'|trans }}</p>
-        </div>
-    </div>
+        {% endif %}
+    </section>
 
     {# ── Clearing what is done ───────────────────────────────────────────
        Absent entirely while nothing is handled, rather than present and
@@ -258,158 +429,5 @@ list back, so nothing here navigates the page.
             </form>
         </div>
     </div>
-    {% endif %}
-
-    {# What the SORTING has been getting wrong, beside what the insights have.
-       Two different reports about two different features, and they live
-       together because of where somebody looks for them.
-
-       This started in Admin → AI, on the reasoning that a report should sit
-       beside the thing it is evidence about — the prompt and the model are
-       configured there. That lost to the plainer fact that this section is
-       called "Reported mail": somebody who has just pressed a button labelled
-       Report goes looking for what it did under the heading that matches, finds
-       an empty list, and concludes the button is broken. Which is exactly what
-       happened.
-
-       The product is the TEXT, not the table. Whoever reads this is going to
-       paste it somewhere — into a prompt, an issue, a message to whoever is
-       changing a rule — so the copy button takes the whole block and the rows
-       are there to be skimmed before deciding whether it is worth pasting. #}
-    {% set reports = category_reports() %}
-    {% if reports.count > 0 %}
-        {# GROUPED BY THE PROBLEM, not listed by date. Twenty reports are rarely
-           twenty problems — they are "this shop keeps landing in Primary" six
-           times and one odd one — and the person reading this is deciding
-           whether to change a rule, which is a decision about a group. The
-           selection exists so they can take the group that is about their rule
-           and leave the four that are not.
-
-           Copying is ui--clipboard's, on the same wrapper: the selection
-           controller only keeps the hidden block in step with the ticks, so the
-           execCommand path that a plain-HTTP installation needs stays in one
-           place rather than being written twice. #}
-        <section class="{{ chrome.shell() }} mt-3"
-                 data-controller="admin--report-selection ui--clipboard"
-                 data-admin--report-selection-count-label-value="{{ 'admin.ai.reports.selected'|trans({'%count%': '%count%'}) }}"
-                 data-admin--report-selection-filename-value="category-reports.txt"
-                 data-ui--clipboard-confirm-text-value="{{ 'clipboard.copied'|trans }}"
-                 data-ui--clipboard-failed-text-value="{{ 'clipboard.copy_failed'|trans }}">
-
-            {# The selected lines, and the only thing either button acts on. #}
-            <pre class="hidden"
-                 data-admin--report-selection-target="sink"
-                 data-ui--clipboard-target="source"></pre>
-
-            <div class="flex items-start justify-between gap-3 {{ chrome.band() }}">
-                <div class="min-w-0">
-                    <h2 class="text-sm font-semibold text-ink">{{ 'admin.ai.reports.heading'|trans }}</h2>
-                    <p class="text-xs text-ink-faint mt-0.5">
-                        {{ 'admin.ai.reports.subheading'|trans({'%count%': reports.count}) }}
-                    </p>
-                </div>
-
-                <div class="flex items-center gap-1.5 shrink-0">
-                    <span class="text-[11px] text-ink-faint tabular-nums mr-1"
-                          data-admin--report-selection-target="count"></span>
-
-                    <button type="button"
-                            data-action="click->ui--clipboard#copy"
-                            data-admin--report-selection-target="action"
-                            class="inline-flex items-center gap-1.5 h-8 px-3 rounded-pane border border-line
-                                   text-[11px] text-ink-muted hover:bg-hover cursor-pointer transition-colors
-                                   disabled:opacity-40 disabled:cursor-not-allowed">
-                        <i data-ui--clipboard-target="icon" class="fa-solid fa-copy text-[10px]" aria-hidden="true"></i>
-                        <span data-ui--clipboard-target="label">{{ 'admin.ai.reports.copy'|trans }}</span>
-                    </button>
-
-                    <button type="button"
-                            data-action="click->admin--report-selection#download"
-                            data-admin--report-selection-target="action"
-                            class="inline-flex items-center gap-1.5 h-8 px-3 rounded-pane border border-line
-                                   text-[11px] text-ink-muted hover:bg-hover cursor-pointer transition-colors
-                                   disabled:opacity-40 disabled:cursor-not-allowed">
-                        <i class="fa-solid fa-download text-[10px]" aria-hidden="true"></i>
-                        <span>{{ 'admin.ai.reports.download'|trans }}</span>
-                    </button>
-
-                    {# Clearing is how a list of grievances stops being a list of
-                       the same grievance twenty times. These are somebody's
-                       observations about their own mail and nothing regenerates
-                       them, so it asks first. #}
-                    <form method="post" action="{{ path('app_admin_ai_reports_clear') }}"
-                          data-turbo-confirm="{{ 'admin.ai.reports.clear_confirm'|trans }}">
-                        <input type="hidden" name="_token" value="{{ csrf_token('admin_ai_reports_clear') }}">
-                        <button type="submit"
-                                class="inline-flex items-center justify-center h-8 w-8 rounded-pane
-                                       text-ink-faint hover:bg-hover cursor-pointer transition-colors">
-                            <span class="sr-only">{{ 'admin.ai.reports.clear'|trans }}</span>
-                            <i class="fa-solid fa-trash text-[10px]" aria-hidden="true"></i>
-                        </button>
-                    </form>
-                </div>
-            </div>
-
-            <label class="flex items-center gap-2 px-4 py-2 border-b border-line cursor-pointer
-                          text-[11px] text-ink-faint hover:bg-hover transition-colors">
-                <input type="checkbox" checked
-                       data-admin--report-selection-target="all"
-                       data-action="change->admin--report-selection#toggleAll"
-                       class="size-3.5 accent-accent cursor-pointer">
-                {{ 'admin.ai.reports.select_all'|trans }}
-            </label>
-
-            <div class="max-h-96 overflow-y-auto">
-                {% for group in reports.groups %}
-                    <div class="border-b border-line last:border-b-0">
-                        <label class="flex items-center gap-2 px-4 py-2 bg-hover/40 cursor-pointer
-                                      hover:bg-hover transition-colors">
-                            <input type="checkbox" checked
-                                   data-group="{{ group.key }}"
-                                   data-admin--report-selection-target="group"
-                                   data-action="change->admin--report-selection#toggleGroup"
-                                   class="size-3.5 accent-accent cursor-pointer">
-
-                            <span class="text-[11px] font-medium text-ink">
-                                {{ ('tabs.' ~ group.filed)|trans }}
-                                <i class="fa-solid fa-arrow-right text-[9px] text-ink-faint mx-0.5" aria-hidden="true"></i>
-                                {{ ('tabs.' ~ group.shouldBe)|trans }}
-                            </span>
-
-                            <span class="text-[10px] text-ink-faint tabular-nums">{{ group.count }}</span>
-                        </label>
-
-                        {% for row in group.rows %}
-                            <label class="flex items-start gap-2 px-4 py-2 cursor-pointer
-                                          hover:bg-hover transition-colors">
-                                <input type="checkbox" checked
-                                       data-group="{{ group.key }}"
-                                       data-line="{{ row.line }}"
-                                       data-admin--report-selection-target="row"
-                                       data-action="change->admin--report-selection#toggleRow"
-                                       class="size-3.5 mt-0.5 accent-accent cursor-pointer shrink-0">
-
-                                <span class="min-w-0 flex-1">
-                                    <span class="flex items-baseline gap-2 min-w-0">
-                                        <span class="text-[10px] text-ink-faint tabular-nums shrink-0">{{ row.date }}</span>
-                                        <span class="text-[11px] text-ink-muted truncate">{{ row.from }}</span>
-                                    </span>
-
-                                    <span class="block text-[11px] text-ink truncate mt-0.5">{{ row.subject }}</span>
-
-                                    {# The line itself, on one row. It IS the
-                                       product, so it is on screen to be skimmed
-                                       before deciding whether the group is worth
-                                       taking; the full text goes to the
-                                       clipboard, not to this element. #}
-                                    <span class="block font-mono text-[10px] text-ink-faint truncate mt-0.5"
-                                          title="{{ row.line }}">{{ row.line }}</span>
-                                </span>
-                            </label>
-                        {% endfor %}
-                    </div>
-                {% endfor %}
-            </div>
-        </section>
     {% endif %}
 </turbo-frame>

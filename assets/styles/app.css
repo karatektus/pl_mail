@@ -3163,6 +3163,42 @@
     background-color: rgb(var(--rgb-raised) / calc(var(--raised-alpha) * 2));
     color: rgb(var(--rgb-ink-soft));
 }
+
+/* The fifth, added for Reported mail, where two kinds of report sit in one list
+   and the badge is the only thing separating them at a glance. Info rather than
+   success or warning because neither kind is good or bad news — they are two
+   categories of the same thing, and the pending/handled badge beside them is
+   already carrying the "is this a problem" colour. Same alpha as the rest. */
+@utility badge-info {
+    background-color: rgb(var(--rgb-info) / var(--danger-soft-alpha));
+    color: rgb(var(--rgb-info));
+}
+
+/* A filter chip: pressed or not, in one class, because the pressed state is set
+   from JavaScript on `data-active` and a Tailwind class list toggled from a
+   controller is a class list nobody can find from the template. */
+@utility chip-filter {
+    display: inline-flex;
+    align-items: center;
+    height: 1.5rem;
+    padding-inline: 0.5rem;
+    border-radius: 0.5rem;
+    border: 1px solid var(--color-line);
+    font-size: 0.6875rem;
+    color: rgb(var(--rgb-ink-muted));
+    cursor: pointer;
+    transition: background-color 150ms, color 150ms, border-color 150ms;
+
+    &:hover {
+        background-color: rgb(var(--rgb-raised) / var(--raised-alpha));
+    }
+
+    &[data-active="true"] {
+        border-color: rgb(var(--rgb-accent));
+        background-color: rgb(var(--rgb-accent) / var(--danger-soft-alpha));
+        color: rgb(var(--rgb-accent));
+    }
+}
 @layer utilities {
     /*
        Thread reply zone: hide the Reply/Forward buttons while an inline

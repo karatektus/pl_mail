@@ -1,67 +1,85 @@
 import { Controller } from "@hotwired/stimulus";
 
 /**
- * Choose which reports to take, and keep the copy/download text in step.
+ * Reported mail: which rows are shown, which are ticked, and what leaves with
+ * them.
+ *
+ * WHAT THIS REPLACED. The export used to take a scope — everything, or only the
+ * unhandled part — which answers the question an admin has on their first visit
+ * and none of the ones they have afterwards. The question that actually comes
+ * up is "these six, the ones about the shop". No fixed scope expresses that, so
+ * the page filters and ticks, and the export takes what is ticked.
+ *
+ * SELECTION IS CHECKED **AND** VISIBLE. Filtering does not untick anything: a
+ * row hidden by a chip is simply not part of the selection while it is hidden,
+ * and comes back ticked when it is shown again. The alternative — unticking on
+ * filter — quietly destroys a selection somebody built up across two chips, and
+ * they only find out from the file.
  *
  * WHY IT DOES NOT COPY ANYTHING ITSELF. It writes the chosen lines into the
  * `sink` element, which is also ui--clipboard's `source` target on the same
- * wrapper — so copying stays entirely that controller's job, including the
+ * wrapper, so copying stays entirely that controller's job — including the
  * execCommand path a self-hosted plMail on plain HTTP depends on. A second copy
  * implementation here would be a second one to keep working.
  *
- * Download is its own, because it has no such prior art: a Blob and an <a
- * download>, which is the whole of it.
- *
- * Everything starts CHECKED. The common case is still "take the lot", and a
- * panel that opens with nothing selected asks every reader to do work before
- * they can do the thing the card is for. Selecting is for the reader who wants
- * one group out of five.
+ * The export is a real form submission, not fetch: what comes back is a file,
+ * and the browser is the only thing here that can save one. The ticked keys are
+ * written into it as hidden inputs on every change, so the form is always
+ * submittable — including by a keyboard user who reaches it with Enter.
  *
  * Targets:
- *   row     — a report's checkbox. `data-line` carries the text it stands for.
- *   group   — a group's checkbox. `data-group` matches the rows' own.
- *   all     — the select-everything checkbox.
+ *   row     — a report's checkbox. `data-line` is its text, `data-key` its
+ *             `kind:id`, and its `[data-report-row]` ancestor is what gets
+ *             hidden.
+ *   all     — the select-everything-visible checkbox.
+ *   chip    — a filter button. `data-problem` / `data-status`; empty means "any".
  *   sink    — hidden; receives the selected lines, one per line.
  *   count   — optional; its text becomes "n selected".
  *   action  — buttons disabled while nothing is selected.
+ *   keys    — container the hidden `keys[]` inputs are written into.
  */
 export default class extends Controller {
-    static targets = ["row", "group", "all", "sink", "count", "action"];
+    static targets = ["row", "all", "chip", "sink", "count", "action", "keys"];
 
     static values = {
-        // "%count% selected" — translated at the call site.
-        countLabel: { type: String, default: "%count% selected" },
-        filename: { type: String, default: "category-reports.txt" },
+        // "{n} selected" — translated at the call site, where `%count%` has
+        // already been rendered as `{n}` (a literal `%count%` in the HTML reads
+        // as a translation that failed to interpolate).
+        countLabel: { type: String, default: "{n} selected" },
+        filename: { type: String, default: "reported-mail.txt" },
     };
 
     connect() {
-        this.#sync();
+        this.problem = "";
+        this.status = "";
+        this.#apply();
     }
 
     /** A single report was toggled. */
     toggleRow() {
-        this.#sync();
+        this.#apply();
     }
 
-    /** A group heading was toggled: its rows follow it. */
-    toggleGroup(event) {
-        const group = event.target.dataset.group;
-
-        for (const row of this.rowTargets) {
-            if (row.dataset.group === group) {
-                row.checked = event.target.checked;
-            }
-        }
-
-        this.#sync();
-    }
-
+    /** Everything currently on screen follows the header box. */
     toggleAll(event) {
-        for (const row of this.rowTargets) {
+        for (const row of this.#visibleRows()) {
             row.checked = event.target.checked;
         }
 
-        this.#sync();
+        this.#apply();
+    }
+
+    /**
+     * A chip was pressed. Same chip again clears it, which is the only way back
+     * to "everything" without hunting for an All chip on every row of them.
+     */
+    filter(event) {
+        const chip = event.currentTarget;
+        const group = "problem" in chip.dataset ? "problem" : "status";
+        const value = chip.dataset[group] ?? "";
+
+        this[group] = this[group] === value ? "" : value;
+        this.#apply();
     }
 
     download() {
@@ -87,33 +105,63 @@ export default class extends Controller {
         setTimeout(() => URL.revokeObjectURL(url), 10_000);
     }
 
+    /** Rows the current chips leave on screen. */
+    #visibleRows() {
+        return this.rowTargets.filter((row) => {
+            const matchesProblem = "" === this.problem || row.dataset.problem === this.problem;
+            const matchesStatus = "" === this.status || row.dataset.status === this.status;
+
+            return matchesProblem && matchesStatus;
+        });
+    }
+
     /**
-     * The chosen lines into the sink, and every indicator into agreement.
+     * Show what the chips allow, then bring every indicator into agreement.
      *
-     * Group and select-all boxes are DERIVED here rather than tracked, so a row
-     * unticked by hand shows up immediately as a half-ticked group above it.
+     * One pass rather than a filter step and a selection step, because the two
+     * are not independent: hiding a row changes the selection, and every count,
+     * every hidden input and the state of the header box all follow from the
+     * same list.
      */
-    #sync() {
-        const chosen = this.rowTargets.filter((row) => row.checked);
+    #apply() {
+        const visible = new Set(this.#visibleRows());
+
+        for (const row of this.rowTargets) {
+            row.closest("[data-report-row]").hidden = false === visible.has(row);
+        }
+
+        for (const chip of this.chipTargets) {
+            const group = "problem" in chip.dataset ? "problem" : "status";
+
+            chip.dataset.active = String(this[group] === (chip.dataset[group] ?? ""));
+        }
+
+        const chosen = [...visible].filter((row) => row.checked);
 
         this.sinkTarget.textContent = chosen.map((row) => row.dataset.line).join("\n");
 
-        for (const group of this.groupTargets) {
-            const rows = this.rowTargets.filter((row) => row.dataset.group === group.dataset.group);
-            const ticked = rows.filter((row) => row.checked).length;
+        // Rewritten wholesale rather than patched: the form has to hold exactly
+        // the current selection at every moment, and reconciling inputs one at
+        // a time is how it comes to hold a key for a row somebody unticked.
+        this.keysTarget.replaceChildren(
+            ...chosen.map((row) => {
+                const field = document.createElement("input");
 
-            group.checked = 0 < ticked && ticked === rows.length;
-            group.indeterminate = 0 < ticked && ticked < rows.length;
-        }
+                field.type = "hidden";
+                field.name = "keys[]";
+                field.value = row.dataset.key;
+
+                return field;
+            }),
+        );
 
         if (true === this.hasAllTarget) {
-            this.allTarget.checked = 0 < chosen.length && chosen.length === this.rowTargets.length;
-            this.allTarget.indeterminate =
-                0 < chosen.length && chosen.length < this.rowTargets.length;
+            this.allTarget.checked = 0 < chosen.length && chosen.length === visible.size;
+            this.allTarget.indeterminate = 0 < chosen.length && chosen.length < visible.size;
         }
 
         if (true === this.hasCountTarget) {
-            this.countTarget.textContent = this.countLabelValue.replace("%count%", chosen.length);
+            this.countTarget.textContent = this.countLabelValue.replace("{n}", chosen.length);
         }
 
         for (const action of this.actionTargets) {

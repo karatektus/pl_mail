@@ -175,6 +175,23 @@ class CategoryReport
     #[ORM\Column]
     public DateTimeImmutable $createdAt;
 
+    /**
+     * When somebody decided this one had been dealt with.
+     *
+     * Arrived with the unified panel, and it is the column that makes these
+     * rows belong in the same list as the missed-insight reports: a triage list
+     * is only a worklist if a row can leave it. Before this, the only way to
+     * stop looking at a category report was to delete every one of them, which
+     * meant the evidence for a rule went at the same moment the rule changed —
+     * exactly when somebody might want to check it again.
+     *
+     * A stamp and not a flag, for InsightReport::$handledAt's reason: "when"
+     * answers "has this been looked at since the last release" and "yes" does
+     * not.
+     */
+    #[ORM\Column(nullable: true)]
+    public ?DateTimeImmutable $handledAt = null;
+
     public function __construct()
     {
         $this->createdAt = new DateTimeImmutable();

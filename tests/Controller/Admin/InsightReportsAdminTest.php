@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace App\Tests\Controller\Admin;
 
 use App\Controller\Admin\InsightReportController;
+use App\Domain\Enum\Mail\MessageCategory;
 use App\Entity\Insight\InsightReport;
+use App\Entity\Monitoring\CategoryReport;
 use App\Entity\User\User;
 use DateTimeImmutable;
 use Doctrine\DBAL\Connection;
@@ -75,16 +77,16 @@ final class InsightReportsAdminTest extends WebTestCase
         $client->request('POST', self::PANEL . '/export', ['_token' => 'irrelevant', 'scope' => 'all']);
         self::assertResponseStatusCodeSame(403, 'a non-admin was handed other people\'s mail');
 
-        $client->request('POST', self::PANEL . '/' . $report->id . '/handled', ['_token' => 'irrelevant']);
+        $client->request('POST', self::PANEL . '/insight/' . $report->id . '/handled', ['_token' => 'irrelevant']);
         self::assertResponseStatusCodeSame(403);
 
-        $client->request('POST', self::PANEL . '/' . $report->id . '/delete', ['_token' => 'irrelevant']);
+        $client->request('POST', self::PANEL . '/insight/' . $report->id . '/delete', ['_token' => 'irrelevant']);
         self::assertResponseStatusCodeSame(403);
 
         $client->request('POST', self::PANEL . '/clear-handled', ['_token' => 'irrelevant']);
         self::assertResponseStatusCodeSame(403);
 
-        self::assertSame(1, $this->rowsWithId($report->id), 'a refused request deleted the report anyway');
+        self::assertSame(1, $this->rowsWithId('insight_report', (int) $report->id), 'a refused request deleted the report anyway');
     }
 
     /**
@@ -99,8 +101,8 @@ final class InsightReportsAdminTest extends WebTestCase
 
         $paths = [
             '/export',
-            '/' . $report->id . '/handled',
-            '/' . $report->id . '/delete',
+            '/insight/' . $report->id . '/handled',
+            '/insight/' . $report->id . '/delete',
             '/clear-handled',
         ];
 
@@ -110,7 +112,7 @@ final class InsightReportsAdminTest extends WebTestCase
             self::assertResponseStatusCodeSame(403, $path . ' ran without a CSRF token');
         }
 
-        self::assertSame(1, $this->rowsWithId($report->id));
+        self::assertSame(1, $this->rowsWithId('insight_report', (int) $report->id));
     }
 
     public function testThePanelListsAReportWithItsSenderSubjectAndNote(): void
@@ -207,7 +209,7 @@ final class InsightReportsAdminTest extends WebTestCase
         self::assertResponseIsSuccessful();
         self::assertResponseHeaderSame('Content-Type', 'application/json; charset=utf-8');
         self::assertStringContainsString(
-            'attachment; filename=plmail-insight-reports-',
+            'attachment; filename=plmail-reported-mail-',
             (string) $client->getResponse()->headers->get('Content-Disposition'),
         );
         // A proxy holding a copy of somebody's mail is the whole feature undone.
@@ -218,12 +220,17 @@ final class InsightReportsAdminTest extends WebTestCase
         self::assertIsArray($document);
         self::assertSame(InsightReportController::DOCUMENT_FORMAT, $document['format']);
         self::assertSame(InsightReportController::DOCUMENT_VERSION, $document['version']);
-        self::assertSame('pending', $document['scope'], 'the default export was not the pile with work left in it');
+        // Everything, because nothing was ticked. The scope used to be a
+        // drop-down and is now the selection, and an empty post is the one a
+        // browser without JavaScript sends — a download that answered it with
+        // an empty file would be worse than a large one.
+        self::assertSame('all', $document['scope'], 'an unticked export did not fall back to everything');
         self::assertArrayHasKey('exportedAt', $document);
         self::assertSame(count($document['reports']), $document['count'], 'the header disagrees with the records');
 
-        $record = $this->recordFor($document, (int) $report->id);
+        $record = $this->recordFor($document, 'insight', (int) $report->id);
 
+        self::assertSame('insight', $record['kind'], 'the record does not say which kind it is');
         self::assertSame($report->subject, $record['subject']);
         self::assertSame($report->fromAddress, $record['fromAddress']);
         self::assertSame($report->fromName, $record['fromName']);
@@ -233,33 +240,103 @@ final class InsightReportsAdminTest extends WebTestCase
         self::assertNull($record['handledAt']);
 
         // The decision, asserted: downloading is not processing.
-        self::assertNull($this->handledAt($report->id), 'the export marked the report handled behind the admin\'s back');
+        self::assertNull($this->handledAt('insight_report', (int) $report->id), 'the export marked the report handled behind the admin\'s back');
     }
 
     /**
-     * The other scope, and the one that proves the default was doing something:
-     * a handled report is absent by default and present when asked for.
+     * The selection is the scope, and it is the point of the rework.
+     *
+     * A fixed scope — everything, or only the unhandled part — answers the
+     * question an admin has on their first visit and none of the ones they have
+     * afterwards. The one that comes up is "these, the ones about the shop",
+     * and the only way to be sure that works is to ask for one report out of
+     * two and check the other is not in the file.
      */
-    public function testTheAllScopeIncludesWhatTheDefaultLeavesOut(): void
+    public function testExportingASelectionTakesOnlyTheTickedReports(): void
     {
-        $client = $this->signInAsAdmin();
-        $done   = $this->seedReport('already dealt with', handled: true);
+        $client  = $this->signInAsAdmin();
+        $wanted  = $this->seedReport('asked for');
+        $ignored = $this->seedReport('left behind');
 
         $client->request('POST', self::PANEL . '/export', [
             '_token' => $this->token($client, 'insight_reports_export'),
-        ]);
-
-        self::assertStringNotContainsString((string) $done->subject, (string) $client->getResponse()->getContent());
-
-        $client->request('POST', self::PANEL . '/export', [
-            '_token' => $this->token($client, 'insight_reports_export'),
-            'scope'  => 'all',
+            'keys'   => ['insight:' . $wanted->id],
         ]);
 
         $document = json_decode((string) $client->getResponse()->getContent(), true, 512, JSON_THROW_ON_ERROR);
 
-        self::assertSame('all', $document['scope']);
-        self::assertNotNull($this->recordFor($document, (int) $done->id)['handledAt']);
+        self::assertSame('selection', $document['scope']);
+        self::assertSame(1, $document['count'], 'a one-report selection produced a different number of records');
+        // recordFor() fails when it is absent, so this asserts the record is
+        // the right one rather than merely present.
+        self::assertSame($wanted->subject, $this->recordFor($document, 'insight', (int) $wanted->id)['subject']);
+        self::assertStringNotContainsString(
+            (string) $ignored->subject,
+            (string) $client->getResponse()->getContent(),
+            'a report nobody ticked was exported anyway',
+        );
+    }
+
+    /**
+     * Both kinds, one pile — the whole claim of the unified panel.
+     *
+     * They were two tables behind two panels with two export buttons, and the
+     * only thing that makes them one feature is that this list and this file
+     * hold both. Asserted together because the failure mode is silent: a panel
+     * that lists only one kind looks completely normal to anybody who has not
+     * just reported the other.
+     */
+    public function testThePanelAndTheExportHoldBothKindsOfReport(): void
+    {
+        $client   = $this->signInAsAdmin();
+        $insight  = $this->seedReport('a missed insight');
+        $category = $this->seedCategoryReport('a wrong tab');
+
+        $client->request('GET', self::PANEL);
+
+        $body = (string) $client->getResponse()->getContent();
+
+        self::assertStringContainsString((string) $insight->subject, $body);
+        self::assertStringContainsString($category->subject, $body, 'the wrongly-sorted report is not in the list');
+
+        $client->request('POST', self::PANEL . '/export', [
+            '_token' => $this->token($client, 'insight_reports_export'),
+        ]);
+
+        $document = json_decode((string) $client->getResponse()->getContent(), true, 512, JSON_THROW_ON_ERROR);
+        $record   = $this->recordFor($document, 'category', (int) $category->id);
+
+        // The evidence, not only the verdicts: these are the fields somebody
+        // counts when deciding whether a rule should change.
+        self::assertSame('promotions', $record['filed']);
+        self::assertSame('primary', $record['shouldBe']);
+        self::assertSame('list-unsubscribe', $record['bulkHeaders']);
+        self::assertFalse($record['hasPlainText']);
+        self::assertStringContainsString('filed:promotions should:primary', $record['line']);
+
+        self::assertSame($insight->subject, $this->recordFor($document, 'insight', (int) $insight->id)['subject']);
+    }
+
+    /** A category report can be crossed off too, which is what makes it a worklist. */
+    public function testACategoryReportCanBeMarkedHandledAndDeleted(): void
+    {
+        $client = $this->signInAsAdmin();
+        $report = $this->seedCategoryReport('dealt with');
+        $id     = (int) $report->id;
+
+        $client->request('POST', self::PANEL . '/category/' . $id . '/handled', [
+            '_token' => $this->token($client, 'insight_report_handled_category_' . $id),
+        ]);
+
+        self::assertResponseIsSuccessful();
+        self::assertNotNull($this->handledAt('category_report', $id));
+
+        $client->request('POST', self::PANEL . '/category/' . $id . '/delete', [
+            '_token' => $this->token($client, 'insight_report_delete_category_' . $id),
+        ]);
+
+        self::assertResponseIsSuccessful();
+        self::assertSame(0, $this->rowsWithId('category_report', $id));
     }
 
     public function testMarkingHandledIsIdempotent(): void
@@ -267,21 +344,21 @@ final class InsightReportsAdminTest extends WebTestCase
         $client = $this->signInAsAdmin();
         $report = $this->seedReport('clicked twice');
 
-        $client->request('POST', self::PANEL . '/' . $report->id . '/handled', [
-            '_token' => $this->token($client, 'insight_report_handled_' . $report->id),
+        $client->request('POST', self::PANEL . '/insight/' . $report->id . '/handled', [
+            '_token' => $this->token($client, 'insight_report_handled_insight_' . $report->id),
         ]);
 
         self::assertResponseIsSuccessful();
 
-        $first = $this->handledAt($report->id);
+        $first = $this->handledAt('insight_report', (int) $report->id);
         self::assertNotNull($first, 'the report was not marked handled at all');
 
-        $client->request('POST', self::PANEL . '/' . $report->id . '/handled', [
-            '_token' => $this->token($client, 'insight_report_handled_' . $report->id),
+        $client->request('POST', self::PANEL . '/insight/' . $report->id . '/handled', [
+            '_token' => $this->token($client, 'insight_report_handled_insight_' . $report->id),
         ]);
 
         self::assertResponseIsSuccessful();
-        self::assertSame($first, $this->handledAt($report->id), 'the second click moved the stamp');
+        self::assertSame($first, $this->handledAt('insight_report', (int) $report->id), 'the second click moved the stamp');
     }
 
     public function testDeletingRemovesTheRow(): void
@@ -290,12 +367,12 @@ final class InsightReportsAdminTest extends WebTestCase
         $report = $this->seedReport('a mis-click');
         $id     = (int) $report->id;
 
-        $client->request('POST', self::PANEL . '/' . $id . '/delete', [
-            '_token' => $this->token($client, 'insight_report_delete_' . $id),
+        $client->request('POST', self::PANEL . '/insight/' . $id . '/delete', [
+            '_token' => $this->token($client, 'insight_report_delete_insight_' . $id),
         ]);
 
         self::assertResponseIsSuccessful();
-        self::assertSame(0, $this->rowsWithId($id));
+        self::assertSame(0, $this->rowsWithId('insight_report', $id));
     }
 
     /**
@@ -314,8 +391,8 @@ final class InsightReportsAdminTest extends WebTestCase
         ]);
 
         self::assertResponseIsSuccessful();
-        self::assertSame(0, $this->rowsWithId($done->id), 'the handled report survived the sweep');
-        self::assertSame(1, $this->rowsWithId($waiting->id), 'the sweep took a report nobody had finished with');
+        self::assertSame(0, $this->rowsWithId('insight_report', (int) $done->id), 'the handled report survived the sweep');
+        self::assertSame(1, $this->rowsWithId('insight_report', (int) $waiting->id), 'the sweep took a report nobody had finished with');
     }
 
     // ── Fixtures ──────────────────────────────────────────────────────────────
@@ -331,28 +408,81 @@ final class InsightReportsAdminTest extends WebTestCase
      *
      * @return array<string, mixed>
      */
-    private function recordFor(array $document, int $id): array
+    private function recordFor(array $document, string $kind, int $id): array
     {
         foreach ($document['reports'] as $record) {
-            if ($id === $record['id']) {
+            // Kind AND id: the two tables number themselves independently, so
+            // `7` alone matches two different reports.
+            if ($id === $record['id'] && $kind === $record['kind']) {
                 return $record;
             }
         }
 
-        self::fail(sprintf('report %d is not in the export', $id));
+        self::fail(sprintf('%s report %d is not in the export', $kind, $id));
     }
 
-    /** Read past the ORM's identity map: what is actually in the row now. */
-    private function handledAt(?int $id): ?string
+    /**
+     * Read past the ORM's identity map: what is actually in the row now.
+     *
+     * The table is a parameter because both kinds are triaged through the same
+     * routes now, and a helper that only ever looked at one of them would pass
+     * happily while the other went untouched.
+     */
+    private function handledAt(string $table, ?int $id): ?string
     {
-        $value = $this->connection->fetchOne('SELECT handled_at FROM insight_report WHERE id = ?', [$id]);
+        $value = $this->connection->fetchOne(
+            sprintf('SELECT handled_at FROM %s WHERE id = ?', $table),
+            [$id],
+        );
 
         return false === $value || null === $value ? null : (string) $value;
     }
 
-    private function rowsWithId(?int $id): int
+    private function rowsWithId(string $table, ?int $id): int
     {
-        return (int) $this->connection->fetchOne('SELECT COUNT(*) FROM insight_report WHERE id = ?', [$id]);
+        return (int) $this->connection->fetchOne(
+            sprintf('SELECT COUNT(*) FROM %s WHERE id = ?', $table),
+            [$id],
+        );
+    }
+
+    /**
+     * A wrongly-sorted report, with the evidence columns filled.
+     *
+     * Deliberately the awkward shape rather than a neutral one: a mailing with
+     * no plain-text part, filed by the rules on its unsubscribe header, that a
+     * human says belongs in Primary. That is the case the whole feature exists
+     * to collect, and a fixture without those columns would let a dropped field
+     * pass.
+     */
+    private function seedCategoryReport(string $marker, bool $handled = false): CategoryReport
+    {
+        $unique = uniqid('', true);
+
+        $report              = new CategoryReport();
+        $report->usr         = $this->seedUser();
+        $report->messageId   = random_int(1_000, 9_999);
+        $report->filed       = MessageCategory::Promotions;
+        $report->shouldBe    = MessageCategory::Primary;
+        $report->rules       = MessageCategory::Promotions;
+        $report->rulesSignal = 'list-unsubscribe';
+        $report->model       = MessageCategory::Primary;
+        $report->aiAsked     = true;
+        $report->source      = 'assistant';
+        $report->bulkHeaders = 'list-unsubscribe';
+        $report->listId      = '<jobs.karriere.test>';
+        $report->fromAddress = sprintf('anna-%s@karriere.test', $unique);
+        $report->fromName    = 'Anna Weber';
+        $report->subject     = sprintf('Unterlagen fur die Stelle (%s, %s)', $marker, $unique);
+
+        if (true === $handled) {
+            $report->handledAt = new DateTimeImmutable('2026-08-19 18:00:00');
+        }
+
+        $this->em->persist($report);
+        $this->em->flush();
+
+        return $report;
     }
 
     /**

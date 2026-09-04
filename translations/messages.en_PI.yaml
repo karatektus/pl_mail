@@ -89,15 +89,6 @@ admin:
             hours: '%count% h'
             minutes: '%count% min'
             seconds: '%count% s'
-        reports:
-            clear: "Empty th' reports"
-            clear_confirm: "Scuttle every report? Naught brings 'em back — 'tis what somebody spied in their own mail."
-            copy: "Copy what be picked"
-            download: "Haul it down"
-            heading: "Reported as wrongly stowed"
-            select_all: "Pick the lot"
-            selected: "%count% picked"
-            subheading: "%count% messages somebody found in th' wrong tab, sorted by th' trouble they tell of. Take th' bundle that be about yer rule — a rule, th' orders, or th' oracle."
         embedding_preset:
             heading: "Measured settin's — one click sets model, orders an' threshold as one:"
             all-minilm: "Small an' swift: 45 MB an' 384 dimensions, for a vessel short on memory. English first, so the weakest here on German mail. Wants no orders."
@@ -291,31 +282,51 @@ admin:
             confirm: 'Sink %count% report(s) already struck off? Th'' copies o'' th'' letters go down with ''em.'
             heading: 'Clear th'' settled pile'
             lead: '%count% report(s) ye have struck off. Whatever still waits stays put.'
+        copy: 'Copy what be picked'
+        copy_hint: 'Th'' picked reports as plain lines, for droppin'' into orders or a grievance.'
         delete: 'Sink this report'
         delete_confirm: 'Sink this report? Th'' copy o'' th'' letter goes down with it.'
+        download: 'Save as plain text'
+        download_hint: 'Th'' same lines, as a text chest.'
         empty: 'Naught has been reported.'
-        empty_hint: 'These wash up here when a hand tells plMail a letter should have yielded a findin'' an'' did not. Post reported as wrongly stowed shows below.'
+        empty_hint: 'This fills when a hand tells plMail it got a letter wrong — one that should have yielded a findin'' an'' did not, or one they found in th'' wrong tab.'
         export:
-            heading: 'Haul it ashore'
-            intro: 'One JSON chest holdin'' every copy: who sent it, th'' heading, when it made port, th'' text, an'' what th'' hand reportin'' it expected to see. That be what a new spyglass gets built from.'
-            not_handled: 'Haulin'' it ashore changes naught here. A report be settled when ye say so, not when it has been copied.'
-            scope: 'What to load aboard'
-            scope_all: 'Every report, settled or not'
-            scope_pending: 'Only what still waits'
-            submit: 'Haul it down'
+            intro: 'One JSON chest holdin'' th'' picked reports entire: every verdict, th'' headers each was decided on, an'' th'' text where there be any. That be what a rule or a new spyglass gets built from. Pick naught an'' ye get th'' lot.'
+            not_handled: 'Haulin'' it ashore changes naught here — a report be settled when ye say so.'
+            submit: 'Haul th'' picked ashore'
             warning: 'This chest holds other hands'' letters. Stow it where ye''d stow th'' mailbag itself.'
+        filter: 'Show'
+        filter_handled: 'Settled'
+        filter_pending: 'Waitin'''
         handled: 'Settled'
         handled_at: 'Struck off %when%'
         heading: 'Reported letters'
+        kind:
+            category: 'Wrong tab'
+            insight: 'No findin'''
         mark_handled: 'Strike it off'
         no_body: 'This report carries no text at all.'
         no_sender: 'no sender logged'
         no_subject: '(no heading)'
         pending: '{0}Naught waitin''|{1}1 waitin''|]1,Inf[ %count% waitin'''
         pending_badge: 'Waitin'''
+        problem:
+            no_insight: 'No findin'''
         received_at: 'Letter made port %when%'
         reported_by: 'Reported by %who%'
         reporter_gone: 'a hand put ashore'
+        select_all: 'Pick all that show'
+        selected: '%count% picked'
+        verdict:
+            body: 'Text th'' oracle saw'
+            body_none: 'none — HTML only'
+            body_text: 'aye'
+            gmail: 'Gmail said'
+            headers: 'Bulk headers'
+            model: 'Th'' oracle said'
+            none: 'none'
+            not_asked: 'never asked'
+            rules: 'Th'' rules said'
     integrations:
         base_url_per_user: 'Every hand names their own port.'
         base_url_pinned: 'set fast for all hands'

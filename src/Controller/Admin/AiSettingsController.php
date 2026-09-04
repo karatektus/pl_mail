@@ -11,7 +11,6 @@ use App\Domain\Enum\Ai\PromptSlot;
 use App\Form\Admin\AiSettingsType;
 use App\Repository\Ai\AiSettingsRepository;
 use App\Service\Ai\AiAssistant;
-use App\Repository\Monitoring\CategoryReportRepository;
 use App\Service\Ai\AiPerformancePanel;
 use App\Service\Ai\EmbeddingBackfill;
 use App\Service\Ai\PromptLibrary;
@@ -115,28 +114,6 @@ final class AiSettingsController extends AbstractController
             'probe'    => null,
             'prompts'  => $this->promptRows(),
         ]);
-    }
-
-    /**
-     * Empty the miscategorisation reports.
-     *
-     * The only copy, so it asks nothing and simply does it — the confirm lives
-     * where confirms belong, in front of the button. These are observations
-     * about somebody's own mail and nothing regenerates them, which is exactly
-     * why clearing is a deliberate press rather than a retention window: a
-     * pattern across twenty reports over two months is the product, and a
-     * nightly prune would destroy it.
-     */
-    #[Route('/reports/clear', name: 'reports_clear', methods: ['POST'])]
-    public function clearReports(Request $request, CategoryReportRepository $reports): Response
-    {
-        if (false === $this->isCsrfTokenValid('admin_ai_reports_clear', (string) $request->request->get('_token'))) {
-            throw $this->createAccessDeniedException();
-        }
-
-        $reports->clearAll();
-
-        return $this->redirectToRoute('app_admin_dashboard', ['section' => 'ai']);
     }
 
     /**
