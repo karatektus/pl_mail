@@ -2804,10 +2804,12 @@ settings:
                 This throws the waiting work away for good. Nothing is retried
                 and it cannot be brought back. Continue?
         fact:
+            granted_at: 'Signed in on'
             last_full_resync: 'Re-listed the whole mailbox (%count%×)'
             never: 'never'
             never_delivered: 'nothing has ever arrived'
             never_run: 'no run recorded'
+            not_recorded: 'not recorded'
             not_registered: 'not registered'
             push_expires: 'Registration expires'
             push_last_delivered: 'Last notification received'
@@ -2842,6 +2844,42 @@ settings:
                     authentication is switched on, or the sign-in is revoked
                     from the provider's security page.
                 title: '%account% needs you to sign in again'
+            account_grant_weekly_expiry:
+                body: >-
+                    Mail is still arriving. But the last sign-in on this account
+                    lasted %days% days before Google stopped accepting it, and
+                    this one is now about the same age — so it is likely to stop
+                    within a day or two.
+
+                    That pattern is what Google does to an OAuth app whose
+                    consent screen is still in Testing: refresh tokens issued by
+                    one expire after about a week, however the app asks for
+                    them. Signing in again buys another week and fixes nothing.
+                    The fix is in the Google Cloud console — set the consent
+                    screen's publishing status to In production. Publishing is
+                    not the same as verification; an unverified app still works,
+                    it just shows a warning screen the first time.
+
+                    If you have not left it in Testing, ignore this — something
+                    else ended that sign-in early, and it may not happen again.
+                title: '%account% is likely to need signing in again within a day or two'
+            account_reconnect_weekly:
+                body: >-
+                    New mail has stopped arriving for this account, and so has
+                    everything that depends on it — calendar syncing, filters
+                    that run on delivery, and sending from this address. The
+                    mail already downloaded is safe and still here.
+
+                    This sign-in lasted %days% days, which is what Google does
+                    to an OAuth app whose consent screen is still in Testing:
+                    refresh tokens issued by one expire after about a week. If
+                    that is this installation, signing in again will get the
+                    mail moving and the same thing will happen next week. What
+                    stops it is in the Google Cloud console — set the consent
+                    screen's publishing status to In production. Publishing is
+                    not the same as verification; an unverified app still works,
+                    it just shows a warning screen the first time.
+                title: '%account% needs you to sign in again — and will again in a week'
             account_scope_missing:
                 body: >-
                     Some of the permissions plMail asked for when this account
@@ -2982,6 +3020,15 @@ settings:
                     Takes you back to the provider to sign in as %account% and
                     grant everything plMail asks for. Nothing about your mail
                     changes, and no mail is re-downloaded.
+            reconnect_early:
+                label: 'Sign in again now'
+                promise: >-
+                    Takes you to sign in again before this one runs out, so
+                    nothing stops in the meantime. Your mail, folders, labels,
+                    filters, calendars and settings all stay exactly as they are.
+                    You must sign in as %account%. This buys another week — it
+                    does not stop it happening again, which is what publishing
+                    the consent screen does.
             reconnect:
                 label: 'Reconnect this account'
                 promise: >-

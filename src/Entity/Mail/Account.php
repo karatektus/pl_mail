@@ -339,6 +339,42 @@ class Account extends AccountModel
     #[ORM\Column(nullable: true)]
     public ?DateTimeImmutable $oauthLastRefreshAt = null;
 
+    /**
+     * When the refresh token this account is currently holding was issued.
+     *
+     * Not the same as {@see $oauthLastRefreshAt}, which moves every hour. This
+     * moves only when the provider hands over a NEW refresh token, which for
+     * Google means the moment somebody completed the consent screen — so it is
+     * the age of the GRANT rather than of the access token.
+     *
+     * It exists to answer one question: how long did this sign-in last before
+     * it died? Google expires refresh tokens issued by an OAuth app still in
+     * "Testing" publishing status after about a week, and a self-hosted install
+     * is usually left in Testing because publishing means verification. The
+     * symptom is an account that stops every seven days for ever, with an
+     * `invalid_grant` that says nothing about why — and the only thing that
+     * distinguishes it from a revoked password is the interval.
+     *
+     * Null for every account connected before this was recorded, and that stays
+     * null until the next reconnect. Nothing infers anything from a null.
+     */
+    #[ORM\Column(nullable: true)]
+    public ?DateTimeImmutable $oauthGrantedAt = null;
+
+    /**
+     * How many hours the PREVIOUS sign-in lasted before it was revoked.
+     *
+     * Kept across the reconnect on purpose: it is the only evidence that
+     * survives it, and the whole point is to be able to say "this will happen
+     * again in a week" the moment somebody has just fixed it — which is the one
+     * moment they are looking at the account and could act on the cause.
+     *
+     * One observation is enough to be worth mentioning and not enough to be
+     * certain, and the wording says so.
+     */
+    #[ORM\Column(nullable: true)]
+    public ?int $oauthPriorGrantHours = null;
+
     #[ORM\Column(type: Types::TEXT, nullable: true)]
     public ?string $oauthLastRefreshError = null;
 

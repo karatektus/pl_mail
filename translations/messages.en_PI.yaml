@@ -2420,10 +2420,12 @@ settings:
                 This heaves th'' waitin'' work overboard fer good. Naught be
                 tried again, an'' naught comes back up. Carry on?
         fact:
+            granted_at: 'Signed on'
             last_full_resync: 'Counted the whole hold again (%count%×)'
             never: 'never'
             never_delivered: 'naught ever came ashore'
             never_run: 'no run in th'' log'
+            not_recorded: 'not logged'
             not_registered: 'not registered'
             push_expires: 'Registration runs out'
             push_last_delivered: 'Last signal heard'
@@ -2449,6 +2451,35 @@ settings:
                 this page says why.
             title: 'All hands healthy'
         issue:
+            account_grant_weekly_expiry:
+                body: >-
+                    Post still comes aboard. But th' last signin' on this
+                    account held %days% days afore Google stopped honourin' it,
+                    an' this one be near the same age — so it likely gives out
+                    within a day or two.
+
+                    That be what Google does to an app whose consent screen
+                    still sits in Testin': its tokens run dry after about a
+                    week, however politely ye ask. Signin' on again buys another
+                    week an' mends naught. Th' mendin' be in th' Google Cloud
+                    console — set th' consent screen's publishin' status to In
+                    production. Publishin' be not th' same as verifyin'; an
+                    unverified app still sails, it merely shows a warnin' the
+                    first time.
+                title: "%account% will likely want signin' on again within a day or two"
+            account_reconnect_weekly:
+                body: >-
+                    No new post comes aboard for this account, an' all that
+                    hangs on it be becalmed too. What be already stowed be safe.
+
+                    This signin' held %days% days, which be what Google does to
+                    an app whose consent screen still sits in Testin': its
+                    tokens run dry after about a week. If that be this vessel,
+                    signin' on again gets th' post movin' an' th' same thing
+                    happens next week. What stops it be in th' Google Cloud
+                    console — set th' consent screen's publishin' status to In
+                    production.
+                title: "%account% wants signin' on again — an' will again in a week"
             account_reconnect:
                 body: >-
                     No fresh post be comin'' in fer this one, an'' neither be
@@ -2593,6 +2624,12 @@ settings:
                     Takes ye back to sign on as %account% and grant all that be
                     asked. Naught about yer post changes, and no post be hauled
                     again.
+            reconnect_early:
+                label: "Sign on again now"
+                promise: >-
+                    Signs ye on again afore this one runs dry, so naught stops
+                    in th' meantime. Ye must sign on as %account%. This buys
+                    another week — it does not stop it happenin' again.
             reconnect:
                 label: 'Sign this one on again'
                 promise: >-

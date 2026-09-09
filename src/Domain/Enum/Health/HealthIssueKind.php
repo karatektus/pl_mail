@@ -43,6 +43,31 @@ enum HealthIssueKind: string
      * The repair is the same reconnect, with a different thing to do on the
      * consent screen — which is why the wording, not the button, is the point.
      */
+    /**
+     * The same dead sign-in, recognised as Google's weekly limit.
+     *
+     * Its own case rather than a parameter on AccountReconnect because the
+     * ANSWER is different, and that is the only thing a card is for. The plain
+     * one says "sign in again", which is true and is the whole of it when a
+     * password changed. This one says "sign in again, and here is why it will
+     * happen again next week unless you publish the app" — advice nobody can
+     * act on if it is buried in a body written for the general case.
+     *
+     * Same severity, same repair. See WeeklyGrantExpiry for what separates them
+     * and why the inference is stated as one.
+     */
+    case AccountReconnectWeekly = 'account_reconnect_weekly';
+
+    /**
+     * A sign-in that still works and is expected to stop within a day or two.
+     *
+     * The only card here that is about something that has not happened yet, and
+     * it earns that by being evidence-based rather than predictive in the loose
+     * sense: it requires a previous grant on this account to have died at about
+     * a week, which is a fact, and the current one to be near the same age.
+     */
+    case AccountGrantWeeklyExpiry = 'account_grant_weekly_expiry';
+
     case AccountScopeMissing = 'account_scope_missing';
 
     /**
@@ -168,6 +193,13 @@ enum HealthIssueKind: string
     {
         return match ($this) {
             self::AccountReconnect     => HealthSeverity::Critical,
+            // Identical to the plain one: mail has stopped either way, and the
+            // extra sentence about publishing does not make it less urgent.
+            self::AccountReconnectWeekly => HealthSeverity::Critical,
+            // Warning: the mail is still arriving. Critical would put "your
+            // account has stopped" beside an account that has not, which is the
+            // fastest way to teach somebody to read past the red ones.
+            self::AccountGrantWeeklyExpiry => HealthSeverity::Warning,
             // Warning, not Critical: mail is arriving and will keep arriving.
             // Sitting this beside "your account has stopped receiving" would
             // teach people to read past both.
@@ -224,6 +256,9 @@ enum HealthIssueKind: string
     {
         return match ($this) {
             self::AccountReconnect     => 'fa-link-slash',
+            // A broken link with a clock on it — the same fault, on a timer.
+            self::AccountReconnectWeekly => 'fa-clock-rotate-left',
+            self::AccountGrantWeeklyExpiry => 'fa-hourglass-half',
             // A permission that was not given, rather than a link that broke.
             self::AccountScopeMissing  => 'fa-calendar-day',
             self::AccountSyncFailing   => 'fa-inbox',

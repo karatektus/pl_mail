@@ -10,6 +10,31 @@ The published image tags: `latest` follows the most recent release below,
 
 ### Added
 
+- **A Gmail sign-in that dies every week now says why, and warns before the next one.** Google
+  expires refresh tokens issued by an OAuth app whose consent screen is still in *Testing* after
+  about a week — which is the state nearly every self-hosted install is in, because leaving it there
+  is the documented way to avoid Google's verification review. The account works, stops seven days
+  later, gets reconnected, and stops again, for ever.
+
+  **Google gives no clue which case you are in.** It returns `invalid_grant`, and that is the same
+  answer it gives for a revoked consent, a changed password, and a token that aged out. The only
+  thing separating them is how long the sign-in lasted, and nothing was recording that. Now two
+  columns do: when a grant was issued, and how many hours the previous one survived — kept across
+  the reconnect, because that is the one moment somebody is looking at the account and could act on
+  the cause.
+
+  A sign-in that dies after about a week gets a card naming that cause and the actual fix (set the
+  consent screen's publishing status to *In production* — which is **not** the same as submitting
+  for verification, a distinction the handbook previously blurred). Once the pattern has been seen
+  once, Account health warns a day or two *before* the next one runs out and offers to sign in again
+  while nothing is broken. Both cards show when the current sign-in was issued, because the claim is
+  an inference and the reasoning should be checkable.
+
+  Nothing is claimed about an account connected before this was recorded, and nothing is claimed
+  from one long-lived grant that was simply revoked — the window is deliberately narrow enough to
+  exclude it.
+
+
 - **Browser errors reach the admin panel.** Uncaught exceptions and rejected promises from plMail's
   own scripts now land in their own card under **Admin → Logs**, alongside the things the
   Content-Security-Policy blocked. Until now a JavaScript fault was visible only to whoever happened

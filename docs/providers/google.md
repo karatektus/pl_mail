@@ -122,12 +122,27 @@ verification review, and the same is true of the full `drive` scope plMail's Goo
 integration uses. The app's own Drive setup notes say it plainly — Google requires app verification
 before users outside your test list can consent.
 
-For a self-hosted install this usually means you do not publish at all. Leave the project in
-**Testing**, add the handful of addresses that will connect as test users, and consent works
-immediately with an "unverified app" interstitial you click through. The trade is that Google
-expires refresh tokens issued by an app in Testing after about a week, so an account connected this
-way needs reconnecting periodically; publishing and going through verification is what removes
-that, and is only worth it for an install with real users who are not you.
+For a self-hosted install the usual advice is to leave the project in **Testing**, add the handful of
+addresses that will connect as test users, and click through the "unverified app" interstitial. That
+works, and it has one cost that catches everybody: **Google expires refresh tokens issued by an app
+in Testing after about a week**, so the account stops without warning every seven days and has to be
+reconnected. Forever.
+
+**Publishing status and verification status are two different things**, and this is the distinction
+worth knowing, because conflating them is what makes people accept the weekly reconnect as the price
+of not being verified. Setting the consent screen's publishing status to **In production** does not
+submit anything for review. An app published without verification still works — users see a larger
+warning screen the first time they consent, and for scopes of Gmail's reach Google caps how many
+users may consent at all. For an install whose users are you and your household, that cap is not a
+constraint and the warning screen is a one-off.
+
+So: if the weekly reconnect is annoying you, publish. Verification is the separate, heavier step,
+and it is only worth it for an install with real users who are not you.
+
+plMail will tell you which of these you are in. When a sign-in dies it records how long it lasted,
+and a grant that lasted about a week gets a card that names this cause rather than the generic "sign
+in again" — and once it has seen the pattern once, it warns a day or two *before* the next one runs
+out. See [Account health](../features/health.md).
 
 ## Instant Gmail delivery, via Cloud Pub/Sub
 
@@ -272,8 +287,12 @@ plMail ignores it deliberately — acting on it would queue a full calendar read
 registration and every weekly renewal in the install.
 
 **An app left in Testing expires its refresh tokens after about a week.** The account keeps working
-until then and stops without warning afterwards; reconnecting fixes it. This is Google's policy for
-unpublished apps requesting scopes of this reach, not something plMail can work around.
+until then and stops afterwards; reconnecting fixes it until the next time. This is Google's policy
+for apps in Testing, not something plMail can work around — but plMail does recognise it, because
+the error Google returns (`invalid_grant`) is the same one it returns for a revoked consent and a
+changed password, and only the *interval* tells them apart. A sign-in that lasted about a week gets a
+card saying so, and after the first occurrence Account health warns a day or two before the next one.
+The fix is to publish the consent screen, which is [not the same as verifying it](#what-restricted-scope-verification-means-here).
 
 **The Pub/Sub token has to match character for character.** plMail rejects notifications that do not
 carry it, and the rejection is logged rather than silent — **Admin → Gmail webhooks** will show

@@ -1,4 +1,4 @@
-<!-- translated-from: providers/google.md sha1:67eda74928bbad8506ee3daf2fe3f25a49fb4573 -->
+<!-- translated-from: providers/google.md sha1:ab22097bf3000ba96411f571d10ade5dd0362ae3 -->
 
 # Google
 
@@ -131,13 +131,31 @@ ist, durchläuft Googles Überprüfung, und dasselbe gilt für den vollständige
 plMails Google-Drive-Integration verwendet. Die Einrichtungshinweise der App zu Drive sagen es klar —
 Google verlangt eine App-Überprüfung, bevor Personen außerhalb deiner Testliste zustimmen können.
 
-Für eine selbst gehostete Installation heißt das meistens, dass du gar nicht veröffentlichst. Lass
-das Projekt in **Testing**, trag die Handvoll Adressen als Testnutzer ein, die sich verbinden werden,
-und die Zustimmung funktioniert sofort, mit einer Zwischenseite zur „nicht überprüften App", durch
-die du hindurchklickst. Der Handel dabei: Google lässt Refresh-Tokens, die eine App im Status Testing
-ausgestellt hat, nach etwa einer Woche verfallen, ein so verbundenes Konto muss also regelmäßig neu
-verbunden werden; das Veröffentlichen samt Überprüfung ist das, was diesen Punkt beseitigt, und lohnt
-sich nur für eine Installation mit echten Nutzerinnen und Nutzern, die nicht du selbst bist.
+Der übliche Rat für eine selbst gehostete Installation: Lass das Projekt in **Testing**, trag die
+Handvoll Adressen als Testnutzer ein, die sich verbinden werden, und klick dich durch die
+Zwischenseite zur „nicht überprüften App". Das funktioniert, und es hat einen Preis, über den alle
+stolpern: **Google lässt Refresh-Tokens, die eine App im Status Testing ausgestellt hat, nach etwa
+einer Woche verfallen.** Das Konto hört also alle sieben Tage ohne Vorwarnung auf und muss neu
+verbunden werden. Immer wieder.
+
+**Veröffentlichungsstatus und Überprüfungsstatus sind zwei verschiedene Dinge**, und diese
+Unterscheidung lohnt sich, denn wer beides in einen Topf wirft, nimmt das wöchentliche Neuverbinden
+als Preis dafür hin, nicht überprüft zu sein. Den Veröffentlichungsstatus des
+Zustimmungsbildschirms auf **In production** zu stellen, reicht nichts zur Prüfung ein. Eine
+veröffentlichte, nicht überprüfte App funktioniert — Nutzerinnen und Nutzer sehen beim ersten Mal
+einen größeren Warnhinweis, und für Scopes von Gmails Reichweite begrenzt Google, wie viele
+überhaupt zustimmen dürfen. Für eine Installation, deren Nutzer du und dein Haushalt sind, ist diese
+Grenze keine, und der Warnhinweis kommt genau einmal.
+
+Also: Wenn dich das wöchentliche Neuverbinden nervt, veröffentliche. Die Überprüfung ist der
+separate, schwerere Schritt und lohnt sich nur für eine Installation mit echten Nutzerinnen und
+Nutzern, die nicht du selbst bist.
+
+plMail sagt dir, welcher Fall bei dir vorliegt. Stirbt eine Anmeldung, wird festgehalten, wie lange
+sie gehalten hat, und eine Anmeldung, die etwa eine Woche gehalten hat, bekommt eine Karte, die
+diese Ursache benennt statt des allgemeinen „melde dich neu an" — und sobald das Muster einmal
+gesehen wurde, warnt plMail ein bis zwei Tage, *bevor* die nächste ausläuft. Siehe
+[Kontozustand](../features/health.md).
 
 ## Sofortige Gmail-Zustellung, über Cloud Pub/Sub
 
@@ -291,9 +309,14 @@ Kanal ist offen". plMail ignoriert das absichtlich — darauf zu reagieren würd
 und jede wöchentliche Erneuerung in der Installation einen vollständigen Kalenderabruf einreihen.
 
 **Eine App, die in Testing bleibt, lässt ihre Refresh-Tokens nach etwa einer Woche verfallen.** Das
-Konto funktioniert bis dahin und hört danach ohne Vorwarnung auf; ein erneutes Verbinden repariert
-es. Das ist Googles Regel für unveröffentlichte Apps, die Scopes dieser Reichweite anfragen, und
-nichts, was plMail umgehen könnte.
+Konto funktioniert bis dahin und hört danach auf; ein erneutes Verbinden repariert es bis zum
+nächsten Mal. Das ist Googles Regel für Apps im Status Testing und nichts, was plMail umgehen könnte
+— aber plMail erkennt es, denn der Fehler, den Google zurückgibt (`invalid_grant`), ist derselbe wie
+bei einer zurückgezogenen Zustimmung oder einem geänderten Passwort, und nur der *Zeitraum*
+unterscheidet sie. Eine Anmeldung, die etwa eine Woche gehalten hat, bekommt eine Karte, die das
+sagt, und nach dem ersten Mal warnt der Kontozustand ein bis zwei Tage vor dem nächsten. Die Lösung
+ist, den Zustimmungsbildschirm zu veröffentlichen, was [nicht dasselbe ist wie ihn überprüfen zu
+lassen](#was-die-überprüfung-eingeschränkter-scope-hier-bedeutet).
 
 **Das Pub/Sub-Token muss Zeichen für Zeichen passen.** plMail weist Benachrichtigungen ab, die es
 nicht mitbringen, und die Abweisung wird protokolliert statt verschwiegen — **Admin → Gmail-Webhooks**

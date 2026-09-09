@@ -2782,10 +2782,12 @@ settings:
                 wird erneut versucht, und es lässt sich nicht rückgängig
                 machen. Fortfahren?
         fact:
+            granted_at: 'Angemeldet am'
             last_full_resync: 'Postfach komplett neu gelistet (%count%×)'
             never: 'nie'
             never_delivered: 'es kam noch nie etwas an'
             never_run: 'kein Lauf aufgezeichnet'
+            not_recorded: 'nicht erfasst'
             not_registered: 'nicht registriert'
             push_expires: 'Registrierung läuft ab'
             push_last_delivered: 'Letzte Benachrichtigung erhalten'
@@ -2811,6 +2813,47 @@ settings:
                 Einstellungsliste, und hier steht dann, woran es liegt.
             title: 'Alles funktioniert'
         issue:
+            account_grant_weekly_expiry:
+                body: >-
+                    Mail kommt weiterhin an. Aber die letzte Anmeldung dieses
+                    Kontos hat %days% Tage gehalten, bevor Google sie nicht mehr
+                    akzeptiert hat, und die aktuelle ist inzwischen ungefähr
+                    genauso alt — sie wird also wahrscheinlich in ein bis zwei
+                    Tagen aufhören.
+
+                    Dieses Muster macht Google bei OAuth-Apps, deren
+                    Zustimmungsbildschirm noch auf „Testing‟ steht: deren
+                    Refresh-Token laufen nach etwa einer Woche ab, egal wie die
+                    App sie anfragt. Eine neue Anmeldung kauft dir eine weitere
+                    Woche und behebt nichts. Die Lösung liegt in der Google
+                    Cloud Console — stell den Veröffentlichungsstatus des
+                    Zustimmungsbildschirms auf „In production‟. Veröffentlichen
+                    ist nicht dasselbe wie Verifizieren; eine unverifizierte App
+                    funktioniert, sie zeigt beim ersten Mal nur einen Warnhinweis.
+
+                    Wenn du sie nicht auf Testing stehen hast, ignorier das —
+                    dann hat etwas anderes die Anmeldung früh beendet, und es
+                    passiert vielleicht nicht wieder.
+                title: '%account% braucht wahrscheinlich in ein bis zwei Tagen eine neue Anmeldung'
+            account_reconnect_weekly:
+                body: >-
+                    Für dieses Konto kommt keine neue Mail mehr an, und alles,
+                    was daran hängt, steht ebenfalls still — Kalender-Sync,
+                    Filter beim Empfang und das Senden von dieser Adresse. Die
+                    bereits geladene Mail ist sicher und weiterhin da.
+
+                    Diese Anmeldung hat %days% Tage gehalten, und genau das
+                    macht Google mit OAuth-Apps, deren Zustimmungsbildschirm
+                    noch auf „Testing‟ steht: deren Refresh-Token laufen nach
+                    etwa einer Woche ab. Wenn das auf diese Installation
+                    zutrifft, bringt eine neue Anmeldung die Mail wieder ins
+                    Laufen — und nächste Woche passiert dasselbe. Was es
+                    abstellt, liegt in der Google Cloud Console: stell den
+                    Veröffentlichungsstatus des Zustimmungsbildschirms auf
+                    „In production‟. Veröffentlichen ist nicht dasselbe wie
+                    Verifizieren; eine unverifizierte App funktioniert, sie
+                    zeigt beim ersten Mal nur einen Warnhinweis.
+                title: '%account% braucht eine neue Anmeldung — und nächste Woche wieder'
             account_reconnect:
                 body: >-
                     Für dieses Konto kommt keine neue Post mehr an, und mit ihr
@@ -2974,6 +3017,16 @@ settings:
                     anzumelden und alles zu erteilen, wonach plMail fragt. An
                     deiner Mail ändert sich nichts, und es wird nichts neu
                     geladen.
+            reconnect_early:
+                label: 'Jetzt neu anmelden'
+                promise: >-
+                    Meldet dich neu an, bevor die aktuelle Anmeldung ausläuft,
+                    damit zwischendurch nichts stehen bleibt. Mail, Ordner,
+                    Labels, Filter, Kalender und Einstellungen bleiben genau so,
+                    wie sie sind. Du musst dich als %account% anmelden. Das
+                    kauft dir eine weitere Woche — es verhindert nicht, dass es
+                    wieder passiert; das tut nur das Veröffentlichen des
+                    Zustimmungsbildschirms.
             reconnect:
                 label: 'Konto neu verbinden'
                 promise: >-

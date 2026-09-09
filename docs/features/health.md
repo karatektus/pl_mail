@@ -77,6 +77,36 @@ makes — is **refused outright**, and nothing is changed. plMail tells you whic
 signed in as and which one it expected. Swapping the address in would file a stranger's mail into
 these threads, with no way back.
 
+## A Google sign-in that keeps dying every week
+
+The generic answer to a dead sign-in is "sign in again", and for a changed password that is the whole
+of it. There is one case where it is the wrong advice, and it is the most common one on a self-hosted
+install: **Google expires refresh tokens issued by an OAuth app whose consent screen is still in
+Testing after about a week.** The account works, stops seven days later, gets reconnected, and stops
+again — forever, until somebody changes a setting that is not in plMail.
+
+Google does not say which case you are in. What it returns is `invalid_grant`, and that is the same
+answer it gives for a revoked consent, a changed password, and a token that aged out. **The only
+thing that separates them is how long the sign-in lasted**, so plMail records that: the moment a
+grant is issued, and how many hours the previous one survived.
+
+Two cards come out of it.
+
+- **When a sign-in dies after about a week**, the reconnect card says so instead of offering the
+  generic explanation. Reconnecting will get the mail moving; it names the actual fix, which is to
+  set the consent screen's publishing status to *In production* in the Google Cloud console.
+  Publishing is not verification — see [Google](../providers/google.md#things-that-bite).
+- **Once that has happened once**, plMail knows the shape and warns *before* the next one: when the
+  current sign-in reaches about five days old, a warning card says it is likely to stop within a day
+  or two and offers to sign in again now, while nothing is broken yet.
+
+Both cards show when the current sign-in was issued, because the claim is an inference and you should
+be able to check the reasoning. Neither appears on an account connected before plMail started
+recording this — there is no history to read — and both fill in on the next reconnect.
+
+If you have not left your project in Testing, ignore them: something else ended that sign-in early,
+and it may not happen again.
+
 ## The two ways instant delivery breaks
 
 Push can fail in two quite different ways, and the page names which one happened, because they send

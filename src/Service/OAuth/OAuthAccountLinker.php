@@ -111,6 +111,9 @@ final readonly class OAuthAccountLinker
 
         if (null !== $refreshToken && '' !== $refreshToken) {
             $account->oauthRefreshToken = $refreshToken;
+            // The moment the GRANT begins, which is the only thing that can
+            // later say how long it lasted. See WeeklyGrantExpiry.
+            $account->oauthGrantedAt    = new DateTimeImmutable();
         }
 
         $expires = $token->getExpires();
@@ -219,6 +222,9 @@ final readonly class OAuthAccountLinker
         $refreshToken = $token->getRefreshToken();
         if (null !== $refreshToken) {
             $account->oauthRefreshToken = $refreshToken;
+            // The moment the GRANT begins, which is the only thing that can
+            // later say how long it lasted. See WeeklyGrantExpiry.
+            $account->oauthGrantedAt    = new DateTimeImmutable();
         }
 
         $expires = $token->getExpires();

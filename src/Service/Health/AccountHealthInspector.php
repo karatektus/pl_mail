@@ -12,6 +12,7 @@ use App\Domain\Enum\Account\AuthType;
 use App\Domain\Enum\Account\MailProvider;
 use App\Domain\Enum\Calendar\CalendarRole;
 use App\Domain\Enum\Health\HealthIssueKind;
+use App\Domain\Health\WeeklyGrantExpiry;
 use App\Domain\Enum\Health\HealthSeverity;
 use App\Domain\Enum\PushHealth;
 use App\Entity\Calendar\Calendar;
@@ -24,6 +25,7 @@ use App\Repository\Mail\AccountRepository;
 use App\Service\Monitoring\QueueMonitor;
 use App\Service\Push\PushRenewalRecord;
 use App\Service\Push\PushSubscriptionRegistry;
+use DateTimeImmutable;
 
 /**
  * What is wrong with this user's accounts, and what would fix it.
@@ -131,6 +133,26 @@ final readonly class AccountHealthInspector
                 // times over, with nothing on the page connecting any of them
                 // to the permission that was never granted.
                 $deadGrants[(int) $account->id] = $scope->id;
+
+                continue;
+            }
+
+            // LAST, and deliberately NOT a cause.
+            //
+            // Last, because everything above is about something that is broken
+            // now and this is about something that is going to be. An account
+            // whose calendars cannot sync today does not need a card about next
+            // Tuesday above the one explaining today.
+            //
+            // Not registered in $deadGrants, which is the part worth stating:
+            // that array means "these calendars are failing because of this",
+            // and nothing is failing yet. Putting it there would grey out every
+            // calendar on the account and blame a card that says, in its own
+            // first sentence, that mail is still arriving.
+            $expiring = $this->grantExpiringSoon($account);
+
+            if (null !== $expiring) {
+                $issues[] = $expiring;
             }
         }
 
@@ -252,6 +274,7 @@ final readonly class AccountHealthInspector
     public function inspectAccount(Account $account): ?HealthIssue
     {
         return $this->accountGrant($account)
+            ?? $this->grantExpiringSoon($account)
             ?? $this->calendarPermission($account)
             ?? $this->push($account);
     }
@@ -271,13 +294,28 @@ final readonly class AccountHealthInspector
 
         $providerLabel = $this->providerLabel($account);
 
+        // WHICH DEAD SIGN-IN THIS IS, when the interval says so.
+        //
+        // `invalid_grant` is Google's answer for a revoked consent, a changed
+        // password and a token that aged out of an app still in "Testing"
+        // publishing status. Only the last repeats, and only the last is fixed
+        // by changing a setting rather than by signing in again every week —
+        // so when the grant that just died lasted about a week, the card says
+        // so instead of offering the same "sign in again" for the fifth time.
+        $weekly = WeeklyGrantExpiry::looksWeekly($account->oauthPriorGrantHours);
+
         return new HealthIssue(
             id: 'account-' . $account->id,
-            kind: HealthIssueKind::AccountReconnect,
+            kind: $weekly ? HealthIssueKind::AccountReconnectWeekly : HealthIssueKind::AccountReconnect,
             severity: HealthSeverity::Critical,
             subject: $account->email,
             titleParams: ['%account%' => $account->email],
-            bodyParams: ['%account%' => $account->email],
+            bodyParams: [
+                '%account%' => $account->email,
+                // Zero when this is the plain card, where the body never names
+                // it. Only the weekly body has a %days% to fill.
+                '%days%'    => intdiv((int) $account->oauthPriorGrantHours, 24),
+            ],
             repairs: [
                 new HealthRepair(
                     route: 'app_health_reconnect',
@@ -306,7 +344,103 @@ final readonly class AccountHealthInspector
             // of a person as an explanation, but a self-hoster comparing notes
             // with a forum post needs to be able to find it.
             detail: $stored,
+            // Only on the weekly card, and only because it is the evidence the
+            // claim rests on. On the plain card it would be a date with nothing
+            // to compare it to.
+            facts: $weekly ? $this->grantFacts($account) : [],
         );
+    }
+
+    /**
+     * A sign-in that works and is about to stop, going by the last one.
+     *
+     * THE ONLY CARD HERE ABOUT SOMETHING THAT HAS NOT HAPPENED. It earns that
+     * by resting on an observation rather than a guess: this account has
+     * already had a grant die at about a week — Google's limit for an app still
+     * in "Testing" — and the current one is now near the same age.
+     *
+     * Both halves are load-bearing. Without the history it would fire on every
+     * healthy Google account every week; without the age it would fire the
+     * moment somebody reconnected, and a warning visible five days out of seven
+     * is furniture. See WeeklyGrantExpiry.
+     *
+     * Ranked BELOW accountGrant(), so an account that is already dead is never
+     * also told it is about to be.
+     */
+    private function grantExpiringSoon(Account $account): ?HealthIssue
+    {
+        if (AuthType::OAuth2->value !== $account->authType) {
+            return null;
+        }
+
+        $due = WeeklyGrantExpiry::isDueToExpire(
+            $account->oauthGrantedAt,
+            $account->oauthPriorGrantHours,
+            new DateTimeImmutable(),
+        );
+
+        if (false === $due) {
+            return null;
+        }
+
+        $providerLabel = $this->providerLabel($account);
+
+        return new HealthIssue(
+            id: 'account-grant-' . $account->id,
+            kind: HealthIssueKind::AccountGrantWeeklyExpiry,
+            severity: HealthSeverity::Warning,
+            subject: $account->email,
+            titleParams: ['%account%' => $account->email],
+            bodyParams: [
+                '%account%' => $account->email,
+                '%days%'    => intdiv((int) $account->oauthPriorGrantHours, 24),
+            ],
+            // The reconnect is offered because it is the thing that can be done
+            // from here, and it does buy another week. It is not the fix, and
+            // the body says which is which — an install left in Testing needs
+            // the consent screen published, and no button on this page can do
+            // that.
+            repairs: [
+                new HealthRepair(
+                    route: 'app_health_reconnect',
+                    routeParams: ['id' => $account->id],
+                    labelKey: 'settings.health.repair.reconnect_early.label',
+                    promiseKey: 'settings.health.repair.reconnect_early.promise',
+                    promiseParams: ['%account%' => $account->email],
+                    pendingKey: null !== $providerLabel
+                        ? 'settings.health.pending.reconnect'
+                        : 'settings.health.pending.reconnect_generic',
+                    pendingParams: null !== $providerLabel
+                        ? ['%provider%' => $providerLabel]
+                        : [],
+                ),
+            ],
+            facts: $this->grantFacts($account),
+        );
+    }
+
+    /**
+     * When this sign-in started.
+     *
+     * The date IS half the argument, and the half a reader can check. "This
+     * will stop in a day or two" is an inference; how long the current grant
+     * has been running is a fact, and the other half — how long the last one
+     * lasted — is in the card's own sentence, where a duration reads as
+     * language rather than as a date with nothing to compare it to.
+     *
+     * @return list<HealthFact>
+     */
+    private function grantFacts(Account $account): array
+    {
+        $facts = [
+            new HealthFact(
+                labelKey: 'settings.health.fact.granted_at',
+                at: $account->oauthGrantedAt,
+                noneKey: 'settings.health.fact.not_recorded',
+            ),
+        ];
+
+        return $facts;
     }
 
     /**

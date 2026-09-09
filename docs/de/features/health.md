@@ -1,4 +1,4 @@
-<!-- translated-from: features/health.md sha1:eabf9f7963587de2a004234659b32c18424ddf68 -->
+<!-- translated-from: features/health.md sha1:c3c125649abac8ed65fe5bac2a112c5dbf42a57d -->
 
 # Zustand der Konten
 
@@ -85,6 +85,40 @@ anmelden. Sich als ein anderes Google-Konto anzumelden — das zweite in der Kon
 den jeder macht — wird **rundheraus abgelehnt**, und es wird nichts verändert. plMail nennt dir, als
 welche Adresse du dich tatsächlich angemeldet hast und welche es erwartet hat. Die Adresse
 auszutauschen hieße, fremde Post in diese Konversationen einzumischen, ohne Weg zurück.
+
+## Eine Google-Anmeldung, die jede Woche stirbt
+
+Die allgemeine Antwort auf eine tote Anmeldung lautet „melde dich neu an", und bei einem geänderten
+Passwort ist das auch die ganze Geschichte. Es gibt einen Fall, in dem der Rat falsch ist, und es ist
+der häufigste auf einer selbst gehosteten Installation: **Google lässt Refresh-Tokens verfallen, die
+eine OAuth-App ausgestellt hat, deren Zustimmungsbildschirm noch auf Testing steht — nach etwa einer
+Woche.** Das Konto läuft, hört sieben Tage später auf, wird neu verbunden und hört wieder auf. Immer
+weiter, bis jemand eine Einstellung ändert, die nicht in plMail liegt.
+
+Google sagt dir nicht, welcher Fall vorliegt. Zurück kommt `invalid_grant`, und das ist dieselbe
+Antwort wie bei einer zurückgezogenen Zustimmung, einem geänderten Passwort und einem Token, das
+abgelaufen ist. **Sie unterscheiden sich nur darin, wie lange die Anmeldung gehalten hat** — also
+hält plMail genau das fest: wann eine Anmeldung ausgestellt wurde und wie viele Stunden die vorige
+überlebt hat.
+
+Daraus werden zwei Karten.
+
+- **Stirbt eine Anmeldung nach etwa einer Woche**, sagt die Karte das, statt die allgemeine Erklärung
+  anzubieten. Neu verbinden bringt die Mail wieder ins Laufen; die Karte benennt daneben die
+  eigentliche Lösung, nämlich den Veröffentlichungsstatus des Zustimmungsbildschirms in der Google
+  Cloud Console auf *In production* zu stellen. Veröffentlichen ist nicht Überprüfen — siehe
+  [Google](../providers/google.md#fallstricke).
+- **Ist das einmal passiert**, kennt plMail das Muster und warnt *vor* dem nächsten Mal: Sobald die
+  aktuelle Anmeldung etwa fünf Tage alt ist, sagt eine Warnkarte, dass sie wahrscheinlich in ein bis
+  zwei Tagen aufhört, und bietet an, sich jetzt neu anzumelden — solange noch nichts kaputt ist.
+
+Beide Karten zeigen, wann die aktuelle Anmeldung ausgestellt wurde, denn die Aussage ist eine
+Schlussfolgerung, und du sollst sie nachprüfen können. Auf einem Konto, das verbunden wurde, bevor
+plMail das festgehalten hat, erscheint keine von beiden — da gibt es nichts zu lesen —, und beim
+nächsten Neuverbinden füllen sie sich.
+
+Wenn dein Projekt nicht auf Testing steht, ignorier sie: Dann hat etwas anderes die Anmeldung früh
+beendet, und es passiert vielleicht nicht wieder.
 
 ## Die zwei Arten, wie die Sofortzustellung kaputtgeht
 

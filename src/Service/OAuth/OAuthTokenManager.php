@@ -6,6 +6,7 @@ namespace App\Service\OAuth;
 
 use App\Domain\Enum\Account\MailProvider;
 use App\Domain\Exception\OAuthGrantRevokedException;
+use App\Domain\Health\WeeklyGrantExpiry;
 use App\Entity\Mail\Account;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
@@ -117,6 +118,23 @@ class OAuthTokenManager
             // permanently, and the one thing that cleared it was doing the
             // reconnect the card had wrongly demanded.
             $account->oauthLastRefreshError = mb_substr($e->getMessage(), 0, 500);
+
+            // HOW LONG IT LASTED, recorded at the only moment it can be — and
+            // kept across the reconnect that follows, because it is the only
+            // evidence that survives one.
+            //
+            // `invalid_grant` is what Google says for a revoked consent, a
+            // changed password and a token that aged out of an app still in
+            // "Testing" publishing status. Four causes, one code, and the last
+            // one repeats every seven days for ever unless somebody changes a
+            // setting in the Cloud console. The interval is the only thing that
+            // tells them apart, so it is written down. See WeeklyGrantExpiry.
+            $lifetime = WeeklyGrantExpiry::ageInHours($account->oauthGrantedAt, new DateTimeImmutable());
+
+            if (null !== $lifetime) {
+                $account->oauthPriorGrantHours = $lifetime;
+            }
+
             $this->em->flush();
 
             throw new OAuthGrantRevokedException(
@@ -169,6 +187,13 @@ class OAuthTokenManager
 
         if (null !== $returnedRefresh) {
             $account->oauthRefreshToken = $returnedRefresh;
+
+            // A NEW grant, so the clock restarts. Google essentially never gets
+            // here — it returns a refresh token on the initial authorization
+            // only — but a provider that does rotate them would otherwise leave
+            // this stamp pointing at a token that no longer exists, and every
+            // judgement made from it would be about the wrong thing.
+            $account->oauthGrantedAt = new DateTimeImmutable();
         }
 
 
