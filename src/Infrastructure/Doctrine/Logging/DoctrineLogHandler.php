@@ -7,6 +7,7 @@ namespace App\Infrastructure\Doctrine\Logging;
 use App\Service\Monitoring\LogLevelResolver;
 use Doctrine\DBAL\Connection;
 use Monolog\Handler\AbstractProcessingHandler;
+use Monolog\Processor\PsrLogMessageProcessor;
 use Monolog\Level;
 use Monolog\LogRecord;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
@@ -123,6 +124,23 @@ final class DoctrineLogHandler extends AbstractProcessingHandler
         if (self::isNotFound($record)) {
             return;
         }
+
+        // PLACEHOLDERS FILLED IN, because a row nobody can read is a row nobody
+        // reads. PSR-3 messages are templates — Messenger's own is
+        // `Error thrown while handling message {class}. Removing from transport
+        // after {retryCount} retries. Error: "{error}"` — and stored raw, every
+        // one of them is byte-identical. Five hundred rows of the same sentence
+        // is what a broken account actually looked like in the log browser: the
+        // class, the retry count and the error were all in the context column,
+        // one click away each, and the list itself said nothing at all.
+        //
+        // Monolog's own processor rather than a regex here, and applied in the
+        // handler rather than wired up in monolog.yaml: this class is
+        // constructed directly in tests, and a processor that existed only in
+        // configuration would mean the rows the tests see are not the rows
+        // production writes. The context is left intact — the processor only
+        // substitutes into the message.
+        $record = new PsrLogMessageProcessor()($record);
 
         try {
             $context = json_encode(

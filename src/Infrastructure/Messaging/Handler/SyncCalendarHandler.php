@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Infrastructure\Messaging\Handler;
 
 use App\Domain\Exception\CalendarSyncException;
+use App\Domain\Exception\CalendarSyncPermanentException;
 use App\Infrastructure\Messaging\Message\SyncCalendarMessage;
 use App\Repository\Calendar\CalendarRepository;
 use App\Service\Calendar\CalendarSyncService;
@@ -54,6 +55,36 @@ final readonly class SyncCalendarHandler
 
         try {
             $touched = $this->sync->sync($calendar);
+        } catch (CalendarSyncPermanentException $e) {
+            // RECORDED AND SWALLOWED. Everything below about logging only when
+            // the failure is NEWS applies here too — this is the same throttle,
+            // reached the same way — but this exception says the cause will not
+            // fix itself, and rethrowing it did two things that the throttle
+            // then could not undo.
+            //
+            // Messenger logs an escaped handler exception at CRITICAL with the
+            // whole nested trace, and it does that on every attempt whatever
+            // this handler decided about its own line. So the careful "say it
+            // once, and again when it changes" logic above sat underneath an
+            // unthrottled CRITICAL saying the same thing every fifteen minutes.
+            // And the envelope went to the failure transport each time, which
+            // is a pile of dead jobs under "background jobs were given up on"
+            // that nobody can usefully put back.
+            //
+            // UnrecoverableExceptionInterface on the exception was only half of
+            // it: that stops the retries, not the logging and not the filing.
+            //
+            // A transient CalendarSyncException still escapes, below, because
+            // there the retry ladder is the whole point.
+            if (true === $calendar->syncFailureWasNews) {
+                $this->logger->notice('CalendarSync: stopped until this is fixed', [
+                    'calendarId' => $calendar->id,
+                    'error'      => $e->getMessage(),
+                    'failures'   => $calendar->syncFailureCount,
+                ]);
+            }
+
+            return;
         } catch (CalendarSyncException $e) {
             // Logged when the failure is NEWS, not on every attempt. The
             // service has just written the failure down, and
