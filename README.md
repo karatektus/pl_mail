@@ -57,6 +57,10 @@ provider doesn't.
   Google. Change your mind and the mailbox re-sorts itself in the background. Every message's
   **Details** panel shows what all three said and which one won, and a **Report** button tells your
   administrator when it got it wrong.
+- **It tells you when something breaks** — a sign-in that has expired, a calendar that stopped
+  syncing, push that lapsed, work the queue gave up on. Each with what it means for your mail and
+  the smallest thing that fixes it. A Google sign-in dying every week gets named for what it is —
+  Google expires tokens for an app still in Testing — and warned about before the next one.
 - **Yours** — two-factor auth, per-app JMAP passwords, 41 themes, English, German and Pirate.
 
 ## A look around

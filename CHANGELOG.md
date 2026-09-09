@@ -8,6 +8,8 @@ The published image tags: `latest` follows the most recent release below,
 
 ## Unreleased
 
+## v0.2.21 — 2026-09-09
+
 ### Added
 
 - **A Gmail sign-in that dies every week now says why, and warns before the next one.** Google
@@ -60,6 +62,25 @@ The published image tags: `latest` follows the most recent release below,
   report-only, so these are things this installation actually refused to load in somebody's real
   browser — which nothing else can tell you.
 
+
+### Fixed
+
+- **A dead sign-in no longer writes a CRITICAL every fifteen minutes.** A revoked Google grant
+  produced 517 log entries on one install — one per sync cycle, each with a three-deep nested stack,
+  each also leaving a dead job on the failure transport. None of it was a fault in this application:
+  the grant was gone, the account was already flagged, and the interface already had a card with a
+  Reconnect button on it.
+
+  Both exceptions involved were already marked unrecoverable, which stops the *retry ladder* but not
+  the logging — Messenger logs and files an escaped handler exception whether or not it will retry
+  it. So neither handler lets one escape any more. The calendar half is the sharper case: it already
+  had careful "say it once, and again when it changes" throttling, and then rethrew, so an
+  unthrottled CRITICAL sat underneath saying the same thing every quarter of an hour.
+
+- **Log entries read as sentences instead of templates.** PSR-3 messages are stored with their
+  placeholders filled in now. Raw, every occurrence of Messenger's own message was byte-identical —
+  five hundred rows of `Error thrown while handling message {class}…`, with the class, the retry
+  count and the error each a click away in the context column and the list itself saying nothing.
 
 ## v0.2.20 — 2026-09-04
 
