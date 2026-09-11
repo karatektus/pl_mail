@@ -59,9 +59,15 @@ stop, and a double-click is not a gesture a keyboard has.
            data-ui--modal-src-value="{{ path('app_calendar_event_new', { start: dayKey }) }}"
            data-ui--modal-title-value="{{ 'calendar.event.new'|trans }}"
            aria-label="{{ 'calendar.event.new_on'|trans({ '%date%': dayKey|intl_date('EEEdMMM') }) }}"
+           {# `bg-surface` below 5rem, which is the width at which the shell
+              stacks a heading — see the note over the day headings there. A
+              45px column has no 20px of its own to spare, so this button is
+              drawn OVER the date rather than beside it, and an unbacked glyph
+              on top of "13" is a smudge. It is opacity-0 until the day is
+              hovered, so the chip is not there the rest of the time. #}
            class="w-5 h-5 flex items-center justify-center rounded-md text-[10px] text-ink-faint
                   opacity-0 group-hover/day:opacity-100 focus:opacity-100
-                  hover:bg-hover transition-opacity
+                  hover:bg-hover transition-opacity @max-[5rem]:bg-surface
                   focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
         ><i class="fa-solid fa-plus" aria-hidden="true"></i></button>
     {% endblock %}

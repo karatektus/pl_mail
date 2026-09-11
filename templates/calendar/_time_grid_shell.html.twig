@@ -64,6 +64,11 @@ and is a single full-width column, and the pane's own handle widens it as far as
 the window allows. The shared page has the same escape for the same reason.
 Worth revisiting; not worth guessing at.
 
+Tight is the limitation. SPILLING was a bug, and is fixed: the headings stack
+below 5rem of column instead of overflowing into the day beside them — see
+the note above them, which is also where the container query is explained and
+why a viewport breakpoint could not have been one.
+
 ── A column the caller is not publishing ────────────────────────────────────
 
 Same contract as _month_shell, in the same words: a $dayKey with no entry in
@@ -139,7 +144,38 @@ one) `placed`:
        headings are given `h-8` so the two agree. #}
     <div class="flex-1 min-h-0 overflow-y-auto" data-calendar--time-grid-target="scroller">
 
-    {# ── The day headings ──────────────────────────────────────────────── #}
+    {# ── The day headings ──────────────────────────────────────────────────
+
+       **Each heading is a container query of its own, and nothing else can
+       answer the question.** A column is the pane's width divided by however
+       many days are drawn, so the same 400px window is one roomy column in Day
+       view and seven cramped ones in Week — a viewport media query cannot tell
+       those two apart, and the docked pane is resized by its own handle inside
+       a window whose width never changes at all.
+
+       Below 5rem the weekday stacks over the date instead of sitting beside
+       it, because one line has stopped fitting by then. Measured, at 10px
+       uppercase: 16 of padding, 25 for the widest abbreviation ("MON"), 6 of
+       gap, 16 for a two-digit date, and 26 more for the + button and its
+       inset — 89 against a column of 80. What that used to produce was not a
+       tight heading but a wrong one: the label and the + overflowed their own
+       border and were drawn over the NEXT day's column, where the + still
+       added an event to the day it came from. Stacked, the widest thing in the
+       box is the label alone — 22.7px for "MON" at 9px, 17.9 for German's
+       "MO." — and a 34px column, which is what a 320px phone gives, holds it
+       with room either side.
+
+       80px rather than the 89 that arithmetic asks for, because the last of
+       those 89 is a button that only exists while the day is hovered: between
+       those two numbers it may cover 2px of a two-digit date, and stacking a
+       heading that otherwise fits to prevent that is the worse trade. Below
+       5rem it is drawn over the date outright, which is why it takes a
+       background there — see the block in _view_timegrid.
+
+       The row keeps `h-8` at both widths: the all-day band below is stuck to
+       `top-8` and the two numbers have to agree, which is the whole point of
+       the note on the scroller above. `leading-none` on the label is what buys
+       the second line — 9px over a 20px date is 29 of the 32. #}
     <div class="sticky top-0 z-20 h-8 grid border-b border-line bg-surface" style="grid-template-columns: {{ columnTemplate }}">
         <div class="border-r border-line" aria-hidden="true"></div>
 
@@ -147,40 +183,76 @@ one) `placed`:
             {% set isOutside = grid[dayKey] is not defined %}
             {% set isToday = dayKey == today and not isOutside %}
 
-            <div class="group/day flex items-baseline gap-1.5 px-2 border-r border-line
+            <div class="@container group/day relative border-r border-line
                         {{ isOutside ? 'bg-sunken/20' : (isToday ? 'bg-accent/5' : '') }}"
                  data-calendar--time-grid-target="heading">
-                {# No zone on a day key, deliberately. $dayKey is a wall date as
-                   a string, so Twig parses it in its default zone and printing
-                   it in that same zone is the only reading that cannot move it.
-                   Converting it to $zone instead re-reads midnight-in-the-
-                   default as an instant, which for a calendar west of the
-                   default lands on the day before and numbers the whole header
-                   row wrong. $zone is for instants — see `nowMinute` above,
-                   which is one. #}
-                <span class="text-[10px] uppercase tracking-wide {{ isToday ? 'text-accent' : 'text-ink-faint' }}">
-                    {{ dayKey|intl_date('EEE', false) }}
-                </span>
-
-                {% if isToday %}
-                    <span class="w-5 h-5 -my-0.5 flex items-center justify-center rounded-full
-                                 bg-accent text-accent-ink text-xs font-semibold tabular-nums">
-                        {{ dayKey|date('j') }}
+                {# The cell is the container and the row inside it is what
+                   answers: an element cannot query a container it declares
+                   itself, so the two cannot be the same box. #}
+                <div class="h-full flex items-center gap-1.5 px-2
+                            @max-[5rem]:flex-col @max-[5rem]:justify-center
+                            @max-[5rem]:gap-0 @max-[5rem]:px-0.5">
+                    {# No zone on a day key, deliberately. $dayKey is a wall date as
+                       a string, so Twig parses it in its default zone and printing
+                       it in that same zone is the only reading that cannot move it.
+                       Converting it to $zone instead re-reads midnight-in-the-
+                       default as an instant, which for a calendar west of the
+                       default lands on the day before and numbers the whole header
+                       row wrong. $zone is for instants — see `nowMinute` above,
+                       which is one. #}
+                    <span class="text-[10px] uppercase tracking-wide
+                                 @max-[5rem]:text-[9px] @max-[5rem]:leading-none
+                                 {{ isToday ? 'text-accent' : 'text-ink-faint' }}">
+                        {{ dayKey|intl_date('EEE', false) }}
                     </span>
-                {% else %}
-                    <span class="text-sm tabular-nums {{ isOutside ? 'text-ink-faint' : 'text-ink-muted' }}">
-                        {{ dayKey|date('j') }}
-                    </span>
-                {% endif %}
 
-                {# One add affordance per day, in the heading rather than 24 of
-                   them down the column: a tab stop per hour per day is 168 of
-                   them in a week, which makes the grid unusable by keyboard.
-                   Suppressed on an unpublished column, which has nothing to add
-                   to — and is never reached at all by a caller with no editor. #}
-                {% if not isOutside %}
-                    <span class="ml-auto">{% block day_heading_actions %}{% endblock %}</span>
-                {% endif %}
+                    {% if isToday %}
+                        {# `shrink-0` is what keeps the circle a circle, and it is
+                           half of the answer to "the background isn't round any
+                           more". A flex item shrinks to its own min-content
+                           before its container overflows, so in a column too
+                           narrow for the heading this one was squeezed to the
+                           width of the digits inside it — a 20px ring drawn
+                           14px wide, which is an ellipse.
+
+                           The other half was `-my-0.5`, gone now along with the
+                           baseline alignment that called for it. The row lines
+                           its items up on CENTRES: a filled disc has no baseline
+                           worth aligning a 10px label against, and
+                           `items-baseline` put this one's box 2px above the top
+                           of the heading row — which is also the top of the
+                           scroller, so the scroll container clipped 2px off the
+                           ring and flattened it. Centring costs the text less
+                           than a pixel (a 10px label beside a 14px date moves
+                           0.8px) and it is one rule for both layouts, the
+                           stacked one having centred all along. #}
+                        <span class="w-5 h-5 shrink-0 flex items-center justify-center rounded-full
+                                     bg-accent text-accent-ink text-xs font-semibold tabular-nums">
+                            {{ dayKey|date('j') }}
+                        </span>
+                    {% else %}
+                        <span class="shrink-0 text-sm tabular-nums {{ isOutside ? 'text-ink-faint' : 'text-ink-muted' }}">
+                            {{ dayKey|date('j') }}
+                        </span>
+                    {% endif %}
+
+                    {# One add affordance per day, in the heading rather than 24 of
+                       them down the column: a tab stop per hour per day is 168 of
+                       them in a week, which makes the grid unusable by keyboard.
+                       Suppressed on an unpublished column, which has nothing to add
+                       to — and is never reached at all by a caller with no editor. #}
+                    {% if not isOutside %}
+                        {# Positioned rather than pushed there by `ml-auto`, and that
+                           is a correctness fix before it is a cosmetic one. In flow
+                           it reserved 20px of a 45px column and then overflowed
+                           anyway, so the + for Monday was painted over Tuesday's
+                           heading and took Tuesday's pointer with it — a button that
+                           adds an event to a day it is not drawn on. Out of flow it
+                           cannot leave its own column, and the heading keeps the
+                           whole width for the date. #}
+                        <span class="absolute right-1.5 top-1/2 -translate-y-1/2">{% block day_heading_actions %}{% endblock %}</span>
+                    {% endif %}
+                </div>
             </div>
         {% endfor %}
     </div>

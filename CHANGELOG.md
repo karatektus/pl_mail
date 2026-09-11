@@ -8,6 +8,42 @@ The published image tags: `latest` follows the most recent release below,
 
 ## Unreleased
 
+## v0.2.22 — 2026-09-11
+
+### Fixed
+
+- **A narrow week no longer writes each day over the next one.** Seven columns divide whatever width
+  the pane has, so at 400px each is about 45 — and the weekday, the date and the hover + wanted 89 of
+  them on one line. A flex row does not wrap or clip on its own: it shrinks what it can and spills
+  the rest. The label crossed its own border, and the + button for Monday was painted over *Tuesday's*
+  heading, where it still added an event to Monday.
+
+  Below 5rem of column the weekday now stacks over the date instead, and the + is positioned rather
+  than pushed, so nothing a heading draws can leave the day it names. The decision is a container
+  query on each heading and not a viewport breakpoint, because the width that matters is the
+  column's: the same 400px window is one roomy column in Day view and seven cramped ones in Week, and
+  the docked pane is resized by its own handle inside a window whose width never changes at all.
+
+- **Today's date is drawn in a circle again.** Two faults, one shape. A flex item shrinks to its own
+  min-content before its container overflows, so in a column too narrow for the heading the ring was
+  squeezed to the width of the digits inside it — 20px tall and 13.7 wide, which is an ellipse. And
+  the negative margin that kept it from stretching the baseline row put its box 2px above the top of
+  the scroller, which clips, flattening what was left. The heading aligns on centres now, and the
+  ring is excused from shrinking.
+
+- **Numbers typed into a message are drawn by the message's typeface.** Reported as "too much
+  spacing", and it was neither spacing nor the numbers: the composer body names the vendored emoji
+  family first, on the stated grounds that only emoji code points would resolve there. They did not —
+  Noto Color Emoji covers `#`, `*` and 0-9 as well, because those are the bases of the keycap emoji
+  1️⃣ 2️⃣ #️⃣ — so every digit came back at emoji metrics while the letters beside them fell through
+  untouched. A ten-digit phone number measured 170px in a composer that draws the same ten in 84,
+  which is why it read as letter-spacing rather than as a font.
+
+  Those code points are cut out of the slice that carried them, and the emoji picker — the one
+  surface that shows keycaps whatever the reader typed — gets a keycap-only family of its own so its
+  grid still shapes them as single glyphs. Emoji in the body are untouched and still come from the
+  vendored font.
+
 ## v0.2.21 — 2026-09-09
 
 ### Added
