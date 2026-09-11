@@ -324,7 +324,7 @@ jobs:
             # them, which is what merge-reports expects — it reads a directory
             # of blobs, not a directory of directories.
             - name: Download the blob reports
-              uses: actions/download-artifact@v7
+              uses: actions/download-artifact@v8
               with:
                   path: blob-report
                   pattern: blob-*
