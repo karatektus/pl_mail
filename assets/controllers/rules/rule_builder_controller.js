@@ -17,6 +17,13 @@ import { Controller } from "@hotwired/stimulus"
  * Two feedback affordances hang off the same debounce: a plain-English sentence
  * and a live count of matching mail. The count is what makes a filter something
  * you can see rather than something you write and hope about.
+ *
+ * The one thing this editor does not draw itself is the folder a
+ * "save attachments to" action targets. That is the destination picker the
+ * reading pane already uses, opened in the shared modal and answered with a
+ * `integration--destination-picker:chosen` event — a rule that saves to
+ * Nextcloud and a hand-saved attachment browse the same folders, because there
+ * is one chooser rather than a second, thinner one built here.
  */
 
 const OPERATORS = [
@@ -56,6 +63,12 @@ export default class extends Controller {
     connect() {
         this.tree = this._seed(this.conditionsValue)
         this.actions = Array.isArray(this.actionsValue) ? [...this.actionsValue] : []
+
+        // Folder id → the readable name the picker gave it. Only the id is
+        // stored on the rule, so a saved rule reopened later starts with an
+        // empty map and shows ids until something is picked again — see
+        // _folderControls() for why the id is what is stored.
+        this._folderLabels = new Map()
 
         this.render()
         this.renderActions()
@@ -330,7 +343,7 @@ export default class extends Controller {
                     warn.textContent = this._t("no_integrations")
                     row.append(warn)
                 } else {
-                    const target = this._selectElement("flex-1 min-w-[9rem]")
+                    const target = this._selectElement("w-auto min-w-[9rem]")
 
                     for (const integration of this.integrationsValue) {
                         const o = document.createElement("option")
@@ -342,11 +355,22 @@ export default class extends Controller {
 
                     target.addEventListener("change", () => {
                         this.actions[i].integrationId = Number(target.value)
+
+                        // The folder belongs to the connection it was browsed
+                        // in. Left behind on a switch it would still look
+                        // chosen, still be stored, and be handed to a service
+                        // that has never heard of it — the upload would land in
+                        // the new connection's default and the editor would go
+                        // on claiming otherwise.
+                        delete this.actions[i].folder
+
+                        this.renderActions()
                         this.serialise()
                         this.schedulePreview()
                     })
 
                     row.append(target)
+                    row.append(...this._folderControls(action, i))
                 }
             }
 
@@ -374,6 +398,110 @@ export default class extends Controller {
         this.renderActions()
         this.serialise()
         this.schedulePreview()
+    }
+
+    /**
+     * A folder came back from the destination picker.
+     *
+     * Wired as a `@document` action on the form — see
+     * settings/filters/_editor.html.twig — because the picker renders into the
+     * body-level modal frame and cannot reach this one through the DOM.
+     *
+     * Which row it belongs to is remembered rather than carried in the event:
+     * there is exactly one dialog and it is modal, so the row that opened it is
+     * the row that is still waiting when the answer arrives, and the picker
+     * would otherwise have to be told about an editor it knows nothing about.
+     */
+    folderChosen(event) {
+        const index = this._folderPickFor
+        const action = this.actions[index]
+
+        if (undefined === action || action.type !== "saveToIntegration") {
+            return
+        }
+
+        const { folder = "", label = "" } = event.detail ?? {}
+
+        if ("" === folder) {
+            // The root of a file store and the "Library" row of a photo library
+            // both answer with an empty id, and an empty folder is not stored —
+            // MailRuleController drops it, and the upload handler then falls
+            // back to the connection's own default. So choosing the top level
+            // IS how a rule is put back on the default, and the readout says
+            // so rather than showing a blank.
+            delete action.folder
+        } else {
+            action.folder = folder
+
+            // Only an id is stored, so this is the one chance to learn what it
+            // is called. Kept by id rather than by row: rows are rebuilt on
+            // every render and renumbered when one is removed, while the id is
+            // what the label describes.
+            if ("" !== label) {
+                this._folderLabels.set(folder, label)
+            }
+        }
+
+        this.renderActions()
+        this.serialise()
+        this.schedulePreview()
+    }
+
+    /**
+     * The chosen folder, and the button that opens the picker to change it.
+     *
+     * Returned as a list rather than appended here so renderActions() keeps
+     * deciding the row's order in one place.
+     */
+    _folderControls(action, index) {
+        const integration = this._integration(action.integrationId)
+
+        if (undefined === integration) {
+            return []
+        }
+
+        const chosen = typeof action.folder === "string" ? action.folder : ""
+
+        const readout = document.createElement("span")
+        readout.className = "inline-flex min-w-0 max-w-[16rem] items-center gap-1.5 text-xs text-ink-muted"
+        readout.innerHTML = '<i class="fa-solid fa-folder text-[10px] text-amber-500" aria-hidden="true"></i>'
+
+        const name = document.createElement("span")
+        name.className = "truncate"
+        // The stored id is the fallback, not a second stored name. A remembered
+        // label can go stale — a folder renamed in the service would leave the
+        // editor naming somewhere that no longer exists — while the id is
+        // exactly what the upload will be given. For a service whose ids are
+        // paths, "Documents/Invoices", it also reads perfectly well on its own.
+        name.textContent = "" === chosen
+            ? this._t("folder.default")
+            : (this._folderLabels.get(chosen) ?? chosen)
+        name.title = name.textContent
+        readout.append(name)
+
+        const browse = document.createElement("button")
+        browse.type = "button"
+        browse.className =
+            "shrink-0 inline-flex items-center gap-1.5 h-8 px-2.5 rounded-lg border border-field bg-field " +
+            "text-xs font-medium text-ink-soft hover:bg-hover transition-colors cursor-pointer"
+        browse.innerHTML = '<i class="fa-solid fa-folder-open text-[10px]" aria-hidden="true"></i>'
+        browse.append(document.createTextNode(this._t("folder.choose")))
+
+        // The one dialog shell, opened the way every other trigger in the app
+        // opens it: mount ui--modal on the button and let it point the frame at
+        // the picker. setAttribute rather than dataset, for the reason
+        // _selectElement() gives — the double dash does not survive dataset's
+        // camel-casing.
+        browse.setAttribute("data-controller", "ui--modal")
+        browse.setAttribute("data-ui--modal-src-value", this._browseUrl(integration, chosen))
+        browse.setAttribute("data-ui--modal-title-value", integration.name)
+        browse.setAttribute("data-ui--modal-size-value", integration.mediaLibrary === true ? "full" : "wide")
+        browse.setAttribute("data-action", "click->ui--modal#open")
+        browse.addEventListener("click", () => {
+            this._folderPickFor = index
+        })
+
+        return [readout, browse]
     }
 
     // ── Feedback ────────────────────────────────────────────────────────────
@@ -489,6 +617,32 @@ export default class extends Controller {
     /** Labels a rule may apply or remove — user labels only. */
     _assignableLabels() {
         return this.labelsValue.filter((l) => l.system !== true)
+    }
+
+    /** The connection an action names, or undefined once it is disconnected. */
+    _integration(id) {
+        return this.integrationsValue.find((entry) => entry.id === Number(id))
+    }
+
+    /**
+     * Where the picker should open for this connection.
+     *
+     * Reopened at the folder already chosen, so changing a rule's destination
+     * starts where it currently points rather than at the top of the account —
+     * the same courtesy a manual save gets from save.last_destination.
+     *
+     * Built through URL so the folder is encoded properly: ids are paths for
+     * some services, and a "Mail/Invoices & co" appended by hand would split
+     * the query string.
+     */
+    _browseUrl(integration, folder) {
+        const url = new URL(integration.browseUrl, window.location.origin)
+
+        if ("" !== folder) {
+            url.searchParams.set("folder", folder)
+        }
+
+        return url.pathname + url.search
     }
 
     _at(path) {

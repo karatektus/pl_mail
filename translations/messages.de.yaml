@@ -1819,6 +1819,11 @@ integration:
         album_name: 'Albumname'
         choose_album: 'Album für %file% wählen'
         choose_folder: 'Ordner für %file% wählen'
+        # Der Picker ohne Anhang in der Hand: ein Filter benennt den Ordner, in
+        # den er später speichert — für Mail, die noch gar nicht da ist.
+        choose_for_filter: 'Wähle, wohin dieser Filter Anhänge speichert.'
+        choose_here: 'Diesen Ordner wählen'
+        choose_this: Wählen
         create: Erstellen
         folder_name: 'Ordnername'
         library: 'Mediathek (kein Album)'
@@ -2706,6 +2711,14 @@ settings:
             subject: Betreff enthält
             text: Irgendwo in der Nachricht
             to: An enthält
+        folder:
+            choose: Ordner wählen
+            # Steht da, solange eine "Anhänge speichern in"-Aktion keinen
+            # eigenen Ordner nennt. Dann speichert die Regel keinen, und der
+            # Upload landet dort, wo die Verbindung ihn standardmäßig ablegt —
+            # dasselbe kommt zurück, wenn im Picker die oberste Ebene gewählt
+            # wird.
+            default: Standardordner
         heading: Filter
         join:
             and: und
@@ -2760,6 +2773,9 @@ settings:
             every_message_in: 'es sich um irgendeine Nachricht in %account% handelt'
             full: 'Wenn %conditions% → %actions%'
             in_account: '%conditions%, in %account%'
+            # Ohne das lesen sich zwei Regeln, die in dieselbe Verbindung
+            # speichern, exakt gleich — und genau dafür wählt man einen Ordner.
+            into_folder: '%action% nach %folder%'
             no_actions: 'Wenn %conditions% → (noch keine Aktionen)'
         then: Dann
         when: Wenn

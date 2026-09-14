@@ -1515,6 +1515,9 @@ integration:
         album_name: 'Album name'
         choose_album: 'Pick an album fer %file%'
         choose_folder: 'Pick a hold fer %file%'
+        choose_for_filter: "Pick where this sieve stows its cargo."
+        choose_here: 'Take this hold'
+        choose_this: Take it
         create: Make
         folder_name: 'Hold name'
         library: 'Whole library (no album)'
@@ -2345,6 +2348,9 @@ settings:
             subject: Heading carries
             text: Anywhere in the yarn
             to: To carries
+        folder:
+            choose: Pick a hold
+            default: Default hold
         heading: Sieves
         join:
             and: and
@@ -2399,6 +2405,7 @@ settings:
             every_message_in: 'it be any bottle at all in %account%'
             full: 'If %conditions% → %actions%'
             in_account: '%conditions%, aboard %account%'
+            into_folder: '%action% into %folder%'
             no_actions: 'If %conditions% → (no orders yet)'
         then: Then
         when: When

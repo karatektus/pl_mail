@@ -8,6 +8,85 @@ The published image tags: `latest` follows the most recent release below,
 
 ## Unreleased
 
+## v0.2.25 — 2026-09-14
+
+### Added
+
+
+- **A filter that saves attachments can be told WHERE.** "Save attachments to Nextcloud" had no
+  folder beside it, so every filter-driven upload landed in the root of the connection — while the
+  same save done by hand from a message offers a browsable chooser. The rule editor now opens that
+  same chooser.
+
+  It is the same one, not a second one that looks like it. The picker grew a part-less mode: a save
+  from the reading pane has an attachment in hand and browses to a folder to put it in, while a rule
+  is naming a folder for mail that has not arrived yet, so with nothing in hand the choice is handed
+  back to the editor instead of being uploaded to on the spot. Navigation, breadcrumbs and the
+  albums-versus-folders split are the ones that were already there.
+
+  Nothing behind the editor needed building: the rule action, the queue message, the handler and the
+  driver have all carried a folder the whole time — there was simply no way to set one. Choosing the
+  top level puts a rule back on the connection's default, and changing the connection clears the
+  folder rather than carrying one service's id to another.
+
+  A rule shows where it saves in its own summary now, too: *"Save attachments to Nextcloud into
+  Mail/Invoices"*. Two rules pointing into one connection used to read identically.
+
+### Changed
+
+- **A whole-view mark-read or archive finally happens outside the request — which is what it has
+  always claimed to do.** The handler's own notes say it exists to escape
+  `Maximum execution time of 30 seconds exceeded`, and the controller answers with a progress
+  indicator precisely so nobody waits for the work. Neither was true: the message was never listed
+  in the routing map, and Messenger runs an unrouted message inline in whatever process dispatched
+  it. Every "mark all read" over a large mailbox therefore ran inside the web request, under the
+  limit it was written to escape.
+
+  **Self-hosting: this needs one new container.** `worker-bulk` consumes the new `bulk` queue.
+  Pull the compose file and bring it up; without it a whole-view action is queued and never runs,
+  and the indicator sits at nothing. Page-sized selections — the rows on screen — are untouched and
+  still apply inline.
+
+  It gets a queue of its own rather than joining `maintenance` because of who is waiting. A backfill
+  is nobody's foreground; a bulk action is somebody watching an indicator, and queued behind a
+  ten-minute embedding run it would have been slower than the inline version it replaces.
+
+### Fixed
+
+- **A deadlock no longer kills a bulk action.** Two transactions took row locks on the same messages
+  in opposite orders and PostgreSQL broke the cycle by killing one of them:
+
+      SQLSTATE[40P01]: Deadlock detected … while updating tuple (496,11) in relation "message"
+
+  Nothing was corrupt — the loser rolled back whole and would very likely have won a moment later —
+  but the job was marked Failed, so a collision that clears itself became an error in front of
+  whoever pressed the button. Each chunk is retried three times now, and a collision that outlasts
+  those hands the job back to the queue for redelivery rather than ending it.
+
+  The same trace showed a second fault underneath. Doctrine closes the EntityManager on any failed
+  flush, so the code that records the failure on the job could not run at all: it threw
+  `EntityManagerClosed` from inside its own catch block, which replaced the real error with one
+  about Doctrine and left the indicator spinning — exactly the outcome that block exists to prevent.
+  It resets the manager first now, and says so plainly if even that will not write.
+
+- **The list catches up with a bulk action while it runs.** Nothing ever refreshed it on the
+  strength of the job itself; what re-read the list was the toolbar's own "the write landed" event,
+  which fired when the request returned. Inline that was the same instant the work finished. Handed
+  to a worker it is the instant the work was queued, so the screen would have gone on showing
+  seventy-one conversations that were already archived. The list now re-reads on every chunk the job
+  reports, and immediately when it finishes.
+
+- **Four tests that were lying, three of them for weeks.** Two E2E specs had gone stale against
+  deliberate changes — the appearance preview grew from three sample rows to eight on purpose, and
+  the calendar pane's month grid gained an add button per cell, which made `getByLabel("New event")`
+  match forty-three of them. Two PHPUnit tests were a time bomb: their fixtures are dated
+  2026-08-10, the threader's subject fallback only looks back thirty days, and on 2026-09-09 at
+  10:00 the window closed behind them — no commit involved. And one demo test picked "the bounced
+  message" out of the whole shared table with no ordering, so which one it got was undecided; it
+  failed once in a full run and passed on the identical one after it. Each is fixed at its cause
+  rather than by moving a number: the arriving message now threads on References like the sync it
+  imitates, and the demo test asks for its own user's mail.
+
 ## v0.2.24 — 2026-09-11
 
 ### Fixed

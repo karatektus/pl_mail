@@ -10,12 +10,21 @@ rendered it: an album is a pile of pictures, a folder is a folder.
 #}
 {% set isAlbum = isMediaLibrary|default(false) %}
 
-{# The same row navigates in both modes; only the query it carries differs. In
+{# The same row navigates in every mode; only the query it carries differs. In
    destination mode it stays inside the folder chooser (mode + part) rather than
-   the attach picker (draft). #}
+   the attach picker (draft).
+
+   The part is omitted entirely when there is none — the filter editor's pick
+   mode, which chooses a folder with no attachment in hand. Passed as `part=`
+   instead, the chooser would see a part field it has to resolve, fail to, and
+   404 the navigation; presence of the field is what tells the two apart. See
+   FilePickerController::browseDestination(). #}
 {% set browseArgs = { id: integration.id, folder: entry.id, draft: draftId } %}
 {% if mode|default('attach') == 'destination' %}
-    {% set browseArgs = { id: integration.id, folder: entry.id, mode: 'destination', part: part } %}
+    {% set browseArgs = { id: integration.id, folder: entry.id, mode: 'destination' } %}
+    {% if part|default(null) is not null %}
+        {% set browseArgs = browseArgs|merge({ part: part }) %}
+    {% endif %}
 {% endif %}
 
 <li>

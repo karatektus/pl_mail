@@ -32,7 +32,22 @@ Variables:
               data-rules--rule-builder-seed-condition-value="{{ (submittedConditions is empty and rule.id is null) ? '1' : '0' }}"
               data-rules--rule-builder-actions-value="{{ (submittedActions ?: (rule.actions ? rule.actions|json_encode : '[]'))|e('html_attr') }}"
               data-rules--rule-builder-labels-value="{{ labels|map(l => { id: l.id, name: l.fullName, system: l.isSystem })|json_encode|e('html_attr') }}"
-              data-rules--rule-builder-integrations-value="{{ integrations|map(i => { id: i.id, name: i.name })|json_encode|e('html_attr') }}"
+              {# More than id and name: the editor opens the shared destination
+                 picker for whichever connection is selected, so each one brings
+                 the URL that chooser lives at and whether it is a photo library
+                 — the modal is opened at a different width for a grid of albums
+                 than for a folder list, exactly as the reading pane does it. #}
+              data-rules--rule-builder-integrations-value="{{ integrations|map(i => {
+                  id: i.id,
+                  name: i.name,
+                  mediaLibrary: i.provider.isMediaLibrary,
+                  browseUrl: path('app_integration_browse', { id: i.id, mode: 'destination' }),
+              })|json_encode|e('html_attr') }}"
+              {# The picker renders into the body-level modal frame, so its
+                 answer arrives at the document rather than inside this frame —
+                 the same shape core--mercure's events are wired with in
+                 _layout/app.html.twig. #}
+              data-action="integration--destination-picker:chosen@document->rules--rule-builder#folderChosen"
               {# selectNoResults is for the widget on the rows below: this
                  editor builds its selects in JS, so they cannot pick up the
                  ui--select attributes from the Twig macro the way every other
@@ -95,6 +110,8 @@ Variables:
                   'action.trash': 'settings.filters.action.trash'|trans,
                   'action.markSpam': 'settings.filters.action.markSpam'|trans,
                   'action.saveToIntegration': 'settings.filters.action.saveToIntegration'|trans,
+                  'folder.choose': 'settings.filters.folder.choose'|trans,
+                  'folder.default': 'settings.filters.folder.default'|trans,
                   no_integrations: 'settings.filters.no_integrations'|trans,
               }|json_encode|e('html_attr') }}">
 

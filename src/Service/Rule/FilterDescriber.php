@@ -225,7 +225,26 @@ final class FilterDescriber
         }
 
         if (true === array_key_exists('integrationId', $action)) {
-            return $described . ' ' . $this->integrationName($action['integrationId']);
+            $described .= ' ' . $this->integrationName($action['integrationId']);
+
+            // Where inside the connection matters as much as which connection:
+            // two rules saving to the same Nextcloud read identically without
+            // it, and the whole point of choosing a folder is that they should
+            // not. The folder's own id is what is said, because that is all the
+            // rule stores — for the services whose ids are paths it is the path
+            // itself, and for the rest it is at least the thing the upload will
+            // be handed rather than a remembered name that may since have been
+            // renamed out from under it.
+            $folder = $action['folder'] ?? null;
+
+            if (true === is_string($folder) && '' !== trim($folder)) {
+                return $this->translator->trans('settings.filters.summary.into_folder', [
+                    '%action%' => $described,
+                    '%folder%' => trim($folder),
+                ]);
+            }
+
+            return $described;
         }
 
         return $described;

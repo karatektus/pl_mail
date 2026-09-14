@@ -1823,6 +1823,11 @@ integration:
         album_name: 'Album name'
         choose_album: 'Choose an album for %file%'
         choose_folder: 'Choose a folder for %file%'
+        # The picker opened with no attachment in hand: a filter naming the
+        # folder it will save to, for mail that has not arrived yet.
+        choose_for_filter: 'Choose where this filter saves attachments.'
+        choose_here: 'Choose this folder'
+        choose_this: Choose
         create: Create
         folder_name: 'Folder name'
         library: 'Library (no album)'
@@ -2724,6 +2729,13 @@ settings:
             subject: Subject contains
             text: Anywhere in the message
             to: To contains
+        folder:
+            choose: Choose folder
+            # Shown when a "save attachments to" action names no folder of its
+            # own. The rule then stores none, and the upload lands wherever the
+            # connection is configured to put things — which is also what
+            # choosing the top level in the picker comes back as.
+            default: Default folder
         heading: Filters
         join:
             and: and
@@ -2780,6 +2792,9 @@ settings:
             every_message_in: 'this is any message in %account%'
             full: 'If %conditions% → %actions%'
             in_account: '%conditions%, in %account%'
+            # Two rules saving to the same connection read identically without
+            # this, which is exactly what picking a folder was for.
+            into_folder: '%action% into %folder%'
             no_actions: 'If %conditions% → (no actions yet)'
         then: Then
         when: When

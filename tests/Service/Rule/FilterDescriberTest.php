@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Tests\Service\Rule;
 
+use App\Domain\Enum\Integration\Provider;
+use App\Entity\Integration\Integration;
 use App\Entity\Mail\Account;
 use App\Entity\User\User;
 use App\Service\Rule\FilterDescriber;
@@ -137,7 +139,46 @@ final class FilterDescriberTest extends KernelTestCase
         self::assertStringContainsString('no actions', mb_strtolower($sentence));
     }
 
+    /**
+     * Two rules saving to the same connection used to read identically however
+     * differently they were set up, because the folder never reached the
+     * sentence — which made the folder picker impossible to check by reading.
+     */
+    public function testASaveActionSaysWhichFolderItLandsIn(): void
+    {
+        $integration = $this->seedIntegration();
+
+        $withFolder = $this->describer->describe(
+            ['subject' => 'invoice'],
+            [['type' => 'saveToIntegration', 'integrationId' => $integration->id, 'folder' => 'Mail/Invoices']],
+            $this->user,
+        );
+        $withoutFolder = $this->describer->describe(
+            ['subject' => 'invoice'],
+            [['type' => 'saveToIntegration', 'integrationId' => $integration->id]],
+            $this->user,
+        );
+
+        self::assertStringContainsString('Home cloud', $withFolder);
+        self::assertStringContainsString('Mail/Invoices', $withFolder);
+
+        // No folder is the connection's own default, and naming a folder there
+        // would be inventing one.
+        self::assertStringContainsString('Home cloud', $withoutFolder);
+        self::assertStringNotContainsString('Mail/Invoices', $withoutFolder);
+    }
+
     // ── Fixtures ─────────────────────────────────────────────────────────────
+
+    private function seedIntegration(): Integration
+    {
+        $integration = new Integration($this->user, Provider::Nextcloud, 'Home cloud');
+
+        $this->em->persist($integration);
+        $this->em->flush();
+
+        return $integration;
+    }
 
     private function seedAccount(): Account
     {

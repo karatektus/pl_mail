@@ -25,6 +25,11 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
  * Browsing a connected service from the compose window, and pulling files out
  * of it into a draft.
  *
+ * The same browse endpoint serves the other direction as well — choosing where
+ * an attachment is saved TO — and that face of it has two callers: a save from
+ * the reading pane, which has an attachment in hand, and the filter editor,
+ * which is only naming a folder for later. See browseDestination().
+ *
  * What each endpoint asks the service for lives in IntegrationFilePicker; what
  * is here is the shape of the answer.
  *
@@ -305,16 +310,33 @@ final class FilePickerController extends AbstractController
     // ── Private ───────────────────────────────────────────────────────────────
 
     /**
-     * The destination chooser for one attachment: a folder tree to save into,
-     * or a photo library's albums to file into.
+     * The destination chooser: a folder tree to save into, or a photo library's
+     * albums to file into.
+     *
+     * Two callers, told apart by whether they name a part. A save from the
+     * reading pane has one attachment in hand and browses to a folder to put it
+     * in; the rule editor has nothing in hand at all — it is choosing the folder
+     * a filter will save to, months from now, for mail that has not arrived. So
+     * the part is optional here, and its absence is "pick mode": the same
+     * listing, the same navigation, but the choice is handed back to whatever
+     * opened the dialog instead of being uploaded to on the spot.
+     *
+     * Presence of the query field, not its value, is what decides. An explicit
+     * `part=0` is a client bug rather than a pick, and ownedPart() still 404s on
+     * it — the save path must not gain a way to skip the ownership check by
+     * sending a part it knows will not resolve.
      */
     private function browseDestination(Integration $integration, Request $request): Response
     {
         // Upload is the capability a destination pick actually needs; every
         // upload-capable file provider can also browse, so listing follows.
+        // It is the right question in pick mode too: a folder chosen for a
+        // connection that cannot be uploaded to is a rule that will never run.
         $this->assertUsable($integration, Capability::Upload);
 
-        $part = $this->ownedPart($request->query->getInt('part'));
+        $part = true === $request->query->has('part')
+            ? $this->ownedPart($request->query->getInt('part'))
+            : null;
         $folderId = $this->blankToNull($request->query->get('folder'));
 
         return $this->renderDestination($integration, $part, $folderId, null);
@@ -323,10 +345,15 @@ final class FilePickerController extends AbstractController
     /**
      * Render the destination modal frame at a folder/album, optionally carrying
      * a message from a create attempt that failed.
+     *
+     * A null part is pick mode — see browseDestination(). The template reads the
+     * mode off the part rather than off a second flag, because there is only one
+     * fact here: with nothing to upload, there is nothing for a choice to do but
+     * be reported back.
      */
     private function renderDestination(
         Integration $integration,
-        MessagePart $part,
+        ?MessagePart $part,
         ?string $folderId,
         ?string $createError,
     ): Response {
