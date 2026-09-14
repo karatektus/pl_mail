@@ -8,6 +8,8 @@ The published image tags: `latest` follows the most recent release below,
 
 ## Unreleased
 
+## v0.2.26 — 2026-09-14
+
 ### Added
 
 - **Paperless-ngx, as somewhere to file an attachment and somewhere to attach from.** Connect it
