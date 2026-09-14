@@ -3,7 +3,7 @@
     "private": true,
     "description": "End-to-end tests for plMail (Playwright). Separate from the app's AssetMapper/importmap frontend.",
     "scripts": {
-        "test:env:up": "docker compose -f compose.test.yaml up -d --build --wait app",
+        "test:env:up": "docker compose -f compose.test.yaml up -d --build --wait app worker-bulk",
         "test:env:down": "docker compose -f compose.test.yaml down",
         "test:env:reset": "docker compose -f compose.test.yaml down -v",
         "test:env:logs": "docker compose -f compose.test.yaml logs -f app",

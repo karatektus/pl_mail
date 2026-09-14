@@ -149,7 +149,7 @@ recording after.
 Running a second stack — a worktree, or a second port — means overriding two variables together:
 
 ```bash
-TEST_HTTP_PORT=8006 docker compose -p my_stack -f compose.test.yaml up -d --build --wait app
+TEST_HTTP_PORT=8006 docker compose -p my_stack -f compose.test.yaml up -d --build --wait app worker-bulk
 E2E_BASE_URL=http://127.0.0.1:8006 \
   E2E_COMPOSE="docker compose -p my_stack -f compose.test.yaml" \
   npx playwright test

@@ -144,10 +144,19 @@ runs:
     # INSTALL, which is why they were pinned behind everything else in one
     # worker. Give them a stack of their own and the constraint is gone: there
     # is nothing to collide with.
+    #
+    # WORKER-BULK IS NAMED EXPLICITLY, and forgetting it is a green suite that
+    # goes red on the one spec that matters. `up <service>` starts that service
+    # and its DEPENDENCIES; a consumer of a queue the app writes to is a
+    # dependent, and compose has no way to know it matters. Left out, a
+    # whole-view archive is queued to a real Postgres transport and nothing ever
+    # picks it up, so bulk-select-all.spec.ts waits fifteen seconds for rows
+    # that will never move. See compose.test.yaml, which explains why this one
+    # queue is real here when the other three are in memory.
     - name: Start the test stack
       if: inputs.stack == 'true'
       shell: bash
-      run: docker compose -f compose.test.yaml up -d --wait app
+      run: docker compose -f compose.test.yaml up -d --wait app worker-bulk
 
     - name: Setup Node
       if: inputs.playwright == 'true'
