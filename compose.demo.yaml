@@ -73,6 +73,13 @@ services:
     environment:
       <<: *demo-env
 
+  # The demo's mailboxes are small, so a bulk action there is quick — but it
+  # still travels through this queue, and without the consumer the indicator
+  # would sit at nothing for ever.
+  worker-bulk:
+    environment:
+      <<: *demo-env
+
   # Runs app:demo:reap every ten minutes. Drop this service and expired
   # visitors are never deleted — the database then grows by one user, one
   # account, ten threads and ten contacts for every person who followed the

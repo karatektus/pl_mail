@@ -1,4 +1,4 @@
-<!-- translated-from: install/troubleshooting.md sha1:c2602b3577029a9a880454d2a1c78a8c4d349a7b -->
+<!-- translated-from: install/troubleshooting.md sha1:7d141d4e9169db18a2b045164621c0809700a68f -->
 # Fehlersuche
 
 Was `/healthz` bedeutet, wie du eine hängende von einer leeren Warteschlange unterscheidest, wo die
@@ -61,9 +61,10 @@ Vier Transports auf dem Doctrine-Transport, jeder mit einem eigenen Worker-Proze
 | `export` | `worker-export` | Alles, was plMail verlässt — Versand, Flag-Pushes, Gmail-Label-Änderungen, Mail aus dem Notifier. Die einzige Warteschlange, auf die jemand wartet |
 | `ingest` | `worker-ingest` | Eingehende Mail, Gmail- und Graph-Nachrichten-Batches, Kalenderabgleiche, Terminerkennung |
 | `maintenance` | `worker-maintenance` | Nachträgliche Verarbeitungen, Regelläufe über vorhandene Mail, "Jetzt ausführen"-Knöpfe im Administrationsbereich, Registrierung von Kalender-Push |
+| `bulk` | `worker-bulk` | Mark-Read- und Archiv-Läufe über eine ganze Ansicht. Jemand schaut dabei auf eine Fortschrittsanzeige, deshalb reihen sie sich nicht hinter einer nachträglichen Verarbeitung ein |
 | `async` | `worker-maintenance` | Stillgelegt. Wird geleert, damit vor der Aufteilung eingestellte Envelopes noch einen Konsumenten haben; hierher wird nichts mehr geroutet |
 
-Drei Prozesse statt drei Transports in einem Worker, weil ein Worker, der bereits in einem langen
+Vier Prozesse statt vier Transports in einem Worker, weil ein Worker, der bereits in einem langen
 Handler steckt, nichts anderes mehr annehmen kann, wie auch immer die Warteschlangen priorisiert
 sind — weshalb ein Klick auf Senden früher darauf wartete, dass ein Gmail-Batch fertig wurde.
 

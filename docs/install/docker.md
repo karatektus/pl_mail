@@ -125,10 +125,11 @@ from the environment, or reach the setup page through the address you actually i
 | `worker-export` | `messenger:consume export` | Anything leaving plMail, and the only queue somebody is watching. On its own process so a send is never behind a sync |
 | `worker-ingest` | `messenger:consume ingest` | Mail arriving and the work that immediately follows it |
 | `worker-maintenance` | `messenger:consume maintenance async` | Backfills, rule runs over existing mail, admin sweeps. Also drains the retired `async` queue |
+| `worker-bulk` | `messenger:consume bulk` | Whole-view actions: mark every unread read, archive the lot. On its own process because somebody is watching an indicator for it and it must not wait behind a backfill |
 | `scheduler` | `messenger:consume scheduler_default` | Fires everything recurring. **Nothing schedules itself without this container** |
 | `ntfy` | ntfy, under the `push` profile | Optional. Android push without Google — start it with `docker compose --profile push up -d` |
 
-Three processes rather than three transports on one worker, because a worker already inside a long
+Four processes rather than four transports on one worker, because a worker already inside a long
 handler cannot pick up anything else however the queues are prioritised. That was the original
 problem: pressing Send behind a Gmail batch waited for the batch.
 

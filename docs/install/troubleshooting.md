@@ -56,9 +56,10 @@ Four transports on the Doctrine transport, each with its own worker process:
 | `export` | `worker-export` | Anything leaving plMail — sends, flag pushes, Gmail label changes, mail from the notifier. The only queue somebody is waiting on |
 | `ingest` | `worker-ingest` | Mail arriving, Gmail and Graph message batches, calendar syncs, event extraction |
 | `maintenance` | `worker-maintenance` | Backfills, rule runs over existing mail, admin "run now" buttons, calendar push registration |
+| `bulk` | `worker-bulk` | Whole-view mark-read and archive runs. Somebody is watching an indicator for these, so they do not queue behind a backfill |
 | `async` | `worker-maintenance` | Retired. Drained so envelopes queued before the split still have a consumer; nothing routes here any more |
 
-Three processes rather than three transports on one worker, because a worker already inside a long
+Four processes rather than four transports on one worker, because a worker already inside a long
 handler cannot pick up anything else however the queues are prioritised — which is why pressing Send
 used to wait for a Gmail batch to finish.
 

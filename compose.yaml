@@ -198,6 +198,27 @@ services:
       database:
         condition: service_healthy
 
+  # A whole-view mark-read or archive. On its own process for the reason the
+  # send queue is: somebody pressed a button and is watching an indicator, and
+  # this must not wait behind a backfill on `maintenance`. Drop this service and
+  # the indicator fills to nothing — the job is queued and never handled.
+  worker-bulk:
+    image: *app-image
+    restart: unless-stopped
+    command: php bin/console messenger:consume bulk --time-limit=3600 --memory-limit=256M
+    stop_grace_period: 15s
+    environment:
+      <<: *app-env
+      APP_CONTAINER_NAME: worker-bulk
+    volumes: *app-storage
+    healthcheck:
+      disable: true
+    depends_on:
+      secrets-init:
+        condition: service_completed_successfully
+      database:
+        condition: service_healthy
+
   # Fires the recurring jobs in App\Infrastructure\Scheduler\MaintenanceSchedule.
   # Separate from messenger-worker so a long prune cannot stall the async queue.
   scheduler:

@@ -72,7 +72,24 @@ x-test-app: &test-app
     # Doctrine's when@test dbname_suffix (config/packages/doctrine.yaml) turns
     # this into `app_test` automatically.
     DATABASE_URL: postgresql://app:app@database:5432/app?serverVersion=18&charset=utf8
+    # `in-memory://` for the three shared queues, which means a message routed
+    # to one is kept and never handled — every worker process is a container
+    # this stack does not run, and an in-memory transport is per-process
+    # anyway. That is deliberate and is what keeps the suite deterministic: a
+    # spec is never racing an AI classification, a mailbox resort or a rule
+    # pass that fired in the background.
     MESSENGER_TRANSPORT_DSN: in-memory://
+    # The one exception, and the reason `bulk` has a DSN of its own in
+    # config/packages/messenger.yaml. A whole-view action HAS to actually run
+    # for bulk-select-all.spec.ts to mean anything — it selects the view,
+    # archives it and waits for the rows to go — so this queue is a real
+    # Postgres one with the worker below draining it. Pointing the shared
+    # variable here instead would switch the other three on at the same time.
+    #
+    # auto_setup=0: `messenger_messages` is created by a migration
+    # (Version20260625123836), and app-init has run it before anything else
+    # starts.
+    MESSENGER_BULK_DSN: doctrine://default?auto_setup=0
     MAILER_DSN: null://null
     APP_DEV_USER_EMAIL: e2e@plmail.test
     APP_DEV_USER_PASSWORD: e2e-password-change-me
@@ -191,6 +208,31 @@ services:
         condition: service_completed_successfully
       mercure:
         condition: service_healthy
+
+  # Drains the one queue this stack makes real — see MESSENGER_BULK_DSN above.
+  #
+  # `--time-limit` is short because the stack is short-lived and a worker that
+  # has exited is easier to read in `compose ps` than one that is idle; the
+  # restart policy brings it straight back either way. `-vv` so a handler that
+  # throws says why in `compose logs worker-bulk`, which is the only window
+  # onto work that no longer happens inside a request the browser can see.
+  worker-bulk:
+    <<: *test-app
+    command: php bin/console messenger:consume bulk --time-limit=600 --memory-limit=256M -vv
+    restart: unless-stopped
+    stop_grace_period: 5s
+    # The image carries a HEALTHCHECK that curls the web server, which a worker
+    # is not. Left on, `compose up --wait` reports this container unhealthy and
+    # exits non-zero with the stack up and working — which in CI is a red run
+    # for a container doing exactly what it should. Every worker in
+    # compose.yaml disables it for the same reason.
+    healthcheck:
+      disable: true
+    depends_on:
+      database:
+        condition: service_healthy
+      app-init:
+        condition: service_completed_successfully
 
 volumes:
   app_var_test:

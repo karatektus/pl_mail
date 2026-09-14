@@ -460,6 +460,45 @@ export default class extends Controller {
     }
 
     /**
+     * A bulk job moved a chunk, or finished.
+     *
+     * THE LIST HAD NO WAY OF FINDING OUT, and for as long as the work happened
+     * inside the request nobody could tell. mail/_job_started.stream.html.twig
+     * says the answer deliberately changes nothing in the list, because "the
+     * list finds out the way it always does, from the writes the job makes" —
+     * except that the only thing that re-read the list after a bulk action was
+     * the toolbar's own `written` event, which fires when the REQUEST lands.
+     * Inline, that was the same instant the work finished. Handed to a worker,
+     * it is the instant the work was queued: the refresh ran against a mailbox
+     * nothing had happened to yet, and the rows sat there afterwards for ever.
+     *
+     * COALESCED WHILE IT RUNS, IMMEDIATE WHEN IT ENDS, and the split is not a
+     * nicety. JobNotifier publishes on every chunk, so a run over five thousand
+     * conversations is fifty of these and the floor in _refreshList() is what
+     * keeps that to one fetch. But the floor is MIN_REFRESH_MS = 15s measured
+     * from the LAST refresh, and the bulk request itself has just caused one —
+     * the toolbar's `written` fires when the response lands, which is now the
+     * moment the work is QUEUED. A job that then finishes a second later had
+     * its nudge deferred by the remaining fourteen, so the list sat showing
+     * mail that was already archived for the rest of that window. It is the
+     * same trap refreshNow() was written for, in a new place: the difference
+     * that matters is whether anybody is waiting, and after "archive all" they
+     * are watching the list to see it happen.
+     *
+     * Per-chunk nudges keep the floor, because those really are a burst and the
+     * rows they move are moving either way.
+     */
+    onJobChanged(event) {
+        if (false === this.hasListTarget) {
+            return;
+        }
+
+        const state = event?.detail?.state;
+
+        this._refreshList({ immediate: "done" === state || "failed" === state });
+    }
+
+    /**
      * Somebody pressed a button and is watching the list for the result.
      *
      * Skips the coalescing window, which is there for the opposite situation: a

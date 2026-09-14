@@ -17,8 +17,12 @@ use App\Entity\Mail\MessageThread;
 use App\Entity\User\User;
 use App\Infrastructure\Messaging\Handler\RunBulkStatusHandler;
 use App\Infrastructure\Messaging\Message\RunBulkStatusMessage;
+use App\Repository\Mail\MessageThreadRepository;
 use App\Service\Label\LabelResolver;
 use Doctrine\DBAL\Connection;
+use Doctrine\DBAL\Driver\Exception as DriverException;
+use Doctrine\DBAL\Exception\DeadlockException;
+use Doctrine\Persistence\ManagerRegistry;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 
@@ -122,19 +126,174 @@ final class RunBulkStatusHandlerTest extends KernelTestCase
         self::assertSame(0, $stillUnread, 'every message in the view should have been marked read');
     }
 
+    /**
+     * A deadlock on the first attempt is retried, not reported as a failure.
+     *
+     * WHAT CAME OUT OF PRODUCTION
+     *
+     *     SQLSTATE[40P01]: Deadlock detected … while updating tuple (496,11)
+     *     in relation "message"
+     *
+     * Two transactions took row locks on the same messages in opposite orders
+     * and PostgreSQL killed one of them, which is the database doing its job:
+     * the loser rolled back whole and would very likely win a moment later.
+     * What the handler did with it was mark the whole bulk action Failed, so a
+     * collision that would have cleared on its own became an error and a dead
+     * indicator in front of whoever pressed "mark all read".
+     *
+     * THE COLLISION IS INJECTED AT THE REPOSITORY, which is the one seam in
+     * apply() that a test can reach: ThreadStatusUpdater is final and the flush
+     * that really deadlocks is inside it. What matters is not WHERE the
+     * RetryableException comes from — the handler catches the marker, not a
+     * call site — but that one of them does not end the job, and that the
+     * chunk it interrupted is applied in full afterwards. Thrown once, on the
+     * first chunk, so the retry has to succeed for the assertion below to hold
+     * over all 250 threads.
+     */
+    public function testALockCollisionIsRetriedAndTheWorkStillLands(): void
+    {
+        $messageIds = $this->seedThreads();
+
+        $job = $this->job();
+
+        $threads = new class (self::getContainer()->get(ManagerRegistry::class)) extends MessageThreadRepository {
+            public int $collisions = 0;
+
+            /**
+             * @param array<string, mixed> $criteria
+             * @param array<string, string>|null $orderBy
+             *
+             * @return list<MessageThread>
+             */
+            public function findBy(array $criteria, ?array $orderBy = null, ?int $limit = null, ?int $offset = null): array
+            {
+                if (0 === $this->collisions++) {
+                    // Closed first, because that is the state a real one leaves
+                    // behind: UnitOfWork::commit() shuts the manager in a
+                    // `finally` before the exception escapes. Without it this
+                    // test would exercise the retry and skip the only line in
+                    // it that can go wrong — a retry through a manager Doctrine
+                    // has already closed throws EntityManagerClosed instead of
+                    // re-applying anything.
+                    $this->getEntityManager()->close();
+
+                    throw new DeadlockException(
+                        new class ('deadlock detected') extends \RuntimeException implements DriverException {
+                            public function getSQLState(): string
+                            {
+                                return '40P01';
+                            }
+                        },
+                        null,
+                    );
+                }
+
+                return parent::findBy($criteria, $orderBy, $limit, $offset);
+            }
+        };
+
+        $this->handler($threads)(new RunBulkStatusMessage((int) $job->id));
+
+        // The collision really happened: one throw plus one lookup per chunk.
+        self::assertGreaterThan(1, $threads->collisions, 'the repository was never reached twice');
+
+        $this->em->clear();
+
+        $reloaded = $this->em->find(BackgroundJob::class, $job->id);
+
+        self::assertNotNull($reloaded);
+        self::assertSame(JobState::Done, $reloaded->state, (string) $reloaded->failureReason);
+        self::assertSame(self::THREADS, $reloaded->processed);
+
+        $stillUnread = 0;
+
+        foreach ($messageIds as $id) {
+            if (null === $this->em->find(Message::class, $id)?->seenAt) {
+                ++$stillUnread;
+            }
+        }
+
+        self::assertSame(0, $stillUnread, 'the chunk that collided was never re-applied');
+    }
+
+    /**
+     * Collisions that outlast the retries hand the job BACK, they do not end it.
+     *
+     * The difference is whether the transport gets another go. A job marked
+     * Failed is one the redelivery skips — __invoke() returns early on anything
+     * that is no longer active — so recording a lock collision as a failure
+     * would quietly turn the `bulk` queue's five-attempt ladder into one
+     * attempt. Left active, the envelope comes back with a fresh
+     * EntityManager, re-resolves the view and finishes what is left.
+     *
+     * Four collisions against three attempts, so the retry is exhausted on the
+     * first chunk rather than by arithmetic that happens to line up.
+     */
+    public function testCollisionsThatOutlastTheRetriesLeaveTheJobToTheQueue(): void
+    {
+        $this->seedThreads();
+
+        $job = $this->job();
+
+        $threads = new class (self::getContainer()->get(ManagerRegistry::class)) extends MessageThreadRepository {
+            public int $collisions = 0;
+
+            /**
+             * @param array<string, mixed> $criteria
+             * @param array<string, string>|null $orderBy
+             *
+             * @return list<MessageThread>
+             */
+            public function findBy(array $criteria, ?array $orderBy = null, ?int $limit = null, ?int $offset = null): array
+            {
+                ++$this->collisions;
+
+                $this->getEntityManager()->close();
+
+                throw new DeadlockException(
+                    new class ('deadlock detected') extends \RuntimeException implements DriverException {
+                        public function getSQLState(): string
+                        {
+                            return '40P01';
+                        }
+                    },
+                    null,
+                );
+            }
+        };
+
+        try {
+            $this->handler($threads)(new RunBulkStatusMessage((int) $job->id));
+
+            self::fail('the collision was swallowed instead of being handed back');
+        } catch (DeadlockException) {
+            // What the transport sees, and what makes it redeliver.
+        }
+
+        self::assertSame(3, $threads->collisions, 'the chunk was not retried the documented number of times');
+
+        $this->em->clear();
+
+        $reloaded = $this->em->find(BackgroundJob::class, $job->id);
+
+        self::assertNotNull($reloaded);
+        self::assertTrue($reloaded->isActive(), 'a lock collision ended the job instead of leaving it to be redelivered');
+    }
+
     // ── fixtures ─────────────────────────────────────────────────────────────
 
-    private function handler(): RunBulkStatusHandler
+    private function handler(?MessageThreadRepository $threads = null): RunBulkStatusHandler
     {
         $container = self::getContainer();
 
         return new RunBulkStatusHandler(
             $container->get(\App\Repository\Job\BackgroundJobRepository::class),
-            $container->get(\App\Repository\Mail\MessageThreadRepository::class),
+            $threads ?? $container->get(\App\Repository\Mail\MessageThreadRepository::class),
             $container->get(\App\Service\Mail\ListViewResolver::class),
             $container->get(\App\Service\Mail\ThreadStatusUpdater::class),
             $container->get(\App\Service\Job\JobNotifier::class),
             $this->em,
+            $container->get(\Doctrine\Persistence\ManagerRegistry::class),
             $container->get(\Psr\Log\LoggerInterface::class),
         );
     }

@@ -1,4 +1,4 @@
-<!-- translated-from: internals/architecture.md sha1:1a4a42064fa940f8b0838ec7cdfa4e9acf0182bc -->
+<!-- translated-from: internals/architecture.md sha1:20b8fdd77966024edc2b0f9c02a0d15f9adf0633 -->
 # Architektur
 
 Die Schichten, was wo liegt, und die Regeln, die das so halten. Diese Seite beschreibt die
@@ -177,10 +177,19 @@ Workers, damit ein verzögerter Retry nie auf einen Neustart warten muss.
 
 Getrennte Transports allein genügen nicht. Ein Worker, der bereits in einem langen Handler
 steckt, kann eine Sendung nicht aufnehmen, wie hoch sie auch priorisiert ist — also hat jeder
-Transport seinen eigenen Prozess: `worker-export`, `worker-ingest` und `worker-maintenance` in
-`compose.yaml`. Ein vierter Transport, `async`, wird ohne Routing weitergeführt, damit
-Envelopes, die vor der Aufteilung eingereiht wurden, noch irgendwo landen können; der
-Maintenance-Worker leert ihn.
+Transport seinen eigenen Prozess: `worker-export`, `worker-ingest`, `worker-maintenance` und
+`worker-bulk` in `compose.yaml`. Ein fünfter Transport, `async`, wird ohne Routing
+weitergeführt, damit Envelopes, die vor der Aufteilung eingereiht wurden, noch irgendwo landen
+können; der Maintenance-Worker leert ihn.
+
+`bulk` ist der jüngste davon und derjenige, den du am ehesten mit `maintenance` verwechselst:
+Er trägt Mark-Read- und Archiv-Läufe über eine ganze Ansicht. Die dauern so lange wie eine
+nachträgliche Verarbeitung, sind aber im entscheidenden Punkt nicht dasselbe — jemand hat einen
+Knopf gedrückt und schaut auf eine Fortschrittsanzeige. Hinter einem Embedding-Backfill
+eingereiht wäre der Auftrag langsamer als die Inline-Variante, die er ersetzt hat. Er ist
+außerdem der einzige Transport mit einer eigenen DSN (`MESSENGER_BULK_DSN`); die gibt es, damit
+die Browser-Suite genau diese eine Warteschlange echt und konsumiert laufen lassen kann,
+während die anderen drei im Speicher und unbearbeitet bleiben.
 
 Zwei Routing-Entscheidungen sind tragend und nicht bloß ordentlich:
 

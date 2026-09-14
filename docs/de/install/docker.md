@@ -1,4 +1,4 @@
-<!-- translated-from: install/docker.md sha1:76b39de6d79bca245417628dafa8d329a76f4ba7 -->
+<!-- translated-from: install/docker.md sha1:89c280cbbe9bb45d384b184c1dd64fb5d1dd053c -->
 # Installation mit Docker Compose
 
 Der unterstützte Weg, von Anfang bis Ende: was du brauchst, was `docker compose up` tatsächlich tut,
@@ -139,10 +139,11 @@ rufe die Einrichtungsseite über die Adresse auf, die du tatsächlich verwenden 
 | `worker-export` | `messenger:consume export` | Alles, was plMail verlässt, und die einzige Warteschlange, auf die jemand wartet. In einem eigenen Prozess, damit ein Versand nie hinter einem Abgleich steht |
 | `worker-ingest` | `messenger:consume ingest` | Eingehende Mail und die Arbeit, die unmittelbar darauf folgt |
 | `worker-maintenance` | `messenger:consume maintenance async` | Nachträgliche Verarbeitungen, Regelläufe über vorhandene Mail, administrative Durchläufe. Leert außerdem die stillgelegte Warteschlange `async` |
+| `worker-bulk` | `messenger:consume bulk` | Aktionen über eine ganze Ansicht: alles Ungelesene als gelesen markieren, alles archivieren. Eigener Prozess, weil jemand dabei auf eine Fortschrittsanzeige schaut und das nicht hinter einer nachträglichen Verarbeitung warten darf |
 | `scheduler` | `messenger:consume scheduler_default` | Löst alles Wiederkehrende aus. **Ohne diesen Container plant sich nichts von selbst** |
 | `ntfy` | ntfy, unter dem Profil `push` | Optional. Android-Push ohne Google — starte ihn mit `docker compose --profile push up -d` |
 
-Drei Prozesse statt drei Transports in einem Worker, weil ein Worker, der bereits in einem langen
+Vier Prozesse statt vier Transports in einem Worker, weil ein Worker, der bereits in einem langen
 Handler steckt, nichts anderes mehr annehmen kann, wie auch immer die Warteschlangen priorisiert
 sind. Genau das war das ursprüngliche Problem: Ein Klick auf Senden wartete hinter einem
 Gmail-Batch.

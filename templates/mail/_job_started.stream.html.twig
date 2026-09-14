@@ -9,8 +9,17 @@ a toast says it started — because the list does NOT change yet, and an action
 that appears to do nothing is one people press again.
 
 What is not here: any change to the list. Five thousand rows will move as the
-job runs, and the list finds out the way it always does, from the writes the
-job makes.
+job runs, and the list finds out from the job itself — JobNotifier publishes on
+every chunk and at the end, and mail--mail-pane#onJobChanged re-reads the frame
+on the strength of it.
+
+That last sentence used to read "the list finds out the way it always does,
+from the writes the job makes", and there was no such mechanism. What actually
+re-read the list after a bulk action was the toolbar's own `written` event,
+which fires when the REQUEST lands — the same instant the work finished, for as
+long as the work happened inside the request. It was never true of a job
+handed to a worker, and the first thing that ran on one archived seventy-one
+conversations while the screen went on showing them.
 
 Variables: job
 #}

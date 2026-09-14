@@ -13,7 +13,9 @@ use App\Repository\Mail\MessageThreadRepository;
 use App\Service\Job\JobNotifier;
 use App\Service\Mail\ListViewResolver;
 use App\Service\Mail\ThreadStatusUpdater;
+use Doctrine\DBAL\Exception\RetryableException;
 use Doctrine\ORM\EntityManagerInterface;
+use Doctrine\Persistence\ManagerRegistry;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 use Throwable;
@@ -57,6 +59,29 @@ final readonly class RunBulkStatusHandler
      */
     private const int CHUNK = 100;
 
+    /**
+     * How many times a chunk is re-applied after a lock collision.
+     *
+     * Three, because a deadlock is not a queue: PostgreSQL shoots one of the
+     * two transactions the instant it sees the cycle, so a retry is competing
+     * with whatever else is writing right now rather than waiting out a
+     * backlog. Two attempts clear nearly all of them and the third is for the
+     * unlucky case where the same pair collides twice. Beyond that the
+     * collision is structural and should be read in the log, not hidden by a
+     * longer loop.
+     */
+    private const int LOCK_ATTEMPTS = 3;
+
+    /**
+     * Microseconds before the retry, multiplied by the attempt.
+     *
+     * Small and not zero. Both transactions rolled back at the same instant,
+     * so an immediate retry is the same race run again; a few tens of
+     * milliseconds is enough for the survivor to commit and get out of the way,
+     * and is invisible next to the flush itself.
+     */
+    private const int LOCK_BACKOFF_US = 40_000;
+
     public function __construct(
         private BackgroundJobRepository  $jobs,
         private MessageThreadRepository  $threads,
@@ -64,6 +89,7 @@ final readonly class RunBulkStatusHandler
         private ThreadStatusUpdater     $status,
         private JobNotifier             $notifier,
         private EntityManagerInterface  $em,
+        private ManagerRegistry         $registry,
         private LoggerInterface         $logger,
     ) {
     }
@@ -86,6 +112,32 @@ final readonly class RunBulkStatusHandler
 
         try {
             $this->run($job);
+        } catch (RetryableException $e) {
+            // THREE IN-PROCESS ATTEMPTS WERE NOT ENOUGH — see applyWithRetry()
+            // for what those are and why a deadlock deserves them. Reaching
+            // here means the collisions kept coming, which is bad luck rather
+            // than a broken job: nothing is corrupt, the chunk that lost rolled
+            // back whole, and the chunks before it are committed.
+            //
+            // So the job is left ACTIVE and the exception rethrown, which hands
+            // it back to the transport. That is not merely "give up more
+            // politely": redelivery is the only path that gets a fresh
+            // EntityManager — Doctrine closes this one on a failed flush and
+            // nothing after that point can write — and the `bulk` queue's retry
+            // ladder is tuned for exactly this arrival, 2s out to a minute over
+            // five attempts. Re-running re-resolves the view, so what it
+            // repeats is only the work still left to do.
+            //
+            // Marking it Failed here instead, which is what the generic branch
+            // below would do, ends the story: the redelivery finds a job that
+            // is no longer active and returns without doing anything.
+            $this->logger->warning('RunBulkStatusHandler: lock collisions outlasted the retries, handing the job back to the queue', [
+                'jobId' => $message->jobId,
+                'kind'  => $job->kind->value,
+                'error' => $e->getMessage(),
+            ]);
+
+            throw $e;
         } catch (Throwable $e) {
             $this->logger->error('RunBulkStatusHandler: bulk action failed', [
                 'jobId'     => $message->jobId,
@@ -103,6 +155,32 @@ final readonly class RunBulkStatusHandler
             // finish() on a detached entity flushes nothing at all. The failure
             // was logged and the indicator span forever, which is precisely the
             // outcome this block exists to prevent.
+            //
+            // NOT THROUGH A MANAGER DOCTRINE HAS SHUT, which is every failure
+            // that came out of a flush: UnitOfWork::commit() closes it in a
+            // `finally` before rethrowing. Writing through it then throws
+            // EntityManagerClosed from inside this catch block — which replaces
+            // the real error with one about Doctrine AND still leaves the
+            // indicator spinning, so the block fails at the only job it has,
+            // for the failures most likely to reach it.
+            //
+            // Reset rather than give up: the registry re-initialises the ghost
+            // in place, so the repositories holding this manager are working
+            // again on the next line. If even that will not write, say so and
+            // leave the row to app:jobs:reap, which is what the staleness
+            // window is for.
+            if (false === $this->em->isOpen()) {
+                $this->registry->resetManager();
+            }
+
+            if (false === $this->em->isOpen()) {
+                $this->logger->error('RunBulkStatusHandler: entity manager closed, the job could not be marked failed', [
+                    'jobId' => $message->jobId,
+                ]);
+
+                throw $e;
+            }
+
             $failed = $this->jobs->find($message->jobId);
 
             if (null !== $failed) {
@@ -158,7 +236,7 @@ final readonly class RunBulkStatusHandler
         $processed = 0;
 
         foreach (array_chunk($ids, self::CHUNK) as $chunk) {
-            $this->apply($chunk, $action, $read, $userId);
+            $this->applyWithRetry($chunk, $action, $read, $userId);
 
             $processed += count($chunk);
 
@@ -195,6 +273,68 @@ final readonly class RunBulkStatusHandler
         $done->finish(JobState::Done);
         $this->em->flush();
         $this->notifier->changed($done);
+    }
+
+    /**
+     * One chunk, re-applied if the database shot it for taking locks out of turn.
+     *
+     * WHAT THIS IS FOR
+     *
+     *     SQLSTATE[40P01]: Deadlock detected … while updating tuple (496,11)
+     *     in relation "message"
+     *
+     * Two transactions held a lock the other wanted. This run was updating the
+     * messages of one thread while something else — another bulk action, a sync
+     * writing remote flags onto mail this one is marking read — updated the
+     * same rows in the opposite order, and PostgreSQL broke the cycle by
+     * killing one of them. That is the database working, not failing: nothing
+     * is corrupt, the killed transaction rolled back whole, and the statement
+     * that lost will very likely win a moment later.
+     *
+     * Which is why it must not travel up as a failed job. It used to, and the
+     * person who pressed "mark all read" got an error and a dead indicator for
+     * a collision that would have cleared on its own.
+     *
+     * RESETTING IS NOT OPTIONAL. Doctrine closes the EntityManager on any
+     * failed flush, so without this the retry would throw EntityManagerClosed
+     * before it reached the database. The reset re-initialises the manager in
+     * place — the repositories injected above keep working — and it is safe
+     * here precisely because the transaction rolled back: there is no pending
+     * work to lose, and apply() clears the manager at the end of every chunk
+     * anyway.
+     *
+     * RetryableException rather than DeadlockException: DBAL's own marker for
+     * "the same statement may simply work next time", which also covers a lock
+     * wait that timed out. Anything else is a real failure and goes straight
+     * up, unretried.
+     *
+     * @param list<int> $chunk
+     */
+    private function applyWithRetry(array $chunk, string $action, bool $read, int $userId): void
+    {
+        for ($attempt = 1; ; ++$attempt) {
+            try {
+                $this->apply($chunk, $action, $read, $userId);
+
+                return;
+            } catch (RetryableException $e) {
+                if ($attempt >= self::LOCK_ATTEMPTS) {
+                    throw $e;
+                }
+
+                $this->logger->warning('RunBulkStatusHandler: lock collision, retrying the chunk', [
+                    'attempt' => $attempt,
+                    'threads' => count($chunk),
+                    'error'   => $e->getMessage(),
+                ]);
+
+                if (false === $this->em->isOpen()) {
+                    $this->registry->resetManager();
+                }
+
+                usleep(self::LOCK_BACKOFF_US * $attempt);
+            }
+        }
     }
 
     /**

@@ -5,10 +5,12 @@ declare(strict_types=1);
 namespace App\Tests\Controller\Mail;
 
 use App\Domain\Enum\Job\JobKind;
+use App\Infrastructure\Messaging\Message\RunBulkStatusMessage;
 use App\Repository\Job\BackgroundJobRepository;
 use App\Repository\User\UserRepository;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
+use Symfony\Component\Messenger\Envelope;
 
 /**
  * A whole-view bulk action is handed to a worker, not done in the request.
@@ -63,13 +65,16 @@ final class BulkStatusOffloadTest extends WebTestCase
         self::assertNotNull($job);
         self::assertSame(JobKind::MarkRead, $job->kind);
 
-        // Deliberately NOT asserting that it is still running. This
-        // environment's transport handles a dispatch inline, so by the time the
-        // response comes back the job has already finished — which is also what
-        // made the E2E version of this test corrupt other specs. What is being
-        // pinned is the contract the controller owns: a job exists, describing
-        // the right work. When it runs is the transport's business, and in
-        // production that is a worker.
+        // Deliberately NOT asserting that it is still running: when it runs
+        // is the transport's business, and asserting on timing here is what
+        // made the E2E version of this test corrupt other specs. What is
+        // pinned is the contract the controller owns — a job exists, describing
+        // the right work.
+        //
+        // That the transport is a WORKER and not this very request is the next
+        // test. It used to be a sentence of prose here saying "in production
+        // that is a worker", and that sentence was wrong for as long as it had
+        // been written.
 
         // The selection travels on the job, not in the envelope: a queue row
         // should not be the size of the work it describes.
@@ -92,6 +97,46 @@ final class BulkStatusOffloadTest extends WebTestCase
 
         self::assertResponseIsSuccessful();
         self::assertSame(JobKind::MarkUnread, $this->jobs()->findOneBy([], ['id' => 'DESC'])?->kind);
+    }
+
+    /**
+     * The envelope reaches a queue instead of being run on the spot.
+     *
+     * THIS IS THE TEST THAT WAS MISSING, and the prose above carried the gap as
+     * an assumption. Nothing routed RunBulkStatusMessage in
+     * config/packages/messenger.yaml, and Messenger handles an unrouted message
+     * INLINE in whichever process dispatched it — so every whole-view action
+     * ran inside the web request, under exactly the time limit
+     * RunBulkStatusHandler was written to escape, and at request concurrency,
+     * which is where the production deadlock came from. That file warns about
+     * this precise trap one routing entry above, for RunCommandMessage.
+     *
+     * The queue is asserted BY NAME, not "some transport got something". Which
+     * one it lands on is half the decision: `maintenance` would park a bulk
+     * action behind an embedding backfill, and `export` would park somebody's
+     * send behind the bulk action.
+     *
+     * ASKED OF THE ROUTING, not of a transport's contents, and that is not
+     * squeamishness about side effects. `bulk` is the one queue whose DSN can
+     * be overridden per environment — compose.test.yaml points it at Postgres
+     * and runs a worker, so the browser suite's bulk actions really happen —
+     * and a test that reached for InMemoryTransport::getSent() therefore
+     * passed on a developer's machine and died with a TypeError in the
+     * container the suite actually runs in. What is being pinned is which
+     * queue the envelope is addressed to, and SendersLocator answers that
+     * whatever is at the other end.
+     */
+    public function testTheJobIsHandedToTheBulkQueue(): void
+    {
+        $senders = static::getContainer()
+            ->get('messenger.senders_locator')
+            ->getSenders(new Envelope(new RunBulkStatusMessage(1)));
+
+        self::assertSame(
+            ['bulk'],
+            array_keys(iterator_to_array($senders)),
+            'a whole-view action is not addressed to the bulk queue',
+        );
     }
 
     /**

@@ -163,9 +163,17 @@ delayed retry is never left waiting on a restart.
 
 Separate transports are not enough on their own. A worker already inside a long handler
 cannot pick up a send however it is prioritised, so each transport has its own process:
-`worker-export`, `worker-ingest` and `worker-maintenance` in `compose.yaml`. A fourth
-transport, `async`, is kept routing nothing, so envelopes queued before the split still have
-somewhere to land; the maintenance worker drains it.
+`worker-export`, `worker-ingest`, `worker-maintenance` and `worker-bulk` in `compose.yaml`. A
+fifth transport, `async`, is kept routing nothing, so envelopes queued before the split still
+have somewhere to land; the maintenance worker drains it.
+
+`bulk` is the newest of them and the one whose reason is easiest to mistake for `maintenance`:
+it carries whole-view mark-read and archive runs, which are long like a backfill but are not
+like one in the way that matters — somebody pressed a button and is watching an indicator, so
+queueing them behind an embedding backfill would make the job slower than the inline version
+it replaced. It is also the only transport with a DSN of its own
+(`MESSENGER_BULK_DSN`), which exists so the browser suite can make this one queue real and
+consumed while leaving the other three in memory and unhandled.
 
 Two routing decisions are load-bearing rather than tidy:
 

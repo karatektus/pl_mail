@@ -1,3 +1,10 @@
+# The DSN every queue uses unless it is given one of its own. A parameter
+# rather than repeating the env() call, because `bulk` below needs to be able
+# to fall back to it — %env(default:…)% takes a PARAMETER name, not a second
+# variable.
+parameters:
+    messenger.default_dsn: '%env(MESSENGER_TRANSPORT_DSN)%'
+
 framework:
     messenger:
         failure_transport: failed
@@ -50,6 +57,40 @@ framework:
                     max_retries: 5
                     max_delay: 300000
 
+            # A whole-view action: mark every unread read, archive the lot.
+            #
+            # ITS OWN QUEUE RATHER THAN maintenance, and the difference is who
+            # is waiting. maintenance is where work goes when nobody is — a
+            # backfill, a sweep — and it says so two entries down. A bulk action
+            # is the opposite: somebody pressed a button, is watching an
+            # indicator fill, and cannot use the list until it does. Queued
+            # behind a ten-minute embedding backfill it would be slower than the
+            # inline version it replaced, which would be a strange thing to ship
+            # as a fix.
+            #
+            # A DSN OF ITS OWN, defaulting to everyone else's. Nothing sets
+            # MESSENGER_BULK_DSN in production and nothing should; it exists so
+            # compose.test.yaml can make THIS queue a real, consumed one while
+            # the other three stay `in-memory://` and unconsumed. Pointing the
+            # shared variable at Postgres instead would switch all four on at
+            # once, and the browser suite would suddenly be running mailbox
+            # resorts, rule passes and AI classification in the middle of specs
+            # about something else.
+            bulk:
+                dsn: '%env(default:messenger.default_dsn:MESSENGER_BULK_DSN)%'
+                options:
+                    queue_name: bulk
+                # The export ladder, for the export reason: somebody is watching
+                # this one. What reaches here is a lock collision the handler's
+                # own three in-process attempts could not clear, so the useful
+                # retry is soon and there is no point in a long tail — a bulk
+                # action nobody is still looking at is one they have given up on.
+                retry_strategy:
+                    delay: 2000
+                    multiplier: 3
+                    max_retries: 5
+                    max_delay: 60000
+
             # Bulk and deliberate: backfills, rule runs over existing mail,
             # admin sweeps. Slow is fine; blocking the other two is not.
             maintenance:
@@ -89,6 +130,25 @@ framework:
             # time and memory limits. The tradeoff of routing it here is that a
             # long sweep occupies the async consumer while it runs.
             Symfony\Component\Console\Messenger\RunCommandMessage: maintenance
+
+            # THE SAME TRAP AS THE NOTE ABOVE, AND IT HAD ALREADY SPRUNG.
+            # RunBulkStatusHandler exists to take a whole-view mark-read or
+            # archive OUT of the request — its docblock quotes the `Maximum
+            # execution time of 30 seconds exceeded` that produced it, and
+            # BulkStatusController::startJob answers with an indicator precisely
+            # so nobody waits for the work. Neither was true: the message was
+            # never listed here, an unrouted message is handled INLINE by
+            # dispatch(), and so every whole-view action ran inside the web
+            # request under the limit it was written to escape.
+            #
+            # What surfaced it was not the timeout but a deadlock in production
+            # — bulk runs colliding at request concurrency with a flag sync,
+            # each taking row locks on `message` in its own order, one of them
+            # shot by PostgreSQL. On a queue with one consumer those runs are
+            # serialised instead, which removes that pairing outright; the
+            # handler's in-process retry covers the collisions that are left.
+            App\Infrastructure\Messaging\Message\RunBulkStatusMessage: bulk
+
             Symfony\Component\Mailer\Messenger\SendEmailMessage: export
             Symfony\Component\Notifier\Message\ChatMessage: export
             Symfony\Component\Notifier\Message\SmsMessage: export
