@@ -45,20 +45,25 @@ console to say why. Turbo leaves a link carrying `download` to the browser.
     Nothing is lost by it. The reader carries its own download link, and the
     "Save to…" half beside it is untouched.
 #}
-{% macro pdfFace(part, hasPreview) %}
+{% macro pdfFace(part, hasPreview, radius) %}
     {# A macro gets no caller scope, so the sibling macro is imported here rather
        than passed in: an imported name lives in Twig's macro table, not in the
        context, so it cannot travel as an argument. #}
     {% import _self as chip %}
-    {# INSET, and every face in this file says so for the same reason. A chip
-       is a rounded box with square-cornered halves inside it, rounded by the
-       group's own `overflow-hidden` — so a ring drawn OUTSIDE one of those
-       halves is drawn outside the group as well, and the clip takes it. What
-       was left was the browser's default outline: a hard rectangle at the
-       corners of a half, cut off where the group curves, which is what "the
-       highlight border looks weird" was. Inset, the ring is painted inside the
-       half's own padding box, so the clip rounds its corners instead of eating
-       it, and the highlight follows the shape the eye expects. #}
+    {# TWO THINGS MAKE THE FOCUS RING THE SHAPE OF THE CHIP, and it takes both.
+
+       A chip is a rounded box whose halves have always been square, rounded
+       only by the group's own `overflow-hidden`. So a ring drawn OUTSIDE a half
+       is drawn outside the group as well and the clip deletes it, leaving the
+       browser's default outline: a hard rectangle at a square half's corners,
+       sliced where the group curves.
+
+       `ring-inset` fixes the deleting. It does NOT give the ring a shape — an
+       inset ring on a square box is still a square band, and the clip erases
+       3.39px of it at each outer corner (7px inner radius, 2px band, measured),
+       so the highlight arrives with its corners bitten off. That was the second
+       report, and it is what $radius answers: the half carries the group's own
+       corner, the ring follows it, and the clip has nothing left to cut. #}
     <button type="button"
             data-controller="ui--modal"
             data-action="click->ui--modal#open"
@@ -67,7 +72,7 @@ console to say why. Turbo leaves a link carrying `download` to the browser.
             data-ui--modal-title-value="{{ part.filename ?: 'attachment.preview.untitled'|trans }}"
             class="inline-flex items-center gap-2 {{ hasPreview ? 'p-1.5 pr-3' : 'px-3 py-2' }} text-xs
                    text-ink-soft hover:bg-hover transition-colors cursor-pointer text-left
-                   focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent">
+                   {{ radius }} focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent">
         {{ chip.face(part, hasPreview) }}
     </button>
 {% endmacro %}
@@ -95,7 +100,7 @@ console to say why. Turbo leaves a link carrying `download` to the browser.
 
     {% if isPdf %}
         <span class="inline-flex rounded-lg bg-sunken border border-line overflow-hidden">
-            {{ chip.pdfFace(part, hasPreview) }}
+            {{ chip.pdfFace(part, hasPreview, 'rounded-lg') }}
         </span>
     {% else %}
         <a href="{{ path('app_mail_attachment', { id: part.id }) }}?download=1"
@@ -121,12 +126,12 @@ console to say why. Turbo leaves a link carrying `download` to the browser.
 
         <div class="inline-flex items-stretch rounded-lg bg-sunken border border-line overflow-hidden">
             {% if isPdf %}
-                {{ chip.pdfFace(part, hasPreview) }}
+                {{ chip.pdfFace(part, hasPreview, 'rounded-l-lg') }}
             {% else %}
                 <a href="{{ path('app_mail_attachment', { id: part.id }) }}?download=1"
                    download="{{ downloadName }}"
                    class="inline-flex items-center gap-2 {{ hasPreview ? 'p-1.5 pr-3' : 'px-3 py-2' }} text-xs text-ink-soft hover:bg-hover transition-colors
-                          focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent">
+                          rounded-l-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent">
                     {{ chip.face(part, hasPreview) }}
                 </a>
             {% endif %}
@@ -135,7 +140,7 @@ console to say why. Turbo leaves a link carrying `download` to the browser.
                     data-action="click->ui--dropdown#toggle"
                     aria-label="{{ 'message.save_to'|trans }}"
                     class="px-2 border-l border-line text-ink-faint hover:text-ink hover:bg-hover transition-colors
-                           focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent">
+                           rounded-r-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent">
                 <i class="fa-solid fa-cloud-arrow-up text-[11px]" aria-hidden="true"></i>
             </button>
         </div>

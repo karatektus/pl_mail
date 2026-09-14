@@ -8,6 +8,21 @@ The published image tags: `latest` follows the most recent release below,
 
 ## Unreleased
 
+## v0.2.24 — 2026-09-11
+
+### Fixed
+
+- **The focus highlight on a joined control is now actually the shape of the control.** v0.2.23
+  fixed half of this and shipped the other half: the ring was no longer clipped out of existence,
+  but it was still a SQUARE ring on a square half, and the group's rounded clip bit 3.39px out of it
+  at each outer corner — a highlight arriving with its corners missing, which is what "this does not
+  look fixed" was. Measured: a 7px inner radius against a 2px band.
+
+  The halves carry the group's own corners now — `rounded-l-lg` on the face, `rounded-r-lg` on the
+  save button, the same at both ends of the Send pill and of the calendar's view switcher — so the
+  ring follows a curve the clip has nothing left to cut. Measured again on both chips, both pill
+  halves and all four segments: zero erased.
+
 ## v0.2.23 — 2026-09-11
 
 ### Fixed

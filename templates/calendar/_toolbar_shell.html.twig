@@ -159,6 +159,21 @@ Blocks:
     </h2>
 
     <div class="ml-auto flex items-center gap-1 shrink-0">
+        {# Which segments are actually drawn, before drawing any of them: the
+           ends of this control need the group's own corners — an inset focus
+           ring on a square segment is still square, and the group's clip bites
+           3.39px out of it at each corner (mail/_attachment_chip.html.twig has
+           the measurement) — and `loop.first` cannot say. It reports the first
+           CANDIDATE, not the first one that survived the `is defined` test, so
+           on any caller that publishes a subset the rounding would land on a
+           segment that is not there. #}
+        {% set shown = [] %}
+        {% for candidate in enum('App\\Domain\\Enum\\Calendar\\CalendarView').cases() %}
+            {% if viewUrls[candidate.value] is defined %}
+                {% set shown = shown|merge([candidate.value]) %}
+            {% endif %}
+        {% endfor %}
+
         <div class="flex items-center rounded-lg border border-line overflow-hidden" data-calendar-views>
             {% for candidate in enum('App\\Domain\\Enum\\Calendar\\CalendarView').cases() %}
                 {% if viewUrls[candidate.value] is defined %}
@@ -175,6 +190,8 @@ Blocks:
                           would be invisible. #}
                        class="flex items-center justify-center text-xs transition-colors
                               focus:outline-none focus-visible:ring-2 focus-visible:ring-inset
+                              {{ shown|first == candidate.value ? 'rounded-l-lg' : '' }}
+                              {{ shown|last == candidate.value ? 'rounded-r-lg' : '' }}
                               {{ compact ? 'w-7 h-7' : 'px-2.5 py-1' }}
                               {{ candidate == view
                                   ? 'bg-accent text-accent-ink focus-visible:ring-accent-ink'
