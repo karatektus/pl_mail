@@ -299,23 +299,54 @@ final class ThreadOrderingOnSendTest extends KernelTestCase
         return null;
     }
 
-    /** A new message arriving from outside, threaded the way sync threads it. */
+    /**
+     * A new message arriving from outside, threaded the way sync threads it.
+     *
+     * IT CARRIES REFERENCES, and that is the whole of a bug these tests spent a
+     * month not having. They cleared both header fields, which left
+     * MessageThreader nothing to match on but its SUBJECT FALLBACK — and that
+     * path is the one with a 30-day window on the candidate thread
+     * (MessageThreader::SUBJECT_FALLBACK_WINDOW). The fixtures are dated
+     * 2026-08-10, so on 2026-09-09 at 10:00 the window closed behind them and
+     * this helper quietly stopped joining the conversation it was handed. It
+     * created a THIRD thread instead, which turned up in an inbox listing that
+     * expected two and failed an assertion about ORDER with a length mismatch.
+     * No commit was involved; the calendar did it, twenty-four minutes before
+     * an unrelated release, which is as misleading as a bisect gets.
+     *
+     * A customer writing back really does carry References, so this is also
+     * what sync would take: path 2 of assignThread(), which matches on a
+     * message id and has no time window at all. The tests are about what a
+     * reply does to the ORDER of the inbox, and now depend on nothing but that.
+     *
+     * The join is asserted rather than assumed for the same reason: an
+     * unmatched reference makes a new thread too, and the next person to see
+     * that should be told which step failed instead of finding a mystery row
+     * in somebody else's expectation.
+     */
     private function arrive(MessageThread $thread, DateTimeImmutable $at): Message
     {
+        $parent = $thread->messages->first();
+
+        self::assertInstanceOf(Message::class, $parent, 'the conversation to reply into has no message');
+        self::assertIsString($parent->messageId);
+
         $message = $this->row('Re: ' . $thread->subject, 'kunde@example.test');
         $message->messageId  = MessageIdHelper::mint('example.test');
         $message->mailbox    = $this->inbox;
         $message->imapUid    = ImapUidSequence::next();
         $message->receivedAt = $at;
         $message->sentAt     = $at;
-        $message->inReplyTo  = [];
-        $message->references = [];
+        $message->inReplyTo  = [$parent->messageId];
+        $message->references = [$parent->messageId];
         $message->category   = MessageCategory::Primary;
 
         $this->em->flush();
 
         $this->threader->assignThread($message, $this->account);
         $this->em->flush();
+
+        self::assertSame($thread, $message->thread, 'the arriving message did not join the conversation it answers');
 
         return $message;
     }

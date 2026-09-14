@@ -816,7 +816,14 @@ test.describe("calendar pane", () => {
         const paneFrame = page.locator("turbo-frame#calendar-pane-frame");
         await expect(paneFrame).toBeVisible();
 
-        await paneFrame.getByLabel("New event").click();
+        // `exact`, because getByLabel matches on substring and every cell of
+        // the month grid inside this pane carries its own add button labelled
+        // "New event on Mon, Aug 31". Without it the locator resolves to
+        // forty-three elements and Playwright refuses to click any of them —
+        // a strict-mode violation that reads like the button having vanished.
+        // The one this test wants is the toolbar's, whose label is the bare
+        // phrase.
+        await paneFrame.getByLabel("New event", { exact: true }).click();
 
         // backdrop-filter on an ancestor makes it a containing block for fixed
         // positioning, so a dialog rendered inside the pane would be inset to

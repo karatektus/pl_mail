@@ -252,8 +252,18 @@ test.describe("appearance — mail list display", () => {
         await open(page);
         await expect(page.locator("[data-preview-row]").first()).toBeVisible();
 
-        // Three sample rows and a message, and not one request for any of it.
-        await expect(page.locator("[data-preview-row]")).toHaveCount(3);
+        // A FLOOR, NOT THE NUMBER, and the number is why. This asserted
+        // exactly three, the preview grew to eight on purpose — the card is as
+        // tall as the controls beside it and the setting being watched is
+        // DENSITY, which needs a list long enough to have a rhythm — and this
+        // test went red over a decorative constant with nothing wrong. How many
+        // samples the card draws is settings/_appearance_preview.html.twig's
+        // decision and it is free to change it again.
+        //
+        // What is not free to change is the sentence in the title: the rows
+        // have to be there, and none of them may have been fetched. Three is
+        // the floor because a "list" showing fewer is not showing a rhythm.
+        expect(await page.locator("[data-preview-row]").count()).toBeGreaterThanOrEqual(3);
         expect(mailRequests).toEqual([]);
     });
 

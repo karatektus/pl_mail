@@ -294,10 +294,30 @@ final class DemoFlowTest extends WebTestCase
         $client->request('GET', '/demo');
         $client->followRedirects();
 
+        // THE DEMO USER'S BOUNCE, not whichever bounce the table happens to
+        // hand back last. findAll() has no ORDER BY, so Postgres returns rows
+        // in whatever physical order it likes — and this database is shared
+        // with every other fixture in the suite, one of which has been sitting
+        // on a bounced message belonging to `rep@plmail.test` since September.
+        // Whether this test saw that row or its own was therefore undecided,
+        // and it duly failed once in a full run and passed on the identical
+        // one after it. A thread belonging to somebody else is not a bug in
+        // the bounce panel, which is what the failure claimed.
+        //
+        // DemoMode::ownsAddress() is the same question eraseDemoUsers() below
+        // asks to decide what it may delete, so "mine" means one thing in this
+        // file.
+        $mode    = $container->get(DemoMode::class);
         $bounced = null;
 
         foreach ($container->get(MessageRepository::class)->findAll() as $message) {
-            if (null !== $message->bouncedAt) {
+            if (null === $message->bouncedAt) {
+                continue;
+            }
+
+            $owner = $message->account?->usr->email;
+
+            if (null !== $owner && true === $mode->ownsAddress($owner)) {
                 $bounced = $message;
             }
         }
