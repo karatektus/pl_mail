@@ -1,0 +1,23 @@
+{#
+Paperless-ngx is API-token based, so like Nextcloud and Immich there is nothing
+for an admin to register. The one thing worth saying up front is that a save
+lands asynchronously, because an admin who tests the integration will otherwise
+watch the document fail to appear and conclude the connection is broken.
+#}
+<p>{{ 'admin.integrations.tutorial.paperless.intro'|trans }}</p>
+
+<ol class="list-decimal list-outside ml-4 space-y-1">
+    <li>{{ 'admin.integrations.tutorial.paperless.step_enable'|trans }}</li>
+    <li>{{ 'admin.integrations.tutorial.paperless.step_base_url'|trans }}</li>
+    <li>{{ 'admin.integrations.tutorial.paperless.step_token'|trans }}</li>
+</ol>
+
+<p class="text-xs text-ink-faint">
+    <i class="fa-solid fa-hourglass-half mr-1" aria-hidden="true"></i>
+    {{ 'admin.integrations.tutorial.paperless.asynchronous'|trans }}
+</p>
+
+<p class="text-xs text-ink-faint">
+    <i class="fa-solid fa-circle-info mr-1" aria-hidden="true"></i>
+    {{ 'admin.integrations.tutorial.paperless.no_share_links'|trans }}
+</p>

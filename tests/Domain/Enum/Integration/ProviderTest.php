@@ -21,6 +21,7 @@ use App\Service\Integration\Driver\GooglePhotosDriver;
 use App\Service\Integration\Driver\ImmichDriver;
 use App\Service\Integration\Driver\NextcloudDriver;
 use App\Service\Integration\Driver\OneDriveDriver;
+use App\Service\Integration\Driver\PaperlessDriver;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
@@ -45,7 +46,7 @@ final class ProviderTest extends TestCase
     public function testEveryProviderIsImplemented(): void
     {
         self::assertSame(Provider::cases(), Provider::implemented());
-        self::assertCount(8, Provider::cases());
+        self::assertCount(9, Provider::cases());
     }
 
     /**
@@ -107,6 +108,7 @@ final class ProviderTest extends TestCase
         $drivers = [
             'nextcloud'    => 'NextcloudDriver',
             'immich'       => 'ImmichDriver',
+            'paperless'    => 'PaperlessDriver',
             'googleDrive'  => 'GoogleDriveDriver',
             'googlePhotos' => 'GooglePhotosDriver',
             'oneDrive'     => 'OneDriveDriver',
@@ -127,18 +129,41 @@ final class ProviderTest extends TestCase
         }
     }
 
-    public function testOnlyPhotoServicesLackShareLink(): void
+    /**
+     * Exactly the services that cannot mint a per-file public URL cheaply lack
+     * ShareLink, and every general file store has it.
+     *
+     * This used to be called "only photo services lack share links", and that
+     * premise is now wrong — Paperless-ngx is a document archive and also lacks
+     * one. Restated rather than relaxed, because the claim was never really
+     * about photos: it is that a provider declares ShareLink only when handing
+     * back a URL costs no more than attaching a copy would. A photo library
+     * cannot produce one at all without creating a shared album; Paperless can
+     * share a document, but only through a permissioned feature with its own
+     * expiry, and publishing a filed document is a much bigger act than
+     * attaching one to a mail. A provider quietly gaining the capability would
+     * make the picker offer "insert link" and then hand the user nothing back,
+     * which is what this exists to catch.
+     */
+    public function testShareLinkIsDeclaredOnlyWhereOneCanBeMintedCheaply(): void
     {
-        // Neither can produce a public URL for one asset without creating a
-        // shared album, which is a bigger side effect than attaching a file
-        // should have.
         self::assertFalse(Provider::Immich->supports(Capability::ShareLink));
         self::assertFalse(Provider::GooglePhotos->supports(Capability::ShareLink));
+        self::assertFalse(Provider::Paperless->supports(Capability::ShareLink));
 
         self::assertTrue(Provider::Nextcloud->supports(Capability::ShareLink));
         self::assertTrue(Provider::GoogleDrive->supports(Capability::ShareLink));
         self::assertTrue(Provider::OneDrive->supports(Capability::ShareLink));
         self::assertTrue(Provider::Dropbox->supports(Capability::ShareLink));
+
+        // Both directions, so the set stays closed: a provider added later is
+        // either listed above or fails here, rather than slipping in with
+        // whatever its capability arm happened to say.
+        self::assertCount(
+            7,
+            Provider::of(ServiceKind::Files),
+            'a file provider was added without deciding whether it can share',
+        );
     }
 
     /**
@@ -154,6 +179,7 @@ final class ProviderTest extends TestCase
         $drivers = [
             'nextcloud'    => NextcloudDriver::class,
             'immich'       => ImmichDriver::class,
+            'paperless'    => PaperlessDriver::class,
             'googleDrive'  => GoogleDriveDriver::class,
             'googlePhotos' => GooglePhotosDriver::class,
             'oneDrive'     => OneDriveDriver::class,
@@ -208,7 +234,7 @@ final class ProviderTest extends TestCase
         // and AuthKind is what makes needsBaseUrl() true so the address is
         // validated. See Provider::authKind(), which says why that is not a
         // third AuthKind case.
-        foreach ([Provider::Nextcloud, Provider::Immich, Provider::CalDav, Provider::Ics] as $provider) {
+        foreach ([Provider::Nextcloud, Provider::Immich, Provider::Paperless, Provider::CalDav, Provider::Ics] as $provider) {
             self::assertSame(AuthKind::AppPassword, $provider->authKind());
             self::assertTrue($provider->needsBaseUrl(), 'a self-hosted service has no canonical host');
             self::assertSame([], $provider->scopes(), 'an app-password provider asks for no OAuth scopes');
@@ -232,6 +258,7 @@ final class ProviderTest extends TestCase
     {
         self::assertSame('nextcloud', Provider::Nextcloud->slug());
         self::assertSame('immich', Provider::Immich->slug());
+        self::assertSame('paperless', Provider::Paperless->slug());
         self::assertSame('google_drive', Provider::GoogleDrive->slug());
         self::assertSame('google_photos', Provider::GooglePhotos->slug());
         self::assertSame('one_drive', Provider::OneDrive->slug());
@@ -312,8 +339,11 @@ final class ProviderTest extends TestCase
             yield $library->value.' image-ish'    => [$library, 'imagex/foo', false];
         }
 
-        // File stores — everything, unknown included.
-        foreach ([Provider::Nextcloud, Provider::GoogleDrive, Provider::OneDrive, Provider::Dropbox] as $store) {
+        // File stores — everything, unknown included. Paperless belongs here
+        // rather than with the libraries: it is a document archive, so its
+        // consumer takes a PDF, a scan or a spreadsheet alike, and a part whose
+        // type could not be read is exactly the sort of thing it should get.
+        foreach ([Provider::Nextcloud, Provider::Paperless, Provider::GoogleDrive, Provider::OneDrive, Provider::Dropbox] as $store) {
             yield $store->value.' pdf'   => [$store, 'application/pdf', true];
             yield $store->value.' image' => [$store, 'image/jpeg', true];
             yield $store->value.' null'  => [$store, null, true];

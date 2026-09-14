@@ -8,6 +8,36 @@ The published image tags: `latest` follows the most recent release below,
 
 ## Unreleased
 
+### Added
+
+- **Paperless-ngx, as somewhere to file an attachment and somewhere to attach from.** Connect it
+  under Settings → Connections with its address and an API token, and it appears beside Nextcloud
+  and the rest.
+
+  Attaching is the half worth describing. Paperless replaced folders with tags and expects
+  everything else to be found by searching, so the picker uses tags as its containers — the root
+  lists them with the newest documents beneath, and opening one lists that tag's documents. The
+  search box is Paperless's own full-text index, which reads the OCR layer as well as the metadata,
+  so a scanned invoice is findable by a line item nobody ever typed. The point is that there is no
+  longer any reason to open Paperless, find a document and download it before writing the mail.
+
+  Saving out files the attachment under a tag you pick, or none, which is Paperless's inbox.
+  Uploads there are asynchronous — Paperless answers with a task and consumes the file afterwards —
+  so what comes back is marked as a task rather than a document, and trying to attach it before it
+  has been filed says so instead of failing obscurely.
+
+  No share links: minting one in Paperless is a permissioned feature with its own expiry, not
+  something to do silently on a user's behalf, so the picker offers "attach a copy" only.
+
+### Fixed
+
+- **The account menu is no longer painted over by the calendar.** Its `z-[200]` read as "above
+  everything" and was nothing of the sort — it ordered the menu inside the header's own stacking
+  context and said nothing about the header against the rest of the page, so it stayed on top only
+  while nothing outside the header made a context of its own. The calendar keeps making them,
+  especially once a background image turns the panes' glass on. It goes to the browser's top layer
+  now, which is above every stacking context there is, so the question cannot be asked again.
+
 ## v0.2.25 — 2026-09-14
 
 ### Added

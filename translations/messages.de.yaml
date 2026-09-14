@@ -582,6 +582,13 @@ admin:
                 step_register: 'Im Azure-Portal unter Microsoft Entra ID → App-Registrierungen eine Anwendung registrieren.'
                 step_secret: 'Unter Zertifikate & Geheimnisse ein Client-Secret erstellen und den Wert sofort kopieren — er wird nur einmal angezeigt.'
                 tenant_note: 'Für private Microsoft-Konten den Tenant „common“ verwenden, oder die eigene Tenant-ID, um den Zugriff auf die Organisation zu beschränken.'
+            paperless:
+                asynchronous: 'Beim Speichern übergibt plMail den Anhang an den Paperless-Consumer, der ihn ein paar Sekunden später ablegt. Gemeldet wird die Übergabe, nicht das fertige Dokument — ein Testdokument taucht also kurz nach der Erfolgsmeldung in Paperless auf, und eine Datei, die Paperless als Dublette ablehnt, gar nicht.'
+                intro: 'Paperless-ngx authentifiziert sich mit einem API-Token pro Benutzer, hier ist also nichts zu registrieren.'
+                no_share_links: 'plMail legt keine Paperless-Freigabelinks an. Freigaben sind dort eine eigene, rechtegesteuerte Funktion mit eigenem Ablaufdatum, und ein Dokument zu veröffentlichen ist ein größerer Schritt als es anzuhängen — Dokumente über der Anhangsgrenze lassen sich deshalb gar nicht anhängen.'
+                step_base_url: 'Optional die Serveradresse festlegen, etwa https://paperless.example.com.'
+                step_enable: 'Oben „Diesen Dienst anbieten“ einschalten.'
+                step_token: 'Jede Person kopiert ihr API-Token in Paperless unter My Profile → API Auth Token und trägt es in ihren eigenen Integrationseinstellungen ein.'
         tutorial_heading: 'Einrichtung'
         unimplemented_notice: 'plMail kann diesen Dienst noch nicht ansprechen. Die Zugangsdaten können jetzt hinterlegt werden — sie greifen, sobald die Unterstützung erscheint.'
     loading: 'Wird geladen…'
@@ -1850,6 +1857,7 @@ integration:
             immich: 'Ein Foto beschreiben, z. B. Strand bei Sonnenuntergang'
             nextcloud: 'Nextcloud durchsuchen'
             oneDrive: 'OneDrive durchsuchen'
+            paperless: 'Titel und gescannten Text durchsuchen'
         timeline: 'Zu einem Datum springen'
         too_big: 'Zu groß zum Anhängen'
 
@@ -3141,6 +3149,7 @@ settings:
                 immich: 'API-Schlüssel'
                 nextcloud: 'App-Passwort'
                 oneDrive: 'Zugriffstoken'
+                paperless: 'API-Token'
             secret_help:
                 dropbox: ''
                 googleDrive: ''
@@ -3148,6 +3157,7 @@ settings:
                 immich: 'In Immich unter Account Settings → API Keys erzeugen.'
                 nextcloud: 'In Nextcloud unter Einstellungen → Sicherheit → Geräte & Sitzungen erzeugen. Nicht das Anmeldepasswort verwenden.'
                 oneDrive: ''
+                paperless: 'In Paperless unter My Profile → API Auth Token kopieren.'
             secret_unchanged: 'Leer lassen, um die gespeicherten Zugangsdaten zu behalten'
             username: Benutzername
         heading: Integrationen

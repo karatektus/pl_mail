@@ -311,9 +311,9 @@ runs in a container network alongside Postgres, Mercure and the workers.
    `resolve()` ignores the user's value when one is pinned, so a stale row from before the pin
    cannot keep reaching elsewhere.
 2. **`http://` is refused unless `INTEGRATIONS_ALLOW_HTTP` is on.** Self-hosting on a LAN is
-   the normal case for Nextcloud and Immich, so this flag will often be set — the point is that
-   plaintext credentials over the wire become a deliberate admin decision rather than a silent
-   default.
+   the normal case for Nextcloud, Immich and Paperless-ngx, so this flag will often be set — the
+   point is that plaintext credentials over the wire become a deliberate admin decision rather
+   than a silent default.
 3. **Loopback, link-local and private ranges are refused** unless the host appears in
    `INTEGRATIONS_ALLOWED_HOSTS`. `BLOCKED_RANGES` covers `127.0.0.0/8`, the three RFC1918
    ranges, `169.254.0.0/16` (link-local, including the cloud metadata endpoint at

@@ -7,7 +7,7 @@ import { acceptConfirm } from "./support/confirm";
  * configuration state, the setup tutorial is readable inline, and enabling one
  * persists.
  *
- * All six providers have drivers now, so the thing worth pinning is that an
+ * Every file provider has a driver now, so the thing worth pinning is that an
  * unconfigured provider reads as *disabled* — the admin's choice — rather than
  * as missing. A provider added later without a driver would show as "not
  * available yet" instead, which is why that string is asserted absent rather
@@ -46,6 +46,7 @@ const PROVIDER_IDS: Record<string, string> = {
     "Google Photos": "googlePhotos",
     OneDrive: "oneDrive",
     Dropbox: "dropbox",
+    "Paperless-ngx": "paperless",
 };
 
 function providerRow(page: Page, label: string) {
@@ -128,7 +129,7 @@ test.describe("admin integrations", () => {
             await expect(providerRow(page, label)).toHaveCount(1);
         }
 
-        // All six have drivers now, so nothing is "not available yet" —
+        // Every one of them has a driver now, so nothing is "not available yet" —
         // untouched providers read as disabled, which is the admin's choice
         // rather than a gap in plMail.
         await expect(

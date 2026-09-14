@@ -34,7 +34,7 @@ mechanism behind it.
 | [Reminders](features/calendar-alerts.md) | Setting alerts, how they are delivered, what a fresh install needs before they arrive |
 | [Connected calendars](features/calendar-sync.md) | Subscribing to Google, Microsoft and CalDAV calendars, two-way sync, ICS import, export and feed subscriptions, duplicate meetings |
 | [Sharing and booking](features/calendar-sharing.md) | Share links and what each reveals, appointment pages, how a booking arrives |
-| [Files and integrations](features/integrations.md) | Attaching from and saving to Drive, Photos, OneDrive, Dropbox, Nextcloud and Immich |
+| [Files and integrations](features/integrations.md) | Attaching from and saving to Drive, Photos, OneDrive, Dropbox, Nextcloud, Immich and Paperless-ngx |
 | [Security](features/security.md) | Changing your password, two-factor authentication, recovery codes, remembered devices, app passwords, sessions |
 | [Other clients](features/clients.md) | Connecting a JMAP client, per-app passwords, the PWA and browser notifications |
 | [Appearance](features/appearance.md) | Themes, custom colours and background, the live preview, what a list row shows, typeface and text size, per-pane density, import and export, language |

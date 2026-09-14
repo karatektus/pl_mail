@@ -1,8 +1,8 @@
 # Files and integrations
 
 plMail can pull a file out of a service you already use and attach it to a message, and push an
-attachment the other way into that service. Six services are supported: **Nextcloud**, **Immich**,
-**Google Drive**, **Google Photos**, **OneDrive** and **Dropbox**.
+attachment the other way into that service. Seven services are supported: **Nextcloud**, **Immich**,
+**Paperless-ngx**, **Google Drive**, **Google Photos**, **OneDrive** and **Dropbox**.
 
 Connections belong to one user and are revocable one at a time. Which services are offered at all
 is an administrator's decision — see [Administration](admin.md).
@@ -20,6 +20,7 @@ How you connect depends on the service:
 |---|---|---|
 | Nextcloud | App password | Server address, username, app password |
 | Immich | API key | Server address, API key |
+| Paperless-ngx | API token | Server address, API token |
 | Google Drive | Sign-in | Nothing — the consent screen |
 | Google Photos | Sign-in | Nothing — the consent screen |
 | OneDrive | Sign-in | Nothing — the consent screen |
@@ -32,10 +33,11 @@ home and work, and the button stays available after the first connection for exa
 If your administrator has pinned a server address for a self-hosted service, the address field is
 absent rather than disabled, and a submitted value is ignored regardless.
 
-For Nextcloud and Immich, create a credential on the service rather than using your login password.
-Nextcloud puts app passwords under **Settings → Security → Devices & sessions**; Immich puts API
-keys under **Account Settings → API Keys**. An app password is individually revocable and works
-alongside two-factor authentication; a login password is neither.
+For the self-hosted services, create a credential on the service rather than using your login
+password. Nextcloud puts app passwords under **Settings → Security → Devices & sessions**; Immich
+puts API keys under **Account Settings → API Keys**; Paperless-ngx shows an API token under **My
+Profile → API Auth Token**. An app password or token is individually revocable and works alongside
+two-factor authentication; a login password is neither.
 
 Saving always probes the connection there and then. A connection that stores cleanly but cannot
 list a folder is worse than a visible failure, because you would only find out halfway through
@@ -64,6 +66,7 @@ service name — so a service that gains or loses an ability changes in exactly 
 | Google Drive | yes | yes | yes | yes | yes | yes | — |
 | OneDrive | yes | yes | yes | yes | yes | yes | — |
 | Dropbox | yes | yes | yes | yes | yes | yes | — |
+| Paperless-ngx | yes | yes | yes | — | yes | yes | — |
 | Immich | yes | yes | yes | — | yes | yes | yes |
 | Google Photos | yes | yes | yes | — | yes | — | — |
 
@@ -73,6 +76,26 @@ service without **Search** gets no search box in the picker. Immich is the only 
 summarise its library as dates, which is what its scrubber is.
 
 Google Photos has no text search because its Library API offers none — only album and date filters.
+
+Paperless-ngx has no share link for a different reason: it can share a document, but only through a
+separate permissioned feature with its own expiry, and publishing a filed document is a much bigger
+act than attaching one to a message.
+
+## Paperless-ngx, which has no folders
+
+Paperless replaced folders with tags on purpose, so plMail browses its **tags** as the folder layer.
+The picker opens on every tag, as folders, with the newest documents listed under them; opening a tag
+lists that tag's documents. **Save to** files an attachment under a tag, and leaving the destination
+empty files it under none — Paperless's own inbox, which is where an unsorted document is meant to
+land.
+
+Search goes through Paperless's full-text index, which reads the OCR layer as well as the title and
+metadata. A scanned receipt is findable by a line item nobody ever typed, which is the point: there
+is no reason to open Paperless, find a document and download it before attaching it. Searching from
+inside a tag stays inside that tag.
+
+Attaching a document fetches the **archived** copy — the searchable PDF Paperless made when it filed
+the document — falling back to the original where it could not make one.
 
 ## Attaching from a service
 
@@ -123,16 +146,23 @@ A filter can do the same thing automatically with the **Save attachments to** ac
 addresses an authenticated user could otherwise aim plMail's outbound HTTP client at — including
 `localhost:5432` and the cloud metadata endpoint at `169.254.169.254`. Loopback, link-local, RFC1918
 and carrier-grade NAT ranges are all blocked unless the host appears in `INTEGRATIONS_ALLOWED_HOSTS`.
-On a home LAN this is the setting that makes Nextcloud and Immich reachable at all.
+On a home LAN this is the setting that makes Nextcloud, Immich and Paperless-ngx reachable at all.
 
 **`http://` is refused unless `INTEGRATIONS_ALLOW_HTTP` is on.** Self-hosting on a LAN without TLS is
 an ordinary situation, so this flag will often be set — the point is that sending credentials in
 plaintext becomes a deliberate decision rather than a silent default.
 
-**A photo above the attachment ceiling cannot be attached from Immich or Google Photos at all.**
-Neither can mint a public URL for a single item without creating a shared album, which is a heavier
-side effect than attaching a file should have. So there is no link fallback: over 25 MB, the answer
-is no.
+**A file above the attachment ceiling cannot be attached from Immich, Google Photos or Paperless-ngx
+at all.** The photo libraries cannot mint a public URL for a single item without creating a shared
+album; Paperless can share a document, but only through a permissioned feature with its own expiry,
+and publishing a filed document is a heavier side effect than attaching a file should have. So there
+is no link fallback on any of the three: over 25 MB, the answer is no.
+
+**Saving to Paperless-ngx reports the handover, not the filed document.** The upload endpoint is
+asynchronous: it hands the file to the Paperless consumer and answers with a task id, and the
+document appears seconds later once the consumer has ingested it — or never, if Paperless rejects it
+as a duplicate. plMail says the save succeeded when Paperless accepted the file, which is the last
+moment it knows anything. Check Paperless itself if a document does not turn up.
 
 **A newly registered Google Photos application usually cannot browse an existing library.** Google
 restricted the Photos read scopes in March 2025; a new app is generally granted only

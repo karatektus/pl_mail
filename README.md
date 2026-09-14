@@ -45,7 +45,7 @@ provider doesn't.
 - **A calendar beside the mail** — two-way sync with Google, Microsoft and CalDAV, drag-to-move
   week grid, invitations answered in place, share and booking links.
 - **Files where you keep them** — attach from and save to Drive, Photos, OneDrive, Dropbox,
-  Nextcloud and Immich.
+  Nextcloud, Immich and Paperless-ngx.
 - **A language model, if you want one** — point plMail at an Ollama box on your own network and it
   can search by meaning, draft replies, summarise a thread and sort mail into tabs. A long thread is
   summarised from as much of it as fits, and says so; ask for the whole conversation and it runs as a

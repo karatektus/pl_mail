@@ -1,11 +1,11 @@
-<!-- translated-from: features/integrations.md sha1:158012bf5e22fd3e49ef5e197f9397ea418b1a4d -->
+<!-- translated-from: features/integrations.md sha1:7f9932fddb5e543555f7c6a0aa6f89ba179cc80d -->
 
 # Dateien und Integrationen
 
 plMail kann eine Datei aus einem Dienst holen, den du ohnehin benutzt, und sie an eine
 Nachricht hängen — und einen Anhang in die andere Richtung in diesen Dienst schieben.
-Unterstützt werden sechs Dienste: **Nextcloud**, **Immich**, **Google Drive**, **Google
-Photos**, **OneDrive** und **Dropbox**.
+Unterstützt werden sieben Dienste: **Nextcloud**, **Immich**, **Paperless-ngx**, **Google
+Drive**, **Google Photos**, **OneDrive** und **Dropbox**.
 
 Verbindungen gehören einer Person und lassen sich einzeln widerrufen. Welche Dienste überhaupt
 angeboten werden, entscheidet die Administration — siehe [Administration](admin.md).
@@ -24,6 +24,7 @@ Wie du dich verbindest, hängt vom Dienst ab:
 |---|---|---|
 | Nextcloud | App-Passwort | Serveradresse, Benutzername, App-Passwort |
 | Immich | API-Schlüssel | Serveradresse, API-Schlüssel |
+| Paperless-ngx | API-Token | Serveradresse, API-Token |
 | Google Drive | Anmeldung | Nichts — die Zustimmungsseite |
 | Google Photos | Anmeldung | Nichts — die Zustimmungsseite |
 | OneDrive | Anmeldung | Nichts — die Zustimmungsseite |
@@ -38,11 +39,12 @@ Hat deine Administration für einen selbst gehosteten Dienst eine Serveradresse 
 fehlt das Adressfeld ganz, statt deaktiviert zu sein, und ein trotzdem abgeschickter Wert wird
 ignoriert.
 
-Lege bei Nextcloud und Immich Zugangsdaten auf dem Dienst an, statt dein Anmeldepasswort zu
-verwenden. Nextcloud führt App-Passwörter unter **Einstellungen → Sicherheit → Geräte &
-Sitzungen**; Immich führt API-Schlüssel unter **Account Settings → API Keys**. Ein App-Passwort
-lässt sich einzeln widerrufen und funktioniert neben der Zwei-Faktor-Authentifizierung; ein
-Anmeldepasswort kann beides nicht.
+Lege bei den selbst gehosteten Diensten Zugangsdaten auf dem Dienst an, statt dein
+Anmeldepasswort zu verwenden. Nextcloud führt App-Passwörter unter **Einstellungen → Sicherheit
+→ Geräte & Sitzungen**; Immich führt API-Schlüssel unter **Account Settings → API Keys**;
+Paperless-ngx zeigt ein API-Token unter **My Profile → API Auth Token**. Ein App-Passwort oder
+Token lässt sich einzeln widerrufen und funktioniert neben der Zwei-Faktor-Authentifizierung;
+ein Anmeldepasswort kann beides nicht.
 
 Beim Speichern wird die Verbindung immer sofort geprüft. Eine Verbindung, die sauber abgelegt
 wird und keinen Ordner auflisten kann, ist schlimmer als ein sichtbarer Fehler, denn du fändest
@@ -77,6 +79,7 @@ also an genau einer Stelle.
 | Google Drive | ja | ja | ja | ja | ja | ja | — |
 | OneDrive | ja | ja | ja | ja | ja | ja | — |
 | Dropbox | ja | ja | ja | ja | ja | ja | — |
+| Paperless-ngx | ja | ja | ja | — | ja | ja | — |
 | Immich | ja | ja | ja | — | ja | ja | ja |
 | Google Photos | ja | ja | ja | — | ja | — | — |
 
@@ -87,6 +90,27 @@ einzige, der seine Bibliothek als Daten zusammenfassen kann, und genau das ist s
 
 Google Photos hat keine Textsuche, weil seine Library-API keine anbietet — nur Album- und
 Datumsfilter.
+
+Paperless-ngx hat aus einem anderen Grund keinen Freigabelink: Es kann ein Dokument teilen, aber
+nur über eine eigene, rechtegesteuerte Funktion mit eigenem Ablaufdatum, und ein abgelegtes
+Dokument zu veröffentlichen ist ein viel größerer Schritt, als es an eine Nachricht zu hängen.
+
+## Paperless-ngx, das keine Ordner hat
+
+Paperless hat Ordner bewusst durch Schlagwörter ersetzt, also benutzt plMail seine
+**Schlagwörter** als Ordnerebene. Die Dateiauswahl öffnet mit allen Schlagwörtern als Ordnern und
+den neuesten Dokumenten darunter; ein Schlagwort zu öffnen listet dessen Dokumente. **Speichern
+in** legt einen Anhang unter einem Schlagwort ab, und ein leeres Ziel legt ihn unter keinem ab —
+im Posteingang von Paperless selbst, wo ein unsortiertes Dokument hingehört.
+
+Die Suche läuft über den Volltextindex von Paperless, der auch die OCR-Ebene liest, nicht nur
+Titel und Metadaten. Eine gescannte Quittung ist damit über eine Zeile auffindbar, die nie jemand
+getippt hat, und genau darum geht es: Es gibt keinen Grund, erst Paperless zu öffnen, ein
+Dokument zu suchen und herunterzuladen, bevor du es anhängst. Eine Suche aus einem Schlagwort
+heraus bleibt in diesem Schlagwort.
+
+Angehängt wird die **archivierte** Fassung — das durchsuchbare PDF, das Paperless beim Ablegen
+erzeugt hat — und ersatzweise das Original, wo keine erzeugt werden konnte.
 
 ## Aus einem Dienst anhängen
 
@@ -142,19 +166,28 @@ Erlaubnisliste steht.** Selbst gehostete Dienste liegen auf Adressen, auf die ei
 Person plMails ausgehenden HTTP-Client sonst richten könnte — darunter `localhost:5432` und der
 Cloud-Metadaten-Endpunkt unter `169.254.169.254`. Loopback, Link-Local, RFC1918 und die Bereiche
 für Carrier-Grade NAT sind alle gesperrt, solange der Host nicht in
-`INTEGRATIONS_ALLOWED_HOSTS` steht. In einem Heimnetz ist das die Einstellung, die Nextcloud und
-Immich überhaupt erreichbar macht.
+`INTEGRATIONS_ALLOWED_HOSTS` steht. In einem Heimnetz ist das die Einstellung, die Nextcloud,
+Immich und Paperless-ngx überhaupt erreichbar macht.
 
 **`http://` wird abgelehnt, solange `INTEGRATIONS_ALLOW_HTTP` nicht an ist.** Selbst hosten im
 LAN ohne TLS ist eine ganz gewöhnliche Lage, diese Option wird also oft gesetzt sein — der Punkt
 ist, dass Zugangsdaten im Klartext zu verschicken eine bewusste Entscheidung wird und keine
 stille Voreinstellung.
 
-**Ein Foto über der Anhangsgrenze lässt sich aus Immich oder Google Photos überhaupt nicht
-anhängen.** Keiner von beiden kann für ein einzelnes Objekt eine öffentliche URL erzeugen, ohne
-ein geteiltes Album anzulegen, und das ist eine schwerere Nebenwirkung, als das Anhängen einer
-Datei haben sollte. Es gibt deshalb keinen Rückfall auf einen Link: über 25 MB lautet die
-Antwort nein.
+**Eine Datei über der Anhangsgrenze lässt sich aus Immich, Google Photos oder Paperless-ngx
+überhaupt nicht anhängen.** Die Fotobibliotheken können für ein einzelnes Objekt keine
+öffentliche URL erzeugen, ohne ein geteiltes Album anzulegen; Paperless kann ein Dokument teilen,
+aber nur über eine rechtegesteuerte Funktion mit eigenem Ablaufdatum, und ein abgelegtes Dokument
+zu veröffentlichen ist eine schwerere Nebenwirkung, als das Anhängen einer Datei haben sollte. Es
+gibt deshalb bei keinem der drei einen Rückfall auf einen Link: über 25 MB lautet die Antwort
+nein.
+
+**Das Speichern nach Paperless-ngx meldet die Übergabe, nicht das abgelegte Dokument.** Der
+Upload-Endpunkt arbeitet asynchron: Er übergibt die Datei an den Paperless-Consumer und antwortet
+mit einer Task-ID, und das Dokument erscheint Sekunden später, sobald der Consumer es eingelesen
+hat — oder gar nicht, wenn Paperless es als Dublette ablehnt. plMail meldet Erfolg, sobald
+Paperless die Datei angenommen hat, und das ist der letzte Moment, von dem plMail etwas weiß.
+Schau in Paperless nach, wenn ein Dokument nicht auftaucht.
 
 **Eine frisch registrierte Google-Photos-Anwendung kann eine bestehende Bibliothek meist nicht
 durchsehen.** Google hat die Photos-Lesescopes im März 2025 eingeschränkt; eine neue App bekommt

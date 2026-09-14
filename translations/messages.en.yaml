@@ -576,6 +576,13 @@ admin:
                 step_register: 'Open the Azure portal and register an application under Microsoft Entra ID → App registrations.'
                 step_secret: 'Under Certificates & secrets, create a client secret and copy its value immediately — it is shown only once.'
                 tenant_note: 'Use the common tenant for personal Microsoft accounts, or your tenant ID to restrict access to your organisation.'
+            paperless:
+                asynchronous: 'Saving an attachment hands it to the Paperless consumer, which files it a few seconds later. plMail reports the handover, not the finished document — so a test save appears in Paperless shortly after it is reported as done, and a file Paperless rejects as a duplicate never appears at all.'
+                intro: 'Paperless-ngx authenticates with a per-user API token, so there is nothing to register here.'
+                no_share_links: 'plMail does not create Paperless share links. Sharing there is a separate permissioned feature with its own expiry, and publishing a document is a bigger step than attaching one — so documents above the attachment size limit cannot be attached at all.'
+                step_base_url: 'Optionally pin the server address, for example https://paperless.example.com.'
+                step_enable: 'Turn on "Offer this service to users" above.'
+                step_token: 'Each user copies their API token from Paperless under My Profile → API Auth Token and pastes it into their own integration settings.'
         tutorial_heading: 'Setup'
         unimplemented_notice: 'plMail cannot talk to this service yet. You can register the credentials now — they will be used as soon as support ships.'
     loading: 'Loading…'
@@ -1854,6 +1861,7 @@ integration:
             immich: 'Describe a photo, e.g. beach at sunset'
             nextcloud: 'Search Nextcloud'
             oneDrive: 'Search OneDrive'
+            paperless: 'Search titles and scanned text'
         timeline: 'Jump to a date'
         too_big: 'Too large to attach'
 
@@ -3139,6 +3147,7 @@ settings:
                 immich: 'API key'
                 nextcloud: 'App password'
                 oneDrive: 'Access token'
+                paperless: 'API token'
             secret_help:
                 dropbox: ''
                 googleDrive: ''
@@ -3146,6 +3155,7 @@ settings:
                 immich: 'Create one in Immich under Account Settings → API Keys.'
                 nextcloud: 'Create one in Nextcloud under Settings → Security → Devices & sessions. Do not use your login password.'
                 oneDrive: ''
+                paperless: 'Copy it from Paperless under My Profile → API Auth Token.'
             secret_unchanged: 'Leave blank to keep the stored credential'
             username: Username
         heading: Integrations

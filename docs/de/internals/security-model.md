@@ -1,4 +1,4 @@
-<!-- translated-from: internals/security-model.md sha1:710f051dcc6bfd70a58136e385acb2612495ccf7 -->
+<!-- translated-from: internals/security-model.md sha1:8299578c3e86a7bbd01a223ca63a965c3faed350 -->
 # Sicherheitsmodell
 
 Verschlüsselung ruhender Daten und die Prüfung, die den Start ohne brauchbaren Schlüssel
@@ -342,7 +342,8 @@ den Workern.
    festgenagelt ist, sodass auch eine alte Zeile von vor dem Festnageln nicht weiter anderswohin
    greifen kann.
 2. **`http://` wird abgelehnt, sofern `INTEGRATIONS_ALLOW_HTTP` nicht an ist.** Selbsthosting im
-   LAN ist bei Nextcloud und Immich der Normalfall, dieser Schalter wird also oft gesetzt sein —
+   LAN ist bei Nextcloud, Immich und Paperless-ngx der Normalfall, dieser Schalter wird also oft
+   gesetzt sein —
    der Punkt ist, dass Klartext-Anmeldedaten auf der Leitung damit zu einer bewussten
    Admin-Entscheidung werden statt zu einer stillen Voreinstellung.
 3. **Loopback-, Link-Local- und private Bereiche werden abgelehnt**, sofern der Host nicht in

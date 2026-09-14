@@ -453,6 +453,13 @@ admin:
                 step_register: 'Open th'' Azure portal and register an application under Microsoft Entra ID → App registrations.'
                 step_secret: 'Under Certificates & secrets, mint a client secret and copy its value at once — it be shown but once.'
                 tenant_note: 'Use th'' common tenant for personal Microsoft accounts, or yer tenant ID to keep it to yer own crew.'
+            paperless:
+                asynchronous: 'Stowin'' cargo hands it to th'' Paperless consumer, which files it a few beats later. plMail reports th'' handover, not th'' finished paper — so a test stow shows up in Paperless shortly after it be called done, and a file Paperless casts out as a twin never shows at all.'
+                intro: 'Paperless-ngx checks papers with a token per hand, so there be nothin'' to register here.'
+                no_share_links: 'plMail cuts no Paperless share lines. Sharin'' there be a separate, permissioned affair with its own expiry, and publishin'' a paper be a bigger step than haulin'' one aboard — so papers over th'' cargo limit cannot be hauled aboard at all.'
+                step_base_url: 'Optionally set th'' port address fast, say https://paperless.example.com.'
+                step_enable: 'Hoist "Offer this port to th'' crew" above.'
+                step_token: 'Every hand copies their API token from Paperless under My Profile → API Auth Token and stows it in their own port settings.'
         tutorial_heading: 'Riggin'''
         unimplemented_notice: 'plMail cannot hail this port yet. Stow th'' papers now — they be used th'' moment passage opens.'
     loading: 'Haulin'' aboard…'
@@ -1544,6 +1551,7 @@ integration:
             immich: 'Describe a picture, say beach at sundown'
             nextcloud: 'Search Nextcloud'
             oneDrive: 'Search OneDrive'
+            paperless: 'Search titles and scanned text'
         timeline: 'Jump to a date'
         too_big: 'Too heavy to haul'
 
@@ -2728,6 +2736,7 @@ settings:
                 immich: 'API key'
                 nextcloud: 'App password'
                 oneDrive: 'Access token'
+                paperless: 'API token'
             secret_help:
                 dropbox: ''
                 googleDrive: ''
@@ -2735,6 +2744,7 @@ settings:
                 immich: 'Mint one in Immich under Account Settings → API Keys.'
                 nextcloud: 'Mint one in Nextcloud under Settings → Security → Devices & sessions. Never hand over yer login password.'
                 oneDrive: ''
+                paperless: 'Copy it from Paperless under My Profile → API Auth Token.'
             secret_unchanged: 'Leave blank to keep th'' stored papers'
             username: Username
         heading: 'Friendly ports'

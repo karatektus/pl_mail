@@ -1,4 +1,4 @@
-<!-- translated-from: README.md sha1:4b74a1a04ac86bed54de961461b843a44958943b -->
+<!-- translated-from: README.md sha1:f8ba550e5982b1eb2b7fcec825eb1f332534ce7a -->
 
 # plMail-Dokumentation
 
@@ -36,7 +36,7 @@ wo der Mechanismus dahinter steht.
 | [Erinnerungen](features/calendar-alerts.md) | Erinnerungen setzen, wie sie zugestellt werden, was eine frische Installation braucht, damit sie ankommen |
 | [Verbundene Kalender](features/calendar-sync.md) | Google-, Microsoft- und CalDAV-Kalender abonnieren, Abgleich in beide Richtungen, ICS-Import, -Export und Feed-Abonnements, doppelte Termine |
 | [Teilen und Buchen](features/calendar-sharing.md) | Freigabelinks und was jeder preisgibt, Buchungsseiten, wie eine Buchung ankommt |
-| [Dateien und Integrationen](features/integrations.md) | Anhängen aus und Speichern in Drive, Photos, OneDrive, Dropbox, Nextcloud und Immich |
+| [Dateien und Integrationen](features/integrations.md) | Anhängen aus und Speichern in Drive, Photos, OneDrive, Dropbox, Nextcloud, Immich und Paperless-ngx |
 | [Sicherheit](features/security.md) | Dein Passwort ändern, Zwei-Faktor-Authentifizierung, Wiederherstellungscodes, gemerkte Geräte, App-Passwörter, Sitzungen |
 | [Andere Clients](features/clients.md) | Einen JMAP-Client verbinden, Passwörter pro App, die PWA und Browser-Benachrichtigungen |
 | [Darstellung](features/appearance.md) | Themes, eigene Farben und Hintergrund, die Live-Vorschau, was eine Listenzeile zeigt, Schriftart und Textgröße, Dichte je Bereich, Import und Export, Sprache |

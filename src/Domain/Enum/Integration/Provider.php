@@ -27,6 +27,20 @@ enum Provider: string
 {
     case Nextcloud = 'nextcloud';
     case Immich = 'immich';
+
+    /**
+     * Paperless-ngx, the self-hosted document archive.
+     *
+     * The one file service with no folders at all — it replaced them with tags
+     * on purpose — so PaperlessDriver browses its tags as the container layer.
+     * That is a decision about this service and lives in the driver; nothing
+     * here needs to know, which is the point of ids being opaque.
+     *
+     * Named for the product rather than for "documents": Paperless-ngx is the
+     * fork everybody actually runs, and a case called Paperless that turned out
+     * to mean the abandoned original would be a support ticket a month.
+     */
+    case Paperless = 'paperless';
     case GoogleDrive = 'googleDrive';
     case GooglePhotos = 'googlePhotos';
     case OneDrive = 'oneDrive';
@@ -71,6 +85,7 @@ enum Provider: string
         return match ($this) {
             self::Nextcloud    => 'Nextcloud',
             self::Immich       => 'Immich',
+            self::Paperless    => 'Paperless-ngx',
             self::GoogleDrive  => 'Google Drive',
             self::GooglePhotos => 'Google Photos',
             self::OneDrive     => 'OneDrive',
@@ -86,6 +101,12 @@ enum Provider: string
         return match ($this) {
             self::Nextcloud    => 'fa-solid fa-cloud',
             self::Immich       => 'fa-solid fa-images',
+            // An archive box rather than a document glyph: the settings list
+            // puts every service in one column, and a single sheet of paper
+            // beside a cloud and a photo stack says "a file", which is what all
+            // three hold. What distinguishes this one is that it is the filed,
+            // sorted, searchable pile.
+            self::Paperless    => 'fa-solid fa-box-archive',
             self::GoogleDrive  => 'fa-brands fa-google-drive',
             self::GooglePhotos => 'fa-solid fa-photo-film',
             self::OneDrive     => 'fa-brands fa-microsoft',
@@ -114,6 +135,7 @@ enum Provider: string
         return match ($this) {
             self::Nextcloud,
             self::Immich,
+            self::Paperless,
             self::GoogleDrive,
             self::GooglePhotos,
             self::OneDrive,
@@ -134,6 +156,10 @@ enum Provider: string
         return match ($this) {
             self::Nextcloud,
             self::Immich,
+            // Paperless mints per-user API tokens under the user's own profile,
+            // the same shape as an Immich key — and it is self-hosted, which is
+            // the half of this answer needsBaseUrl() reads.
+            self::Paperless,
             // Every CalDAV server worth connecting to takes an app-specific
             // password (iCloud and Fastmail require one; Nextcloud and Baïkal
             // offer one), and the protocol's own answer is HTTP Basic. OAuth
@@ -165,9 +191,12 @@ enum Provider: string
      * Declared for every provider, including the unimplemented ones, so the
      * admin tutorial can state honestly what connecting will buy.
      *
-     * Immich and Google Photos are absent from ShareLink: neither exposes a
-     * per-asset public URL without creating a shared album, which is a heavier
-     * side effect than attaching a file should have.
+     * Immich, Google Photos and Paperless are absent from ShareLink, for two
+     * different reasons that happen to end in the same place. The photo
+     * libraries cannot expose a per-asset public URL without creating a shared
+     * album; Paperless can share a document, but only through a permissioned
+     * feature with its own expiry and its own audit trail. Either way, minting
+     * one is a heavier side effect than attaching a file should have.
      *
      * Exhaustive on purpose. The `default` arm this used to carry handed the
      * full file capability set to any case that had not been thought about —
@@ -188,6 +217,16 @@ enum Provider: string
                 Capability::Thumbnail,
                 Capability::Search,
                 Capability::Timeline,
+            ],
+            // Everything a file store does except a share link. Paperless's own
+            // sharing is a separate permissioned feature, and "attach this" must
+            // not quietly publish a document — so the picker offers a copy only.
+            self::Paperless => [
+                Capability::Browse,
+                Capability::Download,
+                Capability::Upload,
+                Capability::Thumbnail,
+                Capability::Search,
             ],
             // Google Photos is the one without search: its Library API offers
             // no text search over media, only album and date filters.
@@ -255,6 +294,7 @@ enum Provider: string
             // order an admin meets them in.
             self::Nextcloud,
             self::Immich,
+            self::Paperless,
             self::CalDav,
             self::Ics,
             self::GoogleDrive,

@@ -156,7 +156,8 @@ writes.
 
 Two variables relax one check, and it is worth being exact about what the check is for.
 
-Self-hosted integrations — Nextcloud, Immich — let a signed-in user type their own server address.
+Self-hosted integrations — Nextcloud, Immich, Paperless-ngx — let a signed-in user type their own
+server address.
 That aims plMail's outbound HTTP client wherever the user likes, from inside a container network
 that also holds Postgres and the Mercure hub. `App\Service\Integration\IntegrationUrlValidator`
 refuses any address resolving into `127.0.0.0/8`, `10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`,
