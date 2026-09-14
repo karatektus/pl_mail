@@ -98,4 +98,61 @@ test.describe("menus escape their pane", () => {
         ).toBe(true);
     });
 
+    /**
+     * The account menu, which had the same fault and now has the same fix.
+     *
+     * Reported as sitting behind calendar furniture. Its `z-[200]` read as
+     * "above everything" and meant nothing of the sort: it ordered the menu
+     * inside the HEADER's z-20 context and said nothing about the header
+     * against the rest of the page, so it was on top only while nothing outside
+     * the header made a context of its own. The calendar keeps making them,
+     * especially once a background image turns the panes' backdrop-filter on.
+     *
+     * WHAT IS ASSERTED IS THE PROPERTY, NOT THE SYMPTOM. "Nothing covers it on
+     * this page at this width" passed before the fix as well — the collision
+     * needs a layout I could not reproduce. Being in the top layer is the thing
+     * that makes the whole class impossible, and it is false on the old markup,
+     * so that is what this pins.
+     *
+     * The third assertion is the one that matters most, and it is why the two
+     * tests above are still fixme: the top layer was tried on those menus and
+     * reverted because their options silently stopped firing. This menu asks
+     * for `popover="manual"` rather than the default `auto`, which is where
+     * light dismiss lives — the first pointerdown closing the popover, so the
+     * click meant for an option lands on nothing. A menu that is visible and
+     * does nothing is worse than one that is clipped, so a passing "it escapes"
+     * without a passing "it still works" would be a trap rather than a guard.
+     */
+    test("the account menu escapes, and its items still fire", async ({ page }) => {
+        await page.goto("/calendar?view=day");
+
+        await page.locator("#user-menu-btn").click();
+
+        const menu = page.locator("#user-menu");
+        await expect(menu).toBeVisible();
+
+        expect(
+            await page.locator("#user-menu:popover-open").count(),
+            "the account menu is not in the top layer — z-index is back to being a promise",
+        ).toBe(1);
+
+        expect(
+            await isOnTop(page, "#user-menu"),
+            "something is painted over the account menu",
+        ).toBe(true);
+
+        // Anchored under the avatar and on screen: a popover's containing block
+        // is the viewport, so the positioning the classes used to do has to be
+        // done by hand and can be got wrong without anything else noticing.
+        const box = (await menu.boundingBox())!;
+        const viewport = page.viewportSize()!;
+
+        expect(box.x, "the menu hangs off the left").toBeGreaterThanOrEqual(0);
+        expect(box.x + box.width, "the menu hangs off the right")
+            .toBeLessThanOrEqual(viewport.width + 1);
+
+        await page.locator("#user-menu-settings").click();
+        await expect(page).toHaveURL(/\/settings/);
+    });
+
 });

@@ -451,7 +451,32 @@
                because this one predates ui--dropdown and has its own controller.
                Safe on markup that is in the page from first paint: it is
                `hidden`, so the animation cannot run until the menu is shown. #}
-            <div id="user-menu" data-enter="slide-down" data-ui--user-menu-target="menu"  class="hidden absolute right-0 mt-2 w-56 bg-surface border border-line rounded-pane shadow-lg py-1 z-[200]">
+            {# `popover`, because z-[200] was never a promise this could keep.
+               It orders the menu INSIDE the header's own z-20 stacking context
+               and says nothing about the header against anything else, so the
+               menu is above the rest of the app only for as long as nothing
+               outside the header competes — and the calendar keeps growing
+               layers that do. Raising the number cannot help: a child cannot
+               climb out of its parent's context, which is the lesson
+               tests/e2e/menu-escapes-pane.spec.ts was written for.
+
+               The top layer is above every stacking context in the document by
+               definition, so the question stops being "which number wins" and
+               becomes unaskable.
+
+               MANUAL, not auto, and that is the whole difference between this
+               working and the attempt recorded in _thread_row.html.twig — a
+               menu sent to the top layer whose options then silently stopped
+               firing. `auto` brings light dismiss: the first pointerdown
+               anywhere closes the popover, so the click that was meant for an
+               option lands on nothing and no request goes out, with no error to
+               show for it. `manual` has no light dismiss, and the controller's
+               own document-click handler keeps closing it exactly as before.
+
+               The classes stay: a browser without showPopover() falls back to
+               the absolute positioning that has always been here, and the
+               controller only reaches for the top layer when it exists. #}
+            <div id="user-menu" popover="manual" data-enter="slide-down" data-ui--user-menu-target="menu"  class="hidden absolute right-0 mt-2 w-56 bg-surface border border-line rounded-pane shadow-lg py-1 z-[200]">
                 <div class="px-4 py-2.5 border-b border-line">
                     {% set displayName = (app.user.nameFirst ~ ' ' ~ app.user.nameLast)|trim %}
                     {% if displayName is not empty %}
