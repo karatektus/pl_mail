@@ -166,7 +166,11 @@ identity is threaded through a URL that would outlive the render that made it.
    class="w-full text-left flex gap-1.5
           px-1.5 py-0.5 rounded-md
           hover:bg-hover transition-colors min-w-0
-          focus:outline-none focus-visible:ring-2 focus-visible:ring-accent
+          {# Inset: on the time grid this button fills a block that is
+             `rounded-md overflow-hidden`, so a ring outside the button was
+             outside the block and clipped away in full — focus with no focus
+             ring at all. See mail/_attachment_chip.html.twig. #}
+          focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent
           {{ tall ? 'h-full items-start overflow-hidden' : 'items-center' }}
           {{ occurrence.cancelled ? 'opacity-50' : '' }}"
 >

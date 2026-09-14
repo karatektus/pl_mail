@@ -8,6 +8,25 @@ The published image tags: `latest` follows the most recent release below,
 
 ## Unreleased
 
+## v0.2.23 — 2026-09-11
+
+### Fixed
+
+- **The focus highlight on a joined control is the shape of the control again.** Reported on an
+  attachment chip, where it read as a second, wrongly-cornered border around the filename. The cause
+  is not the radius on the button: those buttons have no radius at all. A chip, a send pill and a
+  view switcher are each one rounded box with square-cornered halves inside it, rounded only by the
+  group's own `overflow-hidden` — so the browser's default outline traced a hard rectangle around a
+  half and the clip sliced its corners off where the group curves.
+
+  The ring is drawn inside the control now, which is what the settings pages have always done with
+  their segmented controls, and the clip rounds it instead of eating it. Six places carried the
+  fault: the attachment chip, the Send pill and its chevron, the calendar's Day/Week/Month/Agenda
+  switcher, the select and account menus, and an event on the time grid — that last one worse than
+  cosmetic, since a block clips its chip completely and keyboard focus landed on it with no visible
+  ring at all. The switcher's ring also takes its colour from the segment, an accent ring on the
+  accent-filled one being no ring.
+
 ## v0.2.22 — 2026-09-11
 
 ### Fixed

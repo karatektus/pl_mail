@@ -167,9 +167,18 @@ Blocks:
                        {% if frame %}data-turbo-frame="{{ frame }}"{% endif %}
                        aria-current="{{ candidate == view ? 'page' : 'false' }}"
                        {% if compact %}aria-label="{{ label }}" title="{{ label }}"{% endif %}
+                       {# Inset for the reason mail/_attachment_chip.html.twig
+                          spells out: these are square-cornered segments inside
+                          one clipped rounded box, and a ring outside a segment
+                          is a ring outside the box. The colour follows the
+                          segment — an accent ring on the accent-filled one
+                          would be invisible. #}
                        class="flex items-center justify-center text-xs transition-colors
+                              focus:outline-none focus-visible:ring-2 focus-visible:ring-inset
                               {{ compact ? 'w-7 h-7' : 'px-2.5 py-1' }}
-                              {{ candidate == view ? 'bg-accent text-accent-ink' : 'text-ink-muted hover:bg-hover hover:text-ink' }}"
+                              {{ candidate == view
+                                  ? 'bg-accent text-accent-ink focus-visible:ring-accent-ink'
+                                  : 'text-ink-muted hover:bg-hover hover:text-ink focus-visible:ring-accent' }}"
                     >
                         {%- if compact -%}
                             <i class="fa-solid {{ viewIcons[candidate.value] }}" aria-hidden="true"></i>

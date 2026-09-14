@@ -106,9 +106,17 @@ Variables: message, params (from the including context); placement.
         <button type="submit"
                 data-compose--compose-target="sendBtn"
                 data-action="click->compose--compose#sendOrCancel"
+                {# Inset, and white rather than accent: the two halves of this
+                   pill are square-cornered boxes rounded by the group's
+                   `overflow-hidden`, so a ring drawn outside one of them is
+                   clipped away with the corner it belongs to — the same fault
+                   the attachment chip was reported for, and that file carries
+                   the long version. An accent ring would also be an accent
+                   ring on an accent button. #}
                 class="grid items-center justify-items-center cursor-pointer
                        text-white text-sm font-semibold
-                       px-4 py-1.5 max-md:min-h-11 hover:bg-white/10 transition-colors">
+                       px-4 py-1.5 max-md:min-h-11 hover:bg-white/10 transition-colors
+                       focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white">
             <span data-compose--compose-target="sendLabel"
                   class="col-start-1 row-start-1 leading-5 whitespace-nowrap">
                 {{- 'compose.send'|trans -}}
@@ -147,7 +155,8 @@ Variables: message, params (from the including context); placement.
                 aria-label="{{ 'compose.send_options'|trans }}"
                 class="flex items-center justify-center text-white border-l border-white/30
                        px-2.5 py-1.5 max-md:min-h-11 max-md:min-w-11
-                       hover:bg-white/10 transition-colors text-xs">
+                       hover:bg-white/10 transition-colors text-xs
+                       focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white">
             <i class="fa-solid fa-chevron-down" aria-hidden="true"></i>
         </button>
     </div>

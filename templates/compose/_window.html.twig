@@ -422,6 +422,7 @@ Variables: form, message, ctx (an App\Domain\DTO\Mail\ComposeContext)
                                        hover:bg-accent-soft
                                        hover:text-accent
                                        transition-colors
+                                       focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent
                                        {% if form.account.vars.value == choice.value %}
                                            bg-accent-soft text-accent
                                        {% endif %}">

@@ -50,6 +50,15 @@ console to say why. Turbo leaves a link carrying `download` to the browser.
        than passed in: an imported name lives in Twig's macro table, not in the
        context, so it cannot travel as an argument. #}
     {% import _self as chip %}
+    {# INSET, and every face in this file says so for the same reason. A chip
+       is a rounded box with square-cornered halves inside it, rounded by the
+       group's own `overflow-hidden` — so a ring drawn OUTSIDE one of those
+       halves is drawn outside the group as well, and the clip takes it. What
+       was left was the browser's default outline: a hard rectangle at the
+       corners of a half, cut off where the group curves, which is what "the
+       highlight border looks weird" was. Inset, the ring is painted inside the
+       half's own padding box, so the clip rounds its corners instead of eating
+       it, and the highlight follows the shape the eye expects. #}
     <button type="button"
             data-controller="ui--modal"
             data-action="click->ui--modal#open"
@@ -57,7 +66,8 @@ console to say why. Turbo leaves a link carrying `download` to the browser.
             data-ui--modal-src-value="{{ path('app_mail_attachment_preview', { id: part.id }) }}"
             data-ui--modal-title-value="{{ part.filename ?: 'attachment.preview.untitled'|trans }}"
             class="inline-flex items-center gap-2 {{ hasPreview ? 'p-1.5 pr-3' : 'px-3 py-2' }} text-xs
-                   text-ink-soft hover:bg-hover transition-colors cursor-pointer text-left">
+                   text-ink-soft hover:bg-hover transition-colors cursor-pointer text-left
+                   focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent">
         {{ chip.face(part, hasPreview) }}
     </button>
 {% endmacro %}
@@ -91,7 +101,8 @@ console to say why. Turbo leaves a link carrying `download` to the browser.
         <a href="{{ path('app_mail_attachment', { id: part.id }) }}?download=1"
            download="{{ downloadName }}"
            class="inline-flex items-center gap-2 {{ hasPreview ? 'p-1.5 pr-3' : 'px-3 py-2' }} rounded-lg text-xs
-                  bg-sunken border border-line text-ink-soft hover:bg-hover transition-colors">
+                  bg-sunken border border-line text-ink-soft hover:bg-hover transition-colors
+                  focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent">
             {{ chip.face(part, hasPreview) }}
         </a>
     {% endif %}
@@ -114,7 +125,8 @@ console to say why. Turbo leaves a link carrying `download` to the browser.
             {% else %}
                 <a href="{{ path('app_mail_attachment', { id: part.id }) }}?download=1"
                    download="{{ downloadName }}"
-                   class="inline-flex items-center gap-2 {{ hasPreview ? 'p-1.5 pr-3' : 'px-3 py-2' }} text-xs text-ink-soft hover:bg-hover transition-colors">
+                   class="inline-flex items-center gap-2 {{ hasPreview ? 'p-1.5 pr-3' : 'px-3 py-2' }} text-xs text-ink-soft hover:bg-hover transition-colors
+                          focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent">
                     {{ chip.face(part, hasPreview) }}
                 </a>
             {% endif %}
@@ -122,7 +134,8 @@ console to say why. Turbo leaves a link carrying `download` to the browser.
             <button type="button"
                     data-action="click->ui--dropdown#toggle"
                     aria-label="{{ 'message.save_to'|trans }}"
-                    class="px-2 border-l border-line text-ink-faint hover:text-ink hover:bg-hover transition-colors">
+                    class="px-2 border-l border-line text-ink-faint hover:text-ink hover:bg-hover transition-colors
+                           focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent">
                 <i class="fa-solid fa-cloud-arrow-up text-[11px]" aria-hidden="true"></i>
             </button>
         </div>
