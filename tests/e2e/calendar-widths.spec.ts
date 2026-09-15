@@ -28,7 +28,22 @@ const VIEWS = ["day", "week", "month", "agenda"] as const;
 const WIDTHS = [360, 1280] as const;
 
 test.describe("every view at every width", () => {
-    test.beforeEach(() => seed("seed-grid-events"));
+    // The visit before the seed is not decoration. `seed-grid-events` puts its
+    // fixtures on the user's DEFAULT calendar and exits 1 with "has no default
+    // calendar to seed onto" when there is none — and a worker that has drawn
+    // no calendar yet has none, because CalendarController provisions it on the
+    // first view.
+    //
+    // Every other spec in the calendar family borrows somebody else's first
+    // visit without noticing, which is why this passed locally, where they all
+    // run together, and failed on the CI shard that happened to hold this test
+    // and nothing else from the family. A spec that only works when it has
+    // company is not a spec.
+    test.beforeEach(async ({ page }) => {
+        await page.goto("/calendar");
+        seed("seed-grid-events");
+    });
+
     test.afterEach(() => seed("seed-grid-events --clear"));
 
     test("keeps its seams together", async ({ page }) => {
