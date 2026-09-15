@@ -17,6 +17,8 @@ import { Controller } from "@hotwired/stimulus";
  *   heading         one per day, above the column of the same index — declared
  *                   so a spec can assert the two line up, which they did not
  *                   while the headings lived outside the scroller
+ *   nowLine         the red line across today's column, if today is in range;
+ *                   read for WHERE the grid opens rather than for what it says
  *   column          one per day, in view order — the index IS the day offset
  *   block           one positioned event; carries all of its own state in data-
  *   grip            the bottom edge of a block, for resizing
@@ -55,6 +57,7 @@ export default class extends Controller {
         "scroller",
         "hours",
         "heading",
+        "nowLine",
         "newTrigger",
         "column",
         "block",
@@ -103,41 +106,99 @@ export default class extends Controller {
             block.querySelector("button")?.setAttribute("aria-describedby", "calendar-grid-hint");
         });
 
-        // Midnight is almost never what someone wants to look at. Opening on
-        // the working day costs one scroll to reach the night, where opening at
-        // the top costs one to reach everything.
-        //
-        // Measured off the HOURS grid rather than off the scroller, because the
-        // scroller also holds the day headings and the all-day band now — they
-        // are sticky rows inside it rather than siblings above it, so that the
-        // three grids share one width and the columns line up with their own
-        // headings. Read off the scroller's own height, 7/24 of it would land
-        // past 07:00 by however tall those two happen to be.
-        //
-        // `offsetTop` used to be added to this, and it was wrong twice over.
-        // It is not measured against the scroller at all — neither is the
-        // scroller the offsetParent — so what went in was the grid's distance
-        // from the PAGE, and the day opened at about 11:00 with the whole
-        // morning scrolled off the top. And even a correct content offset does
-        // not belong here: the rows above the hours grid are exactly the ones
-        // that stay PINNED, so they occupy the same distance twice — once in
-        // the scrolled content and once as a band across the top of the
-        // viewport — and the two cancel. 7/24 of the grid's own height is the
-        // whole answer, and it puts 07:00 immediately under the pinned rows
-        // rather than behind them.
-        //
-        // Behind them is not a cosmetic difference: a sticky row painted over
-        // the grid takes the pointer as well as the view, so an event sitting
-        // under it could not be dragged at all — which is how
-        // calendar-timegrid.spec.ts found this.
-        if (this.hasScrollerTarget && this.hasHoursTarget) {
-            this.scrollerTarget.scrollTop = (this.hoursTarget.offsetHeight * 7) / 24;
-        }
+        this.#anchorOpeningScroll();
     }
 
     disconnect() {
         this.element.removeEventListener("click", this._onClickCapture, true);
+        this.#stopAnchoring();
         this.#stopListening();
+    }
+
+    // ── Where the grid opens ──────────────────────────────────────────────
+
+    /**
+     * Midnight is almost never what someone wants to look at, and the answer
+     * is not a constant.
+     *
+     * A range that holds today opens on NOW, a quarter of the viewport down,
+     * so the line the reader came to look at is on screen with some morning
+     * above it for context. Every calendar does this and a fixed hour cannot:
+     * at 22:00 the working day is two screens above the only row that matters,
+     * and at 09:00 a grid opened at 07:00 wastes the top of the viewport on
+     * hours that are already over. The fallback for a week that is not this
+     * one is 07:00 — opening on the working day costs one scroll to reach the
+     * night, where opening at the top costs one to reach everything.
+     *
+     * "Now" is read off the rendered line rather than computed again here.
+     * The server draws it at a percentage of the column, on the CALENDAR's
+     * clock — which is not the browser's for any calendar provisioned before
+     * the zone was seeded from the user — so a second spelling of it here
+     * would open some readers' grids an hour from their own red line.
+     *
+     * Measured off the HOURS grid rather than off the scroller, because the
+     * scroller also holds the day headings and the all-day band — they are
+     * sticky rows inside it rather than siblings above it, so that the three
+     * grids share one width and the columns line up with their own headings.
+     * Read off the scroller's own height, a fraction of it would land past the
+     * hour it names by however tall those two happen to be.
+     *
+     * `offsetTop` used to be added to this, and it was wrong twice over. It is
+     * not measured against the scroller at all — neither is the scroller the
+     * offsetParent — so what went in was the grid's distance from the PAGE,
+     * and the day opened at about 11:00 with the whole morning scrolled off
+     * the top. And even a correct content offset does not belong here: the
+     * rows above the hours grid are exactly the ones that stay PINNED, so they
+     * occupy the same distance twice — once in the scrolled content and once
+     * as a band across the top of the viewport — and the two cancel.
+     *
+     * Behind them is not a cosmetic difference: a sticky row painted over the
+     * grid takes the pointer as well as the view, so an event sitting under it
+     * could not be dragged at all — which is how calendar-timegrid.spec.ts
+     * found this.
+     */
+    #anchorOpeningScroll() {
+        if (!this.hasScrollerTarget || !this.hasHoursTarget) return;
+        if (this.#applyOpeningScroll()) return;
+
+        // A height of zero is not a grid with no rows, it is a grid that has
+        // not been laid out yet — every case where the calendar is inside a
+        // lazy <turbo-frame>, or in a pane that is still display:none when its
+        // controller connects. Assigning scrollTop to an unlaid-out box clamps
+        // to 0 and reports nothing, which is exactly how this failed in the
+        // pane: the anchor ran, did nothing, and left the reader at 00:00 with
+        // the entire night above the first event of the day.
+        //
+        // One shot, not a subscription. The observer fires immediately with
+        // the current size and then on every change, so it disconnects itself
+        // the first time it can do the work — otherwise dragging the pane's
+        // handle would yank the view back to the opening position mid-drag.
+        this._anchorObserver = new ResizeObserver(() => {
+            if (this.#applyOpeningScroll()) this.#stopAnchoring();
+        });
+        this._anchorObserver.observe(this.hoursTarget);
+    }
+
+    /** @returns whether the grid was laid out enough to place the view. */
+    #applyOpeningScroll() {
+        const height = this.hoursTarget.offsetHeight;
+        const port = this.scrollerTarget.clientHeight;
+        if (0 === height || 0 === port) return false;
+
+        const nowPercent = this.hasNowLineTarget
+            ? Number.parseFloat(this.nowLineTarget.style.top)
+            : Number.NaN;
+
+        this.scrollerTarget.scrollTop = Number.isFinite(nowPercent)
+            ? Math.max(0, (height * nowPercent) / 100 - port / 4)
+            : (height * 7) / 24;
+
+        return true;
+    }
+
+    #stopAnchoring() {
+        this._anchorObserver?.disconnect();
+        this._anchorObserver = null;
     }
 
     // ── Pointer ───────────────────────────────────────────────────────────

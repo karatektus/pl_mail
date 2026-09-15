@@ -54,7 +54,26 @@ row, and a month grid in that width is a lot of empty cells. The pane still offe
 as icons rather than words, because the version that dropped the switcher entirely left the pane
 able to show nothing but its agenda.
 
-In month view a day that holds more entries than fit says **N more**, which opens that day.
+In month view a cell draws as many of its day's entries as fit and fades the last one where it runs
+out, rather than counting them. It used to say **N more**, and the count could not be right: a cell's
+height is the window's divided by six and an entry is one line or two depending on whether it has a
+time, so the number was always a guess about a box nobody had measured. **The date is a link** — it
+opens that day, which is where the rest of them are.
+
+**Resting the pointer on a day floats that whole day out.** The cell becomes a small panel, wide
+enough for the full titles and long enough for every entry. Nothing in it moves as it opens — it
+grows right and down from exactly where the list already was — so the entry you were looking at is
+still under the pointer.
+
+**Where a cell is too narrow for words it stops using them.** Seven columns of a phone are about
+forty pixels each, which is not a width a title or even a time can finish in, so below that an entry
+is drawn as a bar in its calendar's colour — how many, and which calendars, at a glance. Tapping the
+date opens the day, where they are written out.
+
+The agenda groups its entries under a heading per day, which stays at the top of the list while that
+day's events are on screen. The start and end time — or **All day** — sit in a lane of their own down
+the left, so the titles line up down the list rather than starting wherever the time happened to
+end.
 
 ### The time grid
 
@@ -70,8 +89,18 @@ as you like, and past the end of its range it becomes the calendar full-width. A
 drew a *different* calendar was the worse answer, since widening it to see the timeline gave you the
 list anyway.
 
-A seven-day grid is still tight in a narrow pane, and the answer to that is the toolbar: **Day** is
-one click away and is a single full-width column.
+**A narrow week pans rather than squeezing.** Seven columns used to divide whatever width there was,
+so a phone or a narrow pane gave each of them about fifty pixels and a block showed its colour and
+little else. A column has a floor now: below the width where seven of them fit, the grid slides
+sideways under a hour gutter that stays put, a day at a time, and four days are legible where none
+were. **Day** is still one click away in the toolbar and still a single full-width column — a choice
+now rather than the only way to read a narrow week.
+
+**A block writes its time on one line and its title under it**, with the calendar's colour as a bar
+down the left, so a narrow column shows a whole title where it used to show four characters of one.
+Where a title still cannot finish — the all-day band above the grid is one line tall by definition —
+resting the pointer on it widens it to whatever it had to say, over its neighbours, and puts it back
+when you leave.
 
 Month and Agenda have no time axis in either shape. A month cell is a couple of square centimetres
 and has no room to say where in the day anything is; an agenda's whole value is that it skips the

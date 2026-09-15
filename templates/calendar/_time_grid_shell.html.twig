@@ -52,22 +52,35 @@ weeks that have one makes the grid jump by a row as you page through, and the
 row is a permanent part of the axis — it is where "this event has no time" is
 expressible at all.
 
-**A known limitation, stated rather than hidden: a seven-day week is tight below
-about 640px.** The columns divide whatever width there is, so on a phone, or in
-a narrow docked pane, each is around fifty pixels and a block says its colour
-and little else. It is not solved here because the only fixes are
-disproportionate — a horizontal scroll means either three scroll containers kept
-in step by JavaScript or rewriting the three grids below as one with sticky rows
-and a sticky gutter. What answers it instead is that neither width is forced on
-anyone: the pane opens on the agenda, Day view is one tap away in the toolbar
-and is a single full-width column, and the pane's own handle widens it as far as
-the window allows. The shared page has the same escape for the same reason.
-Worth revisiting; not worth guessing at.
+**Below about 730px a seven-day week pans sideways instead of squeezing.** The
+columns used to divide whatever width there was, so on a phone, or in a narrow
+docked pane, seven of them came to about fifty pixels each and a block said its
+colour and little else. They have a floor of 6rem now: at every width where
+seven of those fit the grid is exactly what it always was, and below it the grid
+is wider than the scroller, the scroller pans, and a column snaps into place at
+a time. Four days are legible in a 400px window where none were.
 
-Tight is the limitation. SPILLING was a bug, and is fixed: the headings stack
-below 5rem of column instead of overflowing into the day beside them — see
-the note above them, which is also where the container query is explained and
-why a viewport breakpoint could not have been one.
+This was costed here once as disproportionate — "three scroll containers kept in
+step by JavaScript, or rewriting the three grids below as one with sticky rows
+and a sticky gutter" — and the note on the scroller below is why it is not. The
+three grids already share one scroll container, which was done for the alignment
+argument there and left this one paid for. All that was left was the gutter: the
+first cell of each of the three is `sticky left-0`, and the three pin as one
+because one box measures all of them.
+
+The escapes are still there and are still worth having — the pane opens on the
+agenda, Day view is one tap away in the toolbar and is a single full-width
+column, and the pane's own handle widens it as far as the window allows. They
+are choices now rather than the only way to read a narrow week. The shared page
+gets the same panning for the same reason.
+
+SPILLING was the other half of this and is also gone, by the floor rather than
+by the container query that used to answer it. A heading needs 89px for one line
+— measured over the headings below — and 6rem is 96, so the weekday no longer
+stacks over the date at any width this grid can produce. The stacked layout and
+its query are removed rather than left as a branch that cannot run;
+calendar-heading-fit.spec.ts now pins one line at 400px, which is the width it
+used to pin two at.
 
 ── A column the caller is not publishing ────────────────────────────────────
 
@@ -120,8 +133,30 @@ one) `placed`:
 {# The time gutter, then one equal column per day. minmax(0,1fr) rather than
    1fr: a bare 1fr floors at the content's min-width, so one long untruncated
    title would push a seven-day week wider than the pane and produce a
-   horizontal scrollbar over the whole calendar. #}
+   horizontal scrollbar over the whole calendar.
+
+   **The width is stated rather than left to the box, and that is what makes a
+   narrow week pan instead of squeeze.** `max(100%, gutter + days × 6rem)` is
+   100% at every width a column stays readable at and the sum of the floors
+   below that, so the grid grows past the scroller and the scroller pans. The
+   note at the top of this file is what that buys and what it replaced.
+
+   Written this way rather than as the `minmax(6rem, 1fr)` that says the same
+   thing far better, because that does not work here: an `fr` track sized under
+   a max-content pass resolves to the widest track's max-content contribution,
+   so the moment the box sized itself intrinsically one long title would set the
+   width of all seven columns — the exact bug minmax(0,1fr) is here to prevent,
+   let back in through the sizing mode. A stated width keeps the fr tracks
+   resolving against a definite number, which is the only mode they are honest
+   in.
+
+   6rem because a heading wants 89px for one line, measured over the headings
+   below. Under that the weekday has to stack, which is what this grid used to
+   do and no longer needs to. #}
+{% set columnMin = '6rem' %}
 {% set columnTemplate = '3.5rem repeat(' ~ dayKeys|length ~ ', minmax(0, 1fr))' %}
+{% set gridStyle = 'grid-template-columns: ' ~ columnTemplate
+    ~ '; width: max(100%, calc(3.5rem + ' ~ dayKeys|length ~ ' * ' ~ columnMin ~ '))' %}
 
 <div class="{{ shellOuterClass }}" {% block grid_root_attributes %}{% endblock %}>
     {# ── One scroll container, three grids ─────────────────────────────────
@@ -141,57 +176,59 @@ one) `placed`:
 
        The offsets are a fixed 2rem because a sticky element needs a number:
        `top-0` for the headings, `top-8` for the band under them, and the
-       headings are given `h-8` so the two agree. #}
-    <div class="flex-1 min-h-0 overflow-y-auto" data-calendar--time-grid-target="scroller">
+       headings are given `h-8` so the two agree.
+
+       `overflow-auto` rather than `overflow-y-auto`: the same box pans sideways
+       once the columns reach their floor, which only works because all three
+       grids are measured inside it. `snap-proximity` rather than `mandatory`,
+       so a deliberate half-column rest is allowed to stay where it was put —
+       mandatory drags the view back off every pointer-up near an edge, on a
+       grid whose whole interaction is pointer-down and drag. `scroll-pl-14` is
+       the gutter's own 3.5rem: without it a snapped column comes to rest UNDER
+       the pinned gutter rather than beside it. #}
+    <div class="flex-1 min-h-0 overflow-auto snap-x snap-proximity scroll-pl-14"
+         data-calendar--time-grid-target="scroller">
 
     {# ── The day headings ──────────────────────────────────────────────────
 
-       **Each heading is a container query of its own, and nothing else can
-       answer the question.** A column is the pane's width divided by however
-       many days are drawn, so the same 400px window is one roomy column in Day
-       view and seven cramped ones in Week — a viewport media query cannot tell
-       those two apart, and the docked pane is resized by its own handle inside
-       a window whose width never changes at all.
+       **One line, always, because the column now has a floor.** A heading
+       wants 89 of its column's pixels, measured at 10px uppercase: 16 of
+       padding, 25 for the widest abbreviation ("MON"), 6 of gap, 16 for a
+       two-digit date, and 26 more for the + button and its inset. The columns
+       are floored at 6rem where the template is built, which is 96, so it fits
+       at every width this grid can produce.
 
-       Below 5rem the weekday stacks over the date instead of sitting beside
-       it, because one line has stopped fitting by then. Measured, at 10px
-       uppercase: 16 of padding, 25 for the widest abbreviation ("MON"), 6 of
-       gap, 16 for a two-digit date, and 26 more for the + button and its
-       inset — 89 against a column of 80. What that used to produce was not a
-       tight heading but a wrong one: the label and the + overflowed their own
-       border and were drawn over the NEXT day's column, where the + still
-       added an event to the day it came from. Stacked, the widest thing in the
-       box is the label alone — 22.7px for "MON" at 9px, 17.9 for German's
-       "MO." — and a 34px column, which is what a 320px phone gives, holds it
-       with room either side.
+       That is a replacement for a container query, not an excuse for never
+       having had one. Seven columns used to divide whatever the pane had —
+       about 45px at 400 — and the heading did what a flex row does when it is
+       too small: it shrank what it could to min-content and spilled the rest,
+       drawing Monday's + over TUESDAY's heading, where it still added an event
+       to Monday. The answer was to stack the weekday over the date below 5rem
+       of column, on a query per cell, because a column's width is the pane's
+       divided by however many days are drawn and no viewport breakpoint can
+       tell Day view from Week apart. It worked. The floor makes it unreachable
+       — 96 never queries below 80 — so it is gone rather than kept as a branch
+       that cannot run, and calendar-heading-fit.spec.ts pins what replaced it.
 
-       80px rather than the 89 that arithmetic asks for, because the last of
-       those 89 is a button that only exists while the day is hovered: between
-       those two numbers it may cover 2px of a two-digit date, and stacking a
-       heading that otherwise fits to prevent that is the worse trade. Below
-       5rem it is drawn over the date outright, which is why it takes a
-       background there — see the block in _view_timegrid.
-
-       The row keeps `h-8` at both widths: the all-day band below is stuck to
-       `top-8` and the two numbers have to agree, which is the whole point of
-       the note on the scroller above. `leading-none` on the label is what buys
-       the second line — 9px over a 20px date is 29 of the 32. #}
-    <div class="sticky top-0 z-20 h-8 grid border-b border-line bg-surface" style="grid-template-columns: {{ columnTemplate }}">
-        <div class="border-r border-line" aria-hidden="true"></div>
+       `h-8` is not free to change: the all-day band below is stuck to `top-8`
+       and the two numbers have to agree, which is the whole point of the note
+       on the scroller above. #}
+    <div class="sticky top-0 z-20 h-8 grid border-b border-line bg-surface" style="{{ gridStyle }}">
+        {# The pinned corner, and `z-10` on it is not decoration: the day cells
+           beside it are `relative` and come after it in source, so with no
+           number of its own the cell that is supposed to cover them is painted
+           over by them instead. Inside the heading row's own stacking context,
+           so 10 here is nowhere near the 10 on the all-day band. #}
+        <div class="sticky left-0 z-10 border-r border-line bg-surface" aria-hidden="true"></div>
 
         {% for dayKey in dayKeys %}
             {% set isOutside = grid[dayKey] is not defined %}
             {% set isToday = dayKey == today and not isOutside %}
 
-            <div class="@container group/day relative border-r border-line
+            <div class="group/day relative border-r border-line
                         {{ isOutside ? 'bg-sunken/20' : (isToday ? 'bg-accent/5' : '') }}"
                  data-calendar--time-grid-target="heading">
-                {# The cell is the container and the row inside it is what
-                   answers: an element cannot query a container it declares
-                   itself, so the two cannot be the same box. #}
-                <div class="h-full flex items-center gap-1.5 px-2
-                            @max-[5rem]:flex-col @max-[5rem]:justify-center
-                            @max-[5rem]:gap-0 @max-[5rem]:px-0.5">
+                <div class="h-full flex items-center gap-1.5 px-2">
                     {# No zone on a day key, deliberately. $dayKey is a wall date as
                        a string, so Twig parses it in its default zone and printing
                        it in that same zone is the only reading that cannot move it.
@@ -201,7 +238,6 @@ one) `placed`:
                        row wrong. $zone is for instants — see `nowMinute` above,
                        which is one. #}
                     <span class="text-[10px] uppercase tracking-wide
-                                 @max-[5rem]:text-[9px] @max-[5rem]:leading-none
                                  {{ isToday ? 'text-accent' : 'text-ink-faint' }}">
                         {{ dayKey|intl_date('EEE', false) }}
                     </span>
@@ -223,9 +259,9 @@ one) `placed`:
                            of the heading row — which is also the top of the
                            scroller, so the scroll container clipped 2px off the
                            ring and flattened it. Centring costs the text less
-                           than a pixel (a 10px label beside a 14px date moves
-                           0.8px) and it is one rule for both layouts, the
-                           stacked one having centred all along. #}
+                           than a pixel — a 10px label beside a 14px date moves
+                           0.8px — and it is the only rule the row needs now
+                           that there is one layout rather than two. #}
                         <span class="w-5 h-5 shrink-0 flex items-center justify-center rounded-full
                                      bg-accent text-accent-ink text-xs font-semibold tabular-nums">
                             {{ dayKey|date('j') }}
@@ -258,28 +294,62 @@ one) `placed`:
     </div>
 
     {# ── All day ───────────────────────────────────────────────────────── #}
-    <div class="sticky top-8 z-10 grid border-b border-line bg-surface max-h-24 overflow-y-auto"
-         style="grid-template-columns: {{ columnTemplate }}">
-        <div class="border-r border-line px-2 py-1 text-[10px] uppercase tracking-wide text-ink-faint text-right">
+    {# **The band's own vertical scroll sits one box in from the grid, and it
+       has to.** `overflow-y: auto` makes an element a scroll container in BOTH
+       axes — a `visible` overflow computes to `auto` as soon as the other axis
+       is not visible — so with the scroll on the band itself, the "all day"
+       label inside it resolved `sticky left-0` against the band rather than
+       against the scroller that actually pans, and slid out of the gutter lane
+       the moment the week was panned. The label stays a direct child of the
+       grid; the day cells move into a nested grid that owns the scrolling.
+
+       That nested grid divides the tracks it spans the same way the outer one
+       does, off the same definite width, so the two agree to the pixel. The one
+       case they do not is a band tall enough to scroll — four all-day events on
+       one day — where a classic scrollbar takes width from the nested grid and
+       not from the hours below it, and the day columns sit a scrollbar's width
+       left of their own. Left alone: it did the same before the nesting, for
+       the same reason, and reserving the gutter on all three is the thing the
+       note on the scroller says CSS cannot express. #}
+    <div class="sticky top-8 z-10 grid border-b border-line bg-surface"
+         style="{{ gridStyle }}">
+        <div class="sticky left-0 z-10 bg-surface border-r border-line px-2 py-1
+                    text-[10px] uppercase tracking-wide text-ink-faint text-right">
             {{ 'calendar.grid.all_day'|trans }}
         </div>
 
-        {% for dayKey in dayKeys %}
-            {% set isOutside = grid[dayKey] is not defined %}
+        {# `overflow-x-hidden` is stated rather than left to compute. An
+           element with `overflow-y: auto` is a scroll container in BOTH axes,
+           so an all-day chip opened wider than its day would have given this a
+           horizontal scrollbar — a second one, out of step with the scroller
+           that actually pans the week. Hidden clips it at the far edge of the
+           last day instead, which is the only place it has anything to clip. #}
+        <div class="grid max-h-24 overflow-y-auto overflow-x-hidden"
+             style="grid-column: 2 / -1;
+                    grid-template-columns: repeat({{ dayKeys|length }}, minmax(0, 1fr))">
+            {% for dayKey in dayKeys %}
+                {% set isOutside = grid[dayKey] is not defined %}
 
-            <div class="border-r border-line p-1 space-y-0.5 min-h-[1.75rem]
-                        {{ isOutside
-                            ? 'bg-sunken/20'
-                            : (dayKey == today ? 'bg-accent/5' : '') }}">
-                {% for entry in isOutside ? [] : grid[dayKey].allDay %}
-                    {% block all_day_entry %}{% endblock %}
-                {% endfor %}
-            </div>
-        {% endfor %}
+                {# No `@container` here, deliberately. It was declared so the
+                   chip could query its width, and the two steps it would answer
+                   are unreachable in this band: the narrowest a day gets is the
+                   96px floor and both steps are under 7rem. What a container
+                   WOULD do is make every cell a stacking context, which traps
+                   an opened chip's z-index inside the day it started in. #}
+                <div class="relative border-r border-line p-1 space-y-0.5 min-h-[1.75rem]
+                            {{ isOutside
+                                ? 'bg-sunken/20'
+                                : (dayKey == today ? 'bg-accent/5' : '') }}">
+                    {% for entry in isOutside ? [] : grid[dayKey].allDay %}
+                        {% block all_day_entry %}{% endblock %}
+                    {% endfor %}
+                </div>
+            {% endfor %}
+        </div>
     </div>
 
     {# ── The hours ─────────────────────────────────────────────────────── #}
-        <div class="grid" style="grid-template-columns: {{ columnTemplate }}"
+        <div class="grid" style="{{ gridStyle }}"
              data-calendar--time-grid-target="hours">
 
             {# The gutter's labels sit ON the hour line rather than inside the
@@ -293,8 +363,15 @@ one) `placed`:
                which hour, not which day — so it is built at midnight UTC and
                read back in UTC, which is what `false` does here. Handing it the
                reader's zone instead would shift every label by their offset and
-               produce a gutter starting at 02:00. #}
-            <div class="border-r border-line">
+               produce a gutter starting at 02:00.
+
+               `z-[5]`, and the number is chosen from both directions: above the
+               day columns beside it, which are `relative` and come later in
+               source and would otherwise be painted over the cell pinning them
+               back, and below the all-day band and the headings at 10 and 20,
+               which pin ACROSS it. A gutter at 10 draws its hour labels over
+               the band it is supposed to scroll under. #}
+            <div class="sticky left-0 z-[5] bg-surface border-r border-line">
                 {% for hour in 0..23 %}
                     <div class="relative h-12">
                         {# Midnight is labelled like every other hour, and is
@@ -324,7 +401,10 @@ one) `placed`:
                 {% set isOutside = grid[dayKey] is not defined %}
                 {% set isToday = dayKey == today and not isOutside %}
 
-                <div class="relative border-r border-line
+                {# `snap-start` here and nowhere else: the three grids stack
+                   one snap position per day, and one set of targets is enough
+                   for all of them because they share the scroller's x axis. #}
+                <div class="relative snap-start border-r border-line
                             {{ isOutside ? 'bg-sunken/20' : (isToday ? 'bg-accent/5' : '') }}"
                      data-day="{{ dayKey }}"
                      {% if isOutside %}data-day-unpublished{% endif %}
@@ -351,8 +431,20 @@ one) `placed`:
                            moved afterwards. A timer that crept it down the
                            column would be a repaint a minute forever, on a view
                            that is re-rendered by every navigation anyway. #}
-                        <div class="absolute left-0 right-0 h-px bg-danger pointer-events-none z-20"
+                        {# `z-[3]`: over the blocks, which carry no number of
+                           their own, and UNDER the pinned gutter at 5. Its dot
+                           hangs 4px into the column to its left, which is the
+                           gutter's lane for whichever day is panned under it,
+                           and at 20 that dot was drawn on top of the gutter as
+                           a red mark floating in the hours.
+
+                           A target as well, because the opening scroll is
+                           measured from it — see the controller. The line
+                           carries the minute as a percentage already, so there
+                           is no second spelling of "now" to keep in step. #}
+                        <div class="absolute left-0 right-0 h-px bg-danger pointer-events-none z-[3]"
                              style="top: {{ (nowMinute * 100 / 1440)|round(4) }}%"
+                             data-calendar--time-grid-target="nowLine"
                              aria-hidden="true">
                             <span class="absolute -left-1 -top-1 w-2 h-2 rounded-full bg-danger"></span>
                         </div>
@@ -367,12 +459,21 @@ one) `placed`:
                             {# min-height is the floor a short meeting needs to
                                be readable. A quarter of an hour is 1/96th of
                                the column — about twelve pixels at the height
-                               this grid usually gets — and the chip inside
-                               wants twenty-four for one line of "9:00 Standup",
-                               so a fifteen-minute event drew a sliver with its
-                               own label spilling out of it. 1.75rem is the
-                               all-day lane's floor above, deliberately: one
-                               number for "the smallest a chip may be drawn".
+                               this grid usually gets — so a fifteen-minute
+                               event drew a sliver with its own label spilling
+                               out of it.
+
+                               2.375rem, measured rather than chosen: the chip
+                               is two rows of `leading-4` now, a time over a
+                               title, which is 32px, plus 4 of its own padding
+                               and the 2 of `p-px` here. It was 1.75rem and the
+                               same number as the all-day lane's floor below, on
+                               the reasoning that there was one answer to "the
+                               smallest a chip may be drawn". There are two now
+                               and there have to be: a lane entry is one line by
+                               definition and a block is two, so one number
+                               would either clip the block or make the lane a
+                               third taller than anything in it.
 
                                The floored block is then taller than its
                                duration and can reach over the one after it.
@@ -391,10 +492,16 @@ one) `placed`:
                                data-starts-at and data-ends-at, never the
                                rendered box, so a floored block resizes from its
                                real duration. #}
-                            <div class="absolute p-px"
+                            {# `@container` so the chip inside can answer "is
+                               there room for the time as well as the title" —
+                               and the BLOCK is the right box to ask, not the
+                               column: two overlapping meetings split a column
+                               into lanes, so a chip in a 96px week column may
+                               have 48 or 32 of them. #}
+                            <div class="@container group/chip absolute p-px hover:z-30"
                                  style="top: {{ (placed.top * 100)|round(4) }}%;
                                         height: {{ (placed.height * 100)|round(4) }}%;
-                                        min-height: 1.75rem;
+                                        min-height: 2.375rem;
                                         left: {{ (placed.lane * 100 / placed.lanes)|round(4) }}%;
                                         width: {{ (100 / placed.lanes)|round(4) }}%;"
                                  {% block timed_entry_attributes %}{% endblock %}

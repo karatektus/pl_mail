@@ -13,19 +13,26 @@ import { test, expect, type Page } from "./support/test";
  * ellipse, and the + button for Monday ended up painted over TUESDAY's
  * heading, where it still opened an editor on Monday.
  *
- * calendar/_time_grid_shell.html.twig answers it with a container query on each
- * heading cell — below 5rem of column the weekday stacks over the date — and
- * that is what this file pins. Three things, no more:
+ * calendar/_time_grid_shell.html.twig answered it with a container query on
+ * each heading cell — below 5rem of column the weekday stacked over the date —
+ * and it answers it with a FLOOR now: a column is never narrower than 6rem, the
+ * grid grows past the scroller instead, and the scroller pans. 96px holds the
+ * 89 one line wants, so the stacked layout became unreachable and was removed.
  *
- *   A  nothing a heading draws leaves the column it belongs to, at a width
+ * Which changes what this file pins, and it is worth being exact about the
+ * difference. It used to pin "the heading survives a 45px column". It now pins
+ * "no heading is ever given a 45px column, and one line still fits the column
+ * it is given". Three things, no more:
+ *
+ *   A  nothing a heading draws leaves the column it belongs to, at the width
  *      where it used to,
  *   B  today's ring is as wide as it is tall, and not clipped by the scroller
  *      it sits at the top of,
- *   C  a roomy column is still ONE line.
+ *   C  the column is at least its floor, and the heading is ONE line — at 400px
+ *      as much as at 1280.
  *
- * C is the half that stops A and B passing for the wrong reason. A query that
- * never matched would fail A; a query wired to match at every width would pass
- * A and B while quietly making every desktop calendar two lines tall.
+ * C is the half that stops A and B passing for the wrong reason: a heading that
+ * fits because the grid quietly stopped drawing seven days would pass both.
  *
  * Geometry only, and no fixtures. The heading row is drawn from the date walk
  * alone, so seeding events would add a failure mode that has nothing to do with
@@ -87,8 +94,10 @@ async function directionOf(page: Page, index: number) {
 
 test.describe("week headings", () => {
     test.describe("in a narrow window", () => {
-        // 400px is the report's own width, near enough: seven columns of about
-        // 45px, which is where one line stopped fitting.
+        // 400px is the report's own width. Seven columns used to divide it into
+        // about 45px each, which is where one line stopped fitting; they are
+        // floored at 96 now and the week pans instead — see
+        // calendar-narrow-week.spec.ts, which pins the panning itself.
         test.use({ viewport: { width: 400, height: 860 } });
 
         test("keeps every heading inside its own day", async ({ page }) => {
@@ -107,7 +116,28 @@ test.describe("week headings", () => {
                 expect(fit.insetTop, `day ${i} spills above`).toBeGreaterThanOrEqual(0);
                 expect(fit.insetBottom, `day ${i} spills below`).toBeGreaterThanOrEqual(0);
 
-                expect(await directionOf(page, i)).toBe("column");
+                // One line at the narrowest width the grid can draw, which is
+                // the whole point of the floor. Reading it as `row` rather than
+                // as "not column" so a third value could never pass quietly.
+                expect(await directionOf(page, i), `day ${i} stacked at 400px`).toBe("row");
+            }
+        });
+
+        test("gives every column at least its floor", async ({ page }) => {
+            await page.goto("/calendar?view=week");
+
+            // 6rem, from the template. Asserted on the HEADING cells rather
+            // than on the hour columns because they are what has to hold 89px
+            // of text, and because a heading that fits a column the hours grid
+            // does not share would be the misalignment this shell exists to
+            // prevent — calendar-timegrid pins the two against each other.
+            const widths = await headings(page).evaluateAll((cells) =>
+                cells.map((c) => c.getBoundingClientRect().width),
+            );
+
+            expect(widths).toHaveLength(7);
+            for (const [i, width] of widths.entries()) {
+                expect(width, `day ${i} below the floor`).toBeGreaterThanOrEqual(96);
             }
         });
 

@@ -1249,6 +1249,7 @@ calendar:
     nav:
         next: Weiter
         previous: Zurück
+    open_day: 'Alles am %date%'
     pane:
         mode:
             calendar: Kalender in voller Breite zeigen

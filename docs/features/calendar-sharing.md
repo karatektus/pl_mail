@@ -95,8 +95,8 @@ that *could* carry a title the link did not unlock.
 
 A calendar, with the same four views yours has — **Day, Week, Month** and **Agenda** — and a switcher
 between them, drawn by the same partials your own calendar is drawn by: the same weeks and day
-markings in the month, the same hours and positioned blocks in the week and day, the same date rail in
-the agenda. It opens on the month. Times are shown in your zone and labelled as such. There is an
+markings in the month, the same hours and positioned blocks in the week and day, the same day headings
+and time lane in the agenda. It opens on the month. Times are shown in your zone and labelled as such. There is an
 **Add to your calendar** link that hands out the same window as an `.ics` for their own calendar app
 to subscribe to. A window with nothing in it says *Nothing in this window*. A single page renders at
 most 2000 entries.

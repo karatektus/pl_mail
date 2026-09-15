@@ -1,4 +1,4 @@
-<!-- translated-from: features/calendar-sharing.md sha1:2c51faa4be0e13f0c009ee0e65d7f18715ffe626 -->
+<!-- translated-from: features/calendar-sharing.md sha1:06633ff1de1065e0ea2ca8eb16bb2db3aa7a3300 -->
 
 # Teilen und Buchen
 
@@ -108,7 +108,7 @@ Datenattribut und keine `.ics`, die einen Titel tragen *könnte*, den der Link n
 Ein Kalender, mit denselben vier Ansichten, die auch dein eigener hat — **Tag, Woche, Monat** und
 **Agenda** — und einem Umschalter dazwischen, gezeichnet von denselben Vorlagen wie dein eigener
 Kalender: dieselben Wochen und Tagesmarkierungen im Monat, dieselben Stunden und platzierten Blöcke in
-Woche und Tag, dieselbe Datumsspalte in der Agenda. Sie öffnet im Monat. Die Zeiten werden in deiner
+Woche und Tag, dieselben Tagesüberschriften und dieselbe Zeitspalte in der Agenda. Sie öffnet im Monat. Die Zeiten werden in deiner
 Zone gezeigt und als solche benannt. Ein Link **Zu deinem Kalender hinzufügen** gibt dasselbe Fenster
 als `.ics` heraus, damit die eigene Kalender-App es abonnieren kann. Ein Fenster, in dem nichts steht,
 sagt *In diesem Zeitraum nichts*. Eine einzelne Seite zeichnet höchstens 2000 Einträge.

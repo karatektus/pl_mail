@@ -965,6 +965,7 @@ calendar:
     nav:
         next: Onward
         previous: Back
+    open_day: 'All that be on %date%'
     pane:
         mode:
             calendar: Give the almanac the whole deck

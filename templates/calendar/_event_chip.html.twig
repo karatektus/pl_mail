@@ -3,18 +3,99 @@ One cluster, as it appears in any view.
 
 A single line: the calendar's colour, the time, then the title taking whatever
 is left. Time first because in a dense grid that is the column you scan — the
-title is what you read once you have found the row. `g:i a` matches how the
-mail list writes times; the grid drops the meridiem to save the width and keeps
-it in the tooltip.
+title is what you read once you have found the row. `g:i a` matches how the mail
+list writes times; the grid drops the meridiem to save the width and keeps it in
+the tooltip.
+
+**A chip with a height of its own puts a bar down its left, its time on the
+first line beside it and its title under that.** One line of "10:00 Design review" in a 96px
+column is four characters of each; two lines of title under a time is the whole
+title and the time. Only where there IS a height to spend — a grid block sized
+by its meeting's duration, a month cell with two rows to give — so the all-day
+band, which is one line tall by definition, keeps everything on that line.
+
+The stack is a grid with the parts PLACED rather than flowed, which is what lets
+one source order serve all three arrangements: the agenda wants the time first,
+the band wants the mark first, and the stack wants a bar beside both of them.
+Flowing them would have meant a second copy of the markup for at least one.
+
+**A bar rather than a dot, and the reason is the row next to it.** A month cell
+holds all-day entries beside timed ones and an all-day entry has no time, so its
+title starts on the first line where a timed one's starts on the second. With a
+dot in front, those two titles begin 12px apart and every cell reads ragged down
+its left edge. A bar is placed in a column of its own and spans whatever rows
+there are, so the title starts at the same x whichever row it lands on — which
+is also what the agenda does, for the same reason, two files apart.
+
+The title takes the first FREE row of the content column, so a chip with no time
+to print — an all-day entry, or a day a meeting merely runs through — puts it on
+the first line and costs nothing for the line it does not need.
+
+**Day view does not stack, and is told so rather than measured for it.** A day
+column is the whole grid: a thousand pixels on a desktop page and still 264 in
+the narrowest pane the handle allows, either of which holds a time and a title
+on one line with room over. Stacked, that line's worth of text was drawn into
+the top-left corner of a box a thousand pixels wide, with the title on a second
+row under a "10:00" that had the other nine hundred to itself.
+
+The caller's answer rather than a container query, because the caller knows it
+for certain. A query would have to pick a width at which stacking stops paying,
+and for a day column there isn't one: it is never the width that makes stacking
+worth doing, whatever the window is up to.
+
+**A month cell stacks as well, and it is the width that says so.** A month cell is
+about 93px and a chip in one has 80. Inline, a dot and a time take 50 of those
+and leave 30 for the title, which is four characters — and the first thing that
+measured was a title unclamping to SIX lines inside the day's peek, because 30px
+is not a width a title can finish in. Stacked, the same title has the whole 74.
+
+So the difference between the month and the grid is not whether but how far. A
+grid block has a duration's worth of height to spend and gives the title two
+lines; a month cell has room for two chips of two lines each and gives it one,
+which is 12 characters where inline gave four. The rest is the day's peek, where
+the clamp comes off entirely — see _view_month.
+
+**A month chip is clamped to one line of title and it STAYS clamped**, which is
+what lets the day's peek widen without anything moving. This looks backwards
+until you try it the other way: unclamping is what changes a chip's height, and
+a chip changing height moves every chip under it. Clamped, a wider box is simply
+a longer line — the same two rows, the same y for every neighbour, and a title
+that finishes because there is now room for it to. The peek is the width; the
+clamp is what makes the width free.
+
+**The colour is a bar where the chip has a height, and a dot where it is one
+line.** Same information, drawn as tall as there is room for it to be: a 6px
+dot centred in a two-line agenda row or in an hour-tall grid block is a speck
+with space around it, and the bar is the mark every other calendar draws. The
+grid block ALSO carries the colour as a 10% wash over its whole area, which is
+enough to group a week's meetings at a glance and not enough to tell two
+similar calendars apart — and it cannot say the one thing a merged cluster has
+to say, which is that this meeting is on two calendars at once. That is the
+gradient below, and the bar carries it down its length where the dot carried it
+around.
 
 Accepts:
   cluster   OccurrenceCluster — the occurrences that draw this one chip
   showTime  whether to print the start time (default true; never for all-day,
             and never on a day the meeting only runs through — see below)
   tall      the chip fills a block that has a height of its own (default false)
+  timeColumn  the time takes a lane of its own (default false)
+  monthCell the chip is one row of a month cell (default false)
+  stack     override for whether the chip stacks; Day view says false
+
+`timeColumn` is the agenda's, and is the same kind of thing: a lane of its own
+for the time, start over end, with "all day" written in it for a chip that has
+no times to print. The lane's WIDTH is not this file's — the chip becomes a
+`subgrid` row of the list it is in and the list's own track answers it, so the
+lane is as wide as the widest time in the whole view. See _agenda_shell. Without it the title starts wherever the time happened to
+end, and a list of rows does not line up down its left edge — which is the one
+thing a list is for. It prints a label where the inline time prints nothing on
+purpose: an all-day event and a day a meeting merely runs THROUGH both occupy
+the whole of their day, so both are what "all day" means here, and a blank lane
+would read as a missing value rather than as an answer.
 
 `tall` is the time-grid's chip and is deliberately a set of classes rather than
-a second markup block: the same dot, the same time, the same title, aligned to
+a second markup block: the same mark, the same time, the same title, aligned to
 the top of a box instead of centred in a line, with the title allowed to wrap
 into the height the block already has instead of being truncated to one line.
 Everything a chip IS stays one thing. It exists because the grid's blocks are
@@ -22,6 +103,51 @@ several lines tall and a chip centred in one of them reads as floating; it does
 NOT exist to make a second kind of chip, which is why it changes no content and
 adds no behaviour. The grid wraps this button in the positioned element that
 carries the drag — the chip itself still only ever opens the editor.
+
+**A chip whose words did not fit opens to them on hover.** The clipping is the
+grid block's, not this file's — see `chip-open` in app.css — but the text inside
+has to stop truncating at the same moment or the box would open onto an
+ellipsis. Which is why the hover states below are written against `group/chip`
+rather than against each span's own `:hover`: a title is uncovered by the
+pointer being anywhere on the chip, including on the time beside it.
+
+The two container-query steps are undone the same way, and their spelling is
+deliberate. `@max-[4rem]:group-hover/chip:not-sr-only` is ONE rule with a
+`:is()` in it, which outranks the plain `@max-[4rem]:sr-only` it has to beat; as
+two separate classes the two would tie on specificity and the winner would be
+whichever Tailwind happened to emit last. Which is a bug this codebase has
+already had once, in `.hidden` against `.inline-block`.
+
+**The chip gives up its words in a fixed order as its box narrows**, and it
+asks the box rather than the viewport: `@container` is declared by the time
+grid on each positioned block and on each all-day cell, so the question is
+"how wide is THIS chip" — two overlapping meetings split a 96px column into
+48px lanes, and no media query can see that. Under 7rem the time goes, because
+the block's own position on the axis has been saying it all along and the title
+has not. Under 4rem the title goes too and the chip is its colour and nothing
+else. Both steps are `sr-only` rather than `hidden`: the text stays in the
+accessibility tree and on the tooltip, which is the whole difference between
+dropping a label and losing the information. Truncating instead is what this
+used to do, and a chip reading "G…" spends the same pixels to say less.
+
+A month cell declares one too, and its step is a different width and a bigger
+drop. **Under 5.5rem a month chip gives up its words entirely** and becomes what
+it has left to say — a colour and a position: one full-width bar per entry,
+stacked down the day, which is what every calendar on a phone draws in a month
+cell.
+
+5.5rem rather than the 4 the grid uses, because a month cell spends its width
+differently. A grid block at 4rem is a lane of a column that still has an hour
+line and a position to say when it is; a month cell has neither, so its chip
+has to carry a whole time AND a title or it is carrying an ellipsis. Seven
+columns of a 768px window with the sidebar out are 74px each, and 74px printed
+`E2E…` under `14:00` — text present, nothing said. The same number as the peek's
+gate above it, and deliberately: below it there is nothing a wider box would
+reveal, which is exactly when a peek is not worth opening.
+
+An agenda row declares no container and is unaffected — a size query with no
+container to ask evaluates false, which is the right default and not a
+coincidence to rely on quietly.
 
 **A cluster of one is the ordinary case and renders exactly as it always did.**
 The views hand over clusters rather than occurrences so there is one code path
@@ -66,6 +192,21 @@ identity is threaded through a URL that would outlive the render that made it.
    time the column's own axis was already showing. #}
 {% set showTime = (showTime ?? true) and not event.isAllDay %}
 {% set tall = tall|default(false) %}
+{% set timeColumn = timeColumn|default(false) %}
+
+{# Whether the chip has a height of its own to fill, which is the one question
+   the mark's shape and the hover growth both turn on. The two ways of having
+   one are a grid block, which is as tall as its meeting lasts, and an agenda
+   row, which is as tall as its two lines of time. #}
+{% set monthCell = monthCell|default(false) %}
+{% set roomy = timeColumn or tall or monthCell %}
+
+{# The month's. A month cell is the one place a title had no way to finish —
+   `tall` needs a block with a height and `timeColumn` needs a list with rows,
+   and a cell has neither — so it truncated at one line and there was nothing a
+   pointer could do about it. Two lines at rest, and no clamp at all once the
+   day it is on has floated out; see _view_month, which owns that peek and the
+   `group/cell` these hover states are written against. #}
 
 {# Whether the chip prints "18:00–19:00" or just "18:00".
 
@@ -121,6 +262,13 @@ identity is threaded through a URL that would outlive the render that made it.
 {% set showTime = showTime and (chip_day is null
     or occurrence.startsAt|date('Y-m-d', chip_zone) == chip_day) %}
 
+{# Set here rather than up with `tall`, because it turns on `showTime` and
+   `showTime` is not final until the continuation-day rule above has had its
+   say. #}
+{# `??`, not `|default`, for the reason showTime gives above: the caller that
+   passes this passes FALSE, and the default filter treats false as absent. #}
+{% set stacked = stack ?? (tall or monthCell) %}
+
 {% set chip_title = event.title ~ (showTime
     ? ' · ' ~ occurrence.startsAt|date(clock.time, chip_zone)
         ~ (showRange ? '–' ~ occurrence.endsAt|date(clock.time, chip_zone) : '')
@@ -140,9 +288,14 @@ identity is threaded through a URL that would outlive the render that made it.
         ]) %}
     {% endfor %}
 
-    {% set dot_style = 'background: conic-gradient(' ~ slices|join(', ') ~ ')' %}
+    {# The same stops read two ways: around a dot, down a bar. `slices` is a
+       list of `colour from% to%` triples, which is the one syntax both gradient
+       functions take, so the shape is the only thing that changes here. #}
+    {% set mark_style = 'background: '
+        ~ (roomy ? 'linear-gradient(to bottom, ' : 'conic-gradient(')
+        ~ slices|join(', ') ~ ')' %}
 {% else %}
-    {% set dot_style = 'background-color: ' ~ event.calendar.color %}
+    {% set mark_style = 'background-color: ' ~ event.calendar.color %}
 {% endif %}
 
 <button type="button"
@@ -163,23 +316,52 @@ identity is threaded through a URL that would outlive the render that made it.
       the whole event. #}
    data-ui--modal-title-value="{{ 'calendar.event.details_heading'|trans }}"
    title="{{ chip_title }}"
-   class="w-full text-left flex gap-1.5
-          px-1.5 py-0.5 rounded-md
+   class="group/chip w-full text-left rounded-md
           hover:bg-hover transition-colors min-w-0
+          {{ timeColumn
+              ? 'col-span-full grid grid-cols-subgrid py-1 border-t border-line/60 first:border-t-0'
+              : (stacked
+                  ? 'grid grid-cols-[max-content_minmax(0,1fr)] gap-x-1.5 content-start items-center px-1.5 py-0.5'
+                    ~ (monthCell ? ' @max-[5.5rem]:block @max-[5.5rem]:px-0 @max-[5.5rem]:py-0' : '')
+                  : 'flex gap-1.5 px-1.5 py-0.5') }}
           {# Inset: on the time grid this button fills a block that is
              `rounded-md overflow-hidden`, so a ring outside the button was
              outside the block and clipped away in full — focus with no focus
              ring at all. See mail/_attachment_chip.html.twig. #}
           focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent
-          {{ tall ? 'h-full items-start overflow-hidden' : 'items-center' }}
+          @max-[4rem]:justify-center
+          {{ tall
+              ? 'h-full overflow-hidden ' ~ (stacked ? '' : 'items-start')
+              : (timeColumn or stacked ? 'items-start' : 'items-center') }}
           {{ occurrence.cancelled ? 'opacity-50' : '' }}"
 >
-    <span class="w-1.5 h-1.5 rounded-full shrink-0"
-          style="{{ dot_style }}"
-          aria-hidden="true"></span>
-
-    {% if showTime %}
-        <span class="shrink-0 text-[11px] tabular-nums text-ink-faint {{ tall ? 'leading-5' : '' }}">
+    {% if timeColumn %}
+        {# No width here. The lane is a track of the list's grid and is sized
+           against every time in it — which is what stops a range needing eleven
+           characters on one line, and what lets a translated "all day" have the
+           width it actually wants instead of wrapping inside a guess. #}
+        <span class="text-[11px] leading-4 tabular-nums text-ink-faint">
+            {%- if showTime -%}
+                <span class="block text-ink-muted">
+                    {{- occurrence.startsAt|date(clock.timeCompact, chip_zone) -}}
+                </span>
+                {%- if showRange -%}
+                    <span class="block">
+                        {{- occurrence.endsAt|date(clock.timeCompact, chip_zone) -}}
+                    </span>
+                {%- endif -%}
+            {%- else -%}
+                {{- 'calendar.grid.all_day'|trans -}}
+            {%- endif -%}
+        </span>
+    {% elseif showTime %}
+        {# The width step is for the single-line shape only. A stacked chip has
+           given the time a line of its own, so there is nothing for it to be
+           competing with and nothing to give up. #}
+        <span class="shrink-0 text-[11px] tabular-nums text-ink-faint
+                     {{ stacked
+                         ? 'col-start-2 row-start-1 leading-4' ~ (monthCell ? ' @max-[5.5rem]:sr-only' : '')
+                         : '@max-[7rem]:sr-only @max-[7rem]:group-hover/chip:not-sr-only' }}">
             {{- occurrence.startsAt|date(clock.timeCompact, chip_zone) -}}
             {%- if showRange -%}
                 –{{ occurrence.endsAt|date(clock.timeCompact, chip_zone) }}
@@ -187,11 +369,41 @@ identity is threaded through a URL that would outlive the render that made it.
         </span>
     {% endif %}
 
+    {# The calendar's colour. Written after the time in SOURCE and pulled back
+       in front of it with `order-first` everywhere except the agenda, which is
+       the one view that wants the time at the left edge — a list is read down
+       its first column, and that column should be the thing that differs from
+       row to row rather than a mark that is usually the same all the way down.
+       Reordering rather than printing it twice, and safe to reorder because
+       `aria-hidden` means it has no place in the reading order to disturb. #}
+    <span class="shrink-0 rounded-full
+                 {{ roomy ? 'w-1 self-stretch' : 'w-1.5 h-1.5' }}
+                 {# `block` with them, and it is not spare. This span is a grid
+                    item in every other shape the chip takes, which blockifies
+                    it; with the button collapsed to `display: block` it is an
+                    inline span again, and an inline span ignores a width and a
+                    height both. The bar rendered as nothing at all. #}
+                 {{ monthCell ? '@max-[5.5rem]:block @max-[5.5rem]:w-full @max-[5.5rem]:h-1.5' : '' }}
+                 {{ stacked
+                     ? 'col-start-1 row-span-full'
+                     : (timeColumn ? '' : 'order-first') }}"
+          style="{{ mark_style }}"
+          aria-hidden="true"></span>
+
     {# Truncated to one line in a list, wrapped into the height it has in a
        grid block. `truncate` is `overflow:hidden` plus `white-space:nowrap`, so
        leaving it on a tall block would waste every line but the first. #}
     <span class="min-w-0 flex-1 text-xs text-ink
-                 {{ tall ? 'whitespace-normal break-words line-clamp-3 leading-4' : 'truncate' }}
+                 {{ stacked ? 'col-start-2' : '' }}
+                 {{ monthCell
+                     ? '@max-[5.5rem]:sr-only'
+                     : '@max-[4rem]:sr-only @max-[4rem]:group-hover/chip:not-sr-only' }}
+                 {{ tall
+                     ? 'whitespace-normal break-words line-clamp-2 leading-4 group-hover/chip:line-clamp-none'
+                     : (monthCell
+                         ? 'whitespace-normal break-words line-clamp-1 leading-4 group-hover/chip:line-clamp-none'
+                         : 'truncate') }}
+                 {{ roomy and not tall ? 'group-hover/chip:whitespace-normal' : '' }}
                  {{ occurrence.cancelled ? 'line-through' : '' }}">
         {%- if event.kind is not null -%}
             <i class="{{ event.kind.icon }} mr-1 text-[10px] text-ink-faint" aria-hidden="true"></i>

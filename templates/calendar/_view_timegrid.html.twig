@@ -59,21 +59,33 @@ stop, and a double-click is not a gesture a keyboard has.
            data-ui--modal-src-value="{{ path('app_calendar_event_new', { start: dayKey }) }}"
            data-ui--modal-title-value="{{ 'calendar.event.new'|trans }}"
            aria-label="{{ 'calendar.event.new_on'|trans({ '%date%': dayKey|intl_date('EEEdMMM') }) }}"
-           {# `bg-surface` below 5rem, which is the width at which the shell
-              stacks a heading — see the note over the day headings there. A
-              45px column has no 20px of its own to spare, so this button is
-              drawn OVER the date rather than beside it, and an unbacked glyph
-              on top of "13" is a smudge. It is opacity-0 until the day is
-              hovered, so the chip is not there the rest of the time. #}
+           {# This took a `bg-surface` below 5rem of column, where the shell
+              stacked the heading and drew the button OVER the date rather than
+              beside it — an unbacked glyph on top of "13" is a smudge. The
+              shell floors a column at 6rem now and the heading is one line at
+              every width it can produce, so the button is beside the date
+              again and has nothing to cover. opacity-0 until the day is
+              hovered, so it is not there the rest of the time. #}
            class="w-5 h-5 flex items-center justify-center rounded-md text-[10px] text-ink-faint
                   opacity-0 group-hover/day:opacity-100 focus:opacity-100
-                  hover:bg-hover transition-opacity @max-[5rem]:bg-surface
+                  hover:bg-hover transition-opacity
                   focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
         ><i class="fa-solid fa-plus" aria-hidden="true"></i></button>
     {% endblock %}
 
     {% block all_day_entry %}
-        {% include 'calendar/_event_chip.html.twig' with { cluster: entry, showTime: false } %}
+        {# The box that opens, which has to be a box of its own here rather than
+           a class on the chip: the chip is a <button> drawn `w-full` of
+           whatever contains it, so the thing that grows has to be the container
+           and not the button, or the button would be sizing itself from itself.
+
+           `relative` is for the z-index and not for layout. An all-day cell is
+           a grid item, so the cell after it paints over this one by source
+           order, and an opened chip would slide UNDER the day to its right. #}
+        <div class="relative rounded-md chip-open
+                    hover:z-30 hover:bg-surface hover:shadow-lg hover:ring-1 hover:ring-line">
+            {% include 'calendar/_event_chip.html.twig' with { cluster: entry, showTime: false } %}
+        </div>
     {% endblock %}
 
     {# The identity of what was placed, on the element the drag measures and
@@ -97,12 +109,27 @@ stop, and a double-click is not a gesture a keyboard has.
         {% set occurrence = entry.primary %}
         {% set readOnly = occurrence.event.calendar.isReadOnly %}
 
+        {# `chip-open` is the hover growth — see the utility in app.css, which
+           is where the `:not(:active)` gate is argued. `shadow-lg` with it so
+           an opened block reads as being in front of its neighbours rather than
+           as having simply overlapped them. #}
+        {# `block-tint` and a custom property rather than `bg-surface` and an
+           inline `background-color`, which is what this was and which meant the
+           block had no surface under its wash at all — see the utility. #}
         <div class="relative h-full rounded-md overflow-hidden
-                    ring-1 ring-line bg-surface shadow-sm
+                    ring-1 ring-line shadow-sm block-tint
+                    chip-open hover:shadow-lg hover:ring-accent/50
                     {{ readOnly ? '' : 'cursor-grab' }}"
-             style="background-color: {{ occurrence.event.calendar.color }}1a">
+             style="--block-tint: {{ occurrence.event.calendar.color }}1a">
 
-            {% include 'calendar/_event_chip.html.twig' with { cluster: entry, tall: true } %}
+            {# `stack: false` in Day view, where the column is the whole grid
+               and a time and a title share one line comfortably. See the chip,
+               which argues why this is the caller's call and not a width. #}
+            {% include 'calendar/_event_chip.html.twig' with {
+                cluster: entry,
+                tall:    true,
+                stack:   view.value != 'day',
+            } %}
 
             {% if readOnly %}
                 <i class="fa-solid fa-lock absolute top-1 right-1 text-[9px] text-ink-faint"

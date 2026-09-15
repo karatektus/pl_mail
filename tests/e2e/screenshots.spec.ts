@@ -230,7 +230,30 @@ test.describe("README screenshots", () => {
             await expect(page.getByRole("button", { name: new RegExp(title) }).first()).toBeVisible();
         }
 
-        await page.waitForTimeout(600);
+        // The toast the last save left behind runs for four seconds, and 600ms
+        // of waiting put it in the corner of the README's own picture. Waited
+        // out rather than dismissed: clicking it is a different picture again,
+        // with a half-faded panel mid-transition.
+        await expect(page.locator('[data-controller~="ui--toast"]')).toHaveCount(0, {
+            timeout: 8_000,
+        });
+
+        // And scrolled to the morning, because a week view's picture should have
+        // a label on every block in it. The grid opens on the current time, so
+        // the hour this suite happens to run at decides whether the 08:00
+        // delivery is a labelled event or an unexplained blue rectangle with its
+        // title somewhere above the viewport. 7.5/24 puts 07:30 at the top,
+        // which is under the earliest event here and above none of them.
+        await page.evaluate(() => {
+            const scroller = document.querySelector('[data-calendar--time-grid-target="scroller"]');
+            const hours = document.querySelector('[data-calendar--time-grid-target="hours"]');
+
+            if (null !== scroller && null !== hours) {
+                scroller.scrollTop = ((hours as HTMLElement).offsetHeight * 7.5) / 24;
+            }
+        });
+
+        await page.waitForTimeout(300);
         await capture(page, "calendar");
     });
 });

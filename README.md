@@ -42,8 +42,9 @@ provider doesn't.
   several at once if they are ticked. A folder moves it and a label just adds itself, so dropping on
   "Receipts" does not take the mail out of your inbox. Only the targets that will accept it light up,
   and a tab you choose by hand stays chosen when the next message in the thread arrives.
-- **A calendar beside the mail** — two-way sync with Google, Microsoft and CalDAV, drag-to-move
-  week grid, invitations answered in place, share and booking links.
+- **A calendar beside the mail** — two-way sync with Google, Microsoft and CalDAV, a drag-to-move
+  week grid that pans rather than squeezes on a phone, invitations answered in place, share and
+  booking links.
 - **Files where you keep them** — attach from and save to Drive, Photos, OneDrive, Dropbox,
   Nextcloud, Immich and Paperless-ngx.
 - **A language model, if you want one** — point plMail at an Ollama box on your own network and it

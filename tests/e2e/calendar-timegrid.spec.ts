@@ -74,8 +74,24 @@ async function dragBy(page: Page, from: { x: number; y: number }, dx: number, dy
     await page.mouse.up();
 }
 
-/** The centre of a locator, in page coordinates. */
+/**
+ * The centre of a locator, in page coordinates, with the locator on screen.
+ *
+ * **The scroll is the load-bearing line.** `boundingBox()` answers for an
+ * element that is scrolled out of the grid just as readily as for one in view,
+ * and the coordinates it gives for one above the top are somewhere under the
+ * pinned day headings. A drag started there goes to the heading row and the
+ * event never moves — a failure that reads as "dragging is broken" and is not.
+ *
+ * It began mattering when the grid started opening on the current time rather
+ * than on a fixed 07:00: a fixture at 10:00 is in view all morning and scrolled
+ * off by the afternoon, so this file passed for hours and then did not. Same
+ * family as the wall-clock traps the other specs here carry — a test that
+ * depends on the hour it runs at is a test that will fail at the worst moment.
+ */
 async function centreOf(locator: Locator) {
+    await locator.scrollIntoViewIfNeeded();
+
     const box = (await locator.boundingBox())!;
 
     return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
@@ -287,9 +303,12 @@ test.describe("calendar time-grid", () => {
 
         const box = await block.boundingBox();
 
-        // 28px is the 1.75rem floor the template sets, which is also the all-day
-        // lane's — one number for "the smallest a chip may be drawn".
-        expect(box?.height ?? 0).toBeGreaterThanOrEqual(28);
+        // 38px is the 2.375rem floor the template sets. It was 28 and shared
+        // with the all-day lane, back when a block was one line of "9:00
+        // Standup"; a block is two rows now — a time over a title — and the two
+        // floors have parted company. The template says where the number is
+        // measured from.
+        expect(box?.height ?? 0).toBeGreaterThanOrEqual(38);
 
         // And the label is inside it rather than spilling: the title's own box
         // has to fit within the block it belongs to.
@@ -451,6 +470,11 @@ test.describe("calendar time-grid", () => {
 
         const block = blocks(page, TIMED).first();
         const before = { start: await startOf(block), end: await endOf(block) };
+
+        // On screen before it is measured, for the reason centreOf gives: an
+        // unscrolled box puts the grip under the day headings.
+        await block.scrollIntoViewIfNeeded();
+
         const box = (await block.boundingBox())!;
 
         // The grip is the bottom few pixels of the block.

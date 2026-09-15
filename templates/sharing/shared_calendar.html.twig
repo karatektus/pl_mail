@@ -272,7 +272,14 @@ Variables:
                 showEmptyDays: true,
             } %}
                 {% block day_entries %}
-                    <ul class="divide-y divide-line">
+                    {# `contents`: the rows have to be children of the agenda's
+                       own grid so their times land in the same track every
+                       other day's do, and a <ul> box between the two would put
+                       the whole list in column one. It stays a <ul> because it
+                       is one; only its box goes. The separator moves onto the
+                       rows for the same reason — `divide-y` here would have
+                       nothing but the <ul> to divide. #}
+                    <ul class="contents">
                         {% for entry in dayEntries %}
                             {% include 'sharing/_entry_row.html.twig' with {
                                 entry: entry,

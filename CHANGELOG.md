@@ -8,6 +8,55 @@ The published image tags: `latest` follows the most recent release below,
 
 ## Unreleased
 
+### Changed
+
+- **A week narrower than its own columns pans instead of squeezing.** Seven columns used to divide
+  whatever width there was, so a phone — or a narrow docked pane — gave each of them about fifty
+  pixels, and a block showed its colour and little else. A column has a floor now: below the width
+  where seven of them fit, the grid slides sideways under an hour gutter that stays put, a day at a
+  time, and four days are legible where none were. Day view is still one tap away in the toolbar,
+  as a choice rather than as the only way to read a narrow week.
+
+- **A block writes its time on one line and its title under it**, with the calendar's colour as a
+  bar down its left edge. One line of "10:00 Design review" in a 96px column was four characters of
+  each. Day view keeps the single line, where the column is the whole grid and there is room for
+  both. Where a title still cannot finish — the all-day band above the grid is one line tall by
+  definition — resting the pointer on it opens it to whatever it had to say, over its neighbours,
+  and puts it back when you leave.
+
+- **The agenda groups its entries under a heading per day**, which stays at the top of the list
+  while that day's events are on screen. The start and end time, or "All day", sit in a lane of
+  their own down the left, so the titles line up down the list instead of starting wherever the
+  previous time happened to end. The lane is as wide as the widest time in the view and no wider —
+  it was a fixed guess before, generous for a clock time and still too narrow for a translated
+  "all day".
+
+- **A month cell draws as many of its day's entries as fit and fades the last one where it runs
+  out.** It used to say "N more", and the count could never be right: a cell's height is the
+  window's divided by six, and an entry is one line tall or two depending on whether it has a time.
+  The date is a link now, which opens the day the rest of them are on. Resting the pointer on a day
+  floats that whole day out — wide enough for the full titles, long enough for every entry, and
+  nothing inside it moves as it opens. Where a cell is too narrow for words at all, which seven
+  columns of a phone are, an entry is drawn as a bar in its calendar's colour instead of as an
+  ellipsis.
+
+- **The grid opens on now rather than on 07:00.** A fixed hour cannot be right at both ends of the
+  day: at 22:00 the working day is two screens above the only row that matters, and at 09:00 a grid
+  opened at 07:00 spends the top of the viewport on hours that are already over.
+
+### Fixed
+
+- **An all-day entry heads its day in the agenda and the month.** It sometimes did and sometimes did
+  not, and the time zone was the sometimes: an all-day event's start is a floating midnight in UTC
+  while a timed one's is an instant, so east of UTC every morning meeting was stored earlier than
+  the midnight of the day it falls on, and sorted above the holiday. The time grid never showed it,
+  because it puts all-day entries in a band of their own and never asks.
+
+- **A grid block is opaque.** It never had a background at all: an inline colour was overriding the
+  surface class written beside it, so the only paint a block carried was a tenth of a calendar
+  colour over whatever happened to be behind it. Invisible while a block sits in its own column,
+  and obvious the moment one opens across its neighbour.
+
 ## v0.2.26 — 2026-09-14
 
 ### Added

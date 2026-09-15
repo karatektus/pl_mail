@@ -158,6 +158,38 @@ final readonly class CalendarRangeReader
             }
         }
 
+        // All-day first within a day, then by start.
+        //
+        // The clusters arrive in one global start order and that is not the
+        // order a DAY reads in, because an all-day event's start is a floating
+        // midnight in UTC while a timed one's is an instant. East of UTC every
+        // morning meeting is stored EARLIER than the midnight of the day it
+        // falls on — 09:00 in Auckland on the 4th is 21:00 UTC on the 3rd — so
+        // the holiday sorted underneath the stand-up, and west of UTC it did
+        // not. "Sometimes at the top" was the report, and the zone is the
+        // sometimes.
+        //
+        // The time grid never showed it: DayGrid splits the two into a band and
+        // a column, so their relative order was never asked. The agenda and the
+        // month print one list per day and it is the first thing read.
+        //
+        // usort is stable as of PHP 8, so the timed entries keep the start
+        // order they came in with rather than being re-derived here.
+        foreach ($days as $key => $ofThatDay) {
+            usort($ofThatDay, static function (OccurrenceCluster $left, OccurrenceCluster $right): int {
+                $leftAllDay  = true === $left->primary->event?->isAllDay;
+                $rightAllDay = true === $right->primary->event?->isAllDay;
+
+                if ($leftAllDay !== $rightAllDay) {
+                    return true === $leftAllDay ? -1 : 1;
+                }
+
+                return $left->primary->startsAt <=> $right->primary->startsAt;
+            });
+
+            $days[$key] = $ofThatDay;
+        }
+
         return $days;
     }
 

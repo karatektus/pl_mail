@@ -351,6 +351,14 @@ test.describe("calendar event dialog", () => {
          * length off. A grid block answers "how long?" by being that tall and a
          * month cell has no width to spare, so this is the one view that says it
          * in words.
+         *
+         * Asserted as two clock values rather than as "a dash between two clock
+         * values", which is what it used to say. The range moved into a 4rem
+         * lane of its own so the titles line up down the list — see the chip's
+         * `timeColumn` — and in that width it is written as a start OVER an end
+         * rather than either side of an en dash, because a twelve-hour clock
+         * spends eleven characters on "6:00 pm–7:00 pm" and has four to spend.
+         * The claim was never about the dash.
          */
         test("shows a time range on agenda rows", async ({ page }) => {
             await page.goto("/calendar/agenda");
@@ -359,8 +367,9 @@ test.describe("calendar event dialog", () => {
 
             await expect(timed).toBeVisible();
 
-            // A range, not a single time: two clock values with a dash between.
-            await expect(timed).toContainText(/\d{1,2}:\d\d\s*[–-]\s*\d{1,2}:\d\d/);
+            const times = (await timed.innerText()).match(/\d{1,2}:\d\d(\s*[ap]m)?/gi) ?? [];
+
+            expect(times, `read "${await timed.innerText()}"`).toHaveLength(2);
         });
     });
 });

@@ -873,8 +873,18 @@ test.describe("calendar pane", () => {
         const handle = page.locator('[data-ui--split-target="handle"]');
         await expect(handle).toBeVisible();
 
+        // Back to the width this user last had, and then a wait for the settle
+        // to finish rather than an assertion that it landed on 380.
+        //
+        // It used to assert the number, and the number is not this test's to
+        // know: a double-click restores the REMEMBERED width, the width is
+        // per-user and survives the test that set it, and a run in which
+        // something earlier left it at 668 failed here with "expected 380px,
+        // received 668px" while the pane still carried `is-settling`. The
+        // arithmetic below reads the width off the box anyway, so all this step
+        // ever needed was a pane that had stopped moving.
         await handle.dblclick();
-        await expect(pane).toHaveCSS("width", "380px");
+        await expect(pane).not.toHaveClass(/is-settling/, { timeout: 3_000 });
 
         // How far left the ceiling is from here, worked out the way the
         // controller does — the two panes' combined width less the mail's

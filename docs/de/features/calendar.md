@@ -1,4 +1,4 @@
-<!-- translated-from: features/calendar.md sha1:af1e5c395dc605272681d2abc97fcd89a53bcafe -->
+<!-- translated-from: features/calendar.md sha1:13f7f85db3b695f3e19820be962b0340bad8ca5a -->
 
 # Kalender
 
@@ -59,8 +59,28 @@ Pixel einer geteilten Zeile, und ein Monatsraster in dieser Breite besteht über
 Zellen. Die Fläche bietet trotzdem alle vier Ansichten an, als Symbole statt als Wörter, denn die
 Fassung, die den Umschalter ganz weggelassen hatte, ließ die Fläche nichts als ihre Agenda zeigen.
 
-In der Monatsansicht sagt ein Tag, der mehr Einträge trägt, als hineinpassen, **N weitere**, was
-diesen Tag öffnet.
+In der Monatsansicht zeichnet eine Zelle so viele Einträge ihres Tages, wie hineinpassen, und blendet
+den letzten dort aus, wo der Platz endet — statt sie zu zählen. Früher stand dort **N weitere**, und
+diese Zahl konnte nicht stimmen: Die Höhe einer Zelle ist die des Fensters geteilt durch sechs, und
+ein Eintrag ist ein oder zwei Zeilen hoch, je nachdem, ob er eine Uhrzeit hat. Die Zahl war immer
+eine Vermutung über eine Box, die niemand gemessen hatte. **Das Datum ist ein Link** — es öffnet
+diesen Tag, und dort stehen die übrigen.
+
+**Bleibt der Zeiger auf einem Tag stehen, klappt dieser ganze Tag heraus.** Die Zelle wird zu einer
+kleinen Fläche, breit genug für die vollen Titel und lang genug für jeden Eintrag. Dabei verrutscht
+nichts: Sie wächst nach rechts und nach unten, genau von dort, wo die Liste ohnehin stand, und der
+Eintrag, den du angesehen hast, liegt weiterhin unter dem Zeiger.
+
+**Wo eine Zelle zu schmal für Wörter ist, verzichtet sie darauf.** Sieben Spalten eines Telefons
+sind je etwa vierzig Pixel breit, und in dieser Breite wird weder ein Titel noch eine Uhrzeit fertig.
+Darunter wird ein Eintrag deshalb als Balken in der Farbe seines Kalenders gezeichnet — wie viele,
+und aus welchen Kalendern, auf einen Blick. Ein Tipp auf das Datum öffnet den Tag, dort stehen sie
+ausgeschrieben.
+
+Die Agenda fasst ihre Einträge unter einer Überschrift je Tag zusammen, die oben stehen bleibt,
+solange die Termine dieses Tages auf dem Schirm sind. Beginn und Ende — oder **Ganztägig** — stehen
+in einer eigenen Spalte links, damit die Titel in der Liste untereinander fluchten, statt dort
+anzufangen, wo die Zeit gerade aufgehört hat.
 
 ### Das Zeitraster
 
@@ -78,8 +98,20 @@ wird sie der Kalender in voller Breite. Eine Fläche, die lautlos einen *anderen
 war die schlechtere Antwort, denn wer sie eigens verbreiterte, um die Zeitachse zu sehen, bekam
 trotzdem die Liste.
 
-Ein Sieben-Tage-Raster ist in einer schmalen Fläche weiterhin eng, und die Antwort darauf steht in
-der Werkzeugleiste: **Tag** ist einen Klick entfernt und ist eine einzige Spalte in voller Breite.
+**Eine schmale Woche schiebt sich zur Seite, statt sich zu quetschen.** Sieben Spalten teilten sich
+früher die Breite, die eben da war, sodass auf einem Telefon oder in einer schmalen Fläche jede davon
+ungefähr fünfzig Pixel bekam und ein Block seine Farbe zeigte und sonst kaum etwas. Eine Spalte hat
+jetzt eine Untergrenze: Unterhalb der Breite, in die sieben davon passen, schiebt sich das Raster
+unter einer feststehenden Stundenleiste seitwärts, Tag für Tag, und vier Tage sind lesbar, wo vorher
+keiner es war. **Tag** ist weiterhin einen Klick entfernt in der Werkzeugleiste und weiterhin eine
+einzige Spalte in voller Breite — jetzt eine Wahl und nicht mehr der einzige Weg, eine schmale Woche
+zu lesen.
+
+**Ein Block schreibt seine Uhrzeit in eine Zeile und seinen Titel darunter**, mit der Farbe des
+Kalenders als Balken an der linken Kante — eine schmale Spalte zeigt so einen ganzen Titel, wo
+vorher vier Zeichen davon standen. Wo ein Titel trotzdem nicht fertig wird — das Ganztagsband über
+dem Raster ist naturgemäß eine Zeile hoch —, wird er so breit, wie er zu sagen hatte, sobald du
+darauf zeigst; über seine Nachbarn hinweg, und wieder zu, sobald du weiterziehst.
 
 Monat und Agenda haben in keiner der beiden Gestalten eine Zeitachse. Eine Monatszelle ist ein paar
 Quadratzentimeter groß und hat keinen Platz zu sagen, wo im Tag etwas liegt; und der ganze Wert einer

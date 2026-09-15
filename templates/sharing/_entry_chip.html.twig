@@ -2,8 +2,10 @@
 One shared entry, as it appears in a cell of the public month grid or a block of
 its week and day grids.
 
-The same object the app's own chip is: a coloured dot, the time, then whatever
-label is left over. It is NOT calendar/_event_chip.html.twig and cannot be —
+The same object the app's own chip is: a coloured mark, the time, then whatever
+label is left over — and the same two shapes for that mark, a bar where a block
+has a height to fill and a dot where a month cell does not, because the shared
+page's grids now go as narrow as the owner's do. It is NOT calendar/_event_chip.html.twig and cannot be —
 that one is a <button> carrying an event id and an occurrence id, and it opens
 an editor. There is no event behind this. A SharedOccurrence is a redaction with
 no path back to the row it came from, which is the whole design (see the DTO),
@@ -49,15 +51,26 @@ Variables:
 #}
 {% set tall = tall|default(false) %}
 
+{# `chip-open` on the tall shape only, and only because the tall shape is the
+   one that clips — see the utility in app.css. It is wanted here for exactly
+   the reason it is wanted on the owner's grid: _time_grid_shell floors a column
+   at 6rem and pans below that, so a shared week on a phone draws real blocks
+   at a width where a title does not finish. The `hover:z-30` that lifts this
+   over the day beside it is the shell's, on the positioned parent, because that
+   parent declares the container and a container is a stacking context. #}
 <div data-shared-entry
-     class="flex gap-1.5 min-w-0
+     class="group/chip flex gap-1.5 min-w-0
             {{ entry.isDetailed ? 'bg-accent/10' : 'bg-sunken/60' }}
             {{ tall
-                ? 'h-full items-start overflow-hidden rounded-md ring-1 ring-line px-1.5 py-0.5'
+                ? 'h-full items-start overflow-hidden rounded-md ring-1 ring-line px-1.5 py-0.5
+                   chip-open hover:shadow-lg'
                 : 'items-center rounded-md px-0.5 sm:px-1.5 py-0.5' }}">
+    {# Still one accent and never a calendar's colour — the rule above is
+       unchanged by the shape. `self-stretch` rather than the `mt-1.5` this
+       carried: a bar that fills the block needs no nudge to look placed. #}
     <span data-shared-entry-mark
-          class="w-1.5 h-1.5 rounded-full shrink-0 {{ entry.isDetailed ? 'bg-accent' : 'bg-ink-faint' }}
-                 {{ tall ? 'mt-1.5' : '' }}"
+          class="shrink-0 rounded-full {{ entry.isDetailed ? 'bg-accent' : 'bg-ink-faint' }}
+                 {{ tall ? 'w-1 self-stretch' : 'w-1.5 h-1.5' }}"
           aria-hidden="true"></span>
 
     {% if not entry.isAllDay %}
@@ -72,7 +85,7 @@ Variables:
        leaving it on a tall chip would waste every line but the first. #}
     <span class="min-w-0 flex-1 text-xs text-ink
                  {{ tall
-                    ? 'whitespace-normal break-words line-clamp-3 leading-4'
+                    ? 'whitespace-normal break-words line-clamp-3 leading-4 group-hover/chip:line-clamp-none'
                     : 'hidden sm:block truncate' }}">
         {{ entry.title ?? 'calendar.share.busy'|trans }}
     </span>

@@ -129,7 +129,57 @@ final class AllDayEventTest extends KernelTestCase
         self::assertTrue($event->jscalendar['showWithoutTime'] ?? false);
     }
 
+    /**
+     * An all-day entry heads its day, whatever the clock says.
+     *
+     * The list arrives in one global start order, and for a reader east of UTC
+     * that order puts the morning above the holiday: 09:00 in Auckland on the
+     * 4th is stored as 21:00 UTC on the 3rd, which is earlier than the floating
+     * midnight the all-day event carries. Auckland is what this file is pinned
+     * against and is therefore exactly the case that shows it.
+     *
+     * Only the agenda and the month read a day as one list — the time grid puts
+     * all-day entries in a band of their own and never asks — so this is the
+     * order those two print in and nothing else.
+     */
+    public function testAnAllDayEntryIsFirstInItsDay(): void
+    {
+        // Written in the awkward order on purpose: the timed one first, so a
+        // reader that simply kept what the repository handed it would fail.
+        $this->timedEvent('Stand-up', '2026-08-03 21:00');
+        $this->allDayEvent('Public holiday', '2026-08-04', '2026-08-05');
+
+        self::assertSame(
+            ['Public holiday', 'Stand-up'],
+            $this->titlesOn('2026-08-04'),
+        );
+    }
+
     // ── Fixtures ──────────────────────────────────────────────────────────
+
+    /**
+     * Every title filed under one day, in the order that day is drawn in.
+     *
+     * @return list<string>
+     */
+    private function titlesOn(string $dayKey): array
+    {
+        $view = $this->reader->read(
+            $this->user,
+            CalendarView::Week,
+            new DateTimeImmutable('2026-08-04 12:00', new DateTimeZone('Pacific/Auckland')),
+        );
+
+        $titles = [];
+
+        foreach ($view['days'][$dayKey] ?? [] as $cluster) {
+            if ($cluster instanceof OccurrenceCluster && null !== $cluster->primary->event?->title) {
+                $titles[] = $cluster->primary->event->title;
+            }
+        }
+
+        return $titles;
+    }
 
     /**
      * The Y-m-d keys of the days a titled event's cluster was filed under,

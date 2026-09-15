@@ -2,15 +2,49 @@
 calendar/_agenda_shell.html.twig — what an agenda LOOKS like, with nothing in it.
 
 The third of the shells, after _month_shell and _time_grid_shell, and extracted
-for the same reason: a rail of dates down the left with whatever the caller
-draws beside each one. The authenticated calendar puts chips there that open an
-editor; the public shared page puts redacted rows there that have nothing to
-open. The rail — its width, its weekday-over-number-over-month stack, the way
-today is marked, the hairline between days — is the same object in both, and a
-copy of it drifts on the first change to either.
+for the same reason: a day names itself, and whatever the caller draws goes
+under it. The authenticated calendar puts chips there that open an editor; the
+public shared page puts redacted rows there that have nothing to open. The day
+heading — its date format, the way today is marked, the way it pins to the top
+of the scroller while its own events are on screen — is the same object in
+both, and a copy of it drifts on the first change to either.
 
-**A fixed-width date rail is the whole visual idea**, so the entries line up
-down the list rather than starting wherever the weekday name happens to end.
+**A day is a heading with its events under it, not a row with a date beside
+it.** The rail this shell started with — a fixed 44px column carrying weekday
+over number over month — did line the entries up, and paid for it twice: it
+spent that width on every row of a pane that is narrow by design, and it left
+the date reading as a label ON the first event rather than as a heading over
+all of them. A heading that is `sticky top-0` names the day for as long as any
+of its events is on screen, which is the thing a rail cannot do at any width,
+and hands the whole column back to the entries.
+
+What lines the entries up now is a time lane inside the row — "all day", or a
+start over an end — which both callers here already wanted: sharing/_entry_row
+has printed one since before this shell existed, and _event_chip grew
+`timeColumn` to match it.
+
+**The lane is as wide as the widest time in the WHOLE list and not a pixel
+more, and that is the one thing a fixed width could not be.** It was `w-16`, a
+number picked so a translated "all day" would fit: 64px, against 33 that a
+"10:00" actually wants, on every row of every day whether any of them said "all
+day" or not. And it was still wrong in the other direction — en_PI's "all the
+day long" wrapped to two lines inside it.
+
+So the list is ONE grid rather than a stack of rows, and the lane is a
+`fit-content(5rem)` track of it. A track is sized against every cell in its
+column, which is exactly the question being asked, and `fit-content` caps a
+pathological translation at 7rem rather than letting one row set the width of a
+thousand — 7 because the shared page writes its range on one line and a
+twelve-hour "6:00 pm–7:00 pm" wants nearly all of it. A cap only caps: the
+owner's stacked "10:00" still measures 33px and pays nothing for the headroom. The day heading spans all three tracks; the day groups are
+`display: contents` so they add no box between the rows and the tracks they
+have to land on; and each row is `grid-template-columns: subgrid`, which is what
+lets a row keep being a real box — a focusable <button>, a <li> — instead of
+having to be flattened into the grid with `display: contents` as well.
+
+CSS only, deliberately. A width measured in JavaScript would have to be
+remeasured on every navigation, every pane drag and every font swap, and would
+be wrong for the first frame of each.
 
 ── Whether an empty day is printed is the caller's decision ─────────────────
 
@@ -70,35 +104,52 @@ Blocks, rendered inside the day loop and able to read `dayKey` and `dayEntries`:
 {% if agendaRows is empty %}
     {% block empty_state %}{% endblock %}
 {% else %}
-    <div class="divide-y divide-line" data-calendar-agenda>
+    {# `minmax(0, 1fr)` on the title rather than `1fr`, for the reason the time
+       grid gives at greater length: a bare `1fr` floors at its content's
+       min-width, so one long unbroken word would push the list wider than the
+       pane. The 4px mark gets `max-content`, which is the only honest way to
+       say "as wide as it is". #}
+    <div data-calendar-agenda class="grid gap-x-2"
+         style="grid-template-columns: fit-content(7rem) max-content minmax(0, 1fr)">
         {% for dayKey in agendaRows %}
             {% set dayEntries = days[dayKey] %}
             {% set isToday = dayKey == today %}
 
-            <div class="flex gap-3 px-3 py-2.5 {{ isToday ? 'bg-accent/5' : '' }}"
-                 data-day="{{ dayKey }}">
-                <div class="w-11 shrink-0 text-center">
-                    <div class="text-[10px] uppercase tracking-wide {{ isToday ? 'text-accent' : 'text-ink-faint' }}">
-                        {{ dayKey|intl_date('EEE', false) }}
-                    </div>
-                    {% if isToday %}
-                        <div class="mx-auto mt-0.5 w-6 h-6 flex items-center justify-center rounded-full
-                                    bg-accent text-accent-ink text-sm font-semibold tabular-nums">
-                            {{ dayKey|date('j') }}
-                        </div>
-                    {% else %}
-                        <div class="mt-0.5 text-sm text-ink tabular-nums">{{ dayKey|date('j') }}</div>
-                    {% endif %}
-                    <div class="text-[10px] text-ink-faint">{{ dayKey|intl_date('MMM', false) }}</div>
+            {# `contents`, so the heading and the rows below are children of the
+               grid rather than of this. The element stays for `data-day`, which
+               is what the shared page's tests ask a day by. #}
+            <div class="contents" data-day="{{ dayKey }}">
+                {# One ICU skeleton rather than a weekday and a date composed
+                   here: German writes "Dienstag, 15. September" and English
+                   "Tuesday, 15 September", and the field order is the locale's
+                   to decide — see LocaleDateExtension, which is the whole
+                   argument for the filter.
+
+                   `top-0` because nothing is pinned above this. The agenda's
+                   scroller is the pane's own, unlike the time grid's, which
+                   stacks two rows of its own inside it and has to count them. #}
+                <div class="col-span-full sticky top-0 z-10 flex items-baseline gap-2
+                            border-y border-line px-3 py-1
+                            {{ isToday ? 'bg-accent/10' : 'bg-sunken' }}">
+                    <span class="text-xs font-medium {{ isToday ? 'text-accent' : 'text-ink' }}">
+                        {{ dayKey|intl_date('EEEEdMMMM', false) }}
+                    </span>
                 </div>
 
-                <div class="min-w-0 flex-1 self-center">
-                    {% if dayEntries|length > 0 %}
+                {% if dayEntries|length > 0 %}
+                    {# The rows' own grid: it spans the three tracks and adopts
+                       them, so what a caller puts inside lands on the same
+                       columns every other day's rows do. `px-3` here rather
+                       than on each row, which would mean each row shrinking
+                       the first and last track by its own padding. #}
+                    <div class="col-span-full grid grid-cols-subgrid px-3 py-1">
                         {% block day_entries %}{% endblock %}
-                    {% else %}
+                    </div>
+                {% else %}
+                    <div class="col-span-full px-3 py-1">
                         {% block day_empty %}{% endblock %}
-                    {% endif %}
-                </div>
+                    </div>
+                {% endif %}
             </div>
         {% endfor %}
     </div>

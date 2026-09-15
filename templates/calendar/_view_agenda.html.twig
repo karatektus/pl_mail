@@ -19,15 +19,23 @@ shared page prints its empty days when this one does not.
     today:   'now'|date('Y-m-d', range.zone),
 } %}
     {% block day_entries %}
-        <div class="space-y-0.5">
-            {% for cluster in dayEntries %}
+        {# No wrapper. A box here would sit between the chips and the tracks
+           they have to land on — see the shell, which owns the grid and the
+           separator between rows now. #}
+        {% for cluster in dayEntries %}
                 {# The one view that prints a range rather than a start.
                    An agenda row draws no timeline, so "18:00" alone cannot
                    answer how long the meeting is; a grid block answers that by
-                   being that tall, and a month cell has no width to spare. #}
-                {% include 'calendar/_event_chip.html.twig' with { showRange: true } %}
-            {% endfor %}
-        </div>
+                   being that tall, and a month cell has no width to spare.
+
+                   `timeColumn` is what puts that range in a lane of its own so
+                   the titles line up — see the chip, and the shell's header for
+                   what it replaced. #}
+            {% include 'calendar/_event_chip.html.twig' with {
+                showRange: true,
+                timeColumn: true,
+            } %}
+        {% endfor %}
     {% endblock %}
 
     {% block empty_state %}

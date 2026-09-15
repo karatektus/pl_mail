@@ -3068,6 +3068,96 @@
     }
 }
 
+/* A clipped chip opens to its own content while the pointer rests on it.
+
+   The time grid draws a meeting in the box its duration earns, and a quarter
+   of an hour in a 96px column — or half of one, where two meetings overlap —
+   is a box that holds a word. `title=` has always carried the rest, and a
+   native tooltip is a poor answer for something the eye is already on: it
+   arrives somewhere else, after a delay, in the platform's own font, and it
+   cannot be read at the same time as the row above it.
+
+   So the box opens instead. `max-content` is exactly as wide as the chip wants
+   and no wider; `min-width: 100%` stops a two-word title from SHRINKING the
+   block it is in, which is what happens without it on a wide column; and the
+   cap is the width at which a long title starts wrapping rather than running
+   out across three days.
+
+   `max(16rem, 100%)` for that cap rather than a bare 16rem, and it is a fix
+   rather than a flourish. A Day-view block is the whole grid — around 970px —
+   and a bare cap SHRANK it to 256 the moment the pointer arrived, so a click
+   aimed at the middle of the block landed on the empty two-thirds the chip had
+   just vacated and opened nothing at all. `min-width` ought to have won that
+   argument by the cascade's own rules and did not; stating the cap as "16rem,
+   or my own width, whichever is the larger" settles it where it cannot be
+   argued with. calendar-timegrid's click test is what caught it.
+
+**Width only, and the height is left strictly alone.** This grew both once,
+   and a `height: auto` here broke two things at a stroke. The block's resize
+   preview works by writing a height onto the positioned parent that this
+   element follows with `h-full`, so an element sizing itself stopped following
+   and a resize drag showed nothing happening. Worse and much quieter: the chip
+   INSIDE this element is `h-full` too, and a percentage height against an
+   auto-height parent computes to auto — so in Day view, where a chip is one
+   row of a 46px block, the button shrank to 22px at the top and a click aimed
+   at the middle of the block landed under it, on this element, and opened
+   nothing. calendar-timegrid's click test is what caught that.
+
+   `:not(:active)` survives the height going away, for the resize half of the
+   same argument: a box that widened out from under a pointer mid-drag is its
+   own kind of wrong. The pressed element keeps `:active` for as long as the
+   button is held, which is exactly the window the growth has to stay out of.
+
+   Paired with `hover:z-30` on the positioned parent, which is where the rise
+   has to happen: the parent declares `@container` for the chip inside it, and
+   a container is a stacking context, so a z-index here could never lift this
+   past the block next door. */
+/* The wash a grid block carries, over a background that is actually there.
+
+   This was one inline `background-color: <calendar colour>1a` and a `bg-surface`
+   class beside it that had never once applied: an inline style outranks every
+   class, so the only background a block had was a tenth of a calendar colour,
+   and the "surface" under it was whatever the block happened to be over. That
+   is invisible while a block sits in its own column and obvious the moment one
+   opens across its neighbour, which is how it was found.
+
+   Two layers instead of one. `background-color` is the opaque surface and the
+   tint is a `background-image` composited onto it, which is the one way to
+   stack two paints on a box without a pseudo-element — and a pseudo-element is
+   the wrong tool here because the box is already `overflow-hidden` around a
+   chip and would need a z-index to stay behind it. The custom property is what
+   the caller sets inline, and a property is free to be overridden by a class in
+   a way a `background-color` never was. */
+@utility block-tint {
+    background-color: rgb(var(--rgb-surface));
+    background-image: linear-gradient(var(--block-tint, transparent), var(--block-tint, transparent));
+}
+
+@utility chip-open {
+    /* Guarded the way Tailwind guards its own `hover:`, and for the reason
+       that variant is guarded: a tap on a touch screen leaves `:hover` stuck
+       on the element until something else is tapped, so without this a block
+       would stay open behind the editor the tap just opened.
+
+       TWO selectors, because there are two shapes of this. In the time grid
+       the thing that opens is a box INSIDE the positioned block, since the
+       block carries the placement as an inline width and height that a class
+       cannot outrank — so the block is `group/chip` and the hover is read off
+       it. That is not a nicety: the block has a pixel of padding around this
+       box, and reading the hover off the box left a one-pixel ring around
+       every chip where the pointer did nothing, which is exactly as flaky as
+       it sounds when you sweep across a week. In the all-day band the box IS
+       the chip and has no such parent, so it reads its own. */
+    @media (hover: hover) {
+        .group\/chip:hover:not(:active) > &,
+        &:hover:not(:active) {
+            width: max-content;
+            min-width: 100%;
+            max-width: max(16rem, 100%);
+        }
+    }
+}
+
 /* A native <select> that looks like the rest of the app's fields.
  *
  * The browser's own control is the thing that gave it away: its chevron, its

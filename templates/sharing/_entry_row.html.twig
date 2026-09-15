@@ -8,10 +8,18 @@ link was ticked to say about it. It was the row of the day list printed under th
 month grid, and it is now the row of the agenda VIEW: the same job, reached by
 the switcher rather than by scrolling past a calendar.
 
-It carries no horizontal padding of its own, because it sits in the date rail's
-right-hand column in calendar/_agenda_shell.html.twig and that column is already
-inset. Padding here would put the times a second step in from the rail on the
-agenda and nowhere else.
+It carries no horizontal padding of its own, because the day body it sits in is
+already inset — see calendar/_agenda_shell.html.twig, where the date used to be
+a rail beside this column and is now a heading above it. Padding here would step
+the times in twice on the agenda and nowhere else.
+
+It is a `subgrid` row of that shell's grid rather than a flex line, which is
+what makes its time lane the same width as every other row's in the view
+including the ones the owner's own chip draws. The lane is a track and a track
+is sized against its whole column; a `shrink-0` span is sized against itself.
+The colour track is column two and this row leaves it empty on purpose — a
+shared page says nothing about the owner's calendars, which is the rule stated
+above — so the label takes columns two and three together.
 
 The branch below is on `entry.isDetailed()` rather than on the link's settings,
 and that is the load-bearing part of this file. A private event inside an
@@ -29,8 +37,9 @@ Variables:
   zone        string
   timeFormat  string
 #}
-<li class="flex items-baseline gap-3 py-1.5">
-    <span class="shrink-0 tabular-nums text-xs font-medium text-ink-soft">
+<li class="col-span-full grid grid-cols-subgrid items-baseline py-1.5
+           border-t border-line first:border-t-0">
+    <span class="tabular-nums text-xs font-medium text-ink-soft">
         {% if entry.isAllDay %}
             {{ 'calendar.share.all_day'|trans }}
         {% else %}
@@ -38,7 +47,7 @@ Variables:
         {% endif %}
     </span>
 
-    <span class="min-w-0 flex-1">
+    <span class="col-span-2 min-w-0">
         {% if entry.isDetailed %}
             <span class="block truncate text-sm text-ink">
                 {{ entry.title ?? 'calendar.share.busy'|trans }}
