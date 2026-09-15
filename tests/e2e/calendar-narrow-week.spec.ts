@@ -151,6 +151,7 @@ test("opens with the current time in view, not midnight", async ({ page }) => {
             portHeight: port.height,
             below: line.getBoundingClientRect().top - port.top,
             scrollTop: scroller.scrollTop,
+            maxScroll: scroller.scrollHeight - scroller.clientHeight,
         };
     });
 
@@ -162,14 +163,31 @@ test("opens with the current time in view, not midnight", async ({ page }) => {
     // scroll position, because there is no hour at which the claim is not the
     // claim. Before the fix this read as "the whole night, then now, three
     // quarters of the way down", which is a pass on `below > 0` alone.
-    expect(view!.below).toBeGreaterThan(0);
+    expect(view!.below, "the current time is above the top of the view").toBeGreaterThan(0);
+    expect(view!.below, "the current time is below the bottom of the view").toBeLessThan(
+        view!.portHeight,
+    );
 
-    if (0 === view!.scrollTop) {
-        // The clamp, and the one case the upper half is not reachable: a run
-        // between 00:00 and about 03:00 cannot put now any higher than the day
-        // starts. The night above it is real, not dead space.
+    // **A scroller pinned at either end cannot honour the upper-half claim**,
+    // and which end it is pinned to depends on the hour the suite runs at.
+    //
+    // The top clamp was written down here from the start: a run between 00:00
+    // and about 03:00 cannot put now any higher than the day begins, and the
+    // night above it is real rather than dead space. The bottom clamp is the
+    // same arithmetic at the other end and was missed — after about 19:00 there
+    // is not a viewport's worth of day left below the line, so scrollTop hits
+    // its maximum and the line comes to rest lower than half way however much
+    // the grid would like to lift it. This file passed all day and failed at
+    // 22:00 with 311px against a 291px bound, which is that gap exactly.
+    //
+    // Pinned at either end, "visible" above is the whole claim. In between it
+    // is the real one.
+    const pinnedToTop = 0 === Math.round(view!.scrollTop);
+    const pinnedToBottom = Math.round(view!.scrollTop) >= Math.round(view!.maxScroll) - 1;
+
+    if (pinnedToTop) {
         expect(view!.below).toBeLessThanOrEqual(view!.portHeight / 4 + 1);
-    } else {
+    } else if (false === pinnedToBottom) {
         expect(view!.below).toBeLessThanOrEqual(view!.portHeight / 2);
     }
 });
