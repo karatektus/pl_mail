@@ -8,6 +8,8 @@ The published image tags: `latest` follows the most recent release below,
 
 ## Unreleased
 
+## v0.2.27 — 2026-09-15
+
 ### Changed
 
 - **A week narrower than its own columns pans instead of squeezing.** Seven columns used to divide
