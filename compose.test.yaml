@@ -224,10 +224,29 @@ services:
     # The image carries a HEALTHCHECK that curls the web server, which a worker
     # is not. Left on, `compose up --wait` reports this container unhealthy and
     # exits non-zero with the stack up and working — which in CI is a red run
-    # for a container doing exactly what it should. Every worker in
-    # compose.yaml disables it for the same reason.
+    # for a container doing exactly what it should.
+    #
+    # It was `disable: true` for that reason, and that swapped one red run for
+    # another: `up --wait` names this service (see .github/actions/test-stack,
+    # which explains why it has to), and a named service with no healthcheck at
+    # all makes Compose exit 1 with "container … has no healthcheck configured".
+    # Every E2E run since has been red before a single test executed. The
+    # answer is not to take the check away but to ask the right question — a
+    # worker is healthy when its consumer is running, which is what this reads.
+    #
+    # No `ps` and no `pgrep` in the image, so the process table is read where it
+    # actually lives. `messenger:[c]onsume` rather than `messenger:consume` is
+    # the old trick and it is load-bearing: the health probe's OWN command line
+    # is in /proc too, so a literal pattern matches itself and the check passes
+    # on a container whose worker died ten minutes ago.
     healthcheck:
-      disable: true
+      test:
+        - CMD-SHELL
+        - grep -lza 'messenger:[c]onsume' /proc/*/cmdline > /dev/null 2>&1
+      interval: 5s
+      timeout: 3s
+      retries: 6
+      start_period: 5s
     depends_on:
       database:
         condition: service_healthy
