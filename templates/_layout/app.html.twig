@@ -218,13 +218,21 @@
         {# The pane owns the list refresh, so the events that should suspend it
            are routed here too: a bulk action writes one request per selected
            row, and a refresh landing mid-run undoes the rows it has already
-           finished. See mail_pane_controller#hold. #}
+           finished. See mail_pane_controller#hold.
+
+           A drag is held for a harder reason than tidiness. A refresh that
+           lands mid-drag removes the row being dragged, and a removed drag
+           source never fires dragend — leaving the browser in a drag session
+           the page has no way to end, which is a tab that stops answering the
+           mouse entirely. See mail--dnd#connect. #}
         data-action="core--mercure:jobs-changed->mail--jobs#refresh
                      core--mercure:jobs-changed->mail--mail-pane#onJobChanged
                      core--mercure:mailbox-synced->mail--mail-pane#onMailboxSynced
                      core--mercure:account-synced->mail--mail-pane#onAccountSynced
                      mail--list-toolbar:writing->mail--mail-pane#hold
-                     mail--list-toolbar:written->mail--mail-pane#release"
+                     mail--list-toolbar:written->mail--mail-pane#release
+                     mail--dnd:dragging->mail--mail-pane#hold
+                     mail--dnd:dropped->mail--mail-pane#release"
         data-mail--mail-pane-open-value="{% block pane_open %}false{% endblock %}"
         {# Room for a layout below this one to put ITS body controller's values
            here. A Stimulus value has to sit on the same element as the

@@ -8,6 +8,22 @@ The published image tags: `latest` follows the most recent release below,
 
 ## Unreleased
 
+### Fixed
+
+- **A drag that outlived the list it started in could leave the whole tab unable to answer the
+  mouse.** Dragging a conversation while the list refreshed underneath it — new mail arriving over
+  Mercure is the ordinary way — removed the row being dragged, and a removed drag source never
+  fires the event that says the drag is over. The browser went on believing one was in progress and
+  ate every click, mouseover and keypress before the page could see them; the page itself was fine,
+  which is what made it look like a freeze rather than a bug.
+
+  The list refresh is now held for the length of a drag and taken the moment it ends, so the row
+  cannot be pulled out from under the gesture in the first place, and mail that arrived meanwhile
+  appears as soon as the drag is over rather than being dropped. Belt and braces behind that: the
+  end of a drag is now heard on the row itself rather than only on its way past, so it is still
+  heard from a row that has left the page; and a render that arrives mid-drag clears the
+  drop-target highlighting rather than leaving it lit.
+
 ## v0.2.27 — 2026-09-15
 
 ### Changed

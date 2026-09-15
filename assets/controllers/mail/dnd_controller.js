@@ -108,11 +108,42 @@ export default class extends Controller {
     /** The target the pointer is currently over, so it can be un-marked. */
     #over = null;
 
+    /**
+     * The row the drag started on, held ONLY so that dragend can be heard on
+     * the element itself rather than on the way past it.
+     *
+     * Every listener here is on <body> and every one of them depends on the
+     * event bubbling up from the row. That is fine until the row stops being in
+     * the tree: a list re-render mid-drag — new mail over Mercure, a frame load,
+     * a category switch — removes the drag source, and an event dispatched at a
+     * detached node has nothing to bubble THROUGH. The body listener never runs,
+     * #teardown never runs, and `data-dnd-active` stays on <html>, which Turbo
+     * does not replace. That is the reported symptom: every drop target on the
+     * page stays lit and the browser goes on believing a drag is in progress.
+     *
+     * A second listener, bound to the row, is heard wherever the row has got to.
+     * It is a reference to an element the controller may outlive, so it is
+     * dropped in #teardown rather than left to keep a detached subtree alive.
+     */
+    #source = null;
+
     connect() {
         this.element.addEventListener("dragstart", this._onDragStart = this.#onDragStart.bind(this));
         this.element.addEventListener("dragend", this._onDragEnd = this.#onDragEnd.bind(this));
         this.element.addEventListener("dragover", this._onDragOver = this.#onDragOver.bind(this));
         this.element.addEventListener("drop", this._onDrop = this.#onDrop.bind(this));
+
+        // Whatever else happens to an in-flight drag, the marks it wrote into
+        // the DOM do not outlive the DOM they were written into. This does not
+        // cancel the drag — nothing can, a native drag session belongs to the
+        // browser and has no abort — it guarantees that a swap cannot leave
+        // highlighting behind. What stops the swap happening under a live drag
+        // is the hold in #onDragStart, which is the actual fix; this is the
+        // insurance for every render that reaches us anyway.
+        this._onBeforeRender = () => this.#teardown();
+
+        document.addEventListener("turbo:before-render", this._onBeforeRender);
+        document.addEventListener("turbo:before-frame-render", this._onBeforeRender);
     }
 
     disconnect() {
@@ -120,6 +151,9 @@ export default class extends Controller {
         this.element.removeEventListener("dragend", this._onDragEnd);
         this.element.removeEventListener("dragover", this._onDragOver);
         this.element.removeEventListener("drop", this._onDrop);
+
+        document.removeEventListener("turbo:before-render", this._onBeforeRender);
+        document.removeEventListener("turbo:before-frame-render", this._onBeforeRender);
 
         this.#teardown();
     }
@@ -140,6 +174,27 @@ export default class extends Controller {
         }
 
         this.#carrying = carried;
+        this.#source = row;
+
+        // Heard on the row as well as on <body> — see #source for why one of
+        // the two is not enough. Both call #teardown, and the row's fires
+        // first; the second call finds #carrying already null and does nothing,
+        // which is what makes teardown safe to run twice.
+        row.addEventListener("dragend", this._onDragEnd, { once: true });
+
+        // Hold the list frame's refresh for the duration of the gesture.
+        //
+        // This is the fix rather than the mitigation. A refresh that lands
+        // mid-drag removes the row being dragged, and everything downstream of
+        // that — the missing dragend, the stuck session, a tab that stops
+        // answering the mouse — follows from the removal. mail--mail-pane#hold
+        // defers rather than drops: _refreshList remembers it in
+        // _refreshPending and release() takes it immediately, so the mail that
+        // arrived during the drag appears the moment the drag is over.
+        //
+        // Paired with the "dropped" in #teardown, which is the ONLY place that
+        // releases it, so that every way a drag can end pays the hold back.
+        this.dispatch("dragging");
 
         // Set, even though nothing reads it back: a drag with an empty
         // dataTransfer is cancelled outright by Firefox, and the failure looks
@@ -224,7 +279,16 @@ export default class extends Controller {
     async #onDrop(event) {
         const target = this.#targetFor(event.target);
 
+        // Torn down rather than returned from. A drop lands here only on an
+        // element whose dragover called preventDefault, so this is the narrow
+        // case where the target resolved then and does not now — the row it
+        // named has been re-rendered, or the selection it was carrying has. It
+        // used to leave #carrying set and the hold outstanding, and relied on
+        // dragend arriving afterwards to clear up, which is exactly the event
+        // this file can no longer assume.
         if (null === target || null === this.#carrying) {
+            this.#teardown();
+
             return;
         }
 
@@ -465,14 +529,44 @@ export default class extends Controller {
         }
     }
 
+    /**
+     * Everything a drag wrote, unwritten — and safe to call twice.
+     *
+     * Reached from five directions now: dragend on the row, dragend on <body>,
+     * drop, a Turbo render, and disconnect. Several of them can fire for one
+     * gesture, so the release below is guarded on there having been something
+     * to release. An unbalanced release is not merely untidy: mail--mail-pane
+     * clamps the count at zero but refreshes the list frame on reaching it, so
+     * a spurious one costs a fetch of the whole list.
+     */
     #teardown() {
+        const wasCarrying = null !== this.#carrying;
+
+        if (null !== this.#source) {
+            // Removed by hand rather than left to `once`, which only fires if
+            // the event does. Where teardown got here first — a drop, a render
+            // — the listener is still on a row that may be detached, and the
+            // reference is what would keep that subtree alive.
+            this.#source.removeEventListener("dragend", this._onDragEnd);
+            this.#source = null;
+        }
+
         this.#clearOver();
         this.#carrying = null;
 
+        // Queried against the live document rather than remembered from
+        // dragstart: if the list re-rendered under the drag, the elements
+        // marked then are gone and the ones on screen now are the ones that
+        // matter. A stale NodeList would clear attributes off detached nodes
+        // and leave the visible ones lit.
         for (const target of document.querySelectorAll(`[data-dnd-refused]`)) {
             delete target.dataset[this.constructor.REFUSED_ATTRIBUTE];
         }
 
         delete document.documentElement.dataset[this.constructor.ACTIVE_ATTRIBUTE];
+
+        if (true === wasCarrying) {
+            this.dispatch("dropped");
+        }
     }
 }
