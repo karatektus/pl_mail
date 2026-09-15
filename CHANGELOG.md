@@ -8,6 +8,8 @@ The published image tags: `latest` follows the most recent release below,
 
 ## Unreleased
 
+## v0.2.28 — 2026-09-15
+
 ### Fixed
 
 - **A drag that outlived the list it started in could leave the whole tab unable to answer the
