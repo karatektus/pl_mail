@@ -544,14 +544,26 @@ final class ThreadSummaryTest extends WebTestCase
         // The endpoint calls ob_flush() on every frame, which is exactly what it
         // must do — php.ini ships output_buffering = 4096, and without it a
         // short summary would arrive in one lump at the end and be
-        // indistinguishable from an unstreamed endpoint. The consequence here is
-        // that the frames escape the buffer HttpKernelBrowser opens to capture a
-        // StreamedResponse and land in whatever buffer is outside it. So this
-        // test provides that buffer and reads the frames out of it, which is the
-        // only way to see what was actually written to the wire — and it is also
-        // why every assertion about a body in this file reads THIS return value
-        // rather than $client->getResponse()->getContent(), which is empty by
-        // the same mechanism.
+        // indistinguishable from an unstreamed endpoint.
+        //
+        // **Where those frames end up depends on the HttpKernelBrowser**, and it
+        // changed under us in symfony/http-kernel v8.1.6. Up to v8.1.5 the
+        // browser captured a StreamedResponse with a plain `ob_start()`, so an
+        // ob_flush() inside the stream pushed the frames straight through it and
+        // into whatever buffer was outside — this one. From v8.1.6 it starts the
+        // buffer with a CALLBACK that returns '', which swallows the flush and
+        // keeps every chunk; the frames never escape, and they arrive on the
+        // BrowserKit response instead.
+        //
+        // So both are read, outer buffer first. Not a hedge: each version puts
+        // the body in exactly one of the two places and leaves the other empty,
+        // so "whichever is not empty" is a complete answer rather than a guess,
+        // and the file goes on testing the same thing across the bump.
+        //
+        // $client->getResponse()->getContent() is empty on BOTH, which is why no
+        // assertion in this file reads it: that is the Symfony Response, and a
+        // StreamedResponse has no body to give — only the BrowserKit one, built
+        // by filterResponse(), ever holds the bytes.
         ob_start();
 
         try {
@@ -561,10 +573,12 @@ final class ThreadSummaryTest extends WebTestCase
                 server: ['HTTP_X_CSRF_TOKEN' => $token],
             );
         } finally {
-            $streamed = (string) ob_get_clean();
+            $escaped = (string) ob_get_clean();
         }
 
-        return $streamed;
+        return '' !== $escaped
+            ? $escaped
+            : (string) $client->getInternalResponse()->getContent();
     }
 
     private function token(KernelBrowser $client): string
