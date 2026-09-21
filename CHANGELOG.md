@@ -8,6 +8,8 @@ The published image tags: `latest` follows the most recent release below,
 
 ## Unreleased
 
+## v0.2.31 — 2026-09-21
+
 ### Fixed
 
 - **Live updates stopped arriving, and the inbox said so.** The Mercure hub moved to the 1.0
