@@ -90,11 +90,35 @@ async function dragBy(page: Page, from: { x: number; y: number }, dx: number, dy
  * depends on the hour it runs at is a test that will fail at the worst moment.
  */
 async function centreOf(locator: Locator) {
-    await locator.scrollIntoViewIfNeeded();
+    // CENTRED, not scrollIntoViewIfNeeded(). That scrolls the MINIMUM distance
+    // to make the element visible, which for a block above the viewport parks
+    // it flush against the top of the scroller — underneath the pinned day
+    // headings, which is the very place the paragraph above says a drag must
+    // not start. It was enough while the grid opened on a fixed 07:00 and the
+    // 10:00 fixture was merely a little way down; once the grid began opening
+    // on the current time, an afternoon run scrolled the fixture above the top
+    // and "the minimum distance" put it exactly under the headings.
+    //
+    // Centring also leaves half a viewport below the block, which is what the
+    // downward drags need: a block resting at the bottom edge has nowhere to be
+    // dragged to either.
+    await scrollToCentre(locator);
 
     const box = (await locator.boundingBox())!;
 
     return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+}
+
+/**
+ * Put a block in the MIDDLE of the scroller, not merely on screen.
+ *
+ * Its own function because two specs need it and one of them measures a grip
+ * rather than a centre, so it cannot go through centreOf(). Both used
+ * scrollIntoViewIfNeeded() before and both failed the same way in the
+ * afternoon.
+ */
+async function scrollToCentre(locator: Locator) {
+    await locator.evaluate((el) => el.scrollIntoView({ block: "center", inline: "nearest", behavior: "instant" }));
 }
 
 /**
@@ -471,9 +495,12 @@ test.describe("calendar time-grid", () => {
         const block = blocks(page, TIMED).first();
         const before = { start: await startOf(block), end: await endOf(block) };
 
-        // On screen before it is measured, for the reason centreOf gives: an
-        // unscrolled box puts the grip under the day headings.
-        await block.scrollIntoViewIfNeeded();
+        // CENTRED before it is measured, for the reason centreOf gives: an
+        // unscrolled box puts the grip under the day headings, and merely
+        // bringing it into view puts it there too whenever the block starts
+        // above the viewport — which it does every afternoon, since the grid
+        // opens on the current time and this fixture is at 10:00.
+        await scrollToCentre(block);
 
         const box = (await block.boundingBox())!;
 

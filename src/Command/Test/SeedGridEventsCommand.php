@@ -68,9 +68,15 @@ final class SeedGridEventsCommand extends Command
     /**
      * When the timed event starts, on the calendar's own clock.
      *
-     * 10:00 because the grid opens scrolled to 07:00 and a block has to be
-     * visible without a spec scrolling first, and because a drag two hours down
-     * from here is still inside the day.
+     * 10:00 because a drag two hours down from here is still inside the day,
+     * and because it shares no lane with DAILY_AT below.
+     *
+     * NOT because it is on screen. It used to be: the grid opened on a fixed
+     * 07:00 and a 10:00 block was in view without anyone scrolling. The grid
+     * opens on the current time now, so this block is above the viewport for
+     * most of the afternoon, and the specs scroll to it deliberately — see
+     * centreOf() in calendar-timegrid.spec.ts, which has to CENTRE it rather
+     * than merely bring it into view.
      */
     private const string TIMED_AT = '10:00';
 
