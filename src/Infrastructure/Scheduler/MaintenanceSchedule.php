@@ -160,6 +160,25 @@ final class MaintenanceSchedule implements ScheduleProviderInterface
                 // stacking two DELETEs on the same minute buys nothing.
                 RecurringMessage::cron('10 5 * * *', new RunCommandMessage('app:ai:prune-metrics')),
 
+                // One-time repairs this installation has not run yet — see
+                // UpgradeTaskInterface, which carries the reasoning for why
+                // they are neither migrations nor entrypoint work.
+                //
+                // EVERY TEN MINUTES for something that is, by definition,
+                // finished after it has run once. That is not a contradiction:
+                // what runs every ten minutes is the QUESTION, and the question
+                // is one indexed lookup per registered task against a table
+                // with single-digit rows in it. What it guards is the interval
+                // between an update landing and the repair happening — a
+                // nightly slot would leave somebody who updated at eight in the
+                // evening looking at damaged mail until morning, for no saving
+                // worth having.
+                //
+                // Permanent, unlike the tasks it runs. Individual tasks are
+                // deleted once every install has plausibly seen them; this line
+                // is the mechanism and stays.
+                RecurringMessage::cron('*/10 * * * *', new RunCommandMessage('app:upgrade:run')),
+
                 // Expired JMAP uploads and files orphaned by deleted rows.
                 // Weekly: it walks three directory trees, and a week of
                 // orphans is a rounding error on disk.

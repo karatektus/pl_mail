@@ -6,6 +6,7 @@ use App\Domain\Enum\Mail\LabelRole;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Mailbox;
 use App\Entity\Mail\Message;
+use App\Entity\Mail\MessagePart;
 use App\Entity\Mail\MessageThread;
 use App\Entity\User\User;
 use App\Jmap\Query\CompiledFilter;
@@ -917,6 +918,72 @@ class MessageRepository extends ServiceEntityRepository
             // guessed at.
             ->andWhere("LOWER(m.bodyHtml) LIKE '%charset%'")
             ->setParameter('afterId', $afterId);
+    }
+
+    /**
+     * Messages whose body webklex filed as an attachment, oldest id first.
+     *
+     * The set MisfiledBodyDetector now keeps out of the database, found after
+     * the fact. Two conditions, and each carries half the confidence:
+     *
+     * A FILENAME OF EXACTLY EIGHT CHARACTERS, because that is not a filename.
+     * Webklex fills an absent one with `hash("crc32c", …)` of the part, and
+     * eight is what that hash measures. The hex-ness is checked in PHP rather
+     * than here — a LIKE pattern for it is eight repetitions of a character
+     * class and unreadable, and this predicate is only narrowing the walk.
+     *
+     * AN EMPTY BODY OF THE PART'S OWN TYPE, which is what makes the first
+     * condition safe to act on. A nameless text part next to a body that
+     * parsed fine is something else and is left alone; a nameless text part
+     * next to nothing at all is the body, and the message currently renders
+     * blank either way.
+     *
+     * EXISTS rather than a join, and that is not a preference. A
+     * multipart/alternative can have both halves misfiled, so a join returns
+     * the message once per matching part — and the obvious fix, SELECT
+     * DISTINCT, cannot run at all here: Message carries json columns and
+     * Postgres has no equality operator for json, so the query dies with
+     * "could not identify an equality operator for type json". EXISTS asks the
+     * question without multiplying the rows, so there is nothing to
+     * de-duplicate.
+     *
+     * @return list<Message>
+     */
+    public function findWithMisfiledBodyPart(int $afterId, int $limit): array
+    {
+        return $this->misfiledBodyPartQueryBuilder($afterId)
+            ->orderBy('m.id', 'ASC')
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getResult();
+    }
+
+    /** Counted through the same builder, so the total and the walk agree. */
+    public function countWithMisfiledBodyPart(): int
+    {
+        return (int) $this->misfiledBodyPartQueryBuilder(0)
+            ->select('COUNT(m.id)')
+            ->getQuery()
+            ->getSingleScalarResult();
+    }
+
+    /** Shared so the count and the walk can never disagree about the set. */
+    private function misfiledBodyPartQueryBuilder(int $afterId): \Doctrine\ORM\QueryBuilder
+    {
+        return $this->createQueryBuilder('m')
+            ->andWhere('m.id > :afterId')
+            ->andWhere(
+                'EXISTS ('
+                . ' SELECT p.id FROM ' . MessagePart::class . ' p'
+                . ' WHERE p.message = m'
+                . ' AND p.contentType IN (:bodyTypes)'
+                . ' AND LENGTH(p.filename) = 8'
+                . " AND ((p.contentType = 'text/html' AND (m.bodyHtml IS NULL OR m.bodyHtml = ''))"
+                . "   OR (p.contentType = 'text/plain' AND (m.bodyText IS NULL OR m.bodyText = '')))"
+                . ')'
+            )
+            ->setParameter('afterId', $afterId)
+            ->setParameter('bodyTypes', ['text/plain', 'text/html']);
     }
 
     /**
