@@ -33,9 +33,29 @@ const b64url = (input: string) => Buffer.from(input).toString("base64url");
  * triggering a real sync: this is a test of the delivery path, and driving it
  * through IMAP would make it a slow test of something else.
  */
-function publisherJwt(): string {
-    const header = b64url(JSON.stringify({ alg: "HS256", typ: "JWT" }));
-    const payload = b64url(JSON.stringify({ mercure: { publish: ["*"] } }));
+function publisherJwt(hubUrl: string): string {
+    // RFC 9068, because the hub speaks Mercure 1.0 now. The bare
+    // `{mercure: {publish: ["*"]}}` claim this used to send is refused outright,
+    // and so is a token missing any one of iss/aud/sub/client_id/exp — the hub
+    // names the missing claim in its log, which is the only way to find out.
+    //
+    // `{match: "*"}` is still "every topic": the wildcard survived the protocol
+    // change, verified against the hub rather than assumed.
+    const header = b64url(JSON.stringify({ alg: "HS256", typ: "at+jwt" }));
+    const now = Math.floor(Date.now() / 1000);
+    const payload = b64url(JSON.stringify({
+        iss: hubUrl,
+        aud: hubUrl,
+        sub: "e2e",
+        client_id: "e2e",
+        iat: now,
+        exp: now + 600,
+        authorization_details: [{
+            type: "https://mercure.rocks/authorization-detail",
+            actions: ["publish"],
+            topics: [{ match: "*" }],
+        }],
+    }));
     const signature = createHmac("sha256", JWT_SECRET)
         .update(`${header}.${payload}`)
         .digest("base64url");
@@ -51,7 +71,7 @@ async function publish(baseURL: string, topic: string, data: unknown): Promise<v
     const response = await fetch(`${baseURL}${HUB_PATH}`, {
         method: "POST",
         headers: {
-            Authorization: `Bearer ${publisherJwt()}`,
+            Authorization: `Bearer ${publisherJwt(`${baseURL}${HUB_PATH}`)}`,
             "Content-Type": "application/x-www-form-urlencoded",
         },
         body,
@@ -154,7 +174,12 @@ function expectState(page: Page, state: string, timeout = 15000) {
 /** The signed-in user's id, which is what the topic is keyed by. */
 async function currentUserId(page: Page): Promise<string> {
     const url = await page.getAttribute("body", "data-core--mercure-url-value");
-    const topic = new URL(url!, "http://localhost").searchParams.get("topic");
+    // "match", not "topic": Mercure 1.0 renamed the subscription parameter, and
+    // the bundle's mercure() helper writes whichever the configured protocol
+    // uses. Reading the old name here returned null and this helper threw
+    // "Cannot read properties of null", which reads like a missing element and
+    // is really a protocol change.
+    const topic = new URL(url!, "http://localhost").searchParams.get("match");
 
     return topic!.replace("mail/user/", "");
 }
