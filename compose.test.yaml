@@ -188,7 +188,13 @@ services:
       MERCURE_PUBLISHER_JWT_KEY: e2e-mercure-secret-not-for-production
       MERCURE_SUBSCRIBER_JWT_KEY: e2e-mercure-secret-not-for-production
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost/healthz"]
+      # The ADMIN endpoint, not "/healthz" on the hub port, and not a URL of
+      # our own choosing. The hub moved its readiness probe: "/healthz" now
+      # answers 404, `curl -f` treats that as failure, and the container is
+      # marked unhealthy for ever while serving perfectly. The image's own
+      # HEALTHCHECK has always used this path — overriding it with a guess is
+      # what let the two drift apart, and the guess is the half that rotted.
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:2019/mercure/health/ready"]
       interval: 5s
       timeout: 5s
       retries: 10

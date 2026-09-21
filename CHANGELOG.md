@@ -8,6 +8,18 @@ The published image tags: `latest` follows the most recent release below,
 
 ## Unreleased
 
+### Fixed
+
+- **The Mercure hub reported itself unhealthy for ever while working perfectly.** Its readiness
+  probe moved: `/healthz` answers 404 now, `curl -f` reads that as a failure, and the container
+  never goes green again. On a normal install nothing waits on that, so live updates carried on
+  and the only symptom was `(unhealthy)` in `docker ps` and in the TrueNAS view — alarming, and
+  about nothing. The test stack does wait on it, so CI stopped being able to start at all.
+
+  The check now asks the hub where the hub actually answers, which is the path its own built-in
+  healthcheck has always used. Overriding that with a URL of our own is what let the two drift
+  apart in the first place.
+
 ## v0.2.29 — 2026-09-21
 
 ### Fixed
