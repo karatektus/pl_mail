@@ -12,6 +12,7 @@ use App\Service\OAuth\OAuthTokenManager;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
+use Symfony\Component\DependencyInjection\Attribute\Target;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 /**
@@ -80,6 +81,10 @@ final readonly class GraphCalendarPushManager implements CalendarPushSubscriptio
     private const string CHANGE_TYPE = 'created,updated,deleted';
 
     public function __construct(
+        // The scoped client from framework.yaml, not the default one: it
+        // retries a GET that Graph answers with 5xx, which is weather rather
+        // than news. See App\Infrastructure\Http\GraphRetryStrategy.
+        #[Target('graph.client')]
         private HttpClientInterface    $httpClient,
         private OAuthTokenManager      $tokens,
         private PushCallbackUrl        $callback,

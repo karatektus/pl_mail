@@ -26,6 +26,7 @@ use App\Service\OAuth\OAuthTokenManager;
 use DateTimeImmutable;
 use DateTimeZone;
 use Psr\Log\LoggerInterface;
+use Symfony\Component\DependencyInjection\Attribute\Target;
 use Symfony\Contracts\HttpClient\Exception\DecodingExceptionInterface;
 use Symfony\Contracts\HttpClient\Exception\TransportExceptionInterface;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
@@ -168,6 +169,10 @@ final readonly class GraphCalendarSyncDriver implements CalendarSyncDriverInterf
         . 'Reconnect the account and allow calendar permissions.';
 
     public function __construct(
+        // The scoped client from framework.yaml, not the default one: it
+        // retries a GET that Graph answers with 5xx, which is weather rather
+        // than news. See App\Infrastructure\Http\GraphRetryStrategy.
+        #[Target('graph.client')]
         private HttpClientInterface $httpClient,
         private OAuthTokenManager   $tokens,
         private GraphEventMapper    $mapper,

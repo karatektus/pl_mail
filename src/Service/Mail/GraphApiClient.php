@@ -10,6 +10,7 @@ use App\Domain\Exception\GraphThrottledException;
 use App\Entity\Mail\Account;
 use App\Service\Graph\GraphCategoryColorMapper;
 use App\Service\OAuth\OAuthTokenManager;
+use Symfony\Component\DependencyInjection\Attribute\Target;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 use Symfony\Contracts\HttpClient\ResponseInterface;
 
@@ -98,6 +99,10 @@ final class GraphApiClient
     private const string DELTA_SELECT = 'id,internetMessageId,parentFolderId';
 
     public function __construct(
+        // The scoped client from framework.yaml, not the default one: it
+        // retries a GET that Graph answers with 5xx, which is weather rather
+        // than news. See App\Infrastructure\Http\GraphRetryStrategy.
+        #[Target('graph.client')]
         private readonly HttpClientInterface $httpClient,
         private readonly OAuthTokenManager   $tokenManager,
     ) {}

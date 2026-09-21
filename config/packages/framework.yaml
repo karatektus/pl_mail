@@ -26,6 +26,35 @@ framework:
     trusted_proxies: '%env(TRUSTED_PROXIES)%'
     trusted_headers: ['x-forwarded-for', 'x-forwarded-proto', 'x-forwarded-host', 'x-forwarded-port']
 
+    # One client for Microsoft Graph, so its 5xx are retried where the plain
+    # autowired client would hand them straight to the syncer.
+    #
+    # SCOPED rather than a policy on the default client, because "retry a GET
+    # that 502s" is a statement about Graph and not about every host this
+    # application talks to. Ollama, Paperless, Immich, Nextcloud and the CalDAV
+    # servers each have their own idea of what a 500 means and their own callers
+    # deciding what to do about it; a global retry would quietly change all of
+    # them at once. GraphApiClient asks for this one by name with
+    # #[Target('graph.client')].
+    #
+    # The policy is App\Infrastructure\Http\GraphRetryStrategy rather than the
+    # http_codes/delay keys that would fit here, because the interesting part of
+    # it is the REASONING — which methods may be repeated and why 429 is
+    # deliberately absent — and that reasoning belongs somewhere it can be read
+    # next to the code it protects and tested. The two are mutually exclusive in
+    # this config anyway: naming a retry_strategy and an http_codes list in the
+    # same block is a configuration error.
+    http_client:
+        scoped_clients:
+            graph.client:
+                scope: 'https://graph\.microsoft\.com'
+                retry_failed:
+                    retry_strategy: App\Infrastructure\Http\GraphRetryStrategy
+                    # Three attempts in all. See the strategy: this ladder runs
+                    # inside the sync, so it is measured in seconds, and the
+                    # minutes-long one lives in messenger.yaml.
+                    max_retries: 2
+
     #esi: true
     #fragments: true
 

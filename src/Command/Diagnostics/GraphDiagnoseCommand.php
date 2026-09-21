@@ -13,6 +13,7 @@ use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
+use Symfony\Component\DependencyInjection\Attribute\Target;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 /**
@@ -40,6 +41,10 @@ final class GraphDiagnoseCommand extends Command
     public function __construct(
         private readonly AccountRepository   $accountRepository,
         private readonly OAuthTokenManager   $tokenManager,
+        // The scoped client from framework.yaml, not the default one: it
+        // retries a GET that Graph answers with 5xx, which is weather rather
+        // than news. See App\Infrastructure\Http\GraphRetryStrategy.
+        #[Target('graph.client')]
         private readonly HttpClientInterface $httpClient,
     ) {
         parent::__construct();
