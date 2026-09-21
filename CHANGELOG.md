@@ -8,6 +8,51 @@ The published image tags: `latest` follows the most recent release below,
 
 ## Unreleased
 
+## v0.2.29 — 2026-09-21
+
+### Fixed
+
+- **Some mail arrived with no body at all and a single attachment named something like
+  `09704cea`.** That name is not a name: it is a checksum the IMAP library writes when a part has
+  no filename of its own, and a part with no filename is not a file anybody attached — it was the
+  message. A sender that marks its body `Content-Disposition: inline` and gives it a Content-ID,
+  which Workday and a good deal of the transactional-mail estate do, falls past the library's rule
+  for what counts as a body, so the text went into the attachment list and the message rendered
+  blank. Other clients showed the same mail without comment, which made it look like plMail losing
+  it.
+
+  A text part with no name of its own is now recognised as the body and put back where it belongs.
+  A file that does have a name — `Rechnung.html` — is still an attachment, and a message that
+  already parsed a body keeps it: the repair only fills a gap, it never overwrites. The recovered
+  text is converted out of the charset it declared on the way in, which the attachment path never
+  did, so a German body labelled ISO-8859-1 arrives as words rather than as a rejected write.
+
+  **Mail already in the mailbox is repaired automatically**, within ten minutes of updating, from
+  the copy that was stored beside it all along — no re-sync, and nothing to type. `app:backfill
+  misfiled-bodies` does it immediately for anyone who would rather not wait.
+
+- **A blink from Microsoft cost a folder fifteen minutes of its mail.** Graph answers `502` with an
+  empty message often enough that it is weather rather than news, and nothing retried it: the
+  folder was skipped, an error with a full stack trace went into the log, and the next attempt was
+  the following sync. Reads are now retried twice, a second and then three seconds later, so the
+  blink is invisible when it passes — the response never reaches the syncer and nothing is logged
+  at all.
+
+  Only reads. A `502` means the gateway gave up on the answer, not that Exchange never acted, so
+  sending mail, moving it and writing categories are left exactly as they were rather than risked
+  twice. Throttling is untouched too — that is answered with the wait Microsoft asks for, which is
+  a better answer than guessing.
+
+### Added
+
+- **Somewhere for one-time repairs to live.** Work that has to happen once per installation after
+  an update had nowhere to record that it had, so it was a choice between a migration doing things
+  migrations should not and a nightly sweep for a job finished after the first night. There is now
+  a ledger, in the same shape as the migration ledger and readable the same way: a task claims its
+  row before it runs, so a container restarted mid-repair is tried again rather than forgotten, and
+  a task that fails three times stops rather than taking the worker down with it. `app:upgrade:run
+  --status` shows what this installation has done.
+
 ## v0.2.28 — 2026-09-15
 
 ### Fixed
