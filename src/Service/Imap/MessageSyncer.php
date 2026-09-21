@@ -5,6 +5,7 @@ namespace App\Service\Imap;
 use App\Domain\DTO\Mail\IngestedMessage;
 use App\Domain\Helper\AddressHelper;
 use App\Domain\Helper\AttachmentStorageHelper;
+use App\Domain\Helper\CharsetHelper;
 use App\Domain\Helper\ImapConnectionFactory;
 use App\Domain\Helper\MessageIdHelper;
 use App\Domain\Helper\MimeHeaderHelper;
@@ -14,6 +15,7 @@ use App\Entity\Mail\MessagePart;
 use App\Repository\Mail\MailboxRepository;
 use App\Repository\Mail\MessageRepository;
 use App\Service\Mail\InlineAttachmentDetector;
+use App\Service\Mail\MisfiledBodyDetector;
 use App\Service\Mail\PostIngestPipeline;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
@@ -34,6 +36,7 @@ class MessageSyncer
         private readonly LoggerInterface         $logger,
         private readonly MessageRepository       $messageRepository,
         private readonly InlineAttachmentDetector $inlineDetector,
+        private readonly MisfiledBodyDetector    $misfiledBody,
         private readonly PostIngestPipeline      $postIngest,
         private readonly HeaderNormalizer $headerNormalizer,
         private readonly SentCopyReconciler $sentCopies,
@@ -493,7 +496,22 @@ class MessageSyncer
 
         $hasAttachments = false;
 
+        // TWO PASSES, and the order is the point. A body reclaimed by
+        // MisfiledBodyDetector goes into $message->bodyHtml, and bodyHtml is
+        // what InlineAttachmentDetector reads to decide whether the image
+        // beside it is embedded or attached. One pass would settle that
+        // question against an empty body for every part the reclaim had not
+        // reached yet — so a multipart/related newsletter would put its own
+        // layout images on screen as attachments.
+        $remaining = [];
+
         foreach ($attachments as $attachment) {
+            if (false === $this->reclaimBodyPart($attachment, $message)) {
+                $remaining[] = $attachment;
+            }
+        }
+
+        foreach ($remaining as $attachment) {
             if (false === $this->persistAttachment($attachment, $message, $accountId)) {
                 $hasAttachments = true;
             }
@@ -502,6 +520,90 @@ class MessageSyncer
         $message->hasAttachments = $hasAttachments;
 
         return $message;
+    }
+
+    /**
+     * Put a body that webklex reported as an attachment back where it belongs.
+     *
+     * See MisfiledBodyDetector for which parts these are and why they arrive
+     * this way. Two things here are worth more than the dispatch itself.
+     *
+     * THE CHARSET, because this is the one path into a body column that has
+     * never been converted. Message::fetchPart() converts a body to UTF-8 and
+     * hands an attachment straight to Attachment::__construct(), which undoes
+     * the transfer encoding and nothing else — so the bytes in hand are still
+     * in whatever the part declared. A German body labelled ISO-8859-1 reaches
+     * here with a raw 0xFC in it, and Postgres does not coerce: that is a
+     * rejected INSERT taking its whole batch with it, which is the failure
+     * CharsetHelper exists for and exactly the one GmailMessageBuilder::toUtf8()
+     * describes on the other side. Note that Utf8AwareMessageDecoder does NOT
+     * cover this: it overrides convertEncoding(), which only the body branch
+     * calls.
+     *
+     * THE OCCUPIED-SLOT CHECK, because reclaiming is a repair and not a
+     * preference. If webklex already found a real body of this type then it
+     * read the tree correctly and this part is something else — an actual
+     * nameless text attachment, rare but real. Leave it alone and let it
+     * persist as one.
+     */
+    private function reclaimBodyPart(mixed $attachment, Message $message): bool
+    {
+        $contentType = (string) $attachment->getContentType();
+
+        $isBody = $this->misfiledBody->isBody(
+            $contentType,
+            $attachment->getFilename(),
+            $attachment->getHash(),
+        );
+
+        if (false === $isBody) {
+            return false;
+        }
+
+        $isHtml = 'html' === $this->misfiledBody->slotFor($contentType);
+
+        if ('' !== ($isHtml ? (string) $message->bodyHtml : (string) $message->bodyText)) {
+            return false;
+        }
+
+        $content = CharsetHelper::toUtf8(
+            (string) $attachment->getContent(),
+            $this->charsetOf($attachment),
+        );
+
+        if (true === $isHtml) {
+            $message->bodyHtml = $content;
+        } else {
+            $message->bodyText = $content;
+        }
+
+        $this->logger->info('Reclaimed a body part webklex reported as an attachment', [
+            'messageId'   => $message->messageId,
+            'contentType' => $contentType,
+        ]);
+
+        return true;
+    }
+
+    /**
+     * The part's declared charset, or null when it declared none.
+     *
+     * Attachment merges its part's header attributes into its own, so the
+     * charset is reachable — as an Attribute, which stringifies to its first
+     * value. Null and "" are not the same answer here: CharsetHelper treats an
+     * undeclared charset differently from a declared one, deliberately.
+     */
+    private function charsetOf(mixed $attachment): ?string
+    {
+        $charset = $attachment->charset ?? null;
+
+        if (null === $charset) {
+            return null;
+        }
+
+        $charset = trim((string) $charset);
+
+        return '' !== $charset ? $charset : null;
     }
 
     /**
