@@ -21,6 +21,13 @@ import { execSync } from "node:child_process";
  */
 
 const HUB_PATH = "/.well-known/mercure";
+
+/**
+ * Who the hub believes issues its tokens, and which hub they are for. A fixed
+ * string rather than this instance's address — kept in step by hand with
+ * `mercure.identifier` in config/services.yaml, which explains why it is fixed.
+ */
+const MERCURE_IDENTIFIER = "https://plmail.invalid/.well-known/mercure";
 const TOPIC_FOR = (userId: string) => `mail/user/${userId}`;
 
 /** Same fixed secret compose.test.yaml gives both the app and the hub. */
@@ -33,7 +40,7 @@ const b64url = (input: string) => Buffer.from(input).toString("base64url");
  * triggering a real sync: this is a test of the delivery path, and driving it
  * through IMAP would make it a slow test of something else.
  */
-function publisherJwt(hubUrl: string): string {
+function publisherJwt(): string {
     // RFC 9068, because the hub speaks Mercure 1.0 now. The bare
     // `{mercure: {publish: ["*"]}}` claim this used to send is refused outright,
     // and so is a token missing any one of iss/aud/sub/client_id/exp — the hub
@@ -41,11 +48,18 @@ function publisherJwt(hubUrl: string): string {
     //
     // `{match: "*"}` is still "every topic": the wildcard survived the protocol
     // change, verified against the hub rather than assumed.
+    //
+    // iss and aud are the FIXED identifier from config/services.yaml
+    // (`mercure.identifier`), not this instance's own URL. The hub is told to
+    // trust exactly that string and nothing else, because an installation's own
+    // address is not always known when the hub starts — see the parameter's
+    // comment. A token naming the real hub URL here is refused, which is what
+    // this suite did until it was.
     const header = b64url(JSON.stringify({ alg: "HS256", typ: "at+jwt" }));
     const now = Math.floor(Date.now() / 1000);
     const payload = b64url(JSON.stringify({
-        iss: hubUrl,
-        aud: hubUrl,
+        iss: MERCURE_IDENTIFIER,
+        aud: MERCURE_IDENTIFIER,
         sub: "e2e",
         client_id: "e2e",
         iat: now,
@@ -71,7 +85,7 @@ async function publish(baseURL: string, topic: string, data: unknown): Promise<v
     const response = await fetch(`${baseURL}${HUB_PATH}`, {
         method: "POST",
         headers: {
-            Authorization: `Bearer ${publisherJwt(`${baseURL}${HUB_PATH}`)}`,
+            Authorization: `Bearer ${publisherJwt()}`,
             "Content-Type": "application/x-www-form-urlencoded",
         },
         body,
