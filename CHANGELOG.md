@@ -8,6 +8,8 @@ The published image tags: `latest` follows the most recent release below,
 
 ## Unreleased
 
+## v0.2.32 — 2026-09-21
+
 ### Fixed
 
 - **v0.2.31 broke live updates on every TrueNAS install, and could not be fixed by configuring
