@@ -299,17 +299,17 @@ services:
     depends_on:
       secrets-init:
         condition: service_completed_successfully
-    healthcheck:
-      # The ADMIN endpoint, not "/healthz" on the hub port, and not a URL of
-      # our own choosing. The hub moved its readiness probe: "/healthz" now
-      # answers 404, `curl -f` treats that as failure, and the container is
-      # marked unhealthy for ever while serving perfectly. The image's own
-      # HEALTHCHECK has always used this path — overriding it with a guess is
-      # what let the two drift apart, and the guess is the half that rotted.
-      test: ["CMD", "curl", "-f", "http://127.0.0.1:2019/mercure/health/ready"]
-      timeout: 5s
-      retries: 5
-      start_period: 60s
+    # NO `test:` HERE ON PURPOSE — the image's own HEALTHCHECK is used.
+    #
+    # We used to spell one out, aimed at "/healthz", and the hub moved its
+    # readiness probe out from under it: "/healthz" answers 404 now, `curl
+    # -f` reads a 404 as failure, and this container reported itself unhealthy
+    # for ever while serving every subscription put to it. The image is
+    # deliberately on a floating tag so it keeps up to date by itself, which
+    # means anything we hard-code about its internals is a thing waiting to
+    # rot. Its own check — wget against 127.0.0.1:2019/mercure/health/ready,
+    # 60s grace, 5 retries — moves when the image moves, which is the whole
+    # point of not pinning it.
     volumes:
       - mercure_data:/data
       - mercure_config:/config

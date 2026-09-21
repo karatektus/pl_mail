@@ -187,17 +187,18 @@ services:
       SERVER_NAME: ":80"
       MERCURE_PUBLISHER_JWT_KEY: e2e-mercure-secret-not-for-production
       MERCURE_SUBSCRIBER_JWT_KEY: e2e-mercure-secret-not-for-production
-    healthcheck:
-      # The ADMIN endpoint, not "/healthz" on the hub port, and not a URL of
-      # our own choosing. The hub moved its readiness probe: "/healthz" now
-      # answers 404, `curl -f` treats that as failure, and the container is
-      # marked unhealthy for ever while serving perfectly. The image's own
-      # HEALTHCHECK has always used this path — overriding it with a guess is
-      # what let the two drift apart, and the guess is the half that rotted.
-      test: ["CMD", "curl", "-f", "http://127.0.0.1:2019/mercure/health/ready"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
+    # NO healthcheck here, deliberately — the image's own is used, exactly as
+    # in compose.yaml and for the same reason: the hub moved its readiness
+    # probe out from under the URL we had hard-coded, and every job in CI then
+    # failed to start for three days while the hub itself was fine.
+    #
+    # Tempting to keep just the old five-second interval and inherit the rest,
+    # and Compose will not have it: a healthcheck block without a `test` is
+    # rejected outright — "must define a healthcheck command for all
+    # healthchecks" — so the only way to own the cadence is to own the command
+    # again, which is the thing that rotted. The image asks every 30s instead
+    # of every 5s, so a job waits a few more seconds for the hub and no longer
+    # risks waiting for ever.
 
   app:
     <<: *test-app

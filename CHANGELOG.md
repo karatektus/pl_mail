@@ -16,9 +16,10 @@ The published image tags: `latest` follows the most recent release below,
   and the only symptom was `(unhealthy)` in `docker ps` and in the TrueNAS view — alarming, and
   about nothing. The test stack does wait on it, so CI stopped being able to start at all.
 
-  The check now asks the hub where the hub actually answers, which is the path its own built-in
-  healthcheck has always used. Overriding that with a URL of our own is what let the two drift
-  apart in the first place.
+  plMail no longer describes the hub's health itself: the image's own check is used, which moves
+  when the image moves. The hub is deliberately not pinned to a version so that it keeps itself up
+  to date, and that is exactly why nothing about its internals should be written down here —
+  anything hard-coded about an image that updates itself is a thing waiting to rot.
 
 ## v0.2.29 — 2026-09-21
 
