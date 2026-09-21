@@ -267,6 +267,20 @@ services:
 
   mercure:
     image: dunglas/mercure
+    # PULLED ON EVERY `up`, which is the only thing that makes "unpinned"
+    # actually mean "keeps itself current".
+    #
+    # Without this the tag floats and the image does not: compose reuses
+    # whatever is already on the box, so a hub can sit years behind the tag it
+    # claims to be while `docker compose up -d` reports success. v0.2.31 is what
+    # that costs — plMail moved to the Mercure 1.0 protocol, every install whose
+    # hub had not been pulled was left speaking 1.0 to a 0.x hub, and live
+    # updates stopped with nothing in the application's own logs to say why.
+    #
+    # The cost of the check is one registry round trip per `up` that answers
+    # "same digest" almost every time. The cost of not doing it is the paragraph
+    # above.
+    pull_policy: always
     restart: unless-stopped
     environment:
       SERVER_NAME: ':80'

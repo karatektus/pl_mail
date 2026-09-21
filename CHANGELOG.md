@@ -22,11 +22,28 @@ The published image tags: `latest` follows the most recent release below,
   plMail now speaks the 1.0 protocol. The hub is deliberately not pinned to a version — it is meant
   to keep itself up to date — so the answer is to follow it rather than to hold it still.
 
-  **Nothing to configure.** The issuer and the audience are both derived from the hub URL the
-  installation already has, so they cannot drift apart. The one exception is an install serving
-  plain HTTP: the 1.0 cookie is `__Secure-` prefixed and a browser will not accept one of those
-  without TLS, so such an install must set `MERCURE_COOKIE_NAME` to a name without the prefix. Any
-  install on HTTPS — which is every install with working push — needs no change.
+  **PULL THE HUB IMAGE WITH THIS RELEASE.** This is a protocol change and both halves have to move
+  together: an install running the old 0.x hub gets the mirror image of the bug above — plMail
+  speaking 1.0 to a hub that does not — and the symptom is identical, a red dot and no live
+  updates. `dunglas/mercure` is deliberately unpinned, but an unpinned tag is not a moving image:
+  `docker compose up -d` reuses whatever is already on the box. So pull it:
+
+  ```
+  docker compose pull mercure && docker compose up -d mercure
+  ```
+
+  The shipped `compose.yaml` now sets `pull_policy: always` on the hub so this cannot happen again
+  — but that only helps installs that take the new compose file.
+
+  **If you maintain your own compose**, the hub needs two settings it did not before, and no image
+  pull supplies them: `MERCURE_TRUSTED_ISSUERS`, and `resource_identifier` inside
+  `MERCURE_EXTRA_DIRECTIVES`. Both must equal the hub's public URL — the same value the application
+  publishes under. Without them the hub trusts only `https://localhost` and refuses every token
+  this install mints.
+
+  **An install serving plain HTTP** must also set `MERCURE_COOKIE_NAME` to a name without the
+  `__Secure-` prefix: 1.0 names the cookie `__Secure-mercure_access_token`, and a browser drops a
+  `__Secure-` cookie that did not arrive over TLS. Installs on HTTPS need no change there.
 
 ## v0.2.30 — 2026-09-21
 
