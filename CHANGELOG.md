@@ -8,6 +8,8 @@ The published image tags: `latest` follows the most recent release below,
 
 ## Unreleased
 
+## v0.2.33 — 2026-09-21
+
 ### Fixed
 
 - **The blank-message repair had been looking for the wrong thing, and said it had succeeded.** The
