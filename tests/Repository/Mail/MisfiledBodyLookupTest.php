@@ -66,6 +66,37 @@ final class MisfiledBodyLookupTest extends KernelTestCase
     }
 
     /**
+     * THE SHAPE THE REAL REPORT TURNED OUT TO BE. The stored part is not a text
+     * body at all but the `multipart/related` block around one, so a predicate
+     * naming only text/plain and text/html selected nothing on the installation
+     * that reported the bug — the repair ran, reported success and repaired
+     * nothing.
+     */
+    public function testItFindsAMessageWhoseBodyIsStoredAsAMimeContainer(): void
+    {
+        $message = $this->seedMessage(bodyHtml: '');
+        $this->seedPart($message, 'multipart/related', '09704cea');
+
+        self::assertSame([$message->id], $this->foundIds());
+    }
+
+    /**
+     * A container can yield both bodies at once, so it is only touched when
+     * there is nothing to overwrite in either — unlike a leaf text part, which
+     * only has to clear its own slot.
+     */
+    public function testAContainerIsLeftAloneWhenEitherBodyIsAlreadyFilled(): void
+    {
+        $message = $this->seedMessage(bodyHtml: '');
+        $message->bodyText = 'the plain alternative parsed fine';
+        $this->em->flush();
+
+        $this->seedPart($message, 'multipart/related', '09704cea');
+
+        self::assertSame([], $this->foundIds());
+    }
+
+    /**
      * THE GUARD THAT MATTERS MOST. A part with a name of its own is a file
      * somebody attached, and this repair deletes the parts it selects.
      */

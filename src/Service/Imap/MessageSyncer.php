@@ -16,6 +16,7 @@ use App\Repository\Mail\MailboxRepository;
 use App\Repository\Mail\MessageRepository;
 use App\Service\Mail\InlineAttachmentDetector;
 use App\Service\Mail\MisfiledBodyDetector;
+use App\Service\Mail\MisfiledBodyUnpacker;
 use App\Service\Mail\PostIngestPipeline;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
@@ -37,6 +38,7 @@ class MessageSyncer
         private readonly MessageRepository       $messageRepository,
         private readonly InlineAttachmentDetector $inlineDetector,
         private readonly MisfiledBodyDetector    $misfiledBody,
+        private readonly MisfiledBodyUnpacker    $bodyUnpacker,
         private readonly PostIngestPipeline      $postIngest,
         private readonly HeaderNormalizer $headerNormalizer,
         private readonly SentCopyReconciler $sentCopies,
@@ -560,6 +562,14 @@ class MessageSyncer
             return false;
         }
 
+        // A CONTAINER TAKES A DIFFERENT ROUTE. What webklex handed over is a
+        // MIME block, not text, so it is opened rather than decoded — and the
+        // re-parse is what gets the charset right, because inside a message of
+        // its own the HTML is a body part again. See MisfiledBodyUnpacker.
+        if (true === $this->misfiledBody->isContainer($contentType)) {
+            return $this->reclaimContainer($attachment, $message, $contentType);
+        }
+
         $isHtml = 'html' === $this->misfiledBody->slotFor($contentType);
 
         if ('' !== ($isHtml ? (string) $message->bodyHtml : (string) $message->bodyText)) {
@@ -578,6 +588,37 @@ class MessageSyncer
         }
 
         $this->logger->info('Reclaimed a body part webklex reported as an attachment', [
+            'messageId'   => $message->messageId,
+            'contentType' => $contentType,
+        ]);
+
+        return true;
+    }
+
+    /**
+     * Open a MIME container webklex reported as one attachment, and take the
+     * body out of it.
+     *
+     * Both slots have to be empty, not just the one: a container can yield an
+     * HTML part and a plain-text part together, and filling a slot that already
+     * held something parsed correctly would be a repair overwriting a fact.
+     */
+    private function reclaimContainer(mixed $attachment, Message $message, string $contentType): bool
+    {
+        if ('' !== (string) $message->bodyHtml || '' !== (string) $message->bodyText) {
+            return false;
+        }
+
+        $opened = $this->bodyUnpacker->unpack($contentType, (string) $attachment->getContent());
+
+        if (null === $opened) {
+            return false;
+        }
+
+        $message->bodyHtml = $opened['html'];
+        $message->bodyText = $opened['text'];
+
+        $this->logger->info('Opened a MIME container webklex reported as an attachment', [
             'messageId'   => $message->messageId,
             'contentType' => $contentType,
         ]);

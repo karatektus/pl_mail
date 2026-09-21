@@ -926,6 +926,12 @@ class MessageRepository extends ServiceEntityRepository
      * The set MisfiledBodyDetector now keeps out of the database, found after
      * the fact. Two conditions, and each carries half the confidence:
      *
+     * `multipart/*` IS IN THE LIST, and it is what the real reports turned out
+     * to be. webklex hands over a whole `multipart/related` when it holds a
+     * single part, so the row is not a text body at all but the MIME block
+     * around one — see MisfiledBodyUnpacker. Selecting only text/plain and
+     * text/html found nothing on the installation that reported this.
+     *
      * A FILENAME OF EXACTLY EIGHT CHARACTERS, because that is not a filename.
      * Webklex fills an absent one with `hash("crc32c", …)` of the part, and
      * eight is what that hash measures. The hex-ness is checked in PHP rather
@@ -976,10 +982,15 @@ class MessageRepository extends ServiceEntityRepository
                 'EXISTS ('
                 . ' SELECT p.id FROM ' . MessagePart::class . ' p'
                 . ' WHERE p.message = m'
-                . ' AND p.contentType IN (:bodyTypes)'
+                . " AND (p.contentType IN (:bodyTypes) OR p.contentType LIKE 'multipart/%')"
                 . ' AND LENGTH(p.filename) = 8'
                 . " AND ((p.contentType = 'text/html' AND (m.bodyHtml IS NULL OR m.bodyHtml = ''))"
-                . "   OR (p.contentType = 'text/plain' AND (m.bodyText IS NULL OR m.bodyText = '')))"
+                . "   OR (p.contentType = 'text/plain' AND (m.bodyText IS NULL OR m.bodyText = ''))"
+                // A container can yield both bodies at once, so it only counts
+                // when there is nothing to overwrite in either.
+                . "   OR (p.contentType LIKE 'multipart/%'"
+                . "       AND (m.bodyHtml IS NULL OR m.bodyHtml = '')"
+                . "       AND (m.bodyText IS NULL OR m.bodyText = '')))"
                 . ')'
             )
             ->setParameter('afterId', $afterId)

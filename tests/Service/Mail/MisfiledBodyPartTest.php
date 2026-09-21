@@ -7,6 +7,7 @@ namespace App\Tests\Service\Mail;
 use App\Domain\Helper\CharsetHelper;
 use App\Infrastructure\Imap\Utf8AwareMessageDecoder;
 use App\Service\Mail\MisfiledBodyDetector;
+use App\Service\Mail\MisfiledBodyUnpacker;
 use PHPUnit\Framework\TestCase;
 use Webklex\PHPIMAP\Config;
 use Webklex\PHPIMAP\Message as ImapMessage;
@@ -119,6 +120,66 @@ final class MisfiledBodyPartTest extends TestCase
         self::assertFalse($detector->looksLikeStoredHash('09704CEA'), 'crc32c is written lowercase');
         self::assertFalse($detector->looksLikeStoredHash('09704ce'), 'seven characters is not a crc32c');
         self::assertFalse($detector->looksLikeStoredHash(null));
+    }
+
+    /**
+     * THE SHAPE THAT WAS ACTUALLY REPORTED, and the one the first fix missed.
+     *
+     * A `multipart/related` holding one HTML part and nothing else is not
+     * descended into when it sits inside another multipart: the whole block
+     * arrives as a single attachment named after its own checksum, and the
+     * message has no body. Add one inline image beside the HTML and the same
+     * message parses correctly, which is why this went unnoticed — almost every
+     * HTML mail has an image in it.
+     */
+    public function testASingleChildRelatedIsHandedOverWholeAndCanBeOpened(): void
+    {
+        $message = ImapMessage::fromString(
+            self::HEADERS
+            . "Content-Type: multipart/alternative; boundary=\"outer\"\r\n\r\n"
+            . "--outer\r\nContent-Type: multipart/related; boundary=\"inner\"\r\n\r\n"
+            . "--inner\r\nContent-Type: text/html; charset=ISO-8859-1\r\n"
+            . "Content-Transfer-Encoding: 8bit\r\n\r\n<p>Geb\xFChren f\xFCr die Pr\xFCfung</p>\r\n"
+            . "--inner--\r\n--outer--\r\n",
+            Config::make(['decoding' => ['decoder' => ['message' => Utf8AwareMessageDecoder::class]]]),
+        );
+
+        self::assertSame('', (string) $message->getHTMLBody(), 'the library no longer loses this body');
+
+        $attachments = array_values($message->getAttachments()->all());
+
+        self::assertCount(1, $attachments);
+
+        $part = $attachments[0];
+
+        self::assertSame('multipart/related', $part->getContentType());
+        self::assertTrue(new MisfiledBodyDetector()->isContainer($part->getContentType()));
+
+        // The boundary is gone from content_type once stored, so the unpacker
+        // has to take it from the block's own first delimiter.
+        $opened = new MisfiledBodyUnpacker()->unpack(
+            (string) $part->getContentType(),
+            (string) $part->getContent(),
+        );
+
+        self::assertNotNull($opened, 'the container could not be opened');
+        self::assertStringContainsString('Gebühren für die Prüfung', $opened['html']);
+        self::assertTrue(mb_check_encoding($opened['html'], 'UTF-8'));
+    }
+
+    /**
+     * THE GUARD on opening containers. The shape above holds one HTML part; a
+     * container that also holds files is one this has not seen, and taking its
+     * body while dropping them would make a blank message worse.
+     */
+    public function testAContainerCarryingFilesIsLeftClosed(): void
+    {
+        $raw = "--inner\r\nContent-Type: text/html; charset=UTF-8\r\n\r\n<p>Hallo</p>\r\n"
+            . "--inner\r\nContent-Type: application/pdf\r\n"
+            . "Content-Disposition: attachment; filename=\"Rechnung.pdf\"\r\n\r\nPDFBYTES\r\n"
+            . "--inner--\r\n";
+
+        self::assertNull(new MisfiledBodyUnpacker()->unpack('multipart/related', $raw));
     }
 
     private function onlyAttachment(string $part): mixed

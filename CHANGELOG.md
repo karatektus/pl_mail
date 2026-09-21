@@ -8,6 +8,30 @@ The published image tags: `latest` follows the most recent release below,
 
 ## Unreleased
 
+### Fixed
+
+- **The blank-message repair had been looking for the wrong thing, and said it had succeeded.** The
+  bodies it was meant to recover are not stored as text parts at all: webklex hands over the whole
+  `multipart/related` block around a body when that block holds exactly one part, so the row is a
+  MIME container, not HTML. The repair matched only `text/plain` and `text/html`, so on a real
+  mailbox it ran, found nothing, and recorded itself as done — which is worse than failing, because
+  it stops asking.
+
+  A `related` holding one part is the whole trigger, and it is why this hid so well: add a single
+  inline image beside the HTML and the same message parses correctly. Almost every HTML mail has an
+  image in it. Transactional mail that does not — a rejection from a recruiting system — lands in
+  the broken case every time.
+
+  Both the ingest path and the repair now open the container instead of trying to decode it. The
+  boundary is not in the database, but a multipart body opens with its own delimiter, so it can be
+  rebuilt and handed back to the parser — which also settles the charset, since inside a message of
+  its own the HTML is a body part again. A container that also carries files is deliberately left
+  closed: taking its body while dropping them would make a blank message worse.
+
+  **The repair runs again by itself.** It is a new task as far as the ledger is concerned, precisely
+  because installs that ran the old one have a row saying it is done. By hand it is now
+  `app:backfill misfiled-bodies-v2` — the name changed for the same reason.
+
 ## v0.2.32 — 2026-09-21
 
 ### Fixed

@@ -37,9 +37,14 @@ namespace App\Service\Mail;
  * rather than to a patched vendor tree that the next `composer update`
  * discards.
  *
- * Only text/plain and text/html are reclaimed. text/calendar is deliberately
- * NOT — an invite is neither a body nor a user-facing attachment, and it has
- * its own path on both the IMAP and the Gmail side.
+ * Two shapes are reclaimed. A bare text/plain or text/html part is the body
+ * itself. A `multipart/*` is a CONTAINER holding one — webklex hands over the
+ * whole block when a `multipart/related` has a single part in it — and has to
+ * be opened by MisfiledBodyUnpacker before anything can be done with it.
+ *
+ * text/calendar is deliberately NOT reclaimed: an invite is neither a body nor
+ * a user-facing attachment, and it has its own path on both the IMAP and the
+ * Gmail side.
  */
 final class MisfiledBodyDetector
 {
@@ -60,7 +65,9 @@ final class MisfiledBodyDetector
      */
     public function isBody(?string $contentType, ?string $filename, ?string $hash): bool
     {
-        if (false === in_array($this->normalise($contentType), self::BODY_TYPES, true)) {
+        $type = $this->normalise($contentType);
+
+        if (false === in_array($type, self::BODY_TYPES, true) && false === $this->isContainer($type)) {
             return false;
         }
 
@@ -87,6 +94,19 @@ final class MisfiledBodyDetector
     public function looksLikeStoredHash(?string $filename): bool
     {
         return 1 === preg_match('/^[0-9a-f]{8}$/', (string) $filename);
+    }
+
+    /**
+     * Whether this nameless part is a MIME CONTAINER rather than a body.
+     *
+     * webklex hands over a whole `multipart/related` when it holds a single
+     * part — see MisfiledBodyUnpacker, which measures the exact shapes. The
+     * content is then a MIME block rather than text, so it cannot go into a
+     * body column as it stands; it has to be opened first.
+     */
+    public function isContainer(?string $contentType): bool
+    {
+        return str_starts_with($this->normalise($contentType), 'multipart/');
     }
 
     /**

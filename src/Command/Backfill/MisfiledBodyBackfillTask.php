@@ -13,6 +13,7 @@ use App\Repository\Mail\MessageThreadRepository;
 use App\Service\Mail\AttachmentResolver;
 use App\Service\Mail\MailBodySanitizer;
 use App\Service\Mail\MisfiledBodyDetector;
+use App\Service\Mail\MisfiledBodyUnpacker;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Console\Command\Command;
@@ -59,14 +60,26 @@ final readonly class MisfiledBodyBackfillTask implements BackfillTaskInterface, 
         private MessageThreadRepository $threads,
         private AttachmentResolver      $attachments,
         private MisfiledBodyDetector    $detector,
+        private MisfiledBodyUnpacker    $unpacker,
         private MailBodySanitizer       $sanitizer,
         private EntityManagerInterface  $em,
         private LoggerInterface         $logger,
     ) {}
 
+    /**
+     * RENAMED, and the rename is the point.
+     *
+     * The ledger keys on this string, so an installation that has already run
+     * `misfiled-bodies` has a row saying so and would never run it again. That
+     * first pass looked only for text/plain and text/html parts — it completed,
+     * reported success, and repaired nothing on the installs whose bodies were
+     * wrapped in a container, which is the very shape this now handles. A new
+     * name is how the mechanism was designed to say "that was not the same
+     * job"; see UpgradeTaskInterface::getName().
+     */
     public function getName(): string
     {
-        return 'misfiled-bodies';
+        return 'misfiled-bodies-v2';
     }
 
     public function getDescription(): string
@@ -146,15 +159,31 @@ final readonly class MisfiledBodyBackfillTask implements BackfillTaskInterface, 
                 continue;
             }
 
-            // No charset to pass: see the class docblock. CharsetHelper reads
-            // the bytes when it is told nothing, which is the right behaviour
-            // for the common case and never worse than storing them raw.
-            $content = CharsetHelper::toUtf8($content, null);
+            if (true === $this->detector->isContainer($part->contentType)) {
+                // A MIME block, not text. Opening it also settles the charset,
+                // which is why this path does not go near CharsetHelper: inside
+                // a message of its own the HTML is a body part again, and
+                // webklex converts those.
+                $opened = $this->unpacker->unpack((string) $part->contentType, $content);
 
-            if ('html' === $this->detector->slotFor($part->contentType)) {
-                $message->bodyHtml = $content;
+                if (null === $opened) {
+                    continue;
+                }
+
+                $message->bodyHtml = $opened['html'];
+                $message->bodyText = $opened['text'];
             } else {
-                $message->bodyText = $content;
+                // No charset to pass: see the class docblock. CharsetHelper
+                // reads the bytes when it is told nothing, which is the right
+                // behaviour for the common case and never worse than storing
+                // them raw.
+                $content = CharsetHelper::toUtf8($content, null);
+
+                if ('html' === $this->detector->slotFor($part->contentType)) {
+                    $message->bodyHtml = $content;
+                } else {
+                    $message->bodyText = $content;
+                }
             }
 
             $message->messageParts->removeElement($part);
@@ -186,6 +215,12 @@ final readonly class MisfiledBodyBackfillTask implements BackfillTaskInterface, 
 
         if (false === $this->detector->isBody($part->contentType, null, null)) {
             return false;
+        }
+
+        // A container can fill both slots, so it only qualifies when both are
+        // empty — the same rule MessageSyncer applies at ingest.
+        if (true === $this->detector->isContainer($part->contentType)) {
+            return '' === (string) $message->bodyHtml && '' === (string) $message->bodyText;
         }
 
         $isHtml = 'html' === $this->detector->slotFor($part->contentType);
