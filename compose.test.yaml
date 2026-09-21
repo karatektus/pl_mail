@@ -194,9 +194,9 @@ services:
       # RFC 9068: the issuer this hub trusts and the audience it demands, both
       # matching what config/packages/mercure.yaml mints. See compose.yaml,
       # which carries the reasoning.
-      MERCURE_TRUSTED_ISSUERS: http://127.0.0.1:${TEST_HTTP_PORT:-8001}/.well-known/mercure
+      MERCURE_TRUSTED_ISSUERS: https://plmail.invalid/.well-known/mercure
       MERCURE_EXTRA_DIRECTIVES: |
-        resource_identifier http://127.0.0.1:${TEST_HTTP_PORT:-8001}/.well-known/mercure
+        resource_identifier https://plmail.invalid/.well-known/mercure
         cookie_name mercure_access_token
     # NO healthcheck here, deliberately — the image's own is used, exactly as
     # in compose.yaml and for the same reason: the hub moved its readiness

@@ -436,6 +436,12 @@ services:
 
     mercure:
         image: dunglas/mercure
+        # PULLED ON EVERY `up`. Without this the tag floats and the image does
+        # not: compose reuses whatever is already on the box, so a hub can sit
+        # years behind the tag it claims to be while the update reports success.
+        # That is how an install ended up running a 0.x hub against an
+        # application that had moved to the 1.0 protocol.
+        pull_policy: always
         restart: unless-stopped
         environment:
             SERVER_NAME: ':80'
@@ -444,6 +450,13 @@ services:
             # mercure_jwt above wins: the generator never overwrites it, so both
             # sides still read the same value.
             MERCURE_JWT_SECRET: *mercure_jwt
+            # The issuer this hub accepts and the audience it demands. The
+            # literal from config/services.yaml (`mercure.identifier`), NOT this
+            # install's own address — mercure_public_url above is blank on
+            # purpose here, because the setup screen stores the real one on
+            # first boot, and a hub cannot wait until then to be configured.
+            MERCURE_TRUSTED_ISSUERS: https://plmail.invalid/.well-known/mercure
+            MERCURE_EXTRA_DIRECTIVES: resource_identifier https://plmail.invalid/.well-known/mercure
         entrypoint:
             - /bin/sh
             - -c
@@ -465,11 +478,10 @@ services:
         depends_on:
             secrets-init:
                 condition: service_completed_successfully
-        healthcheck:
-            test: ["CMD", "curl", "-f", "http://localhost/healthz"]
-            timeout: 5s
-            retries: 5
-            start_period: 60s
+        # NO healthcheck here, deliberately — the image's own is used. The one
+        # that used to be here asked for "/healthz", which the hub moved: it
+        # answers 404 now, `curl -f` reads that as failure, and the container
+        # reported itself unhealthy for ever while serving perfectly.
         volumes:
             - type: bind
               source: *path_data

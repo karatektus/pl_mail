@@ -290,20 +290,19 @@ services:
       # yourself still wins — the generator never overwrites it, so both sides
       # read the same value.
       MERCURE_JWT_SECRET: ${MERCURE_JWT_SECRET:-}
-      # The two halves of RFC 9068, both read from the ONE url the app already
-      # publishes under, so they cannot drift apart.
+      # The two halves of RFC 9068: the issuer this hub accepts, and the
+      # audience it demands. Both are the literal from services.yaml —
+      # `mercure.identifier` — which is where the reasoning lives. In short: a
+      # hub is configured at container start, and an installation's own URL is
+      # not always known by then, so these cannot be derived from it.
       #
-      # TRUSTED_ISSUERS is the `iss` this hub will accept, and
-      # config/packages/mercure.yaml mints exactly this value.
-      #
-      # resource_identifier pins the `aud` the hub demands. Without it the hub
-      # works the audience out from each request, and plMail arrives at it by
-      # two different roads: the browser subscribes at MERCURE_PUBLIC_URL while
-      # the application publishes to the internal MERCURE_URL. One token cannot
-      # name both, so publishing would be refused by a hub that had derived its
-      # own answer from the container hostname.
-      MERCURE_TRUSTED_ISSUERS: ${MERCURE_PUBLIC_URL:-https://localhost/.well-known/mercure}
-      MERCURE_EXTRA_DIRECTIVES: resource_identifier ${MERCURE_PUBLIC_URL:-https://localhost/.well-known/mercure}
+      # resource_identifier has to be PINNED whatever value is chosen. Left
+      # alone the hub works the audience out from each request, and plMail
+      # arrives at it by two different roads — the browser subscribes at the
+      # public URL, the application publishes to the internal one — so a hub
+      # deriving its own answer would refuse every publish.
+      MERCURE_TRUSTED_ISSUERS: https://plmail.invalid/.well-known/mercure
+      MERCURE_EXTRA_DIRECTIVES: resource_identifier https://plmail.invalid/.well-known/mercure
     entrypoint:
       - /bin/sh
       - -c

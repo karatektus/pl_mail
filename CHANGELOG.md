@@ -8,6 +8,28 @@ The published image tags: `latest` follows the most recent release below,
 
 ## Unreleased
 
+### Fixed
+
+- **v0.2.31 broke live updates on every TrueNAS install, and could not be fixed by configuring
+  anything.** That release bound the Mercure token's issuer and audience to `MERCURE_PUBLIC_URL`.
+  `truenas.compose.yaml` leaves that blank on purpose — the setup screen asks for the public URL on
+  first boot and stores it in the database, which is long after the hub container has to have been
+  told what to trust. An empty issuer is not a weak issuer; the token factory refuses it outright,
+  so the install minted no token at all. No subscriber cookie, every publish throwing, and a red
+  dot that looked exactly like a hub that was down.
+
+  The issuer and the audience are now a fixed identifier that no installation has to know or set.
+  An identifier does not have to resolve — `.invalid` is reserved for precisely this — and what
+  matters is only that the application and the hub agree on the same string. They are the same on
+  every install, which costs nothing: the token is signed with a secret generated per installation,
+  so one install's token has never been usable against another's hub whatever it claims.
+
+- **`truenas.compose.yaml` had been left behind twice.** It still carried the `/healthz` check that
+  v0.2.30 replaced everywhere else, so its hub would have reported itself unhealthy the moment the
+  image updated; and it had no `pull_policy`, so its hub never updated at all. Both are fixed, and
+  the hub now pulls on every `up` — an unpinned tag is not a moving image unless something makes it
+  one.
+
 ## v0.2.31 — 2026-09-21
 
 ### Fixed
@@ -37,9 +59,9 @@ The published image tags: `latest` follows the most recent release below,
 
   **If you maintain your own compose**, the hub needs two settings it did not before, and no image
   pull supplies them: `MERCURE_TRUSTED_ISSUERS`, and `resource_identifier` inside
-  `MERCURE_EXTRA_DIRECTIVES`. Both must equal the hub's public URL — the same value the application
-  publishes under. Without them the hub trusts only `https://localhost` and refuses every token
-  this install mints.
+  `MERCURE_EXTRA_DIRECTIVES`. **See the release above for the value** — this entry originally said
+  to use the hub's public URL, which is wrong and breaks any install whose public URL is stored
+  rather than configured. Both must be the fixed identifier that release introduced.
 
   **An install serving plain HTTP** must also set `MERCURE_COOKIE_NAME` to a name without the
   `__Secure-` prefix: 1.0 names the cookie `__Secure-mercure_access_token`, and a browser drops a

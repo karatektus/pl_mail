@@ -62,6 +62,36 @@ final class PublisherTokenTest extends KernelTestCase
     }
 
     /**
+     * THE TRUENAS CASE, and the reason the identifier is a literal.
+     *
+     * truenas.compose.yaml leaves `mercure_public_url` blank on purpose: the
+     * setup screen asks for the public URL on first boot and stores it in the
+     * database, which is long after the hub container has to have been told
+     * what to trust. While `iss` and `aud` were derived from that variable,
+     * every such install minted nothing at all — the factory refuses an empty
+     * `iss` outright — so there was no cookie, no subscription, and every
+     * publish threw. It looked exactly like a hub that was simply down.
+     *
+     * Asserted by emptying the variable rather than by reading the config,
+     * because what broke was the DERIVATION, and a test that reads the same
+     * placeholder the code does would have passed throughout.
+     */
+    public function testItStillMintsWhenTheInstallHasNoPublicUrlConfigured(): void
+    {
+        $_SERVER['MERCURE_PUBLIC_URL'] = '';
+        $_ENV['MERCURE_PUBLIC_URL']    = '';
+
+        try {
+            $claims = $this->publisherClaims();
+
+            self::assertNotEmpty($claims['iss'] ?? null, 'an empty public URL must not empty the issuer');
+            self::assertNotEmpty($claims['aud'] ?? null, 'an empty public URL must not empty the audience');
+        } finally {
+            unset($_SERVER['MERCURE_PUBLIC_URL'], $_ENV['MERCURE_PUBLIC_URL']);
+        }
+    }
+
+    /**
      * @return array<string, mixed>
      */
     private function publisherClaims(): array

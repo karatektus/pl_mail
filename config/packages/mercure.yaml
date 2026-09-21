@@ -25,18 +25,10 @@ mercure:
                 secret: '%env(MERCURE_JWT_SECRET)%'
                 publish: '*'
 
-                # `iss`, and it has to equal MERCURE_TRUSTED_ISSUERS on the hub
-                # or nothing this mints is accepted. Both sides read the same
-                # variable in compose so they cannot be set to different things
-                # by accident.
-                #
-                # The hub's public URL as the issuer identity is a little
-                # literal — the issuer is really this application, not the hub —
-                # but it is the one URL both halves already agree on, and an
-                # installation should not have to configure a second one to keep
-                # live updates working. `aud` is deliberately absent: the bundle
-                # defaults it to public_url, which is what the hub is pinned to
-                # expect (see resource_identifier in compose.yaml).
+                # `iss` and `aud` must equal MERCURE_TRUSTED_ISSUERS and the
+                # pinned resource_identifier on the hub. All three are the one
+                # literal in services.yaml, which carries the reasoning for why
+                # it is a literal and not this installation's own address.
                 # All three are mandatory under 1.0 — the bundle refuses to
                 # build the container without them — and they are merged into
                 # the token FACTORY as well as the publisher provider, so the
@@ -49,8 +41,12 @@ mercure:
                 # shape — and the thing that decides what a subscriber may
                 # actually read is still the topic grant, which is minted per
                 # user and has not changed.
+                # `aud` is set EXPLICITLY. The bundle would otherwise default
+                # it to public_url, which is the same empty value that made
+                # `iss` unmintable on a TrueNAS install.
                 claims:
-                    iss: '%env(default::MERCURE_PUBLIC_URL)%'
+                    iss: '%mercure.identifier%'
+                    aud: '%mercure.identifier%'
                     sub: 'plmail'
                     client_id: 'plmail'
                 # Empty, not '*'.

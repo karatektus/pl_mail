@@ -28,6 +28,28 @@ parameters:
     # install that has never heard of the variable gets the safe name, and only
     # a deployment that knows it is running without TLS has to say so.
     mercure.cookie_name_default: '__Secure-mercure_access_token'
+
+    # Who plMail says issued its Mercure tokens, and which hub they are for.
+    #
+    # A CONSTANT, and deliberately not the installation's own URL. RFC 9068
+    # binds a token to an issuer and an audience, and the hub has to be told
+    # both at container start — but on a TrueNAS install the public URL is not
+    # known then: it is blank in the compose file and stored by the setup screen
+    # on first boot, in the database. Deriving these from it produced an empty
+    # `iss`, which the token factory refuses outright ("The \"iss\" additional
+    # claim is required by RFC 9068 access tokens"), so the install could mint
+    # no token at all — no live updates, and every publish throwing.
+    #
+    # An identifier does not have to resolve, and this one says so: `.invalid`
+    # is reserved by RFC 2606 for exactly this. What matters is that the
+    # application and the hub agree on the same string, which a literal
+    # guarantees and a derived value cannot.
+    #
+    # It is the same string on every install, and that costs nothing: the token
+    # is signed with a secret generated per installation, so one install's token
+    # has never been usable against another's hub whatever it claims.
+    mercure.identifier: 'https://plmail.invalid/.well-known/mercure'
+
     mercure.cookie_name: '%env(default:mercure.cookie_name_default:MERCURE_COOKIE_NAME)%'
 
     app.demo_mode: '%env(default:app.demo_mode_default:bool:APP_DEMO_MODE)%'
