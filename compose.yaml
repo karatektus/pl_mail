@@ -276,6 +276,20 @@ services:
       # yourself still wins — the generator never overwrites it, so both sides
       # read the same value.
       MERCURE_JWT_SECRET: ${MERCURE_JWT_SECRET:-}
+      # The two halves of RFC 9068, both read from the ONE url the app already
+      # publishes under, so they cannot drift apart.
+      #
+      # TRUSTED_ISSUERS is the `iss` this hub will accept, and
+      # config/packages/mercure.yaml mints exactly this value.
+      #
+      # resource_identifier pins the `aud` the hub demands. Without it the hub
+      # works the audience out from each request, and plMail arrives at it by
+      # two different roads: the browser subscribes at MERCURE_PUBLIC_URL while
+      # the application publishes to the internal MERCURE_URL. One token cannot
+      # name both, so publishing would be refused by a hub that had derived its
+      # own answer from the container hostname.
+      MERCURE_TRUSTED_ISSUERS: ${MERCURE_PUBLIC_URL:-https://localhost/.well-known/mercure}
+      MERCURE_EXTRA_DIRECTIVES: resource_identifier ${MERCURE_PUBLIC_URL:-https://localhost/.well-known/mercure}
     entrypoint:
       - /bin/sh
       - -c

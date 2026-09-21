@@ -3,9 +3,56 @@ mercure:
         default:
             url: '%env(default::MERCURE_URL)%'
             public_url: '%env(default::MERCURE_PUBLIC_URL)%'
+
+            # Mercure 1.0, because the hub is on a floating tag and has moved.
+            #
+            # The hub now wants RFC 9068 access tokens: an `iss` it has been
+            # told to trust, an `aud` naming the hub the token is for, and
+            # `authorization_details` in place of the bare `mercure` claim. The
+            # tokens plMail used to mint carried none of that, so every
+            # subscription came back 401 and the inbox sat on "Live updates
+            # unavailable" while the hub itself was perfectly healthy.
+            #
+            # This is a protocol switch, not a patch: it also changes the
+            # subscription query parameters and the cookie name. Both are the
+            # bundle's business — the `mercure()` Twig helper writes the URL and
+            # Authorization writes the cookie — which is why the JavaScript and
+            # the controllers are untouched by it.
+            protocol_version: '1.0'
+            cookie_name: '%mercure.cookie_name%'
+
             jwt:
                 secret: '%env(MERCURE_JWT_SECRET)%'
                 publish: '*'
+
+                # `iss`, and it has to equal MERCURE_TRUSTED_ISSUERS on the hub
+                # or nothing this mints is accepted. Both sides read the same
+                # variable in compose so they cannot be set to different things
+                # by accident.
+                #
+                # The hub's public URL as the issuer identity is a little
+                # literal — the issuer is really this application, not the hub —
+                # but it is the one URL both halves already agree on, and an
+                # installation should not have to configure a second one to keep
+                # live updates working. `aud` is deliberately absent: the bundle
+                # defaults it to public_url, which is what the hub is pinned to
+                # expect (see resource_identifier in compose.yaml).
+                # All three are mandatory under 1.0 — the bundle refuses to
+                # build the container without them — and they are merged into
+                # the token FACTORY as well as the publisher provider, so the
+                # subscriber cookie MercureCookieSubscriber mints carries them
+                # too. That is what makes this one block enough.
+                #
+                # `sub` and `client_id` both name the application rather than a
+                # person on purpose. plMail issues these tokens to itself, for
+                # its own hub, on nobody's behalf — the client-credentials
+                # shape — and the thing that decides what a subscriber may
+                # actually read is still the topic grant, which is minted per
+                # user and has not changed.
+                claims:
+                    iss: '%env(default::MERCURE_PUBLIC_URL)%'
+                    sub: 'plmail'
+                    client_id: 'plmail'
                 # Empty, not '*'.
                 #
                 # Nothing server-side subscribes — the application only

@@ -8,6 +8,24 @@ The published image tags: `latest` follows the most recent release below,
 
 ## Unreleased
 
+### Fixed
+
+- **Live updates stopped arriving, and the inbox said so.** The Mercure hub moved to the 1.0
+  protocol, which wants RFC 9068 access tokens — an issuer it has been told to trust, an audience
+  naming the hub, and the grants carried differently. plMail was still minting the older shape, so
+  every subscription came back 401 and the indicator sat on "Live updates unavailable" while the
+  hub itself was perfectly healthy. New mail still arrived; it just needed the page reloaded to
+  show up, which is most of the point of the thing gone.
+
+  plMail now speaks the 1.0 protocol. The hub is deliberately not pinned to a version — it is meant
+  to keep itself up to date — so the answer is to follow it rather than to hold it still.
+
+  **Nothing to configure.** The issuer and the audience are both derived from the hub URL the
+  installation already has, so they cannot drift apart. The one exception is an install serving
+  plain HTTP: the 1.0 cookie is `__Secure-` prefixed and a browser will not accept one of those
+  without TLS, so such an install must set `MERCURE_COOKIE_NAME` to a name without the prefix. Any
+  install on HTTPS — which is every install with working push — needs no change.
+
 ## v0.2.30 — 2026-09-21
 
 ### Fixed

@@ -20,6 +20,16 @@ parameters:
     # worth preventing is a real deployment turning into a demo, not the
     # reverse. See App\Service\Demo\DemoMode.
     app.demo_mode_default: false
+
+    # The subscriber cookie's name. The Mercure 1.0 default is `__Secure-`
+    # prefixed, and a browser refuses a `__Secure-` cookie that did not arrive
+    # over HTTPS — which is right for every real install and wrong for the test
+    # stack, which serves plain HTTP on 127.0.0.1. Read through `default:` so an
+    # install that has never heard of the variable gets the safe name, and only
+    # a deployment that knows it is running without TLS has to say so.
+    mercure.cookie_name_default: '__Secure-mercure_access_token'
+    mercure.cookie_name: '%env(default:mercure.cookie_name_default:MERCURE_COOKIE_NAME)%'
+
     app.demo_mode: '%env(default:app.demo_mode_default:bool:APP_DEMO_MODE)%'
     app.demo_ttl_default: 'PT2H'
     app.demo_ttl: '%env(default:app.demo_ttl_default:APP_DEMO_TTL)%'

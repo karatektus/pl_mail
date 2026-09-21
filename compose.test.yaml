@@ -101,6 +101,10 @@ x-test-app: &test-app
     # from this URL's scheme, so an https value here would mint a cookie the
     # browser refuses to send back over the test stack's plain HTTP.
     MERCURE_PUBLIC_URL: http://127.0.0.1:${TEST_HTTP_PORT:-8001}/.well-known/mercure
+    # Plain HTTP here, so the `__Secure-` name Mercure 1.0 defaults to would be
+    # dropped by the browser before it ever reached the hub. The hub is told the
+    # same name below.
+    MERCURE_COOKIE_NAME: mercure_access_token
     MERCURE_URL: http://mercure/.well-known/mercure
     # Fixed, like APP_SECRET above: the suite signs subscriber JWTs with it and
     # the hub verifies them, so both sides have to agree without depending on
@@ -187,6 +191,13 @@ services:
       SERVER_NAME: ":80"
       MERCURE_PUBLISHER_JWT_KEY: e2e-mercure-secret-not-for-production
       MERCURE_SUBSCRIBER_JWT_KEY: e2e-mercure-secret-not-for-production
+      # RFC 9068: the issuer this hub trusts and the audience it demands, both
+      # matching what config/packages/mercure.yaml mints. See compose.yaml,
+      # which carries the reasoning.
+      MERCURE_TRUSTED_ISSUERS: http://127.0.0.1:${TEST_HTTP_PORT:-8001}/.well-known/mercure
+      MERCURE_EXTRA_DIRECTIVES: |
+        resource_identifier http://127.0.0.1:${TEST_HTTP_PORT:-8001}/.well-known/mercure
+        cookie_name mercure_access_token
     # NO healthcheck here, deliberately — the image's own is used, exactly as
     # in compose.yaml and for the same reason: the hub moved its readiness
     # probe out from under the URL we had hard-coded, and every job in CI then

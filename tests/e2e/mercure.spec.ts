@@ -98,7 +98,7 @@ async function hubPresent(baseURL: string): Promise<boolean> {
     try {
         // No credentials: a hub that is up answers 401 to this, which is itself
         // the proof it is both present and not anonymous.
-        const response = await fetch(`${baseURL}${HUB_PATH}?topic=probe`, {
+        const response = await fetch(`${baseURL}${HUB_PATH}?match=probe`, {
             signal: AbortSignal.timeout(4000),
         });
 
@@ -338,7 +338,7 @@ test.describe("mercure live updates", () => {
      * subscribe to mail/user/<any id> and watch that account's sync activity.
      */
     test("refuses a subscription that presents no authorization", async ({ baseURL }) => {
-        const response = await fetch(`${baseURL}${HUB_PATH}?topic=${encodeURIComponent("mail/user/1")}`, {
+        const response = await fetch(`${baseURL}${HUB_PATH}?match=${encodeURIComponent("mail/user/1")}`, {
             signal: AbortSignal.timeout(5000),
         });
 
