@@ -12,6 +12,7 @@ use App\Entity\User\User;
 use App\Repository\Mail\MessageThreadRepository;
 use App\Service\Mail\ThreadListRenderer;
 use App\Service\Search\SearchQueryParser;
+use App\Service\Search\SearchResultHighlights;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
@@ -31,6 +32,7 @@ final class SearchController extends AbstractController
         private readonly SemanticQuery           $semantic,
         private readonly SemanticCoverage        $coverage,
         private readonly EmbeddingCatchUp        $catchUp,
+        private readonly SearchResultHighlights  $highlights,
     ) {}
 
     #[Route('', name: '', methods: ['GET'])]
@@ -136,6 +138,25 @@ final class SearchController extends AbstractController
         // at a time on top of everything the inbox was already paying.
         $this->threadRepository->preloadForRows($threads);
 
+        // WHY THE ROW CAN SAY WHY IT IS HERE. Without this a result shows the
+        // opening line of its newest message, which usually does not contain
+        // the term that found it — the list asserts a match and then shows
+        // something else. One batched `ts_headline` per account turns that into
+        // a window around the match with every occurrence marked.
+        //
+        // AFTER the preload, and that is an ordering constraint rather than a
+        // preference: this reads `thread.messages` for the ids, so run before
+        // it, the page pays a lazy load per row and the search list is back to
+        // the hundred-and-sixty-seven-query shape preloadForRows() exists to
+        // prevent. See ThreadListQueryBudgetTest.
+        //
+        // Handed to the template as a map keyed by thread id, next to
+        // `semantic_only` and for the same reason: a highlight is a property of
+        // THIS search, and hanging it on the shared MessageThread entity would
+        // leave it in Doctrine's identity map for every other list in the
+        // request to find. See MessageThreadRepository::searchPage().
+        $highlights = $this->highlights->forPage($threads, $parsed->freeText);
+
         // Through ThreadListRenderer, not $this->render(): a row whose subject
         // and sender the user has just read in a result list has been SHOWN,
         // and leaving it badged would mean finding your own search results
@@ -194,6 +215,7 @@ final class SearchController extends AbstractController
             'sort'          => $sort,
             'semantic'      => $report,
             'semantic_only' => $results->semanticOnly,
+            'highlights'    => $highlights,
         ]);
     }
 

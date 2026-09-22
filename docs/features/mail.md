@@ -411,6 +411,15 @@ search had been ignored. As free text it finds little or nothing, which is at le
 A query that is nothing but a half-typed operator — `from:` with no value — returns an empty page
 rather than the whole mailbox.
 
+**A result row shows you why it is there.** Every occurrence of your words is marked in the subject
+and in the preview, and the preview is a window of the message around the match rather than its
+opening line — which is usually somewhere else entirely, and is what the row used to show. The
+marking follows the same stemming the search does, so a search for `running` marks `run`.
+
+A row that matched on something the preview cannot show — the sender's name, a word only in the
+subject, or a meaning match with none of your words in it — keeps the ordinary preview. So does
+every row when your query is only operators: `is:unread` has no word to mark.
+
 Results are **Most recent** first. The switch beside the pagination changes that to **Most
 relevant**, which is full-text rank — the best match leads, whenever it arrived. Whichever you pick
 is remembered for your next search, and paging keeps it. Switching orders starts again at the first

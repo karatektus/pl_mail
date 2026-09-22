@@ -199,6 +199,35 @@ Threads only. A bare Message row is a message, and only a conversation arrives.
     {% set rowId = item.id %}
 {% endif %}
 
+{#
+Search results, and the reason a row can show WHY it matched.
+
+`highlight` is `{ subject, snippet }`, either half of which may be null, built
+by App\Service\Search\SearchResultHighlights from Postgres `ts_headline` over
+the message the search actually hit. Only the search list passes it; every
+other list — inbox, sent, drafts, trash, archive, spam, starred, snoozed,
+labels, accounts, and the per-row turbo-streams under thread/status/ — passes
+nothing, gets null here, and renders exactly as it did before this existed.
+
+The values are `Twig\Markup`: already escaped, with `<mark>` put back in
+afterwards by the one class that did the escaping. That is what lets this print
+them without `|raw`, which this file still does not contain. A sender's own
+markup inside a fragment therefore arrives as visible, escaped text, which is
+the same treatment the plain preview gives it — see the striptags note above.
+
+`subjectLine` and not `subject` itself, and that distinction is load-bearing:
+`subject` is also spent on `aria-label` and on the select checkbox's label, and
+a screen reader announcing "Oak for the &lt;mark&gt;alcove&lt;/mark&gt;" would
+be a worse regression than the one this feature fixes.
+#}
+{% set highlight = highlight|default(null) %}
+{% set subjectLine = highlight.subject|default(subject) %}
+{# No |slice on this one, unlike the plain preview above: the fragment is HTML
+   now, and cutting it at a hundred characters can land inside a tag. Its length
+   is bounded by MaxWords in SearchHighlighter::HEADLINE_OPTIONS instead, and
+   the row goes on truncating with CSS the way it always has. #}
+{% set snippet = highlight.snippet|default(snippet) %}
+
 {# `data-enter-NEW`, not `data-enter`, and the difference is the whole reason
    this can exist at all.
 
@@ -471,7 +500,7 @@ Threads only. A bare Message row is a message, and only a conversation arrives.
                 <div class="min-w-0 flex flex-col @xl:flex-row @xl:items-baseline @xl:gap-2">
                     <span class="truncate text-sm mt-1 @xl:mt-0 @xl:flex-shrink-0 @xl:max-w-[45%]
                                  {{ unread ? 'font-semibold text-ink' : 'font-normal text-ink-soft' }}">
-                        {{ subject }}
+                        {{ subjectLine }}
                         {% if count > 1 %}
                             <span class="ml-1 text-xs font-medium text-ink-faint">{{ 'thread_row.message_count'|trans({'{ count }': count}) }}</span>
                         {% endif %}

@@ -684,6 +684,13 @@ statement that creates the need for it.
   **stemmed**: a search for `running` marks `run`, and a term whose stem
   differs from the literal text still highlights. Re-implementing either in PHP
   would let a snippet highlight something the search did not match on.
+- **A snippet is HTML, and `<mark>` is the only markup in it.** `ts_headline`
+  escapes nothing — it inserts its delimiters and returns the rest of the
+  document verbatim — so the delimiters it is asked for are two control
+  characters, the whole string is escaped, and only then are they swapped for
+  the tags. A client may render these strings as HTML; a sender's own markup
+  inside one arrives escaped and is displayed rather than parsed. See
+  `App\Service\Search\SearchHighlighter`, which the web search page shares.
 - **Calendars are advertised as `urn:plmail:params:jmap:calendars`, not
   `urn:ietf:params:jmap:calendars`.** JMAP for Calendars is an unratified draft
   whose object shape is still moving; claiming its URN would promise a contract

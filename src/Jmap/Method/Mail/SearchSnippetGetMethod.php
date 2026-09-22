@@ -9,6 +9,7 @@ use App\Jmap\Method\JmapMethod;
 use App\Jmap\Protocol\Exception\MethodException;
 use App\Jmap\Protocol\JmapContext;
 use App\Repository\Mail\MessageRepository;
+use App\Service\Search\SearchHighlighter;
 
 /**
  * "SearchSnippet/get" (RFC 8621 §5).
@@ -26,6 +27,14 @@ use App\Repository\Mail\MessageRepository;
  * Per the spec the strings are HTML, with `<mark>` around each hit. Everything
  * else is escaped: this is message content being handed back for display, and
  * the one thing it must not be able to do is carry markup of its own.
+ *
+ * That last sentence was a claim and not a fact for as long as this class asked
+ * `ts_headline` for `StartSel=<mark>` directly. `ts_headline` does not escape
+ * its document; it inserts the delimiters and hands back everything else
+ * exactly as it found it, so a mail whose subject or text part contained markup
+ * shipped that markup to every client as snippet HTML. The escaping now happens
+ * in SearchHighlighter, which is also where the options string lives — the
+ * conversion and the delimiters it converts cannot be changed apart.
  */
 final class SearchSnippetGetMethod implements JmapMethod
 {
@@ -39,6 +48,7 @@ final class SearchSnippetGetMethod implements JmapMethod
     public function __construct(
         private readonly AccountResolver $accountResolver,
         private readonly MessageRepository $messages,
+        private readonly SearchHighlighter $highlighter,
     ) {
     }
 
@@ -100,17 +110,15 @@ final class SearchSnippetGetMethod implements JmapMethod
      */
     private function snippets(int $accountId, array $requested, string $text): array
     {
-        // Options chosen so a snippet is a snippet: one fragment, short enough
-        // to sit on a list row, and no ellipsis of our own — the client decides
-        // how to truncate for its width.
-        $options = 'StartSel=<mark>, StopSel=</mark>, MaxWords=24, MinWords=8, '
-            .'ShortWord=3, MaxFragments=1, FragmentDelimiter=" … "';
-
+        // The options are the highlighter's, not this method's: they name the
+        // delimiters it converts, and the web search page asks for the same
+        // ones. Two callers spelling them out separately is how one of them
+        // ends up highlighting nothing.
         $rows = $this->messages->findSearchHeadlines(
             $accountId,
             array_map('intval', $requested),
             $text,
-            $options,
+            SearchHighlighter::HEADLINE_OPTIONS,
         );
 
         $list = [];
@@ -124,9 +132,10 @@ final class SearchSnippetGetMethod implements JmapMethod
                 'emailId' => $id,
                 // Null rather than the whole field when nothing matched in it:
                 // a "snippet" that is just the subject again tells the reader
-                // nothing about why the message came back.
-                'subject' => $this->highlighted($row['subject']),
-                'preview' => $this->highlighted($row['preview']),
+                // nothing about why the message came back. toHtml() answers
+                // null for exactly that case.
+                'subject' => $this->highlighter->toHtml($row['subject']),
+                'preview' => $this->highlighter->toHtml($row['preview']),
             ];
         }
 
@@ -135,19 +144,6 @@ final class SearchSnippetGetMethod implements JmapMethod
             'list' => $list,
             'notFound' => array_values(array_diff($requested, $found)),
         ];
-    }
-
-    /**
-     * `ts_headline` returns the text either way; only a string containing a
-     * marker actually had a hit in that field.
-     */
-    private function highlighted(mixed $value): ?string
-    {
-        if (false === is_string($value) || '' === $value) {
-            return null;
-        }
-
-        return str_contains($value, '<mark>') ? $value : null;
     }
 
     /**

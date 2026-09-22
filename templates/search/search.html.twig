@@ -124,10 +124,26 @@
             a row the words found needs no badge — see the provenance column in
             MessageThreadRepository::buildSearchSql().
         #}
+        {#
+            `highlights` is the other thing only this list passes: the subject
+            and the fragment of body text that actually matched, already marked
+            up and already escaped — see App\Service\Search\SearchHighlighter,
+            which is why there is no `|raw` here or in the row.
+
+            Keyed by thread id and looked up rather than carried on the thread,
+            for the same reason as `semantic_only` above. A row the highlighter
+            found nothing in is simply absent from the map and draws exactly as
+            it does in every other list.
+        #}
+        {# Pulled out of the loop rather than defaulted inside it: `{}` in the
+           middle of an `include ... with` argument is one set of brackets away
+           from subscripting the empty hash instead of the map. #}
+        {% set row_highlights = highlights|default({}) %}
         {% for thread in threads %}
             {% include '_partials/_thread_row.html.twig' with {
                 thread: thread,
                 meaning_match: thread.id in semantic_only|default([]),
+                highlight: row_highlights[thread.id]|default(null),
             } %}
         {% endfor %}
     {% endif %}

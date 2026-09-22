@@ -1,4 +1,4 @@
-<!-- translated-from: features/mail.md sha1:18987bc807bfd29e4f726b4a17bc34276b36ef3f -->
+<!-- translated-from: features/mail.md sha1:cbfea3b01388d5fcb0bc6f3a896fb7d494ed1f77 -->
 
 # Mail
 
@@ -450,6 +450,17 @@ findet er wenig bis nichts, und das ist immerhin die Wahrheit.
 
 Eine Abfrage, die aus nichts als einem halb getippten Operator besteht — `from:` ohne Wert —
 liefert eine leere Seite und nicht das ganze Postfach.
+
+**Eine Trefferzeile zeigt dir, warum sie da ist.** Jedes Vorkommen deiner Wörter ist im Betreff und
+in der Vorschau markiert, und die Vorschau ist ein Ausschnitt der Nachricht rund um den Treffer
+statt ihrer ersten Zeile — die steht meist ganz woanders, und genau sie hat die Zeile früher
+gezeigt. Markiert wird mit derselben Stammformbildung, mit der auch gesucht wird: Eine Suche nach
+`running` markiert `run`.
+
+Eine Zeile, die über etwas gefunden wurde, das die Vorschau nicht zeigen kann — den Absendernamen,
+ein Wort nur im Betreff, oder eine Bedeutungssuche ohne eines deiner Wörter darin — behält die
+gewohnte Vorschau. Genauso jede Zeile, wenn deine Abfrage nur aus Operatoren besteht: `is:unread`
+hat kein Wort zum Markieren.
 
 Ergebnisse kommen **Neueste zuerst**. Der Schalter neben der Seitenblätterung stellt auf
 **Relevanteste zuerst** um, also auf den Volltext-Rang — der beste Treffer führt, wann immer er

@@ -4463,6 +4463,42 @@ label:has(> input.sr-only) {
 }
 
 /*
+   The words a search result matched on, in its subject and in its preview.
+
+   `[data-unread]`, which is the row itself: the attribute is written on mail
+   rows and nowhere else, so this reaches the subject span and the snippet span
+   without either of them needing a hook of its own — no markup change, and
+   therefore no change at all to the ~ten other lists that share that partial.
+   A bare `mark` selector would have been shorter and wrong: a sanitised message
+   body can contain a sender's own <mark>, and the reading pane is not ours to
+   restyle.
+
+   NO PADDING, and that is a constraint rather than a preference. The snippet
+   span carries `truncate` — `overflow: hidden` — so a highlight with vertical
+   padding paints outside the line box and is sliced off along its top and
+   bottom edge. The emphasis comes from the two things that cost no box: a wash
+   of the theme's accent, and the text stepping up from the row's faint ink to
+   its full ink. Built from --rgb-accent and --rgb-ink so all forty-odd themes
+   and the user's own accent colour are right by construction, light and dark
+   alike — a fixed yellow would be Word's highlighter on a dark surface.
+
+   Unlayered, like the rules above and for the same reason: Tailwind's utilities
+   live in a layer, `text-ink-faint` is on the same element, and a layered rule
+   loses to it however specific it is.
+
+   box-decoration-break so a hit that wraps across the second preview line — the
+   two-line setting — carries the wash on both halves instead of one long box.
+*/
+[data-unread] mark {
+    background-color: rgb(var(--rgb-accent) / 0.22);
+    color: rgb(var(--rgb-ink));
+    padding: 0;
+    border-radius: 0.2rem;
+    -webkit-box-decoration-break: clone;
+    box-decoration-break: clone;
+}
+
+/*
    The accent bar down an unread row's leading edge — Strong emphasis only,
    where --unread-bar-w is 3px; it is 0px at the other two and paints nothing.
 
