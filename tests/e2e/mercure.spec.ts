@@ -1,4 +1,5 @@
 import { test, expect, type Page } from "./support/test";
+import { seed } from "./support/config";
 import { createHmac } from "node:crypto";
 import { execSync } from "node:child_process";
 
@@ -29,6 +30,9 @@ const HUB_PATH = "/.well-known/mercure";
  */
 const MERCURE_IDENTIFIER = "https://plmail.invalid/.well-known/mercure";
 const TOPIC_FOR = (userId: string) => `mail/user/${userId}`;
+
+/** What `app:test:seed-label` calls the label it creates — see label.spec.ts. */
+const SEEDED_LABEL = "E2E Label";
 
 /** Same fixed secret compose.test.yaml gives both the app and the hub. */
 const JWT_SECRET = process.env.MERCURE_JWT_SECRET ?? "e2e-mercure-secret-not-for-production";
@@ -368,6 +372,69 @@ test.describe("mercure live updates", () => {
         // Still connected, and still able to say so.
         await expectState(page, "connected");
         await expect(indicator(page)).toHaveAttribute("title", /live updates/i);
+    });
+
+    /**
+     * A label renamed in one tab reaches the other while it is open.
+     *
+     * THE REGRESSION THIS CLOSES
+     *
+     * v0.2.34 made a folder click answer with the list frame instead of a whole
+     * document, which stopped the sidebar being rebuilt — and about twelve
+     * database queries — on every navigation. The named price was that a label
+     * renamed in another tab or on another device reached this tab's sidebar on
+     * the next SYNC rather than on the next click. On an idle mailbox that is
+     * minutes, and on an install with no accounts it never arrived at all.
+     *
+     * The second tab here is never navigated, clicked or reloaded after it
+     * lands, which is the whole assertion: the lists arrive over the stream,
+     * already rendered, and Turbo applies them.
+     */
+    test("a label renamed in one tab reaches another tab's sidebar", async ({ page, context }) => {
+        seed("seed-label");
+
+        await page.goto("/mail/inbox");
+        await expectState(page, "connected");
+
+        // A second tab of the same user — same context, so the same session and
+        // the same subscriber cookie, which is exactly the situation the
+        // feature is about.
+        const watcher = await context.newPage();
+
+        try {
+            await watcher.goto("/mail/inbox");
+            await expectState(watcher, "connected");
+
+            const renamed = `E2E Broadcast ${Date.now()}`;
+
+            const row = page
+                .locator("#label-list .nav-item")
+                .filter({ hasText: SEEDED_LABEL })
+                .first();
+            await expect(row).toBeVisible();
+
+            await row.getByRole("button", { name: `Edit label "${SEEDED_LABEL}"` }).click();
+
+            const modal = page.locator("#modal-backdrop");
+            await expect(modal).toBeVisible();
+
+            await modal.getByLabel("Name").fill(renamed);
+            await modal.getByRole("button", { name: "Save" }).click();
+            await expect(modal).toBeHidden();
+
+            await expect(
+                watcher.locator("#label-list").getByRole("link", { name: renamed }),
+                "the rename never reached the second tab",
+            ).toBeVisible({ timeout: 15000 });
+
+            // And the second tab is not told about something that did not
+            // happen there. The toast belongs to whoever pressed Save, so it
+            // stays in the HTTP response and off the wire.
+            await expect(page.getByText("Label updated.")).toBeVisible();
+            await expect(watcher.getByText("Label updated.")).toHaveCount(0);
+        } finally {
+            await watcher.close();
+        }
     });
 
     /**

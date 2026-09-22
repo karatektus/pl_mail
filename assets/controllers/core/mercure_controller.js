@@ -428,6 +428,27 @@ export default class extends Controller {
             if ("string" === typeof data.stream && "" !== data.stream) {
                 Turbo.renderStreamMessage(data.stream);
             }
+        } else if (data.type === "labels.changed") {
+            // The second branch that renders rather than dispatches, and the
+            // second one where the payload is a turbo-stream the SERVER built.
+            //
+            // Published by App\Service\Label\LabelNotifier whenever a label is
+            // created, renamed, deleted or hidden. It is byte for byte what the
+            // tab that made the change was answered with — minus the toast,
+            // which belongs to whoever pressed the button — so nothing here
+            // needs to know what a label list looks like, and there is no
+            // round trip: the markup arrives already rendered.
+            //
+            // Since v0.2.34 a folder click is answered with the list frame
+            // alone and no longer rebuilds the sidebar, so without this a
+            // rename made in another tab sat there until the next sync.
+            //
+            // This tab hears its own publish too. That is deliberate and
+            // harmless: the streams are `replace` actions carrying the markup
+            // already on screen.
+            if ("string" === typeof data.stream && "" !== data.stream) {
+                Turbo.renderStreamMessage(data.stream);
+            }
         } else if (data.type === "summary.finished") {
             // Published by App\Service\Ai\ThreadSummaryNotifier when the
             // background job that writes a full-conversation summary has

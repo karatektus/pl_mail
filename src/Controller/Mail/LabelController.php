@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace App\Controller\Mail;
 
 use App\Entity\Label\Label;
+use App\Entity\User\User;
 use App\Form\LabelType;
 use App\Repository\Label\LabelRepository;
 use App\Security\Voter\OwnershipVoter;
+use App\Service\Label\LabelNotifier;
 use App\Service\Label\LabelStructurePropagator;
 use App\Service\Mail\MailChangeRecorder;
 use Doctrine\ORM\EntityManagerInterface;
@@ -43,6 +45,7 @@ final class LabelController extends AbstractController
         private readonly LabelStructurePropagator $structurePropagator,
         private readonly MailChangeRecorder     $changes,
         private readonly TranslatorInterface    $translator,
+        private readonly LabelNotifier          $labelNotifier,
     ) {}
 
     #[Route('/new', name: 'new', methods: ['GET', 'POST'])]
@@ -189,13 +192,75 @@ final class LabelController extends AbstractController
      * sidebar, the mobile drawer and the settings list — so they all return
      * this. Streams whose target is absent are no-ops, which is what lets one
      * response serve the sidebar modal and the settings page alike.
+     *
+     * ── And every OTHER tab of this user gets them too ───────────────────────
+     * The lists are published on the user's Mercure topic on the way out. Until
+     * this, the refresh reached exactly the tab that had pressed the button: a
+     * second tab, or the same account open on a laptop, kept showing the old
+     * name until something else made it re-render — which, since v0.2.34
+     * answers a folder click with the list frame alone, means until its next
+     * mailbox sync. See {@see LabelNotifier} for why the markup travels rather
+     * than a "go and look" nudge.
+     *
+     * ── Rendered twice, deliberately ────────────────────────────────────────
+     * The two copies differ by exactly one thing and it matters: the TOAST.
+     * "Label created." belongs to the person who created it. Published, it
+     * would pop unprompted in every other tab of theirs, and in this one it
+     * would arrive a second time beside the one the response already carried.
+     * So the shared copy is rendered without it.
+     *
+     * The second render costs no database round trips, MEASURED: a rename on a
+     * user with ten labels in a two-level tree is 20 statements with one render
+     * and 20 with two. The tree is read once here and handed to both, and
+     * everything the sidebar macros ask SidebarCounts for is memoised per
+     * request — so what is paid twice is Twig over an already-loaded tree,
+     * which is the cheap half.
+     *
+     * Applying the published copy in the tab that caused it is harmless, and
+     * that is why no echo-suppression exists: the three streams are `replace`
+     * actions carrying identical markup, so the second pass swaps like for
+     * like. Section and tree disclosure states survive it because they are
+     * rendered from the stored preference rather than from the live DOM, which
+     * is the same reason a navigation has always been able to rebuild them.
      */
     private function labelListsStream(?string $toastMessage = null): Response
     {
-        return $this->render('label/_lists.stream.html.twig', [
-            'toastMessage' => $toastMessage,
-            'labels'       => $this->labelRepository->findForUserTreeOrdered($this->getUser()),
-        ], new Response(headers: ['Content-Type' => 'text/vnd.turbo-stream.html']));
+        $user   = $this->currentUser();
+        $labels = $this->labelRepository->findForUserTreeOrdered($user);
+
+        $lists = $this->renderView('label/_lists.stream.html.twig', [
+            'toastMessage' => null,
+            'labels'       => $labels,
+        ]);
+
+        $this->labelNotifier->publishLabelsChanged($user, $lists);
+
+        if (null === $toastMessage) {
+            $body = $lists;
+        } else {
+            $body = $this->renderView('label/_lists.stream.html.twig', [
+                'toastMessage' => $toastMessage,
+                'labels'       => $labels,
+            ]);
+        }
+
+        return new Response($body, headers: ['Content-Type' => 'text/vnd.turbo-stream.html']);
+    }
+
+    /**
+     * Narrowed the way InsightPaneController narrows it — IS_AUTHENTICATED is
+     * not a type, and the topic a label change is published on is built from
+     * this user's id.
+     */
+    private function currentUser(): User
+    {
+        $user = $this->getUser();
+
+        if (false === $user instanceof User) {
+            throw $this->createAccessDeniedException();
+        }
+
+        return $user;
     }
 
     /**
