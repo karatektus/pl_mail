@@ -31,6 +31,93 @@ final class MessageSnippetTest extends TestCase
         $this->snippet = new MessageSnippet();
     }
 
+    /**
+     * The preview starts at the message, not at the chrome above it.
+     *
+     * Bulk mail opens with a view-in-browser line, a logo, a nav bar and a
+     * greeting, and the preview used to spend its two hundred characters on
+     * them — so a list of newsletters previewed as a column of "View in
+     * browser", which is the one thing every row has in common.
+     *
+     * No sentence here is recognised. The rule is structural: the first block
+     * long enough to be prose and containing a space is where the preview
+     * begins. That is what makes it hold in a language nobody here has read.
+     */
+    public function testThePreviewSkipsThePreambleAndStartsAtTheProse(): void
+    {
+        $message               = new Message();
+        $message->bodyHtmlSafe = '<div>View in browser</div>'
+            . '<div>Unsubscribe</div>'
+            . '<p>Hallo Paul,</p>'
+            . '<p>deine Bestellung ist heute unterwegs und kommt voraussichtlich am Freitag an.</p>';
+
+        self::assertSame(
+            'deine Bestellung ist heute unterwegs und kommt voraussichtlich am Freitag an.',
+            $this->snippet->of($message),
+        );
+    }
+
+    /** German, English or otherwise: the test is the shape, not the words. */
+    public function testTheSameHoldsForAPreambleInAnyLanguage(): void
+    {
+        $message               = new Message();
+        $message->bodyHtmlSafe = '<div>Im Browser ansehen</div><div>Abmelden</div>'
+            . '<p>Your parcel is on its way and should reach you on Friday afternoon.</p>';
+
+        self::assertSame(
+            'Your parcel is on its way and should reach you on Friday afternoon.',
+            $this->snippet->of($message),
+        );
+    }
+
+    /**
+     * A short mail is not a mail with a preamble, and must not be emptied out.
+     *
+     * Nothing in it clears the prose bar, which is exactly the case the
+     * fallback exists for: the whole text is the preview, as it always was.
+     */
+    public function testAShortMessageIsShownWhole(): void
+    {
+        $message               = new Message();
+        $message->bodyHtmlSafe = '<p>Sounds good, see you then.</p>';
+
+        self::assertSame('Sounds good, see you then.', $this->snippet->of($message));
+    }
+
+    /**
+     * A long URL on its own line is not prose, however long it is.
+     *
+     * The space is what decides it. Without that test a tracking link would
+     * pass the length bar and become the preview of every newsletter that
+     * opens with one — which is the failure this whole rule exists to avoid,
+     * arrived at from the other direction.
+     */
+    public function testAnUnbrokenLinkIsNotMistakenForASentence(): void
+    {
+        $message               = new Message();
+        $message->bodyHtmlSafe = '<div>https://example.test/campaign/9f2a1c/click?recipient=paul&amp;id=44</div>'
+            . '<p>Die Rechnung fuer September liegt dieser Nachricht als PDF bei.</p>';
+
+        self::assertSame(
+            'Die Rechnung fuer September liegt dieser Nachricht als PDF bei.',
+            $this->snippet->of($message),
+        );
+    }
+
+    /** Once the prose starts, everything after it belongs to the preview. */
+    public function testShortBlocksAfterTheProseAreKept(): void
+    {
+        $message               = new Message();
+        $message->bodyHtmlSafe = '<div>View in browser</div>'
+            . '<p>Wir haben deine Anfrage erhalten und melden uns in den naechsten Tagen.</p>'
+            . '<p>Viele Gruesse</p><p>Lea</p>';
+
+        self::assertSame(
+            'Wir haben deine Anfrage erhalten und melden uns in den naechsten Tagen. Viele Gruesse Lea',
+            $this->snippet->of($message),
+        );
+    }
+
     public function testTheRenderedBodyWinsOverTheSendersTextPart(): void
     {
         $message               = new Message();
