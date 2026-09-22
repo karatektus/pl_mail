@@ -35,7 +35,9 @@ provider doesn't.
   Credentials are encrypted before they touch the database.
 - **New mail arrives on its own** — IMAP IDLE, Gmail and Outlook push, browser notifications.
 - **Search that means it** — full text plus `from:`, `subject:`, `label:`, `has:`, `before:` and
-  friends, completed as you type.
+  friends, completed as you type. Every hit shows the words it matched on, marked, in a window of
+  the message around them. What the words found comes first; what the model merely thought looked
+  similar follows, labelled, and never pushes a real match off the page.
 - **Filters as a tree** — any/all/none, nested, restated in plain English and counted against real
   mail before you save. Apply one to mail that arrived before it existed.
 - **Filed where you drop it** — drag a conversation onto a folder, a label or one of the inbox tabs,

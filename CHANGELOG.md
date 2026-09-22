@@ -6,7 +6,106 @@ so anything that changes the schema irreversibly is called out explicitly.
 The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, and `sha-…` pins one commit.
 
-## Unreleased
+## v0.2.34 — 2026-09-22
+
+### Added
+
+- **A search result now shows why it matched.** Every occurrence of the search term is marked in
+  the subject and in the preview, and the preview is a window of the message *around* the match
+  instead of its opening hundred characters — which, for most hits, did not contain the term at
+  all. The row asserted a match and then showed something else, so the only way to find out why a
+  conversation was in the list was to open it.
+
+  The fragment comes from the same Postgres `ts_headline` the JMAP snippet has always used, over
+  the same query that found the mail, so the marking is stemmed exactly as the search is and cannot
+  highlight something the search did not match on. One batched query per account per page; a row
+  whose match is not showable — the sender's name, a meaning match, an operator-only query — keeps
+  the preview it has always had.
+
+### Changed
+
+- **Every mail list page costs five fewer database round trips.** Inbox, archive, starred, a label,
+  an account and search each render the whole document, sidebar and topbar included, and five of
+  the statements that went out were the same question asked more than once by services with no way
+  to see each other: the sidebar's system block fetched Inbox, Archive and Trash one row at a time,
+  the topbar's calendar dot and its "happening soon" trigger each read the visible calendars, and
+  the health indicator read every account and every calendar a second time.
+
+  The roles now arrive in a single `IN (…)`, and the calendar and account reads are answered from
+  one per-request read that the narrower questions filter in memory. Nothing is cached beyond the
+  request, and the write paths still go to the database directly — a list of calendars held past
+  the moment one is created is worth more than the query it saves. Measured on a fifty-row page:
+  26–29 statements down to 21–24.
+
+- **Opening a folder no longer re-renders the sidebar it was clicked in.** Choosing a folder, a
+  category tab, the next page, a different sort or a search is a navigation of the message list and
+  of nothing else — and every one of them fetched a whole document. The sidebar the click started
+  in, the topbar above it, the calendar pane beside it and the reading pane behind it were all
+  rendered and sent, and then discarded by the browser, which takes the one frame it asked for out
+  of the answer and drops the rest of the body.
+
+  Those navigations now ask for the list and are answered with the list. Measured on a fifty-row
+  page: 21–24 database statements down to 9–13. The sidebar keeps its scroll position and its
+  open sections instead of being rebuilt into the same shape, and the calendar pane beside the list
+  holds perfectly still.
+
+  What the answer still carries is the document's head, in full, because the browser merges that
+  into the open page and removes whatever the answer leaves out — the tab's title is in there, and
+  so are the csrf token and the cache-control meta that keeps the back button from restoring a
+  stale list. The one thing that now waits: a label renamed in another tab or on another device
+  reaches this tab's sidebar on the next sync rather than on the next click.
+
+### Fixed
+
+- **Search buried what it found under what it guessed.** Searching one company name returned 63
+  results where Gmail, over substantially the same mail, returned 16. Sixteen were matches on
+  words. The other forty-seven were rows the vector liked enough to clear its similarity
+  threshold — job alerts, a product newsletter, an invoice, a piece of outright spam — every one
+  correctly badged "meaning", every one useless, and together enough to fill the first page
+  completely. The best match in the mailbox, a reply whose subject *and* sender both carried the
+  term, was on page two.
+
+  The threshold was not mistuned. It was measured against a twelve-message corpus, where a
+  false-positive rate of a couple of percent is invisible, and then applied to the two thousand
+  most recent messages, where the same rate is forty-seven rows. No stricter fraction fixes that,
+  so the arm is now capped as well as thresholded: the ten nearest, and no more.
+
+  Ordering carried the other half. A semantic hit can only be drawn from recent mail, so under
+  "most recent" every one of them was structurally newer than the mail it displaced — they did not
+  merely tend to win, they could not lose. Results the words found now come first under both sort
+  orders, and the meaning matches follow as a short badged tail. Nothing is removed; sorting by
+  relevance is fixed by the same change, because `rank` had been mixing `ts_rank` with cosine
+  similarity, two scales with no common unit, and is now only ever compared within one of them.
+
+- **"Show original" showed a reconstruction and called it the original.** The page served a
+  flattening of the parsed header map plus the decoded text body: headers lowercased and
+  re-serialised, a DKIM signature spread over a column of `v:`, `a:`, `d:`, `bh:`, `b:` lines,
+  php-imap's synthetic `priority` and `spoofed` presented as though they had been headers, and
+  underneath it no MIME structure and no HTML part at all. The original bytes were on disk the
+  whole time, and the JMAP blob download had been serving them correctly for as long as it has
+  existed.
+
+  The page now reads them in the same order that download does, and says so plainly when it
+  genuinely has to fall back — a message synced before raw storage existed has no bytes to show,
+  and a reconstruction that admits to being one is worth more than one that does not.
+
+- **The "copy to clipboard" button on that page did nothing.** Its script was inline and carried no
+  nonce, and the policy this application enforces names a nonce and does not allow
+  `unsafe-inline` — so the browser refused to run it, the button never got its listener, and a
+  click produced no clipboard, no error and no visible change. It failed in production only: under
+  debug the same policy rides along as report-only and the button works, which is why it survived.
+
+- **A JMAP `SearchSnippet/get` could hand a client the sender's own markup.** `ts_headline` is a
+  highlighter and not an escaper: it inserts the delimiters it is given and returns the rest of the
+  document byte for byte. Asking it for `StartSel=<mark>` therefore produced a string in which the
+  sender's markup and ours were the same kind of thing, and the check that stood in for escaping —
+  "does it contain `<mark>`" — could not tell them apart. A subject or text part containing
+  `<img src=x onerror=…>` shipped it as snippet HTML, and per RFC 8621 a client is right to render
+  that. The mail did not have to be opened.
+
+  The delimiters are now two control characters, the whole string is escaped, and only then are
+  they swapped for `<mark>`. The conversion and the delimiters it converts live in one class, so
+  they cannot be changed apart.
 
 ## v0.2.33 — 2026-09-21
 
