@@ -32,6 +32,43 @@ class LabelRepository extends ServiceEntityRepository
     }
 
     /**
+     * Every system label this user has, in one read.
+     *
+     * findOneByRoleForUser() above answers for ONE role and costs a
+     * `role = ? LIMIT 1` to do it, which is right for the callers that know
+     * which role they mean and ask once — ThreadStatusUpdater moving a
+     * conversation, MessageSendService filing a draft. It is wrong for the
+     * sidebar, which asks for Inbox, Archive, Spam and Trash while rendering a
+     * single page and paid one round trip per question: three of them on every
+     * mail list, measured, because Spam's row is usually not drawn.
+     *
+     * A user has at most one label per role and there are a handful of roles,
+     * so the batched form reads the same rows the single-row form would have
+     * read across all those calls — the whole set is smaller than one page of
+     * mail. SidebarCounts fans it out into its per-role memo, so the second
+     * and third questions cost nothing.
+     *
+     * Ordered by id so a user who somehow carries two labels for one role gets
+     * a STABLE answer out of the fan-out. findOneBy() emits no ORDER BY and
+     * would hand back whichever row Postgres reached first, which is not a
+     * property worth preserving.
+     *
+     * @return list<Label>
+     */
+    public function findRoleLabelsForUser(UserInterface $user): array
+    {
+        // `role => LabelRole::cases()` is Doctrine's own IN() — the criterion
+        // is a list, so findBy renders `role IN (?, ?, …)`. Spelled this way
+        // rather than as a hand-written `role IS NOT NULL` because it needs no
+        // QueryBuilder and cannot drift from the enum: a role added to
+        // LabelRole is in this read the day it is added.
+        return $this->findBy(
+            ['usr' => $user, 'role' => LabelRole::cases()],
+            ['id' => 'ASC'],
+        );
+    }
+
+    /**
      * Find a label by leaf name under a given parent (null parent = root
      * level). This is the uniqueness check for find-or-create.
      *

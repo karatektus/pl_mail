@@ -24,6 +24,8 @@ const STORAGE_KEY   = "mail_recent_searches";
 const MAX_RECENTS   = 8;
 const SEARCH_ROUTE  = "/mail/search";
 const CONTACT_ROUTE = "/contacts/autocomplete";
+/** The frame the mail list lives in — see templates/_layout/_mailbox.html.twig. */
+const LIST_FRAME_ID = "inbox-list-frame";
 
 /**
  * Long enough that a burst of typing costs one request instead of six, short
@@ -759,13 +761,34 @@ export default class extends Controller {
         this._visit(`${SEARCH_ROUTE}?q=${encodeURIComponent(q)}`);
     }
 
+    /**
+     * Run a search, by swapping the list rather than the page.
+     *
+     * Results are a mail list, and they land in the frame every other mail list
+     * lands in — the sidebar's folders, the category tabs, the pager. A plain
+     * `Turbo.visit(url)` fetched a whole document for a navigation that cannot
+     * change the sidebar beside the results or the topbar this box is in, and
+     * then replaced both with freshly rendered copies of themselves.
+     *
+     * `{ frame }` is Turbo's own way of saying it: it proposes the visit for
+     * that frame with the frame's own action — `advance`, so the URL and the
+     * tab title still follow the search — and sets its src. The response is the
+     * document stripped to that frame; see App\Twig\ListFragmentGlobal.
+     *
+     * AND IT FALLS BACK BY ITSELF, which is why there is no check here for
+     * where the search was typed. Turbo looks the frame up by id and, finding
+     * none, performs the ordinary page visit this used to do unconditionally —
+     * exactly what searching from the calendar, from settings or from the admin
+     * panel needs.
+     */
     _visit(url) {
-        // Use Turbo visit to keep the SPA feel
-        if (typeof Turbo !== "undefined") {
-            Turbo.visit(url);
-        } else {
+        if (typeof Turbo === "undefined") {
             window.location.href = url;
+
+            return;
         }
+
+        Turbo.visit(url, { frame: LIST_FRAME_ID });
     }
 
     _openDropdown() {

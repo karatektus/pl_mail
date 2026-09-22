@@ -22,6 +22,8 @@ use App\Entity\User\User;
 use App\Repository\Calendar\CalendarRepository;
 use App\Repository\Integration\IntegrationRepository;
 use App\Repository\Mail\AccountRepository;
+use App\Service\Calendar\UserCalendars;
+use App\Service\Mail\UserAccounts;
 use App\Service\Monitoring\QueueMonitor;
 use App\Service\Push\PushRenewalRecord;
 use App\Service\Push\PushSubscriptionRegistry;
@@ -79,6 +81,13 @@ final readonly class AccountHealthInspector
     public function __construct(
         private AccountRepository        $accounts,
         private CalendarRepository       $calendars,
+        // The per-request memos, for the two user-wide reads below only. The
+        // repositories above stay because the other two lookups here are
+        // different questions and neither is memoisable: one asks for the
+        // calendars MIRRORED onto one account, the other for accounts by id
+        // across every user, for the admin infrastructure check.
+        private UserAccounts             $userAccounts,
+        private UserCalendars            $userCalendars,
         private IntegrationRepository    $integrations,
         private PushSubscriptionRegistry $pushRegistry,
         private QueueMonitor             $queueMonitor,
@@ -99,7 +108,14 @@ final readonly class AccountHealthInspector
         // Read once and iterated twice. This backs a Twig global that renders on
         // every authenticated page, so asking the repository a second time for
         // the same rows would be a second query per page for nothing.
-        $accounts = $this->accounts->findForUserOrdered($user);
+        //
+        // Through UserAccounts rather than the repository for the same reason
+        // one step out: the sidebar on that same page needs the switched-on
+        // accounts, which are these rows minus a filter, and the two reads had
+        // no way to see each other. Every account is still inspected here,
+        // switched off ones included — a paused account with a dead grant is
+        // still a dead grant, and all() is the unfiltered set.
+        $accounts = $this->userAccounts->all($user);
 
         // Accounts first, and their ids kept, because everything else on the
         // page may turn out to be downstream of one of them.
@@ -173,7 +189,10 @@ final readonly class AccountHealthInspector
         // saying so is a page that buries its own answer — see calendarGroup().
         $blocked = [];
 
-        foreach ($this->calendars->findForUser($user) as $calendar) {
+        // Likewise all() and not visible(): a calendar hidden from the sidebar
+        // still syncs, and a hidden calendar that has stopped syncing is
+        // exactly the sort of thing nobody would otherwise notice.
+        foreach ($this->userCalendars->all($user) as $calendar) {
             $cause = $this->causeFor($calendar, $deadGrants);
 
             if (null !== $cause) {

@@ -10,6 +10,8 @@ const ACTIVE_CLASSES   = ["is-active", "bg-accent-soft", "text-accent", "font-me
 const ANCESTOR_CLASS   = "is-active-ancestor";
 const INACTIVE_CLASSES = ["text-ink-muted", "hover:bg-hover"];
 const SYNC_EVENTS      = ["core--mercure:mailbox-synced", "core--mercure:account-synced"];
+/** The frame the mail list lives in — see templates/_layout/_mailbox.html.twig. */
+const LIST_FRAME_ID    = "inbox-list-frame";
 /**
  * A write to this user's mail finished — from anywhere.
  *
@@ -278,10 +280,38 @@ export default class extends Controller {
         this._onTurboLoad = () => this._updateActive();
         document.addEventListener("turbo:load", this._onTurboLoad);
 
-        // The desktop sidebar is data-turbo-permanent, so a Turbo visit
-        // carries the old element over and its badges would otherwise stay
-        // stale. Patching them in place also keeps scroll position and any
-        // collapsed label trees, which re-rendering the nav would reset.
+        // A folder click is a FRAME navigation — see the list_frame macro in
+        // _sidebar.html.twig — and a frame navigation fires no turbo:load,
+        // because no page was loaded. The sidebar is not re-rendered by one
+        // either, so without this the highlighted row would simply stay on the
+        // folder you left: the click worked, the list changed, and the nav went
+        // on pointing at the wrong place until the next full visit.
+        //
+        // turbo:frame-load bubbles to the document, and Turbo has already
+        // written the new URL into history by the time it fires (it calls
+        // changeHistory() before rendering the frame), so _matches() below is
+        // reading the location it is about to be asked about.
+        this._onFrameLoad = (event) => {
+            if (LIST_FRAME_ID !== event.target.id) {
+                return;
+            }
+
+            this._updateActive();
+        };
+        document.addEventListener("turbo:frame-load", this._onFrameLoad);
+
+        // Counts go stale WITHOUT a navigation, which is the case this covers:
+        // mail arrives, or a conversation is read in the pane beside the nav,
+        // and the badge beside Inbox is wrong until something fetches it. A
+        // sync event is that something.
+        //
+        // The comment here used to say the desktop sidebar is
+        // data-turbo-permanent and that this existed to unfreeze it. It is not
+        // — there is no such attribute on it, and `_sidebar.html.twig` says at
+        // length why not: carried across visits, the nav kept deleted labels
+        // linking to 404s and never showed a rename. It re-renders per visit,
+        // so a navigation already brings fresh numbers and this is only ever
+        // about the time between navigations.
         this._onSynced = () => this.refreshCounts();
         SYNC_EVENTS.forEach((name) =>
             document.addEventListener(name, this._onSynced),
@@ -305,6 +335,7 @@ export default class extends Controller {
 
     disconnect() {
         document.removeEventListener("turbo:load", this._onTurboLoad);
+        document.removeEventListener("turbo:frame-load", this._onFrameLoad);
         SYNC_EVENTS.forEach((name) =>
             document.removeEventListener(name, this._onSynced),
         );

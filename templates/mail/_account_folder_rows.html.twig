@@ -61,7 +61,15 @@
             <a
                 data-ui--sidebar-target="link"
                 href="{{ path('app_mail_label', { id: label.id, account: account.id }) }}"
-                data-turbo-frame="_top"
+                {# The list frame, like every other folder row — see
+                   _partials/_sidebar.html.twig#list_frame. This said `_top`,
+                   which was the right answer to a different question: these
+                   rows are themselves inside the account's own frame, so a
+                   link naming nothing would have loaded a whole mailbox page
+                   INTO that sliver of sidebar. Naming the list frame answers
+                   that just as completely and opens the folder the way the
+                   rows above it do. #}
+                data-turbo-frame="inbox-list-frame"
                 data-turbo-prefetch="false"
                 class="flex-1 min-w-0 truncate"
             >{{ label|label_name }}</a>

@@ -1,8 +1,9 @@
-{# A refresh of the list gets the list, and a visit gets the page. Both render
-   the same `list_frame` block below, so the two answers cannot drift apart —
-   see App\Twig\ListFragmentGlobal for why this is keyed on a header of our own
-   rather than on Turbo's. #}
-{% extends listFragment.wanted ? '_layout/_list_fragment.html.twig' : '_layout/app.html.twig' %}
+{# A refresh of the list gets the list, a navigation of the list frame gets the
+   document with only the list in its body, and an ordinary visit gets the whole
+   page. All three render the same `list_frame` block below, so the answers
+   cannot drift apart — see App\Twig\ListFragmentGlobal for what each caller
+   reads, and for why the middle one keeps its head. #}
+{% extends listFragment.poll ? '_layout/_list_fragment.html.twig' : '_layout/app.html.twig' %}
 
 {# The list/reading pane switch belongs to these pages alone: its targets are
    further down this file, and it throws on connect wherever they are not.
@@ -77,7 +78,28 @@ Pagination variables expected from the controller (all optional, fallback to 0/1
   page, total, per_page
 #}
 
-{% block body %}
+{#
+Which of the two documents this is.
+
+A frame navigation of the list — a folder in the sidebar, a category tab, the
+pager, the sort menu, a search — has Turbo take `inbox-list-frame` out of the
+response and drop everything else in the body on the floor. Rendering the
+sidebar, the topbar and the calendar pane for it is work whose output is
+measured, parsed and discarded — 21–24 database statements on a fifty-row
+list against the 9–13 the frame alone costs, spent on a navigation that cannot
+have changed any of it.
+
+The HEAD is not dropped, which is why this is a fork inside `body` rather than
+a second parent layout. Turbo reads that head to decide whether the navigation
+renders anything at all, and then merges it into the live document, removing
+what the response leaves out — so it has to stay exactly what app.html.twig
+renders for a full visit. Cut it down to the <title> and the tab stops
+following the folder you clicked; cut it down further and the page loses its
+csrf token. Both measured: see App\Twig\ListFragmentGlobal.
+#}
+{% block body %}{% if listFragment.navigation %}{{ block('list_frame') }}{% else %}{{ block('mailbox_page') }}{% endif %}{% endblock %}
+
+{% block mailbox_page %}
     {#
     sidebar-drawer wraps the entire page so the controller can manage
     the drawer state from any trigger (burger button in the topbar, backdrop).
@@ -201,7 +223,6 @@ Pagination variables expected from the controller (all optional, fallback to 0/1
                     <div
                         id="message-list"
                         data-surface="list"
-                        data-sync-scope="{% block list_scope %}*{% endblock %}"
                         data-mail--mail-pane-target="list"
                         {# Confirms to the server that the rows below reached the
                            screen. Mounted on the container rather than on each
@@ -264,8 +285,19 @@ which of the two is happening.
        not — it has no list to render — and the pane controller reads this to
        know that going Back has to fetch one rather than uncover an empty
        frame. See mail_pane_controller#_listNeedsRendering. #}
+    {# `data-sync-scope` is ON THE FRAME, which is a change of address rather
+       than of meaning: it used to sit on #message-list, one element further
+       out. That element is outside the frame, so it survives a frame
+       navigation — and a scope that survives the navigation is a scope that
+       describes the folder you just left. Switch from the inbox to Sent and
+       the list went on refreshing itself for inbox syncs and ignoring sent
+       ones, which shows up as new mail not appearing until something else
+       redraws. The scope belongs where the list it describes is rendered.
+       Read by mail--mail-pane#_affectsCurrentView and by compose--compose
+       when it discards a draft. #}
     <turbo-frame id="inbox-list-frame" data-turbo-action="advance" class="contents"
-                 data-list-rendered="{% block list_rendered %}1{% endblock %}">
+                 data-list-rendered="{% block list_rendered %}1{% endblock %}"
+                 data-sync-scope="{% block list_scope %}*{% endblock %}">
 
         {# ── Gmail-style toolbar ──────────────────────────────────────────── #}
         {% block inbox_toolbar %}

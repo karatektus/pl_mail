@@ -534,7 +534,12 @@ export default class extends Controller {
             return true;
         }
 
-        const scope = this.listTarget.dataset.syncScope || "*";
+        // Off the FRAME, not off the pane around it. The pane is outside the
+        // frame and survives a frame navigation, so a scope read from it is
+        // the scope of the folder you were on before the click — see the
+        // attribute's own note in _layout/_mailbox.html.twig.
+        const scope =
+            document.getElementById(LIST_FRAME_ID)?.dataset.syncScope || "*";
         if (scope === "*") {
             return true;
         }

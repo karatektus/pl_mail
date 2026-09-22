@@ -7,7 +7,6 @@ namespace App\Service\Calendar;
 use App\Domain\DTO\Calendar\HappeningSoonRow;
 use App\Entity\User\User;
 use App\Repository\Calendar\CalendarEventOccurrenceRepository;
-use App\Repository\Calendar\CalendarRepository;
 use App\Repository\Calendar\EventSourceLinkRepository;
 use DateTimeImmutable;
 use DateTimeZone;
@@ -125,7 +124,7 @@ final readonly class HappeningSoonReader
     private const int MAX_SCAN = 120;
 
     public function __construct(
-        private CalendarRepository                $calendars,
+        private UserCalendars                     $calendars,
         private CalendarEventOccurrenceRepository $occurrences,
         private EventSourceLinkRepository         $sourceLinks,
         private EventClusterer                    $clusterer,
@@ -144,7 +143,10 @@ final readonly class HappeningSoonReader
     {
         $calendarIds = [];
 
-        foreach ($this->calendars->findVisibleForUser($user) as $calendar) {
+        // Through UserCalendars rather than the repository — see
+        // UpcomingEventIndicator, the other half of the topbar that was asking
+        // for the identical set on the identical render.
+        foreach ($this->calendars->visible($user) as $calendar) {
             $calendarIds[] = (int) $calendar->id;
         }
 

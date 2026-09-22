@@ -38,7 +38,11 @@ app_mail_sidebar_counts.
               aria-label="{{ 'sidebar.badge.unread'|trans({ '%count%': count }) }}"
               data-count-key="{{ key }}">{{ count }}</span>
     {% else %}
+        {# The unread view of a folder is a mail list like any other, so it
+           opens the way the row beside it does — see list_frame below. #}
+        {% import _self as badgeMacros %}
         <a href="{{ href }}"
+           {{ badgeMacros.list_frame() }}
            class="{{ _classes }} shrink-0 transition-opacity hover:opacity-80
                   focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
            data-ui--sidebar-target="badge"
@@ -201,6 +205,7 @@ account inside ThreadStatusUpdater.
                           transition-transform group-open/tree:rotate-90" aria-hidden="true"></i>
                 {{ macros.label_dot(label.color) }}
                 <a href="{{ path('app_mail_label_path', { path: label.fullName }) }}"
+                   {{ macros.list_frame() }}
                    class="flex-1 flex items-center justify-between gap-2 truncate"
                    data-ui--sidebar-target="link"
                    data-action="{{ drawerClose }}">
@@ -232,6 +237,7 @@ account inside ThreadStatusUpdater.
              style="--label-depth: {{ depth * 14 + 16 }}px">
             {{ macros.label_dot(label.color) }}
             <a href="{{ path('app_mail_label_path', { path: label.fullName }) }}"
+               {{ macros.list_frame() }}
                class="flex-1 flex items-center justify-between gap-2 truncate min-w-0"
                data-ui--sidebar-target="link"
                data-action="{{ drawerClose }}">
@@ -269,6 +275,34 @@ App\Twig\NewMailMarkers::roleKey() and ::labelKey(), which build the other half.
     {% import '_partials/_new_dot.html.twig' as shared %}
     {{ shared.new_dot(newMail.forStarred(), 'new:starred', 'sidebar.nav.starred'|trans) }}
 {% endmacro %}
+
+{#
+What makes a nav row swap the LIST rather than the whole page.
+
+Every row here that opens a mail list points into the one frame the list lives
+in — see _layout/_mailbox.html.twig. Without it a folder click is an ordinary
+Turbo visit: the server renders the sidebar the click started in, the topbar
+above it and the calendar pane beside it, Turbo swaps the whole body, and the
+one thing on screen that actually differs is the list. With it, the request
+carries Turbo's `Turbo-Frame` header, the server answers with the document
+stripped to that frame (App\Twig\ListFragmentGlobal), and the chrome is neither
+rendered nor replaced. Measured on a fifty-row list: 21–24 database
+statements for the page, 9–13 for the frame.
+
+A macro rather than the attribute written out at each of the dozen rows that
+carry it, for the same reason drop_target is one: a row that spelled it
+differently would quietly go back to fetching whole pages, and there would be
+nothing on screen to see.
+
+ONLY ROWS THAT OPEN A LIST. Compose targets the dock frame, the calendar row is
+a page of its own, and Settings and Admin are not mail at all — pointing any of
+those at the list frame would put a whole page inside the message list.
+
+Nothing here names an action: the frame itself carries `data-turbo-action`, and
+Turbo falls back to the frame's when the link does not name one, so the URL
+still advances and the tab title still follows the click.
+#}
+{% macro list_frame() %}data-turbo-frame="inbox-list-frame"{% endmacro %}
 
 {% import _self as macros %}
 
@@ -339,6 +373,7 @@ controller instead — the scroll position and which trees are open.
             <a class="flex-1 min-w-0 flex items-center gap-2"
                data-nav-tier="row"
                href="{{ path('app_mail_inbox') }}"
+               {{ macros.list_frame() }}
                data-ui--sidebar-target="link"
                data-action="{{ _drawerClose }}"
                title="{{ 'sidebar.nav.inbox'|trans }}"
@@ -362,6 +397,7 @@ controller instead — the scroll position and which trees are open.
             <a class="flex-1 min-w-0 flex items-center gap-2"
                data-nav-tier="row"
                href="{{ path('app_mail_starred') }}"
+               {{ macros.list_frame() }}
                data-ui--sidebar-target="link"
                data-action="{{ _drawerClose }}"
                title="{{ 'sidebar.nav.starred'|trans }}"
@@ -376,6 +412,7 @@ controller instead — the scroll position and which trees are open.
         </div>
 
         <a href="{{ path('app_mail_sent') }}"
+           {{ macros.list_frame() }}
            class="nav-item flex items-center justify-between gap-2 px-3 rounded-lg transition-colors"
            data-nav-tier="row"
            data-ui--sidebar-target="link"
@@ -391,6 +428,7 @@ controller instead — the scroll position and which trees are open.
         </a>
 
         <a href="{{ path('app_mail_drafts') }}"
+           {{ macros.list_frame() }}
            class="nav-item flex items-center justify-between gap-2 px-3 rounded-lg transition-colors"
            data-nav-tier="row"
            data-ui--sidebar-target="link"
@@ -466,6 +504,7 @@ controller instead — the scroll position and which trees are open.
                 <a class="flex-1 min-w-0 flex items-center gap-2"
                    data-nav-tier="row"
                    href="{{ path('app_mail_snoozed') }}"
+                   {{ macros.list_frame() }}
                    data-ui--sidebar-target="link"
                    data-action="{{ _drawerClose }}"
                    title="{{ 'sidebar.nav.snoozed'|trans }}"
@@ -490,6 +529,7 @@ controller instead — the scroll position and which trees are open.
                 <a class="flex-1 min-w-0 flex items-center gap-2"
                    data-nav-tier="row"
                    href="{{ path('app_mail_archive') }}"
+                   {{ macros.list_frame() }}
                    data-ui--sidebar-target="link"
                    data-action="{{ _drawerClose }}"
                    title="{{ 'sidebar.nav.archive'|trans }}"
@@ -524,6 +564,7 @@ controller instead — the scroll position and which trees are open.
                 <a class="flex-1 min-w-0 flex items-center gap-2"
                    data-nav-tier="row"
                    href="{{ path('app_mail_spam') }}"
+                   {{ macros.list_frame() }}
                    data-ui--sidebar-target="link"
                    data-action="{{ _drawerClose }}"
                    title="{{ 'sidebar.nav.spam'|trans }}"
@@ -539,6 +580,7 @@ controller instead — the scroll position and which trees are open.
         {% endif %}
 
         <a href="{{ path('app_mail_trash') }}"
+           {{ macros.list_frame() }}
            class="nav-item flex items-center justify-between gap-2 pl-9 pr-3 rounded-lg transition-colors"
            {{ macros.drop_target(sidebarCounts.roleLabelId(enum('App\\Domain\\Enum\\Mail\\LabelRole').Trash), null, true) }}
            data-nav-tier="row"

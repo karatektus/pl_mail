@@ -1,12 +1,20 @@
 {#
-The message list on its own — no document, no chrome, no sidebar.
+The message list on its own — no document, no chrome, no sidebar, no head.
 
-Stands in for app.html.twig as _mailbox.html.twig's parent when the poll asks
+Stands in for app.html.twig as _mailbox.html.twig's parent when THE POLL asks
 for the list alone (see App\Twig\ListFragmentGlobal). Every page that extends
 the mailbox layout therefore answers a refresh with its own list frame and
 nothing else, without any of them knowing this template exists.
 
 Only the frame is emitted, so the response is the fragment the caller swaps in
 rather than a page it has to dismantle first.
+
+NO <title>, AND DELIBERATELY SO. The caller here is mail_pane_controller: it
+parses this with a DOMParser, takes `#inbox-list-frame` out of it and never
+looks at anything else, so a head would be bytes nobody reads. A Turbo frame
+NAVIGATION is the other caller that wants the list alone, and it does read the
+head — Turbo checks it and then merges it into the live document — so it is
+answered with the full document instead, body stripped. The two answers are
+chosen in _mailbox.html.twig; ListFragmentGlobal says why they differ.
 #}
 {% block list_frame %}{% endblock %}

@@ -1942,7 +1942,12 @@ export default class extends Controller {
         // Which list is behind the window. The Drafts view shows a row per
         // draft, so a conversation that loses its last one has to lose its row
         // there — and only there.
-        const scope = document.getElementById('message-list')?.dataset.syncScope;
+        //
+        // Read off the list FRAME rather than off the #message-list pane it
+        // sits in: the pane is outside the frame, so after a frame navigation
+        // its copy of the scope names the folder that was open before the
+        // click. See _layout/_mailbox.html.twig.
+        const scope = document.getElementById('inbox-list-frame')?.dataset.syncScope;
 
         if (undefined !== scope) {
             params.set('scope', scope);

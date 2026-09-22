@@ -6,7 +6,6 @@ namespace App\Service\Calendar;
 
 use App\Entity\User\User;
 use App\Repository\Calendar\CalendarEventOccurrenceRepository;
-use App\Repository\Calendar\CalendarRepository;
 use DateTimeImmutable;
 use DateTimeZone;
 
@@ -30,7 +29,7 @@ final readonly class UpcomingEventIndicator
     private const int SOON_MINUTES = 240;
 
     public function __construct(
-        private CalendarRepository                $calendars,
+        private UserCalendars                     $calendars,
         private CalendarEventOccurrenceRepository $occurrences,
         private CalendarTimeResolver              $time,
     ) {
@@ -45,7 +44,11 @@ final readonly class UpcomingEventIndicator
         $calendarIds = [];
         $zone        = null;
 
-        foreach ($this->calendars->findVisibleForUser($user) as $calendar) {
+        // Through UserCalendars rather than the repository because the topbar
+        // asks this same question twice on every render — HappeningSoonReader
+        // is the other asker — and asked it twice in SQL. Same rows, same
+        // order; see that class.
+        foreach ($this->calendars->visible($user) as $calendar) {
             $calendarIds[] = (int) $calendar->id;
 
             if (null === $zone && true === $calendar->isDefault) {

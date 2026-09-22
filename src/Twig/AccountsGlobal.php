@@ -3,7 +3,7 @@
 namespace App\Twig;
 
 use App\Entity\Mail\Account;
-use App\Repository\Mail\AccountRepository;
+use App\Service\Mail\UserAccounts;
 use ArrayIterator;
 use Countable;
 use IteratorAggregate;
@@ -40,8 +40,8 @@ class AccountsGlobal implements IteratorAggregate, Countable, ResetInterface
     private ?array $accounts = null;
 
     public function __construct(
-        private readonly AccountRepository $accountRepository,
-        private readonly Security          $security,
+        private readonly UserAccounts $userAccounts,
+        private readonly Security     $security,
     ) {}
 
     public function getIterator(): Traversable
@@ -72,7 +72,14 @@ class AccountsGlobal implements IteratorAggregate, Countable, ResetInterface
         // The same ordering settings uses, because the drag handles there are
         // meant to arrange this list and an ordering of its own made them a
         // control over nothing. See findActiveForUserOrdered().
-        return $this->accounts = array_values($this->accountRepository->findActiveForUserOrdered($user));
+        //
+        // Through UserAccounts rather than straight at the repository since the
+        // topbar's health dot asks the same table for the same user on the same
+        // render — see that class. The memo here is still worth keeping on top
+        // of it: this one is what stops `accounts|length` in the thread row
+        // rebuilding the filtered list fifty times a page, which is a PHP cost
+        // rather than a query cost and so invisible to the query budget.
+        return $this->accounts = $this->userAccounts->active($user);
     }
 
     public function reset(): void

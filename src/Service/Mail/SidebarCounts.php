@@ -45,9 +45,16 @@ class SidebarCounts implements ResetInterface
      * label, the sidebar asks on every render, and `??=` would re-query for it
      * each time to be told the same thing.
      *
+     * Filled for EVERY role at once, in one read — see roleLabelId(). The slots
+     * were filled one at a time before, which memoised correctly and still cost
+     * a query per role the sidebar asked about.
+     *
      * @var array<string, int|null>
      */
     private array $roleLabelIds = [];
+
+    /** Whether roleLabelIds has been filled — see roleLabelId(). */
+    private bool $roleLabelIdsLoaded = false;
 
     /**
      * Worker-mode hygiene - see LogAlertGlobal::reset(), the sibling whose
@@ -66,6 +73,8 @@ class SidebarCounts implements ResetInterface
         $this->accountLabels      = [];
         $this->accountLabelCounts = [];
         $this->roleLabelIds       = [];
+
+        $this->roleLabelIdsLoaded = false;
     }
 
     public function __construct(
@@ -420,20 +429,30 @@ class SidebarCounts implements ResetInterface
      * is SHOWN is the template's question and it has already answered it by
      * the time it asks this one. Inbox and Trash are always shown and are
      * routinely not "visible" labels.
+     *
+     * ── One read for every role, not one per role ────────────────────────────
+     * The memo above was already per-role and already cached its nulls, and the
+     * sidebar still spent three `label … role = ? LIMIT 1` statements on every
+     * mail list render — because it asks four separate questions (Inbox,
+     * Archive, Spam, Trash) and a per-role memo can only spare the SECOND
+     * asking of the same one. Three rather than four is simply Spam's row not
+     * being drawn on most installs.
+     *
+     * So the first question loads all of them, and the rest are answered from
+     * memory. What makes the two forms equivalent is that findRoleLabelsForUser()
+     * selects exactly the union of what the N single-row reads selected: same
+     * user, same column, the full set of LabelRole cases rather than one of
+     * them. Roles the user has no label for are written in as explicit nulls,
+     * which is the same answer `findOneByRoleForUser() ?-> id` gave and keeps
+     * array_key_exists() below meaning "asked", not "found".
      */
     public function roleLabelId(LabelRole $role): ?int
     {
-        $roleValue = $role->value;
-
-        if (false === array_key_exists($roleValue, $this->roleLabelIds)) {
-            $user = $this->security->getUser();
-
-            $this->roleLabelIds[$roleValue] = null === $user
-                ? null
-                : $this->labelRepository->findOneByRoleForUser($role, $user)?->id;
+        if (false === $this->roleLabelIdsLoaded) {
+            $this->loadRoleLabelIds();
         }
 
-        return $this->roleLabelIds[$roleValue];
+        return $this->roleLabelIds[$role->value] ?? null;
     }
 
     /**
@@ -455,6 +474,45 @@ class SidebarCounts implements ResetInterface
     }
 
     // ── Private ───────────────────────────────────────────────────────────
+
+    /**
+     * Every role's label id in one read — see roleLabelId() for why.
+     *
+     * Every case is seeded with null BEFORE the rows are folded in, so a role
+     * the user has no label for is a stored answer rather than a miss. Without
+     * that seeding the `?? null` in roleLabelId() would still return the right
+     * value, but nothing would record that the question had been asked — which
+     * is the distinction the original per-role memo was written around, and it
+     * matters again the moment somebody reintroduces a per-role fallback here.
+     */
+    private function loadRoleLabelIds(): void
+    {
+        $this->roleLabelIdsLoaded = true;
+
+        foreach (LabelRole::cases() as $case) {
+            $this->roleLabelIds[$case->value] = null;
+        }
+
+        $user = $this->security->getUser();
+
+        if (null === $user) {
+            return;
+        }
+
+        foreach ($this->labelRepository->findRoleLabelsForUser($user) as $label) {
+            $role = $label->role;
+
+            if (null === $role) {
+                continue;
+            }
+
+            // First row wins, and the read is ordered by id so "first" is a
+            // fixed thing. A user with two labels for one role is not supposed
+            // to exist; if one does, the sidebar should at least point at the
+            // same label on every render rather than alternating.
+            $this->roleLabelIds[$role->value] ??= $label->id;
+        }
+    }
 
     private function loadLabelCounts(): void
     {

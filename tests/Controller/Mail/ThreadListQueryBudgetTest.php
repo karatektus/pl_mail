@@ -44,12 +44,12 @@ final class ThreadListQueryBudgetTest extends WebTestCase
     /**
      * The ceiling for one full list render.
      *
-     * The six lists below currently measure 18 to 21: the list query and its
+     * The six lists below currently measure 21 to 24: the list query and its
      * count, the three row preloads, the category tab counts, the sidebar's
      * grouped counters, the user read and a couple of small per-user reads.
-     * Thirty is that with room for a page that grows another grouped query or
-     * two, and it is nowhere near the 120 the inbox cost before (52 account
-     * reads, 50 message-collection reads) or the 167 search cost.
+     * Twenty-seven is that with room for a page that grows another grouped
+     * query or two, and it is nowhere near the 120 the inbox cost before (52
+     * account reads, 50 message-collection reads) or the 167 search cost.
      *
      * The gap is what makes the number safe to be approximate. A single
      * reintroduced per-row lazy load costs PER_PAGE queries — fifty — so it
@@ -57,8 +57,61 @@ final class ThreadListQueryBudgetTest extends WebTestCase
      * ordinary feature work never lands anywhere near it. Raising this constant
      * by more than a few at a time means something is being paid per row again;
      * find it rather than widening this.
+     *
+     * ── Why this was thirty, and what moved ─────────────────────────────────
+     * The 18-to-21 this docblock used to quote had drifted to 26-to-29 without
+     * anything per-row coming back — page furniture accumulating one honest
+     * query at a time, which is precisely what a loose ceiling is there to
+     * tolerate. Five of those were then found to be the SAME question asked
+     * twice or three times by services that could not see each other: three
+     * `label … role = ?` single-row reads where one `role IN (…)` serves the
+     * sidebar's whole system block (SidebarCounts::roleLabelId), two identical
+     * visible-calendar reads plus their superset where one read serves all
+     * three (App\Service\Calendar\UserCalendars), and an account read plus its
+     * own superset, likewise (App\Service\Mail\UserAccounts).
+     *
+     * Every remaining statement on every one of the six lists is now distinct.
+     * That is what the QUERY_BUDGET_VERBOSE=1 dump is for: a repeat count above
+     * 1 on a shape is the thing to look at, and there are none left that are
+     * not deliberate — the two `GROUP BY l0_.role` statements and the two
+     * starred ones differ by `listed_at IS NULL`, which is new-mail markers
+     * against plain unread, and they are two answers rather than one asked
+     * twice.
      */
-    private const int BUDGET = 30;
+    private const int BUDGET = 27;
+
+    /**
+     * The ceiling for the same list NAVIGATED rather than visited.
+     *
+     * Its own number rather than a fraction of the one above, because the two
+     * measure different work. A visit renders a page: the list, and around it a
+     * sidebar whose counters are eight grouped queries, a topbar, a calendar
+     * pane and a reading pane. A frame navigation renders the list and the
+     * document head — the head is NOT optional, see App\Twig\ListFragmentGlobal
+     * — and Turbo discards the rest of the body without reading it, so the
+     * chrome is not made cheaper here, it is not done at all.
+     *
+     * Measured at PER_PAGE rows, against 21 to 24 for the same six visited:
+     *
+     *   archive  9    account  9    starred 10
+     *   label   11    search  12    inbox   13
+     *
+     * Nine is the floor and it is almost all list: the user, the conversations
+     * and their count, the three row preloads, and three the TOOLBAR spends on
+     * the menus inside the frame (the visible labels, the accounts and their
+     * aliases, for "move to" and "label as"). What separates the six from there
+     * is honest per-view work that a navigation genuinely has to redo — the
+     * inbox's category-tab counts and the unread number its <title> carries,
+     * the label's own row, search's settings read.
+     *
+     * FIFTEEN, from the thirteen the busiest of them costs with room for a view
+     * that grows one grouped query. Deliberately tighter than BUDGET: that one
+     * is loose because page furniture accumulates honestly around a list, and
+     * the whole point here is that there is no furniture left inside the frame
+     * to accumulate. Something that pushes a role list over this is chrome
+     * creeping back in, and finding out what is the exercise.
+     */
+    private const int FRAME_BUDGET = 15;
 
     private KernelBrowser $client;
     private Connection $connection;
@@ -111,6 +164,8 @@ final class ThreadListQueryBudgetTest extends WebTestCase
                 self::PER_PAGE,
             ),
         );
+
+        $this->assertNavigatingCostsFarLess('/mail/inbox?tab=promotions', $queries);
     }
 
     /**
@@ -126,6 +181,8 @@ final class ThreadListQueryBudgetTest extends WebTestCase
         $queries = $this->queriesFor('/mail/archive');
 
         self::assertLessThanOrEqual(self::BUDGET, $queries, sprintf('archive spent %d queries', $queries));
+
+        $this->assertNavigatingCostsFarLess('/mail/archive', $queries);
     }
 
     /** findForStarred(). */
@@ -136,6 +193,8 @@ final class ThreadListQueryBudgetTest extends WebTestCase
         $queries = $this->queriesFor('/mail/starred');
 
         self::assertLessThanOrEqual(self::BUDGET, $queries, sprintf('starred spent %d queries', $queries));
+
+        $this->assertNavigatingCostsFarLess('/mail/starred', $queries);
     }
 
     /** findForLabel(). */
@@ -147,6 +206,8 @@ final class ThreadListQueryBudgetTest extends WebTestCase
         $queries = $this->queriesFor('/mail/label/' . $label->id);
 
         self::assertLessThanOrEqual(self::BUDGET, $queries, sprintf('the label view spent %d queries', $queries));
+
+        $this->assertNavigatingCostsFarLess('/mail/label/' . $label->id, $queries);
     }
 
     /** findForAccountInbox(). */
@@ -157,6 +218,8 @@ final class ThreadListQueryBudgetTest extends WebTestCase
         $queries = $this->queriesFor('/mail/account/' . $this->account->id);
 
         self::assertLessThanOrEqual(self::BUDGET, $queries, sprintf('the account view spent %d queries', $queries));
+
+        $this->assertNavigatingCostsFarLess('/mail/account/' . $this->account->id, $queries);
     }
 
     /** The search results list, which renders the same rows. */
@@ -167,6 +230,68 @@ final class ThreadListQueryBudgetTest extends WebTestCase
         $queries = $this->queriesFor('/mail/search?q=budget');
 
         self::assertLessThanOrEqual(self::BUDGET, $queries, sprintf('search spent %d queries', $queries));
+
+        $this->assertNavigatingCostsFarLess('/mail/search?q=budget', $queries);
+    }
+
+    // ── the same lists, navigated rather than visited ─────────────────────
+
+    /**
+     * The same list, fetched as a frame navigation instead of as a page.
+     *
+     * This is the whole point of answering Turbo's `Turbo-Frame` header with
+     * the document stripped to the list frame (App\Twig\ListFragmentGlobal):
+     * clicking a folder in the sidebar cannot change the sidebar, and it used
+     * to re-render it anyway — along with the topbar, the calendar pane and the
+     * reading pane, which is where more than half of a list page's queries go.
+     *
+     * Called from each of the six tests above rather than written once against
+     * one list, for the same reason those six exist rather than one: the six
+     * views reach the same rows through six different queries, and a saving
+     * that only reached the one it was measured on is not a saving. It is also
+     * the only way the ceiling below can honestly be a ceiling — it is drawn
+     * over the busiest of the six, not the cheapest.
+     *
+     * @param int $page  what the same URI cost as an ordinary visit, so the two
+     *                   numbers in a failure message are from the same fixtures
+     *                   on the same run.
+     */
+    private function assertNavigatingCostsFarLess(string $uri, int $page): void
+    {
+        $frame = $this->queriesFor($uri, ['HTTP_TURBO_FRAME' => 'inbox-list-frame']);
+
+        self::assertLessThanOrEqual(
+            self::FRAME_BUDGET,
+            $frame,
+            sprintf('%s spent %d queries navigated, where the visit spends %d', $uri, $frame, $page),
+        );
+
+        // Relative as well as absolute. The absolute number is only meaningful
+        // beside the one it replaces, and a day when the page itself gets
+        // cheaper is not a day this should quietly stop saving anything.
+        self::assertLessThan(
+            $page * 0.7,
+            $frame,
+            sprintf('%s: the navigation (%d) has stopped being much cheaper than the visit (%d)', $uri, $frame, $page),
+        );
+    }
+
+    /**
+     * The poll's own fragment, which has been the cheap answer all along and
+     * must not be made expensive by the navigation path sharing its machinery.
+     */
+    public function testThePollFragmentStaysTheCheapestAnswerOfAll(): void
+    {
+        $archive = $this->seedLabel('Archive', LabelRole::Archive);
+        $this->seedPage(MessageCategory::Primary, $archive);
+
+        $queries = $this->queriesFor('/mail/archive', ['HTTP_X_LIST_FRAGMENT' => 'inbox-list-frame']);
+
+        self::assertLessThanOrEqual(
+            self::FRAME_BUDGET,
+            $queries,
+            sprintf('the poll fragment spent %d queries', $queries),
+        );
     }
 
     /**
@@ -286,12 +411,12 @@ final class ThreadListQueryBudgetTest extends WebTestCase
      * own reason: it is the render that retires the "New" badges, so the
      * second is the steady state every subsequent visit pays.
      */
-    private function queriesFor(string $uri): int
+    private function queriesFor(string $uri, array $server = []): int
     {
         // Warm-up, deliberately not the measured one. It carries the fixture
         // INSERTs the collector had not yet flushed, and it is the render that
         // retires the "New" badges — the steady state is the visit after that.
-        $this->totalQueriesAfter($uri);
+        $this->totalQueriesAfter($uri, $server);
 
         // Nothing may be left managed from the warm-up, or an association that
         // is still lazily mapped would look preloaded simply because the
@@ -299,7 +424,7 @@ final class ThreadListQueryBudgetTest extends WebTestCase
         // the strength of a warm identity map that no real request has.
         $this->em->clear();
 
-        [$count, $sql] = $this->totalQueriesAfter($uri);
+        [$count, $sql] = $this->totalQueriesAfter($uri, $server);
 
         if (true === (bool) getenv('QUERY_BUDGET_VERBOSE')) {
             $map = $this->em->getUnitOfWork()->getIdentityMap();
@@ -324,11 +449,15 @@ final class ThreadListQueryBudgetTest extends WebTestCase
         return $count;
     }
 
-    /** @return array{int, array<string,int>} */
-    private function totalQueriesAfter(string $uri): array
+    /**
+     * @param array<string,string> $server
+     *
+     * @return array{int, array<string,int>}
+     */
+    private function totalQueriesAfter(string $uri, array $server = []): array
     {
         $this->client->enableProfiler();
-        $this->client->request('GET', $uri);
+        $this->client->request('GET', $uri, server: $server);
 
         self::assertResponseIsSuccessful();
 
