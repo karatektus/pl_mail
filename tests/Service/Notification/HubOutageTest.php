@@ -11,11 +11,9 @@ use App\Entity\User\User;
 use App\Domain\Enum\Job\JobKind;
 use App\Service\Job\JobNotifier;
 use App\Service\Mail\SyncNotifier;
+use App\Tests\Support\Mercure\RecordingHub;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\AbstractLogger;
-use Symfony\Component\Mercure\Exception\RuntimeException as MercureException;
-use Symfony\Component\Mercure\HubInterface;
-use Symfony\Component\Mercure\Update;
 
 /**
  * A hub that is down must not fail the work it was asked to announce.
@@ -50,7 +48,7 @@ final class HubOutageTest extends TestCase
             }
         };
 
-        $notifier = new SyncNotifier($this->deadHub(), $logger);
+        $notifier = new SyncNotifier(RecordingHub::refusing(), $logger);
 
         $user     = new User();
         $account  = new Account();
@@ -94,49 +92,8 @@ final class HubOutageTest extends TestCase
         $reflection = new \ReflectionProperty(User::class, 'id');
         $reflection->setValue($user, 42);
 
-        (new JobNotifier($this->deadHub(), $logger))->changed($job);
+        (new JobNotifier(RecordingHub::refusing(), $logger))->changed($job);
 
         self::assertSame(1, $logger->count, 'the outage is recorded rather than thrown');
-    }
-
-    /** A hub that refuses everything, the way an unreachable one does. */
-    private function deadHub(): HubInterface
-    {
-        return new class implements HubInterface {
-            public function getUrl(): string
-            {
-                return 'http://mercure/.well-known/mercure';
-            }
-
-            public function getPublicUrl(): string
-            {
-                return $this->getUrl();
-            }
-
-            public function getProvider(): \Symfony\Component\Mercure\Jwt\TokenProviderInterface
-            {
-                throw new \LogicException('not used');
-            }
-
-            public function getFactory(): ?\Symfony\Component\Mercure\Jwt\TokenFactoryInterface
-            {
-                return null;
-            }
-
-            public function getProtocolVersion(): \Symfony\Component\Mercure\ProtocolVersion
-            {
-                return \Symfony\Component\Mercure\ProtocolVersion::V1;
-            }
-
-            public function getCookieName(): string
-            {
-                return 'mercureAuthorization';
-            }
-
-            public function publish(Update $update): string
-            {
-                throw new MercureException('Failed to send an update.');
-            }
-        };
     }
 }
