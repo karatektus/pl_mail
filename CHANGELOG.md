@@ -6,6 +6,91 @@ so anything that changes the schema irreversibly is called out explicitly.
 The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, and `sha-…` pins one commit.
 
+## v0.2.35 — 2026-09-22
+
+### Changed
+
+- **A search result marks the term even where it is buried inside something bigger.** Searching a
+  company name highlighted one row and left a dozen equally-good ones plain, which reads as the
+  highlighting being broken rather than as the rule it was. Postgres makes a whole URL one lexeme
+  and `chargecloud.de` another, so neither matches the word inside it — while the search itself had
+  found those rows anyway, through the index that keeps the pieces of compound tokens and
+  hostnames. The row matched on a piece, and a piece is exactly what the highlighter could not see.
+
+  Where the highlighter comes back with nothing and the term is in the text regardless, the
+  fragment is now built from the first occurrence, with every occurrence inside the window marked
+  rather than only the first. It costs no query — the text is already in hand — and it is escaped
+  by the same one place that escapes the rest.
+
+- **The preview starts where the message starts.** Bulk mail opens with "View in browser", a logo,
+  a nav bar, an unsubscribe line and a greeting, and the preview spent its two hundred characters
+  on them — so a list of newsletters previewed as a column of the one phrase every row had in
+  common.
+
+  It now begins at the first block long enough to be prose and containing a space. Nothing is
+  recognised and there is no list of known-bad sentences, which is deliberate: such a list is wrong
+  in every language nobody thought of. A logo's alt text and a nav item fail on length in any
+  language, a tracking URL on its own line fails for want of a space, and a message too short to
+  clear the bar at all — "Sounds good, see you then" — is shown whole, exactly as before.
+
+### Fixed
+
+- **Opening a folder from Admin, Calendar or Settings gives you the whole app back again.** Since
+  v0.2.34, clicking Inbox in the sidebar of one of those three pages could land you on a bare
+  message list: the right address, and nothing else on screen — no sidebar, no topbar, no toolbar.
+
+  The sidebar is one file shared by four pages, and only the mail layout contains the frame the
+  message list lives in. v0.2.34 taught the folder rows to swap just that frame instead of fetching
+  a whole page, which is a real saving — 21–24 database queries a navigation down to 9–13 — and
+  wrote the instruction into the shared file, where it was true for the mail page and false for the
+  other three. Those rows went on asking for a frame that was not there.
+
+  What made it slip through is that asking for a missing frame looks harmless, and usually is.
+  Turbo notices the frame is absent and loads the whole page instead — unless you HOVERED the row
+  on the way to clicking it. A hover starts a prefetch, the prefetch asks for the frame without
+  checking that one exists, the server answers with the stripped-down list, and the click then uses
+  that waiting answer rather than asking again. So the same row worked or broke depending on how
+  the mouse arrived at it, which is why it survived a release: click it directly and it is fine.
+
+  The rows no longer name the frame at all. They carry a marker, and the page points them at the
+  list only after finding the list on itself — so a row can no longer claim something its page does
+  not have, and nothing about the arrangement has to be remembered by whoever adds the next row.
+  Folder clicks on a mail page still swap the frame alone, and the saving is unchanged.
+
+  Two smaller things came out of the same investigation. An account's folder rows had the same
+  defect and could not have been fixed by reading the template: they are fetched separately and
+  never learn which page they are on. And mail list URLs now declare which request headers choose
+  between their several forms, which they should always have done — without it a browser is free to
+  keep one form and hand it back in place of another, producing this same stripped page by a route
+  that has nothing to do with hovering.
+
+- **A label renamed in one tab now reaches the others while you are looking at them.** Creating,
+  renaming, deleting or hiding a label refreshes three regions — the sidebar, the mobile drawer and
+  the settings list — and until now that refresh went back to exactly one tab: the one that had
+  pressed the button. A second tab, or the same mailbox open on a laptop, went on showing the old
+  name.
+
+  It used to be covered by accident. Before v0.2.34 every folder click fetched a whole document, so
+  the sidebar was rebuilt on each one and a rename made elsewhere arrived on the next click. That
+  rebuild cost about twelve database queries per navigation and is what v0.2.34 removed, naming the
+  price at the time: the rename now waits for the next sync. On an idle mailbox that is minutes, and
+  on an installation with no accounts configured there is no sync to wait for and it was never.
+
+  The lists now go out on the user's live-updates topic as well, and every tab applies them at once.
+  They travel already rendered, because the tab that made the change had just built them to answer
+  itself — a "go and look" message would instead have every other tab re-ask the server for a label
+  tree that was already in hand, which is the same dozen queries per tab that navigation had just
+  stopped paying. Nothing extra is read to send them: measured at 20 database statements for a
+  rename, with and without.
+
+  The toast stays behind. "Label updated." is for whoever pressed the button, and the copy on the
+  wire is the lists alone — so no other tab announces something that did not happen there, and the
+  one that did is not told twice.
+
+  Unchanged for anyone running without a Mercure hub, which is supported: a hub that refuses is
+  logged and the rename commits regardless. Still waiting for the next sync: a label renamed through
+  JMAP by a connected client rather than in a browser.
+
 ## v0.2.34 — 2026-09-22
 
 ### Added
