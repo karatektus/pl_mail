@@ -36,22 +36,48 @@ use App\Service\Search\SearchHighlighter;
  * in SearchHighlighter, which is also where the options string lives — the
  * conversion and the delimiters it converts cannot be changed apart.
  *
- * WHAT THIS METHOD DELIBERATELY DOES NOT DO. `ts_headline` cannot mark a term
- * that sits INSIDE a compound token — `chargecloud` in `chargecloud.de`, or in
- * a link — while the search finds such rows perfectly well through the
- * token-parts arm of `search_vector`. SearchHighlighter::headlineOrFallback()
- * closes that on the web, and this method does not call it, because the
- * fallback needs the field's RAW text to search and this method does not have
- * any. The web page does: `preloadForRows()` has hydrated every message on the
- * page before SearchResultHighlights runs, so the fallback there reads memory
- * and costs nothing. Here it would mean up to MAX_OBJECTS whole bodies fetched
- * a second time — once as a headline, once raw — or a second statement, to
- * find out whether a substring occurs.
+ * WHAT THE SECOND STATEMENT COSTS, AND WHY IT IS PAID. `ts_headline` cannot
+ * mark a term that sits INSIDE a compound token — `chargecloud` in
+ * `chargecloud.de`, or in a link — because the parser makes each of those ONE
+ * lexeme and a highlighter built on lexemes can only mark what a lexeme can be.
+ * The search finds those rows anyway, through the weight-D token-parts arm of
+ * `search_vector` and through the substring pass, so a client was being told a
+ * row matched and then handed a null snippet for it.
+ * SearchHighlighter::headlineOrFallback() closes that, and it needs the field's
+ * RAW text to search. The web page has that for free — `preloadForRows()` has
+ * hydrated every message before SearchResultHighlights runs — and this method,
+ * holding DBAL rows, does not. So it fetches it, and this is the bill.
  *
- * That is a cost worth measuring before paying, not one to slip in behind a
- * highlighting fix, so a JMAP client still sees a null snippet for those hits
- * and falls back to its own preview. If it is ever paid, the fallback is one
- * call away and needs no new way of producing a `<mark>`.
+ * Measured against Postgres 18 on 5,000 messages with ~4.5KB text parts, warm,
+ * median of five, the whole statement round trip:
+ *
+ *   ids   what the second statement had to fetch        added    on a request of
+ *   ----+---------------------------------------------+--------+---------------
+ *     1 | one subject, one body                        | 0.3ms  | ~1.0ms
+ *   500 | 500 subjects, no body (the ordinary request) | 1.5ms  | ~197ms  (+0.8%)
+ *   500 | 500 subjects, 250 bodies                     | 4.5ms  | ~197ms  (+2.3%)
+ *   500 | 500 subjects, 500 bodies (the worst case)    | 7.9ms  | ~197ms  (+4.0%)
+ *
+ * The request was already spending that ~197ms parsing every one of those
+ * bodies with `ts_headline`; what is new is only the transfer, and at 500 whole
+ * bodies it is 2.2MB through PHP.
+ *
+ * The suggestion when this was deferred was to scope the second statement to
+ * the ids whose headline came back unmarked, on the reasoning that such a set
+ * is normally empty or tiny. Measuring it says otherwise, and in an instructive
+ * way: the field that is normally unmarked is the SUBJECT, because most
+ * searches match in the body — so "rows needing something" is normally ALL of
+ * them, and scoping by row would have fetched 2.2MB of bodies to deliver 30KB
+ * of subjects. What is normally empty is the set needing the expensive column.
+ * Hence rawTextsFor() passes two id lists and MessageRepository gates
+ * `body_text` behind a CASE; see there for why that actually avoids the read.
+ *
+ * The alternative shape — widening findSearchHeadlines() to return the text it
+ * headlined — measures the same at 500 ids (201ms against 197ms + 7.9ms) and
+ * was still refused twice over: it pays the 2.2MB unconditionally, including on
+ * the ordinary request that wants none of it, and that method is shared with
+ * the web search page, whose own docblock records deciding against exactly this
+ * widening for exactly this reason.
  */
 final class SearchSnippetGetMethod implements JmapMethod
 {
@@ -138,6 +164,8 @@ final class SearchSnippetGetMethod implements JmapMethod
             SearchHighlighter::HEADLINE_OPTIONS,
         );
 
+        $rawTexts = $this->rawTextsFor($accountId, $rows);
+
         $list = [];
         $found = [];
 
@@ -145,14 +173,28 @@ final class SearchSnippetGetMethod implements JmapMethod
             $id = (string) $row['id'];
             $found[] = $id;
 
+            // Absent for a row `ts_headline` marked in both fields, which is
+            // the row the second statement was never asked about. Passing null
+            // text is then correct rather than merely harmless:
+            // headlineOrFallback() hands back the marked headline without
+            // looking at it.
+            $raw = $rawTexts[(int) $row['id']] ?? ['subject' => null, 'body_text' => null];
+
             $list[] = [
                 'emailId' => $id,
                 // Null rather than the whole field when nothing matched in it:
                 // a "snippet" that is just the subject again tells the reader
-                // nothing about why the message came back. toHtml() answers
-                // null for exactly that case.
-                'subject' => $this->highlighter->toHtml($row['subject']),
-                'preview' => $this->highlighter->toHtml($row['preview']),
+                // nothing about why the message came back. Both producers
+                // answer null for that case — `ts_headline`'s opening-words
+                // reply carries no sentinel, and the fallback declines a field
+                // the term genuinely is not in — and toHtml() is the one place
+                // that turns either into markup, after escaping it.
+                'subject' => $this->highlighter->toHtml(
+                    $this->highlighter->headlineOrFallback($row['subject'], $raw['subject'], $text),
+                ),
+                'preview' => $this->highlighter->toHtml(
+                    $this->highlighter->headlineOrFallback($row['preview'], $raw['body_text'], $text),
+                ),
             ];
         }
 
@@ -161,6 +203,48 @@ final class SearchSnippetGetMethod implements JmapMethod
             'list' => $list,
             'notFound' => array_values(array_diff($requested, $found)),
         ];
+    }
+
+    /**
+     * The raw subject and body of the rows that need one, keyed by id.
+     *
+     * Only the fields `ts_headline` left unmarked are worth fetching, and the
+     * two are counted separately because they cost different amounts — see the
+     * class docblock for the numbers and MessageRepository::findSearchTexts()
+     * for how the body column is gated. A request whose every field came back
+     * marked issues no second statement at all: `$wanted` is empty, and the
+     * repository answers without touching the database.
+     *
+     * isMarked() rather than a `str_contains` here. The sentinel belongs to
+     * SearchHighlighter, and a second opinion about what "marked" means is how
+     * this method would come to fetch text it does not need, or skip text it
+     * does, on the day the delimiters change.
+     *
+     * @param list<array{id: int|string, subject: mixed, preview: mixed}> $rows
+     *
+     * @return array<int, array{subject: mixed, body_text: mixed}>
+     */
+    private function rawTextsFor(int $accountId, array $rows): array
+    {
+        $wanted = [];
+        $withBody = [];
+
+        foreach ($rows as $row) {
+            $id = (int) $row['id'];
+
+            if (false === $this->highlighter->isMarked($row['preview'])) {
+                $withBody[] = $id;
+                $wanted[]   = $id;
+
+                continue;
+            }
+
+            if (false === $this->highlighter->isMarked($row['subject'])) {
+                $wanted[] = $id;
+            }
+        }
+
+        return $this->messages->findSearchTexts($accountId, $wanted, $withBody);
     }
 
     /**

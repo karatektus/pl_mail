@@ -430,6 +430,85 @@ class MessageRepository extends ServiceEntityRepository
     }
 
     /**
+     * The raw subject and text part of specific messages, for the fields
+     * `ts_headline` declined to mark.
+     *
+     * The companion to findSearchHeadlines() above, and only ever called after
+     * it: SearchHighlighter's fallback is a substring search, so it needs the
+     * field as it was written rather than the fragment Postgres returned. The
+     * web search page needs no such query — `preloadForRows()` has hydrated
+     * every message on the page before the highlighter runs — but a JMAP
+     * SearchSnippet/get holds DBAL rows and nothing else.
+     *
+     * TWO ID LISTS, BECAUSE THE TWO COLUMNS COST DIFFERENT AMOUNTS. A subject
+     * is tens of bytes and a text part is thousands, and the field that is
+     * normally unmarked is the SUBJECT — most searches match in the body, so on
+     * a plain request every row wants its subject checked and not one wants its
+     * body. Scoping this by ROW, the shape first sketched when the fallback was
+     * deferred, would therefore drag every body along for the sake of the
+     * subjects: measured at 500 ids over ~4.5KB bodies, 7.9ms and 2.2MB to
+     * deliver 30KB of subjects.
+     *
+     * So `$ids` is every row that wants either field and `$withBody` is the
+     * subset that wants the expensive one. The CASE is not cosmetic — Postgres
+     * does not detoast a column it does not evaluate, and the same statement
+     * measures 1.5ms with `$withBody` empty against 7.9ms with all 500 in it,
+     * scaling linearly in between (4.5ms at half). An empty `$withBody` is fine
+     * and is the common case: DBAL expands an empty array parameter to the
+     * literal NULL, `id IN (NULL)` is NULL rather than an error, and the CASE
+     * falls through.
+     *
+     * Raw SQL and not DQL for the same reason findSearchHeadlines() is: this is
+     * the other half of one statement pair, and a conditional projection over a
+     * TOASTed column is a physical-storage concern the ORM has no vocabulary
+     * for. Keyed by id rather than returned as a list, because a lookup is the
+     * only thing its one caller can do with it.
+     *
+     * @param list<int> $ids       every message whose subject or body is wanted
+     * @param list<int> $withBody  the subset whose body_text is actually wanted
+     *
+     * @return array<int, array{subject: mixed, body_text: mixed}>
+     */
+    public function findSearchTexts(int $accountId, array $ids, array $withBody): array
+    {
+        if (0 === count($ids)) {
+            return [];
+        }
+
+        $sql = <<<'SQL'
+            SELECT
+                m.id,
+                m.subject,
+                CASE WHEN m.id IN (:withBody) THEN m.body_text END AS body_text
+            FROM message m
+            WHERE m.account_id = :account
+              AND m.id IN (:ids)
+            SQL;
+
+        /** @var list<array{id: int|string, subject: mixed, body_text: mixed}> $rows */
+        $rows = $this->getEntityManager()->getConnection()->fetchAllAssociative(
+            $sql,
+            [
+                'withBody' => $withBody,
+                'account'  => $accountId,
+                'ids'      => $ids,
+            ],
+            [
+                'withBody' => ArrayParameterType::INTEGER,
+                'ids'      => ArrayParameterType::INTEGER,
+            ],
+        );
+
+        $texts = [];
+
+        foreach ($rows as $row) {
+            $texts[(int) $row['id']] = ['subject' => $row['subject'], 'body_text' => $row['body_text']];
+        }
+
+        return $texts;
+    }
+
+    /**
      * Per-label message totals and unread counts for one account, in one
      * grouped query — the numbers behind a Mailbox/get.
      *

@@ -212,11 +212,39 @@ final class SearchHighlighter
      */
     public function headlineOrFallback(mixed $headline, mixed $text, string $freeText): ?string
     {
-        if (true === is_string($headline) && true === str_contains($headline, self::START)) {
+        if (true === $this->isMarked($headline)) {
             return $headline;
         }
 
         return $this->fallback($text, $freeText);
+    }
+
+    /**
+     * Whether `ts_headline` found something in this field.
+     *
+     * The same question headlineOrFallback() asks itself, made public for the
+     * one caller that has to ask it BEFORE it can call that method — the JMAP
+     * path, which holds DBAL rows and must decide whether a field's raw text is
+     * worth a second trip to the database at all. See
+     * SearchSnippetGetMethod::rawTextsFor().
+     *
+     * Public rather than copied there, because the answer is "does this string
+     * contain the sentinel", and the sentinel is this class's private business.
+     * A caller spelling `str_contains($headline, "\x02")` out for itself is one
+     * edit away from disagreeing with the options string that put it there,
+     * which is the same two-halves-of-one-decision argument that keeps
+     * HEADLINE_OPTIONS in this file.
+     *
+     * The assertion is what lets headlineOrFallback() go on returning `?string`
+     * after handing its `is_string` check over to here. Level 5 does not check
+     * `mixed` against a declared return type, so without it the narrowing would
+     * simply be lost — and found again as an error on the day the level rises.
+     *
+     * @phpstan-assert-if-true string $headline
+     */
+    public function isMarked(mixed $headline): bool
+    {
+        return is_string($headline) && str_contains($headline, self::START);
     }
 
     /**

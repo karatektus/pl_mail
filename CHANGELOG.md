@@ -6,6 +6,29 @@ so anything that changes the schema irreversibly is called out explicitly.
 The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, and `sha-…` pins one commit.
 
+## Unreleased
+
+### Changed
+
+- **A JMAP client gets the same marks the web page does.** v0.2.35 taught the web search to mark a
+  term buried inside a link or a hostname — Postgres reads each of those as one indivisible word,
+  so the highlighter could not see the term inside it, while the search had found the row anyway
+  through the index that keeps the pieces. Every other client got a blank where the explanation
+  should be: told a message matched, and handed nothing to say why.
+
+  `SearchSnippet/get` now marks those too, through the same one piece of code and the same one
+  place that turns a mark into HTML after escaping it. Nothing new produces a `<mark>`, which was
+  the condition on doing this at all.
+
+  It was left undone in v0.2.35 because the web page has the message text in hand already and this
+  request does not, and fetching up to five hundred bodies a second time is a bill worth reading
+  before signing. Read: on a request for five hundred snippets the fetch adds 1.5ms to about 197ms
+  — under one percent — because the field that usually needs a second look is the SUBJECT, and five
+  hundred subjects weigh thirty kilobytes. Bodies are fetched only for the rows whose body actually
+  needs one, and a request where nothing needs a second look makes no second query at all. Even the
+  worst case, every one of the five hundred needing its whole body, is four percent on top of the
+  work the request was already doing to read those same bodies.
+
 ## v0.2.35 — 2026-09-22
 
 ### Changed
