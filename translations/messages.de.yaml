@@ -2010,6 +2010,7 @@ message:
         copied: Kopiert
         copy: In die Zwischenablage kopieren
         heading: Originalnachricht
+        reconstructed: 'Die Originalbytes dieser Nachricht wurden nicht aufbewahrt. Du siehst eine Rekonstruktion aus den gespeicherten Headern und dem Textteil — die MIME-Struktur und ein etwaiger HTML-Teil fehlen, und gegen eine DKIM-Signatur lässt sie sich nicht prüfen.'
     quote:
         hide: Zitierten Text ausblenden
         show: Zitierten Text anzeigen

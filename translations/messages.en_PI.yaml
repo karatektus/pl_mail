@@ -1703,6 +1703,7 @@ message:
         copied: Copied
         copy: Copy to the slate
         heading: The original scroll
+        reconstructed: "The true scroll be lost to the deep, so what ye see here be redrawn from the headers we kept and the plain text. The MIME riggin' and any HTML sail be missin', and it'll ne'er answer to a DKIM seal."
     quote:
         hide: Stow the quoted words
         show: Unfurl the quoted words

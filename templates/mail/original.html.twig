@@ -29,6 +29,10 @@ independent of the app layout; the source is printed escaped, never |raw.
         .verdict { text-transform: uppercase; font-size: 12px; letter-spacing: .03em; }
         .pass { color: #188038; }
         .fail { color: #c5221f; }
+        .notice {
+            margin: 0 0 16px; padding: 10px 14px; border-radius: 4px;
+            background: #fef7e0; border: 1px solid #feefc3; color: #5f6368;
+        }
         .actions { margin-bottom: 16px; }
         button {
             font: inherit; padding: 6px 14px; border: 1px solid #dadce0;
@@ -44,6 +48,7 @@ independent of the app layout; the source is printed escaped, never |raw.
         @media (prefers-color-scheme: dark) {
             body { background: #202124; color: #e8eaed; }
             table.summary th { color: #9aa0a6; }
+            .notice { background: #3a3427; border-color: #4a4232; color: #e8eaed; }
             pre.source { background: #292a2d; border-color: #3c4043; }
             button { background: #292a2d; border-color: #3c4043; color: #8ab4f8; }
             button:hover { background: #35363a; }
@@ -90,13 +95,30 @@ independent of the app layout; the source is printed escaped, never |raw.
     {% endfor %}
 </table>
 
+{# Said out loud, because the difference matters to anyone who opened this page.
+   A reconstruction has no MIME structure and no HTML part, and it will not
+   verify a DKIM signature -- so a reader comparing it against what a client
+   rendered has to know they are not looking at the message. #}
+{% if reconstructed %}
+    <p class="notice">{{ 'message.original.reconstructed'|trans }}</p>
+{% endif %}
+
 <div class="actions">
     <button type="button" id="copy">{{ 'message.original.copy'|trans }}</button>
 </div>
 
 <pre class="source" id="source">{{ source }}</pre>
 
-<script>
+{# The nonce is not decoration. This page is served with the app's full policy —
+   script-src 'self' 'nonce-…' with no 'unsafe-inline' — and that policy is
+   ENFORCED whenever debug is off. Without a nonce the browser refuses to run
+   this block, the button never gets its listener, and clicking it does nothing
+   at all: no clipboard, no error, no visual change. That it failed in
+   production *only* is why it survived so long — under debug the same policy
+   rides along as Report-Only and the button works. See
+   ContentSecurityPolicyListener, and print.html.twig, which carries a nonce of
+   its own and was the reason this one read as intentional. #}
+<script nonce="{{ csp_nonce() }}">
     document.getElementById('copy').addEventListener('click', async (event) => {
         await navigator.clipboard.writeText(document.getElementById('source').textContent);
         event.currentTarget.textContent = {{ 'message.original.copied'|trans|json_encode|raw }};
