@@ -1,5 +1,5 @@
 import { test, expect } from "./support/test";
-import { INBOX_SUBJECTS, mailRow, seed } from "./support/config";
+import { INBOX_SUBJECTS, TEST_ADMIN, login, mailRow, seed, seedUser } from "./support/config";
 
 /**
  * Opening a folder swaps the list and leaves the page around it alone.
@@ -124,5 +124,86 @@ test.describe("navigating the list frame", () => {
 
         await expect(page.locator("#message-list")).toBeHidden();
         await expect(page.getByRole("button", { name: "Back" }).first()).toBeVisible();
+    });
+});
+
+/**
+ * The same sidebar, on a page that has no list frame at all.
+ *
+ * `_partials/_sidebar.html.twig` is included by four layouts and only the
+ * mailbox has `inbox-list-frame`; admin, calendar and settings do not. v0.2.34
+ * put the real `data-turbo-frame` on the folder rows of that shared partial, so
+ * on those three every row claimed a frame that was nowhere on the page, and
+ * clicking Inbox from /admin rendered the chrome-less list answer AS THE WHOLE
+ * DOCUMENT — right URL, no sidebar, no topbar.
+ *
+ * NOTHING SERVER-SIDE COULD HAVE CAUGHT IT and nothing in the describe block
+ * above would either, because both only ever start on a mail page, where the
+ * claim is true. The bug needs a real browser and a real mouse: the damage is
+ * done by Turbo's hover PREFETCH, which sends `Turbo-Frame` without checking
+ * the frame exists, and by the click then reusing that prefetched fragment out
+ * of a URL-keyed cache instead of making a request of its own. Click without
+ * hovering first and the same row behaves perfectly, which is exactly how this
+ * got through a release.
+ *
+ * Hence the deliberate hover-then-pause below. It is not flake-padding; it is
+ * the reproduction.
+ */
+test.describe("reaching a mail list from a page that has no list frame", () => {
+    // /admin needs ROLE_ADMIN, and granting it to the shared e2e user mid-run
+    // would deauthenticate every other spec's session — Symfony treats a token
+    // whose roles changed as stale. Same reasoning as admin-panels.spec.ts.
+    test.use({ storageState: { cookies: [], origins: [] } });
+
+    test.beforeAll(() => {
+        seedUser({ email: TEST_ADMIN.email, password: TEST_ADMIN.password, admin: true });
+    });
+
+    test("clicking Inbox from the admin page lands on a whole page, not a bare list", async ({ page }) => {
+        await login(page, TEST_ADMIN.email, TEST_ADMIN.password);
+
+        await page.goto("/admin");
+        await expect(page.locator("#sidebar")).toBeVisible();
+
+        const inbox = page.locator("#sidebar a[href='/mail/inbox']").first();
+
+        // Long enough for Turbo to start and finish the prefetch, so the click
+        // has something cached to consume. Without this the click issues its
+        // own request and the bug does not appear at all.
+        await inbox.hover();
+        await page.waitForTimeout(500);
+
+        await inbox.click();
+
+        await expect(page).toHaveURL(/\/mail\/inbox/);
+
+        // THE ASSERTION. All three were missing from the reported screenshot,
+        // and the message list was there — so asserting the list alone would
+        // have passed against the bug.
+        await expect(page.locator("#sidebar")).toBeVisible();
+        await expect(page.locator("#message-list")).toBeVisible();
+        await expect(page.locator("header").first()).toBeVisible();
+
+        // And now that there IS a list frame on the page, the rows are allowed
+        // to point at it again — ui--sidebar#_bindListFrame promotes the marker
+        // once it finds the frame. This is the half that keeps v0.2.34's
+        // saving; without it the fix would just be a revert.
+        await expect(
+            page.locator("#sidebar a[href='/mail/sent']").first(),
+        ).toHaveAttribute("data-turbo-frame", "inbox-list-frame");
+    });
+
+    /**
+     * The markup half, asserted where a browser can see it: on a page with no
+     * list frame, no sidebar row may claim one — however it got there.
+     */
+    test("the admin sidebar claims no frame the admin page does not have", async ({ page }) => {
+        await login(page, TEST_ADMIN.email, TEST_ADMIN.password);
+
+        await page.goto("/admin");
+        await expect(page.locator("#sidebar")).toBeVisible();
+
+        await expect(page.locator('turbo-frame#inbox-list-frame')).toHaveCount(0);
+        await expect(page.locator('[data-turbo-frame="inbox-list-frame"]')).toHaveCount(0);
     });
 });

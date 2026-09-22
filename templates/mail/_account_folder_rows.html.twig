@@ -61,15 +61,31 @@
             <a
                 data-ui--sidebar-target="link"
                 href="{{ path('app_mail_label', { id: label.id, account: account.id }) }}"
-                {# The list frame, like every other folder row — see
-                   _partials/_sidebar.html.twig#list_frame. This said `_top`,
-                   which was the right answer to a different question: these
+                {# BOTH of these, and the pair is the point.
+
+                   `_top` is the answer that is correct on every page. These
                    rows are themselves inside the account's own frame, so a
-                   link naming nothing would have loaded a whole mailbox page
-                   INTO that sliver of sidebar. Naming the list frame answers
-                   that just as completely and opens the folder the way the
-                   rows above it do. #}
-                data-turbo-frame="inbox-list-frame"
+                   link naming nothing does not fall back to a whole-page
+                   visit — it targets the frame it is sitting in, and would
+                   load an entire mailbox page into that sliver of sidebar.
+                   That is why this said `_top` before v0.2.34.
+
+                   v0.2.34 replaced it with `data-turbo-frame="inbox-list-frame"`
+                   so a folder here opens the way the rows above it do, and
+                   that was right for the mail page and wrong everywhere else:
+                   this partial is rendered by its own controller action into
+                   its own frame, so unlike the sidebar around it, IT CANNOT
+                   EVEN SEE which host page it is being dropped into. Expanding
+                   an account from Settings got rows claiming a frame that was
+                   nowhere on the page — see _partials/_sidebar.html.twig#list_frame
+                   for what Turbo's hover prefetch then does with that claim.
+
+                   So the markup states the answer that is always true and the
+                   marker asks for the better one: `ui--sidebar` overwrites
+                   `_top` with the list frame on connect, but only on a page
+                   where it has actually found the frame. #}
+                data-turbo-frame="_top"
+                {{ sidebarMacros.list_frame() }}
                 data-turbo-prefetch="false"
                 class="flex-1 min-w-0 truncate"
             >{{ label|label_name }}</a>

@@ -273,6 +273,113 @@ final class ListFragmentTest extends WebTestCase
         self::assertStringContainsString('id="sidebar"', $body, 'the gate is on one frame id, not on the header');
     }
 
+    // ── the sidebar is on four pages and only one has the frame ───────────
+
+    /**
+     * No page may ship a link claiming `inbox-list-frame` unless that frame is
+     * on it.
+     *
+     * `_partials/_sidebar.html.twig` is included by four layouts — the mailbox,
+     * admin, calendar and settings — and only the mailbox has the frame.
+     * v0.2.34 put a real `data-turbo-frame="inbox-list-frame"` on ten folder
+     * rows in that shared partial, so the other three shipped rows pointing at
+     * a frame that was nowhere on the page.
+     *
+     * The consequence is not the harmless fallback it reads as. Turbo
+     * PREFETCHES a link on hover and sends `Turbo-Frame` on the prefetch of a
+     * frame-targeted one WITHOUT checking the frame exists, so the server
+     * answers with the fragment; the click then finds no frame, falls back to
+     * an ordinary visit, and that visit takes the prefetched fragment out of a
+     * URL-keyed cache without asking again. The fragment renders as the whole
+     * document: right URL, no sidebar, no topbar, a bare message list.
+     *
+     * Every assertion in this file passed while that was live, because every
+     * one of them is about /mail/*, where the claim is true. This is the one
+     * that looks at the pages where it is not — and it is a string assertion
+     * about markup precisely because the failure had no server-side symptom at
+     * all.
+     */
+    public function testNoPageWithoutTheListFrameClaimsIt(): void
+    {
+        $client = $this->signedIn();
+
+        foreach (['/admin', '/calendar', '/settings'] as $uri) {
+            $client->request('GET', $uri);
+
+            self::assertResponseIsSuccessful(sprintf('%s did not render', $uri));
+
+            $body = (string) $client->getResponse()->getContent();
+
+            // The premise. If one of these ever grows a list frame of its own
+            // the test below stops meaning anything, and this says so loudly
+            // rather than passing on.
+            self::assertStringNotContainsString(
+                'id="' . self::LIST_FRAME . '"',
+                $body,
+                sprintf('%s has grown a list frame — the assertion below no longer applies', $uri),
+            );
+
+            self::assertStringNotContainsString(
+                'data-turbo-frame="' . self::LIST_FRAME . '"',
+                $body,
+                sprintf(
+                    '%s ships a link claiming a frame it does not have; Turbo prefetches that '
+                    . 'claim on hover and the click renders the chrome-less answer as the page',
+                    $uri,
+                ),
+            );
+        }
+    }
+
+    /**
+     * The other half: a mail page still ships rows the sidebar controller can
+     * promote, or the saving above is gone and nothing would say so.
+     *
+     * The rows carry an inert marker and `ui--sidebar#_bindListFrame` turns it
+     * into the real attribute after finding the frame in the live DOM — which
+     * is why this asserts the marker rather than `data-turbo-frame`, and why
+     * the journey itself is pinned in tests/e2e/list-frame-navigation.spec.ts
+     * where there is a browser to do the promoting.
+     */
+    public function testAMailPageShipsRowsTheSidebarCanPointAtTheList(): void
+    {
+        $client = $this->signedIn();
+
+        $client->request('GET', '/mail/inbox');
+
+        $body = (string) $client->getResponse()->getContent();
+
+        self::assertStringContainsString('id="' . self::LIST_FRAME . '"', $body);
+        self::assertStringContainsString(
+            'data-list-frame',
+            $body,
+            'the folder rows carry no marker, so nothing will point them at the list',
+        );
+    }
+
+    /**
+     * One URL, three documents, so every one of them says which headers chose
+     * it.
+     *
+     * On both representations deliberately: `Vary` on the fragment alone still
+     * lets a cache hand a stored full page to a frame request. See
+     * App\Twig\ListFragmentGlobal for the two measured routes by which a
+     * browser serves the wrong one of these back.
+     */
+    public function testAListUrlSaysWhichHeadersChooseItsRepresentation(): void
+    {
+        $client = $this->signedIn();
+
+        foreach ([[], [self::TURBO_FRAME_HEADER => self::LIST_FRAME]] as $server) {
+            $client->request('GET', '/mail/inbox', server: $server);
+
+            $vary = (string) $client->getResponse()->headers->get('Vary');
+
+            self::assertStringContainsString('Turbo-Frame', $vary);
+            self::assertStringContainsString('X-List-Fragment', $vary);
+        }
+    }
+
     // ── the flag that stops Back showing an empty list ────────────────────
 
     public function testAListPageMarksItsFrameAsRendered(): void

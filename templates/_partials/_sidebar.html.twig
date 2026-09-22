@@ -301,8 +301,48 @@ those at the list frame would put a whole page inside the message list.
 Nothing here names an action: the frame itself carries `data-turbo-action`, and
 Turbo falls back to the frame's when the link does not name one, so the URL
 still advances and the tab title still follows the click.
+
+── WHY THIS IS A MARKER AND NOT `data-turbo-frame` ─────────────────────────
+THIS FILE IS SHARED BY FOUR PAGES AND ONLY ONE OF THEM HAS THE FRAME.
+
+`_layout/_mailbox.html.twig` has `inbox-list-frame`. `admin/index.html.twig`,
+`calendar/index.html.twig` and `settings/index.html.twig` include this same
+sidebar and have no such frame anywhere on the page. v0.2.34 wrote the real
+`data-turbo-frame="inbox-list-frame"` here, so on those three every folder row
+claimed a frame that was not there — and that shipped, because the attribute is
+correct in the host the person adding it was looking at.
+
+A missing frame is not the harmless fallback it looks like. MEASURED against a
+Turbo 8.0.23 harness, with the server logging the headers of every request:
+
+  hover  → Turbo PREFETCHES the link, and a prefetch of a frame-targeted link
+           sends `Turbo-Frame: inbox-list-frame` WITHOUT FIRST CHECKING THAT
+           THE FRAME EXISTS. The server answers with the fragment: a head, and
+           a body containing only the list.
+  click  → Turbo finds no frame, falls back to a Drive visit, and that visit
+           takes the prefetched response out of its URL-keyed cache. No second
+           request is made. The fragment is rendered AS THE DOCUMENT: correct
+           URL, no sidebar, no topbar, a bare message list.
+
+Clicking without hovering first, or hovering longer than the prefetch cache
+lives, made the same row work correctly — which is why this reached a release.
+
+So the rule cannot be "remember not to use this macro off a mail page": the
+markup has no way of knowing which page it is on, and two of this macro's
+callers genuinely cannot know. `mail/_account_folder_rows.html.twig` is fetched
+into its own frame by its own controller action, and `label/_lists.stream.html
+.twig` is a Turbo Stream that re-renders these rows into whatever page happens
+to be open — a label renamed from Settings re-renders the Settings sidebar.
+
+The only place that can answer "is the list frame on this page" is the page.
+So the row ships an inert marker and `ui--sidebar` promotes it to the real
+`data-turbo-frame` on connect, but only after finding the frame in the live
+DOM — see `_bindListFrame()` in assets/controllers/ui/sidebar_controller.js.
+Off a mail page the marker stays inert, the row is an ordinary link, and the
+click gets a whole page. Anything added to this sidebar later gets that for
+free; there is no host-specific rule left to remember.
 #}
-{% macro list_frame() %}data-turbo-frame="inbox-list-frame"{% endmacro %}
+{% macro list_frame() %}data-list-frame{% endmacro %}
 
 {% import _self as macros %}
 

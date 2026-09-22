@@ -13,6 +13,28 @@ const SYNC_EVENTS      = ["core--mercure:mailbox-synced", "core--mercure:account
 /** The frame the mail list lives in — see templates/_layout/_mailbox.html.twig. */
 const LIST_FRAME_ID    = "inbox-list-frame";
 /**
+ * The inert marker a folder row ships instead of naming the list frame itself.
+ *
+ * THE SIDEBAR IS ON FOUR PAGES AND ONLY ONE OF THEM HAS THE LIST FRAME —
+ * _layout/_mailbox.html.twig has it, admin/, calendar/ and settings/index.html
+ * .twig include the same partial and do not. A row that named the frame in its
+ * own markup therefore named it on all four, and v0.2.34 shipped exactly that.
+ * See templates/_partials/_sidebar.html.twig#list_frame for the measurement;
+ * the short version is that Turbo's hover PREFETCH sends `Turbo-Frame:
+ * inbox-list-frame` without checking that the frame exists, the server answers
+ * with the chrome-less fragment, and the click then renders that fragment as
+ * the whole document because it finds the prefetched response waiting in a
+ * URL-keyed cache. A bare message list on a page with no sidebar.
+ *
+ * No template can decide this. Two of the three that render these rows are not
+ * even told which page they are on: mail/_account_folder_rows.html.twig is
+ * fetched into its own frame by its own controller action, and
+ * label/_lists.stream.html.twig is a stream that re-renders the label rows into
+ * whatever page is open when someone renames a label. The live DOM is the only
+ * thing that knows, and this controller is standing in it.
+ */
+const LIST_FRAME_MARKER = "[data-list-frame]";
+/**
  * A write to this user's mail finished — from anywhere.
  *
  * Kept apart from SYNC_EVENTS rather than added to them, because the two want
@@ -276,8 +298,24 @@ export default class extends Controller {
         // the HTML, so there is nothing to put back after the fact.
         this._restoreScroll();
 
+        // Before anything a mouse could reach, because a HOVER is what starts
+        // the prefetch this guards.
+        this._bindListFrame();
+
         this._updateActive();
-        this._onTurboLoad = () => this._updateActive();
+
+        // `turbo:load` fires on the first page load as well as on every Drive
+        // visit, and _bindListFrame is here for the first of those: this
+        // sidebar is earlier in the document than the list frame is, so
+        // Stimulus can connect it while the frame is still being parsed. The
+        // pass above would then find no frame, leave the markers inert, and
+        // never be asked again — the rows would fetch whole pages for the rest
+        // of the session, quietly, with nothing on screen to see. That is the
+        // exact failure mode the list_frame macro was written to avoid.
+        this._onTurboLoad = () => {
+            this._bindListFrame();
+            this._updateActive();
+        };
         document.addEventListener("turbo:load", this._onTurboLoad);
 
         // A folder click is a FRAME navigation — see the list_frame macro in
@@ -330,7 +368,51 @@ export default class extends Controller {
      * them.
      */
     linkTargetConnected() {
+        // Rows that arrive after connect need the same pass, and they are
+        // precisely the ones no template could have got right: an account's
+        // folders fetched into their own frame, and the label rows a
+        // label/_lists.stream.html.twig replaces wholesale after a rename.
+        this._bindListFrame();
+
         this._updateActive();
+    }
+
+    /**
+     * Let a folder row open the list in place — but only on a page that has a
+     * list to open it in.
+     *
+     * The rows ship `data-list-frame`, which means nothing to Turbo, and this
+     * turns it into the `data-turbo-frame` that does. The guard is the whole
+     * point and it is deliberately a lookup in the live document rather than a
+     * flag passed down from the layout: a flag is something the next person
+     * adding a row to this sidebar has to know to thread through, and the
+     * regression this replaces happened because that knowledge lived in one
+     * person's head while the markup was shared by four pages.
+     *
+     * Off a mail page nothing is promoted, the row stays an ordinary link, and
+     * the click gets a whole page — which is what it should have got all along.
+     *
+     * Scoped to `this.element`, so the desktop sidebar and the mobile drawer
+     * each do their own and neither reaches into the other's rows.
+     *
+     * Cheap enough to be unconditional: a dozen rows, an attribute each, and
+     * only on connect or when new rows land. Setting an attribute to the value
+     * it already holds is a no-op in the DOM, so the repeat passes cost nothing.
+     *
+     * NOTE the one row that starts out naming a frame rather than naming
+     * nothing: mail/_account_folder_rows.html.twig ships `_top`, because those
+     * rows sit INSIDE the account's own frame and a link naming nothing there
+     * targets that frame instead of the page. Overwriting `_top` is correct and
+     * intended — see the comment on that template.
+     */
+    _bindListFrame() {
+        if (null === document.getElementById(LIST_FRAME_ID)) {
+            return;
+        }
+
+        this.element
+            .querySelectorAll(LIST_FRAME_MARKER)
+            .forEach((link) => link.setAttribute("data-turbo-frame", LIST_FRAME_ID));
     }
 
     disconnect() {

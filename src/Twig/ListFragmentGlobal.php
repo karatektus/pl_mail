@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Twig;
 
+use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\RequestStack;
 
 /**
@@ -78,15 +79,41 @@ use Symfony\Component\HttpFoundation\RequestStack;
  * another device, which today's per-visit re-render happens to catch within one
  * navigation and now waits for the next sync — the price, named.
  *
- * ── No `Vary`, and it is not an oversight ───────────────────────────────────
- * One URL now has two representations, which is normally an invitation to
- * write `Vary: Turbo-Frame`. There is nothing here for such a header to
- * protect: a mail list is answered `Cache-Control: max-age=0, must-revalidate,
- * private` (measured off a live response), so no shared cache may store it at
- * all and the browser's own copy may not be used without asking again — and
- * the ask carries the header, so it gets the representation it asked for. The
- * poll's header has had the same property since it landed. If a list is ever
- * given a real max-age, this paragraph is the one to come back to.
+ * ── `Vary`, which this class once argued it did not need ────────────────────
+ * One URL has three representations here, chosen by two request headers, so
+ * every response that consults this class carries `Vary: Turbo-Frame,
+ * X-List-Fragment` — see ListFragmentVarySubscriber, which reads the attribute
+ * the two methods below set.
+ *
+ * It did not, and the argument for leaving it out is worth keeping because it
+ * is the kind that sounds airtight. It ran: a mail list is answered
+ * `Cache-Control: max-age=0, must-revalidate, private`, so no shared cache may
+ * store it and the browser's own copy may not be used without asking again —
+ * and the ask carries the header, so it gets the representation it asked for.
+ *
+ * The last clause is false, twice over, and both were MEASURED in Chromium
+ * against a server logging the headers of every request:
+ *
+ * `must-revalidate` is about STALENESS, not about which document this is. The
+ * browser stores the response either way, under the URL and nothing else. A
+ * fetch carrying `Turbo-Frame` followed by `fetch(url, {cache: 'only-if-
+ * cached'})` — no header at all — returned the chrome-less FRAGMENT out of the
+ * store without a request being made.
+ *
+ * And revalidating does not select a representation, because revalidation is
+ * conditional and 304 means "reuse what you stored". With a validator present,
+ * a request carrying NO `Turbo-Frame` — one this class answers with the whole
+ * page — was met with 304 and the browser rendered the stored fragment: right
+ * URL, no sidebar. That is the v0.2.34 bug report exactly, reached without any
+ * prefetch being involved.
+ *
+ * Today's list responses carry no ETag and no Last-Modified, so the second
+ * route needs a validator from somewhere else — and behind a reverse proxy
+ * there is a somewhere else. The first route needs nothing. `private` never
+ * protected against any of this: the browser's own cache IS the private cache
+ * it licenses. The paragraph also rested on a `Cache-Control` value that is a
+ * Symfony default rather than anyone's decision here, so the protection it
+ * claimed could have evaporated under an unrelated change.
  *
  * @see templates/_layout/_mailbox.html.twig  which of the two answers is built
  * @see assets/controllers/mail/mail_pane_controller.js  the poll
@@ -109,12 +136,31 @@ final readonly class ListFragmentGlobal
      */
     public const string LIST_FRAME = 'inbox-list-frame';
 
+    /**
+     * Set on the request the moment anything asks which representation to
+     * render, and read back by ListFragmentVarySubscriber on the way out.
+     *
+     * A flag rather than a list of routes the subscriber checks against: the
+     * set of templates that fork on these headers is not knowable from outside
+     * the templates, and a second list to keep in step is the shape of the
+     * regression this whole file has just been through.
+     */
+    public const string VARIES_ATTRIBUTE = '_list_fragment_varies';
+
     public function __construct(private RequestStack $requests) {}
 
     /** The in-place refresh: the frame, and nothing else at all. */
     public function isPoll(): bool
     {
-        return $this->requests->getCurrentRequest()?->headers->has(self::HEADER) ?? false;
+        $request = $this->requests->getCurrentRequest();
+
+        if (null === $request) {
+            return false;
+        }
+
+        $this->varies($request);
+
+        return $request->headers->has(self::HEADER);
     }
 
     /** A Turbo navigation OF the list frame: the document, with only the frame in its body. */
@@ -126,6 +172,8 @@ final readonly class ListFragmentGlobal
             return false;
         }
 
+        $this->varies($request);
+
         // The poll wins if both are somehow present. It is the stricter answer
         // of the two, and the caller that sends our header parses the response
         // itself rather than letting Turbo near it.
@@ -134,5 +182,20 @@ final readonly class ListFragmentGlobal
         }
 
         return self::LIST_FRAME === $request->headers->get(self::TURBO_HEADER);
+    }
+
+    /**
+     * Record that this response is one of several representations of its URL.
+     *
+     * Marked on the way IN rather than from the answer, and that is deliberate:
+     * a caller that asked and got "no, render the whole page" is still asking
+     * for a URL whose content depends on a request header, and its response
+     * needs the `Vary` just as much as the fragment's does. A cache given the
+     * full page with no `Vary` will serve it back to a frame request quite
+     * happily, which is the same bug facing the other way.
+     */
+    private function varies(Request $request): void
+    {
+        $request->attributes->set(self::VARIES_ATTRIBUTE, true);
     }
 }
