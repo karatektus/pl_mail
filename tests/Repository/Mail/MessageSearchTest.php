@@ -658,6 +658,87 @@ final class MessageSearchTest extends KernelTestCase
         self::assertCount(0, $page->threads, 'a vector from another model is not a hit');
     }
 
+    /**
+     * The vector may suggest; it may not take over the page.
+     *
+     * A threshold alone does not bound a result set. Searching one company name
+     * returned 63 rows against Gmail's 16 over the same mail: sixteen matches
+     * on words and forty-seven rows that merely cleared 0.42 — job alerts, a
+     * newsletter, an invoice, spam. The threshold was not mistuned; it was
+     * measured on a twelve-message corpus, where a couple of percent of false
+     * positives is invisible, and then applied to two thousand candidates,
+     * where it is forty-seven rows. No value of a fraction fixes that.
+     *
+     * A cap of one here, with two rows that both clear the threshold, so the
+     * assertion is about the bound rather than about the arithmetic.
+     */
+    public function testTheSemanticArmIsCappedAndNotOnlyThresholded(): void
+    {
+        foreach (['Notes from the standup', 'Notes from the retro'] as $subject) {
+            $this->seedMessage($subject, body: 'Who is doing what this week.');
+            $this->store()->store($this->messageId($subject), [1.0, 0.0, 0.0], 'test-model');
+        }
+
+        $query  = $this->parser->parse('meeting minutes');
+        $vector = $this->semantic([1.0, 0.0, 0.0], minSimilarity: 0.5);
+
+        self::assertCount(
+            2,
+            $this->repository->searchPage($this->user, $query, semantic: $vector)->threads,
+            'both rows clear the threshold, so the fixture is about the cap and nothing else',
+        );
+
+        $capped = new MessageThreadRepository(
+            self::getContainer()->get(ManagerRegistry::class),
+            new FreeTextCompiler(),
+            semanticHits: 1,
+        );
+
+        self::assertCount(
+            1,
+            $capped->searchPage($this->user, $query, semantic: $vector)->threads,
+            'the cap admits the nearest and stops, however many others clear the bar',
+        );
+    }
+
+    /**
+     * Words beat vectors, even when the vector's row is newer.
+     *
+     * This is the one that put the best match in the mailbox on page two. A
+     * semantic hit can only come from the most recent SEMANTIC_CANDIDATES
+     * messages, so under the default "most recent" sort every semantic hit is
+     * structurally newer than most of the mail it competes with — they do not
+     * merely tend to win, they cannot lose. The reply whose subject AND sender
+     * both held the search term was six weeks older than the noise above it.
+     *
+     * Deliberately stacked against the fix: the lexical row here is a year
+     * older than the semantic one, so recency alone would reverse this order.
+     */
+    public function testAWordMatchOutranksAMeaningMatchEvenWhenItIsOlder(): void
+    {
+        $this->seedMessage('Quarterly figures', body: 'The pelican audit is attached.', receivedAt: '2025-01-01');
+        $this->seedMessage('Notes from the standup', body: 'Who is doing what this week.', receivedAt: '2026-06-01');
+        $this->store()->store($this->messageId('Notes from the standup'), [1.0, 0.0, 0.0], 'test-model');
+
+        $page = $this->repository->searchPage(
+            $this->user,
+            $this->parser->parse('pelican'),
+            semantic: $this->semantic([1.0, 0.0, 0.0], minSimilarity: 0.5),
+        );
+
+        self::assertCount(2, $page->threads, 'both arms still contribute — this is an ordering, not a filter');
+        self::assertSame(
+            'Quarterly figures',
+            $page->threads[0]->subject,
+            'the row the words found comes first even though it is eighteen months older',
+        );
+        self::assertSame(
+            [$page->threads[1]->id],
+            $page->semanticOnly,
+            'and the row only the vector found is the one still badged, at the end',
+        );
+    }
+
     /** The same, for a model that kept its name and changed its width. */
     public function testVectorsOfAnotherWidthAreNotSearched(): void
     {

@@ -36,12 +36,36 @@ enum SearchSortOrder: string
      * differently the second time. Relevance ties are not an edge case either:
      * `ts_rank` is degenerate for a query that stems to nothing, so every row
      * scores the same and the entire ordering rests on the tiebreaker.
+     *
+     * ## Words before vectors, whichever order is chosen
+     *
+     * `semantic_only ASC` leads both, and it is the fix for a search that put
+     * the best match in the mailbox on page two. A semantic hit can only be
+     * drawn from the most recent SEMANTIC_CANDIDATES messages, so under
+     * `Recent` every one of them is structurally newer than most of the mail it
+     * is competing with — they do not merely tend to win, they are guaranteed
+     * to. Forty-seven of them once sat above a reply whose subject AND sender
+     * both contained the search term, purely because it was six weeks older.
+     *
+     * It fixes `Relevance` as well, and there the disease was worse. `rank` is
+     * `GREATEST(ts_rank, cosine_similarity)`, which mixes two scales that have
+     * no common unit: measured against this schema's weights, a subject match
+     * scores 0.6079, a body match 0.1216, a token-part match 0.0608 — while any
+     * admitted semantic hit is ≥ 0.42 by definition. So sorting by relevance
+     * put every barely-admissible vector hit above every body match, and any
+     * vector hit over 0.608 above an exact subject match. Leading with
+     * provenance means `rank` is now only ever compared within one scale:
+     * ts_rank against ts_rank among the rows words found, similarity against
+     * similarity among the rows only the vector did. The two never meet.
+     *
+     * This is a presentation rule and not a filter. Nothing is removed — the
+     * meaning matches are all still there, badged, in a block at the end.
      */
     public function orderBy(): string
     {
         return match ($this) {
-            self::Recent    => 'last_message_at DESC, thread_id DESC',
-            self::Relevance => 'rank DESC, last_message_at DESC, thread_id DESC',
+            self::Recent    => 'semantic_only ASC, last_message_at DESC, thread_id DESC',
+            self::Relevance => 'semantic_only ASC, rank DESC, last_message_at DESC, thread_id DESC',
         };
     }
 

@@ -58,6 +58,13 @@ class MessageThreadRepository extends ServiceEntityRepository
          */
         private readonly int $semanticCandidates = self::SEMANTIC_CANDIDATES,
         /**
+         * And the fourth, for the reason the other three are injectable: a
+         * bound nothing exercises is a bound nobody knows the shape of. A test
+         * that had to seed eleven near-neighbours to see this one work would
+         * not be written; at 1 it is a two-row fixture.
+         */
+        private readonly int $semanticHits = self::SEMANTIC_HITS,
+        /**
          * The first logger this repository has ever had, and it is here for
          * one call site: the vector arm's give-up path, which discarded the
          * exception it caught and told the person searching that the model had
@@ -1290,7 +1297,16 @@ class MessageThreadRepository extends ServiceEntityRepository
         // Thin, so the expensive pass earns its keep — see the rescue note in
         // buildSearchSql(). Only ever reached on a page that did not fill,
         // which is the same condition the pass exists to serve.
-        if (count($rows) < self::SEARCH_RESCUE_BELOW) {
+        //
+        // COUNTED OVER THE ROWS THE WORDS FOUND, not over the page. The body
+        // pass exists to catch a needle inside a token that the tokenizer split
+        // the wrong way — a LEXICAL rescue — and it was being called off by
+        // rows that are not lexical at all. Forty-seven vector hits padding a
+        // page to exactly fifty made `50 < 50` false, so the one arm that could
+        // still have found the mail never ran, and nothing said so. The cap on
+        // sem_hits makes that arithmetic much harder to hit; counting the right
+        // thing makes it impossible.
+        if ($this->lexicalCount($rows) < self::SEARCH_RESCUE_BELOW) {
             $rows = $this->rescueRows(
                 fn (): array => $this->searchRows($user, $query, $sort, $perPage, $offset, true, $semantic),
                 $rows,
@@ -1423,6 +1439,28 @@ class MessageThreadRepository extends ServiceEntityRepository
     }
 
     /**
+     * How many of these rows some arm made of words actually found.
+     *
+     * The distinction the body rescue needs and never had. `semantic_only` is
+     * on every row already — zero where no vector ran at all — so this is a
+     * count over data in hand rather than a second question to the database.
+     *
+     * @param list<array<string,mixed>> $rows
+     */
+    private function lexicalCount(array $rows): int
+    {
+        $found = 0;
+
+        foreach ($rows as $row) {
+            if (1 !== (int) ($row['semantic_only'] ?? 0)) {
+                ++$found;
+            }
+        }
+
+        return $found;
+    }
+
+    /**
      * Below this many cheap hits, the body substring pass is worth its 3
      * seconds; at or above it, it is not.
      *
@@ -1467,6 +1505,44 @@ class MessageThreadRepository extends ServiceEntityRepository
     private const int SEMANTIC_CANDIDATES = 2000;
 
     /**
+     * How many of those candidates may actually reach the results.
+     *
+     * **A threshold alone does not bound a result set, and this is what that
+     * costs.** Searching one company name returned 63 rows where Gmail over the
+     * same mail returned 16: sixteen matches on words, and forty-seven rows the
+     * vector liked enough to clear 0.42 — LinkedIn job alerts, a newsletter, an
+     * invoice, a piece of outright spam. Every one correctly badged "meaning",
+     * every one useless, and together they filled the page so completely that
+     * the best match in the mailbox — the company's own reply, matching on
+     * subject AND sender — was on page two.
+     *
+     * The threshold was not mistuned. It was measured on the twelve-message
+     * corpus in {@see \App\Domain\Ai\EmbeddingPreset}, where a false-positive
+     * rate of a couple of percent is invisible. Against SEMANTIC_CANDIDATES it
+     * is forty-seven rows. A precision figure taken at n=12 does not survive
+     * being applied at n=2000, and no value of it would: the fix for "a small
+     * fraction of two thousand is still a lot" is a cap, not a stricter
+     * fraction.
+     *
+     * **Why the cap is safe HERE when the note above says it is not.** That
+     * objection is real and applies to a top-k taken over the UNION, which
+     * would interact with OFFSET and make `COUNT(*) OVER ()` mean "lexical plus
+     * up to k, on page one only". This LIMIT is inside `sem_hits`, which is a
+     * CTE evaluated once per statement and does not see the page: the candidate
+     * window is deterministic (`received_at DESC, id DESC`), so the admitted set
+     * is byte-identical on every page and the total stays honest. The earlier
+     * reasoning was right about the wrong position.
+     *
+     * Ten, because the semantic arm is a SUGGESTION and not an answer. A search
+     * whose words found something shows what they found first — see
+     * {@see \App\Domain\Enum\Mail\SearchSortOrder::orderBy()} — and these ride
+     * behind it as a short tail somebody can read or ignore. A search whose
+     * words found nothing is the case the feature exists for, and ten is a
+     * reasonable answer there too.
+     */
+    private const int SEMANTIC_HITS = 10;
+
+    /**
      * The threshold is NOT HERE ANY MORE, and its absence is the fix.
      *
      * This was `SEMANTIC_MAX_DISTANCE = 0.45` — one cosine distance for every
@@ -1481,10 +1557,9 @@ class MessageThreadRepository extends ServiceEntityRepository
      * it has to agree with, and it is a setting rather than a release. See
      * {@see \App\Domain\Ai\EmbeddingPreset} for the measurements.
      *
-     * It stays a THRESHOLD rather than becoming "the nearest k", and that part
-     * is unchanged: the total rides on the same statement as
-     * `COUNT(*) OVER ()`, and a top-k arm would make that total "lexical
-     * matches plus up to k", which is only true on the first page.
+     * It is still a threshold. It is no longer the ONLY bound — see
+     * {@see SEMANTIC_HITS}, which is the cap this docblock used to argue
+     * against and which turns out to be safe in the place it is now written.
      */
 
     /**
@@ -1776,8 +1851,15 @@ class MessageThreadRepository extends ServiceEntityRepository
         // MAX(0) rather than 0: this is one of the aggregate columns of a
         // GROUP BY, and a search with no free text at all still has to produce
         // the `rank` alias the sort orders by.
-        $rankSelect     = 'MAX(0)';
-        $semanticColumn = '';
+        $rankSelect = 'MAX(0)';
+
+        // Zero rather than absent, for the same reason `rank` is MAX(0) above:
+        // the ORDER BY names this column on every search so that words sort
+        // ahead of vectors, and a statement that omitted it when no vector ran
+        // would be a search that fails only on the installations where the
+        // feature is switched off. Overwritten below where there is a vector
+        // to have an opinion.
+        $semanticColumn = ",\n                0                                                 AS semantic_only";
         $semanticRank   = null;
         $semanticCte    = '';
 
@@ -2001,7 +2083,11 @@ class MessageThreadRepository extends ServiceEntityRepository
                                ) recent
                            )
                     ), sem_hits AS (
-                        SELECT message_id, similarity FROM sem_scores WHERE similarity >= :semanticSimilarity
+                        SELECT message_id, similarity
+                          FROM sem_scores
+                         WHERE similarity >= :semanticSimilarity
+                         ORDER BY similarity DESC, message_id DESC
+                         LIMIT :semanticHits
                     )
 
                     SQL;
@@ -2042,8 +2128,10 @@ class MessageThreadRepository extends ServiceEntityRepository
                 $params['semanticModel']       = $semantic->model;
                 $params['semanticDimensions']  = $semantic->dimensions;
                 $params['semanticCandidates']  = $this->semanticCandidates;
+                $params['semanticHits']        = $this->semanticHits;
                 $types['semanticDimensions']   = ParameterType::INTEGER;
                 $types['semanticCandidates']   = ParameterType::INTEGER;
+                $types['semanticHits']         = ParameterType::INTEGER;
             }
 
             if (null !== $free->substring) {
