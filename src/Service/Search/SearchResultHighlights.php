@@ -142,7 +142,7 @@ final class SearchResultHighlights
                 continue;
             }
 
-            $highlight = $this->forThread($thread, $headlines);
+            $highlight = $this->forThread($thread, $headlines, $freeText);
 
             if (null !== $highlight['subject'] || null !== $highlight['snippet']) {
                 $highlights[$id] = $highlight;
@@ -211,11 +211,24 @@ final class SearchResultHighlights
      * while previewing the fragment from the one that actually carries it is
      * the answer that describes the row best.
      *
+     * WHERE THE FALLBACK'S TEXT COMES FROM, AND WHY IT IS FREE. When
+     * `ts_headline` marked nothing, SearchHighlighter needs the raw field to
+     * search it itself — and `$message->bodyText` is a plain mapped column that
+     * `preloadMessages()` has already hydrated for every row on the page. So
+     * the fallback reads text this request has held in memory since before this
+     * class was called: no lazy load, no second statement, nothing added to the
+     * ceiling ThreadListQueryBudgetTest enforces.
+     *
+     * Fetching it instead — adding `m.body_text` to findSearchHeadlines() —
+     * would cost no queries either and was still the wrong answer: fifty rows
+     * times five messages is 250 whole bodies pulled a SECOND time, once as a
+     * headline and once raw, on every search page. Free in queries is not free.
+     *
      * @param array<int, array{id: int|string, subject: mixed, preview: mixed}> $headlines
      *
      * @return array{subject: ?Markup, snippet: ?Markup}
      */
-    private function forThread(MessageThread $thread, array $headlines): array
+    private function forThread(MessageThread $thread, array $headlines, string $freeText): array
     {
         $subject = null;
         $snippet = null;
@@ -227,8 +240,10 @@ final class SearchResultHighlights
                 continue;
             }
 
-            $snippet ??= $this->highlighter->toMarkup($row['preview']);
-            $subject ??= $this->subject($thread, $row['subject']);
+            $snippet ??= $this->highlighter->toMarkup(
+                $this->highlighter->headlineOrFallback($row['preview'], $message->bodyText, $freeText),
+            );
+            $subject ??= $this->subject($thread, $row['subject'], $freeText);
 
             if (null !== $subject && null !== $snippet) {
                 break;
@@ -252,17 +267,28 @@ final class SearchResultHighlights
      * So: the same string with markers in it, or nothing. `ShortWord=0` in the
      * options is what makes the common case pass this guard at all — see
      * SearchHighlighter::HEADLINE_OPTIONS.
+     *
+     * THE FALLBACK IS GIVEN THE THREAD'S SUBJECT, not the message's, and that
+     * is what lets the guard keep doing its job unchanged. A subject the
+     * fallback marked in place comes back as that same string plus sentinels,
+     * so it passes; one it had to window — a subject longer than
+     * WORDS_BEFORE + WORDS_AFTER, or one whose runs of whitespace it collapsed
+     * — comes back different and is refused here exactly as a fragmented
+     * `ts_headline` subject is. The guard is one test and it does not need to
+     * know which of the two produced the string it is testing.
      */
-    private function subject(MessageThread $thread, mixed $headline): ?Markup
+    private function subject(MessageThread $thread, mixed $headline, string $freeText): ?Markup
     {
         if (null === $thread->subject || '' === $thread->subject) {
             return null;
         }
 
-        if ($this->highlighter->withoutMarkers($headline) !== $thread->subject) {
+        $marked = $this->highlighter->headlineOrFallback($headline, $thread->subject, $freeText);
+
+        if ($this->highlighter->withoutMarkers($marked) !== $thread->subject) {
             return null;
         }
 
-        return $this->highlighter->toMarkup($headline);
+        return $this->highlighter->toMarkup($marked);
     }
 }

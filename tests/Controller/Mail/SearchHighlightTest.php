@@ -186,6 +186,153 @@ final class SearchHighlightTest extends WebTestCase
         self::assertStringNotContainsString('<img src=x', $html);
     }
 
+    // ── the fallback, for hits `ts_headline` structurally cannot mark ─────
+
+    /**
+     * A term buried inside a URL.
+     *
+     * Postgres's `english` parser makes the whole link ONE token of type `url`,
+     * and that token does not stem to `chargecloud`, so `ts_headline` marks
+     * nothing — while the search found the row anyway, through the substring
+     * arm of the query. Measured, not reasoned about: see the table in
+     * SearchHighlighter::fallback().
+     *
+     * The padding is load-bearing here for the same reason as in the primary
+     * test: without it the plain preview would already show these words and the
+     * assertion would pass against a fallback that does nothing.
+     */
+    public function testATermBuriedInAUrlIsMarkedEvenThoughTsHeadlineCannotSeeIt(): void
+    {
+        $this->seedThread(
+            'Stellenangebote',
+            self::OPENING.' '
+            .str_repeat('padding word here plus more filler. ', 10)
+            .'Jobangebot ansehen https://www.linkedin.com/jobs/view/4454199659/company=chargecloud jetzt bewerben.',
+        );
+
+        $html = $this->search(self::TERM);
+
+        self::assertStringContainsString(
+            '<mark>chargecloud</mark>',
+            $html,
+            'the term that found the row is inside a URL and was not marked',
+        );
+
+        self::assertStringContainsString(
+            'Jobangebot ansehen',
+            $html,
+            'the fallback fragment should carry the words beside the match',
+        );
+
+        self::assertStringNotContainsString(
+            self::OPENING,
+            $html,
+            'the row is still previewing the top of the body instead of the match',
+        );
+    }
+
+    /**
+     * A term that is one component of a hostname.
+     *
+     * `chargecloud.de` is a single `host` lexeme. The row is found through the
+     * weight-D token-parts arm — Version20260818120000 — which indexes exactly
+     * the pieces `ts_headline` refuses to mark.
+     */
+    public function testATermInsideAHostnameIsMarkedInBothSubjectAndPreview(): void
+    {
+        $this->seedThread(
+            'Neue Jobs bei chargecloud.de und anderen Firmen',
+            self::OPENING.' '
+            .str_repeat('padding word here plus more filler. ', 10)
+            .'Stellen findest du jederzeit auf chargecloud.de und dort auch bei chargecloud.de/jobs.',
+        );
+
+        $html = $this->search(self::TERM);
+
+        self::assertStringContainsString(
+            'Neue Jobs bei <mark>chargecloud</mark>.de und anderen Firmen',
+            $html,
+            'the subject holds the term inside a hostname and was not marked in place',
+        );
+
+        self::assertStringContainsString(
+            'Stellen findest du jederzeit auf',
+            $html,
+            'the preview should be the window around the hit, not the top of the body',
+        );
+    }
+
+    /**
+     * Two hits in one window, both marked.
+     *
+     * A fragment that plainly contains the term twice with one of them marked
+     * reads as the highlighter having given up halfway. Gmail marks every
+     * occurrence and so does this.
+     */
+    public function testEveryOccurrenceInTheWindowIsMarkedAndNotJustTheFirst(): void
+    {
+        $this->seedThread(
+            'Stellen',
+            'Siehe https://jobs.example.test/x/firma=chargecloud sowie '
+            .'https://jobs.example.test/y/firma=chargecloud fuer weitere Angebote.',
+        );
+
+        $html = $this->search(self::TERM);
+
+        self::assertSame(
+            2,
+            substr_count($html, '<mark>chargecloud</mark>'),
+            'both occurrences inside the fragment should be marked',
+        );
+    }
+
+    /**
+     * The term is genuinely not in the subject or the body.
+     *
+     * This row is found on the sender's NAME, which is in `search_vector` and in
+     * neither of the two fields a fragment is built from. `ts_headline` marks
+     * nothing, the fallback finds nothing, and the row must keep the preview
+     * every other list shows — the fallback may not invent a reason.
+     */
+    public function testATermAbsentFromSubjectAndBodyStillFallsBackToThePlainPreview(): void
+    {
+        $this->seedThread('Oak for the alcove');
+
+        $html = $this->search('Sender');
+
+        self::assertStringContainsString(
+            self::OPENING,
+            $html,
+            'the plain preview should be back when neither field holds the term',
+        );
+
+        self::assertStringNotContainsString('<mark>', $html);
+    }
+
+    /**
+     * Markup in a fragment the fallback built, not `ts_headline`.
+     *
+     * The v0.2.34 security property is that highlight HTML is escaped first and
+     * marked second. A fallback that assembled `<mark>` by concatenation would
+     * pass every "does it contain a mark" test in this file and ship the
+     * sender's markup to the page as elements. This is the test that says which
+     * of the two happened.
+     */
+    public function testMarkupAroundAFallbackFragmentIsEscapedRatherThanRendered(): void
+    {
+        $this->seedThread(
+            'Rechnung',
+            'Anbei <img src=x onerror=alert(1)> siehe '
+            .'https://example.test/jobs/view/4454199659/company=chargecloud heute.',
+        );
+
+        $html = $this->search(self::TERM);
+
+        self::assertStringContainsString('<mark>chargecloud</mark>', $html, 'the fallback did not run');
+        self::assertStringContainsString('&lt;img src=x onerror=alert(1)&gt;', $html);
+        self::assertStringNotContainsString('<img src=x', $html);
+    }
+
     // ── fixtures ──────────────────────────────────────────────────────────
 
     /** The rendered search page for a query. */

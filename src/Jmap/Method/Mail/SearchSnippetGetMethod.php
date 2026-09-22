@@ -35,6 +35,23 @@ use App\Service\Search\SearchHighlighter;
  * shipped that markup to every client as snippet HTML. The escaping now happens
  * in SearchHighlighter, which is also where the options string lives — the
  * conversion and the delimiters it converts cannot be changed apart.
+ *
+ * WHAT THIS METHOD DELIBERATELY DOES NOT DO. `ts_headline` cannot mark a term
+ * that sits INSIDE a compound token — `chargecloud` in `chargecloud.de`, or in
+ * a link — while the search finds such rows perfectly well through the
+ * token-parts arm of `search_vector`. SearchHighlighter::headlineOrFallback()
+ * closes that on the web, and this method does not call it, because the
+ * fallback needs the field's RAW text to search and this method does not have
+ * any. The web page does: `preloadForRows()` has hydrated every message on the
+ * page before SearchResultHighlights runs, so the fallback there reads memory
+ * and costs nothing. Here it would mean up to MAX_OBJECTS whole bodies fetched
+ * a second time — once as a headline, once raw — or a second statement, to
+ * find out whether a substring occurs.
+ *
+ * That is a cost worth measuring before paying, not one to slip in behind a
+ * highlighting fix, so a JMAP client still sees a null snippet for those hits
+ * and falls back to its own preview. If it is ever paid, the fallback is one
+ * call away and needs no new way of producing a `<mark>`.
  */
 final class SearchSnippetGetMethod implements JmapMethod
 {
