@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Service\Mail;
 
+use App\Domain\Helper\MailServerHost;
 use App\Entity\Mail\Account;
 
 /**
@@ -37,12 +38,22 @@ final class SmtpDsnFactory
             $port = 587;
         }
 
+        // Refused rather than encoded: a host is not a value that CAN be
+        // percent-encoded into an authority, and one carrying `?verify_peer=0`
+        // was otherwise read by the DSN parser as options for this transport.
+        if (false === MailServerHost::isValid($account->smtpHost)) {
+            throw new \InvalidArgumentException('The SMTP host is not a valid hostname or IP address.');
+        }
+
+        // rawurlencode, not urlencode: Dsn::fromString() decodes the userinfo
+        // with rawurldecode, so urlencode's `+` for a space came back as a
+        // literal `+` and a password with a space in it never authenticated.
         return sprintf(
             '%s://%s:%s@%s:%d',
             $scheme,
-            urlencode($account->username),
-            urlencode($account->password),
-            $account->smtpHost,
+            rawurlencode((string) $account->username),
+            rawurlencode((string) $account->password),
+            MailServerHost::forAuthority((string) $account->smtpHost),
             $port,
         );
     }
@@ -60,7 +71,7 @@ final class SmtpDsnFactory
         }
 
         return str_replace(
-            [$password, urlencode($password)],
+            [$password, urlencode($password), rawurlencode($password)],
             '***',
             $text,
         );

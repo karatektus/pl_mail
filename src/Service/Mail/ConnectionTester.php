@@ -6,10 +6,13 @@ namespace App\Service\Mail;
 
 use App\Domain\DTO\ConnectionTestResult;
 use App\Domain\Helper\ImapConnectionFactory;
+use App\Domain\Helper\MailServerHost;
 use App\Entity\Mail\Account;
+use Psr\Log\LoggerInterface;
 use Symfony\Component\Mailer\Transport;
 use Symfony\Component\Mailer\Transport\Smtp\SmtpTransport;
 use Symfony\Component\Mailer\Transport\Smtp\Stream\SocketStream;
+use Symfony\Contracts\Translation\TranslatorInterface;
 use Throwable;
 
 /**
@@ -25,6 +28,8 @@ final class ConnectionTester
     public function __construct(
         private readonly ImapConnectionFactory $imapFactory,
         private readonly SmtpDsnFactory        $dsnFactory,
+        private readonly TranslatorInterface   $translator,
+        private readonly LoggerInterface       $logger,
     ) {
     }
 
@@ -67,9 +72,9 @@ final class ConnectionTester
             $client  = $this->imapFactory->connect($account, self::TIMEOUT_SECONDS);
             $folders = $client->getFolders(false);
 
-            return [true, sprintf('Connected — %d folders visible.', count($folders))];
+            return [true, $this->translator->trans('account.test.result.imap_ok', ['%count%' => count($folders)])];
         } catch (Throwable $e) {
-            return [false, $this->describe($e, $account, $account->imapEncryption, $account->imapPort)];
+            return [false, $this->describe($e, $account, 'imap', $account->imapEncryption, $account->imapPort)];
         } finally {
             if (null !== $client) {
                 try {
@@ -89,7 +94,7 @@ final class ConnectionTester
         $host = $account->smtpHost;
 
         if (null === $host || '' === trim($host)) {
-            return [null, 'No SMTP host configured — sending is disabled for this account.'];
+            return [null, $this->translator->trans('account.test.result.smtp_none')];
         }
 
         $transport = null;
@@ -98,7 +103,7 @@ final class ConnectionTester
             $transport = Transport::fromDsn($this->dsnFactory->forAccount($account));
 
             if (false === $transport instanceof SmtpTransport) {
-                return [false, 'Resolved transport is not SMTP.'];
+                return [false, $this->translator->trans('account.test.result.failed')];
             }
 
             $stream = $transport->getStream();
@@ -111,9 +116,9 @@ final class ConnectionTester
             // which is exactly what we want to verify.
             $transport->start();
 
-            return [true, 'Connected and authenticated.'];
+            return [true, $this->translator->trans('account.test.result.smtp_ok')];
         } catch (Throwable $e) {
-            return [false, $this->describe($e, $account, $account->smtpEncryption, $account->smtpPort)];
+            return [false, $this->describe($e, $account, 'smtp', $account->smtpEncryption, $account->smtpPort)];
         } finally {
             if (true === $transport instanceof SmtpTransport) {
                 try {
@@ -126,38 +131,78 @@ final class ConnectionTester
     }
 
     /**
+     * A category the user can act on, never the server's own words.
+     *
+     * This used to hand back the whole exception chain, which is the remote
+     * server talking: its banner, its software and version, the resolved
+     * address, and whatever else it chose to say — echoed to anyone who could
+     * type a host into the form, which made the tester a banner grabber for any
+     * address the server can reach. The chain still matters to whoever fixes
+     * the problem, so it goes to the log (redacted), where an admin can read it.
+     *
      * Webklex wraps the real cause in a generic ConnectionFailedException, and
      * Symfony's mailer nests transport exceptions the same way — so the useful
-     * detail is always one or two levels down the chain.
+     * signal is one or two levels down, and the whole chain is what is sorted.
      */
-    private function describe(Throwable $e, Account $account, ?string $encryption, ?int $port): string
+    private function describe(Throwable $e, Account $account, string $protocol, ?string $encryption, ?int $port): string
     {
         $parts   = [];
         $current = $e;
         $depth   = 0;
 
         while (null !== $current && $depth < 4) {
-            $message = trim($current->getMessage());
-
-            if ('' !== $message && false === in_array($message, $parts, true)) {
-                $parts[] = $message;
-            }
-
+            $parts[] = $current::class . ': ' . trim($current->getMessage());
             $current = $current->getPrevious();
             $depth++;
         }
 
-        if (count($parts) === 0) {
-            $parts[] = $e::class;
+        $chain = $this->dsnFactory->redact(implode(' — ', $parts), $account);
+
+        $this->logger->info('Connection test failed', ['protocol' => $protocol, 'detail' => $chain]);
+
+        $message = $this->translator->trans('account.test.result.' . $this->category($chain, $account, $protocol));
+        $hint    = $this->portHint($encryption, $port);
+
+        return null === $hint ? $message : $message . ' ' . $hint;
+    }
+
+    /**
+     * Sorted by the words the libraries use, most specific first: a failed
+     * certificate check also mentions the socket it failed on, and a refused
+     * login also mentions the connection it was refused over.
+     */
+    private function category(string $chain, Account $account, string $protocol): string
+    {
+        $host = 'imap' === $protocol ? $account->imapHost : $account->smtpHost;
+
+        if (false === MailServerHost::isValid($host)) {
+            return 'host_invalid';
         }
 
-        $hint = $this->portHint($encryption, $port);
+        $text = strtolower($chain);
 
-        if (null !== $hint) {
-            $parts[] = $hint;
+        return match (true) {
+            $this->mentions($text, ['timed out', 'timeout'])                                                   => 'timeout',
+            $this->mentions($text, ['certificate', 'ssl operation', 'crypto', 'handshake', 'openssl'])         => 'tls',
+            $this->mentions($text, ['auth', 'login', 'credential', 'password', '535 ', 'invalid user'])         => 'auth',
+            $this->mentions($text, ['getaddrinfo', 'name or service', 'resolve', 'refused', 'unable to connect',
+                'no route', 'unreachable', 'could not be established', 'connection failed', 'setup failed'])                   => 'unreachable',
+            default                                                                                          => 'failed',
+        };
+    }
+
+    /**
+     * @param list<string> $needles
+     */
+    private function mentions(string $text, array $needles): bool
+    {
+        foreach ($needles as $needle) {
+            if (true === str_contains($text, $needle)) {
+                return true;
+            }
         }
 
-        return $this->dsnFactory->redact(implode(' — ', $parts), $account);
+        return false;
     }
 
     /**
@@ -173,15 +218,15 @@ final class ConnectionTester
         $normalised = strtolower($encryption);
 
         if ('ssl' === $normalised && in_array($port, [587, 143], true)) {
-            return sprintf('Hint: port %d normally expects STARTTLS, not implicit SSL/TLS.', $port);
+            return $this->translator->trans('account.test.hint.expects_starttls', ['%port%' => $port]);
         }
 
         if ('ssl' !== $normalised && in_array($port, [465, 993], true)) {
-            return sprintf('Hint: port %d normally expects implicit SSL/TLS.', $port);
+            return $this->translator->trans('account.test.hint.expects_ssl', ['%port%' => $port]);
         }
 
         if ('none' === $normalised) {
-            return 'Hint: encryption is set to None — most providers require SSL/TLS or STARTTLS.';
+            return $this->translator->trans('account.test.hint.no_encryption');
         }
 
         return null;

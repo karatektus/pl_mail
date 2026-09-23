@@ -30,8 +30,24 @@ account:
         oauth: OAuth
     test:
         button: Test connection
+        hint:
+            expects_ssl: 'Port %port% normally expects implicit SSL/TLS.'
+            expects_starttls: 'Port %port% normally expects STARTTLS, not implicit SSL/TLS.'
+            no_encryption: 'Encryption is set to None — most providers require SSL/TLS or STARTTLS.'
         imap: IMAP
         request_failed: 'The test could not run (%status%).'
+        result:
+            auth: 'The server refused the username or password.'
+            failed: 'The connection did not work. Check the host, port and encryption.'
+            host_invalid: 'Enter a host name or IP address only — no slashes, question marks or @.'
+            imap_ok: 'Connected — %count% folders visible.'
+            missing_fields: 'Enter at least an email address and an IMAP host first.'
+            missing_password: 'No password to test with. Enter one above — on the edit form a blank field keeps the stored password, which the test can only use once the account is saved.'
+            smtp_none: 'No SMTP host configured — sending is disabled for this account.'
+            smtp_ok: 'Connected and signed in.'
+            timeout: 'The server did not answer in time. Check the host and port, and whether a firewall is in the way.'
+            tls: 'The secure connection failed — the certificate was not accepted, or the encryption setting does not match the port.'
+            unreachable: 'The server could not be reached. Check the host name and port.'
         smtp: SMTP
     updated: Account updated
 

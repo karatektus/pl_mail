@@ -52,6 +52,12 @@ class ImapConnectionFactory
                 $account->email,
             ));
         }
+
+        // The library splices the host into a socket address; see MailServerHost.
+        if (false === MailServerHost::isValid($host)) {
+            throw new \InvalidArgumentException('The IMAP host is not a valid hostname or IP address.');
+        }
+
         $accountConfig = [
             'host'          => $host,
             'port'          => $account->imapPort,

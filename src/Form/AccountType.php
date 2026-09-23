@@ -2,6 +2,7 @@
 
 namespace App\Form;
 
+use App\Domain\Helper\MailServerHost;
 use App\Entity\Mail\Account;
 use App\Service\Mail\MailPresetProvider;
 use Symfony\Component\Form\AbstractType;
@@ -11,8 +12,10 @@ use Symfony\Component\Form\Extension\Core\Type\PasswordType;
 use Symfony\Component\Form\Extension\Core\Type\TextType;
 use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\OptionsResolver\OptionsResolver;
+use Symfony\Component\Validator\Constraints\Callback;
 use Symfony\Component\Validator\Constraints\NotBlank;
 use Symfony\Component\Validator\Constraints\Range;
+use Symfony\Component\Validator\Context\ExecutionContextInterface;
 
 class AccountType extends AbstractType
 {
@@ -73,7 +76,7 @@ class AccountType extends AbstractType
                     'class' => 'form-input',
                 ] + PasswordManagerIgnore::ATTR,
                 'label' => 'IMAP host',
-                'constraints' => [new NotBlank()],
+                'constraints' => [new NotBlank(), self::hostConstraint()],
             ])
             ->add('imapPort', IntegerType::class, [
                 'attr' => [
@@ -99,6 +102,7 @@ class AccountType extends AbstractType
                     'class' => 'form-input',
                 ] + PasswordManagerIgnore::ATTR,
                 'label' => 'SMTP host',
+                'constraints' => [self::hostConstraint()],
             ])
             ->add('smtpPort', IntegerType::class, [
                 'required' => false,
@@ -131,5 +135,23 @@ class AccountType extends AbstractType
         ]);
 
         $resolver->setAllowedTypes('require_password', 'bool');
+    }
+
+    /**
+     * A hostname or an IP address, nothing that parses as more of a URL.
+     *
+     * The host is spliced into the mailer DSN and the IMAP socket address, so
+     * `mail.example.com?verify_peer=0` was not a typo but a second option
+     * string. See MailServerHost. Blank is NotBlank's business, or allowed.
+     */
+    private static function hostConstraint(): Callback
+    {
+        return new Callback(static function (?string $host, ExecutionContextInterface $context): void {
+            if (null === $host || '' === $host || true === MailServerHost::isValid($host)) {
+                return;
+            }
+
+            $context->buildViolation('account.host_invalid')->addViolation();
+        });
     }
 }

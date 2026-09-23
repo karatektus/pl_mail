@@ -30,8 +30,24 @@ account:
         oauth: OAuth
     test:
         button: Verbindung testen
+        hint:
+            expects_ssl: 'Port %port% erwartet normalerweise direktes SSL/TLS.'
+            expects_starttls: 'Port %port% erwartet normalerweise STARTTLS, nicht direktes SSL/TLS.'
+            no_encryption: 'Die Verschlüsselung steht auf „Keine“ — die meisten Anbieter verlangen SSL/TLS oder STARTTLS.'
         imap: IMAP
         request_failed: 'Der Test konnte nicht laufen (%status%).'
+        result:
+            auth: 'Der Server hat Benutzername oder Passwort abgelehnt.'
+            failed: 'Die Verbindung hat nicht geklappt. Prüf Host, Port und Verschlüsselung.'
+            host_invalid: 'Gib nur einen Hostnamen oder eine IP-Adresse ein — ohne Schrägstriche, Fragezeichen oder @.'
+            imap_ok: 'Verbunden — %count% Ordner sichtbar.'
+            missing_fields: 'Gib zuerst mindestens eine E-Mail-Adresse und einen IMAP-Host ein.'
+            missing_password: 'Kein Passwort zum Testen. Gib oben eins ein — beim Bearbeiten behält ein leeres Feld das gespeicherte Passwort, und das kann der Test erst nutzen, wenn das Konto gespeichert ist.'
+            smtp_none: 'Kein SMTP-Host eingetragen — Senden ist für dieses Konto aus.'
+            smtp_ok: 'Verbunden und angemeldet.'
+            timeout: 'Der Server hat nicht rechtzeitig geantwortet. Prüf Host und Port und ob eine Firewall dazwischen ist.'
+            tls: 'Die sichere Verbindung ist gescheitert — das Zertifikat wurde nicht akzeptiert, oder die Verschlüsselung passt nicht zum Port.'
+            unreachable: 'Der Server war nicht erreichbar. Prüf Hostnamen und Port.'
         smtp: SMTP
     updated: Konto aktualisiert
 

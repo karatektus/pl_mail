@@ -30,8 +30,24 @@ account:
         oauth: OAuth
     test:
         button: Test the riggin'
+        hint:
+            expects_ssl: 'Port %port% be wantin'' SSL/TLS from the first word, matey.'
+            expects_starttls: 'Port %port% be wantin'' STARTTLS, not SSL/TLS from the first word.'
+            no_encryption: 'Ye sail with no encryption — most harbours demand SSL/TLS or STARTTLS.'
         imap: IMAP
         request_failed: 'The test couldn''t set sail (%status%).'
+        result:
+            auth: 'The harbourmaster turned away yer name or password.'
+            failed: 'The line didn''t hold. Check the host, port an'' encryption.'
+            host_invalid: 'A host name or IP address only, sailor — no slashes, question marks nor @.'
+            imap_ok: 'Aboard — %count% holds in sight.'
+            missing_fields: 'Give us an email address an'' an IMAP host first.'
+            missing_password: 'No password to test with. Enter one above — on the edit form a blank field keeps the stored one, which the test can only use once the ship be saved.'
+            smtp_none: 'No SMTP host charted — this ship sends no letters.'
+            smtp_ok: 'Aboard an'' signed in.'
+            timeout: 'The server kept its silence too long. Check the host an'' port, an'' whether a firewall blocks the channel.'
+            tls: 'The secure line broke — the certificate weren''t trusted, or the encryption don''t match the port.'
+            unreachable: 'Couldn''t raise the server. Check the host name an'' port.'
         smtp: SMTP
     updated: Ship's papers amended
 

@@ -6,6 +6,7 @@ namespace App\Controller\Settings;
 
 use App\Controller\ChecksCsrf;
 use App\Domain\DTO\ConnectionTestResult;
+use App\Domain\Helper\MailServerHost;
 use App\Entity\Mail\Account;
 use App\Form\AccountType;
 use App\Repository\Mail\AccountRepository;
@@ -26,6 +27,7 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
+use Symfony\Contracts\Translation\TranslatorInterface;
 use Symfony\UX\Turbo\TurboBundle;
 use Throwable;
 
@@ -248,7 +250,7 @@ final class AccountController extends AbstractController
     }
 
     #[Route('/test-connection', name: 'test_connection', methods: ['POST'])]
-    public function testConnection(Request $request, ConnectionTester $tester): JsonResponse
+    public function testConnection(Request $request, ConnectionTester $tester, TranslatorInterface $translator): JsonResponse
     {
         // Not assertCsrf(): this one has always answered 400 rather than 403,
         // and moving it would change what its caller is handed.
@@ -288,7 +290,19 @@ final class AccountController extends AbstractController
         if ('' === $account->username || '' === $account->imapHost) {
             return $this->json(new ConnectionTestResult(
                 false,
-                'Enter at least an email address and an IMAP host first.',
+                $translator->trans('account.test.result.missing_fields'),
+                '',
+                null,
+                '',
+                '',
+            )->toArray());
+        }
+
+        if (false === MailServerHost::isValid($account->imapHost)
+            || ('' !== $account->smtpHost && false === MailServerHost::isValid($account->smtpHost))) {
+            return $this->json(new ConnectionTestResult(
+                false,
+                $translator->trans('account.test.result.host_invalid'),
                 '',
                 null,
                 '',
@@ -299,7 +313,7 @@ final class AccountController extends AbstractController
         if ('' === $account->password) {
             return $this->json(new ConnectionTestResult(
                 false,
-                'No password available to test with. Enter one above — on the edit form a blank field means "keep the stored password", which the tester can only resolve once the account id reaches it.',
+                $translator->trans('account.test.result.missing_password'),
                 '',
                 null,
                 '',
