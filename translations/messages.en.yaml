@@ -2061,6 +2061,13 @@ message:
     original:
         copied: Copied
         copy: Copy to clipboard
+        copy_failed: Copy failed
+        fields:
+            created_at: Created at
+            from: From
+            message_id: Message ID
+            subject: Subject
+            to: To
         heading: Original message
         reconstructed: 'The original bytes of this message were not kept, so this is a reconstruction from the stored headers and the text body. The MIME structure and any HTML part are missing, and it will not verify against a DKIM signature.'
     quote:

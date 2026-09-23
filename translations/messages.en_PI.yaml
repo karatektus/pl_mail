@@ -1732,6 +1732,13 @@ message:
     original:
         copied: Copied
         copy: Copy to the slate
+        copy_failed: The slate wouldn't take it
+        fields:
+            created_at: Penned on
+            from: From
+            message_id: Bottle's mark
+            subject: Subject
+            to: To
         heading: The original scroll
         reconstructed: "The true scroll be lost to the deep, so what ye see here be redrawn from the headers we kept and the plain text. The MIME riggin' and any HTML sail be missin', and it'll ne'er answer to a DKIM seal."
     quote:

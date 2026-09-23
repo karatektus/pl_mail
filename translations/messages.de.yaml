@@ -2039,6 +2039,13 @@ message:
     original:
         copied: Kopiert
         copy: In die Zwischenablage kopieren
+        copy_failed: Kopieren fehlgeschlagen
+        fields:
+            created_at: Erstellt am
+            from: Von
+            message_id: Nachrichten-ID
+            subject: Betreff
+            to: An
         heading: Originalnachricht
         reconstructed: 'Die Originalbytes dieser Nachricht wurden nicht aufbewahrt. Du siehst eine Rekonstruktion aus den gespeicherten Headern und dem Textteil — die MIME-Struktur und ein etwaiger HTML-Teil fehlen, und gegen eine DKIM-Signatur lässt sie sich nicht prüfen.'
     quote:

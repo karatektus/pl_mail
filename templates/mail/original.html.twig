@@ -61,20 +61,20 @@ independent of the app layout; the source is printed escaped, never |raw.
 
 <table class="summary">
     <tr>
-        <th>Message ID</th>
+        <th>{{ 'message.original.fields.message_id'|trans }}</th>
         <td>{{ message.messageId ?: '—' }}</td>
     </tr>
     <tr>
-        <th>Created at</th>
+        <th>{{ 'message.original.fields.created_at'|trans }}</th>
         {% set sourceAt = message.sentAt ?? message.receivedAt %}
         <td>{{ sourceAt ? sourceAt|intl_date('EEEdMMMy') ~ ', ' ~ sourceAt|date(clock.time ~ ' (T)') : '—' }}</td>
     </tr>
     <tr>
-        <th>From</th>
+        <th>{{ 'message.original.fields.from'|trans }}</th>
         <td>{{ message.fromName ? message.fromName ~ ' <' ~ message.fromAddress ~ '>' : message.fromAddress }}</td>
     </tr>
     <tr>
-        <th>To</th>
+        <th>{{ 'message.original.fields.to'|trans }}</th>
         <td>
             {%- for entry in message.toAddresses ?? [] -%}
                 {{ entry.address }}{{ not loop.last ? ', ' : '' }}
@@ -84,7 +84,7 @@ independent of the app layout; the source is printed escaped, never |raw.
         </td>
     </tr>
     <tr>
-        <th>Subject</th>
+        <th>{{ 'message.original.fields.subject'|trans }}</th>
         <td>{{ message.subject ?: ('thread.no_subject'|trans) }}</td>
     </tr>
     {% for mechanism, verdict in auth %}
@@ -118,11 +118,23 @@ independent of the app layout; the source is printed escaped, never |raw.
    rides along as Report-Only and the button works. See
    ContentSecurityPolicyListener, and print.html.twig, which carries a nonce of
    its own and was the reason this one read as intentional. #}
+{# The button is held from the start rather than read off the event:
+   `event.currentTarget` is null once the handler has awaited, so the old
+   version copied and then threw instead of saying so. Not ui--clipboard,
+   because this page loads none of the application's JavaScript. #}
 <script nonce="{{ csp_nonce() }}">
-    document.getElementById('copy').addEventListener('click', async (event) => {
-        await navigator.clipboard.writeText(document.getElementById('source').textContent);
-        event.currentTarget.textContent = {{ 'message.original.copied'|trans|json_encode|raw }};
-    });
+    (function () {
+        const button = document.getElementById('copy');
+
+        button.addEventListener('click', async () => {
+            try {
+                await navigator.clipboard.writeText(document.getElementById('source').textContent);
+                button.textContent = {{ 'message.original.copied'|trans|json_encode|raw }};
+            } catch (error) {
+                button.textContent = {{ 'message.original.copy_failed'|trans|json_encode|raw }};
+            }
+        });
+    })();
 </script>
 
 </body>
