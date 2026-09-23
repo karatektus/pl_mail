@@ -2,68 +2,78 @@ import { Controller } from "@hotwired/stimulus";
 import { prefersHour12 } from "../../clock_format.js";
 
 /**
- * The event editor's start-and-end picker.
+ * plMail's date-and-time picker.
  *
- * Two cards and one panel: the cards say when the event starts and ends, the
- * panel sets whichever card is chosen — a strip of six days (a month behind the
- * calendar button), then the hour, then the minute (every five minutes and an
- * exact field behind the "···" button). Picking the start's minute moves on to
- * the end, which is the order people fill a meeting in.
+ * One or two cards say what is chosen; one panel under them sets it: a strip of
+ * six days (a month, with arrows, behind the calendar button), then the hour,
+ * then the minute (every five minutes and an exact field behind "···").
+ *
+ * THREE SHAPES, from which targets and `mode` are present
+ * ───────────────────────────────────────────────────────
+ * - start AND end, with days — the event editor. The cards pick which side the
+ *   panel sets; the start's quarter-hour moves on to the end, which also has
+ *   length chips.
+ * - start alone, with days — "send later". One card.
+ * - `mode: "time"`, start and end — a booking page's daily hours. No days.
  *
  * THE HIDDEN INPUTS ARE THE TRUTH
  * ───────────────────────────────
- * `start` and `end` are the form's own `startsAt` / `endsAt`, in the ISO wall
- * time they always carried ("2026-09-25T15:00"), and calendar--event-form still
- * owns them: it validates them, marks them invalid and — on a change to the
- * start — drags the end along to keep the event's length. So this controller
- * only ever WRITES them (and fires `input` and `change`, as a person typing
- * would) and REDRAWS from them. The end's `value` setter is wrapped on this
- * instance so a write from anywhere else — shiftEnd, above all — redraws too.
+ * `start` and `end` are the form's own inputs, carrying the value shape they
+ * always did ("2026-09-25T15:00", or "15:00" in time mode), and whatever owned
+ * them still does: calendar--event-form validates them and drags the end along
+ * with the start; compose--schedule seeds, bounds and confirms its field; the
+ * booking form turns its pair into minutes. So this controller only WRITES them
+ * (firing `input` and `change`, as typing would) and REDRAWS from them — their
+ * `value` setters are wrapped on this instance, so a write from anywhere else
+ * redraws too, and `focus()` lands on the card.
  *
- * THE END CANNOT BE BEFORE THE START
- * ──────────────────────────────────
- * Rather than being refused afterwards, the choices that would put it there are
- * disabled: days before the start, and on the start's own day the hours and
- * minutes at or before it. The server still refuses one, and the form still
- * says so, for a value that arrives some other way.
+ * BOUNDS ARE OFFERED, NOT ENFORCED AFTERWARDS
+ * ───────────────────────────────────────────
+ * The end must come after the start, and a field with `min` / `max` (the
+ * scheduler's "not in the past, not beyond the hold") must stay inside them.
+ * Choices outside are disabled, and a pick that would land outside — an hour
+ * whose current minute is too early — is moved to the nearest time inside.
+ * Whatever owned the field still refuses a bad value on its own terms.
  *
- * Times are handled as minutes from `today`'s midnight, so a day is a multiple
- * of 1440 and "after the start" is one comparison. Dates are counted in UTC
- * days, never through a local Date's hours, so a DST change cannot make a day
- * 23 hours long.
+ * Times are minutes from `today`'s midnight, so a day is a multiple of 1440 and
+ * every bound is one comparison. Days are counted in UTC, never through a local
+ * Date's hours, so a DST change cannot make a day 23 hours long.
  */
 const DAY = 1440;
 
 export default class extends Controller {
     static targets = ["start", "end", "startCard", "endCard", "panel"];
-    static values = { today: String, labels: Object };
+    static values = { today: String, labels: Object, mode: { type: String, default: "datetime" } };
 
     connect() {
         this.hour12 = prefersHour12()
             ?? true === new Intl.DateTimeFormat(undefined, { hour: "numeric" }).resolvedOptions().hour12;
         this.lang = this.language();
+        this.timeOnly = "time" === this.modeValue;
         this.side = "start";
         this.month = false;
+        this.view = null;
         this.fine = false;
 
         this.native = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value");
-        for (const input of [this.startTarget, this.endTarget]) {
+        for (const input of this.inputs()) {
             const self = this;
             Object.defineProperty(input, "value", {
                 configurable: true,
                 get() { return self.native.get.call(this); },
                 set(v) { self.native.set.call(this, v); self.render(); },
             });
-            // The form focuses the first field marked invalid; a hidden input
-            // cannot take focus, its card can.
-            input.focus = () => (input === this.startTarget ? this.startCardTarget : this.endCardTarget).focus();
+            // Whoever owns the field focuses it — on an error, on opening. A
+            // hidden input cannot take focus; its card can.
+            input.focus = () => this.cardFor(input)?.focus();
         }
 
         this.observer = new MutationObserver(() => this.render());
-        this.observer.observe(this.startTarget, { attributes: true, attributeFilter: ["aria-invalid"] });
-        this.observer.observe(this.endTarget, { attributes: true, attributeFilter: ["aria-invalid"] });
+        for (const input of this.inputs()) {
+            this.observer.observe(input, { attributes: true, attributeFilter: ["aria-invalid", "min", "max"] });
+        }
 
-        this.allDayBox = this.element.closest("form")?.querySelector('input[name="isAllDay"]') ?? null;
+        this.allDayBox = this.timeOnly ? null : this.element.closest("form")?.querySelector('input[name="isAllDay"]') ?? null;
         this.onAllDay = () => this.render();
         this.allDayBox?.addEventListener("change", this.onAllDay);
 
@@ -80,7 +90,7 @@ export default class extends Controller {
         this.allDayBox?.removeEventListener("change", this.onAllDay);
         this.panelTarget.removeEventListener("click", this.onClick);
         this.panelTarget.removeEventListener("change", this.onExact);
-        for (const input of [this.startTarget, this.endTarget]) {
+        for (const input of this.inputs()) {
             delete input.value;
             delete input.focus;
         }
@@ -98,22 +108,46 @@ export default class extends Controller {
         this.render();
     }
 
-    // ── Reading and writing the inputs ───────────────────────────────────────
+    // ── The inputs ───────────────────────────────────────────────────────────
+
+    inputs() {
+        return this.hasEndTarget ? [this.startTarget, this.endTarget] : [this.startTarget];
+    }
+
+    editing() {
+        return "end" === this.side && this.hasEndTarget ? this.endTarget : this.startTarget;
+    }
+
+    cardFor(input) {
+        if (input === this.startTarget) {
+            return this.hasStartCardTarget ? this.startCardTarget : null;
+        }
+        return this.hasEndCardTarget ? this.endCardTarget : null;
+    }
+
+    parse(text) {
+        const s = String(text ?? "");
+        if (this.timeOnly) {
+            const m = s.match(/^(\d{2}):(\d{2})/);
+            return m && +m[1] <= 24 && +m[2] < 60 ? +m[1] * 60 + (+m[2]) : null;
+        }
+        const m = s.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/);
+        return m ? this.dayOf(+m[1], +m[2], +m[3]) * DAY + (+m[4]) * 60 + (+m[5]) : null;
+    }
 
     read(input) {
-        const m = String(this.native.get.call(input)).match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/);
-        if (!m) {
-            return null;
-        }
-        return this.dayOf(+m[1], +m[2], +m[3]) * DAY + (+m[4]) * 60 + (+m[5]);
+        return this.parse(this.native.get.call(input));
     }
 
     write(input, at) {
-        const d = this.dateOf(Math.floor(at / DAY));
-        const minutes = ((at % DAY) + DAY) % DAY;
         const pad = (n) => String(n).padStart(2, "0");
-        const value = `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}`
-            + `T${pad(Math.floor(minutes / 60))}:${pad(minutes % 60)}`;
+        const minutes = ((at % DAY) + DAY) % DAY;
+        const clock = `${pad(Math.floor(minutes / 60))}:${pad(minutes % 60)}`;
+        let value = clock;
+        if (!this.timeOnly) {
+            const d = this.dateOf(Math.floor(at / DAY));
+            value = `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}T${clock}`;
+        }
 
         if (value === this.native.get.call(input)) {
             return;
@@ -124,16 +158,44 @@ export default class extends Controller {
         this.render();
     }
 
-    /** The start moves and the end follows (calendar--event-form#shiftEnd). */
-    setStart(at) {
-        this.write(this.startTarget, at);
+    // ── Bounds ───────────────────────────────────────────────────────────────
+
+    /** What the side being set may be: after the start, inside min and max. */
+    bounds() {
+        const input = this.editing();
+        let lo = null;
+        if (this.hasEndTarget && input === this.endTarget) {
+            const start = this.read(this.startTarget);
+            if (null !== start) lo = { at: start, exclusive: true };
+        } else if (input.getAttribute("min")) {
+            const min = this.parse(input.getAttribute("min"));
+            if (null !== min) lo = { at: min, exclusive: false };
+        }
+        const max = input.getAttribute("max") ? this.parse(input.getAttribute("max")) : null;
+        return { lo, hi: null === max ? null : max };
     }
 
-    setEnd(at) {
-        const start = this.read(this.startTarget);
-        if (null === start || at > start) {
-            this.write(this.endTarget, at);
+    /** Whether any minute from `a` to `b` is allowed. */
+    open(a, b, { lo, hi }) {
+        const aboveLo = null === lo || (lo.exclusive ? b > lo.at : b >= lo.at);
+        const belowHi = null === hi || a <= hi;
+        return aboveLo && belowHi;
+    }
+
+    /** The nearest allowed time to `at`. */
+    clamp(at, { lo, hi }) {
+        if (null !== lo && (lo.exclusive ? at <= lo.at : at < lo.at)) {
+            // After a start: a quarter past it. After "now": the next five minutes.
+            at = lo.exclusive ? lo.at + 15 : Math.ceil(lo.at / 5) * 5;
         }
+        if (null !== hi && at > hi) {
+            at = hi;
+        }
+        return at;
+    }
+
+    put(at) {
+        this.write(this.editing(), this.clamp(at, this.bounds()));
     }
 
     // ── The panel's buttons ──────────────────────────────────────────────────
@@ -144,57 +206,41 @@ export default class extends Controller {
             return;
         }
         const { when, value } = button.dataset;
-        const editingEnd = "end" === this.side;
-        const start = this.read(this.startTarget);
-        const at = this.read(editingEnd ? this.endTarget : this.startTarget) ?? 0;
+        const n = Number(value);
+        const at = this.read(this.editing()) ?? 0;
         const day = Math.floor(at / DAY);
         const hh = Math.floor((at % DAY) / 60);
         const mm = at % 60;
-        const put = (v) => (editingEnd ? this.setEnd(v) : this.setStart(v));
-        const n = Number(value);
+        const quarterRow = !this.fine && mm % 15 === 0;
 
         this.focusKey = button.dataset.key;
 
         switch (when) {
-            case "day": {
-                let next = n * DAY + (at % DAY);
-                // The end moved onto the start's own day, at a time before it:
-                // an hour after the start, rather than a click that does nothing.
-                if (editingEnd && null !== start && next <= start) {
-                    next = start + 60;
-                }
-                put(next);
+            case "day":
+                this.put(n * DAY + (at % DAY));
                 this.month = false;
                 break;
-            }
             case "month":
                 this.month = !this.month;
+                this.view = this.firstOfMonth(day);
                 break;
-            case "hour": {
-                let next = day * DAY + n * 60 + mm;
-                // An end whose minute would put it at or before the start is
-                // lifted to a quarter past the start, within the hour chosen.
-                if (editingEnd && null !== start && next <= start) {
-                    next = Math.min(start + 15, day * DAY + n * 60 + 59);
-                }
-                put(next);
+            case "shift":
+                this.view = this.firstOfMonth(this.view ?? day, n);
                 break;
-            }
+            case "hour":
+                this.put(day * DAY + n * 60 + mm);
+                break;
             case "half":
                 if ((hh >= 12) !== (1 === n)) {
-                    let next = day * DAY + (hh + (1 === n ? 12 : -12)) * 60 + mm;
-                    if (editingEnd && null !== start && next <= start) {
-                        next = start + 15;
-                    }
-                    put(next);
+                    this.put(day * DAY + (hh + (1 === n ? 12 : -12)) * 60 + mm);
                 }
                 break;
             case "minute":
-                put(day * DAY + hh * 60 + n);
-                // From the quarter-hour row the start is done: on to the end, and
+                this.put(day * DAY + hh * 60 + n);
+                // From the quarter-hour row a start is done: on to the end, and
                 // the keyboard with it. From the fine grid the reader is still
                 // adjusting, so it stays.
-                if (!editingEnd && !this.fine && mm % 15 === 0) {
+                if (quarterRow && this.hasEndTarget && "start" === this.side) {
                     this.side = "end";
                     this.focusKey = null;
                     this.render();
@@ -203,13 +249,22 @@ export default class extends Controller {
                 }
                 break;
             case "fine":
-                this.fine = 1 === n;
+                if (1 === n) {
+                    this.fine = true;
+                } else {
+                    // Back to quarter hours: the minute goes to the nearest one,
+                    // or the fine grid would reopen at once around a :05.
+                    this.fine = false;
+                    this.put(day * DAY + hh * 60 + Math.round(mm / 15) * 15);
+                }
                 break;
-            case "length":
+            case "length": {
+                const start = this.read(this.startTarget);
                 if (null !== start) {
                     this.write(this.endTarget, start + n);
                 }
                 break;
+            }
         }
 
         this.render();
@@ -223,11 +278,9 @@ export default class extends Controller {
         if (!(v >= 0 && v <= 59)) {
             return;
         }
-        const editingEnd = "end" === this.side;
-        const at = this.read(editingEnd ? this.endTarget : this.startTarget) ?? 0;
-        const base = Math.floor(at / DAY) * DAY + Math.floor((at % DAY) / 60) * 60;
+        const at = this.read(this.editing()) ?? 0;
         this.focusKey = "exact";
-        editingEnd ? this.setEnd(base + v) : this.setStart(base + v);
+        this.put(Math.floor(at / 60) * 60 + v);
     }
 
     // ── Drawing ──────────────────────────────────────────────────────────────
@@ -238,66 +291,45 @@ export default class extends Controller {
         }
         const L = this.labelsValue;
         const start = this.read(this.startTarget);
-        const end = this.read(this.endTarget);
+        const end = this.hasEndTarget ? this.read(this.endTarget) : null;
         const allDay = true === this.allDayBox?.checked;
-        const editingEnd = "end" === this.side;
+        const editingEnd = "end" === this.side && this.hasEndTarget;
 
-        this.card(this.startCardTarget, !editingEnd, this.startTarget, start, null, allDay);
-        this.card(this.endCardTarget, editingEnd, this.endTarget, end, start, allDay);
+        if (this.hasStartCardTarget) {
+            this.card(this.startCardTarget, !editingEnd, this.startTarget, start, null, allDay);
+        }
+        if (this.hasEndCardTarget) {
+            this.card(this.endCardTarget, editingEnd, this.endTarget, end, start, allDay);
+        }
 
-        if (null === start || null === end) {
+        const at = editingEnd ? end : start;
+        if (null === at) {
             this.panelTarget.replaceChildren();
             return;
         }
 
-        const at = editingEnd ? end : start;
+        const bounds = this.bounds();
         const day = Math.floor(at / DAY);
         const hh = Math.floor((at % DAY) / 60);
         const mm = at % 60;
-        const startDay = Math.floor(start / DAY);
         const parts = [];
 
-        if (editingEnd && !allDay) {
+        if (editingEnd && !allDay && !this.timeOnly && null !== start) {
             const len = end - start;
             parts.push(`<div class="flex flex-wrap gap-1.5" role="group" aria-label="${esc(L.length)}">`
                 + [30, 60, 90, 120, 180].map((l) => this.chip("length", l, this.duration(l), l === len)).join("")
                 + "</div>");
         }
 
-        if (this.month) {
-            parts.push(this.monthGrid(day, editingEnd ? startDay : null));
-        } else {
-            // Six days from today, or around the chosen day when it is further out.
-            const anchor = day > 5 || day < 0 ? day - 2 : 0;
-            let strip = "";
-            for (let n = anchor; n < anchor + 6; n++) {
-                const off = editingEnd && n < startDay;
-                // "Today" does not fit a phone's seventh of the width; there it is
-                // the weekday like the rest, marked by the ring instead.
-                const label = editingEnd && n === startDay ? esc(L.sameShort)
-                    : 0 === n ? `<span class="max-sm:hidden">${esc(L.today)}</span><span class="sm:hidden">${esc(this.weekday(n))}</span>`
-                    : esc(this.weekday(n));
-                const todayRing = 0 === n && n !== day ? "ring-1 ring-accent/40" : "";
-                strip += `<button type="button" data-when="day" data-value="${n}" data-key="day-${n}"
-                    aria-pressed="${n === day}" ${off ? "disabled" : ""}
-                    aria-label="${esc(this.dayLabel(n))}"
-                    class="flex-1 min-w-0 h-12 flex flex-col items-center justify-center gap-0.5 rounded-xl border text-ink
-                           ${this.tone(n === day, off)} ${todayRing}">
-                    <span class="text-[11px] truncate max-w-full px-0.5">${label}</span>
-                    <span class="text-[15px] font-semibold tabular-nums">${this.dateOf(n).getUTCDate()}</span>
-                </button>`;
-            }
-            strip += `<button type="button" data-when="month" data-key="month" aria-label="${esc(L.anotherDay)}"
-                class="w-11 shrink-0 h-12 flex items-center justify-center rounded-xl border border-dashed border-line
-                       text-ink-muted hover:bg-hover transition-colors cursor-pointer">
-                <i class="fa-regular fa-calendar" aria-hidden="true"></i>
-            </button>`;
-            parts.push(`<div class="flex gap-1.5">${strip}</div>`);
+        if (!this.timeOnly) {
+            parts.push(this.month
+                ? this.monthGrid(day, bounds)
+                : this.strip(day, bounds, editingEnd ? Math.floor(start / DAY) : null));
         }
 
         if (!allDay) {
-            parts.push(this.hourGrid(day, hh, editingEnd ? start : null));
-            parts.push(this.minuteRow(day, hh, mm, editingEnd ? start : null));
+            parts.push(this.hourGrid(day, hh, bounds));
+            parts.push(this.minuteRow(day, hh, mm, bounds));
         }
 
         this.panelTarget.innerHTML = parts.join("");
@@ -310,13 +342,18 @@ export default class extends Controller {
 
     card(card, on, input, at, start, allDay) {
         const invalid = "true" === input.getAttribute("aria-invalid");
-        card.setAttribute("aria-pressed", on ? "true" : "false");
-        card.classList.toggle("border-accent", on && !invalid);
-        card.classList.toggle("ring-2", on || invalid);
-        card.classList.toggle("ring-accent/20", on && !invalid);
-        card.classList.toggle("bg-surface", on);
-        card.classList.toggle("bg-sunken", !on);
-        card.classList.toggle("border-line", !on && !invalid);
+        const choosable = this.hasEndTarget;
+
+        if (choosable) {
+            card.setAttribute("aria-pressed", on ? "true" : "false");
+        }
+        const lit = choosable && on;
+        card.classList.toggle("border-accent", lit && !invalid);
+        card.classList.toggle("ring-2", lit || invalid);
+        card.classList.toggle("ring-accent/20", lit && !invalid);
+        card.classList.toggle("bg-surface", lit || !choosable);
+        card.classList.toggle("bg-sunken", choosable && !on);
+        card.classList.toggle("border-line", !lit && !invalid);
         card.classList.toggle("border-danger", invalid);
         card.classList.toggle("ring-danger/30", invalid);
 
@@ -325,15 +362,17 @@ export default class extends Controller {
         const lengthPart = card.querySelector('[data-when-part="length"]');
 
         if (null === at) {
-            dayPart.textContent = "";
+            if (dayPart) dayPart.textContent = "";
             timePart.textContent = "—";
             return;
         }
 
-        const day = Math.floor(at / DAY);
-        dayPart.textContent = null !== start && day === Math.floor(start / DAY)
-            ? this.labelsValue.sameDay
-            : this.dayLabel(day);
+        if (dayPart) {
+            const day = Math.floor(at / DAY);
+            dayPart.textContent = null !== start && day === Math.floor(start / DAY)
+                ? this.labelsValue.sameDay
+                : this.dayLabel(day);
+        }
         timePart.textContent = allDay ? "" : this.time(at);
         timePart.hidden = allDay;
 
@@ -342,8 +381,86 @@ export default class extends Controller {
         }
     }
 
-    hourGrid(day, hh, start) {
-        const off = (h) => null !== start && day * DAY + h * 60 + 59 <= start;
+    strip(day, bounds, startDay) {
+        const L = this.labelsValue;
+        // Six days from today, or around the chosen day when it is further out.
+        const anchor = day > 5 || day < 0 ? day - 2 : 0;
+        let html = "";
+        for (let n = anchor; n < anchor + 6; n++) {
+            const off = !this.open(n * DAY, n * DAY + DAY - 1, bounds);
+            // "Today" does not fit a narrow strip — a phone, or the send-later
+            // menu — so there it is the weekday like the rest, marked by the
+            // ring instead. Asked of the strip's own width, not the window's.
+            const label = null !== startDay && n === startDay ? esc(L.sameShort)
+                : 0 === n ? `<span class="hidden @[22rem]:inline">${esc(L.today)}</span><span class="@[22rem]:hidden">${esc(this.weekday(n))}</span>`
+                : esc(this.weekday(n));
+            const todayRing = 0 === n && n !== day ? "ring-1 ring-accent/40" : "";
+            html += `<button type="button" data-when="day" data-value="${n}" data-key="day-${n}"
+                aria-pressed="${n === day}" ${off ? "disabled" : ""}
+                aria-label="${esc(this.dayLabel(n))}"
+                class="flex-1 min-w-0 h-12 flex flex-col items-center justify-center gap-0.5 rounded-xl border text-ink
+                       ${this.tone(n === day, off)} ${todayRing}">
+                <span class="text-[11px] truncate max-w-full px-0.5">${label}</span>
+                <span class="text-[15px] font-semibold tabular-nums">${this.dateOf(n).getUTCDate()}</span>
+            </button>`;
+        }
+        html += `<button type="button" data-when="month" data-key="month" aria-label="${esc(L.anotherDay)}"
+            class="w-11 shrink-0 h-12 flex items-center justify-center rounded-xl border border-dashed border-line
+                   text-ink-muted hover:bg-hover transition-colors cursor-pointer">
+            <i class="fa-regular fa-calendar" aria-hidden="true"></i>
+        </button>`;
+        return `<div class="@container"><div class="flex gap-1.5">${html}</div></div>`;
+    }
+
+    monthGrid(day, bounds) {
+        const L = this.labelsValue;
+        const first = this.view ?? this.firstOfMonth(day);
+        const view = this.dateOf(first);
+        const gridStart = first - ((view.getUTCDay() + 6) % 7);
+        const title = this.format(view, { month: "long", year: "numeric" });
+
+        let heads = "";
+        for (let i = 0; i < 7; i++) {
+            heads += `<span>${esc(this.format(this.dateOf(gridStart + i), { weekday: "narrow" }))}</span>`;
+        }
+        let cells = "";
+        for (let i = 0; i < 42; i++) {
+            const n = gridStart + i;
+            const d = this.dateOf(n);
+            const sel = n === day;
+            const off = !this.open(n * DAY, n * DAY + DAY - 1, bounds);
+            const inMonth = d.getUTCMonth() === view.getUTCMonth();
+            cells += `<button type="button" data-when="day" data-value="${n}" data-key="mday-${n}"
+                aria-pressed="${sel}" ${off ? "disabled" : ""} aria-label="${esc(this.dayLabel(n))}"
+                class="h-8 rounded-full text-[13px] tabular-nums transition-colors
+                       ${sel ? "bg-accent text-accent-ink font-semibold"
+                           : off ? "text-ink-faint/40 cursor-default"
+                           : `${0 === n ? "bg-accent/15 font-semibold" : ""} ${inMonth ? "text-ink" : "text-ink-faint"} hover:bg-hover cursor-pointer`}">${d.getUTCDate()}</button>`;
+        }
+        // No month before the one the lower bound falls in, and none after the upper.
+        const prevOff = null !== bounds.lo && first <= this.firstOfMonth(Math.floor(bounds.lo.at / DAY));
+        const nextOff = null !== bounds.hi && first >= this.firstOfMonth(Math.floor(bounds.hi / DAY));
+        const arrow = (k, icon, label, off) => `<button type="button" data-when="shift" data-value="${k}" data-key="shift-${k}"
+            aria-label="${esc(label)}" ${off ? "disabled" : ""}
+            class="w-8 h-8 shrink-0 flex items-center justify-center rounded-lg transition-colors
+                   ${off ? "text-ink-faint/40 cursor-default" : "text-ink-muted hover:bg-hover cursor-pointer"}">
+            <i class="fa-solid ${icon} text-xs" aria-hidden="true"></i></button>`;
+
+        return `<div>
+            <div class="flex items-center gap-1 mb-1.5">
+                ${arrow(-1, "fa-chevron-left", L.previousMonth, prevOff)}
+                <span class="flex-1 text-center text-sm font-semibold text-ink" aria-live="polite">${esc(title)}</span>
+                ${arrow(1, "fa-chevron-right", L.nextMonth, nextOff)}
+                <button type="button" data-when="month" data-key="month-close"
+                    class="ml-1 h-7 px-2.5 rounded-lg text-xs text-ink-muted hover:bg-hover transition-colors cursor-pointer">${esc(L.backToWeek)}</button>
+            </div>
+            <div class="grid grid-cols-7 gap-0.5 mb-1 text-center text-[11px] text-ink-faint" aria-hidden="true">${heads}</div>
+            <div class="grid grid-cols-7 gap-0.5">${cells}</div>
+        </div>`;
+    }
+
+    hourGrid(day, hh, bounds) {
+        const off = (h) => !this.open(day * DAY + h * 60, day * DAY + h * 60 + 59, bounds);
         const cell = (h, label) => `<button type="button" data-when="hour" data-value="${h}" data-key="hour-${h}"
             aria-pressed="${h === hh}" ${off(h) ? "disabled" : ""}
             class="h-9 rounded-lg border text-sm tabular-nums ${this.tone(h === hh, off(h))}">${label}</button>`;
@@ -362,9 +479,9 @@ export default class extends Controller {
         for (let i = 0; i < 12; i++) {
             cells += cell(i + (pm ? 12 : 0), String(0 === i ? 12 : i));
         }
-        const amOff = null !== start && day * DAY + 11 * 60 + 59 <= start;
+        const halfOff = (isPm) => !this.open(day * DAY + (isPm ? 720 : 0), day * DAY + (isPm ? 1439 : 719), bounds);
         const half = (isPm, label) => {
-            const sel = pm === isPm, disabled = !isPm && amOff;
+            const sel = pm === isPm, disabled = !sel && halfOff(isPm);
             return `<button type="button" data-when="half" data-value="${isPm ? 1 : 0}" data-key="half-${isPm ? 1 : 0}"
                 aria-pressed="${sel}" ${disabled ? "disabled" : ""}
                 class="h-9 rounded-lg border text-sm ${this.tone(sel, disabled)}">${label}</button>`;
@@ -377,10 +494,11 @@ export default class extends Controller {
         </div>`;
     }
 
-    minuteRow(day, hh, mm, start) {
+    minuteRow(day, hh, mm, bounds) {
         const L = this.labelsValue;
         const button = (m) => {
-            const off = null !== start && day * DAY + hh * 60 + m <= start;
+            const at = day * DAY + hh * 60 + m;
+            const off = !this.open(at, at, bounds);
             return `<button type="button" data-when="minute" data-value="${m}" data-key="minute-${m}"
                 aria-pressed="${m === mm}" ${off ? "disabled" : ""}
                 class="h-9 rounded-lg border text-sm tabular-nums ${this.tone(m === mm, off)}">:${String(m).padStart(2, "0")}</button>`;
@@ -401,7 +519,7 @@ export default class extends Controller {
         for (let m = 0; m < 60; m += 5) {
             fine += button(m);
         }
-        const id = `${this.startTarget.id}-exact-minute`;
+        const id = `${this.startTarget.id || "when"}-exact-minute`;
         return `<div role="group" aria-label="${esc(L.minute)}" class="flex flex-col gap-2">
             <div class="grid grid-cols-6 gap-1">${fine}</div>
             <div class="flex items-center gap-2">
@@ -414,41 +532,6 @@ export default class extends Controller {
                 <button type="button" data-when="fine" data-value="0" data-key="fine-close"
                     class="h-7 px-2.5 rounded-lg text-xs text-ink-muted hover:bg-hover transition-colors cursor-pointer">${esc(L.quarterHours)}</button>
             </div>
-        </div>`;
-    }
-
-    monthGrid(day, startDay) {
-        const view = this.dateOf(day);
-        const firstDay = this.dayOf(view.getUTCFullYear(), view.getUTCMonth() + 1, 1);
-        const firstWeekday = (this.dateOf(firstDay).getUTCDay() + 6) % 7;
-        const gridStart = firstDay - firstWeekday;
-        const title = this.format(view, { month: "long", year: "numeric" });
-
-        let heads = "";
-        for (let i = 0; i < 7; i++) {
-            heads += `<span>${esc(this.format(this.dateOf(gridStart + i), { weekday: "narrow" }))}</span>`;
-        }
-        let cells = "";
-        for (let i = 0; i < 42; i++) {
-            const n = gridStart + i;
-            const d = this.dateOf(n);
-            const sel = n === day, off = null !== startDay && n < startDay;
-            const inMonth = d.getUTCMonth() === view.getUTCMonth();
-            cells += `<button type="button" data-when="day" data-value="${n}" data-key="mday-${n}"
-                aria-pressed="${sel}" ${off ? "disabled" : ""} aria-label="${esc(this.dayLabel(n))}"
-                class="h-8 rounded-full text-[13px] tabular-nums transition-colors
-                       ${sel ? "bg-accent text-accent-ink font-semibold"
-                           : off ? "text-ink-faint/40 cursor-default"
-                           : `${0 === n ? "bg-accent/15 font-semibold" : ""} ${inMonth ? "text-ink" : "text-ink-faint"} hover:bg-hover cursor-pointer`}">${d.getUTCDate()}</button>`;
-        }
-        return `<div>
-            <div class="flex items-center justify-between mb-1.5">
-                <span class="text-sm font-semibold text-ink">${esc(title)}</span>
-                <button type="button" data-when="month" data-key="month-close"
-                    class="h-7 px-2.5 rounded-lg text-xs text-ink-muted hover:bg-hover transition-colors cursor-pointer">${esc(this.labelsValue.backToWeek)}</button>
-            </div>
-            <div class="grid grid-cols-7 gap-0.5 mb-1 text-center text-[11px] text-ink-faint" aria-hidden="true">${heads}</div>
-            <div class="grid grid-cols-7 gap-0.5">${cells}</div>
         </div>`;
     }
 
@@ -474,11 +557,12 @@ export default class extends Controller {
 
     /** "15:00" or "3:00 pm" — ClockFormat::time(), to the character. */
     time(at) {
-        const m = ((at % DAY) + DAY) % DAY;
+        const m = this.timeOnly && DAY === at ? DAY : ((at % DAY) + DAY) % DAY;
         const h = Math.floor(m / 60), mm = String(m % 60).padStart(2, "0");
-        return this.hour12
-            ? `${h % 12 || 12}:${mm} ${h < 12 ? "am" : "pm"}`
-            : `${String(h).padStart(2, "0")}:${mm}`;
+        if (!this.hour12) {
+            return `${String(h).padStart(2, "0")}:${mm}`;
+        }
+        return `${h % 12 || 12}:${mm} ${h < 12 || 24 === h ? "am" : "pm"}`;
     }
 
     duration(minutes) {
@@ -519,13 +603,29 @@ export default class extends Controller {
 
     // Days are counted from `today` in UTC, so they are whole and DST-proof.
     dayOf(y, m, d) {
-        const [ty, tm, td] = this.todayValue.split("-").map(Number);
+        const [ty, tm, td] = this.todayParts();
         return Math.round((Date.UTC(y, m - 1, d) - Date.UTC(ty, tm - 1, td)) / 86400000);
     }
 
     dateOf(n) {
-        const [ty, tm, td] = this.todayValue.split("-").map(Number);
+        const [ty, tm, td] = this.todayParts();
         return new Date(Date.UTC(ty, tm - 1, td + n));
+    }
+
+    /** The first of the month `n` is in, `shift` months on. */
+    firstOfMonth(n, shift = 0) {
+        const d = this.dateOf(n);
+        const first = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + shift, 1));
+        return this.dayOf(first.getUTCFullYear(), first.getUTCMonth() + 1, 1);
+    }
+
+    todayParts() {
+        const parts = (this.todayValue || "").split("-").map(Number);
+        if (3 === parts.length && parts.every((p) => p > 0)) {
+            return parts;
+        }
+        const now = new Date();
+        return [now.getFullYear(), now.getMonth() + 1, now.getDate()];
     }
 }
 

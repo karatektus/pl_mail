@@ -1,0 +1,44 @@
+{#
+calendar/_when.html.twig — the attributes that start calendar--when.
+
+The picker is drawn in three places (the event editor, compose's "send later",
+a booking page's hours) and its words are the same in all three, so they are
+spelled once, here. The markup around it — the hidden inputs it writes, the
+cards it fills — is each caller's, because each owns a different form.
+
+    {% import 'calendar/_when.html.twig' as when %}
+    <div {{ when.attrs(today) }}> … </div>          {# with days #}
+    <div {{ when.attrs(null, 'time') }}> … </div>   {# times only #}
+
+`today` is a Y-m-d on the clock the values are written on — the calendar's for
+an event, the user's for a send.
+#}
+{% macro attrs(today, mode = 'datetime') -%}
+    {%- set labels = {
+        starts:        'calendar.event.starts'|trans,
+        ends:          'calendar.event.ends'|trans,
+        today:         'calendar.when.today'|trans,
+        tomorrow:      'calendar.when.tomorrow'|trans,
+        sameDay:       'calendar.when.same_day'|trans,
+        sameShort:     'calendar.when.same_short'|trans,
+        anotherDay:    'calendar.when.another_day'|trans,
+        backToWeek:    'calendar.when.back_to_week'|trans,
+        previousMonth: 'calendar.when.previous_month'|trans,
+        nextMonth:     'calendar.when.next_month'|trans,
+        hour:          'calendar.when.hour'|trans,
+        minute:        'calendar.when.minute'|trans,
+        half:          'calendar.when.half'|trans,
+        anotherMinute: 'calendar.when.another_minute'|trans,
+        quarterHours:  'calendar.when.quarter_hours'|trans,
+        exactMinute:   'calendar.when.exact_minute'|trans,
+        minutes:       'calendar.when.minutes'|trans,
+        hours:         'calendar.when.hours'|trans,
+        dayOne:        'calendar.when.day_one'|trans,
+        days:          'calendar.when.days'|trans,
+        length:        'calendar.when.length'|trans,
+    } -%}
+    data-controller="calendar--when"
+    data-calendar--when-mode-value="{{ mode }}"
+    {% if today %}data-calendar--when-today-value="{{ today }}"{% endif %}
+    data-calendar--when-labels-value="{{ labels|json_encode }}"
+{%- endmacro %}

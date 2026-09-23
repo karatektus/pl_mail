@@ -416,8 +416,8 @@ final class ScheduledSendTest extends WebTestCase
         );
         self::assertCount(
             2,
-            $crawler->filter('input[type="datetime-local"][data-compose--schedule-target="input"]'),
-            'and a native picker, no library',
+            $crawler->filter('[data-controller~="calendar--when"] input[data-compose--schedule-target="input"]'),
+            'and plMail\'s own picker over the custom field, no library',
         );
 
         // The zone the menu computes against is the configured one, handed in

@@ -934,8 +934,11 @@ attachment:
         zoom_in: Zoom in
         zoom_out: Zoom out
 calendar:
-    # The event editor's date-and-time picker; see calendar--when.
+    # plMail's date-and-time picker; see calendar--when.
     when:
+        previous_month: 'Previous month'
+        next_month: 'Next month'
+        send_at: 'Send at'
         group: 'Start and end'
         today: 'Today'
         tomorrow: 'Tomorrow'
@@ -1750,9 +1753,6 @@ errors:
             title: Server error
 
 form:
-    # The second of the two fields a date-and-time is typed into, named
-    # after its label: "Starts, time". See ui--datetime.
-    time_part: 'time'
     file:
         choose: Choose an image…
         hint: PNG, JPEG, GIF or WebP

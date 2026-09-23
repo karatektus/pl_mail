@@ -176,7 +176,8 @@ Variables: message, params (from the including context); placement.
        Six pixels at Full and none at all at Minimal. #}
     <div data-ui--dropdown-target="menu" hidden
          data-enter="{{ header ? 'slide-down' : 'rise' }}"
-         class="absolute z-20 w-64 max-w-[calc(100vw-2rem)] popover py-1
+         class="absolute z-20 w-64 has-[[data-compose--schedule-target=custom]:not([hidden])]:w-80
+                max-w-[calc(100vw-2rem)] popover py-1
                 {{ header ? 'top-full mt-1 right-0 left-auto' : 'bottom-full mb-1 left-0 right-auto' }}">
 
         {% if scheduledAt is not null %}
@@ -239,20 +240,35 @@ Variables: message, params (from the including context); placement.
             <span>{{ 'compose.schedule.custom'|trans }}</span>
         </button>
 
-        {# No picker library — the same choice the calendar event editor makes.
-           ui--datetime keeps the native date field and swaps the time for one
-           that follows the user's 12- or 24-hour setting, which the native one
-           cannot do; see the controller. #}
+        {# No picker library — the same one the calendar event editor draws,
+           with one card: days, then the hour, then the minute. The field is
+           hidden and still compose--schedule's: it seeds it, bounds it (`min`
+           is now, `max` the end of the hold — the picker greys out what lies
+           outside) and confirms it. The menu widens while this is open; a
+           six-day strip does not fit sixteen rem. #}
+        {% import 'calendar/_when.html.twig' as when %}
         <div data-compose--schedule-target="custom" hidden class="px-3 py-2 space-y-2">
-            {# `input` as well as `change`: a datetime-local fires `change` only
-               when a whole component is committed, so a refusal stayed on
-               screen for most of the typing that was fixing it. #}
-            <input type="datetime-local"
-                   data-controller="ui--datetime" data-datetime-time-label="{{ 'form.time_part'|trans }}"
-                   data-compose--schedule-target="input"
-                   data-action="input->compose--schedule#revalidate change->compose--schedule#revalidate"
-                   aria-label="{{ 'compose.schedule.custom'|trans }}"
-                   class="w-full rounded-lg border border-line bg-surface px-2 py-1.5 text-sm text-ink">
+            <div {{ when.attrs('now'|date('Y-m-d')) }} class="flex flex-col gap-2">
+                {# `input` as well as `change`, so a refusal goes the moment the
+                   time that earned it is changed. #}
+                <input type="hidden"
+                       data-calendar--when-target="start"
+                       data-compose--schedule-target="input"
+                       data-action="input->compose--schedule#revalidate change->compose--schedule#revalidate">
+                <div data-calendar--when-target="startCard" tabindex="-1"
+                     role="status" aria-label="{{ 'compose.schedule.custom'|trans }}"
+                     class="flex flex-col gap-0.5 rounded-xl border px-3 py-2 focus:outline-none">
+                    <span class="text-[11px] font-semibold uppercase tracking-wider text-ink-faint">
+                        {{ 'calendar.when.send_at'|trans }}
+                    </span>
+                    <span class="flex items-baseline gap-2">
+                        <span data-when-part="day" class="text-[13px] text-ink-muted"></span>
+                        <span data-when-part="time" class="text-lg font-semibold tracking-tight text-ink tabular-nums"></span>
+                    </span>
+                </div>
+                <div data-calendar--when-target="panel"
+                     class="flex flex-col gap-2.5 rounded-xl border border-line bg-sunken p-2.5"></div>
+            </div>
             {# Named, because a bare time is ambiguous the moment the machine and
                the setting disagree — which is exactly when it matters. #}
             <p class="text-[11px] text-ink-faint">

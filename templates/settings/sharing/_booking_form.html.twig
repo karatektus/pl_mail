@@ -142,30 +142,33 @@ Variables:
                 </div>
             </fieldset>
 
-            <div class="grid grid-cols-2 gap-3">
-                <div class="space-y-1.5">
-                    <label for="booking-day-start" class="block text-xs font-medium text-ink-soft">
-                        {{ 'calendar.booking.form.day_start'|trans }}
-                    </label>
-                    <input type="time"
-                           id="booking-day-start"
-                           data-controller="ui--datetime"
-                           step="300"
-                           class="w-full h-9 px-3 rounded-lg text-sm bg-field border border-field text-ink
-                                  focus:outline-none focus-visible:ring-2 focus-visible:ring-accent">
+            {# The day's hours on plMail's picker, times only: From and Until as
+               two cards, the hour and minute under them, and nothing before
+               From on offer for Until. The two inputs keep their ids and stay
+               unnamed — the script at the foot of this file still turns them
+               into the minutes the hidden fields post, on the same `input`. #}
+            {% import 'calendar/_when.html.twig' as when %}
+            <div {{ when.attrs(null, 'time') }} class="flex flex-col gap-3">
+                <input type="hidden" id="booking-day-start" data-calendar--when-target="start">
+                <input type="hidden" id="booking-day-end" data-calendar--when-target="end">
+                <div class="grid grid-cols-2 gap-3">
+                    {% for side in ['start', 'end'] %}
+                        <button type="button"
+                                data-calendar--when-target="{{ side }}Card"
+                                data-action="calendar--when#edit{{ side == 'start' ? 'Start' : 'End' }}"
+                                aria-pressed="{{ side == 'start' ? 'true' : 'false' }}"
+                                class="flex min-w-0 flex-col items-start gap-0.5 rounded-xl border px-3.5 py-2.5 text-left
+                                       transition-colors cursor-pointer
+                                       focus:outline-none focus-visible:ring-2 focus-visible:ring-accent">
+                            <span class="text-xs font-medium text-ink-soft">
+                                {{ (side == 'start' ? 'calendar.booking.form.day_start' : 'calendar.booking.form.day_end')|trans }}
+                            </span>
+                            <span data-when-part="time" class="text-xl font-semibold tracking-tight text-ink tabular-nums"></span>
+                        </button>
+                    {% endfor %}
                 </div>
-
-                <div class="space-y-1.5">
-                    <label for="booking-day-end" class="block text-xs font-medium text-ink-soft">
-                        {{ 'calendar.booking.form.day_end'|trans }}
-                    </label>
-                    <input type="time"
-                           id="booking-day-end"
-                           data-controller="ui--datetime"
-                           step="300"
-                           class="w-full h-9 px-3 rounded-lg text-sm bg-field border border-field text-ink
-                                  focus:outline-none focus-visible:ring-2 focus-visible:ring-accent">
-                </div>
+                <div data-calendar--when-target="panel"
+                     class="flex flex-col gap-3 rounded-xl border border-line bg-sunken p-3"></div>
             </div>
 
             <div class="grid grid-cols-2 gap-3">

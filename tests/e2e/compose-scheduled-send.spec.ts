@@ -1,5 +1,5 @@
 import { test, expect, type Locator, type Page } from "./support/test";
-import { fillDateTime, visibleField } from "./support/datetime";
+import { setWhen } from "./support/datetime";
 import { seed } from "./support/config";
 // Aliased: this spec already has a `settled` for a single locator.
 import { settled as nothingMoving } from "./support/motion";
@@ -411,10 +411,9 @@ test.describe("scheduled send", () => {
 
         await options.getByText("Pick date & time").click();
 
-        // No picker library anywhere in this codebase: the native input, taken
-        // over by ui--datetime so its time follows the clock setting.
+        // plMail's own picker, drawn over the scheduler's hidden field.
         const field = options.locator('[data-compose--schedule-target="input"]');
-        await expect(visibleField(field)).toBeVisible();
+        await expect(options.locator('[data-calendar--when-target="startCard"]')).toBeVisible();
 
         // Seeded rather than left empty, and bounded so the browser refuses the
         // out-of-range times before the server has to.
@@ -422,7 +421,7 @@ test.describe("scheduled send", () => {
         await expect(field).toHaveAttribute("min", /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/);
         await expect(field).toHaveAttribute("max", /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/);
 
-        await fillDateTime(field, "2020-01-01T09:00");
+        await setWhen(field, "2020-01-01T09:00");
         await options.getByRole("button", { name: "Schedule send" }).click();
 
         // Refused in place, with the window still open and nothing scheduled.
@@ -457,9 +456,9 @@ test.describe("scheduled send", () => {
         await options.getByText("Pick date & time").click();
 
         const field = options.locator('[data-compose--schedule-target="input"]');
-        await expect(visibleField(field)).toBeVisible();
+        await expect(options.locator('[data-calendar--when-target="startCard"]')).toBeVisible();
 
-        await fillDateTime(field, await wallClockIn(page, 10 * 60));
+        await setWhen(field, await wallClockIn(page, 10 * 60));
 
         // The toast is on a four-second fuse, so the assertion below is racing
         // it the moment anything slows down between the click and the render.
@@ -535,12 +534,12 @@ test.describe("scheduled send", () => {
         await options.getByText("Pick date & time").click();
 
         const field = options.locator('[data-compose--schedule-target="input"]');
-        await expect(visibleField(field)).toBeVisible();
+        await expect(options.locator('[data-calendar--when-target="startCard"]')).toBeVisible();
 
         // The next whole minute — below the floor, and far enough from being
         // past that a slow click cannot turn it into the other refusal. See
         // insideTheFloor().
-        await fillDateTime(field, await insideTheFloor(page));
+        await setWhen(field, await insideTheFloor(page));
         await options.getByRole("button", { name: "Schedule send" }).click();
 
         // Said, in the menu, in words that are true of the time chosen — the old

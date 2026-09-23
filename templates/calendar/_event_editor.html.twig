@@ -158,30 +158,8 @@ on an empty string, and clearing the location is a thing a user may mean.
            `today` is on the calendar's clock, not the reader's, for the same
            reason every value here is: an event is placed on the calendar's
            wall. #}
-        {% set when_labels = {
-            starts:        'calendar.event.starts'|trans,
-            ends:          'calendar.event.ends'|trans,
-            today:         'calendar.when.today'|trans,
-            tomorrow:      'calendar.when.tomorrow'|trans,
-            sameDay:       'calendar.when.same_day'|trans,
-            sameShort:     'calendar.when.same_short'|trans,
-            anotherDay:    'calendar.when.another_day'|trans,
-            backToWeek:    'calendar.when.back_to_week'|trans,
-            hour:          'calendar.when.hour'|trans,
-            minute:        'calendar.when.minute'|trans,
-            half:          'calendar.when.half'|trans,
-            anotherMinute: 'calendar.when.another_minute'|trans,
-            quarterHours:  'calendar.when.quarter_hours'|trans,
-            exactMinute:   'calendar.when.exact_minute'|trans,
-            minutes:       'calendar.when.minutes'|trans,
-            hours:         'calendar.when.hours'|trans,
-            dayOne:        'calendar.when.day_one'|trans,
-            days:          'calendar.when.days'|trans,
-            length:        'calendar.when.length'|trans,
-        } %}
-        <div data-controller="calendar--when"
-             data-calendar--when-today-value="{{ 'now'|date('Y-m-d', displayZone ?: null) }}"
-             data-calendar--when-labels-value="{{ when_labels|json_encode }}"
+        {% import 'calendar/_when.html.twig' as when %}
+        <div {{ when.attrs('now'|date('Y-m-d', displayZone ?: null)) }}
              class="flex flex-col gap-3">
 
             <input id="event-starts" name="startsAt" type="hidden" required
@@ -235,7 +213,9 @@ on an empty string, and clearing the location is a thing a user may mean.
                  class="flex flex-col gap-3 rounded-xl border border-line bg-sunken p-3"></div>
         </div>
 
-        <label class="flex items-center gap-2 text-sm text-ink-muted">
+        {# `self-start inline-flex`: a label is its whole box, and a full-width
+           one made every click in the empty row under the picker tick the box. #}
+        <label class="self-start inline-flex items-center gap-2 text-sm text-ink-muted cursor-pointer">
             <input type="checkbox" name="isAllDay" value="1"
                    {{ event_all_day ? 'checked' : '' }}
                    class="rounded border-line text-accent focus:ring-accent">

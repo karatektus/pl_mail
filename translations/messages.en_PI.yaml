@@ -672,8 +672,11 @@ attachment:
         zoom_in: Closer
         zoom_out: Further off
 calendar:
-    # The event editor's date-and-time picker; see calendar--when.
+    # plMail's date-and-time picker; see calendar--when.
     when:
+        previous_month: 'Last moon'
+        next_month: 'Next moon'
+        send_at: 'Set sail at'
         group: 'Settin'' sail an'' makin'' port'
         today: 'This day'
         tomorrow: 'On the morrow'
@@ -1453,9 +1456,6 @@ errors:
             title: The ship be takin' water
 
 form:
-    # The second of the two fields a date-and-time is typed into, named
-    # after its label: "Starts, time". See ui--datetime.
-    time_part: 'th'' hour'
     file:
         choose: Choose a likeness…
         hint: PNG, JPEG, GIF or WebP
