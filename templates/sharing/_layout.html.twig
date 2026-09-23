@@ -62,7 +62,10 @@ Variables:
        must not carry the token in the Referer header to wherever it goes. #}
     <meta name="referrer" content="no-referrer">
 
-    <script>
+    {# Nonced for the same reason as the application layout's: it has to run
+       before first paint, so it cannot move into a file, and the enforced
+       script-src refuses an inline script without the nonce. #}
+    <script nonce="{{ csp_nonce() }}">
         // A `system` theme is the one the server cannot resolve: it means
         // "whatever the machine reading this prefers", and only the machine
         // knows. Three lines, before first paint, exactly as the application's
@@ -74,7 +77,17 @@ Variables:
         }
     </script>
 
-    {{ importmap('app') }}
+    {# Linked, not imported from assets/app.js — that import stopped existing
+       when the CSP arrived, and this page was left without either. See the
+       note at the top of assets/app.js. #}
+    <link rel="stylesheet" href="{{ asset('styles/app.css') }}">
+    <link rel="stylesheet" href="{{ asset('vendor/@fortawesome/fontawesome-free/css/all.css') }}">
+
+    {# The import map is an inline script too; unnonced, the page has no
+       controllers at all. The meta is where Turbo looks for a nonce for the
+       scripts it inserts itself. #}
+    <meta name="csp-nonce" content="{{ csp_nonce() }}">
+    {{ importmap('app', { nonce: csp_nonce() }) }}
 </head>
 <body class="min-h-screen app-bg text-ink antialiased">
     <main class="mx-auto w-full {% block container_class %}max-w-2xl{% endblock %} px-3 py-6 sm:px-4 sm:py-10">

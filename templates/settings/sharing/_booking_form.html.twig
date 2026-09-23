@@ -46,15 +46,17 @@ Variables:
     <form method="post"
           action="{{ page ? path('app_settings_sharing_booking_edit', { id: page.id }) : path('app_settings_sharing_booking_new') }}"
           data-turbo-frame="modal"
+          data-controller="settings--booking-hours"
+          data-action="input->settings--booking-hours#sync"
           class="flex-1 min-h-0 flex flex-col">
         <input type="hidden" name="_token" value="{{ csrf_token('calendar-sharing') }}">
 
-        {# The two hidden fields the script fills. Named `startMinute` and
-           `endMinute` because that is what the entity stores; the visible
-           <input type="time"> pair carries no name and never reaches the
+        {# The two hidden fields settings--booking-hours fills. Named
+           `startMinute` and `endMinute` because that is what the entity stores;
+           the picker's HH:MM pair carries no name and never reaches the
            server. #}
-        <input type="hidden" name="startMinute" id="booking-start-minute" value="{{ page ? page.startMinute : 540 }}">
-        <input type="hidden" name="endMinute" id="booking-end-minute" value="{{ page ? page.endMinute : 1020 }}">
+        <input type="hidden" name="startMinute" id="booking-start-minute" data-settings--booking-hours-target="startMinute" value="{{ page ? page.startMinute : 540 }}">
+        <input type="hidden" name="endMinute" id="booking-end-minute" data-settings--booking-hours-target="endMinute" value="{{ page ? page.endMinute : 1020 }}">
 
         <div class="flex-1 min-h-0 px-6 pb-6 space-y-5 overflow-y-auto">
             {% if errorKey is not null %}
@@ -145,12 +147,12 @@ Variables:
             {# The day's hours on plMail's picker, times only: From and Until as
                two cards, the hour and minute under them, and nothing before
                From on offer for Until. The two inputs keep their ids and stay
-               unnamed — the script at the foot of this file still turns them
-               into the minutes the hidden fields post, on the same `input`. #}
+               unnamed — settings--booking-hours on the form turns them into
+               the minutes the hidden fields post, on the same `input`. #}
             {% import 'calendar/_when.html.twig' as when %}
             <div {{ when.attrs(null, 'time') }} class="flex flex-col gap-3">
-                <input type="hidden" id="booking-day-start" data-calendar--when-target="start">
-                <input type="hidden" id="booking-day-end" data-calendar--when-target="end">
+                <input type="hidden" id="booking-day-start" data-calendar--when-target="start" data-settings--booking-hours-target="start">
+                <input type="hidden" id="booking-day-end" data-calendar--when-target="end" data-settings--booking-hours-target="end">
                 <div class="grid grid-cols-2 gap-3">
                     {% for side in ['start', 'end'] %}
                         <button type="button"
@@ -251,43 +253,5 @@ Variables:
                            bg-accent hover:bg-accent-strong transition-colors">{{ 'form.submit'|trans }}</button>
         </div>
     </form>
-
-    {# Minutes-from-midnight in the hidden fields, HH:MM on screen. Inline
-       rather than a Stimulus controller because it is bound to two ids in one
-       template and has no state — a controller would be a file, a registration
-       and a values contract for six lines that run twice.
-
-       Both directions are set up on load, so an edit opens showing the hours
-       that are stored rather than an empty pair of pickers. #}
-    <script>
-        (function () {
-            const start = document.getElementById("booking-day-start");
-            const end = document.getElementById("booking-day-end");
-            const startMinute = document.getElementById("booking-start-minute");
-            const endMinute = document.getElementById("booking-end-minute");
-
-            if (!start || !end || !startMinute || !endMinute) {
-                return;
-            }
-
-            const toClock = (minutes) => {
-                const value = Math.max(0, Math.min(1440, parseInt(minutes, 10) || 0));
-
-                return String(Math.floor(value / 60)).padStart(2, "0") + ":" + String(value % 60).padStart(2, "0");
-            };
-
-            const toMinutes = (clock) => {
-                const [hours, minutes] = String(clock || "").split(":");
-
-                return (parseInt(hours, 10) || 0) * 60 + (parseInt(minutes, 10) || 0);
-            };
-
-            start.value = toClock(startMinute.value);
-            end.value = toClock(endMinute.value);
-
-            start.addEventListener("input", () => { startMinute.value = String(toMinutes(start.value)); });
-            end.addEventListener("input", () => { endMinute.value = String(toMinutes(end.value)); });
-        })();
-    </script>
 </turbo-frame>
 {% endblock %}

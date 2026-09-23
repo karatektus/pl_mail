@@ -67,23 +67,9 @@ Variables:
        the slot instants are the server's, and re-rendering them in JavaScript
        is a second implementation of the same formatting to disagree with. The
        guard is what stops it looping — with `tz` already set, this does
-       nothing. #}
-    <script>
-        (function () {
-            const url = new URL(window.location.href);
-
-            if (url.searchParams.has("tz")) {
-                return;
-            }
-
-            const zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-
-            if (zone) {
-                url.searchParams.set("tz", zone);
-                window.location.replace(url.toString());
-            }
-        })();
-    </script>
+       nothing. A controller, because the enforced Content-Security-Policy
+       refuses an inline script. #}
+    <div data-controller="calendar--visitor-zone" hidden></div>
 
     <header class="rounded-pane border border-line bg-surface px-4 py-4 sm:px-5 sm:py-5">
         <div class="flex items-start gap-3">

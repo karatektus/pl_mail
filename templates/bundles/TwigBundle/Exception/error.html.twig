@@ -32,7 +32,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <title>{{ error_title|default('errors.page.server.title'|trans) }} — {{ 'app.name'|trans }}</title>
     {% include '_partials/_favicon.html.twig' %}
-    {{ importmap('app') }}
+    {# Linked rather than imported from assets/app.js, and the import map
+       nonced: both for the enforced Content-Security-Policy — see the note at
+       the top of assets/app.js and _layout/app.html.twig. #}
+    <link rel="stylesheet" href="{{ asset('styles/app.css') }}">
+    <link rel="stylesheet" href="{{ asset('vendor/@fortawesome/fontawesome-free/css/all.css') }}">
+    <meta name="csp-nonce" content="{{ csp_nonce() }}">
+    {{ importmap('app', { nonce: csp_nonce() }) }}
 </head>
 <body class="app-bg text-ink">
     <main class="min-h-screen flex items-center justify-center px-4">
