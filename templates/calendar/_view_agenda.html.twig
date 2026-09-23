@@ -34,6 +34,7 @@ shared page prints its empty days when this one does not.
             {% include 'calendar/_event_chip.html.twig' with {
                 showRange: true,
                 timeColumn: true,
+                tooltip: false,
             } %}
         {% endfor %}
     {% endblock %}

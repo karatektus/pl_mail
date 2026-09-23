@@ -84,7 +84,7 @@ stop, and a double-click is not a gesture a keyboard has.
            order, and an opened chip would slide UNDER the day to its right. #}
         <div class="relative rounded-md chip-open
                     hover:z-30 hover:bg-surface hover:shadow-lg hover:ring-1 hover:ring-line">
-            {% include 'calendar/_event_chip.html.twig' with { cluster: entry, showTime: false } %}
+            {% include 'calendar/_event_chip.html.twig' with { cluster: entry, showTime: false, tooltip: false } %}
         </div>
     {% endblock %}
 
@@ -129,6 +129,7 @@ stop, and a double-click is not a gesture a keyboard has.
                 cluster: entry,
                 tall:    true,
                 stack:   view.value != 'day',
+                tooltip: false,
             } %}
 
             {% if readOnly %}
