@@ -85,6 +85,21 @@ class Message extends MessageModel
     #[ORM\Column(nullable: true)]
     public ?\DateTimeImmutable $vanishedAt = null;
 
+    /**
+     * When the server last confirmed that this message really does live in
+     * more than one folder.
+     *
+     * SentCopyReconciler::repairRelocated() probes every row whose Message-ID
+     * is also filed elsewhere, looking for ghosts a move left behind. A message
+     * that is genuinely in two folders survives every probe, and without a
+     * record of that it came back on the work list every sync, for ever — a
+     * round trip per copy per poll on exactly the accounts that file mail in
+     * several places. Rows confirmed here are left out of the list for
+     * SentCopyReconciler::COPIES_RECHECK_DAYS.
+     */
+    #[ORM\Column(nullable: true)]
+    public ?\DateTimeImmutable $copiesConfirmedAt = null;
+
     #[ORM\Column(type: Types::TEXT, nullable: true)]
     public ?string $messageId = null;
 

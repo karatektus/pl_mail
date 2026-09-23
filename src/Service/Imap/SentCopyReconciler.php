@@ -79,6 +79,16 @@ final readonly class SentCopyReconciler
      */
     private const int REPAIR_BATCH = 100;
 
+    /**
+     * How long a message the server confirmed as a genuine multi-folder copy
+     * stays off the repair pass's work list.
+     *
+     * Not for ever: a copy confirmed today can still be moved away tomorrow and
+     * leave a ghost of its own. A month bounds that at one probe per copy per
+     * month instead of one per sync.
+     */
+    public const int COPIES_RECHECK_DAYS = 30;
+
     public function __construct(
         private MessageRepository       $messages,
         private StateManager            $stateManager,
@@ -334,20 +344,29 @@ final readonly class SentCopyReconciler
             return 0;
         }
 
-        $duplicated = $this->messages->findMessageIdsAlsoFiledElsewhere($mailbox, self::REPAIR_BATCH);
+        $now        = new \DateTimeImmutable();
+        $duplicated = $this->messages->findMessageIdsAlsoFiledElsewhere(
+            $mailbox,
+            self::REPAIR_BATCH,
+            $now->modify('-' . self::COPIES_RECHECK_DAYS . ' days'),
+        );
 
         if (0 === count($duplicated)) {
             return 0;
         }
 
-        $removed = 0;
+        $removed   = 0;
+        $confirmed = 0;
 
         foreach ($duplicated as $rfcMessageId) {
-            $removed += $this->collapse($account, $rfcMessageId, $stillExists);
+            $removed += $this->collapse($account, $rfcMessageId, $stillExists, $now, $confirmed);
+        }
+
+        if ($removed > 0 || $confirmed > 0) {
+            $this->em->flush();
         }
 
         if ($removed > 0) {
-            $this->em->flush();
 
             $this->logger->info('Removed rows left behind by moves', [
                 'mailbox' => $mailbox->fullPath,
@@ -360,17 +379,24 @@ final readonly class SentCopyReconciler
 
     /**
      * @param callable(Mailbox, int): ?bool $stillExists
+     * @param int                          $confirmed   counts rows marked as
+     *                                                  genuine copies
      */
-    private function collapse(Account $account, string $rfcMessageId, callable $stillExists): int
-    {
+    private function collapse(
+        Account            $account,
+        string             $rfcMessageId,
+        callable           $stillExists,
+        \DateTimeImmutable $now,
+        int                &$confirmed,
+    ): int {
         $rows = $this->messages->findLocatedByMessageId($account, $rfcMessageId);
 
         if (count($rows) < 2) {
             return 0;
         }
 
-        $ghosts   = [];
-        $survivors = 0;
+        $ghosts    = [];
+        $survivors = [];
 
         foreach ($rows as $row) {
             $mailbox = $row->mailbox;
@@ -383,7 +409,7 @@ final readonly class SentCopyReconciler
             $present = $stillExists($mailbox, $uid);
 
             if (true === $present) {
-                ++$survivors;
+                $survivors[] = $row;
 
                 continue;
             }
@@ -395,18 +421,24 @@ final readonly class SentCopyReconciler
             // null — the server did not say. Neither a survivor nor a ghost.
         }
 
+        // More than one real copy is a message that genuinely lives in two
+        // folders. Its ghosts, if any, belong to whichever copy moved, and
+        // pairing them up is guesswork this refuses to do. It is written down,
+        // though, so the next sync does not ask the server the same question.
+        if (count($survivors) > 1) {
+            foreach ($survivors as $survivor) {
+                $survivor->copiesConfirmedAt = $now;
+                ++$confirmed;
+            }
+
+            return 0;
+        }
+
         // Nothing to anchor the removal to. A message whose every copy has
         // vanished may simply have been deleted on the server, and deciding
         // that is not this pass's job; a probe that failed outright must never
         // read as deletion at all.
-        if (0 === $survivors || 0 === count($ghosts)) {
-            return 0;
-        }
-
-        // More than one real copy is a message that genuinely lives in two
-        // folders. Its ghosts, if any, belong to whichever copy moved, and
-        // pairing them up is guesswork this refuses to do.
-        if ($survivors > 1) {
+        if (0 === count($survivors) || 0 === count($ghosts)) {
             return 0;
         }
 

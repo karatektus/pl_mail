@@ -289,6 +289,20 @@ final class MovedMessageReconciliationTest extends KernelTestCase
 
         self::assertSame(0, $removed);
         self::assertSame(2, $this->countRowsFor($messageId), 'both copies are real, so both rows stay');
+
+        // And the answer is remembered. Without that the pair came back on the
+        // work list every sync and was probed over IMAP again, for ever.
+        $probes = 0;
+        $this->reconciler->repairRelocated(
+            $this->trash,
+            static function () use (&$probes): bool {
+                ++$probes;
+
+                return true;
+            },
+        );
+
+        self::assertSame(0, $probes, 'a confirmed pair of copies is not probed again on the next sync');
     }
 
     /**

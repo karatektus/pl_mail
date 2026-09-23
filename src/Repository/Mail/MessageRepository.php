@@ -2063,10 +2063,16 @@ class MessageRepository extends ServiceEntityRepository
      * for the same reason: a sync must not turn into an unbounded probing run,
      * so the backlog drains a slice per pass.
      *
+     * Rows the server confirmed as genuine copies since $recheckAfter are left
+     * out: probing them again would find them all present again, and without
+     * this they filled the slice every sync and starved the real ghosts behind
+     * them. See Message::$copiesConfirmedAt.
+     *
      * @return list<string>
      */
-    public function findMessageIdsAlsoFiledElsewhere(Mailbox $mailbox, int $limit): array
+    public function findMessageIdsAlsoFiledElsewhere(Mailbox $mailbox, int $limit, \DateTimeImmutable $recheckAfter): array
     {
+
         $rows = $this->createQueryBuilder('message')
             ->select('message.messageId')
             ->innerJoin(
@@ -2081,8 +2087,10 @@ class MessageRepository extends ServiceEntityRepository
             ->andWhere('message.imapUid IS NOT NULL')
             ->andWhere('twin.imapUid IS NOT NULL')
             ->andWhere('twin.mailbox IS NOT NULL')
+            ->andWhere('message.copiesConfirmedAt IS NULL OR message.copiesConfirmedAt < :recheckAfter')
             ->groupBy('message.messageId')
             ->setParameter('mailbox', $mailbox)
+            ->setParameter('recheckAfter', $recheckAfter)
             ->setMaxResults($limit)
             ->getQuery()
             ->getSingleColumnResult();
