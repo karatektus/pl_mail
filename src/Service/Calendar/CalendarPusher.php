@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Service\Calendar;
 
 use App\Domain\Enum\Calendar\SyncState;
+use App\Domain\Exception\CalendarResyncRequiredException;
 use App\Domain\Exception\CalendarSyncPermanentException;
 use App\Domain\Interface\CalendarSyncDriverInterface;
 use App\Entity\Calendar\Calendar;
@@ -34,7 +35,8 @@ use Psr\Log\LoggerInterface;
  * the other nineteen from going out, and must not fail the run, because a run
  * that fails is a run that is retried, and the retry meets the same event.
  * Throttling and resync are the exceptions and are allowed through: both mean
- * the *connection* is unusable, not this row.
+ * the *connection* is unusable, not this row. A 412 wears the resync class but
+ * is about one row, and is kept pending for the pull to settle — see push().
  *
  * Does not flush — it joins the caller's unit of work.
  */
@@ -86,6 +88,27 @@ final readonly class CalendarPusher
                 // row, and carrying on through the remaining nineteen events
                 // would spend the rest of a quota that is already exhausted.
                 $this->abandon($event, $e->getMessage());
+            } catch (CalendarResyncRequiredException $e) {
+                // A 412 is about this ROW, not the connection: the If-Match did
+                // not match because somebody edited the event at the remote
+                // since it was last read. Let through, it failed the run before
+                // the pull — and the pull is the only thing that can fetch the
+                // newer copy, so the next run pushed the same stale etag into
+                // the same 412 forever and nothing on the calendar synced
+                // again. Left pending instead: the pull that follows applies the
+                // remote's version by the usual rule (the remote wins, the lost
+                // edit is logged), and a row the pull did not reach is simply
+                // offered again next run. Any other status is a dead token and
+                // still belongs to the engine.
+                if (412 !== $e->getStatus()) {
+                    throw $e;
+                }
+
+                $this->logger->info('CalendarSync: the remote changed an event since it was read, pulling before pushing again', [
+                    'calendarId' => $calendar->id,
+                    'eventId'    => $event->id,
+                    'uid'        => $event->uid,
+                ]);
             }
         }
 

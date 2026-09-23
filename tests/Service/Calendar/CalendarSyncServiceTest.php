@@ -9,6 +9,7 @@ use App\Domain\DTO\Calendar\RemoteEvent;
 use App\Domain\DTO\Calendar\RemoteWriteResult;
 use App\Domain\Enum\Calendar\CalendarRole;
 use App\Domain\Enum\Calendar\SyncState;
+use App\Domain\Exception\CalendarResyncRequiredException;
 use App\Domain\Exception\CalendarSyncPermanentException;
 use App\Entity\Calendar\Calendar;
 use App\Entity\Calendar\CalendarEvent;
@@ -476,6 +477,31 @@ final class CalendarSyncServiceTest extends KernelTestCase
             $abandoned[0]['context']['discarded']['title'] ?? null,
             'the abandoned edit has to be recoverable from the log; nothing else will hold it',
         );
+    }
+
+    /**
+     * A 412 on push means the remote edited this event since it was read. It
+     * used to fail the run before the pull, which is the only thing that could
+     * fetch the newer copy — so every later run met the same 412 and the
+     * calendar never synced again. The pull now runs, the remote wins as it
+     * does for any conflict, and the row is settled.
+     */
+    public function testAnEtagConflictOnPushLetsThePullRunAndTheRemoteWin(): void
+    {
+        $event = $this->localEvent('r-16b', 'uid-16b', 'Stale local edit', etag: 'etag-a', state: SyncState::PendingUpdate);
+
+        $this->driver->pushThrows = new CalendarResyncRequiredException('Changed at the remote.', 412);
+        $this->driver->changeSets = [new CalendarChangeSet(
+            [$this->remoteEvent('r-16b', 'uid-16b', 'Edited at the remote', 'etag-b')],
+            'token-1',
+        )];
+
+        $this->sync->sync($this->calendar);
+
+        self::assertSame(['push', 'pull'], $this->driver->calls);
+        self::assertSame('Edited at the remote', $event->title);
+        self::assertSame(SyncState::Clean, $event->syncState);
+        self::assertSame('etag-b', $event->remoteEtag);
     }
 
     // ── Bookkeeping ───────────────────────────────────────────────────────
