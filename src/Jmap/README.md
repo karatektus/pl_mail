@@ -752,17 +752,35 @@ statement that creates the need for it.
   value onto the stored colourway, silently replacing an unlinked user's choice
   with a copy of their theme's name. Setting `theme` moves the mark, and the
   new colourway comes back in that call's `updated` map.
+- **`Appearance.logoMotif` and `Appearance.logoPaint` are the logo as the user
+  sees it, and are read-only on the same terms.** The mark is one icon of ten
+  now: `logoMotif` is which (`Appearance::effectiveLogoMotif()`, one of the
+  Session's `logoMotifs`), `logoPaint` what it wears
+  (`Appearance::effectiveLogoPaint()`) — `original`, the motif's own design, or
+  a colourway from `logoStyles`. For the pl mark the paint is always a
+  colourway and always the one `logoStyle` reports: the mark's original is the
+  product default, so `original` would only be a second spelling of `berry`.
+  `logoStyle` keeps its old meaning beside them — the pl mark's colourway,
+  whatever the icon — so a client that predates the icons draws the mark it
+  always drew. Both are derived or web-chosen (the paint from four stored
+  fields, one of them — whether a motif wears its own design — not on the wire
+  at all), so a change is refused and an echo is accepted and dropped, exactly
+  as for `logoStyle`; `AppearanceSetMethod::SERVER_SET` is the one list of
+  them. What each icon × paint looks like is not on the wire: the colour of
+  every part is one table, printed by `app:branding:export-paints`, which the
+  Android build generates its launcher icons from.
 - **The appearance in the Session is a hint, not the read.** The Session's
   `state` is a hash of the user's account ids and does not move when a theme
   changes, so a client holding an old Session holds an old theme.
   `Appearance/get` is authoritative; the compact copy exists so the chrome can
   be painted in the right palette on the first frame instead of flashing the
-  wrong one. `logoStyle` is deliberately kept OUT of that compact copy: the
-  Android client turns it into a launcher icon, and a hint that can be stale
-  for the life of a cached Session is the wrong source for something committed
-  to outside the app. The *vocabulary* `logoStyles` is published there, because
-  a list of enum cases cannot go stale — and because a read-only vocabulary,
-  unlike a settable one, can never be discovered by being refused.
+  wrong one. `logoStyle`, `logoMotif` and `logoPaint` are deliberately kept OUT
+  of that compact copy: the Android client turns them into a launcher icon, and
+  a hint that can be stale for the life of a cached Session is the wrong source
+  for something committed to outside the app. The *vocabularies* `logoStyles`
+  and `logoMotifs` are published there, because a list of enum cases cannot go
+  stale — and because a read-only vocabulary, unlike a settable one, can never
+  be discovered by being refused.
 - `urn:plmail:params:jmap:sync` has no methods, and is in `Capability::SUPPORTED`
   anyway. A client that lists a capability it depends on in `using` — the
   obvious thing to do — would otherwise have its whole request refused with

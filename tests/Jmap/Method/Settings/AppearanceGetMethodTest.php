@@ -8,6 +8,7 @@ use App\Domain\Enum\Theme\BackgroundKind;
 use App\Domain\Enum\Theme\BackgroundPreset;
 use App\Domain\Enum\Theme\Density;
 use App\Domain\Enum\Theme\Layout;
+use App\Domain\Enum\Theme\LogoMotif;
 use App\Domain\Enum\Theme\LogoStyle;
 use App\Domain\Enum\Theme\Theme;
 use App\Jmap\Mapper\AppearanceMapper;
@@ -121,6 +122,33 @@ final class AppearanceGetMethodTest extends JmapTestCase
 
         self::assertSame(LogoStyle::DEFAULT->value, $object['logoStyle']);
         self::assertSame('berry', $object['logoStyle']);
+    }
+
+    /**
+     * The icon and what it wears, for a client that draws the launcher icon.
+     *
+     * The mark's paint is always a colourway and always `logoStyle`'s — its
+     * original IS the product default — while a motif in its own design says
+     * `original`. And `logoStyle` goes on meaning the pl mark's colourway
+     * whatever the icon, so a client that predates the icons is not handed a
+     * word about a horn it cannot draw.
+     */
+    public function testItReportsTheIconAndThePaintItWears(): void
+    {
+        $object = $this->get()['list'][0];
+
+        self::assertSame('pl', $object['logoMotif']);
+        self::assertSame($object['logoStyle'], $object['logoPaint'], 'the mark\'s paint is its colourway');
+
+        $this->user->appearance->logoMotif = LogoMotif::WaxSeal;
+        $this->user->appearance->logoOriginal = true;
+        $this->em->flush();
+
+        $object = $this->get()['list'][0];
+
+        self::assertSame('wax-seal', $object['logoMotif']);
+        self::assertSame('original', $object['logoPaint']);
+        self::assertSame(LogoStyle::DEFAULT->value, $object['logoStyle'], 'the mark\'s colourway, unmoved by the icon');
     }
 
     /** Whatever comes out is a colourway the enum knows, for all seven themes. */

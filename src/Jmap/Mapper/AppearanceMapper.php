@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Jmap\Mapper;
 
+use App\Domain\Enum\Theme\LogoMotif;
 use App\Entity\Embeddable\Appearance;
 
 /**
@@ -32,15 +33,16 @@ final class AppearanceMapper
 
     /**
      * Every property of the JMAP object except `id`, in the order they are
-     * emitted. `backgroundFile` and `logoStyle` are included and are both
-     * read-only — see toJmap().
+     * emitted. `backgroundFile` and the three logo properties — `logoStyle`,
+     * `logoMotif`, `logoPaint` — are included and are all read-only; see
+     * toJmap().
      *
      * Being in this list is what makes a property *readable* by name: it is
      * what Appearance/get validates its `properties` argument against. It is
      * ALSO what Appearance/set's validate() accepts, so a read-only property
      * has to be named there too — the list on its own cannot express the
      * difference, and a property added here and nowhere else is silently
-     * writable. Both of the read-only two are named in that method.
+     * writable. The read-only ones are AppearanceSetMethod::SERVER_SET.
      *
      * @var list<string>
      */
@@ -48,6 +50,8 @@ final class AppearanceMapper
         'theme',
         'layout',
         'logoStyle',
+        'logoMotif',
+        'logoPaint',
         'accent',
         'paneAlpha',
         'popoverAlpha',
@@ -81,24 +85,26 @@ final class AppearanceMapper
      * first frame, without repeating the whole object in a response every
      * client fetches whether it cares about theming or not.
      *
-     * `logoStyle` is deliberately NOT here, and the reason is staleness rather
-     * than size. The Session's `state` is a hash of the user's account ids, so
-     * it does not move when an appearance changes: a client holding a cached
-     * Session holds a hint that can be wrong for as long as it keeps that
-     * Session, and only Appearance/get corrects it. That is a fair trade for
-     * the four above, because being briefly wrong about them costs one frame
-     * of the wrong palette — they are repainted the moment the real read
-     * lands. It is not a fair trade for the mark: the client this was added
-     * for uses it to choose a launcher icon, which is not a thing repainted on
-     * the next frame but a thing committed to outside the app, where a wrong
-     * value sits on somebody's home screen and a correction is visible churn.
+     * `logoStyle` is deliberately NOT here — nor `logoMotif` and `logoPaint`,
+     * for the same reason — and the reason is staleness rather than size. The
+     * Session's `state` is a hash of the user's account ids, so it does not
+     * move when an appearance changes: a client holding a cached Session holds
+     * a hint that can be wrong for as long as it keeps that Session, and only
+     * Appearance/get corrects it. That is a fair trade for the four above,
+     * because being briefly wrong about them costs one frame of the wrong
+     * palette — they are repainted the moment the real read lands. It is not a
+     * fair trade for the mark: the client this was added for uses it to choose
+     * a launcher icon, which is not a thing repainted on the next frame but a
+     * thing committed to outside the app, where a wrong value sits on
+     * somebody's home screen and a correction is visible churn.
      * A value you commit to should come from the authoritative read, and
      * Appearance/get is one call.
      *
-     * The closed vocabulary it is drawn from IS published at discovery time —
-     * see SessionBuilder's `logoStyles` — because that list is static and
-     * cannot go stale. Knowing the alphabet early is the part with no
-     * downside; knowing this user's letter early is the part with one.
+     * The closed vocabularies they are drawn from ARE published at discovery
+     * time — see SessionBuilder's `logoStyles` and `logoMotifs` — because those
+     * lists are static and cannot go stale. Knowing the alphabet early is the
+     * part with no downside; knowing this user's letter early is the part with
+     * one.
      *
      * @var list<string>
      */
@@ -136,6 +142,19 @@ final class AppearanceMapper
      * to write coherently — see AppearanceSetMethod, which refuses a change to
      * it and drops an echo of it.
      *
+     * `logoMotif` and `logoPaint` are the logo as the user sees it now that
+     * the mark is one icon of ten: the icon ({@see Appearance::effectiveLogoMotif()},
+     * one of the Session's `logoMotifs`) and what it is painted in
+     * ({@see Appearance::effectiveLogoPaint()}). The paint is `original` — the
+     * motif's own design — or a colourway from `logoStyles`; for the pl mark
+     * it is ALWAYS a colourway, and always the same one `logoStyle` reports,
+     * because the mark's original is simply the product default. `logoStyle`
+     * keeps its meaning beside them — the pl mark's colourway, whatever the
+     * icon — so a client written before there were icons goes on drawing the
+     * mark it always drew. Both are read-only on the same terms: the motif is
+     * chosen on the web, and the paint is derived from four stored fields, one
+     * of them not on the wire at all.
+     *
      * @return array<string,mixed>
      */
     public function toJmap(Appearance $appearance): array
@@ -145,6 +164,8 @@ final class AppearanceMapper
             'theme' => $appearance->theme->value,
             'layout' => $appearance->layout->value,
             'logoStyle' => $appearance->effectiveLogoStyle()->value,
+            'logoMotif' => $appearance->effectiveLogoMotif()->value,
+            'logoPaint' => LogoMotif::paintWire($appearance->effectiveLogoPaint()),
             'accent' => $appearance->accent,
             'paneAlpha' => $appearance->paneAlpha,
             'popoverAlpha' => $appearance->popoverAlpha,

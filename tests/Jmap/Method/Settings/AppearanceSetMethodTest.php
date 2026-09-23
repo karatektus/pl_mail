@@ -237,18 +237,27 @@ final class AppearanceSetMethodTest extends JmapTestCase
     }
 
     /**
-     * The mark is read-only, and asking for one is refused rather than
+     * The logo is read-only — the mark's colourway, the icon, and the icon's
+     * paint — and asking for any of them is refused rather than
      * accepted-and-ignored — the same bargain every other closed vocabulary
      * here strikes. A client told "ok" and then shown the old mark forever has
-     * nothing to debug against.
+     * nothing to debug against. (An echo of all three is accepted: the whole
+     * object goes straight back in the test below.)
      */
-    public function testTheLogoStyleIsNotSettable(): void
+    public function testTheLogoIsNotSettable(): void
     {
-        $error = $this->updateError(['logoStyle' => 'tricolore']);
+        foreach (['logoStyle' => 'tricolore', 'logoMotif' => 'mailbox', 'logoPaint' => 'original'] as $property => $value) {
+            $error = $this->updateError([$property => $value]);
 
-        self::assertSame('invalidProperties', $error['type']);
-        self::assertStringContainsString('logoStyle', $error['description']);
-        self::assertSame(LogoStyle::DEFAULT->value, $this->read()['logoStyle']);
+            self::assertSame('invalidProperties', $error['type']);
+            self::assertStringContainsString($property, $error['description']);
+        }
+
+        $object = $this->read();
+
+        self::assertSame(LogoStyle::DEFAULT->value, $object['logoStyle']);
+        self::assertSame('pl', $object['logoMotif']);
+        self::assertSame(LogoStyle::DEFAULT->value, $object['logoPaint']);
     }
 
     /**

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Jmap\Session;
 
 use App\Domain\Enum\Theme\Layout;
+use App\Domain\Enum\Theme\LogoMotif;
 use App\Domain\Enum\Theme\LogoStyle;
 use App\Domain\Enum\Theme\Theme;
 use App\Entity\Embeddable\Appearance;
@@ -80,15 +81,16 @@ final class AppearanceCapabilityTest extends JmapTestCase
     }
 
     /**
-     * The colourways are published even though `Appearance.logoStyle` is
+     * The colourways and the icons are published even though the logo is
      * read-only, and *because* it is: a settable vocabulary can be discovered
      * by being refused, a read-only one cannot be discovered at all. A client
-     * mapping the thirty-two onto assets of its own needs the list to know
-     * when it is holding a word it has nothing for.
+     * mapping the ten icons and thirty-two colourways onto assets of its own
+     * needs the lists to know when it is holding a word it has nothing for.
      */
     public function testTheColourwaysArePublishedEvenThoughTheMarkIsReadOnly(): void
     {
         self::assertSame(array_column(LogoStyle::cases(), 'value'), $this->capability()['logoStyles']);
+        self::assertSame(array_column(LogoMotif::cases(), 'value'), $this->capability()['logoMotifs']);
     }
 
     /**
@@ -106,7 +108,9 @@ final class AppearanceCapabilityTest extends JmapTestCase
      */
     public function testTheMarkIsNotInTheHintBecauseTheHintCanBeStale(): void
     {
-        self::assertArrayNotHasKey('logoStyle', $this->capability()['appearance']);
+        foreach (['logoStyle', 'logoMotif', 'logoPaint'] as $property) {
+            self::assertArrayNotHasKey($property, $this->capability()['appearance']);
+        }
     }
 
     /**

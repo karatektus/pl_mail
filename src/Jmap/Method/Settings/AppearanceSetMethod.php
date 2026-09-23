@@ -41,8 +41,9 @@ use Doctrine\ORM\EntityManagerInterface;
  *  - **Malformed colours are refused**, since the setter's fallback (the
  *    default accent, or null) is a value the client never asked for.
  *  - **Derived and server-set properties are refused a *change* and allowed
- *    an *echo*** — `id`, `backgroundFile` and `logoStyle`. See below, and
- *    AppearanceMapper for why the mark is derived rather than stored.
+ *    an *echo*** — `id`, `backgroundFile`, and the logo's three: `logoStyle`,
+ *    `logoMotif` and `logoPaint`. See below, and AppearanceMapper for why the
+ *    logo is derived rather than stored.
  *  - **Numeric ranges are clamped, not refused** — 1.4 for an alpha is a
  *    client being sloppy about a continuum, not a client meaning something
  *    this server cannot represent. Nothing is dropped silently: a clamp lands
@@ -57,6 +58,16 @@ use Doctrine\ORM\EntityManagerInterface;
  */
 final class AppearanceSetMethod implements JmapMethod
 {
+    /**
+     * The properties a client may read and echo but never change. Named once,
+     * because two places have to agree on them: validate() refuses a
+     * different value, and apply() drops the echo before it reaches the
+     * entity — see both.
+     *
+     * @var list<string>
+     */
+    public const array SERVER_SET = ['id', 'backgroundFile', 'logoStyle', 'logoMotif', 'logoPaint'];
+
     public function __construct(
         private readonly AppearanceMapper $mapper,
         private readonly EntityManagerInterface $entityManager,
@@ -168,18 +179,20 @@ final class AppearanceSetMethod implements JmapMethod
         foreach ($patch as $property => $value) {
             $property = (string) $property;
 
-            // `id`, `backgroundFile` and `logoStyle` are server-set. Echoing
-            // the current value back is allowed, because get → edit one field
-            // → set is how a client is *supposed* to work and refusing the
-            // untouched remainder of its own read would make that impossible;
-            // changing any of them is refused. backgroundFile is uploaded
-            // through the web settings pane and served from behind the session
-            // firewall, so a JMAP client cannot produce one. logoStyle is not
-            // a stored field: it is derived from `theme`, `logoLinked` and the
-            // stored colourway, none of which a patch naming `logoStyle` says
-            // anything about — see AppearanceMapper for the whole argument.
+            // The SERVER_SET properties. Echoing the current value back is
+            // allowed, because get → edit one field → set is how a client is
+            // *supposed* to work and refusing the untouched remainder of its
+            // own read would make that impossible; changing any of them is
+            // refused. backgroundFile is uploaded through the web settings pane
+            // and served from behind the session firewall, so a JMAP client
+            // cannot produce one. logoStyle and logoPaint are not stored
+            // fields: they are derived from `theme`, `logoLinked`, the stored
+            // colourway and (for the paint) whether a motif wears its own
+            // design, most of which a patch naming them says nothing about —
+            // see AppearanceMapper for the whole argument. logoMotif is the
+            // icon, chosen on the web like the link between mark and theme.
             // Change the theme to change the mark.
-            if ('id' === $property || 'backgroundFile' === $property || 'logoStyle' === $property) {
+            if (true === in_array($property, self::SERVER_SET, true)) {
                 if (($current[$property] ?? null) === $value) {
                     continue;
                 }
@@ -242,18 +255,22 @@ final class AppearanceSetMethod implements JmapMethod
             }
         }
 
-        // Dropped rather than left to validate()'s echo check, which is the
-        // one place the read-only three differ from each other. `id` and
-        // `backgroundFile` are keys `applyArray()` has never heard of, so an
-        // echo of them falls on the floor by itself; `logoStyle` is a key it
-        // knows, and it writes it onto the STORED colourway. What the wire
-        // reports is the *effective* one, so a client doing get → edit theme →
-        // set — the flow the echo check exists to permit — would hand back the
-        // theme's own name and quietly overwrite the choice sitting behind a
-        // `logoLinked: false`. That user's mark would change the first time
-        // any client touched any other property, from an edit they did not
-        // make to a field they cannot see.
-        unset($patch['logoStyle']);
+        // Dropped rather than left to validate()'s echo check, all of them,
+        // because two are keys `applyArray()` knows. `id`, `backgroundFile`
+        // and `logoPaint` would fall on the floor by themselves; `logoStyle`
+        // and `logoMotif` would be written onto the stored fields. For
+        // `logoStyle` that is the bug this line was written for: the wire
+        // reports the *effective* colourway, so a client doing get → edit
+        // theme → set — the flow the echo check exists to permit — would hand
+        // back the theme's own name and quietly overwrite the choice sitting
+        // behind a `logoLinked: false`. That user's mark would change the first
+        // time any client touched any other property, from an edit they did
+        // not make to a field they cannot see. `logoMotif` echoes the stored
+        // value today and would write it back unchanged — dropped anyway, so
+        // that staying harmless does not depend on the two never diverging.
+        foreach (self::SERVER_SET as $property) {
+            unset($patch[$property]);
+        }
 
         // Everything else goes through the entity's own applier, so JMAP and
         // the web settings pane write appearance the same way. It ignores what
