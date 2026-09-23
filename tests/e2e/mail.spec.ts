@@ -867,22 +867,50 @@ test.describe("mail UI actions", () => {
         expect(composeRequests, "the click itself must still fetch one").toBe(1);
     });
 
-    // ── Still pending: needs more than wiring ────────────────────────────────
+    /**
+     * The Label-as menu inside a conversation — the single-target instance.
+     *
+     * The list toolbar's bulk menu is covered in label.spec.ts. This one is
+     * rendered by _thread_content with the thread as its target and the
+     * thread's labels pre-ticked, so it posts for this conversation alone and
+     * needs no selection in the list. It was a fixme while no template rendered
+     * the menu with a target; _thread_content does now.
+     *
+     * Asserted on the row in the list, which the returned stream replaces:
+     * that is where the chip shows, and it proves the POST reached the
+     * conversation that is open rather than whatever the list had selected.
+     */
+    test("labels a conversation via the Label-as menu", async ({ page }) => {
+        // After seed-mail (beforeEach): the label is bound to the seeded account.
+        seed("seed-label");
 
-    // Blocked: "Label as" never fires the POST from the UI. The only rendered
-    // menu is the list-toolbar bulk instance, whose _resolveTargets() reads
-    // `[data-thread-select]:checked` — but the row checkbox has no
-    // `data-thread-select`/`value`, so it finds zero targets. And no template
-    // renders _label_menu with a targetId (single-target mode). Minimal fix:
-    // add `data-thread-select value="{{ rowId }}"` to the row checkbox (unblocks
-    // bulk), or render _label_menu with targetId in _thread_content.html.twig
-    // (unblocks single-target). This one also needs a seeded custom label to
-    // click, so it stays fixme until both land.
-    test.fixme("labels a conversation via the Label-as menu", async ({
-                                                                         page,
-                                                                     }) => {
         await page.goto("/mail/inbox");
-        // TODO(app): wire a working label-menu target, then seed a custom label.
+        await mailRow(page, INBOX_SUBJECTS.read).click();
+
+        // Scoped to the reading pane — the list toolbar has its own Label-as
+        // button, and that one is the bulk instance.
+        const pane = page.locator('[data-mail--mail-pane-target="reading"]');
+        const button = pane.getByRole("button", { name: "Label as" }).first();
+        await expect(button).toBeVisible();
+        await button.click();
+
+        const panel = pane.locator('[data-mail--label-menu-target="panel"]:not(.hidden)').first();
+        await expect(panel).toBeVisible();
+
+        const entry = panel.locator("[data-label-id]", { hasText: "E2E Label" }).first();
+        await expect(entry).toHaveAttribute("data-attached", "false");
+
+        const posted = page.waitForResponse(
+            (r) => /\/status\/thread\/\d+\/label$/.test(r.url()) && r.request().method() === "POST",
+        );
+        await entry.click();
+        expect((await posted).ok(), "the label POST failed").toBe(true);
+
+        await expect(mailRow(page, INBOX_SUBJECTS.read)).toContainText("E2E Label");
+
+        // The tick follows, because the next click decides attach-or-detach
+        // from it: an unticked attached label would be attached again.
+        await expect(entry).toHaveAttribute("data-attached", "true");
     });
 
     /**
