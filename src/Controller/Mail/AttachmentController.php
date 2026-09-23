@@ -107,7 +107,8 @@ final class AttachmentController extends AbstractController
             || false === $inlineAllowed;
 
         $response = new BinaryFileResponse($absolutePath);
-        $response->headers->set('Content-Type', $contentType);
+        // Not $contentType: the sender chose it. See InlineDisposition::servedType().
+        $response->headers->set('Content-Type', InlineDisposition::servedType($contentType));
         $response->headers->set('X-Content-Type-Options', 'nosniff');
         // On every response, download or not: it costs an inline image nothing
         // and it means a future widening of the allow-list is a bug rather than
@@ -117,7 +118,7 @@ final class AttachmentController extends AbstractController
             true === $forceDownload
                 ? ResponseHeaderBag::DISPOSITION_ATTACHMENT
                 : ResponseHeaderBag::DISPOSITION_INLINE,
-            $part->filename ?? 'attachment',
+            InlineDisposition::headerFilename($part->filename),
         );
 
         return $response;

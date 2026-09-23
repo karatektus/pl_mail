@@ -7,6 +7,7 @@ namespace App\Tests\Domain\Helper;
 use App\Domain\Helper\InlineDisposition;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\HttpFoundation\HeaderUtils;
 
 /**
  * An SVG attachment is not an image as far as a browser is concerned.
@@ -90,5 +91,30 @@ final class InlineDispositionTest extends TestCase
     {
         self::assertSame("default-src 'none'; sandbox", InlineDisposition::SANDBOX_CSP);
         self::assertStringNotContainsString('allow-', InlineDisposition::SANDBOX_CSP);
+    }
+
+    /**
+     * A sender-chosen `text/javascript` served under its own label satisfies
+     * `script-src 'self'`; only the inline raster types keep their type.
+     */
+    public function testOnlyInlineTypesAreServedUnderTheirOwnLabel(): void
+    {
+        self::assertSame('application/octet-stream', InlineDisposition::servedType('text/javascript'));
+        self::assertSame('application/octet-stream', InlineDisposition::servedType('text/css'));
+        self::assertSame('application/octet-stream', InlineDisposition::servedType(null));
+        self::assertSame('image/png', InlineDisposition::servedType('IMAGE/PNG; name=x.png'));
+    }
+
+    /** A path in an attachment name used to be a 500 out of makeDisposition(). */
+    public function testAFilenameWithAPathStillMakesAValidHeader(): void
+    {
+        $name = InlineDisposition::headerFilename("../Bericht/Q3\\Übersicht\r\n.pdf");
+
+        self::assertSame('.._Bericht_Q3_Übersicht.pdf', $name);
+        self::assertStringContainsString(
+            "filename*=utf-8''",
+            HeaderUtils::makeDisposition(HeaderUtils::DISPOSITION_ATTACHMENT, $name, 'attachment.pdf'),
+        );
+        self::assertSame('attachment', InlineDisposition::headerFilename("\x00\r\n "), 'nothing left is the default, not an empty name');
     }
 }

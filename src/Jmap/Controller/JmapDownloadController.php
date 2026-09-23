@@ -99,7 +99,8 @@ final class JmapDownloadController extends AbstractController
             $response = new Response((string) $blob->content);
         }
 
-        $response->headers->set('Content-Type', $blob->contentType);
+        // The stored type is the sender's; see InlineDisposition::servedType().
+        $response->headers->set('Content-Type', InlineDisposition::servedType($blob->contentType));
         $response->headers->set('Content-Security-Policy', InlineDisposition::SANDBOX_CSP);
         $response->headers->set('X-Content-Type-Options', 'nosniff');
 
@@ -128,10 +129,11 @@ final class JmapDownloadController extends AbstractController
         $candidate = basename(str_replace(['\\', "\r", "\n"], '', $name));
 
         if ('' === $candidate || 'download' === $candidate) {
-            return $blob->filename;
+            // The stored name came from a mail header and may hold a path.
+            return InlineDisposition::headerFilename($blob->filename, 'download');
         }
 
-        return $candidate;
+        return InlineDisposition::headerFilename($candidate, 'download');
     }
 
     private function problem(string $type, string $detail, int $status): JsonResponse

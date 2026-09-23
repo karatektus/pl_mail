@@ -80,6 +80,42 @@ final class InlineDisposition
         return in_array(self::normalise($contentType), self::INLINE_TYPES, true);
     }
 
+    /**
+     * The Content-Type to SERVE a stored part under: its own type when it may
+     * render inline, application/octet-stream for everything else.
+     *
+     * The stored type is whatever the sender wrote in the MIME headers, and
+     * nosniff only protects a response whose label is harmless. Served as
+     * `text/javascript`, an attachment on our own origin satisfied
+     * `script-src 'self'` — the page CSP's one allowance — and any markup that
+     * reached the app's document could load it as a script. Disposition and
+     * the sandbox CSP do nothing for a subresource; only the label does. A
+     * download needs no type at all: the browser and the OS go by filename.
+     */
+    public static function servedType(?string $contentType): string
+    {
+        return true === self::allows($contentType)
+            ? self::normalise($contentType)
+            : 'application/octet-stream';
+    }
+
+    /**
+     * A filename that can go into a Content-Disposition header.
+     *
+     * Symfony's makeDisposition() throws on `/` and `\` — a 500 for any mail
+     * whose attachment name carries a path, which senders do — and control
+     * characters have no business in a header. Everything else, UTF-8
+     * included, is kept: BinaryFileResponse/makeDisposition write it as
+     * `filename*` and derive the ASCII fallback themselves.
+     */
+    public static function headerFilename(?string $filename, string $default = 'attachment'): string
+    {
+        $clean = str_replace(['/', '\\'], '_', (string) $filename);
+        $clean = trim((string) preg_replace('/[\x00-\x1F\x7F]/u', '', $clean));
+
+        return '' === $clean ? $default : $clean;
+    }
+
     /** The bare type, lowercased, with any parameters and padding removed. */
     public static function normalise(?string $contentType): string
     {
