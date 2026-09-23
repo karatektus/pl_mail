@@ -982,14 +982,16 @@ final class CalendarController extends AbstractController
      * this is an open-redirect check and not a formality. `//evil.test` is the
      * case worth naming: a browser reads it as scheme-relative to another host,
      * and it passes a naive "starts with a slash" test.
+     *
+     * So is `/\t/evil.test`, which passed the `//` check this used to be: the
+     * URL parser strips tab, CR and LF before it looks at the string, so the
+     * browser follows `//evil.test` all the same. Hence one rule rather than a
+     * list of bad prefixes — a slash, then not a slash or backslash, then no
+     * control character, whitespace or backslash anywhere.
      */
     private function safeReturnTo(string $candidate): ?string
     {
-        if ('' === $candidate || false === str_starts_with($candidate, '/')) {
-            return null;
-        }
-
-        if (true === str_starts_with($candidate, '//') || true === str_contains($candidate, '\\')) {
+        if (1 !== preg_match('#^/(?![/\\\\])[^\x00-\x20\x7F\\\\]*$#D', $candidate)) {
             return null;
         }
 
