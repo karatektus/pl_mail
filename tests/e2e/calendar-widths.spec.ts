@@ -81,6 +81,22 @@ test.describe("every view at every width", () => {
                     // Nothing a month cell draws BEGINS outside it. Where it ends
                     // is the list's business — that box clips, and a chip cut off
                     // at the bottom is the design.
+                    //
+                    // A chip wholly below the clip is not drawn at all — a busy
+                    // day holds more entries than fit, and the box hides the
+                    // rest by design — but its bounding box still says where it
+                    // WOULD be. So an element is only judged if some of it is
+                    // inside the nearest box that clips it.
+                    const hiddenByClip = (el: Element, cell: Element) => {
+                        const b = el.getBoundingClientRect();
+                        for (let p = el.parentElement; p && p !== cell.parentElement; p = p.parentElement) {
+                            const o = getComputedStyle(p).overflowY;
+                            if ("hidden" === o || "clip" === o) {
+                                return b.top >= p.getBoundingClientRect().bottom - 1;
+                            }
+                        }
+                        return false;
+                    };
                     out.spill = [...document.querySelectorAll('[data-calendar-grid="month"] [data-day]')]
                         .flatMap((cell) => {
                             const cb = cell.getBoundingClientRect();
@@ -88,6 +104,7 @@ test.describe("every view at every width", () => {
                                 const b = el.getBoundingClientRect();
                                 return (
                                     b.width > 0 &&
+                                    !hiddenByClip(el, cell) &&
                                     (b.left < cb.left - 1 || b.left > cb.right + 1 || b.top > cb.bottom + 1)
                                 );
                             });
