@@ -253,6 +253,71 @@ admin:
             unhandledrejection: 'Rejection'
         occurrences: '{1}on 1 page load|]1,Inf[ on %count% page loads'
         page: 'Last page'
+    config_backup:
+        change:
+            absent: "naught set here yet"
+            differs: "replaces a different value"
+            unchanged: "already the very same"
+        disposition:
+            applied: "Written, and in force now."
+            applied-on-restart: "takes hold when the crew next muster"
+            external: "plMail be a passenger on the ship this belongs to, not her captain. The database role were made with the password Postgres already holds, and only an initdb reads a new one — so changin' it here alone leaves ye an installation that can't board its own database. Change it in Postgres first, then here."
+            kept-deliberately: "Kept as it be here, on purpose. The credentials out o' this backup were locked anew with this installation's key as they were written, so puttin' the backup's key in its place would make them — and everythin' else already stowed — unreadable at the next launch. The line below be only for when ye be also restorin' the old database, whose rows be locked with it; then it must go in afore anythin' be stowed."
+            not-writable: "This hand couldn't write to that path. A read-only secrets hold, the wrong uid, or a service never given the volume. The value be in the backup ye just hauled up — put it there yerself."
+            shadowed-by-compose: "Written, but somethin' in the process environment sets this name too, and the entrypoint lets a value set on purpose win over the generated one. Remove or mend it in yer compose file — or in the `.env` beside it — and restart; the restored value be already waitin' underneath."
+        error:
+            malformed-document: "The password opened that chest, but what be inside ain't a configuration backup this plMail can read. Naught has been changed."
+            not-a-backup: "That ain't a plMail configuration backup. Naught has been changed."
+            unsupported-version: "That backup were written by a newer plMail than this one, in a tongue this version can't read. Upgrade first, then bring it aboard."
+            collision: "That chest describes someone this installation already holds part of — an app password, a share link or a bookin' page whose token be still registered here, usually left behind by a crew member who were struck off. Naught has been changed. Clear out those leftovers, or bring it aboard an installation that ain't got them."
+            wrong-password: "That password don't open this chest — or the chest has been tampered with since it were sealed. Naught has been changed."
+        export:
+            error:
+                mismatch: "The two passwords didn't match, so naught were sent ashore."
+                too_short: "That password be too short, so naught were sent ashore."
+            heading: "Send the ship's papers ashore"
+            intro: "Every settin' and credential this installation sails on, in one password-locked chest: the environment values, the files in the secrets hold, the provider and Firebase credentials from the database, and the crew — each with their password, their second factor, their mailboxes and all else they rigged up. No post, no calendar entries and no contacts; that be what `app:backup` is for."
+            generate: "Forge one"
+            generated_copied: "Copied to yer slate — stow it somewhere that outlives this ship."
+            generated_shown: "Yer browser wouldn't share its slate, so the password be shown above — stow it now."
+            password: "Password"
+            password_help: "At least %length% characters. It be never stowed anywhere, and there be no way to open the chest without it."
+            password_repeat: "Say the password again"
+            submit: "Haul down the backup"
+            warning: "The chest that comes out holds every secret this installation has, guarded by naught but the password ye type here. Keep it as ye would keep the encryption key itself."
+        import:
+            error:
+                no_file: "No chest arrived, or it were far heavier than a configuration backup can be."
+                no_password: "Enter the password this backup were sealed with."
+            file: "Backup chest"
+            heading: "Bring the ship's papers aboard"
+            intro: "Haul up a backup and give its password. Naught be written until ye've seen what it would do and given the word."
+            password: "Password"
+            submit: "Look this backup over"
+        review:
+            already_matching: "%count% more already match this environment, so there be naught to do about them."
+            apply: "Put this backup in force"
+            applied: "What were written"
+            confirm_password: "The password, once more"
+            exported_at: "Sent ashore"
+            from: "From"
+            heading: "Look this backup over"
+            instructed: "These be yers to do"
+            instructed_lead: "All else be in place. These few can't be finished from here, and each one says why — sayin' otherwise would be a lie a shipkeeper only finds out on the day it matters."
+            kept_users: "Already aboard — kept as they be"
+            kept_users_lead: "This installation already has these hands, matched by email address. Naught about them were touched: not their password, not their second factor, not their mailboxes nor anythin' else they'd rigged. A backup be a paintin' of a moment long past, and writin' it over a livin' account be how someone gets locked out o' their own post without a word anywhere."
+            old_key_summary: "Also restorin' the old database? Ye'll need its old encryption key."
+            restart: "Most o' this be read when the crew muster, so plMail writes it into the generated secrets and it takes hold at the next restart. That be one restart for the whole list, not one per value."
+            restart_applied: "Written. The values read when the containers muster be in place but not yet in force — restart the stack once and this installation comes up as the one the backup were made from."
+            unknown_instance: "not in the log"
+            written: "plMail writes these"
+            written_applied: "Written"
+            written_none: "There be naught in this backup for plMail to write."
+        section:
+            database: "Database"
+            env: "Environment variables"
+            files: "Files in the secrets hold"
+            users: "The crew and all they rigged"
     db:
         active:
             empty: 'No queries afoot right now.'
@@ -349,7 +414,6 @@ admin:
         clear_secret: 'Throw the stored secret overboard'
         configure: 'Set the rigging'
         connected_users: '%count% hands moored'
-        connected_users_one: '1 hand moored'
         copy_redirect_uri: 'Copy th'' return bearing'
         inherit_toggle: 'Use these keys for th'' cargo holds an'' all'
         inherit_toggle_help: 'One Google charter covers Drive an'' Photos; one Microsoft charter covers OneDrive. Leave it set an'' there be nothin'' more to rig for them.'
@@ -470,6 +534,9 @@ admin:
         heartbeats_prune: 'Sweep old marks'
         heartbeats_title: 'Stale crew marks'
         restart: 'Rouse the crew'
+        restart_app: "Rouse it now"
+        restart_app_help: "Ends the hand servin' this page so compose signs on a fresh one. Needed after the generated secrets be rotated: the entrypoint hands them out as environment variables and the kernel boots once in worker mode, so a runnin' web container never learns a new value. About two seconds o' dead water, and this page comes back on its own."
+        restart_app_title: "Rouse the web container"
         restart_confirm: 'Rouse the crew, the timekeeper and the IMAP bosun? They finish the task in hand first.'
         restart_help: 'Sends the crew, the timekeeper and the IMAP bosun below so they be signed on afresh. Long-servin'' hands memorise the ship''s charts for their whole watch, so they need this after ye redraw them.'
         restart_pending: 'Rousin'' called %seconds%s past — the crew finish the task in hand, then muster back here within a minute or two.'
@@ -502,10 +569,13 @@ admin:
         refresh: 'Refresh'
     nav:
         ai: Oracle
+        backup: "Ship's papers"
         database: Database
         insight_reports: 'Reported letters'
         integrations: 'Friendly ports'
         logs: Ship's log
+        push: "Signal flags"
+        reset: "Scuttle"
         system: Ship
         users: Th' crew roster
     processes:
@@ -527,6 +597,55 @@ admin:
         calendar_without_public_address: >-
             With no public HTTPS address, moored almanacs simply bide by the
             quarter-hour sweep.
+        deliveries:
+            all_outcomes: "Any outcome"
+            all_transports: "Both ways o' sendin'"
+            all_users: "All the crew"
+            attempts: "attempts"
+            empty_ever: "Naught has been signalled yet. Either no device has finished the verification handshake, or neither way o' sendin' be rigged — the panel above says which."
+            empty_filter: "No delivery matches this filter."
+            heading: "Recent deliveries"
+            newer: "Newer"
+            older: "Older"
+            outcome:
+                accepted: "Taken aboard"
+                failed: "Sunk"
+                skipped: "Passed by"
+                subscription-destroyed: "Device gone overboard"
+            page: "Page"
+            refresh: "Look again"
+            transport:
+                fcm: "Firebase"
+                webpush: "Web Push"
+        fcm:
+            android_package: "Android package"
+            application_id: "Application ID"
+            clear_key: "Forget the stowed key"
+            clear_key_help: "Throws out the service-account key and strikes FCM's colours. Devices already signed on stop gettin' notifications until a new key be saved."
+            client_email: "Service account"
+            enable_without_client: "There be no google-services.json on file — the Android app would have naught to rig Firebase with. Paste one below, or leave FCM switched off."
+            enable_without_key: "There be no service-account key on file — paste one below, or leave FCM switched off."
+            field:
+                enabled: "Deliver notifications over FCM"
+                enabled_help: "Clients see this as \"fcm\" in the session capability, and only offer Firebase when it be on."
+                google_services: "google-services.json"
+                google_services_help: "Firebase console → Project settings → Your apps → the Android app → google-services.json. The app be one build for every installation, so it rigs Firebase from these values at runtime — they be public and be published in the JMAP session."
+                service_account: "Firebase service-account key (JSON)"
+                service_account_help: "Firebase console → Project settings → Service accounts → Generate new private key. Paste the whole file. It be stowed encrypted and never shown again. It must belong to the same project as the google-services.json below."
+            heading: "Firebase Cloud Messaging"
+            intro: "FCM be how a native Android app hears o' new post in the background. It be optional — a device runnin' a UnifiedPush distributor needs none o' this, and neither does the browser app."
+            paste_none: "Paste the whole JSON file here"
+            paste_unchanged: "One be on file — leave blank to keep it"
+            project: "Firebase project"
+            save: "Stow it"
+            saved: "Firebase settin's stowed."
+            sender_id: "Sender ID"
+        status:
+            incomplete: "Half rigged"
+            key_only: "Rigged, colours struck"
+            live: "Under sail"
+            unconfigured: "Not rigged"
+        webpush_note: "Web Push needs naught here. Its VAPID keys be environment variables, forged once by app:push:generate-vapid-keys, and they serve browsers, the installed PWA and UnifiedPush distributors alike."
     queues:
         due_in: 'due in %duration%'
         empty: 'No bottles waitin''.'
@@ -535,7 +654,6 @@ admin:
         in_flight: 'Bein'' worked now'
         loading: 'Haulin'' aboard…'
         showing: '%shown% o'' %total%'
-        next_up: 'Waitin'''
         none_running: 'No deckhand be holdin'' a bottle right now.'
         oldest: 'Longest waitin'''
         pending: 'Waitin'''
@@ -560,6 +678,63 @@ admin:
         queries: '%count% askings'
         queue: '%running% bein'' worked · %waiting% waitin'''
         tables: '%count% tables'
+    reset:
+        button: "Scuttle"
+        confirm_label: "Type %name% to give the word"
+        confirm_mismatch: "That ain't %name%, so naught were sunk. Type the instance name exactly as it be shown."
+        done:
+            continue: "Appoint the first captain"
+            footnote: "plMail be back the way a fresh ship starts out."
+            heading: "plMail has been scuttled"
+            lead: "All %count% tables were emptied, along with the stowed attachments, raw messages and uploads. There be no crew left, so this session has been put ashore."
+            page_title: "Scuttlin' done"
+            restart_failed: "The web container could NOT be roused from here — run the command above yerself afore usin' plMail."
+            restart_sent: "The web container were told to restart and comes back on its own. Everythin' else in the stack still needs the command above."
+            secrets_heading: "The generated secrets were thrown overboard"
+            tagline: "Naught left to sign on to"
+            workers_failed: "The workers couldn't be signalled neither, so they keep usin' the old encryption key until somethin' rouses them."
+        heading: "Scuttle the cargo"
+        intro: "This sends synced cargo from the database to Davy Jones for good. Each step sinks all the step above it does, and more."
+        monitoring_kept: "Monitorin' data be kept. Clear the gathered logs from Ship's log, and stale marks from Shipkeepin'."
+        postgres_password: "POSTGRES_PASSWORD ain't rotated. Postgres were set up with it and keeps it in its own data directory, so forgin' a new one would leave plMail unable to board the database it just emptied. Changin' that one means wipin' the database volume — docker compose down -v — which this can't do."
+        restart_required: "Restart the whole stack right after, and afore usin' plMail:"
+        self_restart: "The web container asks itself to go ashore once this page be sent, and compose brings it straight back. The workers be signalled too; the command above covers the rest o' the stack."
+        self_restart_unavailable: "This hand can't restart itself here, so the command above be the only way. Naught will happen on its own."
+        stage:
+            accounts:
+                confirm: "Sink the accounts as well? Every mailbox password and OAuth connection must be entered again."
+                deletes: "The above, plus the accounts themselves, aliases an' all. Every mailbox password and OAuth connection must be rigged from scratch. Yer own sign-in be untouched."
+                title: "Post, riggin', contacts and accounts"
+            contacts:
+                confirm: "Sink every synced message, folder, label and gathered contact?"
+                deletes: "The above, plus gathered contacts. They be gathered again from post as it arrives, so address autocomplete starts empty."
+                title: "Post, riggin' and contacts"
+            full:
+                button: "Scuttle this ship"
+                deletes: "Everythin', not just synced post: every crew member (ye included), every account and its stowed password, and the files on disk. The ship goes back to askin' for her first captain. Ye be put ashore and can't sign back on."
+                title: "Full scuttlin'"
+            full_secrets:
+                button: "Scuttle this ship and forge new secrets"
+                deletes: "Everythin' above, and the generated secrets. Every service be still runnin' with the old APP_ENCRYPTION_KEY in memory and keeps usin' it until roused, so anythin' stowed afore ye restart the stack becomes unreadable to half of it."
+                title: "Full scuttlin' and new secrets"
+            structure:
+                confirm: "Sink every synced message, thread, folder and label? The next sync rebuilds them."
+                deletes: "The above, plus the mailbox riggin' — folders and labels. The next sync rebuilds both."
+                title: "Post and mailbox riggin'"
+            synced_mail:
+                confirm: "Sink every synced message and thread? Accounts and folders stay, and the next sync fetches the post again."
+                deletes: "Messages, threads, message parts and aught that be queued. Accounts, folders and labels stay; the sync markers be cleared so the next sync fetches everythin' again."
+                title: "Synced post"
+        unrecoverable:
+            heading: "Can't be undone"
+            lead: "Neither o' these can be fished back up by resyncin': they sink the crew, the stowed mailbox passwords and the files on disk. Type the instance name to give the word — a click on its own ain't enough."
+    restarting:
+        back: "Back to the captain's quarters"
+        heading: "plMail be restartin'"
+        lead: "The web container were told to go ashore and compose brings it straight back. This page reloads itself in a few seconds."
+        page_title: "Restartin'"
+        unavailable_heading: "Naught were restarted"
+        unavailable_lead: "This hand ain't the container's main process, so it can't end it. Run this instead:"
     tables:
         heading: 'Table sizes'
     title: 'Cap''n''s quarters'
@@ -1323,7 +1498,6 @@ compose:
     more_fields: Show the rest o' the manifest
     more_options: More riggin'
     new_message: A Fresh Scroll
-    no_recipients: Nobody to send it to
     outdent: Shove it outboard
     plain_text: "Plain hand, no flourishes"
     plain_warning:
@@ -1340,12 +1514,10 @@ compose:
     redo: Do it over again
     reply: Answer
     reply_all: Answer the whole crew
-    reply_placeholder: "Answer %name%"
     save_and_close: Stow the scroll and close
     send: Cast off
     send_options: Castin'-off orders
     sending: "Castin' off…"
-    sending_cancel: 'Belay that!'
     signature: Make yer mark
     signature_none: "This name bears no mark yet"
     subject_label: Head
@@ -1364,7 +1536,6 @@ demo:
         next: "Next on th' tide: %subject%"
         receive: Haul in mail
     flash:
-        received: "\"%subject%\" has come aboard."
         blocked: Lashin' a real sea chest to this hull be forbidden on a sea trial.
     login:
         blurb: Take a turn about plMail wi' a sea chest o' yer own — no articles t' sign, no berth needed.
@@ -1449,8 +1620,6 @@ drafts:
     heading: Scrolls in the works
 
 errors:
-    access_denied: Ye have no leave to enter here.
-    not_found: That be nowhere on the charts.
     page:
         back: Back to yer mail
         not_found:
@@ -1471,11 +1640,18 @@ form:
     cancel: Belay that
     submit: Stow it
 
+confirm_dialog:
+    heading: "Be ye sure?"
+    cancel: "Belay that"
+    confirm: "Carry on"
+
+discarded:
+    actions:
+        purge: "Send to Davy Jones for good"
+        purge_confirm: "Sink this conversation for good? It can't be fished back up, and it be struck from the mail server too."
+        restore: "Haul back to the inbox"
+
 header:
-    labels:
-        add: Hoist a new flag
-        heading: Flags
-        none: No flags yet
     search:
         close: Batten the hunt
         live:
@@ -1571,7 +1747,6 @@ integration:
         attach: 'Haul aboard'
         attach_from: 'Haul from %name%'
         attach_from_service: 'Haul from a port'
-        copy: Copy
         empty: 'This hold be empty.'
         link: Link
         more: 'Show more'
@@ -1615,6 +1790,7 @@ jobs:
         failed: foundered
         queued: waitin'
 label:
+    all_accounts: "All accounts"
     color:
         amber: Amber
         blue: Blue
@@ -1633,7 +1809,6 @@ label:
     error:
         duplicate: A flag by that name already flies here.
     form:
-        account: Crew member
         color: Colour
         delete: Strike this flag
         delete_hint: 'Strikin'' it brings the flag down on every ship in the fleet, an'' every flag flyin'' beneath it too. Yarns that carried it keep their other flags an'' be not thrown overboard.'
@@ -1727,7 +1902,6 @@ message:
         hide_all_headers: Furl all headers
         label: Particulars
         mailed_by: carried by
-        me: me
         reply_to: answer to
         show_all_headers: Unfurl all headers
         signed_by: sealed by
@@ -1775,6 +1949,12 @@ message:
         spam:
             body: "This bottle was fished from the bilge. Its links and pictures be treacherous — treat aught it asks of ye as a stranger's demand."
             title: This bottle sits in the bilge
+
+mercure:
+    status:
+        connected: "Live signals flyin'"
+        connecting: "Raisin' the live signals again…"
+        offline: "Live signals down — the inbox may be behind the times"
 
 modal:
     close: Batten it down
@@ -2014,8 +2194,31 @@ setup:
         heading: Claim yer berth
         lead: This be the first soul aboard this plMail, so ye get the cap'n's keys.
         page_title: Rig up plMail
+        restore_link: "Bring aboard a configuration backup first."
+        restore_prompt: "Movin' over from another plMail?"
         submit: Claim it an' come aboard
         tagline: Nary a soul aboard yet — let's mend that
+    restore:
+        applied_lead: "The configuration be in place. This backup carried no crew, so this installation still has none — appoint the captain to finish. If a restart be noted above, it can wait until after that."
+        applied_lead_users: "The configuration and its crew be in place — %count% restored, %admins% among them. Sign on with the password ye already had; naught about it has changed."
+        back: "Back to appointin' the captain"
+        continue: "Carry on — appoint the captain"
+        footnote: "A configuration backup carries settin's, credentials and the crew who use them — never post, calendar entries or contacts."
+        heading: "Bring aboard a configuration backup"
+        lead: "Bring another plMail's settin's, credentials and accounts here afore ye create anythin'. Haul up the chest and type its password — plMail writes the rest into this installation itself."
+        nothing_to_do: "There be naught left for ye to do here."
+        page_title: "Bring the configuration aboard"
+        sign_in: "Sign on"
+        submit: "Open the chest"
+
+session:
+    expired:
+        heading: "Ye've been put ashore"
+        body: "Yer session ended somewhere else. Sign on again to carry on."
+        body_writing: "Yer session ended somewhere else. Sign on again in a new tab, then come back — what ye've written here be still on screen."
+        sign_in: "Sign on again"
+        sign_in_new_tab: "Sign on in a new tab"
+        reload: "Reload this page"
 
 settings:
     ai:
@@ -2112,8 +2315,6 @@ settings:
                 degraded: Cannon (misfirin')
                 inactive: On the bell
                 lapsed: Cannon (run out)
-            mode_pull: On the bell
-            mode_push: Cannon
             not_configured: >-
                 No cannon on this ship — she needs a public HTTPS berth and, for
                 Gmail, a Cloud Pub/Sub topic.
@@ -2220,6 +2421,7 @@ settings:
         export: Export theme
         glass:
             heading: Spyglass
+            paneAlpha: "Panel see-through-ness"
             paneAlphaHint: "The sidebar, top bar, main pane an' calendar — the frame the ship is laid out in. Naught sits behind these but the backdrop."
             paneBlur: Sea fog
             popoverAlpha: "Porthole an' menu opacity"
@@ -2289,7 +2491,6 @@ settings:
                 violet-flick: 'Violet flourish'
             subheading: 'The colours yer mark sails under. Top bar and tab badge both fly them.'
         main:
-            default: Theme default
             heading: Main deck
             matchGlass: Match the spyglass
             subheading: Tint and opacity for the main deck, apart from the sidebar.
@@ -2341,7 +2542,6 @@ settings:
         text:
             autoDerive: Work it out for me
             color: Text colour
-            default: Theme default
             faint: Faint
             heading: Text
             muted: Muted
@@ -2353,6 +2553,7 @@ settings:
             more: 'More flags'
             light: Light
             nord: Nord
+            paper: "Parchment"
             solar: Solar
             subheading: Colour scheme for the whole ship.
             system: Ship's own
@@ -2468,7 +2669,6 @@ settings:
             text: Type a value…
         already_running: That sieve be already workin'.
         queued: Put to the crew — runnin' over the yarns aboard.
-        ran: Sieve run over the yarns aboard.
         remove_action: Remove order
         empty_group: 'This band be empty — it catches naught till ye add a test.'
         no_conditions: 'No tests: this rule takes every bottle in its waters.'
@@ -2747,6 +2947,10 @@ settings:
         folded: 'Stowed'
         forward_quote: 'Quoted text when forwardin'''
         forward_quote_hint: 'Open a forward with the original stowed behind the pill, or spread on deck.'
+        send_feedback: "When ye press Send"
+        send_feedback_hint: "Close the window straight away and count the undo down in a toast, or keep the window open and let its own Send button be the belay."
+        send_optimistic: "Close it"
+        send_hold: "Keep it open"
         heading: 'Scribblin'''
         open: 'On deck'
         subheading: 'How yer scribble window behaves, whatever ship be sailin''.'
@@ -2975,6 +3179,23 @@ settings:
         sharing: Sharing
         signature: Yer marks
     notifications:
+        devices:
+            empty: "No device be signed on yet. Turnin' notifications on above signs on this browser; a phone app signs itself on."
+            heading: "Signed-on devices"
+            never_delivered: "Naught sent yet"
+            outcome:
+                accepted: "Delivered"
+                failed: "Sunk"
+                skipped: "Not sent"
+                subscription-destroyed: "Gone overboard"
+            remove: "Strike off"
+            remove_confirm: "Strike off %device%? Notifications stop bein' sent to it. Naught be uninstalled or switched off on the device itself, and if its app still wants notifications it'll sign on again the next time it runs."
+            removed: "Device struck off — naught more be sent to it. It signs itself on again if its app still wants notifications."
+            transport:
+                fcm: "Firebase"
+                webpush: "Web Push"
+            unverified: "Not vouched for"
+            verified: "Vouched for"
         heading: Word from the crow's nest
         ios_hint: >-
             On iPhone and iPad, the lookout only calls once plMail be added to
@@ -3132,7 +3353,6 @@ sidebar:
     accounts:
         add: Sign on a crew member
         heading: Th' crew
-        loading: Haulin' aboard…
         none: No crew yet
         colour: 'Colours flown by %account%'
         colour_disabled: 'Colours flown by %account%, laid up in port'
@@ -3171,8 +3391,6 @@ snooze:
 
 snoozed:
     empty: Naught kept below deck.
-    heading: Kept below deck
-    until: Surfaces %when%
 
 starred:
     empty: Naught marked with an X.
@@ -3225,6 +3443,8 @@ thread_row:
         mark_read: Mark as read
         mark_unread: Mark as unread
         snooze: Let it drift
+    answer: "A fresh reply to yer letter"
+    answer_badge: "Reply"
     has_attachment: Carries cargo
     me: me
     meaning: "Found by meanin', not by the words ye typed"
@@ -3247,15 +3467,17 @@ toast:
     labelled: 'Flyin'' the %label% flag'
     moved: 'Hauled off to %folder%'
     schedule_cancelled: The castin' off be belayed.
-    send_cancelled: Castin' off belayed — back to yer scroll.
     send_too_late: Too late, matey — that message has already sailed.
     send_failed: 'That message could not be hoisted: %subject%'
     sent: Message away!
     undo: Belay that
-    error:
-        no_archive_mailbox: There be no hold on this ship.
 
 toolbar:
+    view_select:
+        offer: "All %count% conversations in this view can be chosen."
+        offer_action: "Choose all %count%"
+        selected: "All %count% conversations in this view be chosen."
+        clear: "Choose only this page"
     actions:
         archive: Stow in the hold
         delete: Feed to the fishes

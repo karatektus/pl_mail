@@ -478,7 +478,6 @@ admin:
         clear_secret: 'Gespeichertes Client-Secret entfernen'
         configure: 'Konfigurieren'
         connected_users: '%count% verbunden'
-        connected_users_one: '1 verbunden'
         copy_redirect_uri: 'Redirect-URI kopieren'
         inherit_toggle: 'Diese Zugangsdaten auch für Dateidienste verwenden'
         inherit_toggle_help: 'Ein Google-Projekt deckt auch Drive und Fotos ab, eine Microsoft-App auch OneDrive. Angeschaltet lassen und für diese ist nichts weiter einzurichten.'
@@ -694,7 +693,6 @@ admin:
                 webpush: 'Web Push'
         fcm:
             android_package: 'Android-Paket'
-            api_key: 'API-Schlüssel'
             application_id: 'Application ID'
             clear_key: 'Hinterlegten Schlüssel verwerfen'
             clear_key_help: 'Entfernt den Dienstkonto-Schlüssel und schaltet FCM ab. Bereits registrierte Geräte erhalten keine Benachrichtigungen mehr, bis ein neuer Schlüssel gespeichert ist.'
@@ -730,7 +728,6 @@ admin:
         in_flight: 'Läuft gerade'
         loading: 'Wird geladen…'
         showing: '%shown% von %total%'
-        next_up: 'Wartend'
         none_running: 'Kein Worker bearbeitet gerade eine Nachricht.'
         oldest: 'Am längsten wartend'
         pending: 'Ausstehend'
@@ -1612,7 +1609,6 @@ compose:
     more_fields: Absender, Cc, Bcc und Betreff anzeigen
     more_options: Weitere Optionen
     new_message: Neue Nachricht
-    no_recipients: Keine Empfänger
     outdent: Einzug verkleinern
     plain_text: Nur-Text-Modus
     plain_warning:
@@ -1629,12 +1625,10 @@ compose:
     redo: Wiederholen
     reply: Antworten
     reply_all: Allen antworten
-    reply_placeholder: "An %name% antworten"
     save_and_close: Entwurf speichern und schließen
     send: Senden
     send_options: Sendeoptionen
     sending: "Wird gesendet…"
-    sending_cancel: 'Abbrechen'
     signature: Signatur einfügen
     signature_none: Für diese Adresse ist keine Signatur hinterlegt
     subject_label: Betr
@@ -1653,7 +1647,6 @@ demo:
         next: 'Als Nächstes: %subject%'
         receive: Mail empfangen
     flash:
-        received: '„%subject%“ ist angekommen.'
         blocked: Ein echtes Postfach zu verbinden ist in der Demo abgeschaltet.
     login:
         blurb: Sieh dich in plMail um — mit einem eigenen Postfach, ohne Anmeldung und ohne Adresse.
@@ -1744,8 +1737,6 @@ drafts:
     heading: Entwürfe
 
 errors:
-    access_denied: Du hast keinen Zugriff auf diese Ressource.
-    not_found: Die angeforderte Ressource wurde nicht gefunden.
     page:
         back: Zurück zu deiner Mail
         not_found:
@@ -1776,10 +1767,6 @@ discarded:
         purge_confirm: 'Diese Unterhaltung endgültig löschen? Sie lässt sich nicht zurückholen und wird auch vom Mailserver entfernt.'
         restore: In den Posteingang
 header:
-    labels:
-        add: Label erstellen
-        heading: Labels
-        none: Noch keine Labels
     search:
         close: Suche schließen
         live:
@@ -1877,7 +1864,6 @@ integration:
         attach: Anhängen
         attach_from: 'Aus %name% anhängen'
         attach_from_service: 'Aus einem Dienst anhängen'
-        copy: Kopie
         empty: 'Dieser Ordner ist leer.'
         link: Link
         more: 'Mehr anzeigen'
@@ -1940,7 +1926,6 @@ label:
     error:
         duplicate: Hier gibt es bereits ein Label mit diesem Namen.
     form:
-        account: Konto
         color: Farbe
         delete: Label löschen
         delete_hint: 'Beim Löschen verschwindet das Label aus allen Konten, zusammen mit allen darunter eingeordneten Labels. Nachrichten damit behalten ihre übrigen Labels und werden nicht gelöscht.'
@@ -2034,7 +2019,6 @@ message:
         hide_all_headers: Alle Kopfzeilen ausblenden
         label: Details
         mailed_by: gesendet über
-        me: mich
         reply_to: Antwort an
         show_all_headers: Alle Kopfzeilen anzeigen
         signed_by: signiert von
@@ -2469,8 +2453,6 @@ settings:
                 degraded: Push (liefert nicht)
                 inactive: Nach Zeitplan
                 lapsed: Push (abgelaufen)
-            mode_pull: Nach Zeitplan
-            mode_push: Push
             not_configured: >-
                 Push ist auf diesem Server nicht verfügbar — dafür werden eine
                 öffentliche HTTPS-Adresse und, für Gmail, ein Cloud-Pub/Sub-Topic
@@ -2650,7 +2632,6 @@ settings:
                 violet-flick: 'Violetter Schwung'
             subheading: 'Die Farbstimmung des pl-Zeichens. Topbar und Tab-Symbol tragen sie.'
         main:
-            default: Theme-Standard
             heading: Hauptbereich
             matchGlass: An Glas-Deckkraft angleichen
             subheading: Farbton und Deckkraft des Hauptbereichs, unabhängig von der Seitenleiste.
@@ -2702,7 +2683,6 @@ settings:
         text:
             autoDerive: Automatisch ableiten
             color: Textfarbe
-            default: Theme-Standard
             faint: Sehr blass
             heading: Text
             muted: Gedämpft
@@ -2729,7 +2709,6 @@ settings:
             scale: Textgröße
             scaleHint: Gilt für die gesamte Oberfläche. Das Verfassen-Fenster behält seine eigene Schrift und Größe — die gehen mit der Nachricht hinaus.
             subheading: Schriftart und Größe, in der die Oberfläche gezeichnet wird.
-    back: Zurück zum Posteingang
     compose_defaults:
         heading: 'Standards fürs Verfassen'
         invalid: 'Diese Einstellung konnte nicht gespeichert werden.'
@@ -2836,7 +2815,6 @@ settings:
             text: Wert eingeben…
         already_running: Dieser Filter läuft bereits.
         queued: Eingereiht — wird im Hintergrund auf vorhandene Mail angewendet.
-        ran: Filter auf vorhandene Mail angewendet.
         remove_action: Aktion entfernen
         empty_group: 'Diese Gruppe ist leer — sie trifft auf nichts zu, bis eine Bedingung hinzukommt.'
         no_conditions: 'Keine Bedingungen: Diese Regel gilt für jede Nachricht in ihrem Geltungsbereich.'
@@ -3581,7 +3559,6 @@ sidebar:
     accounts:
         add: Konto hinzufügen
         heading: Konten
-        loading: Wird geladen…
         none: Noch keine Konten
         colour: 'Farbmarkierung für %account%'
         colour_disabled: 'Farbmarkierung für %account%, das deaktiviert ist'
@@ -3620,8 +3597,6 @@ snooze:
 
 snoozed:
     empty: Nichts ist zurückgestellt.
-    heading: Zurückgestellt
-    until: Kommt %when% zurück
 
 starred:
     empty: Keine markierten Nachrichten.
@@ -3698,13 +3673,10 @@ toast:
     labelled: 'Label %label% vergeben'
     moved: 'Nach %folder% verschoben'
     schedule_cancelled: Geplanter Versand abgebrochen.
-    send_cancelled: Senden abgebrochen — zurück zu deinem Entwurf.
     send_too_late: Zu spät — diese Nachricht wurde bereits gesendet.
     send_failed: 'Diese Nachricht konnte nicht gesendet werden: %subject%'
     sent: Nachricht gesendet.
     undo: Rückgängig
-    error:
-        no_archive_mailbox: Es gibt kein Archiv-Postfach.
 
 toolbar:
     view_select:
