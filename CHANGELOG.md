@@ -6,6 +6,73 @@ so anything that changes the schema irreversibly is called out explicitly.
 The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, and `sha-…` pins one commit.
 
+## v0.2.41 — 2026-09-23
+
+A release made mostly of a code review's findings: seven reviewers over the whole codebase, every
+finding traced in the code before it was fixed.
+
+### Before you upgrade
+
+- **Web Push to a LAN or Tailscale ntfy needs `PUSH_ALLOWED_HOSTS`.** Push endpoints on private
+  addresses are refused now (they were a way to make the server POST into your network). If your
+  phones get notifications through the bundled ntfy on a private address, list its host there —
+  otherwise notifications stop after the upgrade. Integrations on the LAN keep using
+  `INTEGRATIONS_ALLOWED_HOSTS`, which is now checked on every redirect hop too.
+- **Signing out is a POST.** A page or script that linked to `/logout` has to submit the form in
+  the user menu instead; a plain link no longer signs anyone out.
+- Eleven migrations run on boot: indexes for the mail list, sidebar counts and JMAP queries, a few
+  bookkeeping columns, and a trigger that orders JMAP change states. None rewrites existing data.
+
+### Fixed — mail
+
+- **Mail could be sent up to six times** when saving the Sent copy failed after the server had
+  accepted it. The send is recorded the moment it is accepted.
+- **Bcc recipients received nothing** from Gmail and Microsoft accounts.
+- **A folder missing from one folder listing deleted all of its local mail.** An empty or
+  much-shrunk listing is refused, a folder must be gone for three syncs and a day before it goes,
+  and a rename keeps its mail. Folders with the same name in different places ("Archive/Invoices",
+  "Projects/Invoices") were opened as the same folder; they are opened by their full path now.
+- Cancelling a scheduled send and scheduling it again sent it at the **old** time.
+- Gmail sync skipped a new message whenever an older one was deleted in the same batch, and label
+  changes on Gmail mail filed under a Gmailify account never reached Gmail.
+- A message that failed to import — a broken `Date:` header was enough — was lost for good.
+- Sent mail was never filed on servers whose Sent folder is called "Gesendet" or "Sent Items";
+  the server's own folder flags are read first now.
+- Replies ignore Reply-To no longer, and replying from Sent goes to the recipients, not to you.
+- Bulk snooze from the toolbar never worked.
+
+### Fixed — calendar
+
+- **Editing or dragging a recurring event flattened its rule** ("every other Monday and Wednesday,
+  ten times" became "weekly, forever") and pushed that to Google, Microsoft or CalDAV.
+- **An invitation for one occurrence changed the whole series**; a cancelled occurrence
+  cancelled every one.
+- A conflicting edit stopped a calendar from syncing; moving a series brought back its cancelled
+  occurrences; reminders and exceptions removed on the phone stayed here; long-lead alerts were
+  skipped on busy installs; booking pages dropped their last day; all-day exceptions were exported
+  as times; shared feeds changed every event's UID nightly; exports now define their time zones.
+
+### Security
+
+- Live updates were readable by any signed-in user on the same install; they are private now.
+- A crafted mail could get script run in the app through the compose window; only drafts can be
+  opened there and their HTML is cleaned on the way in, and attachments are never served as
+  something a browser would run.
+- The two-factor code limit was per session, so a stolen password gave unlimited guesses.
+- Integration, calendar and push URLs could reach internal addresses, including through redirects.
+- CSRF checks on the POSTs that lacked them, a per-account login throttle, and safer mail-server
+  host handling (connection-test errors no longer echo the server's replies).
+
+### Changed
+
+- **A request that fails says so in a toast and leaves the page as it was**, instead of drawing
+  the error page into it, with a reference to find it by in **Admin → Logs → Reference**, and a
+  copy button for it. Clicks that used to fail silently — star, archive, labels, drag and drop,
+  reorders, appearance — now say so and leave things as they were.
+- The mail list and the thread view make far fewer and lighter queries; JMAP `Email/query` pages
+  in the database instead of in PHP.
+- Pirate English is complete again (205 strings), and a test keeps the three languages in step.
+
 ## v0.2.40 — 2026-09-23
 
 ### Added
