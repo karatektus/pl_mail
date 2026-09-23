@@ -81,6 +81,16 @@ final class GmailMessageBuilder
 
         $this->applyTranslatedLabels($message, $labelIds, $account, $carrierAccount ?? $account);
 
+        // Who can act on this gmailId later — the same thing enrichExisting()
+        // records when an existing IMAP row is recognised. A row BUILT for a
+        // Gmailify sibling left it unset, so every archive, star and label
+        // change on it stopped at the database: LabelChangePropagator asks the
+        // row's own account, which here is the IMAP one. See
+        // Message::$gmailCarrierAccount.
+        if (null !== $carrierAccount && $carrierAccount !== $account) {
+            $message->gmailCarrierAccount = $carrierAccount;
+        }
+
         // ── Headers ───────────────────────────────────────────────────────────
         $headers = $this->indexHeaders($payload['payload']['headers'] ?? []);
 
