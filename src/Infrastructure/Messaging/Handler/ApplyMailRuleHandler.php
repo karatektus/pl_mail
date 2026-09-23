@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Infrastructure\Messaging\Handler;
 
 use App\Domain\Enum\Mail\RuleRunState;
+use App\Entity\Rule\MailRule;
 use App\Infrastructure\Messaging\Message\ApplyMailRuleMessage;
 use App\Jmap\Query\EmailFilterCompiler;
 use App\Repository\Rule\MailRuleRepository;
@@ -63,8 +64,10 @@ final readonly class ApplyMailRuleHandler
         $this->em->flush();
         $this->notifier->publish($rule);
 
+        $ruleId = (int) $rule->id;
+
         try {
-            $this->walk($rule);
+            $rule = $this->walk($rule);
         } catch (Throwable $e) {
             $this->logger->error('ApplyMailRule: run failed', [
                 'ruleId'    => $rule->id,
@@ -73,7 +76,21 @@ final readonly class ApplyMailRuleHandler
             ]);
 
             // Recorded rather than swallowed: a run that stopped halfway is
-            // something the user has to be able to see and retry.
+            // something the user has to be able to see and retry. Re-read,
+            // because walk() clears the EntityManager between batches and the
+            // $rule in hand may no longer be managed. A failed flush also
+            // closes the EntityManager — then there is nothing to record into.
+            if (false === $this->em->isOpen()) {
+                return;
+            }
+
+            $this->em->clear();
+            $rule = $this->ruleRepository->find($ruleId);
+
+            if (null === $rule) {
+                return;
+            }
+
             $rule->runState = RuleRunState::Failed;
             $rule->runFinishedAt = new DateTimeImmutable();
             $this->em->flush();
@@ -88,21 +105,34 @@ final readonly class ApplyMailRuleHandler
         $this->notifier->publish($rule);
     }
 
-    private function walk(\App\Entity\Rule\MailRule $rule): void
+    /**
+     * @return MailRule the rule as it is managed NOW — the one passed in is
+     *                  detached by the first batch's clear()
+     */
+    private function walk(MailRule $rule): MailRule
     {
+        $ruleId = (int) $rule->id;
         $filter = $this->compiler->compile($rule->conditions);
         $afterId = 0;
 
         while (true) {
+            // The user can be null only if it was deleted mid-run; the rule
+            // row goes with it (cascade), so there is nothing left to apply.
+            $user = $rule->usr;
+
+            if (null === $user) {
+                return $rule;
+            }
+
             $ids = $this->messageRepository->findIdsMatchingForUser(
-                $rule->usr,
+                $user,
                 $filter,
                 $afterId,
                 self::BATCH_SIZE,
             );
 
             if (0 === count($ids)) {
-                return;
+                return $rule;
             }
 
             foreach ($this->messageRepository->findByIds($ids) as $entity) {
@@ -121,6 +151,19 @@ final readonly class ApplyMailRuleHandler
 
             $this->em->flush();
             $this->notifier->publish($rule);
+
+            // Without this every message the run has touched stays managed:
+            // memory grows with the mailbox, and each flush re-checks every
+            // entity of every earlier batch, so the run slows down as it goes.
+            // Same discipline as RunBulkStatusHandler and ResortMailboxHandler.
+            $this->em->clear();
+
+            $rule = $this->ruleRepository->find($ruleId);
+
+            if (null === $rule) {
+                // Deleted while running. Nothing to report progress on.
+                throw new \RuntimeException(sprintf('Rule %d disappeared mid-run.', $ruleId));
+            }
         }
     }
 }

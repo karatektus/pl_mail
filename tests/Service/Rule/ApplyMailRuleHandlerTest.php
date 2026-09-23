@@ -108,6 +108,18 @@ final class ApplyMailRuleHandlerTest extends KernelTestCase
 
         $handler(new ApplyMailRuleMessage((int) $rule->id));
 
+        // The walk clears the EntityManager after every batch, or a large
+        // mailbox holds every message it touched until the worker dies.
+        self::assertCount(
+            0,
+            $this->em->getUnitOfWork()->getIdentityMap()[Message::class] ?? [],
+            'The walk kept processed messages managed.',
+        );
+
+        // Cleared, so the rule in hand is a stale copy: read the row back.
+        $rule = $this->em->getRepository(MailRule::class)->find($rule->id);
+        self::assertNotNull($rule);
+
         self::assertSame(RuleRunState::Completed, $rule->runState);
         self::assertSame(7, $rule->runProcessed, 'Every matching message should be counted.');
         self::assertNotNull($rule->runStartedAt);
@@ -117,7 +129,7 @@ final class ApplyMailRuleHandlerTest extends KernelTestCase
         $labelled = 0;
 
         foreach ($this->messages->findByIds($this->matchingIds()) as $message) {
-            if (true === $message->labels->contains($this->label)) {
+            if (true === $message->labels->exists(fn ($i, Label $l): bool => $l->id === $this->label->id)) {
                 $labelled++;
             }
         }
