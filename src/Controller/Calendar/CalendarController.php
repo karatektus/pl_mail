@@ -563,7 +563,7 @@ final class CalendarController extends AbstractController
             // opened on, since that is the series being put on a second
             // calendar — but not that row's other properties, which may be
             // about the remote it came from rather than about the meeting.
-            $ruleSource = true === $isNew ? ($event?->jscalendar ?? []) : $copy->jscalendar;
+            $ruleSource = true === $isNew ? ($event->jscalendar ?? []) : $copy->jscalendar;
             $repeat     = $request->request->getString('repeat');
             $keepsRule  = $this->recurrence->keepsStoredRule($repeat, $ruleSource);
             $base       = true === $isNew ? [] : $copy->jscalendar;

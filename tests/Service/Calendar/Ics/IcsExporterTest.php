@@ -11,6 +11,8 @@ use App\Service\Calendar\Ics\IcsExporter;
 use DateTimeImmutable;
 use DateTimeZone;
 use Sabre\VObject\Component\VCalendar;
+use Sabre\VObject\Component\VEvent;
+use Sabre\VObject\Property\ICalendar\DateTime as ICalDateTime;
 use Sabre\VObject\Reader;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
@@ -168,9 +170,17 @@ final class IcsExporterTest extends KernelTestCase
         $parsed = Reader::read($document);
 
         self::assertInstanceOf(VCalendar::class, $parsed);
+
+        $vevent = $parsed->VEVENT[0] ?? null;
+
+        self::assertInstanceOf(VEvent::class, $vevent);
+
+        $start = $vevent->DTSTART ?? null;
+
+        self::assertInstanceOf(ICalDateTime::class, $start);
         self::assertSame(
             '2026-08-10T08:00:00+00:00',
-            $parsed->VEVENT->DTSTART->getDateTime()->setTimezone(new DateTimeZone('UTC'))->format(DATE_ATOM),
+            $start->getDateTime()->setTimezone(new DateTimeZone('UTC'))->format(DATE_ATOM),
         );
     }
 
