@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Service\Mail;
 
+use App\Domain\Helper\RecipientHeaderHelper;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Message;
 
@@ -40,18 +41,98 @@ final class ReplyDraftBuilder
     {
         $draft = $this->draft($original, $account, 'Re', 'reply');
 
-        $draft->toAddresses = [[
-            'name'    => $original->fromName ?? '',
-            'address' => $original->fromAddress ?? '',
-        ]];
+        $own = $account->ownedAddresses;
+
+        // Answering mail you sent yourself is continuing that conversation with
+        // the people you wrote to — every client does this, and without it
+        // Reply on a message in Sent addressed the reply to you.
+        if (true === $this->isOwn($original->fromAddress, $own) && [] !== $this->withoutOwn($original->toAddresses ?? [], $own)) {
+            $draft->toAddresses = $this->withoutOwn($original->toAddresses ?? [], $own);
+            $draft->ccAddresses = true === $replyAll
+                ? $this->withoutOwn($original->ccAddresses ?? [], $own)
+                : [];
+
+            $this->linkToOriginal($draft, $original);
+
+            return $draft;
+        }
+
+        $draft->toAddresses = $this->replyAddresses($original);
 
         $draft->ccAddresses = true === $replyAll
-            ? $this->everyoneElse($original, $account)
+            ? $this->withoutAddresses($this->everyoneElse($original, $account), $draft->toAddresses)
             : [];
 
         $this->linkToOriginal($draft, $original);
 
         return $draft;
+    }
+
+    /**
+     * Where the sender asked for answers to go: Reply-To when the mail has
+     * one, From otherwise.
+     *
+     * Reply-To is the sender's explicit instruction (RFC 5322 §3.6.2) — a
+     * mailing list routing answers to the list, a support desk to its ticket
+     * address, a no-reply sender to the person behind it. Ignoring it sent
+     * replies to exactly the address the sender had said not to use.
+     *
+     * Read from the stored header bag, which every ingest path keeps.
+     *
+     * @return list<array<string,mixed>>
+     */
+    private function replyAddresses(Message $original): array
+    {
+        $replyTo = RecipientHeaderHelper::addresses($original->headers ?? [], 'reply-to');
+
+        if ([] !== $replyTo) {
+            return $replyTo;
+        }
+
+        return [[
+            'name'    => $original->fromName ?? '',
+            'address' => $original->fromAddress ?? '',
+        ]];
+    }
+
+    /** @param list<string> $own */
+    private function isOwn(?string $address, array $own): bool
+    {
+        return in_array(strtolower($address ?? ''), $own, true);
+    }
+
+    /**
+     * @param array<array<string,mixed>> $addresses
+     * @param list<string>               $own
+     *
+     * @return list<array<string,mixed>>
+     */
+    private function withoutOwn(array $addresses, array $own): array
+    {
+        return array_values(array_filter(
+            $addresses,
+            fn (array $address): bool => false === $this->isOwn($address['address'] ?? null, $own),
+        ));
+    }
+
+    /**
+     * The Cc of a reply-all minus anyone already in its To — a Reply-To naming
+     * a list the mail was also addressed to would otherwise put the list in
+     * both.
+     *
+     * @param list<array<string,mixed>>  $addresses
+     * @param array<array<string,mixed>> $already
+     *
+     * @return list<array<string,mixed>>
+     */
+    private function withoutAddresses(array $addresses, array $already): array
+    {
+        $taken = array_map(
+            static fn (array $address): string => strtolower($address['address'] ?? ''),
+            $already,
+        );
+
+        return $this->withoutOwn($addresses, $taken);
     }
 
     /**

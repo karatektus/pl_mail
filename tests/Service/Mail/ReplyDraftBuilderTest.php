@@ -53,6 +53,33 @@ final class ReplyDraftBuilderTest extends TestCase
         self::assertSame([], $draft->ccAddresses);
     }
 
+    /** Reply-To is where the sender asked answers to go; From is only the fallback. */
+    public function testAReplyGoesToTheReplyToAddressWhenThereIsOne(): void
+    {
+        $original          = $this->original();
+        $original->headers = ['Reply-To' => 'Support <help@example.test>'];
+
+        $draft = $this->builder->reply($original, $this->account());
+
+        self::assertSame([['name' => 'Support', 'address' => 'help@example.test']], $draft->toAddresses);
+    }
+
+    /** Answering your own sent mail continues the conversation with its recipients. */
+    public function testReplyingToYourOwnMessageAddressesItsRecipients(): void
+    {
+        $original              = $this->original();
+        $original->fromName    = 'Me';
+        $original->fromAddress = 'me@example.test';
+
+        $reply    = $this->builder->reply($original, $this->account());
+        $replyAll = $this->builder->reply($original, $this->account(), replyAll: true);
+
+        self::assertSame([['name' => 'Tanja', 'address' => 'tanja@example.test']], $reply->toAddresses);
+        self::assertSame([], $reply->ccAddresses);
+        self::assertSame([['name' => 'Tanja', 'address' => 'tanja@example.test']], $replyAll->toAddresses);
+        self::assertSame([['name' => '', 'address' => 'cc@example.test']], $replyAll->ccAddresses);
+    }
+
     public function testReplyAllCopiesEveryoneElseIn(): void
     {
         $draft = $this->builder->reply($this->original(), $this->account(), replyAll: true);
