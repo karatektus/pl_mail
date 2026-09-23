@@ -317,17 +317,6 @@ enum MailProvider: string
         };
     }
 
-    /**
-     * Whether this provider is synced over IMAP at all.
-     *
-     * Both current providers are API-synced; the method exists so the IMAP
-     * syncer can ask the question instead of hard-coding provider checks.
-     */
-    public function usesImap(): bool
-    {
-        return false;
-    }
-
     public function imapHost(): ?string
     {
         return match ($this) {

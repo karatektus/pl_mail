@@ -40,11 +40,6 @@ final class ClientErrorRepository extends ServiceEntityRepository
         return $rows;
     }
 
-    public function findOneByFingerprint(string $fingerprint): ?ClientError
-    {
-        return $this->findOneBy(['fingerprint' => $fingerprint]);
-    }
-
     public function countAll(): int
     {
         return (int) $this->createQueryBuilder('e')

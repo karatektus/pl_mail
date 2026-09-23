@@ -414,50 +414,6 @@ class Account extends AccountModel
         $this->updatedAt = new DateTimeImmutable();
     }
 
-    public function addMailbox(Mailbox $mailbox): static
-    {
-        if (!$this->mailboxes->contains($mailbox)) {
-            $this->mailboxes->add($mailbox);
-            $mailbox->account = $this;
-        }
-
-        return $this;
-    }
-
-    public function removeMailbox(Mailbox $mailbox): static
-    {
-        if ($this->mailboxes->removeElement($mailbox)) {
-            // set the owning side to null (unless already changed)
-            if ($mailbox->account === $this) {
-                $mailbox->account = null;
-            }
-        }
-
-        return $this;
-    }
-
-    public function addMessageThread(MessageThread $messageThread): static
-    {
-        if (!$this->messageThreads->contains($messageThread)) {
-            $this->messageThreads->add($messageThread);
-            $messageThread->account = $this;
-        }
-
-        return $this;
-    }
-
-    public function removeMessageThread(MessageThread $messageThread): static
-    {
-        if ($this->messageThreads->removeElement($messageThread)) {
-            // set the owning side to null (unless already changed)
-            if ($messageThread->account === $this) {
-                $messageThread->account = null;
-            }
-        }
-
-        return $this;
-    }
-
     /**
      * Which calendar events extracted from this account's mail land on.
      *
@@ -708,22 +664,6 @@ class Account extends AccountModel
     public function supportsLabelSync(): bool
     {
         return true === $this->isGmail() || true === $this->isMicrosoft();
-    }
-
-    /**
-     * Stays a method rather than becoming a property: this reads a timestamp
-     * and answers a question about it against the clock, which is an
-     * interpretation, not the mapped boolean column that $isActive is.
-     */
-    public function isGmailWatchActive(): bool
-    {
-        $expiry = $this->gmailWatchExpiry;
-
-        if (null === $expiry) {
-            return false;
-        }
-
-        return $expiry > new DateTimeImmutable();
     }
 
     public function addAlias(EmailAlias $alias): static

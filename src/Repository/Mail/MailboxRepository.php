@@ -7,7 +7,6 @@ use App\Entity\Mail\Account;
 use App\Entity\Mail\Mailbox;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
-use Symfony\Component\Security\Core\User\UserInterface;
 
 /**
  * @extends ServiceEntityRepository<Mailbox>
@@ -32,24 +31,9 @@ class MailboxRepository extends ServiceEntityRepository
         return $indexed;
     }
 
-    public function findTrashMailboxForAccount(Account $account): ?Mailbox
-    {
-        return $this->findOneBy(['account' => $account, 'specialUse' => MailboxSpecialUse::TRASH]);
-    }
-
-    public function findArchiveMailboxForAccount(Account $account): ?Mailbox
-    {
-        return $this->findOneBy(['account' => $account, 'specialUse' => MailboxSpecialUse::ARCHIVE]);
-    }
-
     public function findSentMailboxForAccount(Account $account): ?Mailbox
     {
         return $this->findOneBy(['account' => $account, 'specialUse' => MailboxSpecialUse::SENT]);
-    }
-
-    public function findDraftMailboxForAccount(Account $account): ?Mailbox
-    {
-        return $this->findOneBy(['account' => $account, 'specialUse' => MailboxSpecialUse::DRAFTS]);
     }
 
     /**
@@ -128,25 +112,6 @@ class MailboxRepository extends ServiceEntityRepository
             ->setParameter('isActive', true);
 
         return $queryBuilder->getQuery()->getResult();
-    }
-
-    /**
-     * QueryBuilder for the join to Account and for the id-only projection —
-     * the caller compares sets of ids and has no use for a Mailbox.
-     */
-    public function getIdsOfActiveInboxMailboxesForUser(UserInterface $user): array
-    {
-        return $this->createQueryBuilder('mailbox')
-            ->select('mailbox.id')
-            ->leftJoin('mailbox.account', 'account')
-            ->where('account.isActive = :isActive')
-            ->andWhere('account.usr = :usr')
-            ->andWhere('mailbox.specialUse = :inbox')
-            ->setParameter('isActive', true)
-            ->setParameter('usr', $user)
-            ->setParameter('inbox', MailboxSpecialUse::INBOX)
-            ->getQuery()
-            ->getSingleColumnResult();
     }
 
     /**

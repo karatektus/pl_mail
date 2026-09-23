@@ -1124,22 +1124,6 @@ class MessageThreadRepository extends ServiceEntityRepository
     }
 
     /**
-     * Same to-many membership test as findForLabels().
-     *
-     * @param Label[] $labels
-     */
-    public function countForLabels(array $labels): int
-    {
-        return (int) $this->createQueryBuilder('thread')
-            ->select('COUNT(DISTINCT thread.id)')
-            ->innerJoin('thread.labels', 'label')
-            ->where('label IN (:labels)')
-            ->setParameter('labels', $labels)
-            ->getQuery()
-            ->getSingleScalarResult();
-    }
-
-    /**
      * Initialize the labels collection of every given thread in ONE query so
      * the list view's label chips don't lazy-load per row. Fetch-joining onto
      * already-managed entities marks their collections initialized.

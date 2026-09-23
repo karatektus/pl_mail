@@ -59,17 +59,6 @@ final class MailPresetProvider
         return $this->all()[$key] ?? null;
     }
 
-    public function findByEmail(string $email): ?MailPreset
-    {
-        $at = strrpos($email, '@');
-
-        if (false === $at) {
-            return null;
-        }
-
-        return $this->findByDomain(substr($email, $at + 1));
-    }
-
     public function findByDomain(string $domain): ?MailPreset
     {
         foreach ($this->all() as $preset) {

@@ -11,8 +11,6 @@ class UserEntityModel
         User::ROLE_ADMIN,
     ];
 
-    private ?string $plainPassword = null;
-
     public function addRole(string $role): User
     {
         if ($this instanceof User) {
@@ -45,11 +43,6 @@ class UserEntityModel
         throw new LogicException();
     }
 
-    public function getPlainPassword(): ?string
-    {
-        return $this->plainPassword;
-    }
-
     public function getName(): string
     {
         if (true === $this instanceof User) {
@@ -57,13 +50,6 @@ class UserEntityModel
         }
 
         throw new LogicException('Not a User');
-    }
-
-    public function setPlainPassword(?string $plainPassword): self
-    {
-        $this->plainPassword = $plainPassword;
-
-        return $this;
     }
 
     public function isDeleted(): ?bool

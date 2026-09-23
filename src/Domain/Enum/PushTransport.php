@@ -33,20 +33,4 @@ enum PushTransport: string
 
     /** FCM HTTP v1 — Google owns the device token. */
     case Fcm = 'fcm';
-
-    /**
-     * Whether a subscription of this kind is addressed by a URL this server
-     * POSTs to, as opposed to a token handed to somebody else's gateway.
-     *
-     * Stays a method rather than a `url !== null` test on the entity: it is a
-     * property of the transport, and asking the row would answer "no" for a
-     * Web Push subscription that is merely half-built.
-     */
-    public function addressedByUrl(): bool
-    {
-        return match ($this) {
-            self::WebPush => true,
-            self::Fcm     => false,
-        };
-    }
 }

@@ -43,12 +43,4 @@ final readonly class ResetReport
     {
         return array_keys(array_filter($this->tables));
     }
-
-    /**
-     * @return list<string>
-     */
-    public function skippedTables(): array
-    {
-        return array_keys(array_filter($this->tables, static fn (bool $truncated): bool => false === $truncated));
-    }
 }

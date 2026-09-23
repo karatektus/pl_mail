@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Domain\DTO\Health;
 
-use App\Domain\Enum\Health\HealthSeverity;
 
 /**
  * Everything wrong with one user's accounts, at one moment.
@@ -37,20 +36,6 @@ final readonly class HealthReport
     public function isHealthy(): bool
     {
         return [] === $this->issues;
-    }
-
-    /** The worst severity present, or null when there is nothing wrong. */
-    public function worstSeverity(): ?HealthSeverity
-    {
-        $worst = null;
-
-        foreach ($this->issues as $issue) {
-            if (null === $worst || $issue->severity->rank() < $worst->rank()) {
-                $worst = $issue->severity;
-            }
-        }
-
-        return $worst;
     }
 
     /**

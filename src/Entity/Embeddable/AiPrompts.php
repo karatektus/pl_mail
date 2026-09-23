@@ -142,20 +142,6 @@ final class AiPrompts
         };
     }
 
-    /** Whether anything at all has been overridden. For the chip on the card. */
-    public function customisedCount(): int
-    {
-        $count = 0;
-
-        foreach (PromptSlot::cases() as $slot) {
-            if (null !== $this->of($slot)) {
-                ++$count;
-            }
-        }
-
-        return $count;
-    }
-
     /**
      * One prompt, as it is worth storing: trimmed, capped, and null when empty.
      *

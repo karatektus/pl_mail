@@ -41,19 +41,6 @@ enum PushDeliveryOutcome: string
     case Skipped = 'skipped';
 
     /**
-     * Whether this outcome means the device was reached.
-     *
-     * Stays a predicate rather than a `self::Accepted === $x` at each call
-     * site, because two of the three failures are not the caller's business
-     * to enumerate — a reader wants "did it arrive", and adding a fifth case
-     * would otherwise have to be found in every comparison.
-     */
-    public function reachedTheDevice(): bool
-    {
-        return self::Accepted === $this;
-    }
-
-    /**
      * The semantic colour this outcome is drawn in, named rather than spelled
      * as classes: the admin table and the settings pane show the same four
      * words and must not disagree about which of them are alarming.

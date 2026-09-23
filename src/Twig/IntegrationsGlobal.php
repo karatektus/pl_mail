@@ -74,16 +74,6 @@ class IntegrationsGlobal implements ResetInterface
     }
 
     /**
-     * Connections a file can be pulled out of.
-     *
-     * @return list<Integration>
-     */
-    public function forDownload(): array
-    {
-        return $this->supporting(Capability::Download);
-    }
-
-    /**
      * @return list<Integration>
      */
     private function supporting(Capability $capability): array

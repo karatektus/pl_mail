@@ -59,12 +59,6 @@ enum CategorySource: string
         return 'settings.sorting.source.' . $this->value;
     }
 
-    /** Translation key for the line under it. */
-    public function helpKey(): string
-    {
-        return 'settings.sorting.source.' . $this->value . '_help';
-    }
-
     /**
      * Whatever was stored or posted, read charitably.
      *

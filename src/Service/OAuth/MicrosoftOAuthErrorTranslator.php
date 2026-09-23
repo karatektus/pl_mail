@@ -65,11 +65,6 @@ final readonly class MicrosoftOAuthErrorTranslator
         ];
     }
 
-    public function isAdminConsentRequired(?string $rawError): bool
-    {
-        return true === $this->translate($rawError)['adminActionable'];
-    }
-
     private function extractCode(?string $rawError): ?string
     {
         if (null === $rawError || '' === $rawError) {

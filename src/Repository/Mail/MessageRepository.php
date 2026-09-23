@@ -1696,11 +1696,6 @@ class MessageRepository extends ServiceEntityRepository
             ->getOneOrNullResult();
     }
 
-    public function existsWithFromAddressInThread(string $fromAddress, MessageThread $thread): bool
-    {
-        return $this->existsWithAnyFromAddressInThread([$fromAddress], $thread);
-    }
-
     /**
      * Does the thread contain a message sent by any of these addresses?
      *
@@ -2102,25 +2097,6 @@ class MessageRepository extends ServiceEntityRepository
             ->getSingleColumnResult();
 
         return array_values(array_map(static fn ($id): string => (string) $id, $rows));
-    }
-
-    /**
-     * Streamed, so recategorising a large account does not load it into memory
-     * — the reason this cannot be findBy().
-     *
-     * @return iterable<Message>
-     */
-    public function iterateForRecategorization(Account $account, bool $includeCategorized): iterable
-    {
-        $qb = $this->createQueryBuilder('m')
-            ->where('m.account = :account')
-            ->setParameter('account', $account);
-
-        if (false === $includeCategorized) {
-            $qb->andWhere('m.category IS NULL');
-        }
-
-        return $qb->getQuery()->toIterable();
     }
 
     /**

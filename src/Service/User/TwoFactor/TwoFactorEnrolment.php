@@ -61,11 +61,6 @@ final readonly class TwoFactorEnrolment
         return $this->totpAuthenticator->getQRContent($user);
     }
 
-    public function qrContent(User $user): string
-    {
-        return $this->totpAuthenticator->getQRContent($user);
-    }
-
     public function verifyCode(User $user, string $code): bool
     {
         if (null === $user->totpSecret) {

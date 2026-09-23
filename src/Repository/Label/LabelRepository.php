@@ -165,16 +165,6 @@ class LabelRepository extends ServiceEntityRepository
     }
 
     /**
-     * Visible custom labels of a user in sidebar tree order.
-     *
-     * @return Label[]
-     */
-    public function findVisibleTreeForUser(UserInterface $user): array
-    {
-        return $this->treeOrder($this->findVisibleForUser($user));
-    }
-
-    /**
      * Resolve a sidebar path ("Work/Invoices") to the user's custom Label at
      * that path. Candidates are narrowed by leaf name in SQL, the full parent
      * chain is verified in PHP via Label::$fullName.

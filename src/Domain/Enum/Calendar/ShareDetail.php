@@ -34,25 +34,6 @@ enum ShareDetail: string
     case Description  = 'description';
     case Participants = 'participants';
 
-    /**
-     * The JSCalendar property this case unlocks (RFC 8984 §4.2).
-     *
-     * Exhaustive with no default, so a fifth detail cannot be added without
-     * somebody deciding where in the canonical object it comes from — the one
-     * question that has to be answered before it can be revealed at all.
-     * Locations and participants are maps in JSCalendar rather than scalars;
-     * the reader flattens them, and the name here is the key it reaches for.
-     */
-    public function jsCalendarProperty(): string
-    {
-        return match ($this) {
-            self::Title        => 'title',
-            self::Location     => 'locations',
-            self::Description  => 'description',
-            self::Participants => 'participants',
-        };
-    }
-
     /** Translation key for the checkbox label. */
     public function transKey(): string
     {

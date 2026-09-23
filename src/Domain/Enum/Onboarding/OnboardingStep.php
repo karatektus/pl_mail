@@ -60,16 +60,4 @@ enum OnboardingStep: string
             self::Integrations                => 'fa-solid fa-cloud',
         };
     }
-
-    /**
-     * Whether the step configures the whole install rather than one person's
-     * mailbox. Only ROLE_ADMIN is offered these.
-     */
-    public function requiresAdmin(): bool
-    {
-        return match ($this) {
-            self::AdminMailCredentials, self::AdminIntegrationCredentials, self::AdminAi => true,
-            default                                                       => false,
-        };
-    }
 }

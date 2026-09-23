@@ -131,34 +131,6 @@ readonly class ImapFolderProvisioner
     }
 
     /**
-     * The full path for an arbitrary folder name — a custom label being pushed
-     * — creating it if need be.
-     *
-     * The name is a plMail label's full name, so its own "/" separators become
-     * the server's, which is what makes a nested label arrive as a nested
-     * folder rather than one with a slash in its name.
-     */
-    public function ensurePath(Account $account, Client $client, string $labelFullName): ?string
-    {
-        $separator = $this->separatorFor($account);
-        $segments  = array_values(array_filter(explode('/', $labelFullName), static fn (string $s): bool => '' !== $s));
-
-        if (0 === count($segments)) {
-            return null;
-        }
-
-        $path = $this->pathFor($account, implode($separator, $segments));
-
-        $existing = $this->mailboxes->findOneBy(['account' => $account, 'fullPath' => $path]);
-
-        if (null !== $existing) {
-            return $path;
-        }
-
-        return $this->create($account, $client, $path, null);
-    }
-
-    /**
      * Issue the CREATE, subscribe, and record the folder locally.
      *
      * The write-back is the half that stops this from creating a duplicate of

@@ -29,22 +29,6 @@ enum ShareWindow: string
     /** Two dates the owner named, unchanging. */
     case Fixed = 'fixed';
 
-    /**
-     * Whether the link's start and end dates are the ones that matter.
-     *
-     * Exhaustive with no default: a third shape — "this month", "the next
-     * quarter" — would need the form, the validation and the reader to agree
-     * about which columns it reads, and a fallthrough here would make it agree
-     * silently with whichever branch came last.
-     */
-    public function usesDates(): bool
-    {
-        return match ($this) {
-            self::Rolling => false,
-            self::Fixed   => true,
-        };
-    }
-
     /** Translation key for the radio label. */
     public function transKey(): string
     {
