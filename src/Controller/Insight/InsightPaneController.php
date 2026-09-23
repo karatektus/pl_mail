@@ -15,6 +15,7 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
+use Symfony\Component\Security\Http\Attribute\CurrentUser;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 /**
@@ -67,12 +68,12 @@ final class InsightPaneController extends AbstractController
      * UserTimezoneResolver's job, in Twig, not this controller's.
      */
     #[Route('/pane', name: 'pane', methods: ['GET'])]
-    public function pane(): Response
+    public function pane(#[CurrentUser] User $user): Response
     {
         $now = new DateTimeImmutable('now', new DateTimeZone('UTC'));
 
         return $this->render('insight/_pane.html.twig', [
-            'rows' => $this->pane->rowsFor($this->currentUser(), $now),
+            'rows' => $this->pane->rowsFor($user, $now),
         ]);
     }
 
@@ -95,13 +96,13 @@ final class InsightPaneController extends AbstractController
      * is wrong, so guarding it would only be a branch that never pays.
      */
     #[Route('/pane/dismiss', name: 'pane_dismiss', methods: ['POST'])]
-    public function dismiss(Request $request, EntityManagerInterface $em): JsonResponse
+    public function dismiss(Request $request, EntityManagerInterface $em, #[CurrentUser] User $user): JsonResponse
     {
         $this->assertCsrf($request, 'insight-pane-dismiss');
 
         $dismissedAt = new DateTimeImmutable('now', new DateTimeZone('UTC'));
 
-        $this->currentUser()->setSetting(
+        $user->setSetting(
             User::SETTING_INSIGHT_PANE_DISMISSED_AT,
             $dismissedAt->format(DateTimeImmutable::ATOM),
         );
@@ -109,17 +110,5 @@ final class InsightPaneController extends AbstractController
         $em->flush();
 
         return $this->json(['ok' => true]);
-    }
-
-    /** Narrowed the way HappeningSoonController narrows it — IS_AUTHENTICATED is not a type. */
-    private function currentUser(): User
-    {
-        $user = $this->getUser();
-
-        if (false === $user instanceof User) {
-            throw $this->createAccessDeniedException();
-        }
-
-        return $user;
     }
 }

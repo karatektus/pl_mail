@@ -15,6 +15,7 @@ use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
+use Symfony\Component\Security\Http\Attribute\CurrentUser;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 /**
@@ -42,13 +43,12 @@ final class InviteController extends AbstractController
     }
 
     #[Route('/{id}/respond', name: 'respond', requirements: ['id' => '\d+'], methods: ['POST'])]
-    public function respond(Request $request, Message $message): Response
+    public function respond(Request $request, Message $message, #[CurrentUser] User $user): Response
     {
         if (false === $this->isCsrfTokenValid('calendar_invite' . $message->id, (string) $request->request->get('_token'))) {
             throw $this->createAccessDeniedException();
         }
 
-        $user   = $this->currentUser();
         $status = ParticipationStatus::tryFrom($request->request->getString('status'));
 
         // needs-action is a real case of the enum and not a real answer: it is
@@ -95,16 +95,5 @@ final class InviteController extends AbstractController
         $this->invites->reset();
 
         return $this->invites->forMessage($message, $user);
-    }
-
-    private function currentUser(): User
-    {
-        $user = $this->getUser();
-
-        if (false === $user instanceof User) {
-            throw $this->createAccessDeniedException();
-        }
-
-        return $user;
     }
 }

@@ -248,9 +248,9 @@ final class LabelController extends AbstractController
     }
 
     /**
-     * Narrowed the way InsightPaneController narrows it — IS_AUTHENTICATED is
-     * not a type, and the topic a label change is published on is built from
-     * this user's id.
+     * Narrowed to User — IS_AUTHENTICATED is not a type, and the topic a label
+     * change is published on is built from this user's id. A helper rather
+     * than #[CurrentUser] because the private stream builder needs it too.
      */
     private function currentUser(): User
     {

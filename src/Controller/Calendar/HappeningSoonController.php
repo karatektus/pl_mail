@@ -12,6 +12,7 @@ use DateTimeZone;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
+use Symfony\Component\Security\Http\Attribute\CurrentUser;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 /**
@@ -80,10 +81,9 @@ final class HappeningSoonController extends AbstractController
      * prefix is all the two have in common, and that is what the prefix is for.
      */
     #[Route('/soon', name: 'soon', methods: ['GET'])]
-    public function panel(): Response
+    public function panel(#[CurrentUser] User $user): Response
     {
-        $user = $this->currentUser();
-        $now  = new DateTimeImmutable('now', new DateTimeZone('UTC'));
+        $now = new DateTimeImmutable('now', new DateTimeZone('UTC'));
 
         // The radar reads straight off MailInsightRepository rather than
         // growing a reader of its own or moving into HappeningSoonReader. That
@@ -100,16 +100,5 @@ final class HappeningSoonController extends AbstractController
             'insights'        => $this->insights->upcomingForUser($user, $now),
             'undatedInsights' => $this->insights->recentUndatedForUser($user, $now),
         ]);
-    }
-
-    private function currentUser(): User
-    {
-        $user = $this->getUser();
-
-        if (false === $user instanceof User) {
-            throw $this->createAccessDeniedException();
-        }
-
-        return $user;
     }
 }
