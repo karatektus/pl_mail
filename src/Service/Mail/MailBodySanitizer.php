@@ -329,6 +329,11 @@ final readonly class MailBodySanitizer
             ->allowRelativeLinks()
             ->allowMediaSchemes(['https', 'http', 'data'])
             ->allowRelativeMedias()
+            // ...but only the relative URL resolveCids() writes. Any other one
+            // resolves against plMail wherever the body is shown — the print
+            // view puts it straight into an app page — and becomes a request,
+            // with the reader's session, somewhere the sender chose.
+            ->withAttributeSanitizer(new RelativeUrlAttributeSanitizer())
             ->withMaxInputLength(self::MAX_INPUT_LENGTH);
 
         return $config;
