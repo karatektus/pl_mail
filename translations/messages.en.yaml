@@ -2622,9 +2622,23 @@ settings:
                 subtle: Subtle
             unreadEmphasis: Unread rows
         logo:
+            colour: 'Colour'
             heading: Logo
+            icon: 'Icon'
             independent: 'Choose independently'
             linked: 'Follow the theme'
+            motif:
+                airmail: 'Airmail'
+                at-horn: '@-Horn'
+                blue-horn: 'Blue Horn'
+                happy-mail: 'Happy Mail'
+                love-letter: 'Love Letter'
+                mailbox: 'Mailbox'
+                pl: 'Classic'
+                pl-stamp: 'pl Stamp'
+                snail-mail: 'Snail Mail'
+                wax-seal: 'Wax Seal'
+            original: 'Original'
             style:
                 aurora: 'Aurora'
                 berry: 'Berry'
@@ -2658,7 +2672,7 @@ settings:
                 tricolore: 'Tricolore'
                 twilight: 'Twilight'
                 violet-flick: 'Violet flick'
-            subheading: 'The colourway of the pl mark. The top bar and your tab icon wear it.'
+            subheading: 'Your icon, then its colours. The top bar and your tab icon wear them.'
         main:
             heading: Main pane
             matchGlass: Match glass opacity

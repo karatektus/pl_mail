@@ -2466,9 +2466,23 @@ settings:
                 subtle: A whisper
             unreadEmphasis: Unread rows
         logo:
+            colour: 'Colours'
             heading: 'Ship''s mark'
+            icon: 'Figurehead'
             independent: 'Chart yer own'
             linked: 'Sail with the theme'
+            motif:
+                airmail: 'By gull'
+                at-horn: '@-bugle'
+                blue-horn: 'Blue bugle'
+                happy-mail: 'Jolly post'
+                love-letter: 'Sweetheart''s letter'
+                mailbox: 'Post barrel'
+                pl: 'The old mark'
+                pl-stamp: 'pl postage'
+                snail-mail: 'Slow boat'
+                wax-seal: 'Cap''n''s seal'
+            original: 'Her own colours'
             style:
                 aurora: 'Northern lights'
                 berry: 'Berry'
@@ -2502,7 +2516,7 @@ settings:
                 tricolore: 'Three flags'
                 twilight: 'Twilight'
                 violet-flick: 'Violet flourish'
-            subheading: 'The colours yer mark sails under. Top bar and tab badge both fly them.'
+            subheading: 'Yer figurehead, then the colours it sails under. Top bar and tab badge both fly them.'
         main:
             heading: Main deck
             matchGlass: Match the spyglass

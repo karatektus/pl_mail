@@ -8,9 +8,11 @@ export default class extends Controller {
         uploadUrl: String,
         importUrl: String,
         resetUrl: String,
+        logoDefault: String,
     };
 
-    static targets = ['paneAlpha', 'paneBlur', 'radius', 'scrimAlpha', 'accent', 'theme', 'logoStyle', 'logoLinked', 'logoGrid', 'importInput', 'uploadInput',
+    static targets = ['paneAlpha', 'paneBlur', 'radius', 'scrimAlpha', 'accent', 'theme',
+        'logoMotif', 'logoOriginal', 'logoOriginalOption', 'logoStyle', 'logoLinked', 'logoGrid', 'importInput', 'uploadInput',
         'inkColor', 'inkColorField', 'inkDefault', 'inkCustom', 'inkDerived', 'inkMuted', 'inkMutedField', 'inkFaint', 'inkFaintField',
         'mainTint', 'mainTintField', 'mainTintDefault', 'mainTintCustom', 'mainAlpha', 'mainAlphaField', 'mainAlphaMatch', 'mainAlphaCustom',
         'backgroundSolid', 'backgroundSolidSwatch',
@@ -360,113 +362,255 @@ export default class extends Controller {
 
         this.applyDefaults(defaults);
 
-        // While the mark is linked, the theme dresses it too: repaint the
-        // topbar and the tab icon from the logo tile that shares this theme's
-        // name — the grid is hidden but still in the DOM, which is exactly why
-        // it stays there. The classic seven have no namesake tile and fall
-        // back to the product default, mirroring effectiveLogoStyle().
-        if (this.hasLogoLinkedTarget && this.logoLinkedTarget.value === '1') {
-            const tile = this.linkedLogoTile(theme);
-
-            if (tile) {
-                this.repaintLogo(tile);
-            }
+        // The theme can dress the logo too, so it is repainted whatever the
+        // mode: while linked the new theme picks the colourway, and even when
+        // it does not, a switch between a light theme and a dark one changes
+        // which of the pl mark's two stroke lists the topbar should wear.
+        // Resolving it again is idempotent in every other case.
+        if (this.hasLogoMotifTarget) {
+            this.repaintLogo();
         }
 
         this.queue();
     }
 
-    /**
-     * A logo colourway tile was clicked.
+    /* ── The logo: an icon, then its colour ───────────────────────────────
      *
-     * The repaint targets only the marks that FOLLOW the setting —
-     * `[data-logo-live]`, today the topbar's — because the tiles beside this
-     * one each preview their OWN style and must not be painted over by the
-     * choice they offer. The strokes travel on the tile as two JSON lists
-     * (light and dark chrome), indexed the way _logo_mark.html.twig draws,
-     * so this stays geometry-blind: whichever chrome is on decides which
-     * list is painted, stroke by stroke.
+     * Four hidden fields carry the whole choice to save() — logoMotif,
+     * logoOriginal, logoLinked and logoStyle — and every control below writes
+     * those and nothing else, then asks repaintLogo() to show the result. The
+     * result is resolved from the fields exactly the way
+     * Appearance::effectiveLogoPaint() resolves it on the server, so a live
+     * click lands where a reload would, and a field one control wrote is never
+     * forgotten by another: going from the mark to the horn and back finds the
+     * mark's colourway where it was left.
      */
+
+    /**
+     * Step one: an icon tile was clicked.
+     *
+     * A new motif arrives in its own design — logoOriginal on — because that
+     * is how it was drawn and what its tile just showed. The pl mark has no
+     * design apart from its colourways, so choosing it turns the flag off and
+     * whatever linked/independent choice was stored speaks again.
+     *
+     * The thirty-two colourway tiles each show the CHOSEN icon, so their
+     * pictures are swapped in place, src only: the buttons, their names and
+     * which one is selected all stay put.
+     */
+    pickMotif(event) {
+        const motif = event.currentTarget.dataset.logoMotif;
+
+        this.logoMotifTarget.value = motif;
+        this.logoOriginalTarget.value = motif === 'pl' ? '0' : '1';
+
+        this.element.querySelectorAll('[data-logo-motif]').forEach((button) => {
+            this.markSelected(button, button.dataset.logoMotif === motif);
+        });
+
+        this.element.querySelectorAll('[data-logo-paint]').forEach((image) => {
+            image.src = this.iconUrl(motif, image.dataset.logoPaint);
+        });
+
+        this.syncLogoMode();
+        this.repaintLogo();
+        this.queue();
+    }
+
+    /**
+     * Step two's segmented control: Original, Follow the theme, or Choose
+     * independently.
+     *
+     * Original leaves logoLinked alone rather than clearing it. It is still
+     * the answer for the pl mark, which ignores Original, and for this motif
+     * the moment Original is left again.
+     */
+    pickLogoMode(event) {
+        const mode = event.currentTarget.value;
+
+        this.logoOriginalTarget.value = mode === 'original' ? '1' : '0';
+
+        if (mode !== 'original') {
+            this.logoLinkedTarget.value = mode === 'linked' ? '1' : '0';
+        }
+
+        this.syncLogoMode();
+        this.repaintLogo();
+        this.queue();
+    }
+
+    /** A colourway tile was clicked — only reachable in Independent. */
     pickLogo(event) {
-        const tile = event.currentTarget;
-        const style = tile.dataset.logoName;
+        const style = event.currentTarget.dataset.logoName;
 
         this.logoStyleTarget.value = style;
 
         this.element.querySelectorAll('[data-logo-name]').forEach((button) => {
-            button.classList.toggle('ring-2', button.dataset.logoName === style);
-            button.classList.toggle('ring-accent', button.dataset.logoName === style);
+            this.markSelected(button, button.dataset.logoName === style);
         });
 
-        this.repaintLogo(tile);
-
+        this.repaintLogo();
         this.queue();
     }
 
     /**
-     * The linked/independent switch above the logo grid.
-     *
-     * Linked hides the grid (a choice the theme is making for you is not a
-     * grid to pick from) and dresses the mark for the current theme;
-     * independent reveals the grid and puts the mark back into the style it
-     * holds — logoStyle is stored either way, so nothing is lost by flipping
-     * back and forth.
+     * Which of the three step-two answers the fields add up to. Original
+     * counts only off the mark, the same rule the server applies.
      */
-    toggleLogoLinked(event) {
-        const linked = event.currentTarget.value === '1';
+    logoMode() {
+        if (this.logoMotifTarget.value !== 'pl' && this.logoOriginalTarget.value === '1') {
+            return 'original';
+        }
 
-        this.logoLinkedTarget.value = linked ? '1' : '0';
+        return this.logoLinkedTarget.value === '1' ? 'linked' : 'independent';
+    }
+
+    /**
+     * Bring step two in line with the fields: Original offered only off the
+     * mark, the radio for the current answer checked, the colourway grid shown
+     * only in Independent.
+     *
+     * The `hidden` ATTRIBUTE, on both. The class is the trap described at
+     * togglePreview(): whether `.hidden` beats the grid's own display utility
+     * depends on the order the stylesheet was built in, and the attribute does
+     * not.
+     */
+    syncLogoMode() {
+        const mode = this.logoMode();
+
+        if (this.hasLogoOriginalOptionTarget) {
+            this.logoOriginalOptionTarget.hidden = this.logoMotifTarget.value === 'pl';
+        }
+
+        this.element.querySelectorAll('input[name="logoMode"]').forEach((radio) => {
+            radio.checked = radio.value === mode;
+        });
 
         if (this.hasLogoGridTarget) {
-            this.logoGridTarget.classList.toggle('hidden', linked);
+            this.logoGridTarget.hidden = mode !== 'independent';
+        }
+    }
+
+    /**
+     * The paint the chosen icon wears, as the icon route spells it — the
+     * client-side twin of Appearance::effectiveLogoPaint().
+     *
+     * Linked, the theme's namesake colourway, found as a colourway tile of
+     * that name. The classic themes have none, and there the two icons part
+     * ways on purpose: the mark falls back to the product default it was
+     * drawn to wear, any other motif to its own original design.
+     */
+    logoPaint() {
+        const mode = this.logoMode();
+
+        if (mode === 'original') {
+            return 'original';
         }
 
-        const tile = linked
-            ? this.linkedLogoTile(this.themeTarget.value)
-            : this.element.querySelector(`[data-logo-name="${this.logoStyleTarget.value}"]`);
+        if (mode === 'independent') {
+            return this.logoStyleTarget.value;
+        }
+
+        const theme = this.themeTarget.value;
+
+        if (this.element.querySelector(`[data-logo-name="${theme}"]`)) {
+            return theme;
+        }
+
+        return this.logoMotifTarget.value === 'pl' ? this.logoDefaultValue : 'original';
+    }
+
+    /**
+     * Paint the current choice onto everything that follows it: the topbar
+     * and the tab icon. Never onto the tiles on this page — each of those
+     * previews its OWN choice and must not be painted over by the one it
+     * offers.
+     *
+     * The topbar holds both forms, one hidden: the pl mark inline, repainted
+     * stroke by stroke from the colourway tile's JSON (light or dark chrome,
+     * whichever is on — geometry-blind, indexed the way _logo_mark.html.twig
+     * draws), and every other icon as an image from the icon route.
+     *
+     * The favicon link is URL-versioned by the choice (see _favicon.html.twig)
+     * because browsers keep a favicon cache that ignores ordinary
+     * revalidation — a new choice means a NEW href, which is also what makes
+     * the tab repaint right now instead of after a hard reload. Only `v` is
+     * rewritten; `d`, the drawing's version, rides along untouched.
+     */
+    repaintLogo() {
+        const motif = this.logoMotifTarget.value;
+        const paint = this.logoPaint();
+        const classic = motif === 'pl';
+
+        document.querySelectorAll('[data-logo-live-mark]').forEach((slot) => {
+            slot.hidden = !classic;
+        });
+
+        document.querySelectorAll('[data-logo-live-icon]').forEach((image) => {
+            image.hidden = classic;
+
+            if (!classic) {
+                this.setIfChanged(image, 'src', this.iconUrl(motif, paint));
+            }
+        });
+
+        const tile = classic ? this.element.querySelector(`[data-logo-name="${paint}"]`) : null;
 
         if (tile) {
-            this.repaintLogo(tile);
+            const strokes = JSON.parse(
+                this.root.classList.contains('dark')
+                    ? tile.dataset.logoStrokesDark
+                    : tile.dataset.logoStrokes,
+            );
+
+            document.querySelectorAll('[data-logo-live] [data-logo-stroke]').forEach((stroke) => {
+                stroke.setAttribute('stroke', strokes[Number(stroke.dataset.logoStroke)]);
+            });
         }
-
-        this.queue();
-    }
-
-    /**
-     * The tile a linked mark paints from: the one sharing the theme's name,
-     * or the product default for the classic seven themes that have none —
-     * the same answer Appearance::effectiveLogoStyle() gives on the server.
-     */
-    linkedLogoTile(theme) {
-        return this.element.querySelector(`[data-logo-name="${theme}"]`)
-            ?? this.element.querySelector('[data-logo-name="berry"]');
-    }
-
-    /**
-     * Paint one tile's colourway onto everything that follows the setting:
-     * the topbar's live mark, stroke by stroke, and the tab icon.
-     *
-     * The favicon link is URL-versioned by style (see _favicon.html.twig)
-     * because browsers keep a favicon cache that ignores ordinary
-     * revalidation — a new style means a NEW href, which is also what makes
-     * the tab repaint right now instead of after a hard reload.
-     */
-    repaintLogo(tile) {
-        const strokes = JSON.parse(
-            this.root.classList.contains('dark')
-                ? tile.dataset.logoStrokesDark
-                : tile.dataset.logoStrokes,
-        );
-
-        document.querySelectorAll('[data-logo-live] [data-logo-stroke]').forEach((stroke) => {
-            stroke.setAttribute('stroke', strokes[Number(stroke.dataset.logoStroke)]);
-        });
 
         document.querySelectorAll('link[rel="icon"][type="image/svg+xml"]').forEach((link) => {
             const url = new URL(link.href, window.location.origin);
-            url.searchParams.set('v', tile.dataset.logoName);
-            link.href = url.toString();
+            url.searchParams.set('v', `${motif}.${paint}`);
+            this.setIfChanged(link, 'href', url.toString());
         });
+    }
+
+    /**
+     * The icon route for one motif in one paint.
+     *
+     * Built from the motif tile's own URL rather than from a pattern: that URL
+     * IS the route for the motif in its original design, generated by the
+     * server with the drawing's version in its query, and a paint is the last
+     * path segment — so any other paint is the same URL with `original.svg`
+     * swapped for `<paint>.svg`, and the version survives untouched. A pattern
+     * rendered for the script to fill could not be generated at all: the
+     * route's requirements refuse a placeholder.
+     */
+    iconUrl(motif, paint) {
+        const tile = this.element.querySelector(`[data-logo-motif="${motif}"]`);
+        const url = new URL(tile.dataset.logoIcon, window.location.origin);
+
+        url.pathname = url.pathname.replace(/[^/]+\.svg$/, `${paint}.svg`);
+
+        return url.toString();
+    }
+
+    /** One tile's selected state: the theme tiles' ring, and aria-pressed. */
+    markSelected(button, selected) {
+        button.classList.toggle('ring-2', selected);
+        button.classList.toggle('ring-accent', selected);
+        button.setAttribute('aria-pressed', selected ? 'true' : 'false');
+    }
+
+    /**
+     * Assigning a src or an href the element already has is not free: an
+     * image or a favicon link can be asked to load again for nothing, and a
+     * theme switch that did not move the logo repaints it all the same.
+     */
+    setIfChanged(element, property, value) {
+        if (element[property] !== value) {
+            element[property] = value;
+        }
     }
 
     /*

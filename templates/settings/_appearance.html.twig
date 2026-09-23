@@ -1,6 +1,5 @@
 {% import '_partials/_select.html.twig' as select %}
 {% import '_partials/_card_chrome.html.twig' as chrome %}
-{% import '_partials/_logo_mark.html.twig' as logo %}
 {% set a = appearance() %}
 
 {# ── One theme tile ──────────────────────────────────────────────────────────
@@ -91,7 +90,10 @@
      data-settings--appearance-update-url-value="{{ path('app_appearance_update') }}"
      data-settings--appearance-upload-url-value="{{ path('app_appearance_background_upload') }}"
      data-settings--appearance-import-url-value="{{ path('app_appearance_import') }}"
-     data-settings--appearance-reset-url-value="{{ path('app_appearance_reset') }}">
+     data-settings--appearance-reset-url-value="{{ path('app_appearance_reset') }}"
+     {# What a linked pl mark wears on a theme with no namesake colourway —
+        LogoStyle::DEFAULT, read here rather than spelled in the script. #}
+     data-settings--appearance-logo-default-value="{{ constant('App\\Domain\\Enum\\Theme\\LogoStyle::DEFAULT').value }}">
 
     {# TWO PEER CARDS with the boundary between them, not one card wearing a
        sidebar. The controls are a card and the preview is a card, each built
@@ -350,64 +352,134 @@
             </section>
 
             {# ── Logo ──────────────────────────────────────────────────────
-               The mark's colourway — thirty-two of them, every direction the
-               design board kept. The same tile grid as the themes above and
-               for the same reason: the preview IS the choice, and auto-fill
-               lets the card decide how many fit.
+               Two steps: the icon, then its colour.
 
-               Each tile carries its stroke lists (light and dark chrome) as
-               JSON, so pickLogo can repaint the topbar's live mark without
-               the JS knowing what a stroke is — see _logo_mark.html.twig for
-               the indexing contract. #}
+               The icon is the pl mark or one of the nine motifs beside it
+               (LogoMotif), each tile drawn in its own original design — the
+               mark in Berry, the product default and its own original. The
+               colour is then Original (a motif's own design, and what picking
+               a motif selects), the theme's namesake colourway, or one chosen
+               by hand from the thirty-two below. Original is not offered for
+               the mark: its original IS a colourway, so it would be a third
+               way of saying Berry.
+
+               Every tile is an <img> from the icon route rather than inline
+               markup, the colourways included, so the colourway grid can show
+               whichever icon is chosen — picking a motif swaps each tile's src
+               in place (pickMotif) and nothing else moves. Each colourway tile
+               still carries its stroke lists (light and dark chrome) as JSON:
+               the topbar's pl mark is inline, and repaintLogo paints it from
+               them without the JS knowing what a stroke is — see
+               _logo_mark.html.twig for the indexing contract.
+
+               Four hidden fields carry the whole choice to save(): logoMotif,
+               logoOriginal, logoLinked and logoStyle. All four are kept
+               whatever is chosen, so going from the mark to the horn and back
+               leaves the mark's colourway exactly where it was.
+
+               Selection is a ring, exactly as on the theme tiles, and
+               aria-pressed, so it is announced as well as drawn. #}
+            {% set _motif = a.logoMotif %}
+            {% set _classic = _motif.value == 'pl' %}
+            {% set _logoMode = not _classic and a.logoOriginal ? 'original' : (a.logoLinked ? 'linked' : 'independent') %}
+            {% set _iconTile = 'group flex flex-col items-center gap-2 p-2 rounded-pane cursor-pointer hover:bg-hover transition-colors' %}
+            {# `rounded-[22%]` is the tile's own corner (16 of 72 units, see
+               branding/icon.svg.twig), so the hairline follows the picture's
+               edge — a pale icon on a pale card has no other edge to read. #}
+            {% set _iconImage = 'size-12 rounded-[22%] ring-1 ring-line' %}
             <section>
                 <div class="mb-4">
                     <h3 class="text-sm font-semibold text-ink">{{ 'settings.appearance.logo.heading'|trans }}</h3>
                     <p class="text-xs text-ink-faint mt-0.5">{{ 'settings.appearance.logo.subheading'|trans }}</p>
                 </div>
 
-                {# Linked or independent. While linked the mark is the theme's —
-                   picking a theme above repaints it live (see pickTheme) — and
-                   the tile grid below is hidden rather than removed: pickTheme
-                   still reads the strokes off the matching tile, and choosing
-                   Independent reveals the grid exactly as it was left. #}
-                <div class="mb-4">
-                    <span class="block text-xs font-medium text-ink-muted mb-1.5" id="logo-linked-label">
-                        {{ 'settings.appearance.logo.heading'|trans }}
+                {# Step one. `data-logo-icon` is the tile's own URL — the icon
+                   route for this motif in its original design, versioned — and
+                   the one URL the script builds every other icon URL from: a
+                   paint is the last path segment, so a colourway is that URL
+                   with `original.svg` swapped (see iconUrl). #}
+                <div class="mb-6">
+                    <span class="block text-xs font-medium text-ink-muted mb-1.5" id="logo-motif-label">
+                        {{ 'settings.appearance.logo.icon'|trans }}
                     </span>
-                    <div class="{{ segGroup }}" role="radiogroup" aria-labelledby="logo-linked-label">
+                    <div class="grid grid-cols-[repeat(auto-fill,minmax(5.5rem,1fr))] gap-3"
+                         role="group" aria-labelledby="logo-motif-label">
+                        {% for motif in enum('App\\Domain\\Enum\\Theme\\LogoMotif').cases %}
+                            {% set _url = logo_icon_url(motif) %}
+                            <button type="button"
+                                    data-logo-motif="{{ motif.value }}"
+                                    data-logo-icon="{{ _url }}"
+                                    data-action="click->settings--appearance#pickMotif"
+                                    aria-pressed="{{ motif == _motif ? 'true' : 'false' }}"
+                                    class="{{ _iconTile }} {{ motif == _motif ? 'ring-2 ring-accent' : '' }}">
+                                <img src="{{ _url }}" alt="" width="48" height="48" class="{{ _iconImage }}" decoding="async">
+                                <span class="text-xs text-ink-soft text-center leading-tight">{{ ('settings.appearance.logo.motif.' ~ motif.value)|trans }}</span>
+                            </button>
+                        {% endfor %}
+                    </div>
+                    <input type="hidden" data-settings--appearance-field="logoMotif"
+                           data-settings--appearance-target="logoMotif" value="{{ _motif.value }}">
+                </div>
+
+                {# Step two. Original is `hidden` — the attribute — while the
+                   icon is the mark, and a hidden grid item takes no column, so
+                   the group is two segments then and three otherwise. While
+                   linked the colour is the theme's: picking a theme above
+                   repaints it live (see pickTheme). The colourway grid is
+                   hidden rather than removed outside Independent: repaintLogo
+                   still reads the strokes off its tiles, and choosing
+                   Independent reveals it exactly as it was left. #}
+                <div class="mb-4">
+                    <span class="block text-xs font-medium text-ink-muted mb-1.5" id="logo-paint-label">
+                        {{ 'settings.appearance.logo.colour'|trans }}
+                    </span>
+                    <div class="{{ segGroup }}" role="radiogroup" aria-labelledby="logo-paint-label">
+                        <label class="cursor-pointer" data-settings--appearance-target="logoOriginalOption" {{ _classic ? 'hidden' : '' }}>
+                            <input type="radio" name="logoMode" class="peer sr-only" value="original"
+                                   data-action="change->settings--appearance#pickLogoMode"
+                                   aria-label="{{ 'settings.appearance.logo.original'|trans }}"
+                                {{ _logoMode == 'original' ? 'checked' : '' }}>
+                            <span class="{{ segText }}">{{ 'settings.appearance.logo.original'|trans }}</span>
+                        </label>
                         <label class="cursor-pointer">
-                            <input type="radio" name="logoLinkedMode" class="peer sr-only" value="1"
-                                   data-action="change->settings--appearance#toggleLogoLinked"
+                            <input type="radio" name="logoMode" class="peer sr-only" value="linked"
+                                   data-action="change->settings--appearance#pickLogoMode"
                                    aria-label="{{ 'settings.appearance.logo.linked'|trans }}"
-                                {{ a.logoLinked ? 'checked' : '' }}>
+                                {{ _logoMode == 'linked' ? 'checked' : '' }}>
                             <span class="{{ segText }}">{{ 'settings.appearance.logo.linked'|trans }}</span>
                         </label>
                         <label class="cursor-pointer">
-                            <input type="radio" name="logoLinkedMode" class="peer sr-only" value="0"
-                                   data-action="change->settings--appearance#toggleLogoLinked"
+                            <input type="radio" name="logoMode" class="peer sr-only" value="independent"
+                                   data-action="change->settings--appearance#pickLogoMode"
                                    aria-label="{{ 'settings.appearance.logo.independent'|trans }}"
-                                {{ a.logoLinked ? '' : 'checked' }}>
+                                {{ _logoMode == 'independent' ? 'checked' : '' }}>
                             <span class="{{ segText }}">{{ 'settings.appearance.logo.independent'|trans }}</span>
                         </label>
                     </div>
+                    <input type="hidden" data-settings--appearance-field="logoOriginal"
+                           data-settings--appearance-target="logoOriginal" value="{{ a.logoOriginal ? '1' : '0' }}">
                     <input type="hidden" data-settings--appearance-field="logoLinked"
                            data-settings--appearance-target="logoLinked" value="{{ a.logoLinked ? '1' : '0' }}">
                 </div>
 
-                <div class="grid grid-cols-[repeat(auto-fill,minmax(5.5rem,1fr))] gap-3 {{ a.logoLinked ? 'hidden' : '' }}"
-                     data-settings--appearance-target="logoGrid">
+                {# `loading="lazy"` does the work here: outside Independent the
+                   grid is display:none, and a lazy image that is not rendered
+                   is not fetched — so the thirty-two cost nothing until
+                   somebody opens them. #}
+                <div class="grid grid-cols-[repeat(auto-fill,minmax(5.5rem,1fr))] gap-3"
+                     role="group" aria-labelledby="logo-paint-label"
+                     data-settings--appearance-target="logoGrid" {{ _logoMode != 'independent' ? 'hidden' : '' }}>
                     {% for style in enum('App\\Domain\\Enum\\Theme\\LogoStyle').cases %}
                         <button type="button"
                                 data-logo-name="{{ style.value }}"
                                 data-logo-strokes="{{ style.strokes(false)|json_encode }}"
                                 data-logo-strokes-dark="{{ style.strokes(true)|json_encode }}"
                                 data-action="click->settings--appearance#pickLogo"
-                                class="group flex flex-col items-center gap-2 p-2 rounded-pane cursor-pointer hover:bg-hover transition-colors
-                                       {{ a.logoStyle == style ? 'ring-2 ring-accent' : '' }}">
-                            <span class="w-full h-10 rounded-lg border border-line flex items-center justify-center">
-                                {{ logo.mark(style, 30, a.theme.isDark) }}
-                            </span>
-                            <span class="text-xs text-ink-soft">{{ ('settings.appearance.logo.style.' ~ style.value)|trans }}</span>
+                                aria-pressed="{{ a.logoStyle == style ? 'true' : 'false' }}"
+                                class="{{ _iconTile }} {{ a.logoStyle == style ? 'ring-2 ring-accent' : '' }}">
+                            <img data-logo-paint="{{ style.value }}" src="{{ logo_icon_url(_motif, style) }}" alt=""
+                                 width="48" height="48" class="{{ _iconImage }}" loading="lazy" decoding="async">
+                            <span class="text-xs text-ink-soft text-center leading-tight">{{ ('settings.appearance.logo.style.' ~ style.value)|trans }}</span>
                         </button>
                     {% endfor %}
                 </div>

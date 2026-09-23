@@ -2607,9 +2607,26 @@ settings:
                 subtle: Dezent
             unreadEmphasis: Ungelesene Zeilen
         logo:
+            colour: 'Farbe'
             heading: Logo
+            icon: 'Symbol'
             independent: 'Selbst wählen'
             linked: 'Dem Theme folgen'
+            # U+00AD, a soft hyphen, where the long compounds may break: a tile
+            # has 72px for its name at its narrowest, and "Klammeraffenhorn"
+            # does not fit in it. Invisible whenever the word does fit.
+            motif:
+                airmail: 'Luftpost'
+                at-horn: "Klammer\u00ADaffen\u00ADhorn"
+                blue-horn: 'Das blaue Horn'
+                happy-mail: 'Fröhliche Post'
+                love-letter: "Liebes\u00ADbrief"
+                mailbox: "Brief\u00ADkasten"
+                pl: 'Klassisch'
+                pl-stamp: "Brief\u00ADmarke"
+                snail-mail: "Schnecken\u00ADpost"
+                wax-seal: 'Siegel'
+            original: 'Original'
             style:
                 aurora: 'Polarlicht'
                 berry: 'Beere'
@@ -2643,7 +2660,7 @@ settings:
                 tricolore: 'Tricolore'
                 twilight: 'Dämmerung'
                 violet-flick: 'Violetter Schwung'
-            subheading: 'Die Farbstimmung des pl-Zeichens. Topbar und Tab-Symbol tragen sie.'
+            subheading: 'Dein Symbol, dann seine Farben. Topbar und Tab-Symbol tragen sie.'
         main:
             heading: Hauptbereich
             matchGlass: An Glas-Deckkraft angleichen
