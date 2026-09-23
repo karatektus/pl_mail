@@ -178,7 +178,9 @@ final class ConfigBackupRoundTripTest extends KernelTestCase
         $this->check('account.imapHost', 'imap.audit.test', $account->imapHost);
         $this->check('account.colorIndex', 3, $account->colorIndex);
         $this->check('account.oauthGrantedScopes', 'https://mail.google.com/ openid', $account->oauthGrantedScopes);
-        $this->check('account setting sync.backfill_target', 0, $account->getSetting(Account::SETTING_BACKFILL_TARGET));
+        // NOT carried: a settled 0 from the source would tell the target's
+        // Gmail sync that its still-empty mailbox is complete.
+        $this->check('account setting sync.backfill_target', null, $account->getSetting(Account::SETTING_BACKFILL_TARGET));
         $this->check('account setting compose.signature', '<p>Viele Grüße, Anna</p>', $account->getSetting(Account::SETTING_SIGNATURE));
         $this->check('account setting compose.read_receipt.default', 'ask', $account->getSetting(Account::SETTING_READ_RECEIPT_DEFAULT));
         $this->check(

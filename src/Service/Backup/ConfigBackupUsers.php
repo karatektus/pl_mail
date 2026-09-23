@@ -151,8 +151,9 @@ final readonly class ConfigBackupUsers
     /**
      * The keys of {@see Account::$settings} a backup carries.
      *
-     * `sync.backfill_ran_at` and `sync.backfill_attempts` are counters about a
-     * sync that happened on the other host, and the connection-error key
+     * `sync.backfill_ran_at`, `sync.backfill_attempts` and
+     * `sync.backfill_target` are counters about a sync that happened on the
+     * other host, and the connection-error key
      * AccountCreator writes is a verdict about a network reachable from there.
      * What is left is the choices the user actually made — and one of them,
      * `calendar.target_id`, is a calendar id that has to be remapped on the
@@ -167,7 +168,6 @@ final readonly class ConfigBackupUsers
      * @var list<string>
      */
     public const array ACCOUNT_SETTINGS = [
-        Account::SETTING_BACKFILL_TARGET,
         Account::SETTING_CALENDAR_TARGET,
         // Added late, and the reason they were missing for months is the whole
         // argument for the completeness test that now guards this list: an
@@ -203,6 +203,7 @@ final readonly class ConfigBackupUsers
     public const array EXCLUDED_ACCOUNT_SETTINGS = [
         Account::SETTING_BACKFILL_RAN_AT => 'a counter about a sync that happened on the other host',
         Account::SETTING_BACKFILL_ATTEMPTS => 'the same, and resetting it on the target is the correct start',
+        Account::SETTING_BACKFILL_TARGET => 'how much mail the OTHER host still had to fetch; carried, a settled 0 tells Gmail on the target that its empty mailbox is complete and the existing mail is never imported',
     ];
 
     public function __construct(
