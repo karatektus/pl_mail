@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Controller\Mail;
 
 use App\Tests\Support\Mail\OpensComposeWindow;
+use App\Tests\Support\Mail\SendsAjaxCsrf;
 use App\Domain\Interface\MailSenderInterface;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Message;
@@ -42,6 +43,7 @@ use Symfony\Component\Mime\Email;
 final class UndoSendTest extends WebTestCase
 {
     use OpensComposeWindow;
+    use SendsAjaxCsrf;
 
     private const string ADMIN_EMAIL = 'e2e-admin@plmail.test';
 
@@ -72,7 +74,7 @@ final class UndoSendTest extends WebTestCase
 
         $id = $this->composeAndSend($client, $account);
 
-        $client->request('POST', '/compose/undo/' . $id);
+        $client->request('POST', '/compose/undo/' . $id, server: $this->ajaxCsrf($client));
 
         self::assertResponseIsSuccessful();
 
@@ -126,7 +128,7 @@ final class UndoSendTest extends WebTestCase
 
         $id = $this->composeAndSend($client, $account);
 
-        $client->request('POST', '/compose/undo/' . $id);
+        $client->request('POST', '/compose/undo/' . $id, server: $this->ajaxCsrf($client));
         $this->runHandler($id);
 
         $message = $this->reload($id);
@@ -206,7 +208,7 @@ final class UndoSendTest extends WebTestCase
             static::getContainer()->get(MessageRepository::class)->claimForSend($id),
         );
 
-        $client->request('POST', '/compose/undo/' . $id);
+        $client->request('POST', '/compose/undo/' . $id, server: $this->ajaxCsrf($client));
 
         self::assertResponseIsSuccessful();
 

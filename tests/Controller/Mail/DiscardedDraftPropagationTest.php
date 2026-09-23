@@ -16,6 +16,7 @@ use App\Entity\User\User;
 use App\Infrastructure\Messaging\Message\ApplyImapFlagsMessage;
 use App\Repository\User\UserRepository;
 use App\Service\Label\LabelResolver;
+use App\Tests\Support\Mail\SendsAjaxCsrf;
 use DateTimeImmutable;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
@@ -38,6 +39,8 @@ use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;
  */
 final class DiscardedDraftPropagationTest extends WebTestCase
 {
+    use SendsAjaxCsrf;
+
     private const string ADMIN_EMAIL = 'e2e-admin@plmail.test';
 
     private EntityManagerInterface $em;
@@ -65,10 +68,11 @@ final class DiscardedDraftPropagationTest extends WebTestCase
         [$draft, $account] = $this->syncedDraft($user);
 
         $draftId = (int) $draft->id;
+        $csrf    = $this->ajaxCsrf($client);
 
         $this->transport()->reset();
 
-        $client->request('POST', '/compose/discard/' . $draftId);
+        $client->request('POST', '/compose/discard/' . $draftId, server: $csrf);
 
         self::assertResponseIsSuccessful();
 
@@ -102,9 +106,11 @@ final class DiscardedDraftPropagationTest extends WebTestCase
 
         [$draft] = $this->syncedDraft($user, uid: null);
 
+        $csrf = $this->ajaxCsrf($client);
+
         $this->transport()->reset();
 
-        $client->request('POST', '/compose/discard/' . (int) $draft->id);
+        $client->request('POST', '/compose/discard/' . (int) $draft->id, server: $csrf);
 
         self::assertResponseIsSuccessful();
         self::assertCount(0, $this->sentOfType(ApplyImapFlagsMessage::class));

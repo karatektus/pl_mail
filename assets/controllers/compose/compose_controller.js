@@ -2,6 +2,7 @@
 import { Controller } from '@hotwired/stimulus'
 import { forgetPendingCancel, markPendingCancel } from "../../compose/pending_cancel.js";
 import { requestFailed } from "../../request_errors.js";
+import { csrfToken } from "../../csrf.js";
 
 /**
  * The compose window is the only place a send is announced, and the only place
@@ -1959,7 +1960,7 @@ export default class extends Controller {
         try {
             response = await fetch(`/compose/discard/${id}?${params}`, {
                 method: 'POST',
-                headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                headers: { 'X-Requested-With': 'XMLHttpRequest', 'X-CSRF-Token': csrfToken() },
             });
         } catch {
             requestFailed(null);
@@ -2832,7 +2833,7 @@ export default class extends Controller {
         try {
             response = await fetch(this._undoUrl, {
                 method:  'POST',
-                headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                headers: { 'X-Requested-With': 'XMLHttpRequest', 'X-CSRF-Token': csrfToken() },
             });
         } catch (error) {
             requestFailed(null);
@@ -3270,7 +3271,7 @@ export default class extends Controller {
             fetch(`/compose/attachments/${id}`, {
                 method: 'POST',
                 body,
-                headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                headers: { 'X-Requested-With': 'XMLHttpRequest', 'X-CSRF-Token': csrfToken() },
             }),
             this._t('attachFailed', 'Could not attach'),
         );
@@ -3286,7 +3287,7 @@ export default class extends Controller {
         await this._renderAttachments(
             fetch(`/compose/attachment/${partId}/remove`, {
                 method: 'POST',
-                headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                headers: { 'X-Requested-With': 'XMLHttpRequest', 'X-CSRF-Token': csrfToken() },
             }),
             this._t('attachRemoveFailed', 'Could not remove attachment'),
         );
@@ -3514,6 +3515,7 @@ export default class extends Controller {
                 body,
                 headers: {
                     'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRF-Token': csrfToken(),
                     'Accept': 'application/json',
                 },
             });

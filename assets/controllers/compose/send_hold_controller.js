@@ -1,6 +1,7 @@
 import { Controller } from "@hotwired/stimulus";
 import { takePendingCancel } from "../../compose/pending_cancel.js";
 import { requestFailed } from "../../request_errors.js";
+import { csrfToken } from "../../csrf.js";
 
 /**
  * The send response's only job: tell the window that sent it how to call the
@@ -54,7 +55,7 @@ export default class extends Controller {
                 // window that would have said so is gone — so the toast does.
                 fetch(this.undoUrlValue, {
                     method:    "POST",
-                    headers:   { "X-Requested-With": "XMLHttpRequest" },
+                    headers:   { "X-Requested-With": "XMLHttpRequest", "X-CSRF-Token": csrfToken() },
                     keepalive: true,
                 })
                     .then((response) => requestFailed(response))

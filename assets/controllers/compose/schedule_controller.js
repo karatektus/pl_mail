@@ -1,6 +1,7 @@
 import { Controller } from "@hotwired/stimulus";
 import { formatWallClock, instantOf, scheduleOptions, zoneHorizon, zoneNow } from "../../schedule_options.js";
 import { requestFailed } from "../../request_errors.js";
+import { csrfToken } from "../../csrf.js";
 
 /**
  * The send pill's chevron: send later.
@@ -222,7 +223,7 @@ export default class extends Controller {
         try {
             response = await fetch(url, {
                 method: "POST",
-                headers: { "X-Requested-With": "XMLHttpRequest" },
+                headers: { "X-Requested-With": "XMLHttpRequest", "X-CSRF-Token": csrfToken() },
             });
         } catch {
             requestFailed(null);

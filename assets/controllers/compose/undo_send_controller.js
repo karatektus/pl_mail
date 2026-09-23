@@ -1,5 +1,6 @@
 import { Controller } from "@hotwired/stimulus"
 import { requestFailed } from "../../request_errors.js"
+import { csrfToken } from "../../csrf.js"
 
 /**
  * The Undo button in the "Sending…" toast.
@@ -52,7 +53,7 @@ export default class extends Controller {
         try {
             response = await fetch(this.urlValue, {
                 method: "POST",
-                headers: { "X-Requested-With": "XMLHttpRequest" },
+                headers: { "X-Requested-With": "XMLHttpRequest", "X-CSRF-Token": csrfToken() },
             })
         } catch {
             // Handled below with response still null.

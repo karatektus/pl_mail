@@ -4,8 +4,13 @@ declare(strict_types=1);
 
 namespace App\Tests\Controller;
 
+use App\Domain\Enum\Mail\MessageFlag;
+use App\Entity\Mail\Account;
+use App\Entity\Mail\Message;
+use App\Entity\Mail\MessagePart;
 use App\Repository\User\ApiTokenRepository;
 use App\Repository\User\UserRepository;
+use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
@@ -188,6 +193,77 @@ final class StateChangingPostsNeedCsrfTest extends WebTestCase
             [403, 404],
             'the primary switch accepted a forged token',
         );
+    }
+
+    // ── the compose window's fetch() actions ──────────────────────────────
+
+    /**
+     * Undo, unschedule, discard and the three attachment actions are POSTs the
+     * compose window makes with fetch(), and none of them checked a token: any
+     * page the user visited could discard their drafts or call off a send.
+     * They take the shared `ajax` token in the X-CSRF-Token header now.
+     *
+     * Against a real draft, so the answer is the token check and not a 404.
+     *
+     * @return iterable<string, array{string}>
+     */
+    public static function composeEndpoints(): iterable
+    {
+        yield 'undo a send'          => ['/compose/undo/{message}'];
+        yield 'unschedule a send'    => ['/compose/unschedule/{message}'];
+        yield 'discard a draft'      => ['/compose/discard/{message}'];
+        yield 'attach files'         => ['/compose/attachments/{message}'];
+        yield 'insert inline image'  => ['/compose/inline-image/{message}'];
+        yield 'remove an attachment' => ['/compose/attachment/{part}/remove'];
+    }
+
+    #[DataProvider('composeEndpoints')]
+    public function testComposeActionsRejectARequestWithNoToken(string $path): void
+    {
+        $client = $this->signedIn();
+        $client->disableReboot();
+
+        $container  = static::getContainer();
+        $em         = $container->get(EntityManagerInterface::class);
+        $connection = $em->getConnection();
+        $user       = $container->get(UserRepository::class)->findOneBy(['email' => self::ADMIN_EMAIL]);
+
+        $connection->beginTransaction();
+
+        try {
+            $account           = new Account();
+            $account->usr      = $user;
+            $account->email    = 'csrf-fixture@joder.dev';
+            $account->username = 'csrf-fixture@joder.dev';
+            $account->authType = 'password';
+            $account->isActive = true;
+            $account->imapHost = 'imap.example.test';
+            $em->persist($account);
+
+            $draft                 = new Message();
+            $draft->account        = $account;
+            $draft->subject        = 'CSRF fixture';
+            $draft->hasAttachments = true;
+            $draft->flags          = [MessageFlag::DRAFT->value];
+            $em->persist($draft);
+
+            $part              = new MessagePart();
+            $part->message     = $draft;
+            $part->contentType = 'text/plain';
+            $part->disposition = 'attachment';
+            $part->filename    = 'fixture.txt';
+            $em->persist($part);
+            $em->flush();
+
+            $client->request('POST', strtr($path, [
+                '{message}' => (string) $draft->id,
+                '{part}'    => (string) $part->id,
+            ]));
+
+            self::assertSame(403, $client->getResponse()->getStatusCode(), "$path accepted a request with no token");
+        } finally {
+            $connection->rollBack();
+        }
     }
 
     private function signedIn(): KernelBrowser

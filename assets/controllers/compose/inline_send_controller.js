@@ -1,5 +1,6 @@
 import { Controller } from "@hotwired/stimulus";
 import { requestFailed } from "../../request_errors.js";
+import { csrfToken } from "../../csrf.js";
 
 /**
  * **UNWIRED.** Nothing renders the bar this drives any more: the composer now
@@ -65,7 +66,7 @@ export default class extends Controller {
         try {
             response = await fetch(this.urlValue, {
                 method: "POST",
-                headers: { "X-Requested-With": "XMLHttpRequest" },
+                headers: { "X-Requested-With": "XMLHttpRequest", "X-CSRF-Token": csrfToken() },
             });
         } catch {
             // Handled below with response still null.

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controller\Mail;
 
+use App\Controller\ChecksCsrf;
 use App\Entity\Mail\Message;
 use App\Entity\Mail\MessagePart;
 use App\Security\Voter\OwnershipVoter;
@@ -33,6 +34,8 @@ use Symfony\Contracts\Translation\TranslatorInterface;
 #[Route('/compose', name: 'app_compose_')]
 final class ComposeAttachmentController extends AbstractController
 {
+    use ChecksCsrf;
+
     /**
      * Per-file ceiling for compose attachments. Public because the compose
      * window reads it too, to refuse an oversized file before it is uploaded,
@@ -61,6 +64,9 @@ final class ComposeAttachmentController extends AbstractController
     public function addAttachments(Request $request, Message $message): Response
     {
         $this->assertDraft($message);
+        // Every action here writes to a draft, so each proves it came from our
+        // own page: the shared `ajax` token, in the X-CSRF-Token header.
+        $this->assertCsrf($request, 'ajax');
 
         $files = array_values(array_filter(
             $request->files->all('files'),
@@ -99,6 +105,7 @@ final class ComposeAttachmentController extends AbstractController
     public function addInlineImage(Request $request, Message $message): Response
     {
         $this->assertDraft($message);
+        $this->assertCsrf($request, 'ajax');
 
         $file = $request->files->get('file');
 
@@ -123,11 +130,12 @@ final class ComposeAttachmentController extends AbstractController
     }
 
     #[Route('/attachment/{id}/remove', name: 'attachment_remove', methods: ['POST'])]
-    public function removeAttachment(MessagePart $part): Response
+    public function removeAttachment(Request $request, MessagePart $part): Response
     {
         $message = $part->message;
 
         $this->assertDraft($message);
+        $this->assertCsrf($request, 'ajax');
 
         $this->attachments->remove($part);
 

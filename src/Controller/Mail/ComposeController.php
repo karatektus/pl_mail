@@ -524,9 +524,13 @@ class ComposeController extends AbstractController
     }
 
     #[Route('/undo/{id}', name: 'mail_undo', methods: ['POST'])]
-    public function undo(ComposeContext $ctx, Message $message): Response
+    public function undo(Request $request, ComposeContext $ctx, Message $message): Response
     {
         $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $message);
+        // The shared `ajax` token, sent by every fetch() caller in the X-CSRF-Token
+        // header (assets/csrf.js). A logged-in session alone is not enough: this
+        // route changes state, and any page the user visits can POST to it.
+        $this->assertCsrf($request, 'ajax');
 
         // Whether the cancel arrived in time is decided in one statement, and
         // this is the answer to it. Before, nothing asked: the flag was written
@@ -605,6 +609,7 @@ class ComposeController extends AbstractController
     public function unschedule(Request $request, Message $message): Response
     {
         $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $message);
+        $this->assertCsrf($request, 'ajax');
 
         // Already gone: nothing is written — not even `cancelled`, which on a
         // message SendMessageHandler has finished with means nothing and reads
@@ -834,6 +839,7 @@ class ComposeController extends AbstractController
     public function discard(Request $request, ComposeContext $ctx, Message $message): Response
     {
         $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $message);
+        $this->assertCsrf($request, 'ajax');
 
         if (false === $message->isDraft() || null !== $message->sentAt) {
             throw $this->createAccessDeniedException('Only unsent drafts can be discarded.');
