@@ -358,8 +358,7 @@ Variables: form, message, ctx (an App\Domain\DTO\Mail\ComposeContext)
                inline composer, and a refusal nobody can see is the bug being
                fixed here, not a shape to reproduce. #}
             {% if form.vars.errors|length > 0 %}
-                <div class="px-4 py-2 shrink-0" role="alert" aria-live="assertive"
-                     data-compose--compose-target="formErrors">
+                <div class="px-4 py-2 shrink-0" role="alert" aria-live="assertive">
                     {% for error in form.vars.errors %}
                         <p class="text-xs text-danger">{{ error.message }}</p>
                     {% endfor %}
