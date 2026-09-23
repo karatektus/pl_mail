@@ -193,6 +193,50 @@ final class SearchHighlighterTest extends TestCase
     }
 
     /** The whole pipeline a caller uses, in one call. */
+    /**
+     * A `ts_headline` fragment is cut down until the mark is on screen.
+     *
+     * `MaxWords` counts TOKENS, and one LinkedIn tracking link is a single
+     * token of some four hundred characters — so the 24 words the options ask
+     * for came back as 1148 characters with the mark at 568. The preview is one
+     * truncated line, about a hundred characters wide, so the highlight was in
+     * the markup and 468 characters past the right-hand edge. Reported as
+     * "highlighting does not work on LinkedIn mails", and it looked exactly
+     * like that.
+     *
+     * Measured from the real message rather than imagined: the offsets above
+     * are what Postgres returned for that mail.
+     */
+    public function testALongFragmentIsRecutSoTheMarkIsNearTheStart(): void
+    {
+        $url  = 'https://www.linkedin.com/comm/jobs/view/4435156777/trackingId='
+            .str_repeat('LJ4zIajT9uQ4ijBHJxfQrefIdrQiZmsOSTBeOtSahZ9u0WAlipiurnli', 8);
+        $lead = 'Backend Developer PHP Laravel GOLDNER GmbH Muenchberg '.$url.' ';
+
+        // The shape ts_headline hands back: a lead-in of whole tokens, the
+        // marked term, then more of the same.
+        $headline = $lead."\x02Sandstein\x03".' Neue Medien GmbH Dresden '.$url;
+
+        self::assertGreaterThan(
+            500,
+            mb_strpos($headline, "\x02"),
+            'the fixture has to reproduce a mark that starts far off screen',
+        );
+
+        $html = $this->fallback($headline, 'sandstein', null);
+
+        self::assertNotNull($html);
+        self::assertStringContainsString('<mark>Sandstein</mark>', $html, 'the mark must survive the cut');
+
+        $markAt = mb_strpos($html, '<mark>');
+        self::assertIsInt($markAt);
+        self::assertLessThan(
+            120,
+            $markAt,
+            'the mark has to land inside the hundred or so characters a truncated row shows',
+        );
+    }
+
     private function fallback(?string $headline, string $freeText, ?string $text): ?string
     {
         return $this->highlighter->toHtml(

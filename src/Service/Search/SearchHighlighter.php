@@ -213,10 +213,58 @@ final class SearchHighlighter
     public function headlineOrFallback(mixed $headline, mixed $text, string $freeText): ?string
     {
         if (true === $this->isMarked($headline)) {
-            return $headline;
+            return $this->tightened($headline);
         }
 
         return $this->fallback($text, $freeText);
+    }
+
+    /**
+     * The fragment, re-cut around its first mark so the mark is actually on screen.
+     *
+     * **`MaxWords` counts TOKENS, and a tracking URL is one token.** That is the
+     * whole of this method. `ts_headline` was asked for 24 words on the belief
+     * that this bounded the fragment's length — it is what let the row template
+     * stop slicing the snippet — and the belief is false for the mail people
+     * actually get. Measured against a LinkedIn job alert, ten listings each
+     * carrying a ~400-character `trk=…&otpToken=…` link:
+     *
+     *     fragment length       1148 characters
+     *     first mark at          568
+     *
+     * The preview is one `truncate`d line, so roughly a hundred characters are
+     * visible. The highlight was in the markup, correct, and 468 characters off
+     * the right-hand edge — which reads exactly like highlighting that does not
+     * work, and was reported as such.
+     *
+     * So the fragment is re-cut here, by CHARACTERS, using the same window the
+     * no-headline path already uses — see [self::window]. The head is dropped
+     * back to a few words before the mark, the tail is bounded, and both ends
+     * carry the ellipsis a fragment of a larger document should carry.
+     *
+     * The WHOLE marked span is handed to window() as the match — opening
+     * sentinel, term and closing sentinel together — rather than just the
+     * opening one. Passing the opener alone would leave the closer out in the
+     * tail, where fit() drops words off the end to stay inside
+     * MAX_CONTEXT_CHARS; a fragment whose long tail was trimmed would lose it,
+     * and toHtml() converts balanced pairs only, so the highlight would
+     * silently disappear on exactly the longest fragments this exists to cut.
+     */
+    private function tightened(string $headline): string
+    {
+        $at = mb_strpos($headline, self::START);
+
+        if (false === $at) {
+            return $headline;
+        }
+
+        $stop = mb_strpos($headline, self::STOP, $at);
+
+        if (false === $stop) {
+            return $headline;
+        }
+
+        return $this->window($headline, $at, $stop - $at + mb_strlen(self::STOP));
     }
 
     /**
