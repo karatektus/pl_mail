@@ -1661,7 +1661,8 @@ message:
     actions:
         archive: Stow in the hold
         delete: Send this bottle to Davy Jones
-        expand: Unfurl or furl this bottle
+        collapse: Furl this bottle
+        expand: Unfurl this bottle
         mark_unread: Mark as unread
         more: More
         print: Print

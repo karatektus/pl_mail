@@ -1972,7 +1972,8 @@ message:
     actions:
         archive: Archive
         delete: Delete this message
-        expand: Expand or collapse this message
+        collapse: Collapse this message
+        expand: Expand this message
         mark_unread: Mark as unread
         more: More
         print: Print

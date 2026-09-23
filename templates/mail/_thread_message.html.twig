@@ -94,6 +94,8 @@ Variables:
     class="border-b border-line last:border-b-0 reading-y first:pt-0"
     data-controller="mail--thread-message"
     data-mail--thread-message-expanded-value="{{ expanded ? 'true' : 'false' }}"
+    data-mail--thread-message-expand-label-value="{{ 'message.actions.expand'|trans }}"
+    data-mail--thread-message-collapse-label-value="{{ 'message.actions.collapse'|trans }}"
 >
     {# ── Header row ─────────────────────────────────────────────────────── #}
     {# Sticky within the conversation scroller (H-14). Long mail used to carry
@@ -193,7 +195,8 @@ Variables:
                 type="button"
                 data-action="click->mail--thread-message#toggle:stop"
                 data-mail--thread-message-target="toggleBtn"
-                aria-label="{{ 'message.actions.expand'|trans }}"
+                aria-expanded="{{ expanded ? 'true' : 'false' }}"
+                aria-label="{{ (expanded ? 'message.actions.collapse' : 'message.actions.expand')|trans }}"
                 class="flex items-center justify-center w-8 h-8 rounded-full text-ink-muted hover:text-ink hover:bg-hover transition-colors"
             >
                 <i

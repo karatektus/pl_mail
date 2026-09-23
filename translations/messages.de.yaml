@@ -1968,7 +1968,8 @@ message:
     actions:
         archive: Archivieren
         delete: Diese Nachricht löschen
-        expand: Diese Nachricht auf- oder zuklappen
+        collapse: Diese Nachricht zuklappen
+        expand: Diese Nachricht aufklappen
         mark_unread: Als ungelesen markieren
         more: Mehr
         print: Drucken
