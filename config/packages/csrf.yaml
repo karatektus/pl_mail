@@ -1,4 +1,20 @@
 # Enable stateless CSRF protection for forms and logins/logouts
+#
+# What enforces a stateless id is the same-origin check: SameOriginCsrfTokenManager
+# refuses a request whose Sec-Fetch-Site, Origin or Referer names another site,
+# and refuses one that carries none of them. The token in the field is a
+# placeholder. tests/Security/StatelessCsrfOriginTest pins it.
+#
+# There is deliberately NO double-submit cookie layer on top. The Symfony recipe
+# ships a script for it, and this app had a copy that never loaded (lazy, and
+# nothing rendered its controller name). It was removed rather than switched on,
+# because the manager remembers in the session that double-submit was used and
+# from then on refuses any request without it — and several paths here post a
+# form without a submit event (the compose autosave's fetch(new FormData(form)),
+# ui--auto-submit's form.submit()), which the script cannot see. Turning it on
+# would add little over Sec-Fetch-Site, which every current browser sends, and
+# would break those paths for the rest of the session after the first ordinary
+# form submit.
 framework:
     form:
         csrf_protection:
