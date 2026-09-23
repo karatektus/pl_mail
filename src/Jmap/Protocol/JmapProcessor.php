@@ -56,7 +56,12 @@ final class JmapProcessor
             $arguments = $this->referenceResolver->resolve($invocation->arguments, $context);
             $result = $method->handle($arguments, $context);
             $context->addResponse($invocation->toResult($result));
+
+            foreach ($context->drainImplicitResponses() as [$name, $implicit]) {
+                $context->addResponse([$name, $implicit, $invocation->callId]);
+            }
         } catch (MethodException $exception) {
+            $context->drainImplicitResponses();
             $context->addResponse($invocation->toError($exception->errorType, $exception->extra));
         }
     }

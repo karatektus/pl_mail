@@ -137,7 +137,8 @@ final class EmailSubmissionSetMethod implements JmapMethod
 
         $this->applyUpdates($account, $arguments['update'] ?? null, $context, $now, $updated, $notUpdated);
 
-        $updatedEmails = $this->applyOnSuccess($account, $arguments, $queued);
+        $emailOldState = $this->stateManager->stateFor($accountId, JmapObjectType::Email);
+        $implicitEmailSet = $this->applyOnSuccess($account, $arguments, $queued);
 
         $this->entityManager->flush();
 
@@ -168,10 +169,22 @@ final class EmailSubmissionSetMethod implements JmapMethod
             'notDestroyed' => new \stdClass(),
         ];
 
-        if (count($updatedEmails) > 0) {
-            // The spec has the server report the implicit Email/set it just
-            // performed, so the client does not have to re-fetch.
-            $result['updatedEmails'] = $updatedEmails;
+        // RFC 8621 §7.5: the patches are an implicit Email/set, and its
+        // response follows this one as a response of its own. This used to be
+        // an `updatedEmails` key on the submission result, which no client
+        // reads, so their Email state was never told it had moved.
+        if (null !== $implicitEmailSet) {
+            $context->addImplicitResponse('Email/set', [
+                'accountId' => (string) $accountId,
+                'oldState' => $emailOldState,
+                'newState' => $this->stateManager->stateFor($accountId, JmapObjectType::Email),
+                'created' => new \stdClass(),
+                'notCreated' => new \stdClass(),
+                'updated' => 0 === count($implicitEmailSet['updated']) ? new \stdClass() : $implicitEmailSet['updated'],
+                'notUpdated' => 0 === count($implicitEmailSet['notUpdated']) ? new \stdClass() : $implicitEmailSet['notUpdated'],
+                'destroyed' => [],
+                'notDestroyed' => new \stdClass(),
+            ]);
         }
 
         return $result;
@@ -416,35 +429,55 @@ final class EmailSubmissionSetMethod implements JmapMethod
      * @param array<string,mixed>            $arguments
      * @param array<string,QueuedSubmission> $queued
      *
-     * @return array<string,mixed>
+     * @return array{updated: array<string,null>, notUpdated: array<string,mixed>}|null
+     *         null when no patch was asked for, so no implicit call happened
      */
-    private function applyOnSuccess(Account $account, array $arguments, array $queued): array
+    private function applyOnSuccess(Account $account, array $arguments, array $queued): ?array
     {
         $onSuccess = $arguments['onSuccessUpdateEmail'] ?? null;
 
         if (false === is_array($onSuccess) || 0 === count($queued)) {
-            return [];
+            return null;
         }
 
-        $updatedEmails = [];
+        $updated = [];
+        $notUpdated = [];
 
         foreach ($onSuccess as $reference => $patch) {
             $creationId = ltrim((string) $reference, '#');
             $submission = $queued[$creationId] ?? null;
 
-            if (null === $submission || false === is_array($patch)) {
+            if (null === $submission) {
                 continue;
             }
 
-            $message = $submission->message;
+            $id = (string) $submission->message->id;
 
-            $this->patchApplier->apply($account, $message, $patch);
-            $this->stateManager->recordUpdated($account->id, JmapObjectType::Email, (string) $message->id);
+            if (false === is_array($patch)) {
+                $notUpdated[$id] = ['type' => 'invalidPatch', 'description' => 'Each patch must be an object.'];
+                continue;
+            }
 
-            $updatedEmails[(string) $message->id] = null;
+            // Per id, as Email/set reports it. The submission already
+            // succeeded, so a patch the applier refuses is that Email's
+            // notUpdated rather than a failure of the whole call.
+            try {
+                $this->patchApplier->apply($account, $submission->message, $patch);
+            } catch (MethodException $exception) {
+                $notUpdated[$id] = $exception->toError();
+                continue;
+            }
+
+            $this->stateManager->recordUpdated($account->id, JmapObjectType::Email, $id);
+
+            $updated[$id] = null;
         }
 
-        return $updatedEmails;
+        if ([] === $updated && [] === $notUpdated) {
+            return null;
+        }
+
+        return ['updated' => $updated, 'notUpdated' => $notUpdated];
     }
 
     /**

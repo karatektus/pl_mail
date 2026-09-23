@@ -67,16 +67,14 @@ final class ReferenceResolver
         foreach ($context->responses() as $response) {
             [$responseName, $responseResult, $responseCallId] = $response;
 
-            if ($responseCallId !== $callId) {
+            // Name and callId together pick the response (RFC 8620 §3.7).
+            // One call can answer with several — EmailSubmission/set is
+            // followed by its implicit Email/set under the same callId — so a
+            // response with the right callId and another name is passed over,
+            // not taken as the end of the search. An error response never
+            // matches, since no client references "error" by name.
+            if ($responseCallId !== $callId || $responseName !== $name) {
                 continue;
-            }
-
-            if ('error' === $responseName) {
-                return null;
-            }
-
-            if ($responseName !== $name) {
-                return null;
             }
 
             return $responseResult;

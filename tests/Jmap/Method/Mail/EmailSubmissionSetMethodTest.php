@@ -671,44 +671,46 @@ final class EmailSubmissionSetMethodTest extends JmapTestCase
     // ── onSuccessUpdateEmail ──────────────────────────────────────────────
 
     /**
-     * The spec has the server report the implicit Email/set it performed, so
-     * the client does not have to re-fetch what it just asked for.
+     * RFC 8621 §7.5: the patch is an implicit Email/set, answered by an
+     * Email/set response of its own after this one. It used to be a custom
+     * `updatedEmails` key that no client reads.
      */
-    public function testOnSuccessUpdateEmailIsAppliedAndReported(): void
+    public function testOnSuccessUpdateEmailIsAppliedAndAnsweredAsAnImplicitEmailSet(): void
     {
-        $draft = $this->addressedDraft();
+        $draft   = $this->addressedDraft();
+        $context = $this->context();
 
-        $result = $this->handle([
+        $result = $this->method->handle([
+            'accountId' => $this->accountId(),
             'create' => ['s1' => ['emailId' => (string) $draft->id]],
             'onSuccessUpdateEmail' => ['#s1' => ['keywords/$seen' => true]],
-        ]);
+        ], $context);
 
-        self::assertSame([(string) $draft->id => null], $result['updatedEmails']);
+        self::assertArrayNotHasKey('updatedEmails', $result);
         self::assertNotNull($draft->seenAt);
+
+        $implicit = $context->drainImplicitResponses();
+
+        self::assertCount(1, $implicit);
+        self::assertSame('Email/set', $implicit[0][0]);
+        self::assertSame([(string) $draft->id => null], $implicit[0][1]['updated']);
+        self::assertNotSame($implicit[0][1]['oldState'], $implicit[0][1]['newState']);
     }
 
     /** Conditional on success: a refused submission must not patch its Email. */
     public function testOnSuccessUpdateEmailDoesNotRunForARefusedSubmission(): void
     {
-        $draft = $this->draftMessage();
+        $draft   = $this->draftMessage();
+        $context = $this->context();
 
-        $result = $this->handle([
+        $this->method->handle([
+            'accountId' => $this->accountId(),
             'create' => ['s1' => ['emailId' => (string) $draft->id]],
             'onSuccessUpdateEmail' => ['#s1' => ['keywords/$seen' => true]],
-        ]);
+        ], $context);
 
-        self::assertArrayNotHasKey('updatedEmails', $result);
+        self::assertSame([], $context->drainImplicitResponses());
         self::assertNull($draft->seenAt);
-    }
-
-    /** The key is absent rather than empty when there was nothing to report. */
-    public function testUpdatedEmailsIsOmittedWhenNoPatchWasAskedFor(): void
-    {
-        $draft = $this->addressedDraft();
-
-        $result = $this->handle(['create' => ['s1' => ['emailId' => (string) $draft->id]]]);
-
-        self::assertArrayNotHasKey('updatedEmails', $result);
     }
 
     // ── EmailSubmission/get reconstructs from the Message ─────────────────

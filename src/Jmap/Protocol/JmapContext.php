@@ -22,6 +22,9 @@ final class JmapContext
     /** @var array<string,string> */
     private array $createdIds;
 
+    /** @var list<array{0:string,1:array<string,mixed>}> */
+    private array $implicit = [];
+
     /**
      * @param array<string,string> $createdIds
      */
@@ -46,6 +49,31 @@ final class JmapContext
     public function responses(): array
     {
         return $this->responses;
+    }
+
+    /**
+     * A response for a call the client did not make but the running method
+     * performed on its behalf — RFC 8621 §7.5's implicit Email/set after an
+     * EmailSubmission/set with onSuccessUpdateEmail. The processor appends it
+     * after the method's own response, under the same callId, and discards it
+     * if the method fails.
+     *
+     * @param array<string,mixed> $result
+     */
+    public function addImplicitResponse(string $name, array $result): void
+    {
+        $this->implicit[] = [$name, $result];
+    }
+
+    /**
+     * @return list<array{0:string,1:array<string,mixed>}>
+     */
+    public function drainImplicitResponses(): array
+    {
+        $implicit = $this->implicit;
+        $this->implicit = [];
+
+        return $implicit;
     }
 
     public function recordCreatedId(string $creationId, string $realId): void
