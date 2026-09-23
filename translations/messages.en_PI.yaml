@@ -1059,6 +1059,8 @@ calendar:
         window_label: '%from% – %to%'
         zone: 'Hours shown in %zone%'
     soon:
+        now: '''Tis %time%'
+        next: 'Next ashore'
         empty: Naught on the horizon
         empty_hint: >-
             Doin's in yer almanac, and the passages, cargo, tables held and
@@ -2080,12 +2082,19 @@ settings:
         system: 'ship''s own'
     clock:
         heading: Th' glass
-        subheading: Whether th' hours be writ in twelves or in four-and-twenty. Naught be stored different — only th' figures change.
+        subheading: Whether th' hours be writ in twelves or in four-and-twenty, an' where th' hour o' now be hung. Naught be stored different — only th' figures change.
         label: Th' glass
         follow_language: 'Follow yer tongue (%sample%)'
         option:
             '12': 'Twelve hours (%sample%)'
             '24': 'Four-and-twenty hours (%sample%)'
+        placement:
+            label: 'Show th'' hour'
+            option:
+                topbar: 'On th'' Comin'' soon button up top'
+                brand: 'Under th'' plMail name'
+                sidebar: 'Down at th'' bottom o'' th'' sidebar'
+                'off': 'Nowhere, I''ll read th'' sun'
     device_pairing:
         pair_device: "Sign on a spyglass"
         scan_title: "Point th' plMail app at this"

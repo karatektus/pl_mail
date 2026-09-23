@@ -246,6 +246,18 @@ reads 14:30, English reads 2:30 pm. That is a real state and not a value in disg
 there and switching language switches the clock with it. Choosing one of the two explicitly pins it,
 whatever the language later becomes.
 
+Below that, **Show the time** puts the current time somewhere you can see it while reading mail:
+
+- **On the Happening Soon button in the topbar** — the default. The button then shows the time on
+  every page, not only when something is coming up, and the panel it opens starts with the time
+  and today's date. On a phone the time is left off: the phone shows its own.
+- **Under the plMail name** — a small second line under the wordmark with the weekday and the time.
+- **At the bottom of the sidebar** — a larger time, the date and the next thing coming up, which
+  opens Happening Soon. Hidden when the sidebar is collapsed to its rail.
+- **Nowhere** — the topbar as it was: the Happening Soon button only when something is coming up.
+
+The time moves on by itself each minute and follows the timezone and clock format above.
+
 ## Where to read further
 
 - [Mail](mail.md) — the lists and panes these settings paint.

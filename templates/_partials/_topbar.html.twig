@@ -27,7 +27,22 @@
            LogoStyle. #}
         {% import '_partials/_logo_mark.html.twig' as logo %}
         {{ logo.mark(appearance().effectiveLogoStyle, 32, appearance().theme.isDark, true) }}
-        <span class="hidden sm:inline font-semibold text-ink text-sm tracking-wide">{{ 'app.name'|trans }}</span>
+        {# ClockPlacement::Brand: a second line under the wordmark, in width
+           the brand already has (`md:w-52`), so nothing else in the topbar
+           moves for it. It goes with the wordmark below `sm`. #}
+        {% if clock.placement == 'brand' %}
+            {% import '_partials/_clock.html.twig' as clockui %}
+            <span class="hidden sm:flex flex-col leading-tight">
+                <span class="font-semibold text-ink text-sm tracking-wide">{{ 'app.name'|trans }}</span>
+                <span {{ clockui.attrs() }}
+                      data-clock-placement="brand"
+                      class="text-[11px] text-ink-muted tabular-nums whitespace-nowrap">
+                    {{- clockui.shortDay() }} · <span data-ui--clock-target="time">{{ clockui.time() }}</span>
+                </span>
+            </span>
+        {% else %}
+            <span class="hidden sm:inline font-semibold text-ink text-sm tracking-wide">{{ 'app.name'|trans }}</span>
+        {% endif %}
 
         {# Are live updates actually arriving? The failure is otherwise
            invisible — the mail list has no other refresh path, so a dead
@@ -241,21 +256,48 @@
        this and the panel read it from so the two cannot disagree. See
        HappeningSoonController for why this is here rather than a page or a
        mailbox panel. #}
+    {# **With the clock on it, it is always there.** ClockPlacement's default
+       puts the running time on this button — the one control in the topbar
+       that is already about time — and a clock that appears only when a parcel
+       is due is not a clock. So when it carries the time it renders on every
+       page: the next thing's icon when there is one, a plain clock when there
+       is not, and a panel that answers "nothing coming up" is then a fair
+       thing to open. Below `sm`, where the phone's own clock is on screen,
+       the time is left off and the button keeps its old rule.
+
+       The time is a span with its own controller rather than the button's,
+       because the button already is a ui--modal. #}
+    {% import '_partials/_clock.html.twig' as clockui %}
     {% set soonest = calendar.soonest %}
-    {% if soonest %}
+    {% set clockOnSoon = clock.placement == 'topbar' %}
+    {% if soonest or clockOnSoon %}
         <button
             type="button"
             data-controller="ui--modal"
             data-action="click->ui--modal#open"
             data-ui--modal-src-value="{{ path('app_calendar_soon') }}"
             data-ui--modal-title-value="{{ 'calendar.soon.title'|trans }}"
-            class="flex cursor-pointer items-center justify-center w-9 h-9 rounded-lg
+            class="flex cursor-pointer items-center h-9 rounded-lg
                    transition-colors flex-shrink-0
-                   text-ink-muted hover:bg-hover"
+                   text-ink-muted hover:bg-hover
+                   {{ clockOnSoon
+                       ? 'gap-1.5 justify-center min-w-9 sm:px-2.5 sm:bg-sunken' ~ (soonest ? '' : ' max-sm:hidden')
+                       : 'justify-center w-9' }}"
             aria-label="{{ 'calendar.soon.open'|trans }}"
-            title="{{ soonest.event.title ~ ' · ' ~ soonest.startsAt|intl_date('EEEdMMM', soonest.event.isAllDay ? false : null) }}"
+            title="{{ soonest
+                ? soonest.event.title ~ ' · ' ~ soonest.startsAt|intl_date('EEEdMMM', soonest.event.isAllDay ? false : null)
+                : 'calendar.soon.title'|trans }}"
         >
-            <i class="{{ soonest.icon }} text-base" aria-hidden="true"></i>
+            <i class="{{ soonest ? soonest.icon : 'fa-regular fa-clock' }} text-base" aria-hidden="true"></i>
+            {% if clockOnSoon %}
+                <span {{ clockui.attrs() }}
+                      data-clock-placement="topbar"
+                      class="max-sm:hidden text-sm font-semibold text-ink tabular-nums whitespace-nowrap">
+                    <span data-ui--clock-target="bare">{{ clockui.bare() }}</span>
+                    {%- if clock.is12Hour %} <span data-ui--clock-target="meridiem"
+                          class="text-[11px] font-medium text-ink-faint">{{ clockui.meridiem() }}</span>{% endif %}
+                </span>
+            {% endif %}
         </button>
     {% endif %}
 

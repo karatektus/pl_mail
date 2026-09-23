@@ -5,6 +5,7 @@ namespace App\Entity\User;
 use App\Domain\Enum\Calendar\CalendarPaneMode;
 use App\Domain\Enum\Calendar\CalendarView;
 use App\Domain\Enum\Mail\SearchSortOrder;
+use App\Domain\Enum\User\ClockPlacement;
 use App\Domain\Helper\TimezoneHelper;
 use App\Domain\Model\UserEntityModel;
 use App\Entity\Embeddable\AiPreferences;
@@ -521,6 +522,23 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
      * per request, and changing it changes only digits.
      */
     public const string SETTING_CLOCK = 'display.clock';
+
+    /**
+     * Where the running clock is drawn, as a ClockPlacement value.
+     *
+     * In the settings bag beside SETTING_CLOCK, and for the same reasons: one
+     * string of display preference that nothing queries by. Absent means the
+     * topbar, which is the default the enum documents.
+     */
+    public const string SETTING_CLOCK_PLACEMENT = 'display.clock_placement';
+
+    /** Virtual, out of the settings bag — see SETTING_CLOCK_PLACEMENT. */
+    public ClockPlacement $clockPlacement {
+        get => ClockPlacement::fromSetting($this->getSetting(self::SETTING_CLOCK_PLACEMENT));
+        set (ClockPlacement $placement) {
+            $this->setSetting(self::SETTING_CLOCK_PLACEMENT, $placement->value);
+        }
+    }
 
     /**
      * The account whose folder list is expanded in the sidebar, or null.

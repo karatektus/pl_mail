@@ -72,6 +72,25 @@ empty panel.
 
 <turbo-frame id="modal" class="flex-1 min-h-0 flex flex-col">
 
+    {# The time heads the panel when the clock lives on the button that opened
+       it (ClockPlacement::Topbar): whoever pressed it was, as often as not,
+       asking what time it is, and the answer comes with the date the button has
+       no room for. #}
+    {% if clock.placement == 'topbar' %}
+        {% import '_partials/_clock.html.twig' as clockui %}
+        <div {{ clockui.attrs() }}
+             data-clock-placement="soon"
+             class="flex flex-wrap items-baseline gap-x-2 px-6 pb-3">
+            <span class="flex items-baseline gap-1 tabular-nums">
+                <span data-ui--clock-target="bare" class="text-2xl font-semibold tracking-tight text-ink">{{ clockui.bare() }}</span>
+                {% if clock.is12Hour %}
+                    <span data-ui--clock-target="meridiem" class="text-sm text-ink-faint">{{ clockui.meridiem() }}</span>
+                {% endif %}
+            </span>
+            <span class="text-sm text-ink-muted">{{ clockui.longDate() }}</span>
+        </div>
+    {% endif %}
+
     {% if rows is empty and insights is empty and undatedInsights is empty %}
         <div class="flex flex-col items-center justify-center gap-2 px-6 pb-8 pt-4 text-center">
             <i class="fa-regular fa-calendar-check text-2xl text-ink-faint" aria-hidden="true"></i>

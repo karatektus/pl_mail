@@ -769,4 +769,51 @@ controller instead — the scroll position and which trees are open.
         </details>
 
     </nav>
+
+    {# ClockPlacement::Sidebar: the day at a glance, pinned under the nav — the
+       nav is the part that scrolls, so this stays put however long the label
+       list grows. The time, the date, and the next thing coming up, which opens
+       the same Happening Soon panel the topbar button does. Hidden in the rail,
+       which has no width for any of it. #}
+    {% if clock.placement == 'sidebar' %}
+        {% import '_partials/_clock.html.twig' as clockui %}
+        {% set soonest = calendar.soonest %}
+        <div class="rail-hide shrink-0 px-2 pb-2">
+            <div {{ clockui.attrs() }}
+                 data-clock-placement="sidebar"
+                 class="flex flex-col gap-2 rounded-pane border border-line bg-surface/60 px-3.5 py-3">
+                <div class="flex items-baseline gap-1.5 tabular-nums">
+                    <span data-ui--clock-target="bare"
+                          class="text-3xl font-semibold tracking-tight leading-none text-ink">{{ clockui.bare() }}</span>
+                    {% if clock.is12Hour %}
+                        <span data-ui--clock-target="meridiem" class="text-sm text-ink-faint">{{ clockui.meridiem() }}</span>
+                    {% endif %}
+                </div>
+                <div class="-mt-1 text-xs text-ink-muted">{{ clockui.longDate() }}</div>
+
+                {% if soonest %}
+                    <button type="button"
+                            data-controller="ui--modal"
+                            data-action="click->ui--modal#open {{ _drawerClose }}"
+                            data-ui--modal-src-value="{{ path('app_calendar_soon') }}"
+                            data-ui--modal-title-value="{{ 'calendar.soon.title'|trans }}"
+                            class="flex min-w-0 items-start gap-2 rounded-lg bg-sunken px-2.5 py-1.5 text-left
+                                   hover:bg-hover transition-colors cursor-pointer
+                                   focus:outline-none focus-visible:ring-2 focus-visible:ring-accent">
+                        <i class="{{ soonest.icon }} mt-0.5 text-xs text-ink-faint" aria-hidden="true"></i>
+                        <span class="flex min-w-0 flex-col">
+                            <span class="text-[11px] text-ink-faint">
+                                {{- 'calendar.soon.next'|trans }} ·
+                                {{ soonest.startsAt|intl_date('EEEdMMM', soonest.event.isAllDay ? false : null) }}
+                                {%- if not soonest.event.isAllDay %}, {{ soonest.startsAt|date(clock.time) }}{% endif -%}
+                            </span>
+                            <span class="truncate text-xs font-medium text-ink">
+                                {{- soonest.event.title ?: 'calendar.soon.untitled'|trans -}}
+                            </span>
+                        </span>
+                    </button>
+                {% endif %}
+            </div>
+        </div>
+    {% endif %}
 </aside>

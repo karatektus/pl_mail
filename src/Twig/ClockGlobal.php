@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Twig;
 
 use App\Domain\Enum\User\ClockFormat;
+use App\Domain\Enum\User\ClockPlacement;
 use App\Entity\User\User;
 use App\Service\User\ClockFormatResolver;
 use App\Service\User\UserTimezoneResolver;
@@ -80,6 +81,17 @@ class ClockGlobal
         $user = $this->security->getUser();
 
         return $this->timezones->nameFor($user instanceof User ? $user : null);
+    }
+
+    /**
+     * Where the running clock is drawn, as a ClockPlacement value — `off` for a
+     * page with nobody signed in, which has no topbar to put it in.
+     */
+    public function getPlacement(): string
+    {
+        $user = $this->security->getUser();
+
+        return ($user instanceof User ? $user->clockPlacement : ClockPlacement::Off)->value;
     }
 
     private function format(): ClockFormat

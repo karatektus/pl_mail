@@ -18,6 +18,12 @@ Variables:
   clockOptions  {value: sample} — the two real formats, rendered
   activeClock   string|null   the user's own choice, null when following
   defaultClock  string        the sample the language resolves to
+  clockPlacements       list<ClockPlacement>  every place the running clock can go
+  activeClockPlacement  ClockPlacement        the user's, the topbar when unset
+
+The second picker is where the running clock is drawn. In this card rather than
+one of its own because it is the same question from the other side: this card
+says how a time is written, that one where the time now is written.
 #}
 {% import '_partials/_select.html.twig' as select %}
 <div class="px-4 py-3">
@@ -38,6 +44,27 @@ Variables:
             {% for value, sample in clockOptions %}
                 <option value="{{ value }}" {{ value == activeClock ? 'selected' : '' }}>
                     {{ ('settings.clock.option.' ~ value)|trans({'%sample%': sample}) }}
+                </option>
+            {% endfor %}
+        </select>
+    </form>
+
+    <form method="post" action="{{ path('app_settings_clock_placement') }}" data-turbo="false" data-controller="ui--auto-submit"
+          class="mt-3">
+        <input type="hidden" name="_token" value="{{ csrf_token('settings-clock') }}">
+
+        <label for="settings-clock-placement" class="block mb-1.5 text-xs text-ink-muted">
+            {{ 'settings.clock.placement.label'|trans }}
+        </label>
+
+        <select id="settings-clock-placement"
+                name="placement"
+                data-action="change->ui--auto-submit#submit"
+                {{ select.enhance() }}
+                class="select-field w-full h-9 text-sm">
+            {% for placement in clockPlacements %}
+                <option value="{{ placement.value }}" {{ placement == activeClockPlacement ? 'selected' : '' }}>
+                    {{ placement.transKey|trans }}
                 </option>
             {% endfor %}
         </select>

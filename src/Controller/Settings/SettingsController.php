@@ -6,6 +6,7 @@ namespace App\Controller\Settings;
 
 use App\Domain\Enum\AppLocale;
 use App\Domain\Enum\User\ClockFormat;
+use App\Domain\Enum\User\ClockPlacement;
 use App\Entity\Ai\AiFeature;
 use App\Domain\Helper\TimezoneHelper;
 use App\Entity\User\User;
@@ -302,6 +303,8 @@ final class SettingsController extends AbstractController
                 ClockFormat::TwentyFour->value => $now->format(ClockFormat::TwentyFour->time()),
             ],
             'activeClock'     => $this->clocks->chosen($user)?->value,
+            'clockPlacements' => ClockPlacement::cases(),
+            'activeClockPlacement' => $user->clockPlacement,
             'defaultClock'    => $now->format(
                 ClockFormat::forLocale(AppLocale::tryFromRequest($user->locale)
                     ?? AppLocale::tryFromRequest($this->defaultLocale))->time(),

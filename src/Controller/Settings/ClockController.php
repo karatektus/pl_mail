@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Controller\Settings;
 
 use App\Domain\Enum\User\ClockFormat;
+use App\Domain\Enum\User\ClockPlacement;
 use App\Entity\User\User;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -44,6 +45,34 @@ final class ClockController extends AbstractController
         }
 
         $user->setSetting(User::SETTING_CLOCK, '' === $posted ? null : $posted);
+
+        $em->flush();
+
+        return $this->redirectToRoute('app_settings_index', ['section' => 'general']);
+    }
+
+    /**
+     * Where the running clock is drawn. A redirect for the same reason as the
+     * format: the answer moves something in the topbar or the sidebar of every
+     * page, not something beside this form.
+     */
+    #[Route('/placement', name: 'placement', methods: ['POST'])]
+    public function placement(Request $request, EntityManagerInterface $em): Response
+    {
+        /** @var User $user */
+        $user = $this->getUser();
+
+        if (false === $this->isCsrfTokenValid('settings-clock', (string) $request->request->get('_token'))) {
+            throw $this->createAccessDeniedException();
+        }
+
+        $placement = ClockPlacement::tryFrom((string) $request->request->get('placement'));
+
+        if (null === $placement) {
+            throw $this->createNotFoundException('Unknown clock placement.');
+        }
+
+        $user->clockPlacement = $placement;
 
         $em->flush();
 

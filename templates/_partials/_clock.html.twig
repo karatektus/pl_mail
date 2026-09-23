@@ -1,0 +1,44 @@
+{#
+_partials/_clock.html.twig — the running clock's moving parts.
+
+Three placements draw a clock (see ClockPlacement) and each lays it out its own
+way, so what is shared is not markup but the two things that must never differ
+between them: how the controller is told which zone and format to keep, and how
+the first reading is printed. The server prints it, in the user's zone, so the
+time is right on first paint and ui--clock only ever advances it.
+
+    {% import '_partials/_clock.html.twig' as clockui %}
+    <span {{ clockui.attrs() }}>
+        <span data-ui--clock-target="bare">{{ clockui.bare() }}</span>
+        <span data-ui--clock-target="meridiem">{{ clockui.meridiem() }}</span>
+    </span>
+
+A date target carries its Intl options beside the ICU skeleton it was printed
+with — the same fields asked of the same CLDR data, so the client's rewrite at
+midnight reads like the server's first paint.
+#}
+
+{% macro attrs() -%}
+    data-controller="ui--clock"
+    data-ui--clock-zone-value="{{ clock.timezone }}"
+    data-ui--clock-hour12-value="{{ clock.is12Hour ? 'true' : 'false' }}"
+    data-ui--clock-day-value="{{ 'now'|date('Y-m-d') }}"
+{%- endmacro %}
+
+{% macro time() %}{{ 'now'|date(clock.time) }}{% endmacro %}
+
+{% macro bare() %}{{ 'now'|date(clock.timeCompact) }}{% endmacro %}
+
+{% macro meridiem() %}{{ clock.is12Hour ? 'now'|date('a') : '' }}{% endmacro %}
+
+{# "Wednesday 23 September" / "Mittwoch, 23. September". #}
+{% macro longDate() -%}
+    <span data-ui--clock-target="date"
+          data-clock-date='{"weekday":"long","day":"numeric","month":"long"}'>{{ 'now'|intl_date('EEEEdMMMM') }}</span>
+{%- endmacro %}
+
+{# "Wed" / "Mi.". #}
+{% macro shortDay() -%}
+    <span data-ui--clock-target="date"
+          data-clock-date='{"weekday":"short"}'>{{ 'now'|intl_date('EEE') }}</span>
+{%- endmacro %}

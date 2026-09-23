@@ -271,6 +271,19 @@ Englisch liest 2:30 pm. Das ist ein echter Zustand und kein getarnter Wert — l
 wandert das Format mit der Sprache mit. Wer eines von beiden ausdrücklich wählt, legt es fest,
 gleich welche Sprache später eingestellt wird.
 
+Darunter legt **Uhrzeit anzeigen** fest, wo du die aktuelle Uhrzeit beim Mail-Lesen siehst:
+
+- **Auf dem Demnächst-Knopf in der oberen Leiste** — der Standard. Der Knopf zeigt dann auf jeder
+  Seite die Uhrzeit, nicht nur, wenn etwas ansteht, und das Fenster, das er öffnet, beginnt mit
+  Uhrzeit und heutigem Datum. Auf dem Handy fehlt die Uhrzeit: Das Handy zeigt seine eigene.
+- **Unter dem plMail-Namen** — eine kleine zweite Zeile unter dem Schriftzug mit Wochentag und
+  Uhrzeit.
+- **Unten in der Seitenleiste** — eine größere Uhrzeit, das Datum und das Nächste, was ansteht; ein
+  Klick darauf öffnet Demnächst. Ist die Seitenleiste zur schmalen Leiste eingeklappt, fehlt sie.
+- **Nirgends** — die obere Leiste wie bisher: der Demnächst-Knopf nur, wenn etwas ansteht.
+
+Die Uhrzeit läuft jede Minute von selbst weiter und folgt Zeitzone und Uhrzeitformat von oben.
+
 ## Wo du weiterliest
 
 - [Mail](mail.md) — die Listen und Flächen, die diese Einstellungen anmalen.

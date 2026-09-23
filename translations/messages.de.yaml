@@ -1346,6 +1346,8 @@ calendar:
         window_label: '%from% – %to%'
         zone: 'Zeiten in %zone%'
     soon:
+        now: 'Es ist %time%'
+        next: 'Als Nächstes'
         empty: Nichts in Sicht
         empty_hint: >-
             Termine aus deinem Kalender und die Flüge, Lieferungen,
@@ -2438,12 +2440,19 @@ settings:
         system: 'System'
     clock:
         heading: Uhrzeitformat
-        subheading: Ob Zeiten im 12- oder 24-Stunden-Format geschrieben werden. Gespeichert wird nichts anders — es ändern sich nur die Ziffern.
+        subheading: Ob Zeiten im 12- oder 24-Stunden-Format geschrieben werden und wo die aktuelle Uhrzeit steht. Gespeichert wird nichts anders — es ändern sich nur die Ziffern.
         label: Uhrzeitformat
         follow_language: 'Der Sprache folgen (%sample%)'
         option:
             '12': '12 Stunden (%sample%)'
             '24': '24 Stunden (%sample%)'
+        placement:
+            label: 'Uhrzeit anzeigen'
+            option:
+                topbar: 'Auf dem Demnächst-Knopf in der oberen Leiste'
+                brand: 'Unter dem plMail-Namen'
+                sidebar: 'Unten in der Seitenleiste'
+                'off': 'Nirgends'
     device_pairing:
         pair_device: "Gerät koppeln"
         scan_title: "Mit der plMail-App scannen"

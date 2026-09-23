@@ -1322,6 +1322,8 @@ calendar:
         window_label: '%from% – %to%'
         zone: 'Times shown in %zone%'
     soon:
+        now: 'It is %time%'
+        next: 'Next'
         empty: Nothing coming up
         empty_hint: >-
             Appointments in your calendar, and the flights, deliveries,
@@ -2455,12 +2457,19 @@ settings:
         system: 'system'
     clock:
         heading: Clock
-        subheading: Whether times are written on a twelve- or twenty-four-hour clock. Nothing is stored differently — only the digits change.
+        subheading: Whether times are written on a twelve- or twenty-four-hour clock, and where the current time is shown. Nothing is stored differently — only the digits change.
         label: Clock
         follow_language: 'Follow your language (%sample%)'
         option:
             '12': '12-hour (%sample%)'
             '24': '24-hour (%sample%)'
+        placement:
+            label: 'Show the time'
+            option:
+                topbar: 'On the Happening Soon button in the topbar'
+                brand: 'Under the plMail name'
+                sidebar: 'At the bottom of the sidebar'
+                'off': 'Nowhere'
     device_pairing:
         pair_device: "Pair a device"
         scan_title: "Scan this with the plMail app"
