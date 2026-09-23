@@ -25,6 +25,7 @@ final readonly class ComposeFormFactory
     public function __construct(
         private FormFactoryInterface $forms,
         private InlineImageRewriter  $inlineImages,
+        private MailBodySanitizer    $sanitizer,
     ) {}
 
     /**
@@ -55,8 +56,19 @@ final readonly class ComposeFormFactory
         // has to go on the wire and what no browser can render. The editor gets
         // them back as attachment URLs; a submit overwrites this with what the
         // user actually typed, and DraftPersister turns it back.
+        //
+        // Sanitised here, on the way into the editor, rather than trusted
+        // because DraftPersister sanitises on save. The window prints this with
+        // `|raw` into the app's own document, and not every row reaches it
+        // through a save: a synced draft was written by another client, and a
+        // body that predates the save-time sanitiser was never cleaned at all.
+        // Before the cid rewrite, so the URLs it adds are ours, not the body's.
+        $body = null === $message->bodyHtml
+            ? null
+            : $this->sanitizer->sanitizeComposedBody($message->bodyHtml);
+
         $form->get('bodyHtml')->setData(
-            $this->inlineImages->toDisplay($message->bodyHtml, $message),
+            $this->inlineImages->toDisplay($body, $message),
         );
 
         return $form;

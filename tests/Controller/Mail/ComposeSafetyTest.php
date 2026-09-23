@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace App\Tests\Controller\Mail;
 
 use App\Tests\Support\Mail\OpensComposeWindow;
+use App\Domain\Enum\Mail\MessageFlag;
 use App\Entity\Mail\Account;
+use App\Entity\Mail\Message;
 use App\Entity\User\User;
 use App\Repository\User\UserRepository;
 use Doctrine\DBAL\Connection;
@@ -187,7 +189,61 @@ final class ComposeSafetyTest extends WebTestCase
         self::assertResponseIsSuccessful();
     }
 
+    /**
+     * Only a draft opens in the editor. An inbound mail opened here had its
+     * raw HTML printed into the app's own document, and the autosave route
+     * would rewrite it in place.
+     */
+    public function testAMessageThatIsNotADraftCannotBeEdited(): void
+    {
+        $client  = static::createClient();
+        $user    = $this->boot($client);
+        $account = $this->account($user, 'inbound@joder.dev', sortOrder: 0, primary: true);
+        $inbound = $this->message($account, '<p>Received</p>', draft: false);
+
+        $client->request('GET', '/compose/edit/' . $inbound->id, server: self::DOCK_FRAME);
+        self::assertResponseStatusCodeSame(404);
+
+        $client->request('POST', '/compose/draft/' . $inbound->id, ['compose' => ['subject' => 'overwritten']]);
+        self::assertResponseStatusCodeSame(404);
+    }
+
+    /** The stored body is not trusted on the way into the editor either. */
+    public function testScriptInADraftBodyIsNotRendered(): void
+    {
+        $client  = static::createClient();
+        $user    = $this->boot($client);
+        $account = $this->account($user, 'drafted@joder.dev', sortOrder: 0, primary: true);
+        $draft   = $this->message($account, '<p>MARKER</p><script>alert(1)</script><img src="x" onerror="alert(2)">', draft: true);
+
+        $client->request('GET', '/compose/edit/' . $draft->id, server: self::DOCK_FRAME);
+
+        self::assertResponseIsSuccessful();
+
+        $body = (string) $client->getResponse()->getContent();
+
+        self::assertStringContainsString('MARKER', $body);
+        self::assertStringNotContainsString('alert(1)', $body);
+        self::assertStringNotContainsString('onerror', $body);
+    }
+
     // ── fixture ───────────────────────────────────────────────────────────
+
+    private function message(Account $account, string $bodyHtml, bool $draft): Message
+    {
+        $message                 = new Message();
+        $message->account        = $account;
+        $message->subject        = 'Fixture';
+        $message->fromAddress    = $account->email;
+        $message->bodyHtml       = $bodyHtml;
+        $message->hasAttachments = false;
+        $message->flags          = true === $draft ? [MessageFlag::DRAFT->value] : [];
+
+        $this->em->persist($message);
+        $this->em->flush();
+
+        return $message;
+    }
 
     private function boot(object $client): User
     {

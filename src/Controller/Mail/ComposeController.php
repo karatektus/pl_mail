@@ -132,6 +132,7 @@ class ComposeController extends AbstractController
 
         } else {
             $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $message);
+            $this->assertEditableDraft($message);
             $account = $message->account;
         }
 
@@ -294,6 +295,7 @@ class ComposeController extends AbstractController
             $message->account = $this->window->defaultAccountFor($this->currentUser());
         } else {
             $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $message);
+            $this->assertEditableDraft($message);
         }
 
         $this->applyReplyContext($message, $ctx);
@@ -975,5 +977,22 @@ class ComposeController extends AbstractController
         }
 
         return $user;
+    }
+
+    /**
+     * Only an unsent draft opens in the editor.
+     *
+     * Ownership alone let any of the user's messages through, and an inbound
+     * mail opened here had its raw bodyHtml printed into the app's document —
+     * outside the sandboxed reading frame, with `|raw` — so a link to
+     * /compose/edit/{id} ran a stranger's script. It also let the draft
+     * autosave rewrite a received or sent mail in place. 404 rather than 403:
+     * for this route, a message that is not a draft does not exist.
+     */
+    private function assertEditableDraft(Message $message): void
+    {
+        if (false === $message->isDraft() || null !== $message->sentAt) {
+            throw $this->createNotFoundException();
+        }
     }
 }
