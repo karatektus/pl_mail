@@ -65,7 +65,8 @@ provider doesn't.
   syncing, push that lapsed, work the queue gave up on. Each with what it means for your mail and
   the smallest thing that fixes it. A Google sign-in dying every week gets named for what it is —
   Google expires tokens for an app still in Testing — and warned about before the next one.
-- **Yours** — two-factor auth, per-app JMAP passwords, 41 themes, English, German and Pirate.
+- **Yours** — two-factor auth, per-app JMAP passwords, 41 themes, ten icons for the tab and the
+  phone's home screen, English, German and Pirate.
 
 ## A look around
 
@@ -77,6 +78,8 @@ provider doesn't.
 | **Themes** — 41 of them, light and dark. | **Calendar** — docked beside the mail, or its own page. |
 | ![Filters](docs/screenshots/filters.png) | ![Admin](docs/screenshots/admin.png) |
 | **Filters** — counted before you save. | **Admin** — workers, push health, logs, queue. |
+| ![Choosing an icon](docs/screenshots/icons.png) | ![Choosing its colours](docs/screenshots/colourways.png) |
+| **Icons** — ten of them, a blue horn among them. | **Colourways** — each icon in its own colours, or any of 32. |
 
 <sub>Screenshots use demo data — none of the accounts, senders or messages shown are real.</sub>
 

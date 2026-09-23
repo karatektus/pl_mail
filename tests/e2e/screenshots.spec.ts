@@ -145,6 +145,51 @@ test.describe("README screenshots", () => {
     });
 
     /**
+     * The logo's two steps, in the state each is for: an icon picked and
+     * wearing its own colours, then the same icon open on the colourway grid.
+     *
+     * Posted rather than clicked, and snapshotted and restored the way the dark
+     * capture above is, so the pictures after these keep the product's default
+     * mark. The topbar is in both frames on purpose — the point of choosing an
+     * icon is where it ends up.
+     */
+    test("icons and colourways", async ({ page }) => {
+        const exported = await page.request.get("/settings/appearance/export");
+        expect(exported.ok()).toBe(true);
+        const previous = await exported.json();
+        const logo = page.locator("section:has(#logo-motif-label)").first();
+
+        try {
+            const horn = await ajaxPost(page, "/settings/appearance", { logoMotif: "blue-horn", logoOriginal: "1" });
+            expect(horn.ok()).toBe(true);
+
+            await page.goto("/settings?section=appearance");
+            await expect(page.locator('[data-logo-motif="blue-horn"]')).toHaveAttribute("aria-pressed", "true");
+            await logo.scrollIntoViewIfNeeded();
+            await page.waitForTimeout(600);
+            await capture(page, "icons");
+
+            // A duotone from the grid's first rows, so the ringed tile, the
+            // Colour switch above it and the topbar are all in one frame.
+            const copper = await ajaxPost(page, "/settings/appearance", {
+                logoMotif: "blue-horn",
+                logoOriginal: "0",
+                logoLinked: "0",
+                logoStyle: "petrol-copper",
+            });
+            expect(copper.ok()).toBe(true);
+
+            await page.goto("/settings?section=appearance");
+            await expect(page.locator('[data-logo-name="petrol-copper"]')).toHaveAttribute("aria-pressed", "true");
+            await page.locator('[data-logo-name="petrol-copper"]').scrollIntoViewIfNeeded();
+            await page.waitForTimeout(600);
+            await capture(page, "colourways");
+        } finally {
+            await ajaxPost(page, "/settings/appearance", previous);
+        }
+    });
+
+    /**
      * The filter editor mid-build, because an empty one shows the chrome and
      * not the point: the sentence underneath and the live count are what the
      * screen is for, and neither exists until there is a rule to describe.
