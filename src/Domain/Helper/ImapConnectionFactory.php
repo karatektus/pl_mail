@@ -18,6 +18,17 @@ use Webklex\PHPIMAP\Config;
  */
 class ImapConnectionFactory
 {
+    /**
+     * What webklex puts in place of a Date header it cannot parse.
+     *
+     * Without a fallback it throws InvalidMessageDateException while building
+     * the message, the fetch fails, and every sync of that folder fails at the
+     * same message for ever. The epoch is chosen because nothing real is dated
+     * 1970: MessageSyncer::dateFromHeader() reads it as "no usable date" and
+     * dates the message by when it arrived here instead.
+     */
+    public const string UNPARSEABLE_DATE = '1970-01-01 00:00:00 UTC';
+
     public function __construct(
         private readonly OAuthTokenManager $tokenManager,
     ) {
@@ -76,6 +87,9 @@ class ImapConnectionFactory
                 'decoder' => [
                     'message' => Utf8AwareMessageDecoder::class,
                 ],
+            ],
+            'options' => [
+                'fallback_date' => self::UNPARSEABLE_DATE,
             ],
         ]));
 

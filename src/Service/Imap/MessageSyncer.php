@@ -30,6 +30,12 @@ class MessageSyncer
 {
     private const int BATCH_SIZE = 50;
 
+    /**
+     * How many syncs in a row one UID may fail before it is given up on.
+     * See holdForRetry().
+     */
+    private const int MAX_UID_ATTEMPTS = 5;
+
     public function __construct(
         private readonly AttachmentStorageHelper $attachmentStorage,
         private readonly MailboxRepository       $mailboxRepository,
@@ -129,11 +135,17 @@ class MessageSyncer
 
         $synced = 0;
 
+        // The lowest UID this run refused to persist, across every batch. Held
+        // run-wide rather than per batch because the mark only ever moves up:
+        // a clamp in the first batch was simply overwritten by the second
+        // batch's higher UIDs, and the skipped message was never asked for again.
+        $lowestSkippedUid = null;
+
         try {
             $folder->messages()
                 ->where(self::uidRangeCriteria($uidRange))
-                ->chunked(function ($batch) use ($mailboxId, $accountId, &$synced, &$syncedUids, $presence) {
-                    $this->processBatch($batch, $mailboxId, $accountId, $syncedUids, $presence);
+                ->chunked(function ($batch) use ($mailboxId, $accountId, &$synced, &$syncedUids, &$lowestSkippedUid, $presence) {
+                    $this->processBatch($batch, $mailboxId, $accountId, $syncedUids, $lowestSkippedUid, $presence);
                     $synced += count($batch);
                     $this->em->clear();
                     $this->logger->info(sprintf('Synced %d messages so far', $synced));
@@ -179,12 +191,16 @@ class MessageSyncer
      *                                      registered within the same sync run
      *                                      (guards against duplicates inside a
      *                                      single chunked call)
+     * @param int|null        $lowestSkippedUid  the run-wide lowest UID held
+     *                                      back for a retry; the high-water
+     *                                      mark is clamped below it
      */
     private function processBatch(
         iterable         $batch,
         int              $mailboxId,
         int              $accountId,
         array            &$syncedUids,
+        ?int             &$lowestSkippedUid,
         ImapUidPresence  $presence,
     ): void {
         $mailbox  = $this->mailboxRepository->find($mailboxId);
@@ -193,10 +209,6 @@ class MessageSyncer
         // here and are written to disk in pass 2 once the rows have ids.
         $rawBodies = [];
         $maxUid   = 0;
-        // The lowest UID this batch refused to persist. The high-water mark is
-        // held below it so the next sync asks for it again — see the clamp
-        // after the loop.
-        $lowestSkippedUid = null;
 
         // Pass 1 — build + persist Message rows (no threading yet)
         foreach ($batch as $imapMessage) {
@@ -227,9 +239,7 @@ class MessageSyncer
                     ],
                 );
 
-                if (null === $lowestSkippedUid || $uid < $lowestSkippedUid) {
-                    $lowestSkippedUid = $uid;
-                }
+                $this->holdForRetry($mailbox, $uid, $lowestSkippedUid);
 
                 continue;
             }
@@ -256,6 +266,16 @@ class MessageSyncer
             try {
                 $message = $this->buildMessage($imapMessage, $mailbox, $accountId);
                 $this->em->persist($message);
+
+                // Only now, with the message whole. buildMessage() used to
+                // persist each part as it went, so a second attachment that
+                // threw left the first one managed and pointing at a message
+                // that was never persisted — and the flush below failed the
+                // whole batch on it.
+                foreach ($message->messageParts as $part) {
+                    $this->em->persist($part);
+                }
+
                 $messages[]        = $message;
                 $rawBodies[]       = $this->rawOf($imapMessage);
                 $syncedUids[$uid]  = true; // mark within this run
@@ -264,11 +284,20 @@ class MessageSyncer
                     $maxUid = $uid;
                 }
             } catch (\Throwable $e) {
-                $this->logger->error('Failed to build message', [
-                    'uid'       => $uid,
-                    'error'     => $e->getMessage(),
-                    'exception' => $e,
-                ]);
+                $retrying = $this->holdForRetry($mailbox, $uid, $lowestSkippedUid);
+
+                $this->logger->error(
+                    true === $retrying
+                        ? 'Failed to build message; it is asked for again next sync'
+                        : 'Failed to build message too many times; skipping it for good',
+                    [
+                        'uid'       => $uid,
+                        'mailbox'   => $mailbox->fullPath,
+                        'attempts'  => $mailbox->failedUidAttempts,
+                        'error'     => $e->getMessage(),
+                        'exception' => $e,
+                    ],
+                );
             }
         }
 
@@ -310,6 +339,46 @@ class MessageSyncer
         }
 
         $this->postIngest->run($mailbox->account, $ingested);
+    }
+
+    /**
+     * Keep a UID that could not be stored inside the next sync's range — up to
+     * a point.
+     *
+     * Holding the high-water mark below a failed UID is what makes "retry next
+     * sync" true. Holding it there for ever is what lets one poison message —
+     * a MIME tree the parser always chokes on — stop a folder from ever
+     * importing anything newer. So the lowest failing UID is counted on the
+     * mailbox, and after MAX_UID_ATTEMPTS failures in a row it is let go and
+     * logged, and the mark moves past it.
+     *
+     * Only the lowest failure of a run counts. A higher UID that fails in the
+     * same run is re-fetched anyway, because the mark is already clamped below
+     * the lower one, and letting it reset the counter would mean two poison
+     * messages could hold a folder for ever between them.
+     *
+     * @return bool whether the UID is held for a retry
+     */
+    private function holdForRetry(Mailbox $mailbox, int $uid, ?int &$lowestSkippedUid): bool
+    {
+        if (null !== $lowestSkippedUid && $lowestSkippedUid < $uid) {
+            return true;
+        }
+
+        if ($mailbox->failedUid === $uid) {
+            ++$mailbox->failedUidAttempts;
+        } else {
+            $mailbox->failedUid         = $uid;
+            $mailbox->failedUidAttempts = 1;
+        }
+
+        if ($mailbox->failedUidAttempts >= self::MAX_UID_ATTEMPTS) {
+            return false;
+        }
+
+        $lowestSkippedUid = $uid;
+
+        return true;
     }
 
     /**
@@ -389,9 +458,10 @@ class MessageSyncer
     /**
      * Whether the fetch carried a Date header with a value in it.
      *
-     * Asked as "does the attribute hold anything" rather than by parsing,
-     * because a present-but-unparseable Date throws out of toDate() and an
-     * absent one silently becomes the epoch. Only the second is a ghost.
+     * Asked as "does the attribute hold anything" rather than by parsing:
+     * an unparseable Date arrives as webklex's fallback (the epoch) or throws
+     * out of toDate(), and either way the header was there. Only an absent
+     * one can mean a ghost. See dateFromHeader().
      */
     private function hasDateHeader(ImapMessage $imapMessage): bool
     {
@@ -419,7 +489,41 @@ class MessageSyncer
             return new DateTimeImmutable();
         }
 
-        return self::toUtc($imapMessage->getDate()->toDate());
+        return self::dateFromHeader($imapMessage->getDate(), new DateTimeImmutable());
+    }
+
+    /**
+     * The instant a parsed `Date:` attribute names, or $fallback when it names
+     * nothing usable.
+     *
+     * A Date header that is present but unparseable used to be fatal twice
+     * over. webklex throws InvalidMessageDateException while it builds the
+     * message unless a fallback date is configured, which failed the whole
+     * fetch — so ImapConnectionFactory configures one, the epoch. And a value
+     * that did survive into the attribute could still throw here out of
+     * Carbon::parse(). Both now land on the fallback: webklex's epoch is read
+     * as "no date" rather than stored as 1970, and a throw is caught.
+     *
+     * Public and static so the rule can be tested against a real parsed
+     * header without a live IMAP message.
+     */
+    public static function dateFromHeader(?Attribute $date, DateTimeImmutable $fallback): DateTimeImmutable
+    {
+        if (null === $date || [] === $date->toArray()) {
+            return $fallback;
+        }
+
+        try {
+            $parsed = self::toUtc($date->toDate());
+        } catch (\Throwable) {
+            return $fallback;
+        }
+
+        if ($parsed->getTimestamp() <= 0) {
+            return $fallback;
+        }
+
+        return $parsed;
     }
 
     private function buildMessage(ImapMessage $imapMessage, Mailbox $mailbox, int $accountId): Message
@@ -683,7 +787,9 @@ class MessageSyncer
         $part->disposition = $isInline ? 'inline' : 'attachment';
         $part->isInline    = $isInline;
 
-        $this->em->persist($part);
+        // Attached, not persisted: processBatch() persists the parts once the
+        // whole message has been built. See there.
+        $message->addMessagePart($part);
 
         return $isInline;
     }

@@ -129,6 +129,20 @@ class Mailbox
     #[ORM\Column(options: ['default' => 0])]
     public int $missingSyncs = 0;
 
+    /**
+     * The lowest UID the last sync could not store, and how many syncs in a
+     * row it has failed.
+     *
+     * A failed UID holds lastSeenUid below it so the next sync asks again; this
+     * is what stops one message that always fails from holding the folder
+     * there for ever. See MessageSyncer::holdForRetry().
+     */
+    #[ORM\Column(nullable: true)]
+    public ?int $failedUid = null;
+
+    #[ORM\Column(options: ['default' => 0])]
+    public int $failedUidAttempts = 0;
+
 
 
     /**

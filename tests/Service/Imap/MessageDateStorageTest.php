@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Service\Imap;
 
+use App\Domain\Helper\ImapConnectionFactory;
 use App\Service\Imap\MessageSyncer;
 use Doctrine\DBAL\Platforms\PostgreSQLPlatform;
 use Doctrine\DBAL\Types\DateTimeImmutableType;
@@ -106,5 +107,22 @@ final class MessageDateStorageTest extends TestCase
 
         self::assertSame($parsed->getTimestamp(), $stored->getTimestamp());
         self::assertSame('UTC', $stored->getTimezone()->getName());
+    }
+
+    /**
+     * A Date header nobody can parse still imports, dated by its arrival.
+     *
+     * webklex used to throw while building such a message, which failed the
+     * fetch and with it every sync of the folder. With the factory's fallback
+     * configured the header parses to the epoch, and dateFromHeader() reads
+     * that as "no usable date" rather than filing the mail under 1970.
+     */
+    public function testAnUnparseableDateStillImports(): void
+    {
+        $config = Config::make(['options' => ['fallback_date' => ImapConnectionFactory::UNPARSEABLE_DATE]]);
+        $header = new Header("Date: sometime last tuesday-ish\r\nSubject: Test\r\n", $config);
+        $now    = new \DateTimeImmutable('2026-09-23 12:00:00 UTC');
+
+        self::assertEquals($now, MessageSyncer::dateFromHeader($header->get('date'), $now));
     }
 }
