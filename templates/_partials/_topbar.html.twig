@@ -408,7 +408,7 @@
             {{ include('mail/_jobs_indicator.html.twig', { jobs: background_jobs() }) }}
         {% endif %}
 
-        {# TEMPORARY: manual sync trigger (app:mail:sync) #}
+        {# Sync now: the same account syncs as app:mail:sync, for this user (SyncController). #}
         <button
             type="button"
             data-controller="mail--sync-now"

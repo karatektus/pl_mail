@@ -359,8 +359,8 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
      */
     public function eraseCredentials()
     {
-        // If you store any temporary, sensitive data on the user, clear it here
-        // $this->plainPassword = null;
+        // Nothing to erase: the entity holds only the password hash, never a
+        // plaintext — every password form field is unmapped.
     }
 
     /* ── Two-factor authentication ──────────────────────────────────────── */

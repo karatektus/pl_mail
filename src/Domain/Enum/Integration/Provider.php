@@ -501,8 +501,8 @@ enum Provider: string
     }
 
     /**
-     * Translation key stem for this provider's UI copy, e.g.
-     * "settings.integrations.provider.nextcloud.help".
+     * This provider's segment in its translation keys — the `nextcloud` in
+     * "settings.integrations.provider.nextcloud.help" — not a whole key.
      */
     public function transKey(): string
     {

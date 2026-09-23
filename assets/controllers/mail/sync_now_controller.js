@@ -4,7 +4,7 @@ import { requestFailed } from "../../request_errors.js";
 import { showToast } from "../../toast.js";
 
 /**
- * TEMPORARY: topbar button that fires the same account syncs as
+ * The topbar's sync button: fires the same account syncs as
  * `app:mail:sync`, then polls the queue until the workers are idle so the
  * icon can stop spinning.
  */

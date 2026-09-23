@@ -6,8 +6,8 @@ namespace App\Jmap\State;
 
 /**
  * The computed result of a "/changes" call: the collapsed created / updated /
- * destroyed id partitions between two state tokens. Feeds directly into
- * Mailbox/changes and Email/changes once those methods land.
+ * destroyed id partitions between two state tokens, as the /changes methods
+ * (Mailbox/changes, Email/changes, …) return them.
  */
 final class ChangeSet
 {
