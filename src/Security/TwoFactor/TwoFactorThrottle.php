@@ -7,10 +7,9 @@ namespace App\Security\TwoFactor;
 use Scheb\TwoFactorBundle\Security\TwoFactor\Event\TwoFactorAuthenticationEvent;
 use Scheb\TwoFactorBundle\Security\TwoFactor\Event\TwoFactorAuthenticationEvents;
 use Symfony\Component\EventDispatcher\Attribute\AsEventListener;
-use Symfony\Component\HttpFoundation\Request;
-use Symfony\Component\HttpKernel\Event\RequestEvent;
 use Symfony\Component\HttpKernel\Exception\TooManyRequestsHttpException;
 use Symfony\Component\RateLimiter\RateLimiterFactoryInterface;
+use Symfony\Component\Security\Core\Authentication\Token\TokenInterface;
 
 /**
  * Rate limits the second factor.
@@ -39,24 +38,15 @@ final class TwoFactorThrottle
     /**
      * Refuse before the code is checked, not after.
      *
-     * A limiter consulted on failure only still lets every attempt reach the
-     * verifier; the request has to be stopped on the way in for the limit to
-     * mean anything.
+     * ATTEMPT is dispatched by scheb's authenticator immediately before the
+     * code reaches a provider, so every attempt passes through here and none
+     * reaches the verifier once the limit is spent. It also carries the
+     * half-authenticated token, which is where the key comes from.
      */
-    #[AsEventListener(event: RequestEvent::class, priority: 8)]
-    public function onRequest(RequestEvent $event): void
+    #[AsEventListener(event: TwoFactorAuthenticationEvents::ATTEMPT)]
+    public function onAttempt(TwoFactorAuthenticationEvent $event): void
     {
-        if (false === $event->isMainRequest()) {
-            return;
-        }
-
-        $request = $event->getRequest();
-
-        if ('app_2fa_login_check' !== $request->attributes->get('_route')) {
-            return;
-        }
-
-        $key = $this->keyFor($request);
+        $key = $this->keyFor($event->getToken());
 
         if (null === $key) {
             return;
@@ -65,7 +55,8 @@ final class TwoFactorThrottle
         if (false === $this->twoFactorCodeLimiter->create($key)->consume()->isAccepted()) {
             // A 429 rather than a redirect back to the form: the form would
             // invite another attempt, and this is the one answer a script
-            // cannot usefully retry.
+            // cannot usefully retry. An HTTP exception, not an authentication
+            // one, so the authenticator's failure handler never sees it.
             throw new TooManyRequestsHttpException(
                 null,
                 'Too many two-factor attempts. Try again later.',
@@ -83,7 +74,7 @@ final class TwoFactorThrottle
     #[AsEventListener(event: TwoFactorAuthenticationEvents::SUCCESS)]
     public function onSuccess(TwoFactorAuthenticationEvent $event): void
     {
-        $key = $this->keyFor($event->getRequest());
+        $key = $this->keyFor($event->getToken());
 
         if (null === $key) {
             return;
@@ -93,26 +84,26 @@ final class TwoFactorThrottle
     }
 
     /**
-     * The session stands in for the user identity.
+     * The pending user's identifier, never the session.
      *
-     * The code form runs before authentication completes, so there is no
-     * settled user on the request — but the half-authenticated state is pinned
-     * to the session, which is as good a key here and does not require reaching
-     * into token storage from a request listener.
+     * This used to key on the session id, which is the one thing the attacker
+     * controls: a fresh password login is a fresh session and a fresh five
+     * guesses, so a stolen password bought unlimited attempts at the code. The
+     * user identifier on the two-factor token is the account being attacked,
+     * and it survives any number of re-logins.
      *
-     * Both callers derive the key the same way on purpose: consuming under the
-     * session and resetting under the username would mean the reset never
-     * cleared what the consume counted, and the limit would look like it worked
-     * while never actually being lifted.
+     * Both callers derive the key the same way on purpose: consuming under one
+     * key and resetting under another would mean the reset never cleared what
+     * the consume counted.
      */
-    private function keyFor(Request $request): ?string
+    private function keyFor(TokenInterface $token): ?string
     {
-        $sessionId = $request->hasSession() ? $request->getSession()->getId() : null;
+        $identifier = $token->getUserIdentifier();
 
-        if (null === $sessionId || '' === $sessionId) {
+        if ('' === $identifier) {
             return null;
         }
 
-        return 'session:' . $sessionId;
+        return 'user:' . mb_strtolower($identifier);
     }
 }
