@@ -3,6 +3,7 @@
 namespace App\Service\Imap;
 
 use App\Domain\DTO\Mail\IngestedMessage;
+use App\Domain\Enum\Mail\MessagePriority;
 use App\Domain\Helper\AddressHelper;
 use App\Domain\Helper\AttachmentStorageHelper;
 use App\Domain\Helper\CharsetHelper;
@@ -532,6 +533,25 @@ class MessageSyncer
         return $parsed;
     }
 
+    /**
+     * The sender's priority, for the same column the composer writes on
+     * outgoing mail. Null when the sender stated none, which is not the same
+     * as Normal — see MessagePriority.
+     *
+     * Read from the normalised header bag rather than from webklex's synthetic
+     * `priority` attribute, which turns an absent X-Priority into 0 and knows
+     * nothing of Importance. Public so a test can hand it a real parsed header.
+     *
+     * @param array<string, string|list<string>>|null $headers
+     */
+    public function priorityOf(?array $headers): ?MessagePriority
+    {
+        return MessagePriority::fromHeaders(
+            $this->headerNormalizer->first($headers, 'importance'),
+            $this->headerNormalizer->first($headers, 'x-priority'),
+        );
+    }
+
     private function buildMessage(ImapMessage $imapMessage, Mailbox $mailbox, int $accountId): Message
     {
         $message = new Message();
@@ -597,6 +617,8 @@ class MessageSyncer
         }
 
         $message->headers = $this->headerNormalizer->normalize($rawHeaders);
+
+        $message->priority = $this->priorityOf($message->headers);
 
         // Body
         $message->bodyText = $imapMessage->getTextBody() ?? '';
