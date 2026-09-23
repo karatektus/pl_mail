@@ -19,7 +19,7 @@ use Doctrine\ORM\Mapping as ORM;
 // batch handlers dedup in PHP before inserting, but that check is a read on
 // stale data — this is the guard that actually holds when batches overlap
 // across runs or retries. Provider id leads the column list so the indexes
-// also serve the id-only lookups (findOneBy(['gmailId'|'graphId'])).
+// also serve the provider-id lookups (graph by account, gmail by owning user).
 #[ORM\UniqueConstraint(name: 'uniq_message_gmail_id_account', columns: ['gmail_id', 'account_id'])]
 #[ORM\UniqueConstraint(name: 'uniq_message_graph_id_account', columns: ['graph_id', 'account_id'])]
 // IMAP UIDs are unique within a mailbox, so this is the guard for the sync

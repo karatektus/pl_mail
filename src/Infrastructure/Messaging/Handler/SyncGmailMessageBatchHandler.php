@@ -183,7 +183,7 @@ final readonly class SyncGmailMessageBatchHandler
             // redelivered batch — a worker restart, a retry after a partial
             // failure — used to build a second row for every message in it.
             if ('' !== $gmailId) {
-                $known = $this->messageRepository->findOneBy(['gmailId' => $gmailId]);
+                $known = $this->messageRepository->findOneByGmailIdForUser($account->usr, $gmailId);
 
                 if (null !== $known) {
                     // A native Gmail row: Gmail is the authority on its flags,

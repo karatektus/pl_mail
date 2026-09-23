@@ -170,6 +170,31 @@ final class GmailInboundReadStateTest extends KernelTestCase
         self::assertNotNull($message->seenAt, 'the local change is still in flight');
     }
 
+    /**
+     * A gmailId is only unique per account. The "already stored?" lookup was
+     * a bare findOneBy(['gmailId']) across the whole install, so another
+     * user's row with the same id was found and rewritten with this user's
+     * labels, and this user's message was never stored at all.
+     */
+    public function testAnotherUsersRowWithTheSameGmailIdIsLeftAlone(): void
+    {
+        $mine          = $this->account;
+        $this->user    = $this->seedUser();
+        $this->account = $this->seedAccount();
+        $theirs        = $this->seedMessage(seen: false);
+        $this->account = $mine;
+
+        $this->handle(['INBOX']);
+
+        $this->em->refresh($theirs);
+
+        self::assertNull($theirs->seenAt, 'the other user\'s row must not be touched');
+        self::assertNotNull(
+            $this->em->getRepository(Message::class)->findOneBy(['gmailId' => self::GMAIL_ID, 'account' => $mine]),
+            'the message is stored for the account that fetched it',
+        );
+    }
+
     // ── helpers ───────────────────────────────────────────────────────────
 
     /**

@@ -217,7 +217,7 @@ final class GraphApiSyncer
             // Cast for the same reason, and here the symptom would be silent:
             // an int compared against a stored string id matches nothing, so
             // the message is simply not erased and nothing is raised.
-            $message = $this->messageRepository->findOneBy(['graphId' => (string) $graphId]);
+            $message = $this->messageRepository->findOneBy(['graphId' => (string) $graphId, 'account' => $account]);
 
             if (null === $message) {
                 continue;
@@ -294,7 +294,7 @@ final class GraphApiSyncer
             // phone stayed unread here, exactly as it did on IMAP, and for the
             // same reason — nothing ever re-read the state of a row it already
             // had.
-            $state = $this->flagStateOf($graphId, $item);
+            $state = $this->flagStateOf($account, $graphId, $item);
 
             if (null !== $state) {
                 $flagStates[] = $state;
@@ -323,7 +323,7 @@ final class GraphApiSyncer
      *
      * @param array<string,mixed> $item
      */
-    private function flagStateOf(string $graphId, array $item): ?RemoteFlagState
+    private function flagStateOf(Account $account, string $graphId, array $item): ?RemoteFlagState
     {
         if (false === array_key_exists('isRead', $item)) {
             // A delta entry that does not mention read state is not asserting
@@ -332,7 +332,7 @@ final class GraphApiSyncer
             return null;
         }
 
-        $message = $this->messageRepository->findOneBy(['graphId' => $graphId]);
+        $message = $this->messageRepository->findOneBy(['graphId' => $graphId, 'account' => $account]);
 
         if (null === $message) {
             return null;
@@ -355,7 +355,7 @@ final class GraphApiSyncer
 
     private function attachFolderLabel(Account $account, string $graphId, string $folderId): void
     {
-        $message = $this->messageRepository->findOneBy(['graphId' => $graphId]);
+        $message = $this->messageRepository->findOneBy(['graphId' => $graphId, 'account' => $account]);
 
         if (null === $message) {
             return;
@@ -404,7 +404,7 @@ final class GraphApiSyncer
 
     private function detachFolderLabel(Account $account, string $graphId, string $folderId): void
     {
-        $message = $this->messageRepository->findOneBy(['graphId' => $graphId]);
+        $message = $this->messageRepository->findOneBy(['graphId' => $graphId, 'account' => $account]);
 
         if (null === $message) {
             return;

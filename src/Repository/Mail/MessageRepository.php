@@ -1538,6 +1538,30 @@ class MessageRepository extends ServiceEntityRepository
     }
 
     /**
+     * The one row for a Gmail id among the owner's accounts, for the batch
+     * handler's "already stored?" check.
+     *
+     * Scoped through the user and not the account, for the reason given on
+     * findByGmailIdsForUser(): a message fetched by one Gmail account may be
+     * attributed to a sibling. It used to be a bare findOneBy(['gmailId']),
+     * which searched every user on the install — a gmailId is only unique per
+     * account, so another user's row could be found and enriched with this
+     * user's labels. QueryBuilder because the owner is behind an association.
+     */
+    public function findOneByGmailIdForUser(User $user, string $gmailId): ?Message
+    {
+        return $this->createQueryBuilder('m')
+            ->innerJoin('m.account', 'a')
+            ->where('a.usr = :usr')
+            ->andWhere('m.gmailId = :gmailId')
+            ->setParameter('usr', $user)
+            ->setParameter('gmailId', $gmailId)
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult();
+    }
+
+    /**
      * QueryBuilder on two counts: the owner is reached through the account
      * association, which findBy() cannot traverse, and only one column comes
      * back.
