@@ -315,25 +315,29 @@ runs in a container network alongside Postgres, Mercure and the workers.
    point is that plaintext credentials over the wire become a deliberate admin decision rather
    than a silent default.
 3. **Loopback, link-local and private ranges are refused** unless the host appears in
-   `INTEGRATIONS_ALLOWED_HOSTS`. `BLOCKED_RANGES` covers `127.0.0.0/8`, the three RFC1918
-   ranges, `169.254.0.0/16` (link-local, including the cloud metadata endpoint at
-   169.254.169.254), `100.64.0.0/10` and `0.0.0.0/8`; IPv6 is checked separately for `::1`,
-   `fc00::/7` and `fe80::/10`, including bracketed literals.
+   `INTEGRATIONS_ALLOWED_HOSTS`. The host is **resolved**, and every address it resolves to is
+   checked against `IpUtils::PRIVATE_SUBNETS` — loopback, RFC1918, link-local (including the
+   cloud metadata endpoint at 169.254.169.254), carrier-grade NAT, the reserved ranges, and
+   IPv4-mapped IPv6 such as `::ffff:127.0.0.1`. A string check could not see container names
+   (`database`, `mercure`), wildcard DNS (`127.0.0.1.nip.io`) or the IPv4 spellings libc accepts
+   (`127.1`, `2130706433`); the resolver answers for all of them.
 
 Credentials in the URL are refused outright, because they would be logged wherever the URL is
 and would silently override the ones on the connection.
 
-**It is deliberately not a full DNS-rebinding defence**, and the docblock says so: a hostname
-resolving to a private address at connect time still gets through. The allow-list is the honest
-mitigation, and admins pinning `baseUrl` sidestep the question.
+**The validator is not the enforcement.** It runs when an address is saved, to give a readable
+error. The requests go through `App\Infrastructure\Http\UserUrlHttpClient`, which wraps
+Symfony's `NoPrivateNetworkHttpClient`: it resolves the host itself, pins the address it checked
+with the `resolve` option, and re-checks every redirect hop. That closes the two holes the
+validator alone left — DNS rebinding between the check and the connection, and redirects, which
+the Nextcloud, Paperless-ngx and Immich drivers used to follow twenty deep without looking. The
+exemption comes from the same place as the validator's: a host in `INTEGRATIONS_ALLOWED_HOSTS`,
+or the host of a server address an admin pinned, may be reached on its own addresses for that
+request, and nothing else private may be.
 
-> Correction, and a note for whoever hardens this next. This section used to add that closing
-> the rebinding hole "needs pinning the resolved IP into the HTTP client, which Symfony's client
-> does not expose". That is not true — `HttpClientInterface`'s `resolve` option does exactly
-> that, and `ImageProxyFetcher` (below) uses it. What kept the integration validator from
-> pinning is not the client; it is that the validator only inspects a URL and never makes the
-> request, so it has no request to pin. Moving the check next to the call is the work, and it
-> is work nobody has done yet.
+Push endpoints go through a second instance of the same client with its own exemption list,
+`PUSH_ALLOWED_HOSTS`, and never follow redirects; `App\Jmap\Push\PushEndpointPolicy` refuses a
+private endpoint when it is registered, from the web app or through `PushSubscription/set`.
 
 The same shape appears in `App\Service\Calendar\Sync\IcsUrl\IcsUrlNormaliser` for subscribed
 feeds — see [ICS feeds](../providers/ics-feeds.md) for which addresses are refused and why —

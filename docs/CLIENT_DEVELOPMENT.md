@@ -580,6 +580,10 @@ the https address; over a LAN or Tailscale the default is fine as it stands.
 
 It is baked into every endpoint issued, so changing it later forces every device to re-register.
 
+On a LAN or Tailscale address the server also has to be told the endpoint is meant: push endpoints
+on a private address are refused unless their host is in `PUSH_ALLOWED_HOSTS`, because the server
+POSTs to them on every change. Set it to the same host as `SERVER_NAME`.
+
 Payloads are encrypted to the device's own key before they reach it, so the push service cannot read
 mail whichever one you use. It does learn *when* mail arrives, which is the argument for running
 your own rather than a public one.

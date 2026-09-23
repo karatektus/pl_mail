@@ -9,6 +9,7 @@ use App\Entity\User\PushSubscription;
 use App\Jmap\Method\JmapMethod;
 use App\Jmap\Protocol\Exception\MethodException;
 use App\Jmap\Protocol\JmapContext;
+use App\Jmap\Push\PushEndpointPolicy;
 use App\Jmap\Push\PushSenderRegistry;
 use App\Repository\User\PushSubscriptionRepository;
 use Doctrine\ORM\EntityManagerInterface;
@@ -64,6 +65,7 @@ final class PushSubscriptionSetMethod implements JmapMethod
         private readonly PushSubscriptionRepository $subscriptions,
         private readonly PushSenderRegistry $senders,
         private readonly EntityManagerInterface $entityManager,
+        private readonly PushEndpointPolicy $endpoints,
     ) {
     }
 
@@ -428,6 +430,10 @@ final class PushSubscriptionSetMethod implements JmapMethod
 
         if (false === in_array($scheme, ['http', 'https'], true)) {
             throw new MethodException('invalidProperties', '"url" must be http or https.');
+        }
+
+        if (false === $this->endpoints->isAllowed($url)) {
+            throw new MethodException('invalidProperties', '"url" must be a public push service, not an address on a private network.');
         }
 
         return $url;

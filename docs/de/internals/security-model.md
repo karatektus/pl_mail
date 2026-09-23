@@ -1,4 +1,4 @@
-<!-- translated-from: internals/security-model.md sha1:8299578c3e86a7bbd01a223ca63a965c3faed350 -->
+<!-- translated-from: internals/security-model.md sha1:fb37ca735d192ed5404198332e048e55fd00b8b5 -->
 # Sicherheitsmodell
 
 Verschlüsselung ruhender Daten und die Prüfung, die den Start ohne brauchbaren Schlüssel
@@ -347,26 +347,32 @@ den Workern.
    der Punkt ist, dass Klartext-Anmeldedaten auf der Leitung damit zu einer bewussten
    Admin-Entscheidung werden statt zu einer stillen Voreinstellung.
 3. **Loopback-, Link-Local- und private Bereiche werden abgelehnt**, sofern der Host nicht in
-   `INTEGRATIONS_ALLOWED_HOSTS` steht. `BLOCKED_RANGES` deckt `127.0.0.0/8`, die drei
-   RFC1918-Bereiche, `169.254.0.0/16` (Link-Local, einschließlich des
-   Cloud-Metadaten-Endpunkts unter 169.254.169.254), `100.64.0.0/10` und `0.0.0.0/8` ab; IPv6
-   wird gesondert auf `::1`, `fc00::/7` und `fe80::/10` geprüft, auch in eckigen Klammern.
+   `INTEGRATIONS_ALLOWED_HOSTS` steht. Der Host wird **aufgelöst**, und jede Adresse, auf die er
+   auflöst, wird gegen `IpUtils::PRIVATE_SUBNETS` geprüft — Loopback, RFC1918, Link-Local
+   (einschließlich des Cloud-Metadaten-Endpunkts unter 169.254.169.254), Carrier-Grade-NAT, die
+   reservierten Bereiche und IPv4-gemappte IPv6-Adressen wie `::ffff:127.0.0.1`. Eine
+   Zeichenkettenprüfung sah weder Containernamen (`database`, `mercure`) noch Wildcard-DNS
+   (`127.0.0.1.nip.io`) noch die IPv4-Schreibweisen, die libc akzeptiert (`127.1`, `2130706433`);
+   der Resolver beantwortet sie alle.
 
 Anmeldedaten in der URL werden rundheraus abgelehnt, denn sie landeten überall dort im Log, wo
 die URL landet, und überschrieben stillschweigend die an der Verbindung hinterlegten.
 
-**Es ist bewusst keine vollständige Abwehr gegen DNS-Rebinding**, und der Docblock sagt das auch:
-Ein Hostname, der zum Verbindungszeitpunkt auf eine private Adresse auflöst, kommt weiterhin
-durch. Die Positivliste ist die ehrliche Abschwächung, und Admins, die `baseUrl` festnageln,
-umgehen die Frage.
+**Der Validator ist nicht die Durchsetzung.** Er läuft beim Speichern einer Adresse, damit es eine
+lesbare Fehlermeldung gibt. Die Anfragen laufen über `App\Infrastructure\Http\UserUrlHttpClient`,
+der Symfonys `NoPrivateNetworkHttpClient` umhüllt: Er löst den Host selbst auf, nagelt die geprüfte
+Adresse mit der Option `resolve` fest und prüft jeden Weiterleitungsschritt neu. Das schließt die
+beiden Lücken, die der Validator allein offen ließ — DNS-Rebinding zwischen Prüfung und Verbindung,
+und Weiterleitungen, denen die Treiber für Nextcloud, Paperless-ngx und Immich bisher zwanzig Stufen
+tief ungeprüft gefolgt sind. Die Ausnahme kommt aus derselben Quelle wie beim Validator: Ein Host in
+`INTEGRATIONS_ALLOWED_HOSTS` oder der Host einer von einer Admin-Person festgenagelten
+Serveradresse darf für diese Anfrage auf seinen eigenen Adressen erreicht werden, sonst nichts
+Privates.
 
-> Richtigstellung, und ein Hinweis für die nächste Härtung. Hier stand bisher, das Schließen
-> der Rebinding-Lücke erfordere, „die aufgelöste IP im HTTP-Client festzunageln, was Symfonys
-> Client nicht anbietet“. Das stimmt nicht — die Option `resolve` von `HttpClientInterface` tut
-> genau das, und `ImageProxyFetcher` (siehe unten) nutzt sie. Was den Integrations-Validator
-> davon abhält, ist nicht der Client, sondern dass er nur eine URL prüft und die Anfrage nie
-> selbst stellt: Es gibt also keine Anfrage zum Festnageln. Die Arbeit besteht darin, die
-> Prüfung an den Aufruf zu rücken, und die hat bisher niemand gemacht.
+Push-Endpunkte laufen über eine zweite Instanz desselben Clients mit eigener Ausnahmeliste,
+`PUSH_ALLOWED_HOSTS`, und folgen nie einer Weiterleitung; `App\Jmap\Push\PushEndpointPolicy` lehnt
+einen privaten Endpunkt schon bei der Registrierung ab, aus der Web-App wie über
+`PushSubscription/set`.
 
 Dieselbe Form findet sich in `App\Service\Calendar\Sync\IcsUrl\IcsUrlNormaliser` für abonnierte
 Feeds — siehe [ICS-Feeds](../providers/ics-feeds.md) dazu, welche Adressen abgelehnt werden und

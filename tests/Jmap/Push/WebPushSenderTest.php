@@ -14,6 +14,7 @@ use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\NullLogger;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
+use Symfony\Component\HttpClient\MockHttpClient;
 
 /**
  * The two ways Web Push declines to send anything, and the fact that both are
@@ -112,6 +113,7 @@ final class WebPushSenderTest extends KernelTestCase
             'mailto:admin@example.test',
             true === $configured ? 'a-public-key' : '',
             true === $configured ? 'a-private-key' : '',
+            new MockHttpClient(),
         );
     }
 

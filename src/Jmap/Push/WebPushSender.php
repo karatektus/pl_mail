@@ -13,6 +13,8 @@ use Minishlink\WebPush\MessageSentReport;
 use Minishlink\WebPush\Subscription;
 use Minishlink\WebPush\WebPush;
 use Psr\Log\LoggerInterface;
+use Symfony\Component\HttpClient\Psr18Client;
+use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 /**
  * Delivers JMAP push payloads over Web Push (RFC 8030 transport, RFC 8291
@@ -50,6 +52,10 @@ final class WebPushSender implements PushSenderInterface
         private readonly string $vapidSubject,
         private readonly string $vapidPublicKey,
         private readonly string $vapidPrivateKey,
+        // The guarded push client (app.http_client.push), not whatever PSR-18
+        // client discovery finds: that was Guzzle with its redirects on, so an
+        // endpoint answering 302 to an internal address was followed there.
+        private readonly HttpClientInterface $httpClient,
     ) {
     }
 
@@ -103,7 +109,11 @@ final class WebPushSender implements PushSenderInterface
                     'publicKey' => $this->vapidPublicKey,
                     'privateKey' => $this->vapidPrivateKey,
                 ],
-            ]);
+            ], [],
+                // No push service redirects a POST, and a redirect is the one
+                // hop the endpoint check at registration never saw.
+                new Psr18Client($this->httpClient->withOptions(['max_redirects' => 0])),
+            );
 
             $report = $webPush->sendOneNotification(
                 $this->toLibrarySubscription($subscription),

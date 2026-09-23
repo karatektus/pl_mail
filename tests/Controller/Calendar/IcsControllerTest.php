@@ -387,6 +387,10 @@ final class IcsControllerTest extends WebTestCase
         // this test makes would otherwise be able to reach the network.
         $this->http = new MockHttpClient([]);
         $container->set('http_client', $this->http);
+        // And the guarded client in front of it, which resolves the host before
+        // anything reaches the mock — feeds.example.test resolves nowhere, and
+        // a host that resolves nowhere is refused. The guard has its own test.
+        $container->set('app.http_client.integration', $this->http);
 
         $this->em           = $container->get(EntityManagerInterface::class);
         $this->connection   = $container->get(Connection::class);

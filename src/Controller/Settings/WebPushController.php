@@ -8,6 +8,7 @@ use App\Controller\ChecksCsrf;
 use App\Domain\Enum\PushTransport;
 use App\Entity\User\PushSubscription;
 use App\Entity\User\User;
+use App\Jmap\Push\PushEndpointPolicy;
 use App\Jmap\Push\WebPushSender;
 use App\Repository\User\PushSubscriptionRepository;
 use Doctrine\ORM\EntityManagerInterface;
@@ -41,6 +42,7 @@ final class WebPushController extends AbstractController
         private readonly PushSubscriptionRepository $subscriptions,
         private readonly WebPushSender $sender,
         private readonly EntityManagerInterface $em,
+        private readonly PushEndpointPolicy $endpoints,
     ) {
     }
 
@@ -70,6 +72,12 @@ final class WebPushController extends AbstractController
             || false === is_string($deviceClientId) || '' === $deviceClientId
         ) {
             return $this->json(['error' => 'endpoint, keys and deviceClientId are required.'], Response::HTTP_BAD_REQUEST);
+        }
+
+        // The server POSTs to this URL on every change for as long as the row
+        // lives, so it is checked like any other address a user hands us.
+        if (false === $this->endpoints->isAllowed($endpoint)) {
+            return $this->json(['error' => 'endpoint must be a public push service.'], Response::HTTP_BAD_REQUEST);
         }
 
         // Re-subscribing from the same browser replaces its row rather than

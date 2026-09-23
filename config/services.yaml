@@ -228,6 +228,43 @@ services:
             $vapidSubject: '%env(VAPID_SUBJECT)%'
             $vapidPublicKey: '%env(VAPID_PUBLIC_KEY)%'
             $vapidPrivateKey: '%env(VAPID_PRIVATE_KEY)%'
+            $httpClient: '@app.http_client.push'
+
+    # The HTTP clients for URLs a user typed in — see UserUrlHttpClient for
+    # what they refuse. Two, because the exemption differs: an integration may
+    # reach a LAN host an admin allow-listed (INTEGRATIONS_ALLOWED_HOSTS) or
+    # pinned as a provider's server address; a push endpoint only a host named
+    # in PUSH_ALLOWED_HOSTS, which is there for a self-hosted ntfy.
+    app.http_client.integration:
+        class: App\Infrastructure\Http\UserUrlHttpClient
+        arguments:
+            $client: '@http_client'
+            $trustedHosts: '@App\Service\Integration\IntegrationUrlValidator'
+    app.push_trusted_hosts:
+        class: App\Infrastructure\Http\ListedHosts
+        arguments:
+            $hosts: '%env(default::PUSH_ALLOWED_HOSTS)%'
+    app.http_client.push:
+        class: App\Infrastructure\Http\UserUrlHttpClient
+        arguments:
+            $client: '@http_client'
+            $trustedHosts: '@app.push_trusted_hosts'
+
+    App\Service\Integration\Driver\NextcloudDriver:
+        arguments:
+            $httpClient: '@app.http_client.integration'
+    App\Service\Integration\Driver\PaperlessDriver:
+        arguments:
+            $httpClient: '@app.http_client.integration'
+    App\Service\Integration\Driver\ImmichDriver:
+        arguments:
+            $httpClient: '@app.http_client.integration'
+    App\Service\Calendar\Sync\CalDav\CalDavClient:
+        arguments:
+            $httpClient: '@app.http_client.integration'
+    App\Service\Calendar\Sync\IcsUrl\IcsFeedClient:
+        arguments:
+            $httpClient: '@app.http_client.integration'
 
     # Web Push first, so the iteration order of the registry matches the order
     # the transports were added. Nothing depends on it — the registry keys by

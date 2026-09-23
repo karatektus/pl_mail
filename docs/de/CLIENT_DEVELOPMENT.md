@@ -1,4 +1,4 @@
-<!-- translated-from: CLIENT_DEVELOPMENT.md sha1:0158cc3a74ea44bee53f303e2499b46ee5283908 -->
+<!-- translated-from: CLIENT_DEVELOPMENT.md sha1:a29eb3f8d8cd7fd0881296f7b90d8b6bc641e5b0 -->
 # Einen Client für plMail bauen
 
 Alles, was eine Entwicklerin (oder ein Agent) braucht, um einen *neuen* plMail-Client zu schreiben
@@ -638,6 +638,11 @@ gesetzt, während im LAN oder über Tailscale der Standard so genügt, wie er is
 
 Sie ist in jeden ausgegebenen Endpunkt eingebacken, sie später zu ändern zwingt also jedes Gerät
 zur Neuregistrierung.
+
+Auf einer LAN- oder Tailscale-Adresse musst du dem Server außerdem sagen, dass der Endpunkt so
+gemeint ist: Push-Endpunkte auf einer privaten Adresse werden abgewiesen, solange ihr Host nicht in
+`PUSH_ALLOWED_HOSTS` steht, denn der Server schickt bei jeder Änderung einen POST dorthin. Setz die
+Variable auf denselben Host wie `SERVER_NAME`.
 
 Nutzlasten werden zum geräteeigenen Schlüssel verschlüsselt, bevor sie dort ankommen; der
 Push-Dienst kann Mail also nicht lesen, welchen du auch nimmst. Er erfährt aber, *wann* Mail

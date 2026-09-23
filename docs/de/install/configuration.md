@@ -1,4 +1,4 @@
-<!-- translated-from: install/configuration.md sha1:cd6d3d48d0f2c85f1710ebe100ccfb75c1f95fc8 -->
+<!-- translated-from: install/configuration.md sha1:5ed07d4ee0630df517792929aa3da26f85c1953f -->
 # Konfigurationsreferenz
 
 Jede Umgebungsvariable, die plMail liest, was sie bewirkt, welchen Vorgabewert sie hat und was
@@ -78,6 +78,7 @@ Das sind die Variablen aus `.env`, in der Reihenfolge, in der sie dort stehen.
 | `VAPID_SUBJECT` | Kontaktkennung, die mit Web Push gesendet wird, nach RFC 8292. Muss eine `mailto:`- oder `https:`-URL sein. | `mailto:admin@example.com` | Für Web Push | Manche Push-Dienste lehnen eine Anfrage ab, deren Subject keine von ihnen akzeptierte URL ist. |
 | `VAPID_PUBLIC_KEY` | Öffentlicher Schlüssel für Web Push / JMAP `PushSubscription`. | leer — von `app:secrets:init` erzeugt | Ja, aber erzeugt | Browser binden ein Abonnement an den öffentlichen Schlüssel, mit dem es angelegt wurde. Wird er gewechselt, empfängt jedes Gerät lautlos keine Benachrichtigungen mehr, bis es neu abonniert. |
 | `VAPID_PRIVATE_KEY` | Der zugehörige private Schlüssel. | leer — erzeugt | Ja, aber erzeugt | Wie oben. |
+| `PUSH_ALLOWED_HOSTS` | Kommagetrennte Hosts, auf die ein Push-Endpunkt zeigen darf, obwohl sie auf eine private Adresse auflösen. | leer | Nur für ein ntfy im LAN | Jeder andere private, Loopback- oder Link-Local-Endpunkt wird bei der Registrierung und beim Senden abgewiesen. Läuft das mitgelieferte ntfy auf einer LAN- oder Tailscale-Adresse, setz hier deinen `SERVER_NAME`, sonst bekommen die Telefone keine Pushes mehr. Siehe [den SSRF-Schutz](#der-ssrf-schutz) weiter unten. |
 | `INTEGRATIONS_ALLOW_HTTP` | Ob jemand für eine selbst gehostete Integration einen `http://`-Server angeben darf. | `false` | Nein | Siehe [den SSRF-Schutz](#der-ssrf-schutz) weiter unten. |
 | `INTEGRATIONS_ALLOWED_HOSTS` | Kommagetrennte Hosts, die von der Sperre privater Adressbereiche ausgenommen sind. | leer | Nein | Siehe [den SSRF-Schutz](#der-ssrf-schutz) weiter unten. |
 
@@ -161,14 +162,21 @@ eine Hälfte nicht lesen, was die andere schreibt.
 
 ## Der SSRF-Schutz
 
-Zwei Variablen lockern eine Prüfung, und es lohnt sich, genau zu sagen, wofür diese Prüfung da ist.
+Drei Variablen lockern eine Prüfung, und es lohnt sich, genau zu sagen, wofür diese Prüfung da ist.
 
 Selbst gehostete Integrationen — Nextcloud, Immich, Paperless-ngx — lassen eine angemeldete Person ihre eigene
 Serveradresse eintippen. Das richtet plMails ausgehenden HTTP-Client dorthin, wohin diese Person
 will, und zwar aus einem Containernetz heraus, in dem auch Postgres und der Mercure-Hub liegen.
-`App\Service\Integration\IntegrationUrlValidator` weist jede Adresse ab, die nach `127.0.0.0/8`,
-`10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`, `169.254.0.0/16`, `100.64.0.0/10` oder `0.0.0.0/8`
-auflöst, und weist `http://` grundsätzlich ab.
+`App\Service\Integration\IntegrationUrlValidator` löst den Host auf und weist jede Adresse in einem
+privaten, Loopback-, Link-Local- oder reservierten Bereich ab — Symfonys `IpUtils::PRIVATE_SUBNETS`,
+einschließlich IPv4-gemappter IPv6-Adressen — und weist `http://` grundsätzlich ab. Erst das Auflösen
+erwischt Containernamen wie `database`, Wildcard-DNS wie `127.0.0.1.nip.io` und Schreibweisen wie
+`127.1` oder `2130706433`.
+
+Diese Prüfung liefert beim Speichern eine lesbare Fehlermeldung. Die Anfragen selbst laufen über
+`App\Infrastructure\Http\UserUrlHttpClient`, der Symfonys `NoPrivateNetworkHttpClient` umhüllt:
+Er löst den Host erneut auf, nagelt die geprüfte Adresse fest und prüft jede Weiterleitung neu.
+Derselbe Client trägt CalDAV, ICS-Feeds und Push-Zustellungen.
 
 - **`INTEGRATIONS_ALLOW_HTTP=true`** erlaubt es, ein App-Passwort über unverschlüsseltes HTTP zu
   senden. In einem LAN ist das oft genau das, was gewünscht ist, und es ist standardmäßig aus, damit
@@ -178,13 +186,20 @@ auflöst, und weist `http://` grundsätzlich ab.
   richten kann — einen ganzen Bereich einzutragen oder den Host, auf dem die Datenbank läuft, gibt
   einer authentifizierten Person eine Anfrage aus dem Inneren deines Netzes.
 
+- **`PUSH_ALLOWED_HOSTS=192.168.1.10`** macht dasselbe für Push-Endpunkte, die auf einer privaten
+  Adresse sonst ausnahmslos abgewiesen werden. Es gibt die Variable für das mitgelieferte ntfy, dessen
+  Endpunkte `http://$SERVER_NAME:8090` lauten. Push-Zustellungen folgen nie einer Weiterleitung.
+
 Wer `baseUrl` in der Provider-Konfiguration unter **Administration → Integrationen** festlegt,
 entfernt die Angriffsfläche vollständig, und wo das möglich ist, ist es die bessere Antwort: Der
 selbst eingetragene Wert wird ignoriert, auch ein alter, der vor dem Festlegen gespeichert wurde.
+Ein festgelegter Host ist von der Sperre privater Bereiche ausgenommen, ohne dass du ihn eintragen
+musst — `http://nextcloud` für den Container nebenan funktioniert also.
 
-**Der typische Fehlerfall ist, dass dies keine Abwehr gegen DNS-Rebinding ist.** Ein Hostname, der
-zum Verbindungszeitpunkt auf eine private Adresse auflöst, kommt weiterhin durch, weil sich die
-aufgelöste IP nicht in Symfonys HTTP-Client festnageln lässt.
+**Der typische Fehlerfall ist eine Ausnahme, die nur für den ersten Host gilt.** Ein eingetragener
+oder festgelegter Host darf innerhalb seiner eigenen Adressen weiterleiten; ein öffentlicher Server,
+der *auf* die Adresse dieses Hosts weiterleitet, wird trotzdem abgewiesen. Leitet ein Dienst im LAN
+auf einen zweiten internen Namen weiter, muss auch dieser Name eingetragen sein.
 
 ## Werte, die stattdessen in der Datenbank konfiguriert werden
 

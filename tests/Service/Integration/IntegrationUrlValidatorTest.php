@@ -41,6 +41,12 @@ final class IntegrationUrlValidatorTest extends TestCase
         yield 'rfc1918'             => ['https://192.168.1.10/dav', 'reaches the host LAN'];
         yield 'cloud metadata'      => ['https://169.254.169.254/latest/meta-data', 'leaks instance credentials'];
         yield 'ipv6 unique local'   => ['https://[fd00::1]/dav', 'reaches a private network'];
+        // Spellings a string check missed and the resolver does not.
+        yield 'short ipv4'          => ['https://127.1/dav', 'libc reads it as 127.0.0.1'];
+        yield 'decimal ipv4'        => ['https://2130706433/dav', 'libc reads it as 127.0.0.1'];
+        yield 'ipv4-mapped ipv6'    => ['https://[::ffff:127.0.0.1]/dav', 'is loopback in IPv6 clothing'];
+        yield 'mapped metadata'     => ['https://[::ffff:169.254.169.254]/', 'is the metadata endpoint'];
+        yield 'unspecified ipv6'    => ['https://[::]/dav', 'connects to this machine'];
         yield 'credentials in url'  => ['https://user:pw@cloud.example.com', 'overrides the stored credential'];
         yield 'not a url'           => ['cloud.example.com', 'has no scheme'];
         yield 'wrong scheme'        => ['file:///etc/passwd', 'is not http'];
@@ -68,6 +74,18 @@ final class IntegrationUrlValidatorTest extends TestCase
         // How a self-hoster reaches their own LAN server on purpose.
         (new IntegrationUrlValidator(allowHttp: true, allowedHosts: 'nextcloud.lan, 10.0.0.5'))
             ->assertAllowed('http://10.0.0.5:8080');
+    }
+
+    /**
+     * A NAME that resolves into loopback is refused as surely as the address.
+     * `localhost.` with the trailing dot slips past a comparison against
+     * "localhost" and is still answered by the resolver.
+     */
+    public function testAHostnameResolvingToLoopbackIsRefused(): void
+    {
+        $this->expectException(IntegrationException::class);
+
+        (new IntegrationUrlValidator(allowHttp: true))->assertAllowed('https://localhost./dav');
     }
 
     public function testAPinnedAdminUrlWinsOverTheUsersOwn(): void

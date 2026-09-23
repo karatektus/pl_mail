@@ -6,12 +6,14 @@ namespace App\Tests\Jmap\Method\Core;
 
 use App\Entity\Push\FcmConfig;
 use App\Entity\User\PushSubscription;
+use App\Infrastructure\Http\ListedHosts;
 use App\Jmap\Method\Core\PushSubscriptionGetMethod;
 use App\Jmap\Method\Core\PushSubscriptionSetMethod;
 use App\Jmap\Push\FcmAccessTokenProvider;
 use App\Jmap\Push\FcmSender;
 use App\Jmap\Push\FcmSettings;
 use App\Jmap\Push\PushDeliveryRecorder;
+use App\Jmap\Push\PushEndpointPolicy;
 use App\Jmap\Push\PushSenderRegistry;
 use App\Jmap\Push\WebPushSender;
 use App\Repository\Push\FcmConfigRepository;
@@ -197,7 +199,7 @@ final class FcmPushSubscriptionTest extends JmapTestCase
             ),
         ]);
 
-        $method = new PushSubscriptionSetMethod($this->subscriptions, $registry, $this->em);
+        $method = new PushSubscriptionSetMethod($this->subscriptions, $registry, $this->em, new PushEndpointPolicy(new ListedHosts()));
 
         return $method->handle($arguments, $this->context());
     }

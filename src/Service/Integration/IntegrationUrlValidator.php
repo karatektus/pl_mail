@@ -8,6 +8,10 @@ use App\Domain\Enum\Integration\Provider;
 use App\Domain\Exception\IntegrationException;
 use App\Entity\Integration\Integration;
 use App\Entity\Integration\IntegrationProviderConfig;
+use App\Infrastructure\Http\PrivateNetwork;
+use App\Infrastructure\Http\TrustedHosts;
+use App\Infrastructure\Http\UserUrlHttpClient;
+use App\Repository\Integration\IntegrationProviderConfigRepository;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 
 /**
@@ -29,29 +33,19 @@ use Symfony\Component\DependencyInjection\Attribute\Autowire;
  *   be set — the point is that plaintext credentials over the wire become a
  *   deliberate admin decision instead of a silent default.
  *
- *   Loopback, link-local and private ranges are refused outright unless the
- *   host appears in INTEGRATIONS_ALLOWED_HOSTS. This is the check that stops
- *   http://localhost:5432 and the cloud metadata endpoint at 169.254.169.254.
+ *   A host that RESOLVES into loopback, link-local, private or reserved space
+ *   is refused outright unless it appears in INTEGRATIONS_ALLOWED_HOSTS. This
+ *   is the check that stops http://localhost:5432, the container names on the
+ *   compose network, and the cloud metadata endpoint at 169.254.169.254.
  *
- * Deliberately not a full DNS-rebinding defence: a hostname resolving to a
- * private address at connect time still gets through. Closing that needs
- * pinning the resolved IP into the HTTP client, which Symfony's client does
- * not expose. The allow-list is the honest mitigation, and admins pinning
- * baseUrl sidestep the question.
+ * That check runs when the address is saved and gives the user a readable
+ * error. It is not what stops DNS rebinding or a redirect into the network:
+ * the requests themselves go through {@see UserUrlHttpClient}, which resolves
+ * and re-checks on every hop and consults isTrusted() below for the same
+ * exemptions — the allow-list, and any server address an admin pinned.
  */
-final readonly class IntegrationUrlValidator
+final readonly class IntegrationUrlValidator implements TrustedHosts
 {
-    /** Ranges no user-supplied host may resolve into without being allow-listed. */
-    private const array BLOCKED_RANGES = [
-        '127.0.0.0/8',      // loopback
-        '10.0.0.0/8',       // RFC1918
-        '172.16.0.0/12',    // RFC1918
-        '192.168.0.0/16',   // RFC1918
-        '169.254.0.0/16',   // link-local, incl. cloud metadata at 169.254.169.254
-        '100.64.0.0/10',    // carrier-grade NAT
-        '0.0.0.0/8',        // "this network"
-    ];
-
     /** @var list<string> */
     private array $allowedHosts;
 
@@ -60,6 +54,9 @@ final readonly class IntegrationUrlValidator
         private bool $allowHttp = false,
         #[Autowire(env: 'INTEGRATIONS_ALLOWED_HOSTS')]
         string $allowedHosts = '',
+        // Optional so the unit tests can build a validator bare; the container
+        // always supplies it. Without it only the allow-list exempts a host.
+        private ?IntegrationProviderConfigRepository $configs = null,
     ) {
         $this->allowedHosts = array_values(array_filter(array_map(
             static fn (string $host): string => strtolower(trim($host)),
@@ -146,59 +143,41 @@ final readonly class IntegrationUrlValidator
         $this->assertHostNotInternal($host);
     }
 
+    /**
+     * Whether a host may be reached on a private network: allow-listed, or the
+     * host of a server address an admin pinned on a provider.
+     *
+     * The pin has to count. An administrator pinning `http://nextcloud:80` is
+     * the documented way to say "our Nextcloud is the container next door", and
+     * before the HTTP client checked addresses itself that simply worked —
+     * resolve() never validated a pinned value, because an admin wrote it.
+     */
+    public function isTrusted(string $host): bool
+    {
+        $host = strtolower(trim($host, '[]'));
+
+        if (true === in_array($host, $this->allowedHosts, true)) {
+            return true;
+        }
+
+        foreach ($this->configs?->findAll() ?? [] as $config) {
+            $pinned = null === $config->baseUrl ? null : parse_url($config->baseUrl, PHP_URL_HOST);
+
+            if (true === is_string($pinned) && strtolower(trim($pinned, '[]')) === $host) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     // ── Private ───────────────────────────────────────────────────────────────
 
     private function assertHostNotInternal(string $host): void
     {
-        // Bracketed IPv6 literal, e.g. [::1].
-        $bare = trim($host, '[]');
-
-        if ('localhost' === $host || true === str_ends_with($host, '.localhost')) {
-            throw new IntegrationException('Server address must not point at this machine.');
+        if (true === PrivateNetwork::isPrivateHost($host)) {
+            throw new IntegrationException('Server address must not point at a private network.');
         }
-
-        if (false !== filter_var($bare, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6)) {
-            // ::1 loopback, fc00::/7 unique-local, fe80::/10 link-local.
-            $packed = inet_pton($bare);
-
-            if (false !== $packed && (
-                "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\1" === $packed
-                || 0xFC === (ord($packed[0]) & 0xFE)
-                || (0xFE === ord($packed[0]) && 0x80 === (ord($packed[1]) & 0xC0))
-            )) {
-                throw new IntegrationException('Server address must not point at a private network.');
-            }
-
-            return;
-        }
-
-        if (false === filter_var($bare, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) {
-            // A hostname. Resolving it here would only buy a check an attacker
-            // can invalidate between now and the request, so we let it through
-            // and rely on the allow-list and on admins pinning baseUrl.
-            return;
-        }
-
-        foreach (self::BLOCKED_RANGES as $range) {
-            if (true === $this->inRange($bare, $range)) {
-                throw new IntegrationException('Server address must not point at a private network.');
-            }
-        }
-    }
-
-    private function inRange(string $ip, string $cidr): bool
-    {
-        [$subnet, $bits] = explode('/', $cidr);
-
-        $ipLong = ip2long($ip);
-        $subnetLong = ip2long($subnet);
-
-        if (false === $ipLong || false === $subnetLong) {
-            return false;
-        }
-
-        $mask = -1 << (32 - (int) $bits);
-
-        return ($ipLong & $mask) === ($subnetLong & $mask);
     }
 }
+
