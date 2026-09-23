@@ -109,4 +109,25 @@ test.describe("the clock setting reaches the browser", () => {
             expect(text).not.toMatch(/[AaPp]\.?\s?[Mm]/);
         }
     });
+
+    /**
+     * The event editor's time fields. They were the browser's own
+     * `datetime-local`, which writes the time in the BROWSER's locale whatever
+     * the page says — "03:00 PM" beside a setting that asked for 15:00. See
+     * ui--datetime, which keeps the native date and draws the time itself.
+     */
+    test("the event editor writes its times on the chosen clock", async ({ page }) => {
+        const startTime = () =>
+            page.locator('[data-datetime-field] input[type="text"]').first();
+
+        await chooseClock(page, "24");
+        await page.goto("/calendar/day");
+        await page.getByRole("button", { name: /New event on/ }).first().click();
+        await expect(startTime()).toHaveValue(/^\d{2}:00$/);
+
+        await chooseClock(page, "12");
+        await page.goto("/calendar/day");
+        await page.getByRole("button", { name: /New event on/ }).first().click();
+        await expect(startTime()).toHaveValue(/^\d{1,2}:00 (am|pm)$/);
+    });
 });

@@ -1,4 +1,5 @@
 import { expect, type Page } from "@playwright/test";
+import { fillDateTime } from "./support/datetime";
 import { test } from "./support/test";
 import { seed } from "./support/config";
 
@@ -77,8 +78,8 @@ test.describe("calendar event dialog", () => {
             const day = (await page.locator("#event-starts").inputValue()).slice(0, 10);
 
             await page.locator(EDITOR).fill("ZZ dialog end-before-start");
-            await page.locator("#event-starts").fill(`${day}T18:00`);
-            await page.locator("#event-ends").fill(`${day}T08:00`);
+            await fillDateTime(page.locator("#event-starts"), `${day}T18:00`);
+            await fillDateTime(page.locator("#event-ends"), `${day}T08:00`);
 
             await disableClientValidation(page);
 
@@ -117,8 +118,8 @@ test.describe("calendar event dialog", () => {
             const day = (await page.locator("#event-starts").inputValue()).slice(0, 10);
 
             await page.locator(EDITOR).fill("ZZ dialog client side");
-            await page.locator("#event-starts").fill(`${day}T18:00`);
-            await page.locator("#event-ends").fill(`${day}T08:00`);
+            await fillDateTime(page.locator("#event-starts"), `${day}T18:00`);
+            await fillDateTime(page.locator("#event-ends"), `${day}T08:00`);
 
             let posted = false;
             page.on("request", (r) => {
@@ -199,10 +200,9 @@ test.describe("calendar event dialog", () => {
 
             const day = (await page.locator("#event-starts").inputValue()).slice(0, 10);
 
-            await page.locator("#event-starts").fill(`${day}T09:00`);
-            await page.locator("#event-ends").fill(`${day}T10:30`);
-            await page.locator("#event-starts").fill(`${day}T14:00`);
-            await page.locator("#event-starts").dispatchEvent("change");
+            await fillDateTime(page.locator("#event-starts"), `${day}T09:00`);
+            await fillDateTime(page.locator("#event-ends"), `${day}T10:30`);
+            await fillDateTime(page.locator("#event-starts"), `${day}T14:00`);
 
             await expect(page.locator("#event-ends")).toHaveValue(`${day}T15:30`);
         });

@@ -1433,6 +1433,9 @@ errors:
             title: The ship be takin' water
 
 form:
+    # The second of the two fields a date-and-time is typed into, named
+    # after its label: "Starts, time". See ui--datetime.
+    time_part: 'th'' hour'
     file:
         choose: Choose a likeness…
         hint: PNG, JPEG, GIF or WebP

@@ -147,6 +147,7 @@ on an empty string, and clearing the location is a thing a user may mean.
                     {{ 'calendar.event.starts'|trans }}
                 </label>
                 <input id="event-starts" name="startsAt" type="datetime-local" required
+                       data-controller="ui--datetime" data-datetime-time-label="{{ 'form.time_part'|trans }}"
                        value="{{ startsAt|date('Y-m-d\\TH:i', displayZone) }}"
                        data-calendar--event-form-target="starts"
                        {% if errors.startsAt is defined %}aria-invalid="true"{% endif %}
@@ -165,6 +166,7 @@ on an empty string, and clearing the location is a thing a user may mean.
                     {{ 'calendar.event.ends'|trans }}
                 </label>
                 <input id="event-ends" name="endsAt" type="datetime-local" required
+                       data-controller="ui--datetime" data-datetime-time-label="{{ 'form.time_part'|trans }}"
                        value="{{ endsAt|date('Y-m-d\\TH:i', displayZone) }}"
                        data-calendar--event-form-target="ends"
                        data-error-message="{{ 'calendar.event.error.end_before_start'|trans }}"

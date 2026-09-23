@@ -239,13 +239,16 @@ Variables: message, params (from the including context); placement.
             <span>{{ 'compose.schedule.custom'|trans }}</span>
         </button>
 
-        {# Native input, no picker library — the same choice the calendar event
-           editor makes. #}
+        {# No picker library — the same choice the calendar event editor makes.
+           ui--datetime keeps the native date field and swaps the time for one
+           that follows the user's 12- or 24-hour setting, which the native one
+           cannot do; see the controller. #}
         <div data-compose--schedule-target="custom" hidden class="px-3 py-2 space-y-2">
             {# `input` as well as `change`: a datetime-local fires `change` only
                when a whole component is committed, so a refusal stayed on
                screen for most of the typing that was fixing it. #}
             <input type="datetime-local"
+                   data-controller="ui--datetime" data-datetime-time-label="{{ 'form.time_part'|trans }}"
                    data-compose--schedule-target="input"
                    data-action="input->compose--schedule#revalidate change->compose--schedule#revalidate"
                    aria-label="{{ 'compose.schedule.custom'|trans }}"
