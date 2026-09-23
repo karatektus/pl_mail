@@ -79,9 +79,15 @@ final class EmailQueryMethod implements JmapMethod
             throw new MethodException('unsupportedFilter', 'Anchor-based paging is not supported; use "position".');
         }
 
-        $result = $this->runner->run($accountId, $filter, $sort, $collapseThreads, $position, $limit);
+        $calculateTotal = $arguments['calculateTotal'] ?? true;
 
-        return [
+        if (false === is_bool($calculateTotal)) {
+            throw new MethodException('invalidArguments', '"calculateTotal" must be a boolean.');
+        }
+
+        $result = $this->runner->run($accountId, $filter, $sort, $collapseThreads, $position, $limit, $calculateTotal);
+
+        $response = [
             'accountId' => (string) $accountId,
             'queryState' => $this->stateManager->stateFor($accountId, JmapObjectType::Email),
             // No Email/queryChanges yet, so clients must re-run the query
@@ -89,8 +95,13 @@ final class EmailQueryMethod implements JmapMethod
             'canCalculateChanges' => false,
             'position' => $result->position,
             'ids' => $result->ids,
-            'total' => $result->total,
             'limit' => $limit,
         ];
+
+        if (null !== $result->total) {
+            $response['total'] = $result->total;
+        }
+
+        return $response;
     }
 }

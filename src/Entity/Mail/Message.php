@@ -37,6 +37,10 @@ use Doctrine\ORM\Mapping as ORM;
 // first. Without it, every poll of every folder sequentially scans the
 // account's messages to find the handful that went missing.
 #[ORM\Index(name: 'idx_message_vanished', columns: ['account_id', 'vanished_at'])]
+// Email/query's default order, newest first. The migration creates it as
+// (account_id, received_at DESC NULLS LAST, id DESC) to match that ORDER BY;
+// the comparator does not see directions. See Version20260923140200.
+#[ORM\Index(name: 'idx_message_account_received_at', columns: ['account_id', 'received_at', 'id'])]
 #[ORM\Entity(repositoryClass: MessageRepository::class)]
 #[ORM\HasLifecycleCallbacks]
 class Message extends MessageModel

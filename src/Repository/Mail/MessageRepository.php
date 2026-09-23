@@ -388,23 +388,94 @@ class MessageRepository extends ServiceEntityRepository
     }
 
     /**
-     * Ids and thread ids of every message in an account matching a compiled
-     * JMAP filter, in the requested order — the whole of Email/query's read.
+     * One page of Email/query: the ids of an account's messages matching a
+     * compiled JMAP filter, in the requested order, from $position on.
      *
      * Raw SQL for the same reason matchingIds() is: the filter arrives as a SQL
      * fragment compiled from the client's request, because Postgres is the only
-     * implementation of what a JMAP filter means. Two integer columns are
-     * selected and nothing is hydrated; the spec's `position` and `total` are
-     * defined over the collapsed list, so the caller windows in PHP.
+     * implementation of what a JMAP filter means.
+     *
+     * The window is applied here rather than in PHP. This used to return every
+     * matching row of the account, sorted, for EmailQueryRunner to slice — on
+     * every page of every list a client scrolls, a mailbox's worth of rows to
+     * hand back 50. With $collapseThreads the spec's `position` counts
+     * collapsed rows, so the collapse has to happen before the window: the
+     * inner DISTINCT ON keeps each thread's first message in the requested
+     * order (a message with no thread is its own group, keyed by its negated
+     * id so it cannot meet a real thread id), and the outer query sorts and
+     * pages those. The default order is served by
+     * idx_message_account_received_at.
      *
      * $orderBySql is interpolated because ORDER BY takes expressions, not bound
      * values. It is safe by construction: EmailQueryRunner builds it from a
      * fixed property→column map and raises unsupportedSort for anything absent
      * from it, so no client string ever reaches this.
      *
-     * @return list<array{id: int|string, thread_id: int|string|null}>
+     * @return list<string>
      */
-    public function findIdsForQuery(int $accountId, ?CompiledFilter $filter, string $orderBySql): array
+    public function findIdsForQuery(
+        int $accountId,
+        ?CompiledFilter $filter,
+        string $orderBySql,
+        bool $collapseThreads,
+        int $position,
+        ?int $limit,
+    ): array {
+        [$where, $parameters, $types] = $this->queryWhere($accountId, $filter);
+
+        $sql = true === $collapseThreads
+            ? sprintf(
+                'SELECT m.id FROM message m WHERE m.id IN (
+                    SELECT DISTINCT ON (COALESCE(m.thread_id, -m.id)) m.id
+                      FROM message m
+                     WHERE %s
+                     ORDER BY COALESCE(m.thread_id, -m.id), %s
+                 ) ORDER BY %s',
+                $where,
+                $orderBySql,
+                $orderBySql,
+            )
+            : sprintf('SELECT m.id FROM message m WHERE %s ORDER BY %s', $where, $orderBySql);
+
+        $sql .= ' OFFSET :emailQueryOffset';
+        $parameters['emailQueryOffset'] = $position;
+        $types['emailQueryOffset']      = ParameterType::INTEGER;
+
+        if (null !== $limit) {
+            $sql .= ' LIMIT :emailQueryLimit';
+            $parameters['emailQueryLimit'] = $limit;
+            $types['emailQueryLimit']      = ParameterType::INTEGER;
+        }
+
+        $ids = $this->getEntityManager()
+            ->getConnection()
+            ->executeQuery($sql, $parameters, $types)
+            ->fetchFirstColumn();
+
+        return array_map('strval', $ids);
+    }
+
+    /**
+     * Email/query's `total`: how many rows the whole collapsed or uncollapsed
+     * list has, which findIdsForQuery() no longer reads. A COUNT because that
+     * is the question, and raw for the filter fragment, as above.
+     */
+    public function countForQuery(int $accountId, ?CompiledFilter $filter, bool $collapseThreads): int
+    {
+        [$where, $parameters, $types] = $this->queryWhere($accountId, $filter);
+
+        $count = true === $collapseThreads ? 'COUNT(DISTINCT COALESCE(m.thread_id, -m.id))' : 'COUNT(*)';
+
+        return (int) $this->getEntityManager()
+            ->getConnection()
+            ->executeQuery(sprintf('SELECT %s FROM message m WHERE %s', $count, $where), $parameters, $types)
+            ->fetchOne();
+    }
+
+    /**
+     * @return array{0: string, 1: array<string,mixed>, 2: array<string,ArrayParameterType|ParameterType|null>}
+     */
+    private function queryWhere(int $accountId, ?CompiledFilter $filter): array
     {
         $parameters = ['accountId' => $accountId];
         $types      = [];
@@ -416,15 +487,7 @@ class MessageRepository extends ServiceEntityRepository
             $types      = $filter->parameterTypes();
         }
 
-        /** @var list<array{id: int|string, thread_id: int|string|null}> */
-        return $this->getEntityManager()
-            ->getConnection()
-            ->executeQuery(
-                sprintf('SELECT m.id, m.thread_id FROM message m WHERE %s ORDER BY %s', $where, $orderBySql),
-                $parameters,
-                $types,
-            )
-            ->fetchAllAssociative();
+        return [$where, $parameters, $types];
     }
 
     /**

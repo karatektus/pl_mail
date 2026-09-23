@@ -642,7 +642,9 @@ your client wants one, **ask for it rather than engineering around it** (see [§
 - **Anchor-based paging is not supported.** `anchor` raises `unsupportedFilter`; use `position` +
   `limit`. Negative positions (anchoring from the end) are rejected **by `Email/query`**;
   `Mailbox/query` does accept them and anchors from the end.
-- **`Email/query` always returns `total`; `Mailbox/query` only with `calculateTotal: true`.**
+- **`Email/query` returns `total` unless you send `calculateTotal: false`; `Mailbox/query` only with
+  `calculateTotal: true`.** Counting is a second query, so a pager that does not show a count
+  should send `false`.
 - **`VacationResponse/*` and `Blob/copy`** are absent. `SearchSnippet/get` is not — it was listed
   here as missing while `SearchSnippetGetMethod` was in the tree.
 - **Contacts are autocomplete only.** `Contact/autocomplete`, under

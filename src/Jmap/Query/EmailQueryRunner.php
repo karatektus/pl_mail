@@ -9,7 +9,8 @@ use App\Repository\Mail\MessageRepository;
 
 /**
  * Runs a compiled Email/query: filter -> sort -> optional thread collapse ->
- * window. Returns ids only, which is all RFC 8621 §4.4 asks for.
+ * window, all of it in SQL. Returns ids only, which is all RFC 8621 §4.4 asks
+ * for.
  *
  * What this owns is the JMAP half — which sort properties exist, what an
  * unsupported one costs the client, and where "position" and "total" are
@@ -37,6 +38,11 @@ final class EmailQueryRunner
     }
 
     /**
+     * $calculateTotal false skips the COUNT, which RFC 8621 lets a client
+     * decline. Anything else — including leaving it out — still counts,
+     * because plMail has always answered `total` on Email/query and clients
+     * were told they could rely on it.
+     *
      * @param array<string,mixed>|null $filter
      * @param list<mixed>|null         $sort
      */
@@ -47,70 +53,24 @@ final class EmailQueryRunner
         bool $collapseThreads,
         int $position,
         ?int $limit,
+        bool $calculateTotal = true,
     ): EmailQueryResult {
-        $rows = $this->messages->findIdsForQuery(
-            $accountId,
-            null === $filter ? null : $this->filterCompiler->compile($filter),
-            $this->orderBy($sort),
-        );
+        $compiled = null === $filter ? null : $this->filterCompiler->compile($filter);
 
-        $ids = $this->collect($rows, $collapseThreads);
-        $total = count($ids);
+        $ids = $this->messages->findIdsForQuery(
+            $accountId,
+            $compiled,
+            $this->orderBy($sort),
+            $collapseThreads,
+            $position,
+            $limit,
+        );
 
         return new EmailQueryResult(
-            $this->window($ids, $position, $limit),
-            $total,
+            $ids,
+            true === $calculateTotal ? $this->messages->countForQuery($accountId, $compiled, $collapseThreads) : null,
             $position,
         );
-    }
-
-    /**
-     * Thread collapse happens here rather than in SQL (DISTINCT ON) because the
-     * spec's "position" and "total" are defined over the collapsed list. Only
-     * two integer columns per matching row are read, so the full result set is
-     * cheap to hold even for a large mailbox.
-     *
-     * @param list<array<string,mixed>> $rows
-     *
-     * @return list<string>
-     */
-    private function collect(array $rows, bool $collapseThreads): array
-    {
-        $ids = [];
-        $seenThreads = [];
-
-        foreach ($rows as $row) {
-            if (true === $collapseThreads) {
-                $threadId = $row['thread_id'];
-
-                // Messages with no thread can never collapse into one another.
-                if (null !== $threadId) {
-                    if (true === array_key_exists((int) $threadId, $seenThreads)) {
-                        continue;
-                    }
-
-                    $seenThreads[(int) $threadId] = true;
-                }
-            }
-
-            $ids[] = (string) $row['id'];
-        }
-
-        return $ids;
-    }
-
-    /**
-     * @param list<string> $ids
-     *
-     * @return list<string>
-     */
-    private function window(array $ids, int $position, ?int $limit): array
-    {
-        if (null === $limit) {
-            return array_values(array_slice($ids, $position));
-        }
-
-        return array_values(array_slice($ids, $position, $limit));
     }
 
     /**
