@@ -112,7 +112,7 @@ class BackgroundJob
      * describes. See App\Service\Mail\ListViewResolver for why a view is a
      * named scope rather than the URL somebody was looking at.
      *
-     * @var array{scope: string, value: string, unreadOnly: bool}
+     * @var array{scope: string, value: string, unreadOnly: bool, until?: string|null}
      */
     #[ORM\Column(type: 'json')]
     public array $view = ['scope' => '', 'value' => '', 'unreadOnly' => false];

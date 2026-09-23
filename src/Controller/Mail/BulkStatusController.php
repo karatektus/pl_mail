@@ -393,7 +393,7 @@ final class BulkStatusController extends AbstractController
         try {
             return new DateTimeImmutable((string) $body['until']);
         } catch (\Exception) {
-            return new DateTimeImmutable('in 1 day');
+            return new DateTimeImmutable('+1 day');
         }
     }
 }
