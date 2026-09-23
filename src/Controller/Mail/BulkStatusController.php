@@ -15,7 +15,9 @@ use App\Infrastructure\Messaging\Message\RunBulkStatusMessage;
 use App\Repository\Label\LabelRepository;
 use App\Repository\Mail\MessageThreadRepository;
 use App\Security\Voter\OwnershipVoter;
+use App\Service\Mail\ThreadSnoozeService;
 use App\Service\Mail\ThreadStatusUpdater;
+use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -59,6 +61,7 @@ final class BulkStatusController extends AbstractController
         private readonly ThreadStatusUpdater     $status,
         private readonly EntityManagerInterface  $entityManager,
         private readonly MessageBusInterface     $bus,
+        private readonly ThreadSnoozeService     $snoozeService,
     ) {
     }
 
@@ -80,7 +83,7 @@ final class BulkStatusController extends AbstractController
      *      than as the URL the user is on — it is resolved by
      *      RunBulkStatusHandler now, where the work happens.
      */
-    #[Route('/{action}', name: 'run', methods: ['POST'], requirements: ['action' => 'archive|trash|read|restore|move|label|category'])]
+    #[Route('/{action}', name: 'run', methods: ['POST'], requirements: ['action' => 'archive|trash|read|restore|snooze|move|label|category'])]
     public function bulk(Request $request, string $action): Response
     {
         $this->assertCsrf($request, 'ajax');
@@ -194,6 +197,31 @@ final class BulkStatusController extends AbstractController
                 'count'   => 0,
                 'threads' => [],
                 'leaves'  => false,
+            ]);
+        }
+
+        // SNOOZE IS PER CONVERSATION, through the same service the single-row
+        // route and Thread/set use — it moves the Inbox label off, queues the
+        // provider archive and remembers when to undo it. Not the per-account
+        // grouping below: the service resolves each thread's own account.
+        //
+        // Both directions leave the list they were started from: a snoozed
+        // conversation leaves the inbox, a woken one leaves Snoozed.
+        if ('snooze' === $action) {
+            $until = self::snoozeUntil($body);
+
+            foreach ($threads as $thread) {
+                if (null === $until) {
+                    $this->snoozeService->wake($thread);
+                } else {
+                    $this->snoozeService->snooze($thread, $until);
+                }
+            }
+
+            return $this->renderTurboStream('thread/status/_bulk.stream.html.twig', [
+                'count'   => count($threads),
+                'threads' => $threads,
+                'leaves'  => true,
             ]);
         }
 
@@ -322,13 +350,20 @@ final class BulkStatusController extends AbstractController
      */
     private function startJob(User $user, string $action, array $body): Response
     {
-        $job = new BackgroundJob($user, JobKind::forAction($action, true === ($body['read'] ?? true)));
+        $until = 'snooze' === $action ? self::snoozeUntil($body) : null;
+        $job   = new BackgroundJob($user, JobKind::forAction($action, true === ($body['read'] ?? true), null === $until));
 
         $job->view = [
             'scope'      => (string) ($body['scope'] ?? ''),
             'value'      => (string) ($body['value'] ?? ''),
             'unreadOnly' => true === ($body['unreadOnly'] ?? false),
         ];
+
+        // The one action with a payload the worker needs. On the job with the
+        // view rather than in the envelope, for the reason the view is there.
+        if ('snooze' === $action) {
+            $job->view['until'] = $until?->format(DATE_ATOM);
+        }
 
         $this->entityManager->persist($job);
         $this->entityManager->flush();
@@ -338,5 +373,27 @@ final class BulkStatusController extends AbstractController
         return $this->renderTurboStream('mail/_job_started.stream.html.twig', [
             'job' => $job,
         ]);
+    }
+
+    /**
+     * The wake time a snooze asked for, or null to wake the selection.
+     *
+     * The same reading as ThreadStatusController::snooze(), fallback included:
+     * an unparseable date from the browser's snooze menu becomes "in 1 day"
+     * rather than a refusal, exactly as it does for one row.
+     *
+     * @param array<string, mixed> $body
+     */
+    private static function snoozeUntil(array $body): ?DateTimeImmutable
+    {
+        if (null === ($body['until'] ?? null)) {
+            return null;
+        }
+
+        try {
+            return new DateTimeImmutable((string) $body['until']);
+        } catch (\Exception) {
+            return new DateTimeImmutable('in 1 day');
+        }
     }
 }

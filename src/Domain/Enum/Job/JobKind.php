@@ -20,6 +20,15 @@ enum JobKind: string
     case Restore    = 'restore';
 
     /**
+     * Snoozing a whole view, and waking one — the same bulk action, told apart
+     * by whether the job carries a wake time (`view.until`). Two kinds rather
+     * than one because the indicator names what is happening, and "Snoozing"
+     * over a run that is bringing mail back would be the indicator lying.
+     */
+    case Snooze = 'snooze';
+    case Wake   = 'wake';
+
+    /**
      * Asking the assistant again about mail it has already sorted.
      *
      * THE ODD ONE OUT, and deliberately admitted rather than disguised. Every
@@ -55,6 +64,7 @@ enum JobKind: string
             self::Archive                    => 'archive',
             self::Trash                      => 'trash',
             self::Restore                    => 'restore',
+            self::Snooze, self::Wake         => 'snooze',
             // Reclassify has no bulk action behind it and no caller that could
             // want one: RunBulkStatusHandler is the only reader of this method
             // and only ever holds a kind it was dispatched for. Throwing beats
@@ -71,10 +81,12 @@ enum JobKind: string
         return self::MarkRead === $this;
     }
 
-    public static function forAction(string $action, bool $read): self
+    /** @param bool $wake for `snooze`: true when no wake time was given, which clears the snooze */
+    public static function forAction(string $action, bool $read, bool $wake = false): self
     {
         return match ($action) {
             'read'    => true === $read ? self::MarkRead : self::MarkUnread,
+            'snooze'  => true === $wake ? self::Wake : self::Snooze,
             'archive' => self::Archive,
             'trash'   => self::Trash,
             'restore' => self::Restore,

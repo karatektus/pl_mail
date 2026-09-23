@@ -1904,6 +1904,8 @@ jobs:
         archive: Archiving
         trash: Moving to bin
         restore: Restoring
+        snooze: Snoozing
+        wake: Bringing back from snooze
         reclassify: Sorting recent mail again
     state:
         done: '%count% done'

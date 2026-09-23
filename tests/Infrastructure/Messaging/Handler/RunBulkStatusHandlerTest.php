@@ -291,6 +291,7 @@ final class RunBulkStatusHandlerTest extends KernelTestCase
             $threads ?? $container->get(\App\Repository\Mail\MessageThreadRepository::class),
             $container->get(\App\Service\Mail\ListViewResolver::class),
             $container->get(\App\Service\Mail\ThreadStatusUpdater::class),
+            $container->get(\App\Service\Mail\ThreadSnoozeService::class),
             $container->get(\App\Service\Job\JobNotifier::class),
             $this->em,
             $container->get(\Doctrine\Persistence\ManagerRegistry::class),

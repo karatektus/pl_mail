@@ -183,12 +183,13 @@ export default class extends Controller {
      * session. Absent, this clears the snooze on the selection.
      */
     async snoozeSelected(event) {
-        const ids = this._selectedIds();
-        if (ids.length === 0) { return; }
-
         const { until = null } = event?.params ?? {};
 
-        await this._bulkPost(ids, "snooze", { until });
+        // _bulkPost reads the selection itself, whole-view included. This used
+        // to pass the ids as a first argument, which shifted "snooze" into the
+        // body slot and posted to /status/bulk/[object Array] — every bulk
+        // snooze answered 404 and nothing moved.
+        await this._bulkPost("snooze", { until });
     }
 
     // ── Private ───────────────────────────────────────────────────────────
@@ -226,18 +227,10 @@ export default class extends Controller {
     }
 
     /**
-     * Posts the given action to every selected thread in parallel, then
-     * renders all returned Turbo Stream fragments in document order.
-     *
-     * Reuses the same routes as single-row actions:
-     *   POST /status/thread/{id}/{action}
-     *
-     * @param {number[]} ids     - thread IDs to act on
-     * @param {string}   action  - route suffix: archive | trash | read | snooze | star
-     * @param {object}   body    - optional JSON body (e.g. { read: true })
-     */
-    /**
      * One request for the whole selection.
+     *
+     * @param {string} action - POST /status/bulk/{action}: archive | trash | read | restore | snooze
+     * @param {object} body   - optional JSON body (e.g. { read: true }, { until })
      *
      * It used to be one request per conversation, fired in parallel. That is
      * survivable for the fifty rows a page holds and impossible for what this

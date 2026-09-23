@@ -1900,6 +1900,8 @@ jobs:
         archive: Archivieren
         trash: In den Papierkorb verschieben
         restore: Wiederherstellen
+        snooze: Zurückstellen
+        wake: Zurückholen
         reclassify: Sortiert neueste Mail neu
     state:
         done: '%count% erledigt'

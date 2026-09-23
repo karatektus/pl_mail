@@ -12,7 +12,9 @@ use App\Repository\Job\BackgroundJobRepository;
 use App\Repository\Mail\MessageThreadRepository;
 use App\Service\Job\JobNotifier;
 use App\Service\Mail\ListViewResolver;
+use App\Service\Mail\ThreadSnoozeService;
 use App\Service\Mail\ThreadStatusUpdater;
+use DateTimeImmutable;
 use Doctrine\DBAL\Exception\RetryableException;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\Persistence\ManagerRegistry;
@@ -87,6 +89,7 @@ final readonly class RunBulkStatusHandler
         private MessageThreadRepository  $threads,
         private ListViewResolver        $views,
         private ThreadStatusUpdater     $status,
+        private ThreadSnoozeService     $snooze,
         private JobNotifier             $notifier,
         private EntityManagerInterface  $em,
         private ManagerRegistry         $registry,
@@ -213,6 +216,9 @@ final readonly class RunBulkStatusHandler
 
         $action = $job->kind->action();
         $read   = $job->kind->readFlag();
+        // Only a snooze job carries one; null there means wake. See
+        // BulkStatusController::startJob().
+        $until  = isset($job->view['until']) ? new DateTimeImmutable((string) $job->view['until']) : null;
         $userId = (int) $job->usr->id;
         $jobId  = (int) $job->id;
 
@@ -236,7 +242,7 @@ final readonly class RunBulkStatusHandler
         $processed = 0;
 
         foreach (array_chunk($ids, self::CHUNK) as $chunk) {
-            $this->applyWithRetry($chunk, $action, $read, $userId);
+            $this->applyWithRetry($chunk, $action, $read, $userId, $until);
 
             $processed += count($chunk);
 
@@ -310,11 +316,11 @@ final readonly class RunBulkStatusHandler
      *
      * @param list<int> $chunk
      */
-    private function applyWithRetry(array $chunk, string $action, bool $read, int $userId): void
+    private function applyWithRetry(array $chunk, string $action, bool $read, int $userId, ?DateTimeImmutable $until = null): void
     {
         for ($attempt = 1; ; ++$attempt) {
             try {
-                $this->apply($chunk, $action, $read, $userId);
+                $this->apply($chunk, $action, $read, $userId, $until);
 
                 return;
             } catch (RetryableException $e) {
@@ -351,7 +357,7 @@ final readonly class RunBulkStatusHandler
      *
      * @param list<int> $threadIds
      */
-    private function apply(array $threadIds, string $action, bool $read, int $userId): void
+    private function apply(array $threadIds, string $action, bool $read, int $userId, ?DateTimeImmutable $until = null): void
     {
         $byAccount = [];
 
@@ -359,6 +365,18 @@ final readonly class RunBulkStatusHandler
             // The last check before a write. The resolver selected these for
             // this user, but that is a query in another class.
             if ((int) ($thread->account?->usr->id ?? 0) !== $userId) {
+                continue;
+            }
+
+            // Per conversation, through the service every other snooze uses;
+            // it resolves the thread's own account and flushes as it goes.
+            if ('snooze' === $action) {
+                if (null === $until) {
+                    $this->snooze->wake($thread);
+                } else {
+                    $this->snooze->snooze($thread, $until);
+                }
+
                 continue;
             }
 

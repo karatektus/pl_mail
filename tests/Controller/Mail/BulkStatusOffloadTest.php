@@ -100,6 +100,42 @@ final class BulkStatusOffloadTest extends WebTestCase
     }
 
     /**
+     * Bulk snooze is a route, and its wake time travels on the job.
+     *
+     * The toolbar's snooze menu posted to /status/bulk/snooze for as long as it
+     * existed and the route's allow-list never named it: every bulk snooze was
+     * a 404 and a toast. An empty explicit list is the cheapest proof the
+     * route answers; the whole view is the path with a payload to lose.
+     */
+    public function testBulkSnoozeIsAcceptedAndCarriesItsWakeTime(): void
+    {
+        $client = $this->signedIn();
+
+        $this->post($client, 'snooze', ['ids' => [], 'until' => '2030-01-02T08:00:00+00:00']);
+        self::assertResponseIsSuccessful();
+
+        // A label that does not exist, so a worker picking the job up in the
+        // test stack finds nothing to snooze: the fixture inbox put away until
+        // 2030 would be every other spec's problem.
+        $this->post($client, 'snooze', [
+            'all'   => true,
+            'scope' => 'label',
+            'value' => '999999999',
+            'until' => '2030-01-02T08:00:00+00:00',
+        ]);
+        self::assertResponseIsSuccessful();
+
+        $job = $this->jobs()->findOneBy([], ['id' => 'DESC']);
+        self::assertSame(JobKind::Snooze, $job?->kind);
+        self::assertSame('2030-01-02T08:00:00+00:00', $job->view['until']);
+
+        // No wake time is "wake these", which the indicator must not call snoozing.
+        $this->post($client, 'snooze', ['all' => true, 'scope' => 'label', 'value' => '999999999', 'until' => null]);
+        self::assertResponseIsSuccessful();
+        self::assertSame(JobKind::Wake, $this->jobs()->findOneBy([], ['id' => 'DESC'])?->kind);
+    }
+
+    /**
      * The envelope reaches a queue instead of being run on the spot.
      *
      * THIS IS THE TEST THAT WAS MISSING, and the prose above carried the gap as
