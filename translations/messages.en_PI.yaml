@@ -31,6 +31,7 @@ account:
     test:
         button: Test the riggin'
         imap: IMAP
+        request_failed: 'The test couldn''t set sail (%status%).'
         smtp: SMTP
     updated: Ship's papers amended
 
@@ -1381,6 +1382,7 @@ demo:
         complaint: Ye may also lay a complaint before th' harbourmaster o' records.
         controller_intro: Answerable for th' handlin' set down here:
         controller_title: Th' one answerable
+        controller_unset: "Not set. A privacy notice must name th' one answerable — set these afore ye open this port to the world."
         cookie_mercure: keeps th' speakin'-line open while ye be aboard.
         cookie_session: keeps ye aboard yer trial berth. Struck when ye close th' spyglass.
         cookie_ui: remembers th' colours an' tongue ye chose.
@@ -1390,6 +1392,7 @@ demo:
             to wave away.
         cookies_title: Tokens
         host: Th' hull be kept on our behalf by %host%, under articles o' handlin'.
+        host_unset: "Not set. Whoever keeps th' hull be a processor, and must be named here."
         logs: >-
             As any harbour does, this one notes each callin': th' address it came from,
             th' hour, th' page sought, th' page afore it an' th' spyglass's mark. This
@@ -1397,6 +1400,7 @@ demo:
             articles — rightful interest). Th' logs be turned over an' no man's likeness
             be built from them.
         logs_title: Th' harbour log
+        processing_title: What be handled, and by what right
         rights: >-
             Ye have th' right to be told what be held on ye, an' to have it set right,
             struck, or held back, as well as th' right to object an' th' right to carry
@@ -1421,6 +1425,7 @@ demo:
         title: Ship's papers
         heading: Declarations under § 5 TMG
         operator: Master o' the vessel
+        unset: "Not set. The law demands this page name a real master o' the vessel — set these in the environment afore ye open this port to the world."
         contact: Hailing
         contact_email: 'Letters:'
         disclaimer_title: About this sea trial
@@ -1580,6 +1585,14 @@ integration:
             nextcloud: 'Search Nextcloud'
             oneDrive: 'Search OneDrive'
             paperless: 'Search titles and scanned text'
+        status:
+            attach_failed: 'Couldn''t haul it aboard'
+            attaching: 'Haulin'' aboard…'
+            load_failed: 'Couldn''t haul up more'
+            loading: 'Haulin'' up…'
+            nothing_selected: 'Naught be chosen'
+            save_draft_first: 'Stow the draft first'
+            skipped: 'Left on the dock: %files%'
         timeline: 'Jump to a date'
         too_big: 'Too heavy to haul'
 

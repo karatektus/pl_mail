@@ -11,6 +11,7 @@
                 'data-settings--connection-test-url-value': path('app_account_test_connection'),
                 'data-settings--connection-test-csrf-value': csrf_token('account_test'),
                 'data-settings--connection-test-account-id-value': account.id,
+                'data-settings--connection-test-failed-value': 'account.test.request_failed'|trans,
                 class: 'flex-1 min-h-0 flex flex-col',
             }
         }) }}

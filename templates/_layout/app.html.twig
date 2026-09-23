@@ -76,7 +76,7 @@
        compose_controller#_trackViewport. #}
     <meta name="viewport"
           content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
-    <title>{% block title %}Welcome!{% endblock %}</title>
+    <title>{% block title %}{{ 'app.name'|trans }}{% endblock %}</title>
     {#
     Which counts key the "(n)" in the title above came from, or empty on a page
     whose title carries no count.

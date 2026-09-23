@@ -29,12 +29,11 @@
                     <h2 class="text-sm font-semibold text-ink">{{ 'demo.impressum.heading'|trans }}</h2>
 
                     {% if operatorName is empty and operatorAddress is empty and operatorEmail is empty %}
-                        <div class="rounded-lg alert-danger text-danger text-sm px-4 py-3">
-                            <strong>APP_DEMO_IMPRESSUM_NAME</strong>,
-                            <strong>APP_DEMO_IMPRESSUM_ADDRESS</strong> and
-                            <strong>APP_DEMO_IMPRESSUM_EMAIL</strong> are not set.
-                            This page is legally required to name a real operator — set them
-                            in the environment before making this instance public.
+                        {# The variable names are identifiers, not words, so they
+                           stay out of the translation. #}
+                        <div class="rounded-lg alert-danger text-danger text-sm px-4 py-3 space-y-1">
+                            <p class="font-mono text-xs font-semibold">APP_DEMO_IMPRESSUM_NAME, APP_DEMO_IMPRESSUM_ADDRESS, APP_DEMO_IMPRESSUM_EMAIL</p>
+                            <p>{{ 'demo.impressum.unset'|trans }}</p>
                         </div>
                     {% else %}
                         <dl class="text-sm text-ink-soft space-y-3">

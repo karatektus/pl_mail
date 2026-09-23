@@ -38,6 +38,15 @@ gap under the shortcuts row.
              data-integration--integration-picker-url-value="{{ path('app_integration_attach', { id: integration.id }) }}"
              data-integration--integration-picker-draft-value="{{ draftId }}"
              data-integration--integration-picker-token-value="{{ csrf_token('integration-picker') }}"
+             data-integration--integration-picker-i18n-value="{{ {
+                 loading:         'integration.picker.status.loading'|trans,
+                 loadFailed:      'integration.picker.status.load_failed'|trans,
+                 nothingSelected: 'integration.picker.status.nothing_selected'|trans,
+                 saveDraftFirst:  'integration.picker.status.save_draft_first'|trans,
+                 attaching:       'integration.picker.status.attaching'|trans,
+                 attachFailed:    'integration.picker.status.attach_failed'|trans,
+                 skipped:         'integration.picker.status.skipped'|trans,
+             }|json_encode }}"
              class="flex-1 min-h-0 flex flex-col">
 
             {% if error is not null %}

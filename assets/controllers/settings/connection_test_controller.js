@@ -13,6 +13,8 @@ export default class extends Controller {
         url: String,
         accountId: Number,
         csrf: String,
+        /** Translated "the test could not run (%status%)" — see the account modals. */
+        failed: { type: String, default: "%status%" },
     };
 
     async run() {
@@ -31,7 +33,7 @@ export default class extends Controller {
 
             if (response.ok === false) {
                 this._render(
-                    { ok: false, message: `Request failed (${response.status}).` },
+                    { ok: false, message: this.failedValue.replace("%status%", String(response.status)) },
                     { ok: false, message: "" },
                 );
                 return;
@@ -40,7 +42,9 @@ export default class extends Controller {
             const result = await response.json();
             this._render(result.imap, result.smtp);
         } catch (error) {
-            this._render({ ok: false, message: error.message }, { ok: false, message: "" });
+            // Not error.message: that is the browser's own English ("Failed
+            // to fetch"). No status, because no response.
+            this._render({ ok: false, message: this.failedValue.replace(" (%status%)", "").replace("%status%", "") }, { ok: false, message: "" });
         } finally {
             this._setBusy(false);
         }

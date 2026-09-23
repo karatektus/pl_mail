@@ -31,6 +31,7 @@ account:
     test:
         button: Verbindung testen
         imap: IMAP
+        request_failed: 'Der Test konnte nicht laufen (%status%).'
         smtp: SMTP
     updated: Konto aktualisiert
 
@@ -1673,6 +1674,7 @@ demo:
             zu.
         controller_intro: Verantwortlich für die hier beschriebene Verarbeitung:
         controller_title: Verantwortlicher
+        controller_unset: 'Nicht gesetzt. Eine Datenschutzerklärung muss den Verantwortlichen nennen — setz diese Werte, bevor du die Instanz öffentlich machst.'
         cookie_mercure: hält die Verbindung für Live-Aktualisierungen offen, solange du angemeldet bist.
         cookie_session: hält dich in deinem Demo-Konto angemeldet. Wird beim Schließen des Browsers gelöscht.
         cookie_ui: merkt sich das gewählte Design und die Sprache.
@@ -1682,6 +1684,7 @@ demo:
             Cookie-Banner.
         cookies_title: Cookies
         host: Der Server wird in unserem Auftrag von %host% betrieben, als Auftragsverarbeiter auf Grundlage eines Auftragsverarbeitungsvertrags.
+        host_unset: 'Nicht gesetzt. Das Unternehmen, das den Server betreibt, ist Auftragsverarbeiter und muss hier genannt werden.'
         logs: >-
             Wie jeder Webserver protokolliert auch dieser jeden Abruf: die IP-Adresse,
             von der er kam, den Zeitpunkt, die angeforderte Seite, die verweisende Seite
@@ -1689,6 +1692,7 @@ demo:
             Dienstes erforderlich (Art. 6 Abs. 1 lit. f DSGVO — berechtigtes Interesse).
             Diese Protokolle werden rotiert und nicht zur Profilbildung verwendet.
         logs_title: Server-Logfiles
+        processing_title: Was verarbeitet wird, und auf welcher Grundlage
         rights: >-
             Du hast das Recht auf Auskunft über die zu dir gespeicherten Daten sowie auf
             deren Berichtigung, Löschung oder Einschränkung der Verarbeitung, außerdem
@@ -1715,6 +1719,7 @@ demo:
         title: Impressum
         heading: Angaben gemäß § 5 TMG
         operator: Betreiber
+        unset: 'Nicht gesetzt. Diese Seite muss von Gesetzes wegen einen echten Betreiber nennen — setz diese Werte in der Umgebung, bevor du die Instanz öffentlich machst.'
         contact: Kontakt
         contact_email: 'E-Mail:'
         disclaimer_title: Über diese Demo
@@ -1886,6 +1891,14 @@ integration:
             nextcloud: 'Nextcloud durchsuchen'
             oneDrive: 'OneDrive durchsuchen'
             paperless: 'Titel und gescannten Text durchsuchen'
+        status:
+            attach_failed: 'Anhängen fehlgeschlagen'
+            attaching: 'Wird angehängt …'
+            load_failed: 'Mehr konnte nicht geladen werden'
+            loading: 'Wird geladen …'
+            nothing_selected: 'Nichts ausgewählt'
+            save_draft_first: 'Speichere zuerst den Entwurf'
+            skipped: 'Übersprungen: %files%'
         timeline: 'Zu einem Datum springen'
         too_big: 'Zu groß zum Anhängen'
 

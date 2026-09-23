@@ -30,11 +30,9 @@
                 <h1 class="text-xl font-semibold text-ink">{{ 'demo.privacy.title'|trans }}</h1>
 
                 {% if operatorName is empty and operatorAddress is empty and operatorEmail is empty %}
-                    <div class="rounded-lg alert-danger text-danger text-sm px-4 py-3">
-                        <strong>APP_DEMO_IMPRESSUM_NAME</strong>,
-                        <strong>APP_DEMO_IMPRESSUM_ADDRESS</strong> and
-                        <strong>APP_DEMO_IMPRESSUM_EMAIL</strong> are not set. A privacy notice must
-                        name the controller — set them before making this instance public.
+                    <div class="rounded-lg alert-danger text-danger text-sm px-4 py-3 space-y-1">
+                        <p class="font-mono text-xs font-semibold">APP_DEMO_IMPRESSUM_NAME, APP_DEMO_IMPRESSUM_ADDRESS, APP_DEMO_IMPRESSUM_EMAIL</p>
+                        <p>{{ 'demo.privacy.controller_unset'|trans }}</p>
                     </div>
                 {% endif %}
 
@@ -98,9 +96,9 @@
                             {{ 'demo.privacy.host'|trans({ '%host%': host }) }}
                         </p>
                     {% else %}
-                        <div class="rounded-lg alert-danger text-danger text-sm px-4 py-3">
-                            <strong>APP_DEMO_PRIVACY_HOST</strong> is not set. The company running the
-                            server is a processor and has to be named here.
+                        <div class="rounded-lg alert-danger text-danger text-sm px-4 py-3 space-y-1">
+                            <p class="font-mono text-xs font-semibold">APP_DEMO_PRIVACY_HOST</p>
+                            <p>{{ 'demo.privacy.host_unset'|trans }}</p>
                         </div>
                     {% endif %}
                 </section>

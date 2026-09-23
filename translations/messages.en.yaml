@@ -31,6 +31,7 @@ account:
     test:
         button: Test connection
         imap: IMAP
+        request_failed: 'The test could not run (%status%).'
         smtp: SMTP
     updated: Account updated
 
@@ -1673,6 +1674,7 @@ demo:
             supervisory authority.
         controller_intro: Responsible for the processing described here:
         controller_title: Controller
+        controller_unset: 'Not set. A privacy notice must name the controller — set these before making this instance public.'
         cookie_mercure: keeps the live-update connection open while you are signed in.
         cookie_session: keeps you signed in to your demo account. Deleted when you close the browser.
         cookie_ui: remembers the theme and language you picked.
@@ -1682,6 +1684,7 @@ demo:
             therefore no consent banner.
         cookies_title: Cookies
         host: The server is operated on our behalf by %host%, acting as a processor under a data processing agreement.
+        host_unset: 'Not set. The company running the server is a processor and has to be named here.'
         logs: >-
             Like any web server, this one records each request: the IP address it came
             from, the time, the page requested, the referring page and the browser's
@@ -1689,6 +1692,7 @@ demo:
             against attack (Art. 6(1)(f) GDPR — legitimate interest). These logs are
             rotated and are not used to build a profile of anyone.
         logs_title: Server log files
+        processing_title: What is processed, and on what basis
         rights: >-
             You have the right to information about the data held about you, and to its
             correction, erasure or restriction, as well as the right to object to
@@ -1713,6 +1717,7 @@ demo:
         title: Legal notice
         heading: Information under § 5 TMG
         operator: Operator
+        unset: 'Not set. This page is legally required to name a real operator — set these in the environment before making this instance public.'
         contact: Contact
         contact_email: 'Email:'
         disclaimer_title: About this demo
@@ -1890,6 +1895,14 @@ integration:
             nextcloud: 'Search Nextcloud'
             oneDrive: 'Search OneDrive'
             paperless: 'Search titles and scanned text'
+        status:
+            attach_failed: 'Could not attach'
+            attaching: 'Attaching…'
+            load_failed: 'Could not load more'
+            loading: 'Loading…'
+            nothing_selected: 'Nothing selected'
+            save_draft_first: 'Save the draft first'
+            skipped: 'Skipped: %files%'
         timeline: 'Jump to a date'
         too_big: 'Too large to attach'
 

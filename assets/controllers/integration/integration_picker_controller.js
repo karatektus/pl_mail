@@ -21,6 +21,8 @@ export default class extends Controller {
         url: String,
         draft: Number,
         token: String,
+        /** The status line's words, translated in _picker.html.twig. */
+        i18n: { type: Object, default: {} },
     };
 
     connect() {
@@ -50,7 +52,7 @@ export default class extends Controller {
         }
 
         this._loading = true;
-        this._status("Loading…");
+        this._status(this._t("loading"));
 
         let markup;
 
@@ -66,7 +68,7 @@ export default class extends Controller {
             markup = await response.text();
         } catch (_) {
             this._loading = false;
-            this._status("Could not load more");
+            this._status(this._t("loadFailed"));
 
             return;
         }
@@ -170,7 +172,7 @@ export default class extends Controller {
         const chosen = this.modeTargets.filter((input) => input.checked);
 
         if (0 === chosen.length) {
-            this._status("Nothing selected");
+            this._status(this._t("nothingSelected"));
 
             return;
         }
@@ -178,7 +180,7 @@ export default class extends Controller {
         if (0 === this.draftValue) {
             // The draft is force-saved before the picker opens, so this means
             // that save failed rather than that the user was too quick.
-            this._status("Save the draft first");
+            this._status(this._t("saveDraftFirst"));
 
             return;
         }
@@ -189,7 +191,7 @@ export default class extends Controller {
         chosen.forEach((input) => body.append(input.name, input.value));
 
         this._busy(true);
-        this._status("Attaching…");
+        this._status(this._t("attaching"));
 
         let payload;
 
@@ -207,7 +209,7 @@ export default class extends Controller {
             payload = await response.json();
         } catch (_) {
             this._busy(false);
-            this._status("Could not attach");
+            this._status(this._t("attachFailed"));
 
             return;
         }
@@ -229,12 +231,17 @@ export default class extends Controller {
         // swallowed, and the modal stays open so the selection is still there.
         if (0 < (payload.errors ?? []).length) {
             this._busy(false);
-            this._status(`Skipped: ${payload.errors.join(", ")}`);
+            this._status(this._t("skipped").replace("%files%", payload.errors.join(", ")));
 
             return;
         }
 
         this.dispatch("close", { prefix: "ui--modal" });
+    }
+
+    /** A translated word, or the key itself — visibly wrong rather than English. */
+    _t(key) {
+        return this.i18nValue[key] ?? key;
     }
 
     _busy(busy) {
