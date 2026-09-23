@@ -30,6 +30,8 @@ export default class extends Controller {
     #offset = 0;
     #held = false;
     #loading = false;
+    /** The request in flight, so a new filter can cancel the one it replaces. */
+    #inFlight = null;
     #exhausted = false;
     #debounce = null;
 
@@ -40,6 +42,7 @@ export default class extends Controller {
 
     disconnect() {
         clearTimeout(this.#debounce);
+        this.#inFlight?.abort();
 
         // The hold is a counter on the refresh controller, so an unreleased
         // hold stops the whole panel refreshing for as long as the page lives.
@@ -64,7 +67,7 @@ export default class extends Controller {
 
     /** Filter changed: page one again, replacing what is on screen. */
     async #reload() {
-        const rows = await this.#fetch(0);
+        const rows = await this.#fetch(0, true);
 
         if (null === rows) {
             return;
@@ -100,15 +103,25 @@ export default class extends Controller {
 
     /**
      * @returns {Promise<{html: string, returned: number, total: number}|null>}
-     *          null when the request failed or one was already in flight —
-     *          a queue panel that cannot reach the server should keep showing
-     *          what it last knew rather than emptying itself.
+     *          null when the request failed, was superseded, or (for the
+     *          next page) one was already in flight — a queue panel that
+     *          cannot reach the server should keep showing what it last knew
+     *          rather than emptying itself.
+     *
+     * @param {boolean} supersede — a filter change: cancel whatever is in
+     *        flight and go. It used to be dropped instead while a page was
+     *        loading, and the input then said one thing while the list showed
+     *        another until somebody typed again.
      */
-    async #fetch(offset) {
-        if (this.#loading) {
+    async #fetch(offset, supersede = false) {
+        if (this.#loading && false === supersede) {
             return null;
         }
 
+        this.#inFlight?.abort();
+
+        const request = new AbortController();
+        this.#inFlight = request;
         this.#loading = true;
         this.#toggleLoading(true);
 
@@ -117,13 +130,19 @@ export default class extends Controller {
             url.searchParams.set('q', this.#query());
             url.searchParams.set('offset', String(offset));
 
-            const response = await fetch(url, { headers: { Accept: 'text/html' } });
+            const response = await fetch(url, { headers: { Accept: 'text/html' }, signal: request.signal });
 
             if (false === response.ok) {
                 return null;
             }
 
-            const markup = document.createRange().createContextualFragment(await response.text());
+            const text = await response.text();
+
+            if (request.signal.aborted) {
+                return null;
+            }
+
+            const markup = document.createRange().createContextualFragment(text);
             const meta = markup.querySelector('[data-queue-meta]');
             const returned = Number(meta?.dataset.returned ?? 0);
             const total = Number(meta?.dataset.total ?? 0);
@@ -137,8 +156,13 @@ export default class extends Controller {
         } catch {
             return null;
         } finally {
-            this.#loading = false;
-            this.#toggleLoading(false);
+            // Only the latest request owns the flag; a superseded one
+            // finishing must not report the newer one as done.
+            if (this.#inFlight === request) {
+                this.#inFlight = null;
+                this.#loading = false;
+                this.#toggleLoading(false);
+            }
         }
     }
 

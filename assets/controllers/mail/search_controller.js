@@ -334,13 +334,25 @@ export default class extends Controller {
         const { operator, value } = this.#currentToken();
         let items = [];
 
+        // Any new suggestion round makes a contact lookup still in flight
+        // stale, including one that draws no contacts at all (`is:` after
+        // `from:`).
+        ++this.#requestId;
+
         if (operator === null) {
             // Still typing the operator itself.
             items = OPERATORS
                 .filter((entry) => entry.token.startsWith(value.toLowerCase()))
                 .map((entry) => ({ kind: "operator", token: entry.token, hint: entry.hint }));
         } else if (ADDRESS_OPERATORS.includes(operator)) {
-            items = (await this.#contacts(value)).map((contact) => ({
+            const contacts = await this.#contacts(value);
+
+            // Superseded by a later keystroke, whose own #suggest draws.
+            if (contacts === null) {
+                return;
+            }
+
+            items = contacts.map((contact) => ({
                 kind: "contact",
                 token: `${operator}:${this.#quote(contact.email)}`,
                 label: contact.displayName || contact.email,
@@ -486,8 +498,16 @@ export default class extends Controller {
         };
     }
 
-    /** @returns {Promise<Array<{email: string, displayName: string}>>} */
+    /**
+     * @returns {Promise<Array<{email: string, displayName: string}>|null>}
+     *          null when a newer lookup has superseded this one — NOT an empty
+     *          list, which the caller would draw, wiping the newer answer.
+     */
     async #contacts(query) {
+        // Bumped for the empty query too, so a lookup still in flight for the
+        // prefix just deleted cannot land afterwards.
+        const requestId = ++this.#requestId;
+
         if (query === "") {
             return [];
         }
@@ -495,20 +515,24 @@ export default class extends Controller {
         // Only the newest response may render: two keystrokes in flight can
         // come back out of order, and the older one would overwrite what the
         // user is looking at with results for a prefix they have moved past.
-        const requestId = ++this.#requestId;
-
         try {
             const response = await fetch(`${CONTACT_ROUTE}?q=${encodeURIComponent(query)}`, {
                 headers: { Accept: "application/json" },
             });
 
-            if (false === response.ok || requestId !== this.#requestId) {
+            if (requestId !== this.#requestId) {
+                return null;
+            }
+
+            if (false === response.ok) {
                 return [];
             }
 
-            return await response.json();
+            const contacts = await response.json();
+
+            return requestId === this.#requestId ? contacts : null;
         } catch {
-            return [];
+            return requestId === this.#requestId ? [] : null;
         }
     }
 

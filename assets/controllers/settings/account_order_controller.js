@@ -34,6 +34,11 @@ export default class extends Controller {
         })
 
         this.syncEdges()
+
+        // The last order the server confirmed — what a failed write reverts to.
+        this.saved = this.currentIds()
+        this.inFlight = false
+        this.pending = false
     }
 
     disconnect() {
@@ -93,10 +98,33 @@ export default class extends Controller {
         })
     }
 
-    persist() {
-        const ids = [...this.listTarget.querySelectorAll("[data-account-id]")].map(
+    currentIds() {
+        return [...this.listTarget.querySelectorAll("[data-account-id]")].map(
             (row) => Number(row.dataset.accountId),
         )
+    }
+
+    /**
+     * One write at a time, and only the latest order.
+     *
+     * Three quick presses of "down" used to be three concurrent POSTs, and
+     * nothing guaranteed they landed in the order they were sent — the server
+     * could end on the middle arrangement while the screen showed the last.
+     * Now a move during a write only marks the order dirty, and the write that
+     * follows sends whatever is on screen by then. The body is the whole order,
+     * so skipping the intermediate ones loses nothing.
+     */
+    persist() {
+        if (this.inFlight) {
+            this.pending = true
+
+            return
+        }
+
+        const ids = this.currentIds()
+
+        this.inFlight = true
+        this.pending = false
 
         fetch(this.urlValue, {
             method: "POST",
@@ -104,11 +132,44 @@ export default class extends Controller {
             body: JSON.stringify({ ids }),
             keepalive: true,
         }).then((response) => {
-            requestFailed(response)
+            if (requestFailed(response)) {
+                this.revert()
+            } else {
+                this.saved = ids
+            }
         }).catch(() => {
             requestFailed(null)
+            this.revert()
+        }).finally(() => {
+            this.inFlight = false
+
+            if (this.pending) {
+                this.persist()
+            }
         })
-        // The order on screen is left as the user chose it, but a failed write
-        // is said: otherwise the next load puts the old order back unannounced.
+    }
+
+    /**
+     * Put the rows back in the last order the server holds.
+     *
+     * The toast says the write failed; leaving the rows where they were
+     * dropped would then have the page contradict it, and the next load put
+     * the old order back unannounced. Moves made while the failed write was
+     * in flight go with it — they were built on an order that never saved.
+     */
+    revert() {
+        this.pending = false
+
+        const rows = new Map(
+            [...this.listTarget.querySelectorAll("[data-account-id]")].map((row) => [Number(row.dataset.accountId), row]),
+        )
+
+        this.saved.forEach((id) => {
+            const row = rows.get(id)
+
+            if (row) this.listTarget.append(row)
+        })
+
+        this.syncEdges()
     }
 }

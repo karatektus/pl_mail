@@ -520,6 +520,13 @@ export default class extends Controller {
     async preview() {
         const ast = this._toAst(this.tree)
 
+        // Numbered so only the newest answer is drawn. A count over a broad
+        // rule is slower than one over the narrower rule typed a moment later,
+        // and without this the slow one landed last and the readout described
+        // a rule that was no longer on screen.
+        const seq = (this._previewSeq = (this._previewSeq ?? 0) + 1)
+        const stale = () => seq !== this._previewSeq
+
         try {
             const response = await fetch(this.previewUrlValue, {
                 method: "POST",
@@ -537,6 +544,8 @@ export default class extends Controller {
 
             const data = await response.json()
 
+            if (stale()) return
+
             if (data.ok !== true) {
                 this.countTarget.dataset.state = "error"
                 this.countTarget.textContent = data.error ?? this._t("count.error")
@@ -551,6 +560,8 @@ export default class extends Controller {
                 data.count,
             ).replace("%count%", String(data.count))
         } catch {
+            if (stale()) return
+
             // A failed probe is only a missing hint — never block the save.
             this.countTarget.dataset.state = "error"
             this.countTarget.textContent = this._t("count.error")
