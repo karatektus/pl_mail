@@ -77,6 +77,12 @@ final class MessageRepositoryTest extends KernelTestCase
             ['total' => 3, 'unread' => 2],
             $counts[(int) $this->inbox->id],
         );
+
+        // Narrowed to the labels a Mailbox/get named, the numbers are the same.
+        self::assertSame(
+            [(int) $this->inbox->id => ['total' => 3, 'unread' => 2]],
+            $this->repository->countEmailsPerLabelForAccount((int) $this->account->id, [(int) $this->inbox->id]),
+        );
     }
 
     /**

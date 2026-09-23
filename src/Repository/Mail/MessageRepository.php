@@ -627,17 +627,23 @@ class MessageRepository extends ServiceEntityRepository
      * plain-IMAP sync path populates, so it is a strict subset of seen_at.
      * seen_at is the field the web UI reads and writes, so it is authoritative.
      *
+     * $labelIds narrows the aggregate to those labels, for a Mailbox/get that
+     * named its ids; null counts every label of the account.
+     *
+     * @param list<int>|null $labelIds
+     *
      * @return array<int,array{total:int,unread:int}> label id => counts
      */
-    public function countEmailsPerLabelForAccount(int $accountId): array
+    public function countEmailsPerLabelForAccount(int $accountId, ?array $labelIds = null): array
     {
-        return $this->labelCounts($accountId, <<<'SQL'
+        return $this->labelCounts($accountId, $labelIds, <<<'SQL'
             SELECT ml.label_id,
                    COUNT(*) AS total,
                    COUNT(*) FILTER (WHERE m.seen_at IS NULL) AS unread
             FROM message_label ml
             JOIN message m ON m.id = ml.message_id
             WHERE m.account_id = :accountId
+              %s
             GROUP BY ml.label_id
             SQL);
     }
@@ -654,11 +660,13 @@ class MessageRepository extends ServiceEntityRepository
      * anywhere in the Thread). The stricter reading is what the plMail UI
      * shows, and it cannot exceed totalThreads, which is what clients assert.
      *
+     * @param list<int>|null $labelIds as countEmailsPerLabelForAccount()
+     *
      * @return array<int,array{total:int,unread:int}> label id => counts
      */
-    public function countThreadsPerLabelForAccount(int $accountId): array
+    public function countThreadsPerLabelForAccount(int $accountId, ?array $labelIds = null): array
     {
-        return $this->labelCounts($accountId, <<<'SQL'
+        return $this->labelCounts($accountId, $labelIds, <<<'SQL'
             SELECT ml.label_id,
                    COUNT(DISTINCT m.thread_id) AS total,
                    COUNT(DISTINCT m.thread_id) FILTER (WHERE m.seen_at IS NULL) AS unread
@@ -666,18 +674,36 @@ class MessageRepository extends ServiceEntityRepository
             JOIN message m ON m.id = ml.message_id
             WHERE m.account_id = :accountId
               AND m.thread_id IS NOT NULL
+              %s
             GROUP BY ml.label_id
             SQL);
     }
 
     /**
+     * @param list<int>|null $labelIds
+     *
      * @return array<int,array{total:int,unread:int}>
      */
-    private function labelCounts(int $accountId, string $sql): array
+    private function labelCounts(int $accountId, ?array $labelIds, string $sql): array
     {
+        if ([] === $labelIds) {
+            return [];
+        }
+
+        $parameters = ['accountId' => $accountId];
+        $types      = [];
+        $narrow     = '';
+
+        if (null !== $labelIds) {
+            $narrow               = 'AND ml.label_id IN (:labelIds)';
+            $parameters['labelIds'] = $labelIds;
+            $types['labelIds']      = ArrayParameterType::INTEGER;
+        }
+
+        $rows = $this->getEntityManager()->getConnection()->fetchAllAssociative(sprintf($sql, $narrow), $parameters, $types);
         $counts = [];
 
-        foreach ($this->getEntityManager()->getConnection()->fetchAllAssociative($sql, ['accountId' => $accountId]) as $row) {
+        foreach ($rows as $row) {
             $counts[(int) $row['label_id']] = [
                 'total'  => (int) $row['total'],
                 'unread' => (int) $row['unread'],

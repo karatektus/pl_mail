@@ -68,7 +68,21 @@ final class MailboxGetMethod implements JmapMethod
             $notFound = array_values(array_diff($requestedIds, $found));
         }
 
-        $counts = $this->countsProvider->forAccount($accountId);
+        $labelIds = null;
+
+        if (null !== $requestedIds) {
+            $labelIds = [];
+
+            foreach ($bindings as $binding) {
+                $labelIds[] = (int) $binding->label->id;
+            }
+        }
+
+        $counts = $this->countsProvider->forAccount(
+            $accountId,
+            null === $properties ? null : array_values(array_map('strval', $properties)),
+            $labelIds,
+        );
         // parentId is expressed in binding ids, and a requested subset may not
         // contain the parents — so the map always covers the whole account.
         $bindingIdByLabelId = $this->bindingRepository->bindingIdsByLabelId($accountId);
