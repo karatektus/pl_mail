@@ -324,8 +324,8 @@ final readonly class ShareLinkReader
     /**
      * The UID a shared .ics carries for one entry.
      *
-     * Derived from the link's own digest and the occurrence's id rather than
-     * being the event's UID, because the event's UID is the meeting's identity
+     * Derived from the link's own digest, the event's id and the instance's
+     * recurrence id rather than being the event's UID, because the event's UID is the meeting's identity
      * everywhere — the same string an invitation carried into somebody's inbox.
      * Publishing it on a busy/free link would let a recipient who had received
      * that invitation match it against the anonymous block and learn what the
@@ -334,10 +334,21 @@ final readonly class ShareLinkReader
      * Stable across requests, so re-importing the .ics updates the entry the
      * previous import created instead of duplicating it, and different per link,
      * so two links to the same calendar cannot be correlated by their contents.
+     *
+     * Never the occurrence row's own id. RecurrenceMaterialiser deletes and
+     * re-inserts every row whenever it runs — on each edit and in the nightly
+     * sweep — so a UID keyed on the row changed overnight, and every
+     * subscriber's calendar dropped and re-added the whole feed as strangers.
+     * The event id and where the rule put the instance survive that.
      */
     private function syntheticUid(CalendarShareLink $link, CalendarEventOccurrence $occurrence): string
     {
-        return sprintf('%s@plmail.share', hash('sha256', $link->tokenDigest . ':' . (int) $occurrence->id));
+        return sprintf('%s@plmail.share', hash('sha256', sprintf(
+            '%s:%d:%d',
+            $link->tokenDigest,
+            (int) $occurrence->event?->id,
+            (int) $occurrence->recurrenceId?->getTimestamp(),
+        )));
     }
 
     /**

@@ -15,6 +15,7 @@ use App\Entity\Calendar\CalendarEvent;
 use App\Entity\Calendar\CalendarShareLink;
 use App\Entity\User\User;
 use App\Service\Calendar\CalendarEventWriter;
+use App\Service\Calendar\RecurrenceMaterialiser;
 use App\Service\Calendar\Sharing\PublicLinkToken;
 use App\Service\Calendar\Sharing\ShareLinkReader;
 use DateTimeImmutable;
@@ -327,6 +328,22 @@ final class ShareLinkReaderTest extends KernelTestCase
         $this->em->flush();
 
         self::assertCount(7, $this->reader->read($this->link, $this->now())->days);
+    }
+
+    /**
+     * A subscriber's calendar matches feed entries on their UID, and the
+     * materialiser recreates every occurrence row whenever it runs. A UID read
+     * off the row's id changed overnight and re-imported the whole feed.
+     */
+    public function testAnEntryKeepsItsUidWhenTheOccurrencesAreRewritten(): void
+    {
+        $event  = $this->eventAt('10:00', '11:00');
+        $before = $this->onlyEntry()->uid;
+
+        self::getContainer()->get(RecurrenceMaterialiser::class)->materialise($event);
+        $this->em->flush();
+
+        self::assertSame($before, $this->onlyEntry()->uid);
     }
 
     // ── Fixtures ──────────────────────────────────────────────────────────────
