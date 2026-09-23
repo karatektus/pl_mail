@@ -272,8 +272,12 @@ final class GmailApiSyncer
             foreach ($record['messagesAdded'] ?? [] as $added) {
                 $id = (string) ($added['message']['id'] ?? '');
 
+                // Keyed by id so a deletion further down can remove exactly its
+                // own entry. PHP turns an all-digit key into an int on the way
+                // in, which is harmless here: the value still carries the id as
+                // a string, and unset() with either spelling hits the same key.
                 if ('' !== $id) {
-                    $refs[] = ['id' => $id];
+                    $refs[$id] = ['id' => $id];
                 }
             }
 
@@ -313,7 +317,11 @@ final class GmailApiSyncer
         // order and both entries are in it; fetching a message Google has
         // already destroyed is a wasted round trip that ends in a 404.
         foreach ($deleted as $gmailId => $ignored) {
-            unset($refs[array_search(['id' => $gmailId], $refs, true)]);
+            // By key, not array_search(): a deletion for an id that was never
+            // added in this window made array_search() return false, and
+            // unset($refs[false]) is unset($refs[0]) — the first NEW message
+            // of the window was silently dropped instead.
+            unset($refs[$gmailId]);
             unset($relabelled[$gmailId]);
         }
 

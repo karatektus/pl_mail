@@ -253,6 +253,31 @@ final class GmailApiSyncerHistoryTest extends TestCase
         self::assertSame([], $dispatched, 'nothing is queued for a message that no longer exists');
     }
 
+    /**
+     * A deletion of some older message must not cost the window a new one.
+     * array_search() answered false for an id that was never added, and
+     * unset($refs[false]) removed the first addition instead.
+     */
+    public function testAnUnrelatedDeletionDoesNotDropANewMessage(): void
+    {
+        $dispatched = [];
+
+        $this->syncer(
+            $this->response(200, [
+                'history' => [
+                    ['messagesAdded'   => [['message' => ['id' => 'brand-new']]]],
+                    ['messagesDeleted' => [['message' => ['id' => 'old-one']]]],
+                ],
+                'historyId' => '67890',
+            ]),
+            rows: [],
+            erased: $ignored,
+            dispatched: $dispatched,
+        )->syncIncremental($this->account());
+
+        self::assertSame(['brand-new'], $dispatched);
+    }
+
     // ── label changes, which are how Gmail says a message moved ──────────────
 
     /**
