@@ -33,7 +33,10 @@ final class RelativeUrlAttributeSanitizer implements AttributeSanitizerInterface
         return null;
     }
 
-    public function getSupportedAttributes(): ?array
+    /**
+     * @return list<string>
+     */
+    public function getSupportedAttributes(): array
     {
         return ['src', 'href', 'background', 'lowsrc', 'poster', 'style'];
     }
