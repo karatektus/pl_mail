@@ -6,6 +6,25 @@ so anything that changes the schema irreversibly is called out explicitly.
 The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, and `sha-…` pins one commit.
 
+## v0.2.37 — 2026-09-23
+
+### Fixed
+
+- **The highlight in a search result is now where you can see it.** Reported as highlighting that
+  did not work on LinkedIn mail. It did work: the mark was four hundred and sixty-eight characters
+  past the right-hand edge of the row.
+
+  A snippet is a fragment Postgres cuts around the match, and it was asked for twenty-four words on
+  the understanding that this bounded its length. It counts *tokens*, and one tracking link —
+  `trk=…&otpToken=…` — is a single token of some four hundred characters. Measured against the mail
+  in question, ten job listings each carrying one: the fragment came back 1148 characters long with
+  the match at 568, while a row shows about a hundred. The snippet on screen began at the fifth
+  listing, which is why it read as an ordinary preview rather than a broken one.
+
+  The fragment is now cut by characters around its match, the same way the other half of this
+  feature always has been — the two produced visibly different things in one list, and only one of
+  them was bounded.
+
 ## v0.2.36 — 2026-09-22
 
 ### Changed
