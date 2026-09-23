@@ -10,6 +10,8 @@ use App\Entity\Calendar\CalendarEvent;
 use App\Service\Calendar\Ics\IcsExporter;
 use DateTimeImmutable;
 use DateTimeZone;
+use Sabre\VObject\Component\VCalendar;
+use Sabre\VObject\Reader;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 
@@ -121,6 +123,55 @@ final class IcsExporterTest extends KernelTestCase
 
         self::assertStringContainsString('DTSTART;VALUE=DATE:20260501', $document);
         self::assertStringNotContainsString('DTSTART:20260501T000000', $document);
+    }
+
+    /**
+     * A recurring all-day event names its excluded and moved instances as
+     * DATEs too. Written as UTC date-times they matched no instance of a DATE
+     * series in a strict reader, and a cancelled birthday came back.
+     */
+    public function testAnAllDaySeriesSaysItsExceptionsAsDates(): void
+    {
+        $event           = $this->event('birthday-1', 'Birthday');
+        $event->isAllDay = true;
+        $event->timeZone = null;
+        $event->startsAt = new DateTimeImmutable('2026-05-01 00:00:00', new DateTimeZone('UTC'));
+        $event->endsAt   = new DateTimeImmutable('2026-05-02 00:00:00', new DateTimeZone('UTC'));
+        $event->jscalendar += [
+            'recurrenceRules'     => [['@type' => 'RecurrenceRule', 'frequency' => 'yearly']],
+            'recurrenceOverrides' => [
+                '2027-05-01T00:00:00' => ['excluded' => true],
+                '2028-05-01T00:00:00' => ['start' => '2028-05-02T00:00:00'],
+            ],
+        ];
+
+        $document = $this->export([$event]);
+
+        self::assertStringContainsString('EXDATE;VALUE=DATE:20270501', $document);
+        self::assertStringContainsString('RECURRENCE-ID;VALUE=DATE:20280501', $document);
+        self::assertStringContainsString('DTSTART;VALUE=DATE:20280502', $document);
+        self::assertStringNotContainsString('T000000Z', $document);
+    }
+
+    /**
+     * Every TZID the file names is defined in it, once, and the definition
+     * agrees with PHP's zone table about the instant the event is at.
+     */
+    public function testEveryTzidTheFileNamesIsDefinedInIt(): void
+    {
+        $document = $this->export([$this->event('a-1'), $this->event('a-2')]);
+
+        self::assertStringContainsString('DTSTART;TZID=Europe/Berlin:20260810T100000', $document);
+        self::assertSame(1, substr_count($document, 'BEGIN:VTIMEZONE'));
+        self::assertStringContainsString('TZID:Europe/Berlin', $document);
+
+        $parsed = Reader::read($document);
+
+        self::assertInstanceOf(VCalendar::class, $parsed);
+        self::assertSame(
+            '2026-08-10T08:00:00+00:00',
+            $parsed->VEVENT->DTSTART->getDateTime()->setTimezone(new DateTimeZone('UTC'))->format(DATE_ATOM),
+        );
     }
 
     /**

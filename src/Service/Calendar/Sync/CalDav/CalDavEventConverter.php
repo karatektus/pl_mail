@@ -9,6 +9,8 @@ use App\Domain\Enum\Calendar\AlertAction;
 use App\Domain\Enum\Calendar\EventStatus;
 use App\Entity\Calendar\CalendarEvent;
 use App\Service\Calendar\Alert\AlertReader;
+use App\Service\Calendar\Ics\VTimeZoneBuilder;
+use App\Service\Calendar\RecurrenceMaterialiser;
 use App\Service\Calendar\RecurrenceRuleConverter;
 use DateTimeImmutable;
 use DateTimeZone;
@@ -16,6 +18,7 @@ use Sabre\VObject\Component\VAlarm;
 use Sabre\VObject\Component\VCalendar;
 use Sabre\VObject\Component\VEvent;
 use Sabre\VObject\DateTimeParser;
+use Sabre\VObject\Property;
 use Sabre\VObject\Property\ICalendar\DateTime as ICalDateTime;
 use Sabre\VObject\Reader;
 
@@ -109,6 +112,7 @@ final readonly class CalDavEventConverter
     public function __construct(
         private RecurrenceRuleConverter $recurrence,
         private AlertReader             $alerts,
+        private VTimeZoneBuilder        $timeZones = new VTimeZoneBuilder(),
     ) {
     }
 
@@ -210,8 +214,102 @@ final readonly class CalDavEventConverter
         $this->addParticipants($vevent, $event);
         $this->addAlarms($calendar, $vevent, $event);
         $this->addOverrides($calendar, $vevent, $event);
+        $this->addTimeZones($calendar, $event);
 
         return $calendar->serialize();
+    }
+
+    /**
+     * The span of time an event's file talks about: its first start to the
+     * end of its last instance, or to the materialiser's horizon for a series
+     * that does not end. What a VTIMEZONE for it has to cover.
+     *
+     * Public for IcsExporter, which writes one VTIMEZONE per zone for a whole
+     * calendar and so has to merge these spans rather than take the one each
+     * event's own file carries.
+     *
+     * @return array{DateTimeImmutable, DateTimeImmutable}|null
+     */
+    public function coveredRange(CalendarEvent $event): ?array
+    {
+        $start = $event->startsAt;
+        $end   = $event->endsAt;
+
+        if (null === $start || null === $end) {
+            return null;
+        }
+
+        if (true === $event->isRecurring || null !== $this->rruleOf($event)) {
+            $end = max($end, $event->recurrenceUntil ?? new DateTimeImmutable(RecurrenceMaterialiser::HORIZON_FUTURE));
+        }
+
+        return [$start, $end];
+    }
+
+    /**
+     * Every TZID a component in this document names, in the order met.
+     *
+     * Read off what was written rather than predicted from the event's zone,
+     * because sabre decides which zones get a TZID (every one it does not
+     * recognise as UTC) and a prediction that disagreed would leave a TZID
+     * without its definition.
+     *
+     * @return list<string>
+     */
+    public function tzidsIn(VCalendar $calendar): array
+    {
+        $tzids = [];
+
+        foreach ($calendar->select('VEVENT') as $component) {
+            foreach ($component->children() as $property) {
+                if (false === $property instanceof Property) {
+                    continue;
+                }
+
+                $tzid = (string) ($property['TZID'] ?? '');
+
+                if ('' !== $tzid) {
+                    $tzids[$tzid] = true;
+                }
+            }
+        }
+
+        return array_map(strval(...), array_keys($tzids));
+    }
+
+    /**
+     * A VTIMEZONE for every TZID the file uses — RFC 5545 §3.6.5 requires it,
+     * and a strict reader refuses the file or reads the times as floating.
+     *
+     * Put ahead of the VEVENTs, which is where every client writes them and
+     * where the older ones look: the events are taken out and put back after.
+     */
+    private function addTimeZones(VCalendar $calendar, CalendarEvent $event): void
+    {
+        $tzids = $this->tzidsIn($calendar);
+        $range = $this->coveredRange($event);
+
+        if ([] === $tzids || null === $range) {
+            return;
+        }
+
+        $events = $calendar->select('VEVENT');
+
+        foreach ($events as $component) {
+            $calendar->remove($component);
+        }
+
+        foreach ($tzids as $tzid) {
+            $vtimezone = $this->timeZones->build($calendar, $tzid, $range[0], $range[1]);
+
+            if (null !== $vtimezone) {
+                $calendar->add($vtimezone);
+            }
+        }
+
+        foreach ($events as $component) {
+            $calendar->add($component);
+        }
     }
 
     /**
@@ -690,6 +788,13 @@ final readonly class CalDavEventConverter
         $duration = $endsAt->getTimestamp() - $startsAt->getTimestamp();
         $excluded = [];
 
+        // An all-day series says its instances as DATEs, everywhere. Written
+        // as UTC date-times, the EXDATE and RECURRENCE-ID named an instant
+        // that matched no instance of a DATE series in a strict reader, and
+        // in a lenient one shifted by its offset onto the day before — so a
+        // cancelled birthday came back and a moved one appeared twice.
+        $allDay = true === $event->isAllDay;
+
         foreach ($overrides as $key => $patch) {
             if (false === is_string($key) || false === is_array($patch)) {
                 continue;
@@ -702,7 +807,7 @@ final readonly class CalDavEventConverter
             }
 
             if (true === ($patch['excluded'] ?? false)) {
-                $excluded[] = $recurrenceId->setTimezone($zone);
+                $excluded[] = true === $allDay ? $recurrenceId->format('Ymd') : $recurrenceId->setTimezone($zone);
 
                 continue;
             }
@@ -724,13 +829,23 @@ final readonly class CalDavEventConverter
 
             $calendar->add($instance);
 
+            $end = $this->instanceEnd($start, $patch, $duration);
+
+            if (true === $allDay) {
+                $instance->add('RECURRENCE-ID', $recurrenceId->format('Ymd'), ['VALUE' => 'DATE']);
+                $instance->add('DTSTART', $start->format('Ymd'), ['VALUE' => 'DATE']);
+                $instance->add('DTEND', $end->format('Ymd'), ['VALUE' => 'DATE']);
+
+                continue;
+            }
+
             $instance->add('RECURRENCE-ID', $recurrenceId->setTimezone($zone));
             $instance->add('DTSTART', $start->setTimezone($zone));
-            $instance->add('DTEND', $this->instanceEnd($start, $patch, $duration)->setTimezone($zone));
+            $instance->add('DTEND', $end->setTimezone($zone));
         }
 
         if ([] !== $excluded) {
-            $master->add('EXDATE', $excluded);
+            $master->add('EXDATE', $excluded, true === $allDay ? ['VALUE' => 'DATE'] : []);
         }
     }
 

@@ -7,6 +7,7 @@ namespace App\Service\Calendar\Ics;
 use App\Entity\Calendar\Calendar;
 use App\Entity\Calendar\CalendarEvent;
 use App\Service\Calendar\Sync\CalDav\CalDavEventConverter;
+use DateTimeImmutable;
 use Sabre\VObject\Component\VCalendar;
 use Sabre\VObject\Component\VEvent;
 use Sabre\VObject\Reader;
@@ -47,15 +48,14 @@ use Sabre\VObject\Reader;
  *
  * ── Deliberate absences ───────────────────────────────────────────────────
  *
- * **No VTIMEZONE is written.** A zoned DTSTART goes out as
- * `TZID=Europe/Berlin`, with no definition of that zone in the file. RFC 5545
- * asks for one; every reader that matters — Apple, Google, Outlook, sabre
- * itself, and therefore plMail's own import — resolves an IANA name without it,
- * and the alternative is generating transition rules for a zone table, which is
- * a library plMail does not have and would be wrong in the interesting years.
- * plMail only ever stores IANA names (CalendarEventWriter writes
- * CalendarEvent::$timeZone from a validated zone), so a name a reader cannot
- * resolve is not a case this can produce.
+ * **One VTIMEZONE per zone, at the end.** Every TZID the events name gets its
+ * definition — RFC 5545 requires one, and a strict reader refuses the file or
+ * reads the times as floating without it. The converter already puts one in
+ * each event's own file, but a TZID must be defined once per document, so the
+ * per-event ones are dropped here and one per zone is written from the span of
+ * every event that used it (see VTimeZoneBuilder). At the end rather than the
+ * start because the file is streamed and the spans are only known once the
+ * last event has gone out; the grammar allows components in any order.
  *
  * **No METHOD.** An exported file is a calendar object, not an invitation.
  * Writing `METHOD:REQUEST` on one would make some clients try to deliver it,
@@ -82,6 +82,7 @@ final readonly class IcsExporter
 
     public function __construct(
         private CalDavEventConverter $converter,
+        private VTimeZoneBuilder     $timeZones,
     ) {
     }
 
@@ -113,9 +114,22 @@ final readonly class IcsExporter
             yield $property->serialize();
         }
 
+        /** @var array<string, array{DateTimeImmutable, DateTimeImmutable}> $zones */
+        $zones = [];
+
         foreach ($events as $event) {
-            foreach ($this->componentsOf($event) as $component) {
+            foreach ($this->componentsOf($event, $zones) as $component) {
                 yield $component;
+            }
+        }
+
+        $envelope = new VCalendar();
+
+        foreach ($zones as $tzid => [$from, $to]) {
+            $vtimezone = $this->timeZones->build($envelope, (string) $tzid, $from, $to);
+
+            if (null !== $vtimezone) {
+                yield $vtimezone->serialize();
             }
         }
 
@@ -165,11 +179,14 @@ final readonly class IcsExporter
 
     /**
      * The VEVENT blocks for one event: the series, plus one per instance that
-     * differs from it.
+     * differs from it. The zones they name are folded into $zones with the
+     * span this event covers, for the VTIMEZONEs document() writes last.
+     *
+     * @param array<string, array{DateTimeImmutable, DateTimeImmutable}> $zones
      *
      * @return list<string>
      */
-    private function componentsOf(CalendarEvent $event): array
+    private function componentsOf(CalendarEvent $event, array &$zones): array
     {
         $document = Reader::read($this->converter->toIcs($event), Reader::OPTION_FORGIVING);
 
@@ -179,6 +196,16 @@ final readonly class IcsExporter
             // download that ends mid-file on a defect nobody would look for
             // here, and skipping one event is a loss a reader can see.
             return [];
+        }
+
+        $range = $this->converter->coveredRange($event);
+
+        if (null !== $range) {
+            foreach ($this->converter->tzidsIn($document) as $tzid) {
+                $zones[$tzid] = true === isset($zones[$tzid])
+                    ? [min($zones[$tzid][0], $range[0]), max($zones[$tzid][1], $range[1])]
+                    : $range;
+            }
         }
 
         $blocks = [];
