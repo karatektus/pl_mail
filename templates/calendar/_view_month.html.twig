@@ -30,6 +30,7 @@ neither.
     days: days,
     anchorMonth: anchor|date('n'),
     today: today,
+    shellCellExpands: true,
 } %}
     {% block cell_actions %}
         <button type="button"
@@ -85,44 +86,22 @@ neither.
            more", and with it the only reason a cell ever spent a row on
            something that was not an event.
 
-           The whole list is what floats, and it floats from where it already
-           was. It is `absolute inset-0` inside a wrapper that holds the flow
-           space, so at rest it covers exactly the box it would have had as a
-           flow child — and opening it releases two of those four edges rather
-           than giving it a new position. That is the difference between a panel
-           that grows out of a cell and one that appears a few pixels from where
-           the chips were, which is what a padding and a fresh anchor produced:
-           every chip in the cell stepped sideways as the pointer arrived.
+           Hovering a day enlarges the whole cell — the shell's card, see
+           `shellCellExpands` there, which is where the no-movement rule is set
+           out. All this list does about it is stop clipping: the card is what
+           decides how far it opens, and it scrolls past the bottom of the grid.
 
-           Which is also why the padding is on at rest. 2px of inset is nothing
-           to look at and everything to avoid: applied on hover it would have
-           moved every chip by two pixels at the moment of opening.
-
-           **It gets wider AND taller, and neither costs a pixel of movement.**
-           Taller is the entries the cell had no room for, and they arrive below
-           the ones already drawn. Wider is the titles, and it is free because a
-           month chip's title is clamped to one line and stays clamped — see the
-           chip, where that is argued. A wider box is a longer line rather than
-           a shorter stack, so no chip changes height and no chip below one
-           moves. The earlier version of this unclamped as it widened, and the
-           first chip going from two lines to one pulled everything under it up
-           by 16px. 18rem is where the widening stops, which is about thirty-five
-           characters — past the length of anything anybody titles a meeting. #}
-        <div class="relative min-h-0 flex-1">
-        <div class="absolute inset-0 space-y-0.5 overflow-hidden p-0.5 {{ cellPeekAnchor }}
-                    @min-[5.5rem]:group-hover/cell:z-10 @min-[5.5rem]:group-hover/cell:h-auto
-                    @min-[5.5rem]:group-hover/cell:w-max @min-[5.5rem]:group-hover/cell:min-w-full
-                    @min-[5.5rem]:group-hover/cell:max-w-[18rem] @min-[5.5rem]:group-hover/cell:right-auto
-                    @min-[5.5rem]:group-hover/cell:overflow-visible
-                    @min-[5.5rem]:group-hover/cell:rounded-md @min-[5.5rem]:group-hover/cell:bg-surface
-                    @min-[5.5rem]:group-hover/cell:shadow-lg
-                    @min-[5.5rem]:group-hover/cell:ring-1 @min-[5.5rem]:group-hover/cell:ring-line
+           Titles stay clamped to one line while it is open — see the chip. A
+           wider card is a longer line rather than a shorter stack, so no chip
+           changes height and no chip below one moves. 18rem is where the
+           widening stops, which is about thirty-five characters. #}
+        <div class="min-h-0 flex-1 space-y-0.5 overflow-hidden
+                    @min-[5.5rem]:group-hover/cell:overflow-visible @min-[5.5rem]:group-hover/cell:shrink-0
                     [mask-image:linear-gradient(to_bottom,black_calc(100%-0.625rem),transparent)]
                     group-hover/cell:[mask-image:none]">
             {% for cluster in dayEntries %}
                 {% include 'calendar/_event_chip.html.twig' with { monthCell: true } %}
             {% endfor %}
-        </div>
         </div>
 
     {% endblock %}

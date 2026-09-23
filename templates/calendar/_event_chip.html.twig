@@ -203,10 +203,11 @@ identity is threaded through a URL that would outlive the render that made it.
 
 {# The month's. A month cell is the one place a title had no way to finish —
    `tall` needs a block with a height and `timeColumn` needs a list with rows,
-   and a cell has neither — so it truncated at one line and there was nothing a
-   pointer could do about it. Two lines at rest, and no clamp at all once the
-   day it is on has floated out; see _view_month, which owns that peek and the
-   `group/cell` these hover states are written against. #}
+   and a cell has neither — so it is one line, and stays one line on hover.
+   Unclamping the chip under the pointer pushed every chip below it down, which
+   is movement where the reader asked for a larger view. Hovering the day widens
+   the whole cell instead (see _month_shell's `shellCellExpands`), and the full
+   title is in the chip's `title` for anything longer than that. #}
 
 {# Whether the chip prints "18:00–19:00" or just "18:00".
 
@@ -401,7 +402,7 @@ identity is threaded through a URL that would outlive the render that made it.
                  {{ tall
                      ? 'whitespace-normal break-words line-clamp-2 leading-4 group-hover/chip:line-clamp-none'
                      : (monthCell
-                         ? 'whitespace-normal break-words line-clamp-1 leading-4 group-hover/chip:line-clamp-none'
+                         ? 'whitespace-normal break-words line-clamp-1 leading-4'
                          : 'truncate') }}
                  {{ roomy and not tall ? 'group-hover/chip:whitespace-normal' : '' }}
                  {{ occurrence.cancelled ? 'line-through' : '' }}">

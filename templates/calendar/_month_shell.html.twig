@@ -42,6 +42,8 @@ Variables:
   shellOuterClass  string        optional, the frame's own sizing
   shellRowsClass   string        optional, how the six rows get their height
   shellCellClass   string        optional, extra classes on every cell
+  shellCellExpands bool          optional, hovering a cell enlarges it in place
+                                 over its neighbours (default false)
 
 Blocks, both rendered inside the cell loop and both able to read `dayKey`,
 `dayEntries`, `isToday`, `isWeekend`, `isOtherMonth` and `isOutside`:
@@ -52,6 +54,7 @@ Blocks, both rendered inside the cell loop and both able to read `dayKey`,
 {% set shellOuterClass = shellOuterClass|default('h-full min-h-0 flex flex-col') %}
 {% set shellRowsClass  = shellRowsClass|default('flex-1 min-h-0') %}
 {% set shellCellClass  = shellCellClass|default('') %}
+{% set shellCellExpands = shellCellExpands|default(false) %}
 
 <div class="{{ shellOuterClass }}">
     <div class="grid grid-cols-7 shrink-0 border-b border-line">
@@ -67,7 +70,7 @@ Blocks, both rendered inside the cell loop and both able to read `dayKey`,
        what lets a test say "this is a month grid and it has 42 cells" without
        asserting against Tailwind classes, which are layout and are allowed to
        change. #}
-    <div class="{{ shellRowsClass }} grid grid-cols-7 grid-rows-6 gap-px bg-line"
+    <div class="{{ shellRowsClass }} @container/grid grid grid-cols-7 grid-rows-6 gap-px bg-line"
          data-calendar-grid="month">
         {% for dayKey in dayKeys %}
             {# A key the caller did not supply is a day it is not publishing.
@@ -84,46 +87,81 @@ Blocks, both rendered inside the cell loop and both able to read `dayKey`,
             {# The spill-in days are dimmed as a whole cell, not just by their
                date number: a neighbouring month's events rendered at full
                strength read as part of this month. #}
-            {# Which way the day's peek may open, decided here because only
-               this loop knows where the cell is. A panel anchored to the top of
-               a cell in the last two rows grows off the bottom of the grid, and
-               one anchored left in the last two columns grows off the right —
-               neither of which CSS can notice on its own, and both of which the
-               row and column index answer exactly. The caller puts
-               `cellPeekAnchor` on whatever it opens; see _view_month. #}
-            {# Which EDGE the peek lets go of. It is pinned to all four at rest
-               so it covers exactly the box it would have occupied in flow, and
-               opening releases ONE of them — never repositions it, which is
-               what keeps the chips inside where the pointer found them.
+            {# **Hovering a day enlarges the whole cell, and nothing in it moves.**
+               Only for a caller that asks (`shellCellExpands`) — the shared
+               page's rows already grow to fit their entries.
 
-               Vertical only, and that is the anti-jump rule doing real work
-               rather than a simplification. A peek that also widened re-wrapped
-               the titles it already held: the first chip in a cell went from
-               two lines to one as it opened, and the chip under it — which is
-               as likely as not the one being pointed at — jumped 16px upwards
-               to meet it. Growing down alone reflows nothing that was already
-               drawn.
+               The cell is split in two: the grid item, which never changes size
+               and is what the pointer hovers, and a card inside it that holds
+               everything the cell draws. At rest the card is `absolute inset-0`,
+               exactly the box the cell is. Opening releases edges and never
+               moves one that is still pinned, so the date and every chip stay
+               under the pointer where it found them:
 
-               Up instead of down for the last two rows, because there is
-               nothing under them to grow into: the grid is exactly six rows of
-               the pane and a panel hanging off the bottom is clipped by it.
-               Those cells DO shift their contents as they open, by however much
-               is revealed. It is the one case with no better answer. #}
-            {# `@min-[5.5rem]:` on all of it, because a peek is worth opening
-               only where there is something behind the truncation to reveal.
-               Below that the chips have already given up their titles and a
-               wider box would show the same bars and times in more space. The
-               day is still one tap away — that is what "N more" and the date
-               itself are for. #}
-            {% set cellPeekAnchor = (loop.index0 // 7) >= 4
-                ? '@min-[5.5rem]:group-hover/cell:top-auto'
-                : '@min-[5.5rem]:group-hover/cell:bottom-auto' %}
+               - the TOP edge stays, always. The card grows down into the rows
+                 below it and no further than the bottom of the grid, which is
+                 `max-h` as a count of rows — rows are equal, so "the rest of
+                 the grid" is (6 − row) cells plus their 1px gutters. Past that
+                 it scrolls. The last row therefore only widens; growing it up
+                 instead is what used to shove its chips upwards on hover.
+               - the LEFT edge stays wherever 18rem to the right of it still
+                 fits inside the grid, and the RIGHT edge stays everywhere else,
+                 so a card near the right side widens to the left and stays on
+                 screen. Growing left is the one case where the chips DO move —
+                 their text is left-aligned — so it happens only where it must.
+                 Columns 0–3 always fit; column 4 fits from a 42rem grid and
+                 column 5 from 63rem (col·W/7 + 18rem ≤ W), asked of the grid
+                 as `@container/grid`; Sunday never does. The two sides of each
+                 threshold are written as a max and a min rather than a default
+                 and an override, because the override lost on source order.
 
-            {# `relative` is the peek's anchor and `hover:z-40` is what puts it
-               over the days around it — a cell is a grid item, so without a
-               number the six cells after it in source paint on top. The clip
-               has to lift with it: it is what hides the surplus entries the
-               rest of the time, and it would go on hiding them.
+               Chips do not reflow while it widens: they ask the grid item how
+               wide the day is (`@container` is on it, not on the card), and
+               their titles are clamped to one line — see _event_chip.
+
+               `@min-[5.5rem]:` on all of it, because a wider card is worth
+               opening only where there is something behind the truncation to
+               reveal. Below that the chips have already given up their titles.
+
+               Literal strings per row and per column: Tailwind finds classes by
+               reading the source, so a class assembled from a number is a class
+               that is never built. #}
+            {% set cellRow = loop.index0 // 7 %}
+            {% set cellExpandClass = shellCellExpands ? (
+                [
+                    '@min-[5.5rem]:group-hover/cell:max-h-[calc(600%_+_5px)]',
+                    '@min-[5.5rem]:group-hover/cell:max-h-[calc(500%_+_4px)]',
+                    '@min-[5.5rem]:group-hover/cell:max-h-[calc(400%_+_3px)]',
+                    '@min-[5.5rem]:group-hover/cell:max-h-[calc(300%_+_2px)]',
+                    '@min-[5.5rem]:group-hover/cell:max-h-[calc(200%_+_1px)]',
+                    '@min-[5.5rem]:group-hover/cell:max-h-full',
+                ][cellRow]
+                ~ [
+                    ' @min-[5.5rem]:group-hover/cell:right-auto',
+                    ' @min-[5.5rem]:group-hover/cell:right-auto',
+                    ' @min-[5.5rem]:group-hover/cell:right-auto',
+                    ' @min-[5.5rem]:group-hover/cell:right-auto',
+                    ' @max-[42rem]/grid:@min-[5.5rem]:group-hover/cell:left-auto
+                      @min-[42rem]/grid:@min-[5.5rem]:group-hover/cell:right-auto',
+                    ' @max-[63rem]/grid:@min-[5.5rem]:group-hover/cell:left-auto
+                      @min-[63rem]/grid:@min-[5.5rem]:group-hover/cell:right-auto',
+                    ' @min-[5.5rem]:group-hover/cell:left-auto',
+                ][loop.index0 % 7]
+                ~ ' absolute inset-0
+                   @min-[5.5rem]:group-hover/cell:bottom-auto @min-[5.5rem]:group-hover/cell:h-auto
+                   @min-[5.5rem]:group-hover/cell:min-h-full
+                   @min-[5.5rem]:group-hover/cell:w-max @min-[5.5rem]:group-hover/cell:min-w-full
+                   @min-[5.5rem]:group-hover/cell:max-w-[18rem]
+                   @min-[5.5rem]:group-hover/cell:overflow-y-auto
+                   @min-[5.5rem]:group-hover/cell:rounded-md @min-[5.5rem]:group-hover/cell:bg-surface
+                   @min-[5.5rem]:group-hover/cell:opacity-100
+                   @min-[5.5rem]:group-hover/cell:shadow-lg
+                   @min-[5.5rem]:group-hover/cell:ring-1 @min-[5.5rem]:group-hover/cell:ring-line'
+            ) : '' %}
+
+            {# `hover:z-40` is what puts an open card over the days around it —
+               a cell is a grid item, so without a number the cells after it in
+               source paint on top.
 
                **`@container`, so a chip can ask how wide the day it is on
                actually is.** Seven columns of a 360px phone are 42px each, and
@@ -133,11 +171,16 @@ Blocks, both rendered inside the cell loop and both able to read `dayKey`,
                ask. See _event_chip, where the two steps are set out, and note
                that no viewport breakpoint could have answered this: the same
                360px window is a month in a pane and a month on a page, and the
-               cell is a seventh of whichever it is. #}
+               cell is a seventh of whichever it is.
+
+               The tint and the spill-in dimming are on the card, so an open one
+               can trade them for an opaque surface: a translucent card over the
+               neighbouring days reads their chips through its own. #}
             <div data-day="{{ dayKey }}"
                  {% if isOutside %}data-day-unpublished{% endif %}
-                 class="group/cell @container relative hover:z-40 hover:overflow-visible
-                        min-h-0 min-w-0 flex flex-col p-1 gap-0.5 overflow-hidden {{ shellCellClass }}
+                 class="group/cell @container relative min-h-0 min-w-0 flex flex-col
+                        {{ shellCellExpands ? 'hover:z-40' : '' }} {{ shellCellClass }}">
+            <div class="flex-1 min-h-0 min-w-0 flex flex-col p-1 gap-0.5 overflow-hidden {{ cellExpandClass }}
                         {{ isOutside
                             ? 'bg-sunken/20'
                             : (isToday ? 'bg-accent/5' : (isWeekend ? 'bg-sunken/40' : 'bg-surface')) }}
@@ -167,6 +210,7 @@ Blocks, both rendered inside the cell loop and both able to read `dayKey`,
                 </div>
 
                 {% block cell_body %}{% endblock %}
+            </div>
             </div>
         {% endfor %}
     </div>
