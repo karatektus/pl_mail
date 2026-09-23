@@ -1,6 +1,6 @@
 import { test, expect } from "./support/test";
 import { setWhen } from "./support/datetime";
-import { APP_TIMEZONE, TEST_ADMIN, consoleCommand, login, seed, seedUser } from "./support/config";
+import { APP_TIMEZONE, TEST_ADMIN, ajaxPost, consoleCommand, login, seed, seedUser } from "./support/config";
 
 /**
  * Captures the README screenshots against the demo mailbox.
@@ -125,7 +125,7 @@ test.describe("README screenshots", () => {
         const previous = await exported.json();
 
         try {
-            const dark = await page.request.post("/settings/appearance", { data: { theme: "dark" } });
+            const dark = await ajaxPost(page, "/settings/appearance", { theme: "dark" });
             expect(dark.ok()).toBe(true);
 
             await page.goto("/mail/inbox");
@@ -134,7 +134,7 @@ test.describe("README screenshots", () => {
             await page.waitForTimeout(600);
             await capture(page, "inbox-dark");
         } finally {
-            await page.request.post("/settings/appearance", { data: previous });
+            await ajaxPost(page, "/settings/appearance", previous);
         }
     });
 

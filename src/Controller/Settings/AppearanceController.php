@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controller\Settings;
 
+use App\Controller\ChecksCsrf;
 use App\Domain\Enum\Theme\BackgroundKind;
 use App\Entity\Embeddable\Appearance;
 use App\Entity\User\User;
@@ -24,6 +25,8 @@ use Symfony\Component\Uid\Uuid;
 #[IsGranted('ROLE_USER')]
 final class AppearanceController extends AbstractController
 {
+    use ChecksCsrf;
+
     private const array ALLOWED_MIME = ['image/jpeg', 'image/png', 'image/webp'];
 
     public function __construct(
@@ -36,6 +39,14 @@ final class AppearanceController extends AbstractController
     #[Route('', name: 'update', methods: ['POST'])]
     public function update(Request $request): JsonResponse
     {
+        // `ajax` is the layout's meta-tag token, which the Stimulus controller
+        // sends as X-CSRF-Token. These four went without one on the grounds
+        // that a forged request "only rewrites the user's own colours" — but
+        // that includes a background upload and a whole theme import, and a
+        // state-changing POST that anyone's page can fire is the thing
+        // StateChangingPostsNeedCsrfTest exists to refuse.
+        $this->assertCsrf($request, 'ajax');
+
         /** @var User $user */
         $user = $this->getUser();
 
@@ -55,12 +66,10 @@ final class AppearanceController extends AbstractController
      * and this is a layout preference, not part of the theme — it must not turn
      * up in an exported theme file or be applied by importing somebody else's.
      *
-     * Unlike the appearance payload beside it, this takes a CSRF token. That is
-     * not inconsistency: a request forged against `update` can only rewrite the
-     * user's own colours, which is why that one has never carried a token,
-     * whereas this is a new state-changing POST and new ones carry tokens. The
-     * width itself is clamped server-side too — the client's bounds are a
-     * convenience, and a stored 40000 would wedge the settings page.
+     * Its own token id rather than the layout's `ajax` one, because the drag
+     * handle posts a form body. The width itself is clamped server-side too —
+     * the client's bounds are a convenience, and a stored 40000 would wedge the
+     * settings page.
      */
     #[Route('/pane-state', name: 'pane_state', methods: ['POST'])]
     public function paneState(Request $request): JsonResponse
@@ -87,6 +96,8 @@ final class AppearanceController extends AbstractController
     #[Route('/background', name: 'background_upload', methods: ['POST'])]
     public function uploadBackground(Request $request): JsonResponse
     {
+        $this->assertCsrf($request, 'ajax');
+
         /** @var User $user */
         $user = $this->getUser();
 
@@ -171,6 +182,8 @@ final class AppearanceController extends AbstractController
     #[Route('/import', name: 'import', methods: ['POST'])]
     public function import(Request $request): JsonResponse
     {
+        $this->assertCsrf($request, 'ajax');
+
         /** @var User $user */
         $user = $this->getUser();
 
@@ -187,8 +200,10 @@ final class AppearanceController extends AbstractController
     }
 
     #[Route('/reset', name: 'reset', methods: ['POST'])]
-    public function reset(): JsonResponse
+    public function reset(Request $request): JsonResponse
     {
+        $this->assertCsrf($request, 'ajax');
+
         /** @var User $user */
         $user = $this->getUser();
 

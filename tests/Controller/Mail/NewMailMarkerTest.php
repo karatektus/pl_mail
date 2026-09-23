@@ -852,7 +852,7 @@ final class NewMailMarkerTest extends WebTestCase
         $this->client->request(
             'POST',
             '/mail/threads/listed',
-            server: ['CONTENT_TYPE' => 'application/json'],
+            server: ['CONTENT_TYPE' => 'application/json', 'HTTP_X_CSRF_TOKEN' => $this->ajaxToken()],
             content: json_encode(['ids' => [$thread->id]], JSON_THROW_ON_ERROR),
         );
 
@@ -898,7 +898,7 @@ final class NewMailMarkerTest extends WebTestCase
         $this->client->request(
             'POST',
             '/mail/threads/listed',
-            server: ['CONTENT_TYPE' => 'application/json'],
+            server: ['CONTENT_TYPE' => 'application/json', 'HTTP_X_CSRF_TOKEN' => $this->ajaxToken()],
             content: json_encode(
                 ['ids' => [$mine->id, $strangersThread->id]],
                 JSON_THROW_ON_ERROR,
@@ -919,7 +919,7 @@ final class NewMailMarkerTest extends WebTestCase
         $this->client->request(
             'POST',
             '/mail/threads/listed',
-            server: ['CONTENT_TYPE' => 'application/json'],
+            server: ['CONTENT_TYPE' => 'application/json', 'HTTP_X_CSRF_TOKEN' => $this->ajaxToken()],
             content: 'not json at all',
         );
 
@@ -927,6 +927,18 @@ final class NewMailMarkerTest extends WebTestCase
     }
 
     // ── helpers ──────────────────────────────────────────────────────────
+
+    /**
+     * The layout's `ajax` token, which new_marker_controller.js sends as
+     * X-CSRF-Token. Read from a prefetched render, because an ordinary one
+     * would mark the rows these tests are about.
+     */
+    private function ajaxToken(): string
+    {
+        $crawler = $this->client->request('GET', '/mail/inbox', server: ['HTTP_X_SEC_PURPOSE' => 'prefetch']);
+
+        return (string) $crawler->filter('meta[name="csrf-token"]')->attr('content');
+    }
 
     /**
      * The statements the migration would run.

@@ -1,4 +1,4 @@
-import { expect, type Locator, type Page } from "@playwright/test";
+import { expect, type APIResponse, type Locator, type Page } from "@playwright/test";
 import { execSync } from "node:child_process";
 
 /**
@@ -181,9 +181,20 @@ export function mailRow(page: Page, subject: string): Locator {
 }
 
 /**
- * Drives the real login form at /login and waits for the authenticated
- * shell to land on the inbox.
+ * POSTs to an endpoint that takes the layout's `ajax` token in X-CSRF-Token,
+ * the way the Stimulus controllers do. The token is read from a rendered
+ * settings page rather than /mail/inbox, which would mark list rows as seen.
  */
+export async function ajaxPost(page: Page, url: string, data?: unknown): Promise<APIResponse> {
+    const html = await (await page.request.get("/settings?section=appearance")).text();
+    const token = /<meta name="csrf-token" content="([^"]*)"/.exec(html)?.[1] ?? "";
+
+    return page.request.post(url, {
+        headers: { "X-CSRF-Token": token },
+        ...(undefined === data ? {} : { data }),
+    });
+}
+
 /**
  * Signs out the way the user menu does: logout takes a CSRF token, so a plain
  * `page.goto("/logout")` is refused. Submits the page's own logout form, which
@@ -194,6 +205,10 @@ export async function logout(page: Page): Promise<void> {
     await expect(page).toHaveURL(/\/login/);
 }
 
+/**
+ * Drives the real login form at /login and waits for the authenticated
+ * shell to land on the inbox.
+ */
 export async function login(
     page: Page,
     email: string = TEST_USER.email,

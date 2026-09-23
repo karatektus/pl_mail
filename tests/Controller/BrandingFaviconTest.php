@@ -113,10 +113,13 @@ final class BrandingFaviconTest extends WebTestCase
     {
         [$client] = $this->signedIn();
 
+        // The layout's `ajax` token, which the appearance controller sends.
+        $token = (string) $client->request('GET', '/mail/inbox')->filter('meta[name="csrf-token"]')->attr('content');
+
         $client->request(
             'POST',
             '/settings/appearance',
-            server: ['CONTENT_TYPE' => 'application/json'],
+            server: ['CONTENT_TYPE' => 'application/json', 'HTTP_X_CSRF_TOKEN' => $token],
             content: json_encode(['logoStyle' => 'ocean']),
         );
 
@@ -129,7 +132,7 @@ final class BrandingFaviconTest extends WebTestCase
         $client->request(
             'POST',
             '/settings/appearance',
-            server: ['CONTENT_TYPE' => 'application/json'],
+            server: ['CONTENT_TYPE' => 'application/json', 'HTTP_X_CSRF_TOKEN' => $token],
             content: json_encode(['logoStyle' => 'chartreuse-dreams']),
         );
 

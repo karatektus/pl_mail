@@ -1,4 +1,5 @@
 import { test, expect, type Page } from "../support/test";
+import { ajaxPost } from "../support/config";
 
 /**
  * Layout is the second appearance axis: the theme picks the palette, the
@@ -59,7 +60,7 @@ test.beforeEach(async ({ page }) => {
     // Layout is persisted per user, so restore the defaults before each test.
     // Straight to the endpoint the Reset control posts to: driving the button
     // would race the Stimulus controller's connect on a freshly loaded page.
-    const reset = await page.request.post("/settings/appearance/reset");
+    const reset = await ajaxPost(page, "/settings/appearance/reset");
     expect(reset.ok()).toBe(true);
 
     await page.goto(APPEARANCE);

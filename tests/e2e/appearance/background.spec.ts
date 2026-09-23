@@ -1,4 +1,5 @@
 import { test, expect, type Page } from "../support/test";
+import { ajaxPost } from "../support/config";
 
 /**
  * Choosing a background applies it, and applies the same one a reload would.
@@ -49,14 +50,14 @@ const liveThenReload = async (page: Page) => {
 
 test.describe("background", () => {
     test.beforeEach(async ({ page }) => {
-        const reset = await page.request.post("/settings/appearance/reset");
+        const reset = await ajaxPost(page, "/settings/appearance/reset");
         expect(reset.ok()).toBe(true);
         await page.goto("/settings?section=appearance");
     });
 
     test.afterAll(async ({ browser }) => {
         const page = await browser.newPage();
-        await page.request.post("/settings/appearance/reset");
+        await ajaxPost(page, "/settings/appearance/reset");
         await page.close();
     });
 

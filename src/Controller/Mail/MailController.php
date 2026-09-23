@@ -2,6 +2,7 @@
 
 namespace App\Controller\Mail;
 
+use App\Controller\ChecksCsrf;
 use App\Domain\Enum\Mail\LabelRole;
 use App\Domain\Enum\Mail\ListSortOrder;
 use App\Domain\Enum\Mail\MessageCategory;
@@ -37,6 +38,8 @@ use Symfony\Component\Routing\Attribute\Route;
 #[Route('/mail', name: 'app_mail_')]
 final class MailController extends AbstractController
 {
+    use ChecksCsrf;
+
     public function __construct(
         private readonly MailboxRepository $mailboxRepository,
         private readonly MessageRepository $messageRepository,
@@ -172,6 +175,9 @@ final class MailController extends AbstractController
     public function markListed(Request $request): JsonResponse
     {
         $this->denyAccessUnlessGranted('ROLE_USER');
+        // The new-marker controller already sends the layout's token as
+        // X-CSRF-Token; nothing checked it, so any page could retire badges.
+        $this->assertCsrf($request, 'ajax');
 
         $body = json_decode((string) $request->getContent(), true);
         $ids  = \is_array($body) && \is_array($body['ids'] ?? null) ? $body['ids'] : [];

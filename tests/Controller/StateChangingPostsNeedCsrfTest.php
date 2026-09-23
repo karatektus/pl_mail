@@ -178,6 +178,37 @@ final class StateChangingPostsNeedCsrfTest extends WebTestCase
     }
 
     /**
+     * The JSON endpoints behind the appearance settings and the list's
+     * new-mail markers, which checked no token at all. Their callers send the
+     * layout's `ajax` token as X-CSRF-Token; a request without one is refused.
+     *
+     * @return iterable<string, array{string}>
+     */
+    public static function headerTokenEndpoints(): iterable
+    {
+        yield 'save the appearance'     => ['/settings/appearance'];
+        yield 'upload a background'     => ['/settings/appearance/background'];
+        yield 'import a theme'          => ['/settings/appearance/import'];
+        yield 'reset the appearance'    => ['/settings/appearance/reset'];
+        yield 'mark list rows as seen'  => ['/mail/threads/listed'];
+    }
+
+    #[DataProvider('headerTokenEndpoints')]
+    public function testHeaderTokenEndpointsRejectARequestWithNoToken(string $path): void
+    {
+        $client = $this->signedIn();
+
+        $client->request(
+            'POST',
+            $path,
+            server: ['CONTENT_TYPE' => 'application/json'],
+            content: json_encode(['version' => 1, 'ids' => [1]], JSON_THROW_ON_ERROR),
+        );
+
+        self::assertSame(403, $client->getResponse()->getStatusCode(), "$path accepted a request with no token");
+    }
+
+    /**
      * And the endpoint that chooses which account sends mail, which is new and
      * is the more valuable of the two to forge: it silently changes the address
      * everything the user writes afterwards goes out from.

@@ -1,4 +1,5 @@
 import { Controller } from '@hotwired/stimulus';
+import { csrfToken, jsonCsrfHeaders } from '../../csrf.js';
 import { requestFailed } from '../../request_errors.js';
 
 export default class extends Controller {
@@ -824,7 +825,7 @@ export default class extends Controller {
         try {
             response = await fetch(this.updateUrlValue, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: jsonCsrfHeaders(),
                 body: JSON.stringify(payload),
             });
         } catch {
@@ -875,7 +876,11 @@ export default class extends Controller {
         let response;
 
         try {
-            response = await fetch(this.uploadUrlValue, { method: 'POST', body: data });
+            response = await fetch(this.uploadUrlValue, {
+                method: 'POST',
+                headers: { 'X-CSRF-Token': csrfToken() },
+                body: data,
+            });
         } catch {
             requestFailed(null);
             return;
@@ -918,7 +923,7 @@ export default class extends Controller {
         try {
             response = await fetch(this.importUrlValue, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: jsonCsrfHeaders(),
                 body: text,
             });
         } catch {
@@ -942,7 +947,10 @@ export default class extends Controller {
         let response;
 
         try {
-            response = await fetch(this.resetUrlValue, { method: 'POST' });
+            response = await fetch(this.resetUrlValue, {
+                method: 'POST',
+                headers: { 'X-CSRF-Token': csrfToken() },
+            });
         } catch {
             requestFailed(null);
             return;

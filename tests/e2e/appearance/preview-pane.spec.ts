@@ -1,5 +1,5 @@
 import { test, expect, type Page } from "../support/test";
-import { BASE_URL, seedUser } from "../support/config";
+import { BASE_URL, ajaxPost, seedUser } from "../support/config";
 
 /**
  * The appearance preview is its own pane now, with a boundary you can move.
@@ -76,7 +76,7 @@ test.describe("appearance preview pane", () => {
     test.use({ viewport: DESKTOP });
 
     test.beforeEach(async ({ page }) => {
-        const reset = await page.request.post("/settings/appearance/reset");
+        const reset = await ajaxPost(page, "/settings/appearance/reset");
         expect(reset.ok()).toBe(true);
         await page.goto("/settings?section=appearance");
 

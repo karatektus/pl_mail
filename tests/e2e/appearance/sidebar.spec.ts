@@ -1,4 +1,5 @@
 import { test, expect, type Page } from "../support/test";
+import { ajaxPost } from "../support/config";
 
 /**
  * The sidebar has two ways of getting out of the way, and one button drives
@@ -24,7 +25,7 @@ const railed = (page: Page) =>
 
 test.beforeEach(async ({ page }) => {
     // The pill's geometry depends on the layout, which is persisted per user.
-    const reset = await page.request.post("/settings/appearance/reset");
+    const reset = await ajaxPost(page, "/settings/appearance/reset");
     expect(reset.ok()).toBe(true);
 
     // The rail is remembered per browser; start every test expanded.
