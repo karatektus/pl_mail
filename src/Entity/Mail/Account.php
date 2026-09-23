@@ -17,7 +17,6 @@ use App\Domain\Trait\TimestampableTrait;
 use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Entity(repositoryClass: AccountRepository::class)]
-//#[Broadcast]
 #[ORM\HasLifecycleCallbacks]
 class Account extends AccountModel
 {

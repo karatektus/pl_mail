@@ -5,7 +5,6 @@ namespace App\Entity\Mail;
 use App\Repository\Mail\MessagePartRepository;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
-use Symfony\UX\Turbo\Attribute\Broadcast;
 
 #[ORM\Entity(repositoryClass: MessagePartRepository::class)]
 class MessagePart
