@@ -51,27 +51,20 @@ async function isOnTop(page: import("@playwright/test").Page, selector: string):
 
 test.describe("menus escape their pane", () => {
     /**
-     * KNOWN FAILING — the fix was reverted, and this records why rather than
-     * quietly disappearing with it.
+     * The label dropdown in a conversation, which was painted under the navbar.
      *
-     * The reported bug is real: the label dropdown in a conversation is painted
-     * under the navbar, and it is not a z-index problem — the panes carry
-     * `backdrop-filter`, which makes each one a stacking context AND the
-     * containing block for `position: fixed`, so nothing anchored inside one
-     * can rise above the chrome whatever its number says.
+     * Not a z-index problem — the panes carry `backdrop-filter`, which makes
+     * each one a stacking context AND the containing block for `position:
+     * fixed`, so nothing anchored inside one can rise above the chrome whatever
+     * its number says.
      *
-     * The attempted fix was the browser's top layer, via the popover API. It
-     * places the panel correctly and it broke clicking: with the panel shown as
-     * a popover, `document.elementFromPoint` at the option's own coordinates
-     * answers null and the click never lands. It did the same to the snooze
-     * menu. Three specs caught it, which is the system working.
-     *
-     * Reverted rather than pursued, because a menu that is visible and does
-     * nothing is worse than one that is clipped, and because I could not find
-     * the cause without seeing the real layout. It wants a reproduction in a
-     * browser rather than a fourth guess.
+     * The first top-layer attempt was reverted because the options stopped
+     * firing. That was `popover` (auto), whose light dismiss closes the panel
+     * on the pointerdown meant for an option. mail--label-menu now does what
+     * the account menu below does — `popover="manual"`, positioned by hand,
+     * closed by its own outside-click handler — so this is a test again.
      */
-    test.fixme("the label menu in a conversation is not hidden behind the navbar", async ({ page }) => {
+    test("the label menu in a conversation is not hidden behind the navbar", async ({ page }) => {
         await page.goto("/mail/inbox");
         await mailRow(page, INBOX_SUBJECTS.read).click();
 
@@ -96,6 +89,19 @@ test.describe("menus escape their pane", () => {
             await isOnTop(page, '[data-mail--label-menu-target="panel"]:popover-open'),
             "something is painted over the label menu — it is back under the chrome",
         ).toBe(true);
+
+        // And it still works — the half the first attempt lost. Clicked twice
+        // so the fixture conversation ends with the labels it started with.
+        const option = panel.locator("[data-label-id]").first();
+
+        if (await option.count() > 0) {
+            for (let i = 0; i < 2; i++) {
+                await Promise.all([
+                    page.waitForResponse((response) => /\/label$/.test(new URL(response.url()).pathname)),
+                    option.click(),
+                ]);
+            }
+        }
     });
 
     /**
@@ -114,9 +120,9 @@ test.describe("menus escape their pane", () => {
      * that makes the whole class impossible, and it is false on the old markup,
      * so that is what this pins.
      *
-     * The third assertion is the one that matters most, and it is why the two
-     * tests above are still fixme: the top layer was tried on those menus and
-     * reverted because their options silently stopped firing. This menu asks
+     * The third assertion is the one that matters most, and it is why the label
+     * menu above was fixme for so long: the top layer was tried on it and
+     * reverted because its options silently stopped firing. This menu asks
      * for `popover="manual"` rather than the default `auto`, which is where
      * light dismiss lives — the first pointerdown closing the popover, so the
      * click meant for an option lands on nothing. A menu that is visible and

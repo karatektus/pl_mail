@@ -58,7 +58,7 @@ Variables:
         <div class="border-t border-line mt-1 pt-1">
             <button type="button"
                     data-controller="ui--modal"
-                    data-action="click->ui--modal#open"
+                    data-action="click->ui--modal#open click->mail--label-menu#close"
                     data-ui--modal-title-value="{{ 'sidebar.labels.add'|trans }}"
                     data-ui--modal-src-value="{{ path('app_label_new') }}"
                     class="w-full flex items-center gap-2 px-3 py-1.5 text-sm text-left

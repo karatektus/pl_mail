@@ -13,7 +13,10 @@ import { requestFailed } from "../../request_errors.js";
  *                ([data-thread-select]:checked → value = thread id).
  */
 export default class extends Controller {
-    static targets = ["panel"];
+    // `check` is read per button (querySelector inside each option) rather
+    // than through this.checkTargets, because each tick belongs to its own
+    // button; declared so the attribute the template writes is a real target.
+    static targets = ["panel", "check"];
 
     static values = {
         targetType: { type: String, default: "thread" },
@@ -25,7 +28,11 @@ export default class extends Controller {
     }
 
     disconnect() {
-        document.removeEventListener("click", this._boundClose, { capture: true });
+        // The whole close, not just the click listener: a menu re-rendered
+        // while open (a Turbo Stream replacing the thread toolbar) otherwise
+        // left its scroll and resize listeners on window, and a popover open
+        // in the top layer outlives the element that owned it.
+        this._close();
     }
 
     toggle(event) {
@@ -37,6 +44,7 @@ export default class extends Controller {
             this._close();
         } else {
             this.panelTarget.classList.remove("hidden");
+            this._escape();
             this._place();
 
             // Bulk mode: the menu is shared by whatever is selected, so what it
@@ -51,6 +59,14 @@ export default class extends Controller {
             window.addEventListener("scroll", this._boundClose, { capture: true });
             window.addEventListener("resize", this._boundClose);
         }
+    }
+
+    /**
+     * "Create label" opens the modal — which must not open underneath this
+     * panel, and would: the panel is in the top layer while it is open.
+     */
+    close() {
+        this._close();
     }
 
     async toggleLabel(event) {
@@ -178,15 +194,55 @@ export default class extends Controller {
 
     _close() {
         this.panelTarget.classList.add("hidden");
+
+        // hidePopover() throws on a popover that is not open — the first
+        // outside click of a page whose menu was never opened.
+        if (this._canEscape() && this.panelTarget.matches(":popover-open")) {
+            this.panelTarget.hidePopover();
+        }
+
         document.removeEventListener("click", this._boundClose, { capture: true });
         window.removeEventListener("scroll", this._boundClose, { capture: true });
         window.removeEventListener("resize", this._boundClose);
 
         // Back to the stylesheet's own sizing, or the next open would start
         // from wherever this one finished.
-        for (const property of ["top", "bottom", "maxHeight"]) {
+        for (const property of ["position", "top", "bottom", "left", "right", "margin", "maxHeight"]) {
             this.panelTarget.style[property] = "";
         }
+    }
+
+    /**
+     * Lift the panel into the top layer while it is open.
+     *
+     * The conversation's toolbar sits in a pane with `backdrop-filter`, which
+     * makes the pane a stacking context and the containing block for
+     * `position: fixed` — so the panel was painted under the navbar whatever
+     * its z-index said, and could not be positioned out of it either. The top
+     * layer is above every stacking context and clipped by nothing, while the
+     * panel stays where it is in the DOM, so the actions scoped to this
+     * controller keep reaching it. Same as ui--user-menu.
+     *
+     * `popover="manual"`, set here rather than in the template so a browser
+     * without the API never sees the attribute. MANUAL, not auto: auto's light
+     * dismiss closes the popover on the first pointerdown, so the click meant
+     * for an option landed on nothing — which is how the first attempt at this
+     * failed. Closing stays with _closeOnOutsideClick, as before.
+     */
+    _escape() {
+        if (!this._canEscape()) {
+            return;
+        }
+
+        if (!this.panelTarget.hasAttribute("popover")) {
+            this.panelTarget.setAttribute("popover", "manual");
+        }
+
+        this.panelTarget.showPopover();
+    }
+
+    _canEscape() {
+        return typeof this.panelTarget.showPopover === "function";
     }
 
     /**
@@ -217,9 +273,43 @@ export default class extends Controller {
         }
 
         const panel  = this.panelTarget;
-        const box    = this._clipperFor(panel);
         const rect   = button.getBoundingClientRect();
         const margin = 8;
+
+        // In the top layer the containing block is the viewport, so the
+        // classes that hung the panel under the button (`absolute right-0
+        // top-full mt-1`) mean nothing and the position is written by hand.
+        // Every inset and the margin are set, because the UA's popover style
+        // (`inset: 0; margin: auto`) would otherwise centre it on screen.
+        if (panel.matches(":popover-open")) {
+            const below = window.innerHeight - rect.bottom - margin;
+            const above = rect.top - margin;
+            const flip  = below < 140 && above > below;
+            const width = panel.getBoundingClientRect().width;
+            const left  = Math.min(
+                Math.max(margin, rect.right - width),
+                Math.max(margin, window.innerWidth - width - margin),
+            );
+
+            panel.style.position  = "fixed";
+            panel.style.margin    = "0";
+            panel.style.left      = `${Math.round(left)}px`;
+            panel.style.right     = "auto";
+            panel.style.maxHeight = `${Math.max(96, Math.floor(flip ? above : below))}px`;
+
+            if (flip) {
+                panel.style.top    = "auto";
+                panel.style.bottom = `${Math.round(window.innerHeight - rect.top + 4)}px`;
+            } else {
+                panel.style.top    = `${Math.round(rect.bottom + 4)}px`;
+                panel.style.bottom = "auto";
+            }
+
+            return;
+        }
+
+        // No top layer: stay in place and fit inside whatever clips.
+        const box = this._clipperFor(panel);
 
         const below = box.bottom - rect.bottom - margin;
         const above = rect.top - box.top - margin;
