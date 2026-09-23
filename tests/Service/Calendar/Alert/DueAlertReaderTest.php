@@ -315,6 +315,42 @@ final class DueAlertReaderTest extends KernelTestCase
      * @param list<string> $offsets       the extracted copy's alarms
      * @param list<string>|null $mirrored  the mirror's, where they differ
      */
+    /**
+     * A reminder set a week ahead is due now even when more than a page of
+     * sooner meetings sits in front of it. The sweep used to read one page of
+     * 500 by start and stop, so on a busy install a long-lead alert was never
+     * looked at before it aged out of the lookback.
+     */
+    public function testALongLeadAlertIsFoundBehindMoreThanAPageOfSoonerMeetings(): void
+    {
+        $start = new DateTimeImmutable('2026-06-01 09:00:00', new DateTimeZone('UTC'));
+
+        // 600 hourly occurrences inside the candidate window, all of them
+        // starting before the long-lead meeting does. One of them is due too —
+        // an hourly reminder always has one trigger in the last hour.
+        $this->writer->write(
+            event:          new CalendarEvent(),
+            calendar:       $this->calendar,
+            user:           $this->user,
+            title:          'Hourly check',
+            startsAt:       $start,
+            endsAt:         $start->modify('+15 minutes'),
+            timeZone:       'UTC',
+            recurrenceRule: ['@type' => 'RecurrenceRule', 'frequency' => 'hourly', 'count' => 600],
+            alerts:         [$this->alerts->offsetAlert('-PT10M', AlertAction::Display)],
+        );
+        $this->em->flush();
+
+        $this->eventAt('2026-06-30 09:00:00', ['-P28D']);
+
+        $starts = array_map(
+            static fn ($alert): string => $alert->startsAt->format('Y-m-d H:i:s'),
+            $this->due->due($this->now()),
+        );
+
+        self::assertContains('2026-06-30 09:00:00', $starts, 'the long-lead alert was never looked at');
+    }
+
     private function meetingOnTwoCalendars(string $startsAt, array $offsets, ?array $mirrored = null): void
     {
         $uid = 'meeting@organiser.test';

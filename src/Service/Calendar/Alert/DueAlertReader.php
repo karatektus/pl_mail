@@ -6,6 +6,7 @@ namespace App\Service\Calendar\Alert;
 
 use App\Domain\DTO\Calendar\DueAlert;
 use App\Entity\Calendar\CalendarEvent;
+use App\Entity\Calendar\CalendarEventOccurrence;
 use App\Repository\Calendar\CalendarEventOccurrenceRepository;
 use DateTimeImmutable;
 
@@ -132,8 +133,13 @@ final readonly class DueAlertReader
     private const string MAX_TRAIL = '-1 day';
 
     /**
-     * Occurrences examined per sweep. Whatever is left waits a minute, and the
-     * lookback window is an hour, so nothing is lost by stopping early.
+     * Occurrences read per page. Every page is read on every sweep: the window
+     * is instance-wide and ordered by start, so stopping after the first page
+     * — which this once did, on the theory that the rest could wait a minute —
+     * meant the rest waited forever on a busy install. The first 500 rows were
+     * always the next day's short-lead reminders, and an alert set a week ahead
+     * of its meeting fell due, sat past the page and aged out of the lookback
+     * without ever being looked at.
      */
     private const int BATCH = 500;
 
@@ -152,15 +158,38 @@ final readonly class DueAlertReader
         $now   = $now ?? new DateTimeImmutable();
         $floor = $now->modify(self::LOOKBACK);
 
-        $candidates = $this->occurrences->findAlertCandidates(
-            $floor->modify(self::MAX_TRAIL),
-            $now->modify(self::MAX_LEAD),
-            self::BATCH,
-        );
-
         /** @var array<string, DueAlert> $due keyed by the meeting-and-trigger fold */
-        $due = [];
+        $due   = [];
+        $after = null;
 
+        do {
+            $page = $this->occurrences->findAlertCandidates(
+                $floor->modify(self::MAX_TRAIL),
+                $now->modify(self::MAX_LEAD),
+                self::BATCH,
+                $after,
+            );
+
+            $this->collect($page, $floor, $now, $due);
+
+            $after = [] === $page ? null : $page[count($page) - 1];
+        } while (self::BATCH === count($page));
+
+        $due = array_values($due);
+
+        usort($due, static fn (DueAlert $a, DueAlert $b): int => $a->triggerAt <=> $b->triggerAt);
+
+        return $due;
+    }
+
+    /**
+     * The alerts of one page of candidates that are due, folded into $due.
+     *
+     * @param list<CalendarEventOccurrence> $candidates
+     * @param array<string, DueAlert>        $due
+     */
+    private function collect(array $candidates, DateTimeImmutable $floor, DateTimeImmutable $now, array &$due): void
+    {
         foreach ($candidates as $occurrence) {
             $event = $occurrence->event;
             $user  = $occurrence->usr;
@@ -207,12 +236,6 @@ final readonly class DueAlertReader
                 );
             }
         }
-
-        $due = array_values($due);
-
-        usort($due, static fn (DueAlert $a, DueAlert $b): int => $a->triggerAt <=> $b->triggerAt);
-
-        return $due;
     }
 
     /**

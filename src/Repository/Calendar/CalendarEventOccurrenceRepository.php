@@ -189,10 +189,31 @@ class CalendarEventOccurrenceRepository extends ServiceEntityRepository
      * two are separate states — one instance struck through, or the whole series
      * — so both are asked about.
      *
+     * One page of the window, in (start, id) order, continuing after $after.
+     * Keyset rather than OFFSET because the caller walks every page on every
+     * sweep, and rather than a single LIMIT because a single LIMIT was the
+     * bug: the window is instance-wide and a month long, so on a busy install
+     * the first 500 rows by start were all short-lead reminders for the next
+     * day or two, and a reminder set a week ahead was never even looked at.
+     *
+     * @param CalendarEventOccurrence|null $after the last row of the previous page
+     *
      * @return list<CalendarEventOccurrence>
      */
-    public function findAlertCandidates(DateTimeImmutable $from, DateTimeImmutable $to, int $limit): array
-    {
+    public function findAlertCandidates(
+        DateTimeImmutable        $from,
+        DateTimeImmutable        $to,
+        int                      $limit,
+        ?CalendarEventOccurrence $after = null,
+    ): array {
+        // A row value comparison, which DQL cannot spell — one more reason the
+        // id half of this lookup is SQL. With no previous page the cursor is
+        // simply the window's own lower bound.
+        $afterStart = null === $after || null === $after->startsAt
+            ? $from
+            : $after->startsAt->setTimezone(new \DateTimeZone('UTC'));
+        $afterId    = null === $after ? 0 : (int) $after->id;
+
         $ids = $this->getEntityManager()->getConnection()->fetchFirstColumn(
             <<<'SQL'
                 SELECT o.id
@@ -201,19 +222,24 @@ class CalendarEventOccurrenceRepository extends ServiceEntityRepository
                 WHERE o.cancelled = false
                   AND o.starts_at >= :alertFrom
                   AND o.starts_at <= :alertTo
+                  AND (o.starts_at, o.id) > (:afterStart, :afterId)
                   AND e.status <> 'cancelled'
                   AND jsonb_exists(e.jscalendar, 'alerts')
-                ORDER BY o.starts_at ASC
+                ORDER BY o.starts_at ASC, o.id ASC
                 LIMIT :alertLimit
                 SQL,
             [
                 'alertFrom'  => $from->format('Y-m-d H:i:s'),
                 'alertTo'    => $to->format('Y-m-d H:i:s'),
+                'afterStart' => $afterStart->format('Y-m-d H:i:s'),
+                'afterId'    => $afterId,
                 'alertLimit' => $limit,
             ],
             [
                 'alertFrom'  => ParameterType::STRING,
                 'alertTo'    => ParameterType::STRING,
+                'afterStart' => ParameterType::STRING,
+                'afterId'    => ParameterType::INTEGER,
                 'alertLimit' => ParameterType::INTEGER,
             ],
         );
