@@ -19,3 +19,5 @@ settings.password.too_short: Use at least {{ limit }} characters.
 setup.install.password_mismatch: Them two secret words don't match, matey.
 setup.install.password_too_short: Use {{ limit }} marks at least. There be no gettin' this one back.
 user.email_taken: Another soul sails under that address already. One address, one shipmate.
+admin.ai.field.base_url_invalid: 'That must begin with http:// or https://.'
+profile.avatar_wrong_type: 'Use a PNG, JPEG, GIF or WebP likeness.'

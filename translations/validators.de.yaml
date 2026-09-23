@@ -20,3 +20,5 @@ settings.password.too_short: Mindestens {{ limit }} Zeichen.
 setup.install.password_mismatch: Die beiden Passwörter stimmen nicht überein.
 setup.install.password_too_short: Mindestens {{ limit }} Zeichen. Für dieses Konto gibt es keine Passwort-Zurücksetzung.
 user.email_taken: Diese Adresse benutzt schon jemand. Jede Adresse dieser Installation gehört genau einer Person.
+admin.ai.field.base_url_invalid: 'Das muss mit http:// oder https:// anfangen.'
+profile.avatar_wrong_type: 'Bitte ein PNG, JPEG, GIF oder WebP verwenden.'

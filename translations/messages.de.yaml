@@ -98,7 +98,6 @@ admin:
         field:
             base_url: 'Modell-Host'
             base_url_help: 'Die Adresse eines Ollama-Containers in deinem Netz, mit Port.'
-            base_url_invalid: 'Das muss mit http:// oder https:// anfangen.'
             categorisation: 'Mail in Tabs einsortieren'
             categorisation_help: 'Läuft bei jeder eingehenden Nachricht. Immer nur als Stichentscheid — zuerst entscheiden die normalen Regeln.'
             chat_keep_alive: 'Schreib-Modell geladen lassen für'
@@ -1369,7 +1368,6 @@ calendar:
         window_label: '%from% – %to%'
         zone: 'Zeiten in %zone%'
     soon:
-        now: 'Es ist %time%'
         next: 'Als Nächstes'
         empty: Nichts in Sicht
         empty_hint: >-
@@ -2220,7 +2218,6 @@ profile:
         unavailable: 'Der Dienst hat das Bild nicht geliefert. Versuch es gleich noch einmal.'
         empty: Von diesem Dienst gibt es nichts anzuzeigen.
         heading: Oder eins aus einem verbundenen Dienst wählen
-    avatar_wrong_type: Bitte ein PNG, JPEG, GIF oder WebP verwenden.
     field:
         avatar: Bild
         avatar_help: PNG, JPEG, GIF oder WebP, bis 4 MB.

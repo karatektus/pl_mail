@@ -21,3 +21,5 @@ settings.password.too_short: Use at least {{ limit }} characters.
 setup.install.password_mismatch: The two passwords don't match.
 setup.install.password_too_short: Use at least {{ limit }} characters. This account has no password reset.
 user.email_taken: Somebody already uses that address. Every address on this install belongs to exactly one person.
+admin.ai.field.base_url_invalid: 'This has to start with http:// or https://.'
+profile.avatar_wrong_type: 'Use a PNG, JPEG, GIF or WebP image.'

@@ -98,7 +98,6 @@ admin:
         field:
             base_url: 'Model host'
             base_url_help: 'The address of an Ollama container on your network, including the port.'
-            base_url_invalid: 'This has to start with http:// or https://.'
             categorisation: 'Sort mail into tabs'
             categorisation_help: 'Runs on every message that arrives. Only ever a tie-breaker — the ordinary rules decide first.'
             chat_keep_alive: 'Keep the writing model loaded for'
@@ -1345,7 +1344,6 @@ calendar:
         window_label: '%from% – %to%'
         zone: 'Times shown in %zone%'
     soon:
-        now: 'It is %time%'
         next: 'Next'
         empty: Nothing coming up
         empty_hint: >-
@@ -2239,7 +2237,6 @@ profile:
         unavailable: 'The service did not hand the picture over. Try again in a moment.'
         empty: Nothing to show from this service.
         heading: Or pick one from a connected service
-    avatar_wrong_type: Use a PNG, JPEG, GIF or WebP image.
     field:
         avatar: Picture
         avatar_help: PNG, JPEG, GIF or WebP, up to 4 MB.

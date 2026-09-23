@@ -98,7 +98,6 @@ admin:
         field:
             base_url: "Oracle's berth"
             base_url_help: "Where yer Ollama box lies on the network, port an' all."
-            base_url_invalid: 'That must begin with http:// or https://.'
             categorisation: 'Sort mail into holds'
             categorisation_help: "Runs on ev'ry message that arrives. Only breaks a tie — the ordinary rules speak first."
             chat_keep_alive: "Keep the scrivener aboard for"
@@ -1260,7 +1259,6 @@ calendar:
         window_label: '%from% – %to%'
         zone: 'Hours shown in %zone%'
     soon:
-        now: '''Tis %time%'
         next: 'Next ashore'
         empty: Naught on the horizon
         empty_hint: >-
@@ -2098,7 +2096,6 @@ profile:
         unavailable: 'The port didn''t hand o''er the likeness. Try again in a moment.'
         empty: Naught to show from that port.
         heading: Or take one from a port ye've hitched up
-    avatar_wrong_type: Use a PNG, JPEG, GIF or WebP likeness.
     field:
         avatar: Yer likeness
         avatar_help: PNG, JPEG, GIF or WebP, up to 4 MB.
