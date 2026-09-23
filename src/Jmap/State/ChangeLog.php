@@ -13,6 +13,11 @@ use Doctrine\ORM\Mapping as ORM;
  * the highest sequence recorded for it, and "/changes" simply returns rows
  * with sequence > sinceState.
  *
+ * That only holds if a later number never commits before an earlier one of the
+ * same account, and an identity value is drawn at INSERT, not COMMIT. A BEFORE
+ * INSERT trigger (Version20260923140100) takes a per-account advisory lock and
+ * then draws the number, so one account's writers queue until commit.
+ *
  * accountId is stored as a scalar (not a ManyToOne) on purpose: these rows are
  * written from long-running sync handlers where holding entity references
  * across flush() is the documented footgun. A plain id sidesteps it entirely.
