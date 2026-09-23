@@ -109,12 +109,32 @@ test.describe("README screenshots", () => {
         await capture(page, "compose");
     });
 
+    /**
+     * Dark by the user's setting, not the browser's.
+     *
+     * This used to emulate prefers-color-scheme: dark and commit a light
+     * picture under a caption about dark themes: the theme is resolved on the
+     * server from the user's appearance, so the media query never reaches it.
+     * The appearance is snapshotted from the export route and posted back
+     * whole afterwards, so the captures after this one stay as they were.
+     */
     test("inbox dark", async ({ page }) => {
-        await page.emulateMedia({ colorScheme: "dark" });
-        await page.goto("/mail/inbox");
-        await expect(page.locator("#message-list li").first()).toBeVisible();
-        await page.waitForTimeout(600);
-        await capture(page, "inbox-dark");
+        const exported = await page.request.get("/settings/appearance/export");
+        expect(exported.ok()).toBe(true);
+        const previous = await exported.json();
+
+        try {
+            const dark = await page.request.post("/settings/appearance", { data: { theme: "dark" } });
+            expect(dark.ok()).toBe(true);
+
+            await page.goto("/mail/inbox");
+            await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+            await expect(page.locator("#message-list li").first()).toBeVisible();
+            await page.waitForTimeout(600);
+            await capture(page, "inbox-dark");
+        } finally {
+            await page.request.post("/settings/appearance", { data: previous });
+        }
     });
 
     test("settings", async ({ page }) => {
