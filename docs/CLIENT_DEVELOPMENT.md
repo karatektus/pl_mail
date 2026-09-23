@@ -201,13 +201,15 @@ list and clamps:
 | `backgroundKind` | enum | `theme` \| `preset` \| `solid` \| `custom` | Where the app background comes from. |
 | `backgroundPreset` / `backgroundSolid` / `backgroundFile` | — | — | The chosen background. |
 | `logoStyle` | enum, **read-only** | one of `logoStyles` | The colourway the "pl" mark wears. |
+| `logoMotif` | enum, **read-only** | one of `logoMotifs` | The icon the logo is: the pl mark (`pl`) or one of nine motifs. |
+| `logoPaint` | enum, **read-only** | `original` or one of `logoStyles` | What that icon is painted in: its own design, or a colourway. Always a colourway for `pl`. |
 
 `Appearance::toArray()` is the export format (versioned, `version: 1`), and `applyArray()` the
 import. The web UI lets users export/import this as a file.
 
 > **This IS reachable over JMAP.** `Appearance/get` and `Appearance/set` serve the singleton object
 > (id `"singleton"`, no `accountId` — it hangs off the `User`), and the Session's appearance
-> capability publishes the vocabularies and ranges: `themes`, `logoStyles`, `layouts`, `densities`,
+> capability publishes the vocabularies and ranges: `themes`, `logoStyles`, `logoMotifs`, `layouts`, `densities`,
 > `backgroundKinds`, `backgroundPresets`, `unreadEmphases`, `fontFamilies`, `ranges.previewLines`,
 > `ranges.fontScale`, `ranges.popoverAlpha`. Model the same two-axis Theme×Layout shape with the same semantic tokens and
 > read the server's values into it. Two things to know before writing: booleans are validated
@@ -231,6 +233,27 @@ import. The web UI lets users export/import this as a file.
 > get → change one field → set works as it does for every other property. **To move the mark, set
 > `theme`** — the new colourway comes back in that call's `updated` map. Unlinking the mark from the
 > theme is a web-only setting today.
+
+> **`logoMotif` and `logoPaint` are the logo as the user sees it, and both are read-only.** On the web
+> the logo is two choices: an icon, then its paint. The icon is the pl mark or one of nine motifs, from
+> the Session's `logoMotifs` — `"pl"`, `"blue-horn"`, `"at-horn"`, `"love-letter"`, `"airmail"`,
+> `"happy-mail"`, `"snail-mail"`, `"mailbox"`, `"pl-stamp"`, `"wax-seal"`. The paint is `"original"`,
+> the motif's own design, or one of `logoStyles`. For `"pl"` the paint is always a colourway, and always
+> the value `logoStyle` holds; `"original"` only ever comes with one of the nine motifs. `logoStyle`
+> keeps its meaning beside them — the pl mark's colourway, whatever the icon — so a client that knows
+> only the mark goes on drawing the mark. Treat an unrecognised motif as `"pl"` and an unrecognised
+> paint as `"original"`; both sets grow.
+>
+> What an icon looks like in a paint is not on the wire, and should not be transcribed. Every icon ×
+> every paint → the colour of each of its parts is one table, printed by
+> `php bin/console app:branding:export-paints` in the schema of
+> [`logo-paints.json`](../tests/Domain/Enum/Theme/fixtures/logo-paints.json): a part is a `#rrggbb`, a
+> `null` for a part not drawn, or seven gradient stops. Generate your assets from that output and
+> regenerate them when it changes. For a picture rather than a table,
+> `/branding/icon/{motif}/{paint}.svg` serves the icon as its rounded tile, with no session needed.
+>
+> Neither can be set: both are refused a *different* value with `invalidProperties` and accept an echo,
+> exactly like `logoStyle`. The icon is chosen in the web UI.
 
 > **Radius applies to panes, not controls.** Modals, the compose window, dropdowns, menus and toasts
 > take `--app-radius`. Buttons, inputs, chips and list rows keep a *fixed* small radius — they must
@@ -1153,7 +1176,7 @@ Ordered roughly by how much users will miss them.
 **Settings**
 - Appearance — `Appearance/get` and `Appearance/set` serve the whole object, including `fontFamily`,
   `fontScale`, `previewLines`, `unreadEmphasis`, `accountCorner`, `listAvatars`, the three
-  per-surface densities and the read-only `logoStyle` (see [§2](#2-look-and-feel)). Build the token system regardless; read the
+  per-surface densities and the read-only `logoStyle`, `logoMotif` and `logoPaint` (see [§2](#2-look-and-feel)). Build the token system regardless; read the
   server's values into it rather than inventing your own defaults.
 - Account list and order.
 - Notification preferences.

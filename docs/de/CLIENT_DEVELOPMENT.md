@@ -1,4 +1,4 @@
-<!-- translated-from: CLIENT_DEVELOPMENT.md sha1:5a0994858033b92807676c5ac421c0ef5839f1e6 -->
+<!-- translated-from: CLIENT_DEVELOPMENT.md sha1:a04ae0102574e54148720e3f7a97018ee6dd6908 -->
 # Einen Client für plMail bauen
 
 Alles, was eine Entwicklerin (oder ein Agent) braucht, um einen *neuen* plMail-Client zu schreiben
@@ -224,6 +224,8 @@ Ein Layout auszuwählen *setzt* die Regler unten vor; danach kann die Nutzerin j
 | `backgroundKind` | enum | `theme` \| `preset` \| `solid` \| `custom` | Woher der App-Hintergrund kommt. |
 | `backgroundPreset` / `backgroundSolid` / `backgroundFile` | — | — | Der gewählte Hintergrund. |
 | `logoStyle` | enum, **nur lesbar** | eines aus `logoStyles` | Die Farbgebung, in der die „pl"-Marke erscheint. |
+| `logoMotif` | enum, **nur lesbar** | eines aus `logoMotifs` | Welches Symbol das Logo ist: die pl-Marke (`pl`) oder eines von neun Motiven. |
+| `logoPaint` | enum, **nur lesbar** | `original` oder eines aus `logoStyles` | Worin dieses Symbol gemalt ist: sein eigener Entwurf oder eine Farbgebung. Für `pl` immer eine Farbgebung. |
 
 `Appearance::toArray()` ist das Exportformat (versioniert, `version: 1`), `applyArray()` der
 Import. Die Web-Oberfläche lässt Nutzerinnen das als Datei exportieren und importieren.
@@ -231,7 +233,7 @@ Import. Die Web-Oberfläche lässt Nutzerinnen das als Datei exportieren und imp
 > **Das ist über JMAP erreichbar.** `Appearance/get` und `Appearance/set` liefern das
 > Singleton-Objekt (Id `"singleton"`, kein `accountId` — es hängt an der `User`-Entität), und die
 > Appearance-Capability der Session veröffentlicht die Vokabulare und Wertebereiche: `themes`,
-> `logoStyles`, `layouts`, `densities`, `backgroundKinds`, `backgroundPresets`, `unreadEmphases`,
+> `logoStyles`, `logoMotifs`, `layouts`, `densities`, `backgroundKinds`, `backgroundPresets`, `unreadEmphases`,
 > `fontFamilies`, `ranges.previewLines`, `ranges.fontScale`, `ranges.popoverAlpha`. Modelliere
 > dieselbe Form mit zwei Achsen aus Theme × Layout mit denselben semantischen Tokens und lies die
 > Werte des Servers hinein. Zwei Dinge solltest du vor dem ersten Schreiben wissen: Booleans werden streng geprüft,
@@ -257,6 +259,29 @@ Import. Die Web-Oberfläche lässt Nutzerinnen das als Datei exportieren und imp
 > get → ein Feld ändern → set genauso funktioniert wie bei jeder anderen Eigenschaft. **Um die
 > Marke zu bewegen, setze `theme`** — die neue Farbgebung kommt in der `updated`-Map desselben
 > Aufrufs zurück. Die Marke vom Theme zu lösen ist heute eine reine Web-Einstellung.
+
+> **`logoMotif` und `logoPaint` sind das Logo, wie die Nutzerin es sieht — und beide sind nur
+> lesbar.** Im Web besteht das Logo aus zwei Entscheidungen: erst ein Symbol, dann seine Bemalung.
+> Das Symbol ist die pl-Marke oder eines von neun Motiven, aus den `logoMotifs` der Session —
+> `"pl"`, `"blue-horn"`, `"at-horn"`, `"love-letter"`, `"airmail"`, `"happy-mail"`, `"snail-mail"`,
+> `"mailbox"`, `"pl-stamp"`, `"wax-seal"`. Die Bemalung ist `"original"`, der eigene Entwurf des
+> Motivs, oder eine aus `logoStyles`. Für `"pl"` ist sie immer eine Farbgebung, und immer der Wert,
+> den `logoStyle` hat; `"original"` kommt nur zusammen mit einem der neun Motive vor. `logoStyle`
+> behält daneben seine Bedeutung — die Farbgebung der pl-Marke, egal welches Symbol —, ein Client,
+> der nur die Marke kennt, zeichnet also weiter die Marke. Behandle ein unbekanntes Motiv als `"pl"`
+> und eine unbekannte Bemalung als `"original"`; beide Mengen wachsen.
+>
+> Wie ein Symbol in einer Bemalung aussieht, steht nicht auf der Leitung, und abschreiben solltest
+> du es auch nicht. Jedes Symbol × jede Bemalung → die Farbe jedes seiner Teile ist eine einzige
+> Tabelle, die `php bin/console app:branding:export-paints` im Schema von
+> [`logo-paints.json`](../tests/Domain/Enum/Theme/fixtures/logo-paints.json) ausgibt: Ein Teil
+> ist ein `#rrggbb`, ein `null` für einen Teil, der nicht gezeichnet wird, oder sieben
+> Verlaufsstopps. Erzeuge deine Grafiken aus dieser Ausgabe und erzeuge sie neu, wenn sie sich
+> ändert. Wer ein Bild statt einer Tabelle braucht: `/branding/icon/{motif}/{paint}.svg` liefert das
+> Symbol als seine abgerundete Kachel, ohne Sitzung.
+>
+> Setzen lässt sich keins von beiden: Ein *anderer* Wert wird mit `invalidProperties` abgelehnt, ein
+> Echo angenommen — genau wie bei `logoStyle`. Das Symbol wird in der Web-Oberfläche gewählt.
 
 > **Der Radius gilt für Flächen, nicht für Bedienelemente.** Modale, das Verfassen-Fenster,
 > Dropdowns, Menüs und Toasts nehmen `--app-radius`. Buttons, Eingabefelder, Chips und
@@ -1267,7 +1292,7 @@ Grob danach geordnet, wie sehr Nutzerinnen sie vermissen werden.
 **Einstellungen**
 - Erscheinungsbild — `Appearance/get` und `Appearance/set` liefern das gesamte Objekt, samt
   `fontFamily`, `fontScale`, `previewLines`, `unreadEmphasis`, `accountCorner`, `listAvatars`,
-  den drei Dichten pro Oberfläche und dem nur lesbaren `logoStyle`
+  den drei Dichten pro Oberfläche und den nur lesbaren `logoStyle`, `logoMotif` und `logoPaint`
   (siehe [§2](#2-aussehen-und-verhalten)). Bau das Token-System
   trotzdem; lies die Werte des Servers hinein, statt eigene Vorgaben zu erfinden.
 - Kontoliste und -reihenfolge.

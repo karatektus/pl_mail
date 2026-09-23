@@ -24,12 +24,34 @@ layout would produce. Flat is the default.
 
 ## The logo
 
-The "pl" mark has thirty-two colourways — single colours, two-tone pairs, ink with one coloured
-flick, and gradients that sweep across the strokes — and **Logo** lets you pick yours. The choice
-follows you everywhere the mark appears: the top bar wears it at once, and the tab icon is served
-in your colourway too, so the browser tab matches the page it opens. A new account starts on
-**Berry**, the product's own sweep. Dark themes get each colourway's dark-chrome strokes, so an
-ink-dark mark never disappears into a dark top bar.
+**Logo** is two choices: the icon, then its colour.
+
+**Icon** offers the "pl" mark, **Classic**, and nine motifs beside it — **Blue Horn**, **@-Horn**,
+**Love Letter**, **Airmail**, **Happy Mail**, **Snail Mail**, **Mailbox**, **pl Stamp** and **Wax
+Seal**. Each tile shows its icon in the icon's own design. A new account starts on Classic.
+
+**Colour** then decides what the icon wears:
+
+- **Original** — the motif's own design, exactly as its tile shows it. Picking a motif selects this,
+  so a new icon arrives looking the way it was drawn. It is offered for the nine motifs only: the
+  pl mark's own design *is* a colourway, Berry.
+- **Follow the theme** — the colourway named after your theme. Every one of the thirty-two
+  colourways is also a theme, so picking one of those themes dresses the icon to match.
+- **Choose independently** — any of the thirty-two colourways, from a grid showing your chosen icon
+  in each of them: single colours, two-tone pairs, ink with one coloured flick, and gradients that
+  sweep across the drawing.
+
+A colourway repaints only what can change about an icon. What makes it that icon stays the same in
+every colourway: the love letter's heart is red, the airmail stripes are red and blue, the snail is
+green and the mailbox flag is red.
+
+Your colourway is kept when you change the icon. Go from Classic to the horn and back, and the mark
+wears what it wore before.
+
+The choice follows you everywhere the logo appears: the top bar wears it at once, and the tab icon
+is served in it too, so the browser tab matches the page it opens. The pl mark sits bare in the top
+bar, and dark themes get each colourway's dark-chrome strokes, so an ink-dark mark never disappears
+into a dark top bar. Every other icon brings its own rounded tile, which reads the same on any theme.
 
 ## The live preview
 
@@ -209,9 +231,10 @@ the next reload.
 **Export theme** downloads `plmail-theme.json`. **Import theme** takes one back. **Reset to
 defaults** puts everything back where a new account starts.
 
-The export carries the version, the theme, the layout, the accent, all five glass numbers, the
-density and the three per-surface density overrides, the mail-list settings, the typeface and text
-scale, the background choice, the text colours and the main pane settings. It deliberately does
+The export carries the version, the theme, the layout, the logo (icon and colour), the accent, all
+five glass numbers, the density and the three per-surface density overrides, the mail-list
+settings, the typeface and text scale, the background choice, the text colours and the main pane
+settings. It deliberately does
 **not** carry your uploaded background image: a filename on someone else's install means nothing, so
 a custom background exports as **Theme default**.
 
@@ -304,6 +327,16 @@ Dragging it and finding it will not go further is the clamp working, not a stuck
 **The preview's width is remembered; whether it is open on a phone is not.** The width follows your
 account to every device. **Show preview** on a narrow screen starts closed every time you open the
 page.
+
+**Follow the theme treats the logo themes and the classic themes differently.** On one of the
+thirty-two logo themes the icon wears the colourway of the same name. The seven classic themes have
+no colourway of their own: there the pl mark falls back to **Berry**, and a motif falls back to its
+own design — the same picture as **Original**. Nothing is broken when switching between the two
+changes nothing on a classic theme.
+
+**Picking a motif resets its colour to Original.** Even when the icon you left was on a colourway
+you had chosen: a new icon arrives in its own design. The colourway you chose is still stored, so
+**Choose independently** brings it straight back.
 
 **Picking a layout overwrites the glass sliders.** That is what the layout control is — a preset for
 those numbers. Set the layout first, then the numbers, not the other way round.

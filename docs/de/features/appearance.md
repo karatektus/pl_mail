@@ -1,4 +1,4 @@
-<!-- translated-from: features/appearance.md sha1:4e890d9969ee031a9e7b81e388840fffcf1bb843 -->
+<!-- translated-from: features/appearance.md sha1:5902e2879704e217056b54cce77b8d3d2392777b -->
 
 # Darstellung
 
@@ -29,13 +29,38 @@ würde. Flach ist die Vorgabe.
 
 ## Das Logo
 
-Das „pl"-Zeichen hat zweiunddreißig Farbstimmungen — einfarbige, Zweiklänge, Tinte mit einem
-farbigen Schwung und Verläufe, die über die Striche laufen — und unter **Logo** suchst du deine
-aus. Die Wahl folgt dir überallhin, wo das Zeichen auftaucht: Die Kopfleiste trägt sie sofort,
-und auch das Tab-Symbol wird in deiner Farbstimmung ausgeliefert, der Browser-Tab passt also zu
-der Seite, die er öffnet. Ein neues Konto beginnt mit **Beere**, dem hauseigenen Verlauf. Dunkle
-Themes bekommen von jeder Farbstimmung die Striche für dunkle Oberflächen — ein tintendunkles
-Zeichen verschwindet so nie in einer dunklen Kopfleiste.
+**Logo** besteht aus zwei Entscheidungen: erst das Symbol, dann seine Farbe.
+
+Unter **Symbol** stehen das „pl"-Zeichen, **Klassisch**, und neun Motive daneben — **Das blaue
+Horn**, **Klammeraffenhorn**, **Liebesbrief**, **Luftpost**, **Fröhliche Post**,
+**Schneckenpost**, **Briefkasten**, **Briefmarke** und **Siegel**. Jede Kachel zeigt ihr Symbol in
+seinem eigenen Entwurf. Ein neues Konto beginnt mit Klassisch.
+
+**Farbe** entscheidet dann, was das Symbol trägt:
+
+- **Original** — der eigene Entwurf des Motivs, genau so, wie seine Kachel ihn zeigt. Wählst du ein
+  Motiv, ist das ausgewählt, ein neues Symbol kommt also so an, wie es gezeichnet wurde. Angeboten
+  wird es nur für die neun Motive: Der eigene Entwurf des pl-Zeichens *ist* eine Farbstimmung,
+  Beere.
+- **Dem Theme folgen** — die Farbstimmung, die so heißt wie dein Theme. Jede der zweiunddreißig
+  Farbstimmungen ist auch ein Theme; wählst du eines davon, kleidet es das Symbol passend ein.
+- **Selbst wählen** — eine der zweiunddreißig Farbstimmungen, aus einem Raster, das dein gewähltes
+  Symbol in jeder davon zeigt: einfarbige, Zweiklänge, Tinte mit einem farbigen Schwung und
+  Verläufe, die über die Zeichnung laufen.
+
+Eine Farbstimmung malt nur um, was sich an einem Symbol ändern darf. Was es zu diesem Symbol macht,
+bleibt in jeder Farbstimmung gleich: Das Herz des Liebesbriefs ist rot, die Streifen der Luftpost
+sind rot und blau, die Schnecke ist grün und die Fahne des Briefkastens rot.
+
+Deine Farbstimmung bleibt erhalten, wenn du das Symbol wechselst. Geh von Klassisch zum Horn und
+zurück, und das Zeichen trägt, was es vorher trug.
+
+Die Wahl folgt dir überallhin, wo das Logo auftaucht: Die Kopfleiste trägt sie sofort, und auch
+das Tab-Symbol wird darin ausgeliefert, der Browser-Tab passt also zu der Seite, die er öffnet. Das
+pl-Zeichen steht frei in der Kopfleiste, und dunkle Themes bekommen von jeder Farbstimmung die
+Striche für dunkle Oberflächen — ein tintendunkles Zeichen verschwindet so nie in einer dunklen
+Kopfleiste. Jedes andere Symbol bringt seine eigene abgerundete Kachel mit, die auf jedem Theme
+gleich gut zu lesen ist.
 
 ## Die Live-Vorschau
 
@@ -230,9 +255,10 @@ Theme-Standard löst sie sofort und nicht erst beim nächsten Neuladen.
 solche Datei zurück. **Auf Standard zurücksetzen** stellt alles dorthin, wo ein neues Konto
 beginnt.
 
-Der Export trägt die Version, das Theme, das Layout, den Akzent, alle fünf Glas-Zahlen, die
-Dichte und die drei bereichseigenen Dichten, die Einstellungen der Nachrichtenliste, Schriftart und
-Textgröße, die Hintergrundwahl, die Textfarben und die Einstellungen des Hauptbereichs. Er trägt
+Der Export trägt die Version, das Theme, das Layout, das Logo (Symbol und Farbe), den Akzent, alle
+fünf Glas-Zahlen, die Dichte und die drei bereichseigenen Dichten, die Einstellungen der
+Nachrichtenliste, Schriftart und Textgröße, die Hintergrundwahl, die Textfarben und die
+Einstellungen des Hauptbereichs. Er trägt
 bewusst **nicht** dein hochgeladenes Hintergrundbild: Ein Dateiname bedeutet auf der
 Installation von jemand anderem nichts, ein eigener Hintergrund wird also als **Theme-Standard**
 exportiert.
@@ -337,6 +363,17 @@ Arbeit und kein klemmender Griff.
 **Die Breite der Vorschau wird gemerkt, ob sie auf dem Telefon offen ist, nicht.** Die Breite folgt
 deinem Konto auf jedes Gerät. **Vorschau anzeigen** auf einem schmalen Bildschirm startet jedes Mal
 geschlossen, wenn du die Seite öffnest.
+
+**Dem Theme folgen behandelt die Logo-Themes und die klassischen Themes verschieden.** Auf einem der
+zweiunddreißig Logo-Themes trägt das Symbol die gleichnamige Farbstimmung. Die sieben klassischen
+Themes haben keine eigene: Dort fällt das pl-Zeichen auf **Beere** zurück und ein Motiv auf seinen
+eigenen Entwurf — dasselbe Bild wie **Original**. Es ist nichts kaputt, wenn der Wechsel zwischen
+beiden auf einem klassischen Theme nichts ändert.
+
+**Ein Motiv zu wählen setzt seine Farbe auf Original zurück.** Auch wenn das Symbol, das du
+verlassen hast, eine selbst gewählte Farbstimmung trug: Ein neues Symbol kommt in seinem eigenen
+Entwurf an. Die gewählte Farbstimmung bleibt gespeichert, **Selbst wählen** holt sie also sofort
+zurück.
 
 **Ein Layout zu wählen überschreibt die Glas-Regler.** Genau das *ist* das Layout-Bedienelement
 — eine Voreinstellung für diese Zahlen. Setze erst das Layout, dann die Zahlen, nicht
