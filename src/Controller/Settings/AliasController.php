@@ -28,6 +28,7 @@ use Symfony\UX\Turbo\TurboBundle;
 final class AliasController extends AbstractController
 {
     use ChecksCsrf;
+    use FindsOwnedAlias;
 
     public function __construct(
         private readonly EntityManagerInterface $em,
@@ -144,17 +145,6 @@ final class AliasController extends AbstractController
     }
 
     // ── Private ───────────────────────────────────────────────────────────────
-
-    private function ownedAlias(Account $account, int $aliasId): EmailAlias
-    {
-        foreach ($account->aliases as $alias) {
-            if ($alias->id === $aliasId) {
-                return $alias;
-            }
-        }
-
-        throw $this->createNotFoundException('No such alias on this account.');
-    }
 
     private function streamResponse(Request $request, Account $account, string $toastMessage): Response
     {

@@ -6,7 +6,6 @@ namespace App\Controller\Settings;
 
 use App\Controller\ChecksCsrf;
 use App\Entity\Mail\Account;
-use App\Entity\Mail\EmailAlias;
 use App\Repository\Mail\AccountRepository;
 use App\Security\Voter\OwnershipVoter;
 use App\Service\Mail\SignatureProvider;
@@ -69,6 +68,7 @@ use Symfony\UX\Turbo\TurboBundle;
 final class SignatureController extends AbstractController
 {
     use ChecksCsrf;
+    use FindsOwnedAlias;
 
     public function __construct(
         private readonly EntityManagerInterface $em,
@@ -140,17 +140,6 @@ final class SignatureController extends AbstractController
     }
 
     // ── Private ───────────────────────────────────────────────────────────────
-
-    private function ownedAlias(Account $account, int $aliasId): EmailAlias
-    {
-        foreach ($account->aliases as $alias) {
-            if ($alias->id === $aliasId) {
-                return $alias;
-            }
-        }
-
-        throw $this->createNotFoundException('No such alias on this account.');
-    }
 
     /**
      * Replaces the whole panel, not the row that changed.
