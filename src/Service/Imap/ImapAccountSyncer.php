@@ -48,6 +48,8 @@ final readonly class ImapAccountSyncer implements AccountSyncerInterface
                 'created'   => $structure['created'],
                 'updated'   => $structure['updated'],
                 'deleted'   => $structure['deleted'],
+                'renamed'   => $structure['renamed'],
+                'missing'   => $structure['missing'],
             ]);
         } catch (\Throwable $e) {
             $this->logger->error('ImapAccountSyncer: mailbox structure sync failed', [
@@ -57,9 +59,13 @@ final readonly class ImapAccountSyncer implements AccountSyncerInterface
             ]);
         }
 
+        // A folder the server has stopped listing cannot be selected, so
+        // syncing it would only log a failure per poll until MailboxSyncer
+        // either sees it again or removes it.
         $mailboxes = $this->mailboxRepository->findBy([
             'account'       => $account,
             'isSyncEnabled' => true,
+            'missingSince'  => null,
         ]);
 
         if (count($mailboxes) === 0) {

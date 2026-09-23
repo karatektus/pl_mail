@@ -10,8 +10,12 @@ use App\Domain\Helper\ImapConnectionFactory;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Mailbox;
 use App\Repository\Mail\MailboxRepository;
+use App\Repository\Mail\MessageRepository;
 use App\Service\Label\LabelResolver;
+use App\Service\Mail\MessageEraser;
+use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
+use Psr\Log\LoggerInterface;
 use Webklex\PHPIMAP\Client;
 use Webklex\PHPIMAP\Folder;
 
@@ -23,6 +27,13 @@ use Webklex\PHPIMAP\Folder;
  *
  * This is also the incoming half of best-effort label sync-back: a folder
  * created by another client shows up here and gets its label chain created.
+ *
+ * A folder the listing leaves out is marked missing rather than deleted, and
+ * only removed once it has stayed missing for several listings and a grace
+ * period — see Mailbox::$missingSince. Deleting the row deletes the mail, so
+ * one listing is never enough: not an empty one, not one that lost half the
+ * tree, and not one where another client renamed the folder, which is
+ * recognised and kept.
  *
  * Gmail-API accounts are hard-excluded: their organization comes from
  * GmailLabelSyncer only. Running an IMAP folder listing against a Gmail
@@ -89,58 +100,242 @@ readonly class MailboxSyncer
         'archiv'             => MailboxSpecialUse::ARCHIVE,
     ];
 
+    /**
+     * How many listings in a row have to leave a folder out, and for how long,
+     * before its row — and with it, by cascade, every message in it — goes.
+     *
+     * Both, not either. The count stops one flaky poll from starting the clock
+     * and the grace period stops a burst of fast polls from finishing it: a
+     * server being restored from backup can answer wrongly five times in five
+     * minutes, and it very rarely does so for a day.
+     */
+    private const int MISSING_SYNCS_BEFORE_REMOVAL = 3;
+
+    private const string MISSING_GRACE = '-24 hours';
+
+    /**
+     * A listing that would mark this many stored folders missing at once, and
+     * at least this share of them, is not believed at all.
+     *
+     * The same judgement VanishedMessageReconciler makes about messages, one
+     * level up: a user deletes a folder or two, and a server that has lost half
+     * its tree between two polls is being rebuilt, not tidied.
+     */
+    private const int MASS_MISSING_FLOOR = 3;
+
+    private const float MASS_MISSING_RATIO = 0.5;
+
     public function __construct(
         private MailboxRepository      $mailboxRepository,
         private EntityManagerInterface $em,
         private ImapConnectionFactory  $imapConnectionFactory,
         private LabelResolver          $labelResolver,
+        private MessageRepository      $messageRepository,
+        private MessageEraser          $eraser,
+        private LoggerInterface        $logger,
     ) {}
 
-    public function syncForAccount(Account $account): array
+    /**
+     * @return array{created: int, updated: int, deleted: int, renamed: int, missing: int}
+     */
+    public function syncForAccount(Account $account, ?DateTimeImmutable $now = null): array
     {
-        if (true === $account->isGmail() || true === $account->isMicrosoft()) {
-            return ['created' => 0, 'updated' => 0, 'deleted' => 0];
-        }
-
-        $client = $this->imapConnectionFactory->connect($account);
-
-        $serverFolders = $this->listFolders($client);
-        $specialUses   = self::assignSpecialUses($serverFolders);
-
-        $existing = $this->mailboxRepository->findIndexedByFullPath($account);
-
         $result = [
             'created' => 0,
             'updated' => 0,
             'deleted' => 0,
+            'renamed' => 0,
+            'missing' => 0,
         ];
-        $seen = [];
 
-        foreach ($serverFolders as ['folder' => $folder]) {
-            $fullPath   = $folder->path;
-            $seen[]     = $fullPath;
-            $specialUse = $specialUses[$fullPath] ?? null;
+        if (true === $account->isGmail() || true === $account->isMicrosoft()) {
+            return $result;
+        }
 
-            if (true === isset($existing[$fullPath])) {
-                $this->update($existing[$fullPath], $folder, $specialUse, $account);
+        $now    = $now ?? new DateTimeImmutable();
+        $client = $this->imapConnectionFactory->connect($account);
+
+        try {
+            $serverFolders = $this->listFolders($client);
+
+            // Every IMAP account has at least INBOX, so an empty answer is a
+            // failed answer. Believing it would mark every folder missing.
+            if (0 === count($serverFolders)) {
+                $this->logger->warning('Refusing an empty folder listing; no folder is marked or removed', [
+                    'accountId' => $account->id,
+                ]);
+
+                return $result;
+            }
+
+            $specialUses = self::assignSpecialUses($serverFolders);
+            $existing    = $this->mailboxRepository->findIndexedByFullPath($account);
+            $unmatched   = [];
+
+            foreach ($serverFolders as ['folder' => $folder]) {
+                $mailbox = $existing[$folder->path] ?? null;
+
+                if (null === $mailbox) {
+                    $unmatched[] = $folder;
+
+                    continue;
+                }
+
+                unset($existing[$folder->path]);
+                $this->update($mailbox, $folder, $specialUses[$folder->path] ?? null, $account);
+                $this->clearMissing($mailbox);
                 $result['updated']++;
-            } else {
-                $this->create($account, $folder, $specialUse);
-                $result['created']++;
             }
-        }
 
-        foreach ($existing as $fullPath => $mailbox) {
-            if (false === in_array($fullPath, $seen, true)) {
-                $this->em->remove($mailbox);
-                $result['deleted']++;
+            // What is left in $existing is every stored folder the server did
+            // not name. A new folder that is one of them under a new path is a
+            // rename, and keeps its row and its mail.
+            foreach ($unmatched as $folder) {
+                $specialUse = $specialUses[$folder->path] ?? null;
+                $source     = $this->findRenameSource($client, $folder, $specialUse, $existing);
+
+                if (null === $source) {
+                    $this->create($account, $folder, $specialUse);
+                    $result['created']++;
+
+                    continue;
+                }
+
+                $this->logger->info('Folder was renamed on the server; keeping its row', [
+                    'accountId' => $account->id,
+                    'from'      => $source->fullPath,
+                    'to'        => $folder->path,
+                ]);
+
+                unset($existing[(string) $source->fullPath]);
+                $this->update($source, $folder, $specialUse, $account);
+                $this->clearMissing($source);
+                $result['renamed']++;
             }
-        }
 
-        $this->em->flush();
-        $client->disconnect();
+            if (0 < count($existing)) {
+                $this->handleMissing($account, $existing, count($serverFolders), $now, $result);
+            }
+
+            $this->em->flush();
+        } finally {
+            $client->disconnect();
+        }
 
         return $result;
+    }
+
+    /**
+     * @param array<string, Mailbox> $missing
+     * @param array{created: int, updated: int, deleted: int, renamed: int, missing: int} $result
+     */
+    private function handleMissing(Account $account, array $missing, int $listed, DateTimeImmutable $now, array &$result): void
+    {
+        $stored = count($missing) + $result['updated'] + $result['renamed'];
+
+        if (count($missing) >= self::MASS_MISSING_FLOOR
+            && count($missing) >= (int) ceil($stored * self::MASS_MISSING_RATIO)
+        ) {
+            $this->logger->warning('Refusing a folder listing that leaves out most of the stored folders', [
+                'accountId' => $account->id,
+                'stored'    => $stored,
+                'listed'    => $listed,
+                'missing'   => count($missing),
+            ]);
+
+            return;
+        }
+
+        $graceCutoff = $now->modify(self::MISSING_GRACE);
+
+        foreach ($missing as $mailbox) {
+            $mailbox->missingSince ??= $now;
+            $mailbox->missingSyncs++;
+
+            if ($mailbox->missingSyncs < self::MISSING_SYNCS_BEFORE_REMOVAL || $mailbox->missingSince > $graceCutoff) {
+                $result['missing']++;
+
+                continue;
+            }
+
+            $this->remove($mailbox);
+            $result['deleted']++;
+        }
+    }
+
+    /**
+     * Take a folder that has stayed gone out of the database, and its mail
+     * with it — announced, the way every other removal is.
+     *
+     * The cascade would delete the messages without a word, and a JMAP client
+     * holding their ids would never learn they were gone. MessageEraser logs a
+     * destroy for each, and takes their files and thread counters with them.
+     */
+    private function remove(Mailbox $mailbox): void
+    {
+        $erased = $this->eraser->eraseAll($this->messageRepository->findBy(['mailbox' => $mailbox]));
+
+        $this->em->remove($mailbox);
+
+        $this->logger->warning('Removed a folder the server has not listed for a while', [
+            'mailbox'      => $mailbox->fullPath,
+            'missingSince' => $mailbox->missingSince?->format(DATE_ATOM),
+            'erased'       => $erased,
+        ]);
+    }
+
+    private function clearMissing(Mailbox $mailbox): void
+    {
+        $mailbox->missingSince = null;
+        $mailbox->missingSyncs = 0;
+    }
+
+    /**
+     * The stored folder that a newly listed folder is, under a new name.
+     *
+     * Two kinds of evidence, both of which have to be unambiguous: the same
+     * special use (the Sent folder is still the Sent folder after a rename),
+     * or the same UIDVALIDITY — which a rename keeps and a new folder does not,
+     * and which is only asked for when there is a missing folder to compare
+     * against. One candidate or none; two is a guess this does not make.
+     *
+     * @param array<string, Mailbox> $missing
+     */
+    private function findRenameSource(Client $client, Folder $folder, ?MailboxSpecialUse $specialUse, array $missing): ?Mailbox
+    {
+        if ([] === $missing) {
+            return null;
+        }
+
+        if (null !== $specialUse) {
+            $sameRole = array_filter($missing, static fn (Mailbox $m): bool => $m->specialUse === $specialUse);
+
+            if (1 === count($sameRole)) {
+                return reset($sameRole);
+            }
+        }
+
+        $known = array_filter($missing, static fn (Mailbox $m): bool => null !== $m->uidValidity);
+
+        if ([] === $known) {
+            return null;
+        }
+
+        try {
+            $status = $client->getConnection()->folderStatus($folder->path, ['UIDVALIDITY'])->validatedData();
+        } catch (\Throwable) {
+            return null;
+        }
+
+        $uidValidity = is_array($status) ? ($status['uidvalidity'] ?? null) : null;
+
+        if (null === $uidValidity) {
+            return null;
+        }
+
+        $sameValidity = array_filter($known, static fn (Mailbox $m): bool => $m->uidValidity === (int) $uidValidity);
+
+        return 1 === count($sameValidity) ? reset($sameValidity) : null;
     }
 
     /**

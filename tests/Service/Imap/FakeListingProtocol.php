@@ -17,7 +17,7 @@ final class FakeListingProtocol extends ImapProtocol
 
     public function folders(string $reference = '', string $folder = '*'): Response
     {
-        return Response::empty()->setResult($this->items);
+        return Response::empty()->setCanBeEmpty(true)->setResult($this->items);
     }
 
     public function folderStatus(string $folder = 'INBOX', $arguments = []): Response

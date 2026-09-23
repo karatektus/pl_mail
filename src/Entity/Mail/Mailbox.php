@@ -111,6 +111,24 @@ class Mailbox
     #[ORM\Column(nullable: true)]
     public ?\DateTimeImmutable $sweptAt = null;
 
+    /**
+     * When the server's folder list first stopped naming this folder, and how
+     * many listings in a row have left it out since.
+     *
+     * A folder is never removed on the strength of one LIST. Every message row
+     * hangs off its mailbox with ON DELETE CASCADE, so removing the row is
+     * removing the mail — and one LIST is equally consistent with a deletion, a
+     * rename another client did, and a server that answered with half its
+     * tree. MailboxSyncer marks the folder here, stops syncing it, and only
+     * removes it once both of these say the absence has lasted: several
+     * consecutive listings and a grace period. Seen again, both reset.
+     */
+    #[ORM\Column(nullable: true)]
+    public ?\DateTimeImmutable $missingSince = null;
+
+    #[ORM\Column(options: ['default' => 0])]
+    public int $missingSyncs = 0;
+
 
 
     /**

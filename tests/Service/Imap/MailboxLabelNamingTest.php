@@ -14,10 +14,13 @@ use App\Jmap\State\StateManager;
 use App\Repository\Label\LabelBindingRepository;
 use App\Repository\Label\LabelRepository;
 use App\Repository\Mail\MailboxRepository;
+use App\Repository\Mail\MessageRepository;
 use App\Service\Imap\MailboxSyncer;
 use App\Service\Label\LabelResolver;
+use App\Service\Mail\MessageEraser;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
+use Psr\Log\NullLogger;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Webklex\PHPIMAP\Client;
 use Webklex\PHPIMAP\Config;
@@ -215,7 +218,7 @@ final class MailboxLabelNamingTest extends KernelTestCase
     /**
      * @param list<string> $paths  folder names exactly as a LIST response gives them
      *
-     * @return array{created: int, updated: int, deleted: int}
+     * @return array{created: int, updated: int, deleted: int, renamed: int, missing: int}
      */
     private function sync(array $paths): array
     {
@@ -244,6 +247,9 @@ final class MailboxLabelNamingTest extends KernelTestCase
                 $this->em,
                 $container->get(StateManager::class),
             ),
+            $container->get(MessageRepository::class),
+            $container->get(MessageEraser::class),
+            new NullLogger(),
         );
 
         return $syncer->syncForAccount($this->account);
