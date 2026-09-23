@@ -6,6 +6,28 @@ so anything that changes the schema irreversibly is called out explicitly.
 The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, and `sha-…` pins one commit.
 
+## v0.2.38 — 2026-09-23
+
+### Fixed
+
+- **Hovering a month day enlarges it where it is, and nothing inside it moves.** In the top rows a
+  hovered day widened in place; in the bottom two it grew upwards, and every chip in it slid up
+  under the pointer. Days by the right-hand edge could also grow off the grid, and pointing at one
+  chip unwrapped its title and pushed the chips below it down.
+
+  The whole cell is now what opens — date, add button and chips together, on an opaque card over
+  the neighbouring days. Its top edge never moves: it grows down to the bottom of the grid and
+  scrolls from there, so the last row only widens. It grows to the right wherever there is room
+  and to the left where there is not, which at a normal window size means Sunday alone. Titles stay
+  one line; the wider card is what makes them readable.
+
+### Changed
+
+- **No tooltips on calendar events.** Every view already shows an event's full title on hover — the
+  month cell enlarges, a week or day block opens to its content, an agenda row unwraps — so the
+  browser's tooltip only repeated it in a second box under the pointer. Screen readers still hear
+  the same text, including the calendars a merged event is on.
+
 ## v0.2.37 — 2026-09-23
 
 ### Fixed
