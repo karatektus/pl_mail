@@ -6,6 +6,26 @@ so anything that changes the schema irreversibly is called out explicitly.
 The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, and `sha-…` pins one commit.
 
+## v0.2.42 — 2026-09-23
+
+**Pick an icon, then its colours.** Settings → Appearance → Logo has two steps now. First the icon:
+the pl mark, or one of nine new ones — the blue horn (yes, that one), an @ that turns into a
+posthorn, a love letter, airmail, a happy envelope, snail mail, a mailbox with its flag up, a
+postage stamp and a wax seal. Then its colours: every new icon starts in its own, and any of the
+thirty-two colourways can repaint it. Each icon decides which of its parts take a colourway, so the
+love letter's heart stays red, the airmail stripes stay red and blue and the snail stays green.
+
+- **The top bar, the tab and the phone all wear it.** The web draws every icon in every colourway
+  when it is asked for — nothing is stored per combination — and the Android app (0.0.25) builds its
+  launcher icons when it is compiled.
+- **For JMAP clients:** `Appearance` reports `logoMotif` and `logoPaint`, both read-only, and the
+  Session lists `logoMotifs`. `logoStyle` means what it always did, for clients that predate this.
+
+### Before you upgrade
+
+- One migration runs on boot and adds two columns to the appearance settings. Nothing changes for
+  anybody until they pick a new icon: everyone keeps the pl mark they had.
+
 ## v0.2.41 — 2026-09-23
 
 A release made mostly of a code review's findings: seven reviewers over the whole codebase, every
