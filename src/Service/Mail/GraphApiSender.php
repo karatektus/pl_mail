@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Service\Mail;
 
 use App\Domain\Enum\Account\MailProvider;
+use App\Domain\Helper\ApiMime;
 use App\Domain\Interface\MailSenderInterface;
 use App\Entity\Mail\Account;
 use App\Domain\Enum\Account\AuthType;
@@ -55,7 +56,9 @@ class GraphApiSender implements MailSenderInterface
 
     public function send(Email $email, Account $account): bool
     {
-        $mime = $email->toString();
+        // Not $email->toString(): that drops Bcc, and Graph reads the
+        // recipients from the MIME. See ApiMime.
+        $mime = ApiMime::toString($email);
 
         if (strlen($mime) > self::MAX_MIME_BYTES) {
             $this->logger->error('GraphApiSender: message exceeds the 4MB raw-MIME send limit', [

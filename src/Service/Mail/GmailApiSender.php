@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Service\Mail;
 
 use App\Domain\Enum\Account\MailProvider;
+use App\Domain\Helper\ApiMime;
 use App\Domain\Interface\MailSenderInterface;
 use App\Entity\Mail\Account;
 use App\Domain\Enum\Account\AuthType;
@@ -51,7 +52,9 @@ class GmailApiSender implements MailSenderInterface
     public function send(Email $email, Account $account): bool
     {
         $accessToken = $this->tokenManager->getValidAccessToken($account);
-        $raw         = $this->toBase64Url($email->toString());
+        // Not $email->toString(): that drops Bcc, and Gmail reads the
+        // recipients from the raw message. See ApiMime.
+        $raw         = $this->toBase64Url(ApiMime::toString($email));
 
         try {
             $response = $this->httpClient->request('POST', self::SEND_ENDPOINT, [
