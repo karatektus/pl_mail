@@ -26,7 +26,7 @@ test.describe("the end of a session", () => {
     test("logout is a full page load, not a Turbo visit", async ({ page }) => {
         await page.goto("/mail/inbox");
 
-        await expect(page.locator('a[href*="logout"]').first())
+        await expect(page.locator('form[action="/logout"]').first())
             .toHaveAttribute("data-turbo", "false");
     });
 

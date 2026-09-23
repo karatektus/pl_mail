@@ -184,6 +184,16 @@ export function mailRow(page: Page, subject: string): Locator {
  * Drives the real login form at /login and waits for the authenticated
  * shell to land on the inbox.
  */
+/**
+ * Signs out the way the user menu does: logout takes a CSRF token, so a plain
+ * `page.goto("/logout")` is refused. Submits the page's own logout form, which
+ * the topbar and the code prompt both render, so the request is same-origin.
+ */
+export async function logout(page: Page): Promise<void> {
+    await page.locator('form[action="/logout"]').first().evaluate((form) => (form as HTMLFormElement).submit());
+    await expect(page).toHaveURL(/\/login/);
+}
+
 export async function login(
     page: Page,
     email: string = TEST_USER.email,

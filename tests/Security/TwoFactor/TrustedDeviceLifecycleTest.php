@@ -290,7 +290,10 @@ final class TrustedDeviceLifecycleTest extends WebTestCase
 
     private function signOut(): void
     {
-        $this->follow(fn () => $this->client->request('GET', '/logout'));
+        // Through the user menu's form: logout takes a CSRF token now.
+        $crawler = $this->client->request('GET', '/mail/inbox');
+
+        $this->follow(fn () => $this->client->submit($crawler->filter('form[action="/logout"]')->form()));
     }
 
     private function follow(callable $request): void

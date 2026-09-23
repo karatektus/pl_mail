@@ -102,12 +102,18 @@
                 </form>
             </div>
 
-            <p class="text-center text-sm text-ink-muted mt-6">
+            {# A div, not a p: a <p> cannot hold the form below, and the parser
+               would close it early. #}
+            <div class="text-center text-sm text-ink-muted mt-6">
                 {{ 'two_factor.recovery_hint'|trans }}
-                <a href="{{ logoutPath }}" class="block text-accent font-medium hover:underline mt-2">
-                    {{ 'two_factor.cancel'|trans }}
-                </a>
-            </p>
+                {# A POST form like the user menu's: logout checks a CSRF token. #}
+                <form method="post" action="{{ path('app_logout') }}" data-turbo="false" class="mt-2">
+                    <input type="hidden" name="_csrf_token" value="{{ csrf_token('logout') }}">
+                    <button type="submit" class="text-accent font-medium hover:underline cursor-pointer">
+                        {{ 'two_factor.cancel'|trans }}
+                    </button>
+                </form>
+            </div>
 
         </div>
     </div>

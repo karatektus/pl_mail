@@ -1,5 +1,5 @@
 import { test, expect, type Page } from "./support/test";
-import { TEST_USER, consoleCommand, login } from "./support/config";
+import { TEST_USER, consoleCommand, login, logout } from "./support/config";
 import { totp } from "./support/totp";
 import { acceptConfirm } from "./support/confirm";
 
@@ -85,7 +85,7 @@ test.describe("two-factor authentication", () => {
         await login(page);
         const secret = await enrol(page);
 
-        await page.goto("/logout");
+        await logout(page);
 
         // Password alone now stops at the code form rather than the inbox.
         await page.goto("/login");
@@ -142,7 +142,7 @@ test.describe("two-factor authentication", () => {
         await page.goto("/settings?section=security");
         await expect(page.getByText("this device")).toBeVisible();
 
-        await page.goto("/logout");
+        await logout(page);
 
         // Remembered: straight to the inbox, no code asked for.
         await page.goto("/login");
@@ -169,7 +169,7 @@ test.describe("two-factor authentication", () => {
             ),
         ).toBeVisible();
 
-        await page.goto("/logout");
+        await logout(page);
         await page.goto("/login");
         await page.locator("#inputEmail").fill(TEST_USER.email);
         await page.locator("#password").fill(TEST_USER.password);
@@ -193,7 +193,7 @@ test.describe("two-factor authentication", () => {
         await login(page);
         const secret = await enrol(page);
 
-        await page.goto("/logout");
+        await logout(page);
         await page.goto("/login");
         await page.locator("#inputEmail").fill(TEST_USER.email);
         await page.locator("#password").fill(TEST_USER.password);

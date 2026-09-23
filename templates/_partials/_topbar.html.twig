@@ -612,12 +612,16 @@
                    snapshot back on screen with the back button. A full page load
                    is the only way to be sure nothing is left holding a session
                    that was just thrown away. #}
-                <a href="{{ path('app_logout') }}"
-                   data-turbo="false"
-                   class="flex items-center gap-2 px-4 py-2 text-sm text-ink-soft hover:bg-hover">
-                    <i class="fa-solid fa-right-from-bracket w-4 text-gray-400" aria-hidden="true"></i>
-                    {{ 'header.user_menu.sign_out'|trans }}
-                </a>
+                {# A POST form, not a link: logout checks a CSRF token, so a
+                   cross-site GET can no longer sign anyone out. #}
+                <form method="post" action="{{ path('app_logout') }}" data-turbo="false">
+                    <input type="hidden" name="_csrf_token" value="{{ csrf_token('logout') }}">
+                    <button type="submit"
+                            class="w-full flex items-center gap-2 px-4 py-2 text-sm text-ink-soft hover:bg-hover text-left cursor-pointer">
+                        <i class="fa-solid fa-right-from-bracket w-4 text-gray-400" aria-hidden="true"></i>
+                        {{ 'header.user_menu.sign_out'|trans }}
+                    </button>
+                </form>
             </div>
         </div>
 
