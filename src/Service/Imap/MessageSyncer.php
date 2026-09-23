@@ -2,6 +2,7 @@
 
 namespace App\Service\Imap;
 
+use App\Domain\Helper\ImapFolderLocator;
 use App\Domain\DTO\Mail\IngestedMessage;
 use App\Domain\Enum\Mail\MessagePriority;
 use App\Domain\Helper\AddressHelper;
@@ -99,7 +100,7 @@ class MessageSyncer
         $mailboxId = $mailbox->id;
         $accountId = $mailbox->account->id;
 
-        $folder = $client->getFolder($mailbox->name);
+        $folder = ImapFolderLocator::of($client, $mailbox);
 
         if (null === $folder) {
             $this->logger->error('Folder not found', ['mailbox' => $mailbox->name]);

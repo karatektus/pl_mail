@@ -365,13 +365,16 @@ final class ApplyImapFlagsOutboundOperationsTest extends TestCase
         // the names resolveDestinationPath() probes when there is no
         // special-use row, which must not invent an Archive that is not there,
         // and an explicit destination the server has lost.
-        $client->method('getFolder')->willReturnCallback(
-            static fn (string $path): ?Folder => match (true) {
-                false === $archiveExists && in_array($path, ['Archive', 'Archives'], true) => null,
-                false === $destinationExists && $path === $destinationPath => null,
-                default => new RecordingFolder($path, new MessageCollection([$present])),
-            },
-        );
+        $lookup = static fn (string $path): ?Folder => match (true) {
+            false === $archiveExists && in_array($path, ['Archive', 'Archives'], true) => null,
+            false === $destinationExists && $path === $destinationPath => null,
+            default => new RecordingFolder($path, new MessageCollection([$present])),
+        };
+        // The source folder is found by its path (ImapFolderLocator), the
+        // destinations by getFolder(); both answer from the same table.
+        $client->method('getFolder')->willReturnCallback($lookup);
+        $client->method('getFolderByPath')->willReturnCallback($lookup);
+        $client->method('getFolderByName')->willReturnCallback($lookup);
         $client->method('disconnect')->willReturnSelf();
 
         if (null !== $this->protocol) {

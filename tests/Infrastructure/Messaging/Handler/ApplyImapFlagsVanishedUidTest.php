@@ -177,6 +177,8 @@ final class ApplyImapFlagsVanishedUidTest extends TestCase
 
         $client = $this->createStub(Client::class);
         $client->method('getFolder')->willReturn($folder);
+        $client->method('getFolderByPath')->willReturn($folder);
+        $client->method('getFolderByName')->willReturn($folder);
         // disconnect() returns Client, and Client::__destruct() calls it. Left
         // to invent its own return value PHPUnit builds another Client double,
         // whose destructor does the same, until the stack ends — so it is told

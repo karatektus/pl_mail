@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Infrastructure\Messaging\Handler;
 
+use App\Domain\Helper\ImapFolderLocator;
 use App\Domain\Enum\Mail\MailboxSpecialUse;
 use App\Domain\Helper\ImapConnectionFactory;
 use App\Domain\Helper\MessageIdHelper;
@@ -268,7 +269,7 @@ final class ApplyImapFlagsHandler
         ApplyImapFlagsMessage $envelope,
         ?string               $destinationPath,
     ): void {
-        $folder = $client->getFolder($sourceMailbox->name);
+        $folder = ImapFolderLocator::of($client, $sourceMailbox);
 
         if (null === $folder) {
             $this->logger->warning('ApplyImapFlagsHandler: source folder not found on server', [

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Service\Imap;
 
+use App\Domain\Helper\ImapFolderLocator;
 use App\Domain\Helper\ThrowableSeverity;
 use App\Domain\Helper\ImapConnectionFactory;
 use App\Entity\Mail\Account;
@@ -90,8 +91,7 @@ final class ImapUidPresence
         }
 
         try {
-            $folder = $client->getFolder((string) $mailbox->name)
-                ?? $client->getFolder((string) $mailbox->fullPath);
+            $folder = ImapFolderLocator::of($client, $mailbox);
 
             if (null === $folder) {
                 // The folder itself is gone. Every row claiming an address in

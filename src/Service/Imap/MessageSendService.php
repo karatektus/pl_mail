@@ -2,6 +2,7 @@
 
 namespace App\Service\Imap;
 
+use App\Domain\Helper\ImapFolderLocator;
 use App\Domain\Enum\Mail\LabelRole;
 use App\Domain\Enum\Mail\MessageFlag;
 use App\Domain\Helper\AttachmentStorageHelper;
@@ -265,7 +266,7 @@ class MessageSendService
         }
 
         $client = $this->imapConnectionFactory->connect($account);
-        $folder = $client->getFolder($sentMailbox->name);
+        $folder = ImapFolderLocator::of($client, $sentMailbox);
 
         $folder->appendMessage(
             $email->toString(),

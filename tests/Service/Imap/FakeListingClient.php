@@ -39,6 +39,17 @@ final class FakeListingClient extends Client
         return $this->fakeProtocol;
     }
 
+    /**
+     * Never opens a socket: Client::getFolders() reads `$this->connection`
+     * directly, so the fake protocol is put there instead of dialled.
+     */
+    public function checkConnection(): bool
+    {
+        $this->connection = $this->fakeProtocol;
+
+        return false;
+    }
+
     /** Never connected, so there is nothing to log out of. */
     public function disconnect(): Client
     {
