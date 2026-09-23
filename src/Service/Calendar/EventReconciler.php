@@ -61,6 +61,8 @@ final readonly class EventReconciler
         private ExtractedEventCalendarResolver $calendarResolver,
         private InviteParticipationResolver    $participation,
         private CalendarEventWriter            $writer,
+        private RecurrenceRuleConverter        $recurrence,
+        private RecurrenceMaterialiser         $materialiser,
         private EntityManagerInterface         $em,
         private LoggerInterface                $logger,
     ) {
@@ -86,6 +88,16 @@ final readonly class EventReconciler
         }
 
         $touched = [];
+
+        // Series before their instances. A REQUEST carrying a master and its
+        // exceptions lists them in whatever order the sender liked, and an
+        // exception reconciled first — on a series this install has never seen
+        // — would have no series to be filed on. usort is stable, so the order
+        // within each half is the sender's.
+        usort(
+            $extracted,
+            static fn (ExtractedEvent $a, ExtractedEvent $b): int => (null !== $a->recurrenceId) <=> (null !== $b->recurrenceId),
+        );
 
         foreach ($extracted as $claim) {
             // Asked before anything is created: dismissing an event has to
@@ -122,7 +134,15 @@ final readonly class EventReconciler
             }
 
             foreach ($existing as $copy) {
-                $event = $this->update($copy, $claim, $message);
+                // One instance of a series is a patch on it, never the series.
+                // Applied as an update, "the 3rd is cancelled" cancelled the
+                // whole meeting, and a moved instance moved every other one.
+                // Only a copy that actually repeats takes the patch; an
+                // instance-only invitation that became a one-off row of its own
+                // is simply updated, as before.
+                $event = null !== $claim->recurrenceId && true === $this->repeats($copy)
+                    ? $this->updateInstance($copy, $claim, $message)
+                    : $this->update($copy, $claim, $message);
 
                 if (null !== $event) {
                     $touched[] = $event;
@@ -214,6 +234,69 @@ final readonly class EventReconciler
         $this->link($event, $claim, $message, applied: true);
 
         return $event;
+    }
+
+    /**
+     * File one instance's revision onto the series it belongs to.
+     *
+     * The same three guards update() has, for the same reasons, with one
+     * difference in the third: an instance carries its own SEQUENCE, which is
+     * compared against the series' but never written back to it. A series at
+     * sequence 2 whose third instance was moved at sequence 3 is still at 2,
+     * and the next update to the series must not look stale beside it.
+     *
+     * A cancelled instance is excluded — the RFC 5546 meaning of a CANCEL
+     * carrying a RECURRENCE-ID — and any other revision becomes a patch with
+     * the instance's own start, length and title, keyed where the rule put the
+     * instance, which is exactly what RecurrenceMaterialiser looks up.
+     */
+    private function updateInstance(CalendarEvent $event, ExtractedEvent $claim, Message $message): ?CalendarEvent
+    {
+        $recurrenceId = $claim->recurrenceId ?? throw new \LogicException('Not an instance claim.');
+
+        if (
+            false === $event->source->mayBeRewrittenByMail()
+            || true === $event->isUserEdited
+            || $claim->sequence < $event->sequence
+        ) {
+            $this->link($event, $claim, $message, applied: false, instance: true);
+
+            return null;
+        }
+
+        $zone = $this->materialiser->zoneOf($event);
+        $key  = $this->recurrence->overrideKey($recurrenceId, $zone);
+
+        if (EventStatus::Cancelled === $claim->status) {
+            $patch = ['excluded' => true];
+        } else {
+            $patch = [
+                '@type'    => 'Event',
+                'start'    => $claim->startsAt->setTimezone($zone)->format('Y-m-d\TH:i:s'),
+                'duration' => $this->writer->isoDuration($claim->endsAt->getTimestamp() - $claim->startsAt->getTimestamp()),
+            ];
+
+            // Only when it differs, for the reason EventInstanceEditor gives: a
+            // patch repeating the series' title reads as a rename, and a later
+            // rename of the series would leave this instance behind.
+            if (null !== $claim->title && $claim->title !== (string) $event->title) {
+                $patch['title'] = $claim->title;
+            }
+        }
+
+        $this->writer->overrideInstances($event, [$key => $patch]);
+        $this->link($event, $claim, $message, applied: true, instance: true);
+
+        return $event;
+    }
+
+    /** Whether this row is a series an instance can be filed on. */
+    private function repeats(CalendarEvent $event): bool
+    {
+        $rules = $event->jscalendar['recurrenceRules'] ?? null;
+
+        return (true === is_array($rules) && [] !== $rules)
+            || true === is_string($event->jscalendar['plmail:rrule'] ?? null);
     }
 
     /**
@@ -327,14 +410,34 @@ final readonly class EventReconciler
     /**
      * One link per (event, message, extractor), so a message re-processed by a
      * backfill updates its own row instead of growing a second one.
+     *
+     * The queued half matters since a message can hold several claims about
+     * one event — a master and its exceptions. findOneBy() cannot see the link
+     * the master's claim queued a moment ago, and a second one for the same
+     * triple is a flush the unique constraint refuses.
+     *
+     * An instance claim leaves an existing link alone: in a message that also
+     * carried the series, that link is the series' claim, and it is the one
+     * the invite card and "why is this here?" should read.
      */
-    private function link(CalendarEvent $event, ExtractedEvent $claim, Message $message, bool $applied): void
-    {
-        $link = $this->links->findOneBy([
+    private function link(
+        CalendarEvent  $event,
+        ExtractedEvent $claim,
+        Message        $message,
+        bool           $applied,
+        bool           $instance = false,
+    ): void {
+        $existing = $this->links->findOneBy([
             'event'     => $event,
             'message'   => $message,
             'extractor' => $claim->extractor,
-        ]) ?? new EventSourceLink();
+        ]) ?? $this->pendingLink($event, $message, $claim->extractor);
+
+        if (null !== $existing && true === $instance) {
+            return;
+        }
+
+        $link = $existing ?? new EventSourceLink();
 
         $link->event       = $event;
         $link->message     = $message;
@@ -346,5 +449,22 @@ final readonly class EventReconciler
         $link->payload     = $claim->sourcePayload;
 
         $this->em->persist($link);
+    }
+
+    /** A link this unit of work has queued but not yet flushed — see link(). */
+    private function pendingLink(CalendarEvent $event, Message $message, string $extractor): ?EventSourceLink
+    {
+        foreach ($this->em->getUnitOfWork()->getScheduledEntityInsertions() as $queued) {
+            if (
+                true === $queued instanceof EventSourceLink
+                && $queued->event === $event
+                && $queued->message === $message
+                && $queued->extractor === $extractor
+            ) {
+                return $queued;
+            }
+        }
+
+        return null;
     }
 }

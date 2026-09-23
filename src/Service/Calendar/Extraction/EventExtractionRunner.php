@@ -57,7 +57,18 @@ final readonly class EventExtractionRunner
                     // Higher priority ran first, so an existing key stays. The
                     // loser is not an error: two extractors agreeing about one
                     // booking is the system working.
-                    $byKey[$event->dedupKey] ??= $event;
+                    //
+                    // An instance of a series is its own claim, though it shares
+                    // the series' dedup key (which stays shared, so dismissing
+                    // the meeting suppresses its instances too). Keyed on the key
+                    // alone, a REQUEST carrying a master and its exceptions kept
+                    // whichever VEVENT came first — and when that was an
+                    // exception, the series itself was never read.
+                    $key = null === $event->recurrenceId
+                        ? $event->dedupKey
+                        : $event->dedupKey . '#' . $event->recurrenceId->getTimestamp();
+
+                    $byKey[$key] ??= $event;
                 }
             } catch (\Throwable $e) {
                 // One broken extractor must not cost the events the others

@@ -35,6 +35,10 @@ final readonly class ExtractedEvent
      *                                             before an event exists and for suppressions
      * @param array<string,mixed>   $jscalendar    the canonical object
      * @param array<string,mixed>   $sourcePayload the fragment as it was read
+     * @param DateTimeImmutable|null $recurrenceId  set when this claim is about ONE instance of a
+     *                                             series — an iCalendar RECURRENCE-ID, as a UTC
+     *                                             instant. Such a claim is a patch on the series
+     *                                             under the same UID, never the series itself
      */
     public function __construct(
         public string             $uid,
@@ -54,6 +58,7 @@ final readonly class ExtractedEvent
         public int                $sequence = 0,
         public ?MessagePart       $part = null,
         public array              $sourcePayload = [],
+        public ?DateTimeImmutable $recurrenceId = null,
     ) {
     }
 }

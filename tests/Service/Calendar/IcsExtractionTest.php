@@ -426,6 +426,63 @@ final class IcsExtractionTest extends KernelTestCase
         }
     }
 
+    /**
+     * A CANCEL naming one instance calls off that instance. It shares the
+     * series' UID, and used to be applied as an update of the whole series —
+     * cancelling every week of it.
+     */
+    public function testCancellingOneInstanceLeavesTheRestOfTheSeries(): void
+    {
+        $this->ingest($this->weekly('one-off-cancel@example.test'));
+
+        $event = $this->ingest(str_replace(
+            'DTSTART:20260811T090000Z',
+            "RECURRENCE-ID:20260811T090000Z\r\nDTSTART:20260811T090000Z",
+            $this->ics('one-off-cancel@example.test', 'Standup', '20260811T090000Z', '20260811T093000Z', sequence: 1, method: 'CANCEL'),
+        ));
+
+        self::assertNotNull($event);
+        self::assertSame(EventStatus::Confirmed, $event->status, 'the series is not cancelled');
+        self::assertCount(5, $event->occurrences, 'only the one instance is gone');
+
+        foreach ($event->occurrences as $occurrence) {
+            self::assertFalse($occurrence->cancelled);
+            self::assertNotSame('2026-08-11 09:00', $occurrence->startsAt?->format('Y-m-d H:i'));
+        }
+    }
+
+    /**
+     * A REQUEST carrying the series and one moved instance keeps the series as
+     * the series. The exception used to be applied last and overwrite the
+     * master, so the weekly meeting became one meeting at the moved time.
+     */
+    public function testAnInviteWithAMovedInstanceKeepsTheSeriesAndMovesOnlyThatOne(): void
+    {
+        $exception = "BEGIN:VEVENT\r\nUID:series-with-exception@example.test\r\nSUMMARY:Standup (moved)\r\n"
+            . "SEQUENCE:0\r\nRECURRENCE-ID:20260818T090000Z\r\n"
+            . "DTSTART:20260818T140000Z\r\nDTEND:20260818T143000Z\r\nEND:VEVENT\r\n";
+
+        $event = $this->ingest(str_replace(
+            'END:VCALENDAR',
+            $exception . 'END:VCALENDAR',
+            $this->weekly('series-with-exception@example.test'),
+        ));
+
+        self::assertNotNull($event);
+        self::assertSame('Standup', $event->title);
+        self::assertTrue($event->isRecurring);
+        self::assertCount(6, $event->occurrences);
+
+        $starts = array_map(
+            static fn ($occurrence): string => (string) $occurrence->startsAt?->format('Y-m-d H:i'),
+            $event->occurrences->toArray(),
+        );
+
+        self::assertContains('2026-08-18 14:00', $starts);
+        self::assertNotContains('2026-08-18 09:00', $starts);
+        self::assertContains('2026-08-25 09:00', $starts);
+    }
+
     /** An invite that says nothing about its length is not an invite to nothing. */
     public function testAnEventWithNoEndGetsAUsableLength(): void
     {
@@ -501,6 +558,16 @@ final class IcsExtractionTest extends KernelTestCase
     {
         return $this->em->getRepository(CalendarEvent::class)
             ->findBy(['calendar' => $this->calendar, 'uid' => $uid]);
+    }
+
+    /** A weekly series of six from 4 August 2026, 09:00 UTC. */
+    private function weekly(string $uid): string
+    {
+        return str_replace(
+            'DTEND:20260804T093000Z',
+            "DTEND:20260804T093000Z\r\nRRULE:FREQ=WEEKLY;COUNT=6",
+            $this->ics($uid, 'Standup', '20260804T090000Z', '20260804T093000Z'),
+        );
     }
 
     private function ics(

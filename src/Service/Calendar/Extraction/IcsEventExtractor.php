@@ -242,6 +242,11 @@ final readonly class IcsEventExtractor implements EventExtractorInterface
                 // the mail server ever being touched again.
                 'ics'          => $ics,
             ],
+            // One instance of a series shares the series' UID, so without this
+            // the reconciler read "the 3rd is cancelled" as "the meeting is
+            // cancelled", and a REQUEST carrying the master and its exceptions
+            // overwrote the master with whichever exception came last.
+            recurrenceId:  $this->dateTimeOf($vevent, 'RECURRENCE-ID'),
         );
     }
 
