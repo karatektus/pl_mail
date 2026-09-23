@@ -6,6 +6,35 @@ so anything that changes the schema irreversibly is called out explicitly.
 The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, and `sha-…` pins one commit.
 
+## v0.2.40 — 2026-09-23
+
+### Added
+
+- **A date-and-time picker of plMail's own.** The event editor used the browser's date-and-time
+  fields, which write the time in the *browser's* language whatever plMail is set to: "03:00 PM"
+  for someone who chose the 24-hour clock. In their place, two cards say when an event starts and
+  ends, and one panel under them sets whichever is chosen — six days (a month with arrows behind the
+  calendar button), then the hour, then the minute, with every five minutes and an exact field
+  behind "···". Picking the start's quarter hour moves on to the end, which offers the usual
+  lengths and greys out anything before the start; a later day makes it a multi-day event. The
+  12-hour clock gets 12, 1 … 11 and am/pm, and all day hides the times.
+
+  The same picker sets a custom **send later** time, with what is outside the hold greyed out, and
+  a booking page's **daily hours**.
+
+### Fixed
+
+- **Picking a PDF as a profile picture no longer ends on an error page.** A picture picked from a
+  connected service was judged by the label the service gave the download rather than by what it
+  was, and the refusal was a server error. The file's own contents decide now, only the four kinds
+  of picture plMail keeps are offered, and a refusal is said under the picture field.
+- **A profile save that is refused keeps the app around it.** It used to come back as the bare
+  profile card, with no sidebar and no way on but the browser's back button.
+- **The clock placement survives a config backup.** Added in v0.2.39 and left out of the backup,
+  so a restore put it back to the default.
+- **Clicking under the event editor's times no longer ticks "All day".** Its label spanned the
+  whole row.
+
 ## v0.2.39 — 2026-09-23
 
 ### Added
