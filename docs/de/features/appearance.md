@@ -1,4 +1,4 @@
-<!-- translated-from: features/appearance.md sha1:aae4388788d2cfec8525f645753fd22cb6afae81 -->
+<!-- translated-from: features/appearance.md sha1:4e890d9969ee031a9e7b81e388840fffcf1bb843 -->
 
 # Darstellung
 

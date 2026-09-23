@@ -113,6 +113,7 @@ final readonly class ConfigBackupUsers
      */
     public const array USER_SETTINGS = [
         User::SETTING_CLOCK,
+        User::SETTING_CLOCK_PLACEMENT,
         User::SETTING_CALENDAR_PANE_OPEN,
         User::SETTING_CALENDAR_PANE_WIDTH,
         User::SETTING_CALENDAR_PANE_MODE,
