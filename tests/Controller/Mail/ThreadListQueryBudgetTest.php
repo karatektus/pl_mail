@@ -298,10 +298,10 @@ final class ThreadListQueryBudgetTest extends WebTestCase
      * The preload has to hand the collection over in the association's own
      * order, and nothing else in the suite would notice if it did not.
      *
-     * `{% set latest = item.messages|last %}` is only "the newest message"
-     * while the collection is sorted; #[ORM\OrderBy] guarantees that for a
-     * lazy load and a fetch join does NOT inherit it. Drop the addOrderBy in
-     * preloadMessages() and every row in every list quietly starts previewing
+     * The row's `latest` is only "the newest message" while the row fields
+     * are sorted; #[ORM\OrderBy] guarantees that for a lazy load and a
+     * hand-written query does NOT inherit it. Drop the addOrderBy in
+     * MessageRepository::findRowFieldsForThreads() and every row in every list quietly starts previewing
      * whichever message Postgres happened to return last — a silent, plausible
      * wrong answer, which is the worst kind.
      */
@@ -326,6 +326,26 @@ final class ThreadListQueryBudgetTest extends WebTestCase
             $html,
             'an older message surfaced as a row snippet — the preload lost its order',
         );
+    }
+
+    /**
+     * Rows, not just queries: a list page reads a few fields of each message
+     * and must not hydrate the messages themselves.
+     *
+     * The query count cannot see this. The old batch preload was ONE query and
+     * still pulled every body, header blob and search vector of every message
+     * on the page — 175 Message entities for these fixtures, to print one
+     * snippet per row. See App\Service\Mail\ThreadRows.
+     */
+    public function testAListPageHydratesNoMessageEntity(): void
+    {
+        $this->seedPage(MessageCategory::Promotions);
+
+        $this->queriesFor('/mail/inbox?tab=promotions');
+
+        $map = $this->em->getUnitOfWork()->getIdentityMap();
+
+        self::assertCount(0, $map[Message::class] ?? [], 'the list hydrated whole messages again');
     }
 
     // ── fixtures ──────────────────────────────────────────────────────────

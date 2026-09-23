@@ -32,8 +32,8 @@ use App\Entity\Mail\Message;
  * path trusts, and stripping tags off raw sender HTML would put script text and
  * style rules into a list row.
  *
- * Costs no query. The row already hydrates the whole Message to read
- * `bodyText`, so the HTML is in memory either way.
+ * Costs no query of its own. The list fetches the two body columns of each
+ * row's latest message only — see App\Service\Mail\ThreadRows.
  */
 final class MessageSnippet
 {
@@ -79,7 +79,16 @@ final class MessageSnippet
             return '';
         }
 
-        $fromHtml = $this->flatten((string) $message->bodyHtmlSafe);
+        return $this->fromBodies($message->bodyHtmlSafe, $message->bodyText);
+    }
+
+    /**
+     * The same preview from the two columns alone, for a caller that fetched
+     * them without hydrating the Message — see App\Service\Mail\ThreadRows.
+     */
+    public function fromBodies(?string $bodyHtmlSafe, ?string $bodyText): string
+    {
+        $fromHtml = $this->flatten((string) $bodyHtmlSafe);
 
         if ('' !== $fromHtml) {
             return $fromHtml;
@@ -89,7 +98,7 @@ final class MessageSnippet
         // down to nothing. The text part is all there is, and it is still run
         // through the same flattening, because a sender who put markup in it is
         // exactly the case that made this necessary.
-        return $this->flatten((string) $message->bodyText);
+        return $this->flatten((string) $bodyText);
     }
 
     /**

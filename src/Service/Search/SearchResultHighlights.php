@@ -4,9 +4,10 @@ declare(strict_types=1);
 
 namespace App\Service\Search;
 
-use App\Entity\Mail\Message;
+use App\Domain\DTO\Mail\ThreadRowMessage;
 use App\Entity\Mail\MessageThread;
 use App\Repository\Mail\MessageRepository;
+use App\Service\Mail\ThreadRows;
 use Twig\Markup;
 
 /**
@@ -32,8 +33,8 @@ use Twig\Markup;
  * subject and text part it highlights are columns of `message`, and the search
  * vector it agrees with is generated from those same columns. A result page is
  * a list of THREADS and spans every account in a unified mailbox, so this walks
- * the rows the page is already holding — `preloadForRows()` has hydrated their
- * messages by the time this runs, so the ids cost nothing — groups them by the
+ * the rows the page is already holding — ThreadRows has fetched their
+ * messages' ids by the time this runs, so the ids cost nothing — groups them by the
  * THREAD's account, and asks for one batch of headlines per account.
  *
  * The thread's account rather than each message's: a thread belongs to exactly
@@ -85,6 +86,7 @@ final class SearchResultHighlights
     public function __construct(
         private readonly MessageRepository $messages,
         private readonly SearchHighlighter $highlighter,
+        private readonly ThreadRows $rows,
     ) {
     }
 
@@ -119,6 +121,7 @@ final class SearchResultHighlights
         }
 
         $headlines = [];
+        $bodies    = [];
 
         foreach ($candidates as $accountId => $messageIds) {
             $rows = $this->messages->findSearchHeadlines(
@@ -128,8 +131,21 @@ final class SearchResultHighlights
                 SearchHighlighter::HEADLINE_OPTIONS,
             );
 
+            $unmarked = [];
+
             foreach ($rows as $row) {
                 $headlines[(int) $row['id']] = $row;
+
+                if (!$this->highlighter->isMarked($row['preview'])) {
+                    $unmarked[] = (int) $row['id'];
+                }
+            }
+
+            // Only the bodies `ts_headline` declined to mark, which the
+            // fallback has to search itself. Usually none, and then no
+            // statement is issued at all.
+            foreach ($this->messages->findSearchTexts($accountId, $unmarked, $unmarked) as $id => $text) {
+                $bodies[$id] = $text['body_text'];
             }
         }
 
@@ -142,7 +158,7 @@ final class SearchResultHighlights
                 continue;
             }
 
-            $highlight = $this->forThread($thread, $headlines, $freeText);
+            $highlight = $this->forThread($thread, $headlines, $bodies, $freeText);
 
             if (null !== $highlight['subject'] || null !== $highlight['snippet']) {
                 $highlights[$id] = $highlight;
@@ -181,18 +197,18 @@ final class SearchResultHighlights
     /**
      * The messages of one thread that are worth a headline, newest first.
      *
-     * The association is ordered OLDEST first — `#[ORM\OrderBy]` on receivedAt,
-     * which preloadMessages() has to repeat because a fetch join does not
-     * inherit it — so newest first is that reversed. Both loops in this class
-     * read the same list, or the one that asks for headlines and the one that
-     * reads them back would disagree about which messages exist.
+     * The row messages are ordered OLDEST first — the association's
+     * `#[ORM\OrderBy]` on receivedAt, which ThreadRows repeats — so newest
+     * first is that reversed. Both loops in this class read the same list, or
+     * the one that asks for headlines and the one that reads them back would
+     * disagree about which messages exist.
      *
-     * @return list<Message>
+     * @return list<ThreadRowMessage>
      */
     private function newestFirst(MessageThread $thread): array
     {
         $messages = array_values(array_filter(
-            array_reverse($thread->messages->toArray()),
+            array_reverse($this->rows->for($thread)->messages),
             // A thread can hold a message that has never been flushed — the
             // compose dock persists a draft into a live thread — and an id-less
             // one has nothing for `WHERE m.id IN (…)` to find.
@@ -211,24 +227,20 @@ final class SearchResultHighlights
      * while previewing the fragment from the one that actually carries it is
      * the answer that describes the row best.
      *
-     * WHERE THE FALLBACK'S TEXT COMES FROM, AND WHY IT IS FREE. When
-     * `ts_headline` marked nothing, SearchHighlighter needs the raw field to
-     * search it itself — and `$message->bodyText` is a plain mapped column that
-     * `preloadMessages()` has already hydrated for every row on the page. So
-     * the fallback reads text this request has held in memory since before this
-     * class was called: no lazy load, no second statement, nothing added to the
-     * ceiling ThreadListQueryBudgetTest enforces.
-     *
-     * Fetching it instead — adding `m.body_text` to findSearchHeadlines() —
-     * would cost no queries either and was still the wrong answer: fifty rows
-     * times five messages is 250 whole bodies pulled a SECOND time, once as a
-     * headline and once raw, on every search page. Free in queries is not free.
+     * WHERE THE FALLBACK'S TEXT COMES FROM. When `ts_headline` marked
+     * nothing, SearchHighlighter needs the raw field to search it itself. The
+     * list no longer hydrates message bodies (see ThreadRows), so forPage()
+     * fetches `body_text` for exactly those unmarked messages through
+     * MessageRepository::findSearchTexts() — not by widening
+     * findSearchHeadlines(), which would pull every candidate's body a second
+     * time, marked or not.
      *
      * @param array<int, array{id: int|string, subject: mixed, preview: mixed}> $headlines
+     * @param array<int, mixed>                                                 $bodies    message id => raw body_text
      *
      * @return array{subject: ?Markup, snippet: ?Markup}
      */
-    private function forThread(MessageThread $thread, array $headlines, string $freeText): array
+    private function forThread(MessageThread $thread, array $headlines, array $bodies, string $freeText): array
     {
         $subject = null;
         $snippet = null;
@@ -241,7 +253,7 @@ final class SearchResultHighlights
             }
 
             $snippet ??= $this->highlighter->toMarkup(
-                $this->highlighter->headlineOrFallback($row['preview'], $message->bodyText, $freeText),
+                $this->highlighter->headlineOrFallback($row['preview'], $bodies[(int) $message->id] ?? null, $freeText),
             );
             $subject ??= $this->subject($thread, $row['subject'], $freeText);
 

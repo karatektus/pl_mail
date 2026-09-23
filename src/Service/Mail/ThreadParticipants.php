@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Service\Mail;
 
+use App\Domain\DTO\Mail\ThreadRowMessage;
+use App\Entity\Mail\Account;
 use App\Entity\Mail\Message;
 use App\Entity\Mail\MessageThread;
 
@@ -28,14 +30,28 @@ final class ThreadParticipants
      */
     public function forThread(MessageThread $thread, string $me = 'me'): array
     {
-        $owned = $this->ownedAddresses($thread);
-        $names = $this->senders($thread, $owned, $me);
+        return $this->forMessages($thread->messages, $thread->account, $me);
+    }
+
+    /**
+     * The same answer from the row fields alone — a list page never hydrates
+     * the messages themselves, see App\Service\Mail\ThreadRows.
+     *
+     * @param iterable<Message|ThreadRowMessage> $messages oldest first
+     *
+     * @return list<string>
+     */
+    public function forMessages(iterable $messages, ?Account $account, string $me = 'me'): array
+    {
+        $messages = is_array($messages) ? $messages : iterator_to_array($messages, false);
+        $owned    = $this->ownedAddresses($account);
+        $names    = $this->senders($messages, $owned, $me);
 
         // A thread nobody else has written in — a sent mail, or a draft. Its
         // recipients are the interesting party; falling back to "me" alone
         // would make every row in Sent identical.
         if ([] === $names || [$me] === $names) {
-            $recipients = $this->recipients($thread, $owned);
+            $recipients = $this->recipients($messages, $owned);
 
             if ([] !== $recipients) {
                 return $this->elide($recipients);
@@ -46,15 +62,16 @@ final class ThreadParticipants
     }
 
     /**
-     * @param list<string> $owned
+     * @param array<Message|ThreadRowMessage> $messages
+     * @param list<string>                    $owned
      *
      * @return list<string>
      */
-    private function senders(MessageThread $thread, array $owned, string $me): array
+    private function senders(array $messages, array $owned, string $me): array
     {
         $names = [];
 
-        foreach ($thread->messages as $message) {
+        foreach ($messages as $message) {
             $address = $this->normalise($message->fromAddress);
 
             if ('' === $address) {
@@ -72,13 +89,14 @@ final class ThreadParticipants
     /**
      * Everyone the newest message was addressed to, the reader excluded.
      *
-     * @param list<string> $owned
+     * @param array<Message|ThreadRowMessage> $messages
+     * @param list<string>                    $owned
      *
      * @return list<string>
      */
-    private function recipients(MessageThread $thread, array $owned): array
+    private function recipients(array $messages, array $owned): array
     {
-        $newest = $this->newest($thread);
+        $newest = $this->newest($messages);
 
         if (null === $newest) {
             return [];
@@ -121,13 +139,16 @@ final class ThreadParticipants
         return array_values(array_unique($names));
     }
 
-    private function newest(MessageThread $thread): ?Message
+    /**
+     * @param array<Message|ThreadRowMessage> $messages
+     */
+    private function newest(array $messages): Message|ThreadRowMessage|null
     {
         $newest = null;
 
         // The association is ordered by date, but a thread assembled in memory
         // during a sync is not, so the newest is picked rather than assumed.
-        foreach ($thread->messages as $message) {
+        foreach ($messages as $message) {
             // createdAt closes the chain and is never null, so $at always has
             // a value to compare — only the first pass has nothing to compare
             // it against.
@@ -176,10 +197,8 @@ final class ThreadParticipants
     /**
      * @return list<string>
      */
-    private function ownedAddresses(MessageThread $thread): array
+    private function ownedAddresses(?Account $account): array
     {
-        $account = $thread->account;
-
         if (null === $account) {
             return [];
         }

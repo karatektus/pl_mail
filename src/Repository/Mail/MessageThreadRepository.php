@@ -1167,48 +1167,6 @@ class MessageThreadRepository extends ServiceEntityRepository
     }
 
     /**
-     * The same trick for the messages collection, which one row reads three
-     * times over: thread_participants() walks every sender, `|last` supplies
-     * the snippet and the avatar seed, and `|filter(m => m.isDraft)` decides
-     * whether the row opens the compose dock instead of the thread. Each of
-     * those initialises the collection, so a fifty-row list was fifty
-     * `SELECT … FROM message WHERE thread_id = ?`.
-     *
-     * A batch rather than a denormalised column on MessageThread, and the
-     * participants are why. The row does not want "the latest message" — it
-     * wants the CAST of the conversation, every distinct sender in the order
-     * they joined it (see ThreadParticipants). A lastMessageId stored beside
-     * messageCount would leave that walk exactly where it is, the collection
-     * would hydrate anyway, and the denormalisation would have bought nothing
-     * while adding a second thing that can go stale. One query for the page
-     * settles all three readers at once.
-     *
-     * ORDERED, which the label preload has no need to be: the association
-     * carries #[ORM\OrderBy(receivedAt, id)] and a fetch join does not inherit
-     * it. Without the order spelled here the collection arrives however
-     * Postgres returned it, `|last` stops meaning "newest", and the row's
-     * snippet comes off an arbitrary message.
-     *
-     * @param MessageThread[] $threads
-     */
-    public function preloadMessages(array $threads): void
-    {
-        if (count($threads) === 0) {
-            return;
-        }
-
-        $this->createQueryBuilder('thread')
-            ->addSelect('message')
-            ->leftJoin('thread.messages', 'message')
-            ->where('thread IN (:threads)')
-            ->setParameter('threads', $threads)
-            ->addOrderBy('message.receivedAt', 'ASC')
-            ->addOrderBy('message.id', 'ASC')
-            ->getQuery()
-            ->getResult();
-    }
-
-    /**
      * And the account, which the row reaches for twice — once for the corner
      * wedge that says which mailbox a unified row arrived in, and once inside
      * ThreadParticipants, which needs the account's own addresses to decide
@@ -1241,14 +1199,11 @@ class MessageThreadRepository extends ServiceEntityRepository
     }
 
     /**
-     * Everything one page of thread ROWS reads, in three queries.
+     * The two entity preloads a page of thread rows needs.
      *
-     * One entry point rather than three calls at each of the six call sites.
-     * The label preload existed and was called from every list view except
-     * search — which is exactly why search cost fifty queries more than the
-     * same fifty rows in the inbox. A list view that gets one preload and not
-     * another is the failure this replaces; adding a fourth thing the row
-     * needs should mean editing this method, not auditing every controller.
+     * The messages are not among them any more: a row reads a few fields of
+     * each, never the entity, and App\Service\Mail\ThreadRows fetches exactly
+     * those. That service is the list views' one entry point and calls this.
      *
      * @param MessageThread[] $threads
      */
@@ -1256,7 +1211,6 @@ class MessageThreadRepository extends ServiceEntityRepository
     {
         $this->preloadAccounts($threads);
         $this->preloadLabels($threads);
-        $this->preloadMessages($threads);
     }
 
     /**

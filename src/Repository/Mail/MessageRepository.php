@@ -542,10 +542,10 @@ class MessageRepository extends ServiceEntityRepository
      *
      * The companion to findSearchHeadlines() above, and only ever called after
      * it: SearchHighlighter's fallback is a substring search, so it needs the
-     * field as it was written rather than the fragment Postgres returned. The
-     * web search page needs no such query — `preloadForRows()` has hydrated
-     * every message on the page before the highlighter runs — but a JMAP
-     * SearchSnippet/get holds DBAL rows and nothing else.
+     * field as it was written rather than the fragment Postgres returned. Both
+     * callers hold rows rather than hydrated bodies: a JMAP SearchSnippet/get
+     * has DBAL rows and nothing else, and the web search page's rows carry no
+     * bodies either (see App\Service\Mail\ThreadRows).
      *
      * TWO ID LISTS, BECAUSE THE TWO COLUMNS COST DIFFERENT AMOUNTS. A subject
      * is tens of bytes and a text part is thousands, and the field that is
@@ -2243,5 +2243,80 @@ class MessageRepository extends ServiceEntityRepository
             ->addOrderBy('m.id', 'ASC')
             ->getQuery()
             ->getResult();
+    }
+
+    /**
+     * The handful of columns a conversation row reads from each of its
+     * thread's messages, for every thread on a list page in one statement.
+     *
+     * Fields rather than entities, and that is the point: hydrating Message
+     * here pulled every body (text, raw HTML, sanitised HTML), the header blob
+     * and the search vector of every message on the page into PHP, to read a
+     * sender and a date off each. See App\Service\Mail\ThreadRows.
+     *
+     * ORDERED the way the association is (#[ORM\OrderBy(receivedAt, id)]),
+     * because the row's "latest" and "draft" are both "the last one of these".
+     *
+     * @param list<int> $threadIds
+     *
+     * @return list<array<string, mixed>>
+     */
+    public function findRowFieldsForThreads(array $threadIds): array
+    {
+        if ([] === $threadIds) {
+            return [];
+        }
+
+        /** @var list<array<string, mixed>> */
+        return $this->createQueryBuilder('m')
+            ->select(
+                'm.id',
+                'IDENTITY(m.thread) AS threadId',
+                'm.fromAddress',
+                'm.fromName',
+                'm.toAddresses',
+                'm.flags',
+                'm.receivedAt',
+                'm.sentAt',
+                'm.createdAt',
+                'm.submissionSendAt',
+            )
+            ->where('m.thread IN (:threads)')
+            ->setParameter('threads', $threadIds)
+            ->addOrderBy('m.receivedAt', 'ASC')
+            ->addOrderBy('m.id', 'ASC')
+            ->getQuery()
+            ->getArrayResult();
+    }
+
+    /**
+     * The two body columns MessageSnippet reads, for specific messages only —
+     * one per list row, the row's latest.
+     *
+     * @param list<int> $ids
+     *
+     * @return array<int, array{bodyHtmlSafe: ?string, bodyText: ?string}>
+     */
+    public function findSnippetBodies(array $ids): array
+    {
+        if ([] === $ids) {
+            return [];
+        }
+
+        /** @var list<array{id: int|string, bodyHtmlSafe: ?string, bodyText: ?string}> $rows */
+        $rows = $this->createQueryBuilder('m')
+            ->select('m.id', 'm.bodyHtmlSafe', 'm.bodyText')
+            ->where('m.id IN (:ids)')
+            ->setParameter('ids', $ids)
+            ->getQuery()
+            ->getArrayResult();
+
+        $bodies = [];
+
+        foreach ($rows as $row) {
+            $bodies[(int) $row['id']] = ['bodyHtmlSafe' => $row['bodyHtmlSafe'], 'bodyText' => $row['bodyText']];
+        }
+
+        return $bodies;
     }
 }

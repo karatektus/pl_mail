@@ -24,6 +24,7 @@ use App\Service\Ai\ThreadTranscript;
 use App\Service\Mail\NewMailMarkers;
 use App\Service\Mail\SidebarCounts;
 use App\Service\Mail\ThreadListRenderer;
+use App\Service\Mail\ThreadRows;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -46,6 +47,7 @@ final class MailController extends AbstractController
         private readonly ThreadSummariser $summariser,
         private readonly ThreadTranscript $transcript,
         private readonly ThreadSummaryStore $summaries,
+        private readonly ThreadRows $threadRows,
     )
     {
     }
@@ -255,7 +257,7 @@ final class MailController extends AbstractController
             static fn (MessageCategory $case): bool => false === in_array($case, $tabs, true),
         ));
 
-        $this->threadRepository->preloadForRows($threads);
+        $this->threadRows->preload($threads);
 
         return $this->renderList($request, 'mail/inbox.html.twig', $threads, [
             'tab'         => $tab,
@@ -313,7 +315,7 @@ final class MailController extends AbstractController
         $sort    = $this->listSort($request);
         $threads = $this->threadRepository->findForLabel($label, $account, $page, self::PER_PAGE, $sort, $unreadOnly);
 
-        $this->threadRepository->preloadForRows($threads);
+        $this->threadRows->preload($threads);
 
         return $this->renderList($request, 'mail/label.html.twig', $threads, [
             'label'       => $label,
@@ -406,7 +408,7 @@ final class MailController extends AbstractController
         $sort    = $this->listSort($request);
         $threads = $this->threadRepository->findForAccountInbox($account, $page, self::PER_PAGE, $sort);
 
-        $this->threadRepository->preloadForRows($threads);
+        $this->threadRows->preload($threads);
 
         return $this->renderList($request, 'mail/account.html.twig', $threads, [
             'account'   => $account,
@@ -432,7 +434,7 @@ final class MailController extends AbstractController
         $sort    = $this->listSort($request);
         $threads = $this->threadRepository->findForStarred($user, $page, self::PER_PAGE, $sort, $unreadOnly);
 
-        $this->threadRepository->preloadForRows($threads);
+        $this->threadRows->preload($threads);
 
         return $this->renderList($request, 'mail/starred.html.twig', $threads, [
             'page'        => $page,
@@ -521,7 +523,7 @@ final class MailController extends AbstractController
         $sort    = $this->listSort($request);
         $threads = $this->threadRepository->findForRole($user, $role, $page, self::PER_PAGE, $sort, $unreadOnly);
 
-        $this->threadRepository->preloadForRows($threads);
+        $this->threadRows->preload($threads);
 
         return $this->renderList($request, $template, $threads, [
             'page'        => $page,

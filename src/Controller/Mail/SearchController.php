@@ -11,6 +11,7 @@ use App\Domain\Enum\Mail\SearchSortOrder;
 use App\Entity\User\User;
 use App\Repository\Mail\MessageThreadRepository;
 use App\Service\Mail\ThreadListRenderer;
+use App\Service\Mail\ThreadRows;
 use App\Service\Search\SearchQueryParser;
 use App\Service\Search\SearchResultHighlights;
 use Doctrine\ORM\EntityManagerInterface;
@@ -33,6 +34,7 @@ final class SearchController extends AbstractController
         private readonly SemanticCoverage        $coverage,
         private readonly EmbeddingCatchUp        $catchUp,
         private readonly SearchResultHighlights  $highlights,
+        private readonly ThreadRows              $threadRows,
     ) {}
 
     #[Route('', name: '', methods: ['GET'])]
@@ -136,7 +138,7 @@ final class SearchController extends AbstractController
         // why a full page of results measured 167 queries against the inbox's
         // 120 for the same fifty rows: search paid for the label chips one row
         // at a time on top of everything the inbox was already paying.
-        $this->threadRepository->preloadForRows($threads);
+        $this->threadRows->preload($threads);
 
         // WHY THE ROW CAN SAY WHY IT IS HERE. Without this a result shows the
         // opening line of its newest message, which usually does not contain
@@ -145,9 +147,9 @@ final class SearchController extends AbstractController
         // a window around the match with every occurrence marked.
         //
         // AFTER the preload, and that is an ordering constraint rather than a
-        // preference: this reads `thread.messages` for the ids, so run before
-        // it, the page pays a lazy load per row and the search list is back to
-        // the hundred-and-sixty-seven-query shape preloadForRows() exists to
+        // preference: this reads the preloaded row messages for the ids, so run
+        // before it, the page pays a load per row and the search list is back to
+        // the hundred-and-sixty-seven-query shape the preload exists to
         // prevent. See ThreadListQueryBudgetTest.
         //
         // Handed to the template as a map keyed by thread id, next to
