@@ -4,7 +4,12 @@ declare(strict_types=1);
 
 namespace App\Tests\Command\Maintenance;
 
+use App\Domain\Enum\Job\JobKind;
+use App\Domain\Enum\Job\JobState;
+use App\Entity\Job\BackgroundJob;
 use App\Entity\Monitoring\LogEntry;
+use App\Entity\User\TrustedDevice;
+use App\Entity\User\User;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Console\Application;
@@ -99,6 +104,37 @@ final class PruneMonitoringDataCommandTest extends KernelTestCase
         self::assertTrue($this->heartbeatExists('prune-fixture-new'));
     }
 
+    /**
+     * The two tables whose prune methods nothing called: a finished job past
+     * the window and an expired trusted device go, their fresh neighbours stay.
+     */
+    public function testItPrunesOldFinishedJobsAndExpiredTrustedDevices(): void
+    {
+        $user = new User();
+        $user->email     = 'prune-' . bin2hex(random_bytes(6)) . '@plmail.test';
+        $user->nameFirst = 'Prune';
+        $user->nameLast  = 'Fixture';
+        $user->password  = 'x';
+        $this->em->persist($user);
+        $this->em->flush();
+
+        $oldJob   = $this->job($user, '-40 days');
+        $freshJob = $this->job($user, '-1 day');
+
+        $expired = TrustedDevice::create($user, 'main', 'old laptop', new \DateTimeImmutable('-1 day'));
+        $valid   = TrustedDevice::create($user, 'main', 'this laptop', new \DateTimeImmutable('+30 days'));
+        $this->em->persist($expired['device']);
+        $this->em->persist($valid['device']);
+        $this->em->flush();
+
+        $this->command->execute([]);
+
+        self::assertSame(0, $this->rowCount('background_job', $oldJob));
+        self::assertSame(1, $this->rowCount('background_job', $freshJob));
+        self::assertSame(0, $this->rowCount('trusted_device', (int) $expired['device']->id));
+        self::assertSame(1, $this->rowCount('trusted_device', (int) $valid['device']->id));
+    }
+
     /** Nothing to prune is the normal case on a healthy install. */
     public function testAnEmptySweepSucceeds(): void
     {
@@ -125,6 +161,27 @@ final class PruneMonitoringDataCommandTest extends KernelTestCase
         $this->em->flush();
 
         return $entry;
+    }
+
+    /** A finished job, its finishedAt moved into the past through DBAL. */
+    private function job(User $user, string $finished): int
+    {
+        $job = new BackgroundJob($user, JobKind::cases()[0]);
+        $job->finish(JobState::Done);
+        $this->em->persist($job);
+        $this->em->flush();
+
+        $this->connection->executeStatement(
+            'UPDATE background_job SET finished_at = :at WHERE id = :id',
+            ['at' => new \DateTimeImmutable($finished)->format('Y-m-d H:i:s'), 'id' => $job->id],
+        );
+
+        return (int) $job->id;
+    }
+
+    private function rowCount(string $table, int $id): int
+    {
+        return (int) $this->connection->fetchOne(sprintf('SELECT COUNT(*) FROM %s WHERE id = ?', $table), [$id]);
     }
 
     private function logEntryExists(LogEntry $entry): bool

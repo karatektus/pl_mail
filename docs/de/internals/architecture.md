@@ -1,4 +1,4 @@
-<!-- translated-from: internals/architecture.md sha1:20b8fdd77966024edc2b0f9c02a0d15f9adf0633 -->
+<!-- translated-from: internals/architecture.md sha1:78f0f7c57e326357ea2dcc453cbb6362d573522f -->
 # Architektur
 
 Die Schichten, was wo liegt, und die Regeln, die das so halten. Diese Seite beschreibt die
@@ -233,7 +233,7 @@ war, in dem das Projekt vorher steckte: Logs und verwaiste Blobs wuchsen ohne Gr
 | `* * * * *` | `app:calendar:alerts` | Dasselbe Argument, und zusätzlich ist das Intervall die Schranke dafür, wie spät eine Erinnerung kommen kann |
 | `0 4 * * *` | `app:push:renew --repair` | Gmail-Watches halten 7 Tage, Graph-Abonnements etwa 3 |
 | `50 3 * * *` | `app:calendar:materialise` | Rollt den Horizont der Termininstanzen vorwärts, damit einem Serientermin nicht klammheimlich die Termine ausgehen |
-| `30 4 * * *` | `app:monitoring:prune` | Log-Einträge und tote Heartbeats |
+| `30 4 * * *` | `app:monitoring:prune` | Log-Einträge, Push-Zustellungen, tote Heartbeats, fertige Hintergrundjobs (30 Tage) und abgelaufene vertraute Geräte |
 | `0 5 * * 0` | `app:prune:blobs` | Wöchentlich; er läuft drei Verzeichnisbäume ab, und eine Woche Waisen ist ein Rundungsfehler |
 
 Der Zeitplan ist `stateful()` gegen den Cache und `processOnlyLastMissedRun(true)`. Ein Worker,

@@ -214,7 +214,7 @@ in before, with logs and orphaned blobs growing without bound.
 | `* * * * *` | `app:calendar:alerts` | Same argument, plus the interval is the bound on how late a reminder can be |
 | `0 4 * * *` | `app:push:renew --repair` | Gmail watches last 7 days, Graph subscriptions ~3 |
 | `50 3 * * *` | `app:calendar:materialise` | Rolls the occurrence horizon forward, so a repeating event does not quietly run out of dates |
-| `30 4 * * *` | `app:monitoring:prune` | Log entries and dead heartbeats |
+| `30 4 * * *` | `app:monitoring:prune` | Log entries, push deliveries, dead heartbeats, finished background jobs (30 days) and expired trusted devices |
 | `0 5 * * 0` | `app:prune:blobs` | Weekly; it walks three directory trees and a week of orphans is a rounding error |
 
 The schedule is `stateful()` against the cache and `processOnlyLastMissedRun(true)`, so a

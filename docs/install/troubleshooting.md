@@ -166,7 +166,9 @@ each row. The minimum level kept is `APP_DB_LOG_LEVEL`, `warning` by default. An
 worse that nobody has read outlines the user menu — amber or red — on every page, for administrators
 only. Opening the browser is what marks them seen.
 
-`app:monitoring:prune` keeps 14 days of log entries and 30 days of heartbeats by default, nightly.
+`app:monitoring:prune` keeps 14 days of log entries and 30 days of heartbeats by default, nightly. It
+also removes finished background jobs after 30 days (`--job-days=N`) and trusted devices once they
+have expired.
 
 **The failure mode is looking for an info-level trace in production.** `fingers_crossed` means it was
 never written unless an error followed it. Lower `APP_DB_LOG_LEVEL` to `info` temporarily if you need

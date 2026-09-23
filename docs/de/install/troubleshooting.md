@@ -1,4 +1,4 @@
-<!-- translated-from: install/troubleshooting.md sha1:7d141d4e9169db18a2b045164621c0809700a68f -->
+<!-- translated-from: install/troubleshooting.md sha1:91a3224458cdef6b2292c713eeee7662b612860e -->
 # Fehlersuche
 
 Was `/healthz` bedeutet, wie du eine hängende von einer leeren Warteschlange unterscheidest, wo die
@@ -181,7 +181,8 @@ niemand gelesen hat, umrandet das Benutzermenü — bernsteinfarben oder rot —
 zwar nur für Administratoren. Den Browser zu öffnen ist das, was sie als gesehen markiert.
 
 `app:monitoring:prune` bewahrt standardmäßig 14 Tage Protokolleinträge und 30 Tage Heartbeats auf,
-nächtlich.
+nächtlich. Außerdem entfernt es fertige Hintergrundjobs nach 30 Tagen (`--job-days=N`) und vertraute
+Geräte, sobald sie abgelaufen sind.
 
 **Der typische Fehlerfall ist, in der Produktion nach einer Spur auf Info-Ebene zu suchen.**
 `fingers_crossed` bedeutet, dass sie nie geschrieben wurde, sofern kein Fehler folgte. Senke

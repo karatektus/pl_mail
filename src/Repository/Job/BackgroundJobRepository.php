@@ -124,18 +124,23 @@ class BackgroundJobRepository extends ServiceEntityRepository
     }
 
     /**
-     * Jobs old enough that nobody is waiting on them.
+     * Delete jobs that finished before the given moment; returns how many.
      *
-     * @return list<BackgroundJob>
+     * Replaces a findFinishedBefore() that nothing ever called, which is why
+     * the table grew forever. A bulk DELETE rather than hydrate-and-remove, for
+     * TrustedDeviceRepository::pruneExpired()'s reason — a sweep that loads its
+     * victims scales with the history it removes — and one more: a row whose
+     * `kind` names a case the enum has since lost would fail to hydrate and
+     * stop the sweep at exactly the old rows it exists for.
      */
-    public function findFinishedBefore(DateTimeImmutable $before, int $limit = 500): array
+    public function pruneFinishedBefore(DateTimeImmutable $before): int
     {
         return $this->createQueryBuilder('job')
+            ->delete()
             ->where('job.finishedAt IS NOT NULL')
             ->andWhere('job.finishedAt < :before')
             ->setParameter('before', $before)
-            ->setMaxResults($limit)
             ->getQuery()
-            ->getResult();
+            ->execute();
     }
 }
