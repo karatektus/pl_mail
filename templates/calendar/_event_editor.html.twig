@@ -141,46 +141,98 @@ on an empty string, and clearing the location is a thing a user may mean.
             </p>
         </div>
 
-        <div class="grid grid-cols-2 gap-3">
-            <div>
-                <label for="event-starts" class="block text-xs text-ink-muted mb-1">
-                    {{ 'calendar.event.starts'|trans }}
-                </label>
-                <input id="event-starts" name="startsAt" type="datetime-local" required
-                       data-controller="ui--datetime" data-datetime-time-label="{{ 'form.time_part'|trans }}"
-                       value="{{ startsAt|date('Y-m-d\\TH:i', displayZone) }}"
-                       data-calendar--event-form-target="starts"
-                       {% if errors.startsAt is defined %}aria-invalid="true"{% endif %}
-                       aria-describedby="event-starts-error"
-                       class="w-full rounded-lg border bg-sunken px-3 py-2 text-sm text-ink
-                              focus:outline-none focus:ring-2 focus:ring-accent
-                              {{ errors.startsAt is defined ? 'border-danger' : 'border-line' }}">
-                <p id="event-starts-error"
-                   data-calendar--event-form-target="startsError"
-                   class="mt-1 text-[11px] text-danger {{ errors.startsAt is defined ? '' : 'hidden' }}">
-                    {{ errors.startsAt|default('') }}
-                </p>
+        {# ── When ────────────────────────────────────────────────────────
+           Two cards — the start and the end, each a day and a time — and one
+           panel under them that sets whichever card is chosen: a strip of days
+           (a month behind the calendar button), then the hour, then the minute.
+           See calendar--when, which draws the panel.
+
+           It replaces two `datetime-local` inputs, which write their time in
+           the BROWSER's locale whatever the page asks: "03:00 PM" to someone
+           who chose the 24-hour clock. The inputs are still here, hidden, with
+           the same names, ids and targets, and they are still what is posted,
+           validated and marked invalid — calendar--event-form reads them as it
+           always did, and keeps an event's length when its start moves by
+           listening to them. The picker only writes them and redraws from them.
+
+           `today` is on the calendar's clock, not the reader's, for the same
+           reason every value here is: an event is placed on the calendar's
+           wall. #}
+        {% set when_labels = {
+            starts:        'calendar.event.starts'|trans,
+            ends:          'calendar.event.ends'|trans,
+            today:         'calendar.when.today'|trans,
+            tomorrow:      'calendar.when.tomorrow'|trans,
+            sameDay:       'calendar.when.same_day'|trans,
+            sameShort:     'calendar.when.same_short'|trans,
+            anotherDay:    'calendar.when.another_day'|trans,
+            backToWeek:    'calendar.when.back_to_week'|trans,
+            hour:          'calendar.when.hour'|trans,
+            minute:        'calendar.when.minute'|trans,
+            half:          'calendar.when.half'|trans,
+            anotherMinute: 'calendar.when.another_minute'|trans,
+            quarterHours:  'calendar.when.quarter_hours'|trans,
+            exactMinute:   'calendar.when.exact_minute'|trans,
+            minutes:       'calendar.when.minutes'|trans,
+            hours:         'calendar.when.hours'|trans,
+            dayOne:        'calendar.when.day_one'|trans,
+            days:          'calendar.when.days'|trans,
+            length:        'calendar.when.length'|trans,
+        } %}
+        <div data-controller="calendar--when"
+             data-calendar--when-today-value="{{ 'now'|date('Y-m-d', displayZone ?: null) }}"
+             data-calendar--when-labels-value="{{ when_labels|json_encode }}"
+             class="flex flex-col gap-3">
+
+            <input id="event-starts" name="startsAt" type="hidden" required
+                   value="{{ startsAt|date('Y-m-d\\TH:i', displayZone) }}"
+                   data-calendar--event-form-target="starts"
+                   data-calendar--when-target="start"
+                   {% if errors.startsAt is defined %}aria-invalid="true"{% endif %}
+                   aria-describedby="event-starts-error">
+            <input id="event-ends" name="endsAt" type="hidden" required
+                   value="{{ endsAt|date('Y-m-d\\TH:i', displayZone) }}"
+                   data-calendar--event-form-target="ends"
+                   data-calendar--when-target="end"
+                   data-error-message="{{ 'calendar.event.error.end_before_start'|trans }}"
+                   {% if errors.endsAt is defined %}aria-invalid="true"{% endif %}
+                   aria-describedby="event-ends-error">
+
+            <div role="group" aria-label="{{ 'calendar.when.group'|trans }}" class="grid grid-cols-2 gap-3">
+                {% for side in ['start', 'end'] %}
+                    <button type="button"
+                            data-calendar--when-target="{{ side }}Card"
+                            data-action="calendar--when#edit{{ side == 'start' ? 'Start' : 'End' }}"
+                            aria-pressed="{{ side == 'start' ? 'true' : 'false' }}"
+                            aria-describedby="event-{{ side }}s-error"
+                            class="flex min-w-0 flex-col items-start gap-0.5 rounded-xl border px-3.5 py-2.5 text-left
+                                   transition-colors cursor-pointer
+                                   focus:outline-none focus-visible:ring-2 focus-visible:ring-accent">
+                        <span class="text-[11px] font-semibold uppercase tracking-wider text-ink-faint">
+                            {{ (side == 'start' ? 'calendar.event.starts' : 'calendar.event.ends')|trans }}
+                        </span>
+                        <span data-when-part="day" class="text-[13px] text-ink-muted truncate max-w-full"></span>
+                        <span class="flex items-baseline gap-2">
+                            <span data-when-part="time" class="text-xl font-semibold tracking-tight text-ink tabular-nums"></span>
+                            {% if side == 'end' %}<span data-when-part="length" class="text-xs text-ink-faint"></span>{% endif %}
+                        </span>
+                    </button>
+                {% endfor %}
             </div>
-            <div>
-                <label for="event-ends" class="block text-xs text-ink-muted mb-1">
-                    {{ 'calendar.event.ends'|trans }}
-                </label>
-                <input id="event-ends" name="endsAt" type="datetime-local" required
-                       data-controller="ui--datetime" data-datetime-time-label="{{ 'form.time_part'|trans }}"
-                       value="{{ endsAt|date('Y-m-d\\TH:i', displayZone) }}"
-                       data-calendar--event-form-target="ends"
-                       data-error-message="{{ 'calendar.event.error.end_before_start'|trans }}"
-                       {% if errors.endsAt is defined %}aria-invalid="true"{% endif %}
-                       aria-describedby="event-ends-error"
-                       class="w-full rounded-lg border bg-sunken px-3 py-2 text-sm text-ink
-                              focus:outline-none focus:ring-2 focus:ring-accent
-                              {{ errors.endsAt is defined ? 'border-danger' : 'border-line' }}">
-                <p id="event-ends-error"
-                   data-calendar--event-form-target="endsError"
-                   class="mt-1 text-[11px] text-danger {{ errors.endsAt is defined ? '' : 'hidden' }}">
-                    {{ errors.endsAt|default('') }}
-                </p>
-            </div>
+
+            <p id="event-starts-error"
+               data-calendar--event-form-target="startsError"
+               class="-mt-1 text-[11px] text-danger {{ errors.startsAt is defined ? '' : 'hidden' }}">
+                {{ errors.startsAt|default('') }}
+            </p>
+            <p id="event-ends-error"
+               data-calendar--event-form-target="endsError"
+               class="-mt-1 text-[11px] text-danger {{ errors.endsAt is defined ? '' : 'hidden' }}">
+                {{ errors.endsAt|default('') }}
+            </p>
+
+            <div data-calendar--when-target="panel"
+                 class="flex flex-col gap-3 rounded-xl border border-line bg-sunken p-3"></div>
         </div>
 
         <label class="flex items-center gap-2 text-sm text-ink-muted">

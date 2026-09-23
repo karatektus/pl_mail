@@ -1,4 +1,5 @@
 import { test, expect } from "./support/test";
+import { setWhen } from "./support/datetime";
 import { APP_TIMEZONE, TEST_ADMIN, consoleCommand, login, seed, seedUser } from "./support/config";
 
 /**
@@ -243,8 +244,8 @@ test.describe("README screenshots", () => {
             await expect(modal).toBeVisible();
 
             await modal.locator("#event-title").fill(title);
-            await modal.locator("#event-starts").fill(startsAt);
-            await modal.locator("#event-ends").fill(endsAt);
+            await setWhen(modal.locator("#event-starts"), startsAt);
+            await setWhen(modal.locator("#event-ends"), endsAt);
 
             await modal.getByRole("button", { name: "Save" }).click();
             await expect(page.getByRole("button", { name: new RegExp(title) }).first()).toBeVisible();

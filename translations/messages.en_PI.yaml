@@ -672,6 +672,26 @@ attachment:
         zoom_in: Closer
         zoom_out: Further off
 calendar:
+    # The event editor's date-and-time picker; see calendar--when.
+    when:
+        group: 'Settin'' sail an'' makin'' port'
+        today: 'This day'
+        tomorrow: 'On the morrow'
+        same_day: 'Same day'
+        same_short: 'Same'
+        another_day: 'Another day'
+        back_to_week: 'Back t'' this week'
+        hour: 'Hour'
+        minute: 'Minute'
+        half: 'Forenoon or afternoon'
+        another_minute: 'Another minute'
+        quarter_hours: 'Quarter bells'
+        exact_minute: 'Exact minute'
+        minutes: '%count% min'
+        hours: '%count% h'
+        day_one: '1 day'
+        days: '%count% days'
+        length: 'How long'
     default_name: Cap'n's own
     alert:
         mail:

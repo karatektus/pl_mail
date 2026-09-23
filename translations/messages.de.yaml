@@ -940,6 +940,26 @@ attachment:
         zoom_in: Vergrößern
         zoom_out: Verkleinern
 calendar:
+    # The event editor's date-and-time picker; see calendar--when.
+    when:
+        group: 'Beginn und Ende'
+        today: 'Heute'
+        tomorrow: 'Morgen'
+        same_day: 'Am selben Tag'
+        same_short: 'Selber'
+        another_day: 'Anderer Tag'
+        back_to_week: 'Zurück zu dieser Woche'
+        hour: 'Stunde'
+        minute: 'Minute'
+        half: 'Vormittag oder Nachmittag'
+        another_minute: 'Andere Minute'
+        quarter_hours: 'Viertelstunden'
+        exact_minute: 'Genaue Minute'
+        minutes: '%count% Min.'
+        hours: '%count% Std.'
+        day_one: '1 Tag'
+        days: '%count% Tage'
+        length: 'Dauer'
     default_name: Persönlich
     alert:
         mail:

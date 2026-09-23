@@ -1,4 +1,5 @@
 import { expect, type Locator, type Page } from "@playwright/test";
+import { setWhen } from "./support/datetime";
 import { test } from "./support/test";
 import { APP_TIMEZONE, seed } from "./support/config";
 
@@ -318,8 +319,8 @@ test.describe("calendar time-grid", () => {
         await expect(modal).toBeVisible();
 
         await modal.locator("#event-title").fill(SHORT);
-        await modal.locator("#event-starts").fill(`${day}T09:00`);
-        await modal.locator("#event-ends").fill(`${day}T09:15`);
+        await setWhen(modal.locator("#event-starts"), `${day}T09:00`);
+        await setWhen(modal.locator("#event-ends"), `${day}T09:15`);
         await modal.getByRole("button", { name: "Save" }).click();
 
         const block = blocks(page, SHORT).first();

@@ -1,5 +1,5 @@
 import { expect, type Locator, type Page } from "@playwright/test";
-import { fillDateTime } from "./support/datetime";
+import { setWhen } from "./support/datetime";
 import { test } from "./support/test";
 import { seed } from "./support/config";
 import { choose } from "./support/select";
@@ -124,8 +124,8 @@ function localValue(when: Date) {
  * one-hour event that begins on the hour cannot reach the next day.
  */
 async function shiftTimesBy(modal: Locator, hours: number) {
-    // The hidden inputs carry the value; fillDateTime types into the date and
-    // time fields ui--datetime draws beside them.
+    // The hidden inputs carry the value under calendar--when's picker; this
+    // spec is about the series save, not the picker, so it sets them directly.
     const starts = modal.locator("#event-starts");
     const ends   = modal.locator("#event-ends");
 
@@ -138,8 +138,8 @@ async function shiftTimesBy(modal: Locator, hours: number) {
     // The start first, so the end written after it is the one that stands: the
     // order the other way round would have shiftEnd overwrite the end that was
     // just filled in.
-    await fillDateTime(starts, localValue(movedStart));
-    await fillDateTime(ends, localValue(movedEnd));
+    await setWhen(starts, localValue(movedStart));
+    await setWhen(ends, localValue(movedEnd));
 }
 
 test.describe("calendar", () => {

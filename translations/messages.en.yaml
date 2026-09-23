@@ -934,6 +934,26 @@ attachment:
         zoom_in: Zoom in
         zoom_out: Zoom out
 calendar:
+    # The event editor's date-and-time picker; see calendar--when.
+    when:
+        group: 'Start and end'
+        today: 'Today'
+        tomorrow: 'Tomorrow'
+        same_day: 'Same day'
+        same_short: 'Same'
+        another_day: 'Another day'
+        back_to_week: 'Back to this week'
+        hour: 'Hour'
+        minute: 'Minute'
+        half: 'Morning or afternoon'
+        another_minute: 'Another minute'
+        quarter_hours: 'Quarter hours'
+        exact_minute: 'Exact minute'
+        minutes: '%count% min'
+        hours: '%count% h'
+        day_one: '1 day'
+        days: '%count% days'
+        length: 'Length'
     default_name: Personal
     alert:
         mail:

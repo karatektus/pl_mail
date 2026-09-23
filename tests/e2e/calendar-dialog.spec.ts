@@ -1,5 +1,5 @@
 import { expect, type Page } from "@playwright/test";
-import { fillDateTime } from "./support/datetime";
+import { setWhen } from "./support/datetime";
 import { test } from "./support/test";
 import { seed } from "./support/config";
 
@@ -78,8 +78,8 @@ test.describe("calendar event dialog", () => {
             const day = (await page.locator("#event-starts").inputValue()).slice(0, 10);
 
             await page.locator(EDITOR).fill("ZZ dialog end-before-start");
-            await fillDateTime(page.locator("#event-starts"), `${day}T18:00`);
-            await fillDateTime(page.locator("#event-ends"), `${day}T08:00`);
+            await setWhen(page.locator("#event-starts"), `${day}T18:00`);
+            await setWhen(page.locator("#event-ends"), `${day}T08:00`);
 
             await disableClientValidation(page);
 
@@ -118,8 +118,8 @@ test.describe("calendar event dialog", () => {
             const day = (await page.locator("#event-starts").inputValue()).slice(0, 10);
 
             await page.locator(EDITOR).fill("ZZ dialog client side");
-            await fillDateTime(page.locator("#event-starts"), `${day}T18:00`);
-            await fillDateTime(page.locator("#event-ends"), `${day}T08:00`);
+            await setWhen(page.locator("#event-starts"), `${day}T18:00`);
+            await setWhen(page.locator("#event-ends"), `${day}T08:00`);
 
             let posted = false;
             page.on("request", (r) => {
@@ -200,11 +200,49 @@ test.describe("calendar event dialog", () => {
 
             const day = (await page.locator("#event-starts").inputValue()).slice(0, 10);
 
-            await fillDateTime(page.locator("#event-starts"), `${day}T09:00`);
-            await fillDateTime(page.locator("#event-ends"), `${day}T10:30`);
-            await fillDateTime(page.locator("#event-starts"), `${day}T14:00`);
+            await setWhen(page.locator("#event-starts"), `${day}T09:00`);
+            await setWhen(page.locator("#event-ends"), `${day}T10:30`);
+            await setWhen(page.locator("#event-starts"), `${day}T14:00`);
 
             await expect(page.locator("#event-ends")).toHaveValue(`${day}T15:30`);
+        });
+
+        /**
+         * The picker itself: a day, an hour and a minute set the start, the
+         * end follows at the same length, and the end cannot be put before
+         * the start because the choices that would do it are not offered.
+         *
+         * Buttons are found by what they SET (`data-value`), not by their
+         * labels, which read "09" or "9" depending on the clock setting.
+         */
+        test("sets the start by day, hour and minute, and keeps the end after it", async ({ page }) => {
+            await openNewEvent(page);
+
+            const panel = page.locator('[data-calendar--when-target="panel"]');
+            const start = page.locator("#event-starts");
+            const end = page.locator("#event-ends");
+
+            await panel.locator('[data-when="day"]').nth(1).click();
+
+            // On the 12-hour clock the grid shows the half of the day the start
+            // is in; 09:00 is in the morning's.
+            const morning = panel.locator('[data-when="half"][data-value="0"]');
+            if (await morning.count()) {
+                await morning.click();
+            }
+            await panel.locator('[data-when="hour"][data-value="9"]').click();
+            await panel.locator('[data-when="minute"][data-value="30"]').click();
+
+            await expect(start).toHaveValue(/T09:30$/);
+            await expect(end).toHaveValue(/T10:30$/);
+            expect((await end.inputValue()).slice(0, 10)).toBe((await start.inputValue()).slice(0, 10));
+
+            // The quarter-hour minute finishes the start and moves on to the end.
+            await expect(page.locator('[data-calendar--when-target="endCard"]')).toHaveAttribute("aria-pressed", "true");
+            await expect(panel.locator('[data-when="hour"][data-value="8"]')).toBeDisabled();
+
+            await panel.locator('[data-when="length"][data-value="120"]').click();
+            await expect(end).toHaveValue(/T11:30$/);
         });
 
         /**
