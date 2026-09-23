@@ -89,6 +89,35 @@ final class CalDavWriteTest extends WebTestCase
         self::assertSame(412, $client->getResponse()->getStatusCode());
     }
 
+    /**
+     * A client may name a new resource anything. The event used to be saved
+     * and then looked up by the href's name, which found nothing, so the
+     * client was told 409 about a write that had happened — and retried it.
+     */
+    public function testANewResourceNamedOtherThanItsUidIsStoredAndSaysWhere(): void
+    {
+        $client = $this->boot();
+        $uid    = 'put-' . uniqid('', true) . '@plmail.test';
+
+        $this->put($client, 'client-chosen-name', $this->ics($uid, 'Kickoff'));
+
+        self::assertSame(201, $client->getResponse()->getStatusCode());
+        self::assertSame($this->href($uid), $client->getResponse()->headers->get('Location'));
+
+        $client->request('GET', $this->href($uid), [], [], ['HTTP_AUTHORIZATION' => $this->basic()]);
+
+        self::assertSame(200, $client->getResponse()->getStatusCode());
+
+        // And If-None-Match: * — "only if it is not there yet" — is honoured.
+        $client->request('PUT', $this->href($uid), [], [], [
+            'HTTP_AUTHORIZATION' => $this->basic(),
+            'CONTENT_TYPE'       => 'text/calendar',
+            'HTTP_IF_NONE_MATCH' => '*',
+        ], $this->ics($uid, 'Overwrite'));
+
+        self::assertSame(412, $client->getResponse()->getStatusCode());
+    }
+
     public function testDeletingRemovesTheResource(): void
     {
         $client = $this->boot();

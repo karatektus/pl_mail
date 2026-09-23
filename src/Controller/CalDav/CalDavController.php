@@ -22,6 +22,8 @@ use App\Service\Calendar\CalendarEventWriter;
 use App\Service\Calendar\Ics\IcsExporter;
 use App\Service\Calendar\Ics\IcsImporter;
 use Doctrine\ORM\EntityManagerInterface;
+use Sabre\VObject\Component\VCalendar;
+use Sabre\VObject\Reader;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -424,6 +426,19 @@ final class CalDavController extends AbstractController
      * written B must be told, not silently allowed to erase B. A request
      * without the header is allowed through, because a client that never read
      * the resource cannot be overwriting a version it did not see.
+     * `If-None-Match: *` is the other half — "create, never overwrite" — and a
+     * resource that already exists answers it with 412.
+     *
+     * The UID the document carries is read BEFORE anything is written, and is
+     * what the stored event is found by afterwards. Clients are free to name a
+     * new resource anything, and looking the event up by the href's name after
+     * the import found nothing whenever that name was not the UID: the event
+     * was saved, the client was told 409, and it retried into a duplicate or
+     * gave up on an edit that had in fact happened. Now a name that is not the
+     * UID is accepted for a create — the event is then served under its UID,
+     * and the Location header says where — and refused with 409, before any
+     * write, only where honouring it would change an existing resource's UID
+     * or give a second resource a UID one already has (RFC 4791 §5.3.2.1).
      */
     #[Route('/calendars/{userId}/{calendarId}/{name}', name: 'put_resource', requirements: ['userId' => '\d+', 'calendarId' => '\d+', 'name' => '.+\.ics'], methods: ['PUT'])]
     public function putResource(Request $request, int $userId, int $calendarId, string $name): Response
@@ -433,14 +448,41 @@ final class CalDavController extends AbstractController
         $uid      = $this->paths->uidFromName($name);
 
         $existing = $this->events->findOneBy(['calendar' => $calendar, 'uid' => $uid]);
+        $ifMatch  = $request->headers->get('If-Match');
 
         if (null !== $existing) {
             $sequences = $this->log->latestSequencesForCalendar($calendarId);
             $current   = $this->etags->for($existing, $sequences[$existing->id] ?? null);
 
-            if (false === $this->etags->matches($request->headers->get('If-Match'), $current)) {
+            if ('*' === trim((string) $request->headers->get('If-None-Match'))) {
                 return new Response('', Response::HTTP_PRECONDITION_FAILED);
             }
+
+            if (false === $this->etags->matches($ifMatch, $current)) {
+                return new Response('', Response::HTTP_PRECONDITION_FAILED);
+            }
+        } elseif (null !== $ifMatch && '' !== trim($ifMatch)) {
+            // If-Match names a version of something; there is nothing here to
+            // be that version (RFC 9110 §13.1.1).
+            return new Response('', Response::HTTP_PRECONDITION_FAILED);
+        }
+
+        $documentUid = $this->documentUid($request->getContent());
+
+        if (null !== $documentUid && $documentUid !== $uid) {
+            // An existing resource keeps its UID, and a new one may not take a
+            // UID another resource in this collection already holds.
+            if (
+                null !== $existing
+                || null !== $this->events->findOneBy(['calendar' => $calendar, 'uid' => $documentUid])
+            ) {
+                return new Response(
+                    'The calendar data carries a UID another resource already holds, or changes the UID of this one.',
+                    Response::HTTP_CONFLICT,
+                );
+            }
+
+            $uid = $documentUid;
         }
 
         try {
@@ -461,17 +503,53 @@ final class CalDavController extends AbstractController
         $stored = $this->events->findOneBy(['calendar' => $calendar, 'uid' => $uid]);
 
         if (null === $stored) {
-            // The document parsed but named a different UID than the href. The
-            // resource the client asked to create does not exist, and saying so
-            // is better than a 201 for something it cannot then fetch.
-            return new Response('The calendar data does not carry the UID this resource is named by.', Response::HTTP_CONFLICT);
+            // Only a document the importer skipped whole: no event with
+            // anything to draw, or a UID that is already one of this user's
+            // meetings on another calendar (IcsImporter leaves those alone).
+            // Nothing was stored, so a 201 would name a resource that is not
+            // there.
+            return new Response('The calendar data was not stored: it holds no usable event, or its UID is already on another calendar.', Response::HTTP_CONFLICT);
         }
 
         $sequences = $this->log->latestSequencesForCalendar($calendarId);
+        $headers   = ['ETag' => $this->etags->for($stored, $sequences[$stored->id] ?? null)];
 
-        return new Response('', null === $existing ? Response::HTTP_CREATED : Response::HTTP_NO_CONTENT, [
-            'ETag' => $this->etags->for($stored, $sequences[$stored->id] ?? null),
-        ]);
+        // Where it can be fetched, when that is not where it was put.
+        if ($stored->uid !== $this->paths->uidFromName($name)) {
+            $headers['Location'] = $this->paths->resource($calendar, $stored);
+        }
+
+        return new Response('', null === $existing ? Response::HTTP_CREATED : Response::HTTP_NO_CONTENT, $headers);
+    }
+
+    /**
+     * The one UID a PUT body is about, or null when it names none or several —
+     * a CalDAV resource holds one event, and a body that is not one is left to
+     * the importer to refuse.
+     */
+    private function documentUid(string $ics): ?string
+    {
+        try {
+            $document = Reader::read($ics, Reader::OPTION_FORGIVING);
+        } catch (\Throwable) {
+            return null;
+        }
+
+        if (false === $document instanceof VCalendar) {
+            return null;
+        }
+
+        $uids = [];
+
+        foreach ($document->select('VEVENT') as $vevent) {
+            $found = trim((string) ($vevent->UID ?? ''));
+
+            if ('' !== $found) {
+                $uids[$found] = true;
+            }
+        }
+
+        return 1 === count($uids) ? (string) array_key_first($uids) : null;
     }
 
     /**
