@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Jmap\Mail;
 
 use App\Domain\Enum\Mail\MessageFlag;
+use App\Entity\Label\Label;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Message;
 use App\Jmap\Protocol\Exception\MethodException;
@@ -107,6 +108,15 @@ final class EmailPatchApplier
             throw new MethodException('invalidPatch', sprintf('Property "%s" cannot be updated.', $path));
         }
 
+        // Resolved before anything is written. The draft update flushes and
+        // the keyword step tells Gmail/IMAP/Graph, so a bad mailbox id found
+        // afterwards used to answer notUpdated for a patch that was half
+        // applied — locally and on the provider — leaving the client unable
+        // to say what the message now is.
+        $wantedMailboxes = true === $touchesMailboxes
+            ? $this->resolveMailboxes($account, $mailboxIds)
+            : null;
+
         if ([] !== $content) {
             $this->draftWriter->update($account, $message, $content);
         }
@@ -115,8 +125,8 @@ final class EmailPatchApplier
             $this->applyKeywords($message, $keywords);
         }
 
-        if (true === $touchesMailboxes) {
-            $this->applyMailboxes($account, $message, $mailboxIds);
+        if (null !== $wantedMailboxes) {
+            $this->applyMailboxes($message, $wantedMailboxes);
         }
     }
 
@@ -159,9 +169,14 @@ final class EmailPatchApplier
     }
 
     /**
+     * The labels a mailboxIds value names, refusing any the account does not
+     * have. Changes nothing, so it can run before any part of the patch does.
+     *
      * @param array<string,bool> $mailboxIds
+     *
+     * @return non-empty-array<int,Label>
      */
-    private function applyMailboxes(Account $account, Message $message, array $mailboxIds): void
+    private function resolveMailboxes(Account $account, array $mailboxIds): array
     {
         $wanted = [];
 
@@ -190,6 +205,14 @@ final class EmailPatchApplier
             throw new MethodException('invalidProperties', 'An Email must belong to at least one Mailbox.');
         }
 
+        return $wanted;
+    }
+
+    /**
+     * @param array<int,Label> $wanted from resolveMailboxes()
+     */
+    private function applyMailboxes(Message $message, array $wanted): void
+    {
         $current = [];
 
         foreach ($message->labels as $label) {

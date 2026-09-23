@@ -205,6 +205,27 @@ final class EmailPatchApplierTest extends KernelTestCase
         $this->applier->apply($this->account, $message, ['mailboxIds/999999' => true]);
     }
 
+    /**
+     * A refused patch changes nothing. The keyword step propagates to the
+     * provider, so it used to mark the message read everywhere before the bad
+     * mailbox id further down the same patch was even looked at.
+     */
+    public function testABadMailboxIdLeavesTheRestOfThePatchUnapplied(): void
+    {
+        $message = $this->message(draft: false);
+
+        try {
+            $this->applier->apply($this->account, $message, [
+                'keywords/$seen'    => true,
+                'mailboxIds/999999' => true,
+            ]);
+            self::fail('the unknown mailbox must be refused');
+        } catch (MethodException) {
+        }
+
+        self::assertNull($message->seenAt);
+    }
+
     // ── Fixtures ──────────────────────────────────────────────────────────
 
     private function message(bool $draft): Message
