@@ -22,7 +22,6 @@ use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Webklex\PHPIMAP\Client;
 use Webklex\PHPIMAP\Config;
 use Webklex\PHPIMAP\Folder;
-use Webklex\PHPIMAP\Support\FolderCollection;
 
 /**
  * What a folder is called on the wire, and what it is called on screen.
@@ -39,6 +38,10 @@ use Webklex\PHPIMAP\Support\FolderCollection;
  * modified UTF-7. It is the folder's identity in the protocol — the syncer
  * indexes existing rows by it and hands it to SELECT — so "fixing" it to match
  * the label would stop every non-ASCII folder from being selectable at all.
+ *
+ * The fixtures use ordinary folders ("Bücher", "Köln") rather than "Entwürfe":
+ * that one is recognised as the Drafts folder by name and bound to the system
+ * label, which is a different code path from the one under test here.
  */
 final class MailboxLabelNamingTest extends KernelTestCase
 {
@@ -75,19 +78,19 @@ final class MailboxLabelNamingTest extends KernelTestCase
      */
     public function testWebklexLeavesThePathRawAndDecodesTheName(): void
     {
-        $folder = self::folder('INBOX.Entw&APw-rfe');
+        $folder = self::folder('INBOX.B&APw-cher');
 
-        self::assertSame('INBOX.Entw&APw-rfe', $folder->path);
-        self::assertSame('INBOX.Entwürfe', $folder->full_name);
-        self::assertSame('Entwürfe', $folder->name);
+        self::assertSame('INBOX.B&APw-cher', $folder->path);
+        self::assertSame('INBOX.Bücher', $folder->full_name);
+        self::assertSame('Bücher', $folder->name);
     }
 
     public function testAGermanFolderGetsAReadableLabel(): void
     {
-        $this->sync(['INBOX.Entw&APw-rfe', 'INBOX.Gel&APY-schte Objekte']);
+        $this->sync(['INBOX.B&APw-cher', 'INBOX.K&APY-ln']);
 
-        self::assertSame('Entwürfe', $this->labelNameFor('INBOX.Entw&APw-rfe'));
-        self::assertSame('Gelöschte Objekte', $this->labelNameFor('INBOX.Gel&APY-schte Objekte'));
+        self::assertSame('Bücher', $this->labelNameFor('INBOX.B&APw-cher'));
+        self::assertSame('Köln', $this->labelNameFor('INBOX.K&APY-ln'));
     }
 
     /**
@@ -96,19 +99,19 @@ final class MailboxLabelNamingTest extends KernelTestCase
      */
     public function testTheStoredPathIsStillRawModifiedUtf7(): void
     {
-        $this->sync(['INBOX.Entw&APw-rfe']);
+        $this->sync(['INBOX.B&APw-cher']);
 
-        $mailbox = $this->mailboxFor('INBOX.Entw&APw-rfe');
+        $mailbox = $this->mailboxFor('INBOX.B&APw-cher');
 
         self::assertNotNull($mailbox, 'the mailbox must be findable by the path the server sent');
         self::assertSame(
-            'INBOX.Entw&APw-rfe',
+            'INBOX.B&APw-cher',
             $mailbox->fullPath,
             'fullPath is the folder identity SELECT takes — decoding it breaks folder selection',
         );
 
         // And the decoded name was available beside it all along.
-        self::assertSame('Entwürfe', $mailbox->name);
+        self::assertSame('Bücher', $mailbox->name);
     }
 
     /**
@@ -132,8 +135,8 @@ final class MailboxLabelNamingTest extends KernelTestCase
      */
     public function testResyncingDoesNotDuplicateTheMailbox(): void
     {
-        $this->sync(['INBOX.Entw&APw-rfe']);
-        $result = $this->sync(['INBOX.Entw&APw-rfe']);
+        $this->sync(['INBOX.B&APw-cher']);
+        $result = $this->sync(['INBOX.B&APw-cher']);
 
         self::assertSame(0, $result['created']);
         self::assertSame(1, $result['updated']);
@@ -141,7 +144,7 @@ final class MailboxLabelNamingTest extends KernelTestCase
 
     /**
      * The upgrade path, which this fix does not get to dodge: an account
-     * synced before it has a label literally called "Entw&APw-rfe" already
+     * synced before it has a label literally called "B&APw-cher" already
      * bound to the folder, and the next sync resolves that same folder to a
      * different name.
      *
@@ -153,12 +156,12 @@ final class MailboxLabelNamingTest extends KernelTestCase
      */
     public function testAnAccountSyncedBeforeTheFixResyncsWithoutColliding(): void
     {
-        $this->sync(['INBOX.Entw&APw-rfe']);
-        $this->corruptTheLabelName('INBOX.Entw&APw-rfe', 'Entw&APw-rfe');
+        $this->sync(['INBOX.B&APw-cher']);
+        $this->corruptTheLabelName('INBOX.B&APw-cher', 'B&APw-cher');
 
-        $this->sync(['INBOX.Entw&APw-rfe']);
+        $this->sync(['INBOX.B&APw-cher']);
 
-        self::assertSame('Entwürfe', $this->labelNameFor('INBOX.Entw&APw-rfe'));
+        self::assertSame('Bücher', $this->labelNameFor('INBOX.B&APw-cher'));
     }
 
     /**
@@ -171,14 +174,14 @@ final class MailboxLabelNamingTest extends KernelTestCase
      */
     public function testTheOldLabelIsNotDeletedByTheResync(): void
     {
-        $this->sync(['INBOX.Entw&APw-rfe']);
-        $this->corruptTheLabelName('INBOX.Entw&APw-rfe', 'Entw&APw-rfe');
+        $this->sync(['INBOX.B&APw-cher']);
+        $this->corruptTheLabelName('INBOX.B&APw-cher', 'B&APw-cher');
 
-        $this->sync(['INBOX.Entw&APw-rfe']);
+        $this->sync(['INBOX.B&APw-cher']);
 
         $stale = $this->em->getRepository(Label::class)->findOneBy([
             'usr'  => $this->account->usr,
-            'name' => 'Entw&APw-rfe',
+            'name' => 'B&APw-cher',
         ]);
 
         self::assertNotNull($stale, 'the pre-fix label still holds the mail filed under it');
@@ -247,39 +250,11 @@ final class MailboxLabelNamingTest extends KernelTestCase
     }
 
     /**
-     * A client that answers getFolders() from a fixture and never opens a
-     * socket. Folder itself is the real one, so the decoding under test is the
-     * library's own and not a copy of it.
-     *
      * @param list<string> $paths
      */
     private static function client(array $paths): Client
     {
-        $client = new class(Config::make()) extends Client {
-            /** @var list<string> */
-            public array $paths = [];
-
-            public function getFolders(bool $hierarchical = true, ?string $parent_folder = null, bool $soft_fail = false): FolderCollection
-            {
-                $folders = [];
-
-                foreach ($this->paths as $path) {
-                    $folders[] = new Folder($this, $path, '.', []);
-                }
-
-                return FolderCollection::make($folders);
-            }
-
-            /** Never connected, so there is nothing to log out of. */
-            public function disconnect(): Client
-            {
-                return $this;
-            }
-        };
-
-        $client->paths = $paths;
-
-        return $client;
+        return new FakeListingClient(array_fill_keys($paths, []));
     }
 
     private static function folder(string $path): Folder
