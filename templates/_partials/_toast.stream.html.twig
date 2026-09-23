@@ -1,0 +1,16 @@
+{#
+One toast, appended to the toast region.
+
+The five lines nearly every stream response carries beside the fragment it
+replaces; written once here so the target id and the wrapper cannot drift apart
+between them.
+
+  message  already translated
+  type     success | error | info (default success)
+  extra    optional, see _toast.html.twig (hide_after, undo_url, undo_label)
+#}
+<turbo-stream action="append" target="toast-region">
+    <template>
+        {% include '_partials/_toast.html.twig' with { message: message, type: type ?? 'success', extra: extra ?? {} } only %}
+    </template>
+</turbo-stream>

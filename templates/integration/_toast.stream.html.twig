@@ -6,11 +6,4 @@ its attachments are exactly as they were — so there is no frame worth
 replacing. The confirmation is the whole response, which also means the thread
 keeps its scroll position.
 #}
-<turbo-stream action="append" target="toast-region">
-    <template>
-        {% include '_partials/_toast.html.twig' with {
-            message: toastMessage|trans(toastParams),
-            type: isError ? 'error' : 'success',
-        } %}
-    </template>
-</turbo-stream>
+{% include '_partials/_toast.stream.html.twig' with { message: toastMessage|trans(toastParams), type: isError ? 'error' : 'success' } only %}

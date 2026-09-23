@@ -1,8 +1,4 @@
-<turbo-stream action="append" target="toast-region">
-    <template>
-        {% include '_partials/_toast.html.twig' with { message: toastMessage|trans, type: toastType } %}
-    </template>
-</turbo-stream>
+{% include '_partials/_toast.stream.html.twig' with { message: toastMessage|trans, type: toastType } only %}
 
 <turbo-stream action="replace" target="settings-app-password-list">
     <template>

@@ -6,14 +6,7 @@
     <template></template>
 </turbo-stream>
 
-<turbo-stream action="append" target="toast-region">
-    <template>
-        {% include '_partials/_toast.html.twig' with {
-            message: toastMessage|trans,
-            type: 'success',
-        } %}
-    </template>
-</turbo-stream>
+{% include '_partials/_toast.stream.html.twig' with { message: toastMessage|trans, type: 'success' } only %}
 
 {# Sidebar list (mail pages) — uses the active-only accounts global. #}
 <turbo-stream action="replace" target="account-list">

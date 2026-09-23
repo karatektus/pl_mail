@@ -33,11 +33,4 @@ Variables: job
     </template>
 </turbo-stream>
 
-<turbo-stream action="append" target="toast-region">
-    <template>
-        {% include '_partials/_toast.html.twig' with {
-            type:    'info',
-            message: 'jobs.started'|trans({ '%action%': job.kind.labelKey()|trans|lower }),
-        } only %}
-    </template>
-</turbo-stream>
+{% include '_partials/_toast.stream.html.twig' with { type: 'info', message: 'jobs.started'|trans({ '%action%': job.kind.labelKey()|trans|lower }) } only %}

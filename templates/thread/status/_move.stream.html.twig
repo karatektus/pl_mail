@@ -38,10 +38,4 @@ Variables:
     leaves:  true,
 } only %}
 
-<turbo-stream action="append" target="toast-region">
-    <template>
-        {% include '_partials/_toast.html.twig' with {
-            message: 'toast.moved'|trans({ '%folder%': label|label_name }),
-        } only %}
-    </template>
-</turbo-stream>
+{% include '_partials/_toast.stream.html.twig' with { message: 'toast.moved'|trans({ '%folder%': label|label_name }) } only %}

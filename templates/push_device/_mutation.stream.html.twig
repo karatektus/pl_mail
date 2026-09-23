@@ -11,11 +11,7 @@ disappears takes its "last delivery" line with it, and the empty state has to
 appear when the last row goes. Re-rendering the partial is how that stays the
 same markup the full page renders, instead of a second opinion about it.
 #}
-<turbo-stream action="append" target="toast-region">
-    <template>
-        {% include '_partials/_toast.html.twig' with { message: toastMessage|trans, type: 'success' } %}
-    </template>
-</turbo-stream>
+{% include '_partials/_toast.stream.html.twig' with { message: toastMessage|trans, type: 'success' } only %}
 
 <turbo-stream action="replace" target="settings-push-device-list">
     <template>

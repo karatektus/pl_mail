@@ -20,11 +20,4 @@ Variables:
 #}
 <turbo-stream action="remove" target="proposal_card_{{ messageId }}"></turbo-stream>
 
-<turbo-stream action="append" target="toast-region">
-    <template>
-        {% include '_partials/_toast.html.twig' with {
-            message: toastMessage|trans,
-            type: toastType,
-        } %}
-    </template>
-</turbo-stream>
+{% include '_partials/_toast.stream.html.twig' with { message: toastMessage|trans, type: toastType } only %}

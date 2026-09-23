@@ -1,8 +1,4 @@
-<turbo-stream action="append" target="toast-region">
-    <template>
-        {% include '_partials/_toast.html.twig' with { message: toastMessage|trans, type: 'success' } %}
-    </template>
-</turbo-stream>
+{% include '_partials/_toast.stream.html.twig' with { message: toastMessage|trans, type: 'success' } only %}
 
 {# The whole panel, not the one row that changed — see
    SignatureController::streamResponse() for why. #}

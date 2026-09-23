@@ -24,10 +24,4 @@ Variables:
     leaves:  false,
 } only %}
 
-<turbo-stream action="append" target="toast-region">
-    <template>
-        {% include '_partials/_toast.html.twig' with {
-            message: 'toast.labelled'|trans({ '%label%': label|label_name }),
-        } only %}
-    </template>
-</turbo-stream>
+{% include '_partials/_toast.stream.html.twig' with { message: 'toast.labelled'|trans({ '%label%': label|label_name }) } only %}

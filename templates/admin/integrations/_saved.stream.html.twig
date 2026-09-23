@@ -6,11 +6,7 @@ status chip and can change what the *other* rows say about connectability, and
 the list is cheap.
 #}
 {% if toastMessage is not empty %}
-    <turbo-stream action="append" target="toast-region">
-        <template>
-            {% include '_partials/_toast.html.twig' with { message: toastMessage|trans, type: 'success' } %}
-        </template>
-    </turbo-stream>
+    {% include '_partials/_toast.stream.html.twig' with { message: toastMessage|trans, type: 'success' } only %}
 {% endif %}
 
 <turbo-stream action="replace" target="admin-integrations">

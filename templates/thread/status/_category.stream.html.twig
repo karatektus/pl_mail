@@ -21,10 +21,4 @@ Variables:
     leaves:  true,
 } only %}
 
-<turbo-stream action="append" target="toast-region">
-    <template>
-        {% include '_partials/_toast.html.twig' with {
-            message: 'toast.categorised'|trans({ '%category%': ('tabs.' ~ category.value)|trans }),
-        } only %}
-    </template>
-</turbo-stream>
+{% include '_partials/_toast.stream.html.twig' with { message: 'toast.categorised'|trans({ '%category%': ('tabs.' ~ category.value)|trans }) } only %}

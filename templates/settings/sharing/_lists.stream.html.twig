@@ -17,14 +17,7 @@ Variables:
   mintedLinkUrl     string|null  shown once, then never again
   mintedBookingUrl  string|null  shown once, then never again
 #}
-<turbo-stream action="append" target="toast-region">
-    <template>
-        {% include '_partials/_toast.html.twig' with {
-            message: toastMessage|trans,
-            type: 'success',
-        } %}
-    </template>
-</turbo-stream>
+{% include '_partials/_toast.stream.html.twig' with { message: toastMessage|trans, type: 'success' } only %}
 
 {# The target id is re-emitted inside its own replacement: a replace whose
    template drops the id works exactly once, and the second stream silently

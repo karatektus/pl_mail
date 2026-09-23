@@ -23,14 +23,7 @@ Variables:
   toastMessage         string         translation key
   toastParameters      array          placeholders for it, e.g. { '%count%': 2 }
 #}
-<turbo-stream action="append" target="toast-region">
-    <template>
-        {% include '_partials/_toast.html.twig' with {
-            message: toastMessage|trans(toastParameters|default({})),
-            type: 'success',
-        } %}
-    </template>
-</turbo-stream>
+{% include '_partials/_toast.stream.html.twig' with { message: toastMessage|trans(toastParameters|default({})), type: 'success' } only %}
 
 {# The target id is re-emitted inside its own replacement. A replace whose
    template drops the id works exactly once: the second stream finds nothing

@@ -17,14 +17,7 @@ Accepts:
     {# Before the list, so the toast is appended even if rendering the frame
        below fails on something — a refusal that is swallowed by a template
        error is the exact failure this variable exists to end. #}
-    <turbo-stream action="append" target="toast-region">
-        <template>
-            {% include '_partials/_toast.html.twig' with {
-                message: toastMessage|trans,
-                type:    toastType|default('error'),
-            } only %}
-        </template>
-    </turbo-stream>
+    {% include '_partials/_toast.stream.html.twig' with { message: toastMessage|trans, type: toastType|default('error') } only %}
 {% endif %}
 
 <turbo-stream action="replace" target="admin-users">
