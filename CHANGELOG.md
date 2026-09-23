@@ -6,6 +6,25 @@ so anything that changes the schema irreversibly is called out explicitly.
 The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, and `sha-…` pins one commit.
 
+## v0.2.39 — 2026-09-23
+
+### Added
+
+- **The time, while you read your mail.** A new choice under Settings → General → Clock, **Show
+  the time**, puts a clock that moves on by itself somewhere you can see it:
+
+  - **On the Happening Soon button**, the default. The button now shows the time on every page
+    rather than only when something is coming up — the next thing's icon when there is one, a clock
+    when there is not — and the panel it opens starts with the time and today's date.
+  - **Under the plMail name**, as a quiet second line: weekday and time.
+  - **At the bottom of the sidebar**: a larger time, the date and the next thing coming up, which
+    opens Happening Soon.
+  - **Nowhere**, which is the topbar exactly as it was.
+
+  It follows your timezone and 12- or 24-hour choice, is right on the first paint rather than
+  filled in afterwards, and stays right in a tab that has been in the background. On a phone the
+  topbar leaves the time off, since the phone already shows it.
+
 ## v0.2.38 — 2026-09-23
 
 ### Fixed
