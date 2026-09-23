@@ -6,10 +6,10 @@ namespace App\Service\Insight;
 
 use App\Domain\Helper\ThrowableSeverity;
 use App\Entity\User\User;
+use App\Infrastructure\Mercure\UserUpdate;
 use Psr\Log\LoggerInterface;
 use Psr\Log\LogLevel;
 use Symfony\Component\Mercure\HubInterface;
-use Symfony\Component\Mercure\Update;
 
 /**
  * Tells a user's open tabs that their insights moved.
@@ -44,7 +44,7 @@ final readonly class InsightNotifier
     public function publishInsightsChanged(User $user): void
     {
         try {
-            $this->hub->publish(new Update(
+            $this->hub->publish(UserUpdate::create(
                 topics: [
                     sprintf('mail/user/%d', $user->id),
                 ],

@@ -39,7 +39,7 @@ ohne Test heißt hier „behoben, bis es jemand versehentlich zurückdreht".
 | **S-03** | ✅ behoben | `a4d09b8` | In Produktion **erzwungen**, nicht nur Report-Only — siehe unten, warum das möglich wurde. |
 | **S-04** | ✅ behoben | `8c3080d` | Nicht-Bilder fallen auf den selbst erzeugten Platzhalter zurück, nicht auf einen Download. |
 | **S-05** | ✅ behoben | `8c3080d` | Header-Block im Caddyfile, mit `defer`, damit die strengeren Per-Response-Policies gewinnen. |
-| **S-06** | ✅ behoben | `8c3080d` | `subscribe: []`. |
+| **S-06** | ✅ behoben | `8c3080d`, siehe Nachtrag | `subscribe: []`. Die Annahme „Topic-Isolierung greift" war falsch: alle Updates waren öffentlich — seit dem Nachtrag privat (`UserUpdate`). |
 | **S-07** | ⚪️ bewusst so | — | Siehe „Bewusst so belassen" unten. |
 | **S-08** | ✅ behoben | `8c3080d` | Mit S-02 mitgezogen. |
 | **S-09** | ⚪️ bewusst so | — | Siehe unten. |
@@ -392,6 +392,8 @@ header {
 Der Default ist trotzdem die falsche Vorgabe: ein künftiger Aufruf von `createCookie($request)` ohne Topic-Argument würde stillschweigend ein Abonnement auf **alle** Topics ausstellen, also die Mail-Ereignisse aller Nutzer. Das ist ein Fehler, der beim Schreiben unauffällig aussieht und beim Review leicht durchrutscht.
 
 **Behebung:** `subscribe: []` als Default. Die Anwendung publiziert nur, sie abonniert serverseitig nicht — der Publish-Anspruch bleibt, der Subscribe-Anspruch entfällt und muss dann pro Cookie explizit gesetzt werden, was ohnehin bereits geschieht.
+
+**Nachtrag — die Isolierung griff nicht.** Die Einschätzung „aktuell nicht ausnutzbar" oben ist falsch. Der Topic-Anspruch im Cookie wirkt nur auf **private** Updates; alle acht Notifier publizierten öffentliche (`new Update(...)` ohne `private: true`), und die liefert der Hub an jeden Subscriber aus, der das Topic nennt — mit oder ohne passenden Anspruch. Jede angemeldete Person konnte also `mail/user/<fremde id>` abonnieren und Sync-Ereignisse, Label-Markup samt CSRF-Tokens und Betreffzeilen fehlgeschlagener Sendungen mitlesen. Behoben mit `App\Infrastructure\Mercure\UserUpdate`, das jedes Update privat baut; `MercureUpdatesArePrivateTest` lässt kein `new Update(` außerhalb davon zu.
 
 ---
 

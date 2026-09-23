@@ -6,10 +6,10 @@ namespace App\Service\Rule;
 
 use App\Domain\Helper\ThrowableSeverity;
 use App\Entity\Rule\MailRule;
+use App\Infrastructure\Mercure\UserUpdate;
 use Psr\Log\LoggerInterface;
 use Psr\Log\LogLevel;
 use Symfony\Component\Mercure\HubInterface;
-use Symfony\Component\Mercure\Update;
 
 /**
  * Tells an open settings page that a rule run has moved.
@@ -36,7 +36,7 @@ final readonly class RuleRunNotifier
         }
 
         try {
-            $this->hub->publish(new Update(
+            $this->hub->publish(UserUpdate::create(
                 topics: [sprintf('mail/user/%d', $rule->usr->id)],
                 data: json_encode([
                     'type' => 'rule.run',

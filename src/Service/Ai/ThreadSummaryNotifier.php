@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace App\Service\Ai;
 
 use App\Domain\Helper\ThrowableSeverity;
+use App\Infrastructure\Mercure\UserUpdate;
 use Psr\Log\LoggerInterface;
 use Psr\Log\LogLevel;
 use Symfony\Component\Mercure\HubInterface;
-use Symfony\Component\Mercure\Update;
 
 /**
  * Tell an open thread that its summary has landed.
@@ -33,7 +33,7 @@ final readonly class ThreadSummaryNotifier
     public function finished(int $userId, int $threadId, string $state): void
     {
         try {
-            $this->hub->publish(new Update(
+            $this->hub->publish(UserUpdate::create(
                 topics: [sprintf('mail/user/%d', $userId)],
                 data: (string) json_encode([
                     'type'     => 'summary.finished',

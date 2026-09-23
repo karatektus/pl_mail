@@ -7,9 +7,9 @@ namespace App\Service\Mail;
 use App\Domain\Helper\ThrowableSeverity;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Mailbox;
+use App\Infrastructure\Mercure\UserUpdate;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Mercure\HubInterface;
-use Symfony\Component\Mercure\Update;
 
 /**
  * Mercure publishing only. Contact harvesting is dispatched once per
@@ -77,7 +77,7 @@ final readonly class SyncNotifier
     private function publish(array $topics, array $data): void
     {
         try {
-            $this->hub->publish(new Update(topics: $topics, data: json_encode($data, JSON_THROW_ON_ERROR)));
+            $this->hub->publish(UserUpdate::create(topics: $topics, data: json_encode($data, JSON_THROW_ON_ERROR)));
         } catch (\Throwable $e) {
             $this->logger->log(
                 ThrowableSeverity::level($e, \Psr\Log\LogLevel::WARNING),

@@ -6,10 +6,10 @@ namespace App\Service\Mail;
 
 use App\Domain\Helper\ThrowableSeverity;
 use App\Entity\Mail\Message;
+use App\Infrastructure\Mercure\UserUpdate;
 use Psr\Log\LoggerInterface;
 use Psr\Log\LogLevel;
 use Symfony\Component\Mercure\HubInterface;
-use Symfony\Component\Mercure\Update;
 use Twig\Environment;
 
 /**
@@ -72,7 +72,7 @@ final readonly class SendOutcomeNotifier
         }
 
         try {
-            $this->hub->publish(new Update(
+            $this->hub->publish(UserUpdate::create(
                 topics: [sprintf('mail/user/%d', $userId)],
                 data: json_encode([
                     'type'   => 'mail.send-outcome',

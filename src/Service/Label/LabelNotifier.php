@@ -6,10 +6,10 @@ namespace App\Service\Label;
 
 use App\Domain\Helper\ThrowableSeverity;
 use App\Entity\User\User;
+use App\Infrastructure\Mercure\UserUpdate;
 use Psr\Log\LoggerInterface;
 use Psr\Log\LogLevel;
 use Symfony\Component\Mercure\HubInterface;
-use Symfony\Component\Mercure\Update;
 
 /**
  * Tells a user's OTHER tabs that their label structure moved.
@@ -94,7 +94,7 @@ final readonly class LabelNotifier
         }
 
         try {
-            $this->hub->publish(new Update(
+            $this->hub->publish(UserUpdate::create(
                 topics: [sprintf('mail/user/%d', $userId)],
                 data: json_encode([
                     'type'   => 'labels.changed',

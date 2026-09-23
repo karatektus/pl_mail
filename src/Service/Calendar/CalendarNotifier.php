@@ -7,10 +7,10 @@ namespace App\Service\Calendar;
 use App\Domain\Helper\ThrowableSeverity;
 use App\Entity\Calendar\Calendar;
 use App\Entity\User\User;
+use App\Infrastructure\Mercure\UserUpdate;
 use Psr\Log\LoggerInterface;
 use Psr\Log\LogLevel;
 use Symfony\Component\Mercure\HubInterface;
-use Symfony\Component\Mercure\Update;
 
 /**
  * Tells an open page that its calendar moved.
@@ -94,7 +94,7 @@ final readonly class CalendarNotifier
     private function publish(int $userId, array $data): void
     {
         try {
-            $this->hub->publish(new Update(
+            $this->hub->publish(UserUpdate::create(
                 topics: [sprintf('mail/user/%d', $userId)],
                 data: json_encode($data, JSON_THROW_ON_ERROR),
             ));
