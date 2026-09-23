@@ -122,10 +122,12 @@ class MessageSyncer
             'lastSeenUid' => $lastSeenUid,
         ]);
 
-        // Load all already-synced UIDs up front so each batch can O(1)-skip them.
-        // array_flip turns [123, 456, …] into [123 => 0, 456 => 1, …].
+        // Load the already-synced UIDs above the mark up front so each batch
+        // can O(1)-skip them. Only those: the range below asks for nothing
+        // lower, and processBatch() treats anything at or below the mark as
+        // handled. array_flip turns [123, 456, …] into [123 => 0, 456 => 1, …].
         $syncedUids = array_flip(
-            $this->messageRepository->findSyncedUids($mailbox)
+            $this->messageRepository->findSyncedUids($mailbox, $lastSeenUid)
         );
 
         // How a message that appears here is told from a message that is merely
@@ -144,8 +146,8 @@ class MessageSyncer
         try {
             $folder->messages()
                 ->where(self::uidRangeCriteria($uidRange))
-                ->chunked(function ($batch) use ($mailboxId, $accountId, &$synced, &$syncedUids, &$lowestSkippedUid, $presence) {
-                    $this->processBatch($batch, $mailboxId, $accountId, $syncedUids, $lowestSkippedUid, $presence);
+                ->chunked(function ($batch) use ($mailboxId, $accountId, $lastSeenUid, &$synced, &$syncedUids, &$lowestSkippedUid, $presence) {
+                    $this->processBatch($batch, $mailboxId, $accountId, $lastSeenUid, $syncedUids, $lowestSkippedUid, $presence);
                     $synced += count($batch);
                     $this->em->clear();
                     $this->logger->info(sprintf('Synced %d messages so far', $synced));
@@ -199,6 +201,7 @@ class MessageSyncer
         iterable         $batch,
         int              $mailboxId,
         int              $accountId,
+        int              $lastSeenUid,
         array            &$syncedUids,
         ?int             &$lowestSkippedUid,
         ImapUidPresence  $presence,
@@ -216,8 +219,11 @@ class MessageSyncer
 
             // A `lastSeenUid+1:*` range still returns the highest-UID message when
             // nothing newer exists (`*` clamps to it), so every run re-delivers the
-            // newest mail. Skip anything this mailbox already holds.
-            if (true === isset($syncedUids[$uid])) {
+            // newest mail. Skip anything this mailbox already holds — and
+            // anything at or below the mark, which $syncedUids no longer
+            // covers: the clamped `*` can name a UID below it once the newest
+            // message has been deleted.
+            if ($uid <= $lastSeenUid || true === isset($syncedUids[$uid])) {
                 if (true === ($uid > $maxUid)) {
                     $maxUid = $uid;
                 }

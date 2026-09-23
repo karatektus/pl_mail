@@ -1286,19 +1286,25 @@ class MessageRepository extends ServiceEntityRepository
     }
 
     /**
-     * Every UID this mailbox has already stored.
+     * The UIDs above $aboveUid this mailbox has already stored.
      *
      * QueryBuilder for the projection: the syncer diffs a set of integers
      * against what the server offers, and hydrating a Message per UID to read
      * one column would make a routine poll cost a mailbox load.
+     *
+     * Bounded below because the syncer only ever asks the server for UIDs
+     * above its high-water mark: loading every UID a large folder has ever
+     * stored, on every poll, to check the handful above it was the cost.
      */
-    public function findSyncedUids(Mailbox $mailbox): array
+    public function findSyncedUids(Mailbox $mailbox, int $aboveUid = 0): array
     {
         return $this->createQueryBuilder('m')
             ->select('m.imapUid')
             ->where('m.mailbox = :mailbox')
             ->andWhere('m.imapUid IS NOT NULL')
+            ->andWhere('m.imapUid > :aboveUid')
             ->setParameter('mailbox', $mailbox)
+            ->setParameter('aboveUid', $aboveUid)
             ->getQuery()
             ->getSingleColumnResult();
     }
