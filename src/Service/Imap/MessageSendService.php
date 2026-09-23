@@ -16,6 +16,10 @@ use App\Service\Label\ThreadLabelSynchronizer;
 use App\Service\Mail\AttachmentResolver;
 use App\Service\Mail\MailChangeRecorder;
 use App\Service\Mail\MailSenderRegistry;
+use App\Domain\Interface\MailSenderInterface;
+use Psr\Log\LoggerInterface;
+use Psr\Log\NullLogger;
+use Throwable;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Mime\Address;
@@ -38,6 +42,7 @@ class MessageSendService
         private readonly MailChangeRecorder      $changes,
         private readonly MessageThreader         $threader,
         private readonly ThreadLabelSynchronizer $threadLabels,
+        private readonly LoggerInterface         $logger = new NullLogger(),
     ) {
     }
 
@@ -65,9 +70,69 @@ class MessageSendService
             return false;
         }
 
+        // THE PROVIDER HAS THE MAIL. From this line on nothing may throw out of
+        // this method, and the order below is what guarantees it.
+        //
+        // Anything that escaped used to reach SendMessageHandler's catch, which
+        // released the claim — sent_at still NULL — and handed the exception to
+        // Messenger, whose retry claimed the row again and sent the mail again:
+        // up to six copies in the recipient's inbox because the IMAP server
+        // holding the Sent folder was slow to answer. So sentAt is written and
+        // committed first, on its own, which makes every later claimForSend()
+        // refuse; the bookkeeping after it is best effort and only logged.
+        $message->sentAt = new DateTimeImmutable();
+
+        try {
+            $this->em->flush();
+        } catch (Throwable $failure) {
+            // The one outcome with no good answer. Returning true keeps the
+            // claim standing, so the retry ladder is refused and the mail is not
+            // sent twice; what is lost is the draft->sent transition on the row,
+            // which is a far smaller wrong than a duplicate on the wire.
+            $this->logger->critical('MessageSendService: mail was sent but recording it failed', [
+                'message'   => $message->id,
+                'exception' => $failure,
+            ]);
+
+            return true;
+        }
+
+        try {
+            $this->recordDelivery($message, $account, $email, $sender);
+        } catch (Throwable $failure) {
+            $this->logger->error('MessageSendService: mail was sent, post-send bookkeeping failed', [
+                'message'   => $message->id,
+                'exception' => $failure,
+            ]);
+        }
+
+        return true;
+    }
+
+    /**
+     * Everything that follows a send the provider accepted: the Sent copy, the
+     * Drafts->Sent move, the thread's ordering and labels, the change log.
+     *
+     * None of it decides whether the mail left — that is already committed by
+     * the time this runs — so a failure here is reported and survived, never
+     * propagated. See send().
+     */
+    private function recordDelivery(Message $message, Account $account, Email $email, MailSenderInterface $sender): void
+    {
         // API senders file their own Sent copy; only append manually for SMTP.
+        //
+        // Its own try, so an unreachable IMAP server costs the Sent copy and
+        // nothing else: the labels and the change log below still describe
+        // what actually happened.
         if (false === $sender->filesSentCopy()) {
-            $this->appendToSentFolder($email, $account);
+            try {
+                $this->appendToSentFolder($email, $account);
+            } catch (Throwable $failure) {
+                $this->logger->error('MessageSendService: mail was sent, appending the Sent copy failed', [
+                    'message'   => $message->id,
+                    'exception' => $failure,
+                ]);
+            }
         }
 
         $sentLabel   = $this->labelResolver->systemLabel(LabelRole::Sent, $account);
@@ -80,7 +145,6 @@ class MessageSendService
         }
 
         $message->removeFlag(MessageFlag::DRAFT);
-        $message->sentAt = new DateTimeImmutable();
 
         // Plain-IMAP: physical Sent folder; Gmail: no mailbox.
         $message->mailbox = $sentLabel->bindingFor($account)?->mailbox;
@@ -148,8 +212,6 @@ class MessageSendService
         }
 
         $this->em->flush();
-
-        return true;
     }
 
     /**
