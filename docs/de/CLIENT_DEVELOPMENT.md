@@ -1,4 +1,4 @@
-<!-- translated-from: CLIENT_DEVELOPMENT.md sha1:b64a75f8a6792e5edb963f9a282f7d3c44d7dad4 -->
+<!-- translated-from: CLIENT_DEVELOPMENT.md sha1:0158cc3a74ea44bee53f303e2499b46ee5283908 -->
 # Einen Client für plMail bauen
 
 Alles, was eine Entwicklerin (oder ein Agent) braucht, um einen *neuen* plMail-Client zu schreiben
@@ -704,7 +704,9 @@ konstruieren** (siehe [§0](#0-lies-das-zuerst-der-server-wird-aktiv-weiterentwi
 - **Anchor-basiertes Paging wird nicht unterstützt.** `anchor` löst `unsupportedFilter` aus; nimm
   `position` + `limit`. Negative Positionen (Verankern vom Ende her) werden **von `Email/query`**
   abgelehnt; `Mailbox/query` nimmt sie an und verankert vom Ende.
-- **`Email/query` liefert immer `total`; `Mailbox/query` nur mit `calculateTotal: true`.**
+- **`Email/query` liefert `total`, außer du schickst `calculateTotal: false`; `Mailbox/query` nur
+  mit `calculateTotal: true`.** Das Zählen ist eine zweite Abfrage, ein Pager ohne Anzeige der
+  Anzahl sollte also `false` schicken.
 - **`VacationResponse/*` und `Blob/copy`** fehlen. `SearchSnippet/get` nicht — es stand hier als
   fehlend, während `SearchSnippetGetMethod` bereits im Baum lag.
 - **Kontakte sind nur Autovervollständigung.** `Contact/autocomplete`, unter
