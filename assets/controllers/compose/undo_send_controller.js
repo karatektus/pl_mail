@@ -1,4 +1,5 @@
 import { Controller } from "@hotwired/stimulus"
+import { requestFailed } from "../../request_errors.js"
 
 /**
  * The Undo button in the "Sending…" toast.
@@ -26,11 +27,16 @@ export default class extends Controller {
     }
 
     connect() {
+        this.shownAt = Date.now()
+        this.armHide(this.hideAfterValue)
+    }
+
+    armHide(delay) {
         this.hideTimer = setTimeout(() => {
             this.element.style.transition  = "opacity 0.4s"
             this.element.style.opacity     = "0"
             this.element.style.pointerEvents = "none"
-        }, this.hideAfterValue)
+        }, Math.max(0, delay))
     }
 
     disconnect() {
@@ -41,19 +47,33 @@ export default class extends Controller {
         clearTimeout(this.hideTimer)
         this.element.style.pointerEvents = "none"
 
-        const response = await fetch(this.urlValue, {
-            method: "POST",
-            headers: { "X-Requested-With": "XMLHttpRequest" },
-        })
+        let response = null
 
-        if (response.ok) {
-            const html = await response.text()
-            Turbo.renderStreamMessage(html)
-
-            // Dismiss the parent toast immediately
-            this.element.closest("[data-controller~='ui--toast']")
-                ?.__stimulusController?.dismiss()
-            ?? this.element.closest("[data-controller~='ui--toast']")?.remove()
+        try {
+            response = await fetch(this.urlValue, {
+                method: "POST",
+                headers: { "X-Requested-With": "XMLHttpRequest" },
+            })
+        } catch {
+            // Handled below with response still null.
         }
+
+        // An undo that did not land means the mail may still go out, so that
+        // has to be said — and the button given back for whatever is left of the window, so a dropped
+        // connection can be retried rather than leaving a dead Undo.
+        if (requestFailed(response)) {
+            this.element.style.pointerEvents = ""
+            this.armHide(this.hideAfterValue - (Date.now() - this.shownAt))
+
+            return
+        }
+
+        const html = await response.text()
+        Turbo.renderStreamMessage(html)
+
+        // Dismiss the parent toast immediately
+        this.element.closest("[data-controller~='ui--toast']")
+            ?.__stimulusController?.dismiss()
+        ?? this.element.closest("[data-controller~='ui--toast']")?.remove()
     }
 }

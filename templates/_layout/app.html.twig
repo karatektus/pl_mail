@@ -284,6 +284,9 @@
        publishes the first of them. #}
     <div class="compose-dock fixed right-6 z-50 flex items-end gap-3"
          data-controller="compose--dock"
+         {# Its frames' failures are explained in place, in the words below —
+            request_errors.js leaves this subtree to it. #}
+         data-turbo-errors="self"
          data-compose--dock-i18n-value="{{ {
              failed:    'compose.open_failed.failed'|trans,
              signedOut: 'compose.open_failed.signed_out'|trans,
@@ -334,6 +337,29 @@
         {% include '_partials/_session_expired.html.twig' %}
     {% endif %}
     {% include '_partials/_confirm_dialog.html.twig' %}
+
+    {# The toasts a SCRIPT raises — toast.js clones these, so a toast from
+       the browser is the same pane, tokens and exit as one from a turbo-stream.
+       The words for a failed request ride on the error one, because they are
+       the only thing request_errors.js has to say and a catalogue lives here,
+       not in JavaScript. #}
+    <template id="toast-template-error"
+              data-request-error-server="{{ 'request_error.server'|trans }}"
+              data-request-error-not-found="{{ 'request_error.not_found'|trans }}"
+              data-request-error-refused="{{ 'request_error.refused'|trans }}"
+              data-request-error-offline="{{ 'request_error.offline'|trans }}"
+              data-request-error-reference="{{ 'request_error.reference'|trans }}"
+              data-request-error-copy="{{ 'request_error.copy_reference'|trans }}"
+              data-clipboard-copied="{{ 'clipboard.copied'|trans }}"
+              data-clipboard-failed="{{ 'clipboard.copy_failed'|trans }}">
+        {% include '_partials/_toast.html.twig' with { type: 'error', message: '', extra: { hide_after: 8000 } } only %}
+    </template>
+    <template id="toast-template-info">
+        {% include '_partials/_toast.html.twig' with { type: 'info', message: '' } only %}
+    </template>
+    <template id="toast-template-success">
+        {% include '_partials/_toast.html.twig' with { type: 'success', message: '' } only %}
+    </template>
 
     <div id="toast-region" class="fixed bottom-4 left-4 z-[60] flex flex-col gap-2 items-end">
         {% for type, messages in app.flashes(['success', 'error', 'info']) %}

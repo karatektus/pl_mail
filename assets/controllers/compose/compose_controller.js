@@ -1,6 +1,7 @@
 // assets/controllers/compose_controller.js
 import { Controller } from '@hotwired/stimulus'
 import { forgetPendingCancel, markPendingCancel } from "../../compose/pending_cancel.js";
+import { requestFailed } from "../../request_errors.js";
 
 /**
  * The compose window is the only place a send is announced, and the only place
@@ -1953,14 +1954,23 @@ export default class extends Controller {
             params.set('scope', scope);
         }
 
-        const response = await fetch(`/compose/discard/${id}?${params}`, {
-            method: 'POST',
-            headers: { 'X-Requested-With': 'XMLHttpRequest' },
-        });
+        let response;
 
-        if (false === response.ok) {
-            console.error('[compose] discard failed', response.status);
+        try {
+            response = await fetch(`/compose/discard/${id}?${params}`, {
+                method: 'POST',
+                headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            });
+        } catch {
+            requestFailed(null);
 
+            return;
+        }
+
+        // The draft is still there and the window stays open on it; the next
+        // keystroke arms the autosave again. The toast says why the trash
+        // button did nothing.
+        if (requestFailed(response)) {
             return;
         }
 
@@ -1974,11 +1984,17 @@ export default class extends Controller {
     }
 
     async _fetchRow(id) {
-        const response = await fetch(this._rowUrl(id), {
-            headers: { 'X-Requested-With': 'fetch' },
-        });
+        // Null on a network failure too: every caller already has a fallback
+        // for "no row", and a rejection here would stop close() closing.
+        try {
+            const response = await fetch(this._rowUrl(id), {
+                headers: { 'X-Requested-With': 'fetch' },
+            });
 
-        return true === response.ok ? await response.text() : null;
+            return true === response.ok ? await response.text() : null;
+        } catch {
+            return null;
+        }
     }
 
     /** Append the row for a freshly created draft to the open conversation. */
@@ -2819,14 +2835,15 @@ export default class extends Controller {
                 headers: { 'X-Requested-With': 'XMLHttpRequest' },
             });
         } catch (error) {
-            console.error('[compose] cancel failed', error);
+            requestFailed(null);
             this._cancelFailed();
 
             return;
         }
 
-        if (false === response.ok) {
-            console.error('[compose] cancel refused', response.status);
+        // The pill going back to "sending" is not enough on its own to say
+        // the cancel was lost; the toast is.
+        if (requestFailed(response)) {
             this._cancelFailed();
 
             return;

@@ -154,8 +154,14 @@ final class AdminDashboardController extends AbstractController
         $page    = max(1, (int) $request->query->get('page', 1));
         $offset  = ($page - 1) * self::LOGS_PER_PAGE;
 
-        $entries = $this->logEntryRepository->search($minLevel, $channel, self::LOGS_PER_PAGE, $offset);
-        $total   = $this->logEntryRepository->countSearch($minLevel, $channel);
+        // The reference an error toast showed (RequestIdSubscriber). Only
+        // the shape the subscriber hands out is looked up; anything else is
+        // ignored rather than passed on.
+        $reference = trim((string) $request->query->get('ref', ''));
+        $reference = 1 === preg_match('/^[A-Za-z0-9-]{8,64}$/', $reference) ? $reference : '';
+
+        $entries = $this->logEntryRepository->search($minLevel, $channel, self::LOGS_PER_PAGE, $offset, $reference);
+        $total   = $this->logEntryRepository->countSearch($minLevel, $channel, $reference);
 
         // Opening the browser is what "seen" means, and the mark is set from
         // the moment it was opened rather than from the newest entry on
@@ -173,6 +179,7 @@ final class AdminDashboardController extends AbstractController
             'pages'    => max(1, (int) ceil($total / self::LOGS_PER_PAGE)),
             'minLevel' => $minLevel,
             'channel'  => $channel,
+            'reference' => $reference,
             'levels'   => self::LOG_LEVELS,
             'channels' => $this->logEntryRepository->distinctChannels(),
             // What is KEPT, as opposed to what is shown above it. Null when the

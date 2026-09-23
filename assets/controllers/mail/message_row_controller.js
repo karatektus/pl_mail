@@ -2,6 +2,7 @@ import { Controller } from "@hotwired/stimulus";
 import { jsonCsrfHeaders } from "../../csrf.js";
 import { announceWrite } from "../../mail_writes.js";
 import { askConfirm } from "../../confirm.js";
+import { requestFailed } from "../../request_errors.js";
 
 /**
  * Handles per-row status actions in the message list.
@@ -131,14 +132,22 @@ export default class extends Controller {
     // ── Private ───────────────────────────────────────────────────────────
 
     async #post(url, body = {}) {
-        const response = await fetch(url, {
-            method: "POST",
-            headers: jsonCsrfHeaders(),
-            body: JSON.stringify(body),
-        });
+        let response;
 
-        if (!response.ok) {
-            console.error(`[message-row] status update failed: ${url}`, response.status);
+        try {
+            response = await fetch(url, {
+                method: "POST",
+                headers: jsonCsrfHeaders(),
+                body: JSON.stringify(body),
+            });
+        } catch {
+            requestFailed(null);
+            return;
+        }
+
+        // Nothing here changed the row ahead of the answer, so a failure only
+        // has to be said — otherwise the click looks like it did nothing.
+        if (requestFailed(response)) {
             return;
         }
 

@@ -1,4 +1,5 @@
 import { Controller } from '@hotwired/stimulus';
+import { requestFailed } from '../../request_errors.js';
 
 export default class extends Controller {
     static values = {
@@ -815,16 +816,27 @@ export default class extends Controller {
             payload[input.getAttribute('data-settings--appearance-field')] = input.value;
         });
 
+        // The change is already painted live, so a save that did not land
+        // would otherwise only show up as the old look on the next page. Not
+        // remembered either: the logged-out snapshot follows what was stored.
+        let response;
+
         try {
-            await fetch(this.updateUrlValue, {
+            response = await fetch(this.updateUrlValue, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload),
             });
-            this.remember();
-        } catch (error) {
-            console.error('Appearance save failed', error);
+        } catch {
+            requestFailed(null);
+            return;
         }
+
+        if (requestFailed(response)) {
+            return;
+        }
+
+        this.remember();
     }
 
     /*
@@ -860,7 +872,21 @@ export default class extends Controller {
         const data = new FormData();
         data.append('background', file);
 
-        const response = await fetch(this.uploadUrlValue, { method: 'POST', body: data });
+        let response;
+
+        try {
+            response = await fetch(this.uploadUrlValue, { method: 'POST', body: data });
+        } catch {
+            requestFailed(null);
+            return;
+        }
+
+        // A refused file answers 400/415; its JSON carries a key, not a
+        // sentence, so the toast is what says the picture was not taken.
+        if (requestFailed(response)) {
+            return;
+        }
+
         const result = await response.json();
 
         if (result.ok === true) {
@@ -887,11 +913,23 @@ export default class extends Controller {
 
         const text = await file.text();
 
-        const response = await fetch(this.importUrlValue, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: text,
-        });
+        let response;
+
+        try {
+            response = await fetch(this.importUrlValue, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: text,
+            });
+        } catch {
+            requestFailed(null);
+            return;
+        }
+
+        // A file from another version is answered 400; said, not swallowed.
+        if (requestFailed(response)) {
+            return;
+        }
 
         const result = await response.json();
 
@@ -901,7 +939,21 @@ export default class extends Controller {
     }
 
     async reset() {
-        await fetch(this.resetUrlValue, { method: 'POST' });
+        let response;
+
+        try {
+            response = await fetch(this.resetUrlValue, { method: 'POST' });
+        } catch {
+            requestFailed(null);
+            return;
+        }
+
+        // Reloading after a failed reset would draw the old look back as if
+        // the button had done nothing.
+        if (requestFailed(response)) {
+            return;
+        }
+
         window.location.reload();
     }
 

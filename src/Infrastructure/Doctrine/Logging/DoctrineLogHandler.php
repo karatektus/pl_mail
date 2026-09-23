@@ -11,6 +11,7 @@ use Monolog\Processor\PsrLogMessageProcessor;
 use Monolog\Level;
 use Monolog\LogRecord;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
+use App\EventSubscriber\RequestIdSubscriber;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\HttpKernel\Exception\MethodNotAllowedHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
@@ -242,6 +243,9 @@ final class DoctrineLogHandler extends AbstractProcessingHandler
             'method' => $request->getMethod(),
             'path'   => mb_substr($request->getPathInfo(), 0, 512),
             'route'  => $request->attributes->get('_route'),
+            // The name the user was shown in the error toast — see
+            // RequestIdSubscriber. Searching the log for it finds this entry.
+            'id'     => $request->attributes->get(RequestIdSubscriber::ATTRIBUTE),
         ];
 
         $queryKeys = array_keys($request->query->all());

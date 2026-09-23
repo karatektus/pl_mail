@@ -619,6 +619,7 @@ admin:
             prune_blobs: 'Blobs aufräumen'
             push_renew: 'Push-Abos erneuern'
     logs:
+        reference: 'Referenz'
         all_channels: 'Alle Kanäle'
         capture:
             from_env: 'aus der Umgebung (%level%)'
@@ -2219,6 +2220,22 @@ profile:
         name_first: Vorname
         name_last: Nachname
 
+# Said in a toast when a request fails and there is no better place to say it;
+# see request_errors.js.
+request_error:
+    copy_reference: 'Referenz kopieren'
+    server: 'Das hat nicht geklappt – bei uns ist etwas schiefgegangen. Versuch es gleich noch einmal.'
+    not_found: 'Das gibt es nicht mehr. Vielleicht wurde es verschoben oder gelöscht.'
+    refused: 'Das konnte plMail nicht erledigen. Lade die Seite neu und versuch es noch einmal.'
+    offline: 'plMail ist nicht erreichbar. Prüf deine Verbindung und versuch es noch einmal.'
+    reference: 'Ref. %id%'
+sync_now:
+    label: 'Jetzt synchronisieren'
+    syncing_one: '1 Konto wird synchronisiert …'
+    syncing_other: '%count% Konten werden synchronisiert …'
+    still_running: 'Die Synchronisierung läuft im Hintergrund weiter.'
+    complete: 'Synchronisierung abgeschlossen.'
+    session_expired: 'Deine Sitzung ist abgelaufen – lade die Seite neu, um dich wieder anzumelden.'
 search:
     empty:
         or_keyword: oder tippe einfach ein Stichwort.

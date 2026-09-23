@@ -147,6 +147,26 @@ final class LogEntryRepositoryTest extends KernelTestCase
         self::assertSame(1, (int) $this->connection->fetchOne('SELECT COUNT(*) FROM log_entry'));
     }
 
+    /**
+     * The reference an error toast shows finds that request's entries and no
+     * others — the id sits in the context JSON, see narrowToRequest().
+     */
+    public function testAReferenceNarrowsTheSearchToThatRequest(): void
+    {
+        $this->log('ours', 500, '2026-03-01 09:00', 'abcd1234');
+        $this->log('someone else', 500, '2026-03-01 09:01', 'ffff0000');
+        $this->log('no request', 500, '2026-03-01 09:02');
+
+        $found = array_map(
+            static fn (LogEntry $entry): string => $entry->message,
+            $this->repository->search(300, null, 50, 0, 'abcd1234'),
+        );
+
+        self::assertSame(['ours'], $found);
+        self::assertSame(1, $this->repository->countSearch(300, null, 'abcd1234'));
+        self::assertSame(0, $this->repository->countSearch(300, null, '00000000'));
+    }
+
     // ── Fixtures ─────────────────────────────────────────────────────────────
 
     /**
@@ -155,16 +175,17 @@ final class LogEntryRepositoryTest extends KernelTestCase
      * EntityManager on purpose, and the mapped side of this entity only ever
      * reads. Seeding it the other way would test a path nothing uses.
      */
-    private function log(string $message, int $level, string $at): void
+    private function log(string $message, int $level, string $at, ?string $requestId = null): void
     {
         $this->connection->executeStatement(
             'INSERT INTO log_entry (channel, level, level_name, message, context, created_at, updated_at)
-             VALUES (:channel, :level, :levelName, :message, NULL, :createdAt, :createdAt)',
+             VALUES (:channel, :level, :levelName, :message, :context, :createdAt, :createdAt)',
             [
                 'channel'   => 'app',
                 'level'     => $level,
                 'levelName' => 400 <= $level ? 'ERROR' : 'WARNING',
                 'message'   => $message,
+                'context'   => null === $requestId ? null : json_encode(['request' => ['id' => $requestId]]),
                 'createdAt' => (new DateTimeImmutable($at))->format('Y-m-d H:i:s'),
             ],
         );

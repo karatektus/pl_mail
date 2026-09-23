@@ -1,4 +1,5 @@
 import { Controller } from "@hotwired/stimulus";
+import { requestFailed } from "../../request_errors.js";
 
 /**
  * An On/Off segment on a settings page that posts on its own.
@@ -52,10 +53,13 @@ export default class extends Controller {
                 body,
             });
 
-            if (false === response.ok) {
+            // The revert alone reads as the switch bouncing back for no
+            // reason; the toast says why.
+            if (requestFailed(response)) {
                 this.revert(segment);
             }
         } catch (e) {
+            requestFailed(null);
             this.revert(segment);
         }
     }

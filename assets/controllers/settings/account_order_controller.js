@@ -1,5 +1,6 @@
 import { Controller } from "@hotwired/stimulus"
 import Sortable from "sortablejs"
+import { requestFailed } from "../../request_errors.js"
 
 /**
  * Display order for the account list: drag on a pointer, buttons everywhere else.
@@ -102,9 +103,12 @@ export default class extends Controller {
             headers: { "Content-Type": "application/json", "X-CSRF-Token": this.csrfValue },
             body: JSON.stringify({ ids }),
             keepalive: true,
+        }).then((response) => {
+            requestFailed(response)
         }).catch(() => {
-            // The order on screen is what the user chose; a failed write means
-            // the next load shows the stored order again, which is honest.
+            requestFailed(null)
         })
+        // The order on screen is left as the user chose it, but a failed write
+        // is said: otherwise the next load puts the old order back unannounced.
     }
 }

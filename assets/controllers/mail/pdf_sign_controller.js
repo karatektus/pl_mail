@@ -1,5 +1,6 @@
 import { Controller } from "@hotwired/stimulus";
 import { pdfRect, stampAnchor, trimAlpha } from "../../pdf_geometry.js";
+import { requestFailed } from "../../request_errors.js";
 
 /**
  * Signing a PDF by drawing on it, and replying with the signed copy.
@@ -184,9 +185,17 @@ export default class extends Controller {
             return;
         }
 
-        const response = await fetch(this.savedUrlValue, { credentials: "same-origin" });
+        let response;
 
-        if (false === response.ok) {
+        try {
+            response = await fetch(this.savedUrlValue, { credentials: "same-origin" });
+        } catch {
+            requestFailed(null);
+            return;
+        }
+
+        // The click asked for the saved signature; not getting it has to say so.
+        if (requestFailed(response)) {
             return;
         }
 

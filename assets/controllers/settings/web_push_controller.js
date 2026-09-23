@@ -123,7 +123,7 @@ export default class extends Controller {
                 await subscription.unsubscribe();
             }
 
-            await fetch(this.unsubscribeUrlValue, {
+            const response = await fetch(this.unsubscribeUrlValue, {
                 method: "POST",
                 credentials: "same-origin",
                 headers: {
@@ -132,6 +132,14 @@ export default class extends Controller {
                 },
                 body: JSON.stringify({ deviceClientId: this.deviceClientId }),
             });
+
+            // The same error state the enable path uses: showing "off" while
+            // the server still holds this device would be the pane lying.
+            if (false === response.ok) {
+                this._setState("error");
+
+                return;
+            }
 
             this._enabled = false;
             this._setState("off");

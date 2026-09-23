@@ -1,5 +1,7 @@
 import { Controller } from "@hotwired/stimulus";
 import { jsonCsrfHeaders } from "../../csrf.js";
+import { requestFailed } from "../../request_errors.js";
+import { showToast } from "../../toast.js";
 
 /**
  * TEMPORARY: topbar button that fires the same account syncs as
@@ -17,6 +19,9 @@ export default class extends Controller {
         // The queue reads as empty in the gap between dispatch and the worker
         // picking the job up, so only call it done after N zeroes in a row.
         confirmations: { type: Number, default: 3 },
+        // The words, from the template — a catalogue lives in the
+        // translations, not here. See _topbar.html.twig.
+        i18n: Object,
     };
 
     disconnect() {
@@ -31,19 +36,33 @@ export default class extends Controller {
         this._running = true;
         this._spin(true);
 
+        let response = null;
+
         try {
-            const response = await fetch(this.urlValue, {
+            response = await fetch(this.urlValue, {
                 method: "POST",
                 headers: jsonCsrfHeaders(),
             });
+        } catch {
+            requestFailed(null);
+            this._stop();
+            return;
+        }
 
-            if (false === response.ok) {
-                throw new Error(`Request failed (${response.status}).`);
-            }
+        if (false === response.ok) {
+            requestFailed(response);
+            this._stop();
+            return;
+        }
 
+        try {
             const result = await this._json(response);
+            const t = this.i18nValue;
 
-            this._toast(`Syncing ${result.dispatched} account${1 === result.dispatched ? "" : "s"}…`, "info");
+            this._toast(
+                (1 === result.dispatched ? t.syncingOne : t.syncingOther).replace("%count%", String(result.dispatched)),
+                "info",
+            );
 
             this._deadline = Date.now() + this.timeoutValue;
             this._zeroes = 0;
@@ -66,7 +85,7 @@ export default class extends Controller {
      */
     async _json(response) {
         if (false === (response.headers.get("Content-Type") ?? "").includes("json")) {
-            throw new Error("Your session has expired — reload the page to sign in again.");
+            throw new Error(this.i18nValue.sessionExpired);
         }
 
         return response.json();
@@ -78,7 +97,7 @@ export default class extends Controller {
 
     async _check() {
         if (Date.now() > this._deadline) {
-            this._toast("Sync is still running in the background.", "info");
+            this._toast(this.i18nValue.stillRunning, "info");
             this._stop();
             return;
         }
@@ -91,7 +110,7 @@ export default class extends Controller {
                 this._zeroes++;
 
                 if (this._zeroes >= this.confirmationsValue) {
-                    this._toast("Sync complete.", "success");
+                    this._toast(this.i18nValue.complete, "success");
                     this._stop();
                     return;
                 }
@@ -117,35 +136,6 @@ export default class extends Controller {
     }
 
     _toast(message, type) {
-        const region = document.getElementById("toast-region");
-
-        if (null === region) {
-            return;
-        }
-
-        const colors = {
-            success: "bg-inverse text-inverse-ink",
-            error: "bg-danger text-white",
-            info: "bg-info text-white",
-        };
-
-        const toast = document.createElement("div");
-        toast.setAttribute("data-controller", "ui--toast");
-        toast.setAttribute("role", "status");
-        toast.className = `relative rounded-pane shadow-xl overflow-hidden min-w-[280px] max-w-sm ${colors[type] ?? colors.info}`;
-        toast.innerHTML = `
-            <div class="flex items-center gap-3 px-5 py-3.5 text-base font-medium">
-                <span></span>
-                <button
-                    data-action="click->ui--toast#dismiss"
-                    class="ml-auto opacity-50 hover:opacity-100 transition-opacity cursor-pointer shrink-0"
-                >
-                    <i class="fa-solid fa-xmark text-base" aria-hidden="true"></i>
-                </button>
-            </div>
-        `;
-        toast.querySelector("span").textContent = message;
-
-        region.appendChild(toast);
+        showToast(message, { type });
     }
 }

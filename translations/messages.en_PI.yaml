@@ -481,6 +481,7 @@ admin:
             prune_blobs: 'Sweep the hold'
             push_renew: 'Renew the parrot pacts'
     logs:
+        reference: 'Bearing'
         all_channels: 'All channels'
         capture:
             from_env: "as the ship's orders say (%level%)"
@@ -1901,6 +1902,22 @@ profile:
         name_first: First name
         name_last: Family name
 
+# Said in a toast when a request fails and there is no better place to say it;
+# see request_errors.js.
+request_error:
+    copy_reference: 'Copy the bearin'''
+    server: 'That ran aground — somethin'' broke below decks. Try again in a moment.'
+    not_found: 'That be gone from these waters. Moved or scuttled, like as not.'
+    refused: 'plMail couldn''t do that. Reload the page an'' try again.'
+    offline: 'plMail can''t be hailed. Check yer connection an'' try again.'
+    reference: 'Bearing %id%'
+sync_now:
+    label: 'Haul in the post'
+    syncing_one: 'Haulin'' in 1 account…'
+    syncing_other: 'Haulin'' in %count% accounts…'
+    still_running: 'Still haulin'' below decks.'
+    complete: 'All hands aboard — sync complete.'
+    session_expired: 'Yer watch has ended — reload the page to sign in again.'
 search:
     empty:
         or_keyword: or just bellow a keyword.

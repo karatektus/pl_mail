@@ -1,5 +1,6 @@
 import { Controller } from "@hotwired/stimulus";
 import { jsonCsrfHeaders } from "../../csrf.js";
+import { requestFailed } from "../../request_errors.js";
 
 /**
  * Polls the model host's status and swaps the rendered panel in.
@@ -155,16 +156,28 @@ export default class extends Controller {
             return;
         }
 
+        // Unlike a poll, this is a button somebody pressed: a pause that did
+        // not land has to say so, not wait for the next poll to quietly show
+        // the run still going.
+        let response;
+
         try {
-            const response = await fetch(url, {
+            response = await fetch(url, {
                 method: "POST",
                 headers: jsonCsrfHeaders(),
             });
+        } catch {
+            requestFailed(null);
+            this.#failures++;
+            return;
+        }
 
-            if (false === response.ok) {
-                throw new Error(`Request failed (${response.status}).`);
-            }
+        if (requestFailed(response)) {
+            this.#failures++;
+            return;
+        }
 
+        try {
             // The answer carries the panel re-rendered from state read AFTER
             // the click, so a start that was refused because somebody else got
             // there first shows their run rather than the one this page
@@ -176,9 +189,8 @@ export default class extends Controller {
             // loaded before anything was.
             this.#schedule();
         } catch {
-            // Same reasoning as a failed poll — and the next poll re-reads the
-            // truth anyway, so a refusal that was not rendered corrects itself
-            // within one interval.
+            // An answer that would not parse. Same reasoning as a failed poll —
+            // the next poll re-reads the truth within one interval.
             this.#failures++;
         }
     }

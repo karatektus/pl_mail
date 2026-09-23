@@ -1,4 +1,4 @@
-<!-- translated-from: features/admin.md sha1:594fa9f46d1bc532e467fb7b632c98a4ad38d0d0 -->
+<!-- translated-from: features/admin.md sha1:68b7587fcf7aa419435e09dab064077c8e01c68f -->
 
 # Administration
 
@@ -128,6 +128,14 @@ Wert aus der Liste zu wählen, denn das würde ihn einfrieren.
 
 **Leeren** löscht die Einträge, auf die der gerade eingestellte Filter passt — was verschwindet,
 ist das, was du angesehen hast.
+
+**Referenz** findet, was eine einzelne Anfrage protokolliert hat. Scheitert eine Anfrage im Browser,
+lässt plMail die Seite, wie sie war, und zeigt stattdessen eine Meldung — etwa „Bei uns ist etwas
+schiefgegangen" — mit einer kurzen Referenz wie `Ref. 2a4109f7` am Ende. Tippst du diese acht Zeichen
+ins Feld, siehst du genau die Einträge dieser Anfrage, was schneller ist, als Uhrzeiten abzugleichen.
+Dieselbe Referenz steht im Header `X-Request-Id` jeder Antwort; schickt ein Proxy seine eigene
+Request-ID mit, bleibt sie erhalten. Solange eine Referenz gesetzt ist, gibt es **Leeren** nicht: Es
+löscht nach Stufe und Kanal und würde mehr treffen, als zu sehen ist.
 
 Alles ab Warnstufe, das keine Administratorin und kein Administrator gelesen hat, umrandet auf
 **jeder** Seite das Benutzermenü, bernsteinfarben bei Warnungen und rot bei Fehlern, mit einer

@@ -1,6 +1,7 @@
 import { Controller } from "@hotwired/stimulus";
 import { Idiomorph } from "idiomorph";
 import { leave, makeRoom, motionIsOff } from "../../motion.js";
+import { requestFailed } from "../../request_errors.js";
 
 // MailboxSpecialUse values (see App\Domain\Enum\MailboxSpecialUse) mapped to
 // the data-sync-scope tokens used by the list templates.
@@ -336,9 +337,18 @@ export default class extends Controller {
     }
 
     async _loadMessage(url) {
-        const response = await fetch(url, {
-            headers: { "X-Requested-With": "fetch" },
-        });
+        let response;
+
+        try {
+            response = await fetch(url, {
+                headers: { "X-Requested-With": "fetch" },
+            });
+        } catch {
+            // No answer at all, so the real navigation below would only swap
+            // the page for the browser's offline screen. Say it here instead.
+            requestFailed(null);
+            return;
+        }
 
         if (!response.ok) {
             window.location.href = url; // fall back to a real navigation on failure

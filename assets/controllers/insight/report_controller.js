@@ -1,4 +1,5 @@
 import { Controller } from "@hotwired/stimulus";
+import { requestFailed } from "../../request_errors.js";
 
 /**
  * The report dialog's confirm button: POSTs the note, closes the dialog, and
@@ -57,12 +58,15 @@ export default class extends Controller {
                 body: JSON.stringify({ note: this.hasNoteTarget ? this.noteTarget.value : "" }),
             });
         } catch {
+            requestFailed(null);
             button.disabled = false;
 
             return;
         }
 
-        if (!response.ok) {
+        // The dialog stays open with the note in it, so trying again costs
+        // nothing — but only if somebody is told the first try did not land.
+        if (requestFailed(response)) {
             button.disabled = false;
 
             return;

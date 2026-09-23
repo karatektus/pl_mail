@@ -1,5 +1,6 @@
 import { Controller } from "@hotwired/stimulus";
 import { takePendingCancel } from "../../compose/pending_cancel.js";
+import { requestFailed } from "../../request_errors.js";
 
 /**
  * The send response's only job: tell the window that sent it how to call the
@@ -48,11 +49,16 @@ export default class extends Controller {
                 // keepalive: the window is already gone and the reader may be
                 // navigating away behind this. A cancel that is dropped because
                 // the page unloaded is the same lost cancel by another route.
+                //
+                // A cancel that did not land means the mail goes out, and the
+                // window that would have said so is gone — so the toast does.
                 fetch(this.undoUrlValue, {
                     method:    "POST",
                     headers:   { "X-Requested-With": "XMLHttpRequest" },
                     keepalive: true,
-                }).catch((error) => console.error("[compose] standing cancel failed", error));
+                })
+                    .then((response) => requestFailed(response))
+                    .catch(() => requestFailed(null));
             }
 
             return;

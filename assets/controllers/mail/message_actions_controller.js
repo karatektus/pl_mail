@@ -1,6 +1,7 @@
 import { Controller } from "@hotwired/stimulus";
 import { jsonCsrfHeaders } from "../../csrf.js";
 import { announceWrite } from "../../mail_writes.js";
+import { requestFailed } from "../../request_errors.js";
 
 /**
  * Status actions for the reading pane: the per-message overflow menu and the
@@ -58,7 +59,9 @@ export default class extends Controller {
         event.stopPropagation();
         this._close();
 
-        await this._post(this._url("star"));
+        if (false === await this._post(this._url("star"))) {
+            return;
+        }
 
         this.starredValue = !this.starredValue;
     }
@@ -67,7 +70,9 @@ export default class extends Controller {
         event.stopPropagation();
         this._close();
 
-        await this._post(this._url("read"), { read: false });
+        if (false === await this._post(this._url("read"), { read: false })) {
+            return;
+        }
 
         this._closePane();
     }
@@ -76,7 +81,9 @@ export default class extends Controller {
         event.stopPropagation();
         this._close();
 
-        await this._post(this._url("archive"));
+        if (false === await this._post(this._url("archive"))) {
+            return;
+        }
 
         this._closePane();
     }
@@ -85,7 +92,9 @@ export default class extends Controller {
         event.stopPropagation();
         this._close();
 
-        await this._post(this._url("trash"));
+        if (false === await this._post(this._url("trash"))) {
+            return;
+        }
 
         this._closePane();
     }
@@ -110,16 +119,26 @@ export default class extends Controller {
         return `/status/${this.entityTypeValue}/${this.entityIdValue}/${action}`;
     }
 
+    /**
+     * Answers false when the request failed, so the caller leaves the star and
+     * the pane as they were instead of acting on a change that never happened.
+     */
     async _post(url, body) {
-        const response = await fetch(url, {
-            method: "POST",
-            headers: jsonCsrfHeaders(),
-            body: JSON.stringify(body ?? {}),
-        });
+        let response;
 
-        if (!response.ok) {
-            console.error(`[message-actions] request failed: ${url}`, response.status);
-            return;
+        try {
+            response = await fetch(url, {
+                method: "POST",
+                headers: jsonCsrfHeaders(),
+                body: JSON.stringify(body ?? {}),
+            });
+        } catch {
+            requestFailed(null);
+            return false;
+        }
+
+        if (requestFailed(response)) {
+            return false;
         }
 
         const html = await response.text();
@@ -133,6 +152,8 @@ export default class extends Controller {
         // see the class docblock. Mark-unread is the one that shows up in the
         // report as "the counter does not go back up".
         announceWrite();
+
+        return true;
     }
 
     /** mail-pane lives on <body> (see _layout/app.html.twig). */

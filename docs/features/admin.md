@@ -113,6 +113,14 @@ of the list, because that would freeze it.
 **Clear** deletes the entries matching the filter currently on screen — what disappears is what you
 were looking at.
 
+**Reference** finds what one request logged. When a request fails in the browser, plMail leaves the
+page as it was and shows a toast instead — "Something went wrong on our side", say — ending in a
+short reference like `Ref. 2a4109f7`. Typing those eight characters into the field lists that
+request's entries and nothing else, which is quicker than matching clocks. The same reference is in
+the `X-Request-Id` header of every response; a proxy that sends its own request id keeps it. While a
+reference is set, **Clear** is not offered: it deletes by level and channel, and would take more than
+is on screen.
+
 Anything at warning or worse that no administrator has read outlines the user menu on **every** page,
 amber for warnings and red for errors, with a count. Opening the log browser is what marks them
 seen, and the mark is set from the moment it was opened rather than from the newest entry on screen,

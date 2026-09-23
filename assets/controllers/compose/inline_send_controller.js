@@ -1,4 +1,5 @@
 import { Controller } from "@hotwired/stimulus";
+import { requestFailed } from "../../request_errors.js";
 
 /**
  * **UNWIRED.** Nothing renders the bar this drives any more: the composer now
@@ -35,7 +36,10 @@ export default class extends Controller {
     connect() {
         this._remaining = Math.round(this.delayValue / 1000);
         this._render();
+        this._count();
+    }
 
+    _count() {
         this._interval = setInterval(() => {
             this._remaining--;
             this._render();
@@ -56,14 +60,22 @@ export default class extends Controller {
 
         this.element.style.pointerEvents = "none";
 
-        const response = await fetch(this.urlValue, {
-            method: "POST",
-            headers: { "X-Requested-With": "XMLHttpRequest" },
-        });
+        let response = null;
 
-        if (!response.ok) {
-            console.error("[inline-send] cancel failed", response.status);
+        try {
+            response = await fetch(this.urlValue, {
+                method: "POST",
+                headers: { "X-Requested-With": "XMLHttpRequest" },
+            });
+        } catch {
+            // Handled below with response still null.
+        }
+
+        // The send is still on its way: say so, and give the bar back its
+        // button and its countdown so a retry is possible while it lasts.
+        if (requestFailed(response)) {
             this.element.style.pointerEvents = "";
+            this._count();
             return;
         }
 

@@ -27,7 +27,7 @@ class LogEntryRepository extends ServiceEntityRepository
      *
      * @return list<LogEntry>
      */
-    public function search(int $minLevel, ?string $channel, int $limit, int $offset): array
+    public function search(int $minLevel, ?string $channel, int $limit, int $offset, ?string $reference = null): array
     {
         $qb = $this->createQueryBuilder('l')
             ->where('l.level >= :minLevel')
@@ -42,11 +42,13 @@ class LogEntryRepository extends ServiceEntityRepository
                 ->setParameter('channel', $channel);
         }
 
+        $this->narrowToRequest($qb, $reference);
+
         return $qb->getQuery()->getResult();
     }
 
     /** Same `>=` level range as search(), so the same reason to keep it. */
-    public function countSearch(int $minLevel, ?string $channel): int
+    public function countSearch(int $minLevel, ?string $channel, ?string $reference = null): int
     {
         $qb = $this->createQueryBuilder('l')
             ->select('COUNT(l.id)')
@@ -58,7 +60,38 @@ class LogEntryRepository extends ServiceEntityRepository
                 ->setParameter('channel', $channel);
         }
 
+        $this->narrowToRequest($qb, $reference);
+
         return (int) $qb->getQuery()->getSingleScalarResult();
+    }
+
+    /**
+     * Only what one request logged — the reference an error toast shows, see
+     * RequestIdSubscriber.
+     *
+     * Hand-written SQL for the lookup, because the id sits inside the `context`
+     * JSON (`context.request.id`) and DQL has no operator that reads into a
+     * JSON document. It answers ids, and the rest of the query stays the
+     * builder's, so levels, channels and paging keep working unchanged.
+     */
+    private function narrowToRequest(\Doctrine\ORM\QueryBuilder $qb, ?string $reference): void
+    {
+        if (null === $reference || '' === $reference) {
+            return;
+        }
+
+        $ids = $this->getEntityManager()->getConnection()->fetchFirstColumn(
+            "SELECT id FROM log_entry WHERE context->'request'->>'id' = :reference ORDER BY id DESC LIMIT 200",
+            ['reference' => $reference],
+        );
+
+        if ([] === $ids) {
+            $qb->andWhere('1 = 0');
+
+            return;
+        }
+
+        $qb->andWhere('l.id IN (:requestIds)')->setParameter('requestIds', $ids);
     }
 
     /**

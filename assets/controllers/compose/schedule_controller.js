@@ -1,5 +1,6 @@
 import { Controller } from "@hotwired/stimulus";
 import { formatWallClock, instantOf, scheduleOptions, zoneHorizon, zoneNow } from "../../schedule_options.js";
+import { requestFailed } from "../../request_errors.js";
 
 /**
  * The send pill's chevron: send later.
@@ -216,14 +217,25 @@ export default class extends Controller {
             return;
         }
 
-        const response = await fetch(url, {
-            method: "POST",
-            headers: { "X-Requested-With": "XMLHttpRequest" },
-        });
+        let response;
 
-        if (true === response.ok) {
-            window.Turbo.renderStreamMessage(await response.text());
+        try {
+            response = await fetch(url, {
+                method: "POST",
+                headers: { "X-Requested-With": "XMLHttpRequest" },
+            });
+        } catch {
+            requestFailed(null);
+            return;
         }
+
+        // A cancel that did not land leaves the mail scheduled; that has to
+        // be said, not left to look like a button that did nothing.
+        if (requestFailed(response)) {
+            return;
+        }
+
+        window.Turbo.renderStreamMessage(await response.text());
     }
 
     // ── Private ───────────────────────────────────────────────────────────

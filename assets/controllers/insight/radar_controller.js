@@ -1,5 +1,6 @@
 import { Controller } from "@hotwired/stimulus";
 import { leave } from "../../motion.js";
+import { requestFailed } from "../../request_errors.js";
 
 /**
  * The radar's dismiss button — POSTs the wave-away, then takes the card off
@@ -58,12 +59,14 @@ export default class extends Controller {
                 },
             });
         } catch {
+            requestFailed(null);
             return;
         } finally {
             button.disabled = false;
         }
 
-        if (!response.ok || !card) {
+        // The card stays; without the toast the click would look ignored.
+        if (requestFailed(response) || !card) {
             return;
         }
 

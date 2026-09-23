@@ -1,6 +1,7 @@
 import { Controller } from "@hotwired/stimulus";
 import { jsonCsrfHeaders } from "../../csrf.js";
 import { announceWrite } from "../../mail_writes.js";
+import { requestFailed } from "../../request_errors.js";
 
 /**
  * Dragging conversations onto folders and onto category tabs.
@@ -497,13 +498,15 @@ export default class extends Controller {
                 body: JSON.stringify(body),
             });
 
-            if (false === response.ok) {
-                console.error(`[dnd] ${action} failed`, response.status);
-
+            // The rows stay where they were; the toast is what says the drop
+            // did not land, rather than a console line nobody sees.
+            if (requestFailed(response)) {
                 return;
             }
 
             Turbo.renderStreamMessage(await response.text());
+        } catch {
+            requestFailed(null);
         } finally {
             this.element.dispatchEvent(new CustomEvent("mail--list-toolbar:written", { bubbles: true }));
             announceWrite();

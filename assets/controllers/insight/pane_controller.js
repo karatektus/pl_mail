@@ -1,5 +1,6 @@
 import { Controller } from "@hotwired/stimulus";
 import { leave } from "../../motion.js";
+import { requestFailed } from "../../request_errors.js";
 
 /**
  * The insight strip above the mail list: waving away one row, waving away the
@@ -170,6 +171,7 @@ export default class extends Controller {
                 },
             });
         } catch {
+            requestFailed(null);
             this.#release();
 
             return false;
@@ -177,7 +179,8 @@ export default class extends Controller {
             button.disabled = false;
         }
 
-        if (false === response.ok) {
+        // The card stays; without the toast the click would look ignored.
+        if (requestFailed(response)) {
             this.#release();
 
             return false;

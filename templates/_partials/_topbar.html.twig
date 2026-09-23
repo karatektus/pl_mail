@@ -409,12 +409,19 @@
             data-controller="mail--sync-now"
             data-mail--sync-now-url-value="{{ path('app_mail_sync_run') }}"
             data-mail--sync-now-status-url-value="{{ path('app_mail_sync_status') }}"
+            data-mail--sync-now-i18n-value="{{ {
+                syncingOne:     'sync_now.syncing_one'|trans,
+                syncingOther:   'sync_now.syncing_other'|trans,
+                stillRunning:   'sync_now.still_running'|trans,
+                complete:       'sync_now.complete'|trans,
+                sessionExpired: 'sync_now.session_expired'|trans,
+            }|json_encode }}"
             data-action="click->mail--sync-now#run"
             class="flex cursor-pointer items-center justify-center w-9 h-9 rounded-lg
                    text-ink-muted hover:bg-hover transition-colors flex-shrink-0
                    disabled:cursor-default disabled:opacity-60"
-            aria-label="Sync now"
-            title="Sync now"
+            aria-label="{{ 'sync_now.label'|trans }}"
+            title="{{ 'sync_now.label'|trans }}"
         >
             <i class="fa-solid fa-rotate text-base" data-mail--sync-now-target="icon" aria-hidden="true"></i>
         </button>

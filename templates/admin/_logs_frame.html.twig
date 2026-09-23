@@ -37,6 +37,14 @@
                         <option value="{{ ch }}" {{ channel == ch ? 'selected' : '' }}>{{ ch }}</option>
                     {% endfor %}
                 </select>
+                {# The reference an error toast shows. Submitted with the rest of
+                   the filter — on Enter, or with Refresh. #}
+                <label class="sr-only" for="admin-logs-ref">{{ 'admin.logs.reference'|trans }}</label>
+                <input id="admin-logs-ref" type="search" name="ref" value="{{ reference }}"
+                       placeholder="{{ 'admin.logs.reference'|trans }}"
+                       autocomplete="off" spellcheck="false"
+                       class="h-8 w-32 rounded-lg border border-line bg-field px-2.5 text-xs text-ink tabular-nums
+                              placeholder:text-ink-faint focus:outline-none focus:ring-2 focus:ring-accent">
                 <button type="submit"
                         class="inline-flex items-center gap-1.5 px-2.5 h-8 rounded-lg text-xs font-medium btn-quiet transition-colors cursor-pointer">
                     <i class="fa-solid fa-rotate-right" aria-hidden="true"></i>
@@ -44,7 +52,10 @@
                 </button>
             </form>
 
-            {# Deletes the current filter's entries, not the whole table. #}
+            {# Deletes the current filter's entries, not the whole table. Not
+               offered while a reference narrows the list: the delete filters
+               by level and channel only, so it would take more than is shown. #}
+            {% if reference is empty %}
             <form method="post" action="{{ path('app_admin_logs_clear') }}" data-turbo-frame="_top"
                   data-turbo-confirm="{{ 'admin.logs.clear_confirm'|trans({ '%count%': total }) }}" data-controller="ui--auto-submit">
                 <input type="hidden" name="_token" value="{{ csrf_token('admin_logs_clear') }}">
@@ -57,6 +68,7 @@
                     {{ 'admin.logs.clear'|trans }}
                 </button>
             </form>
+            {% endif %}
         </div>
 
         {# ── What is kept, as opposed to what is shown ────────────────────
@@ -165,13 +177,13 @@
                     <span>{{ 'admin.logs.page'|trans }} {{ page }} / {{ pages }}</span>
                     <div class="flex items-center gap-2">
                         {% if page > 1 %}
-                            <a href="{{ path('app_admin_logs', { level: minLevel, channel: channel, page: page - 1 }) }}"
+                            <a href="{{ path('app_admin_logs', { level: minLevel, channel: channel, ref: reference ?: null, page: page - 1 }) }}"
                                class="px-2.5 h-7 inline-flex items-center rounded-lg btn-quiet transition-colors">
                                 {{ 'admin.logs.newer'|trans }}
                             </a>
                         {% endif %}
                         {% if page < pages %}
-                            <a href="{{ path('app_admin_logs', { level: minLevel, channel: channel, page: page + 1 }) }}"
+                            <a href="{{ path('app_admin_logs', { level: minLevel, channel: channel, ref: reference ?: null, page: page + 1 }) }}"
                                class="px-2.5 h-7 inline-flex items-center rounded-lg btn-quiet transition-colors">
                                 {{ 'admin.logs.older'|trans }}
                             </a>

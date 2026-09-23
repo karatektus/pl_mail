@@ -12,6 +12,7 @@ import { Controller } from "@hotwired/stimulus";
 import * as Turbo from "@hotwired/turbo";
 import { jsonCsrfHeaders } from "../../csrf.js";
 import { announceWrite } from "../../mail_writes.js";
+import { requestFailed } from "../../request_errors.js";
 
 // Classes applied to the checkbox button in each state
 const CB_BASE   = "border-field bg-field";
@@ -275,9 +276,8 @@ export default class extends Controller {
                 }),
             });
 
-            if (false === response.ok) {
-                console.error(`[list-toolbar] bulk ${action} failed`, response.status);
-
+            // Nothing moved, and the toast is the only thing that can say so.
+            if (requestFailed(response)) {
                 return;
             }
 
@@ -292,6 +292,8 @@ export default class extends Controller {
             // and has no `src`, and reload() on a src-less turbo-frame does
             // nothing at all, silently. That is worth writing down, because it
             // looks exactly like a refresh that ran and found no changes.
+        } catch {
+            requestFailed(null);
         } finally {
             this.dispatch("written");
             announceWrite();

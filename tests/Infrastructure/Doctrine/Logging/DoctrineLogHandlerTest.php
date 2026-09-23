@@ -12,6 +12,7 @@ use Monolog\LogRecord;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\RequestStack;
+use App\EventSubscriber\RequestIdSubscriber;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 /**
@@ -132,6 +133,7 @@ final class DoctrineLogHandlerTest extends KernelTestCase
     {
         $request = Request::create('/mail/search?q=quarterly+invoice&page=2');
         $request->attributes->set('_route', 'app_mail_search');
+        $request->attributes->set(RequestIdSubscriber::ATTRIBUTE, 'abcd1234');
 
         $stack = new RequestStack();
         $stack->push($request);
@@ -141,6 +143,8 @@ final class DoctrineLogHandlerTest extends KernelTestCase
         self::assertSame('app_mail_search', $context['request']['route']);
         self::assertSame('/mail/search', $context['request']['path']);
         self::assertSame('GET', $context['request']['method']);
+        // The reference the error toast showed, so the entry can be found by it.
+        self::assertSame('abcd1234', $context['request']['id']);
 
         // The NAMES say a search ran, which is the diagnostic question. The
         // values are somebody's private business and the admin reading this is

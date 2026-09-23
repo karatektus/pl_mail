@@ -1,5 +1,6 @@
 import { Controller } from "@hotwired/stimulus";
 import { jsonCsrfHeaders } from "../../csrf.js";
+import { requestFailed } from "../../request_errors.js";
 
 /**
  * "Label as" dropdown. Toggles a label on the target thread/message via the
@@ -61,11 +62,18 @@ export default class extends Controller {
 
         const targets = this._resolveTargets();
 
+        // Stops at the first failure: one toast rather than one per row, and
+        // the tick below stays as it was instead of promising a change that
+        // did not happen.
         for (const target of targets) {
-            await this._post(
+            const ok = await this._post(
                 `/status/${target.type}/${target.id}/label`,
                 { labelId: labelId, attach: attach },
             );
+
+            if (false === ok) {
+                return;
+            }
         }
 
         button.dataset.attached = attach ? "true" : "false";
@@ -134,16 +142,23 @@ export default class extends Controller {
         return targets;
     }
 
+    /** Answers false when the request failed, after saying so. */
     async _post(url, body) {
-        const response = await fetch(url, {
-            method: "POST",
-            headers: jsonCsrfHeaders(),
-            body: JSON.stringify(body),
-        });
+        let response;
 
-        if (!response.ok) {
-            console.error(`[label-menu] label update failed: ${url}`, response.status);
-            return;
+        try {
+            response = await fetch(url, {
+                method: "POST",
+                headers: jsonCsrfHeaders(),
+                body: JSON.stringify(body),
+            });
+        } catch {
+            requestFailed(null);
+            return false;
+        }
+
+        if (requestFailed(response)) {
+            return false;
         }
 
         const html = await response.text();
@@ -151,6 +166,8 @@ export default class extends Controller {
         if (html.trim() !== "") {
             Turbo.renderStreamMessage(html);
         }
+
+        return true;
     }
 
     _closeOnOutsideClick(event) {
