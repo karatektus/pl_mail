@@ -56,6 +56,26 @@ let pendingFocus = null
  */
 let closeToken = 0
 
+/**
+ * The one document keydown listener while the dialog is open — Escape and the
+ * Tab trap — whichever instance opened it.
+ *
+ * Module-level for the reason above, and this one was a real leak: each
+ * instance used to add its own bound handler in open() and remove its own in
+ * close(). The opener was a trigger button and the closer usually the
+ * backdrop's copy, so the opener's listener was never removed — every dialog
+ * opened left one more on document, each calling preventDefault on every
+ * Escape in the application from then on.
+ */
+let keydownListener = null
+
+function stopListening() {
+    if (keydownListener !== null) {
+        document.removeEventListener("keydown", keydownListener)
+        keydownListener = null
+    }
+}
+
 export default class extends Controller {
     static values = {
         src:   String,   // URL to load into the turbo-frame
@@ -80,7 +100,10 @@ export default class extends Controller {
 
     disconnect() {
         this.element.removeEventListener("turbo:submit-end", this._onSubmitEnd);
-        document.removeEventListener("keydown", this._onKeydown)
+        // The keydown listener is deliberately not removed here. It belongs to
+        // the open dialog, not to this element: the trigger that opened it is
+        // routinely replaced while it is open (a save re-renders the page
+        // behind), and Escape must keep working until close() takes it off.
     }
 
     // ── Public API ──────────────────────────────────────────────────────────────
@@ -161,14 +184,14 @@ export default class extends Controller {
         dialog.removeAttribute("inert")
         dialog.removeAttribute("hidden")
         document.body.classList.add("overflow-hidden")
-        document.addEventListener("keydown", this._onKeydown)
+        stopListening()
+        keydownListener = this._onKeydown
+        document.addEventListener("keydown", keydownListener)
 
         this._focusWhenLoaded(frame)
     }
 
     close(event) {
-        event?.preventDefault()
-
         const frame  = this._frame
         const dialog = this._dialog
 
@@ -178,11 +201,15 @@ export default class extends Controller {
         // Escape during the fade-out would start a second exit — and, once the
         // dialog is hidden, an exit on a display:none element, which never
         // fires `animationend` and would sit on the 400ms safety net.
+        //
+        // Before preventDefault, so a close with nothing to do swallows nothing.
         if (dialog.hasAttribute("hidden") || dialog.hasAttribute("data-leaving")) {
             return
         }
 
-        document.removeEventListener("keydown", this._onKeydown)
+        event?.preventDefault()
+
+        stopListening()
 
         // A dialog that opened while this one was still waiting for its content
         // must not have focus yanked out from under it by the old watcher.
@@ -336,6 +363,14 @@ export default class extends Controller {
 
     _handleKeydown(event) {
         if (event.key === "Escape") {
+            // Only while there is a dialog to close. close() prevents the
+            // default before its own guard, and an Escape that reaches here
+            // for a hidden or leaving dialog belongs to whatever else is
+            // listening — a menu, the composer.
+            const dialog = this._dialog
+
+            if (!dialog || dialog.hasAttribute("hidden") || dialog.hasAttribute("data-leaving")) return
+
             this.close(event)
 
             return
