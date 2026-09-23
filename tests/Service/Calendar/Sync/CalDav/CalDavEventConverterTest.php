@@ -276,7 +276,7 @@ final class CalDavEventConverterTest extends TestCase
 
         $event = $this->converter()->toRemoteEvent($ics, '/c/1.ics', null);
 
-        self::assertArrayNotHasKey('recurrenceOverrides', $event->jscalendar ?? []);
+        self::assertSame([], $event->jscalendar['recurrenceOverrides'] ?? []);
     }
 
     public function testTheOverridesGoBackOutOrTheServerLosesThem(): void

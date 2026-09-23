@@ -52,6 +52,12 @@ final readonly class RecurrenceRuleConverter
     private const string LOCAL_DATE_TIME = 'Y-m-d\TH:i:s';
 
     /**
+     * The editor's "keep the current rule" choice — see keepsStoredRule().
+     * Public because the template renders it and the controller reads it.
+     */
+    public const string REPEAT_KEEP = 'keep';
+
+    /**
      * JSCalendar frequency values to their RRULE FREQ.
      *
      * secondly and minutely are missing on purpose. Both are legal in RFC 5545
@@ -114,6 +120,95 @@ final readonly class RecurrenceRuleConverter
             'yearly'  => ['@type' => 'RecurrenceRule', 'frequency' => 'yearly'],
             default   => null,
         };
+    }
+
+    /**
+     * Whether a save from the editor leaves the series' stored rule alone.
+     *
+     * The dropdown can only say a bare frequency, and taking what it posted as
+     * the new rule flattened every rule it cannot show: "every other Tuesday
+     * and Thursday, ten times" came back from a title edit as "every week",
+     * forever, and was pushed to the remote like that. So a choice that
+     * matches the stored rule's frequency means "unchanged", and so does
+     * REPEAT_KEEP — the option the editor offers for a rule it cannot express
+     * at all, including one kept verbatim under `plmail:rrule`.
+     *
+     * @param array<string,mixed> $stored the series' JSCalendar object
+     */
+    public function keepsStoredRule(string $repeat, array $stored): bool
+    {
+        if (self::REPEAT_KEEP === $repeat) {
+            return true;
+        }
+
+        $rule = $this->storedRule($stored);
+
+        return null !== $rule
+            && true === is_string($rule['frequency'] ?? null)
+            && mb_strtolower($rule['frequency']) === $repeat;
+    }
+
+    /**
+     * The rule an editor save means: the stored one when keepsStoredRule()
+     * says so, and otherwise what the dropdown posted.
+     *
+     * @param array<string,mixed> $stored
+     *
+     * @return array<string,mixed>|null
+     */
+    public function ruleForRepeatChoice(string $repeat, array $stored): ?array
+    {
+        return true === $this->keepsStoredRule($repeat, $stored)
+            ? $this->storedRule($stored)
+            : $this->fromRepeatChoice($repeat);
+    }
+
+    /**
+     * Whether the editor's dropdown can say this series' rule. When it cannot,
+     * the editor offers REPEAT_KEEP and selects it, so opening and saving the
+     * event leaves the rule as it was.
+     *
+     * @param array<string,mixed> $stored
+     */
+    public function isBeyondTheDropdown(array $stored): bool
+    {
+        if (true === is_string($stored['plmail:rrule'] ?? null)) {
+            return true;
+        }
+
+        $rule = $this->storedRule($stored);
+
+        if (null === $rule) {
+            return false;
+        }
+
+        $rest = array_diff_key($rule, ['@type' => true, 'frequency' => true]);
+
+        // interval 1 is the default spelled out, and says nothing extra.
+        if (1 === ($rest['interval'] ?? null)) {
+            unset($rest['interval']);
+        }
+
+        return [] !== $rest
+            || false === in_array($rule['frequency'] ?? null, ['daily', 'weekly', 'monthly', 'yearly'], true);
+    }
+
+    /**
+     * @param array<string,mixed> $stored
+     *
+     * @return array<string,mixed>|null
+     */
+    private function storedRule(array $stored): ?array
+    {
+        $rules = $stored['recurrenceRules'] ?? null;
+
+        if (false === is_array($rules) || [] === $rules) {
+            return null;
+        }
+
+        $first = reset($rules);
+
+        return true === is_array($first) ? $first : null;
     }
 
     /**

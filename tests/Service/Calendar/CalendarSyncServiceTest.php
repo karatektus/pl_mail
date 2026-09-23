@@ -22,6 +22,7 @@ use App\Service\Calendar\CalendarPuller;
 use App\Service\Calendar\CalendarPusher;
 use App\Service\Calendar\CalendarSyncDriverRegistry;
 use App\Service\Calendar\CalendarSyncService;
+use App\Service\Calendar\Sync\CalDav\CalDavEventConverter;
 use App\Service\Calendar\RecurrenceRuleConverter;
 use DateTimeImmutable;
 use DateTimeZone;
@@ -502,6 +503,38 @@ final class CalendarSyncServiceTest extends KernelTestCase
         self::assertSame('Edited at the remote', $event->title);
         self::assertSame(SyncState::Clean, $event->syncState);
         self::assertSame('etag-b', $event->remoteEtag);
+    }
+
+    /**
+     * Removing the only alarm on a CalDAV server removes it here. The resource
+     * is the whole event, so a VEVENT with no VALARM means no alerts — and the
+     * writer used to keep the stored one whenever the remote said nothing.
+     */
+    public function testAnAlarmRemovedOnTheServerIsRemovedHere(): void
+    {
+        $event = $this->localEvent('r-17', 'uid-17', 'Reminded', etag: 'etag-a');
+
+        $event->jscalendar += ['alerts' => ['display/-PT10M' => [
+            '@type'   => 'Alert',
+            'trigger' => ['@type' => 'OffsetTrigger', 'offset' => '-PT10M'],
+            'action'  => 'display',
+        ]]];
+        $this->em->flush();
+
+        $remote = self::getContainer()->get(CalDavEventConverter::class)->toRemoteEvent(
+            "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//test//EN\r\nBEGIN:VEVENT\r\nUID:uid-17\r\n"
+            . "DTSTAMP:20260601T000000Z\r\nDTSTART:20260601T090000Z\r\nDTEND:20260601T100000Z\r\n"
+            . "SUMMARY:Reminded\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n",
+            'r-17',
+            'etag-b',
+        );
+
+        self::assertNotNull($remote);
+
+        $this->puller->apply($this->calendar, new CalendarChangeSet([$remote], 'token-1'));
+        $this->em->flush();
+
+        self::assertArrayNotHasKey('alerts', $event->jscalendar);
     }
 
     // ── Bookkeeping ───────────────────────────────────────────────────────

@@ -124,6 +124,12 @@ final readonly class EventMover
             description:    $this->descriptionOf($event),
             status:         $event->status,
             recurrenceRule: $this->recurrenceRuleOf($event),
+            // Everything else the object holds, for the same reason as the
+            // description: freeBusyStatus, keywords or a rule kept verbatim
+            // under `plmail:rrule` have no argument of their own, and a drag
+            // that rebuilt the object without them pushed them to the remote
+            // as removed.
+            base:           $event->jscalendar,
         );
 
         $this->writer->markLocallyChanged($event);

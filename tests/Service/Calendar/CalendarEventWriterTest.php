@@ -181,6 +181,56 @@ final class CalendarEventWriterTest extends KernelTestCase
         self::assertSame('Quarterly review (moved)', $event->title);
     }
 
+    /**
+     * Moving a series moves the decisions made about its instances.
+     *
+     * Overrides are keyed by the instance's original local start, and a series
+     * moved from 09:00 to 10:00 used to leave them all at 09:00 — where the rule
+     * no longer goes — so every cancelled instance came back.
+     */
+    public function testMovingASeriesShiftsItsOverridesWithIt(): void
+    {
+        $utc   = new DateTimeZone('UTC');
+        $start = new DateTimeImmutable('monday next week 09:00', $utc);
+        $key   = static fn (DateTimeImmutable $at): string => $at->format('Y-m-d\TH:i:s');
+        $rule  = ['@type' => 'RecurrenceRule', 'frequency' => 'weekly', 'count' => 4];
+
+        $event = $this->writer->write(
+            event:          new CalendarEvent(),
+            calendar:       $this->calendar,
+            user:           $this->user,
+            title:          'Standup',
+            startsAt:       $start,
+            endsAt:         $start->modify('+30 minutes'),
+            timeZone:       'UTC',
+            recurrenceRule: $rule,
+        );
+        $this->writer->overrideInstances($event, [
+            $key($start->modify('+1 week'))  => ['excluded' => true],
+            $key($start->modify('+2 weeks')) => ['start' => $key($start->modify('+2 weeks +1 day'))],
+        ]);
+
+        $moved = $start->modify('+1 hour');
+
+        $this->writer->write(
+            event:          $event,
+            calendar:       $this->calendar,
+            user:           $this->user,
+            title:          'Standup',
+            startsAt:       $moved,
+            endsAt:         $moved->modify('+30 minutes'),
+            timeZone:       'UTC',
+            recurrenceRule: $rule,
+        );
+        $this->em->flush();
+
+        self::assertSame([
+            $key($moved->modify('+1 week'))  => ['excluded' => true],
+            $key($moved->modify('+2 weeks')) => ['start' => $key($moved->modify('+2 weeks +1 day'))],
+        ], $event->jscalendar['recurrenceOverrides']);
+        self::assertCount(3, $event->occurrences, 'the cancelled instance stays cancelled');
+    }
+
     // ── Fixtures ──────────────────────────────────────────────────────────
 
     private function rename(CalendarEvent $event, string $title): void

@@ -1012,6 +1012,7 @@ calendar:
         untitled: (no subject)
     repeat:
         daily: Every day
+        keep: Keep the charted course
         monthly: Every month
         none: Comes but once
         weekly: Every week

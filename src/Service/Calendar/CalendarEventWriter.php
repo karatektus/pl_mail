@@ -29,6 +29,21 @@ use Doctrine\ORM\EntityManagerInterface;
  */
 final readonly class CalendarEventWriter
 {
+    /**
+     * Every key toJsCalendar() decides for itself. A base object passed to
+     * write() contributes everything EXCEPT these, which is what lets an edit
+     * keep a property it has no field for without letting a stale copy of one
+     * it does have win.
+     */
+    private const array DERIVED_KEYS = [
+        '@type', 'uid', 'title', 'start', 'duration', 'status', 'privacy', 'timeZone',
+        'showWithoutTime', 'description', 'locations', 'recurrenceRules',
+        'recurrenceOverrides', 'participants', 'alerts',
+    ];
+
+    /** The overlay keys whose explicit [] means "none", not "not stated". */
+    private const array STATED_EMPTY_CLEARS = ['alerts', 'participants', 'recurrenceOverrides'];
+
     public function __construct(
         private RecurrenceMaterialiser $materialiser,
         private AlertReader            $alerts,
@@ -38,9 +53,17 @@ final readonly class CalendarEventWriter
 
     /**
      * @param array<string,mixed>|null $recurrenceRule    a JSCalendar RecurrenceRule, or null for a one-off
-     * @param array<string,mixed>|null $jscalendarOverlay a canonical object an extractor already built
+     * @param array<string,mixed>|null $jscalendarOverlay a canonical object an extractor already built. A
+     *                                                    driver that read the WHOLE remote object states an
+     *                                                    empty `alerts`, `participants` or
+     *                                                    `recurrenceOverrides` as [] rather than leaving the
+     *                                                    key out, and that clears the stored one
      * @param list<EventAlert>|null    $alerts            the alerts this write means; null keeps whatever is
      *                                                    stored, and an empty list clears them
+     * @param array<string,mixed>|null $base              the stored object an edit is made to. Its keys this
+     *                                                    writer does not derive — freeBusyStatus, keywords,
+     *                                                    a verbatim `plmail:rrule` — are carried across, so an
+     *                                                    edit with no field for them does not erase them
      */
     public function write(
         CalendarEvent     $event,
@@ -57,7 +80,12 @@ final readonly class CalendarEventWriter
         ?array            $recurrenceRule = null,
         ?array            $jscalendarOverlay = null,
         ?array            $alerts = null,
+        ?array            $base = null,
     ): CalendarEvent {
+        // Before any column moves: this is the only record of where the series
+        // started, and it is what its override keys are relative to.
+        $previous = $event->jscalendar;
+
         $event->calendar = $calendar;
         $event->usr      = $user;
         $event->title    = $title;
@@ -74,6 +102,23 @@ final readonly class CalendarEventWriter
 
         $event->jscalendar = $this->toJsCalendar($event, $description, $recurrenceRule, $alerts);
 
+        // Under the derived object, never over it: the keys this writer owns
+        // are the ones the caller has just stated, and a base carrying the old
+        // title or the old rule must not win against them.
+        if (null !== $base) {
+            $event->jscalendar = array_merge(
+                array_diff_key($base, array_flip(self::DERIVED_KEYS)),
+                $event->jscalendar,
+            );
+        }
+
+        // Only a local edit moves the overrides with the series. An overlay is
+        // somebody else's whole object, and its overrides are already keyed on
+        // the series as THEY now have it.
+        if (null === $jscalendarOverlay) {
+            $this->shiftOverrides($event, $previous);
+        }
+
         // An extractor has already built the canonical object, and it carries
         // things no parameter list should have to thread through —
         // participants, alerts, the sender's own recurrence rule. It wins,
@@ -85,6 +130,18 @@ final readonly class CalendarEventWriter
 
             $event->jscalendar = array_merge($event->jscalendar, $jscalendarOverlay);
             $event->jscalendar = $this->keepAnswersAlreadyGiven($event->jscalendar, $stored);
+
+            // An overlay that states one of these as empty is a full remote
+            // object saying there are none. Without this, a key the driver left
+            // out fell through to the stored value above, so an alert or an
+            // exclusion removed in Google, Outlook or on a CalDAV server stayed
+            // here forever. Dropped rather than stored empty, for the reason
+            // toJsCalendar() gives about empty maps.
+            foreach (self::STATED_EMPTY_CLEARS as $key) {
+                if ([] === ($jscalendarOverlay[$key] ?? null)) {
+                    unset($event->jscalendar[$key]);
+                }
+            }
         }
 
         $this->em->persist($event);
@@ -401,6 +458,96 @@ final readonly class CalendarEventWriter
         }
 
         return $jscalendar;
+    }
+
+    /**
+     * Move every per-instance patch with the series.
+     *
+     * Overrides are keyed by the instance's ORIGINAL local start, so moving a
+     * weekly 09:00 meeting to 10:00 left every key at 09:00: the rule no longer
+     * visited any of them, and every instance somebody had cancelled or moved
+     * came back as if nothing had happened. The keys — and a moved instance's
+     * own `start` — are shifted by the same wall-clock difference the series
+     * moved by, and a key that still lands on no instance (the rule itself
+     * changed) is dropped rather than exported as a date nothing repeats on.
+     *
+     * Wall clock, not elapsed time: a 09:00 series moved to 10:00 is an hour
+     * later on both sides of a daylight-saving change, and a key is a
+     * LocalDateTime for exactly that reason.
+     *
+     * @param array<string,mixed> $previous the object as it was before this write
+     */
+    private function shiftOverrides(CalendarEvent $event, array $previous): void
+    {
+        $overrides = $event->jscalendar['recurrenceOverrides'] ?? null;
+        $was       = $previous['start'] ?? null;
+        $now       = $event->jscalendar['start'] ?? null;
+
+        if (false === is_array($overrides) || [] === $overrides || false === is_string($was) || false === is_string($now)) {
+            return;
+        }
+
+        $from = $this->localSeconds($was);
+        $to   = $this->localSeconds($now);
+
+        // Unreadable either side says nothing about how far the series moved,
+        // and guessing would shift every override by a nonsense amount.
+        $delta = null === $from || null === $to ? 0 : $to - $from;
+
+        if (0 !== $delta) {
+            $shifted = [];
+
+            foreach ($overrides as $key => $patch) {
+                if (true === is_array($patch) && true === is_string($patch['start'] ?? null)) {
+                    $patch['start'] = $this->shiftLocal($patch['start'], $delta);
+                }
+
+                $shifted[$this->shiftLocal((string) $key, $delta)] = $patch;
+            }
+
+            $overrides = $shifted;
+        }
+
+        // Asked after every edit rather than only after a shift: a series whose
+        // rule changed from weekly to monthly has keys no rule will visit again
+        // whether or not its start moved.
+        $jscalendar = $event->jscalendar;
+
+        $jscalendar['recurrenceOverrides'] = $overrides;
+        $event->jscalendar                 = $jscalendar;
+
+        foreach ($this->materialiser->keysOffTheRule($event, array_map(strval(...), array_keys($overrides))) as $dead) {
+            unset($overrides[$dead]);
+        }
+
+        if ([] === $overrides) {
+            unset($jscalendar['recurrenceOverrides']);
+        } else {
+            $jscalendar['recurrenceOverrides'] = $overrides;
+        }
+
+        $event->jscalendar = $jscalendar;
+    }
+
+    /** A LocalDateTime as seconds on a clock with no zone, for wall-clock arithmetic. */
+    private function localSeconds(string $local): ?int
+    {
+        try {
+            return new DateTimeImmutable($local, new DateTimeZone('UTC'))->getTimestamp();
+        } catch (\Exception) {
+            return null;
+        }
+    }
+
+    private function shiftLocal(string $local, int $seconds): string
+    {
+        try {
+            return new DateTimeImmutable($local, new DateTimeZone('UTC'))
+                ->modify(sprintf('%+d seconds', $seconds))
+                ->format('Y-m-d\TH:i:s');
+        } catch (\Exception) {
+            return $local;
+        }
     }
 
     /** ISO 8601 duration, which is how JSCalendar says how long something is. */

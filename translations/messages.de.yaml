@@ -1296,6 +1296,7 @@ calendar:
         untitled: (kein Betreff)
     repeat:
         daily: Täglich
+        keep: Aktuelle Regel beibehalten
         monthly: Monatlich
         none: Wiederholt sich nicht
         weekly: Wöchentlich

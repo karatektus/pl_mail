@@ -409,16 +409,18 @@ final readonly class GoogleEventMapper
             $jscalendar['sequence'] = $sequence;
         }
 
-        $participants = $this->participantsOf($item);
+        // Stated even when empty, so CalendarEventWriter clears what it had
+        // stored: attendees and reminders are part of the event Google sent,
+        // and an absent list means there are none — see the writer. Only when
+        // `reminders` is there at all, which it is on every event read back;
+        // a payload without it says nothing about reminders either way.
+        // recurrenceOverrides is deliberately not in this: Google reports a
+        // moved or cancelled instance as an event of its own, so the master
+        // never holds the whole map.
+        $jscalendar['participants'] = $this->participantsOf($item);
 
-        if ([] !== $participants) {
-            $jscalendar['participants'] = $participants;
-        }
-
-        $alerts = $this->alertsOf($item);
-
-        if ([] !== $alerts) {
-            $jscalendar['alerts'] = $alerts;
+        if (true === is_array($item['reminders'] ?? null)) {
+            $jscalendar['alerts'] = $this->alertsOf($item);
         }
 
         $recurrence = $item['recurrence'] ?? null;

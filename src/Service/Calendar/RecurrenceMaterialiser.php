@@ -151,6 +151,68 @@ final readonly class RecurrenceMaterialiser
     }
 
     /**
+     * Which of these override keys name no instance the series' rule produces.
+     *
+     * For CalendarEventWriter, which shifts every override when a series moves
+     * and must then drop the ones that no longer land anywhere — a patch keyed
+     * on an instant the rule never visits does nothing on the calendar, but it
+     * is still exported as an EXDATE or a RECURRENCE-ID pointing at nothing.
+     *
+     * Walked over the rule itself rather than read off the occurrence rows,
+     * because an excluded instance has no row and is still an instance. Keys
+     * the walk cannot reach — past its cap, or on an event whose rule does not
+     * expand — are kept: dropping a decision the user made is worse than
+     * keeping one this cannot check.
+     *
+     * @param list<string> $keys LocalDateTimes in the series' zone
+     *
+     * @return list<string> the subset of $keys the rule does not produce
+     */
+    public function keysOffTheRule(CalendarEvent $event, array $keys): array
+    {
+        $rule  = $this->firstRule($event);
+        $rrule = null === $rule ? null : $this->converter->toRrule($rule);
+
+        if (null === $rrule || null === $event->startsAt || [] === $keys) {
+            return [];
+        }
+
+        $zone    = $this->zoneOf($event);
+        $pending = array_fill_keys($keys, true);
+        $last    = max($keys);
+
+        try {
+            $iterator = new RRuleIterator($rrule, \DateTime::createFromInterface($event->startsAt->setTimezone($zone)));
+        } catch (\Throwable) {
+            return [];
+        }
+
+        $steps     = 0;
+        $reached   = '';
+        $exhausted = true;
+
+        foreach ($iterator as $current) {
+            $reached = $this->converter->overrideKey($current, $zone);
+
+            unset($pending[$reached]);
+
+            if ([] === $pending || $reached > $last || ++$steps > self::MAX_OCCURRENCES * 20) {
+                $exhausted = false;
+
+                break;
+            }
+        }
+
+        // A key the walk went past without meeting is off the rule, and so is
+        // every key of a rule that ran out. One beyond where a capped walk
+        // stopped is unknown rather than off, and stays.
+        return array_values(array_filter(
+            array_map(strval(...), array_keys($pending)),
+            static fn (string $key): bool => true === $exhausted || $key < $reached,
+        ));
+    }
+
+    /**
      * Whether this event has earned a place in the calendar's views.
      *
      * Only an invitation addressed to the owner can answer false, and only

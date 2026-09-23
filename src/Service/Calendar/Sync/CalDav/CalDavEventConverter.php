@@ -324,17 +324,14 @@ final readonly class CalDavEventConverter
             $jscalendar['locations'] = ['1' => ['@type' => 'Location', 'name' => $location]];
         }
 
-        $participants = $this->participantsOf($vevent);
-
-        if ([] !== $participants) {
-            $jscalendar['participants'] = $participants;
-        }
-
-        $alerts = $this->alertsIn($vevent);
-
-        if ([] !== $alerts) {
-            $jscalendar['alerts'] = $alerts;
-        }
+        // Stated even when empty. A resource is the whole event — master and
+        // every override in one file — so no ATTENDEE, no VALARM or no
+        // RECURRENCE-ID is a fact, and CalendarEventWriter reads an explicit []
+        // as "none". Left out, the writer kept what it had stored, and an
+        // alarm or an exclusion removed on the server never left plMail.
+        $jscalendar['participants']        = $this->participantsOf($vevent);
+        $jscalendar['alerts']              = $this->alertsIn($vevent);
+        $jscalendar['recurrenceOverrides'] = [];
 
         $rrules = $vevent->select('RRULE');
 
@@ -360,9 +357,7 @@ final readonly class CalDavEventConverter
             $end->getTimestamp() - $start->getTimestamp(),
         );
 
-        if ([] !== $overrides) {
-            $jscalendar['recurrenceOverrides'] = $overrides;
-        }
+        $jscalendar['recurrenceOverrides'] = $overrides;
 
         return $jscalendar;
     }

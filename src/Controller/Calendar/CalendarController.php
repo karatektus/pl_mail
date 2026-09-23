@@ -558,6 +558,22 @@ final class CalendarController extends AbstractController
             // the write every copy looks equally established.
             $isNew = $target->isNew();
 
+            // The rule and the rest of the object as they were. A copy that
+            // does not exist yet takes the rule from the event the editor was
+            // opened on, since that is the series being put on a second
+            // calendar — but not that row's other properties, which may be
+            // about the remote it came from rather than about the meeting.
+            $ruleSource = true === $isNew ? ($event?->jscalendar ?? []) : $copy->jscalendar;
+            $repeat     = $request->request->getString('repeat');
+            $keepsRule  = $this->recurrence->keepsStoredRule($repeat, $ruleSource);
+            $base       = true === $isNew ? [] : $copy->jscalendar;
+
+            if (true === $keepsRule && true === isset($ruleSource['plmail:rrule'])) {
+                $base['plmail:rrule'] = $ruleSource['plmail:rrule'];
+            } else {
+                unset($base['plmail:rrule']);
+            }
+
             $this->writer->write(
                 event:          $copy,
                 // Each copy's OWN calendar, always — the one it is on, or the
@@ -576,7 +592,11 @@ final class CalendarController extends AbstractController
                 location:       $request->request->getString('location') ?: null,
                 description:    $request->request->getString('description') ?: null,
                 status:         EventStatus::Confirmed,
-                recurrenceRule: $this->recurrence->fromRepeatChoice($request->request->getString('repeat')),
+                recurrenceRule: $this->recurrence->ruleForRepeatChoice($repeat, $ruleSource),
+                // What the form has no field for — freeBusyStatus, keywords, a
+                // verbatim rule — survives the save instead of being rebuilt
+                // away and pushed to the remote as removed.
+                base:           $base,
                 // Stated on every save, never omitted. Passing null here means
                 // "keep whatever is stored", which is right for a caller with
                 // no opinion about alerts — the sync engine — and wrong for

@@ -105,7 +105,7 @@ final class AlertSyncRoundTripTest extends TestCase
         ], 'UTC');
 
         self::assertNotNull($remote);
-        self::assertArrayNotHasKey('alerts', $remote->jscalendar);
+        self::assertSame([], $remote->jscalendar['alerts'] ?? [], 'no alert of its own — stated empty, so a stored one is cleared');
     }
 
     public function testAnAlertIsSentBackToGoogleAsAReminderOverride(): void
@@ -166,7 +166,7 @@ final class AlertSyncRoundTripTest extends TestCase
         ]);
 
         self::assertNotNull($remote);
-        self::assertArrayNotHasKey('alerts', $remote->jscalendar);
+        self::assertSame([], $remote->jscalendar['alerts'] ?? [], 'stated empty, so the writer clears a stored one');
     }
 
     /**

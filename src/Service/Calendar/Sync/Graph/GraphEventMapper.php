@@ -187,11 +187,9 @@ final readonly class GraphEventMapper
         $jscalendar += $this->stampsOf($event);
         $jscalendar += $this->alertsOf($event);
 
-        $participants = $this->participantsOf($event);
-
-        if ([] !== $participants) {
-            $jscalendar['participants'] = $participants;
-        }
+        // Stated even when empty — see CalendarEventWriter: an event with its
+        // attendees removed in Outlook has to lose them here as well.
+        $jscalendar['participants'] = $this->participantsOf($event);
 
         $recurrence = $event['recurrence'] ?? null;
 
@@ -338,10 +336,10 @@ final readonly class GraphEventMapper
     /**
      * Graph's single reminder as a JSCalendar alerts map, or nothing.
      *
-     * Merged into the object with `+=` like the other partial readers here, so
-     * an event with the reminder off contributes no `alerts` key at all rather
-     * than an empty map — see CalendarEventWriter for why an empty map is worse
-     * than an absent one.
+     * Merged into the object with `+=` like the other partial readers here. An
+     * event with the reminder off contributes an explicit empty map, which
+     * CalendarEventWriter reads as "none" and does not store — so a reminder
+     * switched off in Outlook is switched off here too.
      *
      * A negative `reminderMinutesBeforeStart` is refused. Graph does not produce
      * one, but the value arrives as decoded JSON from a tenant that may have
@@ -354,6 +352,13 @@ final readonly class GraphEventMapper
      */
     private function alertsOf(array $event): array
     {
+        // Reminder switched off in Outlook: an explicit empty map, which the
+        // writer reads as "none" and uses to clear the one it had stored.
+        // Absent means Graph said nothing, and nothing is contributed.
+        if (false === ($event['isReminderOn'] ?? null)) {
+            return ['alerts' => []];
+        }
+
         if (true !== ($event['isReminderOn'] ?? false)) {
             return [];
         }

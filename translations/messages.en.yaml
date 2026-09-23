@@ -1274,6 +1274,7 @@ calendar:
         untitled: (no subject)
     repeat:
         daily: Every day
+        keep: Keep the current rule
         monthly: Every month
         none: Does not repeat
         weekly: Every week

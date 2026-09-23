@@ -186,6 +186,41 @@ final class EventMoverTest extends KernelTestCase
     }
 
     /**
+     * A rule the editor's dropdown cannot say, and properties no argument
+     * carries, survive a drag of the whole series. Both used to be rebuilt away
+     * and pushed to the remote as removed.
+     */
+    public function testMovingASeriesKeepsItsWholeRuleAndItsOtherProperties(): void
+    {
+        $start = $this->originalStart(0);
+        $rule  = [
+            '@type'     => 'RecurrenceRule',
+            'frequency' => 'weekly',
+            'interval'  => 2,
+            'byDay'     => [['@type' => 'NDay', 'day' => 'mo'], ['@type' => 'NDay', 'day' => 'we']],
+            'count'     => 6,
+        ];
+
+        $event = $this->writer->write(
+            event:          new CalendarEvent(),
+            calendar:       $this->calendar,
+            user:           $this->user,
+            title:          'Planning',
+            startsAt:       $start,
+            endsAt:         $start->modify('+30 minutes'),
+            timeZone:       'UTC',
+            recurrenceRule: $rule,
+        );
+        $event->jscalendar = $event->jscalendar + ['freeBusyStatus' => 'free'];
+        $this->em->flush();
+
+        $this->drag($event, 0, '+2 hours', seriesScope: true);
+
+        self::assertSame($rule, $event->jscalendar['recurrenceRules'][0]);
+        self::assertSame('free', $event->jscalendar['freeBusyStatus'] ?? null);
+    }
+
+    /**
      * The description lives only in the JSCalendar object, which write() builds
      * from its arguments — so a move that did not carry it back would blank it
      * without anything to notice.
