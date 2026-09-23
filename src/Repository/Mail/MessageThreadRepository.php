@@ -2457,13 +2457,18 @@ class MessageThreadRepository extends ServiceEntityRepository
      * sweep touches every message of every thread it wakes, so leaving the
      * collections lazy would be an N+1 across the whole backlog.
      *
+     * TWO STATEMENTS, because the cap and the fetch-join cannot share one:
+     * setMaxResults() on a query that fetch-joins a collection limits the
+     * JOINED rows, so a batch of 200 was 200 messages rather than 200 threads,
+     * and the last thread in it arrived with some of its messages cut off. The
+     * ids are picked (and capped) first; the threads are then loaded whole.
+     *
      * @return list<MessageThread>
      */
     public function findDueSnoozed(\DateTimeImmutable $now, int $limit): array
     {
-        return $this->createQueryBuilder('t')
-            ->addSelect('m')
-            ->leftJoin('t.messages', 'm')
+        $ids = $this->createQueryBuilder('t')
+            ->select('t.id')
             ->where('t.snoozedUntil IS NOT NULL')
             ->andWhere('t.snoozedUntil <= :now')
             ->setParameter('now', $now)
@@ -2476,6 +2481,21 @@ class MessageThreadRepository extends ServiceEntityRepository
             // needlessly hard to reason about when one of them goes wrong.
             ->addOrderBy('t.id', 'ASC')
             ->setMaxResults($limit)
+            ->getQuery()
+            ->getSingleColumnResult();
+
+        if ([] === $ids) {
+            return [];
+        }
+
+        /** @var list<MessageThread> */
+        return $this->createQueryBuilder('t')
+            ->addSelect('m')
+            ->leftJoin('t.messages', 'm')
+            ->where('t.id IN (:ids)')
+            ->setParameter('ids', $ids)
+            ->orderBy('t.snoozedUntil', 'ASC')
+            ->addOrderBy('t.id', 'ASC')
             ->getQuery()
             ->getResult();
     }

@@ -119,6 +119,32 @@ final class WakeSnoozedCommandTest extends KernelTestCase
         self::assertSame(0, $this->command->getStatusCode());
     }
 
+    /**
+     * The batch cap counts THREADS. On the fetch-joined query it counted
+     * joined message rows, so a capped batch could hand the sweep a thread
+     * with part of its conversation missing.
+     */
+    public function testTheBatchCapDoesNotTruncateAThreadsMessages(): void
+    {
+        $thread = $this->snoozedThread('-1 minute');
+
+        $second = new Message();
+        $second->account = $this->account;
+        $second->subject = 'Wake fixture';
+        $second->fromAddress = 'sender@example.test';
+        $second->receivedAt = new \DateTimeImmutable('-30 minutes');
+        $second->hasAttachments = false;
+        $thread->addMessage($second);
+        $this->em->persist($second);
+        $this->em->flush();
+        $this->em->clear();
+
+        $due = $this->em->getRepository(MessageThread::class)->findDueSnoozed(new \DateTimeImmutable(), 1);
+
+        self::assertCount(1, $due);
+        self::assertCount(2, $due[0]->messages);
+    }
+
     // ── Fixtures ──────────────────────────────────────────────────────────
 
     /** @return list<LabelRole|null> */
