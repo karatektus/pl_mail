@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Domain\Helper;
 
 use Symfony\Component\Mime\Email;
-use Symfony\Component\Mime\Part\TextPart;
 
 /**
  * The raw MIME an HTTP send API is handed, Bcc header included.
@@ -33,8 +32,6 @@ final class ApiMime
             $headers->addMailboxListHeader('Bcc', $bcc);
         }
 
-        $body = $email->getBody() ?? new TextPart('');
-
-        return $headers->toString() . $body->toString();
+        return $headers->toString() . $email->getBody()->toString();
     }
 }
