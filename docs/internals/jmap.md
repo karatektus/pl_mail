@@ -508,12 +508,16 @@ from one that does not exist. The Session states the cap so a client is not surp
 prevent.** A token that moves for a quarter of the writes is worse than one that never moves,
 because a client will believe it.
 
-**`jmap_change_log` has a `pruneOlderThan()` and no caller.** The primary key is a 32-bit
-integer, so the log grows for the life of the install — one row per message per sync plus one
-per touched thread. The entity's own comment names the two ways out and their consequences:
-switching to `bigint` means retyping the property to `?string` (Doctrine hydrates bigint as a
-string), and adding a pruner means clients below the new floor get `cannotCalculateChanges`
-and resync.
+**`jmap_change_log` keeps sixty days.** `app:jmap:prune-changes` runs nightly from
+`MaintenanceSchedule` and drops older rows, except the newest row of each account and object
+type, so a state token never goes backwards. A client whose token is below the new floor gets
+`cannotCalculateChanges` and resyncs. The primary key is still a 32-bit integer, and pruning
+bounds the table, not the sequence: numbers are never reused. Switching to `bigint` means
+retyping the property to `?string` (Doctrine hydrates bigint as a string).
+
+**State tokens follow commit order per account.** A `BEFORE INSERT` trigger
+(`Version20260923140100`) takes a per-account advisory lock and then draws the sequence, so two
+writers of one account cannot commit their change rows out of order.
 
 **A new JMAP-visible mutation that skips `MailChangeRecorder` is invisible to clients** until
 something else touches the same thread. There is no test that notices a missing announcement;

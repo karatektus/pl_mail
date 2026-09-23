@@ -804,6 +804,7 @@ php bin/mirror-wiki.php --check
 | `app:user:2fa-disable <email> [--force]` | Turn off 2FA for someone locked out — see "Two-factor authentication" |
 | `app:user:password <email> [--password=…]` | Set a new password for a user who can no longer sign in. Prompted for, hidden and twice, unless `--password` is given. Console-only for the same reason as `app:user:2fa-disable`: an administrator who could do it from a browser would be a second way into that person's mailbox |
 | `app:monitoring:prune [--days=N] [--push-days=N]` | Prune old log entries, push deliveries and dead process heartbeats |
+| `app:jmap:prune-changes [--days=N]` | Prune JMAP change-log rows older than the retention window (60 days by default), keeping the newest row per account and object type so no state token goes backwards. Runs nightly at 05:20. A client away longer than the window gets `cannotCalculateChanges` and resyncs |
 | `app:jobs:reap [--stale-seconds=N] [--dry-run]` | Fail background jobs that have stopped reporting progress, so the topbar indicator stops showing work whose worker died. Runs every 5 minutes; a job counts as abandoned after 15 minutes without a chunk |
 | `app:backup [dir] [--skip-secrets] [--skip-storage]` | Write a restorable snapshot: `pg_dump`, the stored files, and the generated secrets. Says explicitly when `APP_ENCRYPTION_KEY` is *not* in it |
 | `app:reset` | Truncate synced data — useful during development |

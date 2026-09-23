@@ -30,14 +30,12 @@ class ChangeLog
 {
     use TimestampableTrait;
 
-    // integer (32-bit), and nothing prunes this table: ChangeLogRepository has a
-    // pruneOlderThan() but no caller anywhere in src/, so the log grows for the
-    // life of the install — one row per message per sync, plus one per touched
-    // thread. 2.1 billion is a long way off at mailbox rates, but it is a
-    // ceiling rather than a design. Whichever comes first, a pruner or bigint:
-    // switching to type: 'bigint' means retyping the property to ?string too
-    // (Doctrine hydrates bigint as a string), and adding a pruner means clients
-    // below the new floor get cannotCalculateChanges and resync.
+    // integer (32-bit). app:jmap:prune-changes keeps the table to a window
+    // (see MaintenanceSchedule), which bounds its size but not the sequence:
+    // numbers are never reused, so 2.1 billion is still the ceiling on how many
+    // changes an install can ever record. That is a long way off at mailbox
+    // rates. When it matters, switching to type: 'bigint' means retyping the
+    // property to ?string too (Doctrine hydrates bigint as a string).
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column(type: 'integer')]

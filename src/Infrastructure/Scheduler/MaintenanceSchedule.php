@@ -160,6 +160,12 @@ final class MaintenanceSchedule implements ScheduleProviderInterface
                 // stacking two DELETEs on the same minute buys nothing.
                 RecurringMessage::cron('10 5 * * *', new RunCommandMessage('app:ai:prune-metrics')),
 
+                // The JMAP change log, which every sync appends to and nothing
+                // else ever removed. Sixty days: a client away longer than that
+                // is told to resync. Twenty past five, clear of the prunes on
+                // either side of it on the same worker.
+                RecurringMessage::cron('20 5 * * *', new RunCommandMessage('app:jmap:prune-changes')),
+
                 // One-time repairs this installation has not run yet — see
                 // UpgradeTaskInterface, which carries the reasoning for why
                 // they are neither migrations nor entrypoint work.

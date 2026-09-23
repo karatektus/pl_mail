@@ -93,25 +93,38 @@ final class ChangeLogRepository extends ServiceEntityRepository
     }
 
     /**
-     * Prune rows older than $before for an account+objectType. Callers that
-     * prune must accept that clients holding a state token below the new floor
-     * will be told to resync (cannotCalculateChanges).
+     * Retention for the whole log: drop rows older than $before, keeping the
+     * newest row of every account+objectType however old it is.
      *
-     * A bulk DELETE for the `<` bound and because nothing here needs an entity
-     * — retention that hydrated its victims would scale with the history it
-     * exists to remove.
+     * The kept row is what stops a state token going backwards. The token is
+     * the highest sequence present, so pruning a quiet type — a Mailbox tree
+     * nobody has touched in months — down to nothing would reset its state to
+     * "0" and tell every client holding the real one that it is ahead of the
+     * log. With it kept, a client at the current state still gets "no
+     * changes", and one below the new floor gets cannotCalculateChanges from
+     * StateManager::changesSince() and resyncs, which is the price of
+     * retention and the answer RFC 8620 §5.2 provides for it.
+     *
+     * A bulk DELETE because retention that hydrated its victims would scale
+     * with the history it exists to remove. The "newest per group" test is a
+     * correlated MAX, which idx_jmap_change_scan answers with one index probe
+     * per row rather than a grouping of the whole table. Raw SQL for that
+     * correlation: DQL renders a DELETE without a table alias, so the outer
+     * row's columns come out unqualified inside the subquery and bind to the
+     * subquery's own table — every row would be compared with itself.
      */
-    public function pruneOlderThan(int $accountId, JmapObjectType $type, \DateTimeImmutable $before): int
+    public function pruneOlderThan(\DateTimeImmutable $before): int
     {
-        return (int) $this->createQueryBuilder('c')
-            ->delete()
-            ->where('c.accountId = :accountId')
-            ->andWhere('c.objectType = :type')
-            ->andWhere('c.createdAt < :before')
-            ->setParameter('accountId', $accountId)
-            ->setParameter('type', $type->value)
-            ->setParameter('before', $before)
-            ->getQuery()
-            ->execute();
+        return (int) $this->getEntityManager()->getConnection()->executeStatement(
+            <<<'SQL'
+                DELETE FROM jmap_change_log c
+                 WHERE c.created_at < :before
+                   AND c.sequence < (
+                       SELECT MAX(n.sequence) FROM jmap_change_log n
+                        WHERE n.account_id = c.account_id AND n.object_type = c.object_type
+                   )
+                SQL,
+            ['before' => $before->format('Y-m-d H:i:s')],
+        );
     }
 }

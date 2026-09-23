@@ -1,4 +1,4 @@
-<!-- translated-from: internals/jmap.md sha1:719b01d3f2ac12de7e54dd282df2283546630f21 -->
+<!-- translated-from: internals/jmap.md sha1:9c35c769c9467ef568f590017a4304ac8638e76b -->
 # JMAP
 
 Was implementiert ist, was bewusst nicht, die ID-Räume und warum jeder von ihnen so aussieht,
@@ -546,13 +546,17 @@ der Fehlschlag, gegen den es geschrieben wurde.** Ein Token, das sich für ein V
 Schreibvorgänge bewegt, ist schlimmer als eines, das sich nie bewegt, denn ein Client wird ihm
 glauben.
 
-**`jmap_change_log` hat ein `pruneOlderThan()` und keinen Aufrufer.** Der Primärschlüssel ist
-eine 32-Bit-Ganzzahl, das Log wächst also über die Lebensdauer der Installation — eine Zeile je
-Nachricht je Synchronisierung, plus eine je berührter Konversation. Der Kommentar an der Entität
-benennt die zwei Auswege und ihre Folgen: Auf `bigint` zu wechseln bedeutet, die Eigenschaft auf
-`?string` umzutypen (Doctrine hydratisiert bigint als Zeichenkette), und einen Pruner zu ergänzen
-bedeutet, dass Clients unterhalb der neuen Untergrenze `cannotCalculateChanges` bekommen und neu
-synchronisieren.
+**`jmap_change_log` behält sechzig Tage.** `app:jmap:prune-changes` läuft nachts aus dem
+`MaintenanceSchedule` und löscht ältere Zeilen, außer der jüngsten Zeile je Konto und
+Objekttyp, damit ein State-Token nie rückwärts läuft. Ein Client, dessen Token unter der neuen
+Untergrenze liegt, bekommt `cannotCalculateChanges` und synchronisiert neu. Der Primärschlüssel
+ist weiterhin eine 32-Bit-Ganzzahl, und das Aufräumen begrenzt die Tabelle, nicht die Sequenz:
+Nummern werden nie wiederverwendet. Auf `bigint` zu wechseln bedeutet, die Eigenschaft auf
+`?string` umzutypen (Doctrine hydratisiert bigint als Zeichenkette).
+
+**State-Tokens folgen der Commit-Reihenfolge je Konto.** Ein `BEFORE INSERT`-Trigger
+(`Version20260923140100`) nimmt ein Advisory-Lock je Konto und zieht erst dann die Sequenz, damit
+zwei Schreiber desselben Kontos ihre Änderungszeilen nicht in falscher Reihenfolge committen.
 
 **Eine neue, für JMAP sichtbare Mutation, die den `MailChangeRecorder` umgeht, ist für Clients
 unsichtbar**, bis irgendetwas anderes dieselbe Konversation anfasst. Es gibt keinen Test, dem
