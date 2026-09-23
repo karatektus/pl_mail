@@ -3,6 +3,7 @@
 namespace App\Repository\Mail;
 
 use App\Domain\Enum\Mail\LabelRole;
+use App\Domain\Enum\Mail\MailboxSpecialUse;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Mailbox;
 use App\Entity\Mail\Message;
@@ -1862,10 +1863,20 @@ class MessageRepository extends ServiceEntityRepository
      * QueryBuilder for the ownership test: it spans two associations, since a
      * row reaches its account through its mailbox or through its thread
      * depending on where it came from.
+     *
+     * $forSentFolder false leaves out the rows waiting for their Sent copy —
+     * the send path files those in the Sent mailbox, or in none when the
+     * account has no Sent folder, and they carry no gmailId. Only the Sent
+     * folder may claim them. A mail you Cc'd to yourself arrives in INBOX
+     * under the same Message-ID, often before the Sent copy, and used to take
+     * the sent row over: the message left Sent and the Sent copy that followed
+     * was inserted as a second row. Gmail-imported copies (gmailId set) and
+     * rows a UIDVALIDITY rebuild unlocated in their own folder stay claimable
+     * from anywhere.
      */
-    public function findUnlocatedByMessageId(Account $account, string $messageId): ?Message
+    public function findUnlocatedByMessageId(Account $account, string $messageId, bool $forSentFolder = true): ?Message
     {
-        return $this->createQueryBuilder('message')
+        $qb = $this->createQueryBuilder('message')
             ->leftJoin('message.mailbox', 'mailbox')
             ->leftJoin('message.thread', 'thread')
             ->where('message.messageId = :messageId')
@@ -1874,9 +1885,16 @@ class MessageRepository extends ServiceEntityRepository
             ->setParameter('messageId', $messageId)
             ->setParameter('account', $account)
             ->orderBy('message.id', 'ASC')
-            ->setMaxResults(1)
-            ->getQuery()
-            ->getOneOrNullResult();
+            ->setMaxResults(1);
+
+        if (false === $forSentFolder) {
+            $qb->andWhere(
+                'message.gmailId IS NOT NULL'
+                . ' OR (mailbox.id IS NOT NULL AND (mailbox.specialUse IS NULL OR mailbox.specialUse != :sent))',
+            )->setParameter('sent', MailboxSpecialUse::SENT);
+        }
+
+        return $qb->getQuery()->getOneOrNullResult();
     }
 
     /**

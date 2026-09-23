@@ -247,6 +247,25 @@ final class SentCopyReconcilerTest extends KernelTestCase
         );
     }
 
+    /**
+     * A mail you Cc'd to yourself arrives in INBOX under the Message-ID of the
+     * row you sent. INBOX must not take that row: it is waiting for its Sent
+     * copy, and the INBOX copy is a message of its own.
+     */
+    public function testTheCopyYouCcdToYourselfDoesNotTakeOverTheSentRow(): void
+    {
+        $reply = $this->sendReplyTo($this->incoming('Protokoll', 'kunde@example.test'));
+
+        self::assertNull(
+            $this->reconciler->claim($this->inbox, (string) $reply->messageId, 77),
+            'INBOX inserts its own row for the Cc copy',
+        );
+
+        $claimed = $this->reconciler->claim($this->sent, (string) $reply->messageId, 4322);
+
+        self::assertSame($reply->id, $claimed?->id, 'and the Sent copy still finds the row it belongs to');
+    }
+
     // ── self-repair of what the old send path left behind ─────────────────
 
     /**

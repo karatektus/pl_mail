@@ -147,7 +147,14 @@ final readonly class SentCopyReconciler
             }
         }
 
-        $claimable = $this->messages->findUnlocatedByMessageId($account, $rfcMessageId);
+        // A row the send path filed and is waiting for its Sent copy is only
+        // the Sent folder's to claim. Elsewhere the same Message-ID is the
+        // copy you Cc'd to yourself, which is a message of its own.
+        $claimable = $this->messages->findUnlocatedByMessageId(
+            $account,
+            $rfcMessageId,
+            MailboxSpecialUse::SENT === $mailbox->specialUse,
+        );
 
         if (null === $claimable) {
             return $this->claimMoved($mailbox, $account, $rfcMessageId, $uid, $sourceStillExists);
