@@ -89,11 +89,17 @@ final readonly class BookingSlotGenerator
         // Local dates, not instants. The window is bounded in UTC but the days
         // are the owner's, so the walk is over calendar dates in their zone and
         // the bounds are re-applied per slot below.
-        $day  = $from->setTimezone($zone);
-        $last = $to->setTimezone($zone);
+        //
+        // From local MIDNIGHT, and compared as dates. Walking from $from itself
+        // carried the notice period's time of day into every step, so a window
+        // ending at 10:00 on its last day stopped at "10:00 + n days > 10:00"
+        // one step early whenever $from was later in the day than $to — and the
+        // morning slots of the last bookable day were never offered.
+        $day  = $from->setTimezone($zone)->setTime(0, 0);
+        $last = $to->setTimezone($zone)->format('Y-m-d');
 
         for ($index = 0; $index <= BookingPage::MAX_HORIZON_DAYS; $index++) {
-            if ($day > $last) {
+            if ($day->format('Y-m-d') > $last) {
                 break;
             }
 
@@ -125,7 +131,7 @@ final readonly class BookingSlotGenerator
     // ── Private ───────────────────────────────────────────────────────────────
 
     /**
-     * One local day's slots, built from local midnight plus an offset each.
+     * One local day's slots, each a wall-clock time set on its local date.
      *
      * @return list<BookableSlot>
      */
@@ -135,8 +141,8 @@ final readonly class BookingSlotGenerator
         DateTimeZone      $zone,
         int               $slotMinutes,
     ): array {
-        $midnight = new DateTimeImmutable($day->format('Y-m-d') . ' 00:00:00', $zone);
-        $utc      = new DateTimeZone('UTC');
+        $date = new DateTimeImmutable($day->format('Y-m-d') . ' 00:00:00', $zone);
+        $utc  = new DateTimeZone('UTC');
 
         $slots = [];
 
@@ -149,8 +155,14 @@ final readonly class BookingSlotGenerator
             $offset + $slotMinutes <= $page->endMinute;
             $offset += $slotMinutes
         ) {
-            $startsAt = $midnight->modify(sprintf('+%d minutes', $offset));
-            $endsAt   = $midnight->modify(sprintf('+%d minutes', $offset + $slotMinutes));
+            // A wall-clock time set on the local date, never "midnight plus N
+            // minutes": that is elapsed time, and on the day the clocks change
+            // the day has 23 or 25 hours in it, so 09:00–17:00 came out as
+            // 10:00–18:00 in spring. setTime() rolls 24:00 over to the next
+            // day's midnight, which is what an end of 1440 means.
+            $end      = $offset + $slotMinutes;
+            $startsAt = $date->setTime(intdiv($offset, 60), $offset % 60);
+            $endsAt   = $date->setTime(intdiv($end, 60), $end % 60);
 
             $slots[] = new BookableSlot($startsAt->setTimezone($utc), $endsAt->setTimezone($utc));
         }

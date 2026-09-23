@@ -214,6 +214,53 @@ final class BookingSlotGeneratorTest extends TestCase
         self::assertCount(32, $slots);
     }
 
+    /**
+     * The changeover day itself keeps the owner's hours. Building a slot as
+     * "local midnight plus N minutes" adds elapsed time, and 29 March 2026 has
+     * only 23 hours in Berlin — so 09:00–17:00 came out as 10:00–18:00.
+     */
+    public function testTheWorkingDayOnASpringForwardDayIsStillNineToFive(): void
+    {
+        $page           = $this->workingDayPage('Europe/Berlin');
+        $page->weekdays = [1, 2, 3, 4, 5, 6, 7];
+        $zone           = new DateTimeZone('Europe/Berlin');
+
+        $slots = $this->generator->generate(
+            $page,
+            new DateTimeImmutable('2026-03-28 23:00:00', new DateTimeZone('UTC')),
+            new DateTimeImmutable('2026-03-29 22:00:00', new DateTimeZone('UTC')),
+        );
+
+        self::assertCount(16, $slots);
+        self::assertSame('09:00', $slots[0]->startsAt->setTimezone($zone)->format('H:i'));
+        self::assertSame('17:00', $slots[15]->endsAt->setTimezone($zone)->format('H:i'));
+    }
+
+    /**
+     * A window that opens late in the day and closes early on its last day
+     * still reaches that last day. The walk used to carry $from's time of day
+     * forward, so "Monday 20:00 to Wednesday 12:00" stepped to Wednesday 20:00,
+     * found it past the end and never offered Wednesday morning.
+     */
+    public function testTheLastDayOfTheWindowIsOfferedWhenTheWindowEndsEarlierInTheDay(): void
+    {
+        $page = $this->workingDayPage('Europe/Berlin');
+        $zone = new DateTimeZone('Europe/Berlin');
+
+        $slots = $this->generator->generate(
+            $page,
+            new DateTimeImmutable('2026-06-01 18:00:00', new DateTimeZone('UTC')),
+            new DateTimeImmutable('2026-06-03 10:00:00', new DateTimeZone('UTC')),
+        );
+
+        $days = array_values(array_unique(array_map(
+            static fn ($slot): string => $slot->startsAt->setTimezone($zone)->format('Y-m-d'),
+            $slots,
+        )));
+
+        self::assertSame(['2026-06-02', '2026-06-03'], $days);
+    }
+
     // ── Fixtures ──────────────────────────────────────────────────────────────
 
     /** Open every day, all round the clock — so a DST transition is inside the offered hours. */
