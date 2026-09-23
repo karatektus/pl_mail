@@ -335,6 +335,10 @@ final class EmailSetMethodTest extends JmapTestCase
         ]);
 
         self::assertSame('invalidProperties', ((array) $result['notCreated'])['c1']['type']);
+        self::assertNull(
+            $this->em->getRepository(Message::class)->findOneBy(['subject' => 'Now with a file']),
+            'notCreated, but the draft was saved anyway — the client has no id to ever delete it by',
+        );
     }
 
     // ── destroy is a move to Trash ────────────────────────────────────────

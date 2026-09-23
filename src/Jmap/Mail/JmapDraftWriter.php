@@ -55,12 +55,25 @@ final class JmapDraftWriter
         $message->bodyHtml = $this->body($create);
 
         $this->applyReplyContext($message, $create);
+
+        // Planned before anything is saved, for the reason update() gives: a
+        // bad blobId answers notCreated, and a client told that must be able
+        // to assume nothing was created. Resolving after persistDraft() left a
+        // draft behind that the client had no id for and would never delete.
+        $attachments = true === array_key_exists('attachments', $create)
+            ? $this->planAttachments($message, $account, $create['attachments'])
+            : null;
+
         $this->drafts->fileUnderAccount($message, $account);
         $this->persistDraft($message, $account);
-        // After the flush, not before: the storage path is bucketed by message
-        // id, and a draft has none until it is persisted. This mirrors the web
-        // composer, which forces a save before it will accept an upload.
-        $this->applyAttachments($message, $account, $create);
+
+        // Written after the flush, not before: the storage path is bucketed by
+        // message id, and a draft has none until it is persisted. This mirrors
+        // the web composer, which forces a save before it will accept an upload.
+        if (null !== $attachments) {
+            $this->writeAttachments($message, $attachments);
+            $this->entityManager->flush();
+        }
 
         return $message;
     }
@@ -145,26 +158,6 @@ final class JmapDraftWriter
         $message->bodyText = $this->plainText($message->bodyHtml);
 
         $this->drafts->storeAndThread($message, $account);
-    }
-
-    /**
-     * Turns uploaded blobs into draft attachments.
-     *
-     * Nothing more than create's entry into the same machinery the update path
-     * uses: a create is the whole-value case with no existing parts to keep or
-     * to drop, so the two paths deliberately share one implementation rather
-     * than being two versions of blob resolution that can drift.
-     *
-     * @param array<string,mixed> $create
-     */
-    private function applyAttachments(Message $message, Account $account, array $create): void
-    {
-        if (false === array_key_exists('attachments', $create)) {
-            return;
-        }
-
-        $this->writeAttachments($message, $this->planAttachments($message, $account, $create['attachments']));
-        $this->entityManager->flush();
     }
 
     /**
