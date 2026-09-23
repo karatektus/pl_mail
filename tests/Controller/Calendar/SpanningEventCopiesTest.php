@@ -241,14 +241,15 @@ final class SpanningEventCopiesTest extends WebTestCase
 
         self::assertResponseIsSuccessful();
 
-        // Read off the chip's own title, which is built from exactly the same
-        // showTime decision as the text inside it — and is a string rather than
-        // a Tailwind class, so this asserts about what the chip SAYS rather
-        // than about how it is laid out.
+        // Read off the chip's accessible name, which is built from exactly the
+        // same showTime decision as the text inside it — and is a string rather
+        // than a Tailwind class, so this asserts about what the chip SAYS rather
+        // than about how it is laid out. Selected by where it opens, because
+        // the day's "new event" button carries an aria-label too.
         $label = static fn (DateTimeImmutable $day): string => (string) $crawler
-            ->filter(sprintf('[data-day="%s"] button[title]', $day->format('Y-m-d')))
+            ->filter(sprintf('[data-day="%s"] button[data-ui--modal-src-value*="/details"]', $day->format('Y-m-d')))
             ->first()
-            ->attr('title');
+            ->attr('aria-label');
 
         // The separator rather than the digits: the hour is printed on the
         // reader's clock format, and this claim is about whether a time is

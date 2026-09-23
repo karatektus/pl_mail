@@ -46,7 +46,7 @@ test.describe("a month day under the pointer", () => {
                 return {
                     grid: box(grid),
                     card: box(card),
-                    tops: [...card.querySelectorAll("button[title]")].map((b) =>
+                    tops: [...card.querySelectorAll('button[data-ui--modal-src-value*="/details"]')].map((b) =>
                         Math.round(b.getBoundingClientRect().top),
                     ),
                 };
@@ -55,7 +55,7 @@ test.describe("a month day under the pointer", () => {
         const today = page.locator('[data-calendar-grid="month"] [data-day]').filter({
             has: page.locator(".bg-accent.rounded-full"),
         });
-        await expect(today.locator("button[title]").first()).toBeVisible();
+        await expect(today.locator('button[data-ui--modal-src-value*="/details"]').first()).toBeVisible();
 
         const closed = await measure();
         expect(closed.tops.length).toBeGreaterThan(0);

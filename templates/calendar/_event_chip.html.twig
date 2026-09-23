@@ -206,8 +206,7 @@ identity is threaded through a URL that would outlive the render that made it.
    and a cell has neither — so it is one line, and stays one line on hover.
    Unclamping the chip under the pointer pushed every chip below it down, which
    is movement where the reader asked for a larger view. Hovering the day widens
-   the whole cell instead (see _month_shell's `shellCellExpands`), and the full
-   title is in the chip's `title` for anything longer than that. #}
+   the whole cell instead (see _month_shell's `shellCellExpands`). #}
 
 {# Whether the chip prints "18:00–19:00" or just "18:00".
 
@@ -316,7 +315,11 @@ identity is threaded through a URL that would outlive the render that made it.
       calendar. A heading naming one field of a form is wrong over a summary of
       the whole event. #}
    data-ui--modal-title-value="{{ 'calendar.event.details_heading'|trans }}"
-   title="{{ chip_title }}"
+   {# No tooltip in a month cell. Hovering the day already enlarges it to show
+      these titles, so a tooltip only repeats what is on screen, and a second
+      box opening under the pointer is flicker. The string is still the chip's
+      accessible name: it carries the merged calendars, which are not printed. #}
+   {% if monthCell %}aria-label="{{ chip_title }}"{% else %}title="{{ chip_title }}"{% endif %}
    class="group/chip w-full text-left rounded-md
           hover:bg-hover transition-colors min-w-0
           {{ timeColumn
