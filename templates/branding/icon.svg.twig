@@ -1,0 +1,40 @@
+{#
+    One icon tile: a glyph on its ground, clipped to the rounded square — the
+    shape the icon has on a phone's home screen, drawn in the same geometry.
+
+    The numbers are Android's adaptive icon, which the pl mark's launcher icon
+    already uses: a 108-unit canvas of which the middle 72 are what a launcher
+    shows, the glyph's 48 grid scaled by 1.2 and centred in it (25.2 = (108 −
+    48 × 1.2) / 2). Every glyph was measured to sit inside the 66-unit safe
+    circle a launcher may cut down to, so what this draws is the phone's icon
+    and not an approximation of it.
+
+    Variables (see BrandingController::tile()):
+      motif       LogoMotif — which glyph template to draw
+      p           the paints by part: '#rrggbb', 'url(#g)', 'url(#t)' or null
+      glyph_ramp  seven stops when a glyph part is a sweep, else null
+      tile_ramp   seven stops when the ground is one, else null
+
+    Both gradients are userSpaceOnUse, so a ramp runs corner to corner across
+    the glyph — (8,6) to (40,42) on its grid — rather than restarting inside
+    every stroke it paints, and the ground's across the visible square.
+#}
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="18 18 72 72" width="72" height="72">
+    <defs>
+{% if glyph_ramp %}
+        <linearGradient id="g" gradientUnits="userSpaceOnUse" x1="8" y1="6" x2="40" y2="42">
+            {%- for stop in glyph_ramp %}<stop offset="{{ '%.3f'|format(loop.index0 / 6) }}" stop-color="{{ stop }}"/>{% endfor -%}
+        </linearGradient>
+{% endif %}
+{% if tile_ramp %}
+        <linearGradient id="t" gradientUnits="userSpaceOnUse" x1="18" y1="18" x2="90" y2="90">
+            {%- for stop in tile_ramp %}<stop offset="{{ '%.3f'|format(loop.index0 / 6) }}" stop-color="{{ stop }}"/>{% endfor -%}
+        </linearGradient>
+{% endif %}
+        <clipPath id="tile"><rect x="18" y="18" width="72" height="72" rx="16"/></clipPath>
+    </defs>
+    <g clip-path="url(#tile)">
+        <rect width="108" height="108" fill="{{ p.background }}"/>
+        <g transform="translate(25.2 25.2) scale(1.2)">{% include 'branding/motif/' ~ motif.value ~ '.svg.twig' with { p: p } only %}</g>
+    </g>
+</svg>

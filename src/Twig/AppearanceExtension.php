@@ -10,6 +10,7 @@ use App\Infrastructure\Event\Subscriber\AppearanceCookieSubscriber;
 use App\Entity\User\User;
 use App\Service\Appearance\AppearanceRenderer;
 use App\Service\Appearance\BackgroundResolver;
+use App\Service\Appearance\LogoIcons;
 use Symfony\Bundle\SecurityBundle\Security;
 use Twig\Extension\AbstractExtension;
 use Twig\TwigFunction;
@@ -30,6 +31,9 @@ final class AppearanceExtension extends AbstractExtension
         // For the no-user case above: the cookie is the only place the theme
         // survives a request the firewall never ran for.
         private readonly RequestStack       $requests,
+        // The icon URLs, spelled in one place with the drawing's version in
+        // them — see LogoIcons for why every one of them carries it.
+        private readonly LogoIcons          $logoIcons,
     ) {
     }
 
@@ -43,7 +47,18 @@ final class AppearanceExtension extends AbstractExtension
             new TwigFunction('appearance_vars', $this->appearanceVars(...)),
             new TwigFunction('background_preset_css', $this->backgrounds->preset(...)),
             new TwigFunction('background_solid_css', $this->backgrounds->solid(...)),
+            new TwigFunction('logo_icon_url', $this->logoIcons->url(...)),
+            new TwigFunction('logo_favicon_url', $this->logoFaviconUrl(...)),
         ];
+    }
+
+    /**
+     * The tab icon's URL for whoever is looking — the user's choice, or the
+     * cookie-backed default on a page rendered without one (see appearance()).
+     */
+    public function logoFaviconUrl(): string
+    {
+        return $this->logoIcons->faviconUrl($this->appearance());
     }
 
     public function appearance(): Appearance

@@ -25,13 +25,28 @@
         class="flex items-center gap-2 flex-shrink-0 md:w-52 no-underline"
         aria-label="{{ 'app.name'|trans }}"
     >
-        {# The mark in the user's chosen colourway (Settings → Appearance →
-           Logo), dark strokes when the theme is dark. It used to be an inline
-           SVG wearing Google's literal brand hexes; both the geometry and the
-           paint live elsewhere now — see _logo_mark.html.twig and
-           LogoStyle. #}
+        {# The user's logo (Settings → Appearance → Logo). The pl mark is
+           drawn inline in its colourway, dark strokes when the theme is dark —
+           it used to be an inline SVG wearing Google's literal brand hexes; both
+           the geometry and the paint live elsewhere now, see
+           _logo_mark.html.twig and LogoStyle. Every other icon is its tile, as
+           an image from the icon route: a tile brings its own ground, so it
+           reads the same on any chrome and needs no dark variant.
+
+           BOTH are rendered, one of them `hidden`, so the appearance pane can
+           switch between them live (repaintLogo) without the page knowing how
+           to draw either. The image is given no src while hidden: an empty
+           src is a request for the page itself. Hidden by the attribute, not
+           the class — the attribute wins over `flex` whatever order the
+           stylesheet was built in. #}
         {% import '_partials/_logo_mark.html.twig' as logo %}
-        {{ logo.mark(appearance().effectiveLogoStyle, 32, appearance().theme.isDark, true) }}
+        {% set _logoMotif = appearance().effectiveLogoMotif %}
+        {% set _logoClassic = _logoMotif.value == 'pl' %}
+        <span class="flex flex-shrink-0" data-logo-live-mark {{ _logoClassic ? '' : 'hidden' }}>
+            {{- logo.mark(appearance().effectiveLogoStyle, 32, appearance().theme.isDark, true) -}}
+        </span>
+        <img data-logo-live-icon alt="" width="32" height="32" class="w-8 h-8 flex-shrink-0" decoding="async"
+             {% if _logoClassic %}hidden{% else %}src="{{ logo_icon_url(_logoMotif, appearance().effectiveLogoPaint) }}"{% endif %}>
         {# ClockPlacement::Brand: a second line under the wordmark, in width
            the brand already has (`md:w-52`), so nothing else in the topbar
            moves for it. It goes with the wordmark below `sm`. #}

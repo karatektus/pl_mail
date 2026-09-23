@@ -17,17 +17,19 @@
     anything that will not take an SVG favicon. Browsers pick the first `rel`
     they understand, so the SVG is listed first.
 
-    The SVG comes from a route rather than a file, because the mark's
-    colourway is a per-user setting now (Settings → Appearance → Logo) and a
-    static file can only wear one. Anonymous pages get the product default
-    from the same route; /icons/favicon.svg still exists, painted in that
-    default, for anything that fetches icons without a session.
+    The SVG comes from a route rather than a file, because the logo is a
+    per-user setting now (Settings → Appearance → Logo: an icon, then its
+    paint) and a static file can only wear one. Anonymous pages get the product
+    default from the same route; /icons/favicon.svg still exists, painted in
+    that default, for anything that fetches icons without a session.
 #}
-{# The style value rides in the URL as a cache-buster. Browsers keep a
-   favicon cache of their own that ignores ordinary revalidation until a hard
-   reload — the ETag alone left people staring at the old colourway. A new
-   style is a new URL, and the appearance page swaps this link's href live on
-   pick (see pickLogo), so the tab follows the click. The server ignores the
-   parameter: the session decides the colourway, v only names it. #}
-<link rel="icon" type="image/svg+xml" href="{{ path('app_branding_favicon', { v: appearance().effectiveLogoStyle.value }) }}">
+{# The choice rides in the URL as a cache-buster — `v`, the icon and its paint
+   (`blue-horn.ocean`) — and so does the drawing's version, `d`. Browsers keep
+   a favicon cache of their own that ignores ordinary revalidation until a hard
+   reload; the ETag alone left people staring at the old colourway. A new
+   choice is a new URL, and the appearance page rewrites `v` live on every pick
+   (see repaintLogo), so the tab follows the click; `d` moves only when a
+   deploy redraws the icons. The server ignores both: the session decides what
+   is drawn, the URL only names it. See LogoIcons::faviconUrl(). #}
+<link rel="icon" type="image/svg+xml" href="{{ logo_favicon_url() }}">
 <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png">
