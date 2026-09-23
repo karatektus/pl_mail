@@ -458,7 +458,8 @@ final class ListFragmentTest extends WebTestCase
                 $element = (string) preg_replace('/\s+/', ' ', $element);
 
                 return (string) preg_replace(
-                    '/(name="csrf-token" content=")[^"]*/',
+                    // Both are minted per request; that they are THERE is the claim.
+                    '/(name="(?:csrf-token|csp-nonce)" content=")[^"]*/',
                     '$1…',
                     $element,
                 );
