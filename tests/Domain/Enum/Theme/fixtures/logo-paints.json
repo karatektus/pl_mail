@@ -1,0 +1,3158 @@
+{
+ "version": 1,
+ "about": "Every launcher icon x paint -> part colours. A part is '#rrggbb', null (not drawn), or {'ramp': [7 stops]}: a linear gradient, glyph parts from (8,6) to (40,42) in the 48 grid, the background from (18,18) to (90,90) on the 108 canvas.",
+ "motifs": [
+  {
+   "wire": "pl",
+   "parts": [
+    "s0",
+    "s1",
+    "s2",
+    "s3",
+    "s4",
+    "s5",
+    "s6"
+   ],
+   "paints": {
+    "original": {
+     "background": "#faf9f7",
+     "s0": "#6d28d9",
+     "s1": "#7c3aed",
+     "s2": "#a21caf",
+     "s3": "#c026d3",
+     "s4": "#db2777",
+     "s5": "#e11d48",
+     "s6": "#f43f5e"
+    },
+    "product-blue": {
+     "background": "#faf9f7",
+     "s0": "#2563eb",
+     "s1": "#2563eb",
+     "s2": "#2563eb",
+     "s3": "#2563eb",
+     "s4": "#2563eb",
+     "s5": "#2563eb",
+     "s6": "#2563eb"
+    },
+    "ink": {
+     "background": "#faf9f7",
+     "s0": "#2b2620",
+     "s1": "#2b2620",
+     "s2": "#2b2620",
+     "s3": "#2b2620",
+     "s4": "#2b2620",
+     "s5": "#2b2620",
+     "s6": "#2b2620"
+    },
+    "slate": {
+     "background": "#faf9f7",
+     "s0": "#475569",
+     "s1": "#475569",
+     "s2": "#475569",
+     "s3": "#475569",
+     "s4": "#475569",
+     "s5": "#475569",
+     "s6": "#475569"
+    },
+    "forest": {
+     "background": "#faf9f7",
+     "s0": "#166534",
+     "s1": "#166534",
+     "s2": "#166534",
+     "s3": "#166534",
+     "s4": "#166534",
+     "s5": "#166534",
+     "s6": "#166534"
+    },
+    "burgundy": {
+     "background": "#faf9f7",
+     "s0": "#9f1239",
+     "s1": "#9f1239",
+     "s2": "#9f1239",
+     "s3": "#9f1239",
+     "s4": "#9f1239",
+     "s5": "#9f1239",
+     "s6": "#9f1239"
+    },
+    "deep-violet": {
+     "background": "#faf9f7",
+     "s0": "#6d28d9",
+     "s1": "#6d28d9",
+     "s2": "#6d28d9",
+     "s3": "#6d28d9",
+     "s4": "#6d28d9",
+     "s5": "#6d28d9",
+     "s6": "#6d28d9"
+    },
+    "postal": {
+     "background": "#faf9f7",
+     "s0": "#1e3a6e",
+     "s1": "#1e3a6e",
+     "s2": "#1e3a6e",
+     "s3": "#1e3a6e",
+     "s4": "#c8402f",
+     "s5": "#c8402f",
+     "s6": "#c8402f"
+    },
+    "bronze-ink": {
+     "background": "#faf9f7",
+     "s0": "#7d6b4f",
+     "s1": "#7d6b4f",
+     "s2": "#7d6b4f",
+     "s3": "#7d6b4f",
+     "s4": "#3d372e",
+     "s5": "#3d372e",
+     "s6": "#3d372e"
+    },
+    "petrol-copper": {
+     "background": "#faf9f7",
+     "s0": "#0f766e",
+     "s1": "#0f766e",
+     "s2": "#0f766e",
+     "s3": "#0f766e",
+     "s4": "#c2703d",
+     "s5": "#c2703d",
+     "s6": "#c2703d"
+    },
+    "midnight-gold": {
+     "background": "#faf9f7",
+     "s0": "#1e293b",
+     "s1": "#1e293b",
+     "s2": "#1e293b",
+     "s3": "#1e293b",
+     "s4": "#d97706",
+     "s5": "#d97706",
+     "s6": "#d97706"
+    },
+    "navy-sky": {
+     "background": "#faf9f7",
+     "s0": "#1e3a8a",
+     "s1": "#1e3a8a",
+     "s2": "#1e3a8a",
+     "s3": "#1e3a8a",
+     "s4": "#0ea5e9",
+     "s5": "#0ea5e9",
+     "s6": "#0ea5e9"
+    },
+    "forest-lime": {
+     "background": "#faf9f7",
+     "s0": "#166534",
+     "s1": "#166534",
+     "s2": "#166534",
+     "s3": "#166534",
+     "s4": "#84cc16",
+     "s5": "#84cc16",
+     "s6": "#84cc16"
+    },
+    "plum-rose": {
+     "background": "#faf9f7",
+     "s0": "#86198f",
+     "s1": "#86198f",
+     "s2": "#86198f",
+     "s3": "#86198f",
+     "s4": "#fb7185",
+     "s5": "#fb7185",
+     "s6": "#fb7185"
+    },
+    "charcoal-amber": {
+     "background": "#faf9f7",
+     "s0": "#292524",
+     "s1": "#292524",
+     "s2": "#292524",
+     "s3": "#292524",
+     "s4": "#f59e0b",
+     "s5": "#f59e0b",
+     "s6": "#f59e0b"
+    },
+    "espresso-cream": {
+     "background": "#faf9f7",
+     "s0": "#44403c",
+     "s1": "#44403c",
+     "s2": "#44403c",
+     "s3": "#44403c",
+     "s4": "#b8a385",
+     "s5": "#b8a385",
+     "s6": "#b8a385"
+    },
+    "cobalt-coral": {
+     "background": "#faf9f7",
+     "s0": "#1d4ed8",
+     "s1": "#1d4ed8",
+     "s2": "#1d4ed8",
+     "s3": "#1d4ed8",
+     "s4": "#f87171",
+     "s5": "#f87171",
+     "s6": "#f87171"
+    },
+    "teal-gold": {
+     "background": "#faf9f7",
+     "s0": "#0f766e",
+     "s1": "#0f766e",
+     "s2": "#0f766e",
+     "s3": "#0f766e",
+     "s4": "#d97706",
+     "s5": "#d97706",
+     "s6": "#d97706"
+    },
+    "graphite-red": {
+     "background": "#faf9f7",
+     "s0": "#374151",
+     "s1": "#374151",
+     "s2": "#374151",
+     "s3": "#374151",
+     "s4": "#dc2626",
+     "s5": "#dc2626",
+     "s6": "#dc2626"
+    },
+    "red-flick": {
+     "background": "#faf9f7",
+     "s0": "#2b2620",
+     "s1": "#2b2620",
+     "s2": "#2b2620",
+     "s3": "#2b2620",
+     "s4": "#2b2620",
+     "s5": "#2b2620",
+     "s6": "#c8402f"
+    },
+    "sky-flick": {
+     "background": "#faf9f7",
+     "s0": "#2b2620",
+     "s1": "#2b2620",
+     "s2": "#2b2620",
+     "s3": "#2b2620",
+     "s4": "#2b2620",
+     "s5": "#2b2620",
+     "s6": "#0284c7"
+    },
+    "bronze-flick": {
+     "background": "#faf9f7",
+     "s0": "#2b2620",
+     "s1": "#2b2620",
+     "s2": "#2b2620",
+     "s3": "#2b2620",
+     "s4": "#2b2620",
+     "s5": "#2b2620",
+     "s6": "#7d6b4f"
+    },
+    "violet-flick": {
+     "background": "#faf9f7",
+     "s0": "#2b2620",
+     "s1": "#2b2620",
+     "s2": "#2b2620",
+     "s3": "#2b2620",
+     "s4": "#2b2620",
+     "s5": "#2b2620",
+     "s6": "#8b5cf6"
+    },
+    "tricolore": {
+     "background": "#faf9f7",
+     "s0": "#1e3a6e",
+     "s1": "#c8402f",
+     "s2": "#1e3a6e",
+     "s3": "#c8402f",
+     "s4": "#d4a017",
+     "s5": "#d4a017",
+     "s6": "#d4a017"
+    },
+    "indigo-violet": {
+     "background": "#faf9f7",
+     "s0": "#4338ca",
+     "s1": "#4f46e5",
+     "s2": "#6366f1",
+     "s3": "#7c3aed",
+     "s4": "#8b5cf6",
+     "s5": "#a855f7",
+     "s6": "#c084fc"
+    },
+    "sunset": {
+     "background": "#faf9f7",
+     "s0": "#e11d48",
+     "s1": "#f43f5e",
+     "s2": "#fb7185",
+     "s3": "#f97316",
+     "s4": "#fb923c",
+     "s5": "#f59e0b",
+     "s6": "#fbbf24"
+    },
+    "ocean": {
+     "background": "#faf9f7",
+     "s0": "#1d4ed8",
+     "s1": "#0369a1",
+     "s2": "#0284c7",
+     "s3": "#0891b2",
+     "s4": "#0d9488",
+     "s5": "#0f9f8f",
+     "s6": "#14b8a6"
+    },
+    "aurora": {
+     "background": "#faf9f7",
+     "s0": "#16a34a",
+     "s1": "#10b981",
+     "s2": "#0d9488",
+     "s3": "#0891b2",
+     "s4": "#0284c7",
+     "s5": "#2563eb",
+     "s6": "#4f46e5"
+    },
+    "berry": {
+     "background": "#faf9f7",
+     "s0": "#6d28d9",
+     "s1": "#7c3aed",
+     "s2": "#a21caf",
+     "s3": "#c026d3",
+     "s4": "#db2777",
+     "s5": "#e11d48",
+     "s6": "#f43f5e"
+    },
+    "ember": {
+     "background": "#faf9f7",
+     "s0": "#991b1b",
+     "s1": "#b91c1c",
+     "s2": "#dc2626",
+     "s3": "#ea580c",
+     "s4": "#f97316",
+     "s5": "#f59e0b",
+     "s6": "#fbbf24"
+    },
+    "twilight": {
+     "background": "#faf9f7",
+     "s0": "#312e81",
+     "s1": "#4338ca",
+     "s2": "#6d28d9",
+     "s3": "#9333ea",
+     "s4": "#c026d3",
+     "s5": "#db2777",
+     "s6": "#f472b6"
+    },
+    "copper": {
+     "background": "#faf9f7",
+     "s0": "#78350f",
+     "s1": "#92400e",
+     "s2": "#b45309",
+     "s3": "#d97706",
+     "s4": "#f59e0b",
+     "s5": "#fbbf24",
+     "s6": "#fcd34d"
+    },
+    "blue-tonal": {
+     "background": "#faf9f7",
+     "s0": "#1e3a8a",
+     "s1": "#1e40af",
+     "s2": "#1d4ed8",
+     "s3": "#2563eb",
+     "s4": "#3b82f6",
+     "s5": "#60a5fa",
+     "s6": "#7db4fa"
+    }
+   }
+  },
+  {
+   "wire": "blue-horn",
+   "parts": [
+    "horn",
+    "throat"
+   ],
+   "paints": {
+    "original": {
+     "background": "#f4ecdd",
+     "horn": "#2a5bd7",
+     "throat": "#193e9c"
+    },
+    "product-blue": {
+     "background": "#f4ecdd",
+     "horn": "#2563eb",
+     "throat": "#163b8d"
+    },
+    "ink": {
+     "background": "#f4ecdd",
+     "horn": "#2b2620",
+     "throat": "#1a1713"
+    },
+    "slate": {
+     "background": "#f4ecdd",
+     "horn": "#475569",
+     "throat": "#2b333f"
+    },
+    "forest": {
+     "background": "#f4ecdd",
+     "horn": "#166534",
+     "throat": "#0d3d1f"
+    },
+    "burgundy": {
+     "background": "#f4ecdd",
+     "horn": "#9f1239",
+     "throat": "#5f0b22"
+    },
+    "deep-violet": {
+     "background": "#f4ecdd",
+     "horn": "#6d28d9",
+     "throat": "#411882"
+    },
+    "postal": {
+     "background": "#f4ecdd",
+     "horn": "#1e3a6e",
+     "throat": "#c8402f"
+    },
+    "bronze-ink": {
+     "background": "#f4ecdd",
+     "horn": "#7d6b4f",
+     "throat": "#3d372e"
+    },
+    "petrol-copper": {
+     "background": "#f4ecdd",
+     "horn": "#0f766e",
+     "throat": "#c2703d"
+    },
+    "midnight-gold": {
+     "background": "#f4ecdd",
+     "horn": "#1e293b",
+     "throat": "#d97706"
+    },
+    "navy-sky": {
+     "background": "#f4ecdd",
+     "horn": "#1e3a8a",
+     "throat": "#0ea5e9"
+    },
+    "forest-lime": {
+     "background": "#f4ecdd",
+     "horn": "#166534",
+     "throat": "#84cc16"
+    },
+    "plum-rose": {
+     "background": "#f4ecdd",
+     "horn": "#86198f",
+     "throat": "#fb7185"
+    },
+    "charcoal-amber": {
+     "background": "#f4ecdd",
+     "horn": "#292524",
+     "throat": "#f59e0b"
+    },
+    "espresso-cream": {
+     "background": "#f4ecdd",
+     "horn": "#44403c",
+     "throat": "#b8a385"
+    },
+    "cobalt-coral": {
+     "background": "#f4ecdd",
+     "horn": "#1d4ed8",
+     "throat": "#f87171"
+    },
+    "teal-gold": {
+     "background": "#f4ecdd",
+     "horn": "#0f766e",
+     "throat": "#d97706"
+    },
+    "graphite-red": {
+     "background": "#f4ecdd",
+     "horn": "#374151",
+     "throat": "#dc2626"
+    },
+    "red-flick": {
+     "background": "#f4ecdd",
+     "horn": "#2b2620",
+     "throat": "#c8402f"
+    },
+    "sky-flick": {
+     "background": "#f4ecdd",
+     "horn": "#2b2620",
+     "throat": "#0284c7"
+    },
+    "bronze-flick": {
+     "background": "#f4ecdd",
+     "horn": "#2b2620",
+     "throat": "#7d6b4f"
+    },
+    "violet-flick": {
+     "background": "#f4ecdd",
+     "horn": "#2b2620",
+     "throat": "#8b5cf6"
+    },
+    "tricolore": {
+     "background": "#f4ecdd",
+     "horn": "#1e3a6e",
+     "throat": "#c8402f"
+    },
+    "indigo-violet": {
+     "background": "#f4ecdd",
+     "horn": {
+      "ramp": [
+       "#4338ca",
+       "#4f46e5",
+       "#6366f1",
+       "#7c3aed",
+       "#8b5cf6",
+       "#a855f7",
+       "#c084fc"
+      ]
+     },
+     "throat": "#2f2a89"
+    },
+    "sunset": {
+     "background": "#f4ecdd",
+     "horn": {
+      "ramp": [
+       "#e11d48",
+       "#f43f5e",
+       "#fb7185",
+       "#f97316",
+       "#fb923c",
+       "#f59e0b",
+       "#fbbf24"
+      ]
+     },
+     "throat": "#95450d"
+    },
+    "ocean": {
+     "background": "#f4ecdd",
+     "horn": {
+      "ramp": [
+       "#1d4ed8",
+       "#0369a1",
+       "#0284c7",
+       "#0891b2",
+       "#0d9488",
+       "#0f9f8f",
+       "#14b8a6"
+      ]
+     },
+     "throat": "#084656"
+    },
+    "aurora": {
+     "background": "#f4ecdd",
+     "horn": {
+      "ramp": [
+       "#16a34a",
+       "#10b981",
+       "#0d9488",
+       "#0891b2",
+       "#0284c7",
+       "#2563eb",
+       "#4f46e5"
+      ]
+     },
+     "throat": "#085952"
+    },
+    "berry": {
+     "background": "#f4ecdd",
+     "horn": {
+      "ramp": [
+       "#6d28d9",
+       "#7c3aed",
+       "#a21caf",
+       "#c026d3",
+       "#db2777",
+       "#e11d48",
+       "#f43f5e"
+      ]
+     },
+     "throat": "#611169"
+    },
+    "ember": {
+     "background": "#f4ecdd",
+     "horn": {
+      "ramp": [
+       "#991b1b",
+       "#b91c1c",
+       "#dc2626",
+       "#ea580c",
+       "#f97316",
+       "#f59e0b",
+       "#fbbf24"
+      ]
+     },
+     "throat": "#841717"
+    },
+    "twilight": {
+     "background": "#f4ecdd",
+     "horn": {
+      "ramp": [
+       "#312e81",
+       "#4338ca",
+       "#6d28d9",
+       "#9333ea",
+       "#c026d3",
+       "#db2777",
+       "#f472b6"
+      ]
+     },
+     "throat": "#411882"
+    },
+    "copper": {
+     "background": "#f4ecdd",
+     "horn": {
+      "ramp": [
+       "#78350f",
+       "#92400e",
+       "#b45309",
+       "#d97706",
+       "#f59e0b",
+       "#fbbf24",
+       "#fcd34d"
+      ]
+     },
+     "throat": "#6c3205"
+    },
+    "blue-tonal": {
+     "background": "#f4ecdd",
+     "horn": {
+      "ramp": [
+       "#1e3a8a",
+       "#1e40af",
+       "#1d4ed8",
+       "#2563eb",
+       "#3b82f6",
+       "#60a5fa",
+       "#7db4fa"
+      ]
+     },
+     "throat": "#163b8d"
+    }
+   }
+  },
+  {
+   "wire": "at-horn",
+   "parts": [
+    "horn",
+    "throat"
+   ],
+   "paints": {
+    "original": {
+     "background": "#2a5bd7",
+     "horn": "#f7f1e6",
+     "throat": "#cdd9f5"
+    },
+    "product-blue": {
+     "background": "#2563eb",
+     "horn": "#f7f1e6",
+     "throat": "#bed0f9"
+    },
+    "ink": {
+     "background": "#2b2620",
+     "horn": "#f7f1e6",
+     "throat": "#bfbebc"
+    },
+    "slate": {
+     "background": "#475569",
+     "horn": "#f7f1e6",
+     "throat": "#c8ccd2"
+    },
+    "forest": {
+     "background": "#166534",
+     "horn": "#f7f1e6",
+     "throat": "#b9d1c2"
+    },
+    "burgundy": {
+     "background": "#9f1239",
+     "horn": "#f7f1e6",
+     "throat": "#e2b8c4"
+    },
+    "deep-violet": {
+     "background": "#6d28d9",
+     "horn": "#f7f1e6",
+     "throat": "#d3bff4"
+    },
+    "postal": {
+     "background": "#1e3a6e",
+     "horn": "#f7f1e6",
+     "throat": "#c8402f"
+    },
+    "bronze-ink": {
+     "background": "#7d6b4f",
+     "horn": "#f7f1e6",
+     "throat": "#3d372e"
+    },
+    "petrol-copper": {
+     "background": "#0f766e",
+     "horn": "#f7f1e6",
+     "throat": "#c2703d"
+    },
+    "midnight-gold": {
+     "background": "#1e293b",
+     "horn": "#f7f1e6",
+     "throat": "#d97706"
+    },
+    "navy-sky": {
+     "background": "#1e3a8a",
+     "horn": "#f7f1e6",
+     "throat": "#0ea5e9"
+    },
+    "forest-lime": {
+     "background": "#166534",
+     "horn": "#f7f1e6",
+     "throat": "#84cc16"
+    },
+    "plum-rose": {
+     "background": "#86198f",
+     "horn": "#f7f1e6",
+     "throat": "#fb7185"
+    },
+    "charcoal-amber": {
+     "background": "#292524",
+     "horn": "#f7f1e6",
+     "throat": "#f59e0b"
+    },
+    "espresso-cream": {
+     "background": "#44403c",
+     "horn": "#f7f1e6",
+     "throat": "#b8a385"
+    },
+    "cobalt-coral": {
+     "background": "#1d4ed8",
+     "horn": "#f7f1e6",
+     "throat": "#f87171"
+    },
+    "teal-gold": {
+     "background": "#0f766e",
+     "horn": "#f7f1e6",
+     "throat": "#d97706"
+    },
+    "graphite-red": {
+     "background": "#374151",
+     "horn": "#f7f1e6",
+     "throat": "#dc2626"
+    },
+    "red-flick": {
+     "background": "#2b2620",
+     "horn": "#f7f1e6",
+     "throat": "#c8402f"
+    },
+    "sky-flick": {
+     "background": "#2b2620",
+     "horn": "#f7f1e6",
+     "throat": "#0284c7"
+    },
+    "bronze-flick": {
+     "background": "#2b2620",
+     "horn": "#f7f1e6",
+     "throat": "#7d6b4f"
+    },
+    "violet-flick": {
+     "background": "#2b2620",
+     "horn": "#f7f1e6",
+     "throat": "#8b5cf6"
+    },
+    "tricolore": {
+     "background": "#1e3a6e",
+     "horn": "#f7f1e6",
+     "throat": "#c8402f"
+    },
+    "indigo-violet": {
+     "background": {
+      "ramp": [
+       "#4338ca",
+       "#4f46e5",
+       "#6366f1",
+       "#7c3aed",
+       "#8b5cf6",
+       "#a855f7",
+       "#c084fc"
+      ]
+     },
+     "horn": "#f7f1e6",
+     "throat": "#cac8f7"
+    },
+    "sunset": {
+     "background": {
+      "ramp": [
+       "#e11d48",
+       "#f43f5e",
+       "#fb7185",
+       "#f97316",
+       "#fb923c",
+       "#f59e0b",
+       "#fbbf24"
+      ]
+     },
+     "horn": "#f7f1e6",
+     "throat": "#fdd5b9"
+    },
+    "ocean": {
+     "background": {
+      "ramp": [
+       "#1d4ed8",
+       "#0369a1",
+       "#0284c7",
+       "#0891b2",
+       "#0d9488",
+       "#0f9f8f",
+       "#14b8a6"
+      ]
+     },
+     "horn": "#f7f1e6",
+     "throat": "#b7d5de"
+    },
+    "aurora": {
+     "background": {
+      "ramp": [
+       "#16a34a",
+       "#10b981",
+       "#0d9488",
+       "#0891b2",
+       "#0284c7",
+       "#2563eb",
+       "#4f46e5"
+      ]
+     },
+     "horn": "#f7f1e6",
+     "throat": "#b6dfdb"
+    },
+    "berry": {
+     "background": {
+      "ramp": [
+       "#6d28d9",
+       "#7c3aed",
+       "#a21caf",
+       "#c026d3",
+       "#db2777",
+       "#e11d48",
+       "#f43f5e"
+      ]
+     },
+     "horn": "#f7f1e6",
+     "throat": "#e3bbe7"
+    },
+    "ember": {
+     "background": {
+      "ramp": [
+       "#991b1b",
+       "#b91c1c",
+       "#dc2626",
+       "#ea580c",
+       "#f97316",
+       "#f59e0b",
+       "#fbbf24"
+      ]
+     },
+     "horn": "#f7f1e6",
+     "throat": "#f5bebe"
+    },
+    "twilight": {
+     "background": {
+      "ramp": [
+       "#312e81",
+       "#4338ca",
+       "#6d28d9",
+       "#9333ea",
+       "#c026d3",
+       "#db2777",
+       "#f472b6"
+      ]
+     },
+     "horn": "#f7f1e6",
+     "throat": "#d3bff4"
+    },
+    "copper": {
+     "background": {
+      "ramp": [
+       "#78350f",
+       "#92400e",
+       "#b45309",
+       "#d97706",
+       "#f59e0b",
+       "#fbbf24",
+       "#fcd34d"
+      ]
+     },
+     "horn": "#f7f1e6",
+     "throat": "#e9cbb5"
+    },
+    "blue-tonal": {
+     "background": {
+      "ramp": [
+       "#1e3a8a",
+       "#1e40af",
+       "#1d4ed8",
+       "#2563eb",
+       "#3b82f6",
+       "#60a5fa",
+       "#7db4fa"
+      ]
+     },
+     "horn": "#f7f1e6",
+     "throat": "#bed0f9"
+    }
+   }
+  },
+  {
+   "wire": "love-letter",
+   "parts": [
+    "paper",
+    "line",
+    "heart"
+   ],
+   "paints": {
+    "original": {
+     "background": "#ffe4e6",
+     "paper": "#ffffff",
+     "line": "#9f1239",
+     "heart": "#f43f5e"
+    },
+    "product-blue": {
+     "background": "#e3ebfc",
+     "paper": "#ffffff",
+     "line": "#2563eb",
+     "heart": "#f43f5e"
+    },
+    "ink": {
+     "background": "#e3e3e2",
+     "paper": "#ffffff",
+     "line": "#2b2620",
+     "heart": "#f43f5e"
+    },
+    "slate": {
+     "background": "#e7e9ec",
+     "paper": "#ffffff",
+     "line": "#475569",
+     "heart": "#f43f5e"
+    },
+    "forest": {
+     "background": "#e1ebe5",
+     "paper": "#ffffff",
+     "line": "#166534",
+     "heart": "#f43f5e"
+    },
+    "burgundy": {
+     "background": "#f3e0e5",
+     "paper": "#ffffff",
+     "line": "#9f1239",
+     "heart": "#f43f5e"
+    },
+    "deep-violet": {
+     "background": "#ece3fa",
+     "paper": "#ffffff",
+     "line": "#6d28d9",
+     "heart": "#f43f5e"
+    },
+    "postal": {
+     "background": "#f8e6e4",
+     "paper": "#ffffff",
+     "line": "#1e3a6e",
+     "heart": "#f43f5e"
+    },
+    "bronze-ink": {
+     "background": "#e6e5e4",
+     "paper": "#ffffff",
+     "line": "#7d6b4f",
+     "heart": "#f43f5e"
+    },
+    "petrol-copper": {
+     "background": "#f7ece6",
+     "paper": "#ffffff",
+     "line": "#0f766e",
+     "heart": "#f43f5e"
+    },
+    "midnight-gold": {
+     "background": "#faeddf",
+     "paper": "#ffffff",
+     "line": "#1e293b",
+     "heart": "#f43f5e"
+    },
+    "navy-sky": {
+     "background": "#e0f3fc",
+     "paper": "#ffffff",
+     "line": "#1e3a8a",
+     "heart": "#f43f5e"
+    },
+    "forest-lime": {
+     "background": "#eff8e1",
+     "paper": "#ffffff",
+     "line": "#166534",
+     "heart": "#f43f5e"
+    },
+    "plum-rose": {
+     "background": "#feedef",
+     "paper": "#ffffff",
+     "line": "#86198f",
+     "heart": "#f43f5e"
+    },
+    "charcoal-amber": {
+     "background": "#fef2df",
+     "paper": "#ffffff",
+     "line": "#292524",
+     "heart": "#f43f5e"
+    },
+    "espresso-cream": {
+     "background": "#f6f3ef",
+     "paper": "#ffffff",
+     "line": "#44403c",
+     "heart": "#f43f5e"
+    },
+    "cobalt-coral": {
+     "background": "#feeded",
+     "paper": "#ffffff",
+     "line": "#1d4ed8",
+     "heart": "#f43f5e"
+    },
+    "teal-gold": {
+     "background": "#faeddf",
+     "paper": "#ffffff",
+     "line": "#0f766e",
+     "heart": "#f43f5e"
+    },
+    "graphite-red": {
+     "background": "#fae3e3",
+     "paper": "#ffffff",
+     "line": "#374151",
+     "heart": "#f43f5e"
+    },
+    "red-flick": {
+     "background": "#f8e6e4",
+     "paper": "#ffffff",
+     "line": "#2b2620",
+     "heart": "#f43f5e"
+    },
+    "sky-flick": {
+     "background": "#deeff8",
+     "paper": "#ffffff",
+     "line": "#2b2620",
+     "heart": "#f43f5e"
+    },
+    "bronze-flick": {
+     "background": "#eeece8",
+     "paper": "#ffffff",
+     "line": "#2b2620",
+     "heart": "#f43f5e"
+    },
+    "violet-flick": {
+     "background": "#f0eafe",
+     "paper": "#ffffff",
+     "line": "#2b2620",
+     "heart": "#f43f5e"
+    },
+    "tricolore": {
+     "background": "#f9f3e1",
+     "paper": "#ffffff",
+     "line": "#1e3a6e",
+     "heart": "#f43f5e"
+    },
+    "indigo-violet": {
+     "background": "#e8e7fc",
+     "paper": "#ffffff",
+     "line": {
+      "ramp": [
+       "#4338ca",
+       "#4f46e5",
+       "#6366f1",
+       "#7c3aed",
+       "#8b5cf6",
+       "#a855f7",
+       "#c084fc"
+      ]
+     },
+     "heart": "#f43f5e"
+    },
+    "sunset": {
+     "background": "#feede1",
+     "paper": "#ffffff",
+     "line": {
+      "ramp": [
+       "#e11d48",
+       "#f43f5e",
+       "#fb7185",
+       "#f97316",
+       "#fb923c",
+       "#f59e0b",
+       "#fbbf24"
+      ]
+     },
+     "heart": "#f43f5e"
+    },
+    "ocean": {
+     "background": "#e0edf1",
+     "paper": "#ffffff",
+     "line": {
+      "ramp": [
+       "#1d4ed8",
+       "#0369a1",
+       "#0284c7",
+       "#0891b2",
+       "#0d9488",
+       "#0f9f8f",
+       "#14b8a6"
+      ]
+     },
+     "heart": "#f43f5e"
+    },
+    "aurora": {
+     "background": "#e0f1f0",
+     "paper": "#ffffff",
+     "line": {
+      "ramp": [
+       "#16a34a",
+       "#10b981",
+       "#0d9488",
+       "#0891b2",
+       "#0284c7",
+       "#2563eb",
+       "#4f46e5"
+      ]
+     },
+     "heart": "#f43f5e"
+    },
+    "berry": {
+     "background": "#f3e1f5",
+     "paper": "#ffffff",
+     "line": {
+      "ramp": [
+       "#6d28d9",
+       "#7c3aed",
+       "#a21caf",
+       "#c026d3",
+       "#db2777",
+       "#e11d48",
+       "#f43f5e"
+      ]
+     },
+     "heart": "#f43f5e"
+    },
+    "ember": {
+     "background": "#fae3e3",
+     "paper": "#ffffff",
+     "line": {
+      "ramp": [
+       "#991b1b",
+       "#b91c1c",
+       "#dc2626",
+       "#ea580c",
+       "#f97316",
+       "#f59e0b",
+       "#fbbf24"
+      ]
+     },
+     "heart": "#f43f5e"
+    },
+    "twilight": {
+     "background": "#ece3fa",
+     "paper": "#ffffff",
+     "line": {
+      "ramp": [
+       "#312e81",
+       "#4338ca",
+       "#6d28d9",
+       "#9333ea",
+       "#c026d3",
+       "#db2777",
+       "#f472b6"
+      ]
+     },
+     "heart": "#f43f5e"
+    },
+    "copper": {
+     "background": "#f5e9df",
+     "paper": "#ffffff",
+     "line": {
+      "ramp": [
+       "#78350f",
+       "#92400e",
+       "#b45309",
+       "#d97706",
+       "#f59e0b",
+       "#fbbf24",
+       "#fcd34d"
+      ]
+     },
+     "heart": "#f43f5e"
+    },
+    "blue-tonal": {
+     "background": "#e3ebfc",
+     "paper": "#ffffff",
+     "line": {
+      "ramp": [
+       "#1e3a8a",
+       "#1e40af",
+       "#1d4ed8",
+       "#2563eb",
+       "#3b82f6",
+       "#60a5fa",
+       "#7db4fa"
+      ]
+     },
+     "heart": "#f43f5e"
+    }
+   }
+  },
+  {
+   "wire": "airmail",
+   "parts": [
+    "paper",
+    "red",
+    "blue",
+    "edge",
+    "stamp",
+    "text"
+   ],
+   "paints": {
+    "original": {
+     "background": "#e3ebf8",
+     "paper": "#ffffff",
+     "red": "#d93a2e",
+     "blue": "#2a5bd7",
+     "edge": "#c9d3e6",
+     "stamp": "#2a5bd7",
+     "text": "#1e3a6e"
+    },
+    "product-blue": {
+     "background": "#e3ebfc",
+     "paper": "#ffffff",
+     "red": "#d93a2e",
+     "blue": "#2a5bd7",
+     "edge": "#c8cfde",
+     "stamp": "#2563eb",
+     "text": "#1e3a6e"
+    },
+    "ink": {
+     "background": "#e3e3e2",
+     "paper": "#ffffff",
+     "red": "#d93a2e",
+     "blue": "#2a5bd7",
+     "edge": "#c8c8c7",
+     "stamp": "#2b2620",
+     "text": "#1e3a6e"
+    },
+    "slate": {
+     "background": "#e7e9ec",
+     "paper": "#ffffff",
+     "red": "#d93a2e",
+     "blue": "#2a5bd7",
+     "edge": "#cbcdd0",
+     "stamp": "#475569",
+     "text": "#1e3a6e"
+    },
+    "forest": {
+     "background": "#e1ebe5",
+     "paper": "#ffffff",
+     "red": "#d93a2e",
+     "blue": "#2a5bd7",
+     "edge": "#c6cfca",
+     "stamp": "#166534",
+     "text": "#1e3a6e"
+    },
+    "burgundy": {
+     "background": "#f3e0e5",
+     "paper": "#ffffff",
+     "red": "#d93a2e",
+     "blue": "#2a5bd7",
+     "edge": "#d6c5ca",
+     "stamp": "#9f1239",
+     "text": "#1e3a6e"
+    },
+    "deep-violet": {
+     "background": "#ece3fa",
+     "paper": "#ffffff",
+     "red": "#d93a2e",
+     "blue": "#2a5bd7",
+     "edge": "#d0c8dc",
+     "stamp": "#6d28d9",
+     "text": "#1e3a6e"
+    },
+    "postal": {
+     "background": "#f8e6e4",
+     "paper": "#ffffff",
+     "red": "#d93a2e",
+     "blue": "#2a5bd7",
+     "edge": "#dacac9",
+     "stamp": "#1e3a6e",
+     "text": "#1e3a6e"
+    },
+    "bronze-ink": {
+     "background": "#e6e5e4",
+     "paper": "#ffffff",
+     "red": "#d93a2e",
+     "blue": "#2a5bd7",
+     "edge": "#cacac9",
+     "stamp": "#7d6b4f",
+     "text": "#1e3a6e"
+    },
+    "petrol-copper": {
+     "background": "#f7ece6",
+     "paper": "#ffffff",
+     "red": "#d93a2e",
+     "blue": "#2a5bd7",
+     "edge": "#d9d0ca",
+     "stamp": "#0f766e",
+     "text": "#1e3a6e"
+    },
+    "midnight-gold": {
+     "background": "#faeddf",
+     "paper": "#ffffff",
+     "red": "#d93a2e",
+     "blue": "#2a5bd7",
+     "edge": "#dcd1c4",
+     "stamp": "#1e293b",
+     "text": "#1e3a6e"
+    },
+    "navy-sky": {
+     "background": "#e0f3fc",
+     "paper": "#ffffff",
+     "red": "#d93a2e",
+     "blue": "#2a5bd7",
+     "edge": "#c5d6de",
+     "stamp": "#1e3a8a",
+     "text": "#1e3a6e"
+    },
+    "forest-lime": {
+     "background": "#eff8e1",
+     "paper": "#ffffff",
+     "red": "#d93a2e",
+     "blue": "#2a5bd7",
+     "edge": "#d2dac6",
+     "stamp": "#166534",
+     "text": "#1e3a6e"
+    },
+    "plum-rose": {
+     "background": "#feedef",
+     "paper": "#ffffff",
+     "red": "#d93a2e",
+     "blue": "#2a5bd7",
+     "edge": "#e0d1d2",
+     "stamp": "#86198f",
+     "text": "#1e3a6e"
+    },
+    "charcoal-amber": {
+     "background": "#fef2df",
+     "paper": "#ffffff",
+     "red": "#d93a2e",
+     "blue": "#2a5bd7",
+     "edge": "#e0d5c4",
+     "stamp": "#292524",
+     "text": "#1e3a6e"
+    },
+    "espresso-cream": {
+     "background": "#f6f3ef",
+     "paper": "#ffffff",
+     "red": "#d93a2e",
+     "blue": "#2a5bd7",
+     "edge": "#d8d6d2",
+     "stamp": "#44403c",
+     "text": "#1e3a6e"
+    },
+    "cobalt-coral": {
+     "background": "#feeded",
+     "paper": "#ffffff",
+     "red": "#d93a2e",
+     "blue": "#2a5bd7",
+     "edge": "#e0d1d1",
+     "stamp": "#1d4ed8",
+     "text": "#1e3a6e"
+    },
+    "teal-gold": {
+     "background": "#faeddf",
+     "paper": "#ffffff",
+     "red": "#d93a2e",
+     "blue": "#2a5bd7",
+     "edge": "#dcd1c4",
+     "stamp": "#0f766e",
+     "text": "#1e3a6e"
+    },
+    "graphite-red": {
+     "background": "#fae3e3",
+     "paper": "#ffffff",
+     "red": "#d93a2e",
+     "blue": "#2a5bd7",
+     "edge": "#dcc8c8",
+     "stamp": "#374151",
+     "text": "#1e3a6e"
+    },
+    "red-flick": {
+     "background": "#f8e6e4",
+     "paper": "#ffffff",
+     "red": "#d93a2e",
+     "blue": "#2a5bd7",
+     "edge": "#dacac9",
+     "stamp": "#c8402f",
+     "text": "#1e3a6e"
+    },
+    "sky-flick": {
+     "background": "#deeff8",
+     "paper": "#ffffff",
+     "red": "#d93a2e",
+     "blue": "#2a5bd7",
+     "edge": "#c3d2da",
+     "stamp": "#0284c7",
+     "text": "#1e3a6e"
+    },
+    "bronze-flick": {
+     "background": "#eeece8",
+     "paper": "#ffffff",
+     "red": "#d93a2e",
+     "blue": "#2a5bd7",
+     "edge": "#d1d0cc",
+     "stamp": "#7d6b4f",
+     "text": "#1e3a6e"
+    },
+    "violet-flick": {
+     "background": "#f0eafe",
+     "paper": "#ffffff",
+     "red": "#d93a2e",
+     "blue": "#2a5bd7",
+     "edge": "#d3cee0",
+     "stamp": "#8b5cf6",
+     "text": "#1e3a6e"
+    },
+    "tricolore": {
+     "background": "#f9f3e1",
+     "paper": "#ffffff",
+     "red": "#d93a2e",
+     "blue": "#2a5bd7",
+     "edge": "#dbd6c6",
+     "stamp": "#1e3a6e",
+     "text": "#1e3a6e"
+    },
+    "indigo-violet": {
+     "background": "#e8e7fc",
+     "paper": "#ffffff",
+     "red": "#d93a2e",
+     "blue": "#2a5bd7",
+     "edge": "#cccbde",
+     "stamp": "#4f46e5",
+     "text": "#1e3a6e"
+    },
+    "sunset": {
+     "background": "#feede1",
+     "paper": "#ffffff",
+     "red": "#d93a2e",
+     "blue": "#2a5bd7",
+     "edge": "#e0d1c6",
+     "stamp": "#f97316",
+     "text": "#1e3a6e"
+    },
+    "ocean": {
+     "background": "#e0edf1",
+     "paper": "#ffffff",
+     "red": "#d93a2e",
+     "blue": "#2a5bd7",
+     "edge": "#c5d1d4",
+     "stamp": "#0e7490",
+     "text": "#1e3a6e"
+    },
+    "aurora": {
+     "background": "#e0f1f0",
+     "paper": "#ffffff",
+     "red": "#d93a2e",
+     "blue": "#2a5bd7",
+     "edge": "#c5d4d3",
+     "stamp": "#0d9488",
+     "text": "#1e3a6e"
+    },
+    "berry": {
+     "background": "#f3e1f5",
+     "paper": "#ffffff",
+     "red": "#d93a2e",
+     "blue": "#2a5bd7",
+     "edge": "#d6c6d8",
+     "stamp": "#a21caf",
+     "text": "#1e3a6e"
+    },
+    "ember": {
+     "background": "#fae3e3",
+     "paper": "#ffffff",
+     "red": "#d93a2e",
+     "blue": "#2a5bd7",
+     "edge": "#dcc8c8",
+     "stamp": "#dc2626",
+     "text": "#1e3a6e"
+    },
+    "twilight": {
+     "background": "#ece3fa",
+     "paper": "#ffffff",
+     "red": "#d93a2e",
+     "blue": "#2a5bd7",
+     "edge": "#d0c8dc",
+     "stamp": "#6d28d9",
+     "text": "#1e3a6e"
+    },
+    "copper": {
+     "background": "#f5e9df",
+     "paper": "#ffffff",
+     "red": "#d93a2e",
+     "blue": "#2a5bd7",
+     "edge": "#d8cdc4",
+     "stamp": "#b45309",
+     "text": "#1e3a6e"
+    },
+    "blue-tonal": {
+     "background": "#e3ebfc",
+     "paper": "#ffffff",
+     "red": "#d93a2e",
+     "blue": "#2a5bd7",
+     "edge": "#c8cfde",
+     "stamp": "#2563eb",
+     "text": "#1e3a6e"
+    }
+   }
+  },
+  {
+   "wire": "happy-mail",
+   "parts": [
+    "paper",
+    "line",
+    "cheek"
+   ],
+   "paints": {
+    "original": {
+     "background": "#fdeeb5",
+     "paper": "#fffaf0",
+     "line": "#45372b",
+     "cheek": "#fb7185"
+    },
+    "product-blue": {
+     "background": "#d1defb",
+     "paper": "#fffaf0",
+     "line": "#45372b",
+     "cheek": "#fb7185"
+    },
+    "ink": {
+     "background": "#dfdede",
+     "paper": "#fffaf0",
+     "line": "#45372b",
+     "cheek": "#fb7185"
+    },
+    "slate": {
+     "background": "#dadde1",
+     "paper": "#fffaf0",
+     "line": "#45372b",
+     "cheek": "#fb7185"
+    },
+    "forest": {
+     "background": "#d3e2d8",
+     "paper": "#fffaf0",
+     "line": "#45372b",
+     "cheek": "#fb7185"
+    },
+    "burgundy": {
+     "background": "#efd7dd",
+     "paper": "#fffaf0",
+     "line": "#45372b",
+     "cheek": "#fb7185"
+    },
+    "deep-violet": {
+     "background": "#e5d8f8",
+     "paper": "#fffaf0",
+     "line": "#45372b",
+     "cheek": "#fb7185"
+    },
+    "postal": {
+     "background": "#f3d7d3",
+     "paper": "#fffaf0",
+     "line": "#45372b",
+     "cheek": "#fb7185"
+    },
+    "bronze-ink": {
+     "background": "#dedddb",
+     "paper": "#fffaf0",
+     "line": "#45372b",
+     "cheek": "#fb7185"
+    },
+    "petrol-copper": {
+     "background": "#efdacd",
+     "paper": "#fffaf0",
+     "line": "#45372b",
+     "cheek": "#fb7185"
+    },
+    "midnight-gold": {
+     "background": "#f4d9b9",
+     "paper": "#fffaf0",
+     "line": "#45372b",
+     "cheek": "#fb7185"
+    },
+    "navy-sky": {
+     "background": "#b7e4f8",
+     "paper": "#fffaf0",
+     "line": "#45372b",
+     "cheek": "#fb7185"
+    },
+    "forest-lime": {
+     "background": "#c8e896",
+     "paper": "#fffaf0",
+     "line": "#45372b",
+     "cheek": "#fb7185"
+    },
+    "plum-rose": {
+     "background": "#fed2d8",
+     "paper": "#fffaf0",
+     "line": "#45372b",
+     "cheek": "#fb7185"
+    },
+    "charcoal-amber": {
+     "background": "#fbd89d",
+     "paper": "#fffaf0",
+     "line": "#45372b",
+     "cheek": "#fb7185"
+    },
+    "espresso-cream": {
+     "background": "#e4dcd1",
+     "paper": "#fffaf0",
+     "line": "#45372b",
+     "cheek": "#fb7185"
+    },
+    "cobalt-coral": {
+     "background": "#fdd3d3",
+     "paper": "#fffaf0",
+     "line": "#45372b",
+     "cheek": "#fb7185"
+    },
+    "teal-gold": {
+     "background": "#f4d9b9",
+     "paper": "#fffaf0",
+     "line": "#45372b",
+     "cheek": "#fb7185"
+    },
+    "graphite-red": {
+     "background": "#f8d6d6",
+     "paper": "#fffaf0",
+     "line": "#45372b",
+     "cheek": "#fb7185"
+    },
+    "red-flick": {
+     "background": "#f3d7d3",
+     "paper": "#fffaf0",
+     "line": "#45372b",
+     "cheek": "#fb7185"
+    },
+    "sky-flick": {
+     "background": "#c5e3f2",
+     "paper": "#fffaf0",
+     "line": "#45372b",
+     "cheek": "#fb7185"
+    },
+    "bronze-flick": {
+     "background": "#e1ddd7",
+     "paper": "#fffaf0",
+     "line": "#45372b",
+     "cheek": "#fb7185"
+    },
+    "violet-flick": {
+     "background": "#e3d8fd",
+     "paper": "#fffaf0",
+     "line": "#45372b",
+     "cheek": "#fb7185"
+    },
+    "tricolore": {
+     "background": "#efdca9",
+     "paper": "#fffaf0",
+     "line": "#45372b",
+     "cheek": "#fb7185"
+    },
+    "indigo-violet": {
+     "background": {
+      "ramp": [
+       "#dddbf5",
+       "#dcdafa",
+       "#dadafc",
+       "#e5d8fb",
+       "#e3d8fd",
+       "#e9d5fd",
+       "#ead5fe"
+      ]
+     },
+     "paper": "#fffaf0",
+     "line": "#45372b",
+     "cheek": "#fb7185"
+    },
+    "sunset": {
+     "background": {
+      "ramp": [
+       "#f9d4dc",
+       "#fcd3da",
+       "#fed2d8",
+       "#fdd6bb",
+       "#fdd6b5",
+       "#fbd89d",
+       "#fdd97e"
+      ]
+     },
+     "paper": "#fffaf0",
+     "line": "#45372b",
+     "cheek": "#fb7185"
+    },
+    "ocean": {
+     "background": {
+      "ramp": [
+       "#d4ddf8",
+       "#cde1ec",
+       "#c5e3f2",
+       "#c1e4ec",
+       "#c3e4e1",
+       "#bee5e1",
+       "#b1e8e2"
+      ]
+     },
+     "paper": "#fffaf0",
+     "line": "#45372b",
+     "cheek": "#fb7185"
+    },
+    "aurora": {
+     "background": {
+      "ramp": [
+       "#c0e6ce",
+       "#b3e9d7",
+       "#c3e4e1",
+       "#c1e4ec",
+       "#c5e3f2",
+       "#d1defb",
+       "#dcdafa"
+      ]
+     },
+     "paper": "#fffaf0",
+     "line": "#45372b",
+     "cheek": "#fb7185"
+    },
+    "berry": {
+     "background": {
+      "ramp": [
+       "#e5d8f8",
+       "#e5d8fb",
+       "#eed6f1",
+       "#f2d4f6",
+       "#f8d4e4",
+       "#f9d4dc",
+       "#fcd3da"
+      ]
+     },
+     "paper": "#fffaf0",
+     "line": "#45372b",
+     "cheek": "#fb7185"
+    },
+    "ember": {
+     "background": {
+      "ramp": [
+       "#eed8d8",
+       "#f3d8d8",
+       "#f8d6d6",
+       "#fad7c5",
+       "#fdd6bb",
+       "#fbd89d",
+       "#fdd97e"
+      ]
+     },
+     "paper": "#fffaf0",
+     "line": "#45372b",
+     "cheek": "#fb7185"
+    },
+    "twilight": {
+     "background": {
+      "ramp": [
+       "#dedeeb",
+       "#dddbf5",
+       "#e5d8f8",
+       "#e9d6fb",
+       "#f2d4f6",
+       "#f8d4e4",
+       "#fbd2e8"
+      ]
+     },
+     "paper": "#fffaf0",
+     "line": "#45372b",
+     "cheek": "#fb7185"
+    },
+    "copper": {
+     "background": {
+      "ramp": [
+       "#e7dbd4",
+       "#eadbd1",
+       "#efd9c9",
+       "#f4d9b9",
+       "#fbd89d",
+       "#fdd97e",
+       "#fdda6b"
+      ]
+     },
+     "paper": "#fffaf0",
+     "line": "#45372b",
+     "cheek": "#fb7185"
+    },
+    "blue-tonal": {
+     "background": {
+      "ramp": [
+       "#d9deeb",
+       "#d7ddf1",
+       "#d4ddf8",
+       "#d1defb",
+       "#ccdffd",
+       "#c7e0fd",
+       "#c7dffd"
+      ]
+     },
+     "paper": "#fffaf0",
+     "line": "#45372b",
+     "cheek": "#fb7185"
+    }
+   }
+  },
+  {
+   "wire": "snail-mail",
+   "parts": [
+    "body",
+    "paper",
+    "line",
+    "seal"
+   ],
+   "paints": {
+    "original": {
+     "background": "#e4f0da",
+     "body": "#4b8f3f",
+     "paper": "#fffaf0",
+     "line": "#8a5a2b",
+     "seal": null
+    },
+    "product-blue": {
+     "background": "#e4f0da",
+     "body": "#4b8f3f",
+     "paper": "#fffaf0",
+     "line": "#2563eb",
+     "seal": null
+    },
+    "ink": {
+     "background": "#e4f0da",
+     "body": "#4b8f3f",
+     "paper": "#fffaf0",
+     "line": "#2b2620",
+     "seal": null
+    },
+    "slate": {
+     "background": "#e4f0da",
+     "body": "#4b8f3f",
+     "paper": "#fffaf0",
+     "line": "#475569",
+     "seal": null
+    },
+    "forest": {
+     "background": "#e4f0da",
+     "body": "#4b8f3f",
+     "paper": "#fffaf0",
+     "line": "#166534",
+     "seal": null
+    },
+    "burgundy": {
+     "background": "#e4f0da",
+     "body": "#4b8f3f",
+     "paper": "#fffaf0",
+     "line": "#9f1239",
+     "seal": null
+    },
+    "deep-violet": {
+     "background": "#e4f0da",
+     "body": "#4b8f3f",
+     "paper": "#fffaf0",
+     "line": "#6d28d9",
+     "seal": null
+    },
+    "postal": {
+     "background": "#e4f0da",
+     "body": "#4b8f3f",
+     "paper": "#fffaf0",
+     "line": "#1e3a6e",
+     "seal": "#c8402f"
+    },
+    "bronze-ink": {
+     "background": "#e4f0da",
+     "body": "#4b8f3f",
+     "paper": "#fffaf0",
+     "line": "#7d6b4f",
+     "seal": "#3d372e"
+    },
+    "petrol-copper": {
+     "background": "#e4f0da",
+     "body": "#4b8f3f",
+     "paper": "#fffaf0",
+     "line": "#0f766e",
+     "seal": "#c2703d"
+    },
+    "midnight-gold": {
+     "background": "#e4f0da",
+     "body": "#4b8f3f",
+     "paper": "#fffaf0",
+     "line": "#1e293b",
+     "seal": "#d97706"
+    },
+    "navy-sky": {
+     "background": "#e4f0da",
+     "body": "#4b8f3f",
+     "paper": "#fffaf0",
+     "line": "#1e3a8a",
+     "seal": "#0ea5e9"
+    },
+    "forest-lime": {
+     "background": "#e4f0da",
+     "body": "#4b8f3f",
+     "paper": "#fffaf0",
+     "line": "#166534",
+     "seal": "#84cc16"
+    },
+    "plum-rose": {
+     "background": "#e4f0da",
+     "body": "#4b8f3f",
+     "paper": "#fffaf0",
+     "line": "#86198f",
+     "seal": "#fb7185"
+    },
+    "charcoal-amber": {
+     "background": "#e4f0da",
+     "body": "#4b8f3f",
+     "paper": "#fffaf0",
+     "line": "#292524",
+     "seal": "#f59e0b"
+    },
+    "espresso-cream": {
+     "background": "#e4f0da",
+     "body": "#4b8f3f",
+     "paper": "#fffaf0",
+     "line": "#44403c",
+     "seal": "#b8a385"
+    },
+    "cobalt-coral": {
+     "background": "#e4f0da",
+     "body": "#4b8f3f",
+     "paper": "#fffaf0",
+     "line": "#1d4ed8",
+     "seal": "#f87171"
+    },
+    "teal-gold": {
+     "background": "#e4f0da",
+     "body": "#4b8f3f",
+     "paper": "#fffaf0",
+     "line": "#0f766e",
+     "seal": "#d97706"
+    },
+    "graphite-red": {
+     "background": "#e4f0da",
+     "body": "#4b8f3f",
+     "paper": "#fffaf0",
+     "line": "#374151",
+     "seal": "#dc2626"
+    },
+    "red-flick": {
+     "background": "#e4f0da",
+     "body": "#4b8f3f",
+     "paper": "#fffaf0",
+     "line": "#2b2620",
+     "seal": "#c8402f"
+    },
+    "sky-flick": {
+     "background": "#e4f0da",
+     "body": "#4b8f3f",
+     "paper": "#fffaf0",
+     "line": "#2b2620",
+     "seal": "#0284c7"
+    },
+    "bronze-flick": {
+     "background": "#e4f0da",
+     "body": "#4b8f3f",
+     "paper": "#fffaf0",
+     "line": "#2b2620",
+     "seal": "#7d6b4f"
+    },
+    "violet-flick": {
+     "background": "#e4f0da",
+     "body": "#4b8f3f",
+     "paper": "#fffaf0",
+     "line": "#2b2620",
+     "seal": "#8b5cf6"
+    },
+    "tricolore": {
+     "background": "#e4f0da",
+     "body": "#4b8f3f",
+     "paper": "#fffaf0",
+     "line": "#1e3a6e",
+     "seal": "#c8402f"
+    },
+    "indigo-violet": {
+     "background": "#e4f0da",
+     "body": "#4b8f3f",
+     "paper": "#fffaf0",
+     "line": {
+      "ramp": [
+       "#4338ca",
+       "#4f46e5",
+       "#6366f1",
+       "#7c3aed",
+       "#8b5cf6",
+       "#a855f7",
+       "#c084fc"
+      ]
+     },
+     "seal": null
+    },
+    "sunset": {
+     "background": "#e4f0da",
+     "body": "#4b8f3f",
+     "paper": "#fffaf0",
+     "line": {
+      "ramp": [
+       "#e11d48",
+       "#f43f5e",
+       "#fb7185",
+       "#f97316",
+       "#fb923c",
+       "#f59e0b",
+       "#fbbf24"
+      ]
+     },
+     "seal": null
+    },
+    "ocean": {
+     "background": "#e4f0da",
+     "body": "#4b8f3f",
+     "paper": "#fffaf0",
+     "line": {
+      "ramp": [
+       "#1d4ed8",
+       "#0369a1",
+       "#0284c7",
+       "#0891b2",
+       "#0d9488",
+       "#0f9f8f",
+       "#14b8a6"
+      ]
+     },
+     "seal": null
+    },
+    "aurora": {
+     "background": "#e4f0da",
+     "body": "#4b8f3f",
+     "paper": "#fffaf0",
+     "line": {
+      "ramp": [
+       "#16a34a",
+       "#10b981",
+       "#0d9488",
+       "#0891b2",
+       "#0284c7",
+       "#2563eb",
+       "#4f46e5"
+      ]
+     },
+     "seal": null
+    },
+    "berry": {
+     "background": "#e4f0da",
+     "body": "#4b8f3f",
+     "paper": "#fffaf0",
+     "line": {
+      "ramp": [
+       "#6d28d9",
+       "#7c3aed",
+       "#a21caf",
+       "#c026d3",
+       "#db2777",
+       "#e11d48",
+       "#f43f5e"
+      ]
+     },
+     "seal": null
+    },
+    "ember": {
+     "background": "#e4f0da",
+     "body": "#4b8f3f",
+     "paper": "#fffaf0",
+     "line": {
+      "ramp": [
+       "#991b1b",
+       "#b91c1c",
+       "#dc2626",
+       "#ea580c",
+       "#f97316",
+       "#f59e0b",
+       "#fbbf24"
+      ]
+     },
+     "seal": null
+    },
+    "twilight": {
+     "background": "#e4f0da",
+     "body": "#4b8f3f",
+     "paper": "#fffaf0",
+     "line": {
+      "ramp": [
+       "#312e81",
+       "#4338ca",
+       "#6d28d9",
+       "#9333ea",
+       "#c026d3",
+       "#db2777",
+       "#f472b6"
+      ]
+     },
+     "seal": null
+    },
+    "copper": {
+     "background": "#e4f0da",
+     "body": "#4b8f3f",
+     "paper": "#fffaf0",
+     "line": {
+      "ramp": [
+       "#78350f",
+       "#92400e",
+       "#b45309",
+       "#d97706",
+       "#f59e0b",
+       "#fbbf24",
+       "#fcd34d"
+      ]
+     },
+     "seal": null
+    },
+    "blue-tonal": {
+     "background": "#e4f0da",
+     "body": "#4b8f3f",
+     "paper": "#fffaf0",
+     "line": {
+      "ramp": [
+       "#1e3a8a",
+       "#1e40af",
+       "#1d4ed8",
+       "#2563eb",
+       "#3b82f6",
+       "#60a5fa",
+       "#7db4fa"
+      ]
+     },
+     "seal": null
+    }
+   }
+  },
+  {
+   "wire": "mailbox",
+   "parts": [
+    "box",
+    "paper",
+    "flag",
+    "post"
+   ],
+   "paints": {
+    "original": {
+     "background": "#e6eefb",
+     "box": "#2a5bd7",
+     "paper": "#ffffff",
+     "flag": "#e0452f",
+     "post": "#2b2620"
+    },
+    "product-blue": {
+     "background": "#e3ebfc",
+     "box": "#2563eb",
+     "paper": "#ffffff",
+     "flag": "#e0452f",
+     "post": "#2b2620"
+    },
+    "ink": {
+     "background": "#e3e3e2",
+     "box": "#2b2620",
+     "paper": "#ffffff",
+     "flag": "#e0452f",
+     "post": "#2b2620"
+    },
+    "slate": {
+     "background": "#e7e9ec",
+     "box": "#475569",
+     "paper": "#ffffff",
+     "flag": "#e0452f",
+     "post": "#2b2620"
+    },
+    "forest": {
+     "background": "#e1ebe5",
+     "box": "#166534",
+     "paper": "#ffffff",
+     "flag": "#e0452f",
+     "post": "#2b2620"
+    },
+    "burgundy": {
+     "background": "#f3e0e5",
+     "box": "#9f1239",
+     "paper": "#ffffff",
+     "flag": "#e0452f",
+     "post": "#2b2620"
+    },
+    "deep-violet": {
+     "background": "#ece3fa",
+     "box": "#6d28d9",
+     "paper": "#ffffff",
+     "flag": "#e0452f",
+     "post": "#2b2620"
+    },
+    "postal": {
+     "background": "#f8e6e4",
+     "box": "#1e3a6e",
+     "paper": "#ffffff",
+     "flag": "#e0452f",
+     "post": "#2b2620"
+    },
+    "bronze-ink": {
+     "background": "#e6e5e4",
+     "box": "#7d6b4f",
+     "paper": "#ffffff",
+     "flag": "#e0452f",
+     "post": "#2b2620"
+    },
+    "petrol-copper": {
+     "background": "#f7ece6",
+     "box": "#0f766e",
+     "paper": "#ffffff",
+     "flag": "#e0452f",
+     "post": "#2b2620"
+    },
+    "midnight-gold": {
+     "background": "#faeddf",
+     "box": "#1e293b",
+     "paper": "#ffffff",
+     "flag": "#e0452f",
+     "post": "#2b2620"
+    },
+    "navy-sky": {
+     "background": "#e0f3fc",
+     "box": "#1e3a8a",
+     "paper": "#ffffff",
+     "flag": "#e0452f",
+     "post": "#2b2620"
+    },
+    "forest-lime": {
+     "background": "#eff8e1",
+     "box": "#166534",
+     "paper": "#ffffff",
+     "flag": "#e0452f",
+     "post": "#2b2620"
+    },
+    "plum-rose": {
+     "background": "#feedef",
+     "box": "#86198f",
+     "paper": "#ffffff",
+     "flag": "#e0452f",
+     "post": "#2b2620"
+    },
+    "charcoal-amber": {
+     "background": "#fef2df",
+     "box": "#292524",
+     "paper": "#ffffff",
+     "flag": "#e0452f",
+     "post": "#2b2620"
+    },
+    "espresso-cream": {
+     "background": "#f6f3ef",
+     "box": "#44403c",
+     "paper": "#ffffff",
+     "flag": "#e0452f",
+     "post": "#2b2620"
+    },
+    "cobalt-coral": {
+     "background": "#feeded",
+     "box": "#1d4ed8",
+     "paper": "#ffffff",
+     "flag": "#e0452f",
+     "post": "#2b2620"
+    },
+    "teal-gold": {
+     "background": "#faeddf",
+     "box": "#0f766e",
+     "paper": "#ffffff",
+     "flag": "#e0452f",
+     "post": "#2b2620"
+    },
+    "graphite-red": {
+     "background": "#fae3e3",
+     "box": "#374151",
+     "paper": "#ffffff",
+     "flag": "#e0452f",
+     "post": "#2b2620"
+    },
+    "red-flick": {
+     "background": "#f8e6e4",
+     "box": "#2b2620",
+     "paper": "#ffffff",
+     "flag": "#e0452f",
+     "post": "#2b2620"
+    },
+    "sky-flick": {
+     "background": "#deeff8",
+     "box": "#2b2620",
+     "paper": "#ffffff",
+     "flag": "#e0452f",
+     "post": "#2b2620"
+    },
+    "bronze-flick": {
+     "background": "#eeece8",
+     "box": "#2b2620",
+     "paper": "#ffffff",
+     "flag": "#e0452f",
+     "post": "#2b2620"
+    },
+    "violet-flick": {
+     "background": "#f0eafe",
+     "box": "#2b2620",
+     "paper": "#ffffff",
+     "flag": "#e0452f",
+     "post": "#2b2620"
+    },
+    "tricolore": {
+     "background": "#f9f3e1",
+     "box": "#1e3a6e",
+     "paper": "#ffffff",
+     "flag": "#e0452f",
+     "post": "#2b2620"
+    },
+    "indigo-violet": {
+     "background": "#e8e7fc",
+     "box": {
+      "ramp": [
+       "#4338ca",
+       "#4f46e5",
+       "#6366f1",
+       "#7c3aed",
+       "#8b5cf6",
+       "#a855f7",
+       "#c084fc"
+      ]
+     },
+     "paper": "#ffffff",
+     "flag": "#e0452f",
+     "post": "#2b2620"
+    },
+    "sunset": {
+     "background": "#feede1",
+     "box": {
+      "ramp": [
+       "#e11d48",
+       "#f43f5e",
+       "#fb7185",
+       "#f97316",
+       "#fb923c",
+       "#f59e0b",
+       "#fbbf24"
+      ]
+     },
+     "paper": "#ffffff",
+     "flag": "#e0452f",
+     "post": "#2b2620"
+    },
+    "ocean": {
+     "background": "#e0edf1",
+     "box": {
+      "ramp": [
+       "#1d4ed8",
+       "#0369a1",
+       "#0284c7",
+       "#0891b2",
+       "#0d9488",
+       "#0f9f8f",
+       "#14b8a6"
+      ]
+     },
+     "paper": "#ffffff",
+     "flag": "#e0452f",
+     "post": "#2b2620"
+    },
+    "aurora": {
+     "background": "#e0f1f0",
+     "box": {
+      "ramp": [
+       "#16a34a",
+       "#10b981",
+       "#0d9488",
+       "#0891b2",
+       "#0284c7",
+       "#2563eb",
+       "#4f46e5"
+      ]
+     },
+     "paper": "#ffffff",
+     "flag": "#e0452f",
+     "post": "#2b2620"
+    },
+    "berry": {
+     "background": "#f3e1f5",
+     "box": {
+      "ramp": [
+       "#6d28d9",
+       "#7c3aed",
+       "#a21caf",
+       "#c026d3",
+       "#db2777",
+       "#e11d48",
+       "#f43f5e"
+      ]
+     },
+     "paper": "#ffffff",
+     "flag": "#e0452f",
+     "post": "#2b2620"
+    },
+    "ember": {
+     "background": "#fae3e3",
+     "box": {
+      "ramp": [
+       "#991b1b",
+       "#b91c1c",
+       "#dc2626",
+       "#ea580c",
+       "#f97316",
+       "#f59e0b",
+       "#fbbf24"
+      ]
+     },
+     "paper": "#ffffff",
+     "flag": "#e0452f",
+     "post": "#2b2620"
+    },
+    "twilight": {
+     "background": "#ece3fa",
+     "box": {
+      "ramp": [
+       "#312e81",
+       "#4338ca",
+       "#6d28d9",
+       "#9333ea",
+       "#c026d3",
+       "#db2777",
+       "#f472b6"
+      ]
+     },
+     "paper": "#ffffff",
+     "flag": "#e0452f",
+     "post": "#2b2620"
+    },
+    "copper": {
+     "background": "#f5e9df",
+     "box": {
+      "ramp": [
+       "#78350f",
+       "#92400e",
+       "#b45309",
+       "#d97706",
+       "#f59e0b",
+       "#fbbf24",
+       "#fcd34d"
+      ]
+     },
+     "paper": "#ffffff",
+     "flag": "#e0452f",
+     "post": "#2b2620"
+    },
+    "blue-tonal": {
+     "background": "#e3ebfc",
+     "box": {
+      "ramp": [
+       "#1e3a8a",
+       "#1e40af",
+       "#1d4ed8",
+       "#2563eb",
+       "#3b82f6",
+       "#60a5fa",
+       "#7db4fa"
+      ]
+     },
+     "paper": "#ffffff",
+     "flag": "#e0452f",
+     "post": "#2b2620"
+    }
+   }
+  },
+  {
+   "wire": "pl-stamp",
+   "parts": [
+    "stamp",
+    "mark0",
+    "mark1",
+    "mark2",
+    "mark3",
+    "mark4",
+    "mark5",
+    "mark6",
+    "frame"
+   ],
+   "paints": {
+    "original": {
+     "background": "#f5eaf6",
+     "stamp": "#a21caf",
+     "mark0": "#ffffff",
+     "mark1": "#ffffff",
+     "mark2": "#ffffff",
+     "mark3": "#ffffff",
+     "mark4": "#ffffff",
+     "mark5": "#ffffff",
+     "mark6": "#ffffff",
+     "frame": "#d18ed7"
+    },
+    "product-blue": {
+     "background": "#e3ebfc",
+     "stamp": "#2563eb",
+     "mark0": "#ffffff",
+     "mark1": "#ffffff",
+     "mark2": "#ffffff",
+     "mark3": "#ffffff",
+     "mark4": "#ffffff",
+     "mark5": "#ffffff",
+     "mark6": "#ffffff",
+     "frame": "#92b1f5"
+    },
+    "ink": {
+     "background": "#e3e3e2",
+     "stamp": "#2b2620",
+     "mark0": "#ffffff",
+     "mark1": "#ffffff",
+     "mark2": "#ffffff",
+     "mark3": "#ffffff",
+     "mark4": "#ffffff",
+     "mark5": "#ffffff",
+     "mark6": "#ffffff",
+     "frame": "#959390"
+    },
+    "slate": {
+     "background": "#e7e9ec",
+     "stamp": "#475569",
+     "mark0": "#ffffff",
+     "mark1": "#ffffff",
+     "mark2": "#ffffff",
+     "mark3": "#ffffff",
+     "mark4": "#ffffff",
+     "mark5": "#ffffff",
+     "mark6": "#ffffff",
+     "frame": "#a3aab4"
+    },
+    "forest": {
+     "background": "#e1ebe5",
+     "stamp": "#166534",
+     "mark0": "#ffffff",
+     "mark1": "#ffffff",
+     "mark2": "#ffffff",
+     "mark3": "#ffffff",
+     "mark4": "#ffffff",
+     "mark5": "#ffffff",
+     "mark6": "#ffffff",
+     "frame": "#8bb29a"
+    },
+    "burgundy": {
+     "background": "#f3e0e5",
+     "stamp": "#9f1239",
+     "mark0": "#ffffff",
+     "mark1": "#ffffff",
+     "mark2": "#ffffff",
+     "mark3": "#ffffff",
+     "mark4": "#ffffff",
+     "mark5": "#ffffff",
+     "mark6": "#ffffff",
+     "frame": "#cf899c"
+    },
+    "deep-violet": {
+     "background": "#ece3fa",
+     "stamp": "#6d28d9",
+     "mark0": "#ffffff",
+     "mark1": "#ffffff",
+     "mark2": "#ffffff",
+     "mark3": "#ffffff",
+     "mark4": "#ffffff",
+     "mark5": "#ffffff",
+     "mark6": "#ffffff",
+     "frame": "#b694ec"
+    },
+    "postal": {
+     "background": "#e2e5ec",
+     "stamp": "#1e3a6e",
+     "mark0": "#ffffff",
+     "mark1": "#ffffff",
+     "mark2": "#ffffff",
+     "mark3": "#ffffff",
+     "mark4": "#c8402f",
+     "mark5": "#c8402f",
+     "mark6": "#c8402f",
+     "frame": "#8f9db7"
+    },
+    "bronze-ink": {
+     "background": "#eeece8",
+     "stamp": "#7d6b4f",
+     "mark0": "#ffffff",
+     "mark1": "#ffffff",
+     "mark2": "#ffffff",
+     "mark3": "#ffffff",
+     "mark4": "#3d372e",
+     "mark5": "#3d372e",
+     "mark6": "#3d372e",
+     "frame": "#beb5a7"
+    },
+    "petrol-copper": {
+     "background": "#e0edec",
+     "stamp": "#0f766e",
+     "mark0": "#ffffff",
+     "mark1": "#ffffff",
+     "mark2": "#ffffff",
+     "mark3": "#ffffff",
+     "mark4": "#c2703d",
+     "mark5": "#c2703d",
+     "mark6": "#c2703d",
+     "frame": "#87bbb7"
+    },
+    "midnight-gold": {
+     "background": "#e2e3e6",
+     "stamp": "#1e293b",
+     "mark0": "#ffffff",
+     "mark1": "#ffffff",
+     "mark2": "#ffffff",
+     "mark3": "#ffffff",
+     "mark4": "#d97706",
+     "mark5": "#d97706",
+     "mark6": "#d97706",
+     "frame": "#8f949d"
+    },
+    "navy-sky": {
+     "background": "#e2e5f0",
+     "stamp": "#1e3a8a",
+     "mark0": "#ffffff",
+     "mark1": "#ffffff",
+     "mark2": "#ffffff",
+     "mark3": "#ffffff",
+     "mark4": "#0ea5e9",
+     "mark5": "#0ea5e9",
+     "mark6": "#0ea5e9",
+     "frame": "#8f9dc5"
+    },
+    "forest-lime": {
+     "background": "#e1ebe5",
+     "stamp": "#166534",
+     "mark0": "#ffffff",
+     "mark1": "#ffffff",
+     "mark2": "#ffffff",
+     "mark3": "#ffffff",
+     "mark4": "#84cc16",
+     "mark5": "#84cc16",
+     "mark6": "#84cc16",
+     "frame": "#8bb29a"
+    },
+    "plum-rose": {
+     "background": "#efe1f0",
+     "stamp": "#86198f",
+     "mark0": "#ffffff",
+     "mark1": "#ffffff",
+     "mark2": "#ffffff",
+     "mark3": "#ffffff",
+     "mark4": "#fb7185",
+     "mark5": "#fb7185",
+     "mark6": "#fb7185",
+     "frame": "#c38cc7"
+    },
+    "charcoal-amber": {
+     "background": "#e3e3e3",
+     "stamp": "#292524",
+     "mark0": "#ffffff",
+     "mark1": "#ffffff",
+     "mark2": "#ffffff",
+     "mark3": "#ffffff",
+     "mark4": "#f59e0b",
+     "mark5": "#f59e0b",
+     "mark6": "#f59e0b",
+     "frame": "#949292"
+    },
+    "espresso-cream": {
+     "background": "#e7e6e6",
+     "stamp": "#44403c",
+     "mark0": "#ffffff",
+     "mark1": "#ffffff",
+     "mark2": "#ffffff",
+     "mark3": "#ffffff",
+     "mark4": "#b8a385",
+     "mark5": "#b8a385",
+     "mark6": "#b8a385",
+     "frame": "#a2a09e"
+    },
+    "cobalt-coral": {
+     "background": "#e2e8fa",
+     "stamp": "#1d4ed8",
+     "mark0": "#ffffff",
+     "mark1": "#ffffff",
+     "mark2": "#ffffff",
+     "mark3": "#ffffff",
+     "mark4": "#f87171",
+     "mark5": "#f87171",
+     "mark6": "#f87171",
+     "frame": "#8ea7ec"
+    },
+    "teal-gold": {
+     "background": "#e0edec",
+     "stamp": "#0f766e",
+     "mark0": "#ffffff",
+     "mark1": "#ffffff",
+     "mark2": "#ffffff",
+     "mark3": "#ffffff",
+     "mark4": "#d97706",
+     "mark5": "#d97706",
+     "mark6": "#d97706",
+     "frame": "#87bbb7"
+    },
+    "graphite-red": {
+     "background": "#e5e6e8",
+     "stamp": "#374151",
+     "mark0": "#ffffff",
+     "mark1": "#ffffff",
+     "mark2": "#ffffff",
+     "mark3": "#ffffff",
+     "mark4": "#dc2626",
+     "mark5": "#dc2626",
+     "mark6": "#dc2626",
+     "frame": "#9ba0a8"
+    },
+    "red-flick": {
+     "background": "#f8e6e4",
+     "stamp": "#2b2620",
+     "mark0": "#ffffff",
+     "mark1": "#ffffff",
+     "mark2": "#ffffff",
+     "mark3": "#ffffff",
+     "mark4": "#ffffff",
+     "mark5": "#ffffff",
+     "mark6": "#c8402f",
+     "frame": "#959390"
+    },
+    "sky-flick": {
+     "background": "#deeff8",
+     "stamp": "#2b2620",
+     "mark0": "#ffffff",
+     "mark1": "#ffffff",
+     "mark2": "#ffffff",
+     "mark3": "#ffffff",
+     "mark4": "#ffffff",
+     "mark5": "#ffffff",
+     "mark6": "#0284c7",
+     "frame": "#959390"
+    },
+    "bronze-flick": {
+     "background": "#eeece8",
+     "stamp": "#2b2620",
+     "mark0": "#ffffff",
+     "mark1": "#ffffff",
+     "mark2": "#ffffff",
+     "mark3": "#ffffff",
+     "mark4": "#ffffff",
+     "mark5": "#ffffff",
+     "mark6": "#7d6b4f",
+     "frame": "#959390"
+    },
+    "violet-flick": {
+     "background": "#f0eafe",
+     "stamp": "#2b2620",
+     "mark0": "#ffffff",
+     "mark1": "#ffffff",
+     "mark2": "#ffffff",
+     "mark3": "#ffffff",
+     "mark4": "#ffffff",
+     "mark5": "#ffffff",
+     "mark6": "#8b5cf6",
+     "frame": "#959390"
+    },
+    "tricolore": {
+     "background": "#e2e5ec",
+     "stamp": "#1e3a6e",
+     "mark0": "#ffffff",
+     "mark1": "#c8402f",
+     "mark2": "#ffffff",
+     "mark3": "#c8402f",
+     "mark4": "#d4a017",
+     "mark5": "#d4a017",
+     "mark6": "#d4a017",
+     "frame": "#8f9db7"
+    },
+    "indigo-violet": {
+     "background": "#e8e7fc",
+     "stamp": {
+      "ramp": [
+       "#4338ca",
+       "#4f46e5",
+       "#6366f1",
+       "#7c3aed",
+       "#8b5cf6",
+       "#a855f7",
+       "#c084fc"
+      ]
+     },
+     "mark0": "#ffffff",
+     "mark1": "#ffffff",
+     "mark2": "#ffffff",
+     "mark3": "#ffffff",
+     "mark4": "#ffffff",
+     "mark5": "#ffffff",
+     "mark6": "#ffffff",
+     "frame": "#a7a3f2"
+    },
+    "sunset": {
+     "background": "#feede1",
+     "stamp": {
+      "ramp": [
+       "#e11d48",
+       "#f43f5e",
+       "#fb7185",
+       "#f97316",
+       "#fb923c",
+       "#f59e0b",
+       "#fbbf24"
+      ]
+     },
+     "mark0": "#ffffff",
+     "mark1": "#ffffff",
+     "mark2": "#ffffff",
+     "mark3": "#ffffff",
+     "mark4": "#ffffff",
+     "mark5": "#ffffff",
+     "mark6": "#ffffff",
+     "frame": "#fcb98b"
+    },
+    "ocean": {
+     "background": "#e0edf1",
+     "stamp": {
+      "ramp": [
+       "#1d4ed8",
+       "#0369a1",
+       "#0284c7",
+       "#0891b2",
+       "#0d9488",
+       "#0f9f8f",
+       "#14b8a6"
+      ]
+     },
+     "mark0": "#ffffff",
+     "mark1": "#ffffff",
+     "mark2": "#ffffff",
+     "mark3": "#ffffff",
+     "mark4": "#ffffff",
+     "mark5": "#ffffff",
+     "mark6": "#ffffff",
+     "frame": "#87bac8"
+    },
+    "aurora": {
+     "background": "#e0f1f0",
+     "stamp": {
+      "ramp": [
+       "#16a34a",
+       "#10b981",
+       "#0d9488",
+       "#0891b2",
+       "#0284c7",
+       "#2563eb",
+       "#4f46e5"
+      ]
+     },
+     "mark0": "#ffffff",
+     "mark1": "#ffffff",
+     "mark2": "#ffffff",
+     "mark3": "#ffffff",
+     "mark4": "#ffffff",
+     "mark5": "#ffffff",
+     "mark6": "#ffffff",
+     "frame": "#86cac4"
+    },
+    "berry": {
+     "background": "#f3e1f5",
+     "stamp": {
+      "ramp": [
+       "#6d28d9",
+       "#7c3aed",
+       "#a21caf",
+       "#c026d3",
+       "#db2777",
+       "#e11d48",
+       "#f43f5e"
+      ]
+     },
+     "mark0": "#ffffff",
+     "mark1": "#ffffff",
+     "mark2": "#ffffff",
+     "mark3": "#ffffff",
+     "mark4": "#ffffff",
+     "mark5": "#ffffff",
+     "mark6": "#ffffff",
+     "frame": "#d18ed7"
+    },
+    "ember": {
+     "background": "#fae3e3",
+     "stamp": {
+      "ramp": [
+       "#991b1b",
+       "#b91c1c",
+       "#dc2626",
+       "#ea580c",
+       "#f97316",
+       "#f59e0b",
+       "#fbbf24"
+      ]
+     },
+     "mark0": "#ffffff",
+     "mark1": "#ffffff",
+     "mark2": "#ffffff",
+     "mark3": "#ffffff",
+     "mark4": "#ffffff",
+     "mark5": "#ffffff",
+     "mark6": "#ffffff",
+     "frame": "#ee9393"
+    },
+    "twilight": {
+     "background": "#ece3fa",
+     "stamp": {
+      "ramp": [
+       "#312e81",
+       "#4338ca",
+       "#6d28d9",
+       "#9333ea",
+       "#c026d3",
+       "#db2777",
+       "#f472b6"
+      ]
+     },
+     "mark0": "#ffffff",
+     "mark1": "#ffffff",
+     "mark2": "#ffffff",
+     "mark3": "#ffffff",
+     "mark4": "#ffffff",
+     "mark5": "#ffffff",
+     "mark6": "#ffffff",
+     "frame": "#b694ec"
+    },
+    "copper": {
+     "background": "#f5e9df",
+     "stamp": {
+      "ramp": [
+       "#78350f",
+       "#92400e",
+       "#b45309",
+       "#d97706",
+       "#f59e0b",
+       "#fbbf24",
+       "#fcd34d"
+      ]
+     },
+     "mark0": "#ffffff",
+     "mark1": "#ffffff",
+     "mark2": "#ffffff",
+     "mark3": "#ffffff",
+     "mark4": "#ffffff",
+     "mark5": "#ffffff",
+     "mark6": "#ffffff",
+     "frame": "#daa984"
+    },
+    "blue-tonal": {
+     "background": "#e3ebfc",
+     "stamp": {
+      "ramp": [
+       "#1e3a8a",
+       "#1e40af",
+       "#1d4ed8",
+       "#2563eb",
+       "#3b82f6",
+       "#60a5fa",
+       "#7db4fa"
+      ]
+     },
+     "mark0": "#ffffff",
+     "mark1": "#ffffff",
+     "mark2": "#ffffff",
+     "mark3": "#ffffff",
+     "mark4": "#ffffff",
+     "mark5": "#ffffff",
+     "mark6": "#ffffff",
+     "frame": "#92b1f5"
+    }
+   }
+  },
+  {
+   "wire": "wax-seal",
+   "parts": [
+    "wax",
+    "ring",
+    "mark"
+   ],
+   "paints": {
+    "original": {
+     "background": "#f3eadb",
+     "wax": "#b3261e",
+     "ring": "#8c1d18",
+     "mark": "#fde2d8"
+    },
+    "product-blue": {
+     "background": "#f3eadb",
+     "wax": "#2563eb",
+     "ring": "#1a45a5",
+     "mark": "#dee8fc"
+    },
+    "ink": {
+     "background": "#f3eadb",
+     "wax": "#2b2620",
+     "ring": "#1e1b16",
+     "mark": "#dfdede"
+    },
+    "slate": {
+     "background": "#f3eadb",
+     "wax": "#475569",
+     "ring": "#323c4a",
+     "mark": "#e3e6e9"
+    },
+    "forest": {
+     "background": "#f3eadb",
+     "wax": "#166534",
+     "ring": "#0f4724",
+     "mark": "#dce8e1"
+    },
+    "burgundy": {
+     "background": "#f3eadb",
+     "wax": "#9f1239",
+     "ring": "#6f0d28",
+     "mark": "#f1dbe1"
+    },
+    "deep-violet": {
+     "background": "#f3eadb",
+     "wax": "#6d28d9",
+     "ring": "#4c1c98",
+     "mark": "#e9dff9"
+    },
+    "postal": {
+     "background": "#f3eadb",
+     "wax": "#1e3a6e",
+     "ring": "#15294d",
+     "mark": "#e1968d"
+    },
+    "bronze-ink": {
+     "background": "#f3eadb",
+     "wax": "#7d6b4f",
+     "ring": "#584b37",
+     "mark": "#94918c"
+    },
+    "petrol-copper": {
+     "background": "#f3eadb",
+     "wax": "#0f766e",
+     "ring": "#0b534d",
+     "mark": "#ddb094"
+    },
+    "midnight-gold": {
+     "background": "#f3eadb",
+     "wax": "#1e293b",
+     "ring": "#151d29",
+     "mark": "#eab476"
+    },
+    "navy-sky": {
+     "background": "#f3eadb",
+     "wax": "#1e3a8a",
+     "ring": "#152961",
+     "mark": "#7acef3"
+    },
+    "forest-lime": {
+     "background": "#f3eadb",
+     "wax": "#166534",
+     "ring": "#0f4724",
+     "mark": "#bbe37f"
+    },
+    "plum-rose": {
+     "background": "#f3eadb",
+     "wax": "#86198f",
+     "ring": "#5e1264",
+     "mark": "#fdb1bc"
+    },
+    "charcoal-amber": {
+     "background": "#f3eadb",
+     "wax": "#292524",
+     "ring": "#1d1a19",
+     "mark": "#faca79"
+    },
+    "espresso-cream": {
+     "background": "#f3eadb",
+     "wax": "#44403c",
+     "ring": "#302d2a",
+     "mark": "#d8ccbc"
+    },
+    "cobalt-coral": {
+     "background": "#f3eadb",
+     "wax": "#1d4ed8",
+     "ring": "#143797",
+     "mark": "#fbb1b1"
+    },
+    "teal-gold": {
+     "background": "#f3eadb",
+     "wax": "#0f766e",
+     "ring": "#0b534d",
+     "mark": "#eab476"
+    },
+    "graphite-red": {
+     "background": "#f3eadb",
+     "wax": "#374151",
+     "ring": "#272e39",
+     "mark": "#ec8888"
+    },
+    "red-flick": {
+     "background": "#f3eadb",
+     "wax": "#2b2620",
+     "ring": "#1e1b16",
+     "mark": "#e1968d"
+    },
+    "sky-flick": {
+     "background": "#f3eadb",
+     "wax": "#2b2620",
+     "ring": "#1e1b16",
+     "mark": "#74bbe0"
+    },
+    "bronze-flick": {
+     "background": "#f3eadb",
+     "wax": "#2b2620",
+     "ring": "#1e1b16",
+     "mark": "#b8ae9e"
+    },
+    "violet-flick": {
+     "background": "#f3eadb",
+     "wax": "#2b2620",
+     "ring": "#1e1b16",
+     "mark": "#bfa5fa"
+    },
+    "tricolore": {
+     "background": "#f3eadb",
+     "wax": "#1e3a6e",
+     "ring": "#15294d",
+     "mark": "#e1968d"
+    },
+    "indigo-violet": {
+     "background": "#f3eadb",
+     "wax": "#4f46e5",
+     "ring": "#3731a0",
+     "mark": "#e5e3fb"
+    },
+    "sunset": {
+     "background": "#f3eadb",
+     "wax": "#f97316",
+     "ring": "#ae510f",
+     "mark": "#feeadc"
+    },
+    "ocean": {
+     "background": "#f3eadb",
+     "wax": "#0e7490",
+     "ring": "#0a5165",
+     "mark": "#dbeaee"
+    },
+    "aurora": {
+     "background": "#f3eadb",
+     "wax": "#0d9488",
+     "ring": "#09685f",
+     "mark": "#dbefed"
+    },
+    "berry": {
+     "background": "#f3eadb",
+     "wax": "#a21caf",
+     "ring": "#71147b",
+     "mark": "#f1ddf3"
+    },
+    "ember": {
+     "background": "#f3eadb",
+     "wax": "#dc2626",
+     "ring": "#9a1b1b",
+     "mark": "#fadede"
+    },
+    "twilight": {
+     "background": "#f3eadb",
+     "wax": "#6d28d9",
+     "ring": "#4c1c98",
+     "mark": "#e9dff9"
+    },
+    "copper": {
+     "background": "#f3eadb",
+     "wax": "#b45309",
+     "ring": "#7e3a06",
+     "mark": "#f4e5da"
+    },
+    "blue-tonal": {
+     "background": "#f3eadb",
+     "wax": "#2563eb",
+     "ring": "#1a45a5",
+     "mark": "#dee8fc"
+    }
+   }
+  }
+ ]
+}

@@ -818,6 +818,7 @@ php bin/mirror-wiki.php --check
 | `app:ai:prune-metrics [--days=N]` | Prune recorded model-call timings older than the retention window (30 days by default). Runs nightly at 05:10. The table holds counts and durations only — no prompt, no completion, no message id — so pruning it forgets how fast the box was last month and nothing else. Its own command rather than a fourth window on `app:monitoring:prune`: this is the retention of a feature, empty on installations that never switched the AI on and a hundred thousand rows after an afternoon's backfill |
 | `app:demo:reap [--dry-run]` | Delete demo visitors whose time is up, and everything they own. Only does anything when `APP_DEMO_MODE` is on; runs every 10 minutes there. See "Demo mode" |
 | `app:device:pair <email>` | Issue a short-lived pairing code so a device can enrol itself — the way in when a client cannot complete a browser sign-in. See "Two-factor authentication" |
+| `app:branding:export-paints` | Print the logo paint table — every icon × every paint → the colour of each part — as JSON, for the Android build, which generates its launcher icons from a committed copy. Byte-identical to `tests/Domain/Enum/Theme/fixtures/logo-paints.json` until a recipe in `LogoMotif` changes, and `LogoMotifTest` fails until both copies are regenerated from it. Build tooling: nothing runs it on a schedule |
 
 These run on a schedule already — see `App\Infrastructure\Scheduler\MaintenanceSchedule`
 for the cadences (polling sync every 15 min, push renewal and monitoring pruning

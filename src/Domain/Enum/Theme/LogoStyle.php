@@ -23,6 +23,10 @@ namespace App\Domain\Enum\Theme;
  * Everything reads the mark through this enum — the topbar, the settings
  * tiles, the favicon route — so a new style is one case here and nothing
  * anywhere else.
+ *
+ * The pl mark is one icon of ten now (LogoMotif). For the other nine a style
+ * is not seven strokes but a colourway, read as roles (Colourway) and placed
+ * by each icon's own recipe — so a new case here dresses every icon too.
  */
 enum LogoStyle: string
 {
@@ -73,8 +77,14 @@ enum LogoStyle: string
      */
     public const self DEFAULT = self::Berry;
 
-    /** Near-ink and its dark-chrome counterpart, shared by the flick styles. */
-    private const string INK = '#2b2620';
+    /**
+     * Near-ink and its dark-chrome counterpart, shared by the flick styles.
+     *
+     * INK is public because the other motifs read it too: a flick is
+     * recognised by its six ink strokes (Colourway), and the mailbox's post is
+     * drawn in the same ink the mark is (LogoMotif).
+     */
+    public const string INK = '#2b2620';
     private const string PAPER = '#e8e2d9';
 
     /**
