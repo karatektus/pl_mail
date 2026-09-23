@@ -42,9 +42,13 @@ readonly class SendMessageHandler
         // the message away from anything that would cancel it. Ordering matters
         // — nothing may be read into the identity map before this, or the send
         // below would run off a snapshot taken before the claim.
-        if (false === $this->messageRepository->claimForSend($msg->messageId)) {
-            // Cancelled, already sent, gone, or held by another worker. All
-            // four mean the same thing here, and none of them is an error.
+        $pinsSendAt = $msg->pinsSendAt();
+        $sendAt     = true === $pinsSendAt ? $msg->sendAt : null;
+
+        if (false === $this->messageRepository->claimForSend($msg->messageId, $pinsSendAt, $sendAt)) {
+            // Cancelled, already sent, gone, held by another worker, or
+            // rescheduled since this envelope was queued. All five mean the
+            // same thing here, and none of them is an error.
             //
             // The `cancelled` flag is lowered again on the way past, as it
             // always was: it is one-shot traffic between the undo button and
@@ -52,6 +56,20 @@ readonly class SendMessageHandler
             // genuine send of the same draft. The durable record of a cancel
             // is submission_cancelled_at, which this deliberately never touches.
             $message = $this->messageRepository->find($msg->messageId);
+
+            // A stale envelope must not spend a cancel aimed at the schedule
+            // that replaced it: EmailSubmission/set cancels by raising the flag
+            // and KEEPING submission_send_at, so an older envelope coming due
+            // first would lower it and the current one would then send mail
+            // the user had called off. The web cancel clears the column
+            // instead, and its flag is still spent by whichever envelope comes
+            // by, as before.
+            $current = $message?->submissionSendAt;
+
+            if (true === $pinsSendAt && null !== $current
+                && $current->format('Y-m-d H:i:s') !== $sendAt?->format('Y-m-d H:i:s')) {
+                return;
+            }
 
             if (null !== $message && true === $message->cancelled) {
                 $message->cancelled = false;

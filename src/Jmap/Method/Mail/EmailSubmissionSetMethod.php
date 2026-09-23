@@ -145,11 +145,13 @@ final class EmailSubmissionSetMethod implements JmapMethod
         // address the mail goes out with (identityId), and the worker reads
         // that off the row rather than out of the envelope — dispatching first
         // races the commit, and the mail that loses the race leaves as the
-        // address the client did not pick. Nothing else moved: the envelope
-        // still carries only the id.
+        // address the client did not pick. The envelope carries the id and the
+        // release time it was queued for, so a resubmission with a new time
+        // leaves this one to do nothing when it comes due (see
+        // SendMessageMessage).
         foreach ($queued as $submission) {
             $this->bus->dispatch(
-                new SendMessageMessage((int) $submission->message->id),
+                new SendMessageMessage((int) $submission->message->id, $submission->message->submissionSendAt),
                 $submission->delayMs > 0 ? [new DelayStamp($submission->delayMs)] : [],
             );
         }
@@ -295,10 +297,10 @@ final class EmailSubmissionSetMethod implements JmapMethod
      *
      * - It cannot unsend. Once sentAt is set the mail has left, and the update
      *   is refused with cannotUnsend rather than accepted as a no-op.
-     * - There is a window. An immediate submission is dispatched with no delay
-     *   and a worker may already be inside MessageSendService, in which case
-     *   the flag is set on a message that is being sent. The cancel is
-     *   reliable only for a held submission, which is the case it exists for.
+     * - It cannot stop a send in flight. An immediate submission is dispatched
+     *   with no delay and a worker may already hold the claim; the cancel is
+     *   then refused with cannotUnsend, decided in the same statement as the
+     *   web undo (MessageRepository::cancelSend()), so the answer is true.
      *
      * It IS reported afterwards, which it did not used to be:
      * `submissionCancelledAt` is written beside the flag, and
@@ -379,8 +381,20 @@ final class EmailSubmissionSetMethod implements JmapMethod
                 continue;
             }
 
-            $message->cancelled = true;
-            $message->submissionCancelledAt = $now;
+            // The web cancel's statement, not a property write. Checking sentAt
+            // above says nothing about a send in flight: a worker that has
+            // claimed the message is mid-conversation with the provider with
+            // sentAt still null, and flagging it then answered "updated" for
+            // mail that left anyway. cancelSend() decides against the claim in
+            // one UPDATE, so losing the race is reported as what it is.
+            if (false === $this->messageRepository->cancelSend((int) $message->id, $now)) {
+                $notUpdated[$id] = ['type' => 'cannotUnsend', 'description' => 'That Email is already being sent.'];
+                continue;
+            }
+
+            // The row moved underneath the entity; the flush at the end of
+            // set/ must not write the stale in-memory values back over it.
+            $this->entityManager->refresh($message);
             $updated[$id] = null;
 
             // Recorded now, where it deliberately was not before. The reason it

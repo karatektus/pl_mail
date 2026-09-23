@@ -387,8 +387,11 @@ class ComposeController extends AbstractController
                 $this->senders->addressFor($token, $account, $this->getUser()),
             );
 
+            // The row's schedule as it stands, usually none: the envelope is
+            // only honoured while the row still says the same. See
+            // SendMessageMessage.
             $this->bus->dispatch(
-                new SendMessageMessage($message->id),
+                new SendMessageMessage($message->id, $message->submissionSendAt),
                 [new DelayStamp(self::SEND_DELAY_MS)],
             );
 
@@ -511,7 +514,7 @@ class ComposeController extends AbstractController
         $this->em->flush();
 
         $this->bus->dispatch(
-            new SendMessageMessage($message->id),
+            new SendMessageMessage($message->id, $message->submissionSendAt),
             [new DelayStamp($this->schedules->delayMs($sendAt))],
         );
 

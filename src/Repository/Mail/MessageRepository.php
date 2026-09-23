@@ -11,9 +11,11 @@ use App\Entity\Mail\MessageThread;
 use App\Entity\User\User;
 use App\Jmap\Query\CompiledFilter;
 use App\Service\Graph\GraphMessageBuilder;
+use DateTimeImmutable;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\DBAL\ParameterType;
+use Doctrine\DBAL\Types\Types;
 use Doctrine\Persistence\ManagerRegistry;
 
 class MessageRepository extends ServiceEntityRepository
@@ -183,9 +185,26 @@ class MessageRepository extends ServiceEntityRepository
      * Deliberately raw DBAL and deliberately not going through the ORM: an
      * entity write would be a read-modify-write through the identity map, which
      * is exactly the shape that lost the race in the first place.
+     *
+     * With $pinsSendAt the claim also requires submission_send_at to still be
+     * $sendAt — the release time the envelope was dispatched for. A fourth way
+     * a send can be illegitimate: it was rescheduled, and this envelope is the
+     * old schedule's. See SendMessageMessage. IS NOT DISTINCT FROM because
+     * NULL is a value here (a composer send has no submission time) and `=`
+     * would never match it.
      */
-    public function claimForSend(int $messageId): bool
+    public function claimForSend(int $messageId, bool $pinsSendAt = false, ?DateTimeImmutable $sendAt = null): bool
     {
+        $parameters = ['id' => $messageId];
+        $types      = [];
+        $schedule   = '';
+
+        if (true === $pinsSendAt) {
+            $schedule             = 'AND submission_send_at IS NOT DISTINCT FROM :sendAt';
+            $parameters['sendAt'] = $sendAt;
+            $types['sendAt']      = Types::DATETIME_IMMUTABLE;
+        }
+
         $affected = $this->getEntityManager()->getConnection()->executeStatement(
             // The database's own clock, not PHP's: the claim is decided here,
             // so the timestamp that records it should be too.
@@ -194,6 +213,7 @@ class MessageRepository extends ServiceEntityRepository
               WHERE id = :id
                 AND cancelled = false
                 AND sent_at IS NULL
+                ' . $schedule . '
                 AND (
                     send_claimed_at IS NULL
                     -- A claim is "a handler has this right now", and a handler
@@ -206,7 +226,8 @@ class MessageRepository extends ServiceEntityRepository
                     -- complaining.
                     OR send_claimed_at < LOCALTIMESTAMP - INTERVAL \'15 minutes\'
                 )',
-            ['id' => $messageId],
+            $parameters,
+            $types,
         );
 
         return $affected > 0;
@@ -225,9 +246,31 @@ class MessageRepository extends ServiceEntityRepository
      * submission_send_at is cleared in the same statement because a hold that
      * has been called off must stop being reported as `pending` by
      * EmailSubmission/get — see ComposeController::callOffSend().
+     *
+     * $cancelledAt is the JMAP shape of the same act, and differs on purpose:
+     * EmailSubmission/set keeps submission_send_at and records the cancel in
+     * submission_cancelled_at instead, because EmailSubmission/get reports the
+     * submission as `canceled` from those two and would answer notFound with
+     * the release time gone. The guard is the same either way — that is the
+     * part that must not differ between the two surfaces.
      */
-    public function cancelSend(int $messageId): bool
+    public function cancelSend(int $messageId, ?DateTimeImmutable $cancelledAt = null): bool
     {
+        if (null !== $cancelledAt) {
+            $affected = $this->getEntityManager()->getConnection()->executeStatement(
+                'UPDATE message
+                    SET cancelled = true,
+                        submission_cancelled_at = :cancelledAt
+                  WHERE id = :id
+                    AND send_claimed_at IS NULL
+                    AND sent_at IS NULL',
+                ['id' => $messageId, 'cancelledAt' => $cancelledAt],
+                ['cancelledAt' => Types::DATETIME_IMMUTABLE],
+            );
+
+            return $affected > 0;
+        }
+
         $affected = $this->getEntityManager()->getConnection()->executeStatement(
             'UPDATE message
                 SET cancelled = true,

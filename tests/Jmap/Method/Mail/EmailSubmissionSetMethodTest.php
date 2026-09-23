@@ -15,6 +15,7 @@ use App\Jmap\Method\Mail\EmailSubmissionChangesMethod;
 use App\Jmap\Method\Mail\EmailSubmissionGetMethod;
 use App\Jmap\Method\Mail\EmailSubmissionSetMethod;
 use App\Jmap\Protocol\Exception\MethodException;
+use App\Repository\Mail\MessageRepository;
 use App\Tests\Jmap\JmapTestCase;
 use Symfony\Component\Messenger\Stamp\DelayStamp;
 use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;
@@ -564,6 +565,64 @@ final class EmailSubmissionSetMethodTest extends JmapTestCase
 
         self::assertSame('cannotUnsend', ((array) $result['notUpdated'])[(string) $draft->id]['type']);
         self::assertFalse($draft->cancelled);
+    }
+
+    /**
+     * sentAt is still null while a worker is talking to the provider; the
+     * claim is what says the send is in flight, and a cancel must lose to it.
+     */
+    public function testASubmissionBeingSentCannotBeCanceled(): void
+    {
+        $draft = $this->held();
+
+        $this->em->getConnection()->executeStatement(
+            'UPDATE message SET send_claimed_at = LOCALTIMESTAMP WHERE id = :id',
+            ['id' => $draft->id],
+        );
+
+        $result = $this->handle(['update' => [(string) $draft->id => ['undoStatus' => 'canceled']]]);
+
+        self::assertSame('cannotUnsend', ((array) $result['notUpdated'])[(string) $draft->id]['type']);
+
+        $this->em->refresh($draft);
+        self::assertFalse($draft->cancelled);
+    }
+
+    /**
+     * Cancel, then submit again for a different time: the first envelope is
+     * still queued, and when it comes due it must not claim the message —
+     * that would send it at the schedule the user replaced.
+     */
+    public function testAnEnvelopeFromAReplacedScheduleDoesNotClaim(): void
+    {
+        $draft = $this->held();
+
+        $this->handle(['update' => [(string) $draft->id => ['undoStatus' => 'canceled']]]);
+        $this->handle([
+            'create' => ['s2' => [
+                'emailId'  => (string) $draft->id,
+                'envelope' => ['mailFrom' => ['parameters' => ['HOLDFOR' => '7200']]],
+            ]],
+        ]);
+
+        $envelopes = array_values(array_filter(
+            array_map(static fn ($envelope) => $envelope->getMessage(), $this->transport->getSent()),
+            static fn ($message) => $message instanceof SendMessageMessage,
+        ));
+
+        self::assertCount(2, $envelopes);
+        [$stale, $current] = $envelopes;
+
+        $repository = self::getContainer()->get(MessageRepository::class);
+
+        self::assertFalse(
+            $repository->claimForSend($stale->messageId, $stale->pinsSendAt(), $stale->sendAt),
+            'the old schedule\'s envelope does nothing',
+        );
+        self::assertTrue(
+            $repository->claimForSend($current->messageId, $current->pinsSendAt(), $current->sendAt),
+            'the current schedule\'s envelope still sends',
+        );
     }
 
     /** undoStatus is the only writable property, and "canceled" its only value. */
