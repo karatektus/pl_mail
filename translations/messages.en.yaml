@@ -2225,6 +2225,9 @@ onboarding:
 profile:
     avatar_current: Current picture
     avatar_from:
+        not_an_image: 'That file is not a picture plMail can use. Pick a PNG, JPEG, GIF or WebP.'
+        too_large: 'That picture is larger than 4 MB. Pick a smaller one.'
+        unavailable: 'The service did not hand the picture over. Try again in a moment.'
         empty: Nothing to show from this service.
         heading: Or pick one from a connected service
     avatar_wrong_type: Use a PNG, JPEG, GIF or WebP image.

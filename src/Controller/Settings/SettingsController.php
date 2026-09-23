@@ -34,6 +34,7 @@ use App\Service\Insight\InsightExtractorRegistry;
 use App\Service\Push\PushSubscriptionRegistry;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\Form\FormInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
@@ -141,7 +142,15 @@ final class SettingsController extends AbstractController
             'rules'              => $this->mailRuleRepository->findForUserOrdered($this->getUser()),
             'apiTokens'          => $this->apiTokenRepository->findForUser($this->getUser()),
             'apiTokenForm'       => $this->createForm(ApiTokenType::class)->createView(),
-            ...$this->profileSection->build($this->getUser(), $request),
+            // A refused profile save forwards here with its form, so the page
+            // comes back whole with the errors on it — see ProfileController.
+            ...$this->profileSection->build(
+                $this->getUser(),
+                $request,
+                $request->attributes->get('profileForm') instanceof FormInterface
+                    ? $request->attributes->get('profileForm')
+                    : null,
+            ),
             ...$this->securitySectionData($section, $request),
             ...$this->calendarSectionData($section),
             ...$this->sharingSectionData($section),

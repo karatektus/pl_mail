@@ -1888,6 +1888,9 @@ onboarding:
 profile:
     avatar_current: Yer likeness at present
     avatar_from:
+        not_an_image: 'That be no likeness plMail can hang. Pick a PNG, JPEG, GIF or WebP.'
+        too_large: 'That likeness weighs more than 4 MB. Pick a lighter one.'
+        unavailable: 'The port didn''t hand o''er the likeness. Try again in a moment.'
         empty: Naught to show from that port.
         heading: Or take one from a port ye've hitched up
     avatar_wrong_type: Use a PNG, JPEG, GIF or WebP likeness.

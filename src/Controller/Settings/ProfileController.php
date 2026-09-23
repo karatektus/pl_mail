@@ -5,14 +5,15 @@ declare(strict_types=1);
 namespace App\Controller\Settings;
 
 use App\Controller\ChecksCsrf;
+use App\Domain\Exception\AvatarRefusedException;
 use App\Domain\Helper\AvatarStorage;
 use App\Domain\Helper\SignatureStorage;
 use App\Entity\User\User;
 use App\Form\User\ProfileType;
-use App\Service\User\ProfileSectionViewData;
 use App\Service\User\ProfileUpdater;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Doctrine\ORM\EntityManagerInterface;
+use Symfony\Component\Form\FormError;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
@@ -21,6 +22,7 @@ use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\CurrentUser;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
+use Symfony\Contracts\Translation\TranslatorInterface;
 
 /**
  * Name, avatar and a saved handwritten signature, outside the setup wizard.
@@ -36,7 +38,12 @@ final class ProfileController extends AbstractController
     use ChecksCsrf;
 
     #[Route('', name: 'save', methods: ['POST'])]
-    public function save(Request $request, #[CurrentUser] User $user, ProfileUpdater $updater, ProfileSectionViewData $section): Response
+    public function save(
+        Request $request,
+        #[CurrentUser] User $user,
+        ProfileUpdater $updater,
+        TranslatorInterface $translator,
+    ): Response
     {
         // The avatar fields exist only on a form built with the same
         // avatar_source the picker rendered with — rebuilt without it, a
@@ -53,15 +60,27 @@ final class ProfileController extends AbstractController
         $form->handleRequest($request);
 
         if ($form->isSubmitted() && $form->isValid()) {
-            $updater->apply($user, $form);
+            try {
+                $updater->apply($user, $form);
 
-            return $this->redirectToRoute('app_settings_index', ['section' => 'profile']);
+                return $this->redirectToRoute('app_settings_index', ['section' => 'profile']);
+            } catch (AvatarRefusedException $refused) {
+                // A picture from a connected service that could not be kept:
+                // said beside the picture field, with the form as it was
+                // submitted, and never as a 500 — which is what it was.
+                $form->get('avatarFile')->addError(new FormError($translator->trans($refused->reason)));
+            }
         }
 
-        // The full section, not just the form: the partial renders the avatar
-        // picker too, and rendering it with only profileForm crashed on the
-        // missing picker variables.
-        return $this->render('settings/_profile.html.twig', $section->build($user, $request, $form), new Response(null, Response::HTTP_UNPROCESSABLE_ENTITY));
+        // The whole settings page, not the profile partial. The form posts
+        // through Turbo Drive, which renders a failed submission AS THE PAGE —
+        // and the partial alone replaced the app with a bare card, no sidebar
+        // and no way back but the browser's. Forwarded rather than rebuilt, so
+        // the page is the one SettingsController draws, with this form in it.
+        $response = $this->forward(SettingsController::class . '::index', ['profileForm' => $form], ['section' => 'profile']);
+        $response->setStatusCode(Response::HTTP_UNPROCESSABLE_ENTITY);
+
+        return $response;
     }
 
     /**

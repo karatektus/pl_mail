@@ -6,6 +6,7 @@ namespace App\Service\User;
 
 use App\Domain\DTO\Integration\Entry;
 use App\Domain\Enum\Integration\Capability;
+use App\Domain\Exception\AvatarRefusedException;
 use App\Domain\Exception\IntegrationException;
 use App\Domain\Helper\AvatarStorage;
 use App\Entity\Integration\Integration;
@@ -13,7 +14,7 @@ use App\Entity\User\User;
 use App\Repository\Integration\IntegrationRepository;
 use App\Service\Integration\IntegrationDriverRegistry;
 use Doctrine\ORM\EntityManagerInterface;
-use RuntimeException;
+use finfo;
 
 /**
  * Taking a profile picture from a service the user has already connected.
@@ -84,19 +85,24 @@ final readonly class AvatarFromIntegration
     }
 
     /**
+     * Only what the avatar store will take — PNG, JPEG, GIF, WebP — so nothing
+     * is offered that is then refused. A HEIC photograph is an image, but not
+     * one this can keep, and offering it was offering an error.
+     *
      * Not every driver reports a mime type — a photo library that only ever
      * returns photographs has little reason to — so the filename is the
-     * fallback rather than the entry being dropped.
+     * fallback rather than the entry being dropped. Either is only a guess
+     * about what the file will be; apply() decides on the bytes.
      */
     private static function looksLikeAnImage(Entry $entry): bool
     {
         if (null !== $entry->mime && '' !== $entry->mime) {
-            return str_starts_with($entry->mime, 'image/');
+            return in_array(strtolower($entry->mime), AvatarStorage::ALLOWED_MIME, true);
         }
 
         return in_array(
             strtolower(pathinfo($entry->name, PATHINFO_EXTENSION)),
-            ['png', 'jpg', 'jpeg', 'gif', 'webp', 'heic', 'heif'],
+            ['png', 'jpg', 'jpeg', 'gif', 'webp'],
             true,
         );
     }
@@ -104,24 +110,40 @@ final readonly class AvatarFromIntegration
     /**
      * Fetch the chosen file and make it the user's avatar.
      *
-     * @throws RuntimeException when the file is not usable as a picture
+     * **What it is comes from its bytes, not from the service.** A download is
+     * often labelled application/octet-stream whatever it holds — the listing
+     * that offered it already had to go by its name — and trusting the label
+     * refused real photographs with "not an image", while trusting it the other
+     * way would store whatever a service chose to call a picture. The upload
+     * path asks the same question of an UploadedFile, which also sniffs.
+     *
+     * The stored name takes its extension from what was found, for the same
+     * reason: it is what the avatar is served as.
+     *
+     * @throws AvatarRefusedException when the file cannot be fetched or kept
      */
     public function apply(User $user, Integration $integration, string $fileId): void
     {
-        $file = $this->drivers->forIntegration($integration)->download($integration, $fileId);
-
-        if (false === str_starts_with($file->mime, 'image/')) {
-            throw new RuntimeException('The chosen file is not an image.');
+        try {
+            $file = $this->drivers->forIntegration($integration)->download($integration, $fileId);
+        } catch (IntegrationException $e) {
+            throw new AvatarRefusedException(AvatarRefusedException::UNAVAILABLE, $e);
         }
 
         if ($file->size() > AvatarStorage::MAX_BYTES) {
-            throw new RuntimeException('The chosen image is too large.');
+            throw new AvatarRefusedException(AvatarRefusedException::TOO_LARGE);
         }
 
+        $mime = (string) new finfo(FILEINFO_MIME_TYPE)->buffer($file->contents);
+
+        if (false === in_array($mime, AvatarStorage::ALLOWED_MIME, true)) {
+            throw new AvatarRefusedException(AvatarRefusedException::NOT_AN_IMAGE);
+        }
+
+        $extension = ['image/png' => 'png', 'image/jpeg' => 'jpg', 'image/gif' => 'gif', 'image/webp' => 'webp'][$mime];
+
         $userId = (string) $user->id;
-
-        $user->avatar = $this->avatars->storeContents($userId, $file->filename, $file->contents);
-
+        $user->avatar = $this->avatars->storeContents($userId, 'avatar.'.$extension, $file->contents);
         $this->entityManager->flush();
     }
 }
