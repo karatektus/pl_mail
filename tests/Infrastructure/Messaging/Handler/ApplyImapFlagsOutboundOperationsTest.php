@@ -21,6 +21,9 @@ use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
 use ReflectionProperty;
 use Webklex\PHPIMAP\Client;
+use Webklex\PHPIMAP\Config;
+use Webklex\PHPIMAP\Connection\Protocols\ImapProtocol;
+use Webklex\PHPIMAP\Connection\Protocols\Response;
 use Webklex\PHPIMAP\Folder;
 use Webklex\PHPIMAP\Message as ImapMessage;
 use Webklex\PHPIMAP\Query\WhereQuery;
@@ -52,6 +55,9 @@ final class ApplyImapFlagsOutboundOperationsTest extends TestCase
 
     /** Whether the stand-in provisioner succeeds. False is a refused CREATE. */
     private bool $provisionable = true;
+
+    /** The connection the client hands out, when a test needs one. */
+    private ?RecordingProtocol $protocol = null;
 
     protected function setUp(): void
     {
@@ -118,15 +124,43 @@ final class ApplyImapFlagsOutboundOperationsTest extends TestCase
      * moves. This action is what plMail issues when the mail is to stop
      * existing on the server, and it has to carry the expunge or the message
      * merely wears \Deleted and comes back on the next listing.
+     *
+     * And it expunges this one UID. A plain EXPUNGE also removes every message
+     * another client has only flagged \Deleted, which is why webklex's
+     * delete(expunge: true) is not used; without UIDPLUS there is no way to
+     * name one UID, so the flag is all that is sent.
      */
-    public function testDeleteExpungesRatherThanMovingToTrash(): void
+    public function testDeleteExpungesOnlyItsOwnUid(): void
     {
-        $present = new RecordingImapMessage(uid: 6);
+        $present        = new RecordingImapMessage(uid: 6);
+        $this->protocol = new RecordingProtocol(['IMAP4rev1', 'UIDPLUS']);
 
         $this->issue($present, 'delete');
 
-        self::assertSame(['delete:expunge'], $present->calls);
+        self::assertSame(['setFlag:Deleted'], $present->calls);
+        self::assertSame(['UID EXPUNGE 6'], $this->protocol->commands, 'never a plain EXPUNGE');
         self::assertSame(0, $present->moveCalls, 'a delete is not a move');
+
+        $flaggedOnly    = new RecordingImapMessage(uid: 6);
+        $this->protocol = new RecordingProtocol(['IMAP4rev1']);
+
+        $this->issue($flaggedOnly, 'delete');
+
+        self::assertSame(['setFlag:Deleted'], $flaggedOnly->calls);
+        self::assertSame([], $this->protocol->commands, 'without UIDPLUS nothing is expunged');
+    }
+
+    /**
+     * An inbound Message-ID is written into a SEARCH between quotes that
+     * webklex does not escape, so one carrying a quote, a backslash or a line
+     * break is never searched for.
+     */
+    public function testAHostileMessageIdIsNotSearchedFor(): void
+    {
+        self::assertTrue(ApplyImapFlagsHandler::isSearchableMessageId('CAF=abc+123@mail.example.test'));
+        self::assertFalse(ApplyImapFlagsHandler::isSearchableMessageId('x@y" OR ALL "'));
+        self::assertFalse(ApplyImapFlagsHandler::isSearchableMessageId('x@y\\'));
+        self::assertFalse(ApplyImapFlagsHandler::isSearchableMessageId("x@y\r\nA1 DELETE INBOX"));
     }
 
     // ── moves, and where they go ─────────────────────────────────────────
@@ -340,6 +374,10 @@ final class ApplyImapFlagsOutboundOperationsTest extends TestCase
         );
         $client->method('disconnect')->willReturnSelf();
 
+        if (null !== $this->protocol) {
+            $client->method('getConnection')->willReturn($this->protocol);
+        }
+
         $connectionFactory = $this->createStub(ImapConnectionFactory::class);
         $connectionFactory->method('connect')->willReturn($client);
 
@@ -514,5 +552,35 @@ final class RecordingImapMessage extends ImapMessage
         $this->movedTo = $folder_path;
 
         return $this->landsAs;
+    }
+}
+
+/**
+ * A connection that announces the capabilities it is given and writes down the
+ * commands sent through it, instead of sending them.
+ */
+final class RecordingProtocol extends ImapProtocol
+{
+    /** @var list<string> */
+    public array $commands = [];
+
+    /**
+     * @param list<string> $capabilities
+     */
+    public function __construct(private readonly array $capabilities)
+    {
+        parent::__construct(Config::make());
+    }
+
+    public function getCapabilities(): Response
+    {
+        return Response::empty()->setCanBeEmpty(true)->setResult(['CAPABILITY', ...$this->capabilities]);
+    }
+
+    public function requestAndResponse(string $command, array $tokens = [], bool $dontParse = false): Response
+    {
+        $this->commands[] = trim($command . ' ' . implode(' ', $tokens));
+
+        return Response::empty()->setCanBeEmpty(true)->setResult([true]);
     }
 }

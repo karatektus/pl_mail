@@ -20,6 +20,7 @@ use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 use Throwable;
 use Webklex\PHPIMAP\Client;
+use Webklex\PHPIMAP\Connection\Protocols\ImapProtocol;
 use Webklex\PHPIMAP\Exceptions\ConnectionFailedException;
 use Webklex\PHPIMAP\Exceptions\ImapServerErrorException;
 use Webklex\PHPIMAP\Folder;
@@ -91,7 +92,8 @@ use Webklex\PHPIMAP\Message as ImapMessage;
  *   move                    — move to the explicit destinationPath computed by
  *                             the LabelChangePropagator (custom location-label
  *                             replacement)
- *   delete                  — expunge
+ *   delete                  — flag \Deleted and UID EXPUNGE that one UID (UIDPLUS
+ *                             only; see deleteOne())
  */
 #[AsMessageHandler]
 final class ApplyImapFlagsHandler
@@ -363,7 +365,7 @@ final class ApplyImapFlagsHandler
             'unflag' => $imapMessage->unsetFlag('Flagged'),
             'seen'   => $imapMessage->setFlag('Seen'),
             'unseen' => $imapMessage->unsetFlag('Seen'),
-            'delete' => $imapMessage->delete(expunge: true),
+            'delete' => $this->deleteOne($client, $imapMessage, $uid),
             default  => $this->logger->warning('ApplyImapFlagsHandler: unknown action', ['action' => $action]),
         };
 
@@ -376,6 +378,67 @@ final class ApplyImapFlagsHandler
         if (true === in_array($action, ['flag', 'unflag', 'seen', 'unseen'], true)) {
             $msg->flagsTouchedAt = null;
         }
+    }
+
+    /**
+     * Delete this one message, and nothing else in the folder.
+     *
+     * webklex's delete(expunge: true) is STORE \Deleted followed by a plain
+     * EXPUNGE, and a plain EXPUNGE removes every message in the folder that
+     * carries \Deleted — including mail another client only marked for
+     * deletion and may still undelete. UID EXPUNGE (RFC 4315, UIDPLUS) names
+     * the one UID. A server without UIDPLUS gets the flag and no expunge: the
+     * message stays until that server's own client or policy expunges it,
+     * which is the server's call rather than ours.
+     */
+    private function deleteOne(Client $client, ImapMessage $imapMessage, int $uid): void
+    {
+        $imapMessage->setFlag('Deleted');
+
+        $connection = $client->getConnection();
+
+        if (false === $connection instanceof ImapProtocol || false === self::hasUidPlus($connection)) {
+            $this->logger->info('ApplyImapFlagsHandler: no UIDPLUS, message flagged \Deleted but not expunged', [
+                'uid' => $uid,
+            ]);
+
+            return;
+        }
+
+        $connection->requestAndResponse('UID EXPUNGE', [(string) $uid])->validatedData();
+
+        // The library caches the folder's UID list and forgets it on its own
+        // EXPUNGE only.
+        $connection->setUidCache(null);
+    }
+
+    private static function hasUidPlus(ImapProtocol $connection): bool
+    {
+        $capabilities = $connection->getCapabilities()->validatedData();
+
+        foreach ((array) $capabilities as $capability) {
+            if (true === is_string($capability) && 'UIDPLUS' === strtoupper($capability)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Whether a Message-ID can go into a SEARCH as a quoted string.
+     *
+     * webklex writes the value between double quotes and escapes nothing, and
+     * the Message-ID here came in on a mail somebody else wrote. A `"` in it
+     * ends the string early and lets the rest of the header become search
+     * syntax; a CR or LF ends the command line and starts another. RFC 3501
+     * quoted strings allow neither `"` nor `\` unescaped and no CR/LF at all,
+     * and a real Message-ID has no use for any of them — or for anything
+     * outside printable ASCII — so such an id is simply not searched for.
+     */
+    public static function isSearchableMessageId(string $messageId): bool
+    {
+        return '' !== $messageId && 1 === preg_match('/^[\x21\x23-\x5B\x5D-\x7E]+$/', $messageId);
     }
 
     /**
@@ -449,6 +512,16 @@ final class ApplyImapFlagsHandler
         $wanted = MessageIdHelper::normalise((string) $msg->messageId);
 
         if ('' === $wanted || null === $destinationPath) {
+            return;
+        }
+
+        // The next sync reconciles the row by Message-ID without a SEARCH, so
+        // refusing an id that cannot be quoted safely costs one sync at most.
+        if (false === self::isSearchableMessageId($wanted)) {
+            $this->logger->warning('ApplyImapFlagsHandler: Message-ID is not safe to search for, not re-resolving', [
+                'messageId' => $msg->id,
+            ]);
+
             return;
         }
 
