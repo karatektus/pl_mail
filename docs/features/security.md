@@ -83,7 +83,10 @@ trusted under the old secret would otherwise keep skipping the prompt.
 
 The login form throttles at five attempts per fifteen minutes per address, with a looser
 per-address-of-origin backstop for somebody spraying one password across many accounts — looser so
-a household behind one NAT address cannot lock itself out.
+a household behind one NAT address cannot lock itself out. A third limit counts per account
+whatever the address: twenty failures in fifteen minutes, so guessing from many addresses at once
+still stops. That one can be spent by somebody else, which is why it is set well above anything a
+person mistyping reaches.
 
 **Keep me logged in** issues a cookie lasting 60 days. It is signature-based rather than stored,
 which means changing your password invalidates every one that was issued. It does **not** walk past

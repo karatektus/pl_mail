@@ -1,4 +1,4 @@
-<!-- translated-from: internals/security-model.md sha1:fb37ca735d192ed5404198332e048e55fd00b8b5 -->
+<!-- translated-from: internals/security-model.md sha1:f425b788c442ece83228dfdeba34bbf195cee3c1 -->
 # Sicherheitsmodell
 
 Verschlüsselung ruhender Daten und die Prüfung, die den Start ohne brauchbaren Schlüssel
@@ -192,10 +192,12 @@ diejenige agiert, der das Token gehört. `lastUsedAt` wird höchstens alle
 `LAST_USED_TTL_SECONDS` (300) neu geschrieben, denn Clients fragen ständig nach, und jeder
 JMAP-Aufruf löste sonst einen Schreibvorgang aus.
 
-**`main` bringt eine Anmeldedrosselung mit**, 5 Versuche je 15 Minuten. Die Grenze je Benutzername
-ist die, auf die es ankommt; die globale IP-Grenze ist die Absicherung gegen das Durchprobieren
-eines Passworts über viele Adressen und ist bewusst lockerer, damit ein Haushalt hinter einer
-NAT-Adresse sich nicht selbst aussperren kann. Remember-me arbeitet signaturbasiert mit 60 Tagen
+**`main` bringt eine Anmeldedrosselung mit**, drei Grenzen in `App\Security\LoginRateLimiter`:
+5 je 15 Minuten je Benutzername und Adresse; 25 je Adresse, die Absicherung gegen einen Client,
+der ein Passwort über viele Konten streut, lockerer, damit ein Haushalt hinter einer NAT-Adresse
+sich nicht selbst aussperrt; und 20 je Benutzername, egal von welcher Adresse, damit auch über
+viele Adressen verteilte Versuche an eine Decke stoßen. Symfonys Vorgabe kennt nur die ersten
+beiden — diese Seite nannte das früher „je Benutzername“, was es nicht ist. Remember-me arbeitet signaturbasiert mit 60 Tagen
 Lebensdauer: keine Speicherung, und ein Passwortwechsel entwertet jedes dafür ausgegebene Cookie.
 
 ### Zugriffssteuerung, und die Endpunkte, die keine Session halten können

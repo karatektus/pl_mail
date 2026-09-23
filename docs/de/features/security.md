@@ -1,4 +1,4 @@
-<!-- translated-from: features/security.md sha1:3846154feea3ee70da0ee20ea88354b20ef00d60 -->
+<!-- translated-from: features/security.md sha1:ab74a7237345f08d46c12179468fa91366bb0894 -->
 
 # Sicherheit
 
@@ -96,7 +96,10 @@ der Begründung, dass ein unter dem alten Geheimnis vertrautes Gerät die Abfrag
 
 Das Anmeldeformular drosselt bei fünf Versuchen je fünfzehn Minuten und Adresse, mit einer
 lockereren Absicherung je Herkunftsadresse für jemanden, der ein Passwort über viele Konten
-streut — lockerer, damit ein Haushalt hinter einer NAT-Adresse sich nicht selbst aussperrt.
+streut — lockerer, damit ein Haushalt hinter einer NAT-Adresse sich nicht selbst aussperrt. Eine
+dritte Grenze zählt je Konto, egal von welcher Adresse: zwanzig Fehlversuche in fünfzehn Minuten,
+damit auch das Raten von vielen Adressen zugleich aufhört. Die kann auch jemand anderes für dich
+aufbrauchen, deshalb liegt sie weit über dem, was du beim Vertippen je erreichst.
 
 **Angemeldet bleiben** stellt ein Cookie mit 60 Tagen Lebensdauer aus. Es beruht auf einer
 Signatur und ist nicht gespeichert, was bedeutet, dass eine Passwortänderung jedes ausgestellte

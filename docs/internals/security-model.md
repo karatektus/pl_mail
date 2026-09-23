@@ -173,10 +173,12 @@ sending the wrong address is told so, instead of silently operating as whoever t
 belongs to. `lastUsedAt` is rewritten at most every `LAST_USED_TTL_SECONDS` (300), because
 clients poll constantly and every JMAP call would otherwise issue a write.
 
-**`main` carries login throttling** at 5 attempts per 15 minutes. The per-username limit is
-the one that matters; the global IP limit is the backstop for spraying one password across
-many addresses and is deliberately looser, so a household behind one NAT address cannot lock
-itself out. Remember-me is signature-based with a 60-day lifetime: no storage, and changing
+**`main` carries login throttling**, three limits in `App\Security\LoginRateLimiter`: 5 per
+15 minutes per username and address; 25 per address, the backstop for one client spraying a
+password across many accounts, looser so a household behind one NAT address cannot lock itself
+out; and 20 per username whatever the address, so guesses spread across many addresses still
+hit a ceiling. Symfony's default has only the first two — this page used to call that "per
+username", which it is not. Remember-me is signature-based with a 60-day lifetime: no storage, and changing
 the password invalidates every cookie issued for it.
 
 ### Access control, and the endpoints that cannot hold a session

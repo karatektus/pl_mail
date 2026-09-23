@@ -20,6 +20,28 @@ framework:
             limit: 5
             interval: '15 minutes'
 
+        # The password form, in App\Security\LoginRateLimiter. The first two
+        # are Symfony's own login_throttling defaults, restated because a custom
+        # limiter replaces them: five per username+IP, and five times that per
+        # IP as the backstop for one client spraying many accounts.
+        login_user_ip:
+            policy: 'fixed_window'
+            limit: 5
+            interval: '15 minutes'
+        login_ip:
+            policy: 'fixed_window'
+            limit: 25
+            interval: '15 minutes'
+        # The one the defaults lack: per username, whatever the address. Without
+        # it a guesser on many addresses had five per address against one
+        # account. Twenty, not five, because this one can also be spent by
+        # somebody else — failing on purpose locks the owner out for the
+        # window — so it sits well above anything a person mistyping reaches.
+        login_user:
+            policy: 'fixed_window'
+            limit: 20
+            interval: '15 minutes'
+
         # The public booking POST. It is the only endpoint on this install that
         # an unauthenticated stranger can use to create database rows AND cause
         # an email to be sent, which is the definition of a spam vector: one

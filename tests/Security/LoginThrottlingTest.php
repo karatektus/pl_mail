@@ -70,6 +70,33 @@ final class LoginThrottlingTest extends WebTestCase
     }
 
     /**
+     * Spreading the guesses across addresses does not escape the limit.
+     *
+     * Symfony's default counts per username+IP, so each new address bought
+     * five more guesses at the same account. The username-only limiter (20 in
+     * rate_limiter.yaml) is the ceiling; one fresh address per attempt keeps
+     * the other two limiters out of it.
+     */
+    public function testGuessesFromManyAddressesAreEventuallyRefused(): void
+    {
+        $client = static::createClient();
+        $client->followRedirects(true);
+
+        for ($attempt = 0; $attempt < 22; $attempt++) {
+            $client->request('POST', '/login', [
+                'email'    => 'spread-probe@example.test',
+                'password' => 'definitely-the-wrong-password',
+            ], [], ['REMOTE_ADDR' => '203.0.113.' . ($attempt + 1)]);
+        }
+
+        self::assertStringContainsString(
+            'Too many failed login attempts',
+            (string) $client->getResponse()->getContent(),
+            'one account took 22 guesses from 22 addresses without throttling',
+        );
+    }
+
+    /**
      * The limit is per username, not per IP.
      *
      * An IP key would let one attacker — or one housemate behind the same NAT

@@ -57,17 +57,20 @@ security:
             # the other half, and is ended by UserProvider::refreshUser().
             user_checker: App\Security\UserChecker
             # A password form on an instance meant to be reachable from the
-            # internet, with no limit on how fast it could be guessed. The
-            # per-username limit is the one that matters; the global IP limit
-            # is the backstop for someone spraying one password across many
-            # addresses, and is deliberately looser so a household behind one
-            # NAT address cannot lock itself out.
+            # internet, with no limit on how fast it could be guessed. Three
+            # limits, in App\Security\LoginRateLimiter (numbers in
+            # rate_limiter.yaml): per username+IP, the tight one; per IP, the
+            # backstop for one client spraying a password across many accounts,
+            # looser so a household behind one NAT address cannot lock itself
+            # out; and per username alone, so guesses spread across many
+            # addresses still hit a ceiling. Symfony's default has only the
+            # first two, which is per username+IP and not per username as this
+            # comment used to claim.
             #
             # Note this does NOT cover the 2FA code form — that is a separate
             # firewall listener with its own throttle, see below.
             login_throttling:
-                max_attempts: 5
-                interval: '15 minutes'
+                limiter: App\Security\LoginRateLimiter
             # Opt-in via the "keep me logged in" checkbox on the login form.
             # Signature-based tokens: no storage, and changing the password
             # invalidates every cookie that was issued for it.
