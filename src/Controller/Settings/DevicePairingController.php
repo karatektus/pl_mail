@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controller\Settings;
 
+use App\Controller\ChecksCsrf;
 use App\Entity\User\User;
 use App\Service\User\DevicePairingService;
 use App\Service\User\TwoFactor\QrCodeRenderer;
@@ -29,6 +30,8 @@ use Symfony\Component\Security\Http\Attribute\CurrentUser;
  */
 final class DevicePairingController extends AbstractController
 {
+    use ChecksCsrf;
+
     public function __construct(
         private readonly DevicePairingService $pairing,
         private readonly QrCodeRenderer $qrCodes,
@@ -43,9 +46,7 @@ final class DevicePairingController extends AbstractController
     {
         // Minting a credential — which is where this leads — must not be
         // reachable by a cross-site POST.
-        if (false === $this->isCsrfTokenValid('device-pair', (string) $request->request->get('_token'))) {
-            throw $this->createAccessDeniedException('Invalid CSRF token.');
-        }
+        $this->assertCsrf($request, 'device-pair');
 
         ['code' => $code, 'expiresAt' => $expiresAt] = $this->pairing->issue($user);
 

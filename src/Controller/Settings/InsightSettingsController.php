@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controller\Settings;
 
+use App\Controller\ChecksCsrf;
 use App\Entity\User\User;
 use App\Service\Insight\InsightExtractorInterface;
 use App\Service\Insight\InsightExtractorRegistry;
@@ -37,6 +38,8 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 #[IsGranted('ROLE_USER')]
 final class InsightSettingsController extends AbstractController
 {
+    use ChecksCsrf;
+
     /**
      * The row that is not an extractor: the strip above the mail list.
      *
@@ -76,9 +79,7 @@ final class InsightSettingsController extends AbstractController
     #[Route('/toggle', name: 'toggle', methods: ['POST'])]
     public function toggle(Request $request): JsonResponse
     {
-        if (false === $this->isCsrfTokenValid('insights_toggle', $request->request->getString('_token'))) {
-            throw $this->createAccessDeniedException();
-        }
+        $this->assertCsrf($request, 'insights_toggle');
 
         /** @var User $user */
         $user = $this->getUser();

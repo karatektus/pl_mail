@@ -74,9 +74,7 @@ final class AppearanceController extends AbstractController
     #[Route('/pane-state', name: 'pane_state', methods: ['POST'])]
     public function paneState(Request $request): JsonResponse
     {
-        if (false === $this->isCsrfTokenValid('appearance_pane_state', $request->request->getString('_token'))) {
-            throw $this->createAccessDeniedException();
-        }
+        $this->assertCsrf($request, 'appearance_pane_state');
 
         /** @var User $user */
         $user = $this->getUser();

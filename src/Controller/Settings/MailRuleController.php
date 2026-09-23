@@ -99,9 +99,7 @@ final class MailRuleController extends AbstractController
     #[Route('/reorder', name: 'reorder', methods: ['POST'])]
     public function reorder(Request $request): JsonResponse
     {
-        if (false === $this->isCsrfTokenValid('mail_rule_reorder', (string) $request->headers->get('X-CSRF-Token'))) {
-            throw $this->createAccessDeniedException('Invalid CSRF token.');
-        }
+        $this->assertCsrf($request, 'mail_rule_reorder');
 
         $ids = $request->toArray()['ids'] ?? null;
 

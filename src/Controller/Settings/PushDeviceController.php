@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controller\Settings;
 
+use App\Controller\ChecksCsrf;
 use App\Entity\User\User;
 use App\Repository\Push\PushDeliveryRepository;
 use App\Repository\User\PushSubscriptionRepository;
@@ -42,6 +43,8 @@ use Symfony\UX\Turbo\TurboBundle;
 #[IsGranted('ROLE_USER')]
 final class PushDeviceController extends AbstractController
 {
+    use ChecksCsrf;
+
     public function __construct(
         private readonly PushSubscriptionRepository $subscriptions,
         private readonly PushDeliveryRepository $deliveries,
@@ -52,9 +55,7 @@ final class PushDeviceController extends AbstractController
     #[Route('/{id}/remove', name: 'remove', methods: ['POST'], requirements: ['id' => '\d+'])]
     public function remove(Request $request, int $id): Response
     {
-        if (false === $this->isCsrfTokenValid('push-device-remove' . $id, (string) $request->request->get('_token'))) {
-            throw $this->createAccessDeniedException();
-        }
+        $this->assertCsrf($request, 'push-device-remove' . $id);
 
         // Scoped to the owner, so another user's row id resolves to nothing
         // rather than to their device. A 404 rather than a 403 on purpose: the

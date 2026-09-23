@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controller\Onboarding;
 
+use App\Controller\ChecksCsrf;
 use App\Domain\Enum\Onboarding\OnboardingStep;
 use App\Entity\User\User;
 use App\Service\Onboarding\OnboardingFlow;
@@ -37,6 +38,8 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 #[IsGranted('IS_AUTHENTICATED')]
 final class OnboardingController extends AbstractController
 {
+    use ChecksCsrf;
+
     /**
      * Every step value, so /{step} cannot swallow /finish.
      *
@@ -170,9 +173,7 @@ final class OnboardingController extends AbstractController
     ): Response {
         $this->assertApplicable($user, $step);
 
-        if (false === $this->isCsrfTokenValid('onboarding-skip-'.$step->value, (string) $request->request->get('_token'))) {
-            throw $this->createAccessDeniedException();
-        }
+        $this->assertCsrf($request, 'onboarding-skip-'.$step->value);
 
         $this->flow->markSkipped($user, $step);
 
@@ -187,9 +188,7 @@ final class OnboardingController extends AbstractController
     #[Route('/finish', name: 'finish', methods: ['POST'])]
     public function finishAction(Request $request, #[CurrentUser] User $user): Response
     {
-        if (false === $this->isCsrfTokenValid('onboarding-finish', (string) $request->request->get('_token'))) {
-            throw $this->createAccessDeniedException();
-        }
+        $this->assertCsrf($request, 'onboarding-finish');
 
         return $this->finish($user);
     }

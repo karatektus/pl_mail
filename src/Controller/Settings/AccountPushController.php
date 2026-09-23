@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controller\Settings;
 
+use App\Controller\ChecksCsrf;
 use App\Entity\Mail\Account;
 use App\Security\Voter\OwnershipVoter;
 use App\Service\Push\PushStatusFactory;
@@ -34,6 +35,8 @@ use Symfony\Contracts\Translation\TranslatorInterface;
 #[IsGranted('ROLE_USER')]
 final class AccountPushController extends AbstractController
 {
+    use ChecksCsrf;
+
     public function __construct(
         private readonly PushSubscriptionRegistry $registry,
         private readonly PushStatusFactory        $statusFactory,
@@ -46,11 +49,7 @@ final class AccountPushController extends AbstractController
     {
         $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $account);
 
-        $token = (string) $request->request->get('_token');
-
-        if (false === $this->isCsrfTokenValid('account_push_' . $account->id, $token)) {
-            throw $this->createAccessDeniedException();
-        }
+        $this->assertCsrf($request, 'account_push_' . $account->id);
 
         $manager = $this->registry->resolve($account);
 
@@ -111,11 +110,7 @@ final class AccountPushController extends AbstractController
     {
         $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $account);
 
-        $token = (string) $request->request->get('_token');
-
-        if (false === $this->isCsrfTokenValid('account_push_' . $account->id, $token)) {
-            throw $this->createAccessDeniedException();
-        }
+        $this->assertCsrf($request, 'account_push_' . $account->id);
 
         $manager = $this->registry->resolve($account);
 

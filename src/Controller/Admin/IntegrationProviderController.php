@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controller\Admin;
 
+use App\Controller\ChecksCsrf;
 use App\Domain\Enum\Account\MailProvider;
 use App\Domain\Enum\Integration\AuthKind;
 use App\Domain\Enum\Integration\Provider;
@@ -41,6 +42,8 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 #[IsGranted('ROLE_ADMIN')]
 final class IntegrationProviderController extends AbstractController
 {
+    use ChecksCsrf;
+
     public function __construct(
         private readonly IntegrationProviderConfigRepository $configRepository,
         private readonly IntegrationRepository              $integrationRepository,
@@ -131,9 +134,7 @@ final class IntegrationProviderController extends AbstractController
     #[Route('/{provider}/inherit', name: 'inherit', methods: ['POST'])]
     public function inherit(Provider $provider, Request $request): Response
     {
-        if (false === $this->isCsrfTokenValid('admin-integration-inherit-'.$provider->value, (string) $request->request->get('_token'))) {
-            throw $this->createAccessDeniedException();
-        }
+        $this->assertCsrf($request, 'admin-integration-inherit-'.$provider->value);
 
         $source = $this->inheritableSource($provider);
 

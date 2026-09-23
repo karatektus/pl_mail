@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controller\Settings;
 
+use App\Controller\ChecksCsrf;
 use App\Entity\User\User;
 use App\Domain\Enum\AppLocale;
 use Doctrine\ORM\EntityManagerInterface;
@@ -17,6 +18,8 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 #[IsGranted('ROLE_USER')]
 final class LocaleController extends AbstractController
 {
+    use ChecksCsrf;
+
     public function __construct(
         private readonly EntityManagerInterface $entityManager,
     ) {
@@ -33,9 +36,7 @@ final class LocaleController extends AbstractController
         /** @var User $user */
         $user = $this->getUser();
 
-        if (false === $this->isCsrfTokenValid('settings-locale', (string) $request->request->get('_token'))) {
-            throw $this->createAccessDeniedException();
-        }
+        $this->assertCsrf($request, 'settings-locale');
 
         $locale = AppLocale::tryFromRequest((string) $request->request->get('locale'));
 

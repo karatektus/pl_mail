@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controller\Mail;
 
+use App\Controller\ChecksCsrf;
 use App\Entity\Label\Label;
 use App\Entity\User\User;
 use App\Form\LabelType;
@@ -39,6 +40,8 @@ use Symfony\Contracts\Translation\TranslatorInterface;
 #[IsGranted('IS_AUTHENTICATED')]
 final class LabelController extends AbstractController
 {
+    use ChecksCsrf;
+
     public function __construct(
         private readonly LabelRepository        $labelRepository,
         private readonly EntityManagerInterface $em,
@@ -136,9 +139,7 @@ final class LabelController extends AbstractController
 
         // This is the destructive action of the three and was the only one
         // without a CSRF check.
-        if (false === $this->isCsrfTokenValid('label-delete' . $label->id, (string) $request->request->get('_token'))) {
-            throw $this->createAccessDeniedException();
-        }
+        $this->assertCsrf($request, 'label-delete' . $label->id);
 
         // Dispatch before removal: the propagator reads the remote id and
         // name off the bindings, and there is nothing to read afterwards.
@@ -167,9 +168,7 @@ final class LabelController extends AbstractController
     {
         $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $label);
 
-        if (false === $this->isCsrfTokenValid('label-visibility' . $label->id, (string) $request->request->get('_token'))) {
-            throw $this->createAccessDeniedException();
-        }
+        $this->assertCsrf($request, 'label-visibility' . $label->id);
 
         $label->isVisible = false === $label->isVisible;
         $this->em->flush();

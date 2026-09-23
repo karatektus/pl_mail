@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controller\Settings;
 
+use App\Controller\ChecksCsrf;
 use App\Domain\Enum\Integration\AuthKind;
 use App\Domain\Enum\Integration\Provider;
 use App\Domain\Enum\Integration\ServiceKind;
@@ -39,6 +40,8 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 #[IsGranted('IS_AUTHENTICATED')]
 final class IntegrationController extends AbstractController
 {
+    use ChecksCsrf;
+
     public function __construct(
         private readonly IntegrationRepository               $integrationRepository,
         private readonly IntegrationProviderConfigRepository $configRepository,
@@ -98,9 +101,7 @@ final class IntegrationController extends AbstractController
     {
         $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $integration);
 
-        if (false === $this->isCsrfTokenValid('settings-integration-'.$integration->id, (string) $request->request->get('_token'))) {
-            throw $this->createAccessDeniedException();
-        }
+        $this->assertCsrf($request, 'settings-integration-'.$integration->id);
 
         $error = $this->connector->retest($integration);
 
@@ -114,9 +115,7 @@ final class IntegrationController extends AbstractController
     {
         $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $integration);
 
-        if (false === $this->isCsrfTokenValid('settings-integration-'.$integration->id, (string) $request->request->get('_token'))) {
-            throw $this->createAccessDeniedException();
-        }
+        $this->assertCsrf($request, 'settings-integration-'.$integration->id);
 
         $integration->isActive = false === $integration->isActive;
         $this->em->flush();
@@ -131,9 +130,7 @@ final class IntegrationController extends AbstractController
     {
         $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $integration);
 
-        if (false === $this->isCsrfTokenValid('settings-integration-'.$integration->id, (string) $request->request->get('_token'))) {
-            throw $this->createAccessDeniedException();
-        }
+        $this->assertCsrf($request, 'settings-integration-'.$integration->id);
 
         $this->em->remove($integration);
         $this->em->flush();

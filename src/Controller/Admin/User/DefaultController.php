@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controller\Admin\User;
 
+use App\Controller\ChecksCsrf;
 use App\Entity\User\User;
 use App\Form\Admin\UserFormType;
 use App\Repository\User\UserRepository;
@@ -59,6 +60,8 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 #[IsGranted('ROLE_ADMIN')]
 final class DefaultController extends AbstractController
 {
+    use ChecksCsrf;
+
     private const int PER_PAGE = 50;
 
     public function __construct(
@@ -143,9 +146,7 @@ final class DefaultController extends AbstractController
     #[Route('/{id}/delete', name: 'delete', methods: ['POST'])]
     public function delete(Request $request, User $user): Response
     {
-        if (false === $this->isCsrfTokenValid('admin-user-delete-' . $user->id, (string) $request->request->get('_token'))) {
-            throw $this->createAccessDeniedException();
-        }
+        $this->assertCsrf($request, 'admin-user-delete-' . $user->id);
 
         $this->assertRemovable($user);
 
@@ -193,9 +194,7 @@ final class DefaultController extends AbstractController
     #[Route('/{id}/active', name: 'toggle_active', methods: ['POST'])]
     public function toggleActive(Request $request, User $user): Response
     {
-        if (false === $this->isCsrfTokenValid('admin-user-active-' . $user->id, (string) $request->request->get('_token'))) {
-            throw $this->createAccessDeniedException();
-        }
+        $this->assertCsrf($request, 'admin-user-active-' . $user->id);
 
         $reactivating = $user->isDeactivated;
 

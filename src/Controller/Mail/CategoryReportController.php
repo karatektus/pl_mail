@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controller\Mail;
 
+use App\Controller\ChecksCsrf;
 use App\Domain\Enum\Mail\MessageCategory;
 use App\Entity\Mail\Message;
 use App\Entity\Monitoring\CategoryReport;
@@ -40,6 +41,8 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 #[IsGranted('IS_AUTHENTICATED')]
 final class CategoryReportController extends AbstractController
 {
+    use ChecksCsrf;
+
     public function __construct(private readonly CategoryReportRecorder $recorder)
     {
     }
@@ -52,9 +55,7 @@ final class CategoryReportController extends AbstractController
             return new Response(status: Response::HTTP_CONFLICT);
         }
 
-        if (false === $this->isCsrfTokenValid('category_report', (string) $request->request->get('_token'))) {
-            throw $this->createAccessDeniedException();
-        }
+        $this->assertCsrf($request, 'category_report');
 
         // The same ownership check the reading pane makes about the same
         // message: a report is written from what the reader can already see,

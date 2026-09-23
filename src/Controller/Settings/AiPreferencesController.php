@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controller\Settings;
 
+use App\Controller\ChecksCsrf;
 use App\Domain\Enum\Ai\ReplyContext;
 use App\Entity\Ai\AiFeature;
 use App\Entity\User\User;
@@ -48,6 +49,8 @@ use Symfony\Contracts\Translation\TranslatorInterface;
 #[IsGranted('ROLE_USER')]
 final class AiPreferencesController extends AbstractController
 {
+    use ChecksCsrf;
+
     public function __construct(
         private readonly EntityManagerInterface $entityManager,
         private readonly AiAssistant            $ai,
@@ -68,9 +71,7 @@ final class AiPreferencesController extends AbstractController
     {
         // Per-action and per-subject, never the shared `ajax` id — one token
         // good for every action makes any one XSS worth all of them.
-        if (false === $this->isCsrfTokenValid('ai_preferences_toggle', $request->request->getString('_token'))) {
-            throw $this->createAccessDeniedException();
-        }
+        $this->assertCsrf($request, 'ai_preferences_toggle');
 
         /** @var User $user */
         $user = $this->getUser();
@@ -122,9 +123,7 @@ final class AiPreferencesController extends AbstractController
     #[Route('/notes', name: 'notes', methods: ['POST'])]
     public function notes(Request $request): Response
     {
-        if (false === $this->isCsrfTokenValid('settings-ai-notes', (string) $request->request->get('_token'))) {
-            throw $this->createAccessDeniedException();
-        }
+        $this->assertCsrf($request, 'settings-ai-notes');
 
         /** @var User $user */
         $user = $this->getUser();
@@ -153,9 +152,7 @@ final class AiPreferencesController extends AbstractController
     #[Route('/context', name: 'context', methods: ['POST'])]
     public function context(Request $request): Response
     {
-        if (false === $this->isCsrfTokenValid('settings-ai-context', (string) $request->request->get('_token'))) {
-            throw $this->createAccessDeniedException();
-        }
+        $this->assertCsrf($request, 'settings-ai-context');
 
         /** @var User $user */
         $user = $this->getUser();

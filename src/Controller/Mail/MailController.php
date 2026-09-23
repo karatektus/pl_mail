@@ -601,9 +601,7 @@ final class MailController extends AbstractController
     {
         $this->denyAccessUnlessGranted('ROLE_USER');
 
-        if (false === $this->isCsrfTokenValid('ajax', (string) $request->headers->get('X-CSRF-Token'))) {
-            throw $this->createAccessDeniedException('Invalid CSRF token.');
-        }
+        $this->assertCsrf($request, 'ajax');
 
         /** @var User $user */
         $user      = $this->getUser();
@@ -642,9 +640,7 @@ final class MailController extends AbstractController
     {
         $this->denyAccessUnlessGranted('ROLE_USER');
 
-        if (false === $this->isCsrfTokenValid('ajax', (string) $request->headers->get('X-CSRF-Token'))) {
-            throw $this->createAccessDeniedException('Invalid CSRF token.');
-        }
+        $this->assertCsrf($request, 'ajax');
 
         /** @var User $user */
         $user = $this->getUser();

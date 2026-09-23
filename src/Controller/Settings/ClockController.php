@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controller\Settings;
 
+use App\Controller\ChecksCsrf;
 use App\Domain\Enum\User\ClockFormat;
 use App\Domain\Enum\User\ClockPlacement;
 use App\Entity\User\User;
@@ -18,6 +19,8 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 #[IsGranted('ROLE_USER')]
 final class ClockController extends AbstractController
 {
+    use ChecksCsrf;
+
     /**
      * Redirects rather than answering with a stream, for the same reason the
      * locale and timezone forms do: the choice reaches every `|date` on every
@@ -30,9 +33,7 @@ final class ClockController extends AbstractController
         /** @var User $user */
         $user = $this->getUser();
 
-        if (false === $this->isCsrfTokenValid('settings-clock', (string) $request->request->get('_token'))) {
-            throw $this->createAccessDeniedException();
-        }
+        $this->assertCsrf($request, 'settings-clock');
 
         $posted = (string) $request->request->get('clock');
 
@@ -62,9 +63,7 @@ final class ClockController extends AbstractController
         /** @var User $user */
         $user = $this->getUser();
 
-        if (false === $this->isCsrfTokenValid('settings-clock', (string) $request->request->get('_token'))) {
-            throw $this->createAccessDeniedException();
-        }
+        $this->assertCsrf($request, 'settings-clock');
 
         $placement = ClockPlacement::tryFrom((string) $request->request->get('placement'));
 

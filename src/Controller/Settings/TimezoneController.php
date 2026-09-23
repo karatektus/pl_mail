@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controller\Settings;
 
+use App\Controller\ChecksCsrf;
 use App\Domain\Helper\TimezoneHelper;
 use App\Entity\User\User;
 use Doctrine\ORM\EntityManagerInterface;
@@ -17,6 +18,8 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 #[IsGranted('ROLE_USER')]
 final class TimezoneController extends AbstractController
 {
+    use ChecksCsrf;
+
     public function __construct(
         private readonly EntityManagerInterface $entityManager,
     ) {
@@ -34,9 +37,7 @@ final class TimezoneController extends AbstractController
         /** @var User $user */
         $user = $this->getUser();
 
-        if (false === $this->isCsrfTokenValid('settings-timezone', (string) $request->request->get('_token'))) {
-            throw $this->createAccessDeniedException();
-        }
+        $this->assertCsrf($request, 'settings-timezone');
 
         $timezone = (string) $request->request->get('timezone');
 

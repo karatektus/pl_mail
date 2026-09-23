@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controller\Settings;
 
+use App\Controller\ChecksCsrf;
 use App\Domain\DTO\ConnectionTestResult;
 use App\Entity\Mail\Account;
 use App\Form\AccountType;
@@ -32,6 +33,8 @@ use Throwable;
 #[IsGranted('ROLE_USER')]
 final class AccountController extends AbstractController
 {
+    use ChecksCsrf;
+
     public function __construct(
         private readonly EntityManagerInterface $entityManager,
         private readonly AccountRepository      $accountRepository,
@@ -106,9 +109,7 @@ final class AccountController extends AbstractController
     {
         $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $account);
 
-        if (false === $this->isCsrfTokenValid('toggle' . $account->id, (string) $request->request->get('_token'))) {
-            throw $this->createAccessDeniedException();
-        }
+        $this->assertCsrf($request, 'toggle' . $account->id);
 
         $newActive = false === $account->isActive;
 
@@ -129,9 +130,7 @@ final class AccountController extends AbstractController
     {
         $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $account);
 
-        if (false === $this->isCsrfTokenValid('delete' . $account->id, (string) $request->request->get('_token'))) {
-            throw $this->createAccessDeniedException();
-        }
+        $this->assertCsrf($request, 'delete' . $account->id);
 
         // Best-effort: stop any Gmail push watch so we don't leave a dangling
         // registration pointing at an account that no longer exists.
@@ -180,9 +179,7 @@ final class AccountController extends AbstractController
     #[Route('/reorder', name: 'reorder', methods: ['POST'])]
     public function reorder(Request $request): JsonResponse
     {
-        if (false === $this->isCsrfTokenValid('account_reorder', (string) $request->headers->get('X-CSRF-Token'))) {
-            throw $this->createAccessDeniedException('Invalid CSRF token.');
-        }
+        $this->assertCsrf($request, 'account_reorder');
 
         $ids = $request->toArray()['ids'] ?? null;
 
@@ -238,9 +235,7 @@ final class AccountController extends AbstractController
     {
         $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $account);
 
-        if (false === $this->isCsrfTokenValid('account-primary' . $account->id, (string) $request->request->get('_token'))) {
-            throw $this->createAccessDeniedException();
-        }
+        $this->assertCsrf($request, 'account-primary' . $account->id);
 
         $this->accountCreator->makePrimary(
             $account,
@@ -255,6 +250,8 @@ final class AccountController extends AbstractController
     #[Route('/test-connection', name: 'test_connection', methods: ['POST'])]
     public function testConnection(Request $request, ConnectionTester $tester): JsonResponse
     {
+        // Not assertCsrf(): this one has always answered 400 rather than 403,
+        // and moving it would change what its caller is handed.
         if (false === $this->isCsrfTokenValid('account_test', (string) $request->headers->get('X-CSRF-Token'))) {
             throw new BadRequestHttpException('Invalid CSRF token.');
         }

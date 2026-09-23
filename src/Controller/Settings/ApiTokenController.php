@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controller\Settings;
 
+use App\Controller\ChecksCsrf;
 use App\Entity\User\ApiToken;
 use App\Entity\User\User;
 use App\Form\ApiTokenType;
@@ -27,6 +28,8 @@ use Symfony\UX\Turbo\TurboBundle;
 #[IsGranted('ROLE_USER')]
 final class ApiTokenController extends AbstractController
 {
+    use ChecksCsrf;
+
     public function __construct(
         private readonly EntityManagerInterface $em,
         private readonly ApiTokenRepository $tokenRepository,
@@ -62,9 +65,7 @@ final class ApiTokenController extends AbstractController
     #[Route('/{id}/revoke', name: 'revoke', methods: ['POST'])]
     public function revoke(Request $request, int $id): Response
     {
-        if (false === $this->isCsrfTokenValid('app-password-revoke' . $id, (string) $request->request->get('_token'))) {
-            throw $this->createAccessDeniedException();
-        }
+        $this->assertCsrf($request, 'app-password-revoke' . $id);
 
         $token = $this->tokenRepository->findOneOwnedBy($id, $this->getUser());
 

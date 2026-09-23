@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controller\Integration;
 
+use App\Controller\ChecksCsrf;
 use App\Domain\Helper\InlineDisposition;
 use App\Controller\Mail\ComposeAttachmentController;
 use App\Domain\Enum\Integration\Capability;
@@ -46,6 +47,8 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 #[IsGranted('IS_AUTHENTICATED')]
 final class FilePickerController extends AbstractController
 {
+    use ChecksCsrf;
+
     /**
      * Integration::$settings key naming the folder or album uploads land in.
      * Absent means the service's own default — the files root, or no album.
@@ -202,9 +205,7 @@ final class FilePickerController extends AbstractController
     {
         $this->assertUsable($integration, Capability::Download);
 
-        if (false === $this->isCsrfTokenValid('integration-picker', (string) $request->request->get('_token'))) {
-            throw $this->createAccessDeniedException();
-        }
+        $this->assertCsrf($request, 'integration-picker');
 
         $message = $this->draft($request->request->getInt('draft'));
 
@@ -238,9 +239,7 @@ final class FilePickerController extends AbstractController
     {
         $this->assertUsable($integration, Capability::Upload);
 
-        if (false === $this->isCsrfTokenValid('integration-save-'.$part->id, (string) $request->request->get('_token'))) {
-            throw $this->createAccessDeniedException();
-        }
+        $this->assertCsrf($request, 'integration-save-'.$part->id);
 
         // Same ownership rule AttachmentController uses for downloads: the
         // part belongs to a message on one of this user's accounts.
@@ -285,9 +284,7 @@ final class FilePickerController extends AbstractController
     {
         $this->assertUsable($integration, Capability::Upload);
 
-        if (false === $this->isCsrfTokenValid('integration-destination-'.$part->id, (string) $request->request->get('_token'))) {
-            throw $this->createAccessDeniedException();
-        }
+        $this->assertCsrf($request, 'integration-destination-'.$part->id);
 
         $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $part);
 

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controller\Calendar;
 
+use App\Controller\ChecksCsrf;
 use App\Domain\DTO\Calendar\MessageInvite;
 use App\Domain\Enum\Calendar\ParticipationStatus;
 use App\Entity\Mail\Message;
@@ -35,6 +36,8 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 #[IsGranted('IS_AUTHENTICATED')]
 final class InviteController extends AbstractController
 {
+    use ChecksCsrf;
+
     public function __construct(
         private readonly InviteReader           $invites,
         private readonly InviteResponder        $responder,
@@ -45,9 +48,7 @@ final class InviteController extends AbstractController
     #[Route('/{id}/respond', name: 'respond', requirements: ['id' => '\d+'], methods: ['POST'])]
     public function respond(Request $request, Message $message, #[CurrentUser] User $user): Response
     {
-        if (false === $this->isCsrfTokenValid('calendar_invite' . $message->id, (string) $request->request->get('_token'))) {
-            throw $this->createAccessDeniedException();
-        }
+        $this->assertCsrf($request, 'calendar_invite' . $message->id);
 
         $status = ParticipationStatus::tryFrom($request->request->getString('status'));
 

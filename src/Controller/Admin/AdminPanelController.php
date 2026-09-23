@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controller\Admin;
 
+use App\Controller\ChecksCsrf;
 use App\Entity\User\User;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -28,6 +29,8 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 #[IsGranted('ROLE_ADMIN')]
 final class AdminPanelController extends AbstractController
 {
+    use ChecksCsrf;
+
     /**
      * Every collapsible panel. A whitelist, so a stray client cannot grow the
      * settings blob without bound.
@@ -61,9 +64,7 @@ final class AdminPanelController extends AbstractController
             return $this->json(['ok' => false, 'error' => 'unknown panel'], Response::HTTP_BAD_REQUEST);
         }
 
-        if (false === $this->isCsrfTokenValid('admin_panel_' . $key, (string) $request->headers->get('X-CSRF-Token'))) {
-            throw $this->createAccessDeniedException('Invalid CSRF token.');
-        }
+        $this->assertCsrf($request, 'admin_panel_' . $key);
 
         /** @var User $user */
         $user = $this->getUser();

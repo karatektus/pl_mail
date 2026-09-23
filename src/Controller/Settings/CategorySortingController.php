@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controller\Settings;
 
+use App\Controller\ChecksCsrf;
 use App\Domain\Enum\Mail\CategorySource;
 use App\Entity\User\User;
 use App\Infrastructure\Messaging\Message\ReclassifyRecentMessage;
@@ -54,6 +55,8 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 #[IsGranted('ROLE_USER')]
 final class CategorySortingController extends AbstractController
 {
+    use ChecksCsrf;
+
     /**
      * The most mail one press may re-ask about.
      *
@@ -74,9 +77,7 @@ final class CategorySortingController extends AbstractController
         /** @var User $user */
         $user = $this->getUser();
 
-        if (false === $this->isCsrfTokenValid('settings-sorting', (string) $request->request->get('_token'))) {
-            throw $this->createAccessDeniedException();
-        }
+        $this->assertCsrf($request, 'settings-sorting');
 
         // Both fields are read only when they are POSTED, matching
         // ComposeBehaviorController: the panel may grow a second form later,
@@ -146,9 +147,7 @@ final class CategorySortingController extends AbstractController
         /** @var User $user */
         $user = $this->getUser();
 
-        if (false === $this->isCsrfTokenValid('settings-sorting', (string) $request->request->get('_token'))) {
-            throw $this->createAccessDeniedException();
-        }
+        $this->assertCsrf($request, 'settings-sorting');
 
         // Clamped rather than trusted: the form offers three sizes and this is
         // a POST, so anything else arrived by hand. The ceiling is what one

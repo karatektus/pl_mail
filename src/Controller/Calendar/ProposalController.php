@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controller\Calendar;
 
+use App\Controller\ChecksCsrf;
 use App\Entity\Calendar\EventProposal;
 use App\Entity\Mail\Message;
 use App\Entity\User\User;
@@ -35,6 +36,8 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 #[IsGranted('IS_AUTHENTICATED')]
 final class ProposalController extends AbstractController
 {
+    use ChecksCsrf;
+
     public function __construct(
         private readonly ProposalReader         $proposals,
         private readonly ProposalResponder      $responder,
@@ -81,12 +84,7 @@ final class ProposalController extends AbstractController
      */
     private function resolve(Request $request, Message $message): EventProposal
     {
-        if (false === $this->isCsrfTokenValid(
-            'calendar_proposal' . $message->id,
-            (string) $request->request->get('_token'),
-        )) {
-            throw $this->createAccessDeniedException();
-        }
+        $this->assertCsrf($request, 'calendar_proposal' . $message->id);
 
         $user = $this->getUser();
 
