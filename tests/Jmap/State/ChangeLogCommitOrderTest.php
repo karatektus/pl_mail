@@ -11,8 +11,7 @@ use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\DriverManager;
 use Doctrine\DBAL\Schema\Schema;
 use Doctrine\ORM\EntityManagerInterface;
-use DoctrineMigrations\Version20260923140100;
-use Psr\Log\NullLogger;
+use Doctrine\Migrations\Version\Version;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 
 /**
@@ -45,9 +44,13 @@ final class ChangeLogCommitOrderTest extends KernelTestCase
         $this->connection = self::getContainer()->get(Connection::class);
         $this->connection->beginTransaction();
 
-        require_once \dirname(__DIR__, 3) . '/migrations/Version20260923140100.php';
+        // Through Doctrine Migrations' own loader: migrations are not on the
+        // autoloader, and this is how the real run finds them.
+        $migration = self::getContainer()->get('doctrine.migrations.dependency_factory')
+            ->getMigrationRepository()
+            ->getMigration(new Version('DoctrineMigrations\\Version20260923140100'))
+            ->getMigration();
 
-        $migration = new Version20260923140100($this->connection, new NullLogger());
         $migration->up(new Schema());
 
         foreach ($migration->getSql() as $query) {
