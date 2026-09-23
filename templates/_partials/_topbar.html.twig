@@ -38,14 +38,18 @@
            to draw either. The image is given no src while hidden: an empty
            src is a request for the page itself. Hidden by the attribute, not
            the class — the attribute wins over `flex` whatever order the
-           stylesheet was built in. #}
+           stylesheet was built in.
+
+           The hairline is the settings tiles' (`rounded-[22%]` is the tile's
+           own corner, see branding/icon.svg.twig): a pale tile on pale chrome
+           otherwise has no edge, and reads as a glyph that lost its square. #}
         {% import '_partials/_logo_mark.html.twig' as logo %}
         {% set _logoMotif = appearance().effectiveLogoMotif %}
         {% set _logoClassic = _logoMotif.value == 'pl' %}
         <span class="flex flex-shrink-0" data-logo-live-mark {{ _logoClassic ? '' : 'hidden' }}>
             {{- logo.mark(appearance().effectiveLogoStyle, 32, appearance().theme.isDark, true) -}}
         </span>
-        <img data-logo-live-icon alt="" width="32" height="32" class="w-8 h-8 flex-shrink-0" decoding="async"
+        <img data-logo-live-icon alt="" width="32" height="32" class="w-8 h-8 flex-shrink-0 rounded-[22%] ring-1 ring-line" decoding="async"
              {% if _logoClassic %}hidden{% else %}src="{{ logo_icon_url(_logoMotif, appearance().effectiveLogoPaint) }}"{% endif %}>
         {# ClockPlacement::Brand: a second line under the wordmark, in width
            the brand already has (`md:w-52`), so nothing else in the topbar

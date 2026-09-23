@@ -77,10 +77,12 @@ final class ExportLogoPaintsCommand extends Command
         $motifs = [];
 
         foreach (LogoMotif::cases() as $motif) {
-            $paints = [LogoMotif::ORIGINAL => $motif->paints(null)];
+            $paints = [];
 
-            foreach (LogoStyle::cases() as $style) {
-                $paints[$style->value] = $motif->paints($style);
+            // `original` is the one wire that names no colourway, and null is
+            // how paints() spells it — which is exactly what tryFrom() answers.
+            foreach (LogoMotif::paintWires() as $wire) {
+                $paints[$wire] = $motif->paints(LogoStyle::tryFrom($wire));
             }
 
             $motifs[] = ['wire' => $motif->value, 'parts' => $motif->parts(), 'paints' => $paints];
