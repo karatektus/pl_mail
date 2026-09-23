@@ -10,6 +10,7 @@ use App\Domain\Enum\Theme\Density;
 use App\Domain\Enum\Theme\MotionLevel;
 use App\Domain\Enum\Theme\FontFamily;
 use App\Domain\Enum\Theme\Layout;
+use App\Domain\Enum\Theme\LogoMotif;
 use App\Domain\Enum\Theme\LogoStyle;
 use App\Domain\Enum\Theme\Theme;
 use App\Domain\Enum\Theme\UnreadEmphasis;
@@ -121,6 +122,11 @@ final class Appearance
      * The colourway the mark actually wears: the theme's namesake style while
      * linked (the classic seven have none and fall back to the product
      * default), the user's own $logoStyle otherwise.
+     *
+     * This is the pl MARK's colourway, whatever the icon is — see
+     * effectiveLogoPaint() for what the chosen icon wears. The two agree
+     * whenever the icon is the mark, and this one keeps its meaning for the
+     * readers that predate the other icons (JMAP's `logoStyle`).
      */
     public function effectiveLogoStyle(): LogoStyle
     {
@@ -129,6 +135,72 @@ final class Appearance
         }
 
         return LogoStyle::tryFrom($this->theme->value) ?? LogoStyle::DEFAULT;
+    }
+
+    /**
+     * Which icon — the pl mark or one of the motifs beside it. Settings →
+     * Appearance → Logo, step one.
+     *
+     * The second question, which paint, is answered by the three fields around
+     * it ($logoOriginal, $logoLinked, $logoStyle), all of them kept whichever
+     * icon is chosen: going from the mark to the horn and back leaves the
+     * mark's colourway exactly where it was.
+     */
+    #[ORM\Column(type: 'string', length: 16, enumType: LogoMotif::class, options: ['default' => 'pl'])]
+    public LogoMotif $logoMotif = LogoMotif::DEFAULT;
+
+    /**
+     * Whether a motif wears its own design rather than a colourway.
+     *
+     * The first answer to step two, and the one picking a motif selects: each
+     * motif was drawn in colours of its own, and a new icon should arrive
+     * looking the way it was drawn. False unlinks nothing — $logoLinked and
+     * $logoStyle say what happens instead.
+     *
+     * Meaningless for the pl mark, which has no design apart from its
+     * colourways (its "original" is the product default, and a colourway), so
+     * effectiveLogoPaint() ignores it there rather than anybody having to keep
+     * it false.
+     */
+    #[ORM\Column(type: 'boolean', options: ['default' => false])]
+    public bool $logoOriginal = false;
+
+    /** The icon the product wears — topbar, favicon and launcher alike. */
+    public function effectiveLogoMotif(): LogoMotif
+    {
+        return $this->logoMotif;
+    }
+
+    /**
+     * What the chosen icon is painted in: a colourway, or null for the motif's
+     * own original design.
+     *
+     * For the pl mark this is effectiveLogoStyle(), unchanged, and never null.
+     * For any other motif it is null while $logoOriginal holds; otherwise the
+     * theme's namesake colourway while linked, the user's own $logoStyle when
+     * not.
+     *
+     * One difference from the mark, and it is deliberate: a linked motif on one
+     * of the classic seven themes, which have no namesake colourway, falls back
+     * to its ORIGINAL rather than to Berry. Berry is the mark's default because
+     * the mark was drawn to wear it; a horn in Berry is a colourway nobody
+     * chose, while the horn's own design is the one it was drawn in.
+     */
+    public function effectiveLogoPaint(): ?LogoStyle
+    {
+        if (LogoMotif::Pl === $this->logoMotif) {
+            return $this->effectiveLogoStyle();
+        }
+
+        if (true === $this->logoOriginal) {
+            return null;
+        }
+
+        if (false === $this->logoLinked) {
+            return $this->logoStyle;
+        }
+
+        return LogoStyle::tryFrom($this->theme->value);
     }
 
     #[ORM\Column(type: 'string', length: 7, options: ['default' => self::DEFAULT_ACCENT])]
@@ -392,6 +464,8 @@ final class Appearance
             'layout' => $this->layout->value,
             'logoStyle' => $this->logoStyle->value,
             'logoLinked' => $this->logoLinked,
+            'logoMotif' => $this->logoMotif->value,
+            'logoOriginal' => $this->logoOriginal,
             'accent' => $this->accent,
             'paneAlpha' => $this->paneAlpha,
             'popoverAlpha' => $this->popoverAlpha,
@@ -440,6 +514,18 @@ final class Appearance
 
         if (true === isset($data['logoLinked'])) {
             $this->logoLinked = self::boolean($data['logoLinked']);
+        }
+
+        // Both tolerate absence — an export written before there was more than
+        // one icon carries neither, and importing it keeps the icon you have —
+        // and a motif this install does not know keeps the current one, like
+        // every other closed vocabulary here.
+        if (true === isset($data['logoMotif'])) {
+            $this->logoMotif = LogoMotif::tryFrom((string) $data['logoMotif']) ?? $this->logoMotif;
+        }
+
+        if (true === isset($data['logoOriginal'])) {
+            $this->logoOriginal = self::boolean($data['logoOriginal']);
         }
 
         if (true === isset($data['accent'])) {
