@@ -10,6 +10,7 @@ use App\Entity\Rule\MailRule;
 use App\Repository\Integration\IntegrationRepository;
 use App\Repository\Label\LabelRepository;
 use Symfony\Component\Security\Core\User\UserInterface;
+use Symfony\Contracts\Service\ResetInterface;
 use Symfony\Contracts\Translation\TranslatorInterface;
 
 /**
@@ -26,8 +27,12 @@ use Symfony\Contracts\Translation\TranslatorInterface;
  * could drift apart — the same trap the filter engines fell into. The editor
  * now takes the sentence from the preview response it was already fetching for
  * the match count, so there is one describer and it is translated properly.
+ *
+ * Resettable: the name caches below are per request. FrankenPHP keeps this
+ * service alive between requests, and a label renamed in one would otherwise
+ * be described by its old name for the life of the worker.
  */
-final class FilterDescriber
+final class FilterDescriber implements ResetInterface
 {
     /** @var array<int, array<int,string>> userId => (labelId => full name) */
     private array $labelNames = [];
@@ -43,6 +48,13 @@ final class FilterDescriber
         private readonly LabelRepository       $labelRepository,
         private readonly IntegrationRepository $integrationRepository,
     ) {}
+
+    public function reset(): void
+    {
+        $this->labelNames       = [];
+        $this->integrationNames = [];
+        $this->subject          = null;
+    }
 
     public function describeRule(MailRule $rule): string
     {
