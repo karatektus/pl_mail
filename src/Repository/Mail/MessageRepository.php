@@ -2246,6 +2246,55 @@ class MessageRepository extends ServiceEntityRepository
     }
 
     /**
+     * forThreadInConversationOrder() plus what the reading pane reads off each
+     * message — its label chips and its attachment chips — so a conversation
+     * costs the same number of queries at two messages as at twenty.
+     *
+     * Labels are fetch-joined into the one statement; parts are NOT, because a
+     * second to-many join multiplies the first (labels × parts rows, every one
+     * carrying the bodies). They are a statement of their own instead, and only
+     * for the messages that have attachments at all — the pane never touches
+     * the collection of one that does not.
+     *
+     * @return list<Message>
+     */
+    public function forThreadView(MessageThread $thread): array
+    {
+        /** @var list<Message> $messages */
+        $messages = $this->createQueryBuilder('m')
+            ->addSelect('l')
+            ->leftJoin('m.labels', 'l')
+            ->addSelect('COALESCE(m.receivedAt, m.sentAt, m.createdAt) AS HIDDEN effectiveAt')
+            ->where('m.thread = :thread')
+            ->setParameter('thread', $thread)
+            ->orderBy('effectiveAt', 'ASC')
+            ->addOrderBy('m.id', 'ASC')
+            ->getQuery()
+            ->getResult();
+
+        $withAttachments = [];
+
+        foreach ($messages as $message) {
+            if (true === $message->hasAttachments && null !== $message->id) {
+                $withAttachments[] = $message->id;
+            }
+        }
+
+        if ([] !== $withAttachments) {
+            // Already managed, so this only initialises messageParts on them.
+            $this->createQueryBuilder('m')
+                ->addSelect('p')
+                ->leftJoin('m.messageParts', 'p')
+                ->where('m.id IN (:ids)')
+                ->setParameter('ids', $withAttachments)
+                ->getQuery()
+                ->getResult();
+        }
+
+        return $messages;
+    }
+
+    /**
      * The handful of columns a conversation row reads from each of its
      * thread's messages, for every thread on a list page in one statement.
      *

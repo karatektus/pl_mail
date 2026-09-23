@@ -91,7 +91,7 @@ final readonly class ThreadTranscript
     /**
      * The same, from a list somebody already has.
      *
-     * MailController::thread() runs forThreadInConversationOrder() for the
+     * MailController::thread() runs forThreadView() (the same order) for the
      * render anyway, so the pane can hand over the hydrated list and pay
      * nothing to find out whether a stored summary is still current. That is
      * the whole reason the freshness check is affordable on every thread open:

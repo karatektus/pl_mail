@@ -7,7 +7,6 @@ namespace App\Service\Mail;
 use App\Domain\Enum\Mail\LabelRole;
 use App\Entity\Mail\Message;
 use App\Entity\User\User;
-use App\Repository\Mail\TrustedImageSenderRepository;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\RequestStack;
 
@@ -58,7 +57,7 @@ final readonly class MessageRenderer
         private RemoteContentBlocker         $blocker,
         private QuoteCollapser               $quoteCollapser,
         private SenderIdentityChecker        $identityChecker,
-        private TrustedImageSenderRepository $trustedSenders,
+        private ThreadSenderFacts            $trustedSenders,
         private Security                     $security,
         private RequestStack                 $requestStack,
         private MessageFrameScript           $frameScript,
@@ -66,12 +65,12 @@ final readonly class MessageRenderer
     }
 
     /**
-     * The trust lookup is one indexed point query per message, and a
-     * conversation renders one of these per message in it. Deliberately not
-     * memoised on this service: it is a shared instance, and under a worker
-     * runtime a cache on it would outlive the request and answer one reader's
-     * question with another reader's allowlist. A cheap query beats that trade
-     * every time.
+     * The trust lookup goes through ThreadSenderFacts: a thread view primes it
+     * with every sender of the conversation in one read, anything else gets
+     * the same point query as before. Not memoised on this service — a cache
+     * here would outlive the request under a worker runtime and answer one
+     * reader's question with another reader's allowlist; ThreadSenderFacts
+     * is reset between requests for exactly that reason.
      *
      * @param bool $forceImages render as if the reader had opted in. Nothing
      *                          passes true today — the reading pane asks the

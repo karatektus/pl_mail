@@ -25,6 +25,7 @@ use App\Service\Mail\NewMailMarkers;
 use App\Service\Mail\SidebarCounts;
 use App\Service\Mail\ThreadListRenderer;
 use App\Service\Mail\ThreadRows;
+use App\Service\Mail\ThreadSenderFacts;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -48,6 +49,7 @@ final class MailController extends AbstractController
         private readonly ThreadTranscript $transcript,
         private readonly ThreadSummaryStore $summaries,
         private readonly ThreadRows $threadRows,
+        private readonly ThreadSenderFacts $senderFacts,
     )
     {
     }
@@ -809,8 +811,18 @@ final class MailController extends AbstractController
         // own replies to the bottom of the thread (they have no receivedAt).
         // The last entry is then genuinely the newest message, which is what
         // the reply zone quotes and what opens expanded.
-        $messages = $this->messageRepository->forThreadInConversationOrder($thread);
+        // forThreadView(): the same list with each message's labels and parts
+        // loaded alongside, so the pane does not lazy-load them one by one.
+        $messages = $this->messageRepository->forThreadView($thread);
         $latest   = [] === $messages ? null : $messages[array_key_last($messages)];
+
+        // The allowlist and correspondent checks every message's render asks,
+        // answered for the whole conversation in two reads.
+        $user = $this->getUser();
+
+        if ($user instanceof User) {
+            $this->senderFacts->prime($user, $messages);
+        }
 
         // Same read as message() above, for the same card in the same place.
         $insights = $this->insightRepository->forThread($thread);

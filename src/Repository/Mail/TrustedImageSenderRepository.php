@@ -33,6 +33,29 @@ class TrustedImageSenderRepository extends ServiceEntityRepository
     }
 
     /**
+     * isTrusted() for a whole conversation at once — see ThreadSenderFacts.
+     * Same comparison: the normalised address against the stored one, exactly.
+     *
+     * @param list<string> $addresses already normalised with AddressHelper::email()
+     *
+     * @return array<string, true> the trusted ones, as a set
+     */
+    public function findTrustedAmong(User $user, array $addresses): array
+    {
+        if ([] === $addresses) {
+            return [];
+        }
+
+        $trusted = [];
+
+        foreach ($this->findBy(['usr' => $user, 'address' => $addresses]) as $sender) {
+            $trusted[(string) $sender->address] = true;
+        }
+
+        return $trusted;
+    }
+
+    /**
      * Idempotent by construction. The unique constraint is the arbiter rather
      * than a preceding SELECT: two tabs on the same message, or a double click,
      * both reach here and one of them loses the race — which is a caught

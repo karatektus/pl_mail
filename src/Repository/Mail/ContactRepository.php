@@ -248,6 +248,39 @@ class ContactRepository extends ServiceEntityRepository
     }
 
     /**
+     * isCorrespondent() for every sender of a conversation in one read — see
+     * ThreadSenderFacts. QueryBuilder for the same LOWER(email) match.
+     *
+     * @param list<string> $emails lowercased and trimmed
+     *
+     * @return array<string, true> the correspondents among them, as a set
+     */
+    public function findCorrespondentsAmong(UserInterface $user, array $emails): array
+    {
+        if ([] === $emails) {
+            return [];
+        }
+
+        $rows = $this->createQueryBuilder('c')
+            ->select('LOWER(c.email) AS email')
+            ->where('c.usr = :user')
+            ->andWhere('LOWER(c.email) IN (:emails)')
+            ->andWhere('c.isCorrespondent = true')
+            ->setParameter('user', $user)
+            ->setParameter('emails', $emails)
+            ->getQuery()
+            ->getScalarResult();
+
+        $set = [];
+
+        foreach ($rows as $row) {
+            $set[(string) $row['email']] = true;
+        }
+
+        return $set;
+    }
+
+    /**
      * QueryBuilder because the match is on LOWER(email): addresses are stored
      * as they arrived and compared case-insensitively, and findBy() compares
      * the stored value rather than an expression over it.

@@ -7,7 +7,7 @@ namespace App\Twig;
 use App\Domain\Enum\Mail\MessageCategory;
 use App\Entity\Mail\Message;
 use App\Entity\User\User;
-use App\Repository\Mail\ContactRepository;
+use App\Service\Mail\ThreadSenderFacts;
 use App\Service\Mail\MessageCategorizer;
 use Symfony\Bundle\SecurityBundle\Security;
 use Twig\Extension\AbstractExtension;
@@ -57,7 +57,7 @@ final class MessageCategoryExtension extends AbstractExtension
 {
     public function __construct(
         private readonly MessageCategorizer $categorizer,
-        private readonly ContactRepository  $contacts,
+        private readonly ThreadSenderFacts  $contacts,
         private readonly Security           $security,
     ) {
     }
