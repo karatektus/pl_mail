@@ -22,6 +22,7 @@ use App\Service\Mail\MisfiledBodyUnpacker;
 use App\Service\Mail\PostIngestPipeline;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
+use Doctrine\Persistence\ManagerRegistry;
 use Psr\Log\LoggerInterface;
 use Webklex\PHPIMAP\Attribute;
 use Webklex\PHPIMAP\Client;
@@ -53,6 +54,7 @@ class MessageSyncer
         private readonly ImapConnectionFactory $connections,
         private readonly VanishedMessageReconciler $vanished,
         private readonly GhostMessageReaper $ghosts,
+        private readonly ManagerRegistry $registry,
     ) {}
 
     /**
@@ -151,7 +153,7 @@ class MessageSyncer
                 ->chunked(function ($batch) use ($mailboxId, $accountId, $lastSeenUid, &$synced, &$syncedUids, &$lowestSkippedUid, $presence) {
                     $this->processBatch($batch, $mailboxId, $accountId, $lastSeenUid, $syncedUids, $lowestSkippedUid, $presence);
                     $synced += count($batch);
-                    $this->em->clear();
+                    $this->startNextBatch();
                     $this->logger->info(sprintf('Synced %d messages so far', $synced));
                 }, self::BATCH_SIZE);
 
@@ -347,6 +349,34 @@ class MessageSyncer
         }
 
         $this->postIngest->run($mailbox->account, $ingested);
+    }
+
+    /**
+     * Drop the finished batch's unit of work, and reopen the manager if
+     * something closed it.
+     *
+     * Post-ingest steps run after the batch is committed and are allowed to
+     * fail: PostIngestPipeline logs the failure and carries on, because the
+     * mail is already stored. But Doctrine closes the manager when a flush
+     * fails, and clear() does not reopen it. So one step that failed a flush
+     * made the next batch throw EntityManagerClosed on its first persist.
+     * Every message in that batch was logged as "Failed to build message"
+     * though nothing was wrong with any of them, and the folder's sync then
+     * died on the flush after.
+     *
+     * Resetting is safe here for the same reason clearing is: nothing that
+     * writes holds an entity across a batch, and processBatch() finds the
+     * mailbox again by id.
+     */
+    private function startNextBatch(): void
+    {
+        if (true === $this->em->isOpen()) {
+            $this->em->clear();
+
+            return;
+        }
+
+        $this->registry->resetManager();
     }
 
     /**

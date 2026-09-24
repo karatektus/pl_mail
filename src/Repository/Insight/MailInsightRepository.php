@@ -18,9 +18,31 @@ class MailInsightRepository extends ServiceEntityRepository
         parent::__construct($registry, MailInsight::class);
     }
 
-    /** The upsert's read half — see InsightHarvester. */
+    /**
+     * The upsert's read half — see InsightHarvester.
+     *
+     * A row persisted in this unit of work and not flushed yet counts as much
+     * as one in the table. The sync harvests a whole batch and flushes once
+     * (ExtractInsightsStep), so when the shipping and the delivery mail for one
+     * parcel arrived in the same batch, each found nothing in the table and
+     * each inserted, and the one flush broke uniq_mail_insight_account_dedupe.
+     * That closed the entity manager under the rest of the sync. A first sync
+     * is thousands of mails in batches of fifty, so a fresh install hit it
+     * within minutes.
+     *
+     * Scanned rather than queried: a pending row has no id and is not in the
+     * table, so the unit of work is the only place it can be found.
+     */
     public function findOneByDedupe(Account $account, string $dedupeKey): ?MailInsight
     {
+        foreach ($this->getEntityManager()->getUnitOfWork()->getScheduledEntityInsertions() as $pending) {
+            if ($pending instanceof MailInsight
+                && $dedupeKey === $pending->dedupeKey
+                && $account->id === $pending->account->id) {
+                return $pending;
+            }
+        }
+
         return $this->findOneBy(['account' => $account, 'dedupeKey' => $dedupeKey]);
     }
 

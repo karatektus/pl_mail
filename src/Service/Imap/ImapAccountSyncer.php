@@ -7,7 +7,10 @@ namespace App\Service\Imap;
 use App\Domain\Helper\ImapConnectionFactory;
 use App\Domain\Interface\AccountSyncerInterface;
 use App\Entity\Mail\Account;
+use App\Entity\Mail\Mailbox;
 use App\Repository\Mail\MailboxRepository;
+use Doctrine\ORM\EntityManagerInterface;
+use Doctrine\Persistence\ManagerRegistry;
 use Psr\Log\LoggerInterface;
 
 /**
@@ -24,6 +27,8 @@ final readonly class ImapAccountSyncer implements AccountSyncerInterface
         private MessageSyncer         $messageSyncer,
         private ImapConnectionFactory $imapConnectionFactory,
         private LoggerInterface       $logger,
+        private EntityManagerInterface $em,
+        private ManagerRegistry       $registry,
     ) {}
 
     public function supports(Account $account): bool
@@ -76,20 +81,42 @@ final readonly class ImapAccountSyncer implements AccountSyncerInterface
             return [];
         }
 
+        $mailboxIds       = array_map(static fn (Mailbox $mailbox): int => (int) $mailbox->id, $mailboxes);
         $client           = $this->imapConnectionFactory->connect($account);
         $syncedMailboxIds = [];
 
         try {
-            foreach ($mailboxes as $mailbox) {
+            foreach ($mailboxIds as $mailboxId) {
+                // Found again for each folder rather than taken from the list
+                // above. MessageSyncer clears the entity manager between
+                // batches, so once one folder had new mail every later entry
+                // in that list was detached, and what the sweep wrote onto it
+                // (sweptAt, the folder's UIDVALIDITY) was flushed into
+                // nothing. A folder that never records its UIDVALIDITY cannot
+                // be recognised as rebuilt on the server.
+                $mailbox = $this->mailboxRepository->find($mailboxId);
+
+                if (null === $mailbox) {
+                    continue;
+                }
+
                 try {
                     $this->messageSyncer->syncMailbox($mailbox, $client);
-                    $syncedMailboxIds[] = $mailbox->id;
+                    $syncedMailboxIds[] = $mailboxId;
                 } catch (\Throwable $e) {
                     $this->logger->error('ImapAccountSyncer: mailbox sync failed', [
-                        'mailboxId' => $mailbox->id,
+                        'mailboxId' => $mailboxId,
                         'error'     => $e->getMessage(),
                         'exception' => $e,
                     ]);
+
+                    // A failure out of a flush closes the manager, and the next
+                    // folder would die on its first persist, with every one of
+                    // its messages blamed for it. Reopened, one folder's failure
+                    // stays that folder's.
+                    if (false === $this->em->isOpen()) {
+                        $this->registry->resetManager();
+                    }
                 }
             }
         } finally {

@@ -86,6 +86,32 @@ final class InsightHarvesterTest extends KernelTestCase
         self::assertSame('stub:123', $rows[0]->dedupeKey, 'the harvester scopes the key by extractor');
     }
 
+    public function testTwoMailsAboutOneParcelInOneBatchAreOneRowRatherThanAFailedFlush(): void
+    {
+        // Both mails exist before either is harvested, and nothing is flushed
+        // between them: that is a sync batch. ExtractInsightsStep harvests all
+        // of it and flushes once, so the second mail cannot find the first
+        // one's row in the table.
+        $first  = $this->thread('shipped')->messages->first();
+        $second = $this->thread('delivered')->messages->first();
+
+        $this->harvester($this->stub([
+            new InsightDraft(InsightKind::Parcel, 'DHL · 123', '123', ['status' => 'in_transit']),
+        ]))->harvest($first);
+
+        $this->harvester($this->stub([
+            new InsightDraft(InsightKind::Parcel, 'DHL · 123', '123', ['status' => 'delivered']),
+        ]))->harvest($second);
+
+        $this->em->flush();
+
+        $rows = $this->repository()->findBy(['account' => $this->account]);
+
+        self::assertCount(1, $rows, 'two mails about one parcel in one batch are one card');
+        self::assertSame('delivered', $rows[0]->payload['status'], 'the newest statement wins');
+        self::assertSame($second->id, $rows[0]->message?->id, 'the link follows the newest mail');
+    }
+
     public function testDismissalOutlivesTheNextUpsert(): void
     {
         $draft = new InsightDraft(InsightKind::Parcel, 'DHL · 9', '9', []);
