@@ -6,6 +6,39 @@ so anything that changes the schema irreversibly is called out explicitly.
 The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, and `sha-…` pins one commit.
 
+## v0.2.47 — 2026-09-24
+
+**A first sync no longer stops on your parcels.** plMail reads new mail fifty messages at a time
+and turns what it recognises (a parcel, an invoice, a login code) into a card on the radar. When
+two mails in the same fifty were about the same thing, say the shipping and the delivery notice for
+one parcel, each made a card of its own, and saving them broke the rule of one card per thing. That
+failed save took the rest of the sync with it: every message in the next fifty was logged as
+"Failed to build message; it is asked for again next sync", with "The EntityManager is closed" as
+the reason, and the folder stopped until the next sync. A fresh install reads thousands of messages
+in its first sync, so it ran into this within minutes. The two mails now share one card, which
+follows the newer mail, and a card that cannot be saved no longer stops the mail behind it.
+
+- **One folder's failure stays in that folder.** When a folder failed to sync, the folders after it
+  in the same account failed too, and each of their messages was blamed for it. They sync as usual
+  now.
+- **Every folder remembers its last check.** When plMail checks a folder against the server, it
+  notes when it did and the folder's UIDVALIDITY, the number a server changes when it rebuilds a
+  folder. In a sync of a whole account, every folder after the first one with new mail lost those
+  notes, so a folder rebuilt on the server was not recognised as rebuilt. Every folder keeps them
+  now.
+- **A fresh install stops logging a warning every second.** Until someone pressed Restart workers
+  in the admin panel, the worker logged `Failed to fetch key "workers.restart_requested_timestamp"`
+  about once a second, because the table that signal is kept in did not exist yet. It is created
+  when the containers start now, and an existing install gets it on its next start.
+
+### Before you upgrade
+
+- **Nothing has to change.** There is no migration, and the compose files stay as they are.
+- **No mail went missing.** A batch that failed was fetched again on the next sync, and no message
+  was given up on. The cards of the failed batches were lost, though. If your worker log shows "The
+  EntityManager is closed", run `docker compose exec php php bin/console app:backfill insights`
+  once after upgrading: it reads your stored mail again and brings them back.
+
 ## v0.2.46 — 2026-09-24
 
 **Three containers instead of nine.** Everything plMail runs besides the web server now runs in one
