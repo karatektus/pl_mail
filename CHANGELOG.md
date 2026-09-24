@@ -6,6 +6,26 @@ so anything that changes the schema irreversibly is called out explicitly.
 The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, and `sha-…` pins one commit.
 
+## v0.2.45 — 2026-09-24
+
+**plMail tells you when there is a newer build.** Admin → Updates checks every hour whether the
+channel you follow has published one: **Releases**, every tagged release, or **Main**, every build
+of the main branch. The administrators hear about each new build once, with a notification on every
+device they have registered for push and a note at the top of the admin area. The page lists what
+changed since the build you run and how to update. Until an administrator picks a channel, an
+installation follows the one its build came from, and **Off** sends nothing at all.
+
+- **Only what a pull would bring.** A check reads the channel's newest image from the registry, so a
+  commit that builds no image is never announced, and it asks GitHub how that image relates to
+  yours: a main build following releases is not told to go back to an older release.
+- **Forks check their own.** Images now carry where they are published (`APP_IMAGE`), so a fork that
+  publishes its own image checks that one.
+
+### Before you upgrade
+
+- One migration runs on boot and adds a table for the update channel and its last check. Additive;
+  nothing else changes. The first check runs within the hour after the upgrade.
+
 ## v0.2.44 — 2026-09-24
 
 **The calendar opens beside your mail.** On a desktop the calendar now starts open next to the
