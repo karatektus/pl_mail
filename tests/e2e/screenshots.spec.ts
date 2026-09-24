@@ -53,6 +53,29 @@ async function capture(page: import("@playwright/test").Page, name: string): Pro
     await page.screenshot({ path: `${OUT}/${name}.png` });
 }
 
+/**
+ * Put the docked calendar in one position, the way the topbar switch persists
+ * it: a POST to the pane-state endpoint with the shell's own token.
+ */
+async function paneMode(page: import("@playwright/test").Page, mode: "mail" | "split"): Promise<void> {
+    const status = await page.evaluate(async (wanted) => {
+        const shell = document.querySelector("[data-controller~='ui--split']") as HTMLElement;
+        const body = new FormData();
+        body.append("_token", shell.getAttribute("data-ui--split-token-value") ?? "");
+        body.append("mode", wanted);
+
+        const response = await fetch(shell.getAttribute("data-ui--split-state-url-value") ?? "", {
+            method: "POST",
+            body,
+            headers: { "X-Requested-With": "fetch" },
+        });
+
+        return response.status;
+    }, mode);
+
+    expect(status, `the pane could not be put in ${mode}`).toBeLessThan(300);
+}
+
 test.describe("README screenshots", () => {
     test.skip(
         undefined === process.env.E2E_SCREENSHOTS,
@@ -65,11 +88,26 @@ test.describe("README screenshots", () => {
     // needed an installation nobody else had.
     test.beforeAll(() => seed("seed-demo"));
 
+    /**
+     * With the calendar beside the mail, which is how a desktop opens plMail
+     * and what the README's first line promises. The fixture user is kept on
+     * the mail alone for the regression suite (app:test:seed-user), so this
+     * asks for the default back for the one picture and restores the
+     * furniture afterwards. The captures after this one are of other things.
+     */
     test("inbox", async ({ page }) => {
         await page.goto("/mail/inbox");
-        await expect(page.locator("#message-list li").first()).toBeVisible();
-        await page.waitForTimeout(600);
-        await capture(page, "inbox");
+        await paneMode(page, "split");
+
+        try {
+            await page.goto("/mail/inbox");
+            await expect(page.locator("#message-list li").first()).toBeVisible();
+            await expect(page.locator("turbo-frame#calendar-pane-frame [data-pane-min-width]")).toBeVisible();
+            await page.waitForTimeout(600);
+            await capture(page, "inbox");
+        } finally {
+            await paneMode(page, "mail");
+        }
     });
 
     test("thread", async ({ page }) => {
