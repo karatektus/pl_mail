@@ -65,6 +65,9 @@ provider doesn't.
   syncing, push that lapsed, work the queue gave up on. Each with what it means for your mail and
   the smallest thing that fixes it. A Google sign-in dying every week gets named for what it is —
   Google expires tokens for an app still in Testing — and warned about before the next one.
+- **And when there is something newer** — follow releases or the main branch, and the
+  administrators hear about each new build once: on their devices and at the top of the admin area,
+  with what changed since the one they run.
 - **Yours** — two-factor auth, per-app JMAP passwords, 41 themes, ten icons for the tab and the
   phone's home screen, English, German and Pirate.
 
