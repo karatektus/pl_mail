@@ -6,6 +6,30 @@ so anything that changes the schema irreversibly is called out explicitly.
 The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, and `sha-…` pins one commit.
 
+## v0.2.48 — 2026-09-24
+
+**One unreadable mail no longer stops a folder.** plMail saves new mail fifty messages at a time,
+and the database refuses text that is not valid UTF-8. Two kinds of mail that older German mail
+systems still send got through unconverted: an attachment named in the old Windows character set,
+"Erklärung.pdf" without any encoding, and a message that says it is UTF-8 while carrying a Windows
+"€". Either one got its whole batch of fifty refused, and because the next sync fetched the same
+fifty, the folder stopped there for good. The log showed `invalid byte sequence for encoding
+"UTF8"`. Both are converted now. And when the database refuses a batch for any other reason, plMail
+saves its messages one at a time: everything it takes is stored, and only the message it refuses is
+held back, tried again on the next syncs, and let go after five.
+
+- **Umlauts survive a stray character.** A UTF-8 mail with one Windows "€" in it was read entirely
+  in the Windows character set to rescue that one character, and every "ü" in it came out as "Ã¼".
+  Only the character that needs converting is converted now.
+- **An invisible NUL character no longer gets a mail refused.** The database will not store one in
+  text, so it is left out.
+
+### Before you upgrade
+
+- **Nothing has to change.** There is no migration, and the compose files stay as they are.
+- **A stalled folder catches up by itself.** A refused batch was never saved, so the first sync
+  after the upgrade fetches it again and stores it. Nothing needs re-syncing by hand.
+
 ## v0.2.47 — 2026-09-24
 
 **A first sync no longer stops on your parcels.** plMail reads new mail fifty messages at a time
