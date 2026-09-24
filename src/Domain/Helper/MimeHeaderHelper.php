@@ -24,14 +24,14 @@ final class MimeHeaderHelper
      */
     public static function decode(string $value): string
     {
-        // Raw 8-bit bytes are normalised BEFORE the encoded words, never
-        // after, and this is the only order that works. An encoded word is
-        // ASCII by construction (RFC 2047 §2), so running the guard first
-        // cannot reach inside one — whereas running it last would meet a
-        // header carrying both shapes, find a correctly decoded "Jörg" sitting
-        // beside a raw 0xFC that never went through RFC 2047 at all, and read
-        // the whole string as cp1252 to rescue the one byte, turning the half
-        // that was already right into mojibake.
+        // Raw 8-bit bytes are normalised BEFORE the encoded words. An encoded
+        // word is ASCII by construction (RFC 2047 §2), so the guard cannot
+        // reach inside one, and each word decoded below leaves CharsetHelper
+        // valid on its own. This used to be the only order that worked, while
+        // ensureUtf8() read a whole invalid string as cp1252: run last, it met
+        // a correctly decoded "Jörg" beside a raw 0xFC and turned the half that
+        // was right into mojibake. It repairs byte by byte now, but the guard
+        // still belongs first, where the raw bytes are all it can see.
         //
         // It is also before the early return below, deliberately: the header
         // that needs this most has no encoded word in it. Non-conforming raw

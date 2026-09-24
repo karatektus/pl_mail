@@ -242,22 +242,63 @@ final class CharsetHelper
     }
 
     /**
+     * One valid UTF-8 sequence, or failing that one byte, which is captured.
+     *
+     * RFC 3629's table, so overlong forms and surrogates are not valid and
+     * fall through to the single byte. No `u` modifier: this has to match
+     * bytes, which is what makes the invalid ones reachable at all.
+     */
+    private const string UTF8_SEQUENCE_OR_BYTE = '/[\x00-\x7F]+'
+        . '|[\xC2-\xDF][\x80-\xBF]'
+        . '|\xE0[\xA0-\xBF][\x80-\xBF]|[\xE1-\xEC\xEE\xEF][\x80-\xBF]{2}|\xED[\x80-\x9F][\x80-\xBF]'
+        . '|\xF0[\x90-\xBF][\x80-\xBF]{2}|[\xF1-\xF3][\x80-\xBF]{3}|\xF4[\x80-\x8F][\x80-\xBF]{2}'
+        . '|(.)/s';
+
+    /**
      * The last thing between a string and a UTF-8 column.
      *
      * Valid UTF-8 is returned untouched, which is nearly everything and costs
-     * one scan. Anything else is read as cp1252, the only 8-bit encoding a
-     * value with no declaration is likely to be. That conversion cannot fail
-     * and cannot drop anything: mbstring gives all 256 byte values a mapping,
-     * filling the five positions the standard leaves undefined with their C1
-     * control characters. So the return is unconditionally storable, which is
-     * the entire contract.
+     * one scan. In anything else, only the bytes that are not valid UTF-8 are
+     * read as cp1252, the only 8-bit encoding a value with no declaration is
+     * likely to be, and every sequence that is valid stays as it is. That
+     * conversion cannot fail and cannot drop anything: mbstring gives all 256
+     * byte values a mapping, filling the five positions the standard leaves
+     * undefined with their C1 control characters. So the return is
+     * unconditionally storable, which is the entire contract.
+     *
+     * Byte by byte, and not the whole string, because the strings that reach
+     * here are usually mostly right. A UTF-8 body with one "€" out of an older
+     * database in it was read entirely as cp1252 to rescue that one byte, and
+     * every correct umlaut beside it came out as "Ã¼". For a string that is
+     * cp1252 throughout the two readings agree, since a cp1252 byte above 0x7F
+     * cannot start a valid UTF-8 sequence without spelling mojibake itself.
+     *
+     * NUL is dropped. It is valid UTF-8, so nothing above would touch it, and
+     * Postgres refuses it in text all the same ("invalid byte sequence for
+     * encoding UTF8: 0x00"), which would make the contract a lie. No mail
+     * means anything by one.
      */
     public static function ensureUtf8(string $value): string
     {
+        if (true === str_contains($value, "\0")) {
+            $value = str_replace("\0", '', $value);
+        }
+
         if (true === mb_check_encoding($value, 'UTF-8')) {
             return $value;
         }
 
-        return (string) mb_convert_encoding($value, 'UTF-8', self::FALLBACK);
+        $repaired = preg_replace_callback(
+            self::UTF8_SEQUENCE_OR_BYTE,
+            static fn (array $match): string => isset($match[1])
+                ? (string) mb_convert_encoding($match[1], 'UTF-8', self::FALLBACK)
+                : $match[0],
+            $value,
+        );
+
+        // PCRE gives up, rather than fails, on a subject past its limits. The
+        // whole-string reading is worse but still storable, and storable is
+        // the contract.
+        return $repaired ?? (string) mb_convert_encoding($value, 'UTF-8', self::FALLBACK);
     }
 }

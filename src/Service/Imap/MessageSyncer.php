@@ -210,109 +210,38 @@ class MessageSyncer
         ?int             &$lowestSkippedUid,
         ImapUidPresence  $presence,
     ): void {
-        $mailbox  = $this->mailboxRepository->find($mailboxId);
-        $messages = [];
-        // Parallel to $messages: the original bytes, which are only in hand
-        // here and are written to disk in pass 2 once the rows have ids.
-        $rawBodies = [];
-        $maxUid   = 0;
+        // The run as it stood before this batch. A batch the database refuses
+        // is decided again from here, one message at a time.
+        $syncedBefore = $syncedUids;
+        $lowestBefore = $lowestSkippedUid;
 
-        // Pass 1 — build + persist Message rows (no threading yet)
-        foreach ($batch as $imapMessage) {
-            $uid = $imapMessage->getUid();
-
-            // A `lastSeenUid+1:*` range still returns the highest-UID message when
-            // nothing newer exists (`*` clamps to it), so every run re-delivers the
-            // newest mail. Skip anything this mailbox already holds — and
-            // anything at or below the mark, which $syncedUids no longer
-            // covers: the clamped `*` can name a UID below it once the newest
-            // message has been deleted.
-            if ($uid <= $lastSeenUid || true === isset($syncedUids[$uid])) {
-                if (true === ($uid > $maxUid)) {
-                    $maxUid = $uid;
-                }
-
-                continue;
+        try {
+            [$mailbox, $messages, $rawBodies, $maxUid] = $this->storeMessages(
+                $batch, $mailboxId, $accountId, $lastSeenUid, $syncedUids, $lowestSkippedUid, $presence, false,
+            );
+        } catch (\Throwable $refused) {
+            // Only a refused write closes the manager. Anything else, the
+            // server going away mid-fetch say, is not something writing the
+            // messages one at a time would get past.
+            if (true === $this->em->isOpen()) {
+                throw $refused;
             }
 
-            // A fetch that told us nothing is not a message. Skipping it here —
-            // before the claim below, which would otherwise be handed an empty
-            // Message-ID to match on — is what stops a ghost row being written.
-            // See isUsableFetch() for what "nothing" means and why.
-            if (false === $this->isUsableFetch($imapMessage)) {
-                $this->logger->warning(
-                    'Skipped an IMAP fetch that carried no message; nothing was persisted',
-                    [
-                        'uid'     => $uid,
-                        'mailbox' => $mailbox->fullPath,
-                        'account' => $accountId,
-                    ],
-                );
+            $this->logger->warning('The database refused a batch; storing its messages one at a time', [
+                'mailboxId' => $mailboxId,
+                'error'     => $refused->getMessage(),
+                'exception' => $refused,
+            ]);
 
-                $this->holdForRetry($mailbox, $uid, $lowestSkippedUid);
+            $this->registry->resetManager();
 
-                continue;
-            }
+            $syncedUids       = $syncedBefore;
+            $lowestSkippedUid = $lowestBefore;
 
-            // A copy of this exact message that this account already holds:
-            // Gmail-imported and waiting for its IMAP twin, or written by our
-            // own composer and waiting for its Sent copy to come back. Either
-            // way it is linked to this mailbox/UID instead of being inserted a
-            // second time, and IMAP operations work on it normally from here.
-            // See SentCopyReconciler, which owns the matching rules and the
-            // reason each of them is scoped the way it is.
-            $rfcMessageId = MessageIdHelper::normalise((string) $imapMessage->getMessageId());
-
-            if (null !== $this->sentCopies->claim($mailbox, $rfcMessageId, $uid, $presence)) {
-                $syncedUids[$uid] = true;
-
-                if (true === ($uid > $maxUid)) {
-                    $maxUid = $uid;
-                }
-
-                continue;
-            }
-
-            try {
-                $message = $this->buildMessage($imapMessage, $mailbox, $accountId);
-                $this->em->persist($message);
-
-                // Only now, with the message whole. buildMessage() used to
-                // persist each part as it went, so a second attachment that
-                // threw left the first one managed and pointing at a message
-                // that was never persisted — and the flush below failed the
-                // whole batch on it.
-                foreach ($message->messageParts as $part) {
-                    $this->em->persist($part);
-                }
-
-                $messages[]        = $message;
-                $rawBodies[]       = $this->rawOf($imapMessage);
-                $syncedUids[$uid]  = true; // mark within this run
-
-                if (true === ($uid > $maxUid)) {
-                    $maxUid = $uid;
-                }
-            } catch (\Throwable $e) {
-                $retrying = $this->holdForRetry($mailbox, $uid, $lowestSkippedUid);
-
-                $this->logger->error(
-                    true === $retrying
-                        ? 'Failed to build message; it is asked for again next sync'
-                        : 'Failed to build message too many times; skipping it for good',
-                    [
-                        'uid'       => $uid,
-                        'mailbox'   => $mailbox->fullPath,
-                        'attempts'  => $mailbox->failedUidAttempts,
-                        'error'     => $e->getMessage(),
-                        'exception' => $e,
-                    ],
-                );
-            }
+            [$mailbox, $messages, $rawBodies, $maxUid] = $this->storeMessages(
+                $batch, $mailboxId, $accountId, $lastSeenUid, $syncedUids, $lowestSkippedUid, $presence, true,
+            );
         }
-
-        // Flush so all new messages have IDs before the threader queries them
-        $this->em->flush();
 
         // A skipped UID must stay inside the next run's range, or "retry next
         // sync" is not true and a message lost to one bad fetch is lost for
@@ -349,6 +278,194 @@ class MessageSyncer
         }
 
         $this->postIngest->run($mailbox->account, $ingested);
+    }
+
+    /**
+     * Pass 1: build the batch's messages and write them, so they have ids
+     * before the threader queries them.
+     *
+     * In one transaction, which is what keeps a first sync of thousands of
+     * mails quick, and a transaction is all or nothing. One value the database
+     * would not take (a raw latin-1 attachment name was the first) had the
+     * whole batch refused, and the refusal named no message. The mark stayed
+     * below the batch, the next sync fetched the same fifty, and the folder
+     * never got past them: holdForRetry() was only ever handed messages that
+     * failed to build, never one the database refused.
+     *
+     * So a refused batch comes back here with $oneAtATime, and every message
+     * is written in a transaction of its own. The database takes each one it
+     * will take, and the one it refuses is held back like a message that could
+     * not be built: asked for again, and after MAX_UID_ATTEMPTS syncs let go.
+     *
+     * @param array<int,bool> $syncedUids        as for processBatch()
+     * @param int|null        $lowestSkippedUid  as for processBatch()
+     *
+     * @return array{Mailbox, list<Message>, list<string>, int} the mailbox as
+     *         the manager holds it now, the messages written, their original
+     *         bytes, and the highest UID the batch named
+     */
+    private function storeMessages(
+        iterable         $batch,
+        int              $mailboxId,
+        int              $accountId,
+        int              $lastSeenUid,
+        array            &$syncedUids,
+        ?int             &$lowestSkippedUid,
+        ImapUidPresence  $presence,
+        bool             $oneAtATime,
+    ): array {
+        $mailbox  = $this->mailboxRepository->find($mailboxId);
+        $messages = [];
+        // Parallel to $messages: the original bytes, which are only in hand
+        // here and are written to disk in pass 2 once the rows have ids.
+        $rawBodies = [];
+        $maxUid   = 0;
+
+        // Pass 1 — build + persist Message rows (no threading yet)
+        foreach ($batch as $imapMessage) {
+            // Cast because webklex only declares it in a docblock
+            // (`@method integer getUid()`), which static analysis cannot read
+            // as an int. The value always is one: holdForRetry() takes it as
+            // one and would have thrown.
+            $uid = (int) $imapMessage->getUid();
+
+            // A `lastSeenUid+1:*` range still returns the highest-UID message when
+            // nothing newer exists (`*` clamps to it), so every run re-delivers the
+            // newest mail. Skip anything this mailbox already holds — and
+            // anything at or below the mark, which $syncedUids no longer
+            // covers: the clamped `*` can name a UID below it once the newest
+            // message has been deleted.
+            if ($uid <= $lastSeenUid || true === isset($syncedUids[$uid])) {
+                if (true === ($uid > $maxUid)) {
+                    $maxUid = $uid;
+                }
+
+                continue;
+            }
+
+            // A fetch that told us nothing is not a message. Skipping it here —
+            // before the claim below, which would otherwise be handed an empty
+            // Message-ID to match on — is what stops a ghost row being written.
+            // See isUsableFetch() for what "nothing" means and why.
+            if (false === $this->isUsableFetch($imapMessage)) {
+                $this->logger->warning(
+                    'Skipped an IMAP fetch that carried no message; nothing was persisted',
+                    [
+                        'uid'     => $uid,
+                        'mailbox' => $mailbox->fullPath,
+                        'account' => $accountId,
+                    ],
+                );
+
+                $this->holdForRetry($mailbox, $uid, $lowestSkippedUid);
+
+                if (true === $oneAtATime) {
+                    $this->em->flush();
+                }
+
+                continue;
+            }
+
+            // A copy of this exact message that this account already holds:
+            // Gmail-imported and waiting for its IMAP twin, or written by our
+            // own composer and waiting for its Sent copy to come back. Either
+            // way it is linked to this mailbox/UID instead of being inserted a
+            // second time, and IMAP operations work on it normally from here.
+            // See SentCopyReconciler, which owns the matching rules and the
+            // reason each of them is scoped the way it is.
+            $rfcMessageId = MessageIdHelper::normalise((string) $imapMessage->getMessageId());
+
+            if (null !== $this->sentCopies->claim($mailbox, $rfcMessageId, $uid, $presence)) {
+                if (true === $oneAtATime) {
+                    $this->em->flush();
+                }
+
+                $syncedUids[$uid] = true;
+
+                if (true === ($uid > $maxUid)) {
+                    $maxUid = $uid;
+                }
+
+                continue;
+            }
+
+            try {
+                $message = $this->buildMessage($imapMessage, $mailbox, $accountId);
+                $this->em->persist($message);
+
+                // Only now, with the message whole. buildMessage() used to
+                // persist each part as it went, so a second attachment that
+                // threw left the first one managed and pointing at a message
+                // that was never persisted — and the flush below failed the
+                // whole batch on it.
+                foreach ($message->messageParts as $part) {
+                    $this->em->persist($part);
+                }
+
+                // One at a time, every message is a transaction of its own, so
+                // a refusal costs this message and nothing written before it.
+                if (true === $oneAtATime) {
+                    $this->em->flush();
+                }
+
+                $messages[]        = $message;
+                $rawBodies[]       = $this->rawOf($imapMessage);
+                $syncedUids[$uid]  = true; // mark within this run
+
+                if (true === ($uid > $maxUid)) {
+                    $maxUid = $uid;
+                }
+            } catch (\Throwable $e) {
+                // Refused rather than unbuildable: the flush above closed the
+                // manager, and the counter has to go onto a mailbox it can
+                // still write. Never for a whole batch, where the messages
+                // before this one are persisted but not written yet, and a
+                // reset would drop them.
+                if (true === $oneAtATime && false === $this->em->isOpen()) {
+                    $this->registry->resetManager();
+                    $mailbox = $this->mailboxRepository->find($mailboxId);
+                }
+
+                $retrying = $this->holdForRetry($mailbox, $uid, $lowestSkippedUid);
+
+                // On its own, so the next refusal cannot roll the count back.
+                if (true === $oneAtATime) {
+                    $this->em->flush();
+                }
+
+                $this->logger->error(
+                    true === $retrying
+                        ? 'Failed to build message; it is asked for again next sync'
+                        : 'Failed to build message too many times; skipping it for good',
+                    [
+                        'uid'       => $uid,
+                        'mailbox'   => $mailbox->fullPath,
+                        'attempts'  => $mailbox->failedUidAttempts,
+                        'error'     => $e->getMessage(),
+                        'exception' => $e,
+                    ],
+                );
+            }
+        }
+
+        // Flush so all new messages have IDs before the threader queries them.
+        // One at a time, everything is written already and this has nothing
+        // left to do.
+        $this->em->flush();
+
+        if (true === $oneAtATime) {
+            // Every refusal reset the manager, and a reset detaches whatever
+            // was written before it. The pipeline writes what it decides onto
+            // these rows and the mark onto the mailbox, so both are found again
+            // where the manager can see them.
+            $mailbox = $this->mailboxRepository->find($mailboxId);
+
+            foreach ($messages as $index => $message) {
+                $messages[$index] = $this->messageRepository->find($message->id) ?? $message;
+            }
+        }
+
+        return [$mailbox, $messages, $rawBodies, $maxUid];
     }
 
     /**
@@ -815,7 +932,15 @@ class MessageSyncer
      */
     private function persistAttachment(mixed $attachment, Message $message, int $accountId): bool
     {
-        $filename = $attachment->getFilename() ?? ('attachment_' . uniqid());
+        // Decoded here, as GmailMessageBuilder does, so the name written to
+        // disk and the name written to the row are the same one. webklex hands
+        // a raw 8-bit name over as it arrived, and a Windows client's
+        // "Erklärung.pdf" in latin-1 is invalid UTF-8: the row's INSERT was
+        // refused ("invalid byte sequence for encoding UTF8: 0xe4 0x72 0x75")
+        // and took its whole batch with it. AttachmentStorageHelper decoded
+        // its copy for the disk; only the row kept the raw bytes.
+        $raw      = $attachment->getFilename();
+        $filename = null === $raw ? 'attachment_' . uniqid() : MimeHeaderHelper::decode($raw);
         $content  = $attachment->getContent();
 
         $storagePath = $this->attachmentStorage->store(

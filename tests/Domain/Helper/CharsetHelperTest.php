@@ -135,6 +135,15 @@ final class CharsetHelperTest extends TestCase
         yield 'latin-1'     => ["Gr\xfc\xdfe von J\xf6rg", 'Grüße von Jörg'];
         yield 'cp1252'      => ["\x93quoted\x94", '“quoted”'];
 
+        // Valid UTF-8 with one cp1252 byte in it: a template in UTF-8 and a
+        // price out of an older database. Only the byte that is not UTF-8 is
+        // read as cp1252. Reading the whole string that way to rescue it
+        // turned every correct umlaut beside it into "Ã¼".
+        yield 'utf-8 with one cp1252 byte' => ["Grüße, nur 10 \x80", 'Grüße, nur 10 €'];
+
+        // Valid UTF-8 that Postgres refuses in text all the same.
+        yield 'nul byte' => ["Rech\0nung", 'Rechnung'];
+
         // cp1252 leaves five byte values undefined; mbstring maps them to the
         // matching C1 control characters rather than failing. The result is
         // not useful, but it is storable, which is the only requirement here.

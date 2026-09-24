@@ -581,12 +581,6 @@ parameters:
 			path: src/Service/Imap/MessageSyncer.php
 
 		-
-			message: '#^Parameter &\$syncedUids by\-ref type of method App\\Service\\Imap\\MessageSyncer\:\:processBatch\(\) expects array\<int, bool\>, array\<bool\> given\.$#'
-			identifier: parameterByRef.type
-			count: 2
-			path: src/Service/Imap/MessageSyncer.php
-
-		-
 			message: '#^Property App\\Service\\Label\\LabelChangePropagator\:\:\$mailboxRepository is never read, only written\.$#'
 			identifier: property.onlyWritten
 			count: 1
