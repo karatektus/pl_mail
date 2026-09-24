@@ -1,4 +1,4 @@
-<!-- translated-from: features/health.md sha1:c3c125649abac8ed65fe5bac2a112c5dbf42a57d -->
+<!-- translated-from: features/health.md sha1:7ff829ccadb403e034cd7bb9278e2a2c95456f38 -->
 
 # Zustand der Konten
 
@@ -141,6 +141,11 @@ fehlt womöglich oder zeigt woandershin. Dieser Teil des Weges liegt außerhalb 
 deshalb kann er scheitern, während hier alles richtig aussieht.
 
 Ein Postfach, das sich nie ändert, erzeugt diesen Beleg nie und meldet das nie, zu keiner Nachtstunde.
+Als Beleg zählt nur eine Änderung an Post in deinem Posteingang, denn nur für den Posteingang lässt
+sich plMail von Gmail benachrichtigen. Gesendete und archivierte Nachrichten sowie Post, die deine
+Filter am Posteingang vorbeileiten, kündigt Gmail nie an, und nichts davon löst diese Meldung aus.
+Registrierst du Push neu, verschwindet die Karte; sie kommt nur zurück, wenn auch die neue
+Registrierung etwas verpasst.
 
 Jede Karte trägt die drei Daten, nach denen geurteilt wurde — **Registrierung läuft ab**, **Letzte
 Benachrichtigung erhalten** und **Erneuerung lief zuletzt** —, sodass du einen stehen gebliebenen

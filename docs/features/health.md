@@ -126,7 +126,10 @@ topic to this address may be missing, or pointing somewhere else. That part of t
 plMail, which is exactly why it can fail while everything here looks correct.
 
 A mailbox that never changes never produces that evidence and never raises this, at any hour of the
-night.
+night. Only a change to mail in your inbox counts as evidence, because the inbox is all plMail asks
+Gmail to announce. Sending a message, archiving one, and mail your filters keep out of the inbox are
+never announced, so none of them raises this. Registering push again clears the card, and it comes
+back only if the new registration misses something too.
 
 Each card carries the three dates it was judged from — **Registration expires**, **Last notification
 received** and **Renewal last ran** — so you can tell a scheduler that stopped from a delivery path

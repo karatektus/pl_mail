@@ -173,6 +173,37 @@ final class GmailApiSyncerHistoryTest extends TestCase
         self::assertSame('67890', $account->gmailHistoryId);
     }
 
+    // ── what counts as a change push should have announced ──────────────────
+
+    /**
+     * The false alarm behind "instant delivery is registered but not
+     * arriving". The watch asks Gmail about the inbox alone, and this feed
+     * carries the whole mailbox: the copy of a sent message, a thread
+     * archived, mail a filter kept out of the inbox. None of it is ever pushed,
+     * so none of it may be recorded as a change push missed.
+     */
+    public function testOnlyInboxChangesCountAsEvidenceAgainstPush(): void
+    {
+        $account = $this->account();
+
+        $this->syncer($this->response(200, [
+            'history' => [
+                ['messagesAdded' => [['message' => ['id' => 'sent-1', 'labelIds' => ['SENT']]]]],
+                ['labelsRemoved' => [['message' => ['id' => 'archived-1', 'labelIds' => ['IMPORTANT']], 'labelIds' => ['INBOX']]]],
+            ],
+            'historyId' => '67890',
+        ]))->syncIncremental($account);
+
+        self::assertNull($account->gmailHistoryAdvancedAt, 'a sent copy and an archived thread are never pushed');
+
+        $this->syncer($this->response(200, [
+            'history'   => [['messagesAdded' => [['message' => ['id' => 'new-1', 'labelIds' => ['UNREAD', 'INBOX']]]]]],
+            'historyId' => '67891',
+        ]))->syncIncremental($account);
+
+        self::assertNotNull($account->gmailHistoryAdvancedAt, 'new inbox mail is what push announces');
+    }
+
     // ── deletions, which the feed used to be filtered out of ─────────────────
 
     /**

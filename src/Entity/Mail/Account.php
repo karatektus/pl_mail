@@ -317,16 +317,19 @@ class Account extends AccountModel
     public ?DateTimeImmutable $gmailLastPushAt = null;
 
     /**
-     * Last time this mailbox was found to have actually CHANGED — the moment
-     * the stored historyId advanced, whoever noticed it.
+     * Last time this mailbox was found to have CHANGED in a way push announces:
+     * the moment the history advanced with a change to mail in the inbox,
+     * whoever noticed it.
      *
      * The counterpart gmailLastPushAt needed to mean anything. Elapsed silence
      * on its own cannot tell a broken push from a quiet mailbox, and every
      * threshold that tries is a guess that either cries wolf at people who get
      * little mail or stays quiet for a day and a half at people whose push has
-     * died. This column removes the guess: Gmail pushes on ANY history change,
-     * so a history that advanced well after the last push is a change that push
-     * failed to announce — evidence, not an inference.
+     * died. This column removes the guess: an inbox change recorded well after
+     * the last push is a change that push failed to announce — evidence, not
+     * an inference. Changes elsewhere in the mailbox (sent mail, archived and
+     * filtered mail, spam) are never pushed and so never recorded here; see
+     * GmailApiSyncer::announcedByPush().
      *
      * A genuinely quiet mailbox never advances its history, so it never
      * produces this evidence and never raises anything, at any hour. That is

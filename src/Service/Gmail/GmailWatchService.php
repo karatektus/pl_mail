@@ -29,6 +29,13 @@ use Symfony\Component\DependencyInjection\Attribute\Autowire;
  */
 final class GmailWatchService
 {
+    /**
+     * The one label the watch asks Gmail to announce changes to. Gmail pushes
+     * only for changes relating to it, so it is also what decides which
+     * mailbox changes count as a push that went missing (GmailApiSyncer).
+     */
+    public const string LABEL = 'INBOX';
+
     public function __construct(
         private readonly GmailApiClient         $apiClient,
         private readonly EntityManagerInterface $em,
@@ -49,7 +56,7 @@ final class GmailWatchService
             'account'   => $account->email,
         ]);
 
-        $response = $this->apiClient->watch($account, ($this->pushSettings->topic() ?? ''));
+        $response = $this->apiClient->watch($account, ($this->pushSettings->topic() ?? ''), self::LABEL);
 
         // expiration is a Unix timestamp in *milliseconds*
         $expirationMs = (int) ($response['expiration'] ?? 0);

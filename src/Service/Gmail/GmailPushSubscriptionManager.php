@@ -225,16 +225,24 @@ final readonly class GmailPushSubscriptionManager implements PushSubscriptionMan
             return PushHealth::Active;
         }
 
+        // Watches are registered with a 7-day expiry, so working backwards from
+        // it gives the registration time without storing a second timestamp.
+        $registeredAt = $expiry->modify('-7 days');
+
+        // A change from before this watch was registered says nothing about
+        // it. Registering again is the repair the card offers, and without this
+        // the card outlived its own repair until the next push came in. If the
+        // new watch misses a change too, the card is back with it.
+        if ($advanced <= $registeredAt) {
+            return PushHealth::Active;
+        }
+
         $lastPush = $account->gmailLastPushAt;
 
         if (null === $lastPush) {
             // Never delivered, and the mailbox HAS changed — so there was
             // something to deliver. Only meaningful once the watch has had time
-            // to fire; watches are registered with a 7-day expiry, so working
-            // backwards from it gives the registration time without storing a
-            // second timestamp.
-            $registeredAt = $expiry->modify('-7 days');
-
+            // to fire.
             if ($registeredAt >= new DateTimeImmutable(self::STARTUP_GRACE)) {
                 return PushHealth::Active;
             }

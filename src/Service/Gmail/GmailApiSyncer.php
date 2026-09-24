@@ -359,17 +359,16 @@ final class GmailApiSyncer
 
         $account->gmailHistoryId = (string) $result['historyId'];
 
-        // Only when the feed actually carried records. history.list answers with
-        // a current historyId on every call, including the overwhelmingly common
-        // one where nothing has happened, so writing the timestamp on every run
-        // would record "the mailbox changed" every fifteen minutes forever and
-        // make the evidence worthless.
+        // Only when the feed carried a change a working push had already
+        // announced. That is what the health check reads this column for: a
+        // change push should have announced and did not.
         //
-        // A non-empty history is the real thing: Gmail pushes on any of these
-        // records, so each one is a change that a working push had already
-        // announced — and if it had not, that is what the health check is
-        // reading this column to find out.
-        if ([] !== $result['history']) {
+        // Not on every run: history.list answers with a current historyId on
+        // every call, including the overwhelmingly common one where nothing has
+        // happened, and recording those would say "the mailbox changed" every
+        // fifteen minutes forever. And not on every record either: see
+        // announcedByPush().
+        if (true === self::announcedByPush($result['history'])) {
             $account->gmailHistoryAdvancedAt = new DateTimeImmutable();
         }
 
@@ -377,6 +376,42 @@ final class GmailApiSyncer
     }
 
     // ── Private ───────────────────────────────────────────────────────────────
+
+    /**
+     * Whether a history window holds a change the push watch announces.
+     *
+     * The watch asks Gmail for one label (GmailWatchService::LABEL, the inbox)
+     * and Gmail pushes only for changes relating to it. This feed is read
+     * unfiltered, because the sync needs every change: the copy of a sent
+     * message, a thread archived, mail a filter kept out of the inbox, spam.
+     * None of those is ever pushed. Counting them as evidence reported a
+     * working push as broken whenever somebody sent a message a quarter of an
+     * hour after the last inbox mail arrived. The card then cleared at the next
+     * inbox mail and came back at the next reply.
+     *
+     * So a record counts only when the message it is about is in the inbox
+     * after the change: new inbox mail, mail moved into it, anything done to
+     * mail that is there. Mail moved OUT of the inbox is left out on purpose:
+     * whether Gmail announces it is not something plMail can know, and the
+     * cost of leaving it out is only that a dead push is noticed at the next
+     * inbox mail instead.
+     *
+     * @param list<array<string, mixed>> $history
+     */
+    private static function announcedByPush(array $history): bool
+    {
+        foreach ($history as $record) {
+            foreach (['messagesAdded', 'messagesDeleted', 'labelsAdded', 'labelsRemoved'] as $type) {
+                foreach ($record[$type] ?? [] as $change) {
+                    if (true === in_array(GmailWatchService::LABEL, $change['message']['labelIds'] ?? [], true)) {
+                        return true;
+                    }
+                }
+            }
+        }
+
+        return false;
+    }
 
     /**
      * Take out the rows for messages Gmail says no longer exist.

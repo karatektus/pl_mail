@@ -159,6 +159,27 @@ final class AccountHealthPushVerdictTest extends WebTestCase
     }
 
     /**
+     * Registering again is the repair the card offers, so a miss recorded
+     * under the watch it replaced says nothing about the new one. The card used
+     * to outlive its own repair until the next push arrived.
+     */
+    public function testAMissFromBeforeTheCurrentWatchIsNotHeldAgainstIt(): void
+    {
+        $client  = static::createClient();
+        $user    = $this->boot($client);
+        $account = $this->gmailAccount($user, 'repaired@joder.dev');
+
+        $account->pushEnabled = true;
+        // Registered a minute ago: the repair was just pressed.
+        $account->gmailWatchExpiry       = new DateTimeImmutable('+7 days -1 minute');
+        $account->gmailLastPushAt        = new DateTimeImmutable('-6 hours');
+        $account->gmailHistoryAdvancedAt = new DateTimeImmutable('-1 hour');
+        $this->em->flush();
+
+        self::assertSame(0, $this->pushCard($client, $account)->count());
+    }
+
+    /**
      * Both failures light the topbar indicator now.
      *
      * This is the assertion that answers the original complaint — the user
