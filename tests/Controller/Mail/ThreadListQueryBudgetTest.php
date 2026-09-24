@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Controller\Mail;
 
+use App\Domain\Enum\Calendar\CalendarPaneMode;
 use App\Domain\Enum\Mail\LabelRole;
 use App\Domain\Enum\Mail\MessageCategory;
 use App\Domain\Enum\Mail\ThreadingMethod;
@@ -133,6 +134,13 @@ final class ThreadListQueryBudgetTest extends WebTestCase
         $this->user    = $this->seedUser();
         $this->account = $this->seedAccount();
         $this->inbox   = $this->seedLabel('Inbox', LabelRole::Inbox);
+
+        // The calendar pane shut. It is open by default now, and an open pane
+        // arrives with its body embedded: a fixed handful of queries of its
+        // own, the same on an empty list as on a full one. What this measures
+        // is what the LIST costs, so the pane stays out of the count.
+        $this->user->calendarPaneMode = CalendarPaneMode::Mail;
+        $this->em->flush();
 
         $this->client->loginUser($this->user);
     }

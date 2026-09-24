@@ -161,6 +161,15 @@ csrf token. Both measured: see App\Twig\ListFragmentGlobal.
                 still demotes there on connect, so the correction flash is
                 confined to the case that actually needs correcting. #}
              data-calendar-mode="{{ app.user.calendarPaneMode.value }}"
+             {# …and marked as remembered rather than chosen in this window, which
+                is what keeps the phone's first paint clean. Below lg every
+                remembered position opens on the mail, and the pane is already
+                `hidden` there, so until the controller has confirmed the mode
+                the mail must not step aside for a calendar that is not drawn
+                (see [data-calendar-restored] in app.css). Split is the default
+                now, so without this every phone would open on a blank row and
+                wait for JavaScript to put the mail back. connect() removes it. #}
+             data-calendar-restored
              {# The pane reloads its body through a Turbo Frame, and the view it
                 lands on decides how much room it wants — see
                 CalendarView::minimumPaneWidth(). turbo:frame-load bubbles, so

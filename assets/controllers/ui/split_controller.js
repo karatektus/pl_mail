@@ -138,6 +138,12 @@ export default class extends Controller {
         }
 
         this._render(this._isNarrow() && mode !== "mail" ? "mail" : mode);
+
+        // The mode on the shell is this window's now, not just the stored one,
+        // so the layout may follow it at every width. See
+        // [data-calendar-restored] in app.css.
+        delete this.element.dataset.calendarRestored;
+
         // Same reason as in _setMode: a stored width from a bigger window
         // must not squeeze the mail to a sliver on this one.
         this._reclamp();

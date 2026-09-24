@@ -23,10 +23,14 @@ user between 320 and 900 pixels, defaulting to 380, and it is written into the p
 the pane is already the right size on the first paint instead of jumping once the browser catches
 up.
 
+On a desktop the pane starts open. Until you move the switch, the calendar sits beside your mail,
+so the two are side by side from the first visit. Close it and plMail remembers that.
+
 Below 1024px wide the row cannot hold a sidebar, a readable message list and a readable calendar at
 once, so the pane takes the whole row and the mail steps aside. It is the same pane and the same
-toggle — closing it puts the mail back exactly as it was, with no navigation in between. Below
-768px there is no pane at all and the calendar is its own page.
+toggle — closing it puts the mail back exactly as it was, with no navigation in between. A phone
+always opens on the mail, whatever the pane was doing on your desktop; the button brings the
+calendar up when you want it. Below 768px there is no pane at all and the calendar is its own page.
 
 **Its own page.** `/calendar` replaces the mail view entirely. This is what a phone gets, and what
 anyone gets who navigates there directly or follows a link.

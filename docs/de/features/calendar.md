@@ -1,4 +1,4 @@
-<!-- translated-from: features/calendar.md sha1:13f7f85db3b695f3e19820be962b0340bad8ca5a -->
+<!-- translated-from: features/calendar.md sha1:c163a4ba26701e250eb36e30ec68297d279b715d -->
 
 # Kalender
 
@@ -25,11 +25,16 @@ Doppelklick stellt die alte Breite wieder her. Die Breite wird pro Benutzer geme
 900 Pixeln, voreingestellt 380, und sie wird serverseitig in die Seite geschrieben, damit die Fläche
 schon beim ersten Zeichnen die richtige Breite hat und nicht springt, sobald der Browser nachzieht.
 
+Auf dem Desktop ist die Fläche von Anfang an offen. Bis du den Schalter bewegst, steht der Kalender
+neben deiner Mail, die beiden sind also schon beim ersten Besuch Seite an Seite. Schließt du ihn,
+merkt sich plMail das.
+
 Unter 1024 Pixeln Breite trägt die Zeile keine Seitenleiste, keine lesbare Nachrichtenliste und
 keinen lesbaren Kalender mehr auf einmal, also nimmt die Fläche die ganze Zeile und die Mail tritt
 zur Seite. Es ist dieselbe Fläche und derselbe Schalter — schließt du sie, steht die Mail wieder
-genau so da wie zuvor, ohne dass dazwischen navigiert worden wäre. Unter 768 Pixeln gibt es gar
-keine Fläche mehr, und der Kalender ist eine eigene Seite.
+genau so da wie zuvor, ohne dass dazwischen navigiert worden wäre. Ein Telefon öffnet immer mit der
+Mail, egal was die Fläche auf deinem Desktop gerade tut; die Schaltfläche holt den Kalender, wenn du
+ihn willst. Unter 768 Pixeln gibt es gar keine Fläche mehr, und der Kalender ist eine eigene Seite.
 
 **Als eigene Seite.** `/calendar` ersetzt die Mail-Ansicht vollständig. Das ist es, was ein Telefon
 bekommt, und was jeder bekommt, der direkt dorthin navigiert oder einem Link folgt.

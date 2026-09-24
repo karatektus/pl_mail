@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Command\Test;
 
+use App\Domain\Enum\Calendar\CalendarPaneMode;
 use App\Entity\User\User;
 use App\Repository\User\UserRepository;
 use App\Service\Onboarding\OnboardingFlow;
@@ -125,6 +126,14 @@ final class SeedTestUserCommand extends Command
                 (new DateTimeImmutable())->format(DateTimeInterface::ATOM),
             );
         }
+
+        // The mail alone, not the product's default. A new user opens with the
+        // calendar docked beside the mail on a desktop, and the suite was
+        // written against a list with the whole row. A docked pane narrows it
+        // until row actions are display:none, which fails as missing buttons
+        // rather than as a layout. SeedTestEmailCommand puts the same furniture
+        // back on every mail seed; this covers the specs that never seed mail.
+        $user->calendarPaneMode = CalendarPaneMode::Mail;
 
         $this->entityManager->flush();
 

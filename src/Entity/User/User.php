@@ -785,15 +785,22 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
     /**
      * Virtual, out of the settings bag — see SETTING_CALENDAR_PANE_MODE.
      *
-     * Falls back to the boolean this replaced rather than to Mail, so upgrading
-     * does not shut the pane on everybody who had it open.
+     * Nobody who has not chosen starts on the mail alone any more: the default
+     * is Split, the calendar beside the mail, because mail and a diary side by
+     * side is what plMail is for and a closed pane is one nobody finds. That is
+     * a desktop's default only. Below lg the pane never opens on arrival (see
+     * ui--split's connect()), so a phone still opens on its mail.
+     *
+     * The boolean this replaced is still read, so a pane somebody shut under
+     * it stays shut. Only an explicit `false` means that; a missing key means
+     * nobody ever chose.
      */
     public CalendarPaneMode $calendarPaneMode {
         get => CalendarPaneMode::fromSetting(
             $this->getSetting(self::SETTING_CALENDAR_PANE_MODE),
-            true === $this->getSetting(self::SETTING_CALENDAR_PANE_OPEN, false)
-                ? CalendarPaneMode::Split
-                : CalendarPaneMode::Mail,
+            false === $this->getSetting(self::SETTING_CALENDAR_PANE_OPEN)
+                ? CalendarPaneMode::Mail
+                : CalendarPaneMode::Split,
         );
         set (CalendarPaneMode $mode) {
             $this->setSetting(self::SETTING_CALENDAR_PANE_MODE, $mode->value);

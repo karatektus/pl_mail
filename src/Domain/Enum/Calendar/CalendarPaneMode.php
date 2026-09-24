@@ -27,10 +27,16 @@ namespace App\Domain\Enum\Calendar;
  */
 enum CalendarPaneMode: string
 {
-    /** No calendar. The mail has the row, which is where everyone starts. */
+    /**
+     * No calendar: the mail has the row. Where a phone always opens, and where
+     * anybody who shut the pane stays.
+     */
     case Mail = 'mail';
 
-    /** Both, divided by the drag handle. Above lg only. */
+    /**
+     * Both, divided by the drag handle. Above lg only. Where a desktop starts
+     * until somebody moves the switch (User::$calendarPaneMode).
+     */
     case Split = 'split';
 
     /** The calendar has the row; the mail is still there, behind it. */

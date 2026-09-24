@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Controller\Demo;
 
+use App\Domain\Enum\Calendar\CalendarPaneMode;
 use App\Repository\Mail\AccountRepository;
 use App\Repository\Mail\MessageRepository;
 use App\Repository\Mail\MessageThreadRepository;
@@ -189,6 +190,11 @@ final class DemoFlowTest extends WebTestCase
         // the thing they came to see.
         self::assertNotNull($visitor->getSetting(\App\Entity\User\User::SETTING_ONBOARDING_COMPLETED_AT));
         self::assertNotNull($visitor->getSetting(DemoProvisioner::SETTING_EXPIRES_AT));
+
+        // The calendar beside the mail, which is half of what the demo is
+        // there to show. It is the default for anyone who has not chosen, and a
+        // demo visitor never has.
+        self::assertSame(CalendarPaneMode::Split, $visitor->calendarPaneMode);
 
         $account = $container->get(AccountRepository::class)->findOneBy(['usr' => $visitor]);
 
