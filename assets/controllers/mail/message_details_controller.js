@@ -27,6 +27,7 @@ export default class extends Controller {
         }
 
         this.panelTarget.classList.remove("hidden");
+        this.#fitIntoPane();
         this.#header()?.setAttribute("data-details-open", "");
 
         if (this.hasCaretTarget) {
@@ -65,6 +66,57 @@ export default class extends Controller {
     }
 
     // ── Private ───────────────────────────────────────────────────────────
+
+    /**
+     * Keep the panel inside the pane it opens in.
+     *
+     * It hangs from the recipient line at a fixed 28rem, and the reading pane
+     * clips whatever leaves it. Beside the docked calendar the pane is
+     * narrower than the line's offset plus the panel, so the right edge of
+     * every row was cut away, addresses included. So the panel moves left by
+     * what does not fit, and is narrowed only when the pane itself is narrower
+     * than the panel. Measured on every open, since the calendar can be docked
+     * or closed in between.
+     */
+    #fitIntoPane() {
+        const panel = this.panelTarget;
+        const pane = this.#clippingAncestor();
+
+        panel.style.left = "";
+        panel.style.maxWidth = "";
+
+        if (null === pane) {
+            return;
+        }
+
+        const margin = 8;
+        const bounds = pane.getBoundingClientRect();
+        const room = bounds.width - 2 * margin;
+
+        if (panel.getBoundingClientRect().width > room) {
+            panel.style.maxWidth = `${room}px`;
+        }
+
+        const box = panel.getBoundingClientRect();
+        const overflow = box.right - (bounds.right - margin);
+
+        if (overflow > 0) {
+            panel.style.left = `${-Math.min(overflow, box.left - (bounds.left + margin))}px`;
+        }
+    }
+
+    /** The nearest ancestor that clips: the one the panel has to fit inside. */
+    #clippingAncestor() {
+        for (let element = this.element.parentElement; null !== element; element = element.parentElement) {
+            const style = getComputedStyle(element);
+
+            if ("visible" !== style.overflowX || "visible" !== style.overflowY) {
+                return element;
+            }
+        }
+
+        return null;
+    }
 
     /**
      * The sticky header this panel hangs from, where there is one — the

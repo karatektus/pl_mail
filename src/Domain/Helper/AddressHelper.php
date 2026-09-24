@@ -22,6 +22,13 @@ final class AddressHelper
     public const int MAX_EMAIL_LENGTH = 320;
 
     /**
+     * RFC 5322's dot-atom: atoms of the characters an unquoted local part may
+     * use, joined by single dots. What isValidEmail() holds a local part past
+     * 64 characters to. See there.
+     */
+    private const string DOT_ATOM = '/^[a-z0-9!#$%&\'*+\/=?^_`{|}~-]+(?:\.[a-z0-9!#$%&\'*+\/=?^_`{|}~-]+)*$/i';
+
+    /**
      * Display name as a human would write it: encoded words decoded, the
      * RFC 5322 quoted-string wrapper removed and its escapes undone.
      *
@@ -77,14 +84,31 @@ final class AddressHelper
      * `filter_var` is deliberately stricter than the sync paths are: a header
      * that failed to parse yields fragments like `"Doe` or an empty local part,
      * and those must not become contacts.
+     *
+     * Except in one rule, which real senders break: filter_var() also holds
+     * the local part to RFC 5321's 64 characters, and GitHub's reply addresses
+     * run to about ninety. Refused, a reply to a GitHub notification could
+     * neither go to its Reply-To nor become the contact the To field needs, so
+     * it opened with nobody to send to. A longer local part is held to the
+     * dot-atom instead, the unquoted form every such address uses, and its
+     * domain to filter_var() as before. Checking a shortened copy would not
+     * do: whatever was cut off would go unchecked.
      */
     public static function isValidEmail(?string $raw): bool
     {
         $email = self::email($raw);
+        $at    = strrpos($email, '@');
 
-        return '' !== $email
-            && strlen($email) <= self::MAX_EMAIL_LENGTH
-            && false !== filter_var($email, FILTER_VALIDATE_EMAIL);
+        if ('' === $email || strlen($email) > self::MAX_EMAIL_LENGTH || false === $at) {
+            return false;
+        }
+
+        if ($at <= 64) {
+            return false !== filter_var($email, FILTER_VALIDATE_EMAIL);
+        }
+
+        return 1 === preg_match(self::DOT_ATOM, substr($email, 0, $at))
+            && false !== filter_var('x' . substr($email, $at), FILTER_VALIDATE_EMAIL);
     }
 
     /**

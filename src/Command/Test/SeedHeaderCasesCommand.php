@@ -58,6 +58,7 @@ final class SeedHeaderCasesCommand extends Command
 
     private const string UNDISCLOSED_SUBJECT = 'E2E Undisclosed';
     private const string HEADER_ONLY_SUBJECT = 'E2E Header Only';
+    private const string LONG_REPLY_SUBJECT  = 'E2E Long Reply-To';
 
     public function __construct(
         private readonly EntityManagerInterface  $entityManager,
@@ -99,7 +100,7 @@ final class SeedHeaderCasesCommand extends Command
 
         $account = $this->account($user);
 
-        foreach ([self::UNDISCLOSED_SUBJECT, self::HEADER_ONLY_SUBJECT] as $subject) {
+        foreach ([self::UNDISCLOSED_SUBJECT, self::HEADER_ONLY_SUBJECT, self::LONG_REPLY_SUBJECT] as $subject) {
             $this->removePreviousSeed($account, $subject);
         }
 
@@ -125,9 +126,23 @@ final class SeedHeaderCasesCommand extends Command
             ],
         );
 
+        // A GitHub notification's Reply-To: one unbreakable word of about a
+        // hundred characters, with a local part past RFC 5321's 64. It widened
+        // the details panel's value column past the panel itself, and the
+        // parser refused it outright.
+        $this->seed(
+            $account,
+            self::LONG_REPLY_SUBJECT,
+            'Seeded message whose Reply-To is a GitHub reply address.',
+            [
+                'to'       => 'karatektus/sigeko <sigeko@noreply.github.com>',
+                'reply-to' => 'karatektus/sigeko <reply+017babb4f3213243ecf35c1492ef42f159c1db898253598292cf000000011822707092a169ce172b972e@reply.github.com>',
+            ],
+        );
+
         $this->entityManager->flush();
 
-        $io->success('Seeded 2 threads: undisclosed recipients, and header-only recipients.');
+        $io->success('Seeded 3 threads: undisclosed recipients, header-only recipients, and a long Reply-To.');
 
         return Command::SUCCESS;
     }

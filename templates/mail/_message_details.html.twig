@@ -25,12 +25,14 @@ mailed-by and signed-by were silently missing from every IMAP message.
 {# One address, with a copy button for the addr-spec itself. The clipboard
    source is the address text as it is rendered, so the insecure-context
    fallback (which selects the source) highlights exactly what it copied. #}
-{% macro address(entry) %}
+{% macro address(entry, separator = '') %}
     <span data-controller="ui--clipboard"
           data-ui--clipboard-confirm-text-value="{{ 'clipboard.copied'|trans }}"
           data-ui--clipboard-failed-text-value="{{ 'clipboard.copy_failed'|trans }}"
           class="inline-flex items-baseline gap-1 max-w-full">
-        <span class="break-words">
+        {# min-w-0 for the same reason as the grid column below: a flex item
+           will not go narrower than its longest word unless told to. #}
+        <span class="min-w-0 break-words">
             {%- if entry.name -%}
                 {{ entry.name }} &lt;<span data-ui--clipboard-target="source">{{ entry.address }}</span>&gt;
             {%- else -%}
@@ -49,13 +51,17 @@ mailed-by and signed-by were silently missing from every IMAP message.
                and this is the same news for a screen reader. #}
             <span data-ui--clipboard-target="label" class="sr-only" role="status"></span>
         </button>
+        {{- separator -}}
     </span>
 {% endmacro %}
 
+{# The comma goes inside the address it follows and the space outside, so a
+   line can break between two addresses but never leave the comma alone at
+   the start of one, which it did on a phone. #}
 {% macro addresses(list) %}
     {%- import _self as m -%}
     {%- for entry in list -%}
-        {{ m.address(entry) }}{{ not loop.last ? ', ' : '' }}
+        {{ m.address(entry, not loop.last ? ',' : '') }}{{ not loop.last ? ' ' : '' }}
     {%- endfor -%}
 {% endmacro %}
 
@@ -71,6 +77,7 @@ mailed-by and signed-by were silently missing from every IMAP message.
 {% set toList      = message_addresses(message, 'to') %}
 {% set ccList      = message_addresses(message, 'cc') %}
 {% set bccList     = message_addresses(message, 'bcc') %}
+{% set replyToList = message_addresses(message, 'reply-to') %}
 {% set summary     = message_recipient_summary(message) %}
 {% set replyTo     = h['reply-to']|default(null) %}
 {% set returnPath  = h['return-path']|default('') %}
@@ -104,7 +111,9 @@ mailed-by and signed-by were silently missing from every IMAP message.
 {% set addressText = a => a.name ? a.name ~ ' <' ~ a.address ~ '>' : a.address %}
 {% set headerLines = ['From: ' ~ fromText] %}
 {% if replyTo %}
-    {% set headerLines = headerLines|merge(['Reply-To: ' ~ replyTo]) %}
+    {% set headerLines = headerLines|merge(['Reply-To: ' ~ (replyToList is not empty
+        ? replyToList|map(addressText)|join(', ')
+        : replyTo)]) %}
 {% endif %}
 {% set headerLines = headerLines|merge([
     'To: ' ~ (toList is not empty
@@ -153,15 +162,24 @@ mailed-by and signed-by were silently missing from every IMAP message.
                border border-line shadow-pop
                text-xs cursor-default"
     >
-        <dl class="grid grid-cols-[5.5rem_1fr] gap-x-3 gap-y-1.5 px-4 py-3">
+        {# minmax(0,1fr), not 1fr. A bare 1fr never goes narrower than its
+           longest unbreakable word, so a GitHub reply address widened the whole
+           column past the panel, every row with it, and break-words below
+           never got the chance to wrap anything. #}
+        <dl class="grid grid-cols-[5.5rem_minmax(0,1fr)] gap-x-3 gap-y-1.5 px-4 py-3">
             <dt class="text-ink-faint text-right">{{ 'message.details.from'|trans }}</dt>
             <dd class="text-ink-soft break-words">
                 {{ details.address({ name: message.fromName, address: message.fromAddress }) }}
             </dd>
 
+            {# Parsed like the rows around it, so it reads the same and copies
+               the same. The raw header is the fallback for one that names no
+               address this can parse, which is better shown than hidden. #}
             {% if replyTo %}
                 <dt class="text-ink-faint text-right">{{ 'message.details.reply_to'|trans }}</dt>
-                <dd class="text-ink-soft break-words">{{ replyTo }}</dd>
+                <dd class="text-ink-soft break-words">
+                    {{- replyToList is not empty ? details.addresses(replyToList) : replyTo -}}
+                </dd>
             {% endif %}
 
             {# Always rendered, empty or not — see the summary note above. #}

@@ -70,6 +70,22 @@ final class RecipientHeaderHelperTest extends TestCase
         );
     }
 
+    /**
+     * GitHub's reply address has a local part of about ninety characters, past
+     * RFC 5321's 64, and filter_var() refuses it. Dropped, a reply to any
+     * GitHub notification went to notifications@github.com instead, which
+     * accepts nothing.
+     */
+    public function testAReplyAddressWithALongLocalPartIsKept(): void
+    {
+        $github = 'reply+017babb4f3213243ecf35c1492ef42f159c1db898253598292cf000000011822707092a169ce172b972e@reply.github.com';
+
+        self::assertSame(
+            [['name' => 'karatektus/sigeko', 'address' => $github]],
+            RecipientHeaderHelper::addresses(['reply-to' => "karatektus/sigeko <{$github}>"], 'reply-to'),
+        );
+    }
+
     public function testAGroupWithNoMembersYieldsNobody(): void
     {
         self::assertSame(

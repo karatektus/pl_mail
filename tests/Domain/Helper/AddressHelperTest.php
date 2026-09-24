@@ -78,6 +78,13 @@ final class AddressHelperTest extends TestCase
         yield 'empty'            => ['', false];
         yield 'null'             => [null, false];
         yield 'over 320 chars'   => [str_repeat('a', 315) . '@example.com', false];
+
+        // Past RFC 5321's 64-character local part, and real: GitHub's reply
+        // addresses look like this, and refusing them left a reply to a
+        // GitHub notification with nobody to go to.
+        yield 'long local part'  => ['reply+' . str_repeat('0f', 42) . '@reply.github.com', true];
+        yield 'long local part with dots' => [str_repeat('a', 63) . '.' . str_repeat('b', 30) . '@example.com', true];
+        yield 'long and broken'  => [str_repeat('a', 70) . ' b@example.com', false];
     }
 
     /**

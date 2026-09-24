@@ -95,6 +95,59 @@ test.describe("message header recipients", () => {
     });
 });
 
+test.describe("message header details layout", () => {
+    /**
+     * A long unbreakable address used to widen the whole value column past
+     * the panel, and the panel ran past the reading pane when a docked
+     * calendar narrowed it. The pane is narrowed by hand to the width that
+     * calendar leaves at 1100px, because which way this user's calendar switch
+     * is set is not something the spec can count on.
+     */
+    test("a GitHub reply address stays inside the panel, and the panel inside the pane", async ({ page }) => {
+        await openThread(page, "E2E Long Reply-To");
+
+        const details = page.locator(DETAILS).first();
+
+        await details.evaluate((element) => {
+            let pane = element.parentElement;
+
+            while (null !== pane && "visible" === getComputedStyle(pane).overflowX && "visible" === getComputedStyle(pane).overflowY) {
+                pane = pane.parentElement;
+            }
+
+            pane!.style.maxWidth = "460px";
+        });
+
+        await details.getByRole("button", { name: "Details" }).click();
+
+        const panel = details.locator(PANEL);
+        await expect(panel).toBeVisible();
+
+        const fit = await panel.evaluate((element) => {
+            let pane = element.parentElement;
+
+            while (null !== pane && "visible" === getComputedStyle(pane).overflowX && "visible" === getComputedStyle(pane).overflowY) {
+                pane = pane.parentElement;
+            }
+
+            const box = element.getBoundingClientRect();
+            const bounds = pane!.getBoundingClientRect();
+            const grid = element.querySelector("dl")!;
+
+            return {
+                pastThePane: Math.round(Math.max(0, box.right - bounds.right, bounds.left - box.left)),
+                pastThePanel: grid.scrollWidth - grid.clientWidth,
+            };
+        });
+
+        expect(fit).toEqual({ pastThePane: 0, pastThePanel: 0 });
+
+        // Parsed like the rows around it, which also proves the parser took
+        // an address it used to refuse.
+        await expect(panel.getByRole("button", { name: /Copy address reply\+017babb4f/ })).toBeVisible();
+    });
+});
+
 test.describe("message header clipboard", () => {
     test("copies one address, and shows that it did", async ({ page }) => {
         await openThread(page, "E2E Read Me");

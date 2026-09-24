@@ -40,16 +40,18 @@ final class MessageRecipientsExtension extends AbstractExtension
     }
 
     /**
-     * @param 'to'|'cc'|'bcc' $field
+     * @param 'to'|'cc'|'bcc'|'reply-to' $field
      *
      * @return list<array{name: string, address: string}>
      */
     public function addresses(Message $message, string $field): array
     {
         $stored = match ($field) {
-            'cc'    => $message->ccAddresses,
-            'bcc'   => $message->bccAddresses,
-            default => $message->toAddresses,
+            'cc'       => $message->ccAddresses,
+            'bcc'      => $message->bccAddresses,
+            // No column at all: Reply-To only ever lives in the header bag.
+            'reply-to' => [],
+            default    => $message->toAddresses,
         } ?? [];
 
         if ([] !== $stored) {
