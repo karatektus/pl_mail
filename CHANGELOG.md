@@ -6,6 +6,34 @@ so anything that changes the schema irreversibly is called out explicitly.
 The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, and `sha-…` pins one commit.
 
+## v0.2.46 — 2026-09-24
+
+**Three containers instead of nine.** Everything plMail runs besides the web server now runs in one
+`worker` container: the IMAP supervisor, the four queue workers, the scheduler and the Mercure hub.
+Each is still its own process, kept running by `app:work`, so a send still never waits behind a
+sync. The stack is `php`, `worker` and `database`, plus `secrets-init`, which runs once at startup
+and exits. Every process keeps the name its container had, so the admin dashboard, `/healthz` and
+the log filters read as before.
+
+- **The hub is part of plMail's image now.** The official Mercure 1.x hub ships inside the image and
+  runs in the worker, which answers to `mercure` on the network, so nothing that talks to the hub
+  changes. It is not FrankenPHP's built-in hub: that one is still a 0.x release, and cannot read the
+  tokens plMail has used since v0.2.31.
+- **A plain-HTTP install sets `MERCURE_COOKIE_NAME` once,** for the app and the hub both.
+- **Stopping no longer waits on open browser tabs.** The hub gives live-update connections five
+  seconds to close, then closes them, and browsers reconnect by themselves.
+
+### Before you upgrade
+
+- **Nothing has to change.** The new image still runs the older compose files, with one container
+  per process and the separate `dunglas/mercure` hub, exactly as before.
+- **To move to three containers,** replace your compose file with the current `compose.yaml`. On
+  TrueNAS, paste the current `truenas.compose.yaml` over the app's YAML and put your values back
+  into its `x-config` block. The hub keeps its history, because the worker mounts the same
+  `mercure_data` volume.
+- **If you maintain your own compose,** the worker needs `init: true`, `stop_grace_period: 30s` and
+  the network alias `mercure`. See `compose.yaml`.
+
 ## v0.2.45 — 2026-09-24
 
 **plMail tells you when there is a newer build.** Admin → Updates checks every hour whether the
