@@ -154,7 +154,15 @@ Blocks:
         {%- elseif view.value == 'month' -%}
             {{ anchor|intl_date('yMMMM', false) }}
         {%- else -%}
-            {{ anchor|intl_date('dMMMy', false) }}
+            {# The docked pane leaves this about seventy pixels beside its view
+               buttons, and "Sep 24, 2026" does not fit: it was cut to "Sep 24,
+               20…" on the one surface every desktop opens on. The year says
+               nothing there while it is this year, so the pane drops it and
+               keeps it for any other. Week and month widen the pane to fit
+               them (CalendarView::minimumPaneWidth()), so only these two views
+               need it. #}
+            {%- set thisYear = anchor|date('Y', false) == 'now'|date('Y') -%}
+            {{ anchor|intl_date(compact and thisYear ? 'dMMM' : 'dMMMy', false) }}
         {%- endif -%}
     </h2>
 
