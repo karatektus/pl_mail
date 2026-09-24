@@ -110,6 +110,12 @@ services:
     App\Infrastructure\Encryption\Encryptor:
         public: true
 
+    # Filled in by DatabaseCachePoolsPass. Autowiring runs before the profiler
+    # wraps the cache pools, too early to tell an adapter from its wrapper.
+    App\Infrastructure\Setup\DatabaseCacheTables:
+        arguments:
+            $pools: !abstract 'every DoctrineDbalAdapter in the container'
+
     # The policy is enforced in production and reported under debug, because the
     # profiler toolbar and VarDumper inject inline scripts nothing can nonce.
     App\Security\Csp\ContentSecurityPolicyListener:

@@ -121,6 +121,20 @@ final readonly class PostgresStatusRepository
     }
 
     /**
+     * Whether a table exists, for the tables that are not the migrations' to
+     * create. False when the catalogue cannot be read: the caller then tries to
+     * create the table, and that attempt reports the real problem.
+     */
+    public function hasTable(string $name): bool
+    {
+        try {
+            return $this->connection->createSchemaManager()->tableExists($name);
+        } catch (\Throwable) {
+            return false;
+        }
+    }
+
+    /**
      * Statements whose *average* is slow, worst first — "which queries are
      * slow". Floored, because a statement that averages a fraction of a
      * millisecond is noise on this view however often it runs.

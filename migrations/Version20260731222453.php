@@ -33,6 +33,10 @@ use Doctrine\Migrations\AbstractMigration;
  *
  * cache_items is deliberately absent despite showing up in the diff: the DBAL
  * cache adapter creates that table itself on first write and owns its DDL.
+ * First write is not soon enough, though — every consumer reads the
+ * restart-workers signal long before anything writes it, and each failed read
+ * is logged — so app:db:migrate has the adapter create it at boot. See
+ * App\Infrastructure\Setup\DatabaseCacheTables.
  */
 final class Version20260731222453 extends AbstractMigration
 {

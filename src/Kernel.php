@@ -4,12 +4,26 @@ namespace App;
 
 use App\Infrastructure\Doctrine\Type\EncryptedStringType;
 use App\Infrastructure\Encryption\Encryptor;
+use App\Infrastructure\Setup\DatabaseCachePoolsPass;
 use Symfony\Bundle\FrameworkBundle\Kernel\MicroKernelTrait;
+use Symfony\Component\DependencyInjection\Compiler\PassConfig;
+use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\HttpKernel\Kernel as BaseKernel;
 
 class Kernel extends BaseKernel
 {
     use MicroKernelTrait;
+
+    /**
+     * Late on purpose: DatabaseCachePoolsPass has to see the cache pools after
+     * the profiler has wrapped them (before-removing, priority 0), or it would
+     * take a wrapper for an adapter. -10 is the slot DoctrineBundle's own pass
+     * over the same adapters takes, for the same reason.
+     */
+    protected function build(ContainerBuilder $container): void
+    {
+        $container->addCompilerPass(new DatabaseCachePoolsPass(), PassConfig::TYPE_BEFORE_REMOVING, -10);
+    }
 
     /**
      * Doctrine builds its types through a static registry with no access to

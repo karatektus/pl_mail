@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Command\Setup;
 
+use App\Infrastructure\Setup\DatabaseCacheTables;
 use App\Repository\Monitoring\PostgresStatusRepository;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Platforms\PostgreSQLPlatform;
@@ -88,6 +89,7 @@ final class MigrateCommand extends Command
     public function __construct(
         private readonly Connection $connection,
         private readonly PostgresStatusRepository $statistics,
+        private readonly DatabaseCacheTables $cacheTables,
     ) {
         parent::__construct();
     }
@@ -114,7 +116,7 @@ final class MigrateCommand extends Command
         // migrate unprotected, which is exactly what happened before this
         // command existed.
         if (!$this->connection->getDatabasePlatform() instanceof PostgreSQLPlatform) {
-            return $this->runMigrations($output);
+            return $this->migrate($io, $output);
         }
 
         $timeout = max(0, (int) $input->getOption('lock-timeout'));
@@ -132,7 +134,7 @@ final class MigrateCommand extends Command
         }
 
         try {
-            $result = $this->runMigrations($output);
+            $result = $this->migrate($io, $output);
 
             // Under the same lock, so only the container that migrated tries it
             // rather than all four racing a CREATE EXTENSION. Best effort by
@@ -146,6 +148,38 @@ final class MigrateCommand extends Command
         } finally {
             $this->releaseLock($io);
         }
+    }
+
+    /**
+     * The migrations, then the cache tables they deliberately leave out — see
+     * DatabaseCacheTables for why those cannot wait for their first write.
+     *
+     * Here because this is the step every container finishes before it starts
+     * anything that reads them, and, on Postgres, inside the lock, so php and
+     * the worker booting together cannot both find the table missing and race
+     * to create it.
+     *
+     * Best effort, like the statement statistics: the adapter still creates its
+     * table on its first write, so a failure here costs log noise until then,
+     * which is no reason to keep a container from starting.
+     */
+    private function migrate(SymfonyStyle $io, OutputInterface $output): int
+    {
+        $result = $this->runMigrations($output);
+
+        if (Command::SUCCESS !== $result) {
+            return $result;
+        }
+
+        try {
+            foreach ($this->cacheTables->createMissing() as $table) {
+                $io->text(sprintf('Created the cache table %s.', $table));
+            }
+        } catch (\Throwable $error) {
+            $io->warning(sprintf('Could not create the cache tables: %s', $error->getMessage()));
+        }
+
+        return $result;
     }
 
     /**

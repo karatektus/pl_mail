@@ -29,6 +29,9 @@ use Symfony\Component\Console\Tester\CommandTester;
  * container that cannot get it refuses to migrate rather than pressing on, and
  * the lock is handed back afterwards. If any of those three regress, boot goes
  * back to being a race.
+ *
+ * Also the cache table the migrations leave out, which the command creates
+ * after them; see DatabaseCacheTables.
  */
 final class MigrateCommandTest extends KernelTestCase
 {
@@ -120,6 +123,28 @@ final class MigrateCommandTest extends KernelTestCase
         );
 
         $this->otherContainer->executeQuery('SELECT pg_advisory_unlock(?)', [$this->lockKey()]);
+    }
+
+    public function testTheCacheTableExistsBeforeAnyConsumerReadsTheRestartSignal(): void
+    {
+        $schema = $this->connection->createSchemaManager();
+
+        // A fresh install: the migrations leave cache_items to the adapter, and
+        // nothing has written to a pool yet.
+        if ($schema->tableExists('cache_items')) {
+            $schema->dropTable('cache_items');
+        }
+
+        self::assertSame(Command::SUCCESS, $this->command->execute([]));
+        self::assertTrue(
+            $schema->tableExists('cache_items'),
+            'Without it every consumer logs a failed read of the restart signal once a second.',
+        );
+        self::assertStringContainsString('cache_items', $this->command->getDisplay());
+
+        // Every later boot finds it there and leaves it alone.
+        self::assertSame(Command::SUCCESS, $this->command->execute([]));
+        self::assertStringNotContainsString('cache_items', $this->command->getDisplay());
     }
 
     /**
