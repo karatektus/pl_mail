@@ -6,6 +6,22 @@ so anything that changes the schema irreversibly is called out explicitly.
 The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, and `sha-…` pins one commit.
 
+## v0.2.43 — 2026-09-24
+
+**The tab icon shows the icon you picked.** Picking an icon under Settings → Appearance → Logo
+pointed the tab at it straight away, but the tab icon was drawn from your saved setting, and the
+save lands a moment later. So the tab got the icon you had before, and the browser kept it for a
+week: every icon except Classic showed up as the one picked before it. The tab icon is now drawn
+from its own address, so there is nothing for the save to race. A browser that kept a wrong one
+needs no clearing either, because the icons live at new addresses now.
+
+- **The top bar's icon stands on its own.** The rounded tile around it is the icon as a phone's
+  home screen shows it, and in the corner of a web page it read as an app icon. The @-Horn keeps
+  its tile, because its cream @ needs the coloured field behind it. Every icon in the top bar is a
+  little larger now, the pl mark included, so switching between them does not change the size.
+- **Dark themes keep it in sight.** On a dark top bar the horn switches to its colourway's colours
+  for dark themes, as the pl mark always has, and the mailbox post turns grey.
+
 ## v0.2.42 — 2026-09-23
 
 **Pick an icon, then its colours.** Settings → Appearance → Logo has two steps now. First the icon:
