@@ -1,4 +1,4 @@
-<!-- translated-from: install/troubleshooting.md sha1:376ffd5aba03bcdd113d715cfcca4ce64526fa1f -->
+<!-- translated-from: install/troubleshooting.md sha1:978f8c024df0873bd3f40023340d6b2667177efa -->
 # Fehlersuche
 
 Was `/healthz` bedeutet, wie du eine hängende von einer leeren Warteschlange unterscheidest, wo die
@@ -54,9 +54,10 @@ HTTP-Status.
 
 ## Die Warteschlange
 
-Vier Transports auf dem Doctrine-Transport, jeder mit einem eigenen Worker-Prozess:
+Vier Transports auf dem Doctrine-Transport, jeder mit einem eigenen Consumer-Prozess im
+Worker-Container:
 
-| Warteschlange | Container | Was darauf liegt |
+| Warteschlange | Prozess | Was darauf liegt |
 |---|---|---|
 | `export` | `worker-export` | Alles, was plMail verlässt — Versand, Flag-Pushes, Gmail-Label-Änderungen, Mail aus dem Notifier. Die einzige Warteschlange, auf die jemand wartet |
 | `ingest` | `worker-ingest` | Eingehende Mail, Gmail- und Graph-Nachrichten-Batches, Kalenderabgleiche, Terminerkennung |
@@ -163,9 +164,12 @@ Dashboard mit toten Workern füllt, die nie wirklich tot waren.
 
 ```bash
 docker compose logs -f php
-docker compose logs -f worker-ingest
-docker compose logs -f scheduler
+docker compose logs -f worker
 ```
+
+Alles, was nicht der Webserver ist, protokolliert über den Worker: die Warteschlangen-Consumer, der
+Scheduler, der IMAP-Supervisor und der Hub. Jeder JSON-Eintrag nennt den Prozess, von dem er stammt,
+ein Filter auf `worker-ingest` oder `scheduler` findet also genau einen davon.
 
 Der Haupt-Handler ist `fingers_crossed` auf `error` mit einem Puffer von 50 Nachrichten, das heißt,
 gewöhnliche Info-Zeilen werden verworfen — *bis* etwas fehlschlägt, und dann werden die 50
@@ -250,6 +254,6 @@ Installation, deren unlesbare Daten wirklich entbehrlich sind, neu anfangen kann
 des Verschlüsselungsschlüssels lässt es bewusst zu — siehe
 [CONTRIBUTING](../../CONTRIBUTING.md#when-the-keys-disagree).
 
-**Logs aus `docker compose logs php` sind nur die des Web-Containers.** Sechs Container laufen mit
-demselben Image, und die interessante Zeile steht meist in dem Worker, dem die Warteschlange gehört,
-auf der die Arbeit lag.
+**Logs aus `docker compose logs php` sind nur die des Web-Containers.** Die interessante Zeile steht
+meist in dem Worker-Prozess, dem die Warteschlange gehört, auf der die Arbeit lag, und die
+protokollieren alle über `docker compose logs worker`.

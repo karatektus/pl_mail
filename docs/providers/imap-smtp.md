@@ -51,8 +51,8 @@ plMail holds an **IMAP IDLE** connection to each mailbox, which is the protocol'
 server reaches plMail in seconds.
 
 There is nothing to switch on. When plMail discovers an account's folders it marks the ones the
-server flags as the inbox and the junk folder as IDLE-enabled, and the `imap-supervisor` service
-runs one connection per such folder, restarting any that drop with a short backoff. Other folders
+server flags as the inbox and the junk folder as IDLE-enabled, and the IMAP supervisor (one of the
+worker container's processes) runs one connection per such folder, restarting any that drop with a short backoff. Other folders
 are synced but not watched, which is a deliberate economy: an IDLE connection is a held TCP socket,
 and holding thirty of them per account to learn about mail moving into an archive folder costs more
 than it is worth.
@@ -61,9 +61,9 @@ Behind that, a scheduled sweep syncs every account every fifteen minutes regardl
 arrive immediately; the sweep is what makes it arrive at all when a connection has been dropped by a
 firewall or a provider has decided to stop answering IDLE for a while.
 
-If mail is not arriving on its own, the thing to check first is that the `imap-supervisor` container
-is running. Without it, nothing holds an IDLE connection and mail arrives on the fifteen-minute
-schedule only.
+If mail is not arriving on its own, the thing to check first is that the worker container is
+running, and that the admin dashboard's Processes panel shows the IMAP supervisor beating. Without
+it, nothing holds an IDLE connection and mail arrives on the fifteen-minute schedule only.
 
 ## App passwords at the big providers
 
@@ -142,7 +142,7 @@ to look when one mailbox has quietly stopped.
 fifteen-minute sweep. A message that appears in plMail four minutes after a rule filed it into a
 subfolder on the server is this, working as designed.
 
-**Without the `imap-supervisor` service, nothing holds an IDLE connection.** Mail still arrives, on
+**Without the IMAP supervisor, nothing holds an IDLE connection.** Mail still arrives, on
 the schedule, which makes this a very quiet failure — the symptom is "mail is always a few minutes
 late" rather than anything that looks broken.
 

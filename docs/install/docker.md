@@ -18,7 +18,8 @@ emulation. Which machine you are on changes a few details — see [Platform note
 
 Sizing is worth a thought rather than a rule. PHP's `memory_limit` is `2G` in the image, each of the
 four Messenger workers is capped by `--memory-limit=256M` and recycles on `--time-limit=3600`, and
-Postgres, the Mercure hub and the IMAP supervisor each want their own share on top. A first sync of
+Postgres, the Mercure hub and the IMAP supervisor each want their own share on top. The workers, the
+hub and the IMAP supervisor share one container, so a memory limit on it covers all of them. A first sync of
 a large mailbox is the busiest this ever gets.
 
 That is enough for IMAP mailboxes. Gmail and Outlook additionally need OAuth credentials — see
@@ -63,14 +64,14 @@ knowing about:
 1. **`secrets-init` runs and exits.** It mints `APP_SECRET`, `APP_ENCRYPTION_KEY`,
    `POSTGRES_PASSWORD` and `MERCURE_JWT_SECRET` into `var/secrets/generated.env` on the shared
    `app_secrets` volume, plus a bare `postgres_password` file. It runs before everything else
-   because Postgres and Mercure read their secrets when their containers are created and cannot
-   wait for the app to hand them one. On every later start it finds the file and does nothing.
+   because Postgres reads its password when its container is created and cannot wait for the app
+   to hand it one. On every later start it finds the file and does nothing.
 2. **`database` starts** and reads its password through `POSTGRES_PASSWORD_FILE`. Every app service
    waits on its healthcheck, which allows a 60-second start period.
 3. **Each app container runs the same entrypoint.** It loads the generated secrets, assembles
    `DATABASE_URL` from `POSTGRES_PASSWORD` unless you supplied a DSN with a password of your own,
    waits up to 60 attempts for the database, then runs `app:db:migrate` — Doctrine's migrate under a
-   Postgres advisory lock, so the six containers booting together cannot collide.
+   Postgres advisory lock, so the containers booting together cannot collide.
 4. **`app:secrets:init` runs**, after migrations. It verifies that the encryption key in force can
    decrypt the credentials already stored, then generates a VAPID keypair and the JMAP JWT keypair
    if they are missing.
@@ -117,26 +118,51 @@ from the environment, or reach the setup page through the address you actually i
 
 | Service | What it runs | Why it is its own container |
 |---|---|---|
-| `secrets-init` | `generate-secrets`, then exits | Postgres and Mercure need their secrets at container-create time, before the app exists |
-| `php` | FrankenPHP serving the app | The only app service with an HTTP server, and therefore the only one whose image healthcheck is left enabled — the others disable it and report liveness through heartbeats instead |
+| `secrets-init` | `generate-secrets`, then exits | Postgres needs its password at container-create time, before the app exists |
+| `php` | FrankenPHP serving the app | The only app service with an HTTP server, and therefore the only one whose image healthcheck is left enabled — the worker disables it and reports liveness through heartbeats instead |
+| `worker` | `app:work`: every background process, one process each | Everything that is not the web server. It answers to `mercure` on the network, because it runs the hub |
 | `database` | `postgres:18-alpine` with `pg_stat_statements` preloaded | — |
-| `mercure` | The Mercure hub | Live updates — the mail list refreshing by itself |
+| `ntfy` | ntfy, under the `push` profile | Optional. Android push without Google — start it with `docker compose --profile push up -d` |
+
+The worker's processes. Each is started again when it stops: at once when it stopped cleanly (a
+consumer recycling at its time or memory limit), after a backoff of up to thirty seconds when it
+crashed.
+
+| Process | What it runs | What it is for |
+|---|---|---|
+| `mercure` | The Mercure hub, 1.x | Live updates — the mail list refreshing by itself |
 | `imap-supervisor` | `app:imap:supervise` | Spawns and watches one `app:imap:idle` process per IDLE-enabled mailbox, so standard IMAP mail arrives the moment it lands |
 | `worker-export` | `messenger:consume export` | Anything leaving plMail, and the only queue somebody is watching. On its own process so a send is never behind a sync |
 | `worker-ingest` | `messenger:consume ingest` | Mail arriving and the work that immediately follows it |
 | `worker-maintenance` | `messenger:consume maintenance async` | Backfills, rule runs over existing mail, admin sweeps. Also drains the retired `async` queue |
 | `worker-bulk` | `messenger:consume bulk` | Whole-view actions: mark every unread read, archive the lot. On its own process because somebody is watching an indicator for it and it must not wait behind a backfill |
-| `scheduler` | `messenger:consume scheduler_default` | Fires everything recurring. **Nothing schedules itself without this container** |
-| `ntfy` | ntfy, under the `push` profile | Optional. Android push without Google — start it with `docker compose --profile push up -d` |
+| `scheduler` | `messenger:consume scheduler_default` | Fires everything recurring. **Nothing schedules itself without this process** |
 
-Four processes rather than four transports on one worker, because a worker already inside a long
+Four queue processes rather than four transports on one, because a worker already inside a long
 handler cannot pick up anything else however the queues are prioritised. That was the original
-problem: pressing Send behind a Gmail batch waited for the batch.
+problem: pressing Send behind a Gmail batch waited for the batch. They used to be one container
+each; they are one process each now, which is the part that mattered. Each keeps its old name as
+`APP_CONTAINER_NAME`, which the heartbeats, `/healthz` and the admin log viewer go by, so they read
+exactly as they did.
 
-**The failure mode is dropping the `scheduler` service.** Without it nothing recurring fires at all
-— no polling sync, no snooze wake, no calendar sync, no reminders, no pruning — and there is no
-error anywhere, because nothing failed. `php bin/console debug:scheduler` lists what should be
-running.
+The hub is the official Mercure 1.x binary, copied into the plMail image rather than run from its
+own. It is not the hub FrankenPHP has built in, which is a 0.x release, and plMail speaks the 1.0
+protocol.
+
+**Splitting it up again** is `app:work --only=…` and `--without=…`. A container running
+`app:work --only=worker-bulk` beside one running `app:work --without=worker-bulk` gives the bulk
+queue a container, and a memory limit, of its own. Only one container may run `mercure`, and it is
+the one that needs the `mercure` network alias.
+
+**Upgrading from one container per process** needs nothing at once: the image still runs each of
+those services as it did, and the separate `dunglas/mercure` hub still works. Replace the compose
+file with the current one when convenient. The hub keeps its history, because the worker mounts the
+same `mercure_data` volume.
+
+**The failure mode is leaving the `scheduler` process out** with `--only` or `--without`. Without
+it nothing recurring fires at all — no polling sync, no snooze wake, no calendar sync, no
+reminders, no pruning — and there is no error anywhere, because nothing failed.
+`php bin/console debug:scheduler` lists what should be running.
 
 ## Storage, and what the stock file does not persist
 
@@ -144,11 +170,11 @@ The compose file declares ten named volumes:
 
 | Volume | Holds |
 |---|---|
-| `app_secrets` | `generated.env`, `postgres_password`, the JWT keypair. Mounted by **every** app service, and read-only into `database` and `mercure` |
+| `app_secrets` | `generated.env`, `postgres_password`, the JWT keypair. Mounted by **every** app service, and read-only into `database` |
 | `app_attachments`, `app_raw`, `app_uploads` | Attachments, raw message sources, and staged JMAP uploads. Mounted by every app service, because the workers write them and the web container serves them |
 | `database_data` | The PostgreSQL cluster |
 | `caddy_data`, `caddy_config` | Caddy's TLS material and state |
-| `mercure_data`, `mercure_config` | Hub state |
+| `mercure_data`, `mercure_config` | Hub state, mounted by the worker |
 | `ntfy_data` | Notification topic state |
 
 The three blob volumes were missing until recently, and the failure was silent in an instructive

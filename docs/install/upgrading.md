@@ -8,15 +8,17 @@ rather than pulling the previous tag.
 ## Migrations run automatically, on every boot
 
 `frankenphp/docker-entrypoint.sh` waits for the database and then runs `app:db:migrate` in every
-app container — the web server, the IMAP supervisor, all four workers. That command is
+app container — the web server and the worker, and each container of an older layout that ran
+one process per container. That command is
 `doctrine:migrations:migrate --all-or-nothing --no-interaction` with one addition: it holds a
 Postgres advisory lock for the whole run.
 
-The lock is not decoration. Six containers start within milliseconds of each other against one
-database, all six read the migration ledger before any of them has written to it, and all six
+The lock is not decoration. The app containers start within milliseconds of each other against one
+database, all of them read the migration ledger before any has written to it, and all of them
 decide the same migration is pending. Without the lock one wins, the rest block on its table lock,
 are released when it commits, and die on a schema that has already moved —
-`SQLSTATE[42701]: Duplicate column`. Under `set -e` that is five services that never start. With
+`SQLSTATE[42701]: Duplicate column`. Under `set -e` those are services that never start. It was
+five of them when every process had a container of its own. With
 it, the losers wait, read a ledger that is already current, and exit having found nothing to do.
 
 Three consequences follow, and they are the reason this page exists:

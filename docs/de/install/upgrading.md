@@ -1,4 +1,4 @@
-<!-- translated-from: install/upgrading.md sha1:5ff93f95aaf246cd1cfa30883c1381c2722131ea -->
+<!-- translated-from: install/upgrading.md sha1:cd56ca54927898f35075d3948a2deb9257fc0a4a -->
 # Aktualisieren
 
 plMail migriert seine eigene Datenbank beim Start. Diese eine Entscheidung prägt alles auf dieser
@@ -10,16 +10,17 @@ Tag zu ziehen.
 ## Migrationen laufen automatisch, bei jedem Start
 
 `frankenphp/docker-entrypoint.sh` wartet auf die Datenbank und führt dann in jedem
-Anwendungscontainer `app:db:migrate` aus — im Webserver, im IMAP-Supervisor, in allen vier Workern.
+Anwendungscontainer `app:db:migrate` aus — im Webserver und im Worker, und in jedem Container eines
+älteren Aufbaus, der einen Prozess pro Container betrieb.
 Dieser Befehl ist `doctrine:migrations:migrate --all-or-nothing --no-interaction` mit einer
 Ergänzung: Er hält für den gesamten Lauf einen Postgres-Advisory-Lock.
 
-Der Lock ist keine Zierde. Sechs Container starten im Abstand von Millisekunden gegen eine
-Datenbank, alle sechs lesen das Migrationsregister, bevor einer von ihnen hineingeschrieben hat, und
-alle sechs entscheiden, dass dieselbe Migration aussteht. Ohne den Lock gewinnt einer, die übrigen
-blockieren an seiner Tabellensperre, werden bei seinem Commit freigegeben und sterben an einem
-Schema, das sich bereits bewegt hat — `SQLSTATE[42701]: Duplicate column`. Unter `set -e` sind das
-fünf Dienste, die nie starten. Mit dem Lock warten die Verlierer, lesen ein bereits aktuelles
+Der Lock ist keine Zierde. Die Anwendungscontainer starten im Abstand von Millisekunden gegen eine
+Datenbank, alle lesen das Migrationsregister, bevor einer von ihnen hineingeschrieben hat, und alle
+entscheiden, dass dieselbe Migration aussteht. Ohne den Lock gewinnt einer, die übrigen blockieren
+an seiner Tabellensperre, werden bei seinem Commit freigegeben und sterben an einem Schema, das
+sich bereits bewegt hat — `SQLSTATE[42701]: Duplicate column`. Unter `set -e` sind das Dienste, die
+nie starten. Es waren fünf, solange jeder Prozess seinen eigenen Container hatte. Mit dem Lock warten die Verlierer, lesen ein bereits aktuelles
 Register und beenden sich, ohne etwas gefunden zu haben.
 
 Daraus folgen drei Dinge, und sie sind der Grund für diese Seite:

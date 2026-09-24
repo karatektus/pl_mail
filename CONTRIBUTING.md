@@ -59,8 +59,9 @@ That first boot takes a few minutes. The dev stack bind-mounts the source tree o
 `composer install` once to fill it, under a lock so the five services sharing the mount cannot race.
 Later boots skip it.
 
-Migrations run automatically via the entrypoint. The `imap-supervisor`, `messenger-worker` and
-`scheduler` services start with the stack and restart on failure.
+Migrations run automatically via the entrypoint. The worker container starts with the stack and
+runs everything that is not the web server (`app:work`): the IMAP supervisor, one consumer per
+queue, the scheduler and the Mercure hub, each its own process, each restarted when it stops.
 
 `.github/workflows/docker.yml` builds the published image for both `linux/amd64` and `linux/arm64`,
 each on a native runner, then merges the two into one manifest. A change to the `Dockerfile` must
@@ -811,6 +812,7 @@ php bin/mirror-wiki.php --check
 | `app:reset --full [--rotate-secrets]` | Back to first-run state: every table, every user, the stored files. `--rotate-secrets` also discards the generated secrets and requires restarting the whole stack — see "Secrets and the encryption key" |
 | `app:secrets:init` | Generate the per-install secrets that need PHP, and verify the encryption key against stored credentials |
 | `app:upgrade:run [--status]` | Run the one-time repairs this installation has not run yet, and record that it did. Scheduled every ten minutes, so normally nobody types it — what it guards is the gap between an update landing and a repair happening, and asking costs one indexed lookup per task. Run it by hand after restoring an old backup, or with `--status` to read the ledger when a task has used up its three attempts and you want to see what it says |
+| `app:work [--only=…] [--without=…]` | Run every background process in one container, one process each: the Mercure hub, the IMAP supervisor, the four queue consumers and the scheduler. It is the worker container's command. `--only` and `--without` take process names, comma-separated, for an installation that gives a busy queue a container of its own, or the demo, which runs without the IMAP supervisor |
 | `app:updates:check` | Ask the update channel (Admin → Updates) whether a newer build is published, and tell the administrators the first time it is. Scheduled hourly at :37, so normally nobody types it; run it to check now. Exits 0 when the registry cannot be reached, because an installation behind a firewall is not a fault: the page records why and keeps the last answer |
 | `app:db:migrate` | Run pending migrations under a lock, so several containers booting together cannot collide. This is what the entrypoint calls; run it by hand only when a boot was interrupted |
 | `app:ai:embed-mailbox --email=… \| --all` | Queue a pass that embeds an existing mailbox for semantic search. Needed once after switching the feature on, and again after changing the search model. Runs on the maintenance worker a chunk at a time, takes hours on a large mailbox, and is safe to interrupt and safe to repeat — it skips whatever is already embedded under the current model, so changing the model is how a re-embed is asked for. This is the whole-mailbox job: it claims a state row, resumes where it stopped and can be paused from Admin → AI |
@@ -823,8 +825,8 @@ php bin/mirror-wiki.php --check
 
 These run on a schedule already — see `App\Infrastructure\Scheduler\MaintenanceSchedule`
 for the cadences (polling sync every 15 min, push renewal and monitoring pruning
-nightly, the blob sweep weekly). They are dispatched by the `scheduler` service in
-compose, which consumes the `scheduler_default` transport; without that container
+nightly, the blob sweep weekly). They are dispatched by the `scheduler` process in
+the worker container, which consumes the `scheduler_default` transport; without it
 running, none of them fire. `php bin/console debug:scheduler` shows the next run of
 each.
 

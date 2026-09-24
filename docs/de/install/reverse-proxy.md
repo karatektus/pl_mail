@@ -1,4 +1,4 @@
-<!-- translated-from: install/reverse-proxy.md sha1:97f1ea6185294b50988ab2e0a9dc93ff18ee8b74 -->
+<!-- translated-from: install/reverse-proxy.md sha1:0c7b41ef1eee378b74f5810cd9189eab728c4a1a -->
 # Hinter einem Reverse-Proxy
 
 Alles, was von außerhalb des eigenen Netzes erreichbar ist, will ein echtes Zertifikat davor, und
@@ -109,8 +109,8 @@ Redirect-URI-Abweichung nennt die URI, und das `http://` darin ist der ganze Hin
 ## Mercures öffentliche URL
 
 Der Hub wird auf der Origin der Anwendung selbst durchgereicht: `frankenphp/Caddyfile` leitet
-`/.well-known/mercure*` an den `mercure`-Container, sodass der Browser den Hub auf derselben Origin
-erreicht, das Subscriber-Cookie ein First-Party-Cookie ist und es nirgends eine CORS-Konfiguration
+`/.well-known/mercure*` an `mercure` weiter, den Worker-Container, der den Hub betreibt und auf
+diesen Namen antwortet. Der Browser erreicht den Hub so auf derselben Origin, das Subscriber-Cookie ein First-Party-Cookie ist und es nirgends eine CORS-Konfiguration
 gibt.
 
 Zwei Variablen, und sie zeigen in entgegengesetzte Richtungen:

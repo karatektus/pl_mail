@@ -78,8 +78,8 @@ works; writing `${APP_DEMO_MODE:-1}` into a compose file does not, and fails in 
 stack comes up healthy and simply is not a demo. So the overlay hardcodes it, and
 `ComposeEnvironmentTest` keeps it that way.
 
-It also parks `imap-supervisor`, which would otherwise spend the whole time failing to connect to
-mailboxes a demo does not have.
+It also leaves the IMAP supervisor out of the worker (`app:work --without=imap-supervisor`), which
+would otherwise spend the whole time failing to connect to mailboxes a demo does not have.
 
 The install still needs a first user before anything is reachable — `/install` or `app:setup`, as
 on any other deployment. That user is yours, not a visitor's: the reaper only ever deletes

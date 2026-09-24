@@ -1,4 +1,4 @@
-<!-- translated-from: internals/architecture.md sha1:d211816996a11ea7432dcd0b9925abb7c42dfa45 -->
+<!-- translated-from: internals/architecture.md sha1:ad354438d897072ff5d4a852b98d222881661e2b -->
 # Architektur
 
 Die Schichten, was wo liegt, und die Regeln, die das so halten. Diese Seite beschreibt die
@@ -178,7 +178,7 @@ Workers, damit ein verzögerter Retry nie auf einen Neustart warten muss.
 Getrennte Transports allein genügen nicht. Ein Worker, der bereits in einem langen Handler
 steckt, kann eine Sendung nicht aufnehmen, wie hoch sie auch priorisiert ist — also hat jeder
 Transport seinen eigenen Prozess: `worker-export`, `worker-ingest`, `worker-maintenance` und
-`worker-bulk` in `compose.yaml`. Ein fünfter Transport, `async`, wird ohne Routing
+`worker-bulk`, die `app:work` nebeneinander im Worker-Container betreibt. Ein fünfter Transport, `async`, wird ohne Routing
 weitergeführt, damit Envelopes, die vor der Aufteilung eingereiht wurden, noch irgendwo landen
 können; der Maintenance-Worker leert ihn.
 
@@ -221,7 +221,7 @@ Referenz auf einen Manager, den es nicht mehr gibt.
 
 `App\Infrastructure\Scheduler\MaintenanceSchedule` ist die eine Stelle, an der wiederkehrende
 Arbeit deklariert wird. Konsumiert wird sie von `messenger:consume scheduler_default` — dem
-Dienst `scheduler` in `compose.yaml` — und **sonst läuft davon nichts**, was genau der Zustand
+Prozess `scheduler` im Worker-Container — und **sonst läuft davon nichts**, was genau der Zustand
 war, in dem das Projekt vorher steckte: Logs und verwaiste Blobs wuchsen ohne Grenze.
 
 | Cron | Befehl | Warum diese Taktung |
@@ -282,8 +282,8 @@ einem HTTP-Request herauszuholen, bleibt damit stillschweigend darin.
 `CalendarSubscriberTest` prüft das Routing; eine neue Message bekommt weder das eine noch das
 andere geschenkt.
 
-**Ein neuer Befehl in `MaintenanceSchedule` tut nichts, solange der Dienst `scheduler` nicht
-läuft.** Das ist ein eigener Container, der `scheduler_default` konsumiert. `php bin/console
+**Ein neuer Befehl in `MaintenanceSchedule` tut nichts, solange der Prozess `scheduler` nicht
+läuft.** Er ist einer der Prozesse des Worker-Containers und konsumiert `scheduler_default`. `php bin/console
 debug:scheduler` zeigt den nächsten Lauf jedes Eintrags und ist der schnellste Weg
 herauszufinden, dass die Antwort „nie" lautet.
 

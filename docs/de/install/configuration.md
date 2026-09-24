@@ -1,4 +1,4 @@
-<!-- translated-from: install/configuration.md sha1:5ed07d4ee0630df517792929aa3da26f85c1953f -->
+<!-- translated-from: install/configuration.md sha1:960f0f7ec8f30fc6aba96e312303042e5f0dcc32 -->
 # Konfigurationsreferenz
 
 Jede Umgebungsvariable, die plMail liest, was sie bewirkt, welchen Vorgabewert sie hat und was
@@ -62,6 +62,7 @@ Das sind die Variablen aus `.env`, in der Reihenfolge, in der sie dort stehen.
 | `MERCURE_URL` | Die Hub-Adresse, an die die **Anwendung** innerhalb des Docker-Netzes veröffentlicht. | `http://mercure/.well-known/mercure` | Ja | Falsch, und nichts wird veröffentlicht: keine Live-Aktualisierungen, kein sichtbarer Fehler auf der Seite. |
 | `MERCURE_PUBLIC_URL` | Die Hub-Adresse, die der **Browser** abonniert. | `https://localhost/.well-known/mercure`, sowohl in `.env` als auch in `compose.yaml` | Ja | Falsch, und der Browser öffnet einen Stream dorthin, wo er nicht hinkommt — Maillisten hören auf, sich selbst zu aktualisieren, während der Rest der Anwendung funktioniert. Wird nur dann aus `APP_PUBLIC_URL` abgeleitet, wenn sie nicht gesetzt oder leer ist, was die Standard-`compose.yaml` verhindert. Siehe [Hinter einem Reverse-Proxy](reverse-proxy.md). |
 | `MERCURE_JWT_SECRET` | Signiert die Publisher- und Subscriber-JWTs. | leer — 32 zufällige Bytes, hexadezimal, beim ersten Start erzeugt | Ja, aber erzeugt | Anwendung und Hub müssen denselben Wert halten. Weichen sie voneinander ab, weist der Hub jeden Subscriber ab — aus Sicht des Browsers lautlos. |
+| `MERCURE_COOKIE_NAME` | Der Name des Cookies, mit dem der Browser abonnieren darf. Die Anwendung setzt es und der Hub liest es, beide aus dieser einen Variablen. | leer — `__Secure-mercure_access_token` | Nur ohne TLS | Eine Installation, die schlichtes HTTP ausliefert und nirgends TLS vorgeschaltet hat, braucht einen Namen ohne das Präfix `__Secure-`, etwa `mercure_access_token`: Ein Browser verwirft ein `__Secure-`-Cookie, das nicht über HTTPS kam, und Live-Aktualisierungen starten nie. |
 | `GOOGLE_OAUTH_CLIENT_ID` | Google-OAuth-Client. | leer | Für Gmail | Ohne sie kann "Mit Google anmelden" nicht starten. Ein unter **Administration → Integrationen** gespeicherter Wert gewinnt gegen diesen. Siehe [Google](../providers/google.md). |
 | `GOOGLE_OAUTH_CLIENT_SECRET` | Client-Secret des Google-OAuth-Clients. | leer | Für Gmail | Wie oben. |
 | `GMAIL_PUBSUB_TOPIC` | Vollständiger Topic-Name, in den Gmail Watch-Benachrichtigungen veröffentlicht. | `projects/your-project-id/topics/gmail-push` — ein Platzhalter, kein funktionierender Wert | Für sofortige Gmail-Zustellung | Der Platzhalter ist kein Topic, das dir gehört, also scheitert jeder `watch`-Aufruf. Die Projekt-ID ist kleingeschrieben und weicht oft vom Anzeigenamen ab. |

@@ -101,7 +101,8 @@ and the `http://` in it is the entire clue.
 ## Mercure's public URL
 
 The hub is proxied on the app's own origin: `frankenphp/Caddyfile` routes `/.well-known/mercure*`
-to the `mercure` container, so the browser reaches the hub same-origin, the subscriber cookie is a
+to `mercure`, the worker container, which runs the hub and answers to that name. The browser reaches
+the hub same-origin, the subscriber cookie is a
 first-party cookie, and no CORS configuration exists anywhere.
 
 Two variables, and they point in opposite directions:

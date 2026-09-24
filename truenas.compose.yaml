@@ -132,8 +132,8 @@ x-app-env: &app-env
 
 services:
     # Mints whatever was left blank above into the storage directory, then exits. Runs
-    # before everything else: Postgres and Mercure read their secrets when their
-    # containers are created and cannot wait for the app to hand them one.
+    # before everything else: Postgres reads its password when its container is
+    # created and cannot wait for the app to hand it one.
     # Idempotent — on every later start it finds the file and does nothing.
     secrets-init:
         image: *image
@@ -215,183 +215,45 @@ services:
             database:
                 condition: service_healthy
 
-    imap-supervisor:
+    # Everything that is not the web server, in one container: the IMAP
+    # supervisor, one consumer per queue, the scheduler and the Mercure hub —
+    # seven processes, kept running by `app:work`. They used to be seven
+    # containers. Still one PROCESS per queue, so a send never waits behind a
+    # sync; only the containers merged.
+    #
+    # Answers to `mercure` on the network because it runs the hub, so the web
+    # container's proxy and MERCURE_URL reach it where they always reached the
+    # hub container.
+    worker:
         image: *image
         pull_policy: always
         restart: unless-stopped
-        command: php bin/console app:imap:supervise
+        command: php bin/console app:work
+        # Reaps the IMAP supervisor's children should it die hard.
+        init: true
+        # Longer than app:work's own 25s, which it gives every process to
+        # finish the message in hand.
         stop_grace_period: 30s
         environment:
             <<: *app-env
-            APP_CONTAINER_NAME: imap-supervisor
+            APP_CONTAINER_NAME: worker
+        networks:
+            default:
+                aliases: [mercure]
         volumes:
-            # One mount for everything plMail writes. APP_STORAGE_DIR and
-            # APP_SECRETS_* point inside it, so attachments, raw messages,
-            # uploads and the generated secrets all land here — and every
-            # service sees the same files, which the encryption key depends on.
+            # One mount for everything plMail writes, as on php.
             - type: bind
               source: *path_data
               target: /app/var/data
               bind:
                   create_host_path: true
-        healthcheck:
-            disable: true
-        depends_on:
-            secrets-init:
-                condition: service_completed_successfully
-            database:
-                condition: service_healthy
-
-    # ── Workers, one per queue ────────────────────────────────────────────
-    # Three processes rather than three transports on one: a worker already
-    # inside a long handler cannot pick up anything else however the queues are
-    # prioritised, which is why pressing Send used to wait for a Gmail batch.
-    #
-    # Anything leaving plMail, and the only queue somebody is watching.
-    worker-export:
-        image: *image
-        pull_policy: always
-        restart: unless-stopped
-        command: php bin/console messenger:consume export --time-limit=3600 --memory-limit=256M
-        stop_grace_period: 15s
-        environment:
-            <<: *app-env
-            APP_CONTAINER_NAME: worker-export
-        volumes:
-            # One mount for everything plMail writes. APP_STORAGE_DIR and
-            # APP_SECRETS_* point inside it, so attachments, raw messages,
-            # uploads and the generated secrets all land here — and every
-            # service sees the same files, which the encryption key depends on.
-            - type: bind
-              source: *path_data
-              target: /app/var/data
-              bind:
-                  create_host_path: true
-        healthcheck:
-            disable: true
-        depends_on:
-            secrets-init:
-                condition: service_completed_successfully
-            database:
-                condition: service_healthy
-
-    # Runs the scheduled jobs defined in
-    # App\Infrastructure\Scheduler\MaintenanceSchedule: polling sync, push
-    # renewal, monitoring pruning and the blob sweep. Drop this service and
-    # none of them ever fire.
-
-    # Mail arriving and the work that immediately follows it.
-    worker-ingest:
-        image: *image
-        pull_policy: always
-        restart: unless-stopped
-        command: php bin/console messenger:consume ingest --time-limit=3600 --memory-limit=256M
-        stop_grace_period: 15s
-        environment:
-            <<: *app-env
-            APP_CONTAINER_NAME: worker-ingest
-        volumes:
-            # One mount for everything plMail writes. APP_STORAGE_DIR and
-            # APP_SECRETS_* point inside it, so attachments, raw messages,
-            # uploads and the generated secrets all land here — and every
-            # service sees the same files, which the encryption key depends on.
-            - type: bind
-              source: *path_data
-              target: /app/var/data
-              bind:
-                  create_host_path: true
-        healthcheck:
-            disable: true
-        depends_on:
-            secrets-init:
-                condition: service_completed_successfully
-            database:
-                condition: service_healthy
-
-    # Runs the scheduled jobs defined in
-    # App\Infrastructure\Scheduler\MaintenanceSchedule: polling sync, push
-    # renewal, monitoring pruning and the blob sweep. Drop this service and
-    # none of them ever fire.
-
-    # Bulk and deliberate. Also drains `async`, the pre-split queue, so
-    # envelopes written before the upgrade still have a consumer. Nothing routes
-    # there any more; drop it once a release has passed.
-    worker-maintenance:
-        image: *image
-        pull_policy: always
-        restart: unless-stopped
-        command: php bin/console messenger:consume maintenance async --time-limit=3600 --memory-limit=256M
-        stop_grace_period: 15s
-        environment:
-            <<: *app-env
-            APP_CONTAINER_NAME: worker-maintenance
-        volumes:
-            # One mount for everything plMail writes. APP_STORAGE_DIR and
-            # APP_SECRETS_* point inside it, so attachments, raw messages,
-            # uploads and the generated secrets all land here — and every
-            # service sees the same files, which the encryption key depends on.
-            - type: bind
-              source: *path_data
-              target: /app/var/data
-              bind:
-                  create_host_path: true
-        healthcheck:
-            disable: true
-        depends_on:
-            secrets-init:
-                condition: service_completed_successfully
-            database:
-                condition: service_healthy
-
-    # A whole-view mark-read or archive. On its own process for the reason the
-    # send queue is: somebody pressed a button and is watching an indicator,
-    # and this must not wait behind a backfill on `maintenance`. Drop this
-    # service and the indicator fills to nothing — the job is queued and never
-    # handled.
-    worker-bulk:
-        image: *image
-        pull_policy: always
-        restart: unless-stopped
-        command: php bin/console messenger:consume bulk --time-limit=3600 --memory-limit=256M
-        stop_grace_period: 15s
-        environment:
-            <<: *app-env
-            APP_CONTAINER_NAME: worker-bulk
-        volumes:
-            - type: bind
-              source: *path_data
-              target: /app/var/data
-              bind:
-                  create_host_path: true
-        healthcheck:
-            disable: true
-        depends_on:
-            secrets-init:
-                condition: service_completed_successfully
-            database:
-                condition: service_healthy
-
-    # Runs the scheduled jobs defined in
-    # App\Infrastructure\Scheduler\MaintenanceSchedule: polling sync, push
-    # renewal, monitoring pruning and the blob sweep. Drop this service and
-    # none of them ever fire.
-    scheduler:
-        image: *image
-        pull_policy: always
-        restart: unless-stopped
-        command: php bin/console messenger:consume scheduler_default --time-limit=3600 --memory-limit=256M
-        stop_grace_period: 15s
-        environment:
-            <<: *app-env
-            APP_CONTAINER_NAME: scheduler
-        volumes:
-            # app:prune:blobs unlinks files across all three stores, so it
-            # needs the same binds as the workers that write them.
-            - type: bind
-              source: *path_data
-              target: /app/var/data
-              bind:
-                  create_host_path: true
+            # The hub's state, in the volumes the hub container used.
+            - type: volume
+              source: mercure_data
+              target: /data
+            - type: volume
+              source: mercure_config
+              target: /config
         healthcheck:
             disable: true
         depends_on:
@@ -433,68 +295,6 @@ services:
             - "shared_preload_libraries=pg_stat_statements"
             - "-c"
             - "pg_stat_statements.track=top"
-
-    mercure:
-        image: dunglas/mercure
-        # PULLED ON EVERY `up`. Without this the tag floats and the image does
-        # not: compose reuses whatever is already on the box, so a hub can sit
-        # years behind the tag it claims to be while the update reports success.
-        # That is how an install ended up running a 0.x hub against an
-        # application that had moved to the 1.0 protocol.
-        pull_policy: always
-        restart: unless-stopped
-        environment:
-            SERVER_NAME: ':80'
-            # The hub image has no _FILE support, so the entrypoint below reads
-            # the generated secret in a shell before exec'ing Caddy. Filling in
-            # mercure_jwt above wins: the generator never overwrites it, so both
-            # sides still read the same value.
-            MERCURE_JWT_SECRET: *mercure_jwt
-            # The issuer this hub accepts and the audience it demands. The
-            # literal from config/services.yaml (`mercure.identifier`), NOT this
-            # install's own address — mercure_public_url above is blank on
-            # purpose here, because the setup screen stores the real one on
-            # first boot, and a hub cannot wait until then to be configured.
-            MERCURE_TRUSTED_ISSUERS: https://plmail.invalid/.well-known/mercure
-            MERCURE_EXTRA_DIRECTIVES: resource_identifier https://plmail.invalid/.well-known/mercure
-        entrypoint:
-            - /bin/sh
-            - -c
-            - |
-              if [ -z "$$MERCURE_JWT_SECRET" ] && [ -f /plmail/secrets/generated.env ]; then
-                MERCURE_JWT_SECRET="$$(sed -n 's/^MERCURE_JWT_SECRET=//p' /plmail/secrets/generated.env)"
-              fi
-              export MERCURE_PUBLISHER_JWT_KEY="$$MERCURE_JWT_SECRET"
-              export MERCURE_SUBSCRIBER_JWT_KEY="$$MERCURE_JWT_SECRET"
-              exec "$$@"
-            - --
-        # The image's default Caddyfile, NOT dev.Caddyfile — this is a
-        # production stack and the dev one turns on `anonymous`, which accepts
-        # subscribers with no JWT at all. Since the app proxies
-        # /.well-known/mercure* publicly, that let anyone who could reach this
-        # instance subscribe to mail/user/<any id> and watch that account sync.
-        # The default config requires the subscriber JWT the app now mints.
-        command: /usr/bin/caddy run --config /etc/caddy/Caddyfile
-        depends_on:
-            secrets-init:
-                condition: service_completed_successfully
-        # NO healthcheck here, deliberately — the image's own is used. The one
-        # that used to be here asked for "/healthz", which the hub moved: it
-        # answers 404 now, `curl -f` reads that as failure, and the container
-        # reported itself unhealthy for ever while serving perfectly.
-        volumes:
-            - type: bind
-              source: *path_data
-              target: /plmail
-              bind:
-                  create_host_path: true
-              read_only: true
-            - type: volume
-              source: mercure_data
-              target: /data
-            - type: volume
-              source: mercure_config
-              target: /config
 
 volumes:
     caddy_data:

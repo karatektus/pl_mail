@@ -163,7 +163,8 @@ delayed retry is never left waiting on a restart.
 
 Separate transports are not enough on their own. A worker already inside a long handler
 cannot pick up a send however it is prioritised, so each transport has its own process:
-`worker-export`, `worker-ingest`, `worker-maintenance` and `worker-bulk` in `compose.yaml`. A
+`worker-export`, `worker-ingest`, `worker-maintenance` and `worker-bulk`, which `app:work` runs side by side
+in the worker container. A
 fifth transport, `async`, is kept routing nothing, so envelopes queued before the split still
 have somewhere to land; the maintenance worker drains it.
 
@@ -201,8 +202,8 @@ envelopes, so a serialised entity is a reference to a manager that no longer exi
 ## The scheduler
 
 `App\Infrastructure\Scheduler\MaintenanceSchedule` is the one place recurring work is
-declared. It is consumed by `messenger:consume scheduler_default` — the `scheduler` service
-in `compose.yaml` — and **nothing runs these otherwise**, which is the state the project was
+declared. It is consumed by `messenger:consume scheduler_default` — the `scheduler` process
+in the worker container — and **nothing runs these otherwise**, which is the state the project was
 in before, with logs and orphaned blobs growing without bound.
 
 | Cron | Command | Why that cadence |
@@ -260,8 +261,8 @@ request silently stays in it. `config/packages/messenger.yaml` names this for
 `RegisterCalendarPushMessage` and `CalendarSubscriberTest` asserts the routing; a new message
 gets neither for free.
 
-**A new command in `MaintenanceSchedule` does nothing until the `scheduler` service is
-running.** It is a separate container consuming `scheduler_default`. `php bin/console
+**A new command in `MaintenanceSchedule` does nothing until the `scheduler` process is
+running.** It is one of the worker container's processes, consuming `scheduler_default`. `php bin/console
 debug:scheduler` shows the next run of each, and is the fastest way to find out that the
 answer is "never".
 

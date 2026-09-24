@@ -1,5 +1,5 @@
 # Every app service builds the same dev stage, so they share one image — one
-# build instead of six.
+# build, whichever of them starts it.
 #
 # The `image` line is the load-bearing part. compose.yaml names these services
 # `ghcr.io/karatektus/pl_mail:latest`, and compose tags what it builds with the
@@ -46,64 +46,24 @@ services:
       - host.docker.internal:host-gateway
     tty: true
 
-  imap-supervisor:
+  # Everything that is not the web server (app:work), from the dev image with
+  # the source mounted. A service the base file defines and this one does not
+  # still starts, from the published image and without the source: not a
+  # missing container but one running yesterday's code. There used to be one
+  # block per worker here, and worker-bulk's had been forgotten; one block has
+  # nothing left to forget.
+  worker:
     <<: *dev-build
     volumes:
       - ./:/app
       # Durable mail data must be visible to BOTH the web container (which
       # serves downloads) and the workers (which write during sync). php
       # overlays /app/var with the private app_var volume to keep cache/logs
-      # off the bind mount, which otherwise hides these two directories from
+      # off the bind mount, which otherwise hides these directories from
       # everything else.
       - app_attachments:/app/var/attachments
       - app_raw:/app/var/raw
       - app_uploads:/app/var/uploads
-    environment:
-      APP_ENV: ${APP_ENV:-dev}
-
-  # One block per worker in compose.yaml. A service the base file defines but
-  # this one does not still starts — from the published image, without the
-  # source bind-mounted — so a missing block here is not a missing container
-  # but a container running yesterday's code.
-  worker-export:
-    <<: *dev-build
-    volumes:
-      - ./:/app
-      # Durable mail data must be visible to BOTH the web container (which
-      # serves downloads) and the workers (which write during sync). php
-      # overlays /app/var with the private app_var volume to keep cache/logs
-      # off the bind mount, which otherwise hides these two directories from
-      # everything else.
-      - app_attachments:/app/var/attachments
-      - app_raw:/app/var/raw
-      - app_uploads:/app/var/uploads
-    environment:
-      APP_ENV: ${APP_ENV:-dev}
-
-  worker-ingest:
-    <<: *dev-build
-    volumes:
-      - ./:/app
-      - app_attachments:/app/var/attachments
-      - app_raw:/app/var/raw
-      - app_uploads:/app/var/uploads
-    environment:
-      APP_ENV: ${APP_ENV:-dev}
-
-  worker-maintenance:
-    <<: *dev-build
-    volumes:
-      - ./:/app
-      - app_attachments:/app/var/attachments
-      - app_raw:/app/var/raw
-      - app_uploads:/app/var/uploads
-    environment:
-      APP_ENV: ${APP_ENV:-dev}
-
-  scheduler:
-    <<: *dev-build
-    volumes:
-      - ./:/app
     environment:
       APP_ENV: ${APP_ENV:-dev}
 
@@ -132,18 +92,16 @@ services:
     # The image healthcheck probes the FrankenPHP admin endpoint on :2019, but
     # this service replaces the server with the Tailwind watcher, so nothing
     # ever listens there and the container is reported unhealthy while working
-    # fine. Same reason imap-supervisor, messenger-worker and scheduler disable
-    # it in compose.yaml.
+    # fine. Same reason the worker disables it in compose.yaml.
     healthcheck:
       disable: true
     depends_on:
       - php
 
-  ###> symfony/mercure-bundle ###
-  mercure:
-    ports:
-      - "80"
-###< symfony/mercure-bundle ###
+  # No `mercure` block: the hub is a process in the worker now, reachable
+  # through php at /.well-known/mercure like everything else. The Mercure
+  # bundle's recipe put one here to publish the hub's port; brought back, it
+  # would define a service with no image and compose would refuse the file.
 volumes:
   app_var:
   app_attachments:

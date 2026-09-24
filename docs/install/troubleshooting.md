@@ -49,9 +49,10 @@ answer 200. Watch the `checks` object, not just the HTTP status.
 
 ## The queue
 
-Four transports on the Doctrine transport, each with its own worker process:
+Four transports on the Doctrine transport, each with its own consumer process in the worker
+container:
 
-| Queue | Container | What is on it |
+| Queue | Process | What is on it |
 |---|---|---|
 | `export` | `worker-export` | Anything leaving plMail — sends, flag pushes, Gmail label changes, mail from the notifier. The only queue somebody is waiting on |
 | `ingest` | `worker-ingest` | Mail arriving, Gmail and Graph message batches, calendar syncs, event extraction |
@@ -151,9 +152,12 @@ really dead.
 
 ```bash
 docker compose logs -f php
-docker compose logs -f worker-ingest
-docker compose logs -f scheduler
+docker compose logs -f worker
 ```
+
+Everything that is not the web server logs through the worker: the queue consumers, the scheduler,
+the IMAP supervisor and the hub. Each JSON record names the process it came from, so a filter on
+`worker-ingest` or `scheduler` finds one of them.
 
 The main handler is `fingers_crossed` at `error` with a 50-message buffer, which means routine info
 lines are discarded *until* something errors — and then the 50 preceding messages are flushed with
@@ -232,5 +236,6 @@ every user, the stored files. It exists so an install whose unreadable data is g
 can start over, and the encryption-key probe deliberately allows it to run — see
 [CONTRIBUTING](../../CONTRIBUTING.md#when-the-keys-disagree).
 
-**Logs from `docker compose logs php` are only the web container's.** Six containers run the same
-image, and the interesting line is usually in whichever worker owns the queue the work was on.
+**Logs from `docker compose logs php` are only the web container's.** The interesting line is
+usually in whichever worker process owns the queue the work was on, and those all log through
+`docker compose logs worker`.

@@ -18,11 +18,12 @@ use Symfony\Component\Console\Style\SymfonyStyle;
 /**
  * `doctrine:migrations:migrate`, but only one container at a time.
  *
- * A plMail stack starts four containers from the same image — php,
- * imap-supervisor, messenger-worker and scheduler — and every one of them runs
+ * A plMail stack starts more than one container from the same image — php
+ * and the worker, and more where an installation splits its queues or still
+ * runs the older one-container-per-process layout — and every one of them runs
  * `frankenphp/docker-entrypoint.sh`, which migrates on boot. They come up
- * within milliseconds of each other against one database, all four read the
- * ledger before any of them has written to it, and all four decide the same
+ * within milliseconds of each other against one database, all of them read the
+ * ledger before any has written to it, and all of them decide the same
  * migration is pending. One wins; the rest block on the table lock it holds,
  * are released when it commits, and then fail on a schema that has already
  * moved:

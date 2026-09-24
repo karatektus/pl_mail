@@ -1,4 +1,4 @@
-<!-- translated-from: install/docker.md sha1:89c280cbbe9bb45d384b184c1dd64fb5d1dd053c -->
+<!-- translated-from: install/docker.md sha1:73ae0d9a9b349c20c36dcfbc031c792cf1631649 -->
 # Installation mit Docker Compose
 
 Der unterstützte Weg, von Anfang bis Ende: was du brauchst, was `docker compose up` tatsächlich tut,
@@ -21,7 +21,9 @@ einige Details — siehe [Plattform-Hinweise](platforms.md).
 Über die Dimensionierung lohnt es sich nachzudenken, eine feste Regel gibt es nicht. PHPs
 `memory_limit` steht im Image auf `2G`, jeder der vier Messenger-Worker ist durch
 `--memory-limit=256M` begrenzt und startet sich bei `--time-limit=3600` neu, und Postgres, der
-Mercure-Hub und der IMAP-Supervisor wollen jeweils ihren eigenen Anteil obendrauf. Der erste
+Mercure-Hub und der IMAP-Supervisor wollen jeweils ihren eigenen Anteil obendrauf. Die Worker, der
+Hub und der IMAP-Supervisor teilen sich einen Container, ein Speicherlimit darauf gilt also für alle
+zusammen. Der erste
 Abgleich eines großen Postfachs ist die anstrengendste Phase überhaupt.
 
 Das genügt für IMAP-Postfächer. Gmail und Outlook brauchen zusätzlich OAuth-Zugangsdaten — siehe
@@ -68,16 +70,16 @@ die du kennen solltest:
 1. **`secrets-init` läuft und beendet sich.** Es erzeugt `APP_SECRET`, `APP_ENCRYPTION_KEY`,
    `POSTGRES_PASSWORD` und `MERCURE_JWT_SECRET` in `var/secrets/generated.env` auf dem gemeinsamen
    Volume `app_secrets`, dazu eine nackte Datei `postgres_password`. Es läuft vor allem anderen,
-   weil Postgres und Mercure ihre Geheimnisse beim Anlegen des Containers lesen und nicht darauf
-   warten können, dass die Anwendung sie ihnen reicht. Bei jedem späteren Start findet es die Datei
+   weil Postgres sein Passwort beim Anlegen des Containers liest und nicht darauf warten kann, dass
+   die Anwendung es ihm reicht. Bei jedem späteren Start findet es die Datei
    vor und tut nichts.
 2. **`database` startet** und liest sein Passwort über `POSTGRES_PASSWORD_FILE`. Jeder
    Anwendungsdienst wartet auf dessen Healthcheck, der eine Startphase von 60 Sekunden zugesteht.
 3. **Jeder Anwendungscontainer führt denselben Entrypoint aus.** Er lädt die erzeugten Geheimnisse,
    setzt `DATABASE_URL` aus `POSTGRES_PASSWORD` zusammen — es sei denn, du hast eine DSN mit einem
    eigenen Passwort mitgegeben —, wartet bis zu 60 Versuche lang auf die Datenbank und führt dann
-   `app:db:migrate` aus: Doctrines Migrate unter einem Postgres-Advisory-Lock, damit die sechs
-   gemeinsam startenden Container nicht kollidieren.
+   `app:db:migrate` aus: Doctrines Migrate unter einem Postgres-Advisory-Lock, damit die gemeinsam
+   startenden Container nicht kollidieren.
 4. **`app:secrets:init` läuft**, nach den Migrationen. Es prüft, ob der geltende
    Verschlüsselungsschlüssel die bereits gespeicherten Zugangsdaten entschlüsseln kann, und erzeugt
    anschließend ein VAPID-Schlüsselpaar sowie das JMAP-JWT-Schlüsselpaar, falls diese fehlen.
@@ -131,28 +133,53 @@ rufe die Einrichtungsseite über die Adresse auf, die du tatsächlich verwenden 
 
 | Dienst | Was darin läuft | Warum er ein eigener Container ist |
 |---|---|---|
-| `secrets-init` | `generate-secrets`, dann Ende | Postgres und Mercure brauchen ihre Geheimnisse beim Anlegen des Containers, bevor die Anwendung existiert |
-| `php` | FrankenPHP, das die Anwendung ausliefert | Der einzige Anwendungsdienst mit HTTP-Server und damit der einzige, dessen Image-Healthcheck aktiv bleibt — die übrigen schalten ihn ab und melden Lebendigkeit stattdessen über Heartbeats |
+| `secrets-init` | `generate-secrets`, dann Ende | Postgres braucht sein Passwort beim Anlegen des Containers, bevor die Anwendung existiert |
+| `php` | FrankenPHP, das die Anwendung ausliefert | Der einzige Anwendungsdienst mit HTTP-Server und damit der einzige, dessen Image-Healthcheck aktiv bleibt — der Worker schaltet ihn ab und meldet Lebendigkeit stattdessen über Heartbeats |
+| `worker` | `app:work`: jeder Hintergrundprozess, jeweils als eigener Prozess | Alles, was nicht der Webserver ist. Im Netz antwortet er auf den Namen `mercure`, weil er den Hub betreibt |
 | `database` | `postgres:18-alpine` mit vorgeladenem `pg_stat_statements` | — |
-| `mercure` | Der Mercure-Hub | Live-Aktualisierungen — die Mailliste, die sich von selbst auffrischt |
+| `ntfy` | ntfy, unter dem Profil `push` | Optional. Android-Push ohne Google — starte ihn mit `docker compose --profile push up -d` |
+
+Die Prozesse des Workers. Jeder wird wieder gestartet, wenn er endet: sofort, wenn er sauber
+endete (ein Consumer, der an seinem Zeit- oder Speicherlimit neu anfängt), nach einer Wartezeit von
+bis zu dreißig Sekunden, wenn er abgestürzt ist.
+
+| Prozess | Was darin läuft | Wofür er da ist |
+|---|---|---|
+| `mercure` | Der Mercure-Hub, 1.x | Live-Aktualisierungen — die Mailliste, die sich von selbst auffrischt |
 | `imap-supervisor` | `app:imap:supervise` | Startet und überwacht je einen `app:imap:idle`-Prozess pro IDLE-fähigem Postfach, damit gewöhnliche IMAP-Mail in dem Moment ankommt, in dem sie eintrifft |
 | `worker-export` | `messenger:consume export` | Alles, was plMail verlässt, und die einzige Warteschlange, auf die jemand wartet. In einem eigenen Prozess, damit ein Versand nie hinter einem Abgleich steht |
 | `worker-ingest` | `messenger:consume ingest` | Eingehende Mail und die Arbeit, die unmittelbar darauf folgt |
 | `worker-maintenance` | `messenger:consume maintenance async` | Nachträgliche Verarbeitungen, Regelläufe über vorhandene Mail, administrative Durchläufe. Leert außerdem die stillgelegte Warteschlange `async` |
 | `worker-bulk` | `messenger:consume bulk` | Aktionen über eine ganze Ansicht: alles Ungelesene als gelesen markieren, alles archivieren. Eigener Prozess, weil jemand dabei auf eine Fortschrittsanzeige schaut und das nicht hinter einer nachträglichen Verarbeitung warten darf |
-| `scheduler` | `messenger:consume scheduler_default` | Löst alles Wiederkehrende aus. **Ohne diesen Container plant sich nichts von selbst** |
-| `ntfy` | ntfy, unter dem Profil `push` | Optional. Android-Push ohne Google — starte ihn mit `docker compose --profile push up -d` |
+| `scheduler` | `messenger:consume scheduler_default` | Löst alles Wiederkehrende aus. **Ohne diesen Prozess plant sich nichts von selbst** |
 
-Vier Prozesse statt vier Transports in einem Worker, weil ein Worker, der bereits in einem langen
-Handler steckt, nichts anderes mehr annehmen kann, wie auch immer die Warteschlangen priorisiert
-sind. Genau das war das ursprüngliche Problem: Ein Klick auf Senden wartete hinter einem
-Gmail-Batch.
+Vier Warteschlangen-Prozesse statt vier Transports in einem, weil ein Worker, der bereits in einem
+langen Handler steckt, nichts anderes mehr annehmen kann, wie auch immer die Warteschlangen
+priorisiert sind. Genau das war das ursprüngliche Problem: Ein Klick auf Senden wartete hinter
+einem Gmail-Batch. Früher waren sie je ein Container, jetzt sind sie je ein Prozess, und das war
+der Teil, auf den es ankam. Jeder behält seinen alten Namen als `APP_CONTAINER_NAME`, nach dem sich
+die Heartbeats, `/healthz` und die Protokollansicht im Administrationsbereich richten, sie lesen
+sich also genau wie vorher.
 
-**Der typische Fehlerfall ist, den Dienst `scheduler` wegzulassen.** Ohne ihn wird überhaupt nichts
-Wiederkehrendes ausgelöst — kein Abgleich per Polling, kein Aufwachen zurückgestellter
-Konversationen, kein Kalenderabgleich, keine Erinnerungen, kein Aufräumen — und nirgends erscheint
-ein Fehler, weil nichts fehlgeschlagen ist. `php bin/console debug:scheduler` listet auf, was laufen
-sollte.
+Der Hub ist das offizielle Mercure-1.x-Programm, ins plMail-Image kopiert statt aus einem eigenen
+Image betrieben. Es ist nicht der in FrankenPHP eingebaute Hub, denn der ist eine 0.x-Version, und
+plMail spricht das 1.0-Protokoll.
+
+**Wieder aufteilen** geht mit `app:work --only=…` und `--without=…`. Ein Container mit
+`app:work --only=worker-bulk` neben einem mit `app:work --without=worker-bulk` gibt der
+Bulk-Warteschlange einen eigenen Container und ein eigenes Speicherlimit. Nur ein Container darf
+`mercure` betreiben, und das ist der, der den Netzwerk-Alias `mercure` braucht.
+
+**Umsteigen von einem Container pro Prozess** muss nicht sofort sein: Das Image betreibt jeden
+dieser Dienste weiterhin wie bisher, und der separate Hub aus `dunglas/mercure` funktioniert auch
+weiterhin. Ersetze die Compose-Datei durch die aktuelle, wenn es dir passt. Der Hub behält seinen
+Verlauf, weil der Worker dasselbe Volume `mercure_data` einhängt.
+
+**Der typische Fehlerfall ist, den Prozess `scheduler` wegzulassen**, mit `--only` oder
+`--without`. Ohne ihn wird überhaupt nichts Wiederkehrendes ausgelöst — kein Abgleich per Polling,
+kein Aufwachen zurückgestellter Konversationen, kein Kalenderabgleich, keine Erinnerungen, kein
+Aufräumen — und nirgends erscheint ein Fehler, weil nichts fehlgeschlagen ist.
+`php bin/console debug:scheduler` listet auf, was laufen sollte.
 
 ## Speicher, und was die Standarddatei nicht dauerhaft ablegt
 
@@ -160,11 +187,11 @@ Die Compose-Datei deklariert zehn benannte Volumes:
 
 | Volume | Enthält |
 |---|---|
-| `app_secrets` | `generated.env`, `postgres_password`, das JWT-Schlüsselpaar. Von **jedem** App-Dienst eingehängt, in `database` und `mercure` nur lesend |
+| `app_secrets` | `generated.env`, `postgres_password`, das JWT-Schlüsselpaar. Von **jedem** App-Dienst eingehängt, in `database` nur lesend |
 | `app_attachments`, `app_raw`, `app_uploads` | Anhänge, Rohnachrichten und zwischengelagerte JMAP-Uploads. Von jedem App-Dienst eingehängt, denn die Worker schreiben sie und der Web-Container liefert sie aus |
 | `database_data` | Der PostgreSQL-Cluster |
 | `caddy_data`, `caddy_config` | Caddys TLS-Material und Zustand |
-| `mercure_data`, `mercure_config` | Zustand des Hubs |
+| `mercure_data`, `mercure_config` | Zustand des Hubs, vom Worker eingehängt |
 | `ntfy_data` | Zustand der Benachrichtigungs-Topics |
 
 Die drei Blob-Volumes fehlten bis vor Kurzem, und der Fehler war auf lehrreiche Weise lautlos. Das

@@ -3,6 +3,23 @@
 # Versions
 FROM dunglas/frankenphp:1-php8.4 AS frankenphp_upstream
 
+# The Mercure hub, taken as a binary rather than run as an image. plMail runs it
+# as one of the background processes in the worker container (app:work), which
+# answers to the name `mercure` on the stack's network: the web container
+# proxies /.well-known/mercure there and the application publishes there, as
+# they always did to a container of that name.
+#
+# Not the hub FrankenPHP has built in. That one is a release behind (0.24 in
+# FrankenPHP 1.12), and plMail speaks the 1.0 protocol, whose RFC 9068 tokens a
+# 0.x hub refuses. That exact mismatch, the other way round, stopped live
+# updates in v0.2.31.
+#
+# `v1`, not an exact version: the hub keeps itself current within the protocol
+# plMail speaks, the way the floating `dunglas/mercure` tag was meant to, but it
+# now moves with plMail's own releases rather than whenever a host last pulled.
+# A static Go binary, so an Alpine build runs on this Debian image as it is.
+FROM docker.io/dunglas/mercure:v1 AS mercure_upstream
+
 # The different stages of this Dockerfile are meant to be built into separate images
 # https://docs.docker.com/develop/develop-images/multistage-build/#stop-at-a-specific-build-stage
 # https://docs.docker.com/compose/compose-file/#target
@@ -78,6 +95,10 @@ COPY --link --chmod=755 frankenphp/docker-entrypoint.sh /usr/local/bin/docker-en
 # service runs it on its own, before Postgres and Mercure start.
 COPY --link --chmod=755 frankenphp/generate-secrets.sh /usr/local/bin/generate-secrets
 COPY --link frankenphp/Caddyfile /etc/frankenphp/Caddyfile
+# The hub and its own Caddyfile, verbatim: the image's default config (the one
+# that requires a subscriber JWT), not the dev one. See mercure_upstream above.
+COPY --link --from=mercure_upstream /usr/bin/caddy /usr/local/bin/mercure
+COPY --link --from=mercure_upstream /etc/caddy/Caddyfile /etc/mercure/Caddyfile
 
 ENTRYPOINT ["docker-entrypoint"]
 
