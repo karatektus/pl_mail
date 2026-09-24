@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Tests\Domain\Enum\Theme;
 
 use App\Command\Branding\ExportLogoPaintsCommand;
+use App\Domain\Enum\Theme\LogoMotif;
+use App\Domain\Enum\Theme\LogoStyle;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Tester\CommandTester;
@@ -38,6 +40,27 @@ final class LogoMotifTest extends TestCase
             json_decode($fixture, true, flags: JSON_THROW_ON_ERROR),
             json_decode($tester->getDisplay(), true, flags: JSON_THROW_ON_ERROR),
             'a recipe changed: regenerate the fixture and the Android copy from app:branding:export-paints, or put it back',
+        );
+    }
+
+    /**
+     * Bare on a dark top bar, an ink horn is no horn at all. The horn reads
+     * the colourway's dark-chrome strokes, as the pl mark does, and a glyph
+     * with a body of its own keeps its livery.
+     */
+    public function testADarkBarRepaintsOnlyWhatWouldVanishIntoIt(): void
+    {
+        $light = LogoMotif::BlueHorn->onChrome(LogoStyle::Ink);
+        $dark = LogoMotif::BlueHorn->onChrome(LogoStyle::Ink, true);
+
+        self::assertArrayNotHasKey('background', $light, 'bare means no tile');
+        self::assertSame(LogoStyle::INK, $light['horn']);
+        self::assertSame(LogoStyle::Ink->strokes(true)[0], $dark['horn']);
+
+        self::assertSame(
+            LogoMotif::LoveLetter->onChrome(LogoStyle::Ink),
+            LogoMotif::LoveLetter->onChrome(LogoStyle::Ink, true),
+            'the letter\'s white paper carries it on either chrome',
         );
     }
 }

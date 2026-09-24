@@ -47,20 +47,21 @@ security:
                 - App\Security\ApiTokenAuthenticator
             entry_point: App\Security\ApiTokenAuthenticator
 
-        # The logo icon tiles: outside security altogether, like `dev`'s
-        # assets, rather than a PUBLIC_ACCESS rule under `main`. An icon depends
-        # on its URL and nothing else, so it is cached publicly for a year — and
-        # under `main` that promise could not be kept. The first listener to ask
-        # who the user is (AppearanceCookieSubscriber asks on every response)
-        # reads the session, and a response on a request that read the session
-        # is rewritten by Symfony to `private, max-age=0`: forty-two tiles on
-        # the appearance pane re-fetched on every visit, each one a session read
-        # and a user reload for a picture that is the same for everybody. With
-        # no firewall there is no token to load and no session to touch. See
-        # App\Controller\BrandingController::icon(); the per-user favicon is the
-        # opposite case and keeps its rule under `main` below.
-        branding_icon:
-            pattern: ^/branding/icon/
+        # The logo pictures (the icon tiles, the tab icon, the top bar's logo):
+        # outside security altogether, like `dev`'s assets, rather than a
+        # PUBLIC_ACCESS rule under `main`. Each depends on its URL and nothing
+        # else, so it is cached publicly for a year — and under `main` that
+        # promise could not be kept. The first listener to ask who the user is
+        # (AppearanceCookieSubscriber asks on every response) reads the session,
+        # and a response on a request that read the session is rewritten by
+        # Symfony to `private, max-age=0`: forty-two tiles on the appearance
+        # pane re-fetched on every visit, each one a session read and a user
+        # reload for a picture that is the same for everybody. With no firewall
+        # there is no token to load and no session to touch — which is also why
+        # the login page's tab icon needs no rule of its own. See
+        # App\Controller\BrandingController.
+        branding:
+            pattern: ^/branding/
             security: false
 
         main:
@@ -165,15 +166,6 @@ security:
         # The privacy notice, anonymous for the same reason and with more force:
         # the reader has no account here and is deciding whether to get one.
         - { path: ^/datenschutz$, roles: PUBLIC_ACCESS }
-        # The tab icon. Browsers fetch it for the login page too — before any
-        # session exists — and an icon behind the login is a redirect the tab
-        # strip renders as a missing favicon. Anonymous callers get the
-        # product-default colourway; nothing user-specific leaves without a
-        # session. See App\Controller\BrandingController.
-        #
-        # Its neighbour /branding/icon/ has no rule here on purpose: it is not
-        # under this firewall at all — see `branding_icon` above.
-        - { path: ^/branding/favicon\.svg$, roles: PUBLIC_ACCESS }
         # Device pairing, by necessity: a device that could authenticate here
         # would not need to pair. The gate is the code itself — 32 bytes of
         # CSPRNG, valid two minutes, burned on first use — see

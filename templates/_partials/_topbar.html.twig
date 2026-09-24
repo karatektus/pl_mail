@@ -29,28 +29,42 @@
            drawn inline in its colourway, dark strokes when the theme is dark —
            it used to be an inline SVG wearing Google's literal brand hexes; both
            the geometry and the paint live elsewhere now, see
-           _logo_mark.html.twig and LogoStyle. Every other icon is its tile, as
-           an image from the icon route: a tile brings its own ground, so it
-           reads the same on any chrome and needs no dark variant.
+           _logo_mark.html.twig and LogoStyle. Every other icon is an image from
+           the logo route: its glyph standing bare on the bar the way the mark
+           does. The tile is the phone's app icon, and in a web page's corner
+           it read as one. The @-horn is the exception and brings its tile,
+           because its cream @ needs the field behind it
+           (LogoMotif::needsGround()).
 
-           BOTH are rendered, one of them `hidden`, so the appearance pane can
-           switch between them live (repaintLogo) without the page knowing how
-           to draw either. The image is given no src while hidden: an empty
-           src is a request for the page itself. Hidden by the attribute, not
-           the class — the attribute wins over `flex` whatever order the
-           stylesheet was built in.
+           One box for all of them, 36px: every glyph is drawn on the mark's 48
+           grid, so one box keeps them at one scale and switching icons does
+           not make the corner jump. 36 rather than the 32 the mark had before:
+           out of its tile a glyph has nothing around it to give it presence,
+           and at 32 an envelope was smaller than the square it used to fill.
 
-           The hairline is the settings tiles' (`rounded-[22%]` is the tile's
-           own corner, see branding/icon.svg.twig): a pale tile on pale chrome
-           otherwise has no edge, and reads as a glyph that lost its square. #}
+           Two images, one drawn for light chrome and one for dark, and the
+           stylesheet shows the one the `dark` class asks for. The server cannot
+           pick: a theme that follows the system is resolved in the browser.
+           Only the parts that would vanish into a dark bar differ between the
+           two (LogoMotif::onChrome()).
+
+           All three are rendered, the unused ones `hidden`, so the appearance
+           pane can switch between them live (repaintLogo) without the page
+           knowing how to draw any of them. An image is given no src while
+           hidden: an empty src is a request for the page itself. Hidden by the
+           attribute, not the class — the attribute wins over `flex` whatever
+           order the stylesheet was built in. #}
         {% import '_partials/_logo_mark.html.twig' as logo %}
         {% set _logoMotif = appearance().effectiveLogoMotif %}
         {% set _logoClassic = _logoMotif.value == 'pl' %}
         <span class="flex flex-shrink-0" data-logo-live-mark {{ _logoClassic ? '' : 'hidden' }}>
-            {{- logo.mark(appearance().effectiveLogoStyle, 32, appearance().theme.isDark, true) -}}
+            {{- logo.mark(appearance().effectiveLogoStyle, 36, appearance().theme.isDark, true) -}}
         </span>
-        <img data-logo-live-icon alt="" width="32" height="32" class="w-8 h-8 flex-shrink-0 rounded-[22%] ring-1 ring-line" decoding="async"
-             {% if _logoClassic %}hidden{% else %}src="{{ logo_icon_url(_logoMotif, appearance().effectiveLogoPaint) }}"{% endif %}>
+        {% for _chrome in ['light', 'dark'] %}
+            <img data-logo-live-icon="{{ _chrome }}" alt="" width="36" height="36" decoding="async"
+                 class="size-9 flex-shrink-0 {{ _chrome == 'dark' ? 'hidden dark:block' : 'dark:hidden' }}"
+                 {% if _logoClassic %}hidden{% else %}src="{{ logo_url(_logoMotif, appearance().effectiveLogoPaint, _chrome == 'dark') }}"{% endif %}>
+        {% endfor %}
         {# ClockPlacement::Brand: a second line under the wordmark, in width
            the brand already has (`md:w-52`), so nothing else in the topbar
            moves for it. It goes with the wordmark below `sm`. #}

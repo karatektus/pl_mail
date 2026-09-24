@@ -79,6 +79,13 @@ enum LogoMotif: string
     private const string WALL = '#f4ecdd';
     private const string SEAL_PAPER = '#f3eadb';
 
+    /**
+     * The mailbox's post on a dark top bar: the post is ink on every paint,
+     * and ink on a dark bar is a box in mid-air. A warm grey, halfway to the
+     * paper the pl mark's own ink turns into there.
+     */
+    private const string POST_ON_DARK = '#8a847d';
+
     /** How pale a happy-mail ground is: a mood behind the face, not a colour. */
     private const float PASTEL = 0.72;
 
@@ -130,6 +137,67 @@ enum LogoMotif: string
     }
 
     /**
+     * This motif in one paint, standing bare on the app's own chrome instead
+     * of on its tile: every part, and no background.
+     *
+     * On light chrome that is paints() without the ground: each glyph was
+     * drawn to be legible on a pale tile, and a light top bar is one. On a
+     * dark bar, two kinds of part would vanish, and only those change:
+     *
+     *  - A line drawing in the colourway's own strokes (the pl mark, and the
+     *    horn drawn in the same pen) reads the colourway's dark-chrome strokes
+     *    instead, exactly as the pl mark in the top bar always has.
+     *    Colourways that are light enough have no dark list and stay as they
+     *    are. So does an original: its colours were picked to carry on either
+     *    chrome.
+     *  - The mailbox's post is ink on every paint, so on a dark bar it turns
+     *    warm grey.
+     *
+     * Everything with a body of its own keeps its livery: the envelopes'
+     * paper, the stamp, the wax. The body carries the drawing, and a white
+     * envelope inside a dark outline still reads as a white envelope.
+     *
+     * Web only, and not part of the shared table: on a phone the icon is
+     * always its tile.
+     *
+     * @return array<string, string|array{ramp: list<string>}|null>
+     */
+    public function onChrome(?LogoStyle $paint, bool $dark = false): array
+    {
+        $paints = $this->paints($paint);
+        unset($paints['background']);
+
+        if (false === $dark) {
+            return $paints;
+        }
+
+        // The pl mark's original IS a colourway, and has a dark list like any.
+        $style = self::Pl === $this ? ($paint ?? LogoStyle::DEFAULT) : $paint;
+
+        return match ($this) {
+            self::Pl, self::BlueHorn => null === $style
+                ? $paints
+                : array_intersect_key($this->livery(new Colourway($style, true)), $paints),
+            self::Mailbox => [...$paints, 'post' => self::POST_ON_DARK],
+            default => $paints,
+        };
+    }
+
+    /**
+     * Whether the glyph needs its tile to be seen at all.
+     *
+     * Only the @-horn. It is a cream @ drawn to sit on its coloured field, and
+     * without that field it is cream on a pale bar, which is nothing. Every
+     * other glyph carries its own contrast and can stand bare, so it does
+     * wherever it is not an app icon (see onChrome()). The @-horn keeps its
+     * tile everywhere.
+     */
+    public function needsGround(): bool
+    {
+        return self::AtHorn === $this;
+    }
+
+    /**
      * The paint vocabulary, in contract order: the original, then every
      * colourway. What the icon route accepts and the export walks.
      *
@@ -157,7 +225,7 @@ enum LogoMotif: string
     {
         return match ($this) {
             // The product default: the mark's own original IS a colourway.
-            self::Pl => self::plMark(LogoStyle::DEFAULT),
+            self::Pl => self::plMark(LogoStyle::DEFAULT->strokes()),
             self::BlueHorn => ['background' => self::WALL, 'horn' => self::AIR_BLUE, 'throat' => '#193e9c'],
             self::AtHorn => ['background' => self::AIR_BLUE, 'horn' => self::CREAM, 'throat' => '#cdd9f5'],
             self::LoveLetter => ['background' => '#ffe4e6', 'paper' => self::WHITE, 'line' => '#9f1239', 'heart' => self::ROSE],
@@ -189,7 +257,7 @@ enum LogoMotif: string
     private function livery(Colourway $way): array
     {
         return match ($this) {
-            self::Pl => self::plMark($way->style),
+            self::Pl => self::plMark($way->strokes),
 
             // The horn is repainted; a second colour lines the bell. The cream
             // wall stays.
@@ -281,12 +349,18 @@ enum LogoMotif: string
         };
     }
 
-    /** @return array<string, string> */
-    private static function plMark(LogoStyle $style): array
+    /**
+     * The mark's seven strokes, one part each, on its off-white ground.
+     *
+     * @param list<string> $strokes
+     *
+     * @return array<string, string>
+     */
+    private static function plMark(array $strokes): array
     {
         $paints = ['background' => self::OFF_WHITE];
 
-        foreach ($style->strokes() as $index => $stroke) {
+        foreach ($strokes as $index => $stroke) {
             $paints['s' . $index] = $stroke;
         }
 

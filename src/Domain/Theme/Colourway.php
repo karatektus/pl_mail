@@ -33,9 +33,12 @@ use App\Domain\Helper\ColourHelper;
  *               for wherever a single solid is needed, and paint() hands out the
  *               ramp itself.
  *
- * Only the LIGHT strokes are read. The icons are drawn on their own grounds, not
- * on the chrome, so the dark-chrome lists — which exist to keep an ink mark from
- * vanishing into a dark topbar — have nothing to say here.
+ * The LIGHT strokes are read unless the dark ones are asked for. An icon on its
+ * tile never asks: the tile is its own ground. A glyph standing bare on a dark
+ * top bar does, because that is exactly what the dark-chrome lists exist for —
+ * keeping an ink drawing from vanishing into the bar (see LogoMotif::onChrome()).
+ * The FAMILY is always read off the light strokes, since the dark lists do not
+ * keep the shape that tells the families apart: a flick's six inks go paper.
  */
 final readonly class Colourway
 {
@@ -61,22 +64,24 @@ final readonly class Colourway
     public string $rep;
 
     /**
-     * The seven light strokes, in draw order — the ramp, for a sweep.
+     * The seven strokes read, in draw order — the ramp, for a sweep.
      *
      * @var list<string>
      */
     public array $strokes;
 
-    public function __construct(public LogoStyle $style)
+    public function __construct(public LogoStyle $style, bool $dark = false)
     {
-        $this->strokes = $style->strokes();
+        $this->strokes = $style->strokes($dark);
         $this->rep = $style->tile();
-        $this->family = self::familyOf($style, $this->strokes);
+        $this->family = self::familyOf($style, $style->strokes());
 
+        // A flick's ink is its first stroke: INK on light chrome, the paper
+        // its dark list swaps in on dark.
         [$this->one, $this->two] = match ($this->family) {
             self::MONO => [$this->strokes[0], null],
             self::DUO => [$this->strokes[0], $this->strokes[6]],
-            self::FLICK => [LogoStyle::INK, $this->strokes[6]],
+            self::FLICK => [$this->strokes[0], $this->strokes[6]],
             self::TRICOLORE => [$this->strokes[0], $this->strokes[1]],
             default => [$this->rep, null],
         };

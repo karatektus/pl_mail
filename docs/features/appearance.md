@@ -49,9 +49,12 @@ Your colourway is kept when you change the icon. Go from Classic to the horn and
 wears what it wore before.
 
 The choice follows you everywhere the logo appears: the top bar wears it at once, and the tab icon
-is served in it too, so the browser tab matches the page it opens. The pl mark sits bare in the top
-bar, and dark themes get each colourway's dark-chrome strokes, so an ink-dark mark never disappears
-into a dark top bar. Every other icon brings its own rounded tile, which reads the same on any theme.
+changes with it, so the browser tab matches the page it opens. In the top bar every icon stands
+bare, without the rounded tile it has on a phone. The exception is the @-Horn, whose cream @ needs
+the coloured field behind it. On a dark theme the pl mark and the horn switch to each colourway's
+dark-chrome colours, so an ink-dark icon never disappears into a dark top bar. The tab icon keeps
+the tile for every icon but the pl mark, because a drawing with nothing behind it is hard to make
+out at the size of a tab.
 
 ## The live preview
 

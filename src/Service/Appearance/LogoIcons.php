@@ -8,7 +8,6 @@ use App\Domain\Enum\Theme\LogoMotif;
 use App\Domain\Enum\Theme\LogoStyle;
 use App\Domain\Helper\ColourHelper;
 use App\Domain\Theme\Colourway;
-use App\Entity\Embeddable\Appearance;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 
@@ -21,15 +20,16 @@ use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
  *
  * WHY A VERSION IN THE URL, AND WHY THIS ONE
  * ──────────────────────────────────────────
- * An icon at /branding/icon/{motif}/{paint}.svg depends on nothing but its URL
- * and the code — no user, no session — so it can be cached like a static file:
+ * An icon at /branding/icon/{motif}/{paint}.svg (or at the tab icon's and the
+ * top bar's routes beside it) depends on nothing but its URL and the code — no
+ * user, no session — so it can be cached like a static file:
  * publicly, for a year, `immutable`. The settings pane shows forty-two of them
  * and the topbar one on every page, and none of that should ever be asked for
  * twice. What it cannot survive is a design change. Somebody tweaks a glyph, and
  * a year-long cache keeps the old one on every screen that ever loaded it.
  *
  * So the URL carries a version (`?v=`), and the version is a fingerprint of
- * everything an icon is drawn from: the icon and favicon templates, the ten
+ * everything an icon is drawn from: the tile and bare-glyph templates, the ten
  * glyph templates, the mark macro, and the classes holding the recipes and the
  * colours. Change any of them and every icon URL changes with it; change none
  * and they stay put across deploys, so an upgrade that did not touch the drawing
@@ -75,35 +75,35 @@ final class LogoIcons
         private readonly string                $projectDir,
     ) {}
 
-    /** One icon: a motif in one paint, null being its own original design. */
+    /** One icon tile: a motif in one paint, null being its own original design. */
     public function url(LogoMotif $motif, ?LogoStyle $paint = null): string
     {
-        return $this->urls->generate('app_branding_icon', [
-            'motif' => $motif->value,
-            'paint' => LogoMotif::paintWire($paint),
-            'v'     => $this->version(),
-        ]);
+        return $this->generate('app_branding_icon', $motif, $paint);
     }
 
     /**
-     * The tab icon for one appearance.
+     * The tab icon for one choice.
      *
-     * The favicon route answers per session, so the URL does not choose what is
-     * drawn — it names it, because browsers keep favicons in a cache of their
-     * own that ignores revalidation until a hard reload (see
-     * _favicon.html.twig). `v` is the choice, which the appearance pane
-     * rewrites live on every pick; `d` is the drawing, which only a deploy
-     * changes, and which the pane therefore leaves alone.
+     * The choice is in the path, and the route draws what the path says. It
+     * must not draw from the session: the appearance pane points the tab here
+     * the moment a pick is clicked, before the save lands (see
+     * BrandingController).
      */
-    public function faviconUrl(Appearance $appearance): string
+    public function faviconUrl(LogoMotif $motif, ?LogoStyle $paint = null): string
     {
-        return $this->urls->generate('app_branding_favicon', [
-            'v' => self::choice($appearance->effectiveLogoMotif(), $appearance->effectiveLogoPaint()),
-            'd' => $this->version(),
-        ]);
+        return $this->generate('app_branding_favicon', $motif, $paint);
     }
 
-    /** `<motif>.<paint>` — a choice as the favicon's URL and ETag spell it. */
+    /**
+     * The top bar's logo for one choice: the glyph bare, for light chrome or
+     * for dark.
+     */
+    public function logoUrl(LogoMotif $motif, ?LogoStyle $paint = null, bool $dark = false): string
+    {
+        return $this->generate('app_branding_logo', $motif, $paint, $dark ? ['dark' => 1] : []);
+    }
+
+    /** `<motif>.<paint>` — a choice as the ETags spell it. */
     public static function choice(LogoMotif $motif, ?LogoStyle $paint): string
     {
         return sprintf('%s.%s', $motif->value, LogoMotif::paintWire($paint));
@@ -119,6 +119,23 @@ final class LogoIcons
     public function version(): string
     {
         return $this->version ??= $this->fingerprint();
+    }
+
+    /**
+     * The paint is the path's last segment, before `.svg`, and every query
+     * parameter comes after it: the appearance pane builds each colourway's
+     * URL by swapping that one segment in the motif's own URL.
+     *
+     * @param array<string, int> $query
+     */
+    private function generate(string $route, LogoMotif $motif, ?LogoStyle $paint, array $query = []): string
+    {
+        return $this->urls->generate($route, [
+            'motif' => $motif->value,
+            'paint' => LogoMotif::paintWire($paint),
+            ...$query,
+            'v'     => $this->version(),
+        ]);
     }
 
     private function fingerprint(): string

@@ -6,8 +6,6 @@ namespace App\Controller;
 
 use App\Domain\Enum\Theme\LogoMotif;
 use App\Domain\Enum\Theme\LogoStyle;
-use App\Entity\Embeddable\Appearance;
-use App\Entity\User\User;
 use App\Infrastructure\Routing\LogoPaintRequirement;
 use App\Service\Appearance\LogoIcons;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -17,44 +15,41 @@ use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Routing\Requirement\EnumRequirement;
 
 /**
- * The logo, served as the viewer chose it: the tab icon, and the icon tiles.
+ * The logo, drawn three ways: as the icon tile, as the tab icon, and as the
+ * top bar wears it.
  *
- * A favicon is a static file for a product whose mark has one face; plMail's
- * has three hundred and thirty now (Settings → Appearance → Logo: ten icons,
- * each in its own design or thirty-two colourways), and a <link> can only
- * point somewhere — so it points here, and here answers with the icon drawn
- * for whoever is asking. Anonymous requests get the product default, which is
- * also what public/icons/favicon.svg holds: the static file stays as the
- * fallback for anything that will not send a cookie, and this route is why
- * the two can never disagree for a signed-in user.
+ * plMail's logo has three hundred and thirty faces (Settings → Appearance →
+ * Logo: ten icons, each in its own design or thirty-two colourways), and every
+ * picture of it is one of these routes. Each draws exactly what its URL names —
+ * `/{motif}/{paint}.svg` — and nothing else: no session, no user. The page that
+ * links a picture knows the choice and spells it into the URL (see LogoIcons).
  *
- * The favicon is Cache-Control private: the answer depends on the session,
- * and a shared cache holding one user's berry for another's ink is exactly the
- * bug a favicon cannot visibly report. The real freshness mechanism is the URL:
- * _favicon.html.twig versions the link with the choice and the drawing (see
- * LogoIcons::faviconUrl()), so a changed choice is a different URL and the
- * browser's own favicon cache — which ignores ordinary revalidation until a
- * hard reload — never needs to be argued with. The ETag stays for the one
- * same-URL case (two tabs, one switch), where it turns the refetch into a 304.
+ * The tab icon used to be the exception: one URL, drawn for whoever asked. That
+ * broke the moment the choice could change live. The appearance pane points the
+ * tab at the new choice the instant it is clicked, and the save that records it
+ * lands a moment later. So the icon was drawn from the session's OLD choice,
+ * and the browser kept that drawing under the new choice's URL for a week.
+ * Every tab icon was the icon before, except for any choice the browser had
+ * already fetched correctly (the one the page loaded with). Drawn from the URL,
+ * there is nothing for the save to race.
  *
- * The icon tiles are the opposite case: they depend on the URL and nothing
- * else, so they are public and, at the current drawing version, immutable. See
- * icon() and LogoIcons for why.
+ * All three are public and, at the current drawing version, immutable. See
+ * serve() for why that is safe.
  */
 final class BrandingController extends AbstractController
 {
     /**
      * A year: as long as a cache will keep anything. Safe only because the URL
      * changes when the drawing does — which is what the version check in
-     * icon() makes sure of before promising it.
+     * serve() makes sure of before promising it.
      */
     private const int IMMUTABLE = 31_536_000;
 
     /**
-     * An hour, for an icon asked for without the current version. Short enough
-     * that a deploy's new drawing reaches such a client the same day, long
-     * enough that it is not a request per page; and every one after the first
-     * is a 304 against the ETag.
+     * An hour, for a picture asked for without the current version. Short
+     * enough that a deploy's new drawing reaches such a client the same day,
+     * long enough that it is not a request per page; and every one after the
+     * first is a 304 against the ETag.
      */
     private const int UNVERSIONED = 3_600;
 
@@ -62,47 +57,10 @@ final class BrandingController extends AbstractController
         private readonly LogoIcons $icons,
     ) {}
 
-    #[Route('/branding/favicon.svg', name: 'app_branding_favicon', methods: ['GET'])]
-    public function favicon(Request $request): Response
-    {
-        $user = $this->getUser();
-
-        $appearance = $user instanceof User ? $user->appearance : new Appearance();
-        $motif = $appearance->effectiveLogoMotif();
-        $paint = $appearance->effectiveLogoPaint();
-
-        $response = new Response(headers: [
-            'Content-Type' => 'image/svg+xml',
-            'Cache-Control' => 'private, max-age=604800',
-        ]);
-
-        // The choice and the drawing both: the same choice drawn by a newer
-        // glyph is a different picture.
-        $response->setEtag(LogoIcons::choice($motif, $paint) . '.' . $this->icons->version());
-
-        if ($response->isNotModified($request)) {
-            return $response;
-        }
-
-        // The pl mark stays the bare mark it has always been in a tab strip —
-        // seven strokes on nothing, the most legible thing that fits in 16px.
-        // Every other icon is its tile: a horn with no ground behind it is a
-        // squiggle at that size, and the tile is what the icon IS on a phone.
-        $response->setContent(LogoMotif::Pl === $motif
-            ? $this->renderView('branding/favicon.svg.twig', ['style' => $appearance->effectiveLogoStyle()])
-            : $this->tile($motif, $paint));
-
-        return $response;
-    }
-
     /**
-     * One icon tile, as the settings pane, the topbar and anyone else draws it.
-     *
-     * Public, and outside the session firewall entirely (security.yaml gives
-     * the path `security: false`). Nothing about the answer depends on who is
-     * asking, and a request that so much as read the session would have Symfony
-     * rewrite this response to `private, max-age=0` — the right default for a
-     * page, and forty-two uncacheable images on the appearance pane.
+     * One icon tile: the glyph on its ground, as a phone's home screen shows
+     * it. The settings pane draws its forty-two tiles with this, and a JMAP
+     * client can too.
      *
      * Unknown motifs and paints 404 at the router: both requirements are read
      * off the enums, so a new colourway has an icon the day it exists.
@@ -116,16 +74,87 @@ final class BrandingController extends AbstractController
     public function icon(Request $request, LogoMotif $motif, string $paint): Response
     {
         $style = LogoStyle::tryFrom($paint);
+
+        return $this->serve($request, 'icon.' . LogoIcons::choice($motif, $style), fn (): string => $this->tile($motif, $style));
+    }
+
+    /**
+     * The tab icon.
+     *
+     * The pl mark sits bare in a tab strip, as it always has: seven strokes on
+     * nothing is the most legible thing that fits in 16px. Every other icon is
+     * its tile, because a horn with no ground behind it is a squiggle at that
+     * size, and the tile is what the icon IS on a phone.
+     */
+    #[Route(
+        '/branding/favicon/{motif}/{paint}.svg',
+        name: 'app_branding_favicon',
+        requirements: ['motif' => new EnumRequirement(LogoMotif::class), 'paint' => new LogoPaintRequirement()],
+        methods: ['GET'],
+    )]
+    public function favicon(Request $request, LogoMotif $motif, string $paint): Response
+    {
+        $style = LogoStyle::tryFrom($paint);
+
+        return $this->serve(
+            $request,
+            'favicon.' . LogoIcons::choice($motif, $style),
+            fn (): string => LogoMotif::Pl === $motif ? $this->bare($motif, $style, false) : $this->tile($motif, $style),
+        );
+    }
+
+    /**
+     * The logo as the app's own chrome wears it: the top bar's.
+     *
+     * The glyph bare, with no tile, on the 48 grid the pl mark is drawn on,
+     * so every icon stands at the mark's scale. The @-horn is the exception
+     * and keeps its tile (LogoMotif::needsGround()). `?dark=1` is the same
+     * logo for a dark bar, which only changes the parts that would vanish
+     * into one (LogoMotif::onChrome()). The page asks for both and lets the
+     * theme show one, so a theme that follows the system is right either way.
+     */
+    #[Route(
+        '/branding/logo/{motif}/{paint}.svg',
+        name: 'app_branding_logo',
+        requirements: ['motif' => new EnumRequirement(LogoMotif::class), 'paint' => new LogoPaintRequirement()],
+        methods: ['GET'],
+    )]
+    public function logo(Request $request, LogoMotif $motif, string $paint): Response
+    {
+        $style = LogoStyle::tryFrom($paint);
+        $dark = $request->query->getBoolean('dark');
+
+        return $this->serve(
+            $request,
+            'logo.' . LogoIcons::choice($motif, $style) . ($dark ? '.dark' : ''),
+            fn (): string => $motif->needsGround() ? $this->tile($motif, $style) : $this->bare($motif, $style, $dark),
+        );
+    }
+
+    /**
+     * One picture that depends on its URL and nothing else.
+     *
+     * Public, and outside the session firewall entirely (security.yaml gives
+     * /branding/ `security: false`). A request that so much as read the
+     * session would have Symfony rewrite this response to `private,
+     * max-age=0`. That is the right default for a page, and forty-two
+     * uncacheable images on the appearance pane.
+     *
+     * Immutable only for the URL LogoIcons hands out for this drawing.
+     * Anything else (no version, or one from before a deploy) is served the
+     * current drawing, but must not be told it can keep it forever: that URL
+     * will not change when the drawing next does.
+     *
+     * @param \Closure(): string $draw
+     */
+    private function serve(Request $request, string $choice, \Closure $draw): Response
+    {
         $version = $this->icons->version();
 
         $response = new Response(headers: ['Content-Type' => 'image/svg+xml']);
         $response->setPublic();
-        $response->setEtag(LogoIcons::choice($motif, $style) . '.' . $version);
+        $response->setEtag($choice . '.' . $version);
 
-        // Immutable only for the URL LogoIcons hands out for this drawing.
-        // Anything else — no version, or one from before a deploy — is served
-        // the current drawing, but must not be told it can keep it forever:
-        // that URL will not change when the drawing next does.
         if ($version === $request->query->get('v')) {
             $response->setMaxAge(self::IMMUTABLE);
             $response->setImmutable();
@@ -137,28 +166,56 @@ final class BrandingController extends AbstractController
             return $response;
         }
 
-        $response->setContent($this->tile($motif, $style));
+        $response->setContent($draw());
 
         return $response;
     }
 
+    /** One tile: the glyph on its ground, clipped to the rounded square. */
+    private function tile(LogoMotif $motif, ?LogoStyle $paint): string
+    {
+        [$parts, $glyphRamp, $tileRamp] = self::fill($motif->paints($paint));
+
+        return $this->renderView('branding/icon.svg.twig', [
+            'motif'      => $motif,
+            'p'          => $parts,
+            'glyph_ramp' => $glyphRamp,
+            'tile_ramp'  => $tileRamp,
+        ]);
+    }
+
+    /** One glyph with no tile, for light chrome or dark. */
+    private function bare(LogoMotif $motif, ?LogoStyle $paint, bool $dark): string
+    {
+        [$parts, $glyphRamp] = self::fill($motif->onChrome($paint, $dark));
+
+        return $this->renderView('branding/logo.svg.twig', [
+            'motif'      => $motif,
+            'p'          => $parts,
+            'glyph_ramp' => $glyphRamp,
+        ]);
+    }
+
     /**
-     * Draw one tile: the motif's paints from LogoMotif, turned into what the
-     * glyph templates read.
+     * A motif's paints, turned into what the glyph templates read.
      *
      * The table form ({ramp: [...]}) is what the export and the phone share;
      * the templates want a paint they can drop into `fill`. A ramp becomes a
-     * reference to the one gradient the tile defines for it — every glyph part
-     * that is a ramp is the same colourway's ramp, so one glyph gradient and
-     * one ground gradient are all a tile ever needs.
+     * reference to the one gradient the picture defines for it. Every glyph
+     * part that is a ramp is the same colourway's ramp, so one glyph gradient
+     * and one ground gradient are all a picture ever needs.
+     *
+     * @param array<string, string|array{ramp: list<string>}|null> $paints
+     *
+     * @return array{array<string, string|null>, list<string>|null, list<string>|null}
      */
-    private function tile(LogoMotif $motif, ?LogoStyle $paint): string
+    private static function fill(array $paints): array
     {
         $parts = [];
         $glyphRamp = null;
         $tileRamp = null;
 
-        foreach ($motif->paints($paint) as $part => $value) {
+        foreach ($paints as $part => $value) {
             if (true === is_array($value)) {
                 if ('background' === $part) {
                     $tileRamp = $value['ramp'];
@@ -172,11 +229,6 @@ final class BrandingController extends AbstractController
             $parts[$part] = $value;
         }
 
-        return $this->renderView('branding/icon.svg.twig', [
-            'motif'      => $motif,
-            'p'          => $parts,
-            'glyph_ramp' => $glyphRamp,
-            'tile_ramp'  => $tileRamp,
-        ]);
+        return [$parts, $glyphRamp, $tileRamp];
     }
 }

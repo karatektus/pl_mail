@@ -1,4 +1,4 @@
-<!-- translated-from: features/appearance.md sha1:5902e2879704e217056b54cce77b8d3d2392777b -->
+<!-- translated-from: features/appearance.md sha1:9d9ac77d8ed5aee02d91bc7f6b86cdaf94b4297f -->
 
 # Darstellung
 
@@ -55,12 +55,14 @@ sind rot und blau, die Schnecke ist grün und die Fahne des Briefkastens rot.
 Deine Farbstimmung bleibt erhalten, wenn du das Symbol wechselst. Geh von Klassisch zum Horn und
 zurück, und das Zeichen trägt, was es vorher trug.
 
-Die Wahl folgt dir überallhin, wo das Logo auftaucht: Die Kopfleiste trägt sie sofort, und auch
-das Tab-Symbol wird darin ausgeliefert, der Browser-Tab passt also zu der Seite, die er öffnet. Das
-pl-Zeichen steht frei in der Kopfleiste, und dunkle Themes bekommen von jeder Farbstimmung die
-Striche für dunkle Oberflächen — ein tintendunkles Zeichen verschwindet so nie in einer dunklen
-Kopfleiste. Jedes andere Symbol bringt seine eigene abgerundete Kachel mit, die auf jedem Theme
-gleich gut zu lesen ist.
+Die Wahl folgt dir überallhin, wo das Logo auftaucht: Die Kopfleiste trägt sie sofort, und das
+Tab-Symbol wechselt mit, der Browser-Tab passt also zu der Seite, die er öffnet. In der Kopfleiste
+steht jedes Symbol frei, ohne die abgerundete Kachel, die es auf dem Handy hat. Die Ausnahme ist das
+Klammeraffenhorn, denn sein cremefarbenes @ braucht das farbige Feld dahinter. Auf einem dunklen
+Theme wechseln das pl-Zeichen und das Horn zu den Farben, die jede Farbstimmung für dunkle
+Oberflächen hat — ein tintendunkles Symbol verschwindet so nie in einer dunklen Kopfleiste. Das
+Tab-Symbol behält die Kachel bei jedem Symbol außer dem pl-Zeichen, weil eine Zeichnung ohne
+Hintergrund in Tab-Größe kaum zu erkennen ist.
 
 ## Die Live-Vorschau
 

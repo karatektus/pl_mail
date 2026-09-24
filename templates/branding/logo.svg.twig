@@ -1,0 +1,26 @@
+{#
+    One glyph with no tile, as the app's own chrome wears it: the top bar's
+    logo, and the pl mark's tab icon.
+
+    The box is the 48 grid every glyph was drawn on, the one the pl mark's
+    macro draws in too, so any icon here stands at the mark's scale. A glyph
+    that needs its ground never comes here (LogoMotif::needsGround()).
+
+    Variables (see BrandingController::bare()):
+      motif       LogoMotif — which glyph template to draw
+      p           the paints by part: '#rrggbb', 'url(#g)' or null
+      glyph_ramp  seven stops when a part is a sweep, else null
+
+    The gradient runs corner to corner across the glyph, (8,6) to (40,42), the
+    same as on the tile, so a sweep reads the same with or without one.
+#}
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48">
+{% if glyph_ramp %}
+    <defs>
+        <linearGradient id="g" gradientUnits="userSpaceOnUse" x1="8" y1="6" x2="40" y2="42">
+            {%- for stop in glyph_ramp %}<stop offset="{{ '%.3f'|format(loop.index0 / 6) }}" stop-color="{{ stop }}"/>{% endfor -%}
+        </linearGradient>
+    </defs>
+{% endif %}
+    {% include 'branding/motif/' ~ motif.value ~ '.svg.twig' with { p: p } only %}
+</svg>

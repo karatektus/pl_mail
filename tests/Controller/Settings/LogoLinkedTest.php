@@ -17,8 +17,8 @@ use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
  *
  * Every logo style is a theme now, value for value, and appearance_logo_linked
  * says which of the two axes dresses the mark. What is pinned here is the
- * resolution — Appearance::effectiveLogoStyle() — as the favicon route
- * actually serves it: unlinked, the user's own logoStyle answers; linked, the
+ * resolution — Appearance::effectiveLogoStyle() — as the tab icon actually
+ * serves it: unlinked, the user's own logoStyle answers; linked, the
  * theme's namesake style answers; and a linked classic theme (paper, dark…)
  * has no namesake, so the product default answers rather than an error or a
  * stale choice.
@@ -111,9 +111,18 @@ final class LogoLinkedTest extends WebTestCase
         self::assertResponseIsSuccessful();
     }
 
+    /**
+     * The tab icon as a browser gets it: the link the page renders, then what
+     * that link serves. The page is where the choice is resolved; the route
+     * only draws what the link names.
+     */
     private function favicon(KernelBrowser $client): string
     {
-        $client->request('GET', '/branding/favicon.svg');
+        $href = (string) $client->request('GET', '/mail/inbox')
+            ->filter('link[rel="icon"][type="image/svg+xml"]')
+            ->attr('href');
+
+        $client->request('GET', $href);
 
         self::assertResponseIsSuccessful();
 

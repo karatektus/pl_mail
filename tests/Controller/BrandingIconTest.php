@@ -10,7 +10,7 @@ use App\Service\Appearance\LogoIcons;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 
 /**
- * The icon tiles: public pictures, cached for a year at the drawing's version.
+ * The logo pictures: public, cached for a year at the drawing's version.
  *
  * Two claims, and the second is the one that breaks quietly. An icon is served
  * for every motif × paint the enums know and for nothing else. And it stays
@@ -47,6 +47,29 @@ final class BrandingIconTest extends WebTestCase
         self::assertStringContainsString('public', $cache);
         self::assertStringContainsString('immutable', $cache, 'the versioned URL is the one a year is promised to');
         self::assertStringNotContainsString('private', $cache);
+    }
+
+    /**
+     * The top bar's logo stands bare, the way the pl mark does, with one
+     * exception: the @-horn, whose cream @ is nothing without its field.
+     */
+    public function testTheTopBarLogoHasNoTileExceptTheAtHorn(): void
+    {
+        $client = static::createClient();
+
+        $client->request('GET', '/branding/logo/love-letter/original.svg');
+
+        self::assertResponseIsSuccessful();
+
+        $letter = (string) $client->getResponse()->getContent();
+
+        self::assertStringNotContainsString('clip-path', $letter, 'no tile to clip the glyph to');
+        self::assertStringNotContainsString('#ffe4e6', $letter, 'no pink ground behind the letter');
+        self::assertStringContainsString('#f43f5e', $letter, 'the letter itself, heart and all');
+
+        $client->request('GET', '/branding/logo/at-horn/original.svg');
+
+        self::assertStringContainsString('clip-path="url(#tile)"', (string) $client->getResponse()->getContent());
     }
 
     public function testAnUnknownMotifOrPaintIsNotFound(): void

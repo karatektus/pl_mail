@@ -21,15 +21,13 @@
     per-user setting now (Settings → Appearance → Logo: an icon, then its
     paint) and a static file can only wear one. Anonymous pages get the product
     default from the same route; /icons/favicon.svg still exists, painted in
-    that default, for anything that fetches icons without a session.
+    that default, for anything that fetches icons without a page.
 #}
-{# The choice rides in the URL as a cache-buster — `v`, the icon and its paint
-   (`blue-horn.ocean`) — and so does the drawing's version, `d`. Browsers keep
-   a favicon cache of their own that ignores ordinary revalidation until a hard
-   reload; the ETag alone left people staring at the old colourway. A new
-   choice is a new URL, and the appearance page rewrites `v` live on every pick
-   (see repaintLogo), so the tab follows the click; `d` moves only when a
-   deploy redraws the icons. The server ignores both: the session decides what
-   is drawn, the URL only names it. See LogoIcons::faviconUrl(). #}
-<link rel="icon" type="image/svg+xml" href="{{ logo_favicon_url() }}">
+{# The choice is the URL — /branding/favicon/<icon>/<paint>.svg — and the
+   route draws what the URL says, never what the session says. Browsers keep a
+   favicon cache of their own that ignores ordinary revalidation until a hard
+   reload, so a new choice has to be a new URL, and the appearance page swaps
+   it live on every pick (see repaintLogo) — before the save has landed, which
+   is why the drawing cannot come from the session. See BrandingController. #}
+<link rel="icon" type="image/svg+xml" href="{{ logo_favicon_url(appearance().effectiveLogoMotif, appearance().effectiveLogoPaint) }}">
 <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png">

@@ -395,9 +395,12 @@
 
                 {# Step one. `data-logo-icon` is the tile's own URL — the icon
                    route for this motif in its original design, versioned — and
-                   the one URL the script builds every other icon URL from: a
+                   the one URL the script builds every other tile URL from: a
                    paint is the last path segment, so a colourway is that URL
-                   with `original.svg` swapped (see iconUrl). #}
+                   with `original.svg` swapped (see iconUrl). The other three
+                   are the same motif's tab icon and its top-bar logo on light
+                   and dark chrome, which the script builds the same way for
+                   whatever is picked. #}
                 <div class="mb-6">
                     <span class="block text-xs font-medium text-ink-muted mb-1.5" id="logo-motif-label">
                         {{ 'settings.appearance.logo.icon'|trans }}
@@ -409,6 +412,9 @@
                             <button type="button"
                                     data-logo-motif="{{ motif.value }}"
                                     data-logo-icon="{{ _url }}"
+                                    data-logo-favicon="{{ logo_favicon_url(motif) }}"
+                                    data-logo-bar="{{ logo_url(motif) }}"
+                                    data-logo-bar-dark="{{ logo_url(motif, null, true) }}"
                                     data-action="click->settings--appearance#pickMotif"
                                     aria-pressed="{{ motif == _motif ? 'true' : 'false' }}"
                                     class="{{ _iconTile }} {{ motif == _motif ? 'ring-2 ring-accent' : '' }}">

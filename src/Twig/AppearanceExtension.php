@@ -48,17 +48,9 @@ final class AppearanceExtension extends AbstractExtension
             new TwigFunction('background_preset_css', $this->backgrounds->preset(...)),
             new TwigFunction('background_solid_css', $this->backgrounds->solid(...)),
             new TwigFunction('logo_icon_url', $this->logoIcons->url(...)),
-            new TwigFunction('logo_favicon_url', $this->logoFaviconUrl(...)),
+            new TwigFunction('logo_favicon_url', $this->logoIcons->faviconUrl(...)),
+            new TwigFunction('logo_url', $this->logoIcons->logoUrl(...)),
         ];
-    }
-
-    /**
-     * The tab icon's URL for whoever is looking — the user's choice, or the
-     * cookie-backed default on a page rendered without one (see appearance()).
-     */
-    public function logoFaviconUrl(): string
-    {
-        return $this->logoIcons->faviconUrl($this->appearance());
     }
 
     public function appearance(): Appearance
