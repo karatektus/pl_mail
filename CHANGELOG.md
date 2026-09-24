@@ -6,6 +6,24 @@ so anything that changes the schema irreversibly is called out explicitly.
 The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, and `sha-…` pins one commit.
 
+## v0.2.44 — 2026-09-24
+
+**The calendar opens beside your mail.** On a desktop the calendar now starts open next to the
+message list, so mail and diary are side by side from the first visit, demo visitors included. If
+you never moved the calendar switch, you will see it open after this update. Close it and it stays
+closed; a phone still opens on the mail.
+
+- **Instant delivery stops raising false alarms.** "Instant delivery is registered but not
+  arriving" kept appearing for Gmail accounts whose push was working. plMail asks Gmail to announce
+  changes to the inbox only, but counted every change in the mailbox against it: the copy of a
+  message you sent, an archived thread, mail your filters keep out of the inbox. Only inbox changes
+  count now. "Turn instant delivery back on" also clears the card at once, instead of leaving it up
+  until the next mail arrived.
+- **A phone no longer opens on an empty page** when the calendar was left open on a desktop. The
+  mail is there from the first frame.
+- **The docked calendar's date fits.** In the agenda and day views it read "Sep 24, 20…"; it drops
+  the year while it is this one.
+
 ## v0.2.43 — 2026-09-24
 
 **The tab icon shows the icon you picked.** Picking an icon under Settings → Appearance → Logo
