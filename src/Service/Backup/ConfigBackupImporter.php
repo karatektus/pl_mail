@@ -290,6 +290,7 @@ final readonly class ConfigBackupImporter
         ConfigBackupDatabase::FCM_CONFIG,
         ConfigBackupDatabase::AI_SETTINGS,
         ConfigBackupDatabase::LOG_SETTINGS,
+        ConfigBackupDatabase::UPDATE_SETTINGS,
     ];
 
     private function databaseItems(array $database): array
@@ -434,14 +435,15 @@ final readonly class ConfigBackupImporter
                 $values = is_array($values) ? $values : [];
 
                 // No default arm: the in_array() above has already narrowed
-                // $table to these three, and an unhandled one should be a loud
+                // $table to these, and an unhandled one should be a loud
                 // UnhandledMatchError rather than a silent skip — a singleton
                 // added to SINGLETON_TABLES and forgotten here would otherwise
                 // plan a row and quietly not write it.
                 match ($table) {
                     ConfigBackupDatabase::FCM_CONFIG   => $this->database->restoreFcmConfig($values),
                     ConfigBackupDatabase::AI_SETTINGS  => $this->database->restoreAiSettings($values),
-                    ConfigBackupDatabase::LOG_SETTINGS => $this->database->restoreLogSettings($values),
+                    ConfigBackupDatabase::LOG_SETTINGS    => $this->database->restoreLogSettings($values),
+                    ConfigBackupDatabase::UPDATE_SETTINGS => $this->database->restoreUpdateSettings($values),
                 };
 
                 continue;

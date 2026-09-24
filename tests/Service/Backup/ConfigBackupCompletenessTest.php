@@ -94,6 +94,7 @@ final class ConfigBackupCompletenessTest extends TestCase
         yield 'integration provider registrations (Admin → Integrations)' => [ConfigBackupDatabase::INTEGRATION_PROVIDERS];
         yield 'the assistant configuration (Admin → AI)' => [ConfigBackupDatabase::AI_SETTINGS];
         yield 'the chosen log level (Admin → Logs)' => [ConfigBackupDatabase::LOG_SETTINGS];
+        yield 'the update channel (Admin → Updates)' => [ConfigBackupDatabase::UPDATE_SETTINGS];
     }
 
     #[\PHPUnit\Framework\Attributes\DataProvider('adminConfiguredTables')]

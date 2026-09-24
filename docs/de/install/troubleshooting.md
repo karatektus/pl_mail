@@ -1,4 +1,4 @@
-<!-- translated-from: install/troubleshooting.md sha1:91a3224458cdef6b2292c713eeee7662b612860e -->
+<!-- translated-from: install/troubleshooting.md sha1:376ffd5aba03bcdd113d715cfcca4ce64526fa1f -->
 # Fehlersuche
 
 Was `/healthz` bedeutet, wie du eine hängende von einer leeren Warteschlange unterscheidest, wo die
@@ -109,6 +109,7 @@ von ihnen ausgelöst.**
 | täglich 03:50 | `app:calendar:materialise` |
 | täglich 04:00 | `app:push:renew --repair` |
 | täglich 04:30 | `app:monitoring:prune` |
+| stündlich um :37 | `app:updates:check` |
 | sonntags 05:00 | `app:prune:blobs` |
 
 ```bash

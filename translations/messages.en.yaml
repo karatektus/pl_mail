@@ -655,6 +655,7 @@ admin:
         push: Push
         reset: Reset
         system: System
+        updates: Updates
         users: Users
     processes:
         empty: 'No heartbeats yet — processes report here after their first beat.'
@@ -874,6 +875,55 @@ admin:
             push_off: 'push off'
             push_on: 'push on'
         watch_expiry: 'Watch expiry'
+    updates:
+        heading: 'Updates'
+        header: '%version% is available'
+        intro: 'plMail checks every hour whether the channel you follow has published a newer build, and tells the administrators once per build: a notification on each device they have registered for push, and a note at the top of this area.'
+        saved: 'Channel saved.'
+        channel:
+            label: 'Follow'
+            save: 'Save'
+            follows_build: ' Nobody has chosen yet, so this follows the build that is running.'
+            releases:
+                name: 'Releases'
+                hint: 'Every tagged release: the image tagged latest. Right for most installations.'
+            main:
+                name: 'Main'
+                hint: 'Every build of the main branch as soon as it is published: the image tagged main. This is what is being worked on, and the changelog does not describe it yet.'
+            'off':
+                name: 'Off'
+                hint: 'No checks. Nothing is sent anywhere for this.'
+        state:
+            available: 'Update available'
+            current: 'Up to date'
+            failed: 'No answer'
+            incomparable: 'Cannot compare'
+            'off': 'Off'
+            unknown: 'Not checked yet'
+        running: 'This installation'
+        newest:
+            releases: 'Newest release'
+            main: 'Newest main build'
+        built_at: 'built %when%'
+        not_yet: 'Not checked yet'
+        incomparable: 'This build has no commit stamped into it (a checkout, or an image built without the release workflow), so there is nothing to compare the channel''s newest build with.'
+        checked: 'Last checked'
+        never: 'never'
+        check_now: 'Check now'
+        error: 'The last check got no answer: %error%.'
+        error_kept: ' What is shown is from the last check that did.'
+        changes:
+            heading: 'What is new'
+            count: '{1}One change since this build|]1,Inf[%count% changes since this build'
+            all: 'Every change on GitHub'
+            changelog: 'Changelog'
+        how:
+            heading: 'Updating'
+            body: 'Pull the new image and recreate the containers; on a NAS, redeploy the app. plMail migrates its database when it starts, so read the changelog first for anything under "Before you upgrade".'
+        privacy: 'A check asks the registry for the newest %image% image and api.github.com what changed since this build. Nothing about this installation is sent beyond the requests themselves.'
+        push:
+            title: 'plMail %version% is available'
+            body: 'You are running %running%. Open Admin → Updates to see what changed.'
     users:
         add: Add user
         console_note: 'Passwords and two-factor recovery are handled from the server console, not here — `app:user:password` and `app:user:2fa-disable`. An administrator who could change either from a browser would be a second way into every mailbox on this install.'

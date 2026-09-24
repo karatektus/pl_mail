@@ -662,6 +662,7 @@ admin:
         push: Push
         reset: Zurücksetzen
         system: System
+        updates: Aktualisierungen
         users: Benutzer
     processes:
         empty: 'Noch keine Heartbeats — Prozesse melden sich hier nach ihrem ersten Lebenszeichen.'
@@ -884,6 +885,55 @@ admin:
             push_off: 'Push aus'
             push_on: 'Push an'
         watch_expiry: 'Watch läuft ab'
+    updates:
+        heading: 'Aktualisierungen'
+        header: '%version% ist verfügbar'
+        intro: 'plMail prüft jede Stunde, ob der Kanal, dem du folgst, einen neueren Build veröffentlicht hat, und sagt es den Administratoren einmal pro Build: mit einer Benachrichtigung auf jedem Gerät, das sie für Push angemeldet haben, und mit einem Hinweis oben in diesem Bereich.'
+        saved: 'Kanal gespeichert.'
+        channel:
+            label: 'Folgen'
+            save: 'Speichern'
+            follows_build: ' Noch hat niemand gewählt, deshalb folgt die Installation dem Build, der gerade läuft.'
+            releases:
+                name: 'Veröffentlichungen'
+                hint: 'Jede getaggte Veröffentlichung: das Image mit dem Tag latest. Für die meisten Installationen das Richtige.'
+            main:
+                name: 'Main'
+                hint: 'Jeder Build des main-Zweigs, sobald er veröffentlicht ist: das Image mit dem Tag main. Das ist, woran gerade gearbeitet wird, und das Änderungsprotokoll beschreibt es noch nicht.'
+            'off':
+                name: 'Aus'
+                hint: 'Keine Prüfung. Dafür wird nichts irgendwohin gesendet.'
+        state:
+            available: 'Aktualisierung verfügbar'
+            current: 'Aktuell'
+            failed: 'Keine Antwort'
+            incomparable: 'Nicht vergleichbar'
+            'off': 'Aus'
+            unknown: 'Noch nicht geprüft'
+        running: 'Diese Installation'
+        newest:
+            releases: 'Neueste Veröffentlichung'
+            main: 'Neuester main-Build'
+        built_at: 'gebaut %when%'
+        not_yet: 'Noch nicht geprüft'
+        incomparable: 'In diesen Build ist kein Commit eingestempelt (ein Checkout oder ein Image, das nicht der Release-Workflow gebaut hat), deshalb gibt es nichts, womit sich der neueste Build des Kanals vergleichen ließe.'
+        checked: 'Zuletzt geprüft'
+        never: 'nie'
+        check_now: 'Jetzt prüfen'
+        error: 'Die letzte Prüfung hat keine Antwort bekommen: %error%.'
+        error_kept: ' Angezeigt wird, was die letzte beantwortete Prüfung gefunden hat.'
+        changes:
+            heading: 'Was neu ist'
+            count: '{1}Eine Änderung seit diesem Build|]1,Inf[%count% Änderungen seit diesem Build'
+            all: 'Alle Änderungen auf GitHub'
+            changelog: 'Änderungsprotokoll'
+        how:
+            heading: 'Aktualisieren'
+            body: 'Hol das neue Image und erstelle die Container neu; auf einem NAS stellst du die App neu bereit. plMail migriert seine Datenbank beim Start, lies also vorher im Änderungsprotokoll, was unter „Before you upgrade“ steht.'
+        privacy: 'Eine Prüfung fragt die Registry nach dem neuesten Image von %image% und api.github.com, was sich seit diesem Build geändert hat. Über diese Installation wird dabei nichts gesendet außer den Anfragen selbst.'
+        push:
+            title: 'plMail %version% ist verfügbar'
+            body: 'Du verwendest %running%. Öffne Admin → Aktualisierungen, um zu sehen, was sich geändert hat.'
     users:
         add: Benutzer hinzufügen
         console_note: 'Passwörter und die Wiederherstellung der Zwei-Faktor-Authentifizierung laufen über die Server-Konsole, nicht hier — `app:user:password` und `app:user:2fa-disable`. Wer beides im Browser ändern könnte, hätte einen zweiten Weg in jedes Postfach dieser Installation.'

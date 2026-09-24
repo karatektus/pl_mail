@@ -156,6 +156,12 @@ ARG APP_VERSION=""
 ARG APP_COMMIT=""
 ENV APP_VERSION=$APP_VERSION
 ENV APP_COMMIT=$APP_COMMIT
+# Where this image is published, e.g. ghcr.io/karatektus/pl_mail: what Admin →
+# Updates asks for newer builds. Stamped rather than hard-coded so a fork that
+# publishes its own image checks its own. The same value on every build, so it
+# costs the layer cache nothing.
+ARG APP_IMAGE=""
+ENV APP_IMAGE=$APP_IMAGE
 
 # copy sources
 COPY --link . ./

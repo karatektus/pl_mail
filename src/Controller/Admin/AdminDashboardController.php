@@ -16,6 +16,7 @@ use App\Service\Monitoring\DbPerformanceService;
 use App\Service\Monitoring\LogLevelResolver;
 use App\Service\Monitoring\QueueMonitor;
 use App\Service\Monitoring\WorkerRestartSignal;
+use App\Service\System\Update\UpdateChecker;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -31,7 +32,7 @@ final class AdminDashboardController extends AbstractController
 {
     use ChecksCsrf;
 
-    private const array SECTIONS = ['system', 'database', 'logs', 'insight-reports', 'integrations', 'push', 'ai', 'users', 'backup', 'reset'];
+    private const array SECTIONS = ['system', 'database', 'logs', 'insight-reports', 'integrations', 'push', 'ai', 'users', 'backup', 'updates', 'reset'];
     private const int LOGS_PER_PAGE = 100;
 
     /**
@@ -63,6 +64,7 @@ final class AdminDashboardController extends AbstractController
         private readonly EntityManagerInterface $entityManager,
         private readonly InsightReportRepository $insightReports,
         private readonly TranslatorInterface $translator,
+        private readonly UpdateChecker $updates,
     ) {}
 
     #[Route('', name: 'dashboard')]
@@ -81,6 +83,9 @@ final class AdminDashboardController extends AbstractController
             // that knows the number is the one section that is not loaded.
             // One indexed count on a page that already runs several.
             'pendingInsightReports' => $this->insightReports->countPending(),
+            // The newer build, for the header and the nav, for the same reason:
+            // it is worth seeing from whichever section is open. One row read.
+            'updateAvailable'       => $this->updates->available(),
         ]);
     }
 

@@ -14,9 +14,11 @@ use App\Repository\Integration\MailProviderConfigRepository;
 use App\Repository\Push\FcmConfigRepository;
 use App\Domain\Ai\KeepAlive;
 use App\Entity\Ai\AiSettings;
+use App\Domain\Enum\System\UpdateChannel;
 use App\Entity\Monitoring\LogSettings;
 use App\Repository\Ai\AiSettingsRepository;
 use App\Repository\Monitoring\LogSettingsRepository;
+use App\Repository\System\UpdateCheckRepository;
 use App\Domain\Enum\Ai\PromptSlot;
 use Doctrine\ORM\EntityManagerInterface;
 
@@ -74,6 +76,13 @@ final readonly class ConfigBackupDatabase
     public const string LOG_SETTINGS = 'logSettings';
 
     /**
+     * The update channel — Admin → Updates. The channel only: what the last
+     * check found is this installation's own record, and would be wrong about
+     * any other.
+     */
+    public const string UPDATE_SETTINGS = 'updateSettings';
+
+    /**
      * Every key the section carries.
      *
      * Exists so {@see \App\Tests\Service\Backup\ConfigBackupCompletenessTest}
@@ -88,6 +97,7 @@ final readonly class ConfigBackupDatabase
         self::INTEGRATION_PROVIDERS,
         self::AI_SETTINGS,
         self::LOG_SETTINGS,
+        self::UPDATE_SETTINGS,
     ];
 
     public function __construct(
@@ -96,6 +106,7 @@ final readonly class ConfigBackupDatabase
         private IntegrationProviderConfigRepository $integrationProviders,
         private AiSettingsRepository                $aiSettings,
         private LogSettingsRepository               $logSettings,
+        private UpdateCheckRepository               $updateChecks,
         private EntityManagerInterface              $entityManager,
     ) {
     }
@@ -111,6 +122,7 @@ final readonly class ConfigBackupDatabase
             self::INTEGRATION_PROVIDERS => $this->exportIntegrationProviders(),
             self::AI_SETTINGS           => $this->exportAiSettings(),
             self::LOG_SETTINGS          => $this->exportLogSettings(),
+            self::UPDATE_SETTINGS       => $this->exportUpdateSettings(),
         ];
     }
 
@@ -314,6 +326,41 @@ final readonly class ConfigBackupDatabase
 
         if (null === $settings->id) {
             $this->entityManager->persist($settings);
+        }
+    }
+
+    /**
+     * The chosen update channel, or null when the installation follows its
+     * build. Null is exported as null for the reason exportLogSettings()
+     * gives: writing the channel the build implies would pin an installation
+     * that was following it.
+     *
+     * @return array<string, mixed>|null
+     */
+    private function exportUpdateSettings(): ?array
+    {
+        $check = $this->updateChecks->current();
+
+        if (null === $check) {
+            return null;
+        }
+
+        return ['channel' => $check->channel?->value];
+    }
+
+    /**
+     * @param array<string, mixed> $values
+     */
+    public function restoreUpdateSettings(array $values): void
+    {
+        $check = $this->updateChecks->currentOrNew();
+
+        // A value this build does not know is "follow the build" rather than an
+        // error: a backup from a newer plMail may name a channel this one lacks.
+        $check->channel = UpdateChannel::tryFrom((string) $this->string($values, 'channel'));
+
+        if (null === $check->id) {
+            $this->entityManager->persist($check);
         }
     }
 

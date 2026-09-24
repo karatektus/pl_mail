@@ -1,4 +1,4 @@
-<!-- translated-from: install/upgrading.md sha1:955598218f74f2ecb8e9af61865ceb81d9296df3 -->
+<!-- translated-from: install/upgrading.md sha1:5ff93f95aaf246cd1cfa30883c1381c2722131ea -->
 # Aktualisieren
 
 plMail migriert seine eigene Datenbank beim Start. Diese eine Entscheidung prägt alles auf dieser
@@ -118,6 +118,44 @@ das, was `docker compose pull` liefert.
 **Der typische Fehlerfall ist, dem Tag statt dem Chip zu glauben.** Zwei Images können sich beide
 `main` nennen. Der Commit im Chip ist das Einzige, was sie unterscheidet, und er ist der Grund,
 warum die Bezeichnung allein nicht genügt.
+
+## Erfahren, wann es eine Aktualisierung gibt
+
+**Admin → Aktualisierungen** prüft jede Stunde, ob ein neuerer Build veröffentlicht ist, und sagt es
+den Administratoren, sobald es einen findet: mit einer Benachrichtigung auf jedem Gerät, das sie für
+Push angemeldet haben, und mit einem Hinweis neben der Build-Anzeige in der Kopfzeile des
+Administrationsbereichs.
+
+Welche Builds zählen, entscheidet der **Kanal**:
+
+| Kanal | Folgt | Richtig für |
+|---|---|---|
+| **Veröffentlichungen** | dem Image `latest`: jeder getaggten Veröffentlichung | die meisten Installationen |
+| **Main** | dem Image `main`: jedem Build des Standardzweigs | wer betreiben will, woran gerade gearbeitet wird |
+| **Aus** | nichts | eine Installation, die von sich aus keine Anfrage senden soll |
+
+Bis ein Administrator einen wählt, ist der Kanal der, aus dem der laufende Build stammt: Ein Image
+einer Veröffentlichung folgt den Veröffentlichungen, ein `main`-Image folgt main, und ein Build ohne
+eingestempelte Version prüft nichts.
+
+Eine Prüfung fragt die Image-Registry nach dem neuesten Image des Kanals, also dem, das
+`docker compose pull` holen würde, und liest, aus welchem Commit es gebaut wurde. Dann fragt sie
+GitHub, wie dieser Commit zum laufenden steht; erst das unterscheidet *neuer* von bloß *anders*: Ein
+`main`-Build, der den Veröffentlichungen folgt, ist der neuesten Veröffentlichung voraus und wird
+nicht aufgefordert, zu ihr zurückzugehen. Die Commits dazwischen stehen auf der Seite als das, was
+neu ist. Über die Installation wird dabei nichts gesendet außer den Anfragen selbst.
+
+Welches Image die Prüfungen lesen, wird beim Bauen als `APP_IMAGE` eingestempelt (zum Beispiel
+`ghcr.io/karatektus/pl_mail`), neben `APP_VERSION` und `APP_COMMIT`. Ein Fork, der sein eigenes
+Image veröffentlicht, prüft also sein eigenes. Ein gesetztes `APP_IMAGE` in der Umgebung hat Vorrang.
+
+Die Seite installiert noch nichts; das erledigen die Befehle unter [Das Upgrade](#das-upgrade) oben.
+
+**Der Fehlerfall ist eine Prüfung, die die Registry nicht erreicht.** Eine Installation hinter einer
+Firewall bekommt keine Antwort. Die Seite sagt das und behält, was die letzte beantwortete Prüfung
+gefunden hat, und der stündliche Befehl zählt es nicht als Fehler. GitHubs anonyme API erlaubt
+sechzig Anfragen pro Stunde und Adresse, was eine viel genutzte gemeinsame Adresse aufbrauchen kann;
+die Seite nennt diesen Fall, wenn er eintritt.
 
 ## pgvector einschalten
 

@@ -592,6 +592,7 @@ admin:
         push: "Signal flags"
         reset: "Scuttle"
         system: Ship
+        updates: "New sails"
         users: Th' crew roster
     processes:
         empty: 'No heartbeats yet — hands report here after their first beat.'
@@ -794,6 +795,55 @@ admin:
             push_off: 'cannon stowed'
             push_on: 'cannon primed'
         watch_expiry: 'Watch ends'
+    updates:
+        heading: "New sails"
+        header: "%version% be in port"
+        intro: "Every hour plMail scans the horizon fer a newer build on the channel ye follow, an' tells the captains once per build: a bell on every device they signed on fer push, an' a note atop these quarters."
+        saved: "Course set."
+        channel:
+            label: "Follow"
+            save: "Set course"
+            follows_build: " No captain has chosen yet, so this follows the build now sailin'."
+            releases:
+                name: "Releases"
+                hint: "Every release flyin' a tag: the image called latest. Right fer most ships."
+            main:
+                name: "Main"
+                hint: "Every build o' the main branch the moment it be launched: the image called main. This be work still on the slipway, an' the ship's log don't tell of it yet."
+            'off':
+                name: "Off"
+                hint: "No lookout. Nothin' be sent anywhere fer it."
+        state:
+            available: "New sails in port"
+            current: "Shipshape"
+            failed: "No answer"
+            incomparable: "Cannot compare"
+            'off': "Off"
+            unknown: "Not looked yet"
+        running: "This ship"
+        newest:
+            releases: "Newest release"
+            main: "Newest main build"
+        built_at: "built %when%"
+        not_yet: "Not looked yet"
+        incomparable: "This build carries no commit mark (a checkout, or an image not built by the release crew), so there be nothin' to measure the channel's newest build against."
+        checked: "Last lookout"
+        never: "never"
+        check_now: "Look now"
+        error: "The last lookout got no answer: %error%."
+        error_kept: " What be shown be from the last lookout that did."
+        changes:
+            heading: "What be new"
+            count: "{1}One change since this build|]1,Inf[%count% changes since this build"
+            all: "Every change on GitHub"
+            changelog: "Ship's log"
+        how:
+            heading: "Takin' on the new sails"
+            body: "Pull the new image an' build the containers anew; on a NAS, redeploy the app. plMail shifts its own cargo when it starts, so read the ship's log first fer anythin' under \"Before you upgrade\"."
+        privacy: "A lookout asks the registry fer the newest %image% image an' api.github.com what changed since this build. Nothin' about this ship be sent beyond the askin' itself."
+        push:
+            title: "plMail %version% be in port"
+            body: "Ye be sailin' %running%. Open Admin → New sails to see what changed."
     users:
         add: Sign on a hand
         console_note: 'Secret words and second-factor rescues are done from th'' ship''s console, not here — `app:user:password` an'' `app:user:2fa-disable`. A quartermaster who could change either from a browser would be a second way into every hold aboard.'

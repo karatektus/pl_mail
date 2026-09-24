@@ -286,6 +286,33 @@ class UserRepository extends ServiceEntityRepository implements PasswordUpgrader
     }
 
     /**
+     * The undeleted administrators themselves, for the few things that are
+     * told to every one of them (an update being available).
+     *
+     * The ids by the substring test countAdmins() explains, because `roles`
+     * is a json column Postgres has no LIKE for, then the entities by id. Two
+     * queries, whatever the number of administrators.
+     *
+     * @return list<User>
+     */
+    public function findAdmins(): array
+    {
+        $ids = $this->getEntityManager()
+            ->getConnection()
+            ->executeQuery(
+                'SELECT id FROM "user" WHERE deleted_at IS NULL AND CAST(roles AS text) LIKE :role ORDER BY id',
+                ['role' => '%"ROLE_ADMIN"%'],
+            )
+            ->fetchFirstColumn();
+
+        if ([] === $ids) {
+            return [];
+        }
+
+        return array_values($this->findBy(['id' => $ids], ['id' => 'ASC']));
+    }
+
+    /**
      * Hand-written for the exclusion: "every undeleted user with this address
      * except this one" needs `id != :id`, which findOneBy() cannot say.
      *

@@ -86,6 +86,18 @@ final class AppVersion
         return null;
     }
 
+    /**
+     * The exact commit, in full, for comparing against another build's. Null
+     * when nothing stamped one in; a short hash is fine to show and not safe
+     * to compare, so this does not fall back to git either.
+     */
+    public function fullCommit(): ?string
+    {
+        $commit = trim((string) $this->commit);
+
+        return '' === $commit ? null : $commit;
+    }
+
     /** Whether there is anything worth rendering at all. */
     public function isKnown(): bool
     {

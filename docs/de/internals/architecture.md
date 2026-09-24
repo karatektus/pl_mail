@@ -1,4 +1,4 @@
-<!-- translated-from: internals/architecture.md sha1:78f0f7c57e326357ea2dcc453cbb6362d573522f -->
+<!-- translated-from: internals/architecture.md sha1:d211816996a11ea7432dcd0b9925abb7c42dfa45 -->
 # Architektur
 
 Die Schichten, was wo liegt, und die Regeln, die das so halten. Diese Seite beschreibt die
@@ -234,6 +234,7 @@ war, in dem das Projekt vorher steckte: Logs und verwaiste Blobs wuchsen ohne Gr
 | `0 4 * * *` | `app:push:renew --repair` | Gmail-Watches halten 7 Tage, Graph-Abonnements etwa 3 |
 | `50 3 * * *` | `app:calendar:materialise` | Rollt den Horizont der Termininstanzen vorwärts, damit einem Serientermin nicht klammheimlich die Termine ausgehen |
 | `30 4 * * *` | `app:monitoring:prune` | Log-Einträge, Push-Zustellungen, tote Heartbeats, fertige Hintergrundjobs (30 Tage) und abgelaufene vertraute Geräte |
+| `37 * * * *` | `app:updates:check` | Stündlich, zu einer krummen Minute: Die Registry und GitHubs anonyme API teilen sich alle Installationen. Jeder neue Build wird einmal angekündigt, wie oft er auch gefunden wird |
 | `0 5 * * 0` | `app:prune:blobs` | Wöchentlich; er läuft drei Verzeichnisbäume ab, und eine Woche Waisen ist ein Rundungsfehler |
 
 Der Zeitplan ist `stateful()` gegen den Cache und `processOnlyLastMissedRun(true)`. Ein Worker,

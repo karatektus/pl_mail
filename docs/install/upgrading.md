@@ -108,6 +108,41 @@ arguments, or a checkout. Both are legitimate; neither is what `docker compose p
 `main`. The commit in the chip is the only thing that distinguishes them, and it is the reason the
 label alone is not enough.
 
+## Knowing when there is an update
+
+**Admin → Updates** checks every hour whether a newer build is published, and tells the
+administrators the first time it finds one: a notification on each device they have registered for
+push, and a badge beside the build chip in the admin header.
+
+Which builds count is the **channel**:
+
+| Channel | Follows | Right for |
+|---|---|---|
+| **Releases** | the `latest` image: every tagged release | most installations |
+| **Main** | the `main` image: every build of the default branch | running what is being worked on |
+| **Off** | nothing | an installation that should send no request of its own |
+
+Until an administrator picks one, the channel is the one the running build came from: a release
+image follows releases, a `main` image follows main, and a build with no version stamped in checks
+nothing.
+
+A check asks the image registry for the channel's newest image, the one `docker compose pull` would
+bring, and reads which commit it was built from. It then asks GitHub how that commit relates to the
+running one, which is what tells *newer* from merely *different*: a `main` build following releases
+is ahead of the latest release and is not told to go back to it. The commits in between are listed
+on the page as what is new. Nothing about the installation is sent beyond the requests themselves.
+
+The image the checks read is stamped in at build time as `APP_IMAGE` (for example
+`ghcr.io/karatektus/pl_mail`), beside `APP_VERSION` and `APP_COMMIT`, so a fork that publishes its
+own image checks its own. Setting `APP_IMAGE` in the environment overrides it.
+
+The page does not install anything yet; the commands under [Upgrading](#upgrading) above do.
+
+**The failure mode is a check that cannot reach the registry.** An installation behind a firewall
+gets no answer. The page says so and keeps what the last answered check found, and the hourly
+command does not count it as an error. GitHub's anonymous API allows sixty requests an hour per
+address, which a busy shared address can use up; the page names that case when it happens.
+
 ## Turning on pgvector
 
 Semantic search compares two vectors with `plmail_embed_distance()`. The shipped database image has

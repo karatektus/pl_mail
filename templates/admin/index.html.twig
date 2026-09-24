@@ -48,7 +48,7 @@
                                never built from a tag, because a chip reading
                                "development" beside every page is furniture. #}
                             {% if app_version.isKnown %}
-                                <span class="inline-flex items-center gap-1.5 rounded-full bg-raised px-2 py-0.5 font-mono text-[11px] text-ink-muted"
+                                <span class="inline-flex items-center gap-1.5 rounded-full bg-raised px-2 py-0.5 font-mono text-[11px] text-ink-muted whitespace-nowrap"
                                       title="{{ 'admin.version.hint'|trans }}">
                                     {{ app_version.label }}
                                     {% if app_version.commit %}
@@ -57,7 +57,27 @@
                                 </span>
                             {% endif %}
 
-                            {% if section not in ['logs', 'insight-reports', 'integrations', 'push', 'ai', 'backup', 'reset'] %}
+                            {# Beside the version it would replace, on every
+                               section, because that is where "is there a newer
+                               one?" gets asked. Only when there is: the checker
+                               answers null for an install that is current, off,
+                               or has just been upgraded past what it last
+                               found. #}
+                            {% if updateAvailable %}
+                                {# The version alone on a phone, where the header
+                                   has room for two chips and not for a sentence;
+                                   the sentence is still its accessible name. #}
+                                {% set _newer = updateAvailable.release ? updateAvailable.version : updateAvailable.version ~ ' · ' ~ updateAvailable.shortRevision %}
+                                <a href="{{ path('app_admin_dashboard', { section: 'updates' }) }}"
+                                   aria-label="{{ 'admin.updates.header'|trans({ '%version%': _newer }) }}"
+                                   class="inline-flex items-center gap-1.5 rounded-full bg-accent px-2 py-0.5 text-[11px] font-medium text-accent-ink hover:bg-accent-strong transition-colors whitespace-nowrap">
+                                    <i class="fa-solid fa-arrow-up text-[9px]" aria-hidden="true"></i>
+                                    <span class="sm:hidden">{{ _newer }}</span>
+                                    <span class="hidden sm:inline">{{ 'admin.updates.header'|trans({ '%version%': _newer }) }}</span>
+                                </a>
+                            {% endif %}
+
+                            {% if section not in ['logs', 'insight-reports', 'integrations', 'push', 'ai', 'backup', 'updates', 'reset'] %}
                                 <span class="ml-auto text-xs text-ink-faint">{{ 'admin.refresh_hint'|trans }}</span>
                             {% endif %}
                         </div>
@@ -149,6 +169,18 @@
                                        class="{{ section == 'backup' ? navActive : navInactive }}">
                                         <i class="fa-solid fa-box-archive w-4 {{ section == 'backup' ? 'text-zinc-400' : '' }}" aria-hidden="true"></i>
                                         {{ 'admin.nav.backup'|trans }}
+                                    </a>
+                                    {# After backup: both are about the install as a
+                                       whole, and backing up is what comes before
+                                       updating. #}
+                                    <a href="{{ path('app_admin_dashboard', { section: 'updates' }) }}"
+                                       class="{{ section == 'updates' ? navActive : navInactive }}">
+                                        <i class="fa-solid fa-arrows-rotate w-4 {{ section == 'updates' ? 'text-zinc-400' : '' }}" aria-hidden="true"></i>
+                                        {{ 'admin.nav.updates'|trans }}
+                                        {% if updateAvailable %}
+                                            <span class="ml-auto w-2 h-2 rounded-full bg-accent"
+                                                  aria-label="{{ 'admin.updates.state.available'|trans }}"></span>
+                                        {% endif %}
                                     </a>
                                     {# Last, and the only one tinted: everything above reads or
                                        repairs, this one deletes. #}
@@ -296,6 +328,20 @@
                                         <turbo-frame id="admin-backup"
                                                      class="block space-y-3"
                                                      src="{{ path('app_admin_config_backup_panel', app.request.query.get('error') ? { error: app.request.query.get('error') } : {}) }}"
+                                                     loading="lazy">
+                                            <div class="py-10 text-center text-sm text-ink-faint">
+                                                <i class="fa-solid fa-circle-notch fa-spin mr-2" aria-hidden="true"></i>{{ 'admin.loading'|trans }}
+                                            </div>
+                                        </turbo-frame>
+
+                                    {% elseif section == 'updates' %}
+
+                                        {# No auto-refresh: a check is a button,
+                                           and the hourly one writes the row this
+                                           renders, so the next visit shows it. #}
+                                        <turbo-frame id="admin-updates"
+                                                     class="block space-y-3"
+                                                     src="{{ path('app_admin_updates_panel') }}"
                                                      loading="lazy">
                                             <div class="py-10 text-center text-sm text-ink-faint">
                                                 <i class="fa-solid fa-circle-notch fa-spin mr-2" aria-hidden="true"></i>{{ 'admin.loading'|trans }}

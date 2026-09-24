@@ -185,6 +185,14 @@ final class MaintenanceSchedule implements ScheduleProviderInterface
                 // is the mechanism and stays.
                 RecurringMessage::cron('*/10 * * * *', new RunCommandMessage('app:upgrade:run')),
 
+                // Whether the update channel has a newer build (Admin →
+                // Updates). Hourly, at an odd minute: the registry and GitHub's
+                // unauthenticated API are shared with everybody else's
+                // installations, and on the hour is when everything else asks.
+                // One check is a handful of small requests; each new build is
+                // announced once, however often it is found.
+                RecurringMessage::cron('37 * * * *', new RunCommandMessage('app:updates:check')),
+
                 // Expired JMAP uploads and files orphaned by deleted rows.
                 // Weekly: it walks three directory trees, and a week of
                 // orphans is a rounding error on disk.

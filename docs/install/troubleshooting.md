@@ -102,6 +102,7 @@ one container consuming `scheduler_default`. **Without that container, none of t
 | daily 03:50 | `app:calendar:materialise` |
 | daily 04:00 | `app:push:renew --repair` |
 | daily 04:30 | `app:monitoring:prune` |
+| hourly at :37 | `app:updates:check` |
 | Sundays 05:00 | `app:prune:blobs` |
 
 ```bash

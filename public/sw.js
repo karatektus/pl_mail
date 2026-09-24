@@ -7,7 +7,7 @@
  * an authenticated app is a good way to leak one account's mail into another
  * session.
  *
- * Three kinds of payload arrive. The first two are JMAP objects (RFC 8620 §7):
+ * Four kinds of payload arrive. The first two are JMAP objects (RFC 8620 §7):
  *   PushVerification — the handshake. The code is posted back so the
  *                      subscription becomes deliverable. This is why the SW
  *                      must exist before subscribing, not after.
@@ -20,6 +20,10 @@
  *                      not a reminder. The payload is encrypted end to end
  *                      under the subscription's key (RFC 8291), so the push
  *                      service sees ciphertext.
+ *   UpdateAvailable  — plMail's own too, sent by UpdateNotifier to
+ *                      administrators when the update channel publishes a newer
+ *                      build. Carries its own text for the same reason, and
+ *                      opens Admin → Updates.
  */
 
 const VERIFY_URL = "/settings/push/verify";
@@ -58,6 +62,11 @@ self.addEventListener("push", (event) => {
 
     if (payload["@type"] === "CalendarAlert") {
         event.waitUntil(notifyCalendarAlert(payload));
+        return;
+    }
+
+    if (payload["@type"] === "UpdateAvailable") {
+        event.waitUntil(notifyUpdateAvailable(payload));
     }
 });
 
@@ -137,6 +146,25 @@ async function notifyCalendarAlert(payload) {
         tag: `plmail-alert-${payload.tag || ""}`,
         renotify: false,
         data: { url: payload.url || "/calendar" },
+    });
+}
+
+/**
+ * A newer build on the update channel, told to an administrator once per build.
+ *
+ * Tagged by the build's commit, like the calendar alert is by its occurrence:
+ * a push the browser replays after waking replaces the notification rather than
+ * stacking a second one beside it, and renotify stays off so it does not buzz
+ * twice for the same news.
+ */
+async function notifyUpdateAvailable(payload) {
+    await self.registration.showNotification(payload.title || "plMail", {
+        body: payload.body || "",
+        icon: "/icons/icon-192.png",
+        badge: "/icons/icon-192.png",
+        tag: `plmail-update-${payload.tag || ""}`,
+        renotify: false,
+        data: { url: payload.url || "/admin?section=updates" },
     });
 }
 

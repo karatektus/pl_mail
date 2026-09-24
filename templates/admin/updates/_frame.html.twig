@@ -1,0 +1,187 @@
+{% import '_partials/_card_chrome.html.twig' as chrome %}
+{#
+admin/updates/_frame.html.twig — Admin → Updates.
+
+Accepts:
+  check   — App\Entity\System\UpdateCheck (unsaved on an install that never checked)
+  channel — App\Domain\Enum\System\UpdateChannel in force
+  chosen  — whether an administrator chose it, or it follows the build
+  status  — App\Domain\DTO\System\UpdateStatus of the last answer about THIS build, or null
+  image   — the image reference the checks read
+  saved   — true right after the channel was saved
+
+The chip in the band is the verdict, and the only colour on the card. An error
+is amber rather than red: an unreachable registry costs nothing but the notice,
+and mail keeps flowing whatever this page says.
+
+No auto-refresh: a check is a button, and the hourly one writes the same row
+this renders.
+#}
+{% set seg = 'grid grid-flow-col auto-cols-fr max-w-md rounded-pane border border-line overflow-hidden' %}
+{% set segText = 'flex h-full items-center justify-center px-2 py-1.5 text-center text-xs leading-tight text-ink-muted
+                  peer-checked:bg-accent peer-checked:text-accent-ink
+                  peer-focus-visible:ring-2 peer-focus-visible:ring-inset peer-focus-visible:ring-accent
+                  transition-colors' %}
+{% set verdict = status ? status.verdict.value : null %}
+{% set latestLabel = status ? (status.latest.release ? status.latest.version : status.latest.version ~ ' · ' ~ status.latest.shortRevision) : null %}
+<turbo-frame id="admin-updates">
+
+    <div class="{{ chrome.shell() }}">
+
+        <div class="flex items-center gap-2.5 {{ chrome.band() }}">
+            <i class="fa-solid fa-arrows-rotate text-xs text-zinc-400" aria-hidden="true"></i>
+            <h2 class="text-sm font-semibold text-ink">{{ 'admin.updates.heading'|trans }}</h2>
+
+            {% if channel.value == 'off' %}
+                <span class="ml-auto text-[11px] font-medium px-2 py-0.5 rounded-full bg-raised text-ink-faint">{{ 'admin.updates.state.off'|trans }}</span>
+            {% elseif verdict == 'available' %}
+                <span class="ml-auto text-[11px] font-medium px-2 py-0.5 rounded-full bg-accent text-accent-ink">{{ 'admin.updates.state.available'|trans }}</span>
+            {% elseif verdict == 'current' %}
+                <span class="ml-auto text-[11px] font-medium px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-500">{{ 'admin.updates.state.current'|trans }}</span>
+            {% elseif verdict == 'unknown' %}
+                <span class="ml-auto text-[11px] font-medium px-2 py-0.5 rounded-full bg-raised text-ink-faint">{{ 'admin.updates.state.incomparable'|trans }}</span>
+            {% elseif check.error %}
+                <span class="ml-auto text-[11px] font-medium px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-500">{{ 'admin.updates.state.failed'|trans }}</span>
+            {% else %}
+                <span class="ml-auto text-[11px] font-medium px-2 py-0.5 rounded-full bg-raised text-ink-faint">{{ 'admin.updates.state.unknown'|trans }}</span>
+            {% endif %}
+        </div>
+
+        <div class="{{ chrome.body() }} space-y-5">
+
+            {% if saved %}
+                <div role="status" class="flex items-start gap-2.5 rounded-lg bg-emerald-500/10 px-3.5 py-3 text-sm text-emerald-500">
+                    <i class="fa-solid fa-circle-check mt-0.5 shrink-0" aria-hidden="true"></i>
+                    <p class="leading-snug">{{ 'admin.updates.saved'|trans }}</p>
+                </div>
+            {% endif %}
+
+            <p class="text-sm text-ink-soft leading-relaxed">{{ 'admin.updates.intro'|trans }}</p>
+
+            {# The channel. Radios styled as one segmented control, the way the
+               appearance pane does short choices, with a Save button rather
+               than a submit on change: an inline handler is what the CSP
+               refuses, and a choice this rare does not need to save itself. #}
+            <form method="post" action="{{ path('app_admin_updates_panel') }}" data-turbo-frame="admin-updates" class="space-y-2">
+                <input type="hidden" name="_token" value="{{ csrf_token('admin_updates') }}">
+                <span class="block text-xs font-medium text-ink-muted" id="update-channel-label">{{ 'admin.updates.channel.label'|trans }}</span>
+                <div class="flex flex-wrap items-center gap-3">
+                    <div class="{{ seg }} flex-1 min-w-[16rem]" role="radiogroup" aria-labelledby="update-channel-label">
+                        {% for option in enum('App\\Domain\\Enum\\System\\UpdateChannel').cases %}
+                            <label class="cursor-pointer">
+                                <input type="radio" name="channel" value="{{ option.value }}" class="peer sr-only"
+                                       {{ option == channel ? 'checked' : '' }}>
+                                <span class="{{ segText }}">{{ ('admin.updates.channel.' ~ option.value ~ '.name')|trans }}</span>
+                            </label>
+                        {% endfor %}
+                    </div>
+                    <button type="submit"
+                            class="inline-flex items-center gap-2 h-8 px-3.5 rounded-lg text-xs font-medium btn-quiet hover:bg-hover transition-colors cursor-pointer">
+                        {{ 'admin.updates.channel.save'|trans }}
+                    </button>
+                </div>
+                <p class="text-xs text-ink-faint leading-relaxed">
+                    {{ ('admin.updates.channel.' ~ channel.value ~ '.hint')|trans }}
+                    {% if not chosen %}{{ 'admin.updates.channel.follows_build'|trans }}{% endif %}
+                </p>
+            </form>
+
+            {% if channel.value != 'off' %}
+                <dl class="grid grid-cols-[auto_1fr] items-baseline gap-x-4 gap-y-1.5 text-xs">
+                    <dt class="text-ink-faint">{{ 'admin.updates.running'|trans }}</dt>
+                    <dd class="font-mono text-ink-soft break-all">
+                        {{ app_version.label }}{% if app_version.commit %} <span class="text-ink-faint">· {{ app_version.commit }}</span>{% endif %}
+                    </dd>
+
+                    <dt class="text-ink-faint">{{ ('admin.updates.newest.' ~ channel.value)|trans }}</dt>
+                    <dd class="font-mono text-ink-soft break-all">
+                        {% if status %}
+                            {{ latestLabel }}
+                            {% if status.latest.builtAt %}
+                                <span class="font-sans text-ink-faint">· {{ 'admin.updates.built_at'|trans({ '%when%': status.latest.builtAt|date('Y-m-d H:i') }) }}</span>
+                            {% endif %}
+                        {% else %}
+                            <span class="font-sans text-ink-faint">{{ 'admin.updates.not_yet'|trans }}</span>
+                        {% endif %}
+                    </dd>
+
+                    <dt class="text-ink-faint">{{ 'admin.updates.checked'|trans }}</dt>
+                    <dd class="flex flex-wrap items-center gap-x-3 gap-y-1 text-ink-soft">
+                        <span class="font-mono">{{ check.checkedAt ? check.checkedAt|date('Y-m-d H:i') : 'admin.updates.never'|trans }}</span>
+                        <form method="post" action="{{ path('app_admin_updates_panel') }}" data-turbo-frame="admin-updates">
+                            <input type="hidden" name="_token" value="{{ csrf_token('admin_updates') }}">
+                            <input type="hidden" name="do" value="check">
+                            <button type="submit" class="text-xs text-accent hover:text-accent-strong transition-colors cursor-pointer">
+                                {{ 'admin.updates.check_now'|trans }}
+                            </button>
+                        </form>
+                    </dd>
+                </dl>
+
+                {% if verdict == 'unknown' %}
+                    <p class="text-xs text-ink-muted leading-relaxed">{{ 'admin.updates.incomparable'|trans }}</p>
+                {% endif %}
+
+                {% if check.error %}
+                    <div role="status" class="flex items-start gap-2.5 rounded-lg bg-amber-500/10 px-3.5 py-3 text-xs text-amber-600 dark:text-amber-400">
+                        <i class="fa-solid fa-triangle-exclamation mt-0.5 shrink-0" aria-hidden="true"></i>
+                        <p class="leading-snug">
+                            {{ 'admin.updates.error'|trans({ '%error%': check.error }) }}
+                            {% if status %}{{ 'admin.updates.error_kept'|trans }}{% endif %}
+                        </p>
+                    </div>
+                {% endif %}
+
+                {% if verdict == 'available' %}
+                    <div class="space-y-2">
+                        <h3 class="text-xs font-semibold text-ink">
+                            {% if status.aheadBy %}
+                                {{ 'admin.updates.changes.count'|trans({ '%count%': status.aheadBy }) }}
+                            {% else %}
+                                {{ 'admin.updates.changes.heading'|trans }}
+                            {% endif %}
+                        </h3>
+
+                        {% if status.changes is not empty %}
+                            <ul class="space-y-1 text-xs text-ink-soft">
+                                {% for change in status.changes %}
+                                    <li class="flex gap-2 min-w-0">
+                                        <span class="font-mono text-ink-faint shrink-0">{{ change.sha|slice(0, 7) }}</span>
+                                        <span class="min-w-0 break-words">{{ change.subject }}</span>
+                                    </li>
+                                {% endfor %}
+                            </ul>
+                        {% endif %}
+
+                        <p class="flex flex-wrap gap-x-4 gap-y-1 text-xs">
+                            {% if status.compareUrl %}
+                                <a href="{{ status.compareUrl }}" target="_blank" rel="noopener noreferrer" class="text-accent hover:text-accent-strong">
+                                    {{ 'admin.updates.changes.all'|trans }} <i class="fa-solid fa-arrow-up-right-from-square text-[10px]" aria-hidden="true"></i>
+                                </a>
+                            {% endif %}
+                            {% if status.latest.source and status.latest.source starts with 'https://github.com/' %}
+                                <a href="{{ status.latest.source }}/blob/main/CHANGELOG.md" target="_blank" rel="noopener noreferrer" class="text-accent hover:text-accent-strong">
+                                    {{ 'admin.updates.changes.changelog'|trans }} <i class="fa-solid fa-arrow-up-right-from-square text-[10px]" aria-hidden="true"></i>
+                                </a>
+                            {% endif %}
+                        </p>
+                    </div>
+
+                    {# How, since this page does not do it yet. The two commands
+                       from the handbook, and the one warning that matters on an
+                       install that migrates itself on boot. #}
+                    <div class="space-y-1.5">
+                        <h3 class="text-xs font-semibold text-ink">{{ 'admin.updates.how.heading'|trans }}</h3>
+                        <p class="text-xs text-ink-muted leading-relaxed">{{ 'admin.updates.how.body'|trans }}</p>
+                        <code class="block rounded bg-zinc-500/10 px-2.5 py-1.5 text-xs font-mono text-ink select-all whitespace-pre">docker compose pull
+docker compose up -d --wait</code>
+                    </div>
+                {% endif %}
+
+                <p class="text-[11px] text-ink-faint leading-relaxed">
+                    {{ 'admin.updates.privacy'|trans({ '%image%': image }) }}
+                </p>
+            {% endif %}
+        </div>
+    </div>
+</turbo-frame>
