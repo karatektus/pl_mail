@@ -32,4 +32,17 @@ final class ImapFolderLocatorTest extends TestCase
         self::assertSame('Projects.Invoices', ImapFolderLocator::of($client, $projects)?->path);
         self::assertSame('Archive.Invoices', ImapFolderLocator::of($client, $archive)?->path);
     }
+
+    /**
+     * GMX's Trash, as its LIST spells it. getFolder() encodes the stored path
+     * again and finds nothing, which is what every move to and purge in a
+     * non-ASCII folder ran into.
+     */
+    public function testAFolderWithAnUmlautIsFoundAtItsStoredPath(): void
+    {
+        $client = new FakeListingClient(['INBOX' => [], 'Gel&APY-scht' => ['\\Trash']]);
+
+        self::assertNull($client->getFolder('Gel&APY-scht'), 'the library behaviour the bug rested on');
+        self::assertSame('Gel&APY-scht', ImapFolderLocator::atPath($client, 'Gel&APY-scht')?->path);
+    }
 }

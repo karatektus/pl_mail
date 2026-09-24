@@ -33,4 +33,24 @@ final class ImapFolderLocator
 
         return $client->getFolderByName((string) $mailbox->name, true);
     }
+
+    /**
+     * The folder at a path taken from a Mailbox row, or null if the server has
+     * none there.
+     *
+     * For the callers that hold only the path. webklex's getFolder() and
+     * getFolderByPath() both re-encode what they are given unless told it is
+     * UTF-7 already, and a stored path is: "Gel&APY-scht" became
+     * "Gel&-APY-scht" and matched nothing. Every folder with a non-ASCII name
+     * (GMX's "Gelöscht" and "Entwürfe") could not be moved to, looked in or
+     * purged, while "Trash" worked, because ASCII encodes to itself.
+     *
+     * Unlike of(), a LIST that fails throws rather than reading as "no such
+     * folder": these callers retry, and a folder that exists must not be taken
+     * for one that does not.
+     */
+    public static function atPath(Client $client, string $path): ?Folder
+    {
+        return $client->getFolderByPath($path, true);
+    }
 }

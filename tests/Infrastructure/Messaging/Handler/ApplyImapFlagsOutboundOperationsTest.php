@@ -203,6 +203,22 @@ final class ApplyImapFlagsOutboundOperationsTest extends TestCase
         self::assertSame('INBOX.Projekte', $present->movedTo);
     }
 
+    /**
+     * A stored path is modified UTF-7 already, as the server listed it.
+     * Handed over without saying so, webklex encoded it a second time, found
+     * no folder at "Gel&-APY-scht" and passed null to moveMessage(): trashing
+     * on GMX, whose Trash is "Gelöscht", failed every time.
+     */
+    public function testAMoveIntoAFolderWithAnUmlautNamesItAsTheServerSpellsIt(): void
+    {
+        $present = new RecordingImapMessage(uid: 6);
+
+        $this->issue($present, 'move', destinationPath: 'INBOX.Gel&APY-scht');
+
+        self::assertSame('INBOX.Gel&APY-scht', $present->movedTo);
+        self::assertTrue($present->movedAsUtf7, 'the path is UTF-7 already and must not be encoded again');
+    }
+
     // ── the folder the server has not got ────────────────────────────────
 
     /**
@@ -497,6 +513,8 @@ final class RecordingImapMessage extends ImapMessage
 
     public ?string $movedTo = null;
 
+    public bool $movedAsUtf7 = false;
+
     private int $fakeUid;
 
     private ?string $fakeMessageId;
@@ -552,7 +570,8 @@ final class RecordingImapMessage extends ImapMessage
     public function move(string $folder_path, bool $expunge = false, bool $utf7 = false): ?ImapMessage
     {
         ++$this->moveCalls;
-        $this->movedTo = $folder_path;
+        $this->movedTo     = $folder_path;
+        $this->movedAsUtf7 = $utf7;
 
         return $this->landsAs;
     }

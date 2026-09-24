@@ -453,7 +453,12 @@ final class ApplyImapFlagsHandler
      */
     private function completeMove(Message $msg, ImapMessage $imapMessage, string $destinationPath): void
     {
-        $moved = $imapMessage->move($destinationPath);
+        // utf7: the path is a Mailbox row's, stored as the server spells it.
+        // Without the flag webklex encodes it a second time, finds no folder
+        // there, and hands moveMessage() null: every move into a folder with a
+        // non-ASCII name failed, GMX's "Gelöscht" included. See
+        // ImapFolderLocator::atPath().
+        $moved = $imapMessage->move($destinationPath, utf7: true);
 
         if (null === $moved) {
             return;
@@ -527,7 +532,7 @@ final class ApplyImapFlagsHandler
         }
 
         try {
-            $destination = $client->getFolder($destinationPath);
+            $destination = ImapFolderLocator::atPath($client, $destinationPath);
 
             if (null === $destination) {
                 return;
@@ -603,7 +608,7 @@ final class ApplyImapFlagsHandler
     private function ensureDestinationExists(Client $client, Account $account, string $destinationPath): ?string
     {
         try {
-            if (null !== $client->getFolder($destinationPath)) {
+            if (null !== ImapFolderLocator::atPath($client, $destinationPath)) {
                 return $destinationPath;
             }
         } catch (Throwable) {

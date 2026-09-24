@@ -6,6 +6,7 @@ namespace App\Infrastructure\Messaging\Handler;
 
 use App\Domain\Helper\ThrowableSeverity;
 use App\Domain\Helper\ImapConnectionFactory;
+use App\Domain\Helper\ImapFolderLocator;
 use App\Entity\Mail\Account;
 use App\Infrastructure\Messaging\Message\PurgeRemoteMessagesMessage;
 use App\Repository\Mail\AccountRepository;
@@ -99,7 +100,10 @@ final readonly class PurgeRemoteMessagesHandler
         $client = $this->imapConnectionFactory->connect($account);
 
         foreach ($byFolder as $path => $uids) {
-            $folder = $client->getFolder($path);
+            // A Mailbox row's path, UTF-7 as stored. getFolder() re-encoded it,
+            // so a folder with a non-ASCII name was "not found on the server"
+            // and nothing in it was ever purged there.
+            $folder = ImapFolderLocator::atPath($client, (string) $path);
 
             if (null === $folder) {
                 $this->logger->warning('PurgeRemoteMessages: folder not found on the server', [
