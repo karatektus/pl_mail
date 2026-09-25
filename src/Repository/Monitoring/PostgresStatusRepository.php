@@ -33,18 +33,38 @@ final readonly class PostgresStatusRepository
     /**
      * Is the database answering at all — the healthcheck's only hard question.
      *
+     * A yes or no and nothing more, because /healthz is unauthenticated and the
+     * reason names the database host and user.
+     */
+    public function isReachable(): bool
+    {
+        return null === $this->whyUnreachable();
+    }
+
+    /**
+     * What stops the database from answering, or null when it answers.
+     *
      * `SELECT 1` rather than a ping on the driver: a connection object can be
      * "open" while the server behind it has gone away, and a round trip is the
      * only thing that distinguishes the two.
+     *
+     * The reason is kept for app:db:wait, which retries without a word and has
+     * to say why once it gives up — "could not translate host name" and
+     * "password authentication failed" call for different fixes.
+     *
+     * A failed probe hangs up, so the next one dials afresh rather than asking
+     * again down a connection the server may already have dropped.
      */
-    public function isReachable(): bool
+    public function whyUnreachable(): ?\Throwable
     {
         try {
             $this->connection->executeQuery('SELECT 1');
 
-            return true;
-        } catch (\Throwable) {
-            return false;
+            return null;
+        } catch (\Throwable $error) {
+            $this->connection->close();
+
+            return $error;
         }
     }
 

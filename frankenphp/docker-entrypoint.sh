@@ -184,26 +184,18 @@ if [ "$1" = 'frankenphp' ] || [ "$1" = 'php' ] || [ "$1" = 'bin/console' ]; then
 	fi
 
 	if grep -q ^DATABASE_URL= .env; then
+		# app:db:wait rather than a shell loop around `dbal:run-sql -q
+		# "SELECT 1"`: every attempt of that loop that missed was an uncaught
+		# exception, and Symfony logs those as CRITICAL — so a database a few
+		# seconds late, which is what this step exists to wait for, put errors
+		# in the admin log. The command retries quietly, once a second for a
+		# minute as before, and logs only when it gives up. See
+		# src/Command/Setup/WaitForDatabaseCommand.php.
 		echo 'Waiting for database to be ready...'
-		ATTEMPTS_LEFT_TO_REACH_DATABASE=60
-		until [ $ATTEMPTS_LEFT_TO_REACH_DATABASE -eq 0 ] || DATABASE_ERROR=$(php bin/console dbal:run-sql -q "SELECT 1" 2>&1); do
-			if [ $? -eq 255 ]; then
-				# If the Doctrine command exits with 255, an unrecoverable error occurred
-				ATTEMPTS_LEFT_TO_REACH_DATABASE=0
-				break
-			fi
-			sleep 1
-			ATTEMPTS_LEFT_TO_REACH_DATABASE=$((ATTEMPTS_LEFT_TO_REACH_DATABASE - 1))
-			echo "Still waiting for database to be ready... Or maybe the database is not reachable. $ATTEMPTS_LEFT_TO_REACH_DATABASE attempts left."
-		done
-
-		if [ $ATTEMPTS_LEFT_TO_REACH_DATABASE -eq 0 ]; then
-			echo 'The database is not up or not reachable:'
-			echo "$DATABASE_ERROR"
+		if ! php bin/console app:db:wait; then
 			exit 1
-		else
-			echo 'The database is now ready and reachable'
 		fi
+		echo 'The database is now ready and reachable'
 
 		# app:db:migrate, not doctrine:migrations:migrate — it runs exactly
 		# that, with exactly these flags, but holds a Postgres advisory lock
