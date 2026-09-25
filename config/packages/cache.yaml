@@ -46,3 +46,14 @@ framework:
                 adapter: cache.adapter.doctrine_dbal
                 provider: doctrine.dbal.default_connection
                 default_lifetime: 3600
+
+            # A Stop pressed on the summary card (see ThreadSummaryStop).
+            #
+            # Shared for the same reason again: the Stop is a request of its
+            # own, and nothing makes it land on the container, or the PHP
+            # thread, that is streaming the run it names. Fifteen minutes is
+            # longer than any run is allowed to last.
+            app.summary_stop:
+                adapter: cache.adapter.doctrine_dbal
+                provider: doctrine.dbal.default_connection
+                default_lifetime: 900

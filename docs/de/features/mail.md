@@ -1,4 +1,4 @@
-<!-- translated-from: features/mail.md sha1:cbfea3b01388d5fcb0bc6f3a896fb7d494ed1f77 -->
+<!-- translated-from: features/mail.md sha1:fdcaca13789889f0020d64e8c0306b300595c69d -->
 
 # Mail
 
@@ -368,7 +368,9 @@ geben, beseitigt diese Abhängigkeit, statt sie zu überdauern zu versuchen.
 Konversation neu, dann ist die Zusammenfassung da. Das deckt ein zuklappendes Notebook ab, ein
 wegbrechendes Netz und einen Reverse Proxy, der bei einer langsamen Antwort aufgibt — nichts davon
 kann plMail sehen, und alles davon hat die Arbeit früher an der Stelle weggeworfen, an der es
-passiert ist.
+passiert ist. Eine andere Konversation zu öffnen oder den Tab zu schließen zählt als Weggehen, nicht
+als Nein — auch diese Zusammenfassung wird fertig und wartet auf dich. Nur **Anhalten** bricht
+wirklich ab und behält nichts.
 
 Einmal geschrieben, wird sie aufbewahrt und beim nächsten Öffnen der Konversation ohne Wartezeit
 wieder angezeigt. Kommt danach eine Antwort, siehst du sie ausgegraut mit dem Hinweis, dass sich das

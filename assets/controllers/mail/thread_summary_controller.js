@@ -14,9 +14,8 @@ import { readFrames } from "../../ai/ndjson.js";
  * ─────────────────────────
  * This is not a navigation. The response is a stream of tokens belonging to a
  * card inside a pane Turbo is not rendering, and a bare fetch() is the only way
- * to get an AbortController onto it. Aborting is not a nicety: it is the only
- * thing that stops a 20 GiB model on a one-GPU host when somebody opens another
- * thread — see #stopReading() and disconnect().
+ * to get an AbortController onto it — which is what stops this card reading
+ * the moment it is stopped or replaced. See stop() and disconnect().
  *
  * WHY THERE IS NO ACCEPT AND NO DISCARD
  * ─────────────────────────────────────
@@ -86,6 +85,9 @@ export default class extends Controller {
 
     static values = {
         url: String,
+
+        /** Where Stop is said, as well as done — see stop(). */
+        stopUrl: String,
 
         /**
          * Which conversation this card is for.
@@ -162,6 +164,13 @@ export default class extends Controller {
      */
     #run = 0;
 
+    /**
+     * The name this card gave the current run, so Stop can say which one it
+     * means. Not #run, which only counts: the server needs a name nobody else
+     * could have picked.
+     */
+    #runId = null;
+
     /** What has arrived so far, so a stopped run still shows what it wrote. */
     #answer = "";
 
@@ -177,14 +186,14 @@ export default class extends Controller {
     #mounted = false;
 
     /**
-     * A pane that goes away mid-generation must not leave the model running.
+     * A pane that goes away mid-generation stops reading, and says nothing.
      *
-     * This is the cancellation, and it is not a nicety. mail_pane_controller
-     * replaces the whole reading pane with `innerHTML = html` when another
-     * conversation is opened, which destroys this controller — so opening a
-     * second thread while a summary is being written has to stop the first, or
-     * a 20 GiB model keeps generating a paragraph nobody will ever see while
-     * the reader waits for the one they did ask for.
+     * mail_pane_controller replaces the whole reading pane with `innerHTML =
+     * html` when another conversation is opened, which destroys this
+     * controller. The abort ends this end of the stream; the server takes it
+     * for a reader who left rather than one who said no, finishes the summary
+     * and stores it, so it is there when the thread is opened again. Only
+     * stop() says no.
      *
      * Stimulus reconnects controllers under `innerHTML` injection; `mail--thread-read`
      * on this same fragment is the standing proof of that.
@@ -333,18 +342,64 @@ export default class extends Controller {
     /**
      * Stop, and keep nothing.
      *
-     * The abort reaches the server, whose next write fails, whose loop breaks,
-     * which frees the generator, which drops the upstream response. Nothing is
-     * stored for an abandoned run — half a summary sitting on the thread next
-     * time it opens would read as a finished one — so the sentence says so.
+     * SAID AS WELL AS DONE. The abort alone stops nothing any more: the server
+     * finishes and stores a run whose connection went, because connections
+     * drop for reasons nobody chose — and from its side an aborted fetch looks
+     * exactly like a dropped one. So Stop is also a request naming the run,
+     * which makes the server drop the model call and store nothing; the abort
+     * is what stops this card reading at once.
+     *
+     * Only here. Opening another thread or leaving the page aborts without
+     * saying anything, and that run is finished and waiting when the reader
+     * comes back — they left, they did not say no.
      */
     stop(event) {
         event?.preventDefault();
 
+        this.#sayStop();
         this.#stopReading();
         this.#pending(false);
         this.#stopping(false);
         this.#say(this.stoppedLabelValue);
+    }
+
+    /**
+     * Tell the server this run is not wanted.
+     *
+     * Before the abort, and with keepalive, so it survives the reader pressing
+     * Stop and leaving in one movement. Nobody waits for the answer: the card
+     * has already said "Stopped", and a Stop that never lands costs a summary
+     * nobody asked for, not an error anybody could act on.
+     */
+    #sayStop() {
+        const run = this.#runId;
+
+        this.#runId = null;
+
+        if (null === run || "" === this.stopUrlValue) return;
+
+        fetch(this.stopUrlValue, {
+            method: "POST",
+            keepalive: true,
+            headers: {
+                "Content-Type": "application/x-www-form-urlencoded",
+                "X-CSRF-Token": this.tokenValue,
+            },
+            body: new URLSearchParams({ run }),
+        }).catch(() => {
+            // See above: there is nothing useful to say about it.
+        });
+    }
+
+    /**
+     * 32 hex characters, which is what ThreadSummaryStop accepts.
+     *
+     * getRandomValues and not randomUUID: randomUUID exists only in a secure
+     * context, and plMail is also reached over plain HTTP on a LAN address,
+     * where it is undefined and every click would throw.
+     */
+    #newRunId() {
+        return Array.from(crypto.getRandomValues(new Uint8Array(16)), (byte) => byte.toString(16).padStart(2, "0")).join("");
     }
 
     async #start(full = false) {
@@ -355,6 +410,7 @@ export default class extends Controller {
 
         const run = ++this.#run;
 
+        this.#runId = this.#newRunId();
         this.#answer = "";
         this.#tokens = 0;
 
@@ -405,14 +461,15 @@ export default class extends Controller {
                     "Content-Type": "application/x-www-form-urlencoded",
                     "X-CSRF-Token": this.tokenValue,
                 },
-                // ONE field, and it is not "what to summarise". Everything the
-                // server needs to decide THAT is the thread id already in the
-                // URL and the person already in the session: what gets
-                // summarised is never taken from the page, or anything that
-                // could post here would choose what the model is told about
-                // somebody's mail. How much of their own thread to send is a
-                // different question, and it is the one the card asks.
-                body: new URLSearchParams(true === full ? { full: "1" } : {}),
+                // Nothing here is "what to summarise". Everything the server
+                // needs to decide THAT is the thread id already in the URL and
+                // the person already in the session: what gets summarised is
+                // never taken from the page, or anything that could post here
+                // would choose what the model is told about somebody's mail.
+                // How much of their own thread to send is a different question,
+                // and it is the one the card asks. `run` only names the run,
+                // so that Stop can say which one it means — see stop().
+                body: new URLSearchParams({ run: this.#runId, ...(true === full ? { full: "1" } : {}) }),
                 signal: this.#controller.signal,
             });
 
@@ -462,10 +519,10 @@ export default class extends Controller {
         if (run !== this.#run) return;
 
         // The stream ended without a `done` or an `error` frame — the
-        // connection dropped part-way. Whatever arrived is still on screen and
-        // is still worth reading; what it is NOT is stored, because the server
-        // only stores a run somebody stayed for. "Stopped" is the honest word
-        // for both endings.
+        // connection ended part-way. Whatever arrived is still on screen and
+        // is still worth reading. Whether the server went on to finish and
+        // store the run depends on why the connection ended, which this end
+        // cannot see.
         if (null !== this.#controller) {
             this.#stopReading();
             this.#settle(this.stoppedLabelValue);
@@ -594,11 +651,11 @@ export default class extends Controller {
     /**
      * Abort the request, once.
      *
-     * The abort is what propagates: it closes the connection, the server's next
-     * write notices, its loop breaks, and the generator it frees drops the
-     * response it was reading from Ollama. Nulling the controller FIRST makes
-     * this safe to call from anywhere — disconnect(), stop(), a new run, done,
-     * error — without a second abort landing on a settled request.
+     * This ends the reading, not the run: to the server an abort is a
+     * connection that went, and that run is finished and stored — stop() is
+     * the one that is not. Nulling the controller FIRST makes this safe to call
+     * from anywhere — disconnect(), stop(), a new run, done, error — without a
+     * second abort landing on a settled request.
      */
     #stopReading() {
         const controller = this.#controller;

@@ -11,6 +11,7 @@ use App\Entity\Mail\Message;
 use App\Entity\Mail\MessageThread;
 use App\Entity\User\User;
 use App\Service\Ai\ThreadSummariser;
+use App\Service\Ai\ThreadSummaryStop;
 use App\Service\Ai\ThreadTranscript;
 use DateTimeImmutable;
 use Doctrine\DBAL\Connection;
@@ -46,6 +47,9 @@ final class ThreadSummaryTest extends WebTestCase
     private Connection $connection;
     private User $user;
     private Account $account;
+
+    /** What /api/chat streams back, for a case the one canned reply cannot tell. */
+    private ?\Closure $chatReply = null;
 
     protected function tearDown(): void
     {
@@ -294,6 +298,74 @@ final class ThreadSummaryTest extends WebTestCase
     }
 
     /**
+     * Stop needs the card's token, like the run. A page elsewhere that could
+     * post here could not read anybody's mail, but it could throw away the
+     * summary somebody is waiting for.
+     */
+    public function testATokenlessStopIsRefused(): void
+    {
+        $client = $this->signIn();
+        $thread = $this->seedThread(2);
+
+        $this->configureAi();
+
+        $client->request(
+            'POST',
+            sprintf('/mail/thread/%d/summary/stop', $thread->id),
+            parameters: ['run' => str_repeat('a', 32)],
+        );
+
+        self::assertSame(403, $client->getResponse()->getStatusCode());
+    }
+
+    /**
+     * Stop, pressed while the model is still going, drops the call and stores
+     * nothing.
+     *
+     * It has to be looked for: the abort the card also sends reads, from in
+     * here, exactly like a connection that dropped, and that run is finished
+     * and stored. Here the host writes a word, the Stop lands, and the host
+     * goes quiet long enough for a heartbeat — the moment the run asks.
+     * `cancelled` on the metric is what shows the call was dropped there,
+     * rather than drained to the end and then thrown away.
+     */
+    public function testAStoppedRunIsDroppedAndNothingIsStored(): void
+    {
+        $client = $this->signIn();
+        $thread = $this->seedThread(2);
+        $run    = str_repeat('5', 32);
+        $stops  = static::getContainer()->get(ThreadSummaryStop::class);
+
+        $this->configureAi();
+
+        $this->chatReply = static fn (): MockResponse => new MockResponse((static function () use ($stops, $thread, $run): \Generator {
+            yield json_encode(['message' => ['content' => 'A sum'], 'done' => false]) . "\n";
+
+            $stops->request((int) $thread->id, $run);
+
+            // An idle timeout, which OllamaClient turns into a heartbeat.
+            yield '';
+
+            yield json_encode(['message' => ['content' => 'mary.'], 'done' => false]) . "\n";
+            yield json_encode(['done' => true, 'eval_count' => 2]) . "\n";
+        })());
+
+        $streamed = $this->post($client, $thread, ['run' => $run]);
+
+        self::assertStringNotContainsString('"done"', $streamed);
+        self::assertFalse(
+            $this->connection->fetchOne('SELECT 1 FROM thread_summary WHERE thread_id = :id', ['id' => $thread->id]),
+            'a run its reader stopped was stored',
+        );
+        self::assertSame(
+            'cancelled',
+            $this->connection->fetchOne(
+                "SELECT error_kind FROM ai_call_metric WHERE feature = 'thread_summary' ORDER BY id DESC LIMIT 1",
+            ),
+        );
+    }
+
+    /**
      * THE ONE WORTH THE EFFORT. A stored, still-fresh summary renders with no
      * model call at all.
      *
@@ -535,7 +607,8 @@ final class ThreadSummaryTest extends WebTestCase
      * change that broke the attribute fails here instead of passing against a
      * token the browser never sees.
      */
-    private function post(KernelBrowser $client, MessageThread $thread): string
+    /** @param array<string, string> $parameters */
+    private function post(KernelBrowser $client, MessageThread $thread, array $parameters = []): string
     {
         $token = $this->token($client);
 
@@ -570,6 +643,7 @@ final class ThreadSummaryTest extends WebTestCase
             $client->request(
                 'POST',
                 sprintf('/mail/thread/%d/summary', $thread->id),
+                parameters: $parameters,
                 server: ['HTTP_X_CSRF_TOKEN' => $token],
             );
         } finally {
@@ -772,10 +846,12 @@ final class ThreadSummaryTest extends WebTestCase
         // otherwise be free to reach whatever is at the configured address.
         // Every case here is about a decision taken before a model answers, so
         // one canned NDJSON reply covers all of them.
-        $container->set('http_client', new MockHttpClient(static fn (): MockResponse => new MockResponse(
-            json_encode(['message' => ['content' => 'A summary.'], 'done' => false]) . "\n"
-            . json_encode(['done' => true, 'eval_count' => 1]) . "\n",
-        )));
+        $container->set('http_client', new MockHttpClient(fn (string $method, string $url): MockResponse => null !== $this->chatReply && str_ends_with($url, '/api/chat')
+            ? ($this->chatReply)()
+            : new MockResponse(
+                json_encode(['message' => ['content' => 'A summary.'], 'done' => false]) . "\n"
+                . json_encode(['done' => true, 'eval_count' => 1]) . "\n",
+            )));
 
         $this->em         = $container->get(EntityManagerInterface::class);
         $this->connection = $container->get(Connection::class);

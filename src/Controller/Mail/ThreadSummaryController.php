@@ -11,6 +11,7 @@ use App\Entity\User\User;
 use App\Security\Voter\OwnershipVoter;
 use App\Service\Ai\OllamaClient;
 use App\Service\Ai\ThreadSummariser;
+use App\Service\Ai\ThreadSummaryStop;
 use App\Service\Ai\ThreadSummaryStore;
 use App\Service\Ai\ThreadTranscript;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -41,12 +42,11 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
  * `state` frame is the difference between an honest "the model is loading" and
  * forty seconds of a spinner.
  *
- * And cancellation. Closing the pane, opening another thread or navigating away
- * has to stop a 20.3 GiB model on a one-GPU host, and the only mechanism that
- * does it is the browser aborting the fetch → this method noticing at
- * connection_aborted() after a write → returning → the generator frame being
+ * And cancellation. Stop has to free a 20.3 GiB model on a one-GPU host, and
+ * what does it is generate() returning part-way → the generator frame being
  * freed → AiAssistant::recorded()'s `finally` running → the upstream response
- * dropping. A non-streamed POST has no abort path at all.
+ * dropping. The loop over the stream is where there is a part-way to return
+ * from; a POST that answered only once the model had finished has none.
  *
  * WHAT IS STORED, AND WHEN
  * ────────────────────────
@@ -68,11 +68,28 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
  * The price is stated where it is paid, in generate(): a reader who genuinely
  * navigated away keeps the model busy until it finishes, where it used to be
  * released at once.
+ *
+ * EXCEPT A RUN SOMEBODY STOPPED. Stop aborts the fetch like every other way of
+ * leaving, so from in here it was indistinguishable from a dropped connection:
+ * the model ran on and the summary was stored under a card saying "Nothing was
+ * saved". The card now also posts to stop() naming the run, and generate()
+ * looks for that before it finishes anything — the model call is dropped and
+ * nothing is stored. See ThreadSummaryStop.
  */
 final class ThreadSummaryController extends AbstractController
 {
     /** Above the upstream's own bound, so it is the upstream that gives up first. */
     private const int STREAM_TIME_LIMIT_SECONDS = 300;
+
+    /**
+     * How often a run asks whether it has been stopped, between heartbeats.
+     *
+     * Every heartbeat asks regardless, and those are ten seconds apart while
+     * the model reads. Tokens can arrive milliseconds apart, and a query per
+     * token for a question whose answer is almost always no would be most of
+     * the work this loop does.
+     */
+    private const float STOP_CHECK_SECONDS = 1.0;
 
     use ChecksCsrf;
 
@@ -82,6 +99,7 @@ final class ThreadSummaryController extends AbstractController
         private readonly ThreadSummaryStore $store,
         private readonly LoggerInterface    $logger,
         private readonly MessageBusInterface $bus,
+        private readonly ThreadSummaryStop  $stops,
     ) {
     }
 
@@ -181,6 +199,13 @@ final class ThreadSummaryController extends AbstractController
             return new JsonResponse(['status' => 'queued'], Response::HTTP_ACCEPTED);
         }
 
+        // The name the card gave this run, so that its Stop can say which run
+        // it means. It chooses nothing about the summary. Anything that is not
+        // a run id counts as no name, and a nameless run is finished the way a
+        // dropped connection's is — see ThreadSummaryStop::isRequested().
+        $run = $request->request->getString('run');
+        $run = true === ThreadSummaryStop::isRunId($run) ? $run : null;
+
         $transcript = $this->transcript->forThread($thread);
         $sourceHash = ThreadTranscript::hash($transcript);
         $model      = $this->summariser->model();
@@ -220,8 +245,8 @@ final class ThreadSummaryController extends AbstractController
         // ComposeAssistController captures its user: reading a property inside
         // the callback is free, while a repository lookup there would be a
         // query against a kernel that has finished with the request.
-        $response = new StreamedResponse(function () use ($user, $thread, $transcript, $sourceHash, $model, $promptHash): void {
-            $this->generate($user, $thread, $transcript, $sourceHash, $model, $promptHash);
+        $response = new StreamedResponse(function () use ($user, $thread, $transcript, $sourceHash, $model, $promptHash, $run): void {
+            $this->generate($user, $thread, $transcript, $sourceHash, $model, $promptHash, $run);
         });
 
         // Not application/json: this is a sequence of JSON documents and never
@@ -241,17 +266,6 @@ final class ThreadSummaryController extends AbstractController
         return $response;
     }
 
-    /**
-     * The body of the stream.
-     *
-     * A method rather than the closure's own body, so the generator lives in a
-     * scope that ENDS. ComposeAssistController's reason, unchanged: a
-     * `use`-captured generator is held by the Closure, which the response
-     * holds, which the kernel holds until the request is torn down — so an
-     * abandoned stream would keep the model generating long after the reader
-     * had gone. A local in a method is freed when the method returns, and
-     * freeing it is what cancels the call.
-     */
     /**
      * What is stored for this conversation, for a card that has been nudged.
      *
@@ -302,7 +316,52 @@ final class ThreadSummaryController extends AbstractController
         ]);
     }
 
-    private function generate(User $user, MessageThread $thread, string $transcript, string $sourceHash, string $model, string $promptHash): void
+    /**
+     * Stop, meant: the model call is dropped and nothing is stored.
+     *
+     * The card aborts its fetch as well, and that alone reads, from inside the
+     * stream, exactly like a connection that dropped — whose summary is
+     * finished and kept. This request is the difference. It names the run
+     * rather than the thread, for the reasons ThreadSummaryStop gives, and
+     * generate() looks for it on every heartbeat and at most a second apart
+     * otherwise.
+     *
+     * The same token as the run itself: stopping is part of the one action,
+     * and a page that can start a run has to be able to stop it.
+     */
+    #[Route('/mail/thread/{id}/summary/stop', name: 'app_mail_thread_summary_stop', requirements: ['id' => '\d+'], methods: ['POST'])]
+    #[IsGranted('IS_AUTHENTICATED')]
+    public function stop(Request $request, MessageThread $thread): Response
+    {
+        $this->assertCsrf($request, 'thread_summary');
+        $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $thread->account);
+
+        $run = $request->request->getString('run');
+
+        if (false === ThreadSummaryStop::isRunId($run)) {
+            return new JsonResponse(['error' => 'bad_run'], Response::HTTP_BAD_REQUEST);
+        }
+
+        // 204 whether or not that run is still going. One that has already
+        // finished was stored before this arrived, and there is nothing left
+        // for the answer to change.
+        $this->stops->request((int) $thread->id, $run);
+
+        return new Response(null, Response::HTTP_NO_CONTENT);
+    }
+
+    /**
+     * The body of the stream.
+     *
+     * A method rather than the closure's own body, so the generator lives in a
+     * scope that ENDS. ComposeAssistController's reason, unchanged: a
+     * `use`-captured generator is held by the Closure, which the response
+     * holds, which the kernel holds until the request is torn down — so an
+     * abandoned stream would keep the model generating long after the reader
+     * had gone. A local in a method is freed when the method returns, and
+     * freeing it is what cancels the call — which is how a Stop is honoured.
+     */
+    private function generate(User $user, MessageThread $thread, string $transcript, string $sourceHash, string $model, string $promptHash, ?string $run): void
     {
         // PHP's default is to kill the script the moment a write finds the
         // browser gone, which sounds like what we want and is the opposite of
@@ -352,6 +411,20 @@ final class ThreadSummaryController extends AbstractController
         // reintroduced by the feature that needed it most.
         set_time_limit(self::STREAM_TIME_LIMIT_SECONDS);
 
+        // Here rather than beside the frames that count it: this controller can
+        // outlive a request under a FrankenPHP worker, and the stop log below
+        // may read it before any frame has been written.
+        $this->written = 0;
+
+        // Stopped before it began. The Stop can land first — a double click is
+        // enough, since Stop appears where Summarise was — and then the model
+        // is not asked at all.
+        if (true === $this->stops->isRequested((int) $thread->id, $run)) {
+            $this->stopped($thread, $model, microtime(true));
+
+            return;
+        }
+
         $tokens = $this->summariser->stream($user, $thread, $transcript);
 
         if (null === $tokens) {
@@ -381,14 +454,31 @@ final class ThreadSummaryController extends AbstractController
         // When the reading started, so each heartbeat can say how long it has
         // been going. See the ping frame below.
         $readingSince = microtime(true);
-        $this->written = 0;
 
         // Whether the reader is still there. Once this is true the frames stop
         // — there is nobody to send them to — and the LOOP CARRIES ON, which is
         // the whole change.
         $lostTheReader = false;
 
+        $stopCheckedAt = microtime(true);
+
         foreach ($tokens as $token) {
+            // STOP FIRST, draining or not. A reader who pressed it has usually
+            // closed the connection by the time it is seen, and the drain below
+            // is exactly what it has to cut short. Every heartbeat asks; tokens
+            // ask at most once a second.
+            if ('' === $token || self::STOP_CHECK_SECONDS <= microtime(true) - $stopCheckedAt) {
+                $stopCheckedAt = microtime(true);
+
+                if (true === $this->stops->isRequested((int) $thread->id, $run)) {
+                    // Returning IS the cancellation: it frees $tokens, which
+                    // drops the call to the model host. See the docblock.
+                    $this->stopped($thread, $model, $readingSince);
+
+                    return;
+                }
+            }
+
             if (true === $lostTheReader) {
                 // Drained, not delivered. The model is already generating and
                 // the expensive part — reading the conversation — is behind it,
@@ -430,6 +520,16 @@ final class ThreadSummaryController extends AbstractController
             $this->written += mb_strlen($token);
 
             if (0 !== connection_aborted()) {
+                // Stop closes the connection too, and its own request has
+                // usually landed by the time a write finds the connection gone.
+                // Asked again here, unthrottled, so a Stop is not first logged
+                // as a reader who was lost.
+                if (true === $this->stops->isRequested((int) $thread->id, $run)) {
+                    $this->stopped($thread, $model, $readingSince);
+
+                    return;
+                }
+
                 $lostTheReader = true;
 
                 // KEPT, NOT ABANDONED, which reverses what this used to do.
@@ -450,7 +550,8 @@ final class ThreadSummaryController extends AbstractController
                 // The price, plainly: a reader who genuinely navigated away
                 // keeps the model busy until it finishes, where before it was
                 // released at once. That is the trade — some seconds of GPU
-                // against a summary somebody waited for and lost.
+                // against a summary somebody waited for and lost. A reader who
+                // pressed Stop does not pay it: see the top of this loop.
                 $this->logger->warning('Thread summary lost its reader; finishing it anyway', [
                     'thread'           => $thread->id,
                     'model'            => $model,
@@ -522,6 +623,14 @@ final class ThreadSummaryController extends AbstractController
             return;
         }
 
+        // One last look, unthrottled: a Stop pressed in the final second of the
+        // writing must not be outrun by the throttle in the loop above.
+        if (true === $this->stops->isRequested((int) $thread->id, $run)) {
+            $this->stopped($thread, $model, $readingSince);
+
+            return;
+        }
+
         // A DBAL write, and safe after the session close because it touches
         // nothing the session holds. Its failure is logged and swallowed inside
         // the store: the reader already has their summary on screen, and a
@@ -561,6 +670,24 @@ final class ThreadSummaryController extends AbstractController
             'loadMs'  => self::millis($result->timing->loadDurationNs),
             'evalMs'  => self::millis($result->timing->evalDurationNs),
             'totalMs' => self::millis($result->timing->totalDurationNs),
+        ]);
+    }
+
+    /**
+     * A Stop, in the log.
+     *
+     * In the browser a Stop and a dropped connection end the same way, and only
+     * one of them is a fault. Info, not warning — somebody changing their mind
+     * is the feature working — but written at all, because this line beside
+     * "lost its reader" is what tells the two apart afterwards.
+     */
+    private function stopped(MessageThread $thread, string $model, float $since): void
+    {
+        $this->logger->info('Thread summary stopped by its reader; nothing stored', [
+            'thread'          => $thread->id,
+            'model'           => $model,
+            'elapsed_seconds' => (int) round(microtime(true) - $since),
+            'chars_so_far'    => $this->written,
         ]);
     }
 

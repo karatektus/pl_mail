@@ -334,7 +334,9 @@ dependency rather than trying to outlast it.
 **If the connection drops while it is being written, it is finished anyway.** Reload the
 conversation and the summary is there. That covers a laptop closing, a network dropping and a
 reverse proxy giving up on a slow response — none of which plMail can see, and all of which used to
-throw the work away at whatever point they happened.
+throw the work away at whatever point they happened. Opening another conversation or closing the tab
+counts as leaving, not as saying no, so that summary is finished and waiting too. Only **Stop** ends
+the run and keeps nothing.
 
 Once written, it is kept and shown the next time the conversation is opened, at no cost. If a reply
 arrives afterwards, the summary is shown greyed with a note that the conversation has changed and a

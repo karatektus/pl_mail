@@ -107,8 +107,13 @@ test.describe("thread summary", () => {
         await expect(page.locator(STOP)).toBeVisible();
         await expect(offer).toBeHidden();
 
+        // Said to the server as well as done in the page: the abort alone reads
+        // like a dropped connection, and that run is finished and kept.
+        const stopped = page.waitForResponse((response) => response.url().endsWith("/summary/stop"));
+
         await page.locator(STOP).click();
 
+        expect((await stopped).status()).toBe(204);
         await expect(status).toHaveText(/Stopped/i);
         await expect(offer).toBeVisible();
         await expect(page.locator(STOP)).toBeHidden();
