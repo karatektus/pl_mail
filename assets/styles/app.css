@@ -4,6 +4,13 @@
 
 @variant dark (&:where(.dark, .dark *));
 
+/* `lit:` is `hover:` for an entry drawn in more than one piece — a bar in the
+   all-day band and the hours it shades, or the two halves of a meeting cut at
+   midnight. calendar/span_link_controller.js puts `is-lit` on every piece of
+   the entry under the pointer, and a piece styles itself, or the box directly
+   inside it, the way it styles its own hover. */
+@custom-variant lit (&:where(.is-lit, .is-lit > *));
+
 /* ═══ Palette channels + runtime knobs ══════════════════════════════════════
    Unlayered on purpose: these are variable definitions, not utilities, and
    unlayered declarations outrank Tailwind's cascade layers.
@@ -3145,6 +3152,40 @@
 @utility block-tint {
     background-color: rgb(var(--rgb-surface));
     background-image: linear-gradient(var(--block-tint, transparent), var(--block-tint, transparent));
+}
+
+/* The hours an entry of a day or more takes, shaded under a day's own blocks
+   in the time grid (see DayGrid::$shaded). Stripes rather than a fill, because
+   the day's meetings are drawn on top of it at full width and a solid block
+   under them would read as a meeting of its own; stripes read as "taken" and
+   leave every block on them legible.
+
+   The colours are the entry's calendar, handed over by the caller as custom
+   properties — the shell draws the shading and must not know what an entry
+   is. A caller that sets none, the public shared page, gets a neutral grey.
+   The border is the rule across the entry's real start and end; the template
+   only gives an edge a width where it is one.
+
+   Lit when the pointer is on any piece of the entry: stronger stripes over a
+   wash, and the accent ring the blocks take when lifted. */
+@utility span-hatch {
+    border-color: var(--span-edge, rgb(var(--rgb-ink-faint) / 0.5));
+    background-image: repeating-linear-gradient(
+        135deg,
+        var(--span-stripe, rgb(var(--rgb-ink-faint) / 0.12)) 0 6px,
+        transparent 6px 12px
+    );
+    transition: box-shadow 120ms, background-color 120ms;
+
+    &.is-lit {
+        background-color: var(--span-wash, rgb(var(--rgb-ink-faint) / 0.06));
+        background-image: repeating-linear-gradient(
+            135deg,
+            var(--span-stripe-lit, rgb(var(--rgb-ink-faint) / 0.22)) 0 6px,
+            transparent 6px 12px
+        );
+        box-shadow: inset 0 0 0 1px rgb(var(--rgb-accent) / 0.5);
+    }
 }
 
 @utility chip-open {

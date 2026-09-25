@@ -232,15 +232,28 @@ Variables:
                 {% embed 'calendar/_time_grid_shell.html.twig' with {
                     dayKeys: range.dayKeys,
                     grid: range.grid,
+                    band: range.band,
                     zone: shared.zone,
                     today: range.today ?? '',
                     hourFormat: hourFormat,
                 } %}
+                    {# A timed bar is an entry of a day or more: its start on
+                       the day it starts, and its end, which the shaded hours
+                       below do not print — the same as the owner's bar. On the
+                       full clock, because the band has no axis to read a
+                       compact "5:00" against. #}
                     {% block all_day_entry %}
                         {% include 'sharing/_entry_chip.html.twig' with {
                             entry: entry,
                             zone: shared.zone,
-                            timeFormat: chipTimeFormat,
+                            timeFormat: rowTimeFormat,
+                            showTime: not bar.continuesBefore,
+                            until: bar.timed
+                                ? 'calendar.grid.until'|trans({
+                                    '%when%': entry.endsAt|intl_date(bar.continuesAfter ? 'EEEdMMM' : 'EEE', shared.zone)
+                                        ~ ' ' ~ entry.endsAt|date(rowTimeFormat, shared.zone),
+                                })
+                                : null,
                         } only %}
                     {% endblock %}
 

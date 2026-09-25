@@ -48,8 +48,15 @@ Variables:
   zone        string            the owner's zone, which the grid is drawn in
   timeFormat  string            a PHP date() format, from the install's clock
   tall        bool              optional, fill a positioned time-grid block
+  showTime    bool              optional, print the start time (default true);
+                                false on a band bar that began before the page
+  until       string|null       optional, the end printed after the title on a
+                                band bar for an entry of a day or more
 #}
 {% set tall = tall|default(false) %}
+{# `??` rather than `|default`: the caller that passes this passes false. #}
+{% set showTime = showTime ?? true %}
+{% set until = until|default(null) %}
 
 {# `chip-open` on the tall shape only, and only because the tall shape is the
    one that clips — see the utility in app.css. It is wanted here for exactly
@@ -64,7 +71,8 @@ Variables:
             {{ tall
                 ? 'h-full items-start overflow-hidden rounded-md ring-1 ring-line px-1.5 py-0.5
                    chip-open hover:shadow-lg'
-                : 'items-center rounded-md px-0.5 sm:px-1.5 py-0.5' }}">
+                : 'items-center rounded-md px-0.5 sm:px-1.5 py-0.5' }}
+            lit:ring-1 lit:ring-accent/50">
     {# Still one accent and never a calendar's colour — the rule above is
        unchanged by the shape. `self-stretch` rather than the `mt-1.5` this
        carried: a bar that fills the block needs no nudge to look placed. #}
@@ -73,7 +81,7 @@ Variables:
                  {{ tall ? 'w-1 self-stretch' : 'w-1.5 h-1.5' }}"
           aria-hidden="true"></span>
 
-    {% if not entry.isAllDay %}
+    {% if not entry.isAllDay and showTime %}
         <span class="shrink-0 text-[11px] tabular-nums text-ink-faint
                      {{ tall ? 'leading-5' : 'hidden sm:inline' }}">
             {{ entry.startsAt|date(timeFormat, zone) }}
@@ -89,4 +97,8 @@ Variables:
                     : 'hidden sm:block truncate' }}">
         {{ entry.title ?? 'calendar.share.busy'|trans }}
     </span>
+
+    {% if until is not null %}
+        <span class="hidden sm:inline shrink-0 text-[11px] tabular-nums text-ink-faint whitespace-nowrap">{{ until }}</span>
+    {% endif %}
 </div>

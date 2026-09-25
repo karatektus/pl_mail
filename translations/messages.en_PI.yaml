@@ -1136,6 +1136,7 @@ calendar:
             it back.
         read_only: This almanac takes no changes, so this reckonin' cannot be shifted.
         reverted: Left where it lay.
+        until: till %when%
     ics:
         error:
             no_calendar: Pick an almanac to stow the dates in.

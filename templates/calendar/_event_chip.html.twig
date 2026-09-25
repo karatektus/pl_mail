@@ -84,6 +84,12 @@ Accepts:
   tooltip   whether the chip carries its title as a hover tooltip (default:
             true, except in a month cell); off where hover already shows it
   stack     override for whether the chip stacks; Day view says false
+  until     optional, printed at the end of a one-line chip — "until Sun 21:00"
+            on the band's bar for an entry of a day or more, whose end is
+            nowhere else on screen
+  longTime  print the start on the full clock, meridiem and all (default
+            false). The band's: a grid block's time is read against the axis
+            beside it, and the band has no axis — "5:00" there is two times
 
 `timeColumn` is the agenda's, and is the same kind of thing: a lane of its own
 for the time, start over end, with "all day" written in it for a chip that has
@@ -273,10 +279,13 @@ identity is threaded through a URL that would outlive the render that made it.
    passes this passes FALSE, and the default filter treats false as absent. #}
 {% set stacked = stack ?? (tall or monthCell) %}
 
+{% set until = until|default(null) %}
+{% set longTime = longTime|default(false) %}
+
 {% set chip_title = event.title ~ (showTime
     ? ' · ' ~ occurrence.startsAt|date(clock.time, chip_zone)
         ~ (showRange ? '–' ~ occurrence.endsAt|date(clock.time, chip_zone) : '')
-    : '') %}
+    : '') ~ (until is not null ? ' · ' ~ until : '') %}
 
 {% if cluster.isMerged %}
     {% set chip_title = chip_title ~ ' · ' ~ 'calendar.chip.on_calendars'|trans({
@@ -327,10 +336,15 @@ identity is threaded through a URL that would outlive the render that made it.
    {% if tooltip %}title="{{ chip_title }}"{% else %}aria-label="{{ chip_title }}"{% endif %}
    class="group/chip w-full text-left rounded-md
           hover:bg-hover transition-colors min-w-0
+          {# `items-start` on the stack, not `items-center`: they agree
+             whenever the words fit, and part company in a block too short for
+             them — a half-hour meeting in a 96px column — where the rows shrink
+             below their text and a centred title spilled UP over the time
+             above it. Top-aligned, it overflows downwards into the clip. #}
           {{ timeColumn
               ? 'col-span-full grid grid-cols-subgrid py-1 border-t border-line/60 first:border-t-0'
               : (stacked
-                  ? 'grid grid-cols-[max-content_minmax(0,1fr)] gap-x-1.5 content-start items-center px-1.5 py-0.5'
+                  ? 'grid grid-cols-[max-content_minmax(0,1fr)] gap-x-1.5 content-start items-start px-1.5 py-0.5'
                     ~ (monthCell ? ' @max-[5.5rem]:block @max-[5.5rem]:px-0 @max-[5.5rem]:py-0' : '')
                   : 'flex gap-1.5 px-1.5 py-0.5') }}
           {# Inset: on the time grid this button fills a block that is
@@ -371,7 +385,7 @@ identity is threaded through a URL that would outlive the render that made it.
                      {{ stacked
                          ? 'col-start-2 row-start-1 leading-4' ~ (monthCell ? ' @max-[5.5rem]:sr-only' : '')
                          : '@max-[7rem]:sr-only @max-[7rem]:group-hover/chip:not-sr-only' }}">
-            {{- occurrence.startsAt|date(clock.timeCompact, chip_zone) -}}
+            {{- occurrence.startsAt|date(longTime ? clock.time : clock.timeCompact, chip_zone) -}}
             {%- if showRange -%}
                 –{{ occurrence.endsAt|date(clock.timeCompact, chip_zone) }}
             {%- endif -%}
@@ -435,4 +449,10 @@ identity is threaded through a URL that would outlive the render that made it.
         {%- endif -%}
         {{ event.title }}
     </span>
+
+    {# After the title, which truncates first: the end is the part a bar
+       across several days cannot say any other way. #}
+    {% if until is not null %}
+        <span class="shrink-0 text-[11px] tabular-nums text-ink-faint whitespace-nowrap">{{ until }}</span>
+    {% endif %}
 </button>

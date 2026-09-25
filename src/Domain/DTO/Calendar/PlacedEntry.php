@@ -40,6 +40,11 @@ use App\Domain\Interface\TimeGridEntryInterface;
  * Deliberately not carrying the day it belongs to: the placements are handed
  * over keyed by day (see DayGrid), and repeating the key inside the value is a
  * second place for it to be wrong.
+ *
+ * $key names the entry for the grid's hover, and is the same on every day the
+ * entry is placed on — the two halves of a meeting that crosses midnight, the
+ * hours a long one shades — so pointing at one piece lights all of them. See
+ * BandEntry, which carries the same key for the bar.
  */
 final readonly class PlacedEntry
 {
@@ -57,6 +62,7 @@ final readonly class PlacedEntry
         public int                    $lanes,
         public bool                   $continuesBefore,
         public bool                   $continuesAfter,
+        public string                 $key = '',
     ) {
     }
 }

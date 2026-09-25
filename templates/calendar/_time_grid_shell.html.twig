@@ -108,6 +108,9 @@ Variables:
   today            string        Y-m-d in that zone, or '' for a grid that
                                  should mark no column as today
   hourFormat       string        a PHP date() format for one gutter label
+  band             Band          the all-day band over the same days, from
+                                 DayGridLayout::band(): one bar per entry,
+                                 across the days it covers
   shellOuterClass  string        optional, the frame's own sizing
 
 Blocks. All of them are rendered inside this template, so they read its
@@ -116,11 +119,15 @@ one) `placed`:
   grid_root_attributes    attributes on the outer element: a Stimulus controller
                           and its actions, for a grid that is interactive
   day_heading_actions     the right-hand end of a column heading
-  all_day_entry           one entry in the all-day band
+  all_day_entry           one bar in the all-day band; `bar` is its BandEntry,
+                          and `dayKey` the first day it covers
   timed_entry_attributes  attributes on the positioned block — an event id, a
                           drag target. The style is this file's; anything that
                           identifies what was placed is the caller's
   timed_entry             what is drawn inside the positioned block
+  shaded_entry_style      declarations appended to the style of the hours an
+                          entry of a day or more shades — its colours, as the
+                          custom properties the span-hatch utility reads
   column_unpublished      what an unpublished column says
   grid_footer             siblings after the scroller: hidden triggers, live
                           regions, the forms and dialogs a drag commits through
@@ -155,6 +162,14 @@ one) `placed`:
    do and no longer needs to. #}
 {% set columnMin = '6rem' %}
 {% set columnTemplate = '3.5rem repeat(' ~ dayKeys|length ~ ', minmax(0, 1fr))' %}
+{# Where each day is drawn, for the band: a bar is handed over by the day it
+   starts on, and only this file knows which column that is — the shared page
+   draws days it publishes nothing on. #}
+{% set columnOf = {} %}
+{% for dayKey in dayKeys %}
+    {% set columnOf = columnOf|merge({(dayKey): loop.index0}) %}
+{% endfor %}
+
 {% set gridStyle = 'grid-template-columns: ' ~ columnTemplate
     ~ '; width: max(100%, calc(3.5rem + ' ~ dayKeys|length ~ ' * ' ~ columnMin ~ '))' %}
 
@@ -186,8 +201,13 @@ one) `placed`:
        grid whose whole interaction is pointer-down and drag. `scroll-pl-14` is
        the gutter's own 3.5rem: without it a snapped column comes to rest UNDER
        the pinned gutter rather than beside it. #}
+    {# The hover that lights every piece of one entry together lives here, on
+       the one box that holds the band and the hours both. See
+       span_link_controller.js. #}
     <div class="flex-1 min-h-0 overflow-auto snap-x snap-proximity scroll-pl-14"
-         data-calendar--time-grid-target="scroller">
+         data-calendar--time-grid-target="scroller"
+         data-controller="calendar--span-link"
+         data-action="pointerover->calendar--span-link#enter pointerout->calendar--span-link#leave">
 
     {# ── The day headings ──────────────────────────────────────────────────
 
@@ -320,31 +340,59 @@ one) `placed`:
 
         {# `overflow-x-hidden` is stated rather than left to compute. An
            element with `overflow-y: auto` is a scroll container in BOTH axes,
-           so an all-day chip opened wider than its day would have given this a
+           so an all-day chip opened wider than its bar would have given this a
            horizontal scrollbar — a second one, out of step with the scroller
            that actually pans the week. Hidden clips it at the far edge of the
            last day instead, which is the only place it has anything to clip. #}
-        <div class="grid max-h-24 overflow-y-auto overflow-x-hidden"
-             style="grid-column: 2 / -1;
-                    grid-template-columns: repeat({{ dayKeys|length }}, minmax(0, 1fr))">
-            {% for dayKey in dayKeys %}
-                {% set isOutside = grid[dayKey] is not defined %}
+        <div class="max-h-24 overflow-y-auto overflow-x-hidden" style="grid-column: 2 / -1">
+            {# **One bar per entry, across the days it covers.** This was a
+               column of chips per day, so a three-day offsite said "Offsite"
+               three times and read as three events. It is laid out once, by
+               DayGridLayout::band(), with a timed entry of a day or more among
+               the bars — its hours are shaded in the grid below rather than
+               drawn there as a block per day.
 
-                {# No `@container` here, deliberately. It was declared so the
-                   chip could query its width, and the two steps it would answer
-                   are unreachable in this band: the narrowest a day gets is the
-                   96px floor and both steps are under 7rem. What a container
-                   WOULD do is make every cell a stacking context, which traps
-                   an opened chip's z-index inside the day it started in. #}
-                <div class="relative border-r border-line p-1 space-y-0.5 min-h-[1.75rem]
-                            {{ isOutside
-                                ? 'bg-sunken/20'
-                                : (dayKey == today ? 'bg-accent/5' : '') }}">
-                    {% for entry in isOutside ? [] : grid[dayKey].allDay %}
-                        {% block all_day_entry %}{% endblock %}
-                    {% endfor %}
-                </div>
-            {% endfor %}
+               The rows are the band's lanes, and the days are drawn BEHIND the
+               bars as items spanning every row, so the ruling and today's tint
+               run the band's full height however many rows it grew. That is
+               why the rows are stated rather than left implicit: `1 / -1` spans
+               the explicit rows and nothing else.
+
+               No `@container` on any of it, as before: the two steps a chip
+               would query for are under 7rem and a day is floored at 6rem, and
+               a container would make each bar a stacking context that traps an
+               opened chip's z-index inside it. #}
+            <div class="grid py-1 gap-y-0.5"
+                 style="grid-template-columns: repeat({{ dayKeys|length }}, minmax(0, 1fr));
+                        grid-template-rows: repeat({{ max(1, band.lanes) }}, minmax(1.25rem, auto))">
+                {% for dayKey in dayKeys %}
+                    {% set isOutside = grid[dayKey] is not defined %}
+
+                    {# `-my-1` carries the ruling through the band's padding, so
+                       a line meets the edges rather than stopping 4px short. #}
+                    <div class="-my-1 border-r border-line
+                                {{ isOutside ? 'bg-sunken/20' : (dayKey == today ? 'bg-accent/5' : '') }}"
+                         style="grid-column: {{ loop.index }}; grid-row: 1 / -1"
+                         aria-hidden="true"></div>
+                {% endfor %}
+
+                {% for bar in band.entries %}
+                    {% if columnOf[bar.firstDay] is defined %}
+                        {% set entry = bar.entry %}
+                        {# The chip's own continuation rule reads this: a bar
+                           whose entry began before the first drawn day prints
+                           no start time, because it did not start there. #}
+                        {% set dayKey = bar.firstDay %}
+
+                        <div class="mx-1 min-w-0"
+                             style="grid-column: {{ columnOf[bar.firstDay] + 1 }} / span {{ bar.days }};
+                                    grid-row: {{ bar.lane + 1 }}"
+                             data-span-key="{{ bar.key }}">
+                            {% block all_day_entry %}{% endblock %}
+                        </div>
+                    {% endif %}
+                {% endfor %}
+            </div>
         </div>
     </div>
 
@@ -453,6 +501,31 @@ one) `placed`:
                     {# The blocks sit in their own layer over the hour lines, so
                        the lines stay visible between and behind them. #}
                     <div class="absolute inset-0">
+                        {# The hours an entry of a day or more takes on this
+                           day: shaded, wordless, and drawn FIRST so every
+                           block of the day sits on top of them at full width —
+                           the entry's words are on its bar in the band. The
+                           edge that is the entry's real start or end is ruled;
+                           an edge that is only midnight is not.
+
+                           Pointing at the shading lights the bar, and the bar
+                           lights the shading. It is inert otherwise: a double-
+                           click on it creates an event at that time, as on an
+                           empty hour, because nothing but a block stops that —
+                           see the controller's createAt(). #}
+                        {% for shade in isOutside ? [] : grid[dayKey].shaded %}
+                            {% set entry = shade.entry %}
+
+                            <div class="span-hatch absolute inset-x-0
+                                        {{ shade.continuesBefore ? '' : 'border-t-2' }}
+                                        {{ shade.continuesAfter ? '' : 'border-b-2' }}"
+                                 style="top: {{ (shade.top * 100)|round(4) }}%;
+                                        height: {{ (shade.height * 100)|round(4) }}%;
+                                        {% block shaded_entry_style %}{% endblock %}"
+                                 data-span-key="{{ shade.key }}"
+                                 aria-hidden="true"></div>
+                        {% endfor %}
+
                         {% for placed in isOutside ? [] : grid[dayKey].timed %}
                             {% set entry = placed.entry %}
 
@@ -498,7 +571,12 @@ one) `placed`:
                                column: two overlapping meetings split a column
                                into lanes, so a chip in a 96px week column may
                                have 48 or 32 of them. #}
-                            <div class="@container group/chip absolute p-px hover:z-30"
+                            {# A key only on a block cut at midnight: its other
+                               half is in the next column, and pointing at one
+                               lifts both. A block that is all of its meeting has
+                               nothing to be lit with. #}
+                            <div class="@container group/chip absolute p-px hover:z-30 lit:z-30"
+                                 {% if placed.continuesBefore or placed.continuesAfter %}data-span-key="{{ placed.key }}"{% endif %}
                                  style="top: {{ (placed.top * 100)|round(4) }}%;
                                         height: {{ (placed.height * 100)|round(4) }}%;
                                         min-height: 2.375rem;

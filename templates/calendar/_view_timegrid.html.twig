@@ -36,6 +36,7 @@ stop, and a double-click is not a gesture a keyboard has.
 {% embed 'calendar/_time_grid_shell.html.twig' with {
     dayKeys:    days|keys,
     grid:       range.grid,
+    band:       range.band,
     zone:       range.zone,
     today:      'now'|date('Y-m-d', range.zone),
     hourFormat: clock.hour,
@@ -82,9 +83,39 @@ stop, and a double-click is not a gesture a keyboard has.
            `relative` is for the z-index and not for layout. An all-day cell is
            a grid item, so the cell after it paints over this one by source
            order, and an opened chip would slide UNDER the day to its right. #}
-        <div class="relative rounded-md chip-open
-                    hover:z-30 hover:bg-surface hover:shadow-lg hover:ring-1 hover:ring-line">
-            {% include 'calendar/_event_chip.html.twig' with { cluster: entry, showTime: false, tooltip: false } %}
+        {# Tinted and ringed like a block in the grid, because a bar is days
+           long and has to read as ONE thing from its first day to its last:
+           bare, as the band's chips used to be, a bar's start sat at one end
+           of the week and its end at the other with nothing drawn between.
+
+           `lit:` is the hover again, for when the pointer is on this entry's
+           shaded hours in the grid rather than on the bar itself — see
+           span_link_controller.js. #}
+        <div class="relative rounded-md chip-open block-tint ring-1 ring-line shadow-sm
+                    hover:z-30 hover:shadow-lg hover:ring-accent/50
+                    lit:z-30 lit:shadow-lg lit:ring-accent/50"
+             style="--block-tint: {{ entry.primary.event.calendar.color }}1a">
+            {# A timed bar is an entry of a day or more that left the hours, so it
+               says what the hours no longer do: when it starts, on the day it
+               starts, and when it ends. The end names its day, because the bar
+               is days long; outside this week it names the date as well. #}
+            {% set until = null %}
+
+            {% if bar.timed and entry.primary.endsAt is not null %}
+                {% set ends = entry.primary.endsAt %}
+                {% set until = 'calendar.grid.until'|trans({
+                    '%when%': ends|intl_date(bar.continuesAfter ? 'EEEdMMM' : 'EEE', range.zone)
+                        ~ ' ' ~ ends|date(clock.time, range.zone),
+                }) %}
+            {% endif %}
+
+            {% include 'calendar/_event_chip.html.twig' with {
+                cluster:  entry,
+                showTime: bar.timed,
+                longTime: true,
+                until:    until,
+                tooltip:  false,
+            } %}
         </div>
     {% endblock %}
 
@@ -119,6 +150,7 @@ stop, and a double-click is not a gesture a keyboard has.
         <div class="relative h-full rounded-md overflow-hidden
                     ring-1 ring-line shadow-sm block-tint
                     chip-open hover:shadow-lg hover:ring-accent/50
+                    lit:shadow-lg lit:ring-accent/50
                     {{ readOnly ? '' : 'cursor-grab' }}"
              style="--block-tint: {{ occurrence.event.calendar.color }}1a">
 
@@ -148,6 +180,16 @@ stop, and a double-click is not a gesture a keyboard has.
             {% endif %}
         </div>
     {% endblock %}
+
+    {# The calendar's colour on the hours an entry of a day or more shades:
+       the stripes, the stronger stripes and wash it takes when lit, and the
+       rule across its real start and end. Hex plus alpha, as the block tint
+       does it — a calendar colour is always six digits. #}
+    {% block shaded_entry_style %}
+        {%- set color = entry.primary.event.calendar.color -%}
+        --span-stripe: {{ color }}17; --span-stripe-lit: {{ color }}2b;
+        --span-wash: {{ color }}0a; --span-edge: {{ color }}99;
+    {%- endblock %}
 
     {% block grid_footer %}
         {# The double-click's way into the editor.

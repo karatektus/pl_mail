@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Service\Calendar\Sharing;
 
+use App\Domain\DTO\Calendar\Band;
 use App\Domain\DTO\Calendar\SharedCalendarDay;
 use App\Domain\DTO\Calendar\SharedCalendarRange;
 use App\Domain\DTO\Calendar\SharedCalendarView;
@@ -114,6 +115,8 @@ final readonly class SharedCalendarRangeBuilder
 
         [$from, $to] = $which->range($anchor);
 
+        [$grid, $band] = $this->timeGrid($view, $which, $from, $to, $firstDay, $lastDay, $zone);
+
         return new SharedCalendarRange(
             view:     $which,
             anchor:   $anchor,
@@ -121,7 +124,8 @@ final readonly class SharedCalendarRangeBuilder
             from:     $from,
             to:       $to,
             days:     $this->days($view, $which, $anchor, $from, $to, $firstDay, $lastDay),
-            grid:     $this->grid($view, $which, $from, $to, $firstDay, $lastDay, $zone),
+            grid:     $grid,
+            band:     $band,
             previous: $this->step($view, $which, $anchor, -1, $firstDay, $lastDay),
             next:     $this->step($view, $which, $anchor, 1, $firstDay, $lastDay),
             today:    $today >= $firstDay && $today <= $lastDay ? $today->format('Y-m-d') : null,
@@ -239,8 +243,8 @@ final readonly class SharedCalendarRangeBuilder
     }
 
     /**
-     * The placements for a time-grid page, keyed by day — and nothing at all for
-     * a view with no time axis.
+     * The placements for a time-grid page, keyed by day, and its all-day band —
+     * and nothing at all for a view with no time axis.
      *
      * Gated on CalendarView::isTimeGrid() rather than on who is asking, exactly
      * as CalendarRangeReader gates its own: a month is 42 days that no view will
@@ -251,9 +255,12 @@ final readonly class SharedCalendarRangeBuilder
      * makes the shell dim its column rather than rule twenty-four empty hours
      * across it.
      *
-     * @return array<string, \App\Domain\DTO\Calendar\DayGrid>
+     * The band is laid out over the same shared columns, so an entry that runs
+     * past the link's window stops at its edge exactly as its hours do.
+     *
+     * @return array{0: array<string, \App\Domain\DTO\Calendar\DayGrid>, 1: Band}
      */
-    private function grid(
+    private function timeGrid(
         SharedCalendarView $view,
         CalendarView       $which,
         DateTimeImmutable  $from,
@@ -263,7 +270,7 @@ final readonly class SharedCalendarRangeBuilder
         DateTimeZone       $zone,
     ): array {
         if (false === $which->isTimeGrid()) {
-            return [];
+            return [[], Band::empty()];
         }
 
         $windowFrom = $firstDay->format('Y-m-d');
@@ -292,7 +299,7 @@ final readonly class SharedCalendarRangeBuilder
             }
         }
 
-        return $this->layout->place($columns, $zone);
+        return [$this->layout->place($columns, $zone), $this->layout->band($columns, $zone)];
     }
 
     /**

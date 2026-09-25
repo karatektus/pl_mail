@@ -1218,6 +1218,7 @@ calendar:
             back.
         read_only: This calendar does not accept changes, so this event cannot be moved.
         reverted: Left where it was.
+        until: until %when%
     ics:
         error:
             no_calendar: Choose a calendar to put the events on.

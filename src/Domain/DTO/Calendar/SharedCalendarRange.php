@@ -47,6 +47,9 @@ final readonly class SharedCalendarRange
      * @param array<string, DayGrid>  $grid     placements for the shared days, keyed
      *                                          Y-m-d; empty for a view with no time
      *                                          axis
+     * @param Band                    $band     the all-day band over the same
+     *                                          days, empty for a view with no
+     *                                          time axis
      * @param string|null             $previous 'Y-m-d' to step back to, or null at
      *                                          the window's near end
      * @param string|null             $next     likewise, forwards
@@ -72,6 +75,7 @@ final readonly class SharedCalendarRange
         public DateTimeImmutable $to,
         public array             $days,
         public array             $grid,
+        public Band              $band,
         public ?string           $previous,
         public ?string           $next,
         public ?string           $today,

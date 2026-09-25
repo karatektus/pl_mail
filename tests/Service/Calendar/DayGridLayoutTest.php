@@ -120,6 +120,94 @@ final class DayGridLayoutTest extends TestCase
         self::assertSame([], $grid[self::DAY]->timed, 'nothing all-day belongs on the time axis');
     }
 
+    /**
+     * A Friday-evening-to-Sunday trip, as it was reported: three blocks down
+     * three columns, each lifting on its own under the pointer, and the
+     * weekend's other meetings squeezed into half a lane beside a column-high
+     * block. A timed entry of a day or more is shaded on each day it takes
+     * instead, and takes no lane from anything.
+     */
+    public function testAnEntryOfADayOrMoreIsShadedOnEachDayAndTakesNoLane(): void
+    {
+        $trip  = $this->timed('2026-08-07 17:00', '2026-08-09 21:00');
+        $lunch = $this->timed('2026-08-08 12:00', '2026-08-08 13:00');
+
+        $grid = $this->layout->place([
+            '2026-08-07' => [$trip],
+            '2026-08-08' => [$trip, $lunch],
+            '2026-08-09' => [$trip],
+        ], new DateTimeZone(self::ZONE));
+
+        $friday = $grid['2026-08-07']->shaded[0];
+        self::assertEqualsWithDelta(17 / 24, $friday->top, 0.0001);
+        self::assertEqualsWithDelta(7 / 24, $friday->height, 0.0001);
+        self::assertFalse($friday->continuesBefore, 'the trip starts here, and the start is ruled');
+        self::assertTrue($friday->continuesAfter);
+
+        self::assertSame(1.0, $grid['2026-08-08']->shaded[0]->height);
+        self::assertEqualsWithDelta(21 / 24, $grid['2026-08-09']->shaded[0]->height, 0.0001);
+
+        self::assertSame([], $grid['2026-08-07']->timed, 'the trip was drawn as a block');
+        self::assertCount(1, $grid['2026-08-08']->timed);
+        self::assertSame(1, $grid['2026-08-08']->timed[0]->lanes, 'lunch was squeezed beside the trip');
+    }
+
+    /**
+     * The trip's other half: one bar across its three days, in the band's top
+     * row, carrying the key its shaded hours carry — which is what lets pointing
+     * at either light both. An all-day entry on the Saturday takes the row below
+     * rather than overlapping it.
+     */
+    public function testTheBandDrawsAnEntryOnceAcrossTheDaysItCovers(): void
+    {
+        $trip     = $this->timed('2026-08-07 17:00', '2026-08-09 21:00');
+        $birthday = $this->timed('2026-08-08 00:00', '2026-08-09 00:00', allDay: true);
+        $zone     = new DateTimeZone(self::ZONE);
+        $days     = [
+            '2026-08-06' => [],
+            '2026-08-07' => [$trip],
+            '2026-08-08' => [$trip, $birthday],
+            '2026-08-09' => [$trip],
+        ];
+
+        $band = $this->layout->band($days, $zone);
+
+        self::assertSame(2, $band->lanes);
+
+        [$bar, $below] = $band->entries;
+
+        self::assertSame($trip, $bar->entry);
+        self::assertSame('2026-08-07', $bar->firstDay);
+        self::assertSame(3, $bar->days);
+        self::assertSame(0, $bar->lane);
+        self::assertTrue($bar->timed);
+        self::assertFalse($bar->continuesBefore);
+        self::assertFalse($bar->continuesAfter);
+        self::assertSame($this->layout->place($days, $zone)['2026-08-08']->shaded[0]->key, $bar->key);
+
+        self::assertSame($birthday, $below->entry);
+        self::assertSame(1, $below->lane);
+        self::assertFalse($below->timed);
+    }
+
+    /**
+     * The line from the other side: a meeting that crosses midnight but lasts
+     * under a day is an evening that ran late, and stays on the hours — as two
+     * blocks sharing one key, so they light together.
+     */
+    public function testAMeetingUnderADayStaysOnTheHoursAndItsHalvesShareAKey(): void
+    {
+        $late = $this->timed('2026-08-05 22:00', '2026-08-06 01:00');
+        $zone = new DateTimeZone(self::ZONE);
+        $days = ['2026-08-05' => [$late], '2026-08-06' => [$late]];
+
+        $grid = $this->layout->place($days, $zone);
+
+        self::assertSame([], $this->layout->band($days, $zone)->entries);
+        self::assertSame([], $grid['2026-08-05']->shaded);
+        self::assertSame($grid['2026-08-05']->timed[0]->key, $grid['2026-08-06']->timed[0]->key);
+    }
+
     public function testTwoEventsAtOnceShareTheWidthRatherThanOverlapping(): void
     {
         $grid = $this->place([

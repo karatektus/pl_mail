@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Service\Calendar;
 
+use App\Domain\DTO\Calendar\Band;
+use App\Domain\DTO\Calendar\BandEntry;
 use App\Domain\DTO\Calendar\DayGrid;
 use App\Domain\DTO\Calendar\PlacedEntry;
 use App\Domain\Interface\TimeGridEntryInterface;
@@ -56,6 +58,14 @@ use DateTimeZone;
  * A cluster is placed by its primary's span, which is the whole cluster's:
  * members that disagree about when they are have already been split apart by
  * EventClusterer, so there is no second answer to choose between.
+ *
+ * **A timed entry of a day or more is not a block.** It goes to the all-day
+ * band as one bar across the days it covers, and on each of those days the hours
+ * it takes are shaded rather than drawn — see band() and DayGrid::$shaded. Drawn
+ * as a block per day, a Friday-evening-to-Sunday trip was three blocks that each
+ * lifted on their own when pointed at, two of them titled at a midnight nobody
+ * had scrolled to, and a column-high block that pushed every other meeting of
+ * the weekend into half a lane.
  */
 final readonly class DayGridLayout
 {
@@ -65,6 +75,22 @@ final readonly class DayGridLayout
      * note on wall-clock positions above.
      */
     private const int MINUTES_IN_DAY = 1440;
+
+    /**
+     * How long a timed entry runs before it leaves the hours for the band: a
+     * day, measured as elapsed time.
+     *
+     * The line Google and Outlook draw, and for the reason they draw it: under a
+     * day, an event that crosses midnight is an evening that ran late — a
+     * concert, a night shift — and reads right as a block down to midnight and
+     * another from it, lit together when pointed at. A day or more is a stretch
+     * of the calendar rather than a slot in it, and its place is the band.
+     *
+     * Elapsed rather than wall-clock, unlike the axis, because this is a
+     * question about duration: a 24-hour event across a DST change is 23 or 25
+     * hours on the labels and still a day long.
+     */
+    private const int BAND_SECONDS = 86_400;
 
     /**
      * @param array<string, list<TimeGridEntryInterface>> $days keyed Y-m-d in $zone, as
@@ -81,6 +107,99 @@ final readonly class DayGridLayout
         }
 
         return $placed;
+    }
+
+    /**
+     * The all-day band over the same days place() lays out: every entry that is
+     * not on the hours — all-day ones, and timed ones of a day or more — once,
+     * across the days it covers, in the first row where those days are free.
+     *
+     * An entry is recognised across days by identity, because that is how the
+     * readers hand it over: CalendarRangeReader and SharedCalendarRangeBuilder
+     * both put the same object on every day it touches. Comparing titles or
+     * times instead would merge two events that merely look alike.
+     *
+     * Lanes are assigned the way the hours assign them: earliest first, the
+     * longest first among equal starts so it takes the top row and the short
+     * ones stack under it, each into the first row free from its first day.
+     *
+     * @param array<string, list<TimeGridEntryInterface>> $days keyed Y-m-d in $zone, in column order
+     */
+    public function band(array $days, DateTimeZone $zone): Band
+    {
+        $dayKeys = array_keys($days);
+
+        if ([] === $dayKeys) {
+            return Band::empty();
+        }
+
+        $columnOf = array_flip($dayKeys);
+
+        /** @var array<int, array{entry: TimeGridEntryInterface, first: int, last: int, order: int}> $found */
+        $found = [];
+
+        foreach ($days as $dayKey => $entries) {
+            foreach ($entries as $entry) {
+                if (false === $this->belongsInBand($entry)) {
+                    continue;
+                }
+
+                $id     = spl_object_id($entry);
+                $column = $columnOf[$dayKey];
+
+                if (true === isset($found[$id])) {
+                    $found[$id]['last'] = max($found[$id]['last'], $column);
+
+                    continue;
+                }
+
+                $found[$id] = ['entry' => $entry, 'first' => $column, 'last' => $column, 'order' => count($found)];
+            }
+        }
+
+        $items = array_values($found);
+
+        usort($items, static fn (array $left, array $right): int => [$left['first'], $right['last'], $left['order']]
+            <=> [$right['first'], $left['last'], $right['order']]);
+
+        $lastColumn = count($dayKeys) - 1;
+
+        /** @var list<int> $laneEnds the last column each row is taken up to */
+        $laneEnds = [];
+        $entries  = [];
+
+        foreach ($items as $item) {
+            $lane = null;
+
+            foreach ($laneEnds as $candidate => $takenUntil) {
+                if ($takenUntil < $item['first']) {
+                    $lane = $candidate;
+
+                    break;
+                }
+            }
+
+            $lane ??= count($laneEnds);
+            $laneEnds[$lane] = $item['last'];
+
+            $entries[] = new BandEntry(
+                entry:           $item['entry'],
+                firstDay:        $dayKeys[$item['first']],
+                days:            $item['last'] - $item['first'] + 1,
+                lane:            $lane,
+                timed:           false === $item['entry']->occupiesWholeDay(),
+                // Only a bar that reaches an edge can have been cut there: the
+                // readers put an entry on every day it touches, so one that
+                // starts in a later column started on that day.
+                continuesBefore: 0 === $item['first']
+                    && $this->startsBefore($item['entry'], $dayKeys[0], $zone),
+                continuesAfter:  $lastColumn === $item['last']
+                    && $this->endsAfter($item['entry'], $dayKeys[$lastColumn], $zone),
+                key:             self::keyOf($item['entry']),
+            );
+        }
+
+        return new Band($entries, count($laneEnds));
     }
 
     // ── Private ───────────────────────────────────────────────────────────────
@@ -100,6 +219,7 @@ final readonly class DayGridLayout
 
         $allDay = [];
         $spans  = [];
+        $shaded = [];
 
         foreach ($entries as $entry) {
             if (true === $entry->occupiesWholeDay()) {
@@ -108,10 +228,109 @@ final readonly class DayGridLayout
                 continue;
             }
 
-            $spans[] = $this->spanOf($entry, $dayStart, $dayEnd, $zone);
+            $span = $this->spanOf($entry, $dayStart, $dayEnd, $zone);
+
+            if (true === $this->runsADayOrMore($entry)) {
+                $shaded[] = new PlacedEntry(
+                    entry:           $entry,
+                    top:             $span['from'] / self::MINUTES_IN_DAY,
+                    height:          ($span['to'] - $span['from']) / self::MINUTES_IN_DAY,
+                    lane:            0,
+                    lanes:           1,
+                    continuesBefore: $span['before'],
+                    continuesAfter:  $span['after'],
+                    key:             self::keyOf($entry),
+                );
+
+                continue;
+            }
+
+            $spans[] = $span;
         }
 
-        return new DayGrid($allDay, $this->assignLanes($spans));
+        return new DayGrid($allDay, $this->assignLanes($spans), $shaded);
+    }
+
+    /**
+     * Whether an entry is drawn in the band rather than on the hours.
+     */
+    private function belongsInBand(TimeGridEntryInterface $entry): bool
+    {
+        return true === $entry->occupiesWholeDay() || true === $this->runsADayOrMore($entry);
+    }
+
+    /**
+     * A timed entry at least BAND_SECONDS long. An entry missing either end is
+     * a data fault the grid survives by drawing it as a block, which is where
+     * spanOf() already knows how to put it.
+     */
+    private function runsADayOrMore(TimeGridEntryInterface $entry): bool
+    {
+        if (true === $entry->occupiesWholeDay()) {
+            return false;
+        }
+
+        $starts = $entry->gridStartsAt();
+        $ends   = $entry->gridEndsAt();
+
+        if (null === $starts || null === $ends) {
+            return false;
+        }
+
+        return $ends->getTimestamp() - $starts->getTimestamp() >= self::BAND_SECONDS;
+    }
+
+    /**
+     * Whether an entry began before a day's first minute.
+     *
+     * An all-day entry is compared by its wall date and never converted: its
+     * midnights are FLOATING, and reading one as an instant in $zone moves it
+     * onto the day before for everyone west of UTC. See CalendarRangeReader.
+     */
+    private function startsBefore(TimeGridEntryInterface $entry, string $dayKey, DateTimeZone $zone): bool
+    {
+        $starts = $entry->gridStartsAt();
+
+        if (null === $starts) {
+            return false;
+        }
+
+        if (true === $entry->occupiesWholeDay()) {
+            return $starts->format('Y-m-d') < $dayKey;
+        }
+
+        return $starts->setTimezone($zone) < new DateTimeImmutable($dayKey . ' 00:00', $zone);
+    }
+
+    /**
+     * Whether an entry runs past a day's last minute. An all-day entry's end is
+     * the morning after its last day, as iCalendar writes it, so it runs past
+     * $dayKey only when it ends after the next one.
+     */
+    private function endsAfter(TimeGridEntryInterface $entry, string $dayKey, DateTimeZone $zone): bool
+    {
+        $ends = $entry->gridEndsAt();
+
+        if (null === $ends) {
+            return false;
+        }
+
+        $nextDay = new DateTimeImmutable($dayKey . ' 00:00', $zone)->modify('+1 day');
+
+        if (true === $entry->occupiesWholeDay()) {
+            return $ends->format('Y-m-d') > $nextDay->format('Y-m-d');
+        }
+
+        return $ends->setTimezone($zone) > $nextDay;
+    }
+
+    /**
+     * The name the hover links an entry's pieces by. Object identity, for the
+     * reason band() recognises an entry by it.
+     */
+    private static function keyOf(TimeGridEntryInterface $entry): string
+    {
+        return 'entry-' . spl_object_id($entry);
     }
 
     /**
@@ -246,6 +465,7 @@ final readonly class DayGridLayout
                 lanes:           $width,
                 continuesBefore: $span['before'],
                 continuesAfter:  $span['after'],
+                key:             self::keyOf($span['entry']),
             );
         }
 

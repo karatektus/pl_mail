@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Service\Calendar;
 
+use App\Domain\DTO\Calendar\Band;
 use App\Domain\DTO\Calendar\DayGrid;
 use App\Domain\DTO\Calendar\OccurrenceCluster;
 use App\Domain\Enum\Calendar\CalendarView;
@@ -73,6 +74,7 @@ final readonly class CalendarRangeReader
      *     zone: string,
      *     days: array<string, list<OccurrenceCluster>>,
      *     grid: array<string, DayGrid>,
+     *     band: Band,
      *     clusters: list<OccurrenceCluster>,
      * }
      */
@@ -103,6 +105,7 @@ final readonly class CalendarRangeReader
             'zone'     => $zone->getName(),
             'days'     => $days,
             'grid'     => true === $view->isTimeGrid() ? $this->layout->place($days, $zone) : [],
+            'band'     => true === $view->isTimeGrid() ? $this->layout->band($days, $zone) : Band::empty(),
             'clusters' => $clusters,
         ];
     }

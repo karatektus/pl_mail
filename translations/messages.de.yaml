@@ -1235,6 +1235,7 @@ calendar:
             zurück.
         read_only: Dieser Kalender nimmt keine Änderungen an — der Termin lässt sich nicht verschieben.
         reverted: Bleibt, wo er war.
+        until: bis %when%
     ics:
         error:
             no_calendar: Wähle einen Kalender für die Termine.
