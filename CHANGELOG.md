@@ -6,6 +6,40 @@ so anything that changes the schema irreversibly is called out explicitly.
 The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, and `sha-…` pins one commit.
 
+## v0.2.50 — 2026-09-25
+
+**An event put on Google or Outlook no longer comes back as a second one.** Ticking a Google or
+Microsoft calendar on an event, or creating one there from plMail, pushed it to the provider, and
+the same sync read it straight back. Both give an event plMail creates an id and a UID of their own,
+and the sync looked for it before it had saved that id — so it found nothing and stored the event
+again. The calendar then showed it twice: a merged chip in two colours, and a second chip beside it
+that nothing merged. The push is saved before the sync reads anything now. This applied to every way
+an event is created, from the editor to the Android app and booking pages; CalDAV calendars keep
+plMail's UID and were not affected.
+
+- **A pair that already exists folds back into one** the next time the provider reports that event,
+  for instance after an edit on either side. The copy under the provider's UID is kept and the
+  plMail original follows it, so the two show as one again. Left as a pair, a later edit at the
+  provider could have stopped that calendar syncing altogether.
+- **An event of a day or more is one bar.** A trip from Friday evening to Sunday was a block down
+  each of its three days, and pointing at one lifted that day alone — Saturday's titled at a
+  midnight nobody had scrolled to. It is one bar in the all-day row now, "17:00 Bodensee … until
+  Sun 21:00", and the hours it takes are shaded in the grid underneath, with the day's other events
+  on top at full width. Pointing at the bar or at any of its days lights all of them. An event that
+  crosses midnight but lasts less than a day stays in the grid, and its two halves now light
+  together too.
+- **An all-day event across several days is one bar as well,** instead of a chip on each day, and
+  the all-day row's entries are tinted in their calendar's colour like the events below them.
+- **A short meeting's title no longer runs over its time** in a narrow week, such as the calendar
+  docked beside the mail.
+
+### Before you upgrade
+
+- **Nothing has to change.** There is no migration, and the compose files stay as they are.
+- **Don't delete either chip of a doubled event.** Both point at the same event at Google or
+  Microsoft, so deleting either one removes it there too. After the upgrade the pair folds into one
+  by itself when the event next changes.
+
 ## v0.2.49 — 2026-09-25
 
 **A summary no longer says the connection was lost.** Every summary that took more than ten seconds
