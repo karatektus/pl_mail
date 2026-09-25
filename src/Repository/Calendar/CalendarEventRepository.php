@@ -79,6 +79,22 @@ class CalendarEventRepository extends ServiceEntityRepository
     }
 
     /**
+     * Every row on a calendar holding one remote id, oldest first.
+     *
+     * There should be one. There can be two: a sync that read back, in the same
+     * run, an event its own push had just created used to insert it a second
+     * time — see CalendarPuller::collapseTwins(), which is why this is a list
+     * and not findOneByRemoteId(). The remote-id index is not unique on purpose,
+     * so the database never refused the second.
+     *
+     * @return list<CalendarEvent>
+     */
+    public function findByRemoteId(Calendar $calendar, string $remoteId): array
+    {
+        return $this->findBy(['calendar' => $calendar, 'remoteId' => $remoteId], ['id' => 'ASC']);
+    }
+
+    /**
      * The series one of the remote's instance resources belongs to.
      *
      * The only question a bare tombstone can be asked. Microsoft reports a

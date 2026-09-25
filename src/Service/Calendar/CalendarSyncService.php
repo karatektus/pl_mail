@@ -180,6 +180,17 @@ final readonly class CalendarSyncService
 
         if (false === $calendar->isReadOnly) {
             $touched += $this->pusher->push($calendar, $driver);
+
+            // Written before the pull reads anything, because the pull finds
+            // its rows by querying the table and the push's answers were only
+            // on the entities. A create pushed to Google or Microsoft comes
+            // back in this same run's pull under the id and UID the provider
+            // just minted; with the id still unwritten the pull matched
+            // nothing and inserted the event a second time — the second chip
+            // beside a merged one, on every provider that assigns its own UID.
+            // It also keeps a pushed create's remote id if the pull then fails,
+            // which is what stops the next run pushing it twice.
+            $this->em->flush();
         } else {
             $this->reportUnpushableEdits($calendar);
         }

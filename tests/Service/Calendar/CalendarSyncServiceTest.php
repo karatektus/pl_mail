@@ -340,6 +340,65 @@ final class CalendarSyncServiceTest extends KernelTestCase
         self::assertNotNull($event->syncedAt);
     }
 
+    /**
+     * The duplicate that was reported: an event put on a Google calendar as
+     * well as a local one showed twice once Google had synced it back — a
+     * merged chip, and a second one beside it that nothing merged.
+     *
+     * Google and Microsoft mint their own UID for an event plMail creates, and
+     * the pull of the same run hands it straight back under that UID. The pushed
+     * row's new remote id was only on the entity then, so the pull's query found
+     * nothing by id or by UID and inserted the echo as a second row. Writing the
+     * push before the pull is what makes the id findable.
+     */
+    public function testACreateEchoedBackUnderTheProvidersOwnUidStaysOneRow(): void
+    {
+        $this->localEvent(null, 'uid-trip@plmail', 'Trip', etag: null, state: SyncState::PendingCreate);
+
+        $this->driver->writeResult = new RemoteWriteResult('r-trip', 'etag-1');
+        $this->driver->changeSets  = [
+            new CalendarChangeSet([$this->remoteEvent('r-trip', 'r-trip@google.com', 'Trip', 'etag-1')], 'token-1'),
+        ];
+
+        $this->sync->sync($this->calendar);
+
+        $rows = $this->events->findBy(['calendar' => $this->calendar]);
+
+        self::assertCount(1, $rows, 'the echo of the push was inserted as a second event');
+        self::assertSame('r-trip', $rows[0]->remoteId);
+    }
+
+    /**
+     * The pairs that bug already left, folded back when the provider next
+     * reports the event: one row kept — the one under the provider's UID, so
+     * nothing is re-keyed into the one its twin holds, which the unique index
+     * refused and which stopped the calendar syncing — and the local original
+     * carried to that UID, so its chip and the provider's merge again.
+     */
+    public function testTwoRowsForOneRemoteEventAreFoldedIntoOneAndTheLocalCopyFollows(): void
+    {
+        $personal           = new Calendar();
+        $personal->usr      = $this->user;
+        $personal->name     = 'Personal';
+        $personal->role     = CalendarRole::Default;
+        $personal->timeZone = 'UTC';
+        $this->em->persist($personal);
+
+        $original = $this->localEvent(null, 'uid-trip@plmail', 'Trip', etag: null, calendar: $personal);
+        $pushed   = $this->localEvent('r-trip', 'uid-trip@plmail', 'Trip', etag: 'etag-1');
+        $echo     = $this->localEvent('r-trip', 'r-trip@google.com', 'Trip', etag: 'etag-1');
+
+        $this->driver->changeSets = [
+            new CalendarChangeSet([$this->remoteEvent('r-trip', 'r-trip@google.com', 'Trip', 'etag-2')], 'token-1'),
+        ];
+
+        $this->sync->sync($this->calendar);
+
+        self::assertSame([$echo], $this->events->findBy(['calendar' => $this->calendar]));
+        self::assertFalse($this->em->contains($pushed), 'the twin was left behind');
+        self::assertSame('r-trip@google.com', $original->uid, 'the local original no longer merges with its copy');
+    }
+
     public function testALocalEditIsPushedBeforeTheRemoteIsRead(): void
     {
         $this->localEvent('r-11', 'uid-11', 'Edited here', etag: 'etag-a', state: SyncState::PendingUpdate);
@@ -687,11 +746,12 @@ final class CalendarSyncServiceTest extends KernelTestCase
         string    $title,
         ?string   $etag,
         SyncState $state = SyncState::Clean,
+        ?Calendar $calendar = null,
     ): CalendarEvent {
         $utc = new DateTimeZone('UTC');
 
         $event             = new CalendarEvent();
-        $event->calendar   = $this->calendar;
+        $event->calendar   = $calendar ?? $this->calendar;
         $event->usr        = $this->user;
         $event->uid        = $uid;
         $event->title      = $title;

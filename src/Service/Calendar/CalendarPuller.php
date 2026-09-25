@@ -36,7 +36,9 @@ use Psr\Log\LoggerInterface;
  *   mail creates an event with the organiser's UID, and the same meeting on the
  *   connected calendar carries the same UID with a remote id plMail has never
  *   seen. Without the fallback, accepting an invite puts the meeting on the
- *   calendar twice.
+ *   calendar twice. Two rows under one remote id — the duplicate an older sync
+ *   left behind — are folded into one when the remote next reports the event;
+ *   see collapseTwins().
  *
  *   **An unchanged etag is not a write.** Equal etags mean skip entirely — no
  *   write, no re-materialised occurrences, no updated_at. That is the cheap
@@ -245,11 +247,14 @@ final readonly class CalendarPuller
      */
     private function applyOne(Calendar $calendar, User $user, RemoteEvent $remote, array &$written): int
     {
-        $existing = $this->events->findOneByRemoteId($calendar, $remote->remoteId)
-            ?? $this->events->findOneByUid($calendar, $remote->uid);
+        // This window's own rows first: one it wrote a moment ago is not in
+        // the table until the run's flush, so asking the table again for the
+        // same remote id would miss it and write the event a second time.
+        $collapsed = 0;
+        $existing  = $written[$remote->remoteId] ?? $this->matched($calendar, $user, $remote, $collapsed);
 
         if (true === $remote->isDeleted) {
-            return $this->removeLocal($existing, $remote);
+            return $collapsed + $this->removeLocal($existing, $remote);
         }
 
         $jscalendar = $remote->jscalendar;
@@ -266,13 +271,13 @@ final readonly class CalendarPuller
                 'remoteId'   => $remote->remoteId,
             ]);
 
-            return 0;
+            return $collapsed;
         }
 
         if (null !== $existing && true === $this->isUnchanged($existing, $remote)) {
             $written[$remote->remoteId] = $existing;
 
-            return 0;
+            return $collapsed;
         }
 
         if (null !== $existing && true === $existing->syncState->wouldLoseALocalEdit()) {
@@ -293,7 +298,94 @@ final readonly class CalendarPuller
 
         $written[$remote->remoteId] = $event;
 
-        return 1;
+        return 1 + $collapsed;
+    }
+
+    /**
+     * The row a remote event is: the one holding its remote id, else the one
+     * under its UID — the second for a row this application created and has
+     * not yet heard back about.
+     *
+     * @param int $collapsed set to how many duplicate rows were dropped on the
+     *                       way, so the run counts them as changes
+     */
+    private function matched(Calendar $calendar, User $user, RemoteEvent $remote, int &$collapsed): ?CalendarEvent
+    {
+        $rows = $this->events->findByRemoteId($calendar, $remote->remoteId);
+
+        if ([] === $rows) {
+            return $this->events->findOneByUid($calendar, $remote->uid);
+        }
+
+        if (1 === count($rows)) {
+            return $rows[0];
+        }
+
+        $collapsed = count($rows) - 1;
+
+        return $this->collapseTwins($rows, $user, $remote);
+    }
+
+    /**
+     * One remote event, two rows on one calendar: the duplicate a sync used to
+     * leave behind, folded back into one row.
+     *
+     * How the pairs came to be: the push created the event at the provider,
+     * and the same run's pull read it back before the push's new remote id was
+     * in the table — so the echo matched nothing and was inserted again, under
+     * the UID the provider had minted. That was every copy put on a Google or
+     * Microsoft calendar; CalendarSyncService now writes the push before the
+     * pull. This is for the pairs already made, when the provider next reports
+     * the event.
+     *
+     * Left as they were they were worse than a second chip. The remote id
+     * found one of the two at random, and finding the older would re-key it to
+     * the UID its twin already held — refused by
+     * uniq_calendar_event_calendar_uid, which fails the flush, and every sync of
+     * the calendar after it. And deleting either chip deleted the one event at
+     * the provider that both pointed at.
+     *
+     * Kept: the row already under the provider's UID, so nothing is re-keyed
+     * into a collision, else the oldest. The meeting's local copies were keyed
+     * like the row being dropped, so they are carried to the provider's UID
+     * first — the merged chip the user saw stays merged. The dropped rows are
+     * removed here only: the provider has one event, and it is the kept row's.
+     *
+     * @param list<CalendarEvent> $rows at least two, oldest first
+     */
+    private function collapseTwins(array $rows, User $user, RemoteEvent $remote): CalendarEvent
+    {
+        $keep = $rows[0];
+
+        foreach ($rows as $row) {
+            if ($row->uid === $remote->uid) {
+                $keep = $row;
+
+                break;
+            }
+        }
+
+        foreach ($rows as $row) {
+            if ($row === $keep) {
+                continue;
+            }
+
+            if (true === $row->syncState->wouldLoseALocalEdit()) {
+                $this->logDiscardedEdit($row, 'a duplicate row of the same remote event being dropped');
+            }
+
+            $this->carryRekeyToLocalCopies($row, $user, $remote->uid);
+            $this->em->remove($row);
+
+            $this->logger->info('CalendarSync: dropped a duplicate row for one remote event', [
+                'calendarId' => $row->calendar?->id,
+                'eventId'    => $row->id,
+                'keptId'     => $keep->id,
+                'remoteId'   => $remote->remoteId,
+            ]);
+        }
+
+        return $keep;
     }
 
     /**
