@@ -6,6 +6,50 @@ so anything that changes the schema irreversibly is called out explicitly.
 The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, and `sha-…` pins one commit.
 
+## v0.2.49 — 2026-09-25
+
+**A summary no longer says the connection was lost.** Every summary that took more than ten seconds
+to start writing ended with "The connection to plMail was lost", ten seconds in, while the server
+went on to finish and store it: reload the thread and there it was. The connection was fine. While
+the model thinks, the server sends a heartbeat, and the first one made the page's own script fail,
+which the page took for a lost connection. The heartbeat is read properly now, and anything from the
+server the page cannot handle is skipped and reported in the admin panel's browser errors instead of
+ending the summary.
+
+- **Stop stops.** A summary whose connection drops is finished and stored anyway, and to the server
+  Stop looked exactly like a dropped connection: the model ran to the end, and the summary was
+  stored under a card that read "Stopped. Nothing was saved." Stop now tells the server, which ends
+  the call to the model host and keeps nothing. Opening another thread or closing the tab still
+  lets a summary finish.
+- **Deleting mail works on GMX.** Moving mail into a folder whose name is not plain ASCII, like
+  GMX's trash, "Gelöscht", failed every time with `moveMessage(): Argument #1 ($folder) must be of
+  type string, null given`, and emptying such a folder never removed anything on the server. plMail
+  finds those folders by the name the server lists them under now.
+- **The calendar's week view starts today, and is called "7 days".** A Monday-to-Sunday week spent
+  more of its columns on days that were over as the week went on, and in the docked pane, where
+  seven columns do not fit, it pushed today out towards the edge. It now shows seven days from
+  today, or from the day you moved to, and Previous and Next still step a week. Bookmarks and
+  remembered views keep working. Month still starts on Monday, and a shared calendar's public page
+  still shows a real week.
+- **Replies to GitHub notifications reach GitHub.** GitHub's reply addresses run to about ninety
+  characters before the @, and plMail refused anything over sixty-four, so a reply went to
+  notifications@github.com, which accepts nothing, or opened with nobody to send to. Long addresses
+  also stay inside the message details panel now instead of running past its edge, and Reply-To
+  there has a copy button.
+- **A database that starts a few seconds late no longer shows up as an error.** Every container
+  waits for the database when it starts, trying once a second for a minute. Each miss was logged as
+  CRITICAL, and one that fell just before the database answered could reach the admin log and
+  outline the admin's user menu:
+  `Error thrown while running command "dbal:run-sql -q 'SELECT 1'"`. A miss is retried quietly
+  now, and only a database that never answers is logged.
+
+### Before you upgrade
+
+- **Nothing has to change.** There is no migration, and the compose files stay as they are.
+- **Mail you deleted on GMX before this is still there.** Those moves, and any emptying of a folder
+  with an umlaut in its name, never happened on the server, and plMail does not repeat them. Delete
+  or empty them again.
+
 ## v0.2.48 — 2026-09-24
 
 **One unreadable mail no longer stops a folder.** plMail saves new mail fifty messages at a time,
