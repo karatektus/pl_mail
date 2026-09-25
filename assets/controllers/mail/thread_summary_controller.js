@@ -504,9 +504,7 @@ export default class extends Controller {
             // Only while nothing has been written yet: once tokens arrive, the
             // text IS the progress and a timer beside it is furniture.
             if (0 === this.#tokens) {
-                this.#say(
-                    this.readingLabelValue.replace("%elapsed%", this.constructor.#clock(frame.elapsed)),
-                );
+                this.#say(this.readingLabelValue.replace("%elapsed%", this.#clock(frame.elapsed)));
             }
 
             return;
@@ -758,11 +756,17 @@ export default class extends Controller {
     /**
      * Seconds as m:ss.
      *
-     * Static and tiny, because the alternative is Intl.RelativeTimeFormat
-     * saying "4 minutes ago" about something that is happening now, or a raw
-     * second count that reads as an error code once it passes 200.
+     * Tiny, because the alternative is Intl.RelativeTimeFormat saying "4
+     * minutes ago" about something that is happening now, or a raw second
+     * count that reads as an error code once it passes 200.
+     *
+     * NOT STATIC, though it uses nothing of the instance. Stimulus registers a
+     * subclass of this class, so `this.constructor` is that subclass, and a
+     * private static cannot be reached through it: `this.constructor.#clock`
+     * threw "Receiver must be class default" on the first heartbeat of every
+     * run slow enough to get one, and the card said the connection was lost.
      */
-    static #clock(seconds) {
+    #clock(seconds) {
         const total = Math.max(0, Math.round(Number(seconds) || 0));
 
         return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, "0")}`;

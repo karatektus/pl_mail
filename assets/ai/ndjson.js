@@ -36,7 +36,8 @@
  * controller afterwards.
  *
  * @param {ReadableStream<Uint8Array>} body     `response.body`
- * @param {(frame: object) => void}    onFrame  called once per parsed line
+ * @param {(frame: object) => void}    onFrame  called once per parsed line; a
+ *        throw is reported and costs that frame, not the stream
  * @param {() => boolean}              isCurrent asked after every read; false
  *        abandons the stream. An aborted fetch settles asynchronously, so
  *        without this the PREVIOUS run's frames keep arriving into a surface
@@ -80,7 +81,19 @@ export async function readFrames(body, onFrame, isCurrent) {
                 continue;
             }
 
-            onFrame(frame);
+            // A handler that throws is the page's fault, not the stream's, and
+            // must not end the read: both callers put a failed read down to
+            // the host or the network, and the summary card says "the
+            // connection was lost" in as many words. That is how its own
+            // TypeError on the first heartbeat passed for a network fault for
+            // three weeks. Reported where plMail's own browser errors go
+            // (client_errors.js), and the frame is skipped like the truncated
+            // line above.
+            try {
+                onFrame(frame);
+            } catch (error) {
+                reportError(error);
+            }
         }
     }
 }

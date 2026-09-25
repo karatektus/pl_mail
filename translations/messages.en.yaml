@@ -3702,7 +3702,7 @@ thread:
             stopped: 'Stopped. Nothing was saved.'
             waiting: 'The first request after a while takes about a minute while the model loads and reads the conversation.'
             queued: 'Queued. The whole conversation is being summarised in the background — you can close this and come back; it will be here.'
-            reading: 'Still reading the conversation — %elapsed% so far. Nothing appears until it has finished.'
+            reading: 'Still reading the conversation — %elapsed% so far. After that, the summary appears word by word.'
             waiting_full: 'Reading the whole conversation. This can take several minutes on a long thread, and nothing appears until it has finished reading.'
             working: 'Summarising…'
         stop: 'Stop'

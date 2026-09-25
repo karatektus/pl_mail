@@ -43,6 +43,7 @@ import { settled } from "./support/motion";
 const OFFER = '[data-mail--thread-summary-target="run"]';
 const STOP = '[data-mail--thread-summary-target="stop"]';
 const STATUS = '[data-mail--thread-summary-target="status"]';
+const OUTPUT = '[data-mail--thread-summary-target="output"]';
 const CARD = "[data-thread-summary]";
 
 test.beforeAll(() => {
@@ -115,5 +116,57 @@ test.describe("thread summary", () => {
         // And the card stays. Somebody who stopped a run is still looking at
         // the surface they asked for, not at it disappearing under them.
         await expect(card).toBeVisible();
+    });
+
+    /**
+     * The run that is silent for longer than OllamaClient's ten-second
+     * heartbeat — which is every cold one and most long threads.
+     *
+     * The dead address above never gets this far, and that is how this went
+     * unseen: the card threw on the first `ping` frame and reported its own
+     * TypeError as "the connection to plMail was lost", ten seconds in, on a
+     * run the server went on to finish and store.
+     *
+     * The frames are the server's, served without a model. `pageerror` is
+     * collected as well as the outcome, because a frame the card cannot apply
+     * is now reported and skipped rather than fatal — so the answer arriving
+     * no longer proves the heartbeat was handled, and the error would.
+     */
+    test("a heartbeat before the first word does not end the run", async ({ page }) => {
+        seed("seed-conversation");
+
+        const errors: string[] = [];
+        page.on("pageerror", (error) => errors.push(error.message));
+
+        // The POST only: the GET reads the store, and nothing here stores.
+        await page.route(/\/mail\/thread\/\d+\/summary$/, (route) => {
+            if ("POST" !== route.request().method()) {
+                return route.continue();
+            }
+
+            return route.fulfill({
+                status: 200,
+                contentType: "application/x-ndjson",
+                body: [
+                    { type: "state", value: "waiting" },
+                    { type: "ping", elapsed: 10 },
+                    { type: "token", text: "First point" },
+                    { type: "done", text: "First point\nSecond point", partial: false, full: false },
+                ].map((frame) => JSON.stringify(frame) + "\n").join(""),
+            });
+        });
+
+        await page.setViewportSize({ width: 1280, height: 900 });
+        await page.goto("/mail/inbox");
+        await settled(page);
+
+        await mailRow(page, "E2E Conversation").click();
+        await page.locator(OFFER).click();
+
+        await expect(page.locator(OUTPUT)).toContainText("Second point");
+
+        // Hidden is what a finished run looks like: the summary explains itself.
+        await expect(page.locator(STATUS)).toBeHidden();
+        expect(errors).toEqual([]);
     });
 });
