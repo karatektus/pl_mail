@@ -53,6 +53,11 @@ Variables:
                            passes true — it is a bounded page of the published
                            window rather than the authenticated agenda's rolling
                            list from a date, so its two ends are the honest label
+  labelKeys  map           optional, view value => translation key, for a caller
+                           whose view is not the one `calendar.view.*` names.
+                           The shared page passes week => monday_week: its week
+                           is still Monday to Sunday, while the authenticated
+                           one is the seven days from its anchor ("7 days")
 
 Blocks:
   toolbar_actions  the right-hand end, after the switcher
@@ -60,6 +65,7 @@ Blocks:
 
 {% set compact = compact|default(false) %}
 {% set frame = frame|default(null) %}
+{% set labelKeys = labelKeys|default({}) %}
 {% set spanLabel = spanLabel|default(view.value == 'week') %}
 
 {% set viewIcons = {
@@ -185,7 +191,7 @@ Blocks:
         <div class="flex items-center rounded-lg border border-line overflow-hidden" data-calendar-views>
             {% for candidate in enum('App\\Domain\\Enum\\Calendar\\CalendarView').cases() %}
                 {% if viewUrls[candidate.value] is defined %}
-                    {% set label = ('calendar.view.' ~ candidate.value)|trans %}
+                    {% set label = (labelKeys[candidate.value] ?? ('calendar.view.' ~ candidate.value))|trans %}
                     <a href="{{ viewUrls[candidate.value] }}"
                        {% if frame %}data-turbo-frame="{{ frame }}"{% endif %}
                        aria-current="{{ candidate == view ? 'page' : 'false' }}"

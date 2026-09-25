@@ -85,7 +85,7 @@ test.describe("a week narrower than its columns", () => {
         // It panned at all — if it did not, the rest of this passes vacuously.
         expect(panned.scrollLeft).toBeGreaterThan(0);
 
-        // Monday went left by however far it panned...
+        // The first day went left by however far it panned...
         expect(panned.before.day - panned.after.day).toBeCloseTo(panned.scrollLeft, 0);
 
         // ...and the gutter did not move, which is the claim.

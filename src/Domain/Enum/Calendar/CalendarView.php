@@ -80,6 +80,15 @@ enum CalendarView: string
      * How far either side of the anchor date this view reaches, before the
      * timezone padding the reader adds. Month is asked for six weeks because a
      * month grid always shows the days spilling in from its neighbours.
+     *
+     * The week is the seven days FROM the anchor, not the Monday-to-Sunday
+     * around it. The anchor is today unless somebody has navigated, and the
+     * days of this week that have already happened are the least useful thing
+     * a week view can spend its columns on — in the docked pane, where seven
+     * columns do not fit, they pushed today off to the right. It is labelled
+     * "7 days" for that reason. Month keeps its Monday: a grid of weeks is
+     * what a month view is. The public shared page builds its own range and
+     * keeps a real week (SharedCalendarRangeBuilder).
      */
     public function range(\DateTimeImmutable $anchor): array
     {
@@ -89,8 +98,8 @@ enum CalendarView: string
                 $anchor->modify('+1 day')->setTime(0, 0),
             ],
             self::Week => [
-                $anchor->modify('monday this week')->setTime(0, 0),
-                $anchor->modify('monday this week')->modify('+7 days')->setTime(0, 0),
+                $anchor->setTime(0, 0),
+                $anchor->modify('+7 days')->setTime(0, 0),
             ],
             self::Month => [
                 $anchor->modify('first day of this month')->modify('monday this week')->setTime(0, 0),

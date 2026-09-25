@@ -147,8 +147,8 @@ final readonly class CalendarRangeReader
             $end   = $isFloating ? $cluster->primary->endsAt : $cluster->primary->endsAt->setTimezone($zone);
 
             // A multi-day event belongs to every day it touches, not only the
-            // one it started on — otherwise it vanishes from the week whose
-            // Monday it began before.
+            // one it started on — otherwise it vanishes from any range that
+            // starts after the day it began.
             for ($day = $start->setTime(0, 0); $day < $end; $day = $day->modify('+1 day')) {
                 $key = $day->format('Y-m-d');
 

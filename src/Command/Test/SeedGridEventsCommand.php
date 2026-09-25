@@ -150,20 +150,17 @@ final class SeedGridEventsCommand extends Command
 
         $zone  = $this->zoneOf($calendar);
         $timed = new DateTimeImmutable('today ' . self::TIMED_AT, $zone);
-        // Monday of the current week, not today.
+        // Today, because the week view is the seven days from today.
         //
-        // A daily series starting today has occurrences only on the days the
-        // week has LEFT — five of them on a Monday and exactly one on a Sunday
-        // — so every spec that needs two visible blocks passed six days out of
-        // seven and failed on the seventh. That is the worst shape a test can
-        // have: it looks like whatever was committed that day broke the
-        // calendar, which is how an afternoon gets spent.
-        //
-        // Anchored to the start of the displayed week instead, the same five
-        // occurrences are in view whichever day the suite runs. `first()` is
+        // Anchored to the first day the grid shows, the five occurrences are
+        // all in view whichever day the suite runs. That is the whole
+        // requirement, and the anchor has to follow the view: while the week
+        // ran Monday to Sunday this had to be Monday, and a series started
+        // today had only the days the week had LEFT — one on a Sunday — so the
+        // specs that need two blocks failed one day in seven. `first()` is
         // still the first block in the grid, which is what the drag specs
         // actually mean by it.
-        $daily = new DateTimeImmutable('monday this week ' . self::DAILY_AT, $zone);
+        $daily = new DateTimeImmutable('today ' . self::DAILY_AT, $zone);
 
         $this->write($user, $calendar, self::TIMED, $timed, $timed->modify('+1 hour'), $zone);
 

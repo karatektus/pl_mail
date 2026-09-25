@@ -37,23 +37,23 @@ anyone gets who navigates there directly or follows a link.
 
 ## The four views
 
-Day, Week, Month and Agenda. A view is part of the URL — `/calendar/week/2026-08-05` — rather than
+Day, 7 days, Month and Agenda. A view is part of the URL — `/calendar/week/2026-08-05` — rather than
 something the browser remembers, which means every view of every date is bookmarkable, the browser's
 back button does the obvious thing, and the range behind it stays one indexed query.
 
 | View | What it covers |
 |---|---|
 | **Day** | The one day. |
-| **Week** | Monday to Sunday. |
+| **7 days** | The seven days from today — or from the day you moved to. Today comes first, because the days of this week that are already over are the least useful thing to spend columns on. The address still says `week`. |
 | **Month** | Six weeks, starting on the Monday of the week the 1st falls in — so the days spilling in from the neighbouring months are shown, as a month grid always does. |
 | **Agenda** | A rolling list of the next 30 days, skipping the empty time between entries. |
 
 The toolbar above the grid holds **Previous**, **Today** and **Next**, the date or range you are
 looking at, the view switcher, and a **New event** button. Previous and Next step by a month in
-month view, by seven days in week view, and by a day everywhere else — agenda included, because it
+month view, by seven days in the 7-day view, and by a day everywhere else — agenda included, because it
 is a rolling list rather than a page.
 
-The full page opens on **Week**. The docked pane opens on **Agenda** — it is 380 pixels of a shared
+The full page opens on **7 days**. The docked pane opens on **Agenda** — it is 380 pixels of a shared
 row, and a month grid in that width is a lot of empty cells. The pane still offers all four views,
 as icons rather than words, because the version that dropped the switcher entirely left the pane
 able to show nothing but its agenda.
@@ -81,7 +81,7 @@ end.
 
 ### The time grid
 
-Day and Week are drawn as a time grid: hours down the left, and every event drawn where it actually
+Day and 7 days are drawn as a time grid: hours down the left, and every event drawn where it actually
 starts and as long as it actually lasts. Overlapping events are placed in lanes, so three things
 happening at once are three narrower blocks side by side, and the lane count holds steady across an
 unbroken run of overlaps rather than changing block by block.

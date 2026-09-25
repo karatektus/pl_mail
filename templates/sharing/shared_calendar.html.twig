@@ -159,7 +159,11 @@ Variables:
         {# `spanLabel` for the agenda as well as the week: an agenda page here is
            a bounded slice of the published window rather than the authenticated
            agenda's endless rolling list, so its two ends are what "where you
-           are" means. #}
+           are" means.
+
+           labelKeys: the week here is still Monday to Sunday — see
+           SharedCalendarRangeBuilder — so it is not the "7 days" the owner's
+           own calendar calls its view. #}
         {% embed 'calendar/_toolbar_shell.html.twig' with {
             view:      range.view,
             anchor:    range.anchor,
@@ -176,6 +180,7 @@ Variables:
                        }),
             viewUrls:  viewUrls,
             spanLabel: range.view.value == 'week' or range.view.value == 'agenda',
+            labelKeys: {week: 'calendar.view.monday_week'},
         } %}{% endembed %}
 
         {% if range.view.value == 'month' %}

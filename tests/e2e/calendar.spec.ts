@@ -23,12 +23,10 @@ const TITLE = `E2E event ${Date.now()}`;
  * The chips this spec's event put on the calendar.
  *
  * Counted in the agenda view, which is where every recurring case below reads
- * them. Neither of the obvious alternatives works: the week is seven days from
- * Monday, so a daily series created "today" has as little as one occurrence
- * left in it when the suite runs on a Sunday and "leaves its siblings" has no
- * siblings; and the month grid renders only the first three events of each day,
- * so a count taken from it is a count of what fits. Agenda is thirty days from
- * today and draws all of them.
+ * them. Neither of the obvious alternatives works: the week shows seven days of
+ * a series that may run longer, and the month grid renders only the first three
+ * events of each day, so a count taken from either is a count of what fits.
+ * Agenda is thirty days from today and draws all of them.
  */
 function chipsOf(page: Page) {
     return page.getByRole("button", { name: new RegExp(TITLE) });
@@ -208,9 +206,11 @@ test.describe("calendar", () => {
     test("switches between day, week and month", async ({ page }) => {
         await page.goto("/calendar/week");
 
-        for (const view of ["Day", "Month", "Week"]) {
-            await page.getByRole("link", { name: view, exact: true }).click();
-            await expect(page).toHaveURL(new RegExp(`/calendar/${view.toLowerCase()}`));
+        // The label and the URL segment part ways at the week: it is the seven
+        // days from today, so it is called that, and `week` stays its address.
+        for (const [label, segment] of [["Day", "day"], ["Month", "month"], ["7 days", "week"]]) {
+            await page.getByRole("link", { name: label, exact: true }).click();
+            await expect(page).toHaveURL(new RegExp(`/calendar/${segment}`));
         }
     });
 
@@ -228,15 +228,13 @@ test.describe("calendar", () => {
 
         // Asserted in the MONTH view, not the week it was created in.
         //
-        // A daily event is on every REMAINING day of the window it is created
-        // in — which is six chips on a Monday and exactly one on a Sunday. This
-        // passed for six days out of seven and failed on the seventh, which is
-        // the worst shape a test can have: it looks like whatever was committed
-        // that day broke the calendar.
-        //
-        // A month has remaining days whatever the weekday, so the claim — a
-        // repeating event appears on more than one day — is the same one and no
-        // longer depends on when it is run.
+        // While the week ran Monday to Sunday, a daily event was on every
+        // REMAINING day of it — six chips on a Monday and exactly one on a
+        // Sunday — so this failed one day in seven, which is the worst shape a
+        // test can have: it looks like whatever was committed that day broke
+        // the calendar. A month has remaining days whatever the weekday, and
+        // the claim — a repeating event appears on more than one day — does not
+        // depend on what the week view happens to start on.
         await page.getByRole("link", { name: "Month", exact: true }).click();
         await expect(page).toHaveURL(/\/calendar\/month/);
 
@@ -382,10 +380,10 @@ test.describe("calendar", () => {
  * user can click produces two rows that share one. See
  * App\Command\Test\SeedDuplicateEventCommand.
  *
- * Counted in the agenda view, for the reason chipsOf() gives above: the week is
- * seven days from Monday and the month grid draws only the first three events
- * of a day, so agenda is the only view whose chip count is a count of what
- * exists rather than of what fits.
+ * Counted in the agenda view, for the reason chipsOf() gives above: the week
+ * shows only seven days and the month grid draws only the first three events of
+ * a day, so agenda is the only view whose chip count is a count of what exists
+ * rather than of what fits.
  */
 test.describe("a meeting on two calendars", () => {
     const TITLE = "E2E duplicated meeting";
@@ -716,7 +714,7 @@ test.describe("calendar pane", () => {
         await page.locator('[data-ui--split-target="handle"]').dblclick();
         await expect(pane).toHaveCSS("width", "380px");
 
-        await paneFrame.getByRole("link", { name: "Week" }).click();
+        await paneFrame.getByRole("link", { name: "7 days" }).click();
 
         // The transition is 180ms, so poll rather than reading once.
         await expect

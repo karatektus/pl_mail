@@ -1,4 +1,4 @@
-<!-- translated-from: features/calendar.md sha1:c163a4ba26701e250eb36e30ec68297d279b715d -->
+<!-- translated-from: features/calendar.md sha1:a28933caed23a0f78b04e26e2affeb017f027765 -->
 
 # Kalender
 
@@ -41,7 +41,7 @@ bekommt, und was jeder bekommt, der direkt dorthin navigiert oder einem Link fol
 
 ## Die vier Ansichten
 
-Tag, Woche, Monat und Agenda. Eine Ansicht ist Teil der URL — `/calendar/week/2026-08-05` — und
+Tag, 7 Tage, Monat und Agenda. Eine Ansicht ist Teil der URL — `/calendar/week/2026-08-05` — und
 nicht etwas, das sich der Browser merkt. Damit ist jede Ansicht jedes Datums als Lesezeichen
 brauchbar, die Zurück-Schaltfläche des Browsers tut das Naheliegende, und der Zeitraum dahinter
 bleibt eine einzige indizierte Abfrage.
@@ -49,20 +49,21 @@ bleibt eine einzige indizierte Abfrage.
 | Ansicht | Was sie abdeckt |
 |---|---|
 | **Tag** | Den einen Tag. |
-| **Woche** | Montag bis Sonntag. |
+| **7 Tage** | Die sieben Tage ab heute — oder ab dem Tag, zu dem du gesprungen bist. Heute steht vorn, denn die Tage dieser Woche, die schon vorbei sind, sind das Unnützeste, wofür man Spalten ausgeben kann. In der Adresse steht weiterhin `week`. |
 | **Monat** | Sechs Wochen, beginnend am Montag der Woche, in die der Erste fällt — die Tage, die aus den Nachbarmonaten hereinragen, werden also gezeigt, wie ein Monatsraster das immer tut. |
 | **Agenda** | Eine fortlaufende Liste der nächsten 30 Tage, die die leere Zeit zwischen den Einträgen überspringt. |
 
 Die Werkzeugleiste über dem Raster trägt **Zurück**, **Heute** und **Weiter**, das Datum oder den
 Zeitraum, den du gerade ansiehst, den Ansichtsumschalter und eine Schaltfläche **Neuer Termin**.
-Zurück und Weiter springen in der Monatsansicht um einen Monat, in der Wochenansicht um sieben Tage
+Zurück und Weiter springen in der Monatsansicht um einen Monat, in der 7-Tage-Ansicht um sieben Tage
 und überall sonst um einen Tag — die Agenda eingeschlossen, denn sie ist eine fortlaufende Liste und
 keine Seite.
 
-Die volle Seite öffnet mit **Woche**. Die angedockte Fläche öffnet mit **Agenda** — sie ist 380
-Pixel einer geteilten Zeile, und ein Monatsraster in dieser Breite besteht überwiegend aus leeren
-Zellen. Die Fläche bietet trotzdem alle vier Ansichten an, als Symbole statt als Wörter, denn die
-Fassung, die den Umschalter ganz weggelassen hatte, ließ die Fläche nichts als ihre Agenda zeigen.
+Die volle Seite öffnet mit der Ansicht **7 Tage**. Die angedockte Fläche öffnet mit **Agenda** — sie
+ist 380 Pixel einer geteilten Zeile, und ein Monatsraster in dieser Breite besteht überwiegend aus
+leeren Zellen. Die Fläche bietet trotzdem alle vier Ansichten an, als Symbole statt als Wörter, denn
+die Fassung, die den Umschalter ganz weggelassen hatte, ließ die Fläche nichts als ihre Agenda
+zeigen.
 
 In der Monatsansicht zeichnet eine Zelle so viele Einträge ihres Tages, wie hineinpassen, und blendet
 den letzten dort aus, wo der Platz endet — statt sie zu zählen. Früher stand dort **N weitere**, und
@@ -89,9 +90,9 @@ anzufangen, wo die Zeit gerade aufgehört hat.
 
 ### Das Zeitraster
 
-Tag und Woche werden als Zeitraster gezeichnet: die Stunden links untereinander, und jeder Termin
-dort, wo er tatsächlich beginnt, und so lang, wie er tatsächlich dauert. Termine, die sich
-überschneiden, werden in Spuren gelegt, sodass drei gleichzeitige Dinge drei schmalere Blöcke
+Die Ansichten Tag und 7 Tage werden als Zeitraster gezeichnet: die Stunden links untereinander, und
+jeder Termin dort, wo er tatsächlich beginnt, und so lang, wie er tatsächlich dauert. Termine, die
+sich überschneiden, werden in Spuren gelegt, sodass drei gleichzeitige Dinge drei schmalere Blöcke
 nebeneinander sind — und die Zahl der Spuren bleibt über eine ununterbrochene Kette von
 Überschneidungen hinweg gleich, statt sich von Block zu Block zu ändern.
 

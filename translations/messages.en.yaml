@@ -1457,8 +1457,9 @@ calendar:
     view:
         agenda: Agenda
         day: Day
+        monday_week: Week
         month: Month
-        week: Week
+        week: '7 days'
 
 clipboard:
     copied: Copied
