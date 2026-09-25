@@ -311,12 +311,16 @@ test.describe("README screenshots", () => {
             return `${day.toISOString().slice(0, 10)}T${time}`;
         };
 
+        // From the third day on: app:test:seed-demo already fills the first
+        // days from today, and on top of it these took the same slots — a
+        // "Standup" beside its "Stand-up" at nine — and left the last two
+        // columns empty.
         const events: Array<[string, string, string]> = [
-            ["Standup", at(0, "09:00"), at(0, "09:15")],
-            ["Lunch with Priya", at(1, "12:30"), at(1, "13:30")],
-            ["Bookshelf delivery", at(2, "08:00"), at(2, "12:00")],
-            ["Dentist", at(3, "16:15"), at(3, "17:00")],
-            ["Reading group", at(4, "19:00"), at(4, "21:00")],
+            ["Standup", at(2, "09:00"), at(2, "09:15")],
+            ["Lunch with Priya", at(3, "12:30"), at(3, "13:30")],
+            ["Bookshelf delivery", at(4, "08:00"), at(4, "12:00")],
+            ["Dentist", at(5, "16:15"), at(5, "17:00")],
+            ["Reading group", at(6, "19:00"), at(6, "21:00")],
         ];
 
         await page.goto("/calendar/week");
