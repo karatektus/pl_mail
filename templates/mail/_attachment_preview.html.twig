@@ -152,8 +152,12 @@ proves the document is unaltered.
         </div>
 
         {# ── Why it cannot be signed ─────────────────────────────────────── #}
+        {# bg-warning/10, the sender-mismatch warning's wash. There is no
+           warning-soft token, and Tailwind treats a utility it cannot resolve
+           as no utility at all: this strip had bg-warning-soft from the day it
+           shipped and painted no tint. #}
         <p data-mail--pdf-sign-target="reason" hidden
-           class="shrink-0 border-t border-line bg-warning-soft px-4 py-2 text-xs text-ink-soft"
+           class="shrink-0 border-t border-line bg-warning/10 px-4 py-2 text-xs text-ink-soft"
            aria-live="polite"></p>
 
         {# ── The pad ─────────────────────────────────────────────────────── #}
