@@ -4,13 +4,18 @@ declare(strict_types=1);
 
 namespace App\Tests\Infrastructure\Messaging\Handler;
 
+use App\Domain\Enum\Mail\LabelRole;
 use App\Domain\Exception\GmailPermanentException;
 use App\Domain\Exception\GmailThrottledException;
+use App\Entity\Label\Label;
+use App\Entity\Label\LabelBinding;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Message;
 use App\Entity\User\User;
 use App\Infrastructure\Messaging\Handler\ApplyGmailLabelsHandler;
 use App\Infrastructure\Messaging\Message\ApplyGmailLabelsMessage;
+use App\Jmap\State\StateManager;
+use App\Repository\Label\LabelBindingRepository;
 use App\Repository\Label\LabelRepository;
 use App\Repository\Mail\AccountRepository;
 use App\Repository\Mail\MessageRepository;
@@ -47,9 +52,13 @@ final class ApplyGmailLabelsHandlerTest extends TestCase
     /** @var list<array{level: string, message: string}> */
     private array $logged = [];
 
+    /** @var list<array{0: string, 1: string, 2: mixed}> method, path under users/me, decoded body */
+    private array $requests = [];
+
     protected function setUp(): void
     {
-        $this->logged = [];
+        $this->logged   = [];
+        $this->requests = [];
     }
 
     public function testAThrottledPushEscapesTheHandlerSoMessengerRetriesIt(): void
@@ -151,6 +160,42 @@ final class ApplyGmailLabelsHandlerTest extends TestCase
         self::assertSame([], $this->logged);
     }
 
+    public function testArchivingFromThePhoneNeverAsksGmailForAnArchiveLabel(): void
+    {
+        // The two jobs the app's archive sends for a conversation that is only
+        // in the Inbox: Archive attached, Inbox detached. Gmail has no Archive
+        // label and refuses the name — "Invalid label name", one error in the
+        // production log per archive. Taking INBOX off is the whole of an
+        // archive at Gmail.
+        $account = $this->account();
+        $archive = $this->label($account, 'Archive', LabelRole::Archive);
+        $inbox   = $this->label($account, 'Inbox', LabelRole::Inbox, 'INBOX');
+
+        $handler = $this->labelHandler($account, [195 => $archive, 7 => $inbox]);
+
+        $handler(new ApplyGmailLabelsMessage(1, [10], ['195'], []));
+        $handler(new ApplyGmailLabelsMessage(1, [10], [], ['7']));
+
+        self::assertSame([], $this->logged);
+        self::assertSame(
+            [['POST', 'messages/batchModify', ['ids' => ['gmail-1'], 'removeLabelIds' => ['INBOX']]]],
+            $this->requests,
+        );
+    }
+
+    public function testALabelMadeInPlMailIsStillCreatedAtGmail(): void
+    {
+        $account  = $this->account();
+        $receipts = $this->label($account, 'Receipts');
+
+        $handler = $this->labelHandler($account, [42 => $receipts]);
+
+        $handler(new ApplyGmailLabelsMessage(1, [10], ['42'], []));
+
+        self::assertSame(['labels', 'messages/batchModify'], array_column($this->requests, 1));
+        self::assertSame('Label_42', $receipts->bindingFor($account)?->gmailLabelId);
+    }
+
     // ── Fixture ──────────────────────────────────────────────────────────────
 
     /**
@@ -202,6 +247,104 @@ final class ApplyGmailLabelsHandlerTest extends TestCase
             $this->createStub(EntityManagerInterface::class),
             $this->logger(),
         );
+    }
+
+    /**
+     * A handler that resolves local label ids, against a Gmail that answers
+     * like the real one: labels.create refuses a reserved name and accepts
+     * anything else, batchModify succeeds. Every request is recorded.
+     *
+     * @param array<int, Label> $labels local id → label
+     */
+    private function labelHandler(Account $account, array $labels): ApplyGmailLabelsHandler
+    {
+        $http = new MockHttpClient(function (string $method, string $url, array $options): MockResponse {
+            $path = substr($url, strlen('https://gmail.googleapis.com/gmail/v1/users/me/'));
+            $body = json_decode((string) ($options['body'] ?? 'null'), true);
+
+            $this->requests[] = [$method, $path, $body];
+
+            if ('labels' === $path && 'Archive' === ($body['name'] ?? null)) {
+                return new MockResponse(json_encode(['error' => [
+                    'code'    => 400,
+                    'message' => 'Invalid label name',
+                    'errors'  => [['message' => 'Invalid label name', 'domain' => 'global', 'reason' => 'invalidArgument']],
+                    'status'  => 'INVALID_ARGUMENT',
+                ]], JSON_THROW_ON_ERROR), ['http_code' => 400]);
+            }
+
+            if ('labels' === $path) {
+                return new MockResponse(json_encode(['id' => 'Label_42', 'name' => $body['name'] ?? ''], JSON_THROW_ON_ERROR));
+            }
+
+            return new MockResponse('', ['http_code' => 204]);
+        });
+
+        $tokenManager = $this->createStub(OAuthTokenManager::class);
+        $tokenManager->method('getValidAccessToken')->willReturn('test-token');
+
+        $accountRepository = $this->createStub(AccountRepository::class);
+        $accountRepository->method('find')->willReturn($account);
+
+        $entity = new Message();
+        $entity->gmailId = 'gmail-1';
+
+        $messageRepository = $this->createStub(MessageRepository::class);
+        $messageRepository->method('findBy')->willReturn([$entity]);
+
+        $labelRepository = $this->createStub(LabelRepository::class);
+        $labelRepository->method('find')->willReturnCallback(static fn (int $id): ?Label => $labels[$id] ?? null);
+
+        $bindingRepository = $this->createStub(LabelBindingRepository::class);
+        $bindingRepository->method('findOneForLabelAndAccount')->willReturnCallback(
+            static fn (Label $label, Account $on): ?LabelBinding => $label->bindingFor($on),
+        );
+
+        return new ApplyGmailLabelsHandler(
+            $accountRepository,
+            new GmailLabelColorMapper(),
+            $messageRepository,
+            $labelRepository,
+            new GmailApiClient($http, $tokenManager),
+            new LabelResolver(
+                $labelRepository,
+                $bindingRepository,
+                $this->createStub(EntityManagerInterface::class),
+                // Only reached when a binding is minted, and every label here
+                // already has one.
+                (new \ReflectionClass(StateManager::class))->newInstanceWithoutConstructor(),
+            ),
+            $this->createStub(EntityManagerInterface::class),
+            $this->logger(),
+        );
+    }
+
+    private function account(): Account
+    {
+        $account = new Account();
+        $account->usr = new User();
+
+        return $account;
+    }
+
+    /**
+     * A label already bound on the account, as every label a push can name
+     * is: LabelResolver mints the binding the first time a label is used
+     * there. $gmailLabelId is what GmailLabelSyncer would have written.
+     */
+    private function label(Account $account, string $name, ?LabelRole $role = null, ?string $gmailLabelId = null): Label
+    {
+        $label = new Label();
+        $label->usr  = $account->usr;
+        $label->name = $name;
+        $label->role = $role;
+
+        $binding = new LabelBinding();
+        $binding->label        = $label;
+        $binding->account      = $account;
+        $binding->gmailLabelId = $gmailLabelId;
+
+        return $label;
     }
 
     private function logger(): LoggerInterface

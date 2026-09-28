@@ -26,7 +26,8 @@ use Throwable;
  *
  * Numeric entries in add/remove are local Label ids; those are resolved to
  * their gmailLabelId, creating the label on Gmail first when it has never
- * been pushed (labels created locally in plMail).
+ * been pushed (labels created locally in plMail). System labels are resolved
+ * but never created — see ensureRemoteLabel().
  *
  * Failures are split rather than uniformly swallowed. A quota rejection is
  * allowed out of the handler so Messenger redelivers it after the delay the
@@ -184,9 +185,28 @@ final class ApplyGmailLabelsHandler
      * Returns the label's gmailLabelId, creating the label on Gmail first
      * when it only exists locally. Gmail nesting is by name convention, so
      * the created label's name is the full "Parent/Child" path.
+     *
+     * Only a custom label is ever created. A system label is Gmail's own
+     * already or has no Gmail counterpart at all.
      */
     private function ensureRemoteLabel(Label $label, Account $account): ?string
     {
+        // A system label's Gmail id is whatever GmailLabelSyncer bound it to —
+        // INBOX, SENT, DRAFT, TRASH, SPAM — and Archive and Snoozed have none,
+        // because Gmail archives by removing INBOX and does not expose snoozing.
+        // Creating one of those was never right: Gmail reserves the names and
+        // answers "Invalid label name", which is what every archive from the
+        // phone produced, since the app attaches Archive to a conversation that
+        // was only in the Inbox. The INBOX removal is its own job and reached
+        // Gmail regardless; this half has nothing to tell it.
+        //
+        // bindingFor() rather than LabelResolver::binding(): this reads the
+        // binding and has no reason to mint one — the same question
+        // GmailLabelPolicy asks.
+        if (true === $label->isSystem) {
+            return $label->bindingFor($account)?->gmailLabelId;
+        }
+
         // Per-account: the same label may already be pushed to one Gmail
         // account and still be local-only on another.
         $binding = $this->labelResolver->binding($label, $account);
