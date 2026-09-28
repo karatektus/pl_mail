@@ -398,6 +398,11 @@ controller instead — the scroll position and which trees are open.
          data-ui--sidebar-target="scroller"
          data-action="scroll->ui--sidebar#rememberScroll">
 
+        {# Every system row answers to its eye toggle in label settings. Only
+           Spam used to: the toggle saved the flag for Inbox or Trash, the
+           settings list greyed the label out, and the row stayed. A role with
+           no label yet counts as shown — see SidebarCounts::isRoleHidden(). #}
+        {% if not sidebarCounts.isRoleHidden(enum('App\\Domain\\Enum\\Mail\\LabelRole').Inbox) %}
         <div class="nav-item flex items-center justify-between gap-2 px-3 rounded-lg transition-colors"
              {# Dropping a conversation here is the same operation as the row's
                 own "back to the inbox" button: out of the bin, out of spam, out
@@ -426,6 +431,8 @@ controller instead — the scroll position and which trees are open.
             </a>
             {{ macros.unread_badge(sidebarCounts.forRoleBadge(enum('App\\Domain\\Enum\\Mail\\LabelRole').Inbox), 'role:inbox', path('app_mail_inbox', { unread: 1 })) }}
         </div>
+        {% endif %}
+
 
         <div class="nav-item flex items-center justify-between gap-2 px-3 rounded-lg transition-colors">
             {# The tier rides on the LINK, not on the pill around it. The pill is
@@ -451,6 +458,7 @@ controller instead — the scroll position and which trees are open.
             {{ macros.unread_badge(sidebarCounts.forStarred(), 'starred', path('app_mail_starred', { unread: 1 })) }}
         </div>
 
+        {% if not sidebarCounts.isRoleHidden(enum('App\\Domain\\Enum\\Mail\\LabelRole').Sent) %}
         <a href="{{ path('app_mail_sent') }}"
            {{ macros.list_frame() }}
            class="nav-item flex items-center justify-between gap-2 px-3 rounded-lg transition-colors"
@@ -466,7 +474,9 @@ controller instead — the scroll position and which trees are open.
             </span>
             {{ macros.unread_badge(sidebarCounts.forRoleBadge(enum('App\\Domain\\Enum\\Mail\\LabelRole').Sent), 'role:sent') }}
         </a>
+        {% endif %}
 
+        {% if not sidebarCounts.isRoleHidden(enum('App\\Domain\\Enum\\Mail\\LabelRole').Drafts) %}
         <a href="{{ path('app_mail_drafts') }}"
            {{ macros.list_frame() }}
            class="nav-item flex items-center justify-between gap-2 px-3 rounded-lg transition-colors"
@@ -482,6 +492,7 @@ controller instead — the scroll position and which trees are open.
             </span>
             {{ macros.total_badge(sidebarCounts.forRoleBadge(enum('App\\Domain\\Enum\\Mail\\LabelRole').Drafts), 'role:drafts') }}
         </a>
+        {% endif %}
 
         {# Drawer only. On a wide screen the calendar is a panel that slides in
            beside the mail, and a control for that is not a destination — as a
@@ -522,7 +533,14 @@ controller instead — the scroll position and which trees are open.
            localStorage like the label trees, because the honest answer to
            "should this be open?" is "are you in it?", and the server already
            knows. #}
+        {% set _showSnoozed = sidebarCounts.hasSnoozed and not sidebarCounts.isRoleHidden(enum('App\\Domain\\Enum\\Mail\\LabelRole').Snoozed) %}
+        {% set _showArchive = not sidebarCounts.isRoleHidden(enum('App\\Domain\\Enum\\Mail\\LabelRole').Archive) %}
+        {% set _showSpam    = sidebarCounts.hasVisibleRole(enum('App\\Domain\\Enum\\Mail\\LabelRole').Spam) %}
+        {% set _showTrash   = not sidebarCounts.isRoleHidden(enum('App\\Domain\\Enum\\Mail\\LabelRole').Trash) %}
         {% set _moreRoutes = ['app_mail_snoozed', 'app_mail_archive', 'app_mail_spam', 'app_mail_trash'] %}
+        {# Not drawn at all when everything in it is switched off: a disclosure
+           that opens onto nothing is a control that does nothing. #}
+        {% if _showSnoozed or _showArchive or _showSpam or _showTrash %}
         <details class="rail-hide group/more" {{ app.request.attributes.get('_route') in _moreRoutes ? 'open' : '' }}>
             <summary class="nav-item flex items-center gap-2 px-3 rounded-lg cursor-pointer list-none transition-colors text-ink-muted"
                      data-nav-tier="row">
@@ -533,7 +551,7 @@ controller instead — the scroll position and which trees are open.
                 <i class="fa-solid fa-chevron-right w-4 text-xs transition-transform group-open/more:rotate-90" aria-hidden="true"></i>
                 <span>{{ 'sidebar.nav.more'|trans }}</span>
             </summary>
-        {% if sidebarCounts.hasSnoozed %}
+        {% if _showSnoozed %}
             <div class="nav-item flex items-center justify-between gap-2 pl-9 pr-3 rounded-lg transition-colors">
                 {# The tier rides on the LINK, not on the pill around it. The pill is
                    what you see — .nav-item draws it — but the row's height comes from
@@ -558,6 +576,7 @@ controller instead — the scroll position and which trees are open.
                 {{ macros.unread_badge(sidebarCounts.forRoleBadge(enum('App\\Domain\\Enum\\Mail\\LabelRole').Snoozed), 'role:snoozed', path('app_mail_snoozed', { unread: 1 })) }}
             </div>
         {% endif %}
+        {% if _showArchive %}
             <div class="nav-item flex items-center justify-between gap-2 pl-9 pr-3 rounded-lg transition-colors"
                  {{ macros.drop_target(sidebarCounts.roleLabelId(enum('App\\Domain\\Enum\\Mail\\LabelRole').Archive), null, true) }}>
                 {# The tier rides on the LINK, not on the pill around it. The pill is
@@ -582,14 +601,15 @@ controller instead — the scroll position and which trees are open.
                 </a>
                 {{ macros.unread_badge(sidebarCounts.forRoleBadge(enum('App\\Domain\\Enum\\Mail\\LabelRole').Archive), 'role:archive', path('app_mail_archive', { unread: 1 })) }}
             </div>
+        {% endif %}
 
-        {# Behind the same eye toggle in label settings that Archive is behind,
-           and for the same reason: plenty of installs have no junk folder
-           worth a permanent row. It had no row at ALL before — no entry, no
-           route, no translation key — so switching Spam visible in settings
-           did nothing observable anywhere. Sits above Trash because that is
-           where LabelRole::sortOrder() already put it. #}
-        {% if sidebarCounts.hasVisibleRole(enum('App\\Domain\\Enum\\Mail\\LabelRole').Spam) %}
+        {# The one row that is absent until its label is switched visible,
+           where the others are present until switched off: plenty of installs
+           have no junk folder worth a permanent row. It had no row at ALL
+           before — no entry, no route, no translation key — so switching Spam
+           visible in settings did nothing observable anywhere. Sits above
+           Trash because that is where LabelRole::sortOrder() already put it. #}
+        {% if _showSpam %}
             <div class="nav-item flex items-center justify-between gap-2 pl-9 pr-3 rounded-lg transition-colors"
                  {# "This is junk", said by dropping. The only way to say it in
                     the interface: there is no mark-as-spam button anywhere, and
@@ -619,6 +639,7 @@ controller instead — the scroll position and which trees are open.
             </div>
         {% endif %}
 
+        {% if _showTrash %}
         <a href="{{ path('app_mail_trash') }}"
            {{ macros.list_frame() }}
            class="nav-item flex items-center justify-between gap-2 pl-9 pr-3 rounded-lg transition-colors"
@@ -635,7 +656,9 @@ controller instead — the scroll position and which trees are open.
             </span>
             {{ macros.total_badge(sidebarCounts.forRoleBadge(enum('App\\Domain\\Enum\\Mail\\LabelRole').Trash), 'role:trash') }}
         </a>
+        {% endif %}
         </details>
+        {% endif %}
 
         {# ── Labels section ────────────────────────────────────────────────
 

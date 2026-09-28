@@ -182,7 +182,14 @@ final class LabelController extends AbstractController
         $this->changes->labelChanged($label);
         $this->em->flush();
 
-        return $this->labelListsStream($toastMessage);
+        // A system row lives in the hand-written block above the label list,
+        // which none of the three regions covers — so the eye flipped in the
+        // settings list and the sidebar beside it went on showing the row
+        // until the next full page load. The sidebar is re-rendered whole, and
+        // only for this tab: the toggle exists on the settings page alone, so
+        // this tab has no disclosure open for the re-render to shut, and
+        // another tab sitting in Archive would have its "More" snapped closed.
+        return $this->labelListsStream($toastMessage, $label->isSystem);
     }
     // ── Private ───────────────────────────────────────────────────────────────
 
@@ -222,7 +229,7 @@ final class LabelController extends AbstractController
      * rendered from the stored preference rather than from the live DOM, which
      * is the same reason a navigation has always been able to rebuild them.
      */
-    private function labelListsStream(?string $toastMessage = null): Response
+    private function labelListsStream(?string $toastMessage = null, bool $refreshSidebar = false): Response
     {
         $user   = $this->currentUser();
         $labels = $this->labelRepository->findForUserTreeOrdered($user);
@@ -234,12 +241,13 @@ final class LabelController extends AbstractController
 
         $this->labelNotifier->publishLabelsChanged($user, $lists);
 
-        if (null === $toastMessage) {
+        if (null === $toastMessage && false === $refreshSidebar) {
             $body = $lists;
         } else {
             $body = $this->renderView('label/_lists.stream.html.twig', [
-                'toastMessage' => $toastMessage,
-                'labels'       => $labels,
+                'toastMessage'   => $toastMessage,
+                'labels'         => $labels,
+                'refreshSidebar' => $refreshSidebar,
             ]);
         }
 

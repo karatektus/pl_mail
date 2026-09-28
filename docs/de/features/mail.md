@@ -1,4 +1,4 @@
-<!-- translated-from: features/mail.md sha1:fdcaca13789889f0020d64e8c0306b300595c69d -->
+<!-- translated-from: features/mail.md sha1:31833e184a85ccc2156aeafe9839a62d733b5846 -->
 
 # Mail
 
@@ -20,8 +20,13 @@ gleich, wo es angekommen ist.
 | **Markiert** | Konversationen mit mindestens einer markierten Nachricht |
 | **Zurückgestellt** | Konversationen, die auf ihre Weckzeit warten |
 | **Gesendet**, **Entwürfe**, **Papierkorb** | Das jeweilige Systemlabel, über alle Konten hinweg |
-| **Archiv** | Standardmäßig ausgeblendet — schalte das Archiv-Label unter **Einstellungen → Labels** sichtbar, um es zu bekommen |
+| **Archiv** | Konversationen, die du archiviert hast |
 | **Konten** | Eine Zeile je Konto; ein Klick darauf öffnet den Posteingang dieses Kontos |
+
+Jeder Systemeintrag — **Posteingang**, **Gesendet**, **Entwürfe**, **Zurückgestellt**, **Archiv**,
+**Papierkorb** und **Spam**, sofern ein Konto einen Spam-Ordner hat — hat unter **Einstellungen →
+Labels** ein Auge: Schaltest du einen aus, verschwindet seine Zeile aus der Seitenleiste, schaltest
+du ihn wieder ein, ist sie zurück — beides sofort.
 
 Ein Klick auf ein Konto öffnet **dessen Posteingang** — dieselbe Frage, die der Posteingang ganz
 oben stellt, nur über ein Postfach statt über alle. Gesendet, Entwürfe, Spam und Papierkorb dieses

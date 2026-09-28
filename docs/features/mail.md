@@ -17,8 +17,12 @@ label you made shows everything carrying it, wherever it arrived.
 | **Starred** | Conversations with at least one starred message |
 | **Snoozed** | Conversations waiting for their wake time |
 | **Sent**, **Drafts**, **Trash** | The corresponding system label, across accounts |
-| **Archive** | Hidden by default — switch the Archive label visible in **Settings → Labels** to get it |
+| **Archive** | Conversations you archived |
 | **Accounts** | One row per account; clicking it opens that account's inbox |
+
+Every system entry — **Inbox**, **Sent**, **Drafts**, **Snoozed**, **Archive**, **Trash**, and **Spam**
+where an account has a junk folder — has an eye in **Settings → Labels**: switch one off and its row
+leaves the sidebar, switch it back on and it returns, both straight away.
 
 Clicking an account opens **its inbox** — the same question the top-level Inbox asks, about one
 mailbox instead of all of them. Its Sent, Drafts, Spam and Trash are folder rows underneath it, one

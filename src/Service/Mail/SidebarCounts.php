@@ -53,6 +53,14 @@ class SidebarCounts implements ResetInterface
      */
     private array $roleLabelIds = [];
 
+    /**
+     * role value => true when that role's label is switched off in label
+     * settings. Filled by the same read as roleLabelIds.
+     *
+     * @var array<string, bool>
+     */
+    private array $hiddenRoles = [];
+
     /** Whether roleLabelIds has been filled — see roleLabelId(). */
     private bool $roleLabelIdsLoaded = false;
 
@@ -73,6 +81,7 @@ class SidebarCounts implements ResetInterface
         $this->accountLabels      = [];
         $this->accountLabelCounts = [];
         $this->roleLabelIds       = [];
+        $this->hiddenRoles        = [];
 
         $this->roleLabelIdsLoaded = false;
     }
@@ -361,9 +370,9 @@ class SidebarCounts implements ResetInterface
      * True when anything is currently snoozed — controls the Snoozed entry in
      * the system nav block.
      *
-     * Gated rather than always shown, on the same reasoning as Archive: the
-     * label is created lazily the first time something is snoozed, so on an
-     * install that has never used the feature there is nothing to link to.
+     * Gated rather than always shown: the label is created lazily the first
+     * time something is snoozed, so on an install that has never used the
+     * feature there is nothing to link to.
      */
     public function hasSnoozed(): bool
     {
@@ -379,24 +388,39 @@ class SidebarCounts implements ResetInterface
     }
 
     /**
-     * True when the user's Archive label is switched visible — controls the
-     * Archive entry in the system nav block.
+     * Whether the user switched this system row off in label settings — asked
+     * by every row that is there by default: Inbox, Sent, Drafts, Snoozed,
+     * Archive, Trash.
+     *
+     * Only Spam asked before, so the eye toggle hid Spam and nothing else: it
+     * saved the flag for Inbox or Trash, the settings list greyed the row out,
+     * and the sidebar went on drawing it.
+     *
+     * Deliberately not the same question as hasVisibleRole(). A role with no
+     * label yet is not hidden: system labels are created lazily, so a fresh
+     * install has no Inbox label to be visible, and it must not lose its Inbox
+     * row for that. Only a label that exists and is switched off hides a row.
      */
-    public function hasVisibleArchive(): bool
+    public function isRoleHidden(LabelRole $role): bool
     {
-        return $this->hasVisibleRole(LabelRole::Archive);
+        if (false === $this->roleLabelIdsLoaded) {
+            $this->loadRoleLabelIds();
+        }
+
+        return $this->hiddenRoles[$role->value] ?? false;
     }
 
     /**
-     * Whether a system label is switched visible in the label settings.
+     * Whether a system label is switched visible in the label settings — the
+     * test for Spam, the one row that is absent until it is switched on.
      *
-     * Generalised from hasVisibleArchive() because Spam needed the same
-     * question asked, and the answer was that nothing asked it: the eye toggle
-     * in label settings happily switched Spam on — the toggle route allows
-     * system labels precisely so it can — and no sidebar entry was ever
-     * looking, because the system nav is a hand-written sequence of anchors
-     * rather than a loop and had no Spam arm at all. A user could turn the
-     * setting on and off all day and nothing would appear.
+     * Written for Archive, when Archive still had that rule, and generalised
+     * because Spam needed the same question asked, and the answer was that
+     * nothing asked it: the eye toggle in label settings happily switched Spam
+     * on — the toggle route allows system labels precisely so it can — and no
+     * sidebar entry was ever looking, because the system nav is a hand-written
+     * sequence of anchors rather than a loop and had no Spam arm at all. A user
+     * could turn the setting on and off all day and nothing would appear.
      */
     public function hasVisibleRole(LabelRole $role): bool
     {
@@ -426,9 +450,8 @@ class SidebarCounts implements ResetInterface
      * which is better than a drop that posts a zero and comes back 403.
      *
      * Not filtered by visibility, unlike hasVisibleRole() above: whether a row
-     * is SHOWN is the template's question and it has already answered it by
-     * the time it asks this one. Inbox and Trash are always shown and are
-     * routinely not "visible" labels.
+     * is SHOWN is the template's question — isRoleHidden() — and it has
+     * already answered it by the time it asks this one.
      *
      * ── One read for every role, not one per role ────────────────────────────
      * The memo above was already per-role and already cached its nulls, and the
@@ -510,7 +533,12 @@ class SidebarCounts implements ResetInterface
             // fixed thing. A user with two labels for one role is not supposed
             // to exist; if one does, the sidebar should at least point at the
             // same label on every render rather than alternating.
-            $this->roleLabelIds[$role->value] ??= $label->id;
+            if (null !== $this->roleLabelIds[$role->value]) {
+                continue;
+            }
+
+            $this->roleLabelIds[$role->value] = $label->id;
+            $this->hiddenRoles[$role->value]  = false === $label->isVisible;
         }
     }
 

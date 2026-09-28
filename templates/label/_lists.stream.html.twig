@@ -11,8 +11,10 @@ and the settings page without either needing to know where it was invoked
 from. This replaced three near-identical stream templates.
 
 Variables:
-  labels        Label[]  tree-ordered, for the settings list
-  toastMessage  string|null  translation key
+  labels         Label[]  tree-ordered, for the settings list
+  toastMessage   string|null  translation key
+  refreshSidebar bool  also re-render both sidebar copies whole — see
+                 LabelController::toggleVisibility()
 #}
 {% if toastMessage is not empty %}
     {% include '_partials/_toast.stream.html.twig' with { message: toastMessage|trans, type: 'success' } only %}
@@ -44,3 +46,16 @@ Variables:
         </template>
     </turbo-stream>
 {% endfor %}
+
+{% if refreshSidebar|default(false) %}
+    <turbo-stream action="replace" target="sidebar">
+        <template>
+            {% include '_partials/_sidebar.html.twig' only %}
+        </template>
+    </turbo-stream>
+    <turbo-stream action="replace" target="sidebar-drawer-inner">
+        <template>
+            {% include '_partials/_sidebar.html.twig' with { _drawerMode: true } only %}
+        </template>
+    </turbo-stream>
+{% endif %}
