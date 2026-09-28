@@ -29,7 +29,8 @@ the one that starts off.
 **Unread** gathers unread mail from everywhere — archived and labelled conversations included, with
 no category tabs — and leaves out only what you have put away: the bin, spam and anything snoozed.
 Dropping a conversation on it marks the conversation unread and leaves it where it is, which is
-the quickest way to keep something for later without moving it.
+the quickest way to keep something for later without moving it. **Starred** takes a drop the same
+way: the conversation is starred where it lies, and one that already was stays starred.
 
 Clicking an account opens **its inbox** — the same question the top-level Inbox asks, about one
 mailbox instead of all of them. Its Sent, Drafts, Spam and Trash are folder rows underneath it, one

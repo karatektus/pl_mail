@@ -116,6 +116,48 @@ final readonly class ThreadStatusUpdater
     }
 
     /**
+     * Star these conversations — on, never off.
+     *
+     * star() above is the row's own button, and it toggles, reading the
+     * answer off the first message. A drop on Starred is not a toggle: a
+     * conversation that is already starred has to stay starred, so the
+     * question is asked of each thread — whose starredAt is what the Starred
+     * view lists by — and one already starred is left alone.
+     *
+     * The write itself is star()'s: the first message carries the flag, the
+     * thread the timestamp, and the whole conversation goes to the provider.
+     *
+     * @param list<MessageThread> $threads
+     */
+    public function starThreads(array $threads): void
+    {
+        $now      = new DateTimeImmutable();
+        $messages = [];
+
+        foreach ($threads as $thread) {
+            $threadMessages = array_values($thread->messages->toArray());
+
+            if (null !== $thread->starredAt || [] === $threadMessages) {
+                continue;
+            }
+
+            $threadMessages[0]->addFlag(MessageFlag::FLAGGED);
+            $threadMessages[0]->starredAt = $now;
+            $thread->starredAt            = $now;
+
+            array_push($messages, ...$threadMessages);
+        }
+
+        if ([] === $messages) {
+            return;
+        }
+
+        $this->propagator->star($messages, true);
+        $this->recordJmapUpdates($messages);
+        $this->em->flush();
+    }
+
+    /**
      * @param list<Message> $messages
      */
     public function archive(array $messages): void

@@ -4736,7 +4736,8 @@ label:has(> input.sr-only) {
 html[data-dnd-active] [data-dnd-folder]:not([data-dnd-refused]),
 html[data-dnd-active] [data-dnd-label]:not([data-dnd-refused]),
 html[data-dnd-active] [data-dnd-category]:not([data-dnd-refused]),
-html[data-dnd-active] [data-dnd-unread]:not([data-dnd-refused]) {
+html[data-dnd-active] [data-dnd-unread]:not([data-dnd-refused]),
+html[data-dnd-active] [data-dnd-star]:not([data-dnd-refused]) {
     outline: 1px dashed rgb(var(--rgb-accent) / 0.45);
     outline-offset: -1px;
 }
@@ -4749,7 +4750,8 @@ html[data-dnd-active] [data-dnd-unread]:not([data-dnd-refused]) {
 html[data-dnd-active] [data-dnd-folder][data-dnd-over],
 html[data-dnd-active] [data-dnd-label][data-dnd-over],
 html[data-dnd-active] [data-dnd-category][data-dnd-over],
-html[data-dnd-active] [data-dnd-unread][data-dnd-over] {
+html[data-dnd-active] [data-dnd-unread][data-dnd-over],
+html[data-dnd-active] [data-dnd-star][data-dnd-over] {
     outline: 2px solid rgb(var(--rgb-accent));
     background-color: rgb(var(--rgb-accent) / 0.14);
 }

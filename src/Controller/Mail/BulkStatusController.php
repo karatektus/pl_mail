@@ -46,14 +46,14 @@ final class BulkStatusController extends AbstractController
     /**
      * The actions that refuse a whole-view selection.
      *
-     * Both of them are drop targets and nothing else: a drag names the rows it
-     * is carrying, so "everything in this view" is not a shape either one can
-     * arrive in. Spelled as a list rather than inline so the guard below and
-     * this reasoning stay in one place if a third joins them.
+     * Every one of them is a drop target and nothing else: a drag names the
+     * rows it is carrying, so "everything in this view" is not a shape any of
+     * them can arrive in. Spelled as a list rather than inline so the guard
+     * below and this reasoning stay in one place as they are joined.
      *
      * @var list<string>
      */
-    private const array EXPLICIT_ONLY = ['move', 'label', 'category'];
+    private const array EXPLICIT_ONLY = ['move', 'label', 'category', 'star'];
 
     public function __construct(
         private readonly MessageThreadRepository $threadRepository,
@@ -83,7 +83,7 @@ final class BulkStatusController extends AbstractController
      *      than as the URL the user is on — it is resolved by
      *      RunBulkStatusHandler now, where the work happens.
      */
-    #[Route('/{action}', name: 'run', methods: ['POST'], requirements: ['action' => 'archive|trash|read|restore|snooze|move|label|category'])]
+    #[Route('/{action}', name: 'run', methods: ['POST'], requirements: ['action' => 'archive|trash|read|restore|snooze|move|label|category|star'])]
     public function bulk(Request $request, string $action): Response
     {
         $this->assertCsrf($request, 'ajax');
@@ -94,10 +94,10 @@ final class BulkStatusController extends AbstractController
         $body = json_decode($request->getContent(), true);
         $body = is_array($body) ? $body : [];
 
-        // Only a drag posts move, label or category, and a drag carries the
-        // rows it picked up. There is no "select every conversation in this view and
+        // Only a drag posts move, label, category or star, and a drag carries
+        // the rows it picked up. There is no "select every conversation in this view and
         // drop it" gesture, so the whole-view path below has no caller for
-        // these two and no JobKind to run them under — JobKind::forAction()
+        // these and no JobKind to run them under — JobKind::forAction()
         // would throw for them, deep inside startJob(). Refused here instead,
         // where the reason is legible.
         if (true === ($body['all'] ?? false) && true === in_array($action, self::EXPLICIT_ONLY, true)) {
@@ -225,6 +225,23 @@ final class BulkStatusController extends AbstractController
             ]);
         }
 
+        // STARRING, ONLY EVER ON — the drop on Starred, its one caller.
+        //
+        // Per conversation like the category below: the Starred view lists
+        // threads by their own starredAt, so that is the column that answers
+        // whether one is starred already. Not the row's star button, which
+        // toggles — dropping a starred conversation onto Starred must leave
+        // it starred. It stays in the list it came from, redrawn with its star.
+        if ('star' === $action) {
+            $this->status->starThreads($threads);
+
+            return $this->renderTurboStream('thread/status/_bulk.stream.html.twig', [
+                'count'   => count($threads),
+                'threads' => $threads,
+                'leaves'  => false,
+            ]);
+        }
+
         // A CATEGORY IS A FACT ABOUT A CONVERSATION, NOT ABOUT ITS MESSAGES.
         //
         // Every other action here mutates labels, which live on messages, so
@@ -322,9 +339,9 @@ final class BulkStatusController extends AbstractController
             // requirement and forgets this arm, a silent no-op is the worst
             // possible answer for an action that says it deleted things.
             //
-            // move and category are not here on purpose: each is handled by a
-            // branch of its own above, which is where the payload they need is
-            // resolved.
+            // move, label, category and star are not here on purpose: each is
+            // handled by a branch of its own above, which is where the payload
+            // they need is resolved.
                 default   => throw $this->createNotFoundException(sprintf('Unknown bulk action "%s".', $action)),
             };
         }

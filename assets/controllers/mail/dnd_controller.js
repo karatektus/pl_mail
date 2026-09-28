@@ -16,6 +16,8 @@ import { requestFailed } from "../../request_errors.js";
  *   moveUrl      where a drop on a folder posts
  *   labelUrl     where a drop on a label posts
  *   categoryUrl  where a drop on a category tab posts
+ *   readUrl      where a drop on Unread posts
+ *   starUrl      where a drop on Starred posts
  *   dragging     what the drag image says when several rows travel together;
  *                %count% is substituted
  *
@@ -33,6 +35,8 @@ import { requestFailed } from "../../request_errors.js";
  *   [data-dnd-category]         a drop target. Value is a MessageCategory.
  *   [data-dnd-unread]           a drop target that MARKS UNREAD. No value. The
  *                               conversation stays where it is.
+ *   [data-dnd-star]             a drop target that STARS. No value. The
+ *                               conversation stays where it is.
  *   [data-dnd-account]          on a target: only rows from this account may
  *                               land. Absent means "any".
  *
@@ -41,6 +45,7 @@ import { requestFailed } from "../../request_errors.js";
  *   POST {labelUrl}     { ids, labelId }
  *   POST {categoryUrl}  { ids, category }
  *   POST {readUrl}      { ids, read: false }
+ *   POST {starUrl}      { ids }
  *
  * ── A DROP MEANS TWO DIFFERENT THINGS, DECIDED BY WHERE IT LANDS ────────────
  *
@@ -55,8 +60,9 @@ import { requestFailed } from "../../request_errors.js";
  * "everywhere", under an account it names that account's folder. Nothing about
  * the label can tell those apart — only which row was dropped on can.
  *
- * One row is neither. Unread is a state rather than a place or a tag, so a drop
- * there marks the conversation unread and leaves it where it was.
+ * Two rows are neither. Unread and Starred are states rather than places or
+ * tags, so a drop on one marks the conversation unread, or stars it, and leaves
+ * it where it was.
  *
  * ── The gesture is HTML5 drag-and-drop, not pointer events ──────────────────
  *
@@ -95,6 +101,7 @@ export default class extends Controller {
         labelUrl: String,
         categoryUrl: String,
         readUrl: String,
+        starUrl: String,
         dragging: { type: String, default: "%count% conversations" },
     };
 
@@ -108,7 +115,7 @@ export default class extends Controller {
     static REFUSED_ATTRIBUTE = "dndRefused";
 
     /** Every drop target on the page, of either kind. */
-    static TARGETS = "[data-dnd-folder], [data-dnd-label], [data-dnd-category], [data-dnd-unread]";
+    static TARGETS = "[data-dnd-folder], [data-dnd-label], [data-dnd-category], [data-dnd-unread], [data-dnd-star]";
 
     /** The conversations in flight, or null when nothing is being dragged. */
     #carrying = null;
@@ -305,7 +312,7 @@ export default class extends Controller {
         event.preventDefault();
 
         const ids = this.#carrying.ids;
-        const { dndFolder, dndLabel, dndCategory, dndUnread } = target.dataset;
+        const { dndFolder, dndLabel, dndCategory, dndUnread, dndStar } = target.dataset;
 
         this.#teardown();
 
@@ -314,6 +321,14 @@ export default class extends Controller {
         // place, which is the feedback: they turn bold where they are.
         if (undefined !== dndUnread) {
             await this.#post(this.readUrlValue, "read", { ids, read: false });
+
+            return;
+        }
+
+        // Stars, never unstars: a conversation that is already starred stays
+        // so. The row's own star button is the toggle; this is a destination.
+        if (undefined !== dndStar) {
+            await this.#post(this.starUrlValue, "star", { ids });
 
             return;
         }

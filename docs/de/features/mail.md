@@ -1,4 +1,4 @@
-<!-- translated-from: features/mail.md sha1:c2a6495a3bfdf136fd0b27306cf42ed6384a96e6 -->
+<!-- translated-from: features/mail.md sha1:5691e30fa0a7d9cce02dc27f07c9c5dc7edbfc37 -->
 
 # Mail
 
@@ -34,6 +34,8 @@ einzige, der ausgeschaltet beginnt.
 eingeschlossen, ohne Kategorie-Tabs — und lässt nur weg, was du weggeräumt hast: Papierkorb, Spam
 und alles Zurückgestellte. Ziehst du eine Konversation darauf, wird sie als ungelesen markiert und
 bleibt, wo sie ist — der schnellste Weg, dir etwas für später aufzuheben, ohne es zu verschieben.
+**Markiert** nimmt eine Konversation genauso an: Sie wird markiert, wo sie liegt, und eine schon
+markierte bleibt markiert.
 
 Ein Klick auf ein Konto öffnet **dessen Posteingang** — dieselbe Frage, die der Posteingang ganz
 oben stellt, nur über ein Postfach statt über alle. Gesendet, Entwürfe, Spam und Papierkorb dieses

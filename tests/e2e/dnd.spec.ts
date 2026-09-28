@@ -339,6 +339,25 @@ test.describe("dragging a conversation", () => {
         await expect(page.locator(ROWS).filter({ hasText: INBOX_SUBJECTS.read })).toHaveCount(1);
     });
 
+    /**
+     * Starred works as Unread does: a drop stars the conversation and leaves
+     * it where it was. The row the Unread test used, which it left in the
+     * inbox, unstarred as the fixture seeds it — so the star can only have
+     * come from the drop.
+     */
+    test("onto Starred stars it and leaves it where it was", async ({ page }) => {
+        await page.goto("/mail/inbox");
+        await settled(page);
+
+        const row = mailRow(page, INBOX_SUBJECTS.read);
+        await expect(row).toHaveAttribute("data-starred", "false");
+
+        await dragOnto(page, row, page.locator("#sidebar [data-dnd-star]"));
+
+        await expect(row).toHaveAttribute("data-starred", "true");
+        await expect(page.locator(ROWS).filter({ hasText: INBOX_SUBJECTS.read })).toHaveCount(1);
+    });
+
     test("onto a category tab re-files it, including one with no mail yet", async ({ page }) => {
         await page.goto("/mail/inbox");
         await settled(page);

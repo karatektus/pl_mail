@@ -465,7 +465,10 @@ controller instead — the scroll position and which trees are open.
         </div>
         {% endif %}
 
-        <div class="nav-item flex items-center justify-between gap-2 px-3 rounded-lg transition-colors">
+        {# A drop here stars the mail and leaves it where it is, as the Unread
+           row above marks it unread: a state, not a folder. See mail--dnd. #}
+        <div class="nav-item flex items-center justify-between gap-2 px-3 rounded-lg transition-colors"
+             data-dnd-star>
             {# The tier rides on the LINK, not on the pill around it. The pill is
                what you see — .nav-item draws it — but the row's height comes from
                padding-block, and padding on the wrapper is area the anchor does not
