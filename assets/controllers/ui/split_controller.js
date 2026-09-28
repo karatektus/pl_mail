@@ -104,9 +104,9 @@ export default class extends Controller {
             return;
         }
 
-        // The server renders `mail` whatever the preference says — see
-        // _mailbox.html.twig — so this is where the remembered position is
-        // applied, and where it is refused on a window too narrow to mean it.
+        // The server renders the remembered position — see _mailbox.html.twig
+        // — so this is where it becomes this window's: kept, or refused on a
+        // window too narrow to mean it.
         // No fetch either way: this puts on screen what is already stored, it
         // does not record a choice the user has not made.
         //
@@ -144,6 +144,10 @@ export default class extends Controller {
         // [data-calendar-restored] in app.css.
         delete this.element.dataset.calendarRestored;
 
+        // …and so is the switch, which the server drew for both widths at
+        // once. See _settleFirstPaint.
+        this._settleFirstPaint();
+
         // Same reason as in _setMode: a stored width from a bigger window
         // must not squeeze the mail to a sliver on this one.
         this._reclamp();
@@ -167,6 +171,44 @@ export default class extends Controller {
         // so a document listener has exactly one owner.
         this._onMailClick = (event) => this._demoteForMail(event);
         document.addEventListener("click", this._onMailClick, true);
+    }
+
+    /**
+     * The classes the server adds to the switch for its first paint and never
+     * after — see "The first paint" in _topbar.html.twig, which renders them.
+     * The icons' `hidden` here is the CLASS; the attribute is _render's.
+     * CalendarSwitchFirstPaintTest holds these to what the topbar renders.
+     */
+    static FIRST_PAINT_ICON = ["hidden", "lg:hidden", "lg:flex"];
+    static FIRST_PAINT_TOGGLE = ["lg:bg-accent-soft", "lg:text-accent"];
+
+    /**
+     * Take the breakpoint's share off the switch, leaving only what _render
+     * writes: the `hidden` attribute on the icons and two plain classes on the
+     * switch.
+     *
+     * The server cannot know the width, so it drew the switch for both: the
+     * remembered position from lg up, `mail` below it, which is what connect()
+     * then settles on at each. Once _render has put this window's position on
+     * the switch, the two agree and these classes only get in the way — left
+     * on, `lg:text-accent` would keep a desktop switch accented after a press
+     * back to `mail`, and `lg:hidden` would never let the mail icon show there
+     * again.
+     *
+     * Nothing moves on screen. At either width, what is removed resolved to
+     * exactly what _render wrote, so there is no change for a transition to
+     * run on. That is the whole point: the switch used to be drawn as `mail`
+     * and corrected here, which faded in the accent on every desktop load.
+     */
+    _settleFirstPaint() {
+        this.element.querySelectorAll("[data-calendar-mode-icon]").forEach((icon) => {
+            icon.classList.remove(...this.constructor.FIRST_PAINT_ICON);
+            icon.classList.add("flex");
+        });
+
+        this.element.querySelectorAll("[data-calendar-toggle]").forEach((trigger) => {
+            trigger.classList.remove(...this.constructor.FIRST_PAINT_TOGGLE);
+        });
     }
 
     /** Below lg the pane replaces the mail rather than sitting beside it. */

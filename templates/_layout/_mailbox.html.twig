@@ -180,8 +180,11 @@ csrf token. Both measured: see App\Twig\ListFragmentGlobal.
              {% endif %}
         >
 
-            {# Full-width topbar #}
-            {% include '_partials/_topbar.html.twig' %}
+            {# Full-width topbar. `calendarRestored`, because its calendar
+               switch has to be drawn in the same remembered position as the
+               layout above — and, like the layout, as `mail` below lg. See
+               "The first paint" in the topbar. #}
+            {% include '_partials/_topbar.html.twig' with { calendarRestored: true } %}
 
             {# Sidebar + content #}
             <div class="flex flex-1 gap-gutter overflow-hidden">

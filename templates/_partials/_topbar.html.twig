@@ -373,30 +373,80 @@
        width is not a property of the preference.
 
        The href is still a real URL so middle-click reaches the page;
-       ui--split#toggle suppresses the navigation. #}
+       ui--split#toggle suppresses the navigation.
+
+       ── The first paint ──
+       Inside the mailbox shell the layout is rendered in the REMEMBERED
+       position (see _mailbox.html.twig), so the switch has to be as well. It
+       used to be drawn as `mail` and corrected on connect, and connect comes
+       after the page has been styled, on a full load and on a Turbo visit
+       alike: every desktop load painted the mail icon, then swapped in the
+       split one and faded the accent in, over the 150ms of the
+       `transition-colors` that is here for the hover.
+
+       But the remembered position is only what a desktop shows. Below lg
+       ui--split opens every position on the mail (_isNarrow() is the same
+       boundary as `lg`), so drawing the remembered one there would give a
+       phone an icon and an accent that are about to be taken away: the same
+       fade, moved to the phone. The server cannot know the width; the
+       stylesheet can. So where the two widths disagree the server writes both
+       answers and the breakpoint picks one:
+
+         the mail icon          `lg:hidden`       — below lg only
+         the remembered icon    `hidden lg:flex`  — from lg up only
+         the switch             `lg:bg-accent-soft lg:text-accent` over its
+                                `text-ink-muted`  — accented from lg up only
+
+       ui--split takes those classes off on connect, once it has decided the
+       position for this window, and from then on it is the attribute and the
+       two plain classes above, as before. Nothing selects on the shell's mode:
+       the server picks the icon, the stylesheet only the width.
+
+       Classes rather than the attribute for the two that swap, because the
+       attribute cannot be undone at a breakpoint: Tailwind's preflight makes
+       `[hidden]` `display: none !important`. The icon classes were all in the
+       Tailwind build before the switch used them, so a stack whose build has
+       not been rerun still draws exactly one icon. The two accent classes are
+       new; without them the switch paints muted and fades on connect, which
+       is what it did before.
+
+       Each icon has a wrapper because Font Awesome's own `display` is
+       unlayered and outranks any utility on the <i> itself; only the
+       attribute's !important got past it. The wrapper is `flex` so the icon
+       sits exactly where it did as a flex item of the link.
+
+       Only the shell asks for this (`calendarRestored`). Every other page
+       includes this bar with no pane and no ui--split to take the classes
+       off, so there the switch is `mail`, as it always was. #}
     {% set upcoming = calendar.upcoming %}
     {% set paneMode = app.user.calendarPaneMode %}
+    {% set firstPaint = (calendarRestored ?? false) and paneMode.showsCalendar %}
+    {# The wrapper classes of the icons the first paint shows, at one width
+       or both, keyed by mode. An icon missing from here carries the `hidden`
+       attribute. Everything but `flex` is taken off again by ui--split's
+       FIRST_PAINT_ICON; CalendarSwitchFirstPaintTest reads both. #}
+    {% set shownIcons = firstPaint
+        ? { mail: 'flex lg:hidden', (paneMode.value): 'hidden lg:flex' }
+        : { mail: 'flex' } %}
     <a
         href="{{ path('app_calendar_index') }}"
         data-calendar-toggle
         data-action="click->ui--split#toggle"
         class="relative flex cursor-pointer items-center justify-center w-9 h-9 rounded-lg
                transition-colors flex-shrink-0
-               text-ink-muted hover:bg-hover"
+               text-ink-muted hover:bg-hover{{ firstPaint ? ' lg:bg-accent-soft lg:text-accent' }}"
         aria-label="{{ 'sidebar.nav.calendar'|trans }}"
         title="{{ upcoming
             ? upcoming.title ~ ' · ' ~ upcoming.startsAt|date(clock.time)
             : 'sidebar.nav.calendar'|trans }}"
     >
-        {# The server renders `mail` whatever the preference says — see
-           _mailbox.html.twig — and the controller corrects both this and the
-           layout on connect. So the icon that starts visible is the one that
-           matches what is actually on screen at first paint. #}
         {% for candidate in enum('App\\Domain\\Enum\\Calendar\\CalendarPaneMode').cases() %}
-            <i class="{{ candidate.icon }} text-base"
-               data-calendar-mode-icon="{{ candidate.value }}"
-               {{ candidate.value == 'mail' ? '' : 'hidden' }}
-               aria-hidden="true"></i>
+            {% set shown = shownIcons[candidate.value] ?? null %}
+            <span data-calendar-mode-icon="{{ candidate.value }}"
+                  class="{{ shown ?? 'flex' }}"
+                  {{ shown is null ? 'hidden' }}>
+                <i class="{{ candidate.icon }} text-base" aria-hidden="true"></i>
+            </span>
         {% endfor %}
 
         {# What pressing this does next, which is the only part of the control a
