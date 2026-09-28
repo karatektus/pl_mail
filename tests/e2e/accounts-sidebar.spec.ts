@@ -162,9 +162,12 @@ test.describe("accounts + sidebar", () => {
      * Defects 1 + 2 + 3, which are one gesture: reordering is cosmetic, the
      * request carries a token, and the dots do not move.
      *
-     * Creates its own second account and removes it again in a `finally`, for
+     * Creates an account of its own and removes it again in a `finally`, for
      * the reasons account.spec.ts documents at length — an account is durable,
-     * user-wide state and several other specs count them.
+     * user-wide state and several other specs count them. That account is the
+     * only one it moves or promotes: the worker also holds whatever the
+     * seeders and other specs left it, and those are not this test's to
+     * rearrange.
      */
     test("reordering accounts changes neither the primary nor the dots", async ({ page }) => {
         // Creates an account, reorders it, reads the sidebar twice and removes
@@ -173,15 +176,22 @@ test.describe("accounts + sidebar", () => {
 
         const stamp = Date.now();
         const label = `E2E ORDER ${stamp}`;
+        const rows = page.locator("#settings-account-list li[data-account-id]");
 
         try {
-            // A previous aborted run can leave one behind, and the assertions
-            // below are about a two-account list.
+            // A previous aborted run can leave one behind. Everything else the
+            // worker holds is counted rather than assumed: seed-mail's mailbox
+            // plus whatever another seeder or spec left beside it, which once
+            // was seed-demo's account (CODESTYLE.md §9.5).
             await removeAccount(page, "E2E ORDER");
-            await addAccount(page, label, stamp);
 
-            const rows = page.locator("#settings-account-list li[data-account-id]");
-            await expect(rows).toHaveCount(2);
+            const before = await rows.count();
+
+            await addAccount(page, label, stamp);
+            await expect(rows).toHaveCount(before + 1);
+
+            const own = rows.filter({ hasText: label });
+            const ownId = (await own.getAttribute("data-account-id")) ?? "";
 
             const primaryRow = page.locator("li[data-account-id]", {
                 has: page.getByText("Primary", { exact: true }),
@@ -195,22 +205,26 @@ test.describe("accounts + sidebar", () => {
             const dotsBefore = await sidebarDots(page);
 
             // The keyboard path — which is also the one that did not exist
-            // before, ordering being drag-only.
+            // before, ordering being drag-only. Ours starts at the bottom and
+            // goes up one step at a time until it is on top, because the top
+            // is the position that used to decide the primary.
             await page.goto("/settings?section=accounts");
 
-            const requested = page.waitForResponse(
-                (r) => r.url().includes("/account/reorder") && r.request().method() === "POST",
-            );
+            do {
+                const requested = page.waitForResponse(
+                    (r) => r.url().includes("/account/reorder") && r.request().method() === "POST",
+                );
 
-            await rows.nth(1).locator('[data-direction="up"]').click();
+                await own.locator('[data-direction="up"]').click();
 
-            const response = await requested;
+                const response = await requested;
 
-            expect(response.status(), "the reorder must be accepted").toBe(200);
-            expect(
-                response.request().headers()["x-csrf-token"],
-                "and it must have carried a CSRF token",
-            ).toBeTruthy();
+                expect(response.status(), "the reorder must be accepted").toBe(200);
+                expect(
+                    response.request().headers()["x-csrf-token"],
+                    "and it must have carried a CSRF token",
+                ).toBeTruthy();
+            } while ((await rows.first().getAttribute("data-account-id")) !== ownId);
 
             await page.goto("/settings?section=accounts");
 
@@ -218,9 +232,12 @@ test.describe("accounts + sidebar", () => {
                 els.map((e) => (e as HTMLElement).dataset.accountId ?? ""),
             );
 
-            expect(orderAfter, "the arrangement is what was actually saved").toEqual(
-                [orderBefore[1], orderBefore[0]],
-            );
+            // Ours on top and the rest in the order they had, which is also
+            // what the finally leaves once ours is gone.
+            expect(orderAfter, "the arrangement is what was actually saved").toEqual([
+                ownId,
+                ...orderBefore.filter((id) => id !== ownId),
+            ]);
 
             expect(
                 await primaryRow.getAttribute("data-account-id"),
@@ -241,10 +258,11 @@ test.describe("accounts + sidebar", () => {
             await page.goto("/settings?section=accounts");
 
             // And the explicit control does what dragging used to do silently.
-            const other = rows.filter({ hasNot: page.getByText("Primary", { exact: true }) }).first();
-            const otherId = await other.getAttribute("data-account-id");
-
-            await other.getByRole("button", { name: /primary/i }).click();
+            // Ours again rather than the first row that is not primary: past
+            // two accounts that can be one of the worker's own, and it would
+            // stay primary after the finally. Deleting ours hands the primary
+            // to the top row, which the move above left as it was.
+            await own.getByRole("button", { name: /primary/i }).click();
             await expect(page.getByText(/Primary account changed/i)).toBeVisible();
 
             await page.goto("/settings?section=accounts");
@@ -252,7 +270,7 @@ test.describe("accounts + sidebar", () => {
             expect(
                 await primaryRow.getAttribute("data-account-id"),
                 "and choosing a sender explicitly does move it",
-            ).toBe(otherId);
+            ).toBe(ownId);
         } finally {
             await removeAccount(page, label);
         }
