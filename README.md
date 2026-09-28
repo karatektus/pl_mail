@@ -42,8 +42,10 @@ provider doesn't.
   mail before you save. Apply one to mail that arrived before it existed.
 - **Filed where you drop it** — drag a conversation onto a folder, a label or one of the inbox tabs,
   several at once if they are ticked. A folder moves it and a label just adds itself, so dropping on
-  "Receipts" does not take the mail out of your inbox. Only the targets that will accept it light up,
-  and a tab you choose by hand stays chosen when the next message in the thread arrives.
+  "Receipts" does not take the mail out of your inbox; **Starred** stars it and **Unread** — an
+  optional list of every unread conversation, whatever folder it is in — marks it unread, both where
+  it lies. Only the targets that will accept it light up, and a tab you choose by hand stays chosen
+  when the next message in the thread arrives.
 - **A calendar beside the mail** — two-way sync with Google, Microsoft and CalDAV, a drag-to-move
   week grid that pans rather than squeezes on a phone, invitations answered in place, share and
   booking links. The time is always in view — on the Happening Soon button, under the name, or at
