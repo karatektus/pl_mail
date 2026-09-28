@@ -66,6 +66,12 @@ final readonly class DataResetter
         private CalendarRepository $calendars,
         #[Autowire('%kernel.project_dir%')]
         private string $projectDir,
+        // resolve:, as InitSecretsCommand reads them: an operator's own path
+        // may carry %kernel.project_dir%.
+        #[Autowire('%env(resolve:JWT_SECRET_KEY)%')]
+        private string $jwtSecretKey,
+        #[Autowire('%env(resolve:JWT_PUBLIC_KEY)%')]
+        private string $jwtPublicKey,
     ) {
     }
 
@@ -279,7 +285,15 @@ final readonly class DataResetter
 
         $removed = $this->secrets->remove(self::RESETTABLE_SECRETS);
 
-        $this->emptyDirectory($this->projectDir . '/var/secrets/jwt');
+        // The keypair where it actually is, and the two files rather than
+        // their directory. This emptied var/secrets/jwt, which is where the
+        // keys live only while APP_SECRETS_FILE keeps its default; they follow
+        // the secrets now (see config/bootstrap_generated_secrets.php), and a
+        // path an operator set may name a directory that holds other things.
+        $this->filesystem->remove(array_filter(
+            [$this->jwtSecretKey, $this->jwtPublicKey],
+            is_file(...),
+        ));
 
         // Best effort: the workers recycle onto the new key rather than
         // lingering on the old one. The web process cannot be recycled this way

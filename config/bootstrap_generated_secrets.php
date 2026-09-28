@@ -18,7 +18,8 @@ declare(strict_types=1);
  *
  *   1. a real environment variable — an operator who supplies one is never
  *      overridden;
- *   2. the generated file;
+ *   2. the generated file, and what is derived from it below (the database
+ *      URL, the hub URL, the JWT key paths);
  *   3. the defaults in .env, which for these names are deliberately empty.
  *
  * An empty value counts as absent: compose passes APP_ENCRYPTION_KEY through as
@@ -59,6 +60,19 @@ declare(strict_types=1);
             }
         }
     }
+
+    // The JWT keypair lives beside the generated secrets, because that is the
+    // one directory every service shares and every layout keeps: the standard
+    // compose mounts it as a volume, the TrueNAS layouts point APP_SECRETS_FILE
+    // into their data dataset. .env used to name var/secrets/jwt outright,
+    // which is that directory only while APP_SECRETS_FILE keeps its default —
+    // on TrueNAS it was each container's own throwaway filesystem, so every
+    // service minted a keypair of its own on every start, and a token one of
+    // them signed was one the others, and the next restart, would refuse.
+    $secretsDir = \dirname($path);
+
+    $put('JWT_SECRET_KEY', $secretsDir.'/jwt/private.pem');
+    $put('JWT_PUBLIC_KEY', $secretsDir.'/jwt/public.pem');
 
     // The database password is generated too, so the connection string has to
     // be assembled after the fact — the same rule the entrypoint applies, kept

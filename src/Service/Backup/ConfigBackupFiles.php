@@ -189,7 +189,7 @@ final readonly class ConfigBackupFiles
      * An existing file has to be writable itself; an absent one needs a
      * directory that can be created, which is not the same test and is the one
      * that decides the case that actually happens — a fresh install restoring a
-     * backup before `app:secrets:init` has ever made var/secrets/jwt/.
+     * backup before `app:secrets:init` has ever made the jwt/ key directory.
      *
      * So the walk upwards: the nearest ancestor that exists is the one whose
      * permissions decide whether the rest can be made. Stopping at the

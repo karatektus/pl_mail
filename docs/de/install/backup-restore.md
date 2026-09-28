@@ -1,4 +1,4 @@
-<!-- translated-from: install/backup-restore.md sha1:5eeb6136c8276242d84ca034efa8286261f42607 -->
+<!-- translated-from: install/backup-restore.md sha1:bf79195c22d7a32064dd0b95d14bb8787cc7cdf9 -->
 # Sichern und Wiederherstellen
 
 Eine plMail-Installation besteht aus drei Dingen, und eine Sicherung, die nur zwei davon enthält,
@@ -15,8 +15,8 @@ ihnen macht und wie du eine Installation auf einer anderen Maschine hochbringst.
 
 Die Datei mit den Geheimnissen enthält mehr als den Schlüssel — `APP_SECRET`, `POSTGRES_PASSWORD`,
 `MERCURE_JWT_SECRET`, das VAPID-Schlüsselpaar und die bei der Einrichtung gespeicherte
-`APP_PUBLIC_URL` —, und das JWT-Schlüsselpaar liegt daneben in `var/secrets/jwt/`. All das lässt
-sich neu erzeugen; der Verschlüsselungsschlüssel nicht.
+`APP_PUBLIC_URL` —, und das JWT-Schlüsselpaar liegt daneben, in einem Verzeichnis `jwt/` neben der
+Datei. All das lässt sich neu erzeugen; der Verschlüsselungsschlüssel nicht.
 
 Die *Konfiguration* — die Umgebungswerte, jene Dateien im Secrets-Volume und die Zugangsdaten, die
 ein Administrator in ein Formular getippt hat — lässt sich auch für sich allein mitnehmen, ohne jede

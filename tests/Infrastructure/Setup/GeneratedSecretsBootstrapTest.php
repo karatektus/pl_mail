@@ -89,18 +89,49 @@ final class GeneratedSecretsBootstrapTest extends TestCase
     }
 
     /**
-     * Run the bootstrap in a child PHP process carrying exactly $env, and
-     * return the MERCURE_PUBLIC_URL it left behind.
-     *
+     * Beside the generated secrets, wherever a deployment keeps them — the
+     * TrueNAS layouts point APP_SECRETS_FILE into their data dataset, and a
+     * fixed var/secrets/jwt was the container's own filesystem there, minted
+     * afresh by every service on every start.
+     */
+    public function testTheJwtKeypairLivesBesideTheGeneratedSecrets(): void
+    {
+        $dir = \dirname($this->secretsFile);
+
+        self::assertSame($dir.'/jwt/private.pem', $this->seenBy('JWT_SECRET_KEY', []));
+        self::assertSame($dir.'/jwt/public.pem', $this->seenBy('JWT_PUBLIC_KEY', []));
+    }
+
+    public function testAnOperatorsOwnJwtKeyPathIsNeverOverridden(): void
+    {
+        self::assertSame(
+            '/elsewhere/private.pem',
+            $this->seenBy('JWT_SECRET_KEY', ['JWT_SECRET_KEY' => '/elsewhere/private.pem']),
+        );
+    }
+
+    /**
      * @param array<string, string> $env
      */
     private function mercurePublicUrlSeenBy(array $env): string
     {
+        return $this->seenBy('MERCURE_PUBLIC_URL', $env);
+    }
+
+    /**
+     * Run the bootstrap in a child PHP process carrying exactly $env, and
+     * return the value of $name it left behind.
+     *
+     * @param array<string, string> $env
+     */
+    private function seenBy(string $name, array $env): string
+    {
         $bootstrap = \dirname(__DIR__, 3).'/config/bootstrap_generated_secrets.php';
 
         $code = sprintf(
-            'require %s; echo $_SERVER["MERCURE_PUBLIC_URL"] ?? $_ENV["MERCURE_PUBLIC_URL"] ?? "(unset)";',
+            'require %s; echo $_SERVER[%2$s] ?? $_ENV[%2$s] ?? "(unset)";',
             var_export($bootstrap, true),
+            var_export($name, true),
         );
 
         $process = proc_open(

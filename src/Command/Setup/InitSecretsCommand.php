@@ -113,22 +113,48 @@ final class InitSecretsCommand extends Command
             throw new RuntimeException(sprintf('Could not create the JWT key directory %s.', $dir));
         }
 
-        $process = new Process(
-            ['php', 'bin/console', 'lexik:jwt:generate-keypair', '--skip-if-exists', '--no-interaction'],
-            $this->projectDir,
-        );
+        // Under a lock, and checked again once it is held — the reason
+        // GeneratedSecretsFile::ensure() locks. Every service runs this within
+        // a second of the others against one shared directory, and lexik's
+        // --skip-if-exists is a check followed by two writes: two services that
+        // both find no keys both write both files, and what is left can be one
+        // service's private key beside another's public key. That pair never
+        // verifies a token, and it is kept for good, since both files exist.
+        $lock = fopen($dir.'/.lock', 'c');
 
-        $process->run();
-
-        if (false === $process->isSuccessful()) {
-            throw new RuntimeException(sprintf(
-                "Could not generate the JWT keypair at %s:\n%s",
-                \dirname($this->jwtSecretKey),
-                $process->getErrorOutput() ?: $process->getOutput(),
-            ));
+        if (false === $lock) {
+            throw new RuntimeException(sprintf('Could not open the JWT key lock in %s.', $dir));
         }
 
-        $io->writeln('Generated the JWT keypair.');
+        try {
+            if (false === flock($lock, LOCK_EX)) {
+                throw new RuntimeException(sprintf('Could not lock the JWT key directory %s.', $dir));
+            }
+
+            if (is_file($this->jwtSecretKey) && is_file($this->jwtPublicKey)) {
+                return;
+            }
+
+            $process = new Process(
+                ['php', 'bin/console', 'lexik:jwt:generate-keypair', '--skip-if-exists', '--no-interaction'],
+                $this->projectDir,
+            );
+
+            $process->run();
+
+            if (false === $process->isSuccessful()) {
+                throw new RuntimeException(sprintf(
+                    "Could not generate the JWT keypair at %s:\n%s",
+                    $dir,
+                    $process->getErrorOutput() ?: $process->getOutput(),
+                ));
+            }
+
+            $io->writeln('Generated the JWT keypair.');
+        } finally {
+            flock($lock, LOCK_UN);
+            fclose($lock);
+        }
     }
 
     private function env(string $name): string

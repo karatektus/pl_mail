@@ -25,9 +25,10 @@ security:
             # already connected syncing. See App\Security\UserChecker.
             user_checker: App\Security\UserChecker
             # Two credential types share this firewall: long-lived app
-            # passwords (third-party clients, Bearer or Basic) and short-lived
-            # JWTs (the future first-party app). ApiTokenAuthenticator::supports()
-            # claims only Basic and prefixed Bearer, so JWT gets the rest.
+            # passwords (third-party clients and the Android app, which pairs
+            # by QR into one; Bearer or Basic) and short-lived JWTs, which
+            # nothing issues yet. ApiTokenAuthenticator::supports() claims only
+            # Basic and prefixed Bearer, so JWT gets the rest.
             custom_authenticators:
                 - App\Security\ApiTokenAuthenticator
             entry_point: App\Security\ApiTokenAuthenticator

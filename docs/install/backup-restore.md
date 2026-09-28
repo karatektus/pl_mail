@@ -13,8 +13,8 @@ a different machine.
 | **The blobs** | `attachments/`, `raw/` and `uploads/` under `APP_STORAGE_DIR` | Attachment paths are stored in the database relative to the project root, so without the files every attachment 404s after a restore |
 
 The secrets file holds more than the key — `APP_SECRET`, `POSTGRES_PASSWORD`, `MERCURE_JWT_SECRET`,
-the VAPID keypair and the `APP_PUBLIC_URL` saved during setup — and the JWT keypair sits beside it
-in `var/secrets/jwt/`. All of those are regenerable; the encryption key is not.
+the VAPID keypair and the `APP_PUBLIC_URL` saved during setup — and the JWT keypair sits beside it,
+in a `jwt/` directory next to the file. All of those are regenerable; the encryption key is not.
 
 The *configuration* — the environment values, those secrets-volume files and the credentials an
 admin typed into a form — can also be carried on its own, without any mail, as a single encrypted
