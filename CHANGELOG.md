@@ -6,6 +6,27 @@ so anything that changes the schema irreversibly is called out explicitly.
 The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, and `sha-…` pins one commit.
 
+## v0.2.52 — 2026-09-28
+
+**plMail starts in seconds instead of a minute.** Every plMail container set file permissions on
+everything under `var/` as it started — which on TrueNAS is the whole data dataset: the database
+files, one file per stored message and every attachment. On a real mailbox that took most of a minute
+before the web server even began, 58 of 61 seconds on one measured restart, and every worker walked
+the same files at the same moment. The permissions were for a user nothing in plMail runs as, and the
+TrueNAS dataset refuses them anyway. They are set on the cache and log directories alone now.
+
+- **The JWT keypair is kept with the other generated secrets.** On TrueNAS it was written to each
+  container's own throwaway filesystem, so every service made a new one on every start — "Generated
+  the JWT keypair." in the log. Nothing signs in with these tokens yet (the Android app uses an app
+  password), but a token one service signed would have been refused by the others. It is created
+  once now, in a `jwt/` directory next to the secrets file, and a data reset that rotates the secrets
+  removes it from there.
+
+### Before you upgrade
+
+- **Nothing has to change.** There is no migration, and the compose files stay as they are. On
+  TrueNAS the keypair is generated one last time on the first start, where it then stays.
+
 ## v0.2.51 — 2026-09-28
 
 **Hiding a system label in settings takes it out of the sidebar.** The eye beside Inbox, Sent,
