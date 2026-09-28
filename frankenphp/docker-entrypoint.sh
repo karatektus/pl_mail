@@ -245,11 +245,23 @@ if [ "$1" = 'frankenphp' ] || [ "$1" = 'php' ] || [ "$1" = 'bin/console' ]; then
 	# "Operation not supported" because those filesystems use NFSv4 ACLs rather
 	# than POSIX ones. With `set -e` at the top of this script, that aborted the
 	# entrypoint before it ever reached exec.
-	if ! setfacl -R -m u:www-data:rwX -m u:"$(whoami)":rwX var 2>/dev/null; then
-		echo 'Note: POSIX ACLs are not supported on this filesystem; skipping setfacl for var/.'
+	#
+	# And only on var/cache and var/log, the two directories Symfony writes. It
+	# was all of var/ — which is where the mail store is mounted: a file per
+	# stored message, a file per attachment, and on the TrueNAS layout the
+	# Postgres data directory as well. Every container running this script
+	# walked the lot, twice, on every start, to grant ACLs to a www-data that
+	# nothing in the image runs as. The walk grows with the mailbox — about 1.5
+	# to 2 seconds per hundred thousand files measured on RAM-backed storage,
+	# before a disk has to seek for any of them — and seven containers of the
+	# TrueNAS layout set off on it at once.
+	mkdir -p var/cache var/log
+
+	if ! setfacl -R -m u:www-data:rwX -m u:"$(whoami)":rwX var/cache var/log 2>/dev/null; then
+		echo 'Note: POSIX ACLs are not supported on this filesystem; skipping setfacl for var/cache and var/log.'
 	fi
 
-	setfacl -dR -m u:www-data:rwX -m u:"$(whoami)":rwX var 2>/dev/null || true
+	setfacl -dR -m u:www-data:rwX -m u:"$(whoami)":rwX var/cache var/log 2>/dev/null || true
 fi
 
 exec docker-php-entrypoint "$@"
