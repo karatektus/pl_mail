@@ -64,7 +64,11 @@
     --rgb-ink:           39  39  42;
     --rgb-ink-soft:      55  65  81;   /* gray-700 */
     --rgb-ink-muted:    95 95 102;
-    --rgb-ink-faint:    116 116 122;
+    /* 103 103 109 rather than 116 116 122, which was 4.24–4.27:1 on most of
+       the page and 3.77:1 in its indigo-100 corner — and in the Flat layout
+       the sidebar sits on the page. The same hue, mixed toward black in
+       oklab until that corner reads 4.5:1. */
+    --rgb-ink-faint:    103 103 109;
 
     /* Accent. The stored setting overrules this from an inline style on
        <html>; the value here is what the theme asks for, and Theme::defaults()
@@ -76,11 +80,15 @@
     --rgb-field:        255 255 255;
     --rgb-field-border: 212 212 216;
 
-    /* Status */
-    --rgb-danger:       220  38  38;
-    --rgb-warning:      217 119   6;
-    --rgb-success:       22 163  74;
-    --rgb-info:          37  99 235;
+    /* Status. Deeper than the Tailwind 600s these were, for the reason
+       Paper's note gives: they are text, held to 4.5:1 on the surface, on the
+       page and on a 12% wash of themselves, and warning managed 2.59:1. Each
+       is its 600 mixed toward black in oklab, hue kept, as far as the floor
+       needs — info is the accent's blue-600 and needed only a shade. */
+    --rgb-danger:       202  34  34;
+    --rgb-warning:      159  85   3;
+    --rgb-success:       13 120  53;
+    --rgb-info:          35  94 225;
 
     /* Inverse — the tooltip bubble and anything else that flips the page. */
     --rgb-inverse:       31  41  55;   /* gray-800 */
@@ -124,7 +132,7 @@
     --rgb-sheet-ink:         39  39  42;
     --rgb-sheet-ink-soft:    55  65  81;
     --rgb-sheet-ink-muted:  95 95 102;
-    --rgb-sheet-ink-faint:  116 116 122;
+    --rgb-sheet-ink-faint:  103 103 109;
     --rgb-sheet-link:        29  78 216;
     --rgb-sheet-danger:     185  28  28;
 
@@ -204,7 +212,9 @@
     --rgb-ink:         244 244 245;
     --rgb-ink-soft:    209 213 219;   /* gray-300 */
     --rgb-ink-muted:   161 161 170;
-    --rgb-ink-faint:   129 129 137;
+    /* Lifted from 129 129 137, which read 4.14:1 on the gradient's indigo
+       corner (#1e1b4b) — the page the Flat sidebar sits on. */
+    --rgb-ink-faint:   136 136 143;
 
     --rgb-accent:       37  99 235;
     --rgb-accent-ink:  255 255 255;
@@ -280,7 +290,11 @@
     --rgb-ink:        35  34  32;
     --rgb-ink-soft:   82  78  72;
     --rgb-ink-muted: 95 91 84;
-    --rgb-ink-faint: 116 111 103;
+    /* 113 108 100 rather than 116 111 103, which was 4.57:1 on the surface
+       but 4.34:1 on the page — and in the Flat layout the sidebar's section
+       heads and counts sit on the page, not on a pane. The same hue, three
+       steps a channel darker: 4.53:1 on the page. */
+    --rgb-ink-faint: 113 108 100;
 
     --rgb-accent:    125 107  79;
     --rgb-accent-ink: 255 255 255;
@@ -290,14 +304,27 @@
     /* Same as solar, and for the same reason — see the note there. Paper's
        surface is 247 245 239, so a white field at 0.6 alpha is within about
        three percent of the topbar it sits on. The border tone here is warm to
-       match the paper family rather than the cool grey it had. */
-    --rgb-field-border: 168 162 150;
-    --field-border-alpha: 0.75;
+       match the paper family rather than the cool grey it had.
 
-    --rgb-danger:    220  38  38;
-    --rgb-warning:   217 119   6;
-    --rgb-success:    22 163  74;
-    --rgb-info:       90 106 130;
+       Its alpha is the 0.4 among the alphas below — see the same note under
+       solar for the 0.75 that was declared here too and never painted. */
+    --rgb-field-border: 168 162 150;
+
+    /* Status colours are drawn as text — a badge, an alert, a failed step —
+       so they are held to the same 4.5:1 as the ink: on the surface, on the
+       page, and on a 12% wash of themselves (the onboarding pills; badges and
+       alerts wash at 8%, the thread row's chips at 10%). The Tailwind 600s
+       this block had for danger, warning and success managed none of that on
+       this cream — warning was 2.70:1 in its own badge — and info fell just
+       short on the chips. Each is its old colour mixed toward black in
+       oklab, the way accent-strong is made, as far as the floor needs and no
+       further, so each keeps its hue — measured on the wash as a browser
+       paints it, which is a shade heavier than the exact sum (see
+       ThemeInkContrastTest, which holds them there). */
+    --rgb-danger:    193  32  32;
+    --rgb-warning:   153  82   3;
+    --rgb-success:    13 116  51;
+    --rgb-info:       86 102 126;
 
     --rgb-inverse:     45  43  40;
     --rgb-inverse-ink: 247 245 239;
@@ -333,7 +360,7 @@
     --rgb-sheet-ink:         35  34  32;
     --rgb-sheet-ink-soft:    82  78  72;
     --rgb-sheet-ink-muted:  95 91 84;
-    --rgb-sheet-ink-faint:  116 111 103;
+    --rgb-sheet-ink-faint:  113 108 100;
     --rgb-sheet-link:        29  78 216;
     --rgb-sheet-danger:     185  28  28;
 }
@@ -446,7 +473,16 @@
     --rgb-ink:       236 239 244;   /* nord6  #eceff4 */
     --rgb-ink-soft:  229 233 240;   /* nord5  #e5e9f0 */
     --rgb-ink-muted: 216 222 233;   /* nord4  #d8dee9 */
-    --rgb-ink-faint: 143 158 179;
+    /* Lighter than nord0 alone would ask for, because the page is not nord0:
+       the gradient runs out to nord2, and in the Flat layout the top bar and
+       the sidebar sit on it. 143 158 179 read 4.59:1 on the surface and
+       3.17:1 on #434c5e. Lifted toward white in oklab, hue kept, until that
+       corner reads 4.5:1 — still well short of nord4 above it.
+
+       The gradient stays as it was. Darkening its stops until the old tone
+       read on them would have taken both to #2f3543, a step off nord0: the
+       page flattened, and the Boxed panes lost the step that edges them. */
+    --rgb-ink-faint: 178 189 203;
 
     --rgb-accent:    136 192 208;   /* frost  #88c0d0 */
     --rgb-accent-ink: 24  24  27;   /* the frost blue is light enough to need dark ink */
@@ -454,10 +490,14 @@
     --rgb-field:        39  39  42;
     --rgb-field-border:113 113 122;
 
-    --rgb-danger:      248 113 113;
+    /* Danger and info lifted the same way, for the same corner and for their
+       own 12% wash, which on nord0 is lighter than nord0: red-400 was 3.12:1
+       on nord2 and 3.79:1 inside its own badge. Warning and success already
+       read everywhere. */
+    --rgb-danger:      255 163 159;
     --rgb-warning:     251 191  36;
     --rgb-success:      74 222 128;
-    --rgb-info:        129 161 193;  /* frost  #81a1c1 */
+    --rgb-info:        167 190 212;  /* frost  #81a1c1, lifted — see danger */
 
     --rgb-inverse:     243 244 246;
     --rgb-inverse-ink:  17  24  39;
@@ -510,7 +550,9 @@
     --rgb-ink:       237 233 254;
     --rgb-ink-soft:  216 210 250;
     --rgb-ink-muted: 196 181 253;
-    --rgb-ink-faint: 139 125 191;
+    /* Lifted from 139 125 191, which read 4.20:1 on the gradient's violet
+       corner (#2d1b4e), where the Flat sidebar sits. Same hue. */
+    --rgb-ink-faint: 144 131 194;
 
     --rgb-accent:    167 139 250;
     --rgb-accent-ink: 255 255 255;
@@ -578,7 +620,9 @@
     --rgb-ink:        46  57  61;
     --rgb-ink-soft:   61  75  81;
     --rgb-ink-muted:  77  93 100;   /* base00 #657b83, darkened */
-    --rgb-ink-faint: 104 114 114;
+    /* 97 106 106 rather than 104 114 114, which cleared base3 but read
+       4.02:1 on the gradient's #f5e6c8 corner, where the Flat sidebar sits. */
+    --rgb-ink-faint:  97 106 106;
 
     --rgb-accent:    181 137   0;   /* yellow #b58900 */
     --rgb-accent-ink: 255 255 255;
@@ -595,17 +639,28 @@
        and darkening it would make the input look disabled. The border is what
        delineates a control whose fill legitimately matches its surround, and
        here it was a cool grey at 0.4 alpha, i.e. barely present. A darker tone
-       from the theme's own family, at an alpha that survives the translucency.
+       from the theme's own family.
+
+       The alpha is still the 0.4 among the alphas below. This fix declared
+       0.75 here as well, and the later 0.4 in the same block won, so the
+       firmer alpha never painted — ThemeVariableCompletenessTest refuses a
+       variable declared twice in one block now. The search box has since
+       moved to a sunken well with no field border at all; what this tone
+       still edges is select-field, Tom Select, the file button and the
+       select-all box.
 
        Flat is unaffected in practice: an opaque topbar already gives the fill
        something to sit against, and a firmer border does not hurt it. */
     --rgb-field-border: 147 161 161;
-    --field-border-alpha: 0.75;
 
-    --rgb-danger:    220  38  38;
-    --rgb-warning:   217 119   6;
-    --rgb-success:    22 163  74;
-    --rgb-info:       38 139 210;   /* blue   #268bd2 */
+    /* Held to the floors Paper's status colours are — see the note there —
+       and deepened the same way: danger, warning and success from the
+       Tailwind 600s this block had, and info from Solarized's own blue,
+       which read 3.41:1 on base3 and 2.95:1 on a 12% wash of itself. */
+    --rgb-danger:    194  32  32;
+    --rgb-warning:   155  83   3;
+    --rgb-success:    13 117  51;
+    --rgb-info:       27 106 161;   /* blue   #268bd2, deepened */
 
     --rgb-inverse:     31  41  55;
     --rgb-inverse-ink: 255 255 255;
@@ -656,6 +711,28 @@
    page and surface, muted >= 4.5:1, faint >= 3.6:1, accent-ink >= 4.5:1)
    before it will emit anything. Theme::swatch()'s logo arms and isDark() are
    emitted by the same script and must move with these blocks.
+
+   One hand correction since, and a regenerate must keep it: the script held
+   each tier to its floor but never checked their order, and midnight-gold
+   and charcoal-amber came out with a reading sheet whose faint tier was
+   darker than its muted one. The two values trade places in both blocks.
+   ThemeInkContrastTest checks the order in every block — it used to skip
+   every theme with a hyphen in its name, which is how these two got by.
+
+   A second, on 2026-09-28, by hand because it has to be: the script went
+   with the scratchpad it lived in. The floors above were the script's.
+   ThemeInkContrastTest now holds every block to 4.5:1 for each ink tier on
+   the page as well as the surface, and for the status colours on the
+   surface, the page and a 12% wash of themselves. The light blocks' danger,
+   warning and success were Tailwind's 600s, some of their info colours fell
+   short too, and every light block's ink-faint, and aurora's, was a shade
+   under the floor on its page. Each value that failed is its old colour
+   mixed in oklab toward black (toward white in aurora), hue kept, as far as
+   the floor needs and no further — Paper's method, see its status colours —
+   and a sheet that mirrors its page ramp moved with it. Where faint then
+   passed muted (indigo-violet, berry), muted moved just far enough to stay
+   ahead. With both at the floor on the page, muted and faint now sit within
+   0.3:1 of each other in every light block.
    ═══════════════════════════════════════════════════════════════════════ */
 
 /* ink — a printed page, in negative: warm charcoal, paper-white ink, the paper tone itself as accent */
@@ -760,8 +837,8 @@
     --rgb-sheet:            246 242 230;
     --rgb-sheet-ink:        36 46 63;
     --rgb-sheet-ink-soft:   73 81 93;
-    --rgb-sheet-ink-muted:  106 111 118;
-    --rgb-sheet-ink-faint:  104 110 118;
+    --rgb-sheet-ink-muted:  104 110 118;
+    --rgb-sheet-ink-faint:  106 111 118;
     --rgb-sheet-link:        29  78 216;
     --rgb-sheet-danger:     185  28  28;
 }
@@ -814,8 +891,8 @@
     --rgb-sheet:            244 241 236;
     --rgb-sheet-ink:        41 37 36;
     --rgb-sheet-ink-soft:   84 80 78;
-    --rgb-sheet-ink-muted:  112 109 107;
-    --rgb-sheet-ink-faint:  112 108 106;
+    --rgb-sheet-ink-muted:  112 108 106;
+    --rgb-sheet-ink-faint:  112 109 107;
     --rgb-sheet-link:        29  78 216;
     --rgb-sheet-danger:     185  28  28;
 }
@@ -888,7 +965,7 @@
     --rgb-ink:       216 232 230;
     --rgb-ink-soft:  167 185 186;
     --rgb-ink-muted: 135 154 157;
-    --rgb-ink-faint: 119 139 144;
+    --rgb-ink-faint: 120 140 144;
 
     --rgb-accent:    16 185 129;
     --rgb-accent-ink: 24 24 27;
@@ -1050,7 +1127,7 @@
     --rgb-ink:       31 42 61;
     --rgb-ink-soft:  68 78 95;
     --rgb-ink-muted: 98 106 120;
-    --rgb-ink-faint: 106 113 128;
+    --rgb-ink-faint: 102 108 123;
 
     --rgb-accent:    37 99 235;
     --rgb-accent-ink: 255 255 255;
@@ -1058,10 +1135,10 @@
     --rgb-field:        255 255 255;
     --rgb-field-border: 206 208 212;
 
-    --rgb-danger:    220 38 38;
-    --rgb-warning:   217 119 6;
-    --rgb-success:   22 163 74;
-    --rgb-info:      74 111 165;
+    --rgb-danger:    195 33 33;
+    --rgb-warning:   155 84 3;
+    --rgb-success:   13 118 51;
+    --rgb-info:      69 104 156;
 
     --rgb-inverse:     42 53 71;
     --rgb-inverse-ink: 245 248 252;
@@ -1085,7 +1162,7 @@
     --rgb-sheet-ink:        31 42 61;
     --rgb-sheet-ink-soft:   68 78 95;
     --rgb-sheet-ink-muted:  98 106 120;
-    --rgb-sheet-ink-faint:  106 113 128;
+    --rgb-sheet-ink-faint:  102 108 123;
     --rgb-sheet-link:        29  78 216;
     --rgb-sheet-danger:     185  28  28;
 }
@@ -1104,7 +1181,7 @@
     --rgb-ink:       38 46 58;
     --rgb-ink-soft:  70 77 87;
     --rgb-ink-muted: 98 104 113;
-    --rgb-ink-faint: 105 111 120;
+    --rgb-ink-faint: 100 105 114;
 
     --rgb-accent:    71 85 105;
     --rgb-accent-ink: 255 255 255;
@@ -1112,10 +1189,10 @@
     --rgb-field:        255 255 255;
     --rgb-field-border: 207 209 212;
 
-    --rgb-danger:    220 38 38;
-    --rgb-warning:   217 119 6;
-    --rgb-success:   22 163 74;
-    --rgb-info:      90 106 130;
+    --rgb-danger:    191 32 32;
+    --rgb-warning:   153 82 3;
+    --rgb-success:   12 115 50;
+    --rgb-info:      86 101 125;
 
     --rgb-inverse:     49 56 68;
     --rgb-inverse-ink: 242 244 246;
@@ -1139,7 +1216,7 @@
     --rgb-sheet-ink:        38 46 58;
     --rgb-sheet-ink-soft:   70 77 87;
     --rgb-sheet-ink-muted:  98 104 113;
-    --rgb-sheet-ink-faint:  105 111 120;
+    --rgb-sheet-ink-faint:  100 105 114;
     --rgb-sheet-link:        29  78 216;
     --rgb-sheet-danger:     185  28  28;
 }
@@ -1158,7 +1235,7 @@
     --rgb-ink:       36 48 31;
     --rgb-ink-soft:  69 79 64;
     --rgb-ink-muted: 97 107 92;
-    --rgb-ink-faint: 104 113 99;
+    --rgb-ink-faint: 101 109 96;
 
     --rgb-accent:    22 101 52;
     --rgb-accent-ink: 255 255 255;
@@ -1166,10 +1243,10 @@
     --rgb-field:        255 255 255;
     --rgb-field-border: 207 209 206;
 
-    --rgb-danger:    220 38 38;
-    --rgb-warning:   217 119 6;
-    --rgb-success:   22 163 74;
-    --rgb-info:      79 117 102;
+    --rgb-danger:    193 32 32;
+    --rgb-warning:   154 83 3;
+    --rgb-success:   13 117 51;
+    --rgb-info:      74 109 95;
 
     --rgb-inverse:     47 58 42;
     --rgb-inverse-ink: 243 247 238;
@@ -1193,7 +1270,7 @@
     --rgb-sheet-ink:        36 48 31;
     --rgb-sheet-ink-soft:   69 79 64;
     --rgb-sheet-ink-muted:  97 107 92;
-    --rgb-sheet-ink-faint:  104 113 99;
+    --rgb-sheet-ink-faint:  101 109 96;
     --rgb-sheet-link:        29  78 216;
     --rgb-sheet-danger:     185  28  28;
 }
@@ -1212,7 +1289,7 @@
     --rgb-ink:       56 36 42;
     --rgb-ink-soft:  91 73 77;
     --rgb-ink-muted: 117 101 105;
-    --rgb-ink-faint: 121 106 109;
+    --rgb-ink-faint: 118 103 106;
 
     --rgb-accent:    159 18 57;
     --rgb-accent-ink: 255 255 255;
@@ -1220,10 +1297,10 @@
     --rgb-field:        255 255 255;
     --rgb-field-border: 211 207 208;
 
-    --rgb-danger:    220 38 38;
-    --rgb-warning:   217 119 6;
-    --rgb-success:   22 163 74;
-    --rgb-info:      140 90 104;
+    --rgb-danger:    192 32 32;
+    --rgb-warning:   154 82 3;
+    --rgb-success:   13 116 51;
+    --rgb-info:      136 87 101;
 
     --rgb-inverse:     66 47 53;
     --rgb-inverse-ink: 250 243 241;
@@ -1247,7 +1324,7 @@
     --rgb-sheet-ink:        56 36 42;
     --rgb-sheet-ink-soft:   91 73 77;
     --rgb-sheet-ink-muted:  117 101 105;
-    --rgb-sheet-ink-faint:  121 106 109;
+    --rgb-sheet-ink-faint:  118 103 106;
     --rgb-sheet-link:        29  78 216;
     --rgb-sheet-danger:     185  28  28;
 }
@@ -1266,7 +1343,7 @@
     --rgb-ink:       43 36 64;
     --rgb-ink-soft:  79 73 97;
     --rgb-ink-muted: 106 101 122;
-    --rgb-ink-faint: 114 108 128;
+    --rgb-ink-faint: 109 103 123;
 
     --rgb-accent:    109 40 217;
     --rgb-accent-ink: 255 255 255;
@@ -1274,9 +1351,9 @@
     --rgb-field:        255 255 255;
     --rgb-field-border: 208 207 213;
 
-    --rgb-danger:    220 38 38;
-    --rgb-warning:   217 119 6;
-    --rgb-success:   22 163 74;
+    --rgb-danger:    193 32 32;
+    --rgb-warning:   154 82 3;
+    --rgb-success:   13 116 51;
     --rgb-info:      109 90 150;
 
     --rgb-inverse:     54 47 74;
@@ -1301,7 +1378,7 @@
     --rgb-sheet-ink:        43 36 64;
     --rgb-sheet-ink-soft:   79 73 97;
     --rgb-sheet-ink-muted:  106 101 122;
-    --rgb-sheet-ink-faint:  114 108 128;
+    --rgb-sheet-ink-faint:  109 103 123;
     --rgb-sheet-link:        29  78 216;
     --rgb-sheet-danger:     185  28  28;
 }
@@ -1320,7 +1397,7 @@
     --rgb-ink:       36 48 78;
     --rgb-ink-soft:  69 79 102;
     --rgb-ink-muted: 99 106 124;
-    --rgb-ink-faint: 104 110 127;
+    --rgb-ink-faint: 102 107 124;
 
     --rgb-accent:    30 58 110;
     --rgb-accent-ink: 255 255 255;
@@ -1328,9 +1405,9 @@
     --rgb-field:        255 255 255;
     --rgb-field-border: 207 209 216;
 
-    --rgb-danger:    200 64 47;
-    --rgb-warning:   217 119 6;
-    --rgb-success:   22 163 74;
+    --rgb-danger:    180 57 41;
+    --rgb-warning:   154 83 3;
+    --rgb-success:   13 116 51;
     --rgb-info:      78 98 133;
 
     --rgb-inverse:     47 58 87;
@@ -1355,7 +1432,7 @@
     --rgb-sheet-ink:        36 48 78;
     --rgb-sheet-ink-soft:   69 79 102;
     --rgb-sheet-ink-muted:  99 106 124;
-    --rgb-sheet-ink-faint:  104 110 127;
+    --rgb-sheet-ink-faint:  102 107 124;
     --rgb-sheet-link:        29  78 216;
     --rgb-sheet-danger:     185  28  28;
 }
@@ -1374,7 +1451,7 @@
     --rgb-ink:       50 44 34;
     --rgb-ink-soft:  79 73 63;
     --rgb-ink-muted: 107 101 91;
-    --rgb-ink-faint: 113 108 97;
+    --rgb-ink-faint: 107 103 92;
 
     --rgb-accent:    125 107 79;
     --rgb-accent-ink: 255 255 255;
@@ -1382,10 +1459,10 @@
     --rgb-field:        255 255 255;
     --rgb-field-border: 210 209 206;
 
-    --rgb-danger:    220 38 38;
-    --rgb-warning:   217 119 6;
-    --rgb-success:   22 163 74;
-    --rgb-info:      90 106 130;
+    --rgb-danger:    188 31 31;
+    --rgb-warning:   150 80 3;
+    --rgb-success:   12 113 49;
+    --rgb-info:      84 99 122;
 
     --rgb-inverse:     60 55 45;
     --rgb-inverse-ink: 245 240 228;
@@ -1409,7 +1486,7 @@
     --rgb-sheet-ink:        50 44 34;
     --rgb-sheet-ink-soft:   79 73 63;
     --rgb-sheet-ink-muted:  107 101 91;
-    --rgb-sheet-ink-faint:  113 108 97;
+    --rgb-sheet-ink-faint:  107 103 92;
     --rgb-sheet-link:        29  78 216;
     --rgb-sheet-danger:     185  28  28;
 }
@@ -1428,7 +1505,7 @@
     --rgb-ink:       30 51 48;
     --rgb-ink-soft:  61 80 77;
     --rgb-ink-muted: 92 108 106;
-    --rgb-ink-faint: 100 115 112;
+    --rgb-ink-faint: 95 109 107;
 
     --rgb-accent:    15 118 110;
     --rgb-accent-ink: 255 255 255;
@@ -1436,10 +1513,10 @@
     --rgb-field:        255 255 255;
     --rgb-field-border: 206 210 209;
 
-    --rgb-danger:    220 38 38;
-    --rgb-warning:   194 112 61;
-    --rgb-success:   22 163 74;
-    --rgb-info:      71 117 111;
+    --rgb-danger:    193 32 32;
+    --rgb-warning:   149 85 45;
+    --rgb-success:   13 117 51;
+    --rgb-info:      66 109 104;
 
     --rgb-inverse:     41 61 58;
     --rgb-inverse-ink: 241 247 245;
@@ -1463,7 +1540,7 @@
     --rgb-sheet-ink:        30 51 48;
     --rgb-sheet-ink-soft:   61 80 77;
     --rgb-sheet-ink-muted:  92 108 106;
-    --rgb-sheet-ink-faint:  100 115 112;
+    --rgb-sheet-ink-faint:  95 109 107;
     --rgb-sheet-link:        29  78 216;
     --rgb-sheet-danger:     185  28  28;
 }
@@ -1482,7 +1559,7 @@
     --rgb-ink:       27 43 77;
     --rgb-ink-soft:  65 79 108;
     --rgb-ink-muted: 94 107 132;
-    --rgb-ink-faint: 100 112 137;
+    --rgb-ink-faint: 97 109 134;
 
     --rgb-accent:    30 58 138;
     --rgb-accent-ink: 255 255 255;
@@ -1490,10 +1567,10 @@
     --rgb-field:        255 255 255;
     --rgb-field-border: 205 208 216;
 
-    --rgb-danger:    220 38 38;
-    --rgb-warning:   217 119 6;
-    --rgb-success:   22 163 74;
-    --rgb-info:      42 124 176;
+    --rgb-danger:    195 33 33;
+    --rgb-warning:   155 83 3;
+    --rgb-success:   13 117 51;
+    --rgb-info:      35 107 153;
 
     --rgb-inverse:     38 54 86;
     --rgb-inverse-ink: 243 248 252;
@@ -1517,7 +1594,7 @@
     --rgb-sheet-ink:        27 43 77;
     --rgb-sheet-ink-soft:   65 79 108;
     --rgb-sheet-ink-muted:  94 107 132;
-    --rgb-sheet-ink-faint:  100 112 137;
+    --rgb-sheet-ink-faint:  97 109 134;
     --rgb-sheet-link:        29  78 216;
     --rgb-sheet-danger:     185  28  28;
 }
@@ -1536,7 +1613,7 @@
     --rgb-ink:       38 49 28;
     --rgb-ink-soft:  72 82 62;
     --rgb-ink-muted: 98 108 88;
-    --rgb-ink-faint: 105 114 95;
+    --rgb-ink-faint: 103 111 93;
 
     --rgb-accent:    132 204 22;
     --rgb-accent-ink: 24 24 27;
@@ -1544,10 +1621,10 @@
     --rgb-field:        255 255 255;
     --rgb-field-border: 207 210 205;
 
-    --rgb-danger:    220 38 38;
-    --rgb-warning:   217 119 6;
-    --rgb-success:   22 163 74;
-    --rgb-info:      95 124 58;
+    --rgb-danger:    194 32 32;
+    --rgb-warning:   154 83 3;
+    --rgb-success:   13 117 51;
+    --rgb-info:      84 109 50;
 
     --rgb-inverse:     49 59 39;
     --rgb-inverse-ink: 244 248 234;
@@ -1571,7 +1648,7 @@
     --rgb-sheet-ink:        38 49 28;
     --rgb-sheet-ink-soft:   72 82 62;
     --rgb-sheet-ink-muted:  98 108 88;
-    --rgb-sheet-ink-faint:  105 114 95;
+    --rgb-sheet-ink-faint:  103 111 93;
     --rgb-sheet-link:        29  78 216;
     --rgb-sheet-danger:     185  28  28;
 }
@@ -1590,7 +1667,7 @@
     --rgb-ink:       55 34 46;
     --rgb-ink-soft:  90 71 81;
     --rgb-ink-muted: 116 99 109;
-    --rgb-ink-faint: 123 106 116;
+    --rgb-ink-faint: 118 102 112;
 
     --rgb-accent:    134 25 143;
     --rgb-accent-ink: 255 255 255;
@@ -1598,10 +1675,10 @@
     --rgb-field:        255 255 255;
     --rgb-field-border: 211 206 209;
 
-    --rgb-danger:    220 38 38;
-    --rgb-warning:   217 119 6;
-    --rgb-success:   22 163 74;
-    --rgb-info:      150 83 124;
+    --rgb-danger:    192 32 32;
+    --rgb-warning:   153 82 3;
+    --rgb-success:   12 115 50;
+    --rgb-info:      144 79 119;
 
     --rgb-inverse:     65 45 56;
     --rgb-inverse-ink: 250 242 246;
@@ -1625,7 +1702,7 @@
     --rgb-sheet-ink:        55 34 46;
     --rgb-sheet-ink-soft:   90 71 81;
     --rgb-sheet-ink-muted:  116 99 109;
-    --rgb-sheet-ink-faint:  123 106 116;
+    --rgb-sheet-ink-faint:  118 102 112;
     --rgb-sheet-link:        29  78 216;
     --rgb-sheet-danger:     185  28  28;
 }
@@ -1644,7 +1721,7 @@
     --rgb-ink:       28 37 66;
     --rgb-ink-soft:  71 78 103;
     --rgb-ink-muted: 100 107 128;
-    --rgb-ink-faint: 106 113 132;
+    --rgb-ink-faint: 102 108 127;
 
     --rgb-accent:    29 78 216;
     --rgb-accent-ink: 255 255 255;
@@ -1652,10 +1729,10 @@
     --rgb-field:        255 255 255;
     --rgb-field-border: 205 207 213;
 
-    --rgb-danger:    220 38 38;
-    --rgb-warning:   217 119 6;
-    --rgb-success:   22 163 74;
-    --rgb-info:      90 106 130;
+    --rgb-danger:    194 32 32;
+    --rgb-warning:   155 84 3;
+    --rgb-success:   13 118 51;
+    --rgb-info:      88 103 127;
 
     --rgb-inverse:     39 48 75;
     --rgb-inverse-ink: 245 247 252;
@@ -1679,7 +1756,7 @@
     --rgb-sheet-ink:        28 37 66;
     --rgb-sheet-ink-soft:   71 78 103;
     --rgb-sheet-ink-muted:  100 107 128;
-    --rgb-sheet-ink-faint:  106 113 132;
+    --rgb-sheet-ink-faint:  102 108 127;
     --rgb-sheet-link:        29  78 216;
     --rgb-sheet-danger:     185  28  28;
 }
@@ -1698,7 +1775,7 @@
     --rgb-ink:       35 53 50;
     --rgb-ink-soft:  66 81 76;
     --rgb-ink-muted: 98 108 103;
-    --rgb-ink-faint: 103 113 107;
+    --rgb-ink-faint: 100 109 104;
 
     --rgb-accent:    15 118 110;
     --rgb-accent-ink: 255 255 255;
@@ -1706,10 +1783,10 @@
     --rgb-field:        255 255 255;
     --rgb-field-border: 207 211 210;
 
-    --rgb-danger:    220 38 38;
-    --rgb-warning:   217 119 6;
-    --rgb-success:   22 163 74;
-    --rgb-info:      71 117 111;
+    --rgb-danger:    192 32 32;
+    --rgb-warning:   153 82 3;
+    --rgb-success:   13 116 51;
+    --rgb-info:      65 108 103;
 
     --rgb-inverse:     46 63 60;
     --rgb-inverse-ink: 249 244 230;
@@ -1733,7 +1810,7 @@
     --rgb-sheet-ink:        35 53 50;
     --rgb-sheet-ink-soft:   66 81 76;
     --rgb-sheet-ink-muted:  98 108 103;
-    --rgb-sheet-ink-faint:  103 113 107;
+    --rgb-sheet-ink-faint:  100 109 104;
     --rgb-sheet-link:        29  78 216;
     --rgb-sheet-danger:     185  28  28;
 }
@@ -1752,7 +1829,7 @@
     --rgb-ink:       35 39 46;
     --rgb-ink-soft:  72 75 81;
     --rgb-ink-muted: 101 103 109;
-    --rgb-ink-faint: 108 110 116;
+    --rgb-ink-faint: 103 104 110;
 
     --rgb-accent:    220 38 38;
     --rgb-accent-ink: 255 255 255;
@@ -1760,10 +1837,10 @@
     --rgb-field:        255 255 255;
     --rgb-field-border: 207 207 209;
 
-    --rgb-danger:    220 38 38;
-    --rgb-warning:   217 119 6;
-    --rgb-success:   22 163 74;
-    --rgb-info:      90 106 130;
+    --rgb-danger:    192 32 32;
+    --rgb-warning:   153 82 3;
+    --rgb-success:   12 116 51;
+    --rgb-info:      86 102 125;
 
     --rgb-inverse:     46 50 56;
     --rgb-inverse-ink: 244 244 245;
@@ -1787,7 +1864,7 @@
     --rgb-sheet-ink:        35 39 46;
     --rgb-sheet-ink-soft:   72 75 81;
     --rgb-sheet-ink-muted:  101 103 109;
-    --rgb-sheet-ink-faint:  108 110 116;
+    --rgb-sheet-ink-faint:  103 104 110;
     --rgb-sheet-link:        29  78 216;
     --rgb-sheet-danger:     185  28  28;
 }
@@ -1806,7 +1883,7 @@
     --rgb-ink:       43 38 32;
     --rgb-ink-soft:  81 77 71;
     --rgb-ink-muted: 111 107 101;
-    --rgb-ink-faint: 114 110 104;
+    --rgb-ink-faint: 111 107 102;
 
     --rgb-accent:    200 64 47;
     --rgb-accent-ink: 255 255 255;
@@ -1814,10 +1891,10 @@
     --rgb-field:        255 255 255;
     --rgb-field-border: 208 207 206;
 
-    --rgb-danger:    220 38 38;
-    --rgb-warning:   217 119 6;
-    --rgb-success:   22 163 74;
-    --rgb-info:      90 106 130;
+    --rgb-danger:    194 32 32;
+    --rgb-warning:   154 83 3;
+    --rgb-success:   13 116 51;
+    --rgb-info:      87 102 126;
 
     --rgb-inverse:     54 49 43;
     --rgb-inverse-ink: 249 245 240;
@@ -1841,7 +1918,7 @@
     --rgb-sheet-ink:        43 38 32;
     --rgb-sheet-ink-soft:   81 77 71;
     --rgb-sheet-ink-muted:  111 107 101;
-    --rgb-sheet-ink-faint:  114 110 104;
+    --rgb-sheet-ink-faint:  111 107 102;
     --rgb-sheet-link:        29  78 216;
     --rgb-sheet-danger:     185  28  28;
 }
@@ -1860,7 +1937,7 @@
     --rgb-ink:       38 43 46;
     --rgb-ink-soft:  77 81 84;
     --rgb-ink-muted: 103 107 110;
-    --rgb-ink-faint: 108 112 115;
+    --rgb-ink-faint: 107 110 113;
 
     --rgb-accent:    2 132 199;
     --rgb-accent-ink: 0 0 0;
@@ -1868,10 +1945,10 @@
     --rgb-field:        255 255 255;
     --rgb-field-border: 207 208 209;
 
-    --rgb-danger:    220 38 38;
-    --rgb-warning:   217 119 6;
-    --rgb-success:   22 163 74;
-    --rgb-info:      90 106 130;
+    --rgb-danger:    195 33 33;
+    --rgb-warning:   155 84 3;
+    --rgb-success:   13 117 51;
+    --rgb-info:      89 104 128;
 
     --rgb-inverse:     49 54 56;
     --rgb-inverse-ink: 245 248 250;
@@ -1895,7 +1972,7 @@
     --rgb-sheet-ink:        38 43 46;
     --rgb-sheet-ink-soft:   77 81 84;
     --rgb-sheet-ink-muted:  103 107 110;
-    --rgb-sheet-ink-faint:  108 112 115;
+    --rgb-sheet-ink-faint:  107 110 113;
     --rgb-sheet-link:        29  78 216;
     --rgb-sheet-danger:     185  28  28;
 }
@@ -1914,7 +1991,7 @@
     --rgb-ink:       43 38 32;
     --rgb-ink-soft:  83 78 72;
     --rgb-ink-muted: 111 106 100;
-    --rgb-ink-faint: 114 109 103;
+    --rgb-ink-faint: 111 107 101;
 
     --rgb-accent:    125 107 79;
     --rgb-accent-ink: 255 255 255;
@@ -1922,10 +1999,10 @@
     --rgb-field:        255 255 255;
     --rgb-field-border: 208 207 206;
 
-    --rgb-danger:    220 38 38;
-    --rgb-warning:   217 119 6;
-    --rgb-success:   22 163 74;
-    --rgb-info:      90 106 130;
+    --rgb-danger:    192 32 32;
+    --rgb-warning:   154 82 3;
+    --rgb-success:   13 116 51;
+    --rgb-info:      87 102 126;
 
     --rgb-inverse:     54 49 43;
     --rgb-inverse-ink: 248 244 238;
@@ -1949,7 +2026,7 @@
     --rgb-sheet-ink:        43 38 32;
     --rgb-sheet-ink-soft:   83 78 72;
     --rgb-sheet-ink-muted:  111 106 100;
-    --rgb-sheet-ink-faint:  114 109 103;
+    --rgb-sheet-ink-faint:  111 107 101;
     --rgb-sheet-link:        29  78 216;
     --rgb-sheet-danger:     185  28  28;
 }
@@ -1968,7 +2045,7 @@
     --rgb-ink:       39 36 46;
     --rgb-ink-soft:  80 77 86;
     --rgb-ink-muted: 108 106 114;
-    --rgb-ink-faint: 114 112 120;
+    --rgb-ink-faint: 109 107 115;
 
     --rgb-accent:    139 92 246;
     --rgb-accent-ink: 0 0 0;
@@ -1976,10 +2053,10 @@
     --rgb-field:        255 255 255;
     --rgb-field-border: 207 207 209;
 
-    --rgb-danger:    220 38 38;
-    --rgb-warning:   217 119 6;
-    --rgb-success:   22 163 74;
-    --rgb-info:      90 106 130;
+    --rgb-danger:    194 32 32;
+    --rgb-warning:   155 83 3;
+    --rgb-success:   13 117 51;
+    --rgb-info:      88 103 127;
 
     --rgb-inverse:     50 47 56;
     --rgb-inverse-ink: 247 246 251;
@@ -2003,7 +2080,7 @@
     --rgb-sheet-ink:        39 36 46;
     --rgb-sheet-ink-soft:   80 77 86;
     --rgb-sheet-ink-muted:  108 106 114;
-    --rgb-sheet-ink-faint:  114 112 120;
+    --rgb-sheet-ink-faint:  109 107 115;
     --rgb-sheet-link:        29  78 216;
     --rgb-sheet-danger:     185  28  28;
 }
@@ -2022,7 +2099,7 @@
     --rgb-ink:       35 44 71;
     --rgb-ink-soft:  73 79 100;
     --rgb-ink-muted: 102 107 121;
-    --rgb-ink-faint: 108 112 125;
+    --rgb-ink-faint: 106 109 122;
 
     --rgb-accent:    200 64 47;
     --rgb-accent-ink: 255 255 255;
@@ -2030,9 +2107,9 @@
     --rgb-field:        255 255 255;
     --rgb-field-border: 207 209 215;
 
-    --rgb-danger:    220 38 38;
-    --rgb-warning:   180 137 8;
-    --rgb-success:   22 163 74;
+    --rgb-danger:    194 32 32;
+    --rgb-warning:   129 97 4;
+    --rgb-success:   13 117 51;
     --rgb-info:      30 58 110;
 
     --rgb-inverse:     46 55 80;
@@ -2057,7 +2134,7 @@
     --rgb-sheet-ink:        35 44 71;
     --rgb-sheet-ink-soft:   73 79 100;
     --rgb-sheet-ink-muted:  102 107 121;
-    --rgb-sheet-ink-faint:  108 112 125;
+    --rgb-sheet-ink-faint:  106 109 122;
     --rgb-sheet-link:        29  78 216;
     --rgb-sheet-danger:     185  28  28;
 }
@@ -2075,8 +2152,8 @@
 
     --rgb-ink:       35 34 68;
     --rgb-ink-soft:  74 73 103;
-    --rgb-ink-muted: 105 104 129;
-    --rgb-ink-faint: 108 107 131;
+    --rgb-ink-muted: 104 103 128;
+    --rgb-ink-faint: 105 104 128;
 
     --rgb-accent:    79 70 229;
     --rgb-accent-ink: 255 255 255;
@@ -2084,10 +2161,10 @@
     --rgb-field:        255 255 255;
     --rgb-field-border: 207 206 214;
 
-    --rgb-danger:    220 38 38;
-    --rgb-warning:   217 119 6;
-    --rgb-success:   22 163 74;
-    --rgb-info:      104 102 196;
+    --rgb-danger:    192 32 32;
+    --rgb-warning:   154 82 3;
+    --rgb-success:   13 116 51;
+    --rgb-info:      93 91 177;
 
     --rgb-inverse:     46 45 77;
     --rgb-inverse-ink: 244 244 251;
@@ -2110,8 +2187,8 @@
     --rgb-sheet:            244 244 251;
     --rgb-sheet-ink:        35 34 68;
     --rgb-sheet-ink-soft:   74 73 103;
-    --rgb-sheet-ink-muted:  105 104 129;
-    --rgb-sheet-ink-faint:  108 107 131;
+    --rgb-sheet-ink-muted:  104 103 128;
+    --rgb-sheet-ink-faint:  105 104 128;
     --rgb-sheet-link:        29  78 216;
     --rgb-sheet-danger:     185  28  28;
 }
@@ -2130,7 +2207,7 @@
     --rgb-ink:       59 42 28;
     --rgb-ink-soft:  90 74 61;
     --rgb-ink-muted: 116 102 89;
-    --rgb-ink-faint: 122 109 96;
+    --rgb-ink-faint: 117 104 92;
 
     --rgb-accent:    225 29 72;
     --rgb-accent-ink: 255 255 255;
@@ -2138,10 +2215,10 @@
     --rgb-field:        255 255 255;
     --rgb-field-border: 212 208 205;
 
-    --rgb-danger:    220 38 38;
-    --rgb-warning:   217 119 6;
-    --rgb-success:   22 163 74;
-    --rgb-info:      178 90 65;
+    --rgb-danger:    195 33 33;
+    --rgb-warning:   155 84 3;
+    --rgb-success:   13 117 51;
+    --rgb-info:      159 79 57;
 
     --rgb-inverse:     69 53 39;
     --rgb-inverse-ink: 253 246 236;
@@ -2165,7 +2242,7 @@
     --rgb-sheet-ink:        59 42 28;
     --rgb-sheet-ink-soft:   90 74 61;
     --rgb-sheet-ink-muted:  116 102 89;
-    --rgb-sheet-ink-faint:  122 109 96;
+    --rgb-sheet-ink-faint:  117 104 92;
     --rgb-sheet-link:        29  78 216;
     --rgb-sheet-danger:     185  28  28;
 }
@@ -2184,7 +2261,7 @@
     --rgb-ink:       20 48 56;
     --rgb-ink-soft:  59 83 90;
     --rgb-ink-muted: 89 111 116;
-    --rgb-ink-faint: 94 116 121;
+    --rgb-ink-faint: 91 112 117;
 
     --rgb-accent:    14 116 144;
     --rgb-accent-ink: 255 255 255;
@@ -2192,10 +2269,10 @@
     --rgb-field:        255 255 255;
     --rgb-field-border: 203 209 211;
 
-    --rgb-danger:    220 38 38;
-    --rgb-warning:   217 119 6;
-    --rgb-success:   22 163 74;
-    --rgb-info:      43 127 118;
+    --rgb-danger:    194 32 32;
+    --rgb-warning:   155 83 3;
+    --rgb-success:   13 117 51;
+    --rgb-info:      38 113 105;
 
     --rgb-inverse:     32 58 66;
     --rgb-inverse-ink: 241 248 249;
@@ -2219,7 +2296,7 @@
     --rgb-sheet-ink:        20 48 56;
     --rgb-sheet-ink-soft:   59 83 90;
     --rgb-sheet-ink-muted:  89 111 116;
-    --rgb-sheet-ink-faint:  94 116 121;
+    --rgb-sheet-ink-faint:  91 112 117;
     --rgb-sheet-link:        29  78 216;
     --rgb-sheet-danger:     185  28  28;
 }
@@ -2237,8 +2314,8 @@
 
     --rgb-ink:       53 32 47;
     --rgb-ink-soft:  90 71 84;
-    --rgb-ink-muted: 119 102 114;
-    --rgb-ink-faint: 122 105 117;
+    --rgb-ink-muted: 118 102 114;
+    --rgb-ink-faint: 119 102 114;
 
     --rgb-accent:    162 28 175;
     --rgb-accent-ink: 255 255 255;
@@ -2246,10 +2323,10 @@
     --rgb-field:        255 255 255;
     --rgb-field-border: 211 206 209;
 
-    --rgb-danger:    220 38 38;
-    --rgb-warning:   217 119 6;
-    --rgb-success:   22 163 74;
-    --rgb-info:      144 88 138;
+    --rgb-danger:    192 32 32;
+    --rgb-warning:   153 82 3;
+    --rgb-success:   12 115 50;
+    --rgb-info:      135 83 130;
 
     --rgb-inverse:     63 43 57;
     --rgb-inverse-ink: 250 242 248;
@@ -2272,8 +2349,8 @@
     --rgb-sheet:            250 242 248;
     --rgb-sheet-ink:        53 32 47;
     --rgb-sheet-ink-soft:   90 71 84;
-    --rgb-sheet-ink-muted:  119 102 114;
-    --rgb-sheet-ink-faint:  122 105 117;
+    --rgb-sheet-ink-muted:  118 102 114;
+    --rgb-sheet-ink-faint:  119 102 114;
     --rgb-sheet-link:        29  78 216;
     --rgb-sheet-danger:     185  28  28;
 }
@@ -2292,7 +2369,7 @@
     --rgb-ink:       58 43 29;
     --rgb-ink-soft:  88 74 60;
     --rgb-ink-muted: 114 101 88;
-    --rgb-ink-faint: 120 108 95;
+    --rgb-ink-faint: 115 104 91;
 
     --rgb-accent:    180 83 9;
     --rgb-accent-ink: 255 255 255;
@@ -2300,10 +2377,10 @@
     --rgb-field:        255 255 255;
     --rgb-field-border: 212 208 205;
 
-    --rgb-danger:    220 38 38;
-    --rgb-warning:   217 119 6;
-    --rgb-success:   22 163 74;
-    --rgb-info:      90 106 130;
+    --rgb-danger:    190 31 31;
+    --rgb-warning:   151 81 3;
+    --rgb-success:   12 114 50;
+    --rgb-info:      85 100 123;
 
     --rgb-inverse:     68 54 40;
     --rgb-inverse-ink: 250 241 231;
@@ -2327,7 +2404,7 @@
     --rgb-sheet-ink:        58 43 29;
     --rgb-sheet-ink-soft:   88 74 60;
     --rgb-sheet-ink-muted:  114 101 88;
-    --rgb-sheet-ink-faint:  120 108 95;
+    --rgb-sheet-ink-faint:  115 104 91;
     --rgb-sheet-link:        29  78 216;
     --rgb-sheet-danger:     185  28  28;
 }
@@ -2346,7 +2423,7 @@
     --rgb-ink:       29 43 69;
     --rgb-ink-soft:  66 78 101;
     --rgb-ink-muted: 96 106 125;
-    --rgb-ink-faint: 102 111 130;
+    --rgb-ink-faint: 98 107 126;
 
     --rgb-accent:    30 64 175;
     --rgb-accent-ink: 255 255 255;
@@ -2354,10 +2431,10 @@
     --rgb-field:        255 255 255;
     --rgb-field-border: 205 208 214;
 
-    --rgb-danger:    220 38 38;
-    --rgb-warning:   217 119 6;
-    --rgb-success:   22 163 74;
-    --rgb-info:      74 111 165;
+    --rgb-danger:    193 32 32;
+    --rgb-warning:   154 82 3;
+    --rgb-success:   13 116 51;
+    --rgb-info:      68 102 153;
 
     --rgb-inverse:     40 54 78;
     --rgb-inverse-ink: 242 245 250;
@@ -2381,7 +2458,7 @@
     --rgb-sheet-ink:        29 43 69;
     --rgb-sheet-ink-soft:   66 78 101;
     --rgb-sheet-ink-muted:  96 106 125;
-    --rgb-sheet-ink-faint:  102 111 130;
+    --rgb-sheet-ink-faint:  98 107 126;
     --rgb-sheet-link:        29  78 216;
     --rgb-sheet-danger:     185  28  28;
 }
@@ -2780,6 +2857,11 @@
     --color-ink-muted:    rgb(var(--rgb-ink-muted));
     --color-ink-faint:    rgb(var(--rgb-ink-faint));
     --color-accent:       rgb(var(--rgb-accent));
+    /* `text-accent` only — every variant of it, hover: and /70 included —
+       while bg-, border-, ring- and accent- keep the accent itself. Tailwind
+       looks a text utility up in --text-color-* before --color-*. See "The
+       accent, as text" below. */
+    --text-color-accent:  var(--accent-text);
     --color-accent-strong: color-mix(in oklab, rgb(var(--rgb-accent)) 85%, black);
     --color-accent-soft:  rgb(var(--rgb-accent) / 0.1);
     --color-accent-ink:   rgb(var(--rgb-accent-ink));
@@ -2810,6 +2892,65 @@
     --radius-pane: var(--app-radius);
     --spacing-row: var(--density-row-y);
     --spacing-gutter: var(--density-gap);
+}
+
+/* ═══ The accent, as text ═════════════════════════════════════════════════
+   The accent does two jobs that want different colours. As a FILL it carries
+   accent-ink — Compose, the count pill, a primary button — and Dark's is deep
+   green precisely so light ink reads on it. As TEXT it sits on the surface:
+   the open folder in the sidebar, the list tab you are on, a pressed chip,
+   around 115 `text-accent` in the templates. Dark's green was 2.95:1 there,
+   and Paper's clay 3.97:1 on its own wash in the sidebar.
+
+   Neither can be fixed by changing a theme's value. The accent is the user's
+   setting, written inline on <html> by AppearanceRenderer, so a theme's own
+   accent reaches nobody who has already picked one — and whatever anybody
+   picks from the wheel has to work. That is the argument AccentInkContrastTest
+   makes for the ink ON the accent, and it holds for text IN it.
+
+   So the text is derived from whatever accent is set, and only its lightness
+   moves: on a light scheme it is mixed toward black in oklab until its
+   lightness is at most the ceiling, on a dark one toward white until it is at
+   least the floor. Mixing toward black or white in oklab keeps the hue exactly
+   and lets chroma follow the lightness, which is how accent-strong and Paper's
+   status colours are made too. An accent that already reads is left alone.
+
+   The two bounds are the loosest that hold for EVERY accent — the whole RGB
+   cube, swept — at 4.5:1 on Paper's and Dark's surface, page and hovered row
+   and on the accent's own washes (10% on the page for the open folder, 15%
+   for the heaviest: the admin badge and the address chips). Saturated greens
+   bind the ceiling and magentas the floor, which is why the defaults move a
+   little further than they alone would need. AccentTextContrastTest re-runs
+   the sweep against these numbers; move one and it says which accent broke.
+
+   light-dark() reads the scheme every palette block declares, so a theme picks
+   its branch without saying anything. The message sheet is light in every
+   theme and takes the light branch outright — see @utility mail-sheet.
+
+   Where either function is missing (Chrome before 123, Safari before 17.5,
+   Firefox before 128) the text is the accent itself, exactly as before.
+   ═══════════════════════════════════════════════════════════════════════════ */
+html {
+    --accent-text-light: rgb(var(--rgb-accent));
+    --accent-text-dark:  rgb(var(--rgb-accent));
+    --accent-text:       rgb(var(--rgb-accent));
+}
+
+@supports (color: light-dark(red, red)) and (color: oklab(from red l a b)) {
+    html {
+        --accent-text-ceiling: 0.47;
+        --accent-text-floor:   0.70;
+
+        --accent-text-light: oklab(from rgb(var(--rgb-accent))
+            min(l, var(--accent-text-ceiling))
+            calc(a * min(1, var(--accent-text-ceiling) / l))
+            calc(b * min(1, var(--accent-text-ceiling) / l)));
+        --accent-text-dark: oklab(from rgb(var(--rgb-accent))
+            max(l, var(--accent-text-floor))
+            calc(a * (1 - max(0, (var(--accent-text-floor) - l) / (1 - l))))
+            calc(b * (1 - max(0, (var(--accent-text-floor) - l) / (1 - l)))));
+        --accent-text: light-dark(var(--accent-text-light), var(--accent-text-dark));
+    }
 }
 
 /* ═══ Composed utilities ═══════════════════════════════════════════════════ */
@@ -2955,6 +3096,11 @@
        washes out to nothing on a sheet this light, so the sheet carries its
        own — the same reason every other channel here is re-pointed. */
     --rgb-danger:       var(--rgb-sheet-danger);
+
+    /* The accent's text is the light-scheme one on the sheet in every theme.
+       light-dark() would read a dark theme's scheme, which the sheet inherits,
+       and hand the sheet the text lightened for a near-black surface. */
+    --accent-text:      var(--accent-text-light);
 
     --main-alpha:         1;
     --line-alpha:         0.09;
@@ -3341,7 +3487,7 @@
     &[data-active="true"] {
         border-color: rgb(var(--rgb-accent));
         background-color: rgb(var(--rgb-accent) / var(--danger-soft-alpha));
-        color: rgb(var(--rgb-accent));
+        color: var(--accent-text);
     }
 }
 @layer utilities {
@@ -3817,7 +3963,7 @@
    leave the filled pill to the row that is actually open. */
 #sidebar .nav-item.is-active-ancestor:not(.is-active),
 #sidebar-drawer-inner .nav-item.is-active-ancestor:not(.is-active) {
-    color: rgb(var(--rgb-accent));
+    color: var(--accent-text);
 }
 
 /* Flat has no card to respect: the sidebar sits straight against the window,
@@ -4590,7 +4736,7 @@ label:has(> input.sr-only) {
    is a document being written, and a pointer cursor over part of a sentence
    would say the click does something other than put the cursor there. */
 [data-compose--compose-toolbar-target="editor"] a[href] {
-    color: rgb(var(--rgb-accent));
+    color: var(--accent-text);
     text-decoration: underline;
     text-underline-offset: 2px;
 }

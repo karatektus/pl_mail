@@ -176,6 +176,34 @@ final class ThemeVariableCompletenessTest extends TestCase
     }
 
     /**
+     * A block declares each variable once.
+     *
+     * Two declarations of one property in one block do not combine: the later
+     * one wins outright, and the earlier reads as live while painting nothing.
+     * Paper and solar each carried a --field-border-alpha of 0.75 under a
+     * comment explaining why their fields needed the firmer border, and a 0.4
+     * further down the same block that won — the fix the comment described
+     * never reached the screen. The declaration map the other tests read has
+     * one slot per name, so it could not see that; this counts the text.
+     */
+    #[DataProvider('paletteBlocks')]
+    public function testNoBlockDeclaresAVariableTwice(string $selector): void
+    {
+        preg_match_all('/(--[a-z0-9-]+)\s*:/i', self::bodies()[$selector], $matches);
+
+        $twice = array_keys(array_filter(
+            array_count_values($matches[1]),
+            static fn (int $count): bool => $count > 1,
+        ));
+
+        self::assertSame(
+            [],
+            $twice,
+            sprintf('%s declares %s more than once, and only the last one paints.', $selector, implode(', ', $twice)),
+        );
+    }
+
+    /**
      * Knobs belong to :root. Anywhere else they are a promise the cascade will
      * not keep, because the inline style AppearanceRenderer writes wins.
      */
@@ -333,11 +361,6 @@ final class ThemeVariableCompletenessTest extends TestCase
     /**
      * The top-level palette blocks, in source order, as selector => declarations.
      *
-     * Parsed rather than regex-matched per block: :root also appears inside the
-     * prefers-reduced-transparency media query, and that one is a knob override
-     * rather than a palette. Only depth-zero rules count, and at-rules are
-     * skipped entirely.
-     *
      * @return array<string, array<string, string>>
      */
     private static function blocks(): array
@@ -348,8 +371,30 @@ final class ThemeVariableCompletenessTest extends TestCase
             return $cache;
         }
 
+        return $cache = array_map(self::declarations(...), self::bodies());
+    }
+
+    /**
+     * The top-level palette blocks, in source order, as selector => the text
+     * between the braces, comments removed.
+     *
+     * Parsed rather than regex-matched per block: :root also appears inside the
+     * prefers-reduced-transparency media query, and that one is a knob override
+     * rather than a palette. Only depth-zero rules count, and at-rules are
+     * skipped entirely.
+     *
+     * @return array<string, string>
+     */
+    private static function bodies(): array
+    {
+        static $cache = null;
+
+        if (null !== $cache) {
+            return $cache;
+        }
+
         $css    = (string) preg_replace('#/\*.*?\*/#s', '', self::stylesheet());
-        $blocks = [];
+        $bodies = [];
         $start  = 0;
         $length = strlen($css);
 
@@ -386,14 +431,14 @@ final class ThemeVariableCompletenessTest extends TestCase
             }
 
             if (self::isPaletteSelector($selector)) {
-                $blocks[$selector] = self::declarations(substr($css, $i + 1, $end - $i - 1));
+                $bodies[$selector] = substr($css, $i + 1, $end - $i - 1);
             }
 
             $i     = $end;
             $start = $end + 1;
         }
 
-        return $cache = $blocks;
+        return $cache = $bodies;
     }
 
     private static function isPaletteSelector(string $selector): bool
