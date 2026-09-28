@@ -160,7 +160,7 @@ Variables:
                         <form method="post" action="{{ path('app_settings_filters_toggle', { id: rule.id }) }}">
                             <input type="hidden" name="_token" value="{{ csrf_token('mail_rule_toggle' ~ rule.id) }}">
                             <button type="submit"
-                                    class="w-8 h-8 flex items-center justify-center rounded-lg text-zinc-400 hover:text-ink hover:bg-hover transition-colors cursor-pointer"
+                                    class="w-8 h-8 flex items-center justify-center rounded-lg text-ink-faint hover:text-ink hover:bg-hover transition-colors cursor-pointer"
                                     aria-label="{{ rule.isEnabled ? 'settings.filters.disable'|trans : 'settings.filters.enable'|trans }}"
                                     title="{{ rule.isEnabled ? 'settings.filters.disable'|trans : 'settings.filters.enable'|trans }}">
                                 <i class="fa-solid {{ rule.isEnabled ? 'fa-toggle-on text-accent' : 'fa-toggle-off' }} text-sm" aria-hidden="true"></i>
@@ -171,7 +171,7 @@ Variables:
                               data-turbo-confirm="{{ 'settings.filters.run_confirm'|trans({ '%name%': rule.name }) }}">
                             <input type="hidden" name="_token" value="{{ csrf_token('mail_rule_run' ~ rule.id) }}">
                             <button type="submit" {{ rule.runState.isBusy ? 'disabled' : '' }}
-                                    class="w-8 h-8 flex items-center justify-center rounded-lg text-zinc-400 hover:text-ink hover:bg-hover transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                                    class="w-8 h-8 flex items-center justify-center rounded-lg text-ink-faint hover:text-ink hover:bg-hover transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
                                     aria-label="{{ 'settings.filters.run'|trans }}"
                                     title="{{ rule.runState.isBusy ? 'settings.filters.run_state.running'|trans({ '%count%': rule.runProcessed }) : 'settings.filters.run'|trans }}">
                                 <i class="fa-solid fa-play text-xs" aria-hidden="true"></i>
@@ -180,7 +180,7 @@ Variables:
 
                         <a href="{{ path('app_settings_filters_edit', { id: rule.id }) }}"
                            data-turbo-frame="filter-editor"
-                           class="w-8 h-8 flex items-center justify-center rounded-lg text-zinc-400 hover:text-ink hover:bg-hover transition-colors cursor-pointer"
+                           class="w-8 h-8 flex items-center justify-center rounded-lg text-ink-faint hover:text-ink hover:bg-hover transition-colors cursor-pointer"
                            aria-label="{{ 'settings.filters.edit'|trans({ '%name%': rule.name }) }}"
                            title="{{ 'settings.filters.edit_title'|trans }}">
                             <i class="fa-solid fa-pen text-xs" aria-hidden="true"></i>
@@ -190,7 +190,7 @@ Variables:
                               data-turbo-confirm="{{ 'settings.filters.delete_confirm'|trans({ '%name%': rule.name }) }}">
                             <input type="hidden" name="_token" value="{{ csrf_token('mail_rule_delete' ~ rule.id) }}">
                             <button type="submit"
-                                    class="w-8 h-8 flex items-center justify-center rounded-lg text-zinc-400 hover:text-danger hover:bg-danger-soft transition-colors cursor-pointer"
+                                    class="w-8 h-8 flex items-center justify-center rounded-lg text-ink-faint hover:text-danger hover:bg-danger-soft transition-colors cursor-pointer"
                                     aria-label="{{ 'settings.filters.delete'|trans({ '%name%': rule.name }) }}"
                                     title="{{ 'settings.filters.delete_title'|trans }}">
                                 <i class="fa-solid fa-trash text-xs" aria-hidden="true"></i>

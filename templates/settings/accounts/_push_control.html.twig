@@ -64,7 +64,7 @@
                            {% elseif status.enabled %}
                                text-success hover:bg-success/10
                            {% else %}
-                               text-zinc-400 hover:bg-zinc-100/60 dark:text-zinc-500 dark:hover:bg-zinc-800/60
+                               text-ink-faint hover:text-ink hover:bg-hover
                            {% endif %}">
                 <i class="fa-solid {{ status.failed ? 'fa-triangle-exclamation' : status.health.icon }}"></i>
             </button>

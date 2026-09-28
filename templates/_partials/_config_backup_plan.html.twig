@@ -61,7 +61,7 @@ somebody comes to press apply twice.
             <ul class="mt-2 divide-y divide-line rounded-lg border border-line">
                 {% for item in plan.written %}
                     <li class="flex items-center gap-3 px-3.5 py-2">
-                        <i class="{{ item.section.icon }} text-xs text-zinc-400 w-4 shrink-0" aria-hidden="true"></i>
+                        <i class="{{ item.section.icon }} text-xs text-ink-faint w-4 shrink-0" aria-hidden="true"></i>
                         <span class="font-mono text-xs text-ink-soft break-all min-w-0">{{ item.key }}</span>
 
                         {# Two badges, because they answer two different
@@ -91,7 +91,7 @@ somebody comes to press apply twice.
            to a terminal. #}
         {% if plan.needsRestart %}
             <div class="mt-2.5 flex items-start gap-2.5 rounded-lg border border-line bg-raised/40 px-3.5 py-2.5">
-                <i class="fa-solid fa-rotate mt-0.5 shrink-0 text-xs text-zinc-400" aria-hidden="true"></i>
+                <i class="fa-solid fa-rotate mt-0.5 shrink-0 text-xs text-ink-faint" aria-hidden="true"></i>
                 <p class="text-xs text-ink-muted leading-relaxed">
                     {{ (plan.applied ? 'admin.config_backup.review.restart_applied' : 'admin.config_backup.review.restart')|trans }}
                 </p>
@@ -108,7 +108,7 @@ somebody comes to press apply twice.
             <ul class="mt-2 divide-y divide-line rounded-lg border border-line">
                 {% for item in plan.keptUsers %}
                     <li class="flex items-center gap-3 px-3.5 py-2">
-                        <i class="{{ item.section.icon }} text-xs text-zinc-400 w-4 shrink-0" aria-hidden="true"></i>
+                        <i class="{{ item.section.icon }} text-xs text-ink-faint w-4 shrink-0" aria-hidden="true"></i>
                         <span class="font-mono text-xs text-ink-soft break-all min-w-0">{{ item.key }}</span>
                         <span class="ml-auto shrink-0 text-[11px] text-ink-faint">{{ item.change.transKey|trans }}</span>
                     </li>
@@ -141,7 +141,7 @@ somebody comes to press apply twice.
 
                     <div class="rounded-lg border border-line overflow-hidden">
                         <div class="flex items-center gap-2 px-3.5 h-9 border-b border-line bg-raised/40">
-                            <i class="{{ section.icon }} text-xs text-zinc-400" aria-hidden="true"></i>
+                            <i class="{{ section.icon }} text-xs text-ink-faint" aria-hidden="true"></i>
                             <h4 class="text-xs font-semibold text-ink">{{ section.transKey|trans }}</h4>
                         </div>
 
@@ -201,7 +201,7 @@ somebody comes to press apply twice.
     {% if keyNote %}
         <details class="rounded-lg border border-line">
             <summary class="flex items-center gap-2 px-3.5 py-2 text-xs text-ink-muted cursor-pointer select-none hover:text-ink transition-colors">
-                <i class="fa-solid fa-circle-question text-zinc-400" aria-hidden="true"></i>
+                <i class="fa-solid fa-circle-question text-ink-faint" aria-hidden="true"></i>
                 {{ 'admin.config_backup.review.old_key_summary'|trans }}
             </summary>
 

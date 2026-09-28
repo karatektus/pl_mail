@@ -37,7 +37,7 @@
 
                         {# Pane header #}
                         <div class="flex items-center gap-3 px-6 h-14 border-b border-line shrink-0">
-                            <i class="fa-solid fa-gear text-zinc-400" aria-hidden="true"></i>
+                            <i class="fa-solid fa-gear text-ink-faint" aria-hidden="true"></i>
                             <h1 class="text-base font-semibold text-ink">{{ 'settings.title'|trans }}</h1>
                         </div>
 
@@ -215,7 +215,7 @@
                                     <a href="{{ path('app_settings_index', { section: 'health' }) }}"
                                        class="{{ section == 'health' ? navActive : navInactive }} md:mb-1"
                                        {{ section == 'health' ? 'aria-current="page"' : '' }}>
-                                        <i class="fa-solid fa-heart-pulse w-4 {{ attention ? (attention.tone == 'danger' ? 'text-red-500' : 'text-amber-500') : (section == 'health' ? 'text-zinc-400' : '') }}"
+                                        <i class="fa-solid fa-heart-pulse w-4 {{ attention ? (attention.tone == 'danger' ? 'text-red-500' : 'text-amber-500') : (section == 'health' ? 'text-ink-faint' : '') }}"
                                            aria-hidden="true"></i>
                                         {{ 'settings.nav.health'|trans }}
                                         {% if attention %}
@@ -244,7 +244,7 @@
                                                     <a href="{{ path('app_settings_index', { section: item.section }) }}"
                                                        class="{{ section == item.section ? navActive : navInactive }}"
                                                        {{ section == item.section ? 'aria-current="page"' : '' }}>
-                                                        <i class="{{ item.icon }} w-4 {{ section == item.section ? 'text-zinc-400' : '' }}" aria-hidden="true"></i>
+                                                        <i class="{{ item.icon }} w-4 {{ section == item.section ? 'text-ink-faint' : '' }}" aria-hidden="true"></i>
                                                         {{ (item.label|default('settings.nav.' ~ item.section))|trans }}
                                                     </a>
                                                 </li>

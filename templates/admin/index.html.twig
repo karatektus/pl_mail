@@ -37,7 +37,7 @@
 
                         {# Pane header #}
                         <div class="flex items-center gap-3 px-6 h-14 border-b border-line shrink-0">
-                            <i class="fa-solid fa-gauge-high text-zinc-400" aria-hidden="true"></i>
+                            <i class="fa-solid fa-gauge-high text-ink-faint" aria-hidden="true"></i>
                             <h1 class="text-base font-semibold text-ink">{{ 'admin.title'|trans }}</h1>
 
                             {# In the header rather than in a panel, so it is on
@@ -97,17 +97,17 @@
                                 <nav class="flex md:flex-col gap-1 flex-wrap">
                                     <a href="{{ path('app_admin_dashboard', { section: 'system' }) }}"
                                        class="{{ section == 'system' ? navActive : navInactive }}">
-                                        <i class="fa-solid fa-heart-pulse w-4 {{ section == 'system' ? 'text-zinc-400' : '' }}" aria-hidden="true"></i>
+                                        <i class="fa-solid fa-heart-pulse w-4 {{ section == 'system' ? 'text-ink-faint' : '' }}" aria-hidden="true"></i>
                                         {{ 'admin.nav.system'|trans }}
                                     </a>
                                     <a href="{{ path('app_admin_dashboard', { section: 'database' }) }}"
                                        class="{{ section == 'database' ? navActive : navInactive }}">
-                                        <i class="fa-solid fa-database w-4 {{ section == 'database' ? 'text-zinc-400' : '' }}" aria-hidden="true"></i>
+                                        <i class="fa-solid fa-database w-4 {{ section == 'database' ? 'text-ink-faint' : '' }}" aria-hidden="true"></i>
                                         {{ 'admin.nav.database'|trans }}
                                     </a>
                                     <a href="{{ path('app_admin_dashboard', { section: 'logs' }) }}"
                                        class="{{ section == 'logs' ? navActive : navInactive }}">
-                                        <i class="fa-solid fa-scroll w-4 {{ section == 'logs' ? 'text-zinc-400' : '' }}" aria-hidden="true"></i>
+                                        <i class="fa-solid fa-scroll w-4 {{ section == 'logs' ? 'text-ink-faint' : '' }}" aria-hidden="true"></i>
                                         {{ 'admin.nav.logs'|trans }}
                                     </a>
                                     {# After logs and before integrations. It is
@@ -120,7 +120,7 @@
                                        through a pile. #}
                                     <a href="{{ path('app_admin_dashboard', { section: 'insight-reports' }) }}"
                                        class="{{ section == 'insight-reports' ? navActive : navInactive }}">
-                                        <i class="fa-solid fa-flag w-4 {{ section == 'insight-reports' ? 'text-zinc-400' : '' }}" aria-hidden="true"></i>
+                                        <i class="fa-solid fa-flag w-4 {{ section == 'insight-reports' ? 'text-ink-faint' : '' }}" aria-hidden="true"></i>
                                         {{ 'admin.nav.insight_reports'|trans }}
                                         {# Only when there is something waiting. A badge
                                            reading 0 beside every other entry would be
@@ -133,7 +133,7 @@
                                     </a>
                                     <a href="{{ path('app_admin_dashboard', { section: 'integrations' }) }}"
                                        class="{{ section == 'integrations' ? navActive : navInactive }}">
-                                        <i class="fa-solid fa-plug w-4 {{ section == 'integrations' ? 'text-zinc-400' : '' }}" aria-hidden="true"></i>
+                                        <i class="fa-solid fa-plug w-4 {{ section == 'integrations' ? 'text-ink-faint' : '' }}" aria-hidden="true"></i>
                                         {{ 'admin.nav.integrations'|trans }}
                                     </a>
                                     {# After integrations, because it is the same
@@ -142,7 +142,7 @@
                                        is where an admin goes for a different reason. #}
                                     <a href="{{ path('app_admin_dashboard', { section: 'push' }) }}"
                                        class="{{ section == 'push' ? navActive : navInactive }}">
-                                        <i class="fa-solid fa-bell w-4 {{ section == 'push' ? 'text-zinc-400' : '' }}" aria-hidden="true"></i>
+                                        <i class="fa-solid fa-bell w-4 {{ section == 'push' ? 'text-ink-faint' : '' }}" aria-hidden="true"></i>
                                         {{ 'admin.nav.push'|trans }}
                                     </a>
                                     {# After push and before users: it configures
@@ -151,12 +151,12 @@
                                        or about the install as a whole. #}
                                     <a href="{{ path('app_admin_dashboard', { section: 'ai' }) }}"
                                        class="{{ section == 'ai' ? navActive : navInactive }}">
-                                        <i class="fa-solid fa-wand-magic-sparkles w-4 {{ section == 'ai' ? 'text-zinc-400' : '' }}" aria-hidden="true"></i>
+                                        <i class="fa-solid fa-wand-magic-sparkles w-4 {{ section == 'ai' ? 'text-ink-faint' : '' }}" aria-hidden="true"></i>
                                         {{ 'admin.nav.ai'|trans }}
                                     </a>
                                     <a href="{{ path('app_admin_dashboard', { section: 'users' }) }}"
                                        class="{{ section == 'users' ? navActive : navInactive }}">
-                                        <i class="fa-solid fa-users w-4 {{ section == 'users' ? 'text-zinc-400' : '' }}" aria-hidden="true"></i>
+                                        <i class="fa-solid fa-users w-4 {{ section == 'users' ? 'text-ink-faint' : '' }}" aria-hidden="true"></i>
                                         {{ 'admin.nav.users'|trans }}
                                     </a>
                                     {# After users and before reset. It is the
@@ -167,7 +167,7 @@
                                        admin opens to look at something. #}
                                     <a href="{{ path('app_admin_dashboard', { section: 'backup' }) }}"
                                        class="{{ section == 'backup' ? navActive : navInactive }}">
-                                        <i class="fa-solid fa-box-archive w-4 {{ section == 'backup' ? 'text-zinc-400' : '' }}" aria-hidden="true"></i>
+                                        <i class="fa-solid fa-box-archive w-4 {{ section == 'backup' ? 'text-ink-faint' : '' }}" aria-hidden="true"></i>
                                         {{ 'admin.nav.backup'|trans }}
                                     </a>
                                     {# After backup: both are about the install as a
@@ -175,7 +175,7 @@
                                        updating. #}
                                     <a href="{{ path('app_admin_dashboard', { section: 'updates' }) }}"
                                        class="{{ section == 'updates' ? navActive : navInactive }}">
-                                        <i class="fa-solid fa-arrows-rotate w-4 {{ section == 'updates' ? 'text-zinc-400' : '' }}" aria-hidden="true"></i>
+                                        <i class="fa-solid fa-arrows-rotate w-4 {{ section == 'updates' ? 'text-ink-faint' : '' }}" aria-hidden="true"></i>
                                         {{ 'admin.nav.updates'|trans }}
                                         {% if updateAvailable %}
                                             <span class="ml-auto w-2 h-2 rounded-full bg-accent"

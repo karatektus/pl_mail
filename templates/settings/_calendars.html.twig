@@ -168,7 +168,7 @@ Variables:
                     <a href="{{ path('app_calendar_ics_calendar', { id: calendar.id }) }}"
                        download
                        data-turbo="false"
-                       class="w-8 h-8 flex items-center justify-center rounded-lg text-zinc-400 hover:text-ink hover:bg-hover transition-colors"
+                       class="w-8 h-8 flex items-center justify-center rounded-lg text-ink-faint hover:text-ink hover:bg-hover transition-colors"
                        aria-label="{{ 'calendar.ics.export.calendar'|trans({ '%name%': calendar.name }) }}"
                        title="{{ 'calendar.ics.export.calendar_title'|trans }}"
                     >
@@ -180,7 +180,7 @@ Variables:
                             <input type="hidden" name="_token" value="{{ csrf_token('calendar-sync' ~ calendar.id) }}">
                             <button
                                 type="submit"
-                                class="w-8 h-8 flex items-center justify-center rounded-lg text-zinc-400 hover:text-accent hover:bg-hover transition-colors cursor-pointer"
+                                class="w-8 h-8 flex items-center justify-center rounded-lg text-ink-faint hover:text-accent hover:bg-hover transition-colors cursor-pointer"
                                 aria-label="{{ 'settings.calendars.sync_now'|trans({ '%name%': calendar.name }) }}"
                                 title="{{ 'settings.calendars.sync_now_title'|trans }}"
                             >
@@ -194,7 +194,7 @@ Variables:
                             <input type="hidden" name="_token" value="{{ csrf_token('calendar-default' ~ calendar.id) }}">
                             <button
                                 type="submit"
-                                class="w-8 h-8 flex items-center justify-center rounded-lg text-zinc-400 hover:text-accent hover:bg-hover transition-colors cursor-pointer"
+                                class="w-8 h-8 flex items-center justify-center rounded-lg text-ink-faint hover:text-accent hover:bg-hover transition-colors cursor-pointer"
                                 aria-label="{{ 'settings.calendars.make_default'|trans({ '%name%': calendar.name }) }}"
                                 title="{{ 'settings.calendars.make_default_title'|trans }}"
                             >
@@ -208,7 +208,7 @@ Variables:
                         data-action="click->ui--modal#open"
                         data-ui--modal-title-value="{{ 'calendar.form.edit'|trans }}"
                         data-ui--modal-src-value="{{ path('app_settings_calendar_edit', { id: calendar.id }) }}"
-                        class="w-8 h-8 flex items-center justify-center rounded-lg text-zinc-400 hover:text-ink hover:bg-hover transition-colors cursor-pointer"
+                        class="w-8 h-8 flex items-center justify-center rounded-lg text-ink-faint hover:text-ink hover:bg-hover transition-colors cursor-pointer"
                         aria-label="{{ 'settings.calendars.edit'|trans({ '%name%': calendar.name }) }}"
                         title="{{ 'calendar.form.edit'|trans }}"
                     >
@@ -224,7 +224,7 @@ Variables:
                             <input type="hidden" name="_token" value="{{ csrf_token('calendar-delete' ~ calendar.id) }}">
                             <button
                                 type="submit"
-                                class="w-8 h-8 flex items-center justify-center rounded-lg text-zinc-400 hover:text-danger hover:bg-danger-soft transition-colors cursor-pointer"
+                                class="w-8 h-8 flex items-center justify-center rounded-lg text-ink-faint hover:text-danger hover:bg-danger-soft transition-colors cursor-pointer"
                                 aria-label="{{ 'settings.calendars.delete'|trans({ '%name%': calendar.name }) }}"
                                 title="{{ 'settings.calendars.delete_title'|trans }}"
                             >
@@ -238,7 +238,7 @@ Variables:
                             <input type="hidden" name="_token" value="{{ csrf_token('calendar-visibility' ~ calendar.id) }}">
                             <button
                                 type="submit"
-                                class="w-8 h-8 flex items-center justify-center rounded-lg text-zinc-400 hover:text-ink hover:bg-hover transition-colors cursor-pointer"
+                                class="w-8 h-8 flex items-center justify-center rounded-lg text-ink-faint hover:text-ink hover:bg-hover transition-colors cursor-pointer"
                                 aria-label="{{ calendar.isVisible ? 'settings.calendars.hide'|trans : 'settings.calendars.show'|trans }}"
                                 title="{{ calendar.isVisible ? 'settings.calendars.hide'|trans : 'settings.calendars.show'|trans }}"
                             >

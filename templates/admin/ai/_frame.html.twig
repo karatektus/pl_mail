@@ -50,7 +50,7 @@ poll would empty a field mid-word.
         <summary class="flex items-center gap-2.5 cursor-pointer list-none {{ chrome.band() }}">
             <i class="fa-solid fa-chevron-right w-3 text-xs text-ink-faint transition-transform
                       group-open:rotate-90" aria-hidden="true"></i>
-            <i class="fa-solid fa-wand-magic-sparkles text-xs text-zinc-400" aria-hidden="true"></i>
+            <i class="fa-solid fa-wand-magic-sparkles text-xs text-ink-faint" aria-hidden="true"></i>
             <h2 class="text-sm font-semibold text-ink">{{ 'admin.ai.heading'|trans }}</h2>
 
             {% if settings.isEnabled and settings.isConfigured %}
@@ -61,7 +61,7 @@ poll would empty a field mid-word.
                 {# A host on file with the switch off is a deliberate pause, not
                    a half-finished setup, and saying "off" without saying that
                    would read as the configuration having been lost. #}
-                <span class="ml-auto text-[11px] font-medium px-2 py-0.5 rounded-full bg-raised text-ink-faint">
+                <span class="ml-auto text-[11px] font-medium px-2 py-0.5 rounded-full bg-raised text-ink-muted">
                     {{ 'admin.ai.status.paused'|trans }}
                 </span>
             {% elseif settings.isEnabled %}
@@ -69,7 +69,7 @@ poll would empty a field mid-word.
                     {{ 'admin.ai.status.incomplete'|trans }}
                 </span>
             {% else %}
-                <span class="ml-auto text-[11px] font-medium px-2 py-0.5 rounded-full bg-raised text-ink-faint">
+                <span class="ml-auto text-[11px] font-medium px-2 py-0.5 rounded-full bg-raised text-ink-muted">
                     {{ 'admin.ai.status.off'|trans }}
                 </span>
             {% endif %}

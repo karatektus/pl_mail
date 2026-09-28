@@ -609,7 +609,7 @@ Variables: form, message, ctx (an App\Domain\DTO\Mail\ComposeContext)
                         <button type="button"
                                 data-compose--compose-target="plainWarningConfirm"
                                 data-action="click->compose--compose#confirmPlainText"
-                                class="rounded-full bg-accent text-white text-sm font-semibold
+                                class="rounded-full bg-accent text-accent-ink text-sm font-semibold
                                        px-3 py-1.5 hover:bg-white/10 transition-colors">
                             {{ 'compose.plain_warning.continue'|trans }}
                         </button>
@@ -657,7 +657,7 @@ Variables: form, message, ctx (an App\Domain\DTO\Mail\ComposeContext)
                         <button type="button"
                                 data-compose--compose-target="sendWarningConfirm"
                                 data-action="click->compose--compose#confirmSendAnyway"
-                                class="rounded-full bg-accent text-white text-sm font-semibold
+                                class="rounded-full bg-accent text-accent-ink text-sm font-semibold
                                        px-3 py-1.5 hover:bg-white/10 transition-colors">
                             {{ 'compose.send_warning.continue'|trans }}
                         </button>
@@ -1438,7 +1438,7 @@ Variables: form, message, ctx (an App\Domain\DTO\Mail\ComposeContext)
                                        name="{{ form.readReceiptRequested.vars.full_name }}"
                                        value="1"
                                        {{ form.readReceiptRequested.vars.checked ? 'checked' : '' }}
-                                       class="rounded border-line">
+                                       class="rounded border-line accent-accent">
                                 <span>{{ 'compose.read_receipt'|trans }}</span>
                             </label>
                         </div>

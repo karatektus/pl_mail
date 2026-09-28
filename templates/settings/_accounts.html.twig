@@ -110,7 +110,7 @@
                             data-action="click->ui--modal#open"
                             data-ui--modal-title-value="{{ 'settings.accounts.edit'|trans }}"
                             data-ui--modal-src-value="{{ path('app_account_edit', { id: account.id }) }}"
-                            class="w-8 h-8 flex items-center justify-center rounded-lg text-zinc-400 hover:text-ink hover:bg-hover transition-colors cursor-pointer"
+                            class="w-8 h-8 flex items-center justify-center rounded-lg text-ink-faint hover:text-ink hover:bg-hover transition-colors cursor-pointer"
                             aria-label="{{ 'settings.accounts.edit'|trans }}" title="{{ 'settings.accounts.edit'|trans }}"
                         >
                             <i class="fa-solid fa-pen text-xs" aria-hidden="true"></i>
@@ -135,7 +135,7 @@
                     {% if not isPassword and account.oauthProvider %}
                         <a href="{{ path('app_oauth_connect', { provider: account.oauthProvider, reconnect: account.id }) }}"
                            data-turbo="false"
-                           class="w-8 h-8 flex items-center justify-center rounded-lg text-zinc-400 hover:text-ink hover:bg-hover transition-colors"
+                           class="w-8 h-8 flex items-center justify-center rounded-lg text-ink-faint hover:text-ink hover:bg-hover transition-colors"
                            aria-label="{{ 'settings.accounts.reconnect'|trans }}"
                            title="{{ 'settings.accounts.reconnect_explained'|trans({ '%account%': account.displayAddress }) }}">
                             <i class="fa-solid fa-rotate text-xs" aria-hidden="true"></i>
@@ -148,7 +148,7 @@
                         <input type="hidden" name="_token" value="{{ csrf_token('toggle' ~ account.id) }}">
                         <button
                             type="submit"
-                            class="w-8 h-8 flex items-center justify-center rounded-lg text-zinc-400 hover:text-ink hover:bg-hover transition-colors cursor-pointer"
+                            class="w-8 h-8 flex items-center justify-center rounded-lg text-ink-faint hover:text-ink hover:bg-hover transition-colors cursor-pointer"
                             aria-label="{{ account.isActive ? 'settings.accounts.disable'|trans : 'settings.accounts.enable'|trans }}"
                             title="{{ account.isActive ? 'settings.accounts.disable'|trans : 'settings.accounts.enable'|trans }}"
                         >
@@ -161,7 +161,7 @@
                         <input type="hidden" name="_token" value="{{ csrf_token('delete' ~ account.id) }}">
                         <button
                             type="submit"
-                            class="w-8 h-8 flex items-center justify-center rounded-lg text-zinc-400 hover:text-danger hover:bg-red-500/10 transition-colors cursor-pointer"
+                            class="w-8 h-8 flex items-center justify-center rounded-lg text-ink-faint hover:text-danger hover:bg-danger-soft transition-colors cursor-pointer"
                             aria-label="{{ 'settings.accounts.delete'|trans }}" title="{{ 'settings.accounts.delete'|trans }}"
                         >
                             <i class="fa-solid fa-trash text-xs" aria-hidden="true"></i>

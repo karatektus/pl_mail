@@ -218,7 +218,7 @@ on an empty string, and clearing the location is a thing a user may mean.
         <label class="self-start inline-flex items-center gap-2 text-sm text-ink-muted cursor-pointer">
             <input type="checkbox" name="isAllDay" value="1"
                    {{ event_all_day ? 'checked' : '' }}
-                   class="rounded border-line text-accent focus:ring-accent">
+                   class="rounded border-line accent-accent focus:ring-accent">
             {{ 'calendar.event.all_day'|trans }}
         </label>
 
@@ -253,7 +253,7 @@ on an empty string, and clearing the location is a thing a user may mean.
                             <input type="checkbox" name="calendars[]" value="{{ copy.calendar.id }}"
                                    {{ copy_refused ? 'disabled' : '' }}
                                    {{ copy.isChosen ? 'checked' : '' }}
-                                   class="rounded border-line text-accent focus:ring-accent">
+                                   class="rounded border-line accent-accent focus:ring-accent">
 
                             <span class="w-2 h-2 rounded-full shrink-0"
                                   style="background-color: {{ copy.calendar.color }}"
@@ -412,7 +412,7 @@ on an empty string, and clearing the location is a thing a user may mean.
                     <label class="flex items-center gap-2 py-0.5 text-sm text-ink">
                         <input type="checkbox" name="alerts[]" value="{{ choice.key }}"
                                {{ choice.checked ? 'checked' : '' }}
-                               class="rounded border-line text-accent focus:ring-accent">
+                               class="rounded border-line accent-accent focus:ring-accent">
                         {{ choice.label }}
                     </label>
                 {% endfor %}
@@ -474,7 +474,7 @@ on an empty string, and clearing the location is a thing a user may mean.
                     <label class="flex items-center gap-2 py-0.5 text-sm text-ink">
                         <input type="radio" name="scope" value="{{ choice }}"
                                {{ (scope is defined ? scope : 'instance') == choice ? 'checked' : '' }}
-                               class="border-line text-accent focus:ring-accent">
+                               class="border-line accent-accent focus:ring-accent">
                         {{ ('calendar.event.scope.' ~ choice)|trans }}
                     </label>
                 {% endfor %}

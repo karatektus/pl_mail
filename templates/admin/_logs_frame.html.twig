@@ -12,7 +12,7 @@
     <section class="@container {{ chrome.shell() }}">
 
         <div class="flex flex-wrap items-center gap-3 {{ chrome.band() }}">
-            <i class="fa-solid fa-scroll text-xs text-zinc-400" aria-hidden="true"></i>
+            <i class="fa-solid fa-scroll text-xs text-ink-faint" aria-hidden="true"></i>
             <h2 class="text-sm font-semibold text-ink">{{ 'admin.logs.heading'|trans }}</h2>
             <span class="text-xs text-ink-faint">{{ total }} {{ 'admin.logs.entries'|trans }}</span>
 
@@ -210,7 +210,7 @@
     <section class="@container {{ chrome.shell() }} mt-3">
 
         <div class="flex flex-wrap items-center gap-3 {{ chrome.band() }}">
-            <i class="fa-solid fa-bug text-xs text-zinc-400" aria-hidden="true"></i>
+            <i class="fa-solid fa-bug text-xs text-ink-faint" aria-hidden="true"></i>
             <h2 class="text-sm font-semibold text-ink">{{ 'admin.client_errors.heading'|trans }}</h2>
             <span class="text-xs text-ink-faint">
                 {{ 'admin.client_errors.count'|trans({'%count%': clientErrorsTotal}) }}

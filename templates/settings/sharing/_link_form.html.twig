@@ -69,7 +69,7 @@ Variables:
                                name="details[]"
                                value="{{ detail.value }}"
                                {{ link and link.reveals(detail) ? 'checked' : '' }}
-                               class="h-4 w-4 rounded border-field text-accent focus:ring-accent">
+                               class="h-4 w-4 rounded border-field accent-accent focus:ring-accent">
                         {{ detail.transKey|trans }}
                     </label>
                 {% endfor %}
@@ -84,7 +84,7 @@ Variables:
                                name="calendars[]"
                                value="{{ calendar.id }}"
                                {{ link is null or link.calendars.contains(calendar) ? 'checked' : '' }}
-                               class="h-4 w-4 rounded border-field text-accent focus:ring-accent">
+                               class="h-4 w-4 rounded border-field accent-accent focus:ring-accent">
                         <span class="inline-block h-2.5 w-2.5 rounded-full" style="background: {{ calendar.color }}"></span>
                         {{ calendar.name }}
                     </label>
@@ -99,7 +99,7 @@ Variables:
                            name="windowMode"
                            value="rolling"
                            {{ link is null or link.windowMode.value == 'rolling' ? 'checked' : '' }}
-                           class="h-4 w-4 border-field text-accent focus:ring-accent">
+                           class="h-4 w-4 border-field accent-accent focus:ring-accent">
                     {{ 'calendar.share.window.rolling'|trans }}
                 </label>
 
@@ -121,7 +121,7 @@ Variables:
                            name="windowMode"
                            value="fixed"
                            {{ link and link.windowMode.value == 'fixed' ? 'checked' : '' }}
-                           class="h-4 w-4 border-field text-accent focus:ring-accent">
+                           class="h-4 w-4 border-field accent-accent focus:ring-accent">
                     {{ 'calendar.share.window.fixed'|trans }}
                 </label>
 

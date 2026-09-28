@@ -29,21 +29,21 @@ this renders.
     <div class="{{ chrome.shell() }}">
 
         <div class="flex items-center gap-2.5 {{ chrome.band() }}">
-            <i class="fa-solid fa-arrows-rotate text-xs text-zinc-400" aria-hidden="true"></i>
+            <i class="fa-solid fa-arrows-rotate text-xs text-ink-faint" aria-hidden="true"></i>
             <h2 class="text-sm font-semibold text-ink">{{ 'admin.updates.heading'|trans }}</h2>
 
             {% if channel.value == 'off' %}
-                <span class="ml-auto text-[11px] font-medium px-2 py-0.5 rounded-full bg-raised text-ink-faint">{{ 'admin.updates.state.off'|trans }}</span>
+                <span class="ml-auto text-[11px] font-medium px-2 py-0.5 rounded-full bg-raised text-ink-muted">{{ 'admin.updates.state.off'|trans }}</span>
             {% elseif verdict == 'available' %}
                 <span class="ml-auto text-[11px] font-medium px-2 py-0.5 rounded-full bg-accent text-accent-ink">{{ 'admin.updates.state.available'|trans }}</span>
             {% elseif verdict == 'current' %}
                 <span class="ml-auto text-[11px] font-medium px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-500">{{ 'admin.updates.state.current'|trans }}</span>
             {% elseif verdict == 'unknown' %}
-                <span class="ml-auto text-[11px] font-medium px-2 py-0.5 rounded-full bg-raised text-ink-faint">{{ 'admin.updates.state.incomparable'|trans }}</span>
+                <span class="ml-auto text-[11px] font-medium px-2 py-0.5 rounded-full bg-raised text-ink-muted">{{ 'admin.updates.state.incomparable'|trans }}</span>
             {% elseif check.error %}
                 <span class="ml-auto text-[11px] font-medium px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-500">{{ 'admin.updates.state.failed'|trans }}</span>
             {% else %}
-                <span class="ml-auto text-[11px] font-medium px-2 py-0.5 rounded-full bg-raised text-ink-faint">{{ 'admin.updates.state.unknown'|trans }}</span>
+                <span class="ml-auto text-[11px] font-medium px-2 py-0.5 rounded-full bg-raised text-ink-muted">{{ 'admin.updates.state.unknown'|trans }}</span>
             {% endif %}
         </div>
 

@@ -227,11 +227,17 @@ a collection row — is one field to the reader and should stay tight.
    here: that block emits neither type="checkbox" nor checked, so every checkbox
    in a modal form came out as an empty text input. Nothing had used one yet, so
    it stayed latent until the integration forms needed a toggle.
+
+   `accent-accent`, not `text-accent`, and the same for the radio below. A
+   native box is coloured by `accent-color`; `color` reaches it only through
+   the @tailwindcss/forms plugin, which this app does not load, so every box
+   that asked for the accent through `text-accent` was ticked in the browser's
+   own blue.
 #}
 {% block checkbox_widget %}
     {% set attr = attr|merge({
         class: 'size-4 rounded border-field
-            text-accent
+            accent-accent
             bg-field
             focus:ring-2 focus:ring-accent focus:ring-offset-0
             cursor-pointer
@@ -245,7 +251,7 @@ a collection row — is one field to the reader and should stay tight.
 {% block radio_widget %}
     {% set attr = attr|merge({
         class: 'size-4 border-field
-            text-accent
+            accent-accent
             bg-field
             focus:ring-2 focus:ring-accent focus:ring-offset-0
             cursor-pointer

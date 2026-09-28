@@ -30,7 +30,7 @@ poll would empty a field mid-paste.
     <div class="{{ chrome.shell() }}">
 
         <div class="flex items-center gap-2.5 {{ chrome.band() }}">
-            <i class="fa-solid fa-fire text-xs text-zinc-400" aria-hidden="true"></i>
+            <i class="fa-solid fa-fire text-xs text-ink-faint" aria-hidden="true"></i>
             <h2 class="text-sm font-semibold text-ink">{{ 'admin.push.fcm.heading'|trans }}</h2>
 
             {% if config.isActive %}
@@ -38,7 +38,7 @@ poll would empty a field mid-paste.
                     {{ 'admin.push.status.live'|trans }}
                 </span>
             {% elseif config.hasServiceAccount and config.hasClientConfig %}
-                <span class="ml-auto text-[11px] font-medium px-2 py-0.5 rounded-full bg-raised text-ink-faint">
+                <span class="ml-auto text-[11px] font-medium px-2 py-0.5 rounded-full bg-raised text-ink-muted">
                     {{ 'admin.push.status.key_only'|trans }}
                 </span>
             {% elseif config.hasServiceAccount or config.hasClientConfig %}
@@ -50,7 +50,7 @@ poll would empty a field mid-paste.
                     {{ 'admin.push.status.incomplete'|trans }}
                 </span>
             {% else %}
-                <span class="ml-auto text-[11px] font-medium px-2 py-0.5 rounded-full bg-raised text-ink-faint">
+                <span class="ml-auto text-[11px] font-medium px-2 py-0.5 rounded-full bg-raised text-ink-muted">
                     {{ 'admin.push.status.unconfigured'|trans }}
                 </span>
             {% endif %}

@@ -86,7 +86,7 @@ Variables:
                             data-action="click->ui--modal#open"
                             data-ui--modal-title-value="{{ 'label.form.edit_title'|trans }}"
                             data-ui--modal-src-value="{{ path('app_label_edit', { id: label.id }) }}"
-                            class="w-8 h-8 flex items-center justify-center rounded-lg text-zinc-400 hover:text-ink hover:bg-hover transition-colors cursor-pointer"
+                            class="w-8 h-8 flex items-center justify-center rounded-lg text-ink-faint hover:text-ink hover:bg-hover transition-colors cursor-pointer"
                             aria-label="{{ 'settings.labels.edit'|trans({ '%name%': label|label_name }) }}"
                             title="{{ 'label.form.edit_title'|trans }}"
                         >
@@ -100,7 +100,7 @@ Variables:
                             <input type="hidden" name="_token" value="{{ csrf_token('label-delete' ~ label.id) }}">
                             <button
                                 type="submit"
-                                class="w-8 h-8 flex items-center justify-center rounded-lg text-zinc-400 hover:text-danger hover:bg-danger-soft transition-colors cursor-pointer"
+                                class="w-8 h-8 flex items-center justify-center rounded-lg text-ink-faint hover:text-danger hover:bg-danger-soft transition-colors cursor-pointer"
                                 aria-label="{{ 'settings.labels.delete'|trans({ '%name%': label|label_name }) }}"
                                 title="{{ 'label.form.delete'|trans }}"
                             >
@@ -113,7 +113,7 @@ Variables:
                         <input type="hidden" name="_token" value="{{ csrf_token('label-visibility' ~ label.id) }}">
                         <button
                             type="submit"
-                            class="w-8 h-8 flex items-center justify-center rounded-lg text-zinc-400 hover:text-ink hover:bg-hover transition-colors cursor-pointer"
+                            class="w-8 h-8 flex items-center justify-center rounded-lg text-ink-faint hover:text-ink hover:bg-hover transition-colors cursor-pointer"
                             aria-label="{{ label.isVisible ? 'settings.labels.hide'|trans : 'settings.labels.show'|trans }}"
                             title="{{ label.isVisible ? 'settings.labels.hide'|trans : 'settings.labels.show'|trans }}"
                         >

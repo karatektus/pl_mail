@@ -54,7 +54,7 @@ the same screen as the field.
                 {% else %}
                     {# "From environment" is a real state worth naming: the flow
                        may well be working off .env with nothing in the table. #}
-                    <span class="text-[11px] font-medium px-2 py-0.5 rounded-full bg-raised text-ink-faint">
+                    <span class="text-[11px] font-medium px-2 py-0.5 rounded-full bg-raised text-ink-muted">
                         {{ 'admin.integrations.mail.from_env'|trans }}
                     </span>
                 {% endif %}
@@ -105,7 +105,7 @@ the same screen as the field.
                    "not available yet" is on us, "disabled" is the admin's
                    choice, "needs credentials" is a half-finished setup. #}
                 {% if not provider.isImplemented %}
-                    <span class="text-[11px] font-medium px-2 py-0.5 rounded-full bg-raised text-ink-faint">
+                    <span class="text-[11px] font-medium px-2 py-0.5 rounded-full bg-raised text-ink-muted">
                         {{ 'admin.integrations.status.unimplemented'|trans }}
                     </span>
                 {% elseif connectable %}
@@ -117,7 +117,7 @@ the same screen as the field.
                         {{ 'admin.integrations.status.incomplete'|trans }}
                     </span>
                 {% else %}
-                    <span class="text-[11px] font-medium px-2 py-0.5 rounded-full bg-raised text-ink-faint">
+                    <span class="text-[11px] font-medium px-2 py-0.5 rounded-full bg-raised text-ink-muted">
                         {{ 'admin.integrations.status.disabled'|trans }}
                     </span>
                 {% endif %}

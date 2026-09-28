@@ -43,7 +43,7 @@ is half-typed.
            card's content still starts where every other card's does. #}
         <div class="rounded-pane border {{ plan.applied ? 'border-emerald-500/40' : 'border-line' }} bg-pane-soft overflow-hidden">
             <div class="flex items-center gap-2.5 {{ chrome.band() }}">
-                <i class="fa-solid {{ plan.applied ? 'fa-circle-check text-emerald-500' : 'fa-list-check text-zinc-400' }} text-xs" aria-hidden="true"></i>
+                <i class="fa-solid {{ plan.applied ? 'fa-circle-check text-emerald-500' : 'fa-list-check text-ink-faint' }} text-xs" aria-hidden="true"></i>
                 <h2 class="text-sm font-semibold text-ink">
                     {{ (plan.applied ? 'admin.config_backup.review.applied' : 'admin.config_backup.review.heading')|trans }}
                 </h2>
@@ -88,7 +88,7 @@ is half-typed.
     {# ── Export ────────────────────────────────────────────────────────── #}
     <div class="{{ chrome.shell() }}">
         <div class="flex items-center gap-2.5 {{ chrome.band() }}">
-            <i class="fa-solid fa-file-export text-xs text-zinc-400" aria-hidden="true"></i>
+            <i class="fa-solid fa-file-export text-xs text-ink-faint" aria-hidden="true"></i>
             <h2 class="text-sm font-semibold text-ink">{{ 'admin.config_backup.export.heading'|trans }}</h2>
         </div>
 
@@ -160,7 +160,7 @@ is half-typed.
     {# ── Import ────────────────────────────────────────────────────────── #}
     <div class="{{ chrome.shell() }}">
         <div class="flex items-center gap-2.5 {{ chrome.band() }}">
-            <i class="fa-solid fa-file-import text-xs text-zinc-400" aria-hidden="true"></i>
+            <i class="fa-solid fa-file-import text-xs text-ink-faint" aria-hidden="true"></i>
             <h2 class="text-sm font-semibold text-ink">{{ 'admin.config_backup.import.heading'|trans }}</h2>
         </div>
 

@@ -117,7 +117,7 @@ Variables:
                         <input type="hidden" name="_token" value="{{ csrf_token('calendar-disconnect' ~ connection.id) }}">
                         <button
                             type="submit"
-                            class="shrink-0 w-7 h-7 flex items-center justify-center rounded-lg text-zinc-400 hover:text-danger hover:bg-danger-soft transition-colors cursor-pointer"
+                            class="shrink-0 w-7 h-7 flex items-center justify-center rounded-lg text-ink-faint hover:text-danger hover:bg-danger-soft transition-colors cursor-pointer"
                             aria-label="{{ 'settings.calendars.caldav.disconnect'|trans({ '%name%': connection.name }) }}"
                             title="{{ 'settings.calendars.caldav.disconnect_title'|trans }}"
                         >

@@ -119,7 +119,7 @@ Variables:
                                name="busyCalendars[]"
                                value="{{ calendar.id }}"
                                {{ page is null or page.busyCalendars.contains(calendar) ? 'checked' : '' }}
-                               class="h-4 w-4 rounded border-field text-accent focus:ring-accent">
+                               class="h-4 w-4 rounded border-field accent-accent focus:ring-accent">
                         <span class="inline-block h-2.5 w-2.5 rounded-full" style="background: {{ calendar.color }}"></span>
                         {{ calendar.name }}
                     </label>

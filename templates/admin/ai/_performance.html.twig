@@ -57,11 +57,11 @@ there is no other screen anywhere that would tell you.
         <summary class="flex items-center gap-2.5 cursor-pointer list-none {{ chrome.band() }}">
             <i class="fa-solid fa-chevron-right w-3 text-xs text-ink-faint transition-transform
                       group-open:rotate-90" aria-hidden="true"></i>
-            <i class="fa-solid fa-microchip text-xs text-zinc-400" aria-hidden="true"></i>
+            <i class="fa-solid fa-microchip text-xs text-ink-faint" aria-hidden="true"></i>
             <h2 class="text-sm font-semibold text-ink">{{ 'admin.ai.perf.heading'|trans }}</h2>
 
             {% if not panel.ready %}
-                <span class="ml-auto text-[11px] font-medium px-2 py-0.5 rounded-full bg-raised text-ink-faint">
+                <span class="ml-auto text-[11px] font-medium px-2 py-0.5 rounded-full bg-raised text-ink-muted">
                     {{ 'admin.ai.perf.chip.off'|trans }}
                 </span>
             {% elseif not panel.host.reachable %}
@@ -69,7 +69,7 @@ there is no other screen anywhere that would tell you.
                    network, not a fault in this application, and colouring it as
                    a failure teaches an operator to ignore the one place that
                    would tell them something is actually wrong. #}
-                <span class="ml-auto text-[11px] font-medium px-2 py-0.5 rounded-full bg-raised text-ink-faint">
+                <span class="ml-auto text-[11px] font-medium px-2 py-0.5 rounded-full bg-raised text-ink-muted">
                     {{ 'admin.ai.perf.chip.unreachable'|trans }}
                 </span>
             {% elseif panel.anyPartial %}
@@ -77,7 +77,7 @@ there is no other screen anywhere that would tell you.
                     {{ 'admin.ai.perf.chip.split'|trans }}
                 </span>
             {% elseif panel.loaded is empty %}
-                <span class="ml-auto text-[11px] font-medium px-2 py-0.5 rounded-full bg-raised text-ink-faint">
+                <span class="ml-auto text-[11px] font-medium px-2 py-0.5 rounded-full bg-raised text-ink-muted">
                     {{ 'admin.ai.perf.chip.cold'|trans }}
                 </span>
             {% else %}
@@ -357,7 +357,7 @@ there is no other screen anywhere that would tell you.
         <summary class="flex items-center gap-2.5 cursor-pointer list-none {{ chrome.band() }}">
             <i class="fa-solid fa-chevron-right w-3 text-xs text-ink-faint transition-transform
                       group-open:rotate-90" aria-hidden="true"></i>
-            <i class="fa-solid fa-layer-group text-xs text-zinc-400" aria-hidden="true"></i>
+            <i class="fa-solid fa-layer-group text-xs text-ink-faint" aria-hidden="true"></i>
             <h2 class="text-sm font-semibold text-ink">{{ 'admin.ai.backfill.heading'|trans }}</h2>
 
             {% if backfill.stalled %}
@@ -377,11 +377,11 @@ there is no other screen anywhere that would tell you.
                     {{ 'admin.ai.backfill.chip.complete'|trans }}
                 </span>
             {% elseif backfill.status.value == 'paused' %}
-                <span class="ml-auto text-[11px] font-medium px-2 py-0.5 rounded-full bg-raised text-ink-faint">
+                <span class="ml-auto text-[11px] font-medium px-2 py-0.5 rounded-full bg-raised text-ink-muted">
                     {{ 'admin.ai.backfill.chip.paused'|trans }}
                 </span>
             {% else %}
-                <span class="ml-auto text-[11px] font-medium px-2 py-0.5 rounded-full bg-raised text-ink-faint">
+                <span class="ml-auto text-[11px] font-medium px-2 py-0.5 rounded-full bg-raised text-ink-muted">
                     {{ 'admin.ai.backfill.chip.idle'|trans }}
                 </span>
             {% endif %}

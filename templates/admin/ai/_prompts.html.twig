@@ -32,7 +32,7 @@ to do here and the chip in the header already says whether anything was changed.
     <summary class="flex items-center gap-2.5 cursor-pointer list-none {{ chrome.band() }}">
         <i class="fa-solid fa-chevron-right w-3 text-xs text-ink-faint transition-transform
                   group-open:rotate-90" aria-hidden="true"></i>
-        <i class="fa-solid fa-pen-to-square text-xs text-zinc-400" aria-hidden="true"></i>
+        <i class="fa-solid fa-pen-to-square text-xs text-ink-faint" aria-hidden="true"></i>
         <h2 class="text-sm font-semibold text-ink">{{ 'admin.ai.prompts.heading'|trans }}</h2>
 
         {% set changed = prompts|filter(row => row.value is not empty)|length %}
@@ -42,7 +42,7 @@ to do here and the chip in the header already says whether anything was changed.
                 {{ 'admin.ai.prompts.changed'|trans({ '%count%': changed }) }}
             </span>
         {% else %}
-            <span class="ml-auto text-[11px] font-medium px-2 py-0.5 rounded-full bg-raised text-ink-faint">
+            <span class="ml-auto text-[11px] font-medium px-2 py-0.5 rounded-full bg-raised text-ink-muted">
                 {{ 'admin.ai.prompts.untouched'|trans }}
             </span>
         {% endif %}
