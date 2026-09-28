@@ -57,12 +57,12 @@
                     aria-label="{{ 'settings.accounts.push.title'|trans }}: {{ status.health.translationKey|trans }}"
                 {{ not status.isToggleable and not degraded ? 'disabled' : '' }}
                     class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-sm transition-colors
-                           focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500
+                           focus:outline-none focus-visible:ring-2 focus-visible:ring-accent
                            disabled:cursor-not-allowed disabled:opacity-40
                            {% if status.failed or degraded %}
-                               text-amber-600 hover:bg-amber-100/60 dark:text-amber-400 dark:hover:bg-amber-950/40
+                               text-warning hover:bg-warning/10
                            {% elseif status.enabled %}
-                               text-emerald-600 hover:bg-emerald-100/60 dark:text-emerald-400 dark:hover:bg-emerald-950/40
+                               text-success hover:bg-success/10
                            {% else %}
                                text-zinc-400 hover:bg-zinc-100/60 dark:text-zinc-500 dark:hover:bg-zinc-800/60
                            {% endif %}">
