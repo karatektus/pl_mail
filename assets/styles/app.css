@@ -135,6 +135,12 @@
     --rgb-sheet-ink-faint:  103 103 109;
     --rgb-sheet-link:        29  78 216;
     --rgb-sheet-danger:     185  28  28;
+    /* The sheet's warning, success and info: the page's own, which
+       already read 4.5:1 on the sheet and on a 10% wash of themselves.
+       A dark theme deepens its own for the sheet; see .dark. */
+    --rgb-sheet-warning:    159  85   3;
+    --rgb-sheet-success:     13 120  53;
+    --rgb-sheet-info:        35  94 225;
 
     /* ── User knobs — NOT part of the theme inventory ────────────────────
        Overwritten inline on <html> by AppearanceRenderer. */
@@ -263,6 +269,15 @@
     --rgb-sheet-ink-faint:  104 114 129;   /* slate-400 */
     --rgb-sheet-link:        29  78 216;
     --rgb-sheet-danger:     185  28  28;
+    /* The sheet's warning, success and info. This block's own are
+       lightened for a near-black surface and read 1.6–2.4:1 on the
+       sheet, where the read-receipt line, "Draft saved" in an inline
+       reply and the scheduled badge draw them. Each is mixed toward black
+       in oklab, hue kept, until it reads 4.5:1 there and on a 10% wash
+       of itself. */
+    --rgb-sheet-warning:    134 100  14;  /* 251 191 36, deepened */
+    --rgb-sheet-success:     36 120  67;  /* 74 222 128, deepened */
+    --rgb-sheet-info:        61 107 165;  /* 96 165 250, deepened */
 }
 
 /* Theme blocks come AFTER .dark so they win at equal specificity. */
@@ -363,6 +378,9 @@
     --rgb-sheet-ink-faint:  113 108 100;
     --rgb-sheet-link:        29  78 216;
     --rgb-sheet-danger:     185  28  28;
+    --rgb-sheet-warning:    153  82   3;
+    --rgb-sheet-success:     13 116  51;
+    --rgb-sheet-info:        86 102 126;
 }
 
 /* Dark — a dim room, not a black one.
@@ -453,6 +471,11 @@
     --rgb-sheet-ink-faint:  104 114 129;   /* slate-400 */
     --rgb-sheet-link:        29  78 216;
     --rgb-sheet-danger:     185  28  28;
+    /* This block's own status colours, deepened for the sheet the way
+       .dark's are: they read 1.9–2.4:1 on it. */
+    --rgb-sheet-warning:    128 102  53;  /* 219 175 95, deepened */
+    --rgb-sheet-success:     69 115  89;  /* 118 192 150, deepened */
+    --rgb-sheet-info:        84 108 134;  /* 130 166 204, deepened */
 }
 
 /* Nord — polar night behind snow storm, with the frost blues doing the
@@ -529,8 +552,17 @@
     --rgb-sheet-ink-soft:    66  70  78;
     --rgb-sheet-ink-muted:  83 87 94;
     --rgb-sheet-ink-faint:  104 107 113;
-    --rgb-sheet-link:        94 129 172;  /* #5e81ac */
-    --rgb-sheet-danger:     191  97 106;  /* #bf616a */
+    /* #5e81ac read 3.50:1 on this sheet and #bf616a 3.55:1. Both are mixed
+       toward black in oklab, hue kept, until they read 4.5:1 — danger on the
+       10% wash of itself the spam warning draws it on, which asks a little
+       more than the bare sheet does. */
+    --rgb-sheet-link:        80 111 148;  /* #5e81ac, deepened */
+    --rgb-sheet-danger:     153  76  84;  /* #bf616a, deepened */
+    /* This block's own status colours, deepened for the sheet the way
+       .dark's are: they read 1.4–1.7:1 on it. */
+    --rgb-sheet-warning:    126  94  12;  /* 251 191 36, deepened */
+    --rgb-sheet-success:     34 113  63;  /* 74 222 128, deepened */
+    --rgb-sheet-info:        88 101 114;  /* 167 190 212, deepened */
 }
 
 /* Dusk — violet, and violet all the way down. The ink ramp had the same
@@ -595,6 +627,11 @@
     --rgb-sheet-ink-faint:  111 109 121;
     --rgb-sheet-link:       109  40 217;
     --rgb-sheet-danger:     185  28  28;
+    /* This block's own status colours, deepened for the sheet the way
+       .dark's are: they read 1.5–1.8:1 on it. */
+    --rgb-sheet-warning:    130  98  13;  /* 251 191 36, deepened */
+    --rgb-sheet-success:     35 117  65;  /* 74 222 128, deepened */
+    --rgb-sheet-info:        92 101 143;  /* 165 180 252, deepened */
 }
 
 /* Solarized light. The palette is a fixed sixteen colours chosen against each
@@ -690,8 +727,13 @@
     --rgb-sheet-ink-soft:    61  96 101;
     --rgb-sheet-ink-muted:   74 96 98;
     --rgb-sheet-ink-faint:  102 115 112;
-    --rgb-sheet-link:        38 139 210;   /* blue #268bd2 */
-    --rgb-sheet-danger:     220  50  47;   /* red  #dc322f */
+    /* Deepened like the status colours above: blue read 3.41:1 on base3, and
+       red 4.29:1 there and 3.70:1 on the spam warning's 10% wash of itself. */
+    --rgb-sheet-link:        31 118 180;   /* blue #268bd2, deepened */
+    --rgb-sheet-danger:     194  43  40;   /* red  #dc322f, deepened */
+    --rgb-sheet-warning:    155  83   3;
+    --rgb-sheet-success:     13 117  51;
+    --rgb-sheet-info:        27 106 161;
 }
 
 /* ═══ Logo-colourway themes (generated) ═════════════════════════════════════
@@ -787,6 +829,11 @@
     --rgb-sheet-ink-faint:  109 107 103;
     --rgb-sheet-link:        29  78 216;
     --rgb-sheet-danger:     185  28  28;
+    /* This block's own status colours, deepened for the sheet the way
+       .dark's are: they read 1.8–2.2:1 on it. */
+    --rgb-sheet-warning:    121  96  49;  /* 219 175 95, deepened */
+    --rgb-sheet-success:     64 108  84;  /* 118 192 150, deepened */
+    --rgb-sheet-info:        78 102 126;  /* 130 166 204, deepened */
 }
 
 /* midnight-gold — a night library: deep slate-navy shelves, old gold picking things out */
@@ -841,6 +888,11 @@
     --rgb-sheet-ink-faint:  106 111 118;
     --rgb-sheet-link:        29  78 216;
     --rgb-sheet-danger:     185  28  28;
+    /* This block's own status colours, deepened for the sheet the way
+       .dark's are: they read 1.8–2.3:1 on it. */
+    --rgb-sheet-warning:    123  98  50;  /* 219 175 95, deepened */
+    --rgb-sheet-success:     66 110  85;  /* 118 192 150, deepened */
+    --rgb-sheet-info:        93 102 116;  /* 148 163 184, deepened */
 }
 
 /* charcoal-amber — industrial: true charcoal, amber signal lights */
@@ -895,6 +947,11 @@
     --rgb-sheet-ink-faint:  112 109 107;
     --rgb-sheet-link:        29  78 216;
     --rgb-sheet-danger:     185  28  28;
+    /* This block's own status colours, deepened for the sheet the way
+       .dark's are: they read 1.8–2.2:1 on it. */
+    --rgb-sheet-warning:    123  97  50;  /* 219 175 95, deepened */
+    --rgb-sheet-success:     66 110  85;  /* 118 192 150, deepened */
+    --rgb-sheet-info:        80 103 128;  /* 130 166 204, deepened */
 }
 
 /* espresso-cream — cozy: deep coffee brown, cream poured over it */
@@ -949,6 +1006,11 @@
     --rgb-sheet-ink-faint:  113 103 90;
     --rgb-sheet-link:        29  78 216;
     --rgb-sheet-danger:     185  28  28;
+    /* This block's own status colours, deepened for the sheet the way
+       .dark's are: they read 1.6–1.8:1 on it. */
+    --rgb-sheet-warning:    120  94  49;  /* 219 175 95, deepened */
+    --rgb-sheet-success:     64 107  83;  /* 118 192 150, deepened */
+    --rgb-sheet-info:       113  96  72;  /* 211 182 138, deepened */
 }
 
 /* aurora — northern lights: blue-green night sky, a luminous green-teal ribbon */
@@ -1003,6 +1065,11 @@
     --rgb-sheet-ink-faint:  91 115 119;
     --rgb-sheet-link:        29  78 216;
     --rgb-sheet-danger:     185  28  28;
+    /* This block's own status colours, deepened for the sheet the way
+       .dark's are: they read 1.8–1.9:1 on it. */
+    --rgb-sheet-warning:    125  99  51;  /* 219 175 95, deepened */
+    --rgb-sheet-success:     67 112  87;  /* 118 192 150, deepened */
+    --rgb-sheet-info:        58 109 126;  /* 108 196 224, deepened */
 }
 
 /* ember — fireside: warm near-black, an ember orange-red glow */
@@ -1057,6 +1124,11 @@
     --rgb-sheet-ink-faint:  119 107 99;
     --rgb-sheet-link:        29  78 216;
     --rgb-sheet-danger:     185  28  28;
+    /* This block's own status colours, deepened for the sheet the way
+       .dark's are: they read 1.8–2.2:1 on it. */
+    --rgb-sheet-warning:    122  96  50;  /* 219 175 95, deepened */
+    --rgb-sheet-success:     65 109  84;  /* 118 192 150, deepened */
+    --rgb-sheet-info:        79 103 128;  /* 130 166 204, deepened */
 }
 
 /* twilight — dusk going indigo-violet, the last pink of the sky as accent */
@@ -1111,6 +1183,11 @@
     --rgb-sheet-ink-faint:  112 107 136;
     --rgb-sheet-link:        29  78 216;
     --rgb-sheet-danger:     185  28  28;
+    /* This block's own status colours, deepened for the sheet the way
+       .dark's are: they read 1.8–1.9:1 on it. */
+    --rgb-sheet-warning:    125  98  51;  /* 219 175 95, deepened */
+    --rgb-sheet-success:     66 111  86;  /* 118 192 150, deepened */
+    --rgb-sheet-info:        92 100 143;  /* 165 180 252, deepened */
 }
 
 /* product-blue — crisp product blue on a cool blue-white */
@@ -1165,6 +1242,9 @@
     --rgb-sheet-ink-faint:  102 108 123;
     --rgb-sheet-link:        29  78 216;
     --rgb-sheet-danger:     185  28  28;
+    --rgb-sheet-warning:    155  84   3;
+    --rgb-sheet-success:     13 118  51;
+    --rgb-sheet-info:        69 104 156;
 }
 
 /* slate — a cool grey-blue study, nothing louder than slate */
@@ -1219,6 +1299,9 @@
     --rgb-sheet-ink-faint:  100 105 114;
     --rgb-sheet-link:        29  78 216;
     --rgb-sheet-danger:     185  28  28;
+    --rgb-sheet-warning:    153  82   3;
+    --rgb-sheet-success:     12 115  50;
+    --rgb-sheet-info:        86 101 125;
 }
 
 /* forest — sage paper, deep forest green accent */
@@ -1273,6 +1356,9 @@
     --rgb-sheet-ink-faint:  101 109 96;
     --rgb-sheet-link:        29  78 216;
     --rgb-sheet-danger:     185  28  28;
+    --rgb-sheet-warning:    154  83   3;
+    --rgb-sheet-success:     13 117  51;
+    --rgb-sheet-info:        74 109  95;
 }
 
 /* burgundy — blushed parchment, burgundy wine accent */
@@ -1327,6 +1413,9 @@
     --rgb-sheet-ink-faint:  118 103 106;
     --rgb-sheet-link:        29  78 216;
     --rgb-sheet-danger:     185  28  28;
+    --rgb-sheet-warning:    154  82   3;
+    --rgb-sheet-success:     13 116  51;
+    --rgb-sheet-info:       136  87 101;
 }
 
 /* deep-violet — pale lavender-grey paper, deep violet accent */
@@ -1381,6 +1470,9 @@
     --rgb-sheet-ink-faint:  109 103 123;
     --rgb-sheet-link:        29  78 216;
     --rgb-sheet-danger:     185  28  28;
+    --rgb-sheet-warning:    154  82   3;
+    --rgb-sheet-success:     13 116  51;
+    --rgb-sheet-info:       109  90 150;
 }
 
 /* postal — an envelope: cream paper, navy ink, the postal red kept for danger */
@@ -1435,6 +1527,9 @@
     --rgb-sheet-ink-faint:  102 107 124;
     --rgb-sheet-link:        29  78 216;
     --rgb-sheet-danger:     185  28  28;
+    --rgb-sheet-warning:    154  83   3;
+    --rgb-sheet-success:     13 116  51;
+    --rgb-sheet-info:        78  98 133;
 }
 
 /* bronze-ink — deep warm stone, bronze accent — the heaviest of the warm papers */
@@ -1489,6 +1584,9 @@
     --rgb-sheet-ink-faint:  107 103 92;
     --rgb-sheet-link:        29  78 216;
     --rgb-sheet-danger:     185  28  28;
+    --rgb-sheet-warning:    150  80   3;
+    --rgb-sheet-success:     12 113  49;
+    --rgb-sheet-info:        84  99 122;
 }
 
 /* petrol-copper — cool teal-washed paper, petrol accent, copper in the warning */
@@ -1543,6 +1641,9 @@
     --rgb-sheet-ink-faint:  95 109 107;
     --rgb-sheet-link:        29  78 216;
     --rgb-sheet-danger:     185  28  28;
+    --rgb-sheet-warning:    149  85  45;
+    --rgb-sheet-success:     13 117  51;
+    --rgb-sheet-info:        66 109 104;
 }
 
 /* navy-sky — airy sky-tinted white, navy accent */
@@ -1597,6 +1698,9 @@
     --rgb-sheet-ink-faint:  97 109 134;
     --rgb-sheet-link:        29  78 216;
     --rgb-sheet-danger:     185  28  28;
+    --rgb-sheet-warning:    155  83   3;
+    --rgb-sheet-success:     13 117  51;
+    --rgb-sheet-info:        35 107 153;
 }
 
 /* forest-lime — lime-tinted paper, the lime itself as accent over near-ink text */
@@ -1651,6 +1755,9 @@
     --rgb-sheet-ink-faint:  103 111 93;
     --rgb-sheet-link:        29  78 216;
     --rgb-sheet-danger:     185  28  28;
+    --rgb-sheet-warning:    154  83   3;
+    --rgb-sheet-success:     13 117  51;
+    --rgb-sheet-info:        84 109  50;
 }
 
 /* plum-rose — rosy paper, plum accent */
@@ -1705,6 +1812,9 @@
     --rgb-sheet-ink-faint:  118 102 112;
     --rgb-sheet-link:        29  78 216;
     --rgb-sheet-danger:     185  28  28;
+    --rgb-sheet-warning:    153  82   3;
+    --rgb-sheet-success:     12 115  50;
+    --rgb-sheet-info:       144  79 119;
 }
 
 /* cobalt-coral — cool white with cobalt accent — the hairlines and hovers carry the coral warmth */
@@ -1759,6 +1869,9 @@
     --rgb-sheet-ink-faint:  102 108 127;
     --rgb-sheet-link:        29  78 216;
     --rgb-sheet-danger:     185  28  28;
+    --rgb-sheet-warning:    155  84   3;
+    --rgb-sheet-success:     13 118  51;
+    --rgb-sheet-info:        88 103 127;
 }
 
 /* teal-gold — golden paper, teal accent, the gold already in the warning */
@@ -1813,6 +1926,9 @@
     --rgb-sheet-ink-faint:  100 109 104;
     --rgb-sheet-link:        29  78 216;
     --rgb-sheet-danger:     185  28  28;
+    --rgb-sheet-warning:    153  82   3;
+    --rgb-sheet-success:     13 116  51;
+    --rgb-sheet-info:        65 108 103;
 }
 
 /* graphite-red — neutral graphite greys, one red accent */
@@ -1867,6 +1983,9 @@
     --rgb-sheet-ink-faint:  103 104 110;
     --rgb-sheet-link:        29  78 216;
     --rgb-sheet-danger:     185  28  28;
+    --rgb-sheet-warning:    153  82   3;
+    --rgb-sheet-success:     12 116  51;
+    --rgb-sheet-info:        86 102 125;
 }
 
 /* red-flick — quiet near-monochrome warm paper; the flick red is the only colour */
@@ -1921,6 +2040,9 @@
     --rgb-sheet-ink-faint:  111 107 102;
     --rgb-sheet-link:        29  78 216;
     --rgb-sheet-danger:     185  28  28;
+    --rgb-sheet-warning:    154  83   3;
+    --rgb-sheet-success:     13 116  51;
+    --rgb-sheet-info:        87 102 126;
 }
 
 /* sky-flick — quiet near-monochrome cool paper; the flick sky is the only colour */
@@ -1975,6 +2097,9 @@
     --rgb-sheet-ink-faint:  107 110 113;
     --rgb-sheet-link:        29  78 216;
     --rgb-sheet-danger:     185  28  28;
+    --rgb-sheet-warning:    155  84   3;
+    --rgb-sheet-success:     13 117  51;
+    --rgb-sheet-info:        89 104 128;
 }
 
 /* bronze-flick — quiet near-monochrome paper; the flick bronze is the only colour */
@@ -2029,6 +2154,9 @@
     --rgb-sheet-ink-faint:  111 107 101;
     --rgb-sheet-link:        29  78 216;
     --rgb-sheet-danger:     185  28  28;
+    --rgb-sheet-warning:    154  82   3;
+    --rgb-sheet-success:     13 116  51;
+    --rgb-sheet-info:        87 102 126;
 }
 
 /* violet-flick — quiet near-monochrome paper; the flick violet is the only colour */
@@ -2083,6 +2211,9 @@
     --rgb-sheet-ink-faint:  109 107 115;
     --rgb-sheet-link:        29  78 216;
     --rgb-sheet-danger:     185  28  28;
+    --rgb-sheet-warning:    155  83   3;
+    --rgb-sheet-success:     13 117  51;
+    --rgb-sheet-info:        88 103 127;
 }
 
 /* tricolore — stamp-paper cream, stamp-navy ink, the red franked on; gold in the warning */
@@ -2137,6 +2268,9 @@
     --rgb-sheet-ink-faint:  106 109 122;
     --rgb-sheet-link:        29  78 216;
     --rgb-sheet-danger:     185  28  28;
+    --rgb-sheet-warning:    129  97   4;
+    --rgb-sheet-success:     13 117  51;
+    --rgb-sheet-info:        30  58 110;
 }
 
 /* indigo-violet — periwinkle paper, indigo accent */
@@ -2191,6 +2325,9 @@
     --rgb-sheet-ink-faint:  105 104 128;
     --rgb-sheet-link:        29  78 216;
     --rgb-sheet-danger:     185  28  28;
+    --rgb-sheet-warning:    154  82   3;
+    --rgb-sheet-success:     13 116  51;
+    --rgb-sheet-info:        93  91 177;
 }
 
 /* sunset — warm peach drifting toward rose, sunset red accent */
@@ -2245,6 +2382,9 @@
     --rgb-sheet-ink-faint:  117 104 92;
     --rgb-sheet-link:        29  78 216;
     --rgb-sheet-danger:     185  28  28;
+    --rgb-sheet-warning:    155  84   3;
+    --rgb-sheet-success:     13 117  51;
+    --rgb-sheet-info:       159  79  57;
 }
 
 /* ocean — airy aqua-white drifting toward seafoam, deep ocean accent */
@@ -2299,6 +2439,9 @@
     --rgb-sheet-ink-faint:  91 112 117;
     --rgb-sheet-link:        29  78 216;
     --rgb-sheet-danger:     185  28  28;
+    --rgb-sheet-warning:    155  83   3;
+    --rgb-sheet-success:     13 117  51;
+    --rgb-sheet-info:        38 113 105;
 }
 
 /* berry — berry-tinted white, magenta accent */
@@ -2353,6 +2496,9 @@
     --rgb-sheet-ink-faint:  119 102 114;
     --rgb-sheet-link:        29  78 216;
     --rgb-sheet-danger:     185  28  28;
+    --rgb-sheet-warning:    153  82   3;
+    --rgb-sheet-success:     12 115  50;
+    --rgb-sheet-info:       135  83 130;
 }
 
 /* copper — terracotta paper, copper accent */
@@ -2407,6 +2553,9 @@
     --rgb-sheet-ink-faint:  115 104 91;
     --rgb-sheet-link:        29  78 216;
     --rgb-sheet-danger:     185  28  28;
+    --rgb-sheet-warning:    151  81   3;
+    --rgb-sheet-success:     12 114  50;
+    --rgb-sheet-info:        85 100 123;
 }
 
 /* blue-tonal — a blue-grey tonal study: everything is the same blue at a different depth */
@@ -2461,6 +2610,9 @@
     --rgb-sheet-ink-faint:  98 107 126;
     --rgb-sheet-link:        29  78 216;
     --rgb-sheet-danger:     185  28  28;
+    --rgb-sheet-warning:    154  82   3;
+    --rgb-sheet-success:     13 116  51;
+    --rgb-sheet-info:        68 102 153;
 }
 
 /* ═══ The calendar switch ═══════════════════════════════════════════════════
@@ -3070,7 +3222,7 @@ html {
 
    The colours are the theme's, not a fixed palette. Light is a constraint the
    sheet has to meet for the mail's sake; WHICH light is the theme's own
-   business, and every theme states its seven --rgb-sheet-* channels in full.
+   business, and every theme states its ten --rgb-sheet-* channels in full.
    Everything else here is derived from those two ends of the ramp — the
    hairlines, insets, fields and inverses are all the sheet's ink at a low
    alpha, which is why they need no channels of their own.
@@ -3092,10 +3244,18 @@ html {
     --rgb-inverse-ink:  var(--rgb-sheet);
     --rgb-shadow:       var(--rgb-sheet-ink);
 
-    /* A dark theme's --rgb-danger is lightened for a near-black surface and
-       washes out to nothing on a sheet this light, so the sheet carries its
-       own — the same reason every other channel here is re-pointed. */
+    /* A dark theme's status colours are lightened for a near-black surface
+       and wash out to nothing on a sheet this light, so the sheet carries its
+       own — the same reason every other channel here is re-pointed. All four
+       are text in here: a draft and the spam warning in danger, the
+       read-receipt line in warning, "Draft saved" in an inline reply in
+       success, the scheduled badge in info. Warning, success and info took
+       the theme's own until 2026-09-28, which on every dark theme was
+       1.4–2.4:1. */
     --rgb-danger:       var(--rgb-sheet-danger);
+    --rgb-warning:      var(--rgb-sheet-warning);
+    --rgb-success:      var(--rgb-sheet-success);
+    --rgb-info:         var(--rgb-sheet-info);
 
     /* The accent's text is the light-scheme one on the sheet in every theme.
        light-dark() would read a dark theme's scheme, which the sheet inherits,

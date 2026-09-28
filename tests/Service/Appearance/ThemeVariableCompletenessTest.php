@@ -94,6 +94,9 @@ final class ThemeVariableCompletenessTest extends TestCase
         '--rgb-sheet-ink-faint',
         '--rgb-sheet-link',
         '--rgb-sheet-danger',
+        '--rgb-sheet-warning',
+        '--rgb-sheet-success',
+        '--rgb-sheet-info',
     ];
 
     /**

@@ -54,6 +54,19 @@ final class ThemeInkContrastTest extends TestCase
      */
     private const float HEAVIEST_STATUS_WASH = 0.12;
 
+    /** The sheet's own four, which @utility mail-sheet re-points the roles above to. */
+    private const array SHEET_STATUS = ['--rgb-sheet-danger', '--rgb-sheet-warning', '--rgb-sheet-success', '--rgb-sheet-info'];
+
+    /**
+     * The heaviest wash of its own colour the sheet puts status text on: the
+     * spam warning's bg-danger/10 and the scheduled badge's bg-info/10 (the
+     * sender-mismatch strip's bg-warning/10 holds only an icon). A bounce is
+     * alert-danger, at the sheet's 8% --danger-soft-alpha. Success has no
+     * wash in the sheet yet and is held to the same, for the chip it would
+     * get.
+     */
+    private const float HEAVIEST_SHEET_WASH = 0.10;
+
     /**
      * Each ramp: the four ink tiers and the surface they sit on.
      *
@@ -184,6 +197,45 @@ final class ThemeInkContrastTest extends TestCase
                     self::AA_BODY_TEXT,
                     $ratio,
                     sprintf('%s %s on %s is %.2f:1', $selector, $status, $where, $ratio),
+                );
+            }
+        }
+    }
+
+    /**
+     * The message body's own colours: a link in a mail, and the status text
+     * inside it — a draft and the spam warning in danger, the read-receipt
+     * line in warning, "Draft saved" in an inline reply in success, the
+     * scheduled badge in info — which @utility mail-sheet re-points to the
+     * sheet's own. They sit on the sheet, not on the surface, and nothing
+     * measured them there: nord's link and danger and solar's link read about
+     * 3.5:1, and a dark theme's warning, success and info, taken over from its
+     * near-black surface, 1.4–2.4:1. Each status colour is held on the wash of
+     * itself the sheet draws it in, too, where solar's red read 3.70:1.
+     */
+    #[DataProvider('everyPalette')]
+    public function testTheSheetsLinkAndStatusColoursAreReadableOnTheSheet(string $selector): void
+    {
+        $palette = self::palettes()[$selector];
+        $sheet   = $palette['--rgb-sheet'];
+
+        $backgrounds = ['--rgb-sheet-link' => ['the sheet' => $sheet]];
+
+        foreach (self::SHEET_STATUS as $status) {
+            $backgrounds[$status] = [
+                'the sheet'    => $sheet,
+                'its own wash' => self::wash($palette[$status], self::HEAVIEST_SHEET_WASH, $sheet),
+            ];
+        }
+
+        foreach ($backgrounds as $var => $places) {
+            foreach ($places as $where => $background) {
+                $ratio = self::ratio($palette[$var], $background);
+
+                self::assertGreaterThanOrEqual(
+                    self::AA_BODY_TEXT,
+                    $ratio,
+                    sprintf('%s %s on %s is %.2f:1', $selector, $var, $where, $ratio),
                 );
             }
         }
