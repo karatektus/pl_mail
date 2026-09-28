@@ -2526,8 +2526,6 @@ settings:
             on_hint:
                 gmail: Neue E-Mails kommen sofort per Gmail-Push-Benachrichtigung an.
                 microsoft: Neue E-Mails kommen sofort per Microsoft-Push-Benachrichtigung an.
-            renews: Abonnement wird vor dem %date% erneuert.
-            reregister: Push neu registrieren
             title: Sofortige Zustellung
         reorder: Zum Umsortieren ziehen
         status:

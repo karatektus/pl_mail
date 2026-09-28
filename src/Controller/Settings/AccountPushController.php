@@ -153,9 +153,8 @@ final class AccountPushController extends AbstractController
             $status = $status->withFailure();
         }
 
-        // The compact row control, since both actions are triggered from the
-        // accounts list. If the roomier card in the edit pane ever posts here
-        // too, pass the template name in rather than branching on the referer.
+        // Every frame-targeted post comes from the accounts list's row
+        // control, so that is what goes back.
         return $this->render('settings/accounts/_push_control.html.twig', [
             'account' => $account,
             'status'  => $status,

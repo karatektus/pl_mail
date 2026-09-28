@@ -2543,8 +2543,6 @@ settings:
             on_hint:
                 gmail: New mail arrives immediately via Gmail push notifications.
                 microsoft: New mail arrives immediately via Microsoft push notifications.
-            renews: Subscription renews before %date%.
-            reregister: Re-register push
             title: Instant delivery
         reorder: Drag to reorder
         status:

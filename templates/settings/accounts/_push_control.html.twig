@@ -7,8 +7,8 @@
    Renders nothing for providers without push (IMAP), so no conditional is
    needed at the call site — the row simply has one fewer control.
 
-   For the roomier card version (headings, hint text, labelled repair button)
-   use _push_toggle.html.twig in the account edit pane instead.
+   It is the only push control. Its hints are the button's tooltip, and its
+   repair is the same button aimed at the repair route.
 
    NOTE: `class="contents"` on the turbo-frame is load-bearing. <turbo-frame>
    is display:block by default, which breaks it out of the row's flex layout

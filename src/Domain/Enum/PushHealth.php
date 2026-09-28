@@ -79,18 +79,6 @@ enum PushHealth: string
         return 'settings.accounts.push.health.' . $this->value;
     }
 
-    /**
-     * Tailwind classes for the status pill.
-     */
-    public function badgeClasses(): string
-    {
-        return match ($this) {
-            self::Active             => 'bg-emerald-100/80 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300',
-            self::Degraded, self::Lapsed => 'bg-amber-100/80 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300',
-            self::Inactive           => 'bg-zinc-100/80 text-zinc-600 dark:bg-zinc-800/60 dark:text-zinc-400',
-        };
-    }
-
     public function icon(): string
     {
         return match ($this) {

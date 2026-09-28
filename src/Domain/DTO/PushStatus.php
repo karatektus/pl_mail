@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Domain\DTO;
 
 use App\Domain\Enum\PushHealth;
-use DateTimeImmutable;
 
 /**
  * Everything a template needs to render the push control for one account.
@@ -18,14 +17,13 @@ use DateTimeImmutable;
 final readonly class PushStatus
 {
     public function __construct(
-        public bool                $supported,
-        public bool                $enabled,
-        public bool                $configured,
-        public PushHealth          $health,
-        public ?DateTimeImmutable  $expiresAt = null,
-        public bool                $failed = false,
+        public bool       $supported,
+        public bool       $enabled,
+        public bool       $configured,
+        public PushHealth $health,
+        public bool       $failed = false,
         /** Provider namespace for user-facing copy; empty when unsupported. */
-        public string              $provider = '',
+        public string     $provider = '',
     ) {}
 
     /**
@@ -62,7 +60,6 @@ final readonly class PushStatus
             enabled:    $this->enabled,
             configured: $this->configured,
             health:     $this->health,
-            expiresAt:  $this->expiresAt,
             failed:     true,
             provider:   $this->provider,
         );

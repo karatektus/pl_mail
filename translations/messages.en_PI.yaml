@@ -2387,8 +2387,6 @@ settings:
             on_hint:
                 gmail: New mail lands the instant Gmail fires the cannon.
                 microsoft: New mail lands the instant Microsoft fires the cannon.
-            renews: Yer watch be renewed afore %date%.
-            reregister: Load the cannon again
             title: Word the moment it lands
         reorder: Drag to reorder the line
         status:
