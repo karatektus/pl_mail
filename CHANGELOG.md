@@ -6,6 +6,34 @@ so anything that changes the schema irreversibly is called out explicitly.
 The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, and `sha-…` pins one commit.
 
+## v0.2.51 — 2026-09-28
+
+**Hiding a system label in settings takes it out of the sidebar.** The eye beside Inbox, Sent,
+Drafts, Trash or Archive in Settings → Labels saved the change and greyed the label out in the list,
+and the sidebar went on showing the row — only Spam ever asked. Every system row answers to its eye
+now, and the sidebar beside the list changes as you click instead of on the next page load. The
+"More" entry goes away when everything in it is switched off.
+
+- **Unread, one list of every unread conversation.** A new sidebar entry, off until you switch it on
+  under Settings → Labels. It gathers unread mail from every folder — archived and labelled
+  conversations included, without the inbox tabs — and leaves out the bin, spam and anything
+  snoozed. The web interface only; the Android app does not list it.
+- **Starred and Unread take drops.** Dragging a conversation onto Starred stars it, onto Unread marks
+  it unread, and either way it stays where it was — several at once if they are ticked. One that is
+  already starred stays starred.
+- **Archiving a Gmail conversation on the phone no longer logs an error.** The app puts plMail's
+  Archive label on a conversation that was only in the inbox, and the push asked Gmail to create a
+  label called Archive, which Gmail refuses as "Invalid label name". The archive itself always
+  reached Gmail. Snoozing a Gmail conversation went the same way; plMail's own system labels are
+  never created at Gmail now.
+
+### Before you upgrade
+
+- **Nothing has to change.** There is no migration, and the compose files stay as they are.
+- **Archive may leave your sidebar.** An Archive label that already exists was created hidden, which
+  the sidebar ignored until now. If you use it, switch it on under Settings → Labels; Archive labels
+  created from now on start visible.
+
 ## v0.2.50 — 2026-09-25
 
 **An event put on Google or Outlook no longer comes back as a second one.** Ticking a Google or
