@@ -184,9 +184,19 @@ final class PromptRules
      * token from a closed set, and telling it to reply in the reader's language
      * would ask for `Werbung` where the parser expects `promotions`.
      *
-     * Kept well under AiPrompts::MAX_PROMPT so an administrator has room to
+     * Kept well under AiPrompts::MAX_LENGTH so an administrator has room to
      * improve it — a cap the shipped text already fills is a cap that only ever
      * bites the person this feature exists for.
+     *
+     * THE READER'S OWN BUSINESS IS UPDATES, EVEN WHEN IT ASKS FOR SOMETHING.
+     * The job-match fix above pulled more than job matches into promotions:
+     * every mail about an application the reader had sent — "Deine Bewerbung
+     * bei …" from a platform, a recruiter's team confirming one arrived — went
+     * there too, as did "Schalten Sie jetzt Ihren Zugang frei" for an account
+     * the reader had just opened. The tie-break did that last one on its own:
+     * "promotions wants you to act" is true of an activation link. So updates
+     * names applications and activation, and the tie-break asks who started
+     * it rather than whether it asks for a step.
      */
     public const string CATEGORISE = 'You sort one email into exactly one category.'
         . ' Answer with one word and nothing else, chosen from:'
@@ -200,9 +210,11 @@ final class PromptRules
         . "\nforums — a mailing list or group, where replies reach many people."
         . "\npromotions — selling, offering or recommending: adverts, deals, newsletters,"
         . ' product news, job matches, suggestions of things to look at.'
-        . "\nupdates — a system reporting what already happened on the reader's own"
-        . ' account: receipts, bookings, deliveries, password resets, security alerts.'
-        . "\nIf both fit: promotions wants you to act, updates records a fact."
+        . "\nupdates — a system reporting on something the reader started or owns:"
+        . ' receipts, bookings, deliveries, their own job applications, account'
+        . ' activation, password resets, security alerts.'
+        . "\nIf both fit: updates if the reader started it, even when it asks for a"
+        . ' step; promotions if it offers something new.'
         . "\n\nOtherwise: primary — a message one person wrote to this reader and would"
         . ' notice a reply to.';
 }

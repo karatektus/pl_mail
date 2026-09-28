@@ -15,7 +15,7 @@ use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
 
 /**
- * Ask the configured model to sort seven messages whose answers are known.
+ * Ask the configured model to sort ten messages whose answers are known.
  *
  * WHY THIS EXISTS RATHER THAN A TEST
  * ──────────────────────────────────
@@ -53,13 +53,16 @@ use Symfony\Component\Console\Style\SymfonyStyle;
 final class CategorisePromptCheckCommand extends Command
 {
     /**
-     * Seven messages and their right answers.
+     * Ten messages and their right answers.
      *
      * Small on purpose: this spends real seconds of somebody's GPU per case,
      * and the point is a signal about the prompt rather than a benchmark suite.
      * Each one is a category the cascade can reach, plus two that exist to be
      * hard — the recruitment mail and the recipe newsletter, both of which are
-     * marketing wearing a first name.
+     * marketing wearing a first name — and three that pull the other way: mail
+     * about the reader's own application or account, which the fix for the
+     * first two sent to promotions. Two of those arrive with no plain text at
+     * all, as the reported ones did.
      *
      * @return list<array{name: string, want: MessageCategory, mail: string}>
      */
@@ -97,6 +100,28 @@ final class CategorisePromptCheckCommand extends Command
                 . "Subject: Ihre Rechnung 2026-0817\n"
                 . "Bulk headers: list-unsubscribe\n\n"
                 . "Ihre Abrechnung für Juli 2026 liegt bereit. 82,40 EUR werden am 15.08. abgebucht.",
+        ],
+        [
+            'name' => 'own application, received',
+            'want' => 'updates',
+            'mail' => "From: Orbit Recruiting Team <no-reply@msg.join.com>\n"
+                . "Subject: Angekommen! 🛰️\n\n"
+                . '(no plain text part)',
+        ],
+        [
+            'name' => 'own application, via a platform',
+            'want' => 'updates',
+            'mail' => "From: Instaffo <notifications@app.instaffo.com>\n"
+                . "Subject: Deine Bewerbung bei MeinEinkauf GmbH\n"
+                . "Bulk headers: list-unsubscribe\n\n"
+                . "MeinEinkauf GmbH hat deine Bewerbung angesehen. Den Stand siehst du jederzeit in deinem Profil.",
+        ],
+        [
+            'name' => 'account activation',
+            'want' => 'updates',
+            'mail' => "From: <kontakt@interamt.de>\n"
+                . "Subject: Schalten Sie jetzt Ihren INTERAMT-Zugang frei\n\n"
+                . '(no plain text part)',
         ],
         [
             'name' => 'shop sale',
