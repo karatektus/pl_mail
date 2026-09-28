@@ -14,15 +14,22 @@ label you made shows everything carrying it, wherever it arrived.
 | Entry | What it lists |
 |---|---|
 | **Inbox** | Everything still in the inbox, across every account, newest conversation first |
+| **Unread** | Every unread conversation in one list, whatever it is filed under — off until you switch it on |
 | **Starred** | Conversations with at least one starred message |
 | **Snoozed** | Conversations waiting for their wake time |
 | **Sent**, **Drafts**, **Trash** | The corresponding system label, across accounts |
 | **Archive** | Conversations you archived |
 | **Accounts** | One row per account; clicking it opens that account's inbox |
 
-Every system entry — **Inbox**, **Sent**, **Drafts**, **Snoozed**, **Archive**, **Trash**, and **Spam**
-where an account has a junk folder — has an eye in **Settings → Labels**: switch one off and its row
-leaves the sidebar, switch it back on and it returns, both straight away.
+Every system entry — **Inbox**, **Unread**, **Sent**, **Drafts**, **Snoozed**, **Archive**, **Trash**,
+and **Spam** where an account has a junk folder — has an eye in **Settings → Labels**: switch one off
+and its row leaves the sidebar, switch it back on and it returns, both straight away. **Unread** is
+the one that starts off.
+
+**Unread** gathers unread mail from everywhere — archived and labelled conversations included, with
+no category tabs — and leaves out only what you have put away: the bin, spam and anything snoozed.
+Dropping a conversation on it marks the conversation unread and leaves it where it is, which is
+the quickest way to keep something for later without moving it.
 
 Clicking an account opens **its inbox** — the same question the top-level Inbox asks, about one
 mailbox instead of all of them. Its Sent, Drafts, Spam and Trash are folder rows underneath it, one
@@ -53,7 +60,8 @@ where you were rather than somewhere adjacent.
 
 **Trash** and **Drafts** are not links, and neither is the **Labels** roll-up. The first two carry a
 total rather than an unread count, so there is no unread question being asked there; the roll-up
-stands in for several lists at once and has no single one to open.
+stands in for several lists at once and has no single one to open. **Unread**'s badge is not a link
+either: every row in that list is unread already.
 
 A collapsed **Labels** heading carries the unread hidden underneath it, as a count of conversations.
 It is deliberately not the sum of the per-label numbers: a conversation filed under two labels would

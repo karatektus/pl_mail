@@ -31,6 +31,8 @@ import { requestFailed } from "../../request_errors.js";
  *   [data-dnd-label]            a drop target that ATTACHES. Value is the label
  *                               id. The conversation stays where it is.
  *   [data-dnd-category]         a drop target. Value is a MessageCategory.
+ *   [data-dnd-unread]           a drop target that MARKS UNREAD. No value. The
+ *                               conversation stays where it is.
  *   [data-dnd-account]          on a target: only rows from this account may
  *                               land. Absent means "any".
  *
@@ -38,6 +40,7 @@ import { requestFailed } from "../../request_errors.js";
  *   POST {moveUrl}      { ids, labelId }
  *   POST {labelUrl}     { ids, labelId }
  *   POST {categoryUrl}  { ids, category }
+ *   POST {readUrl}      { ids, read: false }
  *
  * ── A DROP MEANS TWO DIFFERENT THINGS, DECIDED BY WHERE IT LANDS ────────────
  *
@@ -51,6 +54,9 @@ import { requestFailed } from "../../request_errors.js";
  * same custom label is rendered in both halves: under LABELS it means
  * "everywhere", under an account it names that account's folder. Nothing about
  * the label can tell those apart — only which row was dropped on can.
+ *
+ * One row is neither. Unread is a state rather than a place or a tag, so a drop
+ * there marks the conversation unread and leaves it where it was.
  *
  * ── The gesture is HTML5 drag-and-drop, not pointer events ──────────────────
  *
@@ -88,6 +94,7 @@ export default class extends Controller {
         moveUrl: String,
         labelUrl: String,
         categoryUrl: String,
+        readUrl: String,
         dragging: { type: String, default: "%count% conversations" },
     };
 
@@ -101,7 +108,7 @@ export default class extends Controller {
     static REFUSED_ATTRIBUTE = "dndRefused";
 
     /** Every drop target on the page, of either kind. */
-    static TARGETS = "[data-dnd-folder], [data-dnd-label], [data-dnd-category]";
+    static TARGETS = "[data-dnd-folder], [data-dnd-label], [data-dnd-category], [data-dnd-unread]";
 
     /** The conversations in flight, or null when nothing is being dragged. */
     #carrying = null;
@@ -298,9 +305,18 @@ export default class extends Controller {
         event.preventDefault();
 
         const ids = this.#carrying.ids;
-        const { dndFolder, dndLabel, dndCategory } = target.dataset;
+        const { dndFolder, dndLabel, dndCategory, dndUnread } = target.dataset;
 
         this.#teardown();
+
+        // The bulk "read" action with read: false — the toolbar's own Mark as
+        // unread, reached by pointer. It answers by redrawing the rows in
+        // place, which is the feedback: they turn bold where they are.
+        if (undefined !== dndUnread) {
+            await this.#post(this.readUrlValue, "read", { ids, read: false });
+
+            return;
+        }
 
         if (undefined !== dndFolder) {
             await this.#post(this.moveUrlValue, "move", { ids, labelId: Number(dndFolder) });

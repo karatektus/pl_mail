@@ -3667,6 +3667,7 @@ sidebar:
         spam: Spam
         starred: Markiert
         trash: Papierkorb
+        unread: Ungelesen
     toggle: Seitenleiste ein-/ausblenden
 
 snooze:
@@ -3820,3 +3821,7 @@ two_factor:
         Handy verloren? Nimm einen der Wiederherstellungscodes, die du beim
         Einrichten gesichert hast.
     tagline: Noch ein Schritt
+
+unread:
+    empty: Keine ungelesenen Nachrichten.
+    heading: Alle ungelesenen Nachrichten

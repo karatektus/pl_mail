@@ -1,0 +1,30 @@
+{% extends '_layout/_mailbox.html.twig' %}
+
+{% block list_scope %}unread{% endblock %}
+
+{% block title %}
+    {% set _unread = sidebarCounts.forUnread() %}
+    {{ _unread > 0 ? '('~_unread~')' }} {{ 'sidebar.nav.unread'|trans }} — {{ 'app.name'|trans }}
+{% endblock %}
+
+{% block title_count_key %}unread{% endblock %}
+
+{# One list, no category tabs: seeing every unread conversation together is
+   the point of the view, where the Inbox splits them across its tabs. #}
+{% block inbox_tabs %}
+    <div class="px-4 py-2.5 border-b border-line">
+        <h2 class="text-sm font-semibold text-ink-soft">{{ 'unread.heading'|trans }}</h2>
+    </div>
+{% endblock %}
+
+{% block message_list %}
+    {% if threads is empty %}
+        <li class="px-4 py-8 text-center text-sm text-ink-faint">
+            {{ 'unread.empty'|trans }}
+        </li>
+    {% else %}
+        {% for thread in threads %}
+            {% include '_partials/_thread_row.html.twig' with { thread: thread } %}
+        {% endfor %}
+    {% endif %}
+{% endblock %}

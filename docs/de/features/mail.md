@@ -1,4 +1,4 @@
-<!-- translated-from: features/mail.md sha1:31833e184a85ccc2156aeafe9839a62d733b5846 -->
+<!-- translated-from: features/mail.md sha1:c2a6495a3bfdf136fd0b27306cf42ed6384a96e6 -->
 
 # Mail
 
@@ -17,16 +17,23 @@ gleich, wo es angekommen ist.
 | Eintrag | Was er auflistet |
 |---|---|
 | **Posteingang** | Alles, was noch im Posteingang liegt, über alle Konten hinweg, neueste Konversation zuerst |
+| **Ungelesen** | Jede ungelesene Konversation in einer Liste, egal wo sie abgelegt ist — aus, bis du es einschaltest |
 | **Markiert** | Konversationen mit mindestens einer markierten Nachricht |
 | **Zurückgestellt** | Konversationen, die auf ihre Weckzeit warten |
 | **Gesendet**, **Entwürfe**, **Papierkorb** | Das jeweilige Systemlabel, über alle Konten hinweg |
 | **Archiv** | Konversationen, die du archiviert hast |
 | **Konten** | Eine Zeile je Konto; ein Klick darauf öffnet den Posteingang dieses Kontos |
 
-Jeder Systemeintrag — **Posteingang**, **Gesendet**, **Entwürfe**, **Zurückgestellt**, **Archiv**,
-**Papierkorb** und **Spam**, sofern ein Konto einen Spam-Ordner hat — hat unter **Einstellungen →
-Labels** ein Auge: Schaltest du einen aus, verschwindet seine Zeile aus der Seitenleiste, schaltest
-du ihn wieder ein, ist sie zurück — beides sofort.
+Jeder Systemeintrag — **Posteingang**, **Ungelesen**, **Gesendet**, **Entwürfe**, **Zurückgestellt**,
+**Archiv**, **Papierkorb** und **Spam**, sofern ein Konto einen Spam-Ordner hat — hat unter
+**Einstellungen → Labels** ein Auge: Schaltest du einen aus, verschwindet seine Zeile aus der
+Seitenleiste, schaltest du ihn wieder ein, ist sie zurück — beides sofort. **Ungelesen** ist der
+einzige, der ausgeschaltet beginnt.
+
+**Ungelesen** sammelt ungelesene Mails von überall — archivierte und gelabelte Konversationen
+eingeschlossen, ohne Kategorie-Tabs — und lässt nur weg, was du weggeräumt hast: Papierkorb, Spam
+und alles Zurückgestellte. Ziehst du eine Konversation darauf, wird sie als ungelesen markiert und
+bleibt, wo sie ist — der schnellste Weg, dir etwas für später aufzuheben, ohne es zu verschieben.
 
 Ein Klick auf ein Konto öffnet **dessen Posteingang** — dieselbe Frage, die der Posteingang ganz
 oben stellt, nur über ein Postfach statt über alle. Gesendet, Entwürfe, Spam und Papierkorb dieses
@@ -62,7 +69,8 @@ bringt dich **Alle anzeigen** dorthin zurück, wo du warst, und nicht irgendwohi
 **Papierkorb** und **Entwürfe** sind keine Links, die Sammelzahl über **Labels** ebenfalls nicht.
 Die ersten beiden tragen eine Gesamtzahl statt eines Ungelesen-Zählers, dort wird also gar nicht
 nach Ungelesenem gefragt; die Sammelzahl steht für mehrere Listen auf einmal und hat keine einzelne,
-die sie öffnen könnte.
+die sie öffnen könnte. Auch die Zahl an **Ungelesen** ist kein Link: In dieser Liste ist ohnehin
+jede Zeile ungelesen.
 
 Eine zugeklappte Überschrift **Labels** trägt das Ungelesene, das darunter verborgen ist, als
 Anzahl von Konversationen. Es ist bewusst nicht die Summe der einzelnen Zahlen: Eine Konversation

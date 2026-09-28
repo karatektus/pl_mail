@@ -433,6 +433,37 @@ controller instead — the scroll position and which trees are open.
         </div>
         {% endif %}
 
+        {# Every unread conversation in one list. Opt-in: its label is created
+           hidden and switched on in label settings, like Spam's.
+
+           A drop here marks the mail unread and leaves it where it is — it is
+           a state, not a folder, so data-dnd-unread rather than drop_target(),
+           which only knows how to move or to label. See mail--dnd. #}
+        {% if sidebarCounts.hasVisibleRole(enum('App\\Domain\\Enum\\Mail\\LabelRole').Unread) %}
+        <div class="nav-item flex items-center justify-between gap-2 px-3 rounded-lg transition-colors"
+             data-dnd-unread>
+            {# The tier rides on the LINK, not on the pill around it. The pill is
+               what you see — .nav-item draws it — but the row's height comes from
+               padding-block, and padding on the wrapper is area the anchor does not
+               cover: the row would look 36px tall and answer a click on 20 of them.
+               The wrapper then takes its height from the link, so the geometry is
+               the same to the pixel as when the anchor WAS the row. #}
+            <a class="flex-1 min-w-0 flex items-center gap-2"
+               data-nav-tier="row"
+               href="{{ path('app_mail_unread') }}"
+               {{ macros.list_frame() }}
+               data-ui--sidebar-target="link"
+               data-action="{{ _drawerClose }}"
+               title="{{ 'sidebar.nav.unread'|trans }}"
+            >
+                <span class="flex items-center gap-2">
+                    <i class="fa-solid fa-envelope w-4" aria-hidden="true"></i>
+                    <span class="rail-hide">{{ 'sidebar.nav.unread'|trans }}</span>
+                </span>
+            </a>
+            {{ macros.unread_badge(sidebarCounts.forUnread(), 'unread') }}
+        </div>
+        {% endif %}
 
         <div class="nav-item flex items-center justify-between gap-2 px-3 rounded-lg transition-colors">
             {# The tier rides on the LINK, not on the pill around it. The pill is

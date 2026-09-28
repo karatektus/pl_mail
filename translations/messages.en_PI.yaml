@@ -3458,6 +3458,7 @@ sidebar:
         spam: Bilge
         starred: Marked with an X
         trash: Davy Jones' locker
+        unread: Bottles yet uncorked
     toggle: Raise or lower th' side riggin'
 
 snooze:
@@ -3610,3 +3611,7 @@ two_factor:
         Spyglass overboard? Use one o' the spare tokens ye stowed when ye rigged
         this.
     tagline: One more turn o' the capstan
+
+unread:
+    empty: Naught left uncorked.
+    heading: Every bottle yet uncorked

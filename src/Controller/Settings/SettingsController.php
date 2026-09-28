@@ -9,6 +9,7 @@ use App\Domain\Enum\User\ClockFormat;
 use App\Domain\Enum\User\ClockPlacement;
 use App\Entity\Ai\AiFeature;
 use App\Domain\Helper\TimezoneHelper;
+use App\Domain\Enum\Mail\LabelRole;
 use App\Entity\User\User;
 use App\Form\ApiTokenType;
 use App\Service\User\ClockFormatResolver;
@@ -25,6 +26,7 @@ use App\Repository\Push\PushDeliveryRepository;
 use App\Repository\User\ApiTokenRepository;
 use App\Repository\User\PushSubscriptionRepository;
 use App\Repository\Label\LabelRepository;
+use App\Service\Label\LabelResolver;
 use App\Repository\Rule\MailRuleRepository;
 use App\Service\Calendar\Subscription\CalendarSourceLister;
 use App\Service\Health\AccountHealthInspector;
@@ -102,6 +104,7 @@ final class SettingsController extends AbstractController
         private readonly AccountHealthInspector $healthInspector,
         private readonly InsightExtractorRegistry $insightExtractors,
         private readonly AiAssistant $ai,
+        private readonly LabelResolver $labelResolver,
     ) {
     }
 
@@ -121,6 +124,16 @@ final class SettingsController extends AbstractController
 
         if (false === in_array($section, self::SECTIONS, true)) {
             $section = self::DEFAULT_SECTION;
+        }
+
+        // Unread is opt-in: its label is created hidden and switched on in
+        // this list, which it can only be if it exists. No sync and no mail
+        // action has a reason to create it, so it is created the first time
+        // the list is opened.
+        $user = $this->getUser();
+
+        if ('labels' === $section && $user instanceof User) {
+            $this->labelResolver->userSystemLabel(LabelRole::Unread, $user);
         }
 
         // The user's own arrangement, not the alphabet.

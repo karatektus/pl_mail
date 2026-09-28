@@ -29,6 +29,7 @@ class SidebarCounts implements ResetInterface
     private array $roleTotals = [];
     private ?array $labelCounts = null;
     private ?int $starredCount = null;
+    private ?int $unreadCount = null;
     private ?int $snoozedCount = null;
     private ?int $labelsUnread = null;
     private ?array $userLabelTree = null;
@@ -74,6 +75,7 @@ class SidebarCounts implements ResetInterface
         $this->roleTotals         = [];
         $this->labelCounts        = null;
         $this->starredCount       = null;
+        $this->unreadCount        = null;
         $this->snoozedCount       = null;
         $this->labelsUnread       = null;
         $this->userLabelTree      = null;
@@ -302,6 +304,23 @@ class SidebarCounts implements ResetInterface
         }
 
         return $this->starredCount;
+    }
+
+    /**
+     * Conversations in the Unread view — the whole list, since every row in it
+     * is unread, so the badge and the pager beneath it count the same thing.
+     */
+    public function forUnread(): int
+    {
+        if (null === $this->unreadCount) {
+            $user = $this->security->getUser();
+
+            $this->unreadCount = null === $user
+                ? 0
+                : $this->threadRepository->countForUnread($user);
+        }
+
+        return $this->unreadCount;
     }
 
     /**

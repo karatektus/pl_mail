@@ -1,6 +1,6 @@
 import type { Locator, Page } from "@playwright/test";
 import { test, expect } from "./support/test";
-import { INBOX_SUBJECTS, mailRow, seed } from "./support/config";
+import { INBOX_SUBJECTS, ajaxPost, mailRow, seed } from "./support/config";
 import { settled } from "./support/motion";
 
 /**
@@ -286,6 +286,57 @@ test.describe("dragging a conversation", () => {
         );
 
         expect(handed).toEqual([`dnd-drag-image|${subject}`]);
+    });
+
+    /**
+     * Unread is neither a place nor a tag: a drop there marks the mail unread
+     * and leaves it where it was.
+     *
+     * The row is read first, through the endpoint the toolbar posts to, because
+     * the fixture seeds every conversation unread — and a drop that "marks
+     * unread" a row that already was would pass against a target that does
+     * nothing. It shares its row with the label test, which leaves the
+     * conversation in the inbox, and it hands the row back unread, which is how
+     * the fixture seeded it.
+     */
+    test("onto Unread marks it unread and leaves it where it was", async ({ page }) => {
+        // The row is opt-in. Switched on through the eye in label settings,
+        // and only when it is off, so a second run finds it already there.
+        await page.goto("/settings?section=labels");
+
+        const show = page
+            .locator("#settings-label-list li")
+            .filter({ hasText: "Unread" })
+            .getByRole("button", { name: "Show label" });
+
+        if (await show.count() > 0) {
+            await show.click();
+        }
+
+        const unread = page.locator("#sidebar [data-dnd-unread]");
+        await expect(unread).toHaveCount(1);
+
+        await page.goto("/mail/inbox");
+        await settled(page);
+
+        const staged = mailRow(page, INBOX_SUBJECTS.read);
+        const id     = Number((await staged.getAttribute("id"))?.replace("thread_", ""));
+        const read   = await ajaxPost(page, "/status/bulk/read", { ids: [id], read: true });
+        expect(read.ok()).toBe(true);
+
+        await page.goto("/mail/inbox");
+        await settled(page);
+
+        const row = mailRow(page, INBOX_SUBJECTS.read);
+        await expect(row).toHaveAttribute("data-unread", "false");
+
+        await dragOnto(page, row, unread);
+
+        await expect(row).toHaveAttribute("data-unread", "true");
+
+        // STAYS, and still after the frame is re-read rather than only after
+        // the stream: marking unread is not a move.
+        await expect(page.locator(ROWS).filter({ hasText: INBOX_SUBJECTS.read })).toHaveCount(1);
     });
 
     test("onto a category tab re-files it, including one with no mail yet", async ({ page }) => {

@@ -550,7 +550,10 @@ export default class extends Controller {
         // attribute's own note in _layout/_mailbox.html.twig.
         const scope =
             document.getElementById(LIST_FRAME_ID)?.dataset.syncScope || "*";
-        if (scope === "*") {
+        // Unread gathers mail from every folder, so a sync of any of them can
+        // change it — the same answer "*" gives. Without this, new mail put the
+        // badge up and left the list beside it as it was.
+        if (scope === "*" || scope === "unread") {
             return true;
         }
 

@@ -453,6 +453,37 @@ final class MailController extends AbstractController
         ]);
     }
 
+    /**
+     * Every unread conversation, in one list with no category tabs.
+     *
+     * Rendered whether or not its sidebar row is switched on, for the reason
+     * the Spam view is: a bookmark should not stop working because somebody
+     * tidied their sidebar.
+     */
+    #[Route('/unread', name: 'unread')]
+    public function unread(Request $request): Response
+    {
+        $user  = $this->getUser();
+        $total = $this->threadRepository->countForUnread($user);
+        $page  = $this->pageOrRedirect($request, $total);
+
+        if ($page instanceof RedirectResponse) {
+            return $page;
+        }
+
+        $sort    = $this->listSort($request);
+        $threads = $this->threadRepository->findForUnread($user, $page, self::PER_PAGE, $sort);
+
+        $this->threadRows->preload($threads);
+
+        return $this->renderList($request, 'mail/unread.html.twig', $threads, [
+            'page'      => $page,
+            'total'     => $total,
+            'per_page'  => self::PER_PAGE,
+            'list_sort' => $sort,
+        ]);
+    }
+
     #[Route('/sent', name: 'sent')]
     public function sent(Request $request): Response
     {
@@ -682,6 +713,7 @@ final class MailController extends AbstractController
 
         $payload = [
             'starred'                     => $counts->forStarred(),
+            'unread'                      => $counts->forUnread(),
             NewMailMarkers::STARRED_KEY   => $newMail->forStarred(),
             // The collapsed LABELS heading's roll-up. Emitted whether or not
             // the section is currently collapsed, because the badge is

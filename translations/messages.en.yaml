@@ -3654,6 +3654,7 @@ sidebar:
         spam: Spam
         starred: Starred
         trash: Trash
+        unread: Unread
     toggle: Show or hide the sidebar
 
 snooze:
@@ -3825,3 +3826,7 @@ two_factor:
         Lost your phone? Use one of the recovery codes you saved when you set
         this up.
     tagline: One more step
+
+unread:
+    empty: No unread mail.
+    heading: All unread mail

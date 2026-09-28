@@ -552,6 +552,61 @@ class MessageThreadRepository extends ServiceEntityRepository
         return $qb->getQuery()->getResult();
     }
 
+    /**
+     * Every unread conversation, whatever it is filed under — the Unread view.
+     *
+     * Across folders on purpose, archived and labelled mail included: that is
+     * what the view is for, the Inbox's own unread filter already answering
+     * the narrower question. Only mail that has been put out of the way is left
+     * out — the bin and spam, as every other cross-folder list here leaves them
+     * out, and snoozed mail, whose snooze is a request not to be shown it yet.
+     *
+     * QueryBuilder for the account join and the role subquery; neither is a
+     * field of the thread.
+     *
+     * @return list<MessageThread>
+     */
+    public function findForUnread(UserInterface $user, int $page = 1, int $perPage = 50, ListSortOrder $sort = ListSortOrder::Newest): array
+    {
+        $qb = $this->unreadQuery($user)
+            ->setFirstResult(($page - 1) * $perPage)
+            ->setMaxResults($perPage);
+
+        $sort->applyTo($qb);
+
+        return $qb->getQuery()->getResult();
+    }
+
+    /** Same query as findForUnread() — the view's pager and its sidebar badge. */
+    public function countForUnread(UserInterface $user): int
+    {
+        return (int) $this->unreadQuery($user)
+            ->select('COUNT(t.id)')
+            ->getQuery()
+            ->getSingleScalarResult();
+    }
+
+    private function unreadQuery(UserInterface $user): QueryBuilder
+    {
+        $qb = $this->createQueryBuilder('t')
+            ->join('t.account', 'a')
+            ->where('a.usr = :user')
+            ->andWhere('a.isActive = true')
+            ->andWhere('t.unreadCount > 0')
+            ->setParameter('user', $user);
+
+        $qb->andWhere(
+            $qb->expr()->notIn(
+                't.id',
+                'SELECT setAside.id FROM ' . MessageThread::class . ' setAside'
+                    . ' JOIN setAside.labels setAsideLabel'
+                    . ' WHERE setAsideLabel.role IN (:setAsideRoles)',
+            ),
+        )->setParameter('setAsideRoles', [LabelRole::Trash, LabelRole::Spam, LabelRole::Snoozed]);
+
+        return $qb;
+    }
+
     /** Same join as findForStarred(). */
     public function countForStarred(UserInterface $user, bool $unreadOnly = false): int
     {

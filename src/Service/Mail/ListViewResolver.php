@@ -65,7 +65,7 @@ final readonly class ListViewResolver
 
     /**
      * @param string $scope one of `inbox`, `archive`, `trash`, `spam`, `sent`,
-     *                      `drafts`, `snoozed`, `starred`, `label`
+     *                      `drafts`, `snoozed`, `starred`, `unread`, `label`
      * @param string $value the category for `inbox`, the label id for `label`,
      *                      ignored otherwise
      *
@@ -127,6 +127,12 @@ final readonly class ListViewResolver
         // example the feature was asked for with.
         if ('starred' === $scope) {
             return $this->threads->findForStarred($user, $page, self::CHUNK, unreadOnly: $unreadOnly);
+        }
+
+        // Not a label query either: nothing carries the Unread label, the view
+        // is read off the unread counts. $unreadOnly has nothing left to narrow.
+        if ('unread' === $scope) {
+            return $this->threads->findForUnread($user, $page, self::CHUNK);
         }
 
         $role = self::ROLES[$scope] ?? null;

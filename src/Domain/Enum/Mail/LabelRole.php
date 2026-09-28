@@ -34,26 +34,37 @@ enum LabelRole: string
      * least one label" invariant without a second mechanism.
      */
     case Snoozed = 'snoozed';
+    /**
+     * Every unread conversation in one list — a view, not a place.
+     *
+     * Nothing attaches it to mail: the list is read off the unread counts
+     * (MessageThreadRepository::findForUnread()), and dropping a conversation
+     * on its sidebar row marks it unread rather than moving it. It is a label
+     * at all so it can sit in label settings and be switched on there — it is
+     * created hidden — and it is never bound to an account, so no provider
+     * and no JMAP client ever sees it.
+     */
+    case Unread = 'unread';
 
     /**
      * Whether a provider has a folder of its own behind this role.
      *
-     * Every role but Snoozed names something the server also has, which is
-     * what makes "move the message there" a meaningful instruction. Snoozed is
-     * plMail's alone — see the note on the case — so a push treating it as a
-     * folder can only go looking for an id nobody ever set, and a message
-     * carrying it looks like it is in two places at once to anything counting
-     * locations.
+     * Every role but Snoozed and Unread names something the server also has,
+     * which is what makes "move the message there" a meaningful instruction.
+     * Snoozed is plMail's alone — see the note on the case — so a push treating
+     * it as a folder can only go looking for an id nobody ever set, and a
+     * message carrying it looks like it is in two places at once to anything
+     * counting locations. Unread is not attached to mail at all.
      */
     public function hasProviderFolder(): bool
     {
-        return self::Snoozed !== $this;
+        return self::Snoozed !== $this && self::Unread !== $this;
     }
 
     /**
      * Whether a conversation can be MOVED into this role's folder.
      *
-     * Four of the seven are places mail lives and can be filed into, and three
+     * Four of the eight are places mail lives and can be filed into, and four
      * are not:
      *
      * - **Sent** and **Drafts** describe how a message came to exist, not where
@@ -63,6 +74,8 @@ enum LabelRole: string
      * - **Snoozed** is a wait with a time on it rather than a location — see
      *   the note on the case. A conversation moved there would have no wake
      *   time, so nothing would ever take it out again.
+     * - **Unread** is a state. Its row takes drops, but a drop there marks the
+     *   mail unread and leaves it where it is — see mail--dnd.
      *
      * Read in two places that must agree: the sidebar decides which rows accept
      * a drop, and BulkStatusController refuses a move to anything this says no
@@ -73,8 +86,8 @@ enum LabelRole: string
     public function acceptsMoves(): bool
     {
         return match ($this) {
-            self::Inbox, self::Archive, self::Trash, self::Spam => true,
-            self::Sent, self::Drafts, self::Snoozed            => false,
+            self::Inbox, self::Archive, self::Trash, self::Spam   => true,
+            self::Sent, self::Drafts, self::Snoozed, self::Unread => false,
         };
     }
 
@@ -100,6 +113,7 @@ enum LabelRole: string
             self::Spam => 'Spam',
             self::Archive => 'Archive',
             self::Snoozed => 'Snoozed',
+            self::Unread => 'Unread',
         };
     }
 
@@ -111,6 +125,8 @@ enum LabelRole: string
     {
         return match ($this) {
             self::Inbox => 0,
+            // Beside the Inbox, which is the other list it is read against.
+            self::Unread => 5,
             self::Sent => 10,
             self::Drafts => 20,
             self::Spam => 30,
@@ -133,7 +149,7 @@ enum LabelRole: string
         // Archive was created hidden, from when it was IMAP bookkeeping, and
         // the sidebar ignored the flag so that the row existed at all. Now the
         // sidebar honours the flag, and a hidden default would take Archive
-        // away from every new user.
-        return true;
+        // away from every new user. Unread is the one that is opt-in.
+        return self::Unread !== $this;
     }
 }

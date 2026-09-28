@@ -10,6 +10,7 @@ use App\Entity\Mail\Account;
 use App\Entity\Label\Label;
 use App\Entity\Label\LabelBinding;
 use App\Entity\Mail\Mailbox;
+use App\Entity\User\User;
 use App\Jmap\State\JmapObjectType;
 use DateTimeImmutable;
 use App\Jmap\State\StateManager;
@@ -156,7 +157,24 @@ final class LabelResolver
 
     public function systemLabel(LabelRole $role, Account $account): Label
     {
-        $user   = $account->usr;
+        $label = $this->userSystemLabel($role, $account->usr);
+
+        $this->binding($label, $account);
+
+        return $label;
+    }
+
+    /**
+     * The user's label for a role, created if missing — and bound to no
+     * account, which is the difference from systemLabel().
+     *
+     * For a role no account has anything to do with. Unread is a view over
+     * every account at once; a binding would make it a JMAP Mailbox on each of
+     * them, empty for ever, and give the provider pushes a label id to go
+     * looking for.
+     */
+    public function userSystemLabel(LabelRole $role, User $user): Label
+    {
         $userId = (int) $user->id;
 
         $cachedId = $this->roleIdCache[$userId][$role->value] ?? null;
@@ -183,8 +201,6 @@ final class LabelResolver
         }
 
         $this->roleIdCache[$userId][$role->value] = (int) $label->id;
-
-        $this->binding($label, $account);
 
         return $label;
     }
