@@ -26,13 +26,17 @@
            other sidebar row — a rounded-lg box on this wrapper was the last
            square highlight left in the sidebar. It has to be the wrapper and
            not the anchor: on the anchor the pill stops before the chevron and
-           cuts the row in half. #}
-        <div class="nav-item flex items-center transition-colors text-ink-muted">
+           cuts the row in half.
+
+           Open or closed is rendered, not applied on connect — see
+           App\Twig\SidebarRowStateExtension. #}
+        {% set _href = path('app_mail_account', { account: account.id }) %}
+        <div class="nav-item flex items-center transition-colors {{ sidebar_row_state(_href) }}">
             {# Named explicitly rather than by the address inside it: that span
                is `truncate`, and a name a screen reader reads as "kontakt@…"
                because CSS ran out of room is not a name. #}
             <a
-                href="{{ path('app_mail_account', { account: account.id }) }}"
+                href="{{ _href }}"
                 data-ui--sidebar-target="link"
                 data-action="{{ _drawerClose }}"
                 aria-label="{{ 'sidebar.accounts.open'|trans({ '%account%': account.displayAddress }) }}"

@@ -174,6 +174,7 @@ account inside ThreadStatusUpdater.
 {% macro label_node(label, depth, drawerClose) %}
     {% import _self as macros %}
     {% set children = sidebarCounts.visibleChildrenOf(label) %}
+    {% set _href = path('app_mail_label_path', { path: label.fullName }) %}
 
     {% if children|length > 0 %}
         {# Keyed by full name, in the same stored set as the two section
@@ -192,7 +193,7 @@ account inside ThreadStatusUpdater.
                  data-action="toggle->ui--sidebar#rememberCollapse"
                  {{ sidebarCounts.isCollapsed(_treeKey) ? '' : 'open' }}>
             <summary class="nav-item group/label flex items-center gap-1 cursor-pointer list-none
-                            transition-colors"
+                            transition-colors {{ sidebar_row_state(_href) }}"
                      {# A parent label takes drops like any other. It is a real
                         folder with real mail in it; having children does not
                         make it a heading. #}
@@ -204,7 +205,7 @@ account inside ThreadStatusUpdater.
                 <i class="fa-solid fa-chevron-right text-[9px] text-ink-faint w-3
                           transition-transform group-open/tree:rotate-90" aria-hidden="true"></i>
                 {{ macros.label_dot(label.color) }}
-                <a href="{{ path('app_mail_label_path', { path: label.fullName }) }}"
+                <a href="{{ _href }}"
                    {{ macros.list_frame() }}
                    class="flex-1 flex items-center justify-between gap-2 truncate"
                    data-ui--sidebar-target="link"
@@ -231,12 +232,12 @@ account inside ThreadStatusUpdater.
             </div>
         </details>
     {% else %}
-        <div class="nav-item group/label flex items-center gap-2 transition-colors"
+        <div class="nav-item group/label flex items-center gap-2 transition-colors {{ sidebar_row_state(_href) }}"
              {{ macros.drop_target(label.id) }}
              data-nav-tier="tree"
              style="--label-depth: {{ depth * 14 + 16 }}px">
             {{ macros.label_dot(label.color) }}
-            <a href="{{ path('app_mail_label_path', { path: label.fullName }) }}"
+            <a href="{{ _href }}"
                {{ macros.list_frame() }}
                class="flex-1 flex items-center justify-between gap-2 truncate min-w-0"
                data-ui--sidebar-target="link"
@@ -398,12 +399,21 @@ controller instead — the scroll position and which trees are open.
          data-ui--sidebar-target="scroller"
          data-action="scroll->ui--sidebar#rememberScroll">
 
+        {# Which row is open is RENDERED, by sidebar_row_state() on every row
+           below, not left to ui--sidebar's pass on connect: arriving after the
+           page had been styled, that pass turned into a 150ms fade from black
+           on every row, on every load. The href is set once per row because the state
+           is decided from it — a row whose link and state were written out
+           separately could point at one place and light up for another. See
+           App\Twig\SidebarRowStateExtension. #}
+
         {# Every system row answers to its eye toggle in label settings. Only
            Spam used to: the toggle saved the flag for Inbox or Trash, the
            settings list greyed the label out, and the row stayed. A role with
            no label yet counts as shown — see SidebarCounts::isRoleHidden(). #}
         {% if not sidebarCounts.isRoleHidden(enum('App\\Domain\\Enum\\Mail\\LabelRole').Inbox) %}
-        <div class="nav-item flex items-center justify-between gap-2 px-3 rounded-lg transition-colors"
+        {% set _href = path('app_mail_inbox') %}
+        <div class="nav-item flex items-center justify-between gap-2 px-3 rounded-lg transition-colors {{ sidebar_row_state(_href) }}"
              {# Dropping a conversation here is the same operation as the row's
                 own "back to the inbox" button: out of the bin, out of spam, out
                 of the archive. See ThreadStatusUpdater::move(), which sends
@@ -417,7 +427,7 @@ controller instead — the scroll position and which trees are open.
                the same to the pixel as when the anchor WAS the row. #}
             <a class="flex-1 min-w-0 flex items-center gap-2"
                data-nav-tier="row"
-               href="{{ path('app_mail_inbox') }}"
+               href="{{ _href }}"
                {{ macros.list_frame() }}
                data-ui--sidebar-target="link"
                data-action="{{ _drawerClose }}"
@@ -440,7 +450,8 @@ controller instead — the scroll position and which trees are open.
            a state, not a folder, so data-dnd-unread rather than drop_target(),
            which only knows how to move or to label. See mail--dnd. #}
         {% if sidebarCounts.hasVisibleRole(enum('App\\Domain\\Enum\\Mail\\LabelRole').Unread) %}
-        <div class="nav-item flex items-center justify-between gap-2 px-3 rounded-lg transition-colors"
+        {% set _href = path('app_mail_unread') %}
+        <div class="nav-item flex items-center justify-between gap-2 px-3 rounded-lg transition-colors {{ sidebar_row_state(_href) }}"
              data-dnd-unread>
             {# The tier rides on the LINK, not on the pill around it. The pill is
                what you see — .nav-item draws it — but the row's height comes from
@@ -450,7 +461,7 @@ controller instead — the scroll position and which trees are open.
                the same to the pixel as when the anchor WAS the row. #}
             <a class="flex-1 min-w-0 flex items-center gap-2"
                data-nav-tier="row"
-               href="{{ path('app_mail_unread') }}"
+               href="{{ _href }}"
                {{ macros.list_frame() }}
                data-ui--sidebar-target="link"
                data-action="{{ _drawerClose }}"
@@ -467,7 +478,8 @@ controller instead — the scroll position and which trees are open.
 
         {# A drop here stars the mail and leaves it where it is, as the Unread
            row above marks it unread: a state, not a folder. See mail--dnd. #}
-        <div class="nav-item flex items-center justify-between gap-2 px-3 rounded-lg transition-colors"
+        {% set _href = path('app_mail_starred') %}
+        <div class="nav-item flex items-center justify-between gap-2 px-3 rounded-lg transition-colors {{ sidebar_row_state(_href) }}"
              data-dnd-star>
             {# The tier rides on the LINK, not on the pill around it. The pill is
                what you see — .nav-item draws it — but the row's height comes from
@@ -477,7 +489,7 @@ controller instead — the scroll position and which trees are open.
                the same to the pixel as when the anchor WAS the row. #}
             <a class="flex-1 min-w-0 flex items-center gap-2"
                data-nav-tier="row"
-               href="{{ path('app_mail_starred') }}"
+               href="{{ _href }}"
                {{ macros.list_frame() }}
                data-ui--sidebar-target="link"
                data-action="{{ _drawerClose }}"
@@ -493,9 +505,10 @@ controller instead — the scroll position and which trees are open.
         </div>
 
         {% if not sidebarCounts.isRoleHidden(enum('App\\Domain\\Enum\\Mail\\LabelRole').Sent) %}
-        <a href="{{ path('app_mail_sent') }}"
+        {% set _href = path('app_mail_sent') %}
+        <a href="{{ _href }}"
            {{ macros.list_frame() }}
-           class="nav-item flex items-center justify-between gap-2 px-3 rounded-lg transition-colors"
+           class="nav-item flex items-center justify-between gap-2 px-3 rounded-lg transition-colors {{ sidebar_row_state(_href) }}"
            data-nav-tier="row"
            data-ui--sidebar-target="link"
            data-action="{{ _drawerClose }}"
@@ -511,9 +524,10 @@ controller instead — the scroll position and which trees are open.
         {% endif %}
 
         {% if not sidebarCounts.isRoleHidden(enum('App\\Domain\\Enum\\Mail\\LabelRole').Drafts) %}
-        <a href="{{ path('app_mail_drafts') }}"
+        {% set _href = path('app_mail_drafts') %}
+        <a href="{{ _href }}"
            {{ macros.list_frame() }}
-           class="nav-item flex items-center justify-between gap-2 px-3 rounded-lg transition-colors"
+           class="nav-item flex items-center justify-between gap-2 px-3 rounded-lg transition-colors {{ sidebar_row_state(_href) }}"
            data-nav-tier="row"
            data-ui--sidebar-target="link"
            data-action="{{ _drawerClose }}"
@@ -534,8 +548,9 @@ controller instead — the scroll position and which trees are open.
            topbar there instead. Below lg there is nowhere to dock it, so this
            is a plain link to the page like any other row here. #}
         {% if _drawerMode is defined and _drawerMode %}
-            <a href="{{ path('app_calendar_index') }}"
-               class="nav-item flex items-center justify-between gap-2 px-3 rounded-lg transition-colors"
+            {% set _href = path('app_calendar_index') %}
+            <a href="{{ _href }}"
+               class="nav-item flex items-center justify-between gap-2 px-3 rounded-lg transition-colors {{ sidebar_row_state(_href) }}"
                data-nav-tier="row"
                data-ui--sidebar-target="link"
                data-action="{{ _drawerClose }}"
@@ -586,7 +601,8 @@ controller instead — the scroll position and which trees are open.
                 <span>{{ 'sidebar.nav.more'|trans }}</span>
             </summary>
         {% if _showSnoozed %}
-            <div class="nav-item flex items-center justify-between gap-2 pl-9 pr-3 rounded-lg transition-colors">
+            {% set _href = path('app_mail_snoozed') %}
+            <div class="nav-item flex items-center justify-between gap-2 pl-9 pr-3 rounded-lg transition-colors {{ sidebar_row_state(_href) }}">
                 {# The tier rides on the LINK, not on the pill around it. The pill is
                    what you see — .nav-item draws it — but the row's height comes from
                    padding-block, and padding on the wrapper is area the anchor does not
@@ -595,7 +611,7 @@ controller instead — the scroll position and which trees are open.
                    the same to the pixel as when the anchor WAS the row. #}
                 <a class="flex-1 min-w-0 flex items-center gap-2"
                    data-nav-tier="row"
-                   href="{{ path('app_mail_snoozed') }}"
+                   href="{{ _href }}"
                    {{ macros.list_frame() }}
                    data-ui--sidebar-target="link"
                    data-action="{{ _drawerClose }}"
@@ -611,7 +627,8 @@ controller instead — the scroll position and which trees are open.
             </div>
         {% endif %}
         {% if _showArchive %}
-            <div class="nav-item flex items-center justify-between gap-2 pl-9 pr-3 rounded-lg transition-colors"
+            {% set _href = path('app_mail_archive') %}
+            <div class="nav-item flex items-center justify-between gap-2 pl-9 pr-3 rounded-lg transition-colors {{ sidebar_row_state(_href) }}"
                  {{ macros.drop_target(sidebarCounts.roleLabelId(enum('App\\Domain\\Enum\\Mail\\LabelRole').Archive), null, true) }}>
                 {# The tier rides on the LINK, not on the pill around it. The pill is
                    what you see — .nav-item draws it — but the row's height comes from
@@ -621,7 +638,7 @@ controller instead — the scroll position and which trees are open.
                    the same to the pixel as when the anchor WAS the row. #}
                 <a class="flex-1 min-w-0 flex items-center gap-2"
                    data-nav-tier="row"
-                   href="{{ path('app_mail_archive') }}"
+                   href="{{ _href }}"
                    {{ macros.list_frame() }}
                    data-ui--sidebar-target="link"
                    data-action="{{ _drawerClose }}"
@@ -644,7 +661,8 @@ controller instead — the scroll position and which trees are open.
            visible in settings did nothing observable anywhere. Sits above
            Trash because that is where LabelRole::sortOrder() already put it. #}
         {% if _showSpam %}
-            <div class="nav-item flex items-center justify-between gap-2 pl-9 pr-3 rounded-lg transition-colors"
+            {% set _href = path('app_mail_spam') %}
+            <div class="nav-item flex items-center justify-between gap-2 pl-9 pr-3 rounded-lg transition-colors {{ sidebar_row_state(_href) }}"
                  {# "This is junk", said by dropping. The only way to say it in
                     the interface: there is no mark-as-spam button anywhere, and
                     the row is here because the folder is. #}
@@ -657,7 +675,7 @@ controller instead — the scroll position and which trees are open.
                    the same to the pixel as when the anchor WAS the row. #}
                 <a class="flex-1 min-w-0 flex items-center gap-2"
                    data-nav-tier="row"
-                   href="{{ path('app_mail_spam') }}"
+                   href="{{ _href }}"
                    {{ macros.list_frame() }}
                    data-ui--sidebar-target="link"
                    data-action="{{ _drawerClose }}"
@@ -674,9 +692,10 @@ controller instead — the scroll position and which trees are open.
         {% endif %}
 
         {% if _showTrash %}
-        <a href="{{ path('app_mail_trash') }}"
+        {% set _href = path('app_mail_trash') %}
+        <a href="{{ _href }}"
            {{ macros.list_frame() }}
-           class="nav-item flex items-center justify-between gap-2 pl-9 pr-3 rounded-lg transition-colors"
+           class="nav-item flex items-center justify-between gap-2 pl-9 pr-3 rounded-lg transition-colors {{ sidebar_row_state(_href) }}"
            {{ macros.drop_target(sidebarCounts.roleLabelId(enum('App\\Domain\\Enum\\Mail\\LabelRole').Trash), null, true) }}
            data-nav-tier="row"
            data-ui--sidebar-target="link"

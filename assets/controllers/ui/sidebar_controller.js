@@ -4,6 +4,12 @@ import { WRITE_EVENT } from "../../mail_writes.js";
 
 // `is-active` carries no colour of its own — it is the hook the sidebar's
 // Gmail-style pill shape hangs off in app.css.
+//
+// The server renders these same two sets on every row it draws (OPEN and
+// CLOSED in App\Twig\SidebarRowStateExtension), so on those rows the pass in
+// connect() changes nothing. Keep the lists identical: a row the server drew
+// one way and this pass redraws the other is a row that fades on every load,
+// from whatever it was painted as. SidebarRowStateTest compares the two files.
 const ACTIVE_CLASSES   = ["is-active", "bg-accent-soft", "text-accent", "font-medium"];
 // A parent of the open row. Its own class rather than the active set: the
 // trail should read as "you are in here", not as a second selection.
@@ -667,6 +673,10 @@ export default class extends Controller {
      * compare matched nothing and those rows never highlighted at all. The
      * account has to agree too — the same label under another account is a
      * different view, and both rows lighting up says the wrong thing.
+     *
+     * Restated in PHP as SidebarRowStateExtension::isOpen(), which decides the
+     * rows the server renders. A change here that is not made there is a row
+     * the two disagree about, and it fades on every load.
      */
     _matches(link) {
         const target = new URL(link.href, window.location.origin);

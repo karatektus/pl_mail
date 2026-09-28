@@ -54,13 +54,19 @@
            the drop_target macro. #}
         {% import '_partials/_sidebar.html.twig' as sidebarMacros %}
         {% set droppable = label.role is null or label.role.acceptsMoves %}
-        <div class="nav-item flex items-center justify-between text-xs transition-colors text-ink-muted"
+        {# Open or closed is rendered, not applied on connect — see
+           App\Twig\SidebarRowStateExtension. Only on the sidebar's own render
+           can it be right: fetched into the frame, these rows are rendered for
+           the fetch's URL, come out closed, and ui--sidebar marks the open one
+           as they arrive. #}
+        {% set _href = path('app_mail_label', { id: label.id, account: account.id }) %}
+        <div class="nav-item flex items-center justify-between text-xs transition-colors {{ sidebar_row_state(_href) }}"
              {% if droppable %}{{ sidebarMacros.drop_target(label.id, account, true) }}{% endif %}
              data-nav-tier="tree"
              style="--label-depth: {{ 12 + label.depth * 12 }}px">
             <a
                 data-ui--sidebar-target="link"
-                href="{{ path('app_mail_label', { id: label.id, account: account.id }) }}"
+                href="{{ _href }}"
                 {# BOTH of these, and the pair is the point.
 
                    `_top` is the answer that is correct on every page. These
