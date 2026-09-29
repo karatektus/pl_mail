@@ -1,4 +1,4 @@
-<!-- translated-from: features/calendar-invitations.md sha1:b5f183b8329854ef3f1ae0330ad48fe0a8d7fdfd -->
+<!-- translated-from: features/calendar-invitations.md sha1:8a9f8424c7265facfddaee640a7794f1e5f6a504 -->
 
 # Einladungen und Termine aus E-Mails
 
@@ -55,9 +55,20 @@ beantworten können sollte.
 **Eine Einladung steht in deinem Kalender, sobald du sie zusagst, und vorher nicht.** Bis dahin
 lebt sie auf der Karte über der Nachricht und sonst nirgends. **Vielleicht** zählt als Ja — ein
 vorläufiger Termin ist einer, dessen Platz du dir freihalten musst, und ihn zu verstecken ist der
-Weg zur Doppelbuchung — und **Absagen** nimmt ihn wieder heraus. Nichts daran ist einseitig: Die
+Weg zur Doppelbuchung —, also steht er auch im Kalender, gestreift in der Farbe seines Kalenders,
+damit du ihn von einer festen Zusage unterscheidest. **Absagen** nimmt ihn wieder heraus. Nichts daran ist einseitig: Die
 Einladung selbst verschwindet nie, du kannst es dir also später anders überlegen, und der Termin
 wandert wieder hinein oder heraus.
+
+**Der Kalender zeigt deine Antwort, während du sie gibst.** Ist der Kalender neben deinen E-Mails
+offen, markiert schon das Zeigen auf **Zusagen** oder **Vielleicht** — oder das Ansteuern mit der
+Tabulatortaste — den Platz, den der Termin einnehmen würde, gestrichelt und in der Farbe seines
+Kalenders, bei Vielleicht zusätzlich gestreift. Antwortest du, steht der Termin sofort dort: Der Kalender wird an Ort und Stelle neu
+gezeichnet, ohne dass die Seite neu lädt, und der Termin ist kurz umrandet, damit dein Blick ihn
+findet. Steht die Bewegung auf **Voll**, fliegt die Antwort selbst dorthin und wird unterwegs zum
+Termin; bei **Dezent** oder **Keine**, oder wenn dein System weniger Bewegung verlangt, bewegt sich
+nichts, und die Markierung ist alles. Ist der Kalender geschlossen, landet die Antwort auf dem
+Kalender-Knopf oben in der Leiste, der einen Punkt behält, bis du ihn öffnest.
 
 Das gilt für Einladungen an dich und für sonst nichts. Eine Flugbestätigung, ein Paket, ein Datum,
 das du aus einem Satz übernommen hast, ein von Google gespiegelter Kalender, eine Besprechung, die

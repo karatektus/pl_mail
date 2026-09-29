@@ -287,6 +287,19 @@ identity is threaded through a URL that would outlive the render that made it.
         ~ (showRange ? '–' ~ occurrence.endsAt|date(clock.time, chip_zone) : '')
     : '') ~ (until is not null ? ' · ' ~ until : '') %}
 
+{# An invitation answered Maybe. It is on the calendar — a tentative meeting is
+   a slot you still have to keep, see InviteResponder — and drawn striped, with
+   a dashed edge, which is how every calendar says "not settled". Only the
+   reader's own answer: an event's STATUS saying tentative is the organiser's
+   business and changes nothing here. The stripes are the chip's, in every view,
+   so the name says it too for whoever cannot see them. See [data-tentative]
+   in app.css. #}
+{% set tentative = event.myParticipation is not null and 'tentative' == event.myParticipation.value %}
+
+{% if tentative %}
+    {% set chip_title = chip_title ~ ' · ' ~ 'calendar.invite.status.tentative'|trans %}
+{% endif %}
+
 {% if cluster.isMerged %}
     {% set chip_title = chip_title ~ ' · ' ~ 'calendar.chip.on_calendars'|trans({
         '%calendars%': cluster.calendarNames|join(', '),
@@ -314,6 +327,13 @@ identity is threaded through a URL that would outlive the render that made it.
 <button type="button"
    data-controller="ui--modal"
    data-action="click->ui--modal#open"
+   {# Which event this is, in every view. calendar--invite looks the chip up by
+      it once an answered invitation has been drawn, to light where it landed. #}
+   data-event-chip="{{ event.id }}"
+   {% if tentative %}
+   data-tentative
+   style="--block-stripe: {{ event.calendar.color }}2e; --block-edge: {{ event.calendar.color }}b3"
+   {% endif %}
    {# Details, not the editor. Clicking an event to find out when it is used
       to open a form asking you to change it — and the three things people
       most often want (the description, who else is coming, and which mail it
@@ -411,6 +431,9 @@ identity is threaded through a URL that would outlive the render that made it.
                      ? 'col-start-1 row-span-full'
                      : (timeColumn ? '' : 'order-first') }}"
           style="{{ mark_style }}"
+          {# A month cell too narrow for words draws the chip as this bar and
+             nothing else, so there the bar carries a Maybe's stripes. #}
+          {% if tentative and monthCell %}data-tentative-bar{% endif %}
           aria-hidden="true"></span>
 
     {# Truncated to one line in a list, wrapped into the height it has in a

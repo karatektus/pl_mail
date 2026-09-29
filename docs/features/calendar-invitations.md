@@ -50,9 +50,18 @@ this called off or did I imagine it?" is a question a calendar should be able to
 
 **An invitation is on your calendar once you accept it, and not before.** Until then it lives on
 the card above the message and nowhere else. **Maybe** counts as yes — a tentative meeting is one
-whose slot you still have to keep, and hiding it is how people double-book — and **No** takes it
-back off. Nothing about that is one-way: the invitation itself never goes anywhere, so changing your
+whose slot you still have to keep, and hiding it is how people double-book — so it is drawn too,
+striped in its calendar's colour so you can tell it from a firm yes. **No** takes it back off. Nothing about that is one-way: the invitation itself never goes anywhere, so changing your
 mind later moves the meeting on or off again.
+
+**The calendar shows your answer as you give it.** With the calendar open beside your mail, pointing
+at **Yes** or **Maybe** — or tabbing to it — outlines the slot the meeting would take, dashed, in its
+calendar's colour, and striped for Maybe. Answer, and the meeting is in that slot straight away: the calendar is redrawn in
+place, without reloading the page, and the meeting is ringed for a moment so your eye finds it. With
+motion set to **Full** the answer itself travels there, turning into the meeting on the way; at
+**Minimal** or **None**, or when your system asks for reduced motion, nothing moves and the outline
+is the whole of it. With the calendar closed, the answer lands on the calendar button in the top
+bar, which keeps a dot until you open it.
 
 This applies to invitations addressed to you and to nothing else. A flight confirmation, a parcel, a
 date you accepted out of a sentence, a calendar you mirror from Google, a meeting *you* organised —

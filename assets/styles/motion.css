@@ -80,6 +80,9 @@
     --motion-list-base: 30ms;
     --motion-list-lift: 48px;
     --motion-list-stagger: 16ms;
+
+    --motion-travel: 580ms;
+    --motion-travel-ease: cubic-bezier(0.32, 0, 0.18, 1);
 }
 
 /* The tier the server asked for. Belt and braces with the inline custom
@@ -101,6 +104,8 @@
     --motion-list-base: 30ms;
     --motion-list-lift: 0px;
     --motion-list-stagger: 0ms;
+
+    --motion-travel: 0s;
 }
 
 [data-motion="none"] {
@@ -119,6 +124,8 @@
     --motion-list-base: 0s;
     --motion-list-lift: 0px;
     --motion-list-stagger: 0ms;
+
+    --motion-travel: 0s;
 }
 
 /* ── Entrances ───────────────────────────────────────────────────────────────
@@ -255,6 +262,8 @@
         --motion-list-base: 0s !important;
         --motion-list-lift: 0px !important;
         --motion-list-stagger: 0ms !important;
+
+        --motion-travel: 0s !important;
     }
 }
 
@@ -326,4 +335,60 @@
     position: absolute;
     left: 0;
     right: 0;
+}
+
+/* ── An answer travelling to the calendar ────────────────────────────────────
+ * The other surface with numbers of its own — MotionLevel::travel() says why it
+ * may take 580ms, and calendar--invite does the choreography:
+ *
+ *   1  the pressed answer lifts off                     }
+ *   2  it arcs to the meeting's slot, becoming the      }  --motion-travel
+ *      meeting on the way                               }
+ *   3  it lands, and the slot is marked as new          held, then faded over
+ *                                                          --motion-travel
+ *
+ * The journey itself is the Web Animations API rather than keyframes here: it
+ * runs from wherever the button was to wherever the slot is, and only
+ * JavaScript knows either. What lives here is the box it flies in and the mark
+ * it leaves.
+ *
+ * Below Full --motion-travel is zero, nothing flies, and the dashed outline an
+ * answer draws on hover is the whole of it — see [data-invite-slot] in app.css.
+ * The mark is still left, and simply goes rather than fading. */
+
+/* Body-level and fixed, because it crosses from one pane into another and a
+   fixed element inside a pane is trapped by the pane's backdrop-filter. */
+.invite-flyer {
+    position: fixed;
+    z-index: 70;
+    overflow: hidden;
+    pointer-events: none;
+}
+
+/* The faces it changes between on the way — the answer, the meeting, and the
+   dot it shrinks to over the calendar button — stacked and crossfaded. */
+.invite-flyer > * {
+    position: absolute;
+    inset: 0;
+}
+
+/* Step 3: the ring the eye finds the new meeting by. On at once, and faded over
+   the length of the journey that brought it; the lit shadow underneath goes
+   with it. The element carrying it is positioned by calendar--invite. */
+[data-arrived]::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    box-shadow: inset 0 0 0 2px rgb(var(--rgb-accent));
+    pointer-events: none;
+}
+
+[data-arrived="fading"] {
+    transition: box-shadow var(--motion-travel) var(--motion-ease);
+}
+
+[data-arrived="fading"]::after {
+    opacity: 0;
+    transition: opacity var(--motion-travel) var(--motion-ease);
 }

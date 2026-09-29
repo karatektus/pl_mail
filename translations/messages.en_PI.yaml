@@ -1203,6 +1203,7 @@ calendar:
         cancelled: This gatherin' has been called off.
         organiser: Called by %name%
         organiser_tag: called it
+        placed: '%title% be marked on yer chart: %when%.'
         reply:
             body: '%name% answered %status% to this summons.'
         status:

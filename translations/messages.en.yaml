@@ -1287,6 +1287,7 @@ calendar:
         cancelled: This meeting has been called off.
         organiser: Organised by %name%
         organiser_tag: organiser
+        placed: '%title% is in your calendar: %when%.'
         reply:
             body: '%name% has responded %status% to this invitation.'
         status:

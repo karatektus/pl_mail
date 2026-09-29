@@ -47,8 +47,8 @@ provider doesn't.
   it lies. Only the targets that will accept it light up, and a tab you choose by hand stays chosen
   when the next message in the thread arrives.
 - **A calendar beside the mail** — two-way sync with Google, Microsoft and CalDAV, a drag-to-move
-  week grid that pans rather than squeezes on a phone, invitations answered in place, share and
-  booking links. The time is always in view — on the Happening Soon button, under the name, or at
+  week grid that pans rather than squeezes on a phone, invitations answered in place and landing in
+  the calendar as you answer them, share and booking links. The time is always in view — on the Happening Soon button, under the name, or at
   the foot of the sidebar with the next thing coming up.
 - **Files where you keep them** — attach from and save to Drive, Photos, OneDrive, Dropbox,
   Nextcloud, Immich and Paperless-ngx.

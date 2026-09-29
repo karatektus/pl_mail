@@ -47,6 +47,10 @@ stop, and a double-click is not a gesture a keyboard has.
                      dblclick->calendar--time-grid#createAt
                      keydown->calendar--time-grid#keydown"
         data-calendar--time-grid-snap-value="15"
+        {# The clock the blocks are placed on, for calendar--invite, which draws
+           an answered invitation's slot before the server has redrawn the grid
+           and has to put it where the server would. #}
+        data-grid-zone="{{ range.zone }}"
         data-calendar--time-grid-new-event-url-value="{{ path('app_calendar_event_new') }}"
         data-calendar--time-grid-read-only-message-value="{{ 'calendar.grid.read_only'|trans }}"
         data-calendar--time-grid-pending-message-value="{{ 'calendar.grid.pending'|trans }}"

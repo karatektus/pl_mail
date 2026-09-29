@@ -499,8 +499,10 @@ one) `placed`:
                     {% endif %}
 
                     {# The blocks sit in their own layer over the hour lines, so
-                       the lines stay visible between and behind them. #}
-                    <div class="absolute inset-0">
+                       the lines stay visible between and behind them.
+                       `data-day-blocks` is where calendar--invite puts the slot
+                       an invitation is about to take. #}
+                    <div class="absolute inset-0" data-day-blocks>
                         {# The hours an entry of a day or more takes on this
                            day: shaded, wordless, and drawn FIRST so every
                            block of the day sits on top of them at full width —

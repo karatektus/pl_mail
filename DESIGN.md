@@ -685,6 +685,10 @@ The recipes below are the app's own. Reuse the named utilities (`pane`, `popover
 - **Neutral tag:** `text-[11px] font-medium px-2 py-0.5 rounded-full bg-raised text-ink-muted`, for a
   count or a word beside a heading. Muted, not faint: faint ink was 4.41:1 on the raised step. **Inline code** (a search operator in help text) is
   `bg-sunken px-1 rounded` in a `<code>`.
+- **Event chip:** a meeting drawn in the calendar carries its calendar's colour as a bar, over a 10%
+  wash of it where it is a block. A meeting you answered **Maybe** is striped in that colour with a
+  dashed edge (`data-tentative`), in every view: it keeps its slot, and the stripes say it is not
+  settled. An event's own tentative status, set by its organiser, does not stripe it.
 
 ### Navigation
 
@@ -780,18 +784,25 @@ waiting for this".
 | `--motion-slow` | 260ms | window-sized entrances (`pop`: the modal); the ceiling |
 | `--motion-ease` | `cubic-bezier(0.22, 0.68, 0.32, 1)` | everything: decelerate, never overshoot |
 | `--motion-lift` | 6px | how far a `rise` travels |
-| `--motion-row-base` | 600ms, 48px, overshooting | a new mail arriving, the one exception |
+| `--motion-row-base` | 600ms, 48px, overshooting | a new mail arriving, one of two exceptions |
+| `--motion-travel` | 580ms, `cubic-bezier(0.32, 0, 0.18, 1)` | an answered invitation flying to the calendar, the other; zero below Full |
 
 - **Opt in with an attribute**, not a keyframe: `data-enter="fade | rise | pop | slide-down |
   slide-right"`, and `data-enter-stagger` on a container. Every timing lives in `motion.css` and the
   `MotionLevel` enum. Never invent a duration in a component.
-- **New mail is the only animation that carries information**, so it alone may take 600ms and
-  overshoot. Nothing else bounces. A spring reads as playful the first time and slow the fortieth.
+- **Two animations carry information**, so they alone may run past the ceiling. New mail arriving
+  takes 600ms and overshoots. An invitation answered Yes or Maybe flies from the button to the
+  meeting's slot in the calendar pane, or onto the calendar button when the pane is closed, in
+  580ms, and lands without a bounce. Nothing else bounces. A spring reads as playful the first time
+  and slow the fortieth.
+- **Show where something goes before it moves.** Hovering or focusing an answer outlines its slot,
+  dashed, in the calendar's colour. The outline moves nothing, so it is there at every motion level,
+  and without the flight it is the whole of the feedback.
 - **Exits are rare.** An exit animation is time between asking for something and getting it, so
   archiving a mail plays none. Only a surface you were looking at, such as a modal or a toast,
   animates out.
-- **Motion levels.** At Full things travel and fade. At Minimal they only fade, faster. At None
-  every duration is zero. `prefers-reduced-motion` overrules the setting in both directions without
+- **Motion levels.** At Full things travel and fade. At Minimal they only fade, faster, and nothing
+  flies. At None every duration is zero. `prefers-reduced-motion` overrules the setting in both directions without
   asking.
 
 ## Do's and Don'ts

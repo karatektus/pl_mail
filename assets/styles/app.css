@@ -3494,6 +3494,77 @@ html {
     }
 }
 
+/* A meeting answered Maybe, wherever it is drawn: stripes in its calendar's
+   colour and a dashed edge. The chip carries it (see _event_chip), and it fills
+   its block on the time grid and in the all-day band, so the block's own tint
+   shows between the stripes; in the month and the agenda the chip is all there
+   is, and the stripes are the whole of the difference.
+
+   Plain rules rather than a utility, because the time grid's block paints its
+   tint through background-image too (block-tint), and an unlayered rule is the
+   one that reliably wins. The face calendar--invite flies and holds a slot with
+   is both at once — the block and the chip — so it keeps its tint under the
+   stripes. */
+[data-tentative] {
+    background-image: repeating-linear-gradient(135deg, var(--block-stripe) 0 5px, transparent 5px 10px);
+    outline: 1px dashed var(--block-edge);
+    outline-offset: -1px;
+}
+
+[data-tentative].block-tint {
+    background-image:
+        repeating-linear-gradient(135deg, var(--block-stripe) 0 5px, transparent 5px 10px),
+        linear-gradient(var(--block-tint), var(--block-tint));
+}
+
+/* Below 5.5rem a month cell draws each entry as a bare bar (see _event_chip),
+   which covers the chip it stands for — so there the bar is striped instead,
+   in light over its own colour. */
+@container (max-width: 5.5rem) {
+    [data-tentative-bar] {
+        background-image: repeating-linear-gradient(135deg, rgb(255 255 255 / 0.6) 0 2px, transparent 2px 4px);
+    }
+}
+
+/* The slot an answered invitation is about to take, drawn by calendar--invite
+   before the server has redrawn the grid.
+
+   `preview` is the dashed outline that hovering or focusing Yes or Maybe draws:
+   where the meeting will go, in its calendar's colour, and nothing more — the
+   same box the real block will be, emptied down to its outline. It is how an
+   answer shows where it goes at every motion level, the flight only adding a
+   journey to it at Full.
+
+   `pending` is the block itself, as the flight landed it or as the outline
+   filled in, holding the place for the moment it takes the server to answer
+   and the grid to come back with the real one. Neither takes the pointer: the
+   real block does, as soon as it is there. */
+[data-invite-slot] {
+    pointer-events: none;
+}
+
+/* Laid out and measured, not yet seen: the flight is on its way to it. */
+[data-invite-slot="hidden"] {
+    visibility: hidden;
+}
+
+[data-invite-slot="preview"] > * {
+    background-image: none;
+    background-color: color-mix(in srgb, var(--invite-slot-colour) 6%, transparent);
+    box-shadow: none;
+    outline: 1px dashed var(--invite-slot-colour);
+    outline-offset: -1px;
+}
+
+[data-invite-slot="preview"] > * > * {
+    opacity: 0.7;
+}
+
+/* Hovering Maybe outlines a striped slot, because that is what it will be. */
+[data-invite-slot="preview"] > [data-tentative] {
+    background-image: repeating-linear-gradient(135deg, var(--block-stripe) 0 5px, transparent 5px 10px);
+}
+
 @utility chip-open {
     /* Guarded the way Tailwind guards its own `hover:`, and for the reason
        that variant is guarded: a tap on a touch screen leaves `:hover` stuck

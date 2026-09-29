@@ -72,6 +72,12 @@ final readonly class AppearanceRenderer
             '--motion-list-base'    => $appearance->motion->listBase(),
             '--motion-list-lift'    => $appearance->motion->listLift(),
             '--motion-list-stagger' => $appearance->motion->listStagger(),
+
+            // An answered invitation travelling to the calendar, the other
+            // exception — see MotionLevel::travel(). Zero below Full, which is
+            // how calendar--invite knows to preview in place instead.
+            '--motion-travel'      => $appearance->motion->travel(),
+            '--motion-travel-ease' => $appearance->motion->travelEase(),
             '--rgb-accent'    => self::channels($appearance->accent),
             '--rgb-accent-ink' => self::contrastChannels($appearance->accent),
             '--scrim-alpha'   => rtrim(rtrim(number_format($appearance->scrimAlpha, 3, '.', ''), '0'), '.') ?: '0',

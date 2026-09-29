@@ -32,11 +32,12 @@ namespace App\Domain\Enum\Theme;
  * off. That ceiling covers the animations you meet constantly — a menu, a
  * toast, a panel — and it is not negotiable for them.
  *
- * ONE thing is outside it: a new mail arriving, at 600ms (rowBase). It is the
- * rarest animation here and the only one carrying information rather than
- * reassurance, and it is worth the time. A whole list arriving is the other
- * exception in the other direction — 30ms a row (listBase), under two frames,
- * far below the ceiling rather than above it.
+ * TWO things are outside it, and both carry information rather than
+ * reassurance: a new mail arriving, at 600ms (rowBase), and an answered
+ * invitation travelling to the calendar, at 580ms (travel). Both are rare and
+ * both are worth the time. A whole list arriving is the exception in the other
+ * direction — 30ms a row (listBase), under two frames, far below the ceiling
+ * rather than above it.
  *
  * ── What that costs, stated plainly ─────────────────────────────────────────
  *
@@ -340,6 +341,43 @@ enum MotionLevel: string
             self::Full                => '16ms',
             self::Minimal, self::None => '0ms',
         };
+    }
+
+    /**
+     * ── An answer travelling to the calendar ─────────────────────────────
+     *
+     * The second animation that carries information. Answering an invitation
+     * with Yes or Maybe sends the pressed button across the screen into the
+     * slot the meeting now occupies — onto the calendar button in the top bar
+     * when the calendar is closed — and what that says is WHERE the meeting
+     * went, which a toast in a corner never could. Over the ceiling for the
+     * reason rowBase is: a journey the eye is meant to follow cannot be over
+     * in a quarter of a second.
+     *
+     * Zero at Minimal as well as at None, which is where it parts company with
+     * rowBase. Minimal means nothing travels, and this is nothing BUT travel —
+     * a shortened flight is a flicker, not a smaller gesture. What stays at
+     * every level is the preview: hovering an answer outlines the slot it
+     * would fill, which moves nothing and says the same thing before the click
+     * rather than after it. See calendar--invite.
+     */
+    public function travel(): string
+    {
+        return match ($this) {
+            self::Full                => '580ms',
+            self::Minimal, self::None => '0s',
+        };
+    }
+
+    /**
+     * The flight's curve. A gentle start, so the eye catches the button
+     * leaving, and a long deceleration into the slot — the same promise as
+     * ease(), arrive and settle, with a beginning slow enough to be seen. No
+     * overshoot: it lands, it does not bounce.
+     */
+    public function travelEase(): string
+    {
+        return 'cubic-bezier(0.32, 0, 0.18, 1)';
     }
 
     /** Whether anything animates at all — the escape hatch JS reads. */

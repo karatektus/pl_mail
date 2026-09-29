@@ -20,8 +20,35 @@ Variables:
 {% set event  = invite.event %}
 {% set status = invite.myStatus %}
 
+{# Whether answering can change anything: a card with buttons on it. #}
+{% set answerable = invite.canRespond and not invite.isCancellation %}
+
+{# Yes and Maybe put the meeting on the calendar (see InviteResponder), so a
+   meeting answered either way is already drawn and has nowhere to travel to. #}
+{% set drawn = status.value in ['accepted', 'tentative'] %}
+
+{# The card's own date line, as one phrase, for the announcement a screen
+   reader hears once the meeting is in the calendar. #}
+{% set when = event.isAllDay
+    ? event.startsAt|intl_date('EEEdMMMy', false)
+    : event.startsAt|intl_date('EEEdMMMy') ~ ', ' ~ event.startsAt|date(clock.time) %}
+
+{# calendar--invite: what answering looks like from the calendar's side — the
+   slot outlined while an answer is hovered, the answer flying there at Full
+   motion, and the calendar redrawn in place once the server has it. Instants
+   in UTC, because the grid may be drawn on another clock than the reader's and
+   only the grid knows which; the controller converts. #}
 <div id="invite_card_{{ invite.message.id }}"
-     class="mb-4 rounded-pane border border-line overflow-hidden">
+     class="mb-4 rounded-pane border border-line overflow-hidden"
+     {% if answerable %}
+     data-controller="calendar--invite"
+     data-calendar--invite-event-value="{{ event.id }}"
+     data-calendar--invite-starts-value="{{ event.startsAt|date('c', 'UTC') }}"
+     data-calendar--invite-ends-value="{{ (event.endsAt ?? event.startsAt)|date('c', 'UTC') }}"
+     data-calendar--invite-all-day-value="{{ event.isAllDay ? 'true' : 'false' }}"
+     data-calendar--invite-drawn-value="{{ drawn ? 'true' : 'false' }}"
+     data-calendar--invite-placed-value="{{ 'calendar.invite.placed'|trans({ '%title%': event.title, '%when%': when }) }}"
+     {% endif %}>
 
     {# The calendar's own colour on the edge, so an invitation is recognisably
        the same object as the chip it became in the calendar. #}
@@ -86,12 +113,22 @@ Variables:
                works until a browser autofills or a script submits the form. #}
             <div class="mt-3 flex flex-wrap items-center gap-2">
                 {% for answer in calendar_invite_answers() %}
+                    {# Hovering or focusing an answer that would put the
+                       meeting on the calendar outlines the slot it would take.
+                       No, and the answer already given, outline nothing. #}
+                    {% set previews = not drawn and answer.value in ['accepted', 'tentative'] %}
+
                     <form method="post"
-                          action="{{ path('app_calendar_invite_respond', { id: invite.message.id }) }}">
+                          action="{{ path('app_calendar_invite_respond', { id: invite.message.id }) }}"
+                          data-action="submit->calendar--invite#answer">
                         <input type="hidden" name="_token" value="{{ csrf_token('calendar_invite' ~ invite.message.id) }}">
                         <input type="hidden" name="status" value="{{ answer.value }}">
 
                         <button type="submit"
+                                {% if previews %}
+                                data-action="mouseenter->calendar--invite#preview focus->calendar--invite#preview
+                                             mouseleave->calendar--invite#unpreview blur->calendar--invite#unpreview"
+                                {% endif %}
                                 class="inline-flex items-center gap-1.5 px-3 h-8 rounded-lg text-xs font-medium transition-colors cursor-pointer
                                        {{ answer == status
                                            ? 'bg-accent text-accent-ink'
@@ -102,6 +139,35 @@ Variables:
                     </form>
                 {% endfor %}
             </div>
+
+            {# The meeting as the calendar will draw it: the face of the slot
+               outline, of the answer in flight, and of what it leaves behind
+               until the grid comes back from the server. The tall, stacked
+               shape of calendar/_event_chip.html.twig, copied rather than
+               included because an unanswered invitation has no occurrence to
+               hand that partial — keep the two alike. The time is on the
+               reader's clock, which the real block replaces within a moment. #}
+            <template data-calendar--invite-target="face">
+                <div class="relative h-full rounded-md overflow-hidden ring-1 ring-line shadow-sm block-tint text-left"
+                     style="--block-tint: {{ event.calendar.color }}1a; --block-stripe: {{ event.calendar.color }}2e; --block-edge: {{ event.calendar.color }}b3; --invite-slot-colour: {{ event.calendar.color }}">
+                    <div class="w-full h-full grid grid-cols-[max-content_minmax(0,1fr)] gap-x-1.5 content-start items-start px-1.5 py-0.5 overflow-hidden">
+                        {% if not event.isAllDay %}
+                            <span class="shrink-0 text-[11px] tabular-nums text-ink-faint col-start-2 row-start-1 leading-4">
+                                {{- event.startsAt|date(clock.timeCompact) -}}
+                            </span>
+                        {% endif %}
+                        <span class="shrink-0 rounded-full w-1 self-stretch col-start-1 row-span-full"
+                              style="background-color: {{ event.calendar.color }}"
+                              aria-hidden="true"></span>
+                        <span class="min-w-0 text-xs text-ink col-start-2 whitespace-normal break-words line-clamp-2 leading-4">
+                            {%- if event.kind is not null -%}
+                                <i class="{{ event.kind.icon }} mr-1 text-[10px] text-ink-faint" aria-hidden="true"></i>
+                            {%- endif -%}
+                            {{ event.title }}
+                        </span>
+                    </div>
+                </div>
+            </template>
         {% endif %}
 
         {% if invite.participants|length > 1 %}

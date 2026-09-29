@@ -1309,6 +1309,7 @@ calendar:
         cancelled: Dieser Termin wurde abgesagt.
         organiser: Eingeladen von %name%
         organiser_tag: Organisation
+        placed: '%title% steht jetzt in deinem Kalender: %when%.'
         reply:
             body: '%name% hat auf diese Einladung mit %status% geantwortet.'
         status:

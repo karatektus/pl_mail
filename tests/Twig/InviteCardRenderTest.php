@@ -115,6 +115,28 @@ final class InviteCardRenderTest extends KernelTestCase
 
         self::assertStringContainsString('Accepted', $html);
         self::assertStringContainsString('fa-circle-check', $html, 'the status icon comes off the enum');
+
+        // Already on the calendar, so there is no slot to outline or fly to.
+        self::assertStringContainsString('data-calendar--invite-drawn-value="true"', $html);
+    }
+
+    /**
+     * What calendar--invite reads to draw the answer into the calendar: which
+     * event, and when — as UTC instants, because the grid works the slot out on
+     * its own clock and a time already converted for the reader would put the
+     * meeting in the wrong hour of some calendars.
+     */
+    public function testTheCardCarriesWhatTheCalendarNeeds(): void
+    {
+        $message = $this->invitation();
+        $html    = $this->render($message);
+        $eventId = $this->reader->forMessage($message, $this->user)?->event->id;
+
+        self::assertStringContainsString('data-controller="calendar--invite"', $html);
+        self::assertStringContainsString(sprintf('data-calendar--invite-event-value="%d"', $eventId), $html);
+        self::assertStringContainsString('data-calendar--invite-starts-value="2026-06-02T09:00:00+00:00"', $html);
+        self::assertStringContainsString('data-calendar--invite-drawn-value="false"', $html);
+        self::assertStringContainsString('data-calendar--invite-target="face"', $html);
     }
 
     /** A cancelled meeting offers nothing to accept. */
