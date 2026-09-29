@@ -6,6 +6,39 @@ so anything that changes the schema irreversibly is called out explicitly.
 The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, and `sha-…` pins one commit.
 
+## v0.2.53 — 2026-09-29
+
+**Answering an invitation puts the meeting in the calendar where you can see it.** Yes or Maybe
+used to redraw the card above the message and put a toast in the far corner, while the calendar
+beside it — the one place the answer changed anything — went on showing the week without the
+meeting until the page was reloaded. The calendar is redrawn in place as you answer now, and the
+meeting is ringed for a moment where it landed. Pointing at Yes or Maybe first outlines the slot it
+will take, dashed, in its calendar's colour. With motion at Full the answer flies there and turns
+into the meeting on the way, or onto the calendar button in the top bar when the calendar is closed;
+at Minimal and None, and whenever your system asks for reduced motion, nothing travels and the
+outline is the whole of it.
+
+- **A meeting you answered Maybe is striped.** It was drawn exactly like a Yes, so a week of
+  tentative meetings looked settled. It is striped in its calendar's colour with a dashed edge now,
+  in every view, and a screen reader hears "Maybe" in its name.
+- **Every theme's text holds 4.5:1**, on the page as well as on a pane: the faintest ink, the status
+  colours in badges and alerts, the accent where it is text, and the links and status colours on the
+  message sheet. Most themes fell short somewhere; the worst was Paper's warning, at 2.70:1 inside
+  its own badge.
+- **Checkboxes, icons and accent buttons follow the theme.** Checkboxes were ticked in the browser's
+  own blue whatever the accent, some icons were fixed greys, and accent buttons wrote white on
+  accents too light to carry it. The strip explaining why a PDF cannot be signed gets the warning
+  tint it was meant to have.
+- **The sidebar and the calendar switch no longer fade in on every load.** The open row faded in
+  from black on every page, and the calendar switch in the top bar flickered from the mail icon to
+  the one you had chosen. Both are drawn right the first time.
+- **Mail about your own application or account is an update, not a promotion.** The categoriser
+  had started filing replies to job applications, and account-activation mail, under Promotions.
+
+### Before you upgrade
+
+- **Nothing has to change.** There is no migration, and the compose files stay as they are.
+
 ## v0.2.52 — 2026-09-28
 
 **plMail starts in seconds instead of a minute.** Every plMail container set file permissions on
