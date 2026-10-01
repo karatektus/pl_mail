@@ -73,7 +73,7 @@ generate() {
 	generate POSTGRES_PASSWORD "$(random_hex 24)"
 	generate MERCURE_JWT_SECRET "$(random_hex 32)"
 
-	# 0644 rather than 0600: the Postgres image reads this as uid 999, and the
+	# 0644 rather than 0600: the Postgres image reads this as uid 70, and the
 	# file only ever exists inside a volume mounted into plMail's own services.
 	password="$(printenv POSTGRES_PASSWORD || true)"
 	[ -n "$password" ] || password="$(sed -n 's/^POSTGRES_PASSWORD=//p' "$SECRETS_FILE")"

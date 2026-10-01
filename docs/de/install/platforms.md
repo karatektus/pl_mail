@@ -42,11 +42,11 @@ root kann er ohnehin alles unterhalb von `var/` schreiben.
 Zwei Dinge ändern sich in dem Moment, in dem du ein benanntes Volume gegen einen **Bind-Mount**
 tauschst, was du tun wirst, wenn die Mail auf einer bestimmten Platte liegen soll:
 
-- **Postgres läuft als uid 999** in `postgres:18-alpine` — in älteren Hauptversionen war es uid 70.
+- **Postgres läuft als uid 70** in `postgres:18-alpine` — 999 gehört zum Debian-Image.
   Es kann sein Datenverzeichnis nicht in einem root-eigenen Elternverzeichnis anlegen, dieses
   Elternverzeichnis muss also mit den richtigen Besitzrechten existieren, bevor der Container
   startet. `truenas.compose.yaml` löst das, indem `secrets-init` das Postgres-Unterverzeichnis
-  anlegt und per `chown -R 999:999` überträgt, bevor irgendetwas anderes läuft; dieses Muster lässt
+  anlegt und per `chown -R 70:70` überträgt, bevor irgendetwas anderes läuft; dieses Muster lässt
   sich auf jede Bind-Mount-Installation übertragen.
 - **ACLs werden womöglich nicht unterstützt.** Auf ZFS, NFS oder allem, was NFSv4-ACLs verwendet,
   scheitert `setfacl` mit "Operation not supported". Der Entrypoint gibt einen Hinweis aus und macht
@@ -131,13 +131,13 @@ Verschlüsselungsschlüssel. Richte es auf ein Dataset statt auf ein einfaches V
 Snapshots deiner Mail willst.
 
 **Wieder Besitzrechte.** Das `secrets-init` jener Datei legt die Unterverzeichnisse an, überträgt
-das Postgres-Verzeichnis per `chown -R 999:999` und tut dann etwas Nachahmenswertes:
+das Postgres-Verzeichnis per `chown -R 70:70` und tut dann etwas Nachahmenswertes:
 
 ```sh
-chmod o+x /app/var/data || setfacl -m u:999:--x /app/var/data || true
+chmod o+x /app/var/data || setfacl -m u:70:--x /app/var/data || true
 ```
 
-Ein mit der TrueNAS-Voreinstellung "Apps" angelegtes Dataset ist `770 apps:apps`, was uid 999 keine
+Ein mit der TrueNAS-Voreinstellung "Apps" angelegtes Dataset ist `770 apps:apps`, was uid 70 keine
 Möglichkeit gibt, in das Verzeichnis zu wechseln, in dem ihre eigenen Daten liegen. Ein reines
 Ausführungsrecht gewährt genau dieses Wechseln, ohne das Auflisten oder Lesen von irgendetwas zu
 erlauben.
@@ -171,8 +171,9 @@ Erinnerung aus.
 Auf einem NAS wirst du mit ziemlicher Sicherheit stattdessen Bind-Mounts verwenden, und dann sind
 die Besitzrechte deine Sache.
 
-**Postgres läuft nicht in jedem Image unter uid 999.** Vor der 18er-Reihe war es uid 70. Ein aus
-einer älteren Anleitung übernommenes `chown` hinterlässt einen Cluster, der nicht schreiben kann.
+**Postgres läuft nicht in jedem Image unter derselben uid.** In den Alpine-Images, die plMail
+verwendet, ist es 70, in den Debian-Images 999. Ein aus einer Anleitung für das jeweils andere
+übernommenes `chown` hinterlässt einen Cluster, der nicht schreiben kann.
 
 **ACL-Fehlschläge sind Hinweise, keine Fehler — aber erst, seit sie dazu gemacht wurden.** Wenn du
 "POSIX ACLs are not supported on this filesystem; skipping setfacl for var/" in den Logs siehst, ist

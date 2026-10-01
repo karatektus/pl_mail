@@ -39,10 +39,10 @@ root, it can already write everything under `var/` regardless.
 Two things change the moment you swap a named volume for a **bind mount**, which you will do if you
 want the mail on a specific disk:
 
-- **Postgres runs as uid 999** in `postgres:18-alpine` — it was uid 70 in older majors. It cannot
+- **Postgres runs as uid 70** in `postgres:18-alpine` — 999 is the Debian image's. It cannot
   create its own data directory inside a root-owned parent, so the parent has to exist with the
   right ownership before the container starts. `truenas.compose.yaml` solves this by having
-  `secrets-init` lay out and `chown -R 999:999` the Postgres subdirectory before anything else
+  `secrets-init` lay out and `chown -R 70:70` the Postgres subdirectory before anything else
   runs; that pattern transplants to any bind-mounted deployment.
 - **ACLs may not be supported.** On ZFS, NFS or anything using NFSv4 ACLs, `setfacl` fails with
   "Operation not supported". The entrypoint prints a note and carries on — it used to abort the
@@ -119,14 +119,14 @@ attachments, raw messages, uploads and the Postgres cluster — one thing to sna
 back up, and every service demonstrably seeing the same encryption key. Point it at a dataset
 rather than a plain directory if you want snapshots of your mail.
 
-**Ownership, again.** That file's `secrets-init` creates the subdirectories, `chown -R 999:999`s the
+**Ownership, again.** That file's `secrets-init` creates the subdirectories, `chown -R 70:70`s the
 Postgres one, and then does something worth copying:
 
 ```sh
-chmod o+x /app/var/data || setfacl -m u:999:--x /app/var/data || true
+chmod o+x /app/var/data || setfacl -m u:70:--x /app/var/data || true
 ```
 
-A dataset created with the TrueNAS "Apps" preset is `770 apps:apps`, which gives uid 999 no way to
+A dataset created with the TrueNAS "Apps" preset is `770 apps:apps`, which gives uid 70 no way to
 traverse into the directory its own data lives in. Execute-only grants traversal without granting
 the ability to list or read anything.
 
@@ -157,8 +157,9 @@ them, and its blob directories are not among them — see
 On a NAS you will almost certainly be bind-mounting instead, and then ownership is yours to get
 right.
 
-**Postgres uid 999 is not the container's user in every image.** It was uid 70 before the 18 series.
-A `chown` copied from an older guide leaves the cluster unable to write.
+**Postgres is not the same uid in every image.** It is 70 in the alpine images plMail uses and 999
+in the Debian ones. A `chown` copied from a guide written for the other leaves the cluster unable
+to write.
 
 **ACL failures are notes, not errors — but only since they were made so.** If you see "POSIX ACLs
 are not supported on this filesystem; skipping setfacl for var/" in the logs, that is the expected
