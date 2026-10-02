@@ -6,6 +6,31 @@ so anything that changes the schema irreversibly is called out explicitly.
 The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, and `sha-…` pins one commit.
 
+## v0.2.54 — 2026-10-02
+
+**The public address can be changed after setup.** The setup screen asked for it once and nothing
+could answer it again. An install restored from another machine's backup therefore kept that
+machine's address: browsers were sent there for live updates, the stream indicator stayed red, and
+the only remedy was `APP_PUBLIC_URL` in the compose file. Admin → Address changes it now. The new
+address is saved at once and takes effect when the containers start again; the page offers the web
+container's restart, which is enough for live updates, and says to restart the whole stack so the
+workers register push at the new address too. When the saved address and the one in use still differ
+after a restart, `APP_PUBLIC_URL` is set in the compose file, and the page says so.
+
+- **A hub address that only mirrored the old public address goes with it.** A restored backup can
+  carry `MERCURE_PUBLIC_URL` as the old address with the hub's path on it. Saving a new public
+  address drops that entry, so the hub address is derived from the new one; a hub address pointing
+  anywhere else is kept.
+- **The TrueNAS compose file names the right Postgres user.** `postgres:18-alpine` runs as uid 70,
+  and 999 is the Debian image's. `truenas.compose.yaml` chowned the database directory to 999 and
+  the platform notes said the same. Installs worked regardless, because Postgres takes ownership of
+  its directory itself on start.
+
+### Before you upgrade
+
+- **Nothing has to change.** There is no migration. An existing TrueNAS install can keep its compose
+  file; the corrected uid matters only to a copy made from it.
+
 ## v0.2.53 — 2026-09-29
 
 **Answering an invitation puts the meeting in the calendar where you can see it.** Yes or Maybe
