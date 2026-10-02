@@ -63,4 +63,22 @@ final class LogoMotifTest extends TestCase
             'the letter\'s white paper carries it on either chrome',
         );
     }
+
+    /**
+     * The files under public/icons/ are the default icon, drawn by hand.
+     *
+     * Nothing generates them, so nothing would notice them going stale: the
+     * default moves, or the seal's own colours do, and every catalogue page,
+     * home screen and crawler goes on showing the icon before. Checked on the
+     * SVG, which is text; the PNGs are rasterised from the same drawing.
+     */
+    public function testTheStaticFaviconIsTheDefaultIconInItsOwnDesign(): void
+    {
+        $svg = (string) file_get_contents(\dirname(__DIR__, 4) . '/public/icons/favicon.svg');
+
+        foreach (LogoMotif::DEFAULT->paints(null) as $part => $hex) {
+            self::assertIsString($hex);
+            self::assertStringContainsString($hex, $svg, sprintf('the default icon\'s %s', $part));
+        }
+    }
 }

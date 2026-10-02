@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Controller\Settings;
 
+use App\Domain\Enum\Theme\LogoMotif;
 use App\Domain\Enum\Theme\LogoStyle;
 use App\Domain\Enum\Theme\Theme;
 use App\Entity\User\User;
@@ -33,9 +34,11 @@ final class LogoLinkedTest extends WebTestCase
         // fresh account holds — put the seed user back rather than leaking one
         // test's choices into the next suite.
         if (null !== $user = $this->find()) {
-            $user->appearance->theme      = Theme::Paper;
-            $user->appearance->logoStyle  = LogoStyle::DEFAULT;
-            $user->appearance->logoLinked = true;
+            $user->appearance->theme        = Theme::Paper;
+            $user->appearance->logoMotif    = LogoMotif::DEFAULT;
+            $user->appearance->logoOriginal = true;
+            $user->appearance->logoStyle    = LogoStyle::DEFAULT;
+            $user->appearance->logoLinked   = true;
             static::getContainer()->get(EntityManagerInterface::class)->flush();
         }
 
@@ -139,6 +142,13 @@ final class LogoLinkedTest extends WebTestCase
         if (null === $user) {
             self::markTestSkipped('run `app:test:seed-user --admin` first');
         }
+
+        // Every claim in this file is about the pl mark, whose paint is always
+        // a colourway. An account starts on the seal now, in its own design,
+        // which neither follows a theme nor wears a chosen colourway until it
+        // is told to.
+        $user->appearance->logoMotif = LogoMotif::Pl;
+        static::getContainer()->get(EntityManagerInterface::class)->flush();
 
         $client->loginUser($user);
 

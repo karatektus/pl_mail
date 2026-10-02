@@ -51,8 +51,22 @@ enum LogoMotif: string
     case PlStamp = 'pl-stamp';
     case WaxSeal = 'wax-seal';
 
-    /** The mark every account has always had, and the one it starts on. */
-    public const self DEFAULT = self::Pl;
+    /**
+     * The icon an account starts on, and the one a page with nobody signed in
+     * wears.
+     *
+     * It was the pl mark until the motifs had been in use for a while. The seal
+     * is the mark pressed into wax, so the product is still recognisably "pl",
+     * and it is a picture rather than two letters, which is what an icon among
+     * forty others on a catalogue page or a home screen needs to be. It arrives
+     * in its own design, as any motif does: Appearance::$logoOriginal defaults
+     * to true for that reason.
+     *
+     * The static files under public/icons/ are this icon in its original
+     * paint. They are drawn by hand from the same geometry, so they are stale
+     * the moment this or the seal's original() arm moves.
+     */
+    public const self DEFAULT = self::WaxSeal;
 
     /**
      * The paint that is a motif's own design rather than a colourway — the

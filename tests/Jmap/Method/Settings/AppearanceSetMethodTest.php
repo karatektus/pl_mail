@@ -6,6 +6,7 @@ namespace App\Tests\Jmap\Method\Settings;
 
 use App\Domain\Enum\Theme\Density;
 use App\Domain\Enum\Theme\Layout;
+use App\Domain\Enum\Theme\LogoMotif;
 use App\Domain\Enum\Theme\LogoStyle;
 use App\Domain\Enum\Theme\Theme;
 use App\Entity\Embeddable\Appearance;
@@ -246,7 +247,9 @@ final class AppearanceSetMethodTest extends JmapTestCase
      */
     public function testTheLogoIsNotSettable(): void
     {
-        foreach (['logoStyle' => 'tricolore', 'logoMotif' => 'mailbox', 'logoPaint' => 'original'] as $property => $value) {
+        // Each a value the account does not already hold: an echo is accepted,
+        // and a new account's paint IS `original` now that it starts on a motif.
+        foreach (['logoStyle' => 'tricolore', 'logoMotif' => 'mailbox', 'logoPaint' => 'tricolore'] as $property => $value) {
             $error = $this->updateError([$property => $value]);
 
             self::assertSame('invalidProperties', $error['type']);
@@ -256,8 +259,8 @@ final class AppearanceSetMethodTest extends JmapTestCase
         $object = $this->read();
 
         self::assertSame(LogoStyle::DEFAULT->value, $object['logoStyle']);
-        self::assertSame('pl', $object['logoMotif']);
-        self::assertSame(LogoStyle::DEFAULT->value, $object['logoPaint']);
+        self::assertSame(LogoMotif::DEFAULT->value, $object['logoMotif']);
+        self::assertSame('original', $object['logoPaint']);
     }
 
     /**

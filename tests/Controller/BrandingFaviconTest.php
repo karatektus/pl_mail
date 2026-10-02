@@ -34,7 +34,7 @@ final class BrandingFaviconTest extends WebTestCase
         // choice into the next suite's screenshots.
         if (null !== $user = $this->find()) {
             $user->appearance->logoMotif    = LogoMotif::DEFAULT;
-            $user->appearance->logoOriginal = false;
+            $user->appearance->logoOriginal = true;
             $user->appearance->logoStyle    = LogoStyle::DEFAULT;
             $user->appearance->logoLinked   = true;
             static::getContainer()->get(EntityManagerInterface::class)->flush();
@@ -49,8 +49,12 @@ final class BrandingFaviconTest extends WebTestCase
 
         $svg = $this->tabIcon($client, '/login');
 
-        foreach (LogoStyle::DEFAULT->strokes() as $hex) {
-            self::assertStringContainsString($hex, $svg);
+        // The default icon in its own design. Read off the enum rather than
+        // spelled out, so this goes on meaning "the default" when the default
+        // or its colours move.
+        foreach (LogoMotif::DEFAULT->paints(null) as $part => $hex) {
+            self::assertIsString($hex);
+            self::assertStringContainsString($hex, $svg, sprintf('the default icon\'s %s', $part));
         }
     }
 
@@ -60,6 +64,9 @@ final class BrandingFaviconTest extends WebTestCase
 
         // Unlinked, so the colourway set here is the one that answers — while
         // linked the theme would dress the mark instead (LogoLinkedTest).
+        // On the mark, named: an account starts on the seal now, and the seal
+        // in postal is one navy wax, not a navy 'p' beside a red 'l'.
+        $user->appearance->logoMotif  = LogoMotif::Pl;
         $user->appearance->logoStyle  = LogoStyle::Postal;
         $user->appearance->logoLinked = false;
         static::getContainer()->get(EntityManagerInterface::class)->flush();

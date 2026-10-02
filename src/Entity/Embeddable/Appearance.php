@@ -146,7 +146,7 @@ final class Appearance
      * icon is chosen: going from the mark to the horn and back leaves the
      * mark's colourway exactly where it was.
      */
-    #[ORM\Column(type: 'string', length: 16, enumType: LogoMotif::class, options: ['default' => 'pl'])]
+    #[ORM\Column(type: 'string', length: 16, enumType: LogoMotif::class, options: ['default' => 'wax-seal'])]
     public LogoMotif $logoMotif = LogoMotif::DEFAULT;
 
     /**
@@ -161,9 +161,14 @@ final class Appearance
      * colourways (its "original" is the product default, and a colourway), so
      * effectiveLogoPaint() ignores it there rather than anybody having to keep
      * it false.
+     *
+     * True from the start, because an account starts on a motif now
+     * (LogoMotif::DEFAULT) and that motif should arrive the way picking one
+     * does: in its own design. False here would paint a new account's seal in
+     * its theme's colourway, which is a choice nobody made.
      */
-    #[ORM\Column(type: 'boolean', options: ['default' => false])]
-    public bool $logoOriginal = false;
+    #[ORM\Column(type: 'boolean', options: ['default' => true])]
+    public bool $logoOriginal = true;
 
     /** The icon the product wears — topbar, favicon and launcher alike. */
     public function effectiveLogoMotif(): LogoMotif

@@ -74,9 +74,9 @@ final class LogoStyleTest extends TestCase
     {
         self::assertSame(LogoStyle::Berry, LogoStyle::DEFAULT);
 
-        // The PNG icon set under public/icons/ is exported in the default's
-        // sweep with this tile behind the maskable variants — if this moves,
-        // those files are stale (see the enum's own note on DEFAULT).
+        // The colour the web manifest names as theme_color. The icon set under
+        // public/icons/ is no longer drawn in this colourway: it is the default
+        // motif in its own design — see LogoMotifTest.
         self::assertSame('#a21caf', LogoStyle::DEFAULT->tile());
     }
 

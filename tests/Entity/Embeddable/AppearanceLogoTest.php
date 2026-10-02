@@ -44,6 +44,22 @@ final class AppearanceLogoTest extends TestCase
         yield 'an independent mark wears the chosen colourway' => [LogoMotif::Pl, false, false, Theme::Ocean, LogoStyle::Postal];
     }
 
+    /**
+     * An account that has chosen nothing is on the default icon, the way it was
+     * drawn — not in whatever colourway its theme happens to have.
+     */
+    public function testAnAccountStartsOnTheDefaultIconInItsOwnDesign(): void
+    {
+        $appearance = new Appearance();
+
+        self::assertSame(LogoMotif::DEFAULT, $appearance->effectiveLogoMotif());
+        self::assertNull($appearance->effectiveLogoPaint(), 'null is the original design');
+
+        $appearance->theme = Theme::Ember;
+
+        self::assertNull($appearance->effectiveLogoPaint(), 'a theme with a namesake colourway does not repaint it either');
+    }
+
     #[DataProvider('rules')]
     public function testTheIconWearsThePaintItsFieldsAddUpTo(
         LogoMotif $motif,

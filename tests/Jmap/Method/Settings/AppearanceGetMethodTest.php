@@ -135,6 +135,15 @@ final class AppearanceGetMethodTest extends JmapTestCase
      */
     public function testItReportsTheIconAndThePaintItWears(): void
     {
+        // A new account is on the default icon, in its own design.
+        $object = $this->get()['list'][0];
+
+        self::assertSame(LogoMotif::DEFAULT->value, $object['logoMotif']);
+        self::assertSame('original', $object['logoPaint']);
+
+        $this->user->appearance->logoMotif = LogoMotif::Pl;
+        $this->em->flush();
+
         $object = $this->get()['list'][0];
 
         self::assertSame('pl', $object['logoMotif']);

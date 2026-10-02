@@ -72,8 +72,9 @@ enum LogoStyle: string
 
     /**
      * Berry, because it was chosen, not because it is first. The sweep is the
-     * default face of the product now, and the PNG icon set under
-     * public/icons/ is exported in it — regenerate those if this ever moves.
+     * default face of the pl mark. The icon set under public/icons/ used to
+     * be exported in it; those files are the default MOTIF now, which is no
+     * longer the mark — see LogoMotif::DEFAULT.
      */
     public const self DEFAULT = self::Berry;
 
