@@ -1,4 +1,15 @@
 {
+        # Five seconds to finish what is in flight when told to stop, then the
+        # connections are closed. Caddy's default is to wait for every one, and
+        # this server proxies the live-update stream, which never ends by
+        # itself: with one browser tab open, "Restart now" in the admin panel
+        # stopped PHP and then sat there, neither serving nor exiting, until
+        # the tab was closed — and compose cannot restart a container that has
+        # not exited. `docker stop` only ever got out of it by killing the
+        # process after its own timeout. The hub has the same five seconds for
+        # the same reason (BackgroundProcesses); browsers reconnect.
+        grace_period 5s
+
         {$CADDY_GLOBAL_OPTIONS}
         frankenphp {
                 {$FRANKENPHP_CONFIG}
