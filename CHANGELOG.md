@@ -6,6 +6,28 @@ so anything that changes the schema irreversibly is called out explicitly.
 The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, and `sha-…` pins one commit.
 
+## v0.2.55 — 2026-10-02
+
+**plMail's icon is the wax seal.** The pl mark pressed into red wax is what a new account starts on,
+what the sign-in page and every page without a user wear, and what the installed web app and the
+files under `/icons/` show. The mark is still there, as "Classic" under Settings → Appearance → Logo,
+with all its colourways.
+
+- **Accounts that never chose a logo move to the seal.** That is read off the account: the pl mark,
+  still in berry, still following the theme. Anyone who picked another icon or colourway, or
+  unlinked the mark from the theme, keeps exactly what they have. An account that looked at the
+  icons and deliberately stayed on the default mark cannot be told apart from one that never looked,
+  so it moves too; Classic is one click away.
+- **The seal arrives in its own colours.** A new account's icon no longer takes the theme's
+  colourway unless you ask it to, under Colour → Follow the theme.
+
+### Before you upgrade
+
+- **One migration, applied on start.** It changes two column defaults and the accounts described
+  above. It can be reverted, but reverting restores the defaults only: accounts already moved to the
+  seal stay on it.
+- **The Android app still shows its own icon.** Nothing changes there with this release.
+
 ## v0.2.54 — 2026-10-02
 
 **The public address can be changed after setup.** The setup screen asked for it once and nothing
