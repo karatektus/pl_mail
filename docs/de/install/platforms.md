@@ -1,4 +1,4 @@
-<!-- translated-from: install/platforms.md sha1:727c18329d917d9982252fd27e182991b46a96e2 -->
+<!-- translated-from: install/platforms.md sha1:a5d607be3fca4c06dcb8499899db2014cb726ef3 -->
 # Plattform-Hinweise
 
 plMail führt überall dieselben Container aus, deshalb geht es auf dieser Seite fast nur um die

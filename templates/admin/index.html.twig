@@ -77,7 +77,7 @@
                                 </a>
                             {% endif %}
 
-                            {% if section not in ['logs', 'insight-reports', 'integrations', 'push', 'ai', 'backup', 'updates', 'reset'] %}
+                            {% if section not in ['logs', 'insight-reports', 'address', 'integrations', 'push', 'ai', 'backup', 'updates', 'reset'] %}
                                 <span class="ml-auto text-xs text-ink-faint">{{ 'admin.refresh_hint'|trans }}</span>
                             {% endif %}
                         </div>
@@ -130,6 +130,14 @@
                                             <span class="ml-auto text-xs font-semibold px-1.5 py-0.5 rounded-full bg-accent text-accent-ink"
                                                   aria-label="{{ 'admin.insight_reports.pending'|trans({ '%count%': pendingInsightReports }) }}">{{ pendingInsightReports }}</span>
                                         {% endif %}
+                                    </a>
+                                    {# Before integrations, because those are
+                                       configured against it: the redirect address
+                                       each provider is given is built from this. #}
+                                    <a href="{{ path('app_admin_dashboard', { section: 'address' }) }}"
+                                       class="{{ section == 'address' ? navActive : navInactive }}">
+                                        <i class="fa-solid fa-globe w-4 {{ section == 'address' ? 'text-ink-faint' : '' }}" aria-hidden="true"></i>
+                                        {{ 'admin.nav.address'|trans }}
                                     </a>
                                     <a href="{{ path('app_admin_dashboard', { section: 'integrations' }) }}"
                                        class="{{ section == 'integrations' ? navActive : navInactive }}">
@@ -234,6 +242,20 @@
                                         <turbo-frame id="admin-insight-reports"
                                                      class="block space-y-3"
                                                      src="{{ path('app_admin_insight_reports_panel') }}"
+                                                     loading="lazy">
+                                            <div class="py-10 text-center text-sm text-ink-faint">
+                                                <i class="fa-solid fa-circle-notch fa-spin mr-2" aria-hidden="true"></i>{{ 'admin.loading'|trans }}
+                                            </div>
+                                        </turbo-frame>
+
+                                    {% elseif section == 'address' %}
+
+                                        {# No auto-refresh: configuration, and
+                                           a poll would empty the field
+                                           mid-word. #}
+                                        <turbo-frame id="admin-address"
+                                                     class="block space-y-3"
+                                                     src="{{ path('app_admin_address_settings') }}"
                                                      loading="lazy">
                                             <div class="py-10 text-center text-sm text-ink-faint">
                                                 <i class="fa-solid fa-circle-notch fa-spin mr-2" aria-hidden="true"></i>{{ 'admin.loading'|trans }}

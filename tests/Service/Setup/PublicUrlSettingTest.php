@@ -99,6 +99,53 @@ final class PublicUrlSettingTest extends TestCase
         self::assertNull($this->setting()->current());
     }
 
+    public function testASavedAddressIsOnFileWhileTheOldOneIsStillInForce(): void
+    {
+        // What a running container looks like after a change in Admin →
+        // Address: the entrypoint exported the old address at start, and the
+        // environment wins until the next one.
+        file_put_contents($this->secretsFile, "APP_PUBLIC_URL=https://old.example.com\n");
+        $_SERVER['APP_PUBLIC_URL'] = 'https://old.example.com';
+
+        $setting = $this->setting();
+        $setting->save('https://new.example.com/');
+
+        self::assertSame('https://old.example.com', $setting->current(), 'the running process keeps what it started with');
+        self::assertSame('https://new.example.com', $setting->stored(), 'the next start reads the new one');
+    }
+
+    public function testAHubAddressThatOnlyFollowedTheOldAddressIsDropped(): void
+    {
+        // A restored backup carries one. Left on file it would keep every
+        // browser subscribing at the address that was just replaced.
+        file_put_contents(
+            $this->secretsFile,
+            "APP_PUBLIC_URL=https://old.example.com\nMERCURE_PUBLIC_URL=https://old.example.com/.well-known/mercure\nMERCURE_JWT_SECRET=kept\n",
+        );
+
+        $this->setting()->save('https://new.example.com');
+
+        $stored = (new GeneratedSecretsFile($this->secretsFile))->read();
+
+        self::assertArrayNotHasKey('MERCURE_PUBLIC_URL', $stored, 'so that it is derived from the new address again');
+        self::assertSame('kept', $stored['MERCURE_JWT_SECRET'] ?? null, 'nothing else on file is touched');
+    }
+
+    public function testAHubAddressOfItsOwnSurvivesAChange(): void
+    {
+        file_put_contents(
+            $this->secretsFile,
+            "APP_PUBLIC_URL=https://old.example.com\nMERCURE_PUBLIC_URL=https://hub.example.net/.well-known/mercure\n",
+        );
+
+        $this->setting()->save('https://new.example.com');
+
+        self::assertSame(
+            'https://hub.example.net/.well-known/mercure',
+            (new GeneratedSecretsFile($this->secretsFile))->read()['MERCURE_PUBLIC_URL'] ?? null,
+        );
+    }
+
     private function setting(): PublicUrlSetting
     {
         return new PublicUrlSetting(

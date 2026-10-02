@@ -58,6 +58,37 @@ admin:
         last_activity: 'Last activity'
         messages: 'Messages'
         threads: 'Threads'
+    address:
+        field:
+            public_url: Public address
+            public_url_help: >-
+                Where people reach plMail from outside, with http:// or https:// in
+                front and no path. Gmail and Outlook send push notifications back to
+                it, so for those it has to be reachable from the internet over https.
+        follow_up: >-
+            Things registered elsewhere do not follow by themselves: the redirect
+            addresses in the Google and Microsoft consoles, a Gmail Pub/Sub push
+            endpoint, and the server address in mail and calendar apps. Browser
+            notifications have to be switched on again on each device.
+        heading: Public address
+        in_use: In use now
+        intro: >-
+            The address plMail builds its own links from: where browsers connect for
+            live updates, and where Google and Microsoft are told to call back.
+            Change it when the install moves to another domain, port or proxy, or
+            after restoring a backup taken on a different machine.
+        none: none
+        on_file: Saved
+        pending: >-
+            The saved address is not the one in use. A change takes effect when the
+            containers start again. If the two still differ after a restart,
+            APP_PUBLIC_URL is set in the compose file, and that setting wins over
+            this one.
+        restart_help: >-
+            Restarting plMail here is enough for live updates. Restart the whole
+            stack as well, so the workers register push at the new address.
+        save: Save address
+        saved: 'Saved — it takes effect at the next restart.'
     ago: 'ago'
     ai:
         backfill:
@@ -646,6 +677,7 @@ admin:
         page: 'Page'
         refresh: 'Refresh'
     nav:
+        address: Address
         ai: AI
         backup: Backup
         database: Database

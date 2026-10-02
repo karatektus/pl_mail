@@ -58,6 +58,38 @@ admin:
         last_activity: 'Last sighted'
         messages: 'Bottles'
         threads: 'Yarns'
+    address:
+        field:
+            public_url: Home port
+            public_url_help: >-
+                Where folk hail plMail from the open sea, with http:// or https://
+                afore it an' no path. Gmail an' Outlook send their push signals
+                back to it, so for those she must be reachable from the wide
+                internet over https.
+        follow_up: >-
+            What be written down elsewhere follows not by itself: the redirect
+            addresses in the Google an' Microsoft consoles, a Gmail Pub/Sub push
+            endpoint, an' the server address in mail an' almanac apps. Browser
+            signals must be hoisted anew on every device.
+        heading: Home port
+        in_use: Flyin' now
+        intro: >-
+            The address plMail builds her own links from: where browsers moor for
+            live tidings, an' where Google an' Microsoft be told to call back.
+            Change her when the ship moves to another domain, port or proxy, or
+            after restorin' ship's papers taken aboard another vessel.
+        none: none
+        on_file: Logged
+        pending: >-
+            The logged address be not the one flyin'. A change takes hold when
+            the containers start anew. If the two still differ after a rousin',
+            APP_PUBLIC_URL be set in the compose file, an' that order outranks
+            this one.
+        restart_help: >-
+            Rousin' plMail here be enough for live tidings. Rouse the whole stack
+            besides, so the hands register push at the new address.
+        save: Log the address
+        saved: 'Logged — she takes hold at the next rousin''.'
     ago: 'ago'
     ai:
         backfill:
@@ -583,6 +615,7 @@ admin:
         page: 'Page'
         refresh: 'Refresh'
     nav:
+        address: Home port
         ai: Oracle
         backup: "Ship's papers"
         database: Database

@@ -21,9 +21,23 @@ use Throwable;
  * Stored in the generated-config file, the one place a running container can
  * write that every other service reads. An APP_PUBLIC_URL supplied through the
  * environment still wins, so a deployment that sets it is untouched.
+ *
+ * Changeable after setup, from Admin → Address: an install gets a domain, moves
+ * behind a different proxy, or is restored from a backup taken somewhere else,
+ * and the address in that backup is the old machine's. A change takes a restart
+ * to reach processes that are already running. Making it live was considered
+ * and left out — the entrypoint exports this file into every container's
+ * environment at start, and telling a stale export from a deliberate pin needs
+ * more machinery than a restart costs.
  */
 final readonly class PublicUrlSetting
 {
+    /**
+     * Where the hub answers on the app's own origin — the suffix
+     * config/bootstrap_generated_secrets.php derives MERCURE_PUBLIC_URL with.
+     */
+    private const string HUB_PATH = '/.well-known/mercure';
+
     public function __construct(
         private GeneratedSecretsFile $config,
         private WorkerRestartSignal $workerRestart,
@@ -33,7 +47,21 @@ final readonly class PublicUrlSetting
 
     public function save(string $url): void
     {
-        $this->config->set('APP_PUBLIC_URL', rtrim(trim($url), '/'));
+        $url = rtrim(trim($url), '/');
+
+        // A hub address on file that is only the previous public address with
+        // the hub's path on it was never a decision of its own — a restored
+        // backup carries one. Left in place it keeps browsers subscribing at
+        // the address that was just replaced, and live updates stay dead while
+        // everything else has moved. One that points anywhere else is somebody's
+        // separate hub, and stays.
+        $previous = $this->stored();
+
+        if (null !== $previous && $previous.self::HUB_PATH === trim($this->config->read()['MERCURE_PUBLIC_URL'] ?? '')) {
+            $this->config->remove(['MERCURE_PUBLIC_URL']);
+        }
+
+        $this->config->set('APP_PUBLIC_URL', $url);
 
         // The web process picks the new value up on the next request; the
         // workers are long-running and would otherwise hold the old one until
@@ -67,6 +95,22 @@ final readonly class PublicUrlSetting
             return rtrim($env, '/');
         }
 
+        $stored = trim($this->config->read()['APP_PUBLIC_URL'] ?? '');
+
+        return '' === $stored ? null : rtrim($stored, '/');
+    }
+
+    /**
+     * What is on file, whatever the running processes were started with.
+     *
+     * Differs from current() in exactly two situations, and Admin → Address
+     * shows both values because it cannot tell them apart: a saved address
+     * still waiting for its restart, since the entrypoint exports the file into
+     * the environment once, at container start; or an APP_PUBLIC_URL set in the
+     * compose file, which wins over the file for good.
+     */
+    public function stored(): ?string
+    {
         $stored = trim($this->config->read()['APP_PUBLIC_URL'] ?? '');
 
         return '' === $stored ? null : rtrim($stored, '/');

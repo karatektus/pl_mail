@@ -32,7 +32,7 @@ final class AdminDashboardController extends AbstractController
 {
     use ChecksCsrf;
 
-    private const array SECTIONS = ['system', 'database', 'logs', 'insight-reports', 'integrations', 'push', 'ai', 'users', 'backup', 'updates', 'reset'];
+    private const array SECTIONS = ['system', 'database', 'logs', 'insight-reports', 'address', 'integrations', 'push', 'ai', 'users', 'backup', 'updates', 'reset'];
     private const int LOGS_PER_PAGE = 100;
 
     /**

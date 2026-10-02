@@ -58,6 +58,41 @@ admin:
         last_activity: 'Letzte Aktivität'
         messages: 'Nachrichten'
         threads: 'Konversationen'
+    address:
+        field:
+            public_url: Öffentliche Adresse
+            public_url_help: >-
+                Unter dieser Adresse ist plMail von außen erreichbar, mit http:// oder
+                https:// davor und ohne Pfad. Gmail und Outlook schicken
+                Push-Benachrichtigungen dorthin zurück, dafür muss sie aus dem Internet
+                über https erreichbar sein.
+        follow_up: >-
+            Was woanders eingetragen ist, zieht nicht von selbst mit: die
+            Weiterleitungsadressen in den Konsolen von Google und Microsoft, ein
+            Pub/Sub-Push-Endpunkt für Gmail und die Serveradresse in Mail- und
+            Kalender-Apps. Browser-Benachrichtigungen musst du auf jedem Gerät neu
+            einschalten.
+        heading: Öffentliche Adresse
+        in_use: Derzeit verwendet
+        intro: >-
+            Aus dieser Adresse baut plMail seine eigenen Links: wohin sich Browser für
+            Live-Aktualisierungen verbinden und wohin Google und Microsoft
+            zurückrufen sollen. Ändere sie, wenn die Installation auf eine andere
+            Domain, einen anderen Port oder hinter einen anderen Proxy zieht, oder
+            nachdem du eine Sicherung von einer anderen Maschine eingespielt hast.
+        none: keine
+        on_file: Gespeichert
+        pending: >-
+            Die gespeicherte Adresse ist nicht die verwendete. Eine Änderung greift,
+            sobald die Container neu starten. Weichen die beiden nach einem Neustart
+            immer noch voneinander ab, ist APP_PUBLIC_URL in der Compose-Datei
+            gesetzt, und das hat Vorrang.
+        restart_help: >-
+            Für Live-Aktualisierungen reicht es, plMail hier neu zu starten. Starte
+            zusätzlich den ganzen Stack neu, damit die Worker Push unter der neuen
+            Adresse anmelden.
+        save: Adresse speichern
+        saved: 'Gespeichert — greift beim nächsten Neustart.'
     ago: 'her'
     ai:
         backfill:
@@ -653,6 +688,7 @@ admin:
         page: 'Seite'
         refresh: 'Aktualisieren'
     nav:
+        address: Adresse
         ai: KI
         backup: Sicherung
         database: Datenbank

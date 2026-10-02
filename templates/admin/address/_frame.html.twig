@@ -1,0 +1,112 @@
+{% import '_partials/_card_chrome.html.twig' as chrome %}
+{#
+admin/address/_frame.html.twig — Admin → Address.
+
+Accepts:
+  form    — App\Form\Admin\PublicUrlType
+  saved   — true immediately after a successful save
+  current — the address the running processes use, or null when there is none
+  stored  — the address on file, or null when nothing was ever saved
+
+**Two addresses, shown side by side whenever they differ.** `current` is what
+this process was started with and `stored` is what the next start will read.
+They part ways after a save that has not been restarted yet, and also when
+APP_PUBLIC_URL is set in the compose file, which wins over the file for good.
+The page cannot tell those apart, so it names both and lets the administrator
+recognise their own situation rather than guessing at one.
+
+The restart button is the System panel's own, posting to the same action with
+the same token. It restarts the web container only, which is what brings live
+updates to the new address; the note beside it says what it does not reach.
+
+No auto-refresh wraps this frame — it is configuration, and a poll would empty
+the field mid-word.
+#}
+{# Layout classes belong on the placeholder in admin/index.html.twig, not
+   here: Turbo transplants this frame's CHILDREN into the frame already on
+   the page and never copies its attributes, so a class written here reaches
+   nothing. See tests/Infrastructure/Templating/TurboFrameClassesTest.php. #}
+<turbo-frame id="admin-address">
+
+    {% set pending = stored is not null and stored != current %}
+
+    <div class="{{ chrome.shell() }}">
+
+        <div class="flex items-center gap-2.5 {{ chrome.band() }}">
+            <i class="fa-solid fa-globe text-xs text-ink-faint" aria-hidden="true"></i>
+            <h2 class="text-sm font-semibold text-ink">{{ 'admin.address.heading'|trans }}</h2>
+        </div>
+
+        <div class="{{ chrome.body() }} space-y-4">
+
+            {% if saved %}
+                <div role="status" class="flex items-start gap-2.5 rounded-lg bg-emerald-500/10 px-3.5 py-3 text-sm text-emerald-500">
+                    <i class="fa-solid fa-circle-check mt-0.5 shrink-0" aria-hidden="true"></i>
+                    <p class="leading-snug">{{ 'admin.address.saved'|trans }}</p>
+                </div>
+            {% endif %}
+
+            <p class="text-sm text-ink-soft leading-relaxed">{{ 'admin.address.intro'|trans }}</p>
+
+            <dl class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-xs">
+                <dt class="text-ink-faint">{{ 'admin.address.in_use'|trans }}</dt>
+                <dd class="font-mono text-ink-soft break-all">{{ current ?? 'admin.address.none'|trans }}</dd>
+                {% if pending %}
+                    <dt class="text-ink-faint">{{ 'admin.address.on_file'|trans }}</dt>
+                    <dd class="font-mono text-ink-soft break-all">{{ stored }}</dd>
+                {% endif %}
+            </dl>
+
+            {% if pending %}
+                <div role="status" class="rounded-lg bg-amber-500/10 px-3.5 py-3 text-sm text-amber-500">
+                    <p class="leading-snug">{{ 'admin.address.pending'|trans }}</p>
+                </div>
+            {% endif %}
+
+            {# After a save as well as while one is pending. The two are not
+               the same moment: a process that reads the file on every call
+               shows the new address at once, and the hub address the layout
+               hands to browsers is still the one this kernel booted with. #}
+            {% if saved or pending %}
+                <div>
+                    <p class="text-xs text-ink-faint leading-relaxed">{{ 'admin.address.restart_help'|trans }}</p>
+
+                    {# data-turbo="false", as on the System panel: the answer
+                       is a full page that outlives the process serving it,
+                       not something to swap into this frame. #}
+                    <form method="post" action="{{ path('app_admin_system_restart_app') }}" data-turbo="false" class="mt-2">
+                        <input type="hidden" name="_token" value="{{ csrf_token('admin_restart_app') }}">
+                        <button type="submit"
+                                class="inline-flex items-center gap-1.5 px-2.5 h-8 rounded-lg text-xs font-medium btn-quiet hover:bg-hover transition-colors cursor-pointer">
+                            <i class="fa-solid fa-power-off" aria-hidden="true"></i>
+                            {{ 'admin.maintenance.restart_app'|trans }}
+                        </button>
+                    </form>
+                </div>
+            {% endif %}
+
+            {{ form_start(form, { attr: { 'data-turbo-frame': 'admin-address' } }) }}
+                <div class="space-y-4">
+                    {{ form_widget(form) }}
+
+                    <div class="flex justify-end">
+                        <button type="submit"
+                                class="inline-flex items-center gap-2 h-9 px-4 rounded-lg text-sm font-medium
+                                       text-accent-ink bg-accent hover:bg-accent-strong transition-colors cursor-pointer">
+                            <i class="fa-solid fa-floppy-disk text-xs" aria-hidden="true"></i>
+                            {{ 'admin.address.save'|trans }}
+                        </button>
+                    </div>
+                </div>
+            {{ form_end(form) }}
+        </div>
+    </div>
+
+    {# px-4, the house inset: this note sits outside the card and has to
+       begin where the card's own content begins, not at its own figure. #}
+    <p class="px-4 text-xs text-ink-faint leading-relaxed">
+        <i class="fa-solid fa-circle-info mr-1" aria-hidden="true"></i>
+        {{ 'admin.address.follow_up'|trans }}
+    </p>
+
+</turbo-frame>
