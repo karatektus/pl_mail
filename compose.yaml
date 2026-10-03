@@ -39,9 +39,9 @@ x-app-env: &app-env
   MESSENGER_TRANSPORT_DSN: ${MESSENGER_TRANSPORT_DSN:-doctrine://default?auto_setup=0}
   MERCURE_URL: ${MERCURE_URL:-http://mercure/.well-known/mercure}
   MERCURE_PUBLIC_URL: ${MERCURE_PUBLIC_URL:-https://localhost/.well-known/mercure}
-  # Blank on HTTPS, which is every real install. Serving plain HTTP, set it to a
-  # name without the `__Secure-` prefix (a browser drops such a cookie over
-  # HTTP). The app sets the cookie and the hub reads it, and both read this.
+  # Blank, and plMail picks: the `__Secure-` name when the public address is
+  # https, a name without the prefix otherwise (a browser drops a `__Secure-`
+  # cookie over HTTP). Set it only to use a name of your own.
   MERCURE_COOKIE_NAME: ${MERCURE_COOKIE_NAME:-}
 
 # The state that must outlive a container and be shared between them.

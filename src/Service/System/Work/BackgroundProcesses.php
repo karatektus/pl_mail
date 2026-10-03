@@ -30,12 +30,21 @@ use Symfony\Component\DependencyInjection\Attribute\Autowire;
  * plain HTTP on :80, the generated JWT secret as both keys, and the issuer and
  * audience pinned to `mercure.identifier` (config/services.yaml says why they
  * cannot be derived from the install's own address). The container answers to
- * `mercure` on the network, so the web container's proxy and MERCURE_URL reach
- * it where they always reached the hub.
+ * `mercure` on the network in plMail's own compose files, so the web
+ * container's proxy and MERCURE_URL reach it where they always reached the
+ * hub; a stack that names it otherwise says so in MERCURE_UPSTREAM and
+ * MERCURE_URL.
  */
 final readonly class BackgroundProcesses
 {
     public const string HUB = 'mercure';
+
+    /**
+     * The subscriber cookie with and without its prefix. The browser is handed
+     * the prefixed one on an https install; the hub only ever sees the bare one.
+     */
+    private const string PREFIXED_COOKIE = '__Secure-mercure_access_token';
+    private const string BARE_COOKIE     = 'mercure_access_token';
 
     /** The consumers' recycling, as compose ran them: hourly, or at 256 MB. */
     private const array CONSUMER_LIMITS = ['--time-limit=3600', '--memory-limit=256M'];
@@ -43,13 +52,10 @@ final readonly class BackgroundProcesses
     public function __construct(
         #[Autowire('%mercure.identifier%')]
         private string  $hubIdentifier,
-        // The subscriber cookie's name, as the application sets it. The hub has
-        // to look for the same one: `__Secure-…` by default, and whatever
-        // MERCURE_COOKIE_NAME says on an install serving plain HTTP, where a
-        // browser drops a `__Secure-` cookie. One setting now, where the hub
-        // container needed its own copy of it.
+        // The subscriber cookie's name, as the application sets it. See
+        // hubCookieName() for the one name the hub does not take as it comes.
         #[Autowire('%mercure.cookie_name%')]
-        private string  $cookieName = '__Secure-mercure_access_token',
+        private string  $cookieName = self::BARE_COOKIE,
         #[Autowire('%env(default::MERCURE_JWT_SECRET)%')]
         private ?string $hubSecret = null,
         #[Autowire('%env(default::MERCURE_TRUSTED_ISSUERS)%')]
@@ -105,7 +111,7 @@ final readonly class BackgroundProcesses
             // out per request would refuse every publish.
             'MERCURE_EXTRA_DIRECTIVES'      => $this->orDefault(
                 $this->extraDirectives,
-                sprintf("resource_identifier %s\ncookie_name %s", $this->hubIdentifier, $this->cookieName),
+                sprintf("resource_identifier %s\ncookie_name %s", $this->hubIdentifier, $this->hubCookieName()),
             ),
             // Five seconds to close its connections when told to stop, then it
             // closes them. Caddy's own default is to wait for every one, and a
@@ -118,6 +124,24 @@ final readonly class BackgroundProcesses
             'CADDY_EXTRA_CONFIG'            => '',
             'CADDY_SERVER_EXTRA_DIRECTIVES' => '',
         ]);
+    }
+
+    /**
+     * The cookie the hub looks for.
+     *
+     * The application's own name, except the prefixed one, which reaches the
+     * hub bare: the web server renames it in the proxy (frankenphp/Caddyfile).
+     * Whether the browser's cookie carries the prefix follows the public
+     * address, which an administrator can change while this process runs — and
+     * a hub told the name at ITS start would then refuse every subscription
+     * until somebody restarted the worker as well. The hub's side never changes
+     * now, so the web container is the only one that has to notice.
+     *
+     * Any other name is an operator's own and is used as it is, on both sides.
+     */
+    private function hubCookieName(): string
+    {
+        return self::PREFIXED_COOKIE === $this->cookieName ? self::BARE_COOKIE : $this->cookieName;
     }
 
     private function orDefault(?string $value, string $default): string

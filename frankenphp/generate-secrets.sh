@@ -39,6 +39,29 @@ random_base64() {
 	head -c "$1" /dev/urandom | base64 | tr -d '\n'
 }
 
+# True only for a DSN that carries a password. The same test, for the same
+# reason, as the one in docker-entrypoint.sh: the placeholder DSN in .env has a
+# user and no password, and must not count as a database somebody configured.
+database_url_has_password() {
+	case "$1" in
+		*://*) ;;
+		*) return 1 ;;
+	esac
+
+	_userinfo="${1#*://}"
+
+	case "$_userinfo" in
+		*@*) _userinfo="${_userinfo%%@*}" ;;
+		*) return 1 ;;
+	esac
+
+	case "$_userinfo" in
+		*/*) return 1 ;;
+		*:*) return 0 ;;
+		*) return 1 ;;
+	esac
+}
+
 # generate NAME VALUE — append NAME to the secrets file unless the environment
 # already carries it or the file already has it.
 generate() {
@@ -70,16 +93,24 @@ generate() {
 	# stored mail credential, which is why the directory is worth backing up.
 	generate APP_ENCRYPTION_KEY "$(random_base64 32)"
 
-	generate POSTGRES_PASSWORD "$(random_hex 24)"
 	generate MERCURE_JWT_SECRET "$(random_hex 32)"
 
-	# 0644 rather than 0600: the Postgres image reads this as uid 70, and the
-	# file only ever exists inside a volume mounted into plMail's own services.
-	password="$(printenv POSTGRES_PASSWORD || true)"
-	[ -n "$password" ] || password="$(sed -n 's/^POSTGRES_PASSWORD=//p' "$SECRETS_FILE")"
+	# The database password, unless the database is somebody else's. A
+	# DATABASE_URL that carries a password names a database an operator set up
+	# and holds the credential for; minting a second one here leaves a secret in
+	# the file that nothing reads and a backup then carries around.
+	if ! database_url_has_password "${DATABASE_URL:-}"; then
+		generate POSTGRES_PASSWORD "$(random_hex 24)"
 
-	if [ -n "$password" ]; then
-		printf '%s' "$password" >"$POSTGRES_PASSWORD_FILE_PATH"
-		chmod 644 "$POSTGRES_PASSWORD_FILE_PATH" 2>/dev/null || true
+		# 0644 rather than 0600: the Postgres image reads this as uid 70, and
+		# the file only ever exists inside a volume mounted into plMail's own
+		# services.
+		password="$(printenv POSTGRES_PASSWORD || true)"
+		[ -n "$password" ] || password="$(sed -n 's/^POSTGRES_PASSWORD=//p' "$SECRETS_FILE")"
+
+		if [ -n "$password" ]; then
+			printf '%s' "$password" >"$POSTGRES_PASSWORD_FILE_PATH"
+			chmod 644 "$POSTGRES_PASSWORD_FILE_PATH" 2>/dev/null || true
+		fi
 	fi
 ) 9>"$SECRETS_DIR/.lock"

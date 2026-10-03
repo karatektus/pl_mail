@@ -74,9 +74,19 @@
                 -Server
         }
 
-        # Mercure hub — proxy to the mercure container
+        # Mercure hub — proxied to the container that runs it. `mercure` is the
+        # name plMail's own compose files give it; MERCURE_UPSTREAM is for a
+        # stack that names its containers by rules of its own.
+        #
+        # The subscriber cookie loses its `__Secure-` prefix on the way. The
+        # browser holds the prefixed one on an https install and the bare one
+        # otherwise, and which it is follows the public address, which can
+        # change under a running hub. So the hub always reads the bare name
+        # and this is where the two are made the same; see BackgroundProcesses.
         handle /.well-known/mercure* {
-                reverse_proxy mercure:80
+                reverse_proxy {$MERCURE_UPSTREAM:mercure:80} {
+                        header_up Cookie "__Secure-mercure_access_token=" "mercure_access_token="
+                }
         }
 
         php_server {

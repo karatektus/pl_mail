@@ -117,9 +117,46 @@ declare(strict_types=1);
     // Derived here rather than configured: it is one less thing to fill in, and
     // it cannot drift from the public URL. An explicit MERCURE_PUBLIC_URL still
     // wins, for the install whose hub really does live somewhere else.
-    if (false === $isSet('MERCURE_PUBLIC_URL') && true === $isSet('APP_PUBLIC_URL')) {
-        $publicUrl = trim((string) ($_SERVER['APP_PUBLIC_URL'] ?? $_ENV['APP_PUBLIC_URL'] ?? ''));
+    $publicUrl = trim((string) ($_SERVER['APP_PUBLIC_URL'] ?? $_ENV['APP_PUBLIC_URL'] ?? ''));
 
+    if (false === $isSet('MERCURE_PUBLIC_URL') && '' !== $publicUrl) {
         $put('MERCURE_PUBLIC_URL', rtrim($publicUrl, '/').'/.well-known/mercure');
+    }
+
+    // The subscriber cookie takes the `__Secure-` prefix where a browser will
+    // accept it, which is exactly where the page arrives over HTTPS, and the
+    // public address is the one thing here that says whether it does. Without
+    // an https address the name is left unset and services.yaml's prefix-less
+    // default answers: an install opened on http://ip:port — every NAS app on
+    // its first day — would otherwise set a cookie the browser throws away, and
+    // live updates would never start. It used to take an operator who knew to
+    // set MERCURE_COOKIE_NAME. One who does still wins; this only fills a gap.
+    //
+    // The hub is not told about the prefix at all. The web server renames the
+    // cookie on the way through (frankenphp/Caddyfile) and the hub reads the
+    // bare name (BackgroundProcesses), so the two cannot disagree while one of
+    // them has restarted since the address changed and the other has not.
+    if (false === $isSet('MERCURE_COOKIE_NAME') && true === str_starts_with(strtolower($publicUrl), 'https://')) {
+        $put('MERCURE_COOKIE_NAME', '__Secure-mercure_access_token');
+    }
+
+    // APP_STORAGE_DIR is relative to the project root everywhere it is used,
+    // and the paths stored with every attachment begin with it. An absolute
+    // path is what a deployment that mounts one directory would rather write,
+    // and some catalogues insist on it, so one inside the project is accepted
+    // and brought back to the relative form here — before anything reads it,
+    // which is what keeps the stored paths the same either way. One outside the
+    // project has no relative form and is refused rather than half-honoured.
+    $storageDir = trim((string) ($_SERVER['APP_STORAGE_DIR'] ?? $_ENV['APP_STORAGE_DIR'] ?? ''));
+
+    if (true === str_starts_with($storageDir, '/')) {
+        $relative = trim(substr(rtrim($storageDir, '/'), \strlen($projectDir)), '/');
+
+        if (false === str_starts_with(rtrim($storageDir, '/').'/', $projectDir.'/') || '' === $relative) {
+            throw new RuntimeException(sprintf('APP_STORAGE_DIR is "%s", which is not a directory inside %s. Use a path below it, absolute or relative.', $storageDir, $projectDir));
+        }
+
+        $_SERVER['APP_STORAGE_DIR'] = $relative;
+        $_ENV['APP_STORAGE_DIR']    = $relative;
     }
 })();

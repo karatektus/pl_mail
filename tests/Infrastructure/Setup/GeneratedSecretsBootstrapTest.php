@@ -89,6 +89,58 @@ final class GeneratedSecretsBootstrapTest extends TestCase
     }
 
     /**
+     * The subscriber cookie's prefix follows the public address, because a
+     * browser only keeps a `__Secure-` cookie that arrived over HTTPS. An
+     * install on http://ip:port used to set one the browser threw away, and
+     * live updates never started; nothing anywhere said why.
+     */
+    public function testTheCookieIsPrefixedOnlyWhereABrowserWillKeepIt(): void
+    {
+        file_put_contents($this->secretsFile, "APP_PUBLIC_URL=https://mail.example.com\n");
+
+        self::assertSame('__Secure-mercure_access_token', $this->seenBy('MERCURE_COOKIE_NAME', []));
+
+        file_put_contents($this->secretsFile, "APP_PUBLIC_URL=http://192.168.2.2:30504\n");
+
+        self::assertSame('(unset)', $this->seenBy('MERCURE_COOKIE_NAME', []), 'left to the prefix-less default in services.yaml');
+    }
+
+    public function testNoPrefixIsAssumedBeforeSetupHasStoredAnAddress(): void
+    {
+        self::assertSame('(unset)', $this->seenBy('MERCURE_COOKIE_NAME', []));
+    }
+
+    public function testAnOperatorsOwnCookieNameIsNeverOverridden(): void
+    {
+        file_put_contents($this->secretsFile, "APP_PUBLIC_URL=https://mail.example.com\n");
+
+        self::assertSame('plmail', $this->seenBy('MERCURE_COOKIE_NAME', ['MERCURE_COOKIE_NAME' => 'plmail']));
+    }
+
+    /**
+     * Stored attachment paths begin with the storage directory, relative to the
+     * project root. An absolute path inside the project has to come out as the
+     * same relative one, or an install that switched spelling would stop
+     * finding every file it had already written.
+     */
+    public function testAnAbsoluteStorageDirInsideTheProjectBecomesTheRelativeOne(): void
+    {
+        $project = \dirname(__DIR__, 3);
+
+        self::assertSame('var/data', $this->seenBy('APP_STORAGE_DIR', ['APP_STORAGE_DIR' => $project.'/var/data']));
+        self::assertSame('var/data', $this->seenBy('APP_STORAGE_DIR', ['APP_STORAGE_DIR' => $project.'/var/data/']));
+        self::assertSame('var/data', $this->seenBy('APP_STORAGE_DIR', ['APP_STORAGE_DIR' => 'var/data']), 'a relative one is left alone');
+    }
+
+    public function testAStorageDirOutsideTheProjectIsRefusedRatherThanHalfHonoured(): void
+    {
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessageMatches('/APP_STORAGE_DIR/');
+
+        $this->seenBy('APP_STORAGE_DIR', ['APP_STORAGE_DIR' => '/mnt/elsewhere']);
+    }
+
+    /**
      * Beside the generated secrets, wherever a deployment keeps them — the
      * TrueNAS layouts point APP_SECRETS_FILE into their data dataset, and a
      * fixed var/secrets/jwt was the container's own filesystem there, minted

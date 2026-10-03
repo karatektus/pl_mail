@@ -21,13 +21,17 @@ parameters:
     # reverse. See App\Service\Demo\DemoMode.
     app.demo_mode_default: false
 
-    # The subscriber cookie's name. The Mercure 1.0 default is `__Secure-`
-    # prefixed, and a browser refuses a `__Secure-` cookie that did not arrive
-    # over HTTPS — which is right for every real install and wrong for the test
-    # stack, which serves plain HTTP on 127.0.0.1. Read through `default:` so an
-    # install that has never heard of the variable gets the safe name, and only
-    # a deployment that knows it is running without TLS has to say so.
-    mercure.cookie_name_default: '__Secure-mercure_access_token'
+    # The subscriber cookie's name when nothing says otherwise: no prefix.
+    #
+    # The Mercure 1.0 default is `__Secure-` prefixed, and a browser refuses a
+    # `__Secure-` cookie that did not arrive over HTTPS. That was the default
+    # here too, on the reasoning that every real install has TLS — and then a
+    # NAS app opened on http://ip:port never got a live update, with nothing
+    # anywhere saying why. So the prefix is no longer assumed; it is chosen.
+    # config/bootstrap_generated_secrets.php sets MERCURE_COOKIE_NAME to the
+    # prefixed name when the install's public address is https, and leaves it
+    # alone otherwise, which lands here. An operator's own value wins over both.
+    mercure.cookie_name_default: 'mercure_access_token'
 
     # Who plMail says issued its Mercure tokens, and which hub they are for.
     #
