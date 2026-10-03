@@ -6,6 +6,38 @@ so anything that changes the schema irreversibly is called out explicitly.
 The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, and `sha-…` pins one commit.
 
+## v0.2.56 — 2026-10-03
+
+**"Restart now" restarts.** The button in Admin → System, and the one Admin → Address offers after
+a change, stopped PHP and then hung: the web server waits for every open connection before it exits,
+and the live-update stream it proxies never closes by itself. With one plMail tab open anywhere the
+container neither served nor exited, so nothing could bring it back, and on TrueNAS the app sat in
+"deploying" until it was stopped by hand. It closes what is still open after five seconds now, as the
+hub already did.
+
+- **Live updates work on plain HTTP without being told.** The cookie that lets a browser subscribe
+  was named `__Secure-…` unless `MERCURE_COOKIE_NAME` said otherwise, and a browser drops such a
+  cookie over HTTP: an install opened on `http://ip:port` had a red stream indicator for good. The
+  name follows the public address now, prefixed when it is https and bare when it is not. Setting
+  `MERCURE_COOKIE_NAME` still wins.
+- **A database password with special characters no longer stops plMail starting.** A `DATABASE_URL`
+  carrying percent-encoded characters crashed every process at boot, and one without
+  `serverVersion` did too. Both are read as written now, with PostgreSQL 18 assumed when the URL
+  does not say.
+- **`APP_STORAGE_DIR` may be an absolute path** inside the project, such as `/app/var/data`. It
+  means the same as `var/data`, and files already stored are found either way.
+- **`MERCURE_UPSTREAM`** names the container the web server proxies the hub to, for a stack that
+  does not call it `mercure`.
+- **No database password is generated for a database plMail did not set up.** With a `DATABASE_URL`
+  that carries its own password, the secrets directory no longer gains a `POSTGRES_PASSWORD` and a
+  `postgres_password` file that nothing reads.
+
+### Before you upgrade
+
+- **Nothing has to change.** There is no migration and the compose files stay as they are.
+- **If you set `MERCURE_COOKIE_NAME` to get live updates over HTTP, you can remove it.** Leaving it
+  is harmless.
+
 ## v0.2.55 — 2026-10-02
 
 **plMail's icon is the wax seal.** The pl mark pressed into red wax is what a new account starts on,
