@@ -1,6 +1,22 @@
 doctrine:
     dbal:
-        url: '%env(resolve:DATABASE_URL)%'
+        # Not `resolve:`, which the recipe ships. That processor expands
+        # %parameter% references inside the value, and a password that needs
+        # percent-encoding in a URL is full of things that look like one:
+        # `s3cr%26t%2F…` asked the container for a parameter called "26t" and
+        # every process died at boot. A generated password is hex and never
+        # showed it; a password somebody chose does. Nothing here ever put a
+        # parameter in a DSN.
+        url: '%env(DATABASE_URL)%'
+
+        # For a DSN that does not say. plMail's own DSNs all carry
+        # `serverVersion=18` and that still wins; one written by somebody else
+        # — a catalogue's database helper, an operator's own — usually does not,
+        # and without a version the bundle cannot pick a platform before it
+        # connects: "Invalid platform version "" specified", at boot, in every
+        # process. 18 is the server the image is built against (its pg_dump is
+        # 18's) and the one every compose file here runs.
+        server_version: '18'
 
         types:
             # TEXT column, encrypted at rest. See App\Infrastructure\Doctrine\Type\EncryptedStringType.
