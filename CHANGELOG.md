@@ -6,6 +6,21 @@ so anything that changes the schema irreversibly is called out explicitly.
 The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, and `sha-…` pins one commit.
 
+## v0.2.57 — 2026-10-04
+
+**The image runs as a user that is not root.** Nothing in plMail needs root while it runs, but the
+image assumed it: started as another user with capabilities dropped, the web server refused to
+execute, PHP could not write its cache, and the hub could not open its database. All three are
+fixed in the image, so a platform that picks the user itself can run it. The TrueNAS catalogue app
+does, as uid 568 by default with no capabilities at all.
+
+### Before you upgrade
+
+- **Nothing has to change.** plMail's own compose files still run it as root, and behave as before.
+- **To run it as another user yourself,** set `user:` on the plMail services and make the mounted
+  directories belong to that user. Volumes created while it ran as root stay root's; they are not
+  re-owned for you.
+
 ## v0.2.56 — 2026-10-03
 
 **"Restart now" restarts.** The button in Admin → System, and the one Admin → Address offers after
