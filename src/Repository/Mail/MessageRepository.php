@@ -1133,6 +1133,51 @@ class MessageRepository extends ServiceEntityRepository
     }
 
     /**
+     * Messages whose HTML body has a table somewhere after a link opens — the
+     * set the table-in-a-link repair has to walk.
+     *
+     * The damage is a link emptied by the old inliner's parser (see
+     * Html5CssInliner), and like the charset one it is not something SQL can
+     * recognise in bodyHtmlSafe: what is left is an `<a>` with nothing in it,
+     * which is also what a sender's tracking anchor looks like. So the walk is
+     * narrowed on the cause, in the sender's own copy, and deliberately
+     * loosely — "a table after a link" rather than "a table inside one",
+     * which would take a parser to decide. Re-sanitising a body that was never
+     * affected writes back what it already had.
+     *
+     * @return list<Message>
+     */
+    public function findWithTableAfterLink(int $afterId, int $limit): array
+    {
+        return $this->tableAfterLinkQueryBuilder($afterId)
+            ->orderBy('m.id', 'ASC')
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getResult();
+    }
+
+    /** Counted through the same builder, so the total and the walk agree. */
+    public function countWithTableAfterLink(): int
+    {
+        return (int) $this->tableAfterLinkQueryBuilder(0)
+            ->select('COUNT(m.id)')
+            ->getQuery()
+            ->getSingleScalarResult();
+    }
+
+    /** Shared so the count and the walk can never disagree about the set. */
+    private function tableAfterLinkQueryBuilder(int $afterId): \Doctrine\ORM\QueryBuilder
+    {
+        return $this->createQueryBuilder('m')
+            ->andWhere('m.id > :afterId')
+            ->andWhere('m.bodyHtml IS NOT NULL')
+            // Folded for the reason the charset walk folds: tags are written
+            // in every case there is.
+            ->andWhere("LOWER(m.bodyHtml) LIKE '%<a %<table%'")
+            ->setParameter('afterId', $afterId);
+    }
+
+    /**
      * Messages whose body webklex filed as an attachment, oldest id first.
      *
      * The set MisfiledBodyDetector now keeps out of the database, found after

@@ -791,7 +791,7 @@ php bin/mirror-wiki.php --check
 | `app:calendar:alerts [--dry-run]` | Deliver the event reminders that have come due, and prune the records of ones long past. Runs every minute; `--dry-run` lists what is due without sending or recording anything |
 | `app:mail:wake-snoozed` | Return snoozed conversations whose time has come. Runs every minute |
 | `app:calendar:materialise [--dry-run]` | Redraw the occurrences of recurring events whose horizon no longer reaches far enough. Runs nightly; without it a long-untouched series eventually runs out of dates |
-| `app:backfill [task]` | Run a one-off backfill over stored data; with no argument it lists the tasks and asks. `events` re-runs calendar extraction, `proposals` re-reads mail for dates written in prose |
+| `app:backfill [task]` | Run a one-off backfill over stored data; with no argument it lists the tasks and asks. `events` re-runs calendar extraction, `proposals` re-reads mail for dates written in prose, `safe-html-table-links` restores links that were wrapped around a table and came out empty |
 | `app:imap:idle <mailbox-id>` | Hold an IMAP IDLE connection for a single mailbox |
 | `app:imap:supervise` | Spawn and watch one `app:imap:idle` process per IDLE-enabled mailbox |
 | `app:imap:test [--account=ID]` | Test an IMAP connection and folder listing |

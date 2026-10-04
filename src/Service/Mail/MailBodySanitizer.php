@@ -10,7 +10,6 @@ use Psr\Log\LoggerInterface;
 use Symfony\Component\HtmlSanitizer\HtmlSanitizer;
 use Symfony\Component\HtmlSanitizer\HtmlSanitizerConfig;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
-use TijsVerkoyen\CssToInlineStyles\CssToInlineStyles;
 
 /**
  * Produces the render-ready, isolated HTML stored on Message::bodyHtmlSafe.
@@ -25,7 +24,9 @@ use TijsVerkoyen\CssToInlineStyles\CssToInlineStyles;
  *   2. Resolve `cid:` references (img src + url() in CSS) to our lazy
  *      attachment route.
  *   3. Flatten <style> blocks onto elements as inline styles — the inline
- *      styles become the sole carrier of the email's visual design.
+ *      styles become the sole carrier of the email's visual design. On a tree
+ *      the HTML5 parser built: see Html5CssInliner for what the library's own
+ *      parser did to a link wrapped around a table.
  *   4. Sanitize: drop scripts / forms / iframes / <style> / classes, force
  *      links to open away from the app, keep the inline styles.
  */
@@ -246,7 +247,7 @@ final readonly class MailBodySanitizer
         set_error_handler(static fn(): bool => true, E_WARNING);
 
         try {
-            return new CssToInlineStyles()->convert($html);
+            return new Html5CssInliner()->convert($html);
         } catch (\Throwable $e) {
             $this->logger->warning('MailBodySanitizer: CSS inlining failed, sanitizing raw body', [
                 'error'     => $e->getMessage(),
