@@ -6,6 +6,26 @@ so anything that changes the schema irreversibly is called out explicitly.
 The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, and `sha-…` pins one commit.
 
+## v0.2.58 — 2026-10-04
+
+**A link wrapped around a table is a link again.** Newsletters and job alerts build each card as one
+link around a table, so the whole card can be clicked. In plMail those cards went nowhere: the link
+was stored empty, with the card after it instead of inside it, and the same mail worked in every
+other client. The step that applies a mail's stylesheet read the body with an HTML 4 parser, which
+ends a link where a table begins. It reads it the way a browser does now.
+
+- **Mail already in the mailbox is repaired on request.** `php bin/console app:backfill
+  safe-html-table-links` goes through stored mail with a table after a link and writes the body
+  again from the sender's original. Nothing is fetched from a mail server.
+- **Two smaller things follow from the same change.** Bold and italic closed in the wrong order are
+  put right the way a browser would, and Outlook's `<o:p>` tags no longer leave empty paragraphs in
+  a message.
+
+### Before you upgrade
+
+- **Nothing has to change.** There is no migration. Run the command above once if older mail should
+  get its links back; new mail is right from the start.
+
 ## v0.2.57 — 2026-10-04
 
 **The image runs as a user that is not root.** Nothing in plMail needs root while it runs, but the
