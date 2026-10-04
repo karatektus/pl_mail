@@ -10,6 +10,13 @@ import { Controller } from "@hotwired/stimulus";
  * and a clock that is five minutes behind until the next tick is worse than
  * none.
  *
+ * It also reads the time once on connecting, because the markup it connects to
+ * is not always fresh from the server. The browser's Back button restores a
+ * page as it was when it was left — Turbo's snapshot, or the browser's own
+ * back/forward cache — and the reading in it is that old. Without this the
+ * clock went back with the page and stayed wrong until the minute turned. On a
+ * fresh page the reading it writes is the one already there.
+ *
  * TARGETS, each optional, and each printed the way the server prints it
  * ─────────────────────────────────────────────────────────────────────
  *   time      "2:05 pm" / "14:05"   — ClockFormat::time()
@@ -38,13 +45,24 @@ export default class extends Controller {
                 this.tick();
             }
         };
+        // The back/forward cache brings the page back with this controller
+        // still connected, so connect() does not run again for it.
+        this.onPageShow = (event) => {
+            if (event.persisted) {
+                this.tick();
+                this.schedule();
+            }
+        };
         document.addEventListener("visibilitychange", this.onVisible);
+        window.addEventListener("pageshow", this.onPageShow);
+        this.tick();
         this.schedule();
     }
 
     disconnect() {
         clearTimeout(this.timer);
         document.removeEventListener("visibilitychange", this.onVisible);
+        window.removeEventListener("pageshow", this.onPageShow);
     }
 
     schedule() {
