@@ -100,6 +100,28 @@ COPY --link frankenphp/Caddyfile /etc/frankenphp/Caddyfile
 COPY --link --from=mercure_upstream /usr/bin/caddy /usr/local/bin/mercure
 COPY --link --from=mercure_upstream /etc/caddy/Caddyfile /etc/mercure/Caddyfile
 
+# Runnable as a user that is not root, and not any particular one.
+#
+# Nothing here needs root at run time, and a platform that picks the uid itself
+# (the TrueNAS catalogue runs apps as 568 by default, with every capability
+# dropped) found two things in the way before PHP ever started:
+#
+#   - The FrankenPHP binary carries cap_net_bind_service as a FILE capability.
+#     A process that does not hold that capability may not execute such a file
+#     at all: "exec: frankenphp: Operation not permitted". It is there so a
+#     non-root user can bind port 80 on a bare host; in a container the
+#     unprivileged port range starts at 0, so it buys nothing and costs the
+#     start. Root keeps binding 80 exactly as before.
+#   - /data and /config, where the web server and the hub keep their state,
+#     belong to root. A new volume mounted there copies the directory's
+#     permissions, so the hub died on "open /data/caddy/mercure.db: permission
+#     denied". Writable by anyone, because the uid is not known here; there is
+#     one tenant in this container.
+RUN set -eux; \
+	setcap -r /usr/local/bin/frankenphp; \
+	mkdir -p /data/caddy /config/caddy; \
+	chmod -R a+rwX /data /config
+
 ENTRYPOINT ["docker-entrypoint"]
 
 # /healthz, not Caddy's metrics port. The old probe answered as soon as the web
@@ -195,4 +217,12 @@ RUN set -eux; \
     composer run-script --no-dev post-install-cmd; \
     php bin/console tailwind:build --minify; \
     php bin/console asset-map:compile; \
-    chmod +x bin/console; sync;
+    chmod +x bin/console; \
+    # The directories PHP writes at run time, for whichever user that turns out
+    # to be — see the note on running without root in the base stage. var/ itself
+    # as well, not recursively: the default secrets directory is created in it
+    # on first start.
+    mkdir -p var/share; \
+    chmod a+rwx var; \
+    chmod -R a+rwX var/cache var/log var/share; \
+    sync;

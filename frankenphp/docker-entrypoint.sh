@@ -257,11 +257,18 @@ if [ "$1" = 'frankenphp' ] || [ "$1" = 'php' ] || [ "$1" = 'bin/console' ]; then
 	# TrueNAS layout set off on it at once.
 	mkdir -p var/cache var/log
 
-	if ! setfacl -R -m u:www-data:rwX -m u:"$(whoami)":rwX var/cache var/log 2>/dev/null; then
-		echo 'Note: POSIX ACLs are not supported on this filesystem; skipping setfacl for var/cache and var/log.'
-	fi
+	# Root only. As any other user there is nobody to grant anything to — the
+	# process can only change ACLs on what it owns, and a uid a platform picked
+	# has no name for `whoami` to answer with ("cannot find name for user ID
+	# 568", twice, on every start). The image makes both directories writable
+	# for that case; see the Dockerfile.
+	if [ "$(id -u)" = '0' ]; then
+		if ! setfacl -R -m u:www-data:rwX -m u:"$(whoami)":rwX var/cache var/log 2>/dev/null; then
+			echo 'Note: POSIX ACLs are not supported on this filesystem; skipping setfacl for var/cache and var/log.'
+		fi
 
-	setfacl -dR -m u:www-data:rwX -m u:"$(whoami)":rwX var/cache var/log 2>/dev/null || true
+		setfacl -dR -m u:www-data:rwX -m u:"$(whoami)":rwX var/cache var/log 2>/dev/null || true
+	fi
 fi
 
 exec docker-php-entrypoint "$@"
