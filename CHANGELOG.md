@@ -8,6 +8,34 @@ The published image tags: `latest` follows the most recent release below,
 
 ## Unreleased
 
+**Adding an account no longer puts new mail behind hours of follow-up work.** Everything plMail does
+to a message after fetching it — sorting by the assistant, event extraction, insight cards, read
+receipts — was queued beside the fetching, on the one worker that fetches mail. A first import of a
+large mailbox therefore queued that work for every message it brought in, oldest first, and new mail
+waited behind it; with the assistant sorting mail that was a model call per message and could be
+hours. Fetching mail is now the only thing that worker does.
+
+- **Follow-up work has its own queues and workers.** `worker-live` handles mail that has just
+  arrived on an account whose import is over, and nothing else, so new mail is never behind an
+  import. `worker-enrich` handles an import's recent mail and then, only when that is done, old
+  mail. `worker-release` only ends the wait described below. See
+  [Mail ingest → What follows a message](docs/internals/mail-ingest.md#what-follows-a-message-and-where-it-runs).
+- **Only mail from the last 30 days gets follow-up work as it is imported.** Older mail is stored,
+  threaded, filed by the ordinary rules and run through your own rules, as before — but no events,
+  insight cards or receipt handling are derived from it. `app:backfill insights` and
+  `app:backfill event-extraction` read history if you want it.
+- **Old mail is sorted by the assistant after the import, not during it** — newest first, in small
+  batches, in the background, and only once every account of yours has finished importing.
+- **New mail waits for the assistant before it appears in a tab.** If you let the assistant sort your
+  mail, a message used to appear where the rules put it and move a few seconds later when the
+  assistant answered. It is now kept out of the inbox tabs for those seconds and appears once, in
+  the right tab. The wait is capped — 60 seconds by default — and past the cap the mail is shown
+  where the rules put it, and moved if the assistant answers later. Mail from a first import is never held.
+- **Admin → AI has a switch for that wait, and shows what it costs.** **Wait for the assistant
+  before showing new mail in a tab** turns it off, **Wait at most** sets the cap (2–300 seconds), and
+  the line underneath reports how long mail was actually held over the last 7 days and how often the
+  wait ran out. See [Administration](docs/features/admin.md).
+
 **"Move to" files a conversation under a label in one step.** There was a label button, which adds a
 label and leaves the mail where it is, and dragging onto a folder, which only works with a pointer
 and a sidebar in reach. Filing mail the way Gmail does — label it and get it out of the list you are
@@ -30,7 +58,15 @@ back in the inbox. Everything else the conversation wears stays.
 
 ### Before you upgrade
 
-- **Nothing has to change.** There is no migration and no new setting.
+- **One migration, applied on boot.** It adds two columns to `message` and two to `ai_settings`, and
+  changes no existing row.
+- **Holding new mail for the assistant is on by default**, and applies only to people who sort by
+  assistant. Switch it off under Admin → AI if your model host is slow.
+- **The worker container runs three more processes**, `worker-live`, `worker-release` and `worker-enrich`. Nothing to
+  configure on the standard images. If you run your own consumers instead of `app:work`, add
+  `messenger:consume enrich_live`, `messenger:consume release` and `messenger:consume enrich enrich_backlog` — without them
+  nothing sorts mail, extracts events or indexes for search.
+- **Jobs already queued at upgrade are worked through where they are**, on `ingest`, once.
 
 ## v0.2.58 — 2026-10-04
 

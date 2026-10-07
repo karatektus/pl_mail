@@ -71,6 +71,34 @@ final class MessageCategorizer
     }
 
     /**
+     * Whether a verdict that has not arrived yet could still change where this
+     * message is filed.
+     *
+     * The question ClassificationHold asks before keeping mail out of the tabs:
+     * there is no point holding a message whose answer is already final. Three
+     * things make it final, and they are read off the cascade below rather
+     * than restated here — the reader sorts by rules, so the verdict is never
+     * consulted; the provider's own label decided; or the sender is somebody
+     * the reader writes to. Everywhere else, an assistant-first reader's mail
+     * goes wherever the model says.
+     *
+     * Asked with $ignoreAi so the answer describes the cascade and not a
+     * verdict that happens to be on the row already.
+     *
+     * @param array<string,true> $correspondentEmails
+     */
+    public function verdictCouldDecide(Message $message, array $correspondentEmails, ?CategorySorting $sorting): bool
+    {
+        if (null === $sorting || false === $sorting->assistantFirst()) {
+            return false;
+        }
+
+        $reason = $this->explain($message, $correspondentEmails, $sorting->overrideProvider, true)['reason'];
+
+        return 'gmail' !== $reason && 'correspondent' !== $reason;
+    }
+
+    /**
      * The same decision, with the step that made it and the thing it matched
      * on.
      *

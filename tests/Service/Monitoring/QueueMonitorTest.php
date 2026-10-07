@@ -211,6 +211,41 @@ final class QueueMonitorTest extends KernelTestCase
     }
 
     /**
+     * What bulk classification asks about the live queue before each model
+     * call. Two rows must not count: a delayed message — the live queue always
+     * holds the timed release of whatever is currently held — and a row some
+     * worker took long ago and died holding.
+     */
+    public function testOnlyWorkThatIsDueOrFreshlyInHandMakesAQueueActive(): void
+    {
+        $queues = self::getContainer()->get(\App\Repository\Monitoring\MessengerQueueRepository::class);
+        $utc    = new \DateTimeZone('UTC');
+
+        $insert = function (string $available, ?string $delivered = null) use ($utc): void {
+            $this->connection->insert('messenger_messages', [
+                'body'         => 'x',
+                'headers'      => '{}',
+                'queue_name'   => 'enrich_live',
+                'created_at'   => (new DateTimeImmutable('now', $utc))->format('Y-m-d H:i:s'),
+                'available_at' => (new DateTimeImmutable($available, $utc))->format('Y-m-d H:i:s'),
+                'delivered_at' => null === $delivered ? null : (new DateTimeImmutable($delivered, $utc))->format('Y-m-d H:i:s'),
+            ]);
+        };
+
+        $insert('+10 seconds');
+        $insert('-1 hour', '-50 minutes');
+
+        self::assertSame(0, $queues->countActiveOn('enrich_live'));
+        self::assertSame(2, $queues->countWaitingOn('enrich_live'));
+
+        $insert('-1 second');
+        $insert('-5 seconds', '-2 seconds');
+
+        self::assertSame(2, $queues->countActiveOn('enrich_live'));
+        self::assertSame(0, $queues->countActiveOn('enrich'));
+    }
+
+    /**
      * Written the way the doctrine transport writes: a PHP-serialised envelope
      * in `body`, which is what makes the decoding under test real.
      */

@@ -58,6 +58,14 @@ final class MaintenanceSchedule implements ScheduleProviderInterface
                 // when nothing is due — which is almost always.
                 RecurringMessage::cron('* * * * *', new RunCommandMessage('app:mail:wake-snoozed')),
 
+                // The backstop for mail held out of the tabs for the assistant.
+                // Two things release it sooner and both live on the live
+                // worker; this is what releases it if that worker is not
+                // there. Every minute for the same reason as the line above:
+                // one indexed query that finds nothing, almost always, and the
+                // one time it finds something a minute is already too long.
+                RecurringMessage::cron('* * * * *', new RunCommandMessage('app:mail:release-held')),
+
                 // Polling is the mechanism for CalDAV and the backstop for the
                 // other two. Two of the three providers DO offer push and this
                 // comment used to say none did: Google Calendar has watch
@@ -149,6 +157,15 @@ final class MaintenanceSchedule implements ScheduleProviderInterface
                 // calendar re-draw at 03:50 — they share one worker, and this
                 // one only dispatches.
                 RecurringMessage::cron('20 3 * * *', new RunCommandMessage('app:ai:index-new-mail')),
+
+                // Old mail, asked about by the assistant after an import rather
+                // than during it — see ClassificationCatchUp. Often and small,
+                // unlike the line above: the command posts nothing while its
+                // queue still holds the last pass, so this is how soon an empty
+                // queue is noticed and not how hard the host is pushed. Offset
+                // from the quarter-hour mail sync so the two do not start
+                // together.
+                RecurringMessage::cron('5-59/15 * * * *', new RunCommandMessage('app:ai:classify-backlog')),
 
                 // Counts and durations of model calls. Its own line rather than
                 // a fourth window on app:monitoring:prune above, because it is

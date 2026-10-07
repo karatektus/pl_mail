@@ -156,6 +156,10 @@ admin:
             embedding_keep_alive_help: "Same shape as above. This one be small an' called for constantly, so -1 — aboard for good — mostly costs barely a crumb an' spares a wait on ev'ry search; worth settin' if the host has the hold to spare. Leave it empty to sail by whatever the host itself says."
             embedding_model: "Divinin' model"
             embedding_model_help: "Turns mail into vectors so the search finds meanin', not words."
+            hold: "Wait fer the oracle afore showin' new mail in a hold"
+            hold_help: "Fer hands who let the oracle sort their mail. New mail stays out o' the holds fer the moment the oracle needs, so it turns up once, in the right hold, 'stead o' landin' in one an' driftin' to another. Mail hauled in by a first import be never held back."
+            hold_max_seconds: 'Wait at most (seconds)'
+            hold_max_seconds_help: "Past this, the mail be shown where the ordinary rules stow it, whatever the oracle be doin' — an' shifted if the oracle answers later. Betwixt 2 an' 300."
             search_query_instruction: "Orders for the query"
             search_query_instruction_help: "Set afore the search text ere it be turned into a vector. Most models want one an' answer poorly without; leave it empty for them as don't. Only searches be touched, so changin' it never means readin' all yer mail again."
             semantic_min_similarity: "Least likeness"
@@ -172,6 +176,9 @@ admin:
             writing_help: 'Help me write'
             writing_help_help: "Offers drafts an' rewrites at the writin' desk, when ye ask."
         heading: 'Oracle'
+        hold:
+            measured: "Last 7 days: %count% messages held, most fer %median% s (95% within %p95% s). %timeout% were shown with no answer, the wait havin' run out."
+            no_data: "No mail's been held these 7 days, so there be no delay to report yet."
         intro: "plMail can consult an oracle ye run yerself. Nowt leaves yer waters, nowt starts until ye say so, an' while this be off the mail works exactly as it does now."
         perf:
             by_model: 'By model'

@@ -99,6 +99,55 @@ final readonly class MessengerQueueRepository
     }
 
     /**
+     * Whether one queue has work that is due or in hand right now.
+     *
+     * What bulk classification asks about the live queue before each model
+     * call, so that mail which has just arrived is never behind more than the
+     * one call already in flight — see LiveMailPriority.
+     *
+     * TWO THINGS ARE DELIBERATELY NOT COUNTED. A row whose available_at is
+     * still in the future is a delayed message — the live queue always holds
+     * the timed release of whatever is currently held — and counting it would
+     * make "busy" permanent. And a row delivered more than $freshSeconds ago is
+     * not work in hand but a worker that died holding it; the transport will
+     * redeliver it in its own time, and bulk work must not stand aside for an
+     * hour waiting for that.
+     *
+     * The transport writes its timestamps in UTC, so "now" is passed in as UTC
+     * rather than left to the database's session time zone.
+     */
+    public function countActiveOn(string $queue, int $freshSeconds = 120): int
+    {
+        $now = new \DateTimeImmutable('now', new \DateTimeZone('UTC'));
+
+        return (int) $this->connection->fetchOne(
+            'SELECT COUNT(*) FROM messenger_messages
+             WHERE queue_name = :queue
+               AND ((delivered_at IS NULL AND available_at <= :now)
+                 OR (delivered_at IS NOT NULL AND delivered_at >= :fresh))',
+            [
+                'queue' => $queue,
+                'now'   => $now->format('Y-m-d H:i:s'),
+                'fresh' => $now->modify(sprintf('-%d seconds', $freshSeconds))->format('Y-m-d H:i:s'),
+            ],
+        );
+    }
+
+    /**
+     * How many messages are waiting on one queue, delayed ones included.
+     *
+     * What a catch-up asks before topping a queue up: anything still there,
+     * due or not, is work it already posted.
+     */
+    public function countWaitingOn(string $queue): int
+    {
+        return (int) $this->connection->fetchOne(
+            'SELECT COUNT(*) FROM messenger_messages WHERE queue_name = :queue',
+            ['queue' => $queue],
+        );
+    }
+
+    /**
      * Sync work still queued for one user's accounts — what the topbar's sync
      * button polls so it can stop spinning.
      *

@@ -262,6 +262,30 @@ poll would empty a field mid-word.
 
                         {{ form_row(form.searchEnabled) }}
                         {{ form_row(form.categorisationEnabled) }}
+
+                        {# The two that qualify the switch above, set in from
+                           it so they read as belonging to it, and the measured
+                           cost directly underneath: holding is a trade of a
+                           short wait for mail that never moves tabs, and how
+                           short is a property of this host that only a
+                           measurement can state. #}
+                        <div class="flex flex-col gap-4 pl-4 border-l border-subtle">
+                            {{ form_row(form.holdUntilClassified) }}
+                            {{ form_row(form.holdMaxSeconds) }}
+
+                            <p class="text-[12px] leading-snug text-muted" data-testid="ai-hold-delay">
+                                {% if hold.held > 0 %}
+                                    {{ 'admin.ai.hold.measured'|trans({
+                                        '%count%':   hold.held,
+                                        '%median%':  hold.median|number_format(1),
+                                        '%p95%':     hold.p95|number_format(1),
+                                        '%timeout%': hold.timedOut,
+                                    }) }}
+                                {% else %}
+                                    {{ 'admin.ai.hold.no_data'|trans }}
+                                {% endif %}
+                            </p>
+                        </div>
                         {{ form_row(form.writingHelpEnabled) }}
                         {{ form_row(form.summaryEnabled) }}
 

@@ -282,7 +282,14 @@ final class MessageThreader
         // Seed from the message that opens the thread; attachMessageToThread()
         // takes over from here. Primary only when the message is uncategorised,
         // which is the case for locally-composed drafts.
-        $thread->category = $message->category ?? MessageCategory::Primary;
+        //
+        // NO CATEGORY AT ALL for a message being held for the assistant. Null
+        // is how a thread says it is in no tab — every tab query filters on an
+        // exact category — and that is the whole of what holding means; see
+        // Message::$categoryHeldAt. ClassifyMailHandler fills it in on release.
+        $thread->category = true === $message->isCategoryHeld()
+            ? null
+            : $message->category ?? MessageCategory::Primary;
         $thread->attachmentCount = 0;
 
         // The new-mail marker starts null — nobody has been shown this row yet
@@ -455,6 +462,14 @@ final class MessageThreader
     private function adoptCategory(Message $message, MessageThread $thread): void
     {
         if (null !== $thread->categoryPinnedAt) {
+            return;
+        }
+
+        // A held message has an answer that is about to be replaced, and
+        // adopting it would move the conversation twice — which is the thing
+        // holding exists to stop. The thread stays where it is until the
+        // release re-resolves it.
+        if (true === $message->isCategoryHeld()) {
             return;
         }
 

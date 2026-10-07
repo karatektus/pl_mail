@@ -101,7 +101,9 @@ do not explain.
 
 **Steps dispatch, they do not work.** `afterCommit()` runs on the worker holding an IMAP
 connection or a Graph rate-limit budget; a parse, an HTTP call or an image decode belongs in
-its own handler. `App\Service\Mail\PostIngest\ExtractEventsStep` is the shape to copy — it
+its own handler — and so does work that is merely quick, which is how the insight and proposal
+steps came to run inline and stopped. `HarvestContactsStep` is the one exception left: it reads
+rows already in memory and feeds categorisation. `App\Service\Mail\PostIngest\ExtractEventsStep` is the shape to copy — it
 collects ids and dispatches `ExtractEventsMessage`, and nothing else.
 
 **Steps cannot fail a sync.** `notifySteps()` catches and logs whatever a step throws and
@@ -111,6 +113,80 @@ Two branches deliberately do **not** come through the pipeline: IMAP's Gmailify 
 `SyncGmailMessageBatchHandler::enrichExisting()`. Both re-point a row that has already been
 through it once, so running it again would re-record a create for an id JMAP clients already
 hold, and re-run rules over mail the user may since have filed by hand.
+
+## What follows a message, and where it runs
+
+`ingest` is for fetching mail and nothing else. Everything a step queues goes to one of three
+other queues, and which one depends on the mail rather than on the kind of work:
+
+| Queue | Process | What is on it |
+|---|---|---|
+| `enrich_live` | `worker-live` | Follow-up work for mail that has just arrived |
+| `enrich` | `worker-enrich` | Follow-up work for recent mail brought in by an import; search indexing |
+| `enrich_backlog` | `worker-enrich`, after `enrich` | Old mail being sorted by the assistant, after the import |
+
+It used to be one queue. A first import put a model call, an event extraction and a receipt scan
+per batch on `ingest`, beside the syncs, and the one worker that fetches mail spent hours asking
+a model about newsletters from 2019 while new mail waited behind them.
+
+**Recent.** `App\Service\Mail\PostIngest\RecentMailPolicy` decides, by the mail's own date —
+`receivedAt`, then `sentAt` — against a window of 30 days (`ENRICH_RECENT_DAYS`). Every step
+queues work only for recent mail. Older mail gets what the pipeline itself does — a row, a
+thread, the rule cascade's category, the user's rules, its contacts — and no job. The backfill
+tasks (`app:backfill insights`, `event-extraction`, …) are how history is read when somebody
+wants it.
+
+**Live.** `App\Service\Mail\InitialImportState` says whether an account is still bringing in its
+mailbox for the first time: Gmail by `needsBackfill()`, Graph by having a delta link at all,
+IMAP by every sync-enabled folder having a `syncedAt`. The pipeline asks once per batch and
+carries the answer on `PostIngestResult::$live`; `EnrichmentRouter` turns it into a
+`TransportNamesStamp`. Mail of a finished account goes to `enrich_live`, whose worker never has
+import work in front of it. It errs towards "still importing" — a Gmail backfill settles up to
+an hour late — because the other mistake would queue a mailbox as live.
+
+**Old mail and the assistant.** `App\Service\Ai\ClassificationCatchUp`, run by
+`app:ai:classify-backlog` every quarter of an hour, queues the newest mail the assistant has
+never been asked about onto `enrich_backlog` — but only once every account of that person has
+finished importing, and only while the queue is empty, which is what stands in for state.
+`Message::$aiCategorisedAt` is the progress marker.
+
+**One model host.** Separate workers still end at one host that answers one request at a time.
+`App\Service\Ai\LiveMailPriority` makes bulk classification look at `enrich_live` before each
+call and stand aside while anything is due there, so live mail waits behind one in-flight call
+at most.
+
+### Holding mail for the assistant
+
+For somebody who sorts by assistant, the rules' category is a guess about to be replaced. Shown
+at once, the mail appeared under Primary and moved to Promotions seconds later. So where the
+verdict could still change the answer, the message is **held**: `Message::$categoryHeldAt` is
+stamped before threading, its new thread is given no category — which every tab query, and
+`EmailFilterCompiler::threadCategory()`, already reads as "in no tab" — and a reply into an
+existing thread leaves that thread where it is.
+
+`App\Service\Mail\ClassificationHold` is the decision, and it is a list of reasons not to hold:
+holding is switched off in Admin → AI; the mail is part of an import; it is old, or the
+account's own sent copy; or `MessageCategorizer::verdictCouldDecide()` says the answer is
+already final — a reader sorting by rules, a Gmail label, a known correspondent.
+
+Three things end a hold, and `App\Service\Mail\HeldMailReleaser` is the one ending they share:
+
+1. `ClassifyMailHandler`, when the model answers.
+2. `ReleaseHeldMailMessage`, dispatched at the moment of the hold with a delay of
+   `AiSettings::$holdMaxSeconds` (60 by default, 2–300). It usually arrives to find nothing
+   held. It has a queue of its own, `release`, and a worker that does nothing else
+   (`worker-release`): the live worker may be inside the very call that is taking too long, and
+   the release must not wait for it — nor for a send.
+3. `app:mail:release-held`, every minute, for when neither job ran.
+
+The wait ending does not end the question. A release without a verdict files the mail under
+the rules' category, which was written at ingest for exactly this; the model call carries on,
+and when its answer arrives it moves the mail and tells open pages. The message is asked about
+once.
+
+`category_held_at` and `category_released_at` are kept, and their difference is the figure
+Admin → AI shows beside the switch — median, 95th percentile, and how many messages were shown
+before the model had answered.
 
 ## Threading
 
@@ -334,3 +410,12 @@ somebody's sidebar.
 documents "dispatch, do not work" and the pipeline cannot enforce it; the failure is not an
 error but a mailbox that gets slower as features are added to a hook that runs on the
 connection-holding worker.
+
+**A step that queues without `EnrichmentRouter` puts live mail behind an import.** The routing
+table sends every post-ingest message to `enrich`; only the stamp moves a finished account's
+mail to `enrich_live`. Dispatch with `$this->router->stampsFor($result)`, and only for
+`RecentMailPolicy::recentIds()`.
+
+**A held message nothing releases is mail nobody can see in their inbox.** Its thread has no
+category and so is in no tab. That is why the timed release is dispatched before the feature
+check in `ClassifyMailStep`, and why a sweep on a different worker backs it up.

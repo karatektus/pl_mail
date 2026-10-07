@@ -2389,4 +2389,111 @@ class MessageRepository extends ServiceEntityRepository
 
         return $bodies;
     }
+
+    /**
+     * The newest mail of one person's that the assistant has never been asked
+     * about — what ClassificationCatchUp works through after an import.
+     *
+     * NEWEST FIRST, the opposite of a backfill's walk and for the reason
+     * EmbeddingCatchUp gives: this is a bounded handful per run, and the mail
+     * worth spending it on is the mail somebody is most likely to scroll to.
+     * A mailbox is classified backwards from today, so stopping at any point
+     * leaves the useful end done.
+     *
+     * `ai_categorised_at IS NULL` is "never asked", not "no answer" — the
+     * stamp is written even when the model said nothing usable — so a message
+     * the model cannot answer is offered once and not on every run for ever.
+     *
+     * @return list<int>
+     */
+    public function unclassifiedIdsForUser(int $userId, int $limit): array
+    {
+        /** @var list<int|string> $ids */
+        $ids = $this->getEntityManager()->getConnection()->fetchFirstColumn(
+            <<<'SQL'
+            SELECT m.id
+              FROM message m
+              JOIN account a ON a.id = m.account_id
+             WHERE a.usr_id = :userId
+               AND a.is_active = true
+               AND m.ai_categorised_at IS NULL
+             ORDER BY m.received_at DESC NULLS LAST, m.id DESC
+             LIMIT :limit
+            SQL,
+            ['userId' => $userId, 'limit' => $limit],
+            ['userId' => ParameterType::INTEGER, 'limit' => ParameterType::INTEGER],
+        );
+
+        return array_map(intval(...), $ids);
+    }
+
+    /**
+     * Mail still held for the assistant that was held before $before.
+     *
+     * For the sweep that is the last line of the promise that holding is
+     * bounded — see ReleaseHeldMailCommand. Limited, because the caller
+     * hydrates what this returns and the case where there is a great deal of
+     * it is the case where something is already wrong.
+     *
+     * @return list<Message>
+     */
+    public function findHeldBefore(DateTimeImmutable $before, int $limit = 200): array
+    {
+        /** @var list<Message> */
+        return $this->createQueryBuilder('m')
+            ->where('m.categoryHeldAt IS NOT NULL')
+            ->andWhere('m.categoryReleasedAt IS NULL')
+            ->andWhere('m.categoryHeldAt < :before')
+            ->setParameter('before', $before)
+            ->orderBy('m.categoryHeldAt', 'ASC')
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
+     * How long holding mail for the assistant has actually delayed it.
+     *
+     * The number Admin → AI puts beside the switch, so that "is the wait worth
+     * it" is answered by this installation's own host rather than by a guess.
+     *
+     * `timedOut` is a message shown before the model had answered — no
+     * ai_categorised_at at all, or one later than the release. It went to the
+     * rules' tab first and may have moved when the answer came. A high share
+     * of those means the wait is being paid and the jump is happening anyway.
+     *
+     * percentile_cont is Postgres-only, which this application already is.
+     * Both come back null over an empty window, and are passed on as null —
+     * a median of zero would read as "instant" where the truth is "no data".
+     *
+     * @return array{held: int, timedOut: int, median: float|null, p95: float|null}
+     */
+    public function holdDelayStats(DateTimeImmutable $since): array
+    {
+        /** @var array{held: int|string, timed_out: int|string, median: float|string|null, p95: float|string|null}|false $row */
+        $row = $this->getEntityManager()->getConnection()->fetchAssociative(
+            <<<'SQL'
+            SELECT COUNT(*) AS held,
+                   COUNT(*) FILTER (WHERE m.ai_categorised_at IS NULL OR m.ai_categorised_at > m.category_released_at) AS timed_out,
+                   percentile_cont(0.5)  WITHIN GROUP (ORDER BY EXTRACT(EPOCH FROM (m.category_released_at - m.category_held_at))) AS median,
+                   percentile_cont(0.95) WITHIN GROUP (ORDER BY EXTRACT(EPOCH FROM (m.category_released_at - m.category_held_at))) AS p95
+              FROM message m
+             WHERE m.category_held_at >= :since
+               AND m.category_released_at IS NOT NULL
+            SQL,
+            ['since' => $since],
+            ['since' => Types::DATETIME_IMMUTABLE],
+        );
+
+        if (false === $row) {
+            return ['held' => 0, 'timedOut' => 0, 'median' => null, 'p95' => null];
+        }
+
+        return [
+            'held'     => (int) $row['held'],
+            'timedOut' => (int) $row['timed_out'],
+            'median'   => null === $row['median'] ? null : (float) $row['median'],
+            'p95'      => null === $row['p95'] ? null : (float) $row['p95'],
+        ];
+    }
 }

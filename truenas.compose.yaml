@@ -217,7 +217,7 @@ services:
 
     # Everything that is not the web server, in one container: the IMAP
     # supervisor, one consumer per queue, the scheduler and the Mercure hub —
-    # seven processes, kept running by `app:work`. They used to be seven
+    # ten processes, kept running by `app:work`. They used to be seven
     # containers. Still one PROCESS per queue, so a send never waits behind a
     # sync; only the containers merged.
     #

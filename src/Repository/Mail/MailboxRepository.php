@@ -136,4 +136,29 @@ class MailboxRepository extends ServiceEntityRepository
             ['backdated' => $backdated->format('Y-m-d H:i:s'), 'id' => $mailboxId],
         );
     }
+
+    /**
+     * How many of an account's folders have never finished a sync.
+     *
+     * What "the first import is still running" means for IMAP, which has no
+     * account-level cursor to ask: every folder that is synced at all gets a
+     * syncedAt at the end of MessageSyncer::syncMailbox(), so a folder without
+     * one is a folder still being read for the first time — or one discovered
+     * a moment ago, which is the same thing as far as its mail is concerned.
+     *
+     * A count rather than a boolean so the caller can tell "none outstanding"
+     * from "no folders at all"; see InitialImportState.
+     */
+    public function countAwaitingFirstSync(Account $account): int
+    {
+        return (int) $this->createQueryBuilder('mailbox')
+            ->select('COUNT(mailbox.id)')
+            ->andWhere('mailbox.account = :account')
+            ->andWhere('mailbox.isSyncEnabled = :isSyncEnabled')
+            ->andWhere('mailbox.syncedAt IS NULL')
+            ->setParameter('account', $account)
+            ->setParameter('isSyncEnabled', true)
+            ->getQuery()
+            ->getSingleScalarResult();
+    }
 }

@@ -199,7 +199,8 @@ the tag is then what fails. So run the suites locally before pushing anything yo
 anyway. `workflow_dispatch` on the Actions tab is the other way to get a full run without tagging.
 
 A tag starts the E2E workflow and the image build **in parallel**, so a failing suite does not stop
-the image being published. Tag from a tree you have already run the suites against.
+the image being published. Tag from a tree you have already run the suites against — see
+[Releasing](#releasing) for what a tag sets in motion and what has to be true before one is pushed.
 
 ### How the browser suite stays fast
 
@@ -255,6 +256,59 @@ with the shards; see the note on `--no-deps` above.
 Two smaller things: `video` is off (the trace is the useful artifact and costs nothing on a passing
 run), and nothing waits for a TOTP window to roll over — otphp accepts a code minted in window `W`
 for any submission in `[30W-15, 30W+45)`, so the wait was superstition.
+
+## Releasing
+
+**A `vX.Y.Z` tag is the release, and nothing after it asks again.** Pushing one publishes the image
+as `X.Y.Z`, `X.Y` and `latest`, and from there it travels without anybody here doing anything:
+
+1. Every install on `latest` gets it on its next pull.
+2. Renovate in [truenas/apps](https://github.com/truenas/apps) sees the new tag — it runs daily at
+   12:00 UTC and is also started by hand — rewrites the tag and digest in
+   `ix-dev/community/plmail/ix_values.yaml`, sets `app_version` and bumps the catalogue `version` by
+   a patch.
+3. That lands in the shared "Update updates-patch-minor" pull request, which a TrueNAS maintainer
+   merges, usually within hours. A major version gets a pull request of its own.
+4. The merge publishes the catalogue, and TrueNAS offers the update to everyone who installed plMail
+   from **Apps → Discover**.
+
+So a tag reaches other people's NAS boxes within about a day, with migrations that run on boot, and
+**it cannot be taken back**: there is no cool-down in that Renovate configuration and no way to
+unpublish a catalogue version. A bad release is repaired by tagging the next one.
+
+That makes the tag the only gate there is, and two things have to be true before it is pushed:
+
+- **The suites are green on the exact commit being tagged.** Either locally —
+  `npm run test:unit:docker && npm run test:e2e:docker` — or by starting the E2E workflow on `main`
+  with `workflow_dispatch` and waiting for it. The run the tag itself starts does not count: the
+  image is published beside it, not after it.
+- **That commit has been installed and used on a real installation.** A push to `main` publishes
+  `main` and `sha-<commit>` without touching `latest` or the catalogue, which is what those tags are
+  for: pull one onto the production install, let the migrations run against real data, and read
+  mail with it. The suites start from an empty database every time; an upgrade never does.
+
+Then, and in this order: rename `## Unreleased` in `CHANGELOG.md` to `## vX.Y.Z — date`, commit it as
+`Release vX.Y.Z`, tag that commit and push both. The release commit changes the changelog and
+nothing else, so what was tested is what is tagged.
+
+Things that steer what the catalogue receives:
+
+- **No tag, no update.** `main` and `sha-…` are not versions and Renovate ignores them.
+- **Two tags before Renovate's next run ship as one update**, the newer one. Nobody on TrueNAS ever
+  sees the first.
+- **A tag of any other shape is not picked up** — `v0.3.0-rc.1` publishes an image but is not a
+  successor to `0.2.58` as far as Renovate is concerned. It does move `latest`, because
+  `docker.yml` moves `latest` on anything starting with `v`, so it is not a private tag.
+
+**Renovate moves the image and nothing else.** The catalogue app has a template and an install form
+of its own (`templates/docker-compose.yaml`, `questions.yaml`), and a release that needs either
+changed — a new required variable, a container added or renamed, a different user — arrives on
+TrueNAS as the new image inside the old template. Either keep the image working under the old
+template, which is the better answer and the reason `0.2.56` and `0.2.57` exist, or open a pull
+request to truenas/apps with the image bump, the template change and a `version` bump in `app.yaml`
+together, straight after tagging, and say so on the open Renovate pull request so that one is not
+merged first. truenas/apps is the source of that app now; the `pl_mail_truenas` repository is a
+working copy to prepare such a change in, and is behind upstream after every release.
 
 ## README screenshots
 
@@ -790,6 +844,7 @@ php bin/mirror-wiki.php --check
 | `app:calendar:push [calendar-id] [--force] [--stop]` | Register and renew Google/Microsoft calendar push channels, so changes arrive instead of being polled for |
 | `app:calendar:alerts [--dry-run]` | Deliver the event reminders that have come due, and prune the records of ones long past. Runs every minute; `--dry-run` lists what is due without sending or recording anything |
 | `app:mail:wake-snoozed` | Return snoozed conversations whose time has come. Runs every minute |
+| `app:mail:release-held` | Show mail that has been held for the assistant longer than **Wait at most** allows. Runs every minute and finds nothing on an ordinary day — the live worker releases held mail itself. It is the backstop for that worker being down, and it warns when it has to act |
 | `app:calendar:materialise [--dry-run]` | Redraw the occurrences of recurring events whose horizon no longer reaches far enough. Runs nightly; without it a long-untouched series eventually runs out of dates |
 | `app:backfill [task]` | Run a one-off backfill over stored data; with no argument it lists the tasks and asks. `events` re-runs calendar extraction, `proposals` re-reads mail for dates written in prose, `safe-html-table-links` restores links that were wrapped around a table and came out empty |
 | `app:imap:idle <mailbox-id>` | Hold an IMAP IDLE connection for a single mailbox |
@@ -818,6 +873,7 @@ php bin/mirror-wiki.php --check
 | `app:db:migrate` | Run pending migrations under a lock, so several containers booting together cannot collide. This is what the entrypoint calls; run it by hand only when a boot was interrupted |
 | `app:ai:embed-mailbox --email=… \| --all` | Queue a pass that embeds an existing mailbox for semantic search. Needed once after switching the feature on, and again after changing the search model. Runs on the maintenance worker a chunk at a time, takes hours on a large mailbox, and is safe to interrupt and safe to repeat — it skips whatever is already embedded under the current model, so changing the model is how a re-embed is asked for. This is the whole-mailbox job: it claims a state row, resumes where it stopped and can be paused from Admin → AI |
 | `app:ai:index-new-mail [--limit=N] [--email=…]` | Queue a bounded catch-up over mail that arrived and has not been indexed for semantic search. Runs nightly at 03:20, newest mail first, at most `--limit` messages per mailbox (500 by default). It is the BACKSTOP: mail is normally indexed in the warm minutes after somebody searches, because search and the indexer share the same small embedding model. Deliberately bounded — an unbounded version would be `app:ai:embed-mailbox` with no state row and no pause button, so a mailbox that is genuinely far behind wants that command instead |
+| `app:ai:classify-backlog [--limit=N] [--email=…]` | Queue a bounded pass of old mail for the assistant to sort: the newest mail it has never been asked about, at most `--limit` per mailbox (200 by default). Runs every quarter of an hour, and posts nothing while an account of that person is still importing, while the last pass is still queued, or while somebody is using the composer. This is how a mailbox imported before today gets sorted without the import waiting on a model |
 | `app:ai:categorise-check` | Ask the configured model to sort ten messages whose right answers are known, and print the score. For judging a change to the categorisation prompt — from Admin → AI or in `PromptRules` — which can otherwise only be judged by reading it, and for finding out whether the model an installation actually runs is up to the job. Not a phpunit test on purpose: it needs a live host, and a fake would be a test of the fake. The fixtures are shaped exactly as `ClassifyMailHandler::describe()` shapes a real message, bulk-header line and all, because a benchmark against a different input format measures a prompt nobody sends |
 | `app:ai:prune-metrics [--days=N]` | Prune recorded model-call timings older than the retention window (30 days by default). Runs nightly at 05:10. The table holds counts and durations only — no prompt, no completion, no message id — so pruning it forgets how fast the box was last month and nothing else. Its own command rather than a fourth window on `app:monitoring:prune`: this is the retention of a feature, empty on installations that never switched the AI on and a hundred thousand rows after an afternoon's backfill |
 | `app:demo:reap [--dry-run]` | Delete demo visitors whose time is up, and everything they own. Only does anything when `APP_DEMO_MODE` is on; runs every 10 minutes there. See "Demo mode" |

@@ -430,6 +430,22 @@ Sorting is the one to be careful with: it runs unattended. It can only ever act 
 if a header, a Gmail label or the fact that you have written to somebody already decided the
 category, the model is not consulted and its opinion is not used. Switching it off needs no cleanup.
 
+Two things keep sorting from getting in the way of mail arriving:
+
+- **Only recent mail is sorted as it comes in.** Mail from the last 30 days is asked about straight
+  away. When you add an account, the rest of its mailbox is sorted afterwards, in the background,
+  newest first, and only once the import has finished — so a first import is not hours of model
+  calls with new mail waiting behind them.
+- **Wait for the assistant before showing new mail in a tab.** For people who let the assistant sort
+  their mail, new mail is kept out of the inbox tabs for the moment the assistant needs, so it shows
+  up once, in the right tab, instead of appearing in one and moving to another. **Wait at most** is
+  the ceiling, 60 seconds by default: past it, the mail is shown where the ordinary rules put it,
+  and moved if the assistant answers later. It is a ceiling, not the wait — a model that is already
+  loaded answers in a second or two.
+  The line underneath reports how long mail was actually held over the last 7 days, and how often
+  the wait ran out — if that is most of the time, your model host is too slow for the wait to be
+  worth it, and you can switch it off. Mail brought in by a first import is never held.
+
 Writing help never replaces what you wrote. It appends, so the original is always still there.
 
 Summaries are the most expensive of the four. They use the same writing model, but a whole

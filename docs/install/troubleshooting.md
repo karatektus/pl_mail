@@ -49,13 +49,16 @@ answer 200. Watch the `checks` object, not just the HTTP status.
 
 ## The queue
 
-Four transports on the Doctrine transport, each with its own consumer process in the worker
-container:
+Eight transports on the Doctrine transport, consumed by seven processes in the worker container:
 
 | Queue | Process | What is on it |
 |---|---|---|
 | `export` | `worker-export` | Anything leaving plMail — sends, flag pushes, Gmail label changes, mail from the notifier. The only queue somebody is waiting on |
-| `ingest` | `worker-ingest` | Mail arriving, Gmail and Graph message batches, calendar syncs, event extraction |
+| `ingest` | `worker-ingest` | Fetching mail and nothing else: account and mailbox syncs, Gmail and Graph message batches, calendar syncs |
+| `enrich_live` | `worker-live` | What follows mail that has just arrived on an account whose first import is over: sorting by the assistant, event extraction, insight cards, read receipts. Its own process, so new mail is never behind an import |
+| `release` | `worker-release` | Ends the wait for mail held for the assistant. Nearly always empty; its own process so nothing is ever in front of it |
+| `enrich` | `worker-enrich` | The same work for recent mail brought in by an import, and search indexing |
+| `enrich_backlog` | `worker-enrich` | Old mail being sorted by the assistant after an import. Only touched when `enrich` is empty |
 | `maintenance` | `worker-maintenance` | Backfills, rule runs over existing mail, admin "run now" buttons, calendar push registration |
 | `bulk` | `worker-bulk` | Whole-view mark-read and archive runs. Somebody is watching an indicator for these, so they do not queue behind a backfill |
 | `async` | `worker-maintenance` | Retired. Drained so envelopes queued before the split still have a consumer; nothing routes here any more |

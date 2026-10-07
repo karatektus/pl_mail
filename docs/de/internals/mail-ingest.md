@@ -1,4 +1,4 @@
-<!-- translated-from: internals/mail-ingest.md sha1:0c095f9f207803c75806b4b3b7d645ae471f24db -->
+<!-- translated-from: internals/mail-ingest.md sha1:38b6beb3ba071c7ee0ef05200adc575b44fdf9c7 -->
 # Mail-Ingest
 
 Vom Anbieter in die Datenbank: wie aus Bytes eine Zeile `Message` wird, was mit ihr geschieht,
@@ -114,7 +114,10 @@ Stellen, die die Regeln der Nutzerin nicht erklären.
 
 **Steps stoßen an, sie arbeiten nicht.** `afterCommit()` läuft auf dem Worker, der eine
 IMAP-Verbindung oder ein Graph-Rate-Limit-Budget hält; ein Parse, ein HTTP-Aufruf oder eine
-Bilddekodierung gehören in einen eigenen Handler.
+Bilddekodierung gehören in einen eigenen Handler — und ebenso Arbeit, die bloß schnell ist; so
+kamen die Insight- und Vorschlags-Steps dazu, inline zu laufen, und so hörten sie damit auf.
+`HarvestContactsStep` ist die eine verbliebene Ausnahme: Er liest Zeilen, die schon im Speicher
+liegen, und speist die Kategorisierung.
 `App\Service\Mail\PostIngest\ExtractEventsStep` ist die Form zum Abschauen — er sammelt Ids ein
 und schickt `ExtractEventsMessage` ab, sonst nichts.
 
@@ -127,6 +130,87 @@ Zwei Zweige laufen mit Absicht **nicht** durch die Pipeline: der Gmailify-Anspru
 einmal hindurchgegangen ist — ein zweiter Lauf würde also ein Create für eine Id nachtragen, die
 JMAP-Clients längst halten, und Regeln erneut über Mail laufen lassen, die die Nutzerin
 inzwischen von Hand eingeordnet haben kann.
+
+## Was auf eine Nachricht folgt, und wo es läuft
+
+`ingest` ist zum Abholen von Mail da und für sonst nichts. Alles, was ein Step einreiht, geht
+auf eine von drei anderen Warteschlangen — und welche, hängt von der Mail ab, nicht von der Art
+der Arbeit:
+
+| Warteschlange | Prozess | Was darauf liegt |
+|---|---|---|
+| `enrich_live` | `worker-live` | Folgearbeit für Mail, die gerade eben angekommen ist |
+| `enrich` | `worker-enrich` | Folgearbeit für aktuelle Mail aus einem Import; Suchindizierung |
+| `enrich_backlog` | `worker-enrich`, nach `enrich` | Alte Mail, die der Assistent nach dem Import einsortiert |
+
+Früher war das eine Warteschlange. Ein erster Import legte pro Stapel einen Modellaufruf, eine
+Terminerkennung und einen Bestätigungs-Scan auf `ingest`, neben die Abgleiche — und der eine
+Worker, der Mail abholt, fragte stundenlang ein Modell nach Newslettern von 2019, während neue
+Mail dahinter wartete.
+
+**Aktuell.** `App\Service\Mail\PostIngest\RecentMailPolicy` entscheidet das, nach dem Datum der
+Mail selbst — `receivedAt`, dann `sentAt` — gegen ein Fenster von 30 Tagen
+(`ENRICH_RECENT_DAYS`). Jeder Step reiht nur für aktuelle Mail Arbeit ein. Ältere Mail bekommt,
+was die Pipeline selbst tut — eine Zeile, eine Konversation, die Kategorie der Regelkaskade, die
+Regeln der Nutzerin, ihre Kontakte — und keinen Job. Die Backfill-Aufgaben (`app:backfill
+insights`, `event-extraction`, …) sind der Weg, Vergangenes zu lesen, wenn jemand es will.
+
+**Live.** `App\Service\Mail\InitialImportState` sagt, ob ein Konto sein Postfach noch zum ersten
+Mal hereinholt: Gmail über `needsBackfill()`, Graph darüber, ob es überhaupt einen Delta-Link
+gibt, IMAP darüber, ob jeder zum Abgleich aktivierte Ordner ein `syncedAt` hat. Die Pipeline
+fragt einmal pro Stapel und trägt die Antwort in `PostIngestResult::$live`; `EnrichmentRouter`
+macht daraus einen `TransportNamesStamp`. Mail eines fertigen Kontos geht auf `enrich_live`,
+dessen Worker nie Import-Arbeit vor sich hat. Im Zweifel heißt es „importiert noch" — ein
+Gmail-Backfill gilt bis zu eine Stunde zu spät als abgeschlossen —, weil der umgekehrte Fehler
+ein ganzes Postfach als live einreihen würde.
+
+**Alte Mail und der Assistent.** `App\Service\Ai\ClassificationCatchUp`, alle Viertelstunde von
+`app:ai:classify-backlog` gestartet, reiht die neueste Mail, nach der der Assistent noch nie
+gefragt wurde, auf `enrich_backlog` ein — aber erst, wenn jedes Konto dieser Person fertig
+importiert ist, und nur, solange die Warteschlange leer ist; das ersetzt einen eigenen Zustand.
+`Message::$aiCategorisedAt` ist die Fortschrittsmarke.
+
+**Ein Modell-Host.** Getrennte Worker enden trotzdem an einem Host, der eine Anfrage nach der
+anderen beantwortet. `App\Service\Ai\LiveMailPriority` lässt die Massen-Klassifizierung vor jedem
+Aufruf auf `enrich_live` schauen und zurücktreten, solange dort etwas fällig ist — Live-Mail
+wartet so höchstens hinter einem laufenden Aufruf.
+
+### Mail für den Assistenten zurückhalten
+
+Für jemanden, der vom Assistenten sortieren lässt, ist die Kategorie der Regeln eine Vermutung,
+die gleich ersetzt wird. Sofort angezeigt, erschien die Mail unter „Allgemein" und wanderte
+Sekunden später zu „Werbung". Wo das Urteil die Antwort also noch ändern kann, wird die
+Nachricht **zurückgehalten**: `Message::$categoryHeldAt` wird vor der Konversationsbildung
+gesetzt, ihre neue Konversation bekommt keine Kategorie — was jede Tab-Abfrage und
+`EmailFilterCompiler::threadCategory()` schon als „in keinem Tab" lesen —, und eine Antwort in
+eine bestehende Konversation lässt diese, wo sie ist.
+
+`App\Service\Mail\ClassificationHold` ist die Entscheidung, und sie ist eine Liste von Gründen,
+nicht zurückzuhalten: Das Zurückhalten ist unter Administration → KI abgeschaltet; die Mail
+gehört zu einem Import; sie ist alt oder die eigene gesendete Kopie des Kontos; oder
+`MessageCategorizer::verdictCouldDecide()` sagt, dass die Antwort schon feststeht — wer nach
+Regeln sortiert, ein Gmail-Label, eine bekannte Korrespondenzadresse.
+
+Drei Dinge beenden das Zurückhalten, und `App\Service\Mail\HeldMailReleaser` ist das eine Ende,
+das sie teilen:
+
+1. `ClassifyMailHandler`, wenn das Modell antwortet.
+2. `ReleaseHeldMailMessage`, im Moment des Zurückhaltens mit einer Verzögerung von
+   `AiSettings::$holdMaxSeconds` (Vorgabe 60, 2–300) abgeschickt. Meist kommt sie an und findet
+   nichts Zurückgehaltenes mehr. Sie hat eine eigene Warteschlange, `release`, und einen Worker,
+   der sonst nichts tut (`worker-release`): Der Live-Worker steckt womöglich gerade in genau dem
+   Aufruf, der zu lange dauert, und die Freigabe darf nicht auf ihn warten — und auch nicht auf
+   einen Versand.
+3. `app:mail:release-held`, jede Minute, falls keiner der beiden Jobs lief.
+
+Dass das Warten endet, beendet nicht die Frage. Eine Freigabe ohne Urteil ordnet die Mail unter
+der Kategorie der Regeln ein, die beim Ingest genau dafür geschrieben wurde; der Modellaufruf
+läuft weiter, und wenn seine Antwort eintrifft, verschiebt sie die Mail und sagt es den offenen
+Seiten. Nach der Nachricht wird einmal gefragt.
+
+`category_held_at` und `category_released_at` bleiben erhalten, und ihre Differenz ist die Zahl,
+die Administration → KI neben dem Schalter zeigt — Median, 95. Perzentil und wie viele
+Nachrichten angezeigt wurden, bevor das Modell geantwortet hatte.
 
 ## Konversationsbildung
 
@@ -374,3 +458,13 @@ jemandes Seitenleiste stehen oder eben nicht.
 Interface dokumentiert „anstoßen, nicht arbeiten", und die Pipeline kann es nicht erzwingen; der
 Fehler ist keine Fehlermeldung, sondern ein Postfach, das langsamer wird, je mehr Features an
 einen Haken gehängt werden, der auf dem verbindungshaltenden Worker läuft.
+
+**Ein Step, der ohne `EnrichmentRouter` einreiht, stellt Live-Mail hinter einen Import.** Die
+Routing-Tabelle schickt jede Post-Ingest-Nachricht auf `enrich`; nur der Stamp bringt die Mail
+eines fertigen Kontos auf `enrich_live`. Abschicken mit `$this->router->stampsFor($result)`, und
+nur für `RecentMailPolicy::recentIds()`.
+
+**Eine zurückgehaltene Nachricht, die nichts freigibt, ist Mail, die niemand im Posteingang
+sieht.** Ihre Konversation hat keine Kategorie und steht damit in keinem Tab. Deshalb wird die
+zeitgesteuerte Freigabe in `ClassifyMailStep` vor der Feature-Prüfung abgeschickt, und deshalb
+sichert sie ein Durchlauf auf einem anderen Worker ab.

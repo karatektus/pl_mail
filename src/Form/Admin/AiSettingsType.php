@@ -10,6 +10,7 @@ use App\Entity\Ai\AiSettings;
 use App\Form\PasswordManagerIgnore;
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\Extension\Core\Type\CheckboxType;
+use Symfony\Component\Form\Extension\Core\Type\IntegerType;
 use Symfony\Component\Form\Extension\Core\Type\NumberType;
 use Symfony\Component\Form\Extension\Core\Type\PasswordType;
 use Symfony\Component\Form\Extension\Core\Type\TextareaType;
@@ -167,6 +168,26 @@ final class AiSettingsType extends AbstractType
                 'label'    => 'admin.ai.field.categorisation',
                 'help'     => 'admin.ai.field.categorisation_help',
                 'required' => false,
+            ])
+            // The two that qualify the switch above rather than being features
+            // of their own: whether arriving mail waits for the assistant
+            // before it is shown in a tab, and for how long at most. See
+            // AiSettings::$holdUntilClassified.
+            ->add('holdUntilClassified', CheckboxType::class, [
+                'label'    => 'admin.ai.field.hold',
+                'help'     => 'admin.ai.field.hold_help',
+                'required' => false,
+            ])
+            ->add('holdMaxSeconds', IntegerType::class, [
+                'label'       => 'admin.ai.field.hold_max_seconds',
+                'help'        => 'admin.ai.field.hold_max_seconds_help',
+                'constraints' => [
+                    new Range(min: AiSettings::MIN_HOLD_SECONDS, max: AiSettings::MAX_HOLD_SECONDS),
+                ],
+                'attr'        => [
+                    'min' => AiSettings::MIN_HOLD_SECONDS,
+                    'max' => AiSettings::MAX_HOLD_SECONDS,
+                ],
             ])
             ->add('writingHelpEnabled', CheckboxType::class, [
                 'label'    => 'admin.ai.field.writing_help',

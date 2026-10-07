@@ -483,6 +483,44 @@ class Message extends MessageModel
     public ?DateTimeImmutable $aiCategorisedAt = null;
 
     /**
+     * When this message was kept out of the inbox tabs to wait for the model.
+     *
+     * THE PROBLEM IT ANSWERS: mail arrived, was filed by the rules, appeared
+     * under Primary, and a few seconds later moved to Promotions when the
+     * assistant answered. Somebody watching their inbox saw mail jump. Where
+     * the assistant is the one deciding, the rules' answer is a guess that is
+     * about to be replaced, and showing the guess is worse than showing
+     * nothing for the seconds the real answer takes.
+     *
+     * So the message is HELD: its thread is given no category, which is how
+     * every tab query already says "not in any tab", until the verdict is in
+     * or the wait runs out. See App\Service\Mail\ClassificationHold for when
+     * this is set and ClassifyMailHandler for what clears it.
+     *
+     * `category` beside it is still written, with the rules' answer. That is
+     * the fallback a release without a verdict files the mail under, and it is
+     * why a held message is never one the tabs lose: whatever happens to the
+     * model, the answer the mail would have had anyway is already on the row.
+     *
+     * KEPT AFTER THE RELEASE, together with the column below. The pair is the
+     * measurement — how long holding actually delays mail on this installation
+     * — and Admin → AI shows it beside the switch that turns holding off, so
+     * the choice is made against a number rather than a feeling.
+     */
+    #[ORM\Column(name: 'category_held_at', nullable: true)]
+    public ?DateTimeImmutable $categoryHeldAt = null;
+
+    /**
+     * When the hold ended, by a verdict or by running out of time.
+     *
+     * Which of the two is not stored and does not need to be: a release with
+     * no `aiCategorisedAt` beside it, or with a later one, is a message shown
+     * before the model had answered.
+     */
+    #[ORM\Column(name: 'category_released_at', nullable: true)]
+    public ?DateTimeImmutable $categoryReleasedAt = null;
+
+    /**
      * @var Collection<int, Label>
      */
     #[ORM\ManyToMany(targetEntity: Label::class)]
@@ -618,5 +656,16 @@ class Message extends MessageModel
         }
 
         return $this;
+    }
+
+    /**
+     * Held and not yet released — see $categoryHeldAt.
+     *
+     * The one reading of the pair, so that the threader, the pipeline and the
+     * handler cannot each grow their own idea of what "held" means.
+     */
+    public function isCategoryHeld(): bool
+    {
+        return null !== $this->categoryHeldAt && null === $this->categoryReleasedAt;
     }
 }

@@ -14,6 +14,8 @@ use App\Repository\Mail\MessageThreadRepository;
 use App\Service\Mail\MessageCategorizer;
 use App\Service\Ai\AiAssistant;
 use App\Service\Ai\AiPermissions;
+use App\Service\Ai\LiveMailPriority;
+use App\Service\Mail\HeldMailReleaser;
 use App\Service\Ai\PromptLibrary;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
@@ -73,6 +75,8 @@ final readonly class ClassifyMailHandler
         private AiAssistant             $ai,
         private AiPermissions          $permissions,
         private PromptLibrary          $prompts,
+        private LiveMailPriority       $priority,
+        private HeldMailReleaser       $releaser,
         private EntityManagerInterface $entityManager,
         private LoggerInterface        $logger,
     ) {
@@ -98,12 +102,42 @@ final readonly class ClassifyMailHandler
                 continue;
             }
 
+            $held = null !== $mail->categoryHeldAt;
+
+            if (false === $held) {
+                // Bulk work, by elimination: an import, the catch-up after
+                // one, or somebody's "ask again" button. None of it may be in
+                // front of mail that has just arrived. See LiveMailPriority.
+                $this->priority->standAside();
+            }
+
+            // NO SHORTER CLOCK FOR HELD MAIL, though there was one. The call
+            // used to be cut off when the hold ran out, which threw away an
+            // answer that was seconds from arriving and left the message to be
+            // asked about a second time, later. The hold and the question are
+            // separate things: the timed release shows the mail when the wait
+            // is over — on a worker of its own, precisely so it can happen while
+            // this call is still running — and this call simply finishes, and
+            // moves the mail if its answer differs.
             $verdict = $this->ask($mail);
+
+            if (true === $held) {
+                // Minutes may have passed inside ask(), and the timed release
+                // may have run in them. Re-read, or the stale copy held here
+                // would still say "held" and the release below would stamp a
+                // second, later release time over the real one.
+                $this->entityManager->refresh($mail);
+            }
 
             // Stamped whether or not the answer was usable — see the docblock.
             $mail->aiCategorisedAt = new DateTimeImmutable();
             $mail->aiCategory      = $verdict;
-            $touched[]             = $mail;
+
+            // A VERDICT THAT COMES AFTER THE WAIT RAN OUT STILL MOVES THE MAIL.
+            // The reader chose the assistant as the sorter, and a late answer
+            // is still the answer they asked for. Holding makes the jump rare;
+            // it does not make the assistant's answer optional.
+            $touched[] = $mail;
         }
 
         if ([] === $touched) {
@@ -168,7 +202,25 @@ final readonly class ClassifyMailHandler
         // raw SQL reading the very columns written above.
         $this->entityManager->flush();
 
+        $late = array_values(array_filter(
+            $mail,
+            static fn (Message $row): bool => null !== $row->categoryReleasedAt,
+        ));
+
+        // Whatever in this batch was being held is released here, with the
+        // category written above: the verdict's where there was one, the
+        // rules' where the model had nothing to say in time. It resolves those
+        // threads itself and tells open pages — which is the moment held mail
+        // first appears in a tab. A no-op for a batch that held nothing, and
+        // for mail the timed release has already shown.
+        $this->releaser->release($mail);
+
         $this->threads->recomputeCategoriesForThreads(array_keys($threadIds));
+
+        // And the ones the timed release got to first. They were shown under
+        // the rules' answer and have just been moved, which an open inbox has
+        // no other way to hear about.
+        $this->releaser->announce($late);
     }
 
     /**

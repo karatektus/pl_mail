@@ -257,6 +257,8 @@ final readonly class ConfigBackupDatabase
             'embeddingDimensions'   => $settings->embeddingDimensions,
             'searchEnabled'         => $settings->searchEnabled,
             'categorisationEnabled' => $settings->categorisationEnabled,
+            'holdUntilClassified'   => $settings->holdUntilClassified,
+            'holdMaxSeconds'        => $settings->holdMaxSeconds,
             'writingHelpEnabled'    => $settings->writingHelpEnabled,
             'summaryEnabled'        => $settings->summaryEnabled,
             'prompts'               => $prompts,
@@ -309,6 +311,11 @@ final readonly class ConfigBackupDatabase
         $settings->embeddingDimensions   = is_int($values['embeddingDimensions'] ?? null) ? $values['embeddingDimensions'] : null;
         $settings->searchEnabled         = true === ($values['searchEnabled'] ?? false);
         $settings->categorisationEnabled = true === ($values['categorisationEnabled'] ?? false);
+        // Absent from every backup taken before these existed, and absent has
+        // to mean the default rather than "off" — a restore must not be the
+        // thing that quietly switches a behaviour off.
+        $settings->holdUntilClassified   = false !== ($values['holdUntilClassified'] ?? true);
+        $settings->holdMaxSeconds        = is_int($values['holdMaxSeconds'] ?? null) ? $values['holdMaxSeconds'] : AiSettings::DEFAULT_HOLD_MAX_SECONDS;
         $settings->writingHelpEnabled    = true === ($values['writingHelpEnabled'] ?? false);
         $settings->summaryEnabled        = true === ($values['summaryEnabled'] ?? false);
 

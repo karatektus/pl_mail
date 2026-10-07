@@ -6,8 +6,10 @@ namespace App\Service\Calendar\Proposal;
 
 use App\Domain\DTO\Mail\PostIngestResult;
 use App\Domain\Interface\PostIngestStepInterface;
-use Doctrine\ORM\EntityManagerInterface;
-use Psr\Log\LoggerInterface;
+use App\Infrastructure\Messaging\Message\ProposeEventsMessage;
+use App\Service\Mail\PostIngest\EnrichmentRouter;
+use App\Service\Mail\PostIngest\RecentMailPolicy;
+use Symfony\Component\Messenger\MessageBusInterface;
 
 /**
  * Looks for a date in prose in each freshly ingested message.
@@ -19,60 +21,37 @@ use Psr\Log\LoggerInterface;
  * is assigned in that loop, and refusing bulk mail is this feature's first and
  * most important rule.
  *
- * It does its work inline instead of dispatching a job, which is the one place
- * this bends PostIngestStepInterface's stated contract, so here is the case for
- * it and the line it must not cross. That rule is about cost: a step runs on a
- * worker holding an IMAP connection or a Graph rate-limit budget, and a fetch,
- * an image decode or a raw-MIME parse there delays every message behind it.
- * This path performs no I/O at all. The body is already hydrated on the row,
- * the gate is a single regex over it, and the overwhelming majority of messages
- * are refused by the category check before even that — the ones that get as far
- * as being parsed are a few per cent, and the parse is regular expressions over
- * a few kilobytes. Queuing that would cost a Messenger round trip per batch to
- * move microseconds off the ingest worker.
+ * IT USED TO DO ITS WORK INLINE, and argued for it at length here: the path
+ * performs no I/O, the gate is a single regex, and queuing it would cost a
+ * Messenger round trip to move microseconds off the ingest worker. All true of
+ * one batch. What it left out is the mailbox import, where it is fifty messages
+ * a batch for tens of thousands of messages on the one worker that fetches
+ * mail — and the rule in PostIngestStepInterface has no exception for work
+ * that is merely quick, because what it protects is that fetching mail is the
+ * only thing the fetching worker does. So this dispatches like every other
+ * step, and ProposeEventsHandler holds the loop.
  *
- * The line: a detector that calls anything — a model, a service, a network —
- * must NOT run here. When one is added, it goes behind a job and this step
- * dispatches for the messages the deterministic detector could not read.
- * ProposalDetectorInterface is where that boundary will be drawn.
- *
- * Flushes its own writes. The pipeline's flushes are done by the time steps
- * run, and a proposal that is only persisted is a proposal nobody ever sees.
+ * RECENT MAIL ONLY, which costs nothing: EventProposer already refuses a date
+ * in the past, so an old message could only ever have been parsed in order to
+ * be discarded. See RecentMailPolicy.
  */
 final readonly class ProposeEventsStep implements PostIngestStepInterface
 {
     public function __construct(
-        private EventProposer          $proposer,
-        private EntityManagerInterface $em,
-        private LoggerInterface        $logger,
+        private MessageBusInterface $bus,
+        private RecentMailPolicy    $recent,
+        private EnrichmentRouter    $router,
     ) {
     }
 
     public function afterCommit(PostIngestResult $result): void
     {
-        $proposed = 0;
+        $ids = $this->recent->recentIds($result);
 
-        foreach ($result->messages as $message) {
-            // Per message, because one message the parser chokes on must not
-            // cost the batch its other proposals. The pipeline's own guard is
-            // one level coarser than that: it catches for the whole step.
-            try {
-                if (null !== $this->proposer->propose($message)) {
-                    $proposed++;
-                }
-            } catch (\Throwable $e) {
-                $this->logger->error('EventProposal: proposing failed', [
-                    'messageId' => $message->id,
-                    'error'     => $e->getMessage(),
-                    'exception' => $e,
-                ]);
-            }
-        }
-
-        if (0 === $proposed) {
+        if ([] === $ids) {
             return;
         }
 
-        $this->em->flush();
+        $this->bus->dispatch(new ProposeEventsMessage($ids), $this->router->stampsFor($result));
     }
 }

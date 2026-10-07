@@ -133,7 +133,10 @@ crashed.
 | `mercure` | The Mercure hub, 1.x | Live updates — the mail list refreshing by itself |
 | `imap-supervisor` | `app:imap:supervise` | Spawns and watches one `app:imap:idle` process per IDLE-enabled mailbox, so standard IMAP mail arrives the moment it lands |
 | `worker-export` | `messenger:consume export` | Anything leaving plMail, and the only queue somebody is watching. On its own process so a send is never behind a sync |
-| `worker-ingest` | `messenger:consume ingest` | Mail arriving and the work that immediately follows it |
+| `worker-ingest` | `messenger:consume ingest` | Fetching mail, and only that |
+| `worker-live` | `messenger:consume enrich_live` | What follows mail that has just arrived — sorting, event extraction, insight cards, receipts. On its own process so new mail is never behind an import |
+| `worker-release` | `messenger:consume release` | Shows mail that was held for the assistant once its wait is over. Idle nearly always, and on its own process so that nothing is ever in front of it |
+| `worker-enrich` | `messenger:consume enrich enrich_backlog` | The same work for an import's recent mail, then — only when that queue is empty — old mail being sorted by the assistant |
 | `worker-maintenance` | `messenger:consume maintenance async` | Backfills, rule runs over existing mail, admin sweeps. Also drains the retired `async` queue |
 | `worker-bulk` | `messenger:consume bulk` | Whole-view actions: mark every unread read, archive the lot. On its own process because somebody is watching an indicator for it and it must not wait behind a backfill |
 | `scheduler` | `messenger:consume scheduler_default` | Fires everything recurring. **Nothing schedules itself without this process** |

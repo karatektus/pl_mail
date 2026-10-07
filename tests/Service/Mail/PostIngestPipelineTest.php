@@ -13,6 +13,8 @@ use App\Entity\Mail\Message;
 use App\Entity\User\User;
 use App\Repository\Mail\ContactRepository;
 use App\Service\Imap\MessageThreader;
+use App\Service\Mail\InitialImportState;
+use App\Service\Mail\ClassificationHold;
 use App\Service\Mail\MailBodySanitizer;
 use App\Service\Mail\MailChangeRecorder;
 use App\Service\Mail\MessageCategorizer;
@@ -239,6 +241,8 @@ final class PostIngestPipelineTest extends KernelTestCase
             $container->get(MailBodySanitizer::class),
             $container->get(RawMessageResolver::class),
             $container->get(MessageCategorizer::class),
+            $container->get(InitialImportState::class),
+            $container->get(ClassificationHold::class),
             $container->get(MessageThreader::class),
             $container->get(MailRuleEngine::class),
             $container->get(MailChangeRecorder::class),

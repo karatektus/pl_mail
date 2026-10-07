@@ -16,7 +16,7 @@ use Symfony\Component\DependencyInjection\Attribute\Autowire;
  * consumer already inside a long handler cannot pick up anything else, however
  * the queues are prioritised, so a send would wait behind a sync. What changed
  * is only where the processes live. They used to be seven containers of one
- * image; now they are seven children of one supervisor.
+ * image; now they are children of one supervisor, and there are ten of them.
  *
  * The names are the containers' old ones, deliberately. Each child gets its
  * name as APP_CONTAINER_NAME, which is what the heartbeats are keyed by and
@@ -73,6 +73,14 @@ final readonly class BackgroundProcesses
             new BackgroundProcess('imap-supervisor', ['php', 'bin/console', 'app:imap:supervise']),
             $this->consumer('worker-export', 'export'),
             $this->consumer('worker-ingest', 'ingest'),
+            // Mail that has just arrived, and nothing else, so that it is never
+            // behind an import. See messenger.yaml on the three enrich queues.
+            $this->consumer('worker-live', 'enrich_live'),
+            // Ends holds, and is otherwise idle on purpose: see messenger.yaml.
+            $this->consumer('worker-release', 'release'),
+            // IN THIS ORDER, which is the priority: Messenger drains `enrich`
+            // before it looks at `enrich_backlog`.
+            $this->consumer('worker-enrich', 'enrich', 'enrich_backlog'),
             // Also drains `async`, the pre-split queue; see messenger.yaml.
             $this->consumer('worker-maintenance', 'maintenance', 'async'),
             $this->consumer('worker-bulk', 'bulk'),

@@ -37,7 +37,8 @@ framework:
                     max_retries: 5
                     max_delay: 60000
 
-            # Mail coming in, and the work that immediately follows it.
+            # Mail coming in, and nothing else. What follows it has queues of its
+            # own below — see enrich_live.
             ingest:
                 dsn: '%env(MESSENGER_TRANSPORT_DSN)%'
                 options:
@@ -51,6 +52,110 @@ framework:
                 # half minutes, and max_delay keeps the tail inside the worker's
                 # --time-limit=3600 so a delayed retry is never left waiting on a
                 # restart.
+                retry_strategy:
+                    delay: 5000
+                    multiplier: 3
+                    max_retries: 5
+                    max_delay: 300000
+
+            # What follows mail arriving, and none of it is fetching.
+            #
+            # THREE QUEUES (and `release` above them), BECAUSE `ingest` USED TO HOLD ALL OF THIS AND THE
+            # FETCHING WAITED ON IT. Classification, event extraction, receipts
+            # and embeddings were routed beside the syncs on the reasoning that
+            # they were "mail arriving". On a first import that put an hour of
+            # model calls in front of the next sync: 988 envelopes pending, the
+            # oldest an hour old, and mail that had reached the server sitting
+            # unfetched behind a newsletter from 2019 being asked what it was.
+            # `ingest` is now only what talks to a mail provider.
+            #
+            # They are separate from each other for the reason the first three
+            # were: who is waiting.
+            #
+            #   enrich_live     mail that has just arrived on an account whose
+            #                   import is over. Somebody may be looking at the
+            #                   inbox, and with sorting by assistant the mail is
+            #                   held out of its tab until this answers — so it
+            #                   has a worker of its own and nothing bulk is ever
+            #                   in front of it.
+            #   enrich          recent mail brought in by an import. Wanted, not
+            #                   watched.
+            #   enrich_backlog  old mail being classified after the import, a
+            #                   bounded handful at a time. Nobody's foreground.
+            #
+            # The last two share one worker, consumed in that order, which is
+            # what "recent first" means: Messenger drains an earlier transport
+            # before it looks at a later one. Two workers would only queue on the
+            # same model host. See BackgroundProcesses.
+            #
+            # enrich_live and enrich_backlog are reached by TransportNamesStamp
+            # and by nothing in the routing table below — the same message is
+            # live or bulk depending on the mail it carries, and only the code
+            # dispatching it knows which. See App\Service\Mail\PostIngest\EnrichmentRouter.
+            enrich_live:
+                dsn: '%env(MESSENGER_TRANSPORT_DSN)%'
+                options:
+                    queue_name: enrich_live
+                # The export ladder: this is the one enrichment queue somebody
+                # is waiting on. A held message is released by its own timeout
+                # long before a patient retry would come round, so the only
+                # retry worth having is a prompt one.
+                retry_strategy:
+                    delay: 2000
+                    multiplier: 3
+                    max_retries: 5
+                    max_delay: 60000
+
+            # Ending a hold, and nothing else.
+            #
+            # A message held out of the inbox tabs for the assistant is shown
+            # when its wait is over, whatever the model is doing — see
+            # ReleaseHeldMailMessage. That job is a flag and one UPDATE, and it
+            # has a queue and a worker to itself anyway, because every other
+            # place it could go has something long in it at exactly the wrong
+            # moment:
+            #
+            #   enrich_live  is where the mail is being classified. Its worker
+            #                may be inside the very model call that is taking
+            #                too long, and the release would wait for the call
+            #                it is the limit on.
+            #   export       was where it went first. A release is quick enough
+            #                not to hold up a send, but a send — or an
+            #                attachment upload — can hold up a release, and
+            #                mail leaving and mail appearing have no business
+            #                sharing a worker.
+            #
+            # So this queue is empty nearly always and its worker idle nearly
+            # always, which is the point: nothing is ever in front of a release.
+            release:
+                dsn: '%env(MESSENGER_TRANSPORT_DSN)%'
+                options:
+                    queue_name: release
+                # The export ladder: somebody is waiting, and the only thing
+                # that fails here is a database blink.
+                retry_strategy:
+                    delay: 2000
+                    multiplier: 3
+                    max_retries: 5
+                    max_delay: 60000
+
+            enrich:
+                dsn: '%env(MESSENGER_TRANSPORT_DSN)%'
+                options:
+                    queue_name: enrich
+                # The ingest ladder, for the ingest reason: what fails here is a
+                # model host restarting or a provider rate limit on a raw fetch,
+                # and both take minutes to clear.
+                retry_strategy:
+                    delay: 5000
+                    multiplier: 3
+                    max_retries: 5
+                    max_delay: 300000
+
+            enrich_backlog:
+                dsn: '%env(MESSENGER_TRANSPORT_DSN)%'
+                options:
+                    queue_name: enrich_backlog
                 retry_strategy:
                     delay: 5000
                     multiplier: 3
@@ -198,25 +303,35 @@ framework:
             App\Infrastructure\Messaging\Message\ApplyLabelStructureMessage: export
             App\Infrastructure\Messaging\Message\ApplyMailRuleMessage: maintenance
             App\Infrastructure\Messaging\Message\UploadAttachmentsMessage: export
-            App\Infrastructure\Messaging\Message\ExtractEventsMessage: ingest
-            # ingest too, and for the same reason — it is mail arriving. It is
-            # much slower than its neighbours (a round trip to a model host,
-            # seconds on a cold model), but it is also dispatched only when
-            # somebody switched the feature on, and it narrows to the mail no
-            # rule recognised. A transport of its own would buy isolation from
-            # a queue that is empty on almost every installation.
-            App\Infrastructure\Messaging\Message\ClassifyMailMessage: ingest
-            # ingest as well: it is mail that arrived, only caught up with
-            # later, and it is the same shape of work — one round trip per
-            # message to a box on the LAN. Nothing dispatches it on arrival any
-            # more; the two triggers are a nightly sweep and the warm window
-            # after somebody searched (see App\Service\Ai\EmbeddingCatchUp), and
-            # both post it in chunks a worker can finish rather than one
-            # envelope holding a whole mailbox. Maintenance would be the other
+            # enrich, with everything else that happens to mail once it is in.
+            # These were on ingest; see the transport's note for what that cost.
+            # A batch of mail that has only just arrived is stamped onto
+            # enrich_live instead, by the step that dispatches it.
+            App\Infrastructure\Messaging\Message\ExtractEventsMessage: enrich
+            # Both used to run INSIDE the sync, on the worker holding the IMAP
+            # connection — the one thing PostIngestStepInterface says a step
+            # must not do. They are deterministic and quick per message, and
+            # that was the argument for leaving them inline; it stops being one
+            # at fifty messages a batch for a whole mailbox.
+            App\Infrastructure\Messaging\Message\ExtractInsightsMessage: enrich
+            App\Infrastructure\Messaging\Message\ProposeEventsMessage: enrich
+            # A queue of its own; see the `release` transport for why.
+            App\Infrastructure\Messaging\Message\ReleaseHeldMailMessage: release
+            # enrich, and it is the reason the queue exists. It is the slowest
+            # thing here by an order of magnitude — a round trip to a model host
+            # per message — and on ingest one envelope of it held the only
+            # consumer that fetches mail for minutes.
+            App\Infrastructure\Messaging\Message\ClassifyMailMessage: enrich
+            # enrich as well, and no longer ingest: it is one round trip per
+            # message to a model host, which is exactly the work that must not
+            # sit in front of a sync. Nothing dispatches it on arrival; the two
+            # triggers are a nightly sweep and the warm window after somebody
+            # searched (see App\Service\Ai\EmbeddingCatchUp), and both post it in
+            # chunks a worker can finish. Maintenance would be the other
             # candidate and is the wrong one: a batch queued while somebody is
             # sitting at their search results should not be behind an hours-long
             # backfill on the queue built to hold hours-long backfills.
-            App\Infrastructure\Messaging\Message\EmbedMessagesMessage: ingest
+            App\Infrastructure\Messaging\Message\EmbedMessagesMessage: enrich
             # maintenance, NOT ingest. A backfill re-dispatches itself for hours
             # and would otherwise sit in front of every arriving message on the
             # ingest queue — new mail would stop appearing until an old mailbox
@@ -239,11 +354,11 @@ framework:
             #
             # export for the send: it is mail leaving plMail, and it wants that
             # queue's tighter retry ladder, because the failures are a relay
-            # refusing a connection. ingest for the scan: it is work that
-            # immediately follows mail arriving, and its retries should be the
-            # patient ones.
+            # refusing a connection. enrich for the scan: it is work that
+            # follows mail arriving without being the fetching of it, and its
+            # retries should be the patient ones.
             App\Infrastructure\Messaging\Message\SendReadReceiptMessage: export
-            App\Infrastructure\Messaging\Message\ProcessReadReceiptsMessage: ingest
+            App\Infrastructure\Messaging\Message\ProcessReadReceiptsMessage: enrich
             # ingest rather than export, although a calendar sync writes
             # outward as well as reading. Nobody waits on it: a local edit is
             # saved and on screen before the push is dispatched, so the send

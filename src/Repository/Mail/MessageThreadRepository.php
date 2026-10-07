@@ -2426,6 +2426,10 @@ class MessageThreadRepository extends ServiceEntityRepository
                 SELECT DISTINCT ON (m.thread_id) m.thread_id, m.category
                 FROM message m
                 WHERE m.category IS NOT NULL
+                  -- A message held for the assistant has no say yet: its
+                  -- category is the rules' guess, and adopting it is the
+                  -- flicker holding exists to prevent. Message::$categoryHeldAt.
+                  AND (m.category_held_at IS NULL OR m.category_released_at IS NOT NULL)
                   AND m.thread_id IN (:threadIds)
                 ORDER BY m.thread_id, m.received_at DESC NULLS LAST
             ) sub
@@ -2446,6 +2450,7 @@ class MessageThreadRepository extends ServiceEntityRepository
             SELECT DISTINCT ON (m.thread_id) m.thread_id, m.category
             FROM message m
             WHERE m.category IS NOT NULL
+              AND (m.category_held_at IS NULL OR m.category_released_at IS NOT NULL)
             ORDER BY m.thread_id, m.received_at DESC NULLS LAST
         ) sub
         WHERE t.id = sub.thread_id

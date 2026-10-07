@@ -27,6 +27,17 @@ final readonly class PostIngestResult
         public array $messages,
         public array $accounts,
         public array $threadIdsByAccount,
+        /**
+         * Whether this is mail trickling in rather than a mailbox being
+         * imported: every owning account has finished its first import.
+         *
+         * Decided once by the pipeline and carried here, because every step
+         * that queues work needs the same answer to choose a queue and each
+         * asking for itself would be a query per step per batch. Defaulted to
+         * false, which is the safe reading — bulk work is never put in front
+         * of live mail by an omission. See EnrichmentRouter.
+         */
+        public bool $live = false,
     ) {
     }
 

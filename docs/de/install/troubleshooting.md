@@ -1,4 +1,4 @@
-<!-- translated-from: install/troubleshooting.md sha1:978f8c024df0873bd3f40023340d6b2667177efa -->
+<!-- translated-from: install/troubleshooting.md sha1:6d423596fc9eca05c89352c7cb809a5557a18761 -->
 # Fehlersuche
 
 Was `/healthz` bedeutet, wie du eine hängende von einer leeren Warteschlange unterscheidest, wo die
@@ -54,13 +54,17 @@ HTTP-Status.
 
 ## Die Warteschlange
 
-Vier Transports auf dem Doctrine-Transport, jeder mit einem eigenen Consumer-Prozess im
+Acht Transports auf dem Doctrine-Transport, abgearbeitet von sieben Prozessen im
 Worker-Container:
 
 | Warteschlange | Prozess | Was darauf liegt |
 |---|---|---|
 | `export` | `worker-export` | Alles, was plMail verlässt — Versand, Flag-Pushes, Gmail-Label-Änderungen, Mail aus dem Notifier. Die einzige Warteschlange, auf die jemand wartet |
-| `ingest` | `worker-ingest` | Eingehende Mail, Gmail- und Graph-Nachrichten-Batches, Kalenderabgleiche, Terminerkennung |
+| `ingest` | `worker-ingest` | Mail abholen und sonst nichts: Konto- und Postfachabgleiche, Gmail- und Graph-Nachrichten-Batches, Kalenderabgleiche |
+| `enrich_live` | `worker-live` | Was auf Mail folgt, die gerade eben in einem Konto angekommen ist, dessen erster Import abgeschlossen ist: Einsortieren durch den Assistenten, Terminerkennung, Insight-Karten, Lesebestätigungen. Eigener Prozess, damit neue Mail nie hinter einem Import steht |
+| `release` | `worker-release` | Beendet das Warten für Mail, die für den Assistenten zurückgehalten wird. Fast immer leer; eigener Prozess, damit nie etwas davor steht |
+| `enrich` | `worker-enrich` | Dieselbe Arbeit für aktuelle Mail aus einem Import, dazu die Suchindizierung |
+| `enrich_backlog` | `worker-enrich` | Alte Mail, die der Assistent nach einem Import einsortiert. Wird nur angefasst, wenn `enrich` leer ist |
 | `maintenance` | `worker-maintenance` | Nachträgliche Verarbeitungen, Regelläufe über vorhandene Mail, "Jetzt ausführen"-Knöpfe im Administrationsbereich, Registrierung von Kalender-Push |
 | `bulk` | `worker-bulk` | Mark-Read- und Archiv-Läufe über eine ganze Ansicht. Jemand schaut dabei auf eine Fortschrittsanzeige, deshalb reihen sie sich nicht hinter einer nachträglichen Verarbeitung ein |
 | `async` | `worker-maintenance` | Stillgelegt. Wird geleert, damit vor der Aufteilung eingestellte Envelopes noch einen Konsumenten haben; hierher wird nichts mehr geroutet |

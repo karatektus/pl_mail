@@ -1,4 +1,4 @@
-<!-- translated-from: features/admin.md sha1:68b7587fcf7aa419435e09dab064077c8e01c68f -->
+<!-- translated-from: features/admin.md sha1:070a1c1c3254e1683e96281a9cef8e0d4571572b -->
 
 # Administration
 
@@ -473,6 +473,24 @@ Beim Einsortieren solltest du am ehesten vorsichtig sein: Es läuft unbeaufsicht
 den Stichentscheid geben — wenn ein Header, ein Gmail-Label oder die Tatsache, dass du der Person
 schon geschrieben hast, die Kategorie bereits bestimmt hat, wird das Modell gar nicht gefragt.
 Ausschalten erfordert kein Aufräumen.
+
+Zwei Dinge sorgen dafür, dass das Einsortieren ankommender Mail nicht im Weg steht:
+
+- **Nur aktuelle Mail wird beim Eintreffen einsortiert.** Nach Mail aus den letzten 30 Tagen wird
+  sofort gefragt. Wenn du ein Konto hinzufügst, wird der Rest des Postfachs danach einsortiert, im
+  Hintergrund, die neueste zuerst, und erst, wenn der Import abgeschlossen ist — ein erster Import
+  besteht also nicht aus stundenlangen Modellaufrufen, hinter denen neue Mail wartet.
+- **Auf den Assistenten warten, bevor neue Mail in einem Tab erscheint.** Für alle, die ihre Mail
+  vom Assistenten sortieren lassen, bleibt neue Mail für den Moment, den der Assistent braucht, aus
+  den Posteingangs-Tabs heraus — sie erscheint dann einmal, im richtigen Tab, statt in einem
+  aufzutauchen und in einen anderen zu wandern. **Höchstens warten** ist die Obergrenze, 60
+  Sekunden als Vorgabe: Danach wird die Mail dort angezeigt, wo die normalen Regeln sie einordnen,
+  und verschoben, falls der Assistent später antwortet. Es ist eine Obergrenze, nicht die
+  Wartezeit — ein bereits geladenes Modell antwortet in ein, zwei Sekunden.
+  Die Zeile darunter nennt, wie lange Mail in den letzten 7 Tagen tatsächlich zurückgehalten wurde
+  und wie oft die Wartezeit ablief — ist das meistens der Fall, ist dein Modell-Host zu langsam,
+  als dass sich das Warten lohnt, und du kannst es abschalten. Mail aus einem ersten Import wird
+  nie zurückgehalten.
 
 Die Schreibhilfe ersetzt nie, was du geschrieben hast. Sie hängt an, dein Original bleibt stehen.
 

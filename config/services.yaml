@@ -97,6 +97,15 @@ parameters:
     app.ai_backfill_retry_seconds_default: 60
     app.ai_backfill_retry_seconds: '%env(default:app.ai_backfill_retry_seconds_default:int:AI_BACKFILL_RETRY_SECONDS)%'
 
+    # How old a message may be and still have things done to it on arrival —
+    # event extraction, insight cards, receipts, and a model call where the
+    # assistant is on. Thirty days: the same window MessageThreader gives a
+    # subject match, and about what is plausibly still in somebody's view. See
+    # App\Service\Mail\PostIngest\RecentMailPolicy. Not a row in the
+    # installation reference, for the reason the block above is not.
+    app.enrich_recent_days_default: 30
+    app.enrich_recent_days: '%env(default:app.enrich_recent_days_default:int:ENRICH_RECENT_DAYS)%'
+
 services:
     # default configuration for services in *this* file
     _defaults:
@@ -156,6 +165,9 @@ services:
             $pauseMs: '%app.ai_backfill_pause_ms%'
             $cooldownSeconds: '%app.ai_backfill_cooldown_seconds%'
             $retrySeconds: '%app.ai_backfill_retry_seconds%'
+    App\Service\Mail\PostIngest\RecentMailPolicy:
+        arguments:
+            $recentDays: '%app.enrich_recent_days%'
     App\Service\Mail\AttachmentThumbnailer:
         arguments:
             $projectDir: '%kernel.project_dir%'

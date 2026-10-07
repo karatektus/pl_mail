@@ -11,6 +11,7 @@ use App\Entity\Mail\Account;
 use App\Repository\Mail\ContactRepository;
 use App\Service\Imap\MessageThreader;
 use App\Service\Rule\MailRuleEngine;
+use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\DependencyInjection\Attribute\AutowireIterator;
@@ -46,6 +47,8 @@ final readonly class PostIngestPipeline
         private MailBodySanitizer      $sanitizer,
         private RawMessageResolver     $rawResolver,
         private MessageCategorizer     $categorizer,
+        private InitialImportState     $importState,
+        private ClassificationHold     $hold,
         private MessageThreader        $messageThreader,
         private MailRuleEngine         $ruleEngine,
         private MailChangeRecorder     $changes,
@@ -85,6 +88,20 @@ final readonly class PostIngestPipeline
         $accounts    = [];
         $ruleTargets = [];
 
+        // Is this mail trickling in, or a mailbox being imported? Asked once,
+        // before the loop, because two things below turn on it and both have
+        // to agree: whether a message is held back for the assistant, and
+        // which queue the steps put its follow-up work on. See
+        // InitialImportState for what "imported" means per provider.
+        $owners = [];
+
+        foreach ($ingested as $item) {
+            $owners[(int) $item->account->id] = $item->account;
+        }
+
+        $live    = $this->importState->allComplete($owners);
+        $holding = true === $live && true === $this->hold->isOnFor($user);
+
         foreach ($ingested as $item) {
             $message   = $item->message;
             $accountId = (int) $item->account->id;
@@ -112,6 +129,17 @@ final readonly class PostIngestPipeline
             );
 
             $message->category = $this->categorizer->categorize($message, $correspondents, $user?->categorySorting);
+
+            // BEFORE THREADING, because the thread is where a hold takes
+            // effect: assignThread() gives a held message's new thread no
+            // category, and every tab query already reads that as "in no tab".
+            // The category written one line up stays — it is the rules' answer,
+            // and it is what the message is filed under if the model never
+            // replies. See ClassificationHold and Message::$categoryHeldAt.
+            if (true === $holding
+                && true === $this->hold->shouldHold($message, $item->account, $correspondents, $user?->categorySorting)) {
+                $message->categoryHeldAt = new DateTimeImmutable();
+            }
 
             try {
                 $this->messageThreader->assignThread($message, $item->account);
@@ -155,7 +183,7 @@ final readonly class PostIngestPipeline
         // The change-log rows recorded just now.
         $this->em->flush();
 
-        $result = new PostIngestResult($messages, $accounts, $threadIdsByAccount);
+        $result = new PostIngestResult($messages, $accounts, $threadIdsByAccount, $live);
 
         $this->notifySteps($result);
 

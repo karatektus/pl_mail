@@ -155,6 +155,10 @@ admin:
             embedding_keep_alive_help: 'Same format as above. This model is small and asked for constantly, so -1 — loaded for good — usually costs little and saves a wait on every search; it is worth setting if the host has the memory to spare. Leave empty to use whatever the host itself is set to.'
             embedding_model: 'Search model'
             embedding_model_help: 'Turns mail into vectors so search can find meaning rather than words.'
+            hold: 'Wait for the assistant before showing new mail in a tab'
+            hold_help: 'For people who let the assistant sort their mail. New mail is kept out of the inbox tabs for the moment the assistant needs, so it appears once, in the right tab, instead of appearing in one and moving to another. Mail brought in by a first import is never held.'
+            hold_max_seconds: 'Wait at most (seconds)'
+            hold_max_seconds_help: 'Past this, the mail is shown where the ordinary rules put it, whatever the assistant is doing — and moved if the assistant answers later. Between 2 and 300.'
             search_query_instruction: 'Query instruction'
             search_query_instruction_help: 'Put in front of the search text before it is embedded. Most models need one and answer badly without it; leave it empty for models that do not. Only searches are affected, so changing it never means indexing your mail again.'
             semantic_min_similarity: 'Minimum similarity'
@@ -171,6 +175,9 @@ admin:
             writing_help: 'Help me write'
             writing_help_help: 'Offers drafts and rewrites in the composer, when you ask for them.'
         heading: 'Language model'
+        hold:
+            measured: 'Last 7 days: %count% messages held, typically for %median% s (95% within %p95% s). %timeout% were shown without an answer because the wait ran out.'
+            no_data: 'No mail has been held in the last 7 days, so there is no delay to report yet.'
         intro: 'plMail can use a language model you run yourself. Nothing is sent anywhere else, nothing is switched on until you say so, and the mail client works exactly as it does now while this is off.'
         perf:
             by_model: 'Per model'

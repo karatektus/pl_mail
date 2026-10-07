@@ -10,6 +10,7 @@ use App\Domain\Enum\Ai\MetricWindow;
 use App\Domain\Enum\Ai\PromptSlot;
 use App\Form\Admin\AiSettingsType;
 use App\Repository\Ai\AiSettingsRepository;
+use App\Repository\Mail\MessageRepository;
 use App\Service\Ai\AiAssistant;
 use App\Service\Ai\AiPerformancePanel;
 use App\Service\Ai\EmbeddingBackfill;
@@ -56,6 +57,7 @@ final class AiSettingsController extends AbstractController
 
     public function __construct(
         private readonly AiSettingsRepository   $settings,
+        private readonly MessageRepository      $messages,
         private readonly AiAssistant            $assistant,
         private readonly EntityManagerInterface $entityManager,
         private readonly AiPerformancePanel     $panel,
@@ -113,6 +115,7 @@ final class AiSettingsController extends AbstractController
             'saved'    => $saved,
             'probe'    => null,
             'prompts'  => $this->promptRows(),
+            'hold'     => $this->holdDelay(),
         ]);
     }
 
@@ -151,6 +154,7 @@ final class AiSettingsController extends AbstractController
                 $submitted['embeddingModel'] ?? null,
             ])),
             'prompts'  => $this->promptRows(),
+            'hold'     => $this->holdDelay(),
         ]);
     }
 
@@ -359,8 +363,28 @@ final class AiSettingsController extends AbstractController
             'saved'        => false,
             'probe'        => null,
             'prompts'      => $this->promptRows(),
+            'hold'         => $this->holdDelay(),
             'promptsSaved' => true,
         ]);
+    }
+
+    /**
+     * What holding arriving mail for the assistant has cost, over the last week.
+     *
+     * Rendered beside the switch that turns holding off, because that switch
+     * is a trade — mail never moves tabs, in exchange for appearing a little
+     * later — and "a little" is a property of this installation's model host
+     * that nobody can know in advance. See MessageRepository::holdDelayStats().
+     *
+     * A week and not the panel's selectable window: this is one sentence under
+     * a checkbox, and trickle mail on a small installation is a few dozen
+     * messages a day — a shorter window is mostly empty.
+     *
+     * @return array{held: int, timedOut: int, median: float|null, p95: float|null}
+     */
+    private function holdDelay(): array
+    {
+        return $this->messages->holdDelayStats(MetricWindow::Week->since(new \DateTimeImmutable()));
     }
 
     /**

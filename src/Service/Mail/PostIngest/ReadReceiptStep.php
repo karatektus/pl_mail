@@ -26,29 +26,28 @@ use Symfony\Component\Messenger\MessageBusInterface;
  * Dispatches and returns, per the interface contract. The real work reads
  * message bodies and, for an inbound MDN, hunts the original message by
  * Message-ID — none of which belongs on a worker holding an IMAP connection.
+ *
+ * RECENT MAIL ONLY. A receipt request on mail that predates the import is one
+ * nobody is going to honour, and a bounce from years ago describes a send this
+ * installation never made. See RecentMailPolicy.
  */
 final readonly class ReadReceiptStep implements PostIngestStepInterface
 {
-    public function __construct(private MessageBusInterface $bus)
-    {
+    public function __construct(
+        private MessageBusInterface $bus,
+        private RecentMailPolicy    $recent,
+        private EnrichmentRouter    $router,
+    ) {
     }
 
     public function afterCommit(PostIngestResult $result): void
     {
-        $ids = [];
-
-        foreach ($result->messages as $message) {
-            $id = $message->id;
-
-            if (null !== $id) {
-                $ids[] = (int) $id;
-            }
-        }
+        $ids = $this->recent->recentIds($result);
 
         if ([] === $ids) {
             return;
         }
 
-        $this->bus->dispatch(new ProcessReadReceiptsMessage($ids));
+        $this->bus->dispatch(new ProcessReadReceiptsMessage($ids), $this->router->stampsFor($result));
     }
 }

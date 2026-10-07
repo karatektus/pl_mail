@@ -119,7 +119,7 @@ services:
         condition: service_healthy
 
   # ── Everything that is not the web server ─────────────────────────────────
-  # One container, seven processes (app:work): the IMAP supervisor, one
+  # One container, ten processes (app:work): the IMAP supervisor, one
   # consumer per queue, the scheduler, and the Mercure hub. They used to be
   # seven containers of this same image and the hub's own; see
   # App\Service\System\Work\BackgroundProcesses for what each is for.

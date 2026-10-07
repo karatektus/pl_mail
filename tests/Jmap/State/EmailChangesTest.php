@@ -24,6 +24,8 @@ use App\Service\Imap\MessageSendService;
 use App\Service\Imap\MessageThreader;
 use App\Service\Label\LabelResolver;
 use App\Service\Label\ThreadLabelSynchronizer;
+use App\Service\Mail\InitialImportState;
+use App\Service\Mail\ClassificationHold;
 use App\Service\Mail\AttachmentResolver;
 use App\Service\Mail\DraftPersister;
 use App\Service\Mail\MailBodySanitizer;
@@ -422,6 +424,8 @@ final class EmailChangesTest extends KernelTestCase
             $container->get(MailBodySanitizer::class),
             $container->get(RawMessageResolver::class),
             $container->get(MessageCategorizer::class),
+            $container->get(InitialImportState::class),
+            $container->get(ClassificationHold::class),
             $container->get(MessageThreader::class),
             $container->get(MailRuleEngine::class),
             $container->get(MailChangeRecorder::class),

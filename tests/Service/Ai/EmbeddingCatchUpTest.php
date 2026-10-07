@@ -329,11 +329,11 @@ final class EmbeddingCatchUpTest extends KernelTestCase
 
     private function queue(): InMemoryTransport
     {
-        // ingest, because catching up IS mail arriving, only later. The routing
+        // enrich, with the rest of what happens to mail once it is in. The routing
         // is part of what is being asserted: unrouted, a Messenger message is
         // handled in the process that dispatched it, and the search would wait
         // on the model after all.
-        $transport = self::getContainer()->get('messenger.transport.ingest');
+        $transport = self::getContainer()->get('messenger.transport.enrich');
 
         self::assertInstanceOf(InMemoryTransport::class, $transport);
 

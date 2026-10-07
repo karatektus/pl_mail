@@ -20,29 +20,30 @@ use Symfony\Component\Messenger\MessageBusInterface;
  * The first implementation of PostIngestStepInterface, and the reason it
  * exists — before it, this would have had to be wired into all three sync
  * paths by hand.
+ *
+ * RECENT MAIL ONLY. An invitation to a meeting held four years ago is not an
+ * event anybody needs on a calendar, and for Gmail and Graph reading it means
+ * fetching raw MIME from the provider — an API call per old invite during the
+ * one sync where quota matters most. `app:backfill event-extraction` reads
+ * history when somebody wants it. See RecentMailPolicy.
  */
 final readonly class ExtractEventsStep implements PostIngestStepInterface
 {
-    public function __construct(private MessageBusInterface $bus)
-    {
+    public function __construct(
+        private MessageBusInterface $bus,
+        private RecentMailPolicy    $recent,
+        private EnrichmentRouter    $router,
+    ) {
     }
 
     public function afterCommit(PostIngestResult $result): void
     {
-        $ids = [];
-
-        foreach ($result->messages as $message) {
-            $id = $message->id;
-
-            if (null !== $id) {
-                $ids[] = (int) $id;
-            }
-        }
+        $ids = $this->recent->recentIds($result);
 
         if ([] === $ids) {
             return;
         }
 
-        $this->bus->dispatch(new ExtractEventsMessage($ids));
+        $this->bus->dispatch(new ExtractEventsMessage($ids), $this->router->stampsFor($result));
     }
 }

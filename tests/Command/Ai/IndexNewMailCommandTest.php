@@ -185,7 +185,7 @@ final class IndexNewMailCommandTest extends KernelTestCase
 
     private function queue(): InMemoryTransport
     {
-        $transport = self::getContainer()->get('messenger.transport.ingest');
+        $transport = self::getContainer()->get('messenger.transport.enrich');
 
         self::assertInstanceOf(InMemoryTransport::class, $transport);
 

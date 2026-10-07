@@ -67,6 +67,11 @@ class AiSettings
      */
     public const float DEFAULT_MIN_SIMILARITY = 0.42;
 
+    /** See $holdMaxSeconds. */
+    public const int DEFAULT_HOLD_MAX_SECONDS = 60;
+    public const int MIN_HOLD_SECONDS         = 2;
+    public const int MAX_HOLD_SECONDS         = 300;
+
     use TimestampableTrait;
 
     #[ORM\Id]
@@ -216,6 +221,40 @@ class AiSettings
     public bool $categorisationEnabled = false;
 
     /** Drafting help in the composer. */
+    /**
+     * Keep arriving mail out of the inbox tabs until the assistant has sorted
+     * it, for people who let the assistant sort.
+     *
+     * ON BY DEFAULT, because the thing it prevents — mail appearing in one tab
+     * and moving to another seconds later — is a defect rather than a taste,
+     * and it applies only where somebody chose the assistant as the sorter.
+     * A SWITCH ANYWAY, because the cure is a delay and how long the delay is
+     * depends on hardware this application has never seen: on a quick host it
+     * is a second or two and nobody would turn it off, on a slow one it may be
+     * much longer, up to $holdMaxSeconds for a message. The panel beside the switch
+     * shows the measured figure, which is what makes it a decision.
+     */
+    #[ORM\Column(name: 'hold_until_classified', options: ['default' => true])]
+    public bool $holdUntilClassified = true;
+
+    /**
+     * The longest a message may wait, in seconds.
+     *
+     * This is a promise about ARRIVING MAIL, not a tuning knob for the model:
+     * past it the message is filed where the rules put it and shown, whatever
+     * the host is doing.
+     *
+     * A MINUTE BY DEFAULT. Ten seconds was the first answer and it was too
+     * tight: a model that has to be loaded first takes longer than that on its
+     * own, so the wait ran out on exactly the mail it was for, and the mail
+     * then moved tabs when the answer came — the jump holding exists to
+     * prevent. A minute covers a cold model, and it is a ceiling rather than
+     * the wait: a warm host answers in a second or two and the mail is shown
+     * then. What a message actually waited is in the panel beside the field.
+     */
+    #[ORM\Column(name: 'hold_max_seconds', options: ['default' => self::DEFAULT_HOLD_MAX_SECONDS])]
+    public int $holdMaxSeconds = self::DEFAULT_HOLD_MAX_SECONDS;
+
     #[ORM\Column(name: 'writing_help_enabled', options: ['default' => false])]
     public bool $writingHelpEnabled = false;
 
@@ -267,6 +306,19 @@ class AiSettings
     public function __construct()
     {
         $this->prompts = new AiPrompts();
+    }
+
+    /**
+     * $holdMaxSeconds as something safe to wait for.
+     *
+     * Clamped on the way out rather than on the way in: the column is written
+     * by a form, and a zero that reached it must not mean "never hold" by
+     * accident (that is what the switch is for) nor a typo of 6000 mean mail
+     * sitting unseen for an hour and forty minutes.
+     */
+    public function holdSeconds(): int
+    {
+        return max(self::MIN_HOLD_SECONDS, min(self::MAX_HOLD_SECONDS, $this->holdMaxSeconds));
     }
 
     /**
