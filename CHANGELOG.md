@@ -6,7 +6,7 @@ so anything that changes the schema irreversibly is called out explicitly.
 The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, and `sha-…` pins one commit.
 
-## Unreleased
+## v0.3.0 — 2026-10-07
 
 **Adding an account no longer puts new mail behind hours of follow-up work.** Everything plMail does
 to a message after fetching it — sorting by the assistant, event extraction, insight cards, read
