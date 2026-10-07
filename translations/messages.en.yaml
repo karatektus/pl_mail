@@ -865,6 +865,7 @@ admin:
             lead: 'Neither of these is recoverable by resyncing: they delete the users, the stored mailbox passwords and the files on disk. Type the instance name to confirm — a click on its own is not enough.'
     restarting:
         back: 'Back to the admin panel'
+        continue: 'Continue'
         heading: 'plMail is restarting'
         lead: 'The web container was asked to exit and compose brings it straight back. This page reloads itself in a few seconds.'
         page_title: 'Restarting'

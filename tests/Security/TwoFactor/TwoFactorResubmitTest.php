@@ -142,6 +142,66 @@ final class TwoFactorResubmitTest extends WebTestCase
         self::assertSame('/2fa', $this->currentPath(), 'a wrong code should come back to the code form');
     }
 
+    /**
+     * The code form is a page with a layout, and the layout fetches things.
+     * While the code is outstanding every one of those fetches is turned away
+     * — and the last one used to be remembered as where the reader was going.
+     *
+     * Reported as the form hanging on "Checking…": the remembered URL was the
+     * live-update cookie refresh, which answers 204, so after a correct code
+     * the browser stayed exactly where it was.
+     */
+    public function testAFetchFromTheCodeFormIsNotWhereSigningInTakesYou(): void
+    {
+        $this->signInWithPassword();
+        self::assertSame('/2fa', $this->currentPath(), 'expected the code prompt');
+
+        // What mercure_controller.js sends: a fetch, so no text/html and
+        // `Sec-Fetch-Dest: empty`.
+        $this->client->request('GET', '/mercure/auth', server: [
+            'HTTP_ACCEPT'         => '*/*',
+            'HTTP_SEC_FETCH_DEST' => 'empty',
+        ]);
+        self::assertSame(302, $this->client->getResponse()->getStatusCode());
+
+        // And a lazily loaded Turbo Frame, which DOES ask for text/html and is
+        // still not a page.
+        $this->client->request('GET', '/onboarding', server: [
+            'HTTP_ACCEPT'         => 'text/html, application/xhtml+xml',
+            'HTTP_SEC_FETCH_DEST' => 'empty',
+            'HTTP_TURBO_FRAME'    => 'onboarding',
+        ]);
+        self::assertSame(302, $this->client->getResponse()->getStatusCode());
+
+        $this->follow(fn () => $this->client->request('POST', '/2fa_check', [
+            '_auth_code' => TOTP::create($this->user->totpSecret, 30, 'sha1', 6)->now(),
+        ]));
+
+        self::assertSame(200, $this->client->getResponse()->getStatusCode());
+        self::assertSame('/mail/inbox', $this->currentPath());
+    }
+
+    /**
+     * The other half: a page somebody was actually going to is still where
+     * they end up. The fix must not have cost the feature.
+     */
+    public function testAPageSomebodyWasGoingToIsStillRemembered(): void
+    {
+        $this->signInWithPassword();
+
+        $this->client->request('GET', '/calendar', server: [
+            'HTTP_ACCEPT'         => 'text/html,application/xhtml+xml',
+            'HTTP_SEC_FETCH_DEST' => 'document',
+        ]);
+        self::assertSame(302, $this->client->getResponse()->getStatusCode());
+
+        $this->follow(fn () => $this->client->request('POST', '/2fa_check', [
+            '_auth_code' => TOTP::create($this->user->totpSecret, 30, 'sha1', 6)->now(),
+        ]));
+
+        self::assertSame('/calendar', $this->currentPath());
+    }
+
     // ── driving the forms ─────────────────────────────────────────────────────
 
     private function signInThroughTwoFactor(): void

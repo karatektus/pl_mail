@@ -63,9 +63,13 @@ final readonly class PublicUrlSetting
 
         $this->config->set('APP_PUBLIC_URL', $url);
 
-        // The web process picks the new value up on the next request; the
-        // workers are long-running and would otherwise hold the old one until
-        // they recycled, which is exactly when push subscriptions get built.
+        // The workers are long-running and would otherwise hold the old value
+        // until they recycled, which is exactly when push subscriptions get
+        // built. The web process holds it too — it is one kernel in worker
+        // mode — and is NOT restarted from here: that needs a page to come
+        // back to, which is the caller's to render. InstallController does;
+        // Admin → Public address shows "stored" beside "current" until
+        // somebody restarts.
         //
         // A nudge that fails is not worth failing an install over: the address
         // is already saved, and the workers recycle hourly regardless.

@@ -102,6 +102,10 @@ security:
             two_factor:
                 auth_form_path: app_2fa_login
                 check_path: app_2fa_login_check
+                # The bundle's own handler remembers every GET it turns away as
+                # "where you were going", including the ones the code form's own
+                # layout makes. See the class for what that did.
+                authentication_required_handler: App\Security\TwoFactor\TwoFactorRequired
                 # Both are scheb's defaults, spelled out because
                 # templates/security/2fa_login.html.twig hard-codes the matching
                 # field ids for its label/autofocus wiring. Changing one here

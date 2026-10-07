@@ -7,9 +7,8 @@ show its own connection error instead of anything plMail wrote. This is served
 first and the process exits afterwards, so the last thing rendered is an
 explanation rather than a dead socket.
 
-The retry below is deliberately dumb — a plain reload on a timer. There is
-nothing to poll: the server that would answer a health check is the one going
-away.
+The way back waits a few seconds for this process to go, then asks /healthz
+until the new one answers. See admin--restart-return.
 #}
 {% extends '_layout/app.html.twig' %}
 
@@ -29,7 +28,7 @@ away.
             <div class="bg-surface rounded-pane shadow-sm border border-line p-8"
                  {% if restartRequested %}
                  data-controller="admin--restart-return"
-                 data-admin--restart-return-url-value="{{ path('app_admin_dashboard') }}"
+                 data-admin--restart-return-url-value="{{ returnUrl|default(path('app_admin_dashboard')) }}"
                  data-admin--restart-return-delay-value="6000"
                  {% endif %}>
                 {% if restartRequested %}
@@ -43,9 +42,12 @@ away.
                     <code class="mt-3 block rounded bg-zinc-500/10 px-2.5 py-1.5 text-xs font-mono text-ink select-all">docker compose restart php</code>
                 {% endif %}
 
-                <a href="{{ path('app_admin_dashboard') }}"
+                {# The admin panel unless the caller says otherwise. The install
+                   form does: it restarts the web process so the address just
+                   typed in takes effect, and what follows that is the inbox. #}
+                <a href="{{ returnUrl|default(path('app_admin_dashboard')) }}"
                    class="mt-6 inline-block text-sm font-medium text-accent hover:underline">
-                    {{ 'admin.restarting.back'|trans }}
+                    {{ (returnUrl is defined ? 'admin.restarting.continue' : 'admin.restarting.back')|trans }}
                 </a>
             </div>
 

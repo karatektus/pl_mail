@@ -56,6 +56,34 @@ back in the inbox. Everything else the conversation wears stays.
   posted once for every ticked row; it posts once now, which is also why there is one toast and one
   Undo for the lot.
 
+### Fixed
+
+- **Signing in with a two-factor code could leave you on the code form, its button reading
+  "Checking…" for good.** The code had been accepted — reloading showed the inbox. While the code
+  form is on screen the page behind it still fetches things, and each of those requests, turned away
+  because the sign-in was not finished, was remembered as "where you were going". After a correct
+  code you were sent to the last of them. When that was the request that refreshes the live-update
+  cookie, which has no page to show, the browser stayed where it was. It happened on installations
+  whose live updates were failing, because that is when the page keeps making that request. Only a
+  page you were actually opening is remembered now, and a part of a page loaded in the background is
+  not one.
+- **A busy Gmail or Outlook quota no longer raises an alarm, and no longer costs mail.** When a
+  provider was still rate-limiting after five retries, the job was logged at the highest level with
+  a full stack trace and parked on the failed queue — whatever the job was. For a sync that only
+  looks for what is new, that was noise: the next sync resumes from the same point. For a job
+  fetching particular messages it was worse than it looked: nothing asks for those messages again,
+  so they stayed missing until somebody retried the parked job by hand. A throttled sync is now
+  dropped with one warning, and a throttled fetch is put back to try again a quarter of an hour
+  later, up to ten times, before it is allowed to fail.
+- **A fresh install had no live updates until the container was next restarted.** The inbox did not
+  refresh by itself and the browser console showed a blocked connection to `https://localhost`. The
+  address typed into the install form was saved, but the web server had started before it existed
+  and kept telling pages to reach the live-update hub at the built-in default. The install form now
+  ends by restarting the web server, on a page that waits until it is back and then opens the inbox.
+- **The "plMail is restarting" page waits for the server instead of guessing.** It used to reload
+  after six seconds whether or not anything was listening yet, and on a slower machine that showed
+  the browser's own connection error.
+
 ### Before you upgrade
 
 - **One migration, applied on boot.** It adds two columns to `message` and two to `ai_settings`, and

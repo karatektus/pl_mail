@@ -786,6 +786,7 @@ admin:
             lead: "Neither o' these can be fished back up by resyncin': they sink the crew, the stowed mailbox passwords and the files on disk. Type the instance name to give the word — a click on its own ain't enough."
     restarting:
         back: "Back to the captain's quarters"
+        continue: "Onward"
         heading: "plMail be restartin'"
         lead: "The web container were told to go ashore and compose brings it straight back. This page reloads itself in a few seconds."
         page_title: "Restartin'"

@@ -116,35 +116,15 @@ class LoginFormAuthenticator extends AbstractLoginFormAuthenticator
      * that is not a document navigation gets the saved path removed again, so
      * the login falls back to the default.
      *
-     * The test is deliberately two-sided rather than a list of file
-     * extensions. `Sec-Fetch-Dest: document` is what a browser says about a
-     * real navigation, and every browser that has shipped in years sends it;
-     * an Accept header mentioning text/html covers a Turbo visit (which is a
-     * fetch, and says `Sec-Fetch-Dest: empty`) and anything older that sends no
-     * Sec-Fetch headers at all. An image, a stylesheet, a script or a JSON
-     * fetch matches neither.
+     * What counts as a navigation is DocumentNavigation's to say; the code
+     * form between the password and the code asks it the same question.
      */
     public function start(Request $request, ?AuthenticationException $authException = null): Response
     {
-        if (false === $this->isDocumentNavigation($request) && true === $request->hasSession()) {
+        if (false === DocumentNavigation::is($request) && true === $request->hasSession()) {
             $this->removeTargetPath($request->getSession(), 'main');
         }
 
         return parent::start($request, $authException);
     }
-
-    /**
-     * Something a person could be looking at, as opposed to something the page
-     * they were already looking at went and fetched.
-     */
-    private function isDocumentNavigation(Request $request): bool
-    {
-        if ('document' === $request->headers->get('Sec-Fetch-Dest')) {
-            return true;
-        }
-
-        return str_contains((string) $request->headers->get('Accept'), 'text/html');
-    }
-
-
 }

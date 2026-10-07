@@ -877,6 +877,7 @@ admin:
             lead: 'Beides lässt sich nicht durch erneutes Synchronisieren wiederherstellen: es löscht die Benutzer, die gespeicherten Postfach-Passwörter und die Dateien auf der Platte. Gib zur Bestätigung den Instanznamen ein — ein Klick allein genügt hier nicht.'
     restarting:
         back: 'Zurück zur Administration'
+        continue: 'Weiter'
         heading: 'plMail startet neu'
         lead: 'Der Web-Container wurde zum Beenden aufgefordert, compose startet ihn direkt neu. Diese Seite lädt sich in wenigen Sekunden selbst neu.'
         page_title: 'Neustart'

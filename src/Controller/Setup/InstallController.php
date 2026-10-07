@@ -9,6 +9,7 @@ use App\Entity\User\User;
 use App\Form\Setup\FirstAdminType;
 use App\Service\Setup\FirstAdminInstaller;
 use App\Service\Setup\InstallGuard;
+use App\Service\Monitoring\WebProcessRestart;
 use App\Service\Setup\PublicUrlSetting;
 use App\Security\LoginFormAuthenticator;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -39,6 +40,7 @@ final class InstallController extends AbstractController
         FirstAdminInstaller $installer,
         PublicUrlSetting $publicUrl,
         Security $security,
+        WebProcessRestart $webRestart,
     ): Response {
         $guard->assertAvailable();
 
@@ -95,6 +97,29 @@ final class InstallController extends AbstractController
             // yet, and asking for one would lock the installer out of the
             // install they just performed.
             $security->login($user, LoginFormAuthenticator::class);
+
+            // THE ADDRESS JUST SAVED DOES NOT REACH THIS PROCESS BY ITSELF.
+            // The web server runs in worker mode: one kernel, booted before
+            // anybody had typed a public address, serving every request since.
+            // What it derived from the environment at boot it keeps — and the
+            // browser-facing address of the live-update hub is derived from the
+            // public address. A fresh install therefore went on telling every
+            // page to connect to https://localhost, which the page's own
+            // Content-Security-Policy refuses: no live updates at all until
+            // something restarted the container, with nothing saying so.
+            //
+            // So the install ends by restarting the web process, the same way
+            // Admin → Restart does, and with the same page — the redirect it
+            // replaces would otherwise be requested while nothing was
+            // listening. Where the process cannot end itself (it is not PID 1:
+            // a dev server, the test suite) nothing is promised and the old
+            // redirect stands.
+            if (true === $webRestart->request()) {
+                return $this->render('admin/restarting.html.twig', [
+                    'restartRequested' => true,
+                    'returnUrl'        => $this->generateUrl('app_default_index'),
+                ]);
+            }
 
             return $this->redirectToRoute('app_default_index');
         }

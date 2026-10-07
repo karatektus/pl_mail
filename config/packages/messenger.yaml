@@ -224,7 +224,13 @@ framework:
         default_bus: messenger.bus.default
 
         buses:
-            messenger.bus.default: []
+            messenger.bus.default:
+                middleware:
+                    # What becomes of a sync job a provider is still
+                    # rate-limiting after its last retry. See the class: one
+                    # kind is dropped with a warning, the other is put back to
+                    # wait, and neither is a CRITICAL any more.
+                    - App\Infrastructure\Messaging\Middleware\GiveUpQuietlyOnThrottling
 
         routing:
             # Admin "run now" buttons dispatch this; the scheduler dispatches
