@@ -9,9 +9,11 @@ use App\Entity\Job\BackgroundJob;
 use App\Entity\Mail\MessageThread;
 use App\Infrastructure\Messaging\Message\RunBulkStatusMessage;
 use App\Repository\Job\BackgroundJobRepository;
+use App\Repository\Label\LabelRepository;
 use App\Repository\Mail\MessageThreadRepository;
 use App\Service\Job\JobNotifier;
 use App\Service\Mail\ListViewResolver;
+use App\Service\Mail\MoveToService;
 use App\Service\Mail\ThreadSnoozeService;
 use App\Service\Mail\ThreadStatusUpdater;
 use DateTimeImmutable;
@@ -90,6 +92,8 @@ final readonly class RunBulkStatusHandler
         private ListViewResolver        $views,
         private ThreadStatusUpdater     $status,
         private ThreadSnoozeService     $snooze,
+        private MoveToService           $moveTo,
+        private LabelRepository         $labels,
         private JobNotifier             $notifier,
         private EntityManagerInterface  $em,
         private ManagerRegistry         $registry,
@@ -222,6 +226,15 @@ final readonly class RunBulkStatusHandler
         $userId = (int) $job->usr->id;
         $jobId  = (int) $job->id;
 
+        // Scalars, for the reason the thread ids below are: the chunk loop
+        // clears the EntityManager, so the job this is read from does not
+        // survive its first pass. Only a move-to job carries a label.
+        $view = [
+            'scope'   => (string) $job->view['scope'],
+            'value'   => (string) $job->view['value'],
+            'labelId' => (int) ($job->view['labelId'] ?? 0),
+        ];
+
         // IDS, NOT ENTITIES, and this is the whole correctness argument for the
         // loop below. Every chunk ends in an EntityManager clear, which
         // detaches every object this list is holding — so from the second chunk
@@ -242,7 +255,7 @@ final readonly class RunBulkStatusHandler
         $processed = 0;
 
         foreach (array_chunk($ids, self::CHUNK) as $chunk) {
-            $this->applyWithRetry($chunk, $action, $read, $userId, $until);
+            $this->applyWithRetry($chunk, $action, $read, $userId, $until, $view);
 
             $processed += count($chunk);
 
@@ -314,13 +327,14 @@ final readonly class RunBulkStatusHandler
      * wait that timed out. Anything else is a real failure and goes straight
      * up, unretried.
      *
-     * @param list<int> $chunk
+     * @param list<int>                                           $chunk
+     * @param array{scope: string, value: string, labelId: int} $view
      */
-    private function applyWithRetry(array $chunk, string $action, bool $read, int $userId, ?DateTimeImmutable $until = null): void
+    private function applyWithRetry(array $chunk, string $action, bool $read, int $userId, ?DateTimeImmutable $until, array $view): void
     {
         for ($attempt = 1; ; ++$attempt) {
             try {
-                $this->apply($chunk, $action, $read, $userId, $until);
+                $this->apply($chunk, $action, $read, $userId, $until, $view);
 
                 return;
             } catch (RetryableException $e) {
@@ -355,11 +369,13 @@ final readonly class RunBulkStatusHandler
      * Takes IDS and loads the threads itself, because the caller's list does
      * not survive the clear at the foot of this method. See run().
      *
-     * @param list<int> $threadIds
+     * @param list<int>                                           $threadIds
+     * @param array{scope: string, value: string, labelId: int} $view
      */
-    private function apply(array $threadIds, string $action, bool $read, int $userId, ?DateTimeImmutable $until = null): void
+    private function apply(array $threadIds, string $action, bool $read, int $userId, ?DateTimeImmutable $until, array $view): void
     {
         $byAccount = [];
+        $owned     = [];
 
         foreach ($this->threads->findBy(['id' => $threadIds]) as $thread) {
             // The last check before a write. The resolver selected these for
@@ -380,9 +396,35 @@ final readonly class RunBulkStatusHandler
                 continue;
             }
 
+            $owned[] = $thread;
+
             foreach ($thread->messages as $message) {
                 $byAccount[(int) $message->account?->id][] = $message;
             }
+        }
+
+        // The same service and the same plan the inline path uses, so a move
+        // over a whole view means exactly what it means for three ticked rows.
+        // The target is re-read per chunk because the clear below detaches it,
+        // and re-checked because BulkStatusController accepted it minutes ago:
+        // a label deleted or handed to a role since then is a move to nowhere.
+        if ('move-to' === $action) {
+            $target = $this->labels->find($view['labelId']);
+
+            if (null === $target || (int) $target->usr?->id !== $userId || false === $this->moveTo->accepts($target)) {
+                throw new \LogicException('The label this move was started for is no longer one mail can be moved to.');
+            }
+
+            if ([] !== $owned) {
+                $this->moveTo->move(
+                    $owned,
+                    $this->moveTo->plan($owned[0]->account->usr, $target, $view['scope'], $view['value']),
+                );
+            }
+
+            $this->em->clear();
+
+            return;
         }
 
         foreach ($byAccount as $messages) {

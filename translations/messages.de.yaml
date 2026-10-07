@@ -2004,6 +2004,7 @@ jobs:
         restore: Wiederherstellen
         snooze: Zurückstellen
         wake: Zurückholen
+        move_to: Verschieben
         reclassify: Sortiert neueste Mail neu
     state:
         done: '%count% erledigt'
@@ -3786,6 +3787,7 @@ thread_row:
     unstar: Markierung dieser Nachricht entfernen
 
 toast:
+    archived: Unterhaltung archiviert.
     categorised: 'Nach %category% verschoben'
     dismiss: Schließen
     labelled: 'Label %label% vergeben'
@@ -3795,6 +3797,9 @@ toast:
     send_failed: 'Diese Nachricht konnte nicht gesendet werden: %subject%'
     sent: Nachricht gesendet.
     undo: Rückgängig
+    undo_expired: Das lässt sich nicht mehr rückgängig machen.
+    undone: Rückgängig gemacht.
+    unlabelled: 'Label %label% entfernt'
 
 toolbar:
     view_select:
@@ -3808,6 +3813,7 @@ toolbar:
         label: Label vergeben
         mark_read: Als gelesen markieren
         mark_unread: Als ungelesen markieren
+        move_to: Verschieben nach
         snooze: Zurückstellen
     filter:
         show_all: Alle anzeigen

@@ -1,0 +1,25 @@
+{#
+The toast after an action that can be undone: what happened, and an Undo.
+
+One file because three actions end the same way — archive, a label change and
+"Move to" — and the parts that must not drift between them are all here: which
+controller the button is wired to, where it posts, and how long it stays.
+
+Eight seconds rather than the usual four. A plain toast is read and dismissed;
+this one has to be read, understood as a mistake, and reached with a pointer
+that was on the other side of the screen. The token is single use and the
+session holds only the last few (StatusUndoService), so the button going away
+with the toast is the interface agreeing with what the server would say.
+
+Variables:
+  message    already translated
+  undoToken  from StatusUndoService::remember()
+#}
+{% include '_partials/_toast.stream.html.twig' with {
+    message: message,
+    extra: {
+        undo_url:        path('app_status_undo_run', { token: undoToken }),
+        undo_controller: 'mail--status-undo',
+        hide_after:      8000,
+    },
+} only %}

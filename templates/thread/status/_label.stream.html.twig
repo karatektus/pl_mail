@@ -3,6 +3,12 @@ Turbo stream after a label attach/detach.
 NOTE: mirror the structure of _star.stream.html.twig — replace the affected
 thread/message row so its label chips re-render. Adjust the target id
 pattern to whatever _star.stream uses (e.g. "thread_row_{id}").
+
+Variables:
+  thread | message  what was labelled
+  label             the label
+  attach            true when it was put on, false when it was taken off
+  undoToken         optional; puts an Undo in the toast
 #}
 {% if thread is defined %}
     <turbo-stream action="replace" target="thread_{{ thread.id }}">
@@ -10,4 +16,11 @@ pattern to whatever _star.stream uses (e.g. "thread_row_{id}").
             {% include '_partials/_thread_row.html.twig' with { thread: thread } %}
         </template>
     </turbo-stream>
+{% endif %}
+
+{% if undoToken|default(null) is not null %}
+    {% include 'thread/status/_undo_toast.stream.html.twig' with {
+        message:   (attach ? 'toast.labelled' : 'toast.unlabelled')|trans({ '%label%': label|label_name }),
+        undoToken: undoToken,
+    } only %}
 {% endif %}

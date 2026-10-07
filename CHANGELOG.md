@@ -6,6 +6,32 @@ so anything that changes the schema irreversibly is called out explicitly.
 The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, and `sha-…` pins one commit.
 
+## Unreleased
+
+**"Move to" files a conversation under a label in one step.** There was a label button, which adds a
+label and leaves the mail where it is, and dragging onto a folder, which only works with a pointer
+and a sidebar in reach. Filing mail the way Gmail does — label it and get it out of the list you are
+in — took two actions. A folder button beside the label button now does it in one, for a selection
+in the list and for an open conversation: the label you pick goes on, and the label of the list you
+were looking at comes off. From the inbox that is "label and archive"; from a label it swaps one
+label for the other; from **Trash** or **Spam** it takes the mail out of the bin without putting it
+back in the inbox. Everything else the conversation wears stays.
+
+- **The picker offers the Inbox, your labels, Spam and Trash**, and applies the one you click at
+  once. The list you are already in, a label the conversation already has, and the bin for mail
+  already in it are left off. See [Mail → Move to](docs/features/mail.md#move-to).
+- **Archive, label changes and moves can be undone.** Each shows an **Undo** for eight seconds, and
+  it puts back exactly the labels every conversation had, rather than reversing the action — so an
+  already-archived conversation that was ticked along with the rest stays archived. Dragging onto a
+  folder gets the same Undo. An action over a whole view runs in the background and has none.
+- **Labelling a selection is one request, not one per conversation.** The toolbar's label menu
+  posted once for every ticked row; it posts once now, which is also why there is one toast and one
+  Undo for the lot.
+
+### Before you upgrade
+
+- **Nothing has to change.** There is no migration and no new setting.
+
 ## v0.2.58 — 2026-10-04
 
 **A link wrapped around a table is a link again.** Newsletters and job alerts build each card as one

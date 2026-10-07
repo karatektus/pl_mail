@@ -39,12 +39,19 @@ reporting on.
         <span class="min-w-0" data-toast-message>{{ message }}</span>
 
         {% if extra.undo_url is defined %}
+            {# Which controller answers the click. A send is called off by
+               compose--undo-send, which is what this button was built for and
+               stays the default; a filing action is put back by
+               mail--status-undo, which also has to re-read the list. Both take
+               the same two values and the same action name, so the choice is
+               one identifier rather than a second button. #}
+            {% set undo = extra.undo_controller ?? 'compose--undo-send' %}
             <span data-ui--toast-target="countdown" class="text-ink-faint tabular-nums"></span>
             <button
-                data-controller="compose--undo-send"
-                data-compose--undo-send-url-value="{{ extra.undo_url }}"
-                data-compose--undo-send-hide-after-value="{{ extra.hide_after ?? 4000 }}"
-                data-action="click->compose--undo-send#abort"
+                data-controller="{{ undo }}"
+                data-{{ undo }}-url-value="{{ extra.undo_url }}"
+                data-{{ undo }}-hide-after-value="{{ extra.hide_after ?? 4000 }}"
+                data-action="click->{{ undo }}#abort"
                 class="text-accent underline underline-offset-2 font-semibold
                        hover:opacity-70 transition-opacity cursor-pointer whitespace-nowrap"
             >

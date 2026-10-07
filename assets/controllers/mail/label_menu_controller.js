@@ -6,6 +6,10 @@ import { requestFailed } from "../../request_errors.js";
  * "Label as" dropdown. Toggles a label on the target thread/message via the
  * status endpoint and re-renders through the returned Turbo Stream.
  *
+ * Routes used:
+ *   single → POST /status/{type}/{id}/label
+ *   bulk   → POST /status/bulk/label, once for the whole selection
+ *
  * Values:
  *   targetType — "thread" | "message"
  *   targetId   — entity id; omitted in bulk mode, in which case the ids are
@@ -78,18 +82,29 @@ export default class extends Controller {
 
         const targets = this._resolveTargets();
 
-        // Stops at the first failure: one toast rather than one per row, and
-        // the tick below stays as it was instead of promising a change that
-        // did not happen.
-        for (const target of targets) {
-            const ok = await this._post(
-                `/status/${target.type}/${target.id}/label`,
+        if (0 === targets.length) {
+            return;
+        }
+
+        // Bulk mode is ONE request for the whole selection. It used to be one
+        // per ticked row, which was merely chatty until the answer gained a
+        // toast with an Undo in it — five conversations labelled was five
+        // toasts, each offering to take the label back off one of them.
+        // /status/bulk/label answers once, with one Undo for all of it.
+        const ok = this.hasTargetIdValue
+            ? await this._post(
+                `/status/${targets[0].type}/${targets[0].id}/label`,
                 { labelId: labelId, attach: attach },
+            )
+            : await this._post(
+                "/status/bulk/label",
+                { ids: targets.map((target) => target.id), labelId: labelId, attach: attach },
             );
 
-            if (false === ok) {
-                return;
-            }
+        // The tick below stays as it was instead of promising a change that
+        // did not happen.
+        if (false === ok) {
+            return;
         }
 
         button.dataset.attached = attach ? "true" : "false";

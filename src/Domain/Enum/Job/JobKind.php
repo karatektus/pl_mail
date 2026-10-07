@@ -29,6 +29,12 @@ enum JobKind: string
     case Wake   = 'wake';
 
     /**
+     * "Move to" over a whole view. The target label travels on the job beside
+     * the view (`view.labelId`), as a snooze's wake time does.
+     */
+    case MoveTo = 'move_to';
+
+    /**
      * Asking the assistant again about mail it has already sorted.
      *
      * THE ODD ONE OUT, and deliberately admitted rather than disguised. Every
@@ -65,6 +71,7 @@ enum JobKind: string
             self::Trash                      => 'trash',
             self::Restore                    => 'restore',
             self::Snooze, self::Wake         => 'snooze',
+            self::MoveTo                     => 'move-to',
             // Reclassify has no bulk action behind it and no caller that could
             // want one: RunBulkStatusHandler is the only reader of this method
             // and only ever holds a kind it was dispatched for. Throwing beats
@@ -90,6 +97,7 @@ enum JobKind: string
             'archive' => self::Archive,
             'trash'   => self::Trash,
             'restore' => self::Restore,
+            'move-to' => self::MoveTo,
             default   => throw new \InvalidArgumentException(sprintf('Unknown bulk action "%s".', $action)),
         };
     }

@@ -15,6 +15,8 @@ use App\Infrastructure\Messaging\Message\RunBulkStatusMessage;
 use App\Repository\Label\LabelRepository;
 use App\Repository\Mail\MessageThreadRepository;
 use App\Security\Voter\OwnershipVoter;
+use App\Service\Mail\MoveToService;
+use App\Service\Mail\StatusUndoService;
 use App\Service\Mail\ThreadSnoozeService;
 use App\Service\Mail\ThreadStatusUpdater;
 use DateTimeImmutable;
@@ -51,6 +53,11 @@ final class BulkStatusController extends AbstractController
      * them can arrive in. Spelled as a list rather than inline so the guard
      * below and this reasoning stay in one place as they are joined.
      *
+     * `label` has a second caller now — the toolbar's label menu, which sends
+     * the ticked rows — and still no whole-view one. `move-to` is absent on
+     * purpose: it is a toolbar button, the toolbar can select a whole view,
+     * and JobKind::MoveTo runs it.
+     *
      * @var list<string>
      */
     private const array EXPLICIT_ONLY = ['move', 'label', 'category', 'star'];
@@ -62,6 +69,8 @@ final class BulkStatusController extends AbstractController
         private readonly EntityManagerInterface  $entityManager,
         private readonly MessageBusInterface     $bus,
         private readonly ThreadSnoozeService     $snoozeService,
+        private readonly MoveToService           $moveTo,
+        private readonly StatusUndoService       $undo,
     ) {
     }
 
@@ -83,7 +92,7 @@ final class BulkStatusController extends AbstractController
      *      than as the URL the user is on — it is resolved by
      *      RunBulkStatusHandler now, where the work happens.
      */
-    #[Route('/{action}', name: 'run', methods: ['POST'], requirements: ['action' => 'archive|trash|read|restore|snooze|move|label|category|star'])]
+    #[Route('/{action}', name: 'run', methods: ['POST'], requirements: ['action' => 'archive|trash|read|restore|snooze|move|move-to|label|category|star'])]
     public function bulk(Request $request, string $action): Response
     {
         $this->assertCsrf($request, 'ajax');
@@ -106,6 +115,36 @@ final class BulkStatusController extends AbstractController
             );
         }
 
+        // Resolved and refused ahead of the whole-view hand-off below as well
+        // as ahead of the inline path, because this is the one payload-carrying
+        // action that can take either: a job started for a label that is
+        // somebody else's would fail in a worker, minutes later, in a log.
+        $target = null;
+
+        if ('move-to' === $action) {
+            // The Inbox, Spam and Trash rows name a role rather than an id —
+            // see MoveToService::systemTarget() for why they cannot rely on
+            // one. Everything else is a label the user made, by id.
+            $target = '' !== (string) ($body['role'] ?? '')
+                ? $this->moveTo->systemTarget($user, (string) $body['role'])
+                : $this->labelRepository->find((int) ($body['labelId'] ?? 0));
+
+            if (null === $target) {
+                throw $this->createAccessDeniedException('Unknown destination label.');
+            }
+
+            $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $target);
+
+            // The picker offers the Inbox, the user's labels, Spam and Trash.
+            // MoveToService::accepts() is that list for a caller that is not
+            // the picker.
+            if (false === $this->moveTo->accepts($target)) {
+                throw $this->createAccessDeniedException(
+                    sprintf('Mail cannot be moved to %s.', $target->role?->value),
+                );
+            }
+        }
+
         // A WHOLE VIEW GOES TO A WORKER. An explicit list of ids does not.
         //
         // The two are different sizes by construction: a list of ids comes from
@@ -121,7 +160,7 @@ final class BulkStatusController extends AbstractController
         // finishes in milliseconds, and answering it with "started" instead of
         // the result would make every ordinary archive feel slower.
         if (true === ($body['all'] ?? false)) {
-            return $this->startJob($user, $action, $body);
+            return $this->startJob($user, $action, $body, $target?->id);
         }
 
         // THE DROP PAYLOADS ARE READ AND REFUSED BEFORE ANY WORK IS DONE.
@@ -182,6 +221,10 @@ final class BulkStatusController extends AbstractController
         // correct, and there are rarely more than three.
         $byAccount = [];
 
+        // The same messages, ungrouped: what an Undo has to remember is the
+        // selection as a whole, whichever account each part of it is on.
+        $selected = [];
+
         foreach ($threads as $thread) {
             // Every thread, not just the first: the ids arrive from a browser
             // and a selection can be edited before it is posted.
@@ -189,6 +232,7 @@ final class BulkStatusController extends AbstractController
 
             foreach ($thread->messages as $message) {
                 $byAccount[(int) $message->account?->id][] = $message;
+                $selected[]                                 = $message;
             }
         }
 
@@ -197,6 +241,41 @@ final class BulkStatusController extends AbstractController
                 'count'   => 0,
                 'threads' => [],
                 'leaves'  => false,
+            ]);
+        }
+
+        // MOVE TO — the target on, the label of the list it was started from
+        // off. The request names that list and nothing more; which label comes
+        // off is MoveToService::plan()'s answer, not the client's.
+        if ('move-to' === $action) {
+            $scope = (string) ($body['scope'] ?? '');
+            $value = (string) ($body['value'] ?? '');
+            $move  = $this->moveTo->plan($user, $target, $scope, $value);
+
+            // Moving a conversation to the list it is already in. The picker
+            // hides that entry; answered as "nothing happened" rather than
+            // refused, because that is what it is.
+            if (true === $move->isNoop) {
+                return $this->renderTurboStream('thread/status/_bulk.stream.html.twig', [
+                    'count'   => 0,
+                    'threads' => [],
+                    'leaves'  => false,
+                ]);
+            }
+
+            $undoToken = $this->undo->remember($selected);
+
+            $this->moveTo->move($threads, $move);
+
+            return $this->renderTurboStream('thread/status/_moved_to.stream.html.twig', [
+                'count'     => count($threads),
+                'threads'   => $threads,
+                'label'     => $target,
+                'staying'   => array_values(array_filter(
+                    $threads,
+                    fn ($thread): bool => $this->moveTo->staysInView($thread, $user, $scope, $value),
+                )),
+                'undoToken' => $undoToken,
             ]);
         }
 
@@ -292,14 +371,24 @@ final class BulkStatusController extends AbstractController
                 throw $this->createAccessDeniedException('System state is moved into, not labelled with.');
             }
 
+            // Absent means attach, which is all a drop has ever asked for. The
+            // toolbar's label menu is the caller that sends it: it used to
+            // post once per ticked row to /status/thread/{id}/label, which was
+            // one toast and one Undo per conversation the moment that route
+            // gained them.
+            $attach    = false !== ($body['attach'] ?? true);
+            $undoToken = $this->undo->remember($selected);
+
             foreach ($byAccount as $messages) {
-                $this->status->applyLabel($messages, $label, true);
+                $this->status->applyLabel($messages, $label, $attach);
             }
 
             return $this->renderTurboStream('thread/status/_labelled.stream.html.twig', [
-                'count'   => count($threads),
-                'threads' => $threads,
-                'label'   => $label,
+                'count'     => count($threads),
+                'threads'   => $threads,
+                'label'     => $label,
+                'attach'    => $attach,
+                'undoToken' => $undoToken,
             ]);
         }
 
@@ -309,6 +398,8 @@ final class BulkStatusController extends AbstractController
         // know nothing about, and only the reader can see that the two
         // conditions are the same condition.
         if ('move' === $action) {
+            $undoToken = $this->undo->remember($selected);
+
             foreach ($byAccount as $messages) {
                 $this->status->move($messages, $destination);
             }
@@ -321,11 +412,19 @@ final class BulkStatusController extends AbstractController
             // conversation gone from the list and nothing on screen saying
             // where it went.
             return $this->renderTurboStream('thread/status/_move.stream.html.twig', [
-                'count'   => count($threads),
-                'threads' => $threads,
-                'label'   => $destination,
+                'count'     => count($threads),
+                'threads'   => $threads,
+                'label'     => $destination,
+                'undoToken' => $undoToken,
             ]);
         }
+
+        // Archive is the one of these four with an Undo, so it is the one whose
+        // "before" is written down. Trash has the bin and Restore; read has
+        // the button beside it.
+        $undoToken = 'archive' === $action
+            ? $this->undo->remember($selected)
+            : null;
 
         foreach ($byAccount as $messages) {
             match ($action) {
@@ -339,9 +438,9 @@ final class BulkStatusController extends AbstractController
             // requirement and forgets this arm, a silent no-op is the worst
             // possible answer for an action that says it deleted things.
             //
-            // move, label, category and star are not here on purpose: each is
-            // handled by a branch of its own above, which is where the payload
-            // they need is resolved.
+            // move, move-to, label, category and star are not here on purpose:
+            // each is handled by a branch of its own above, which is where the
+            // payload they need is resolved.
                 default   => throw $this->createNotFoundException(sprintf('Unknown bulk action "%s".', $action)),
             };
         }
@@ -353,7 +452,9 @@ final class BulkStatusController extends AbstractController
             // from. Archive, trash and restore all move it somewhere else;
             // marking read leaves it exactly where it was and only changes how
             // it draws.
-            'leaves'  => 'read' !== $action,
+            'leaves'    => 'read' !== $action,
+            'undoToken' => $undoToken,
+            'undoToast' => 'toast.archived',
         ]);
     }
     /**
@@ -364,8 +465,11 @@ final class BulkStatusController extends AbstractController
      * instead of a spinner waiting for a worker to pick the envelope up.
      *
      * @param array<string, mixed> $body
+     * @param int|null             $labelId the resolved target of a move-to;
+     *                             the id rather than what the body said,
+     *                             because the body may have named a role
      */
-    private function startJob(User $user, string $action, array $body): Response
+    private function startJob(User $user, string $action, array $body, ?int $labelId = null): Response
     {
         $until = 'snooze' === $action ? self::snoozeUntil($body) : null;
         $job   = new BackgroundJob($user, JobKind::forAction($action, true === ($body['read'] ?? true), null === $until));
@@ -376,10 +480,15 @@ final class BulkStatusController extends AbstractController
             'unreadOnly' => true === ($body['unreadOnly'] ?? false),
         ];
 
-        // The one action with a payload the worker needs. On the job with the
+        // The two actions with a payload the worker needs. On the job with the
         // view rather than in the envelope, for the reason the view is there.
         if ('snooze' === $action) {
             $job->view['until'] = $until?->format(DATE_ATOM);
+        }
+
+        // Already resolved, owned and accepted by bulk() before it got here.
+        if ('move-to' === $action) {
+            $job->view['labelId'] = $labelId;
         }
 
         $this->entityManager->persist($job);

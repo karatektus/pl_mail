@@ -21,16 +21,17 @@ tall, and it ends with the conversation gone from the list and no statement
 anywhere about where it landed. Naming the folder is what turns "it vanished"
 into "it is in Receipts".
 
-No undo offered, deliberately. It would have to remember the label each
-conversation came out of, which for a selection spanning folders is not one
-value; and unlike a send there is no window in which the thing can still be
-called back — the move has landed, and the way back is the folder now named on
-screen.
+Undo is offered, through the snapshot StatusUndoService takes before the move.
+This file used to argue against one — it would have had to remember the label
+each conversation came out of, which for a selection spanning folders is not
+one value. That is exactly what the snapshot is: every message's own labels,
+written down per message rather than as "the folder they were in".
 
 Variables:
   count    how many conversations were moved
   threads  the conversations, so their rows can be removed
   label    the destination, for the toast
+  undoToken  optional; puts an Undo in the toast
 #}
 {% include 'thread/status/_bulk.stream.html.twig' with {
     count:   count,
@@ -38,4 +39,11 @@ Variables:
     leaves:  true,
 } only %}
 
-{% include '_partials/_toast.stream.html.twig' with { message: 'toast.moved'|trans({ '%folder%': label|label_name }) } only %}
+{% if undoToken|default(null) is not null %}
+    {% include 'thread/status/_undo_toast.stream.html.twig' with {
+        message:   'toast.moved'|trans({ '%folder%': label|label_name }),
+        undoToken: undoToken,
+    } only %}
+{% else %}
+    {% include '_partials/_toast.stream.html.twig' with { message: 'toast.moved'|trans({ '%folder%': label|label_name }) } only %}
+{% endif %}

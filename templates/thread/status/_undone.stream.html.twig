@@ -1,0 +1,16 @@
+{#
+The answer to an Undo.
+
+A toast and nothing else. The rows that come back are not drawn from here: they
+return to a sorted, paginated list whose counts they change, and the client
+re-reads the list frame for that — see mail--status-undo.
+
+Variables:
+  restored  false when the token named nothing any more, which is said rather
+            than passed off as success
+#}
+{% if restored %}
+    {% include '_partials/_toast.stream.html.twig' with { message: 'toast.undone'|trans } only %}
+{% else %}
+    {% include '_partials/_toast.stream.html.twig' with { message: 'toast.undo_expired'|trans, type: 'info' } only %}
+{% endif %}

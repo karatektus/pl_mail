@@ -2004,6 +2004,7 @@ jobs:
         restore: Restoring
         snooze: Snoozing
         wake: Bringing back from snooze
+        move_to: Moving
         reclassify: Sorting recent mail again
     state:
         done: '%count% done'
@@ -3772,6 +3773,10 @@ thread_row:
     unstar: Unstar this message
 
 toast:
+    # After Archive, from a row, the reading pane or the toolbar. The row is
+    # gone, which is also what a slip of the pointer looks like — this says
+    # which it was, beside an Undo.
+    archived: Conversation archived.
     # After a conversation is dropped on a category tab. The row it names
     # has just disappeared off the list, and the tab it went to may not be
     # on the strip at all — the strip only shows categories holding mail —
@@ -3794,6 +3799,12 @@ toast:
     send_failed: 'That message could not be sent: %subject%'
     sent: Message sent.
     undo: Undo
+    # The Undo was pressed twice, or after newer actions pushed it out. Said
+    # plainly: the button promised to put something back and has not.
+    undo_expired: That can no longer be undone.
+    undone: Undone.
+    # The label menu took a label off. The counterpart of `labelled`.
+    unlabelled: 'Removed label %label%'
 
 toolbar:
     view_select:
@@ -3809,6 +3820,7 @@ toolbar:
         label: Label as
         mark_read: Mark as read
         mark_unread: Mark as unread
+        move_to: Move to
         snooze: Snooze
     filter:
         show_all: Show all

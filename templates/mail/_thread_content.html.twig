@@ -9,8 +9,16 @@ self-contained: no {% extends %}, no block dependencies.
 {% import 'mail/_thread_summary.html.twig' as thread_summary %}
 
 {% set threadLabelIds = [] %}
+{# The same, without the system labels — what the Move to picker leaves out.
+   Built as a list here rather than filtered in place: `|filter|map` on a
+   collection is an iterator with its original keys, and that reaches the
+   Stimulus value as a JSON object instead of the array it declares. #}
+{% set threadOwnLabelIds = [] %}
 {% for label in thread.labels %}
     {% set threadLabelIds = threadLabelIds|merge([label.id]) %}
+    {% if label.role is null %}
+        {% set threadOwnLabelIds = threadOwnLabelIds|merge([label.id]) %}
+    {% endif %}
 {% endfor %}
 
 {# The whole pane is a white sheet while a conversation is open (see the
@@ -55,6 +63,19 @@ self-contained: no {% extends %}, no block dependencies.
         targetType:   'thread',
         targetId:     thread.id,
         activeLabels: threadLabelIds,
+    } only %}
+
+    {# `carried` is the user's own labels only, which is also all a list row publishes
+       (`data-label-ids`), so the two pickers hide the same things. The
+       Inbox is left out on purpose: from a label view, "Move to Inbox" on
+       mail that is already in the inbox is still a real action — it takes
+       this label off — and hiding it would remove the only way to say so
+       from here. #}
+    {% include '_partials/_move_menu.html.twig' with {
+        labels:   sidebarCounts.flattenedUserLabels(),
+        targetId: thread.id,
+        carried:  threadOwnLabelIds,
+        placement: mail_placement(thread),
     } only %}
 
     <span class="ml-2 text-sm text-ink-faint truncate min-w-0">

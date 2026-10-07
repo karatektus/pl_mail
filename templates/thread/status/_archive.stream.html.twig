@@ -1,2 +1,12 @@
 <turbo-stream action="remove" target="thread_{{ message is defined ? message.id : thread.id }}">
 </turbo-stream>
+
+{# Archive is a button whose result is a row that is no longer there, which is
+   also what a slip of the pointer looks like. The toast says which of the two
+   it was and offers the way back. #}
+{% if undoToken|default(null) is not null %}
+    {% include 'thread/status/_undo_toast.stream.html.twig' with {
+        message:   'toast.archived'|trans,
+        undoToken: undoToken,
+    } only %}
+{% endif %}

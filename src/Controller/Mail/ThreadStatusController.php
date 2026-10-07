@@ -14,6 +14,7 @@ use App\Security\Voter\OwnershipVoter;
 use App\Service\Mail\ThreadSnoozeService;
 use App\Service\Mail\MailPlacement;
 use App\Service\Mail\MessagePurger;
+use App\Service\Mail\StatusUndoService;
 use App\Service\Mail\ThreadStatusUpdater;
 use DateTimeImmutable;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -46,6 +47,7 @@ class ThreadStatusController extends AbstractController
         private readonly ThreadSnoozeService     $snoozeService,
         private readonly MessagePurger          $purger,
         private readonly MailPlacement          $placement,
+        private readonly StatusUndoService      $undo,
     ) {}
 
     #[Route('/star', name: 'star', methods: ['POST'])]
@@ -66,10 +68,16 @@ class ThreadStatusController extends AbstractController
     {
         $messages = $this->resolveMessages($request, $type, $id);
 
+        // Before the archive, not after: what Undo puts back is what the
+        // messages carried, and a snapshot taken a line later is a record of
+        // the thing to be undone. See StatusUndoService.
+        $undoToken = $this->undo->remember($messages);
+
         $this->status->archive($messages);
 
         return $this->renderTurboStream('thread/status/_archive.stream.html.twig', [
-            $type => 'message' === $type ? $messages[0] : $messages[0]->thread,
+            $type       => 'message' === $type ? $messages[0] : $messages[0]->thread,
+            'undoToken' => $undoToken,
         ]);
     }
 
@@ -169,12 +177,15 @@ class ThreadStatusController extends AbstractController
             throw $this->createAccessDeniedException();
         }
 
+        $undoToken = $this->undo->remember($messages);
+
         $this->status->applyLabel($messages, $label, $attach);
 
         return $this->renderTurboStream('thread/status/_label.stream.html.twig', [
-            $type   => 'message' === $type ? $messages[0] : $messages[0]->thread,
-            'label'  => $label,
-            'attach' => $attach,
+            $type       => 'message' === $type ? $messages[0] : $messages[0]->thread,
+            'label'     => $label,
+            'attach'    => $attach,
+            'undoToken' => $undoToken,
         ]);
     }
 

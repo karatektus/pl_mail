@@ -40,6 +40,9 @@ Variables:
   threads  the conversations, for redrawing their rows
   leaves   true when the action takes them out of THIS list (archive, trash,
            restore) rather than changing them in place (read)
+  undoToken  optional; when set the action can be undone, and says so in a
+             toast — see _undo_toast.stream.html.twig
+  undoToast  the translation key for that toast's sentence
 #}
 <!-- plmail-bulk: {{ count }} -->
 
@@ -55,3 +58,10 @@ Variables:
         </turbo-stream>
     {% endif %}
 {% endfor %}
+
+{% if undoToken|default(null) is not null and count > 0 %}
+    {% include 'thread/status/_undo_toast.stream.html.twig' with {
+        message:   undoToast|trans,
+        undoToken: undoToken,
+    } only %}
+{% endif %}

@@ -192,6 +192,28 @@ export default class extends Controller {
         await this._bulkPost("snooze", { until });
     }
 
+    /**
+     * "Move to", for the selection. The target arrives in the event the move
+     * menu dispatches (mail--move-menu:picked) rather than as a param, because
+     * the menu is a controller of its own and only this one knows what is
+     * selected — the ticked rows, or the whole view.
+     *
+     * The view goes with every bulk post already, and here it is not just for
+     * resolving a whole-view selection: it is how the server knows which label
+     * the move takes off. See App\Service\Mail\MoveToService.
+     */
+    async moveSelected(event) {
+        const { labelId, role } = event.detail ?? {};
+
+        if (!labelId && !role) {
+            return;
+        }
+
+        // One or the other: a label the user made by id, a system place by
+        // role. Whichever the menu sent is passed on as it came.
+        await this._bulkPost("move-to", role ? { role } : { labelId });
+    }
+
     // ── Private ───────────────────────────────────────────────────────────
 
     /** All row checkboxes in the visible list */
@@ -229,8 +251,8 @@ export default class extends Controller {
     /**
      * One request for the whole selection.
      *
-     * @param {string} action - POST /status/bulk/{action}: archive | trash | read | restore | snooze
-     * @param {object} body   - optional JSON body (e.g. { read: true }, { until })
+     * @param {string} action - POST /status/bulk/{action}: archive | trash | read | restore | snooze | move-to
+     * @param {object} body   - optional JSON body (e.g. { read: true }, { until }, { labelId } or { role })
      *
      * It used to be one request per conversation, fired in parallel. That is
      * survivable for the fifty rows a page holds and impossible for what this

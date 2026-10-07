@@ -1,0 +1,127 @@
+{#
+_move_menu.html.twig
+─────────────────────────────────────────────────────────────────────────────
+"Move to" picker for the list toolbar and the thread view toolbar. Sits beside
+_label_menu.html.twig and is the same panel on purpose — same button, same
+surface, same indentation for nested labels — so the two read as a pair.
+
+What it does not share is the interaction. The label menu is a set of ticks:
+it stays open, and each click adds or removes one label. This is a choice of
+ONE destination: no ticks, no confirm, the click applies the move and the panel
+closes. So there is no `attached` state here and nothing to keep in step with
+the selection.
+
+No "Create new" row either, and not by oversight: a move needs somewhere that
+exists, and the modal that creates a label comes back to a panel that has
+closed. The label menu next door is where labels are made.
+
+The entry for the list being looked at is hidden by the controller when the
+panel opens, not here. The reading pane's copy is rendered by a request that
+has no list behind it, so only the browser knows which view that is.
+
+Variables:
+  labels      Label[]   flat list of the user's custom labels (role null),
+                        pre-ordered; indentation derives from label.depth
+  targetId    int|null  the thread, in the reading pane; when null the pick is
+                        handed to mail--list-toolbar, which owns the selection
+  carried     int[]     ids of the labels the thread already has (reading pane
+                        only); those are not offered, because a conversation
+                        cannot be moved to where it already is. In the list the
+                        controller reads the same thing off the ticked rows.
+  placement   string    where the thread sits, from mail_placement() (reading
+                        pane only): `trash` or `spam` takes that entry off the
+                        picker. In the list, the view says the same thing.
+#}
+{% set LabelRole = enum('App\\Domain\\Enum\\Mail\\LabelRole') %}
+{% set entry_class = 'w-full flex items-center gap-2 px-3 py-1.5 text-sm text-left
+                      text-ink-soft hover:bg-hover transition-colors cursor-pointer' %}
+
+<div data-controller="mail--move-menu"
+     {% if targetId is defined and targetId is not null %}data-mail--move-menu-target-id-value="{{ targetId }}"{% endif %}
+     data-mail--move-menu-carried-value="{{ carried|default([])|json_encode }}"
+     data-mail--move-menu-placement-value="{{ placement|default('') }}"
+     {# The bulk copy only announces what was picked. The toolbar it sits in
+        knows the selection — including "everything in this view", which no
+        row checkbox records — so the toolbar is what posts it. Left off the
+        reading pane's copy, which has no toolbar above it to hear. #}
+     {% if targetId is not defined or targetId is null %}data-action="mail--move-menu:picked->mail--list-toolbar#moveSelected"{% endif %}
+     class="relative">
+
+    <button type="button"
+            data-action="click->mail--move-menu#toggle"
+            aria-label="{{ 'toolbar.actions.move_to'|trans }}"
+            title="{{ 'toolbar.actions.move_to'|trans }}"
+            aria-haspopup="menu"
+            class="group relative flex items-center justify-center w-8 h-8 rounded-full
+                   text-ink-muted
+                   hover:text-ink
+                   hover:bg-hover
+                   transition-colors duration-100 cursor-pointer">
+        {# Drawn here rather than taken from the icon set: a folder with an
+           arrow into it is the sign Gmail taught everybody for this action,
+           and Font Awesome keeps its version of it (folder-arrow-right) in
+           Pro. The nearest free glyphs say something else — an open folder is
+           "browse", an arrow into a bracket is "sign in". One path, the arrow
+           cut out of the folder with evenodd, in currentColor so it follows
+           the button's hover and every theme like the glyphs beside it.
+
+           The viewBox is cropped to the folder itself. Font Awesome's glyphs
+           fill their box edge to edge, so a folder drawn with the usual
+           margin inside a 24-unit square came out visibly smaller than the
+           tag next to it at the same nominal size. #}
+        <svg class="w-[17px] h-[15px]" viewBox="3 4 18 16" fill="currentColor" fill-rule="evenodd" aria-hidden="true">
+            <path d="M3 6a2 2 0 0 1 2-2h4.6l2 2H19a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Zm9.5 3.5V12h-5v3h5v2.5l5-4Z"/>
+        </svg>
+    </button>
+
+    <div data-mail--move-menu-target="panel"
+         role="menu"
+         aria-label="{{ 'toolbar.actions.move_to'|trans }}"
+         class="hidden absolute right-0 top-full mt-1 z-30 w-56 max-h-72 overflow-y-auto rounded-pane
+                bg-pane-soft backdrop-blur-sm
+                border border-line
+                shadow-pop py-1">
+
+        <p class="px-3 py-1 text-[10px] font-semibold uppercase tracking-wide text-ink-faint">
+            {{ 'toolbar.actions.move_to'|trans }}
+        </p>
+
+        {# The three system places name a ROLE, not a label id. Their labels
+           are made lazily — the first sync, the first delete — so a mailbox
+           nobody has deleted from has no Trash label to point at, and the
+           server resolves the role instead (MoveToService::systemTarget()).
+           The id still rides along where there is one, because that is what
+           the controller matches the Inbox row against to hide it. #}
+        <button type="button" role="menuitem"
+                data-action="click->mail--move-menu#move"
+                data-move-role="inbox"
+                data-label-id="{{ sidebarCounts.roleLabelId(LabelRole.Inbox) }}"
+                class="{{ entry_class }}">
+            <i class="fa-solid fa-inbox w-3.5 text-ink-faint" aria-hidden="true"></i>
+            <span class="truncate">{{ LabelRole.Inbox|role_name }}</span>
+        </button>
+
+        {% for label in labels %}
+            <button type="button" role="menuitem"
+                    data-action="click->mail--move-menu#move"
+                    data-label-id="{{ label.id }}"
+                    class="{{ entry_class }}"
+                    style="padding-left: {{ 12 + label.depth * 14 }}px">
+                <i class="fa-solid fa-tag w-3.5 text-ink-faint" aria-hidden="true"></i>
+                <span class="truncate">{{ label|label_name }}</span>
+            </button>
+        {% endfor %}
+
+        <div class="border-t border-line mt-1 pt-1">
+            {% for role, icon in { spam: 'fa-circle-exclamation', trash: 'fa-trash' } %}
+                <button type="button" role="menuitem"
+                        data-action="click->mail--move-menu#move"
+                        data-move-role="{{ role }}"
+                        class="{{ entry_class }}">
+                    <i class="fa-solid {{ icon }} w-3.5 text-ink-faint" aria-hidden="true"></i>
+                    <span class="truncate">{{ LabelRole.from(role)|role_name }}</span>
+                </button>
+            {% endfor %}
+        </div>
+    </div>
+</div>

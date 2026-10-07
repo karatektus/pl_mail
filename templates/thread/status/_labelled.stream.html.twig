@@ -1,5 +1,5 @@
 {#
-After a drop on a label.
+After a drop on a label, or a tick or untick in the toolbar's label menu.
 
 `leaves: false`, and that one flag is the whole difference from
 thread/status/_move.stream.html.twig. A label is additive — the conversation
@@ -14,14 +14,23 @@ itself by the row disappearing, and this one changes a chip most of the way
 across the screen from where the pointer let go.
 
 Variables:
-  count    how many conversations were labelled
-  threads  the conversations, so their rows can be redrawn with the new chip
-  label    what was attached, for the toast
+  count      how many conversations were labelled
+  threads    the conversations, so their rows can be redrawn with the new chip
+  label      what was attached, for the toast
+  attach     optional, default true; false when the menu took the label off
+  undoToken  optional; puts an Undo in the toast
 #}
+{% set attach  = attach ?? true %}
+{% set message = (attach ? 'toast.labelled' : 'toast.unlabelled')|trans({ '%label%': label|label_name }) %}
+
 {% include 'thread/status/_bulk.stream.html.twig' with {
     count:   count,
     threads: threads,
     leaves:  false,
 } only %}
 
-{% include '_partials/_toast.stream.html.twig' with { message: 'toast.labelled'|trans({ '%label%': label|label_name }) } only %}
+{% if undoToken|default(null) is not null %}
+    {% include 'thread/status/_undo_toast.stream.html.twig' with { message: message, undoToken: undoToken } only %}
+{% else %}
+    {% include '_partials/_toast.stream.html.twig' with { message: message } only %}
+{% endif %}

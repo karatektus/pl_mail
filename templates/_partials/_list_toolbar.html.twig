@@ -238,6 +238,12 @@ The button itself carries `group` and `relative`.
             labels: sidebarCounts.flattenedUserLabels,
             targetType: 'thread',
         } %}
+        {# Directly beside the label button, because it is the other half of
+           the same thought: that one adds a label and leaves the mail here,
+           this one files it under a label and takes it out of this list. #}
+        {% include '_partials/_move_menu.html.twig' with {
+            labels: sidebarCounts.flattenedUserLabels,
+        } only %}
         <span
             data-mail--list-toolbar-target="selectionCount"
             class="ml-1 text-xs text-ink-muted tabular-nums whitespace-nowrap"

@@ -1884,6 +1884,7 @@ jobs:
         restore: Haulin' back
         snooze: Lettin' it drift
         wake: Haulin' it back from the drift
+        move_to: Haulin'
         reclassify: Stowin' recent post again
     state:
         done: '%count% done'
@@ -3574,6 +3575,7 @@ thread_row:
     unstar: Rub out the X
 
 toast:
+    archived: Stowed in the hold.
     categorised: 'Stowed under %category%'
     dismiss: Away with ye
     labelled: 'Flyin'' the %label% flag'
@@ -3583,6 +3585,9 @@ toast:
     send_failed: 'That message could not be hoisted: %subject%'
     sent: Message away!
     undo: Belay that
+    undo_expired: Too late to belay that, matey.
+    undone: Belayed.
+    unlabelled: 'Struck the %label% flag'
 
 toolbar:
     view_select:
@@ -3596,6 +3601,7 @@ toolbar:
         label: Fly a flag
         mark_read: Mark as read
         mark_unread: Mark as unread
+        move_to: Haul off to
         snooze: Let it drift
     filter:
         show_all: Show every last one

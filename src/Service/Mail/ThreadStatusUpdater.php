@@ -391,6 +391,51 @@ final readonly class ThreadStatusUpdater
     }
 
     /**
+     * Make each message carry exactly the labels it is given, in the database
+     * and nowhere else.
+     *
+     * The last step of an undo, and only that — see StatusUndoService, its one
+     * caller. By the time this runs the provider has been told everything it
+     * needs to hear, through restore(), archive(), move() and applyLabel()
+     * above: where the mail lives, and which of the user's labels it wears.
+     * What is left over is plMail's own bookkeeping. Undoing an archive goes
+     * through restore(), which also takes Archive off — right for a
+     * conversation coming back to the inbox, and one label short for a message
+     * that carried Archive before the action being undone ever touched it.
+     *
+     * Deliberately not propagated. Pushing the difference would mean a second
+     * move for a message the calls above have already put where it belongs,
+     * and the labels this adjusts are ones no provider keeps: Archive on
+     * Gmail is the absence of INBOX, and Snoozed exists only here.
+     *
+     * @param list<Message>           $messages
+     * @param array<int, list<Label>> $labelsByMessage keyed by message id; a
+     *                                message missing from it is left alone
+     */
+    public function resetLabels(array $messages, array $labelsByMessage): void
+    {
+        foreach ($messages as $message) {
+            $wanted = $labelsByMessage[(int) $message->id] ?? null;
+
+            if (null === $wanted) {
+                continue;
+            }
+
+            foreach ($message->labels->toArray() as $label) {
+                if (false === in_array($label, $wanted, true)) {
+                    $message->removeLabel($label);
+                }
+            }
+
+            foreach ($wanted as $label) {
+                $message->addLabel($label);
+            }
+        }
+
+        $this->finish($messages);
+    }
+
+    /**
      * @param list<Message> $messages
      */
     public function markRead(array $messages, bool $read): void

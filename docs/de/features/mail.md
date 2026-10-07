@@ -1,4 +1,4 @@
-<!-- translated-from: features/mail.md sha1:5691e30fa0a7d9cce02dc27f07c9c5dc7edbfc37 -->
+<!-- translated-from: features/mail.md sha1:e4c2f01bebced62a2b1f4fcc67d4c72d5e8869f4 -->
 
 # Mail
 
@@ -414,6 +414,35 @@ Nachrichten werden nicht gelöscht; sie behalten ihre übrigen Labels. Löschen 
 Label-Dialog der Seitenleiste ebenso wie aus **Einstellungen → Labels**, und die Bestätigung sagt
 klar, dass das Label aus jedem Konto verschwindet und wie viele untergeordnete Labels mitgehen —
 statt dich etwas bestätigen zu lassen, dessen Reichweite sie verschwiegen hat.
+
+### Verschieben nach
+
+Der Ordner-Knopf neben dem Label-Knopf — in der Leiste über einer Auswahl und in einer geöffneten
+Konversation — legt Mail in einem Schritt unter einem Label ab: **Das gewählte Label kommt dazu,
+und das Label der Liste, in der du gerade warst, fällt weg.** Alle anderen Labels bleiben.
+
+| Wo du bist | Was „Verschieben nach *Belege*“ tut |
+|---|---|
+| **Posteingang** | Vergibt *Belege* und archiviert die Konversation |
+| Ein Label | Tauscht dieses Label gegen *Belege* |
+| **Papierkorb** oder **Spam** | Vergibt *Belege* und nimmt die Konversation aus Papierkorb und Spam — ohne sie zurück in den Posteingang zu legen |
+| Sonst überall — Suche, **Markiert**, **Gesendet** | Vergibt *Belege* und nimmt die Konversation aus dem Posteingang, falls sie dort war |
+
+Zur Auswahl stehen der **Posteingang**, deine Labels, **Spam** und **Papierkorb**. Ein Klick wendet
+es sofort an; es gibt nichts zu bestätigen. **Posteingang** holt eine Konversation zurück und
+entfernt das Label, in dem du warst; **Spam** und **Papierkorb** tun, was ihre eigenen Knöpfe tun.
+Die Liste, in der du schon bist, jedes Label, das die Konversation bereits trägt, und **Papierkorb**
+oder **Spam** für Mail, die schon dort liegt, fehlen in der Auswahl.
+
+Das ist nicht dasselbe, wie eine Konversation auf einen Ordner unter einem Konto zu ziehen: Das
+legt sie in diesen Ordner und nimmt sie aus jedem anderen. Nimm den Label-Knopf, wenn du ein Label
+vergeben und die Mail lassen willst, wo sie ist.
+
+Verschieben, Labeln und Archivieren zeigen für ein paar Sekunden **Rückgängig**. Es stellt genau
+die Labels wieder her, die jede Konversation vorher hatte — bei einer gemischten Auswahl ist das
+nicht dasselbe wie die Aktion umzukehren: Eine schon archivierte Konversation, die mit angehakt
+war, bleibt archiviert. Für eine Aktion, die im Hintergrund über eine ganze Ansicht lief, gibt es
+kein Rückgängig.
 
 ## Suche
 

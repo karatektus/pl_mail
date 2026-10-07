@@ -377,6 +377,34 @@ as well as from **Settings → Labels**, and the confirmation says plainly that 
 every account and how many nested labels are going with it — rather than asking you to agree to
 something whose reach it has not mentioned.
 
+### Move to
+
+The folder button beside the label button — in the toolbar above a selection, and in an open
+conversation — files mail under one label in a single step: **the label you pick goes on, and the
+label of the list you were looking at comes off.** Every other label stays.
+
+| Where you are | What "Move to *Receipts*" does |
+|---|---|
+| **Inbox** | Adds *Receipts* and archives the conversation |
+| A label | Swaps that label for *Receipts* |
+| **Trash** or **Spam** | Adds *Receipts* and takes the conversation out of the bin and out of spam — without putting it back in the inbox |
+| Anywhere else — search, **Starred**, **Sent** | Adds *Receipts*, and takes the conversation out of the inbox if it was in it |
+
+The picker offers the **Inbox**, your labels, **Spam** and **Trash**. Picking one applies it at
+once; there is nothing to confirm. **Inbox** brings a conversation back and removes the label you
+were in; **Spam** and **Trash** do what their own buttons do. The list you are already in, any
+label the conversation already has, and **Trash** or **Spam** for mail that is already there, are
+left off the picker.
+
+This is not the same as dragging a conversation onto a folder under an account, which puts it in
+that folder and takes it out of every other one. Use the label button when you want to add a label
+and leave the mail where it is.
+
+Moving, labelling and archiving each show an **Undo** for a few seconds. It puts back exactly the
+labels each conversation had before, which for a mixed selection is not the same as reversing the
+action: an already-archived conversation that was ticked along with the rest stays archived. Undo
+is not offered when the action ran over a whole view in the background.
+
 ## Search
 
 The search box is at the top of every page and answers at `/mail/search`. Free text runs as a real

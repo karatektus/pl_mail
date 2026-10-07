@@ -127,6 +127,44 @@ final class RunBulkStatusHandlerTest extends KernelTestCase
     }
 
     /**
+     * "Move to" over a whole view, across the chunk boundary.
+     *
+     * The target label and the plan are both entities the chunk loop's clear
+     * detaches, which is the same shape as the bug the test above exists for:
+     * a move that worked for the first hundred conversations and threw on the
+     * hundred-and-first. So this asserts the LAST message as well as the job.
+     */
+    public function testAWholeViewIsMovedOutOfTheInbox(): void
+    {
+        $messageIds = $this->seedThreads();
+        $target     = $this->labelResolver->customChain(['Receipts'], $this->account);
+
+        self::assertNotNull($target);
+
+        $job       = new BackgroundJob($this->user, JobKind::MoveTo);
+        $job->view = ['scope' => 'inbox', 'value' => 'primary', 'unreadOnly' => false, 'labelId' => (int) $target->id];
+
+        $this->em->persist($job);
+        $this->em->flush();
+
+        $this->handler()(new RunBulkStatusMessage((int) $job->id));
+
+        $this->em->clear();
+
+        $fresh = $this->em->find(BackgroundJob::class, $job->id);
+
+        self::assertNotNull($fresh);
+        self::assertSame(JobState::Done, $fresh->state, (string) $fresh->failureReason);
+
+        $last  = $this->em->find(Message::class, $messageIds[array_key_last($messageIds)]);
+        $names = $last?->labels->map(static fn ($label): string => (string) $label->name)->toArray() ?? [];
+
+        sort($names);
+
+        self::assertSame(['Archive', 'Receipts'], $names, 'the last conversation in the view was not moved');
+    }
+
+    /**
      * A deadlock on the first attempt is retried, not reported as a failure.
      *
      * WHAT CAME OUT OF PRODUCTION
@@ -292,6 +330,8 @@ final class RunBulkStatusHandlerTest extends KernelTestCase
             $container->get(\App\Service\Mail\ListViewResolver::class),
             $container->get(\App\Service\Mail\ThreadStatusUpdater::class),
             $container->get(\App\Service\Mail\ThreadSnoozeService::class),
+            $container->get(\App\Service\Mail\MoveToService::class),
+            $container->get(\App\Repository\Label\LabelRepository::class),
             $container->get(\App\Service\Job\JobNotifier::class),
             $this->em,
             $container->get(\Doctrine\Persistence\ManagerRegistry::class),
