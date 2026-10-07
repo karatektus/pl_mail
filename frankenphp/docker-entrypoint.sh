@@ -236,39 +236,34 @@ if [ "$1" = 'frankenphp' ] || [ "$1" = 'php' ] || [ "$1" = 'bin/console' ]; then
 		load_generated_secrets "$SECRETS_FILE"
 	fi
 
-	# POSIX ACLs are a convenience, not a requirement: this image runs as root,
-	# so it can already write everything under var/.
+	# NO ACLs ARE SET HERE ANY MORE, and that is the fix rather than an omission.
 	#
-	# They MUST NOT be able to stop the container from starting. var/attachments,
-	# var/raw and var/uploads are bind-mounted from host storage, and on ZFS
-	# (TrueNAS) — or NFS, or a Docker Desktop virtiofs share — setfacl fails with
-	# "Operation not supported" because those filesystems use NFSv4 ACLs rather
-	# than POSIX ones. With `set -e` at the top of this script, that aborted the
-	# entrypoint before it ever reached exec.
+	# This used to end with two `setfacl -R` passes over var/cache and var/log,
+	# granting www-data and root access to the two directories Symfony writes.
+	# Nothing in the image runs as www-data, root needs no grant, and the
+	# Dockerfile already makes both directories writable for whichever user the
+	# container is given — so the passes changed nothing anybody relied on.
 	#
-	# And only on var/cache and var/log, the two directories Symfony writes. It
-	# was all of var/ — which is where the mail store is mounted: a file per
-	# stored message, a file per attachment, and on the TrueNAS layout the
-	# Postgres data directory as well. Every container running this script
-	# walked the lot, twice, on every start, to grant ACLs to a www-data that
-	# nothing in the image runs as. The walk grows with the mailbox — about 1.5
-	# to 2 seconds per hundred thousand files measured on RAM-backed storage,
-	# before a disk has to seek for any of them — and seven containers of the
-	# TrueNAS layout set off on it at once.
+	# What they cost was invisible on a developer's machine and very visible on
+	# a NAS. Both directories are part of the IMAGE: two thousand files of
+	# compiled container, templates and translations. The first time a
+	# container changes anything about a file from its image — an ACL counts —
+	# the storage driver copies that whole file into the container's own layer
+	# and flushes it to disk before carrying on. So every start of a new
+	# container rewrote the entire cache one synchronous file at a time, in
+	# each of the stack's containers at once, on the same pool: a second on an
+	# SSD, and two and a quarter minutes of silence between "Statement
+	# statistics are enabled" and the web server starting on spinning disks.
+	#
+	# It showed only where the container runs as root, because the passes were
+	# skipped for any other user — which is why the catalogue install, as uid
+	# 568, started in seconds from the same image.
+	#
+	# The history, since this is the third time this block has been the answer:
+	# it was first all of var/, which walked the mail store; then var/cache and
+	# var/log; now nothing. If a platform ever needs a grant here, make it in
+	# the Dockerfile, where it is paid once at build and not on every start.
 	mkdir -p var/cache var/log
-
-	# Root only. As any other user there is nobody to grant anything to — the
-	# process can only change ACLs on what it owns, and a uid a platform picked
-	# has no name for `whoami` to answer with ("cannot find name for user ID
-	# 568", twice, on every start). The image makes both directories writable
-	# for that case; see the Dockerfile.
-	if [ "$(id -u)" = '0' ]; then
-		if ! setfacl -R -m u:www-data:rwX -m u:"$(whoami)":rwX var/cache var/log 2>/dev/null; then
-			echo 'Note: POSIX ACLs are not supported on this filesystem; skipping setfacl for var/cache and var/log.'
-		fi
-
-		setfacl -dR -m u:www-data:rwX -m u:"$(whoami)":rwX var/cache var/log 2>/dev/null || true
-	fi
 fi
 
 exec docker-php-entrypoint "$@"

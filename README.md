@@ -103,17 +103,14 @@ docker compose up -d
 
 Open [https://localhost](https://localhost) and create your account.
 
-### TrueNAS SCALE
+### TrueNAS
 
-1. Create a **dataset** for plMail — say `yourPool/yourDataSet/plmail`.
-2. Open [`truenas.compose.yaml`](truenas.compose.yaml) and change one line to that path:
-   ```yaml
-   path_data: &path_data /mnt/yourPool/yourDataSet/plmail
-   ```
-3. **Apps → Discover → ⋮ → Install via YAML**, paste the file, install.
+plMail is in the TrueNAS app catalogue. **Apps → Discover Apps**, search for **plMail**, and
+install it. The form asks for one thing, a database password; everything else has a default that
+works.
 
-Reach it on port `30080` and put a reverse proxy in front of it. Everything else in that file works
-as it is; each setting explains itself in place.
+Reach it on port `30519`, and put a reverse proxy in front of it if it should be reachable from
+outside. Updates arrive through the catalogue like any other app's.
 
 ### Then
 

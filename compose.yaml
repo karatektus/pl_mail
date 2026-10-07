@@ -181,8 +181,19 @@ services:
         condition: service_completed_successfully
     healthcheck:
       test: ["CMD", "pg_isready", "-d", "${POSTGRES_DB:-app}", "-U", "${POSTGRES_USER:-app}"]
+      # STATED, because the default is what made every start slow. Docker
+      # runs the first probe one `interval` after the container starts, and
+      # the default interval is thirty seconds — so the web server and the
+      # workers, which wait for this to be healthy, could not begin for
+      # half a minute however quickly Postgres was up, and for a whole
+      # minute whenever it was still replaying its log at the first look.
+      # A start that should take ten seconds took forty to seventy.
+      # pg_isready is a connection attempt; every five seconds costs nothing.
+      interval: 5s
       timeout: 5s
-      retries: 5
+      # Thirty of them, so that a database in trouble is called unhealthy
+      # after the same two and a half minutes as before the interval changed.
+      retries: 30
       start_period: 60s
     volumes:
       - database_data:/var/lib/postgresql

@@ -67,6 +67,19 @@ back in the inbox. Everything else the conversation wears stays.
   whose live updates were failing, because that is when the page keeps making that request. Only a
   page you were actually opening is remembered now, and a part of a page loaded in the background is
   not one.
+- **Starting plMail took minutes on a NAS with spinning disks.** After "Statement statistics are
+  enabled" the log went quiet for two minutes and more before the web server came up. At every start
+  each container set access-control entries on its cache directory, which is part of the image — and
+  changing anything about an image file makes Docker copy the whole file into the container and
+  flush it to disk. Two thousand files, one synchronous write each, in every container at once.
+  Nothing needed those entries: the image already makes the directory writable. They are no longer
+  set. Only installs running as root were affected, which is why the TrueNAS catalogue app was not.
+- **And thirty seconds before that, on the compose files in this repository.** The web server and
+  workers wait for the database to report healthy, Docker's first health probe comes one interval
+  after the container starts, and the interval was never set — so it was the default thirty seconds,
+  and sixty when Postgres was still replaying its log at the first look. It is five seconds now. If
+  you keep your own copy of `compose.yaml` or `truenas.compose.yaml`, add `interval: 5s` and
+  `retries: 30` to the `database` health check.
 - **A busy Gmail or Outlook quota no longer raises an alarm, and no longer costs mail.** When a
   provider was still rate-limiting after five retries, the job was logged at the highest level with
   a full stack trace and parked on the failed queue — whatever the job was. For a sync that only

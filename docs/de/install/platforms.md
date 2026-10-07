@@ -1,4 +1,4 @@
-<!-- translated-from: install/platforms.md sha1:a5d607be3fca4c06dcb8499899db2014cb726ef3 -->
+<!-- translated-from: install/platforms.md sha1:cbd335ac28924bc30eb4ee08fcf9053374524a3d -->
 # Plattform-Hinweise
 
 plMail führt überall dieselben Container aus, deshalb geht es auf dieser Seite fast nur um die
@@ -35,9 +35,9 @@ Der unkomplizierte Fall und der, für den die Standard-`compose.yaml` geschriebe
 dauerhafte Pfad ist ein **benanntes Volume**, das Docker anlegt und besitzt, es gibt also nichts zu
 `chown`en und keine Eigentümerfrage zu beantworten.
 
-Die Container laufen intern als root. Der Entrypoint versucht, POSIX-ACLs auf `var/` zu setzen
-(`setfacl -R -m u:www-data:rwX …`), und behandelt ein Scheitern als Hinweis statt als Fehler — als
-root kann er ohnehin alles unterhalb von `var/` schreiben.
+Die Container laufen intern als root und können damit ohnehin alles unterhalb von `var/` schreiben.
+Der Entrypoint setzt keine ACLs: Früher tat er das, bei jedem Start, und genau das ließ einen Start
+auf drehenden Platten Minuten dauern — siehe [Fehlerbehebung](troubleshooting.md).
 
 Zwei Dinge ändern sich in dem Moment, in dem du ein benanntes Volume gegen einen **Bind-Mount**
 tauschst, was du tun wirst, wenn die Mail auf einer bestimmten Platte liegen soll:
@@ -48,10 +48,9 @@ tauschst, was du tun wirst, wenn die Mail auf einer bestimmten Platte liegen sol
   startet. `truenas.compose.yaml` löst das, indem `secrets-init` das Postgres-Unterverzeichnis
   anlegt und per `chown -R 70:70` überträgt, bevor irgendetwas anderes läuft; dieses Muster lässt
   sich auf jede Bind-Mount-Installation übertragen.
-- **ACLs werden womöglich nicht unterstützt.** Auf ZFS, NFS oder allem, was NFSv4-ACLs verwendet,
-  scheitert `setfacl` mit "Operation not supported". Der Entrypoint gibt einen Hinweis aus und macht
-  weiter — früher brach er den Start ab, unter `set -e`, weshalb dieser Fehler heute ausdrücklich
-  behandelt wird.
+- **ACLs werden nicht gebraucht.** ZFS, NFS und alles andere mit NFSv4-ACLs lehnen `setfacl` mit
+  "Operation not supported" ab. plMail ruft es beim Start nicht mehr auf, es gibt also nichts
+  abzulehnen.
 
 **Der typische Fehlerfall ist ein Bind-Mount, dessen Elternverzeichnis Docker als root angelegt
 hat.** Postgres beendet sich während der Initialisierung mit einem Rechtefehler, der einen Pfad
@@ -92,8 +91,8 @@ Der relevante Unterschied ist wiederum das Dateisystem hinter einem Bind-Mount. 
 Host-Verzeichnisse über VirtioFS, und zwei Punkte dazu sind in diesem Repository dokumentiert, weil
 sie gemessen und nicht vermutet wurden:
 
-- `setfacl` scheitert auf einer VirtioFS-Freigabe, der ACL-Schritt des Entrypoints wird also mit
-  einem Hinweis übersprungen.
+- `setfacl` scheitert auf einer VirtioFS-Freigabe. Der Entrypoint hat keinen ACL-Schritt mehr, für
+  den das eine Rolle spielte.
 - `flock` ist beratend und schließt auf einem solchen Mount *containerübergreifend* nicht
   zuverlässig aus. Die Abhängigkeitsinstallation des Entwicklungs-Entrypoints benutzt deshalb
   `mkdir` als Mutex, weil das eine einzelne atomare Operation ist, die mit `EEXIST` fehlschlägt.
@@ -175,9 +174,13 @@ die Besitzrechte deine Sache.
 verwendet, ist es 70, in den Debian-Images 999. Ein aus einer Anleitung für das jeweils andere
 übernommenes `chown` hinterlässt einen Cluster, der nicht schreiben kann.
 
-**ACL-Fehlschläge sind Hinweise, keine Fehler — aber erst, seit sie dazu gemacht wurden.** Wenn du
-"POSIX ACLs are not supported on this filesystem; skipping setfacl for var/" in den Logs siehst, ist
-das die erwartete Ausgabe auf ZFS, NFS und Docker-Desktop-Freigaben, und es ist nichts falsch.
+**Der Entrypoint setzt keine ACLs und darf nicht wieder damit anfangen.** `var/cache` und `var/log`
+gehören zum Image. Wer aus einem Container heraus irgendetwas an einer Image-Datei ändert — eine
+ACL zählt —, bringt den Storage-Treiber dazu, die ganze Datei in die eigene Schicht des Containers
+zu kopieren und auf die Platte zu schreiben. Zwei rekursive `setfacl`-Durchläufe beim Start
+schrieben deshalb zweitausend Dateien synchron neu, in jedem Container des Stacks gleichzeitig:
+etwa eine Sekunde auf einer SSD und über zwei Minuten auf einem Pool aus drehenden Platten. Das
+Image macht beide Verzeichnisse stattdessen beim Bauen beschreibbar, wo es einmal bezahlt wird.
 
 **ARM ist ein erstklassiges Ziel und muss es bleiben.** Beide Architekturen werden auf nativen
 Runnern gebaut und zu einem Manifest zusammengeführt; alles, was du einem selbst gebauten Image

@@ -32,9 +32,9 @@ The straightforward case, and the one the stock `compose.yaml` is written for: e
 is a **named volume**, which Docker creates and owns, so there is nothing to `chown` and no
 ownership question to answer.
 
-The containers run as root internally. The entrypoint tries to set POSIX ACLs on `var/`
-(`setfacl -R -m u:www-data:rwX …`) and treats failure as a note rather than an error — running as
-root, it can already write everything under `var/` regardless.
+The containers run as root internally, so they can already write everything under `var/`. The
+entrypoint sets no ACLs: it used to, on every start, and that is what made a start take minutes on
+spinning disks — see [Troubleshooting](troubleshooting.md).
 
 Two things change the moment you swap a named volume for a **bind mount**, which you will do if you
 want the mail on a specific disk:
@@ -44,9 +44,8 @@ want the mail on a specific disk:
   right ownership before the container starts. `truenas.compose.yaml` solves this by having
   `secrets-init` lay out and `chown -R 70:70` the Postgres subdirectory before anything else
   runs; that pattern transplants to any bind-mounted deployment.
-- **ACLs may not be supported.** On ZFS, NFS or anything using NFSv4 ACLs, `setfacl` fails with
-  "Operation not supported". The entrypoint prints a note and carries on — it used to abort the
-  boot, under `set -e`, which is why the failure is handled explicitly now.
+- **ACLs are not needed.** ZFS, NFS and anything else using NFSv4 ACLs refuse `setfacl` with
+  "Operation not supported". plMail no longer calls it at start, so there is nothing to refuse.
 
 **The failure mode is a bind mount whose parent Docker created as root.** Postgres exits during
 initialisation with a permissions error that names a path, and the app containers then spend their
@@ -85,7 +84,7 @@ The relevant difference is again the filesystem behind a bind mount. Docker Desk
 directories over VirtioFS, and two things there are documented in this repository because they were
 measured rather than assumed:
 
-- `setfacl` fails on a VirtioFS share, so the entrypoint's ACL step is skipped with a note.
+- `setfacl` fails on a VirtioFS share. The entrypoint no longer has an ACL step for that to matter to.
 - `flock` is advisory and does not reliably exclude *across containers* on such a mount. The dev
   entrypoint's dependency install uses `mkdir` as its mutex instead, because it is a single atomic
   operation that fails with `EEXIST`. Two containers were observed entering a `flock`-guarded block
@@ -161,9 +160,12 @@ right.
 in the Debian ones. A `chown` copied from a guide written for the other leaves the cluster unable
 to write.
 
-**ACL failures are notes, not errors — but only since they were made so.** If you see "POSIX ACLs
-are not supported on this filesystem; skipping setfacl for var/" in the logs, that is the expected
-output on ZFS, NFS and Docker Desktop shares, and nothing is wrong.
+**The entrypoint sets no ACLs, and must not start to.** `var/cache` and `var/log` are part of the
+image. Changing anything about an image file from inside a container — an ACL counts — makes the
+storage driver copy the whole file into the container's own layer and flush it to disk. Two
+recursive `setfacl` passes at start therefore rewrote two thousand files synchronously, in every
+container of the stack at once: about a second on an SSD and over two minutes on a pool of
+spinning disks. The image makes both directories writable at build instead, where it is paid once.
 
 **ARM is a first-class target and must stay that way.** Both architectures are built on native
 runners and merged into one manifest, so anything you add to a self-built image has to resolve an

@@ -1,4 +1,4 @@
-<!-- translated-from: install/troubleshooting.md sha1:6d423596fc9eca05c89352c7cb809a5557a18761 -->
+<!-- translated-from: install/troubleshooting.md sha1:6776a1d8e46bcf99b043bdac37a1154c27c04abb -->
 # Fehlersuche
 
 Was `/healthz` bedeutet, wie du eine hängende von einer leeren Warteschlange unterscheidest, wo die
@@ -223,7 +223,8 @@ gespeicherte Zugangsberechtigung lesen.
 | Anhang-Downloads enden mit 404, Blob-Daten verschwinden, wenn ein Container neu erzeugt wird | Die Blob-Verzeichnisse liegen auf keinem gemeinsamen Volume. Siehe [Docker Compose](docker.md#storage-and-what-the-stock-file-does-not-persist) |
 | Drei von sechs Containern starten nie, in den Logs steht `column … already exists` | Gleichzeitige Migrationen beim Start. Behoben durch den Advisory-Lock in `app:db:migrate`; wenn du das heute siehst, führt irgendetwas `doctrine:migrations:migrate` direkt aus |
 | Ein Container verweigert den Start: "APP_ENCRYPTION_KEY cannot decrypt the credentials already stored" | Ein Dienst ohne den Mount `app_secrets`, oder ein Schlüssel, der sich unter laufendem Stack geändert hat |
-| Der Entrypoint bricht ab, bevor irgendetwas startet, nach einer Meldung über ACLs | War ein Fehlschlag von `setfacl` auf ZFS, NFS oder einer Docker-Desktop-Freigabe unter `set -e`. Das ist heute ein Hinweis und kein Fehler — wenn du den Hinweis siehst, ist nichts falsch |
+| Der Entrypoint bricht ab, bevor irgendetwas startet, nach einer Meldung über ACLs | Ein altes Image: ein Fehlschlag von `setfacl` auf ZFS, NFS oder einer Docker-Desktop-Freigabe unter `set -e`. Seit 0.3.0 setzt der Entrypoint keine ACLs mehr |
+| Jeder Start dauert eine Minute oder länger, bevor der Webserver antwortet, und das Log schweigt nach "Statement statistics are enabled" | Ein Image älter als 0.3.0, das als root auf langsamen Platten läuft: Der Entrypoint setzte bei jedem Start ACLs über `var/cache`, was jede Datei des Caches in die Schicht des Containers kopiert. Aktualisiere. Weitere dreißig Sekunden gingen mit dem Warten auf die erste Zustandsprüfung der Datenbank verloren — wenn du eine eigene Compose-Datei pflegst, gib der Zustandsprüfung von `database` ein `interval: 5s` |
 | Ein Stack meldet sich als gesund, während die Datenbank unerreichbar ist | Der alte Healthcheck fragte Caddys Metrics-Port ab. `/healthz` hat ihn abgelöst |
 | Alles funktioniert, aber nichts aktualisiert sich je von selbst | `MERCURE_PUBLIC_URL` zeigt dorthin, wo der Browser nicht hinkommt. Siehe [Hinter einem Reverse-Proxy](reverse-proxy.md) |
 | Gmail-Push liefert für jede Benachrichtigung 403 | `GMAIL_PUBSUB_VERIFICATION_TOKEN` nicht gesetzt oder passt nicht zum `?token=` am Pub/Sub-Abonnement. Es scheitert nach der sicheren Seite |
