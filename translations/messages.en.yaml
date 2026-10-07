@@ -176,6 +176,7 @@ admin:
             writing_help_help: 'Offers drafts and rewrites in the composer, when you ask for them.'
         heading: 'Language model'
         hold:
+            details: 'See each message'
             measured: 'Last 7 days: %count% messages held, typically for %median% s (95% within %p95% s). %timeout% were shown without an answer because the wait ran out.'
             no_data: 'No mail has been held in the last 7 days, so there is no delay to report yet.'
         intro: 'plMail can use a language model you run yourself. Nothing is sent anywhere else, nothing is switched on until you say so, and the mail client works exactly as it does now while this is off.'
@@ -691,11 +692,78 @@ admin:
         insight_reports: Reported mail
         integrations: Integrations
         logs: Logs
+        performance: Performance
         push: Push
         reset: Reset
         system: System
         updates: Updates
         users: Users
+    performance:
+        hold:
+            col:
+                account: 'Account'
+                arrived: 'Arrived'
+                call: 'Model call'
+                call_hint: 'The round trip to the model host, start to answer.'
+                filed: 'Filed under'
+                load: 'of it loading'
+                load_hint: 'The part of the call the host spent loading the model into memory. Near zero on a model that was already loaded.'
+                outcome: 'What happened'
+                queued: 'Queued'
+                queued_hint: 'From the mail being stored to the assistant being asked. Rounded to the second.'
+                shown_after: 'Shown after'
+            empty: 'No mail was held in this period.'
+            footnote: 'The newest %limit% held messages. Durations are missing for mail sorted before this page existed. What was in the mail is not shown here, or anywhere in this panel.'
+            heading: 'New mail waiting for the assistant'
+            lead: 'For people who sort by assistant, new mail stays out of the inbox tabs until it is sorted, for at most %ceiling% seconds. Each row is one message and where its wait went.'
+            lead_off: 'Holding new mail for the assistant is switched off under AI, so nothing new will appear here. What was held before is still listed.'
+            outcome:
+                answered: 'Sorted, then shown'
+                cold: 'Sorted, then shown — the model had to be loaded first'
+                moved: 'Shown first, moved when the answer came'
+                no_answer: 'Shown without an answer'
+                unusable: 'The answer could not be used; shown where the rules put it'
+                waiting: 'Still waiting'
+            stat:
+                held: 'Messages held'
+                max: 'Longest'
+                median: 'Typical wait'
+                p95: '95% within'
+                shown_first: 'Shown before sorted'
+        lag:
+            col:
+                account: 'Account'
+                arrives_by: 'Arrives by'
+                max: 'Longest'
+                median: 'Typical delay'
+                messages: 'Messages'
+                p95: '95% within'
+            footnote: 'From the time the provider received a message to the time plMail stored it. Mail brought in by an import, and mail sent from plMail itself, is not counted.'
+            heading: 'How late mail arrives'
+            lead: 'Seconds means the provider is telling plMail about new mail as it lands. Minutes means the account is being checked on the quarter-hourly schedule instead.'
+            no_accounts: 'No active accounts.'
+            provider:
+                google: 'Gmail'
+                imap: 'IMAP'
+                microsoft: 'Outlook'
+            push: 'push on'
+        window:
+            day: '24 hours'
+            hour: '1 hour'
+            label: 'Period'
+            week: '7 days'
+        workers:
+            col:
+                in_hand: 'In hand'
+                oldest: 'Oldest waiting'
+                queue: 'Queue'
+                running_for: 'For'
+                waiting: 'Waiting'
+                worker: 'Worker'
+            footnote: 'A reading of this moment, not of the period above: how long a job waited is not kept once it has been handled. A worker with two queues finishes the first before it looks at the second.'
+            heading: 'What each worker has waiting'
+            lead: 'Which process is behind, and by how much. Every worker takes one job at a time.'
+            refresh: 'Refresh'
     processes:
         empty: 'No heartbeats yet — processes report here after their first beat.'
         heading: 'Processes'

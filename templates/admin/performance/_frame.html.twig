@@ -1,0 +1,269 @@
+{# Bare frame — the src lives on the placeholder in index.html.twig (a src on
+   the returned frame causes a refetch loop). #}
+
+{# A duration somebody reads, from milliseconds: seconds once it is one. #}
+{% macro ms(value) %}
+    {%- if value is null -%}—
+    {%- elseif value >= 1000 -%}{{ (value / 1000)|number_format(1) }} s
+    {%- else -%}{{ value }} ms
+    {%- endif -%}
+{% endmacro %}
+
+{% macro seconds(value) %}
+    {%- if value is null -%}—{%- else -%}{{ value|number_format(1) }} s{%- endif -%}
+{% endmacro %}
+
+{# A wait somebody reads: seconds, then minutes, then hours. #}
+{% macro lag(value) %}
+    {%- if value is null -%}—
+    {%- elseif value < 90 -%}{{ value|round }} s
+    {%- elseif value < 5400 -%}{{ (value / 60)|round }} min
+    {%- else -%}{{ (value / 3600)|round(1) }} h
+    {%- endif -%}
+{% endmacro %}
+
+{% import _self as ui %}
+{# The house card: one definition of the shell, the band and the inset, shared
+   with every other admin and settings page. See the partial. #}
+{% import '_partials/_card_chrome.html.twig' as chrome %}
+
+<turbo-frame id="admin-performance">
+    <div class="@container space-y-6">
+
+        {# The window, as links inside the frame: choosing one re-renders this
+           frame and nothing else, and the address bar is left alone. #}
+        <div class="flex items-center gap-1 px-4 text-xs">
+            <span class="text-ink-faint mr-1">{{ 'admin.performance.window.label'|trans }}</span>
+            {% for option in windows %}
+                <a href="{{ path('app_admin_performance', { window: option.value }) }}"
+                   class="px-2.5 h-7 inline-flex items-center rounded-lg font-medium transition-colors
+                          {{ option == window ? 'bg-accent text-accent-ink' : 'btn-quiet' }}">
+                    {{ ('admin.performance.window.' ~ option.value)|trans }}
+                </a>
+            {% endfor %}
+        </div>
+
+        {# ── How late mail arrives ─────────────────────────────────────── #}
+        <section class="{{ chrome.shell() }}" data-testid="performance-lag">
+            <header class="{{ chrome.band() }}">
+                <h2 class="text-sm font-semibold text-ink">
+                    <i class="fa-solid fa-truck-fast text-ink-faint mr-1.5" aria-hidden="true"></i>
+                    {{ 'admin.performance.lag.heading'|trans }}
+                </h2>
+                <p class="mt-1 text-xs leading-snug text-ink-muted">{{ 'admin.performance.lag.lead'|trans }}</p>
+            </header>
+
+            {% if lag is empty %}
+                <p class="{{ chrome.body() }} text-sm text-ink-faint">{{ 'admin.performance.lag.no_accounts'|trans }}</p>
+            {% else %}
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <thead>
+                            <tr class="text-left text-xs text-ink-faint">
+                                <th class="px-4 py-2 font-medium">{{ 'admin.performance.lag.col.account'|trans }}</th>
+                                <th class="px-2 py-2 font-medium">{{ 'admin.performance.lag.col.arrives_by'|trans }}</th>
+                                <th class="px-2 py-2 font-medium text-right">{{ 'admin.performance.lag.col.messages'|trans }}</th>
+                                <th class="px-2 py-2 font-medium text-right">{{ 'admin.performance.lag.col.median'|trans }}</th>
+                                <th class="px-2 py-2 font-medium text-right">{{ 'admin.performance.lag.col.p95'|trans }}</th>
+                                <th class="px-2 py-2 font-medium text-right pr-4">{{ 'admin.performance.lag.col.max'|trans }}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in lag %}
+                                {# Five minutes, typically: that is not push
+                                   being a little slow, that is mail waiting
+                                   for the quarter-hourly poll. #}
+                                {% set polling = row.median is not null and row.median >= 300 %}
+                                <tr class="border-t border-line text-ink-soft">
+                                    <td class="px-4 py-2 text-xs truncate max-w-[16rem]">{{ row.account }}</td>
+                                    <td class="px-2 py-2 text-xs">
+                                        {{ ('admin.performance.lag.provider.' ~ row.provider)|trans }}{{ row.push ? ' · ' ~ 'admin.performance.lag.push'|trans : '' }}
+                                    </td>
+                                    <td class="px-2 py-2 text-xs text-right tabular-nums">{{ row.messages }}</td>
+                                    <td class="px-2 py-2 text-xs text-right tabular-nums font-semibold {{ polling ? 'text-warning' : 'text-ink' }}">{{ ui.lag(row.median) }}</td>
+                                    <td class="px-2 py-2 text-xs text-right tabular-nums">{{ ui.lag(row.p95) }}</td>
+                                    <td class="px-2 py-2 text-xs text-right tabular-nums pr-4">{{ ui.lag(row.max) }}</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                <p class="px-4 py-2 border-t border-line text-[12px] leading-snug text-ink-faint">
+                    {{ 'admin.performance.lag.footnote'|trans }}
+                </p>
+            {% endif %}
+        </section>
+
+        {# ── How long work waits for each worker ───────────────────────── #}
+        <section class="{{ chrome.shell() }}" data-testid="performance-workers">
+            <header class="{{ chrome.band() }} flex items-start gap-3">
+                <div class="min-w-0">
+                    <h2 class="text-sm font-semibold text-ink">
+                        <i class="fa-solid fa-people-carry-box text-ink-faint mr-1.5" aria-hidden="true"></i>
+                        {{ 'admin.performance.workers.heading'|trans }}
+                    </h2>
+                    <p class="mt-1 text-xs leading-snug text-ink-muted">{{ 'admin.performance.workers.lead'|trans }}</p>
+                </div>
+                {# Now, not over the period: the transport keeps no history. A
+                   link to this same frame is the refresh. #}
+                <a href="{{ path('app_admin_performance', { window: window.value }) }}"
+                   class="ml-auto shrink-0 inline-flex items-center gap-1.5 px-2.5 h-7 rounded-lg text-xs font-medium btn-quiet transition-colors">
+                    <i class="fa-solid fa-rotate" aria-hidden="true"></i>
+                    {{ 'admin.performance.workers.refresh'|trans }}
+                </a>
+            </header>
+
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead>
+                        <tr class="text-left text-xs text-ink-faint">
+                            <th class="px-4 py-2 font-medium">{{ 'admin.performance.workers.col.worker'|trans }}</th>
+                            <th class="px-2 py-2 font-medium">{{ 'admin.performance.workers.col.queue'|trans }}</th>
+                            <th class="px-2 py-2 font-medium text-right">{{ 'admin.performance.workers.col.waiting'|trans }}</th>
+                            <th class="px-2 py-2 font-medium text-right">{{ 'admin.performance.workers.col.oldest'|trans }}</th>
+                            <th class="px-2 py-2 font-medium text-right">{{ 'admin.performance.workers.col.in_hand'|trans }}</th>
+                            <th class="px-2 py-2 font-medium text-right pr-4">{{ 'admin.performance.workers.col.running_for'|trans }}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for worker in workers %}
+                            {% for queue in worker.queues %}
+                                <tr class="{{ loop.first ? 'border-t border-line' : '' }} text-ink-soft">
+                                    <td class="px-4 py-2 text-xs font-mono">{{ loop.first ? worker.worker : '' }}</td>
+                                    <td class="px-2 py-2 text-xs font-mono">{{ queue.queue }}</td>
+                                    <td class="px-2 py-2 text-xs text-right tabular-nums">{{ queue.pending }}</td>
+                                    <td class="px-2 py-2 text-xs text-right tabular-nums {{ queue.pending > 0 and queue.waitingSeconds is not null and queue.waitingSeconds >= 300 ? 'text-warning font-semibold' : '' }}">
+                                        {{ queue.pending > 0 ? ui.lag(queue.waitingSeconds) : '—' }}
+                                    </td>
+                                    <td class="px-2 py-2 text-xs text-right tabular-nums">{{ queue.running }}</td>
+                                    <td class="px-2 py-2 text-xs text-right tabular-nums pr-4">{{ queue.running > 0 ? ui.lag(queue.runningSeconds) : '—' }}</td>
+                                </tr>
+                            {% endfor %}
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <p class="px-4 py-2 border-t border-line text-[12px] leading-snug text-ink-faint">
+                {{ 'admin.performance.workers.footnote'|trans }}
+            </p>
+        </section>
+
+        {# ── Holding new mail for the assistant ────────────────────────── #}
+        <section class="{{ chrome.shell() }}" data-testid="performance-hold">
+            <header class="{{ chrome.band() }}">
+                <h2 class="text-sm font-semibold text-ink">
+                    <i class="fa-solid fa-hourglass-half text-ink-faint mr-1.5" aria-hidden="true"></i>
+                    {{ 'admin.performance.hold.heading'|trans }}
+                </h2>
+                <p class="mt-1 text-xs leading-snug text-ink-muted">
+                    {{ (hold.enabled ? 'admin.performance.hold.lead' : 'admin.performance.hold.lead_off')|trans({ '%ceiling%': hold.ceiling }) }}
+                </p>
+            </header>
+
+            <div class="{{ chrome.body() }} grid grid-cols-2 @lg:grid-cols-5 gap-3">
+                <div class="rounded-pane border border-line bg-pane-soft px-4 py-3">
+                    <p class="text-xs text-ink-faint">{{ 'admin.performance.hold.stat.held'|trans }}</p>
+                    <p class="mt-1 text-lg font-semibold text-ink">{{ hold.stats.held }}</p>
+                </div>
+                <div class="rounded-pane border border-line bg-pane-soft px-4 py-3">
+                    <p class="text-xs text-ink-faint">{{ 'admin.performance.hold.stat.median'|trans }}</p>
+                    <p class="mt-1 text-lg font-semibold text-ink">{{ ui.seconds(hold.stats.median) }}</p>
+                </div>
+                <div class="rounded-pane border border-line bg-pane-soft px-4 py-3">
+                    <p class="text-xs text-ink-faint">{{ 'admin.performance.hold.stat.p95'|trans }}</p>
+                    <p class="mt-1 text-lg font-semibold text-ink">{{ ui.seconds(hold.stats.p95) }}</p>
+                </div>
+                <div class="rounded-pane border border-line bg-pane-soft px-4 py-3">
+                    <p class="text-xs text-ink-faint">{{ 'admin.performance.hold.stat.max'|trans }}</p>
+                    <p class="mt-1 text-lg font-semibold {{ hold.stats.max is not null and hold.stats.max >= hold.ceiling ? 'text-warning' : 'text-ink' }}">{{ ui.seconds(hold.stats.max) }}</p>
+                </div>
+                <div class="rounded-pane border border-line bg-pane-soft px-4 py-3">
+                    <p class="text-xs text-ink-faint">{{ 'admin.performance.hold.stat.shown_first'|trans }}</p>
+                    <p class="mt-1 text-lg font-semibold {{ hold.stats.timedOut > 0 ? 'text-warning' : 'text-ink' }}">{{ hold.stats.timedOut }}</p>
+                </div>
+            </div>
+
+            {% if hold.rows is empty %}
+                <p class="{{ chrome.body() }} border-t border-line text-sm text-ink-faint">{{ 'admin.performance.hold.empty'|trans }}</p>
+            {% else %}
+                <div class="overflow-x-auto border-t border-line">
+                    <table class="w-full text-sm">
+                        <thead>
+                            <tr class="text-left text-xs text-ink-faint">
+                                <th class="px-4 py-2 font-medium">{{ 'admin.performance.hold.col.arrived'|trans }}</th>
+                                <th class="px-2 py-2 font-medium">{{ 'admin.performance.hold.col.account'|trans }}</th>
+                                <th class="px-2 py-2 font-medium text-right">{{ 'admin.performance.hold.col.shown_after'|trans }}</th>
+                                <th class="px-2 py-2 font-medium text-right" title="{{ 'admin.performance.hold.col.queued_hint'|trans }}">{{ 'admin.performance.hold.col.queued'|trans }}</th>
+                                <th class="px-2 py-2 font-medium text-right" title="{{ 'admin.performance.hold.col.call_hint'|trans }}">{{ 'admin.performance.hold.col.call'|trans }}</th>
+                                <th class="px-2 py-2 font-medium text-right" title="{{ 'admin.performance.hold.col.load_hint'|trans }}">{{ 'admin.performance.hold.col.load'|trans }}</th>
+                                <th class="px-2 py-2 font-medium">{{ 'admin.performance.hold.col.filed'|trans }}</th>
+                                <th class="px-2 py-2 font-medium pr-4">{{ 'admin.performance.hold.col.outcome'|trans }}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in hold.rows %}
+                                {# A cold model: the host spent a second or more
+                                   of the call loading it. The usual answer to
+                                   "why did this one take so long". #}
+                                {% set cold = row.loadMs is not null and row.loadMs >= 1000 %}
+                                <tr class="border-t border-line text-ink-soft">
+                                    <td class="px-4 py-2 text-xs tabular-nums whitespace-nowrap">{{ row.heldAt|date('Y-m-d H:i:s') }}</td>
+                                    <td class="px-2 py-2 text-xs truncate max-w-[14rem]">{{ row.account }}</td>
+                                    <td class="px-2 py-2 text-xs text-right tabular-nums font-semibold text-ink">{{ ui.seconds(row.shownAfter) }}</td>
+                                    <td class="px-2 py-2 text-xs text-right tabular-nums">{{ ui.ms(row.queueMs) }}</td>
+                                    <td class="px-2 py-2 text-xs text-right tabular-nums">{{ ui.ms(row.callMs) }}</td>
+                                    <td class="px-2 py-2 text-xs text-right tabular-nums {{ cold ? 'text-warning font-semibold' : '' }}">{{ ui.ms(row.loadMs) }}</td>
+                                    <td class="px-2 py-2 text-xs">{{ row.filed ?? '—' }}</td>
+                                    <td class="px-2 py-2 text-xs pr-4">
+                                        {% if row.stillHeld %}
+                                            {{ 'admin.performance.hold.outcome.waiting'|trans }}
+                                        {% elseif row.shownFirst and row.verdict is not null %}
+                                            <span class="text-warning">{{ 'admin.performance.hold.outcome.moved'|trans }}</span>
+                                        {% elseif row.shownFirst %}
+                                            <span class="text-warning">{{ 'admin.performance.hold.outcome.no_answer'|trans }}</span>
+                                        {% elseif row.verdict is null %}
+                                            {{ 'admin.performance.hold.outcome.unusable'|trans }}
+                                        {% elseif cold %}
+                                            {{ 'admin.performance.hold.outcome.cold'|trans }}
+                                        {% else %}
+                                            {{ 'admin.performance.hold.outcome.answered'|trans }}
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                <p class="px-4 py-2 border-t border-line text-[12px] leading-snug text-ink-faint">
+                    {{ 'admin.performance.hold.footnote'|trans({ '%limit%': hold.limit }) }}
+                </p>
+            {% endif %}
+        </section>
+
+        {# ── The model host ─────────────────────────────────────────────
+           Moved here from Admin → AI, unchanged: the same controller polling the
+           same endpoint, asked for the half that is a measurement. The other
+           half — the search index backfill, which has Start and Pause on it —
+           stayed where the switches are.
+
+           Not rendered here, for the reason it never was: the first paint is a
+           placeholder and the controller fetches, so a model host that is
+           switched off cannot hold this page for the length of its timeout.
+           It has its own period switch, because it polls and the rest of this
+           page does not. #}
+        <div data-controller="admin--ai-status"
+             data-testid="performance-model"
+             data-admin--ai-status-url-value="{{ path('app_admin_ai_status') }}"
+             data-admin--ai-status-part-value="calls"
+             data-admin--ai-status-window-value="{{ window.value }}"
+             data-admin--ai-status-interval-value="5000"
+             data-admin--ai-status-live-value="{{ aiLive ? 'true' : 'false' }}">
+            <div data-admin--ai-status-target="panel">
+                <div class="py-8 text-center text-sm text-ink-faint">
+                    <i class="fa-solid fa-circle-notch fa-spin mr-2" aria-hidden="true"></i>{{ 'admin.loading'|trans }}
+                </div>
+            </div>
+        </div>
+
+    </div>
+</turbo-frame>

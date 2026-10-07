@@ -79,6 +79,36 @@ final class AiStatusEndpointTest extends WebTestCase
         self::assertStringContainsString('<div', (string) $payload['html']);
     }
 
+    /**
+     * The two cards are on two pages now, and each page asks for its own: the
+     * model host on Admin → Performance, the backfill — which has buttons —
+     * on Admin → AI. A caller that names neither still gets both, so a tab
+     * left open across the upgrade keeps working.
+     */
+    public function testEachPageGetsOnlyTheHalfItAsksFor(): void
+    {
+        $html = function (string $query): string {
+            $this->client->request('GET', '/admin/ai/status' . $query);
+            self::assertResponseIsSuccessful();
+
+            return (string) json_decode((string) $this->client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR)['html'];
+        };
+
+        $calls = $html('?part=calls');
+        self::assertStringContainsString('Model host', $calls);
+        self::assertStringNotContainsString('Search index', $calls);
+
+        $backfill = $html('?part=backfill');
+        self::assertStringContainsString('Search index', $backfill);
+        self::assertStringNotContainsString('Model host', $backfill);
+
+        foreach (['', '?part=nonsense'] as $query) {
+            $both = $html($query);
+            self::assertStringContainsString('Model host', $both);
+            self::assertStringContainsString('Search index', $both);
+        }
+    }
+
     /** The window is a closed set, and anything else is the day. */
     public function testAnUnknownWindowFallsBackRatherThanFailing(): void
     {

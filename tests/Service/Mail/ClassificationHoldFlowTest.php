@@ -288,7 +288,7 @@ final class ClassificationHoldFlowTest extends KernelTestCase
         self::assertGreaterThan(9.0, $stats['p95']);
 
         self::assertSame(
-            ['held' => 0, 'timedOut' => 0, 'median' => null, 'p95' => null],
+            ['held' => 0, 'timedOut' => 0, 'median' => null, 'p95' => null, 'max' => null],
             $repository->holdDelayStats(new DateTimeImmutable('+1 hour')),
             'no data is null, not zero: a median of zero would read as instant',
         );
@@ -321,6 +321,8 @@ final class ClassificationHoldFlowTest extends KernelTestCase
         $this->em->refresh($message->thread);
 
         self::assertSame(MessageCategory::Promotions, $message->aiCategory);
+        self::assertNotNull($message->aiCallMs, 'where the time went is recorded with the answer');
+        self::assertNotNull($message->aiQueueMs);
         self::assertSame(MessageCategory::Promotions, $message->thread->category);
         // To the second: the column keeps no fraction, and the handler re-reads the row.
         self::assertSame($releasedAt?->getTimestamp(), $message->categoryReleasedAt?->getTimestamp());

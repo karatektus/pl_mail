@@ -72,6 +72,7 @@ test.beforeAll(() => {
  */
 const SECTIONS: Record<string, string[]> = {
     system: ["admin-live"],
+    performance: ["admin-performance"],
     database: ["admin-db"],
     logs: ["admin-logs"],
     "insight-reports": ["admin-insight-reports"],

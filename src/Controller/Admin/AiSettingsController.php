@@ -187,7 +187,10 @@ final class AiSettingsController extends AbstractController
 
         return $this->json([
             ...$this->panel->payload($snapshot),
-            'html' => $this->renderView('admin/ai/_performance.html.twig', ['panel' => $snapshot]),
+            'html' => $this->renderView('admin/ai/_performance.html.twig', [
+                'panel' => $snapshot,
+                'part'  => $this->part($request),
+            ]),
         ]);
     }
 
@@ -233,6 +236,7 @@ final class AiSettingsController extends AbstractController
             'html'    => $this->renderView('admin/ai/_performance.html.twig', [
                 'panel'   => $snapshot,
                 'outcome' => $outcome,
+                'part'    => $this->part($request),
             ]),
         ]);
     }
@@ -369,6 +373,21 @@ final class AiSettingsController extends AbstractController
     }
 
     /**
+     * Which half of the telemetry fragment the caller wants.
+     *
+     * The model host's card is on Admin → Performance and the backfill's is
+     * here on Admin → AI; both poll this controller. A closed set, and
+     * anything else means both — which is what every caller got before there
+     * were two pages, so an old tab left open keeps working.
+     */
+    private function part(Request $request): string
+    {
+        $part = (string) $request->query->get('part', 'all');
+
+        return true === in_array($part, ['calls', 'backfill'], true) ? $part : 'all';
+    }
+
+    /**
      * What holding arriving mail for the assistant has cost, over the last week.
      *
      * Rendered beside the switch that turns holding off, because that switch
@@ -380,7 +399,7 @@ final class AiSettingsController extends AbstractController
      * a checkbox, and trickle mail on a small installation is a few dozen
      * messages a day — a shorter window is mostly empty.
      *
-     * @return array{held: int, timedOut: int, median: float|null, p95: float|null}
+     * @return array{held: int, timedOut: int, median: float|null, p95: float|null, max: float|null}
      */
     private function holdDelay(): array
     {

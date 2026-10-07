@@ -71,21 +71,54 @@ final readonly class BackgroundProcesses
         return [
             $this->hub(),
             new BackgroundProcess('imap-supervisor', ['php', 'bin/console', 'app:imap:supervise']),
-            $this->consumer('worker-export', 'export'),
-            $this->consumer('worker-ingest', 'ingest'),
-            // Mail that has just arrived, and nothing else, so that it is never
-            // behind an import. See messenger.yaml on the three enrich queues.
-            $this->consumer('worker-live', 'enrich_live'),
-            // Ends holds, and is otherwise idle on purpose: see messenger.yaml.
-            $this->consumer('worker-release', 'release'),
-            // IN THIS ORDER, which is the priority: Messenger drains `enrich`
-            // before it looks at `enrich_backlog`.
-            $this->consumer('worker-enrich', 'enrich', 'enrich_backlog'),
-            // Also drains `async`, the pre-split queue; see messenger.yaml.
-            $this->consumer('worker-maintenance', 'maintenance', 'async'),
-            $this->consumer('worker-bulk', 'bulk'),
-            $this->consumer('scheduler', 'scheduler_default'),
+            ...$this->consumerProcesses(),
         ];
+    }
+
+    /**
+     * Which worker consumes which queues, in the order it looks at them.
+     *
+     * ONE LIST, read twice: all() starts a process from each row, and Admin →
+     * Performance reads it to say which worker a queue's wait belongs to. They
+     * were two facts that had to agree and nothing made them.
+     *
+     * The order within a row is the priority — Messenger drains an earlier
+     * transport before it looks at a later one:
+     *
+     *   worker-live     mail that has just arrived, and nothing else, so that
+     *                   it is never behind an import
+     *   worker-release  ends holds, and is otherwise idle on purpose
+     *   worker-enrich   `enrich` before `enrich_backlog`
+     *   worker-maintenance  also drains `async`, the pre-split queue
+     *
+     * See messenger.yaml for what each queue is for.
+     *
+     * @return array<string, list<string>>
+     */
+    public function consumers(): array
+    {
+        return [
+            'worker-export'      => ['export'],
+            'worker-ingest'      => ['ingest'],
+            'worker-live'        => ['enrich_live'],
+            'worker-release'     => ['release'],
+            'worker-enrich'      => ['enrich', 'enrich_backlog'],
+            'worker-maintenance' => ['maintenance', 'async'],
+            'worker-bulk'        => ['bulk'],
+            'scheduler'          => ['scheduler_default'],
+        ];
+    }
+
+    /** @return list<BackgroundProcess> */
+    private function consumerProcesses(): array
+    {
+        $processes = [];
+
+        foreach ($this->consumers() as $name => $transports) {
+            $processes[] = $this->consumer($name, ...$transports);
+        }
+
+        return $processes;
     }
 
     /** @return list<string> */

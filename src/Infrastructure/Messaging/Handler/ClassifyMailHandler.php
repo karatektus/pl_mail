@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Infrastructure\Messaging\Handler;
 
+use App\Domain\DTO\Ai\AiChatResult;
 use App\Domain\Enum\Mail\MessageCategory;
 use App\Entity\Ai\AiFeature;
 use App\Entity\Mail\Message;
@@ -119,7 +120,18 @@ final readonly class ClassifyMailHandler
             // is over — on a worker of its own, precisely so it can happen while
             // this call is still running — and this call simply finishes, and
             // moves the mail if its answer differs.
-            $verdict = $this->ask($mail);
+            $askedAt = microtime(true);
+            $heldAt  = $mail->categoryHeldAt;
+
+            // To the second, because the column is: good enough to tell a
+            // message that waited behind something from one that did not.
+            $queueMs = true === $held && null !== $heldAt
+                ? max(0, (int) round(($askedAt - $heldAt->getTimestamp()) * 1000))
+                : null;
+
+            $result  = $this->ask($mail);
+            $verdict = null === $result?->content ? null : $this->interpret($result->content);
+            $callMs  = (int) round((microtime(true) - $askedAt) * 1000);
 
             if (true === $held) {
                 // Minutes may have passed inside ask(), and the timed release
@@ -132,6 +144,14 @@ final readonly class ClassifyMailHandler
             // Stamped whether or not the answer was usable — see the docblock.
             $mail->aiCategorisedAt = new DateTimeImmutable();
             $mail->aiCategory      = $verdict;
+
+            // Where the time went — see Message::$aiQueueMs. After the refresh
+            // above, which would otherwise have discarded them.
+            $mail->aiQueueMs = $queueMs;
+            $mail->aiCallMs  = $callMs;
+            $mail->aiLoadMs  = null === $result?->timing->loadDurationNs
+                ? null
+                : (int) round($result->timing->loadDurationNs / 1_000_000);
 
             // A VERDICT THAT COMES AFTER THE WAIT RAN OUT STILL MOVES THE MAIL.
             // The reader chose the assistant as the sorter, and a late answer
@@ -297,9 +317,9 @@ final readonly class ClassifyMailHandler
      * language rule appended, because the answer wanted is one English token and
      * not prose. See the library.
      */
-    private function ask(Message $mail): ?MessageCategory
+    private function ask(Message $mail): ?AiChatResult
     {
-        $answer = $this->ai->chat(
+        return $this->ai->ask(
             AiFeature::Categorise,
             [
                 [
@@ -315,12 +335,6 @@ final readonly class ClassifyMailHandler
             // A model given room to be creative here invents categories.
             temperature: 0.0,
         );
-
-        if (null === $answer) {
-            return null;
-        }
-
-        return $this->interpret($answer);
     }
 
     private function describe(Message $mail): string

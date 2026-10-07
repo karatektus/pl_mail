@@ -177,6 +177,7 @@ admin:
             writing_help_help: "Offers drafts an' rewrites at the writin' desk, when ye ask."
         heading: 'Oracle'
         hold:
+            details: 'See each message'
             measured: "Last 7 days: %count% messages held, most fer %median% s (95% within %p95% s). %timeout% were shown with no answer, the wait havin' run out."
             no_data: "No mail's been held these 7 days, so there be no delay to report yet."
         intro: "plMail can consult an oracle ye run yerself. Nowt leaves yer waters, nowt starts until ye say so, an' while this be off the mail works exactly as it does now."
@@ -629,11 +630,78 @@ admin:
         insight_reports: 'Reported letters'
         integrations: 'Friendly ports'
         logs: Ship's log
+        performance: Speed
         push: "Signal flags"
         reset: "Scuttle"
         system: Ship
         updates: "New sails"
         users: Th' crew roster
+    performance:
+        hold:
+            col:
+                account: 'Berth'
+                arrived: 'Came aboard'
+                call: 'Oracle errand'
+                call_hint: "The round trip to the oracle's berth, cast-off to answer."
+                filed: 'Stowed under'
+                load: "of it rousin'"
+                load_hint: "The part o' the errand the oracle spent wakin' up. Near naught if it were already awake."
+                outcome: 'What befell it'
+                queued: 'In the line'
+                queued_hint: "From the mail bein' stowed to the oracle bein' asked. Rounded to the second."
+                shown_after: 'Shown after'
+            empty: 'No mail were held back in this stretch.'
+            footnote: "The newest %limit% messages held back. Times be missin' fer mail sorted afore this page were built. What were in the mail be shown nowhere in these quarters."
+            heading: "New mail waitin' on the oracle"
+            lead: "Fer hands who let the oracle sort, new mail stays out o' the holds till it be sorted, %ceiling% seconds at most. Each row be one message an' where its wait went."
+            lead_off: "Holdin' new mail fer the oracle be switched off under the Oracle, so naught new will land here. What were held afore be still listed."
+            outcome:
+                answered: 'Sorted, then shown'
+                cold: 'Sorted, then shown — the oracle had to be roused first'
+                moved: 'Shown first, shifted when the answer came'
+                no_answer: 'Shown with no answer'
+                unusable: "The answer were no use; shown where the rules stow it"
+                waiting: "Still waitin'"
+            stat:
+                held: 'Messages held'
+                max: 'Longest'
+                median: 'Usual wait'
+                p95: '95% within'
+                shown_first: 'Shown afore sorted'
+        lag:
+            col:
+                account: 'Berth'
+                arrives_by: 'Comes by'
+                max: 'Longest'
+                median: 'Usual delay'
+                messages: 'Messages'
+                p95: '95% within'
+            footnote: "From the moment the harbour took a message to the moment plMail stowed it. Mail hauled in by an import, an' mail sent from plMail itself, be not counted."
+            heading: 'How late the mail lands'
+            lead: "Seconds means the harbour be tellin' plMail o' new mail as it lands. Minutes means the berth be checked on the quarter-hour watch instead."
+            no_accounts: 'No berths in use.'
+            provider:
+                google: 'Gmail'
+                imap: 'IMAP'
+                microsoft: 'Outlook'
+            push: 'cannon on'
+        window:
+            day: '24 hours'
+            hour: '1 hour'
+            label: 'Stretch'
+            week: '7 days'
+        workers:
+            col:
+                in_hand: 'In hand'
+                oldest: "Oldest waitin'"
+                queue: 'Line'
+                running_for: 'Fer'
+                waiting: "Waitin'"
+                worker: 'Hand'
+            footnote: "A readin' o' this moment, not o' the stretch above: how long a job waited be not kept once it be done. A hand with two lines clears the first afore lookin' at the second."
+            heading: "What each hand has waitin'"
+            lead: 'Which hand be behind, an'' by how much. Ev''ry hand takes one job at a time.'
+            refresh: 'Look again'
     processes:
         empty: 'No heartbeats yet — hands report here after their first beat.'
         heading: 'Hands on deck'

@@ -180,6 +180,25 @@ final readonly class AiAssistant
      */
     public function chat(AiFeature $feature, array $messages, ?float $temperature = null): ?string
     {
+        return $this->ask($feature, $messages, $temperature)?->content;
+    }
+
+    /**
+     * chat(), with what the host said about how long it took.
+     *
+     * For the one caller that wants to know: ClassifyMailHandler writes the
+     * timing onto the message it asked about, so that "why did this mail take
+     * thirteen seconds to appear" has an answer — queued, slow, or a model
+     * that had to be loaded first. The recorder's table has the same numbers
+     * but no idea which message they belong to.
+     *
+     * Null where chat() would have answered null without calling anything: the
+     * feature is off, or there was nothing to send.
+     *
+     * @param list<array{role: string, content: string}> $messages
+     */
+    public function ask(AiFeature $feature, array $messages, ?float $temperature = null): ?AiChatResult
+    {
         if (AiFeature::Search === $feature) {
             $this->logger->error('AiAssistant: chat requested on behalf of the search feature', [
                 'hint' => 'Search uses the embedding model. This is a bug in the caller.',
@@ -216,7 +235,7 @@ final readonly class AiAssistant
             $result->timing,
         );
 
-        return $result->content;
+        return $result;
     }
 
     /**

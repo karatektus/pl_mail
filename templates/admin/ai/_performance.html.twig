@@ -1,6 +1,7 @@
 {% import '_partials/_card_chrome.html.twig' as chrome %}
 {#
-admin/ai/_performance.html.twig — the two telemetry cards under Admin → AI.
+admin/ai/_performance.html.twig — the model host's telemetry and the search
+index backfill: two cards, shown on two pages. See `part` below.
 
 Accepts:
   panel   — App\Service\Ai\AiPerformancePanel::snapshot()
@@ -26,6 +27,17 @@ there is no other screen anywhere that would tell you.
 
 {% set backfill = panel.backfill %}
 
+{# WHICH HALF. The two cards used to live together under Admin → AI. They are
+   about different things — one is how the model host is performing, the other
+   is a job an administrator starts and pauses — and the first moved to Admin →
+   Performance with the other measurements. Both pages poll the same endpoint
+   and name the half they want:
+
+     calls     the model host and its recorded calls   (Admin → Performance)
+     backfill  the search index backfill, with buttons (Admin → AI)
+     all       both, which is what a caller that names nothing gets #}
+{% set part = part|default('all') %}
+
 {# Durations, in the two units anybody reads them in. Defined once here rather
    than in PHP because the choice between "45 s" and "3 min" is a presentation
    decision, and the seconds are already in the payload for anything that wants
@@ -44,6 +56,7 @@ there is no other screen anywhere that would tell you.
 
 <div class="space-y-3">
 
+    {% if part != 'backfill' %}
     {# ── The model host ────────────────────────────────────────────────── #}
     {# Collapsible like the settings card above it, and OPEN by default: this
        is the card somebody came to look at. The fold is for putting it away
@@ -351,6 +364,9 @@ there is no other screen anywhere that would tell you.
         </div>
     </details>
 
+    {% endif %}
+
+    {% if part != 'calls' %}
     {# ── The search index backfill ─────────────────────────────────────── #}
     <details open class="{{ chrome.shell() }} group">
 
@@ -527,4 +543,5 @@ there is no other screen anywhere that would tell you.
             </p>
         </div>
     </details>
+    {% endif %}
 </div>

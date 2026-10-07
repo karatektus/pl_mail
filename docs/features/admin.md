@@ -79,6 +79,52 @@ worker restart, which has no visible effect, so the panel renders a banner sayin
 was asked for — a restart clears heartbeat rows rather than reddening them, and rows vanishing is
 expected rather than an outage.
 
+## Performance
+
+How long things take, as opposed to whether they are working — which is what **System** is for.
+Nothing here refreshes by itself: it is a record, read a row at a time. **Period** switches between
+the last hour, 24 hours and 7 days.
+
+**How late mail arrives.** Per account, the time between the provider receiving a message and
+plMail storing it. Seconds means the provider is telling plMail about new mail as it lands — IMAP
+IDLE, Gmail push, a Graph subscription. A typical delay of five minutes or more is highlighted: that
+account is living on the quarter-hourly poll, which "works" and is why nothing else on any page
+would tell you. Mail brought in by an import is not counted, nor is mail sent from plMail itself.
+
+**What each worker has waiting.** The queue numbers from **System**, arranged by the process that
+handles them: how many jobs are waiting, how long the oldest has waited, and how long the job in
+hand has been running. A worker with two queues finishes the first before it looks at the second,
+so `enrich_backlog` waiting an hour beside an empty `enrich` is the design and not a fault. This
+panel is a reading of the moment, with its own **Refresh** — how long a job waited is not kept once
+it has been handled.
+
+**Model host.** What the language model's host is doing: whether it answers, which models are in
+memory and whether they fit on the GPU, and the recorded calls per feature — speed, errors and how
+often a model had to be loaded first. It moved here from **AI**, where the search index backfill
+stayed, because that one has Start and Pause on it. It refreshes itself and has its own period
+switch.
+
+**New mail waiting for the assistant.** If somebody lets the assistant sort their mail, new mail is
+kept out of the inbox tabs until it has been sorted (see **AI** below). The line under that switch
+says how long the wait typically is. This panel says why a particular one was not typical. Each row
+is one held message:
+
+| Column | What it is |
+|---|---|
+| **Shown after** | How long the message was kept back |
+| **Queued** | From the mail being stored to the assistant being asked. Large means the worker was busy with something else |
+| **Model call** | The round trip to the model host |
+| **of it loading** | The part of that call the host spent loading the model into memory. Near zero on a model that was already loaded; highlighted when it was a second or more |
+| **Filed under** | The tab it ended up in |
+| **What happened** | Sorted and then shown; shown first and moved when the answer came; or shown without an answer |
+
+A row with a large **of it loading** is the usual explanation for one slow message among fast ones:
+the model had been unloaded since the last mail. Raising **Keep the writing model loaded for** under
+AI is what addresses that. A large **Queued** points at the worker instead.
+
+Rows name the account and nothing else. What was in the mail is not shown here, or anywhere in the
+admin panel. Mail sorted before 0.3.1 has no durations and shows a dash.
+
 ## Database
 
 Connection counts, cache hit ratio, deadlocks and rollback ratio, plus the slowest statements by

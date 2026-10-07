@@ -521,6 +521,35 @@ class Message extends MessageModel
     public ?DateTimeImmutable $categoryReleasedAt = null;
 
     /**
+     * Where the time went when the assistant was asked about this message, in
+     * milliseconds — the three parts Admin → Performance sets side by side.
+     *
+     * "Held for thirteen seconds" is a symptom with three unrelated causes, and
+     * the two timestamps above cannot tell them apart:
+     *
+     *   $aiQueueMs  how long the message waited before the question was even
+     *               put. A busy worker, or bulk work in front of it. Held mail
+     *               only: for anything else there is no moment it started
+     *               waiting from.
+     *   $aiCallMs   the round trip to the model host, on this side's clock.
+     *   $aiLoadMs   the part of that round trip the host spent loading the
+     *               model into memory, by its own account. Zero on a warm
+     *               model, most of the call on a cold one — which is the usual
+     *               answer to "one mail took much longer than the rest".
+     *
+     * On the row rather than joined from ai_call_metric, which has the same
+     * numbers and no idea which message they were for.
+     */
+    #[ORM\Column(name: 'ai_queue_ms', nullable: true)]
+    public ?int $aiQueueMs = null;
+
+    #[ORM\Column(name: 'ai_call_ms', nullable: true)]
+    public ?int $aiCallMs = null;
+
+    #[ORM\Column(name: 'ai_load_ms', nullable: true)]
+    public ?int $aiLoadMs = null;
+
+    /**
      * @var Collection<int, Label>
      */
     #[ORM\ManyToMany(targetEntity: Label::class)]

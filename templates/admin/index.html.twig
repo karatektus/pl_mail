@@ -77,7 +77,7 @@
                                 </a>
                             {% endif %}
 
-                            {% if section not in ['logs', 'insight-reports', 'address', 'integrations', 'push', 'ai', 'backup', 'updates', 'reset'] %}
+                            {% if section not in ['performance', 'logs', 'insight-reports', 'address', 'integrations', 'push', 'ai', 'backup', 'updates', 'reset'] %}
                                 <span class="ml-auto text-xs text-ink-faint">{{ 'admin.refresh_hint'|trans }}</span>
                             {% endif %}
                         </div>
@@ -99,6 +99,11 @@
                                        class="{{ section == 'system' ? navActive : navInactive }}">
                                         <i class="fa-solid fa-heart-pulse w-4 {{ section == 'system' ? 'text-ink-faint' : '' }}" aria-hidden="true"></i>
                                         {{ 'admin.nav.system'|trans }}
+                                    </a>
+                                    <a href="{{ path('app_admin_dashboard', { section: 'performance' }) }}"
+                                       class="{{ section == 'performance' ? navActive : navInactive }}">
+                                        <i class="fa-solid fa-stopwatch w-4 {{ section == 'performance' ? 'text-ink-faint' : '' }}" aria-hidden="true"></i>
+                                        {{ 'admin.nav.performance'|trans }}
                                     </a>
                                     <a href="{{ path('app_admin_dashboard', { section: 'database' }) }}"
                                        class="{{ section == 'database' ? navActive : navInactive }}">
@@ -228,6 +233,22 @@
                                                         would swap their pre-write markup back in. #}
                                                      data-action="admin--admin-panel:persisting->mail--auto-refresh#hold admin--admin-panel:persisted->mail--auto-refresh#release"
                                                      data-mail--auto-refresh-interval-value="20000">
+                                            <div class="py-10 text-center text-sm text-ink-faint">
+                                                <i class="fa-solid fa-circle-notch fa-spin mr-2" aria-hidden="true"></i>{{ 'admin.loading'|trans }}
+                                            </div>
+                                        </turbo-frame>
+
+                                    {% elseif section == 'performance' %}
+
+                                        {# No auto-refresh: this is a record of
+                                           what happened, read a row at a time,
+                                           and a table that reshuffles under the
+                                           cursor every twenty seconds is not
+                                           one anybody can read. #}
+                                        <turbo-frame id="admin-performance"
+                                                     class="block"
+                                                     src="{{ path('app_admin_performance') }}"
+                                                     loading="lazy">
                                             <div class="py-10 text-center text-sm text-ink-faint">
                                                 <i class="fa-solid fa-circle-notch fa-spin mr-2" aria-hidden="true"></i>{{ 'admin.loading'|trans }}
                                             </div>

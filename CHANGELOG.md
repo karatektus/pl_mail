@@ -6,6 +6,34 @@ so anything that changes the schema irreversibly is called out explicitly.
 The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, and `sha-…` pins one commit.
 
+## Unreleased
+
+**Admin → Performance: how long things take, in one place.** A new section directly below System.
+System says whether plMail is working; this says how long it took.
+
+- **How late mail arrives.** Per account, the time between the provider receiving a message and
+  plMail storing it. Seconds means push is working; a typical delay of five minutes or more is
+  highlighted, because that account is living on the quarter-hourly poll — which "works", so nothing
+  else would tell you.
+- **What each worker has waiting.** The queue numbers arranged by the process that handles them:
+  how many jobs wait, how long the oldest has waited, how long the job in hand has run.
+- **New mail waiting for the assistant.** The line under the hold switch in Admin → AI says
+  "typically 6 s, 95% within 13 s" — which shows that one message took twice as long as the rest and
+  nothing about why. Here each held message is a row: how long it was kept back, how long it queued
+  before the assistant was asked, how long the model call took, and how much of that call the host
+  spent loading the model. A message that was slow because the model had been unloaded says so.
+- **Model host.** Moved here from Admin → AI, unchanged. The search index backfill stayed under AI,
+  where its Start and Pause belong.
+
+Rows name accounts; nothing about any mail's content is shown. See
+[Administration → Performance](docs/features/admin.md#performance).
+
+### Before you upgrade
+
+- **One migration, applied on boot.** Three nullable columns on `message`; no row is rewritten, so it
+  is instant on a mailbox of any size.
+- **Mail sorted before this release has no durations** and shows a dash in the new table.
+
 ## v0.3.0 — 2026-10-07
 
 **Adding an account no longer puts new mail behind hours of follow-up work.** Everything plMail does

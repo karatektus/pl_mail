@@ -37,6 +37,15 @@ export default class extends Controller {
          */
         live: { type: Boolean, default: false },
         window: { type: String, default: "day" },
+        /**
+         * Which half of the fragment to ask for: "calls", "backfill" or "all".
+         *
+         * The model host's card lives on Admin → Performance and the backfill's
+         * on Admin → AI, and both are this controller polling the same
+         * endpoint. The start/pause/resume URLs carry it themselves, as a
+         * query the template writes.
+         */
+        part: { type: String, default: "all" },
     };
 
     /**
@@ -114,7 +123,7 @@ export default class extends Controller {
         this.#busy = true;
 
         try {
-            const response = await fetch(`${this.urlValue}?window=${encodeURIComponent(this.windowValue)}`, {
+            const response = await fetch(`${this.urlValue}?window=${encodeURIComponent(this.windowValue)}&part=${encodeURIComponent(this.partValue)}`, {
                 headers: { Accept: "application/json" },
             });
 

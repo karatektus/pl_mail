@@ -1,4 +1,4 @@
-<!-- translated-from: features/admin.md sha1:070a1c1c3254e1683e96281a9cef8e0d4571572b -->
+<!-- translated-from: features/admin.md sha1:5e085535bef18bac96f5928f8c1ba9cd08a45b4d -->
 
 # Administration
 
@@ -92,6 +92,57 @@ Lebenszeichen kommen zurück. Die Ausnahme ist der Worker-Neustart, der keine si
 hat — deshalb zeichnet das Panel ein Band, das sagt, vor wie langer Zeit er angefordert wurde:
 Ein Neustart räumt Heartbeat-Zeilen weg, statt sie rot werden zu lassen, und verschwindende
 Zeilen sind hier zu erwarten und kein Ausfall.
+
+## Leistung
+
+Wie lange etwas dauert — im Unterschied dazu, ob es läuft; dafür ist **System** da. Hier
+aktualisiert sich nichts von selbst: Es ist eine Aufzeichnung, die du Zeile für Zeile liest.
+**Zeitraum** wechselt zwischen der letzten Stunde, 24 Stunden und 7 Tagen.
+
+**Wie spät Mail ankommt.** Pro Konto die Zeit zwischen dem Moment, in dem der Anbieter eine
+Nachricht erhalten hat, und dem, in dem plMail sie gespeichert hat. Sekunden heißt: Der Anbieter
+meldet plMail neue Mail, sobald sie eintrifft — IMAP IDLE, Gmail-Push, eine Graph-Subscription. Eine
+übliche Verzögerung von fünf Minuten oder mehr wird hervorgehoben: Dieses Konto lebt von der
+Abfrage im Viertelstundentakt, was „funktioniert" — und genau deshalb würde es dir keine andere
+Seite sagen. Mail aus einem Import zählt nicht mit, ebenso wenig Mail, die aus plMail selbst
+verschickt wurde.
+
+**Was bei jedem Worker wartet.** Die Warteschlangen-Zahlen aus **System**, geordnet nach dem
+Prozess, der sie abarbeitet: wie viele Jobs warten, wie lange der älteste schon wartet und wie lange
+der Job läuft, der gerade in Arbeit ist. Ein Worker mit zwei Warteschlangen arbeitet die erste ab,
+bevor er in die zweite schaut — `enrich_backlog`, das neben einem leeren `enrich` eine Stunde
+wartet, ist also so gewollt und kein Fehler. Dieses Panel ist ein Stand von diesem Moment, mit
+eigenem **Aktualisieren** — wie lange ein Job gewartet hat, wird nicht aufbewahrt, sobald er
+erledigt ist.
+
+**Modell-Host.** Was der Host des Sprachmodells tut: ob er antwortet, welche Modelle im Speicher
+liegen und ob sie auf die GPU passen, und die aufgezeichneten Aufrufe pro Funktion — Geschwindigkeit,
+Fehler und wie oft ein Modell erst geladen werden musste. Das Panel ist von **KI** hierher
+umgezogen; dort ist der Suchindex-Durchlauf geblieben, weil der Start und Pause hat. Es
+aktualisiert sich selbst und hat einen eigenen Zeitraum-Schalter.
+
+**Neue Mail, die auf den Assistenten wartet.** Wenn jemand seine Mail vom Assistenten sortieren
+lässt, bleibt neue Mail aus den Posteingangs-Tabs heraus, bis sie einsortiert ist (siehe **KI**
+weiter unten). Die Zeile unter diesem Schalter sagt, wie lange das üblicherweise dauert. Dieses
+Panel sagt, warum eine bestimmte Mail nicht üblich war. Jede Zeile ist eine zurückgehaltene
+Nachricht:
+
+| Spalte | Was sie zeigt |
+|---|---|
+| **Angezeigt nach** | Wie lange die Nachricht zurückgehalten wurde |
+| **Gewartet** | Vom Speichern der Mail bis zur Frage an den Assistenten. Ein großer Wert heißt, der Worker war mit etwas anderem beschäftigt |
+| **Modellaufruf** | Der Weg zum Modell-Host und zurück |
+| **davon Laden** | Der Teil des Aufrufs, den der Host mit dem Laden des Modells in den Speicher verbracht hat. Nahe null, wenn das Modell schon geladen war; hervorgehoben ab einer Sekunde |
+| **Einsortiert unter** | Der Tab, in dem sie gelandet ist |
+| **Was passiert ist** | Einsortiert und dann angezeigt; zuerst angezeigt und mit der Antwort verschoben; oder ohne Antwort angezeigt |
+
+Eine Zeile mit großem **davon Laden** ist die übliche Erklärung für eine langsame Nachricht unter
+schnellen: Das Modell war seit der letzten Mail entladen worden. Dagegen hilft, unter KI **Schreib-Modell
+geladen lassen für** hochzusetzen. Ein großer Wert bei **Gewartet** weist stattdessen auf den Worker.
+
+Zeilen nennen das Konto und sonst nichts. Was in der Mail stand, wird hier nicht gezeigt — und
+nirgends sonst im Administrationsbereich. Für Mail, die vor 0.3.1 einsortiert wurde, gibt es keine
+Zeiten; dort steht ein Strich.
 
 ## Datenbank
 

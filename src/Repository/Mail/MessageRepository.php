@@ -2466,17 +2466,18 @@ class MessageRepository extends ServiceEntityRepository
      * Both come back null over an empty window, and are passed on as null —
      * a median of zero would read as "instant" where the truth is "no data".
      *
-     * @return array{held: int, timedOut: int, median: float|null, p95: float|null}
+     * @return array{held: int, timedOut: int, median: float|null, p95: float|null, max: float|null}
      */
     public function holdDelayStats(DateTimeImmutable $since): array
     {
-        /** @var array{held: int|string, timed_out: int|string, median: float|string|null, p95: float|string|null}|false $row */
+        /** @var array{held: int|string, timed_out: int|string, median: float|string|null, p95: float|string|null, max: float|string|null}|false $row */
         $row = $this->getEntityManager()->getConnection()->fetchAssociative(
             <<<'SQL'
             SELECT COUNT(*) AS held,
                    COUNT(*) FILTER (WHERE m.ai_categorised_at IS NULL OR m.ai_categorised_at > m.category_released_at) AS timed_out,
                    percentile_cont(0.5)  WITHIN GROUP (ORDER BY EXTRACT(EPOCH FROM (m.category_released_at - m.category_held_at))) AS median,
-                   percentile_cont(0.95) WITHIN GROUP (ORDER BY EXTRACT(EPOCH FROM (m.category_released_at - m.category_held_at))) AS p95
+                   percentile_cont(0.95) WITHIN GROUP (ORDER BY EXTRACT(EPOCH FROM (m.category_released_at - m.category_held_at))) AS p95,
+                   MAX(EXTRACT(EPOCH FROM (m.category_released_at - m.category_held_at))) AS max
               FROM message m
              WHERE m.category_held_at >= :since
                AND m.category_released_at IS NOT NULL
@@ -2486,7 +2487,7 @@ class MessageRepository extends ServiceEntityRepository
         );
 
         if (false === $row) {
-            return ['held' => 0, 'timedOut' => 0, 'median' => null, 'p95' => null];
+            return ['held' => 0, 'timedOut' => 0, 'median' => null, 'p95' => null, 'max' => null];
         }
 
         return [
@@ -2494,6 +2495,140 @@ class MessageRepository extends ServiceEntityRepository
             'timedOut' => (int) $row['timed_out'],
             'median'   => null === $row['median'] ? null : (float) $row['median'],
             'p95'      => null === $row['p95'] ? null : (float) $row['p95'],
+            'max'      => null === $row['max'] ? null : (float) $row['max'],
         ];
+    }
+
+    /**
+     * The held messages themselves, newest first — what the summary above is a
+     * summary of.
+     *
+     * The summary says "typically six seconds, one took thirteen". This is the
+     * thirteen: which message, and where its time went. See
+     * Message::$aiQueueMs for the three parts.
+     *
+     * NO SUBJECT AND NO SENDER, and that is a rule of the admin panel rather
+     * than an economy here: an administrator can manage every mailbox on the
+     * installation and read none of them. The account is named because the
+     * panel already lists accounts; what was in the mail is nobody's business
+     * but its owner's.
+     *
+     * `answeredAfter` is null for a message the model was never heard from
+     * about. `stillHeld` is a message being waited on at this moment.
+     *
+     * @return list<array{id: int, account: string, heldAt: DateTimeImmutable, shownAfter: float|null,
+     *     answeredAfter: float|null, stillHeld: bool, shownFirst: bool, queueMs: int|null, callMs: int|null,
+     *     loadMs: int|null, filed: string|null, verdict: string|null}>
+     */
+    public function holdDetails(DateTimeImmutable $since, int $limit = 50): array
+    {
+        /** @var list<array<string, mixed>> $rows */
+        $rows = $this->getEntityManager()->getConnection()->fetchAllAssociative(
+            <<<'SQL'
+            SELECT m.id,
+                   a.email AS account,
+                   m.category_held_at AS held_at,
+                   EXTRACT(EPOCH FROM (m.category_released_at - m.category_held_at)) AS shown_after,
+                   EXTRACT(EPOCH FROM (m.ai_categorised_at - m.category_held_at))    AS answered_after,
+                   m.category_released_at IS NULL AS still_held,
+                   m.category_released_at IS NOT NULL
+                       AND (m.ai_categorised_at IS NULL OR m.ai_categorised_at > m.category_released_at) AS shown_first,
+                   m.ai_queue_ms, m.ai_call_ms, m.ai_load_ms,
+                   m.category, m.ai_category
+              FROM message m
+              JOIN account a ON a.id = m.account_id
+             WHERE m.category_held_at >= :since
+             ORDER BY m.category_held_at DESC, m.id DESC
+             LIMIT :limit
+            SQL,
+            ['since' => $since, 'limit' => $limit],
+            ['since' => Types::DATETIME_IMMUTABLE, 'limit' => ParameterType::INTEGER],
+        );
+
+        return array_map(static fn (array $row): array => [
+            'id'            => (int) $row['id'],
+            'account'       => (string) $row['account'],
+            'heldAt'        => new DateTimeImmutable((string) $row['held_at']),
+            'shownAfter'    => null === $row['shown_after'] ? null : (float) $row['shown_after'],
+            'answeredAfter' => null === $row['answered_after'] ? null : (float) $row['answered_after'],
+            'stillHeld'     => true === (bool) $row['still_held'],
+            'shownFirst'    => true === (bool) $row['shown_first'],
+            'queueMs'       => null === $row['ai_queue_ms'] ? null : (int) $row['ai_queue_ms'],
+            'callMs'        => null === $row['ai_call_ms'] ? null : (int) $row['ai_call_ms'],
+            'loadMs'        => null === $row['ai_load_ms'] ? null : (int) $row['ai_load_ms'],
+            // Where it ended up, which after a verdict is the assistant's answer and
+            // not the rules' — the rules' own is not kept once it has been replaced.
+            'filed'         => null === $row['category'] ? null : (string) $row['category'],
+            'verdict'       => null === $row['ai_category'] ? null : (string) $row['ai_category'],
+        ], $rows);
+    }
+
+    /**
+     * How long mail took to get from the provider into plMail, per account.
+     *
+     * The gap between a message's own received date and the moment its row was
+     * created. It is the number that says whether push is working: an account
+     * on IMAP IDLE or Gmail push shows seconds, and one living on the
+     * quarter-hourly poll shows minutes — with nothing else on any screen to
+     * tell the two apart, since both "work".
+     *
+     * ONLY MAIL THAT ARRIVED, not mail that was imported. A mailbox being
+     * brought in is years of history stored today, and its "lag" would be
+     * years. So a message counts only if it was stored within a day of being
+     * received. The cost is that an outage longer than a day is invisible
+     * here — which is the right way round for a latency figure, and an outage
+     * that long is on the System page in red.
+     *
+     * And not the account's own outgoing copies, which are written by plMail
+     * at send time and would report a flattering zero.
+     *
+     * Clamped at zero: the received date is the sender's or the provider's
+     * clock, and a clock a few seconds fast is not negative latency.
+     *
+     * Driven from `account` so each account's messages are found through
+     * idx_message_account_received_at rather than by reading the table.
+     *
+     * @return list<array{account: string, provider: string, push: bool, messages: int,
+     *     median: float|null, p95: float|null, max: float|null}>
+     */
+    public function arrivalLagByAccount(DateTimeImmutable $since): array
+    {
+        /** @var list<array<string, mixed>> $rows */
+        $rows = $this->getEntityManager()->getConnection()->fetchAllAssociative(
+            <<<'SQL'
+            SELECT a.email AS account,
+                   a.auth_type, a.oauth_provider, a.push_enabled,
+                   COUNT(l.lag) AS messages,
+                   percentile_cont(0.5)  WITHIN GROUP (ORDER BY l.lag) AS median,
+                   percentile_cont(0.95) WITHIN GROUP (ORDER BY l.lag) AS p95,
+                   MAX(l.lag) AS max
+              FROM account a
+              LEFT JOIN LATERAL (
+                  SELECT GREATEST(0, EXTRACT(EPOCH FROM (m.created_at - m.received_at))) AS lag
+                    FROM message m
+                   WHERE m.account_id = a.id
+                     AND m.received_at >= :since
+                     AND m.created_at <= m.received_at + INTERVAL '1 day'
+                     AND LOWER(COALESCE(m.from_address, '')) <> LOWER(COALESCE(a.email, ''))
+              ) l ON true
+             WHERE a.is_active = true
+             GROUP BY a.id, a.email, a.auth_type, a.oauth_provider, a.push_enabled
+             ORDER BY a.email
+            SQL,
+            ['since' => $since],
+            ['since' => Types::DATETIME_IMMUTABLE],
+        );
+
+        return array_map(static fn (array $row): array => [
+            'account'  => (string) $row['account'],
+            'provider' => 'oauth2' === $row['auth_type'] && null !== $row['oauth_provider']
+                ? (string) $row['oauth_provider']
+                : 'imap',
+            'push'     => true === (bool) $row['push_enabled'],
+            'messages' => (int) $row['messages'],
+            'median'   => null === $row['median'] ? null : (float) $row['median'],
+            'p95'      => null === $row['p95'] ? null : (float) $row['p95'],
+            'max'      => null === $row['max'] ? null : (float) $row['max'],
+        ], $rows);
     }
 }

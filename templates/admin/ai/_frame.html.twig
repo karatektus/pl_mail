@@ -284,6 +284,12 @@ poll would empty a field mid-word.
                                 {% else %}
                                     {{ 'admin.ai.hold.no_data'|trans }}
                                 {% endif %}
+                                {# _top: this is inside the settings frame, and
+                                   the destination is another section of the page
+                                   around it. #}
+                                <a href="{{ path('app_admin_dashboard', { section: 'performance' }) }}"
+                                   data-turbo-frame="_top"
+                                   class="text-accent hover:underline">{{ 'admin.ai.hold.details'|trans }}</a>
                             </p>
                         </div>
                         {{ form_row(form.writingHelpEnabled) }}
@@ -323,10 +329,10 @@ poll would empty a field mid-word.
        telemetry is what tells you a prompt change was worth making. #}
     {% include 'admin/ai/_prompts.html.twig' %}
 
-    {# ── Telemetry, under the configuration ────────────────────────────────
-       Below the settings card and inside the same frame, because it answers
-       the question the settings raise: you have named a host and two models,
-       is any of that actually working.
+    {# ── The search index backfill, under the configuration ────────────────
+       The other card that used to sit here — the model host and its recorded
+       calls — is on Admin → Performance now, with the other measurements. This
+       one stays because it is not a measurement: it has Start and Pause on it.
 
        It is NOT rendered here. The first paint is a placeholder and the
        controller fetches immediately, which keeps the settings page off the
@@ -336,12 +342,13 @@ poll would empty a field mid-word.
 
        The poll only runs while the master switch is on. Off is a valid
        configuration and there is nothing to watch; the one fetch on connect is
-       what renders "AI is off" rather than a spinner that never stops. #}
+       what renders the card rather than a spinner that never stops. #}
     <div data-controller="admin--ai-status"
          data-admin--ai-status-url-value="{{ path('app_admin_ai_status') }}"
-         data-admin--ai-status-start-url-value="{{ path('app_admin_ai_backfill', { action: 'start' }) }}"
-         data-admin--ai-status-pause-url-value="{{ path('app_admin_ai_backfill', { action: 'pause' }) }}"
-         data-admin--ai-status-resume-url-value="{{ path('app_admin_ai_backfill', { action: 'resume' }) }}"
+         data-admin--ai-status-part-value="backfill"
+         data-admin--ai-status-start-url-value="{{ path('app_admin_ai_backfill', { action: 'start', part: 'backfill' }) }}"
+         data-admin--ai-status-pause-url-value="{{ path('app_admin_ai_backfill', { action: 'pause', part: 'backfill' }) }}"
+         data-admin--ai-status-resume-url-value="{{ path('app_admin_ai_backfill', { action: 'resume', part: 'backfill' }) }}"
          data-admin--ai-status-interval-value="5000"
          data-admin--ai-status-live-value="{{ settings.isEnabled and settings.isConfigured ? 'true' : 'false' }}">
 
