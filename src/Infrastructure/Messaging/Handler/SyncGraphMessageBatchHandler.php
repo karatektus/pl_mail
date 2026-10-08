@@ -15,6 +15,7 @@ use App\Service\HarvestContactsService;
 use App\Service\Mail\GraphApiClient;
 use App\Service\Mail\PostIngestPipeline;
 use App\Service\Mail\SyncNotifier;
+use App\Service\Mail\SyncOrigin;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
@@ -52,9 +53,17 @@ final readonly class SyncGraphMessageBatchHandler
         private PostIngestPipeline     $postIngest,
         private EntityManagerInterface $em,
         private LoggerInterface        $logger,
+        private SyncOrigin             $origin,
     ) {}
 
     public function __invoke(SyncGraphMessageBatchMessage $message): void
+    {
+        // Everything stored from here on is marked with what started this
+        // sync. See SyncOrigin, and SyncAccountMessage for the `??`.
+        $this->origin->during($message->trigger ?? null, fn () => $this->handle($message));
+    }
+
+    private function handle(SyncGraphMessageBatchMessage $message): void
     {
         $account = $this->accountRepository->find($message->accountId);
 
@@ -224,7 +233,7 @@ final readonly class SyncGraphMessageBatchHandler
         ]);
 
         $this->bus->dispatch(
-            new SyncGraphMessageBatchMessage((int) $account->id, $throttled),
+            new SyncGraphMessageBatchMessage((int) $account->id, $throttled, $this->origin->current()),
             [new DelayStamp(self::RETRY_DELAY_MS)],
         );
     }

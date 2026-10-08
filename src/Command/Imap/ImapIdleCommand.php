@@ -3,6 +3,7 @@
 namespace App\Command\Imap;
 
 use App\Domain\DTO\Mail\ImapFlagNotice;
+use App\Domain\Enum\Mail\SyncTrigger;
 use App\Domain\Helper\ImapConnectionFactory;
 use App\Infrastructure\Messaging\Message\ApplyRemoteFlagsMessage;
 use App\Infrastructure\Messaging\Message\SyncImapMailboxMessage;
@@ -462,7 +463,7 @@ class ImapIdleCommand extends Command
                 $this->mailboxRepository->markSweepDue($mailboxId);
             }
 
-            $this->bus->dispatch(new SyncImapMailboxMessage($mailboxId));
+            $this->bus->dispatch(new SyncImapMailboxMessage($mailboxId, SyncTrigger::Idle));
             $io->text(sprintf('[%s] Sync dispatched%s.', date('H:i:s'), $sweep ? ' with a full listing' : ''));
         } catch (\Throwable $e) {
             $io->error(sprintf('[%s] Dispatch failed: %s', date('H:i:s'), $e->getMessage()));

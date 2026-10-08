@@ -672,11 +672,13 @@ admin:
             col:
                 account: 'Berth'
                 arrives_by: 'Comes by'
+                elsewhere: 'Not in the inbox'
+                elsewhere_hint: "Bilge an' mail a filter stowed elsewhere: how many, an' their usual delay. Harbours only signal inbox mail, so the rest waits fer the watch."
                 max: 'Longest'
                 median: 'Usual delay'
-                messages: 'Messages'
+                messages: 'Inbox mail'
                 p95: '95% within'
-            footnote: "From the moment the harbour took a message to the moment plMail stowed it. Mail hauled in by an import, an' mail sent from plMail itself, be not counted."
+            footnote: "From the moment the harbour took a message to the moment plMail stowed it, fer mail that landed in the inbox. Mail hauled in by an import, an' mail sent from plMail itself, be not counted."
             heading: 'How late the mail lands'
             lead: "Seconds means the harbour be tellin' plMail o' new mail as it lands. Minutes means the berth be checked on the quarter-hour watch instead."
             no_accounts: 'No berths in use.'
@@ -685,6 +687,29 @@ admin:
                 imap: 'IMAP'
                 microsoft: 'Outlook'
             push: 'cannon on'
+            slowest:
+                by:
+                    idle: 'IDLE'
+                    manual: 'Sync button'
+                    poll: 'The watch'
+                    push: 'Cannon'
+                    unknown: '—'
+                col:
+                    accepted: 'Reached the harbour'
+                    account: 'Berth'
+                    by: 'Hauled in by'
+                    in: 'Stowed in'
+                    lag: 'Then till plMail had it'
+                    lag_hint: "From the harbour takin' the message to plMail stowin' it. Marked when inbox mail took five minutes or more."
+                    underway: "Already at sea fer"
+                    underway_hint: "From the date the message carries to the harbour takin' it: a sender that held it back, or dated it early. Naught plMail could have shortened."
+                empty: 'No mail landed in this period.'
+                footnote: "Slowest first. Mail outside the inbox be never signalled by the harbour, so up to fifteen minutes there be the watch workin' as intended. What hauled a message in be logged from this version on."
+                heading: 'The slowest in this period'
+                in:
+                    elsewhere: 'Elsewhere'
+                    inbox: 'Inbox'
+                    spam: 'Bilge'
         window:
             day: '24 hours'
             hour: '1 hour'

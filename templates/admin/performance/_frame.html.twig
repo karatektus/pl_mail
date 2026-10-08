@@ -65,7 +65,8 @@
                                 <th class="px-2 py-2 font-medium text-right">{{ 'admin.performance.lag.col.messages'|trans }}</th>
                                 <th class="px-2 py-2 font-medium text-right">{{ 'admin.performance.lag.col.median'|trans }}</th>
                                 <th class="px-2 py-2 font-medium text-right">{{ 'admin.performance.lag.col.p95'|trans }}</th>
-                                <th class="px-2 py-2 font-medium text-right pr-4">{{ 'admin.performance.lag.col.max'|trans }}</th>
+                                <th class="px-2 py-2 font-medium text-right">{{ 'admin.performance.lag.col.max'|trans }}</th>
+                                <th class="px-2 py-2 font-medium text-right pr-4" title="{{ 'admin.performance.lag.col.elsewhere_hint'|trans }}">{{ 'admin.performance.lag.col.elsewhere'|trans }}</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -82,7 +83,15 @@
                                     <td class="px-2 py-2 text-xs text-right tabular-nums">{{ row.messages }}</td>
                                     <td class="px-2 py-2 text-xs text-right tabular-nums font-semibold {{ polling ? 'text-warning' : 'text-ink' }}">{{ ui.lag(row.median) }}</td>
                                     <td class="px-2 py-2 text-xs text-right tabular-nums">{{ ui.lag(row.p95) }}</td>
-                                    <td class="px-2 py-2 text-xs text-right tabular-nums pr-4">{{ ui.lag(row.max) }}</td>
+                                    <td class="px-2 py-2 text-xs text-right tabular-nums">{{ ui.lag(row.max) }}</td>
+                                    {# Spam and filtered mail: never announced,
+                                       so minutes here are the schedule and
+                                       not a fault. Never highlighted. #}
+                                    <td class="px-2 py-2 text-xs text-right tabular-nums pr-4 text-ink-faint">
+                                        {%- if row.elsewhere > 0 -%}
+                                            {{ row.elsewhere }} · {{ ui.lag(row.elsewhereMedian) }}
+                                        {%- else -%}—{%- endif -%}
+                                    </td>
                                 </tr>
                             {% endfor %}
                         </tbody>
@@ -91,6 +100,63 @@
                 <p class="px-4 py-2 border-t border-line text-[12px] leading-snug text-ink-faint">
                     {{ 'admin.performance.lag.footnote'|trans }}
                 </p>
+
+                {# ── The slowest, one message to a row ─────────────────────
+                   The summary says how many were late; this says which, and
+                   carries the three things that explain one: what brought it
+                   in, where it was filed, and how old it already was when the
+                   provider got it.
+
+                   CLOSED, and closed again on every load: no `open`, and
+                   nothing remembers that it was opened. The accounts above
+                   are the answer most visits want; this is for the visit that
+                   wants to know why. #}
+                <details class="group border-t border-line" data-testid="performance-slowest-toggle">
+                    <summary class="px-4 py-2.5 flex items-center gap-2 cursor-pointer select-none list-none [&::-webkit-details-marker]:hidden text-xs font-semibold text-ink hover:bg-pane-soft transition-colors">
+                        <i class="fa-solid fa-chevron-right text-[10px] text-ink-faint transition-transform group-open:rotate-90" aria-hidden="true"></i>
+                        {{ 'admin.performance.lag.slowest.heading'|trans }}
+                    </summary>
+                {% if slowest is empty %}
+                    <p class="px-4 pb-3 text-sm text-ink-faint" data-testid="performance-slowest-empty">{{ 'admin.performance.lag.slowest.empty'|trans }}</p>
+                {% else %}
+                    <div class="overflow-x-auto" data-testid="performance-slowest">
+                        <table class="w-full text-sm">
+                            <thead>
+                                <tr class="text-left text-xs text-ink-faint">
+                                    <th class="px-4 py-2 font-medium">{{ 'admin.performance.lag.slowest.col.accepted'|trans }}</th>
+                                    <th class="px-2 py-2 font-medium">{{ 'admin.performance.lag.slowest.col.account'|trans }}</th>
+                                    <th class="px-2 py-2 font-medium">{{ 'admin.performance.lag.slowest.col.in'|trans }}</th>
+                                    <th class="px-2 py-2 font-medium">{{ 'admin.performance.lag.slowest.col.by'|trans }}</th>
+                                    <th class="px-2 py-2 font-medium text-right" title="{{ 'admin.performance.lag.slowest.col.underway_hint'|trans }}">{{ 'admin.performance.lag.slowest.col.underway'|trans }}</th>
+                                    <th class="px-2 py-2 font-medium text-right pr-4" title="{{ 'admin.performance.lag.slowest.col.lag_hint'|trans }}">{{ 'admin.performance.lag.slowest.col.lag'|trans }}</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for row in slowest %}
+                                    {# Inbox mail is the mail a provider
+                                       announces. Five minutes for that is an
+                                       announcement that did not come; five
+                                       minutes for spam is the schedule. #}
+                                    {% set missed = row.in == 'inbox' and row.lag >= 300 %}
+                                    <tr class="border-t border-line text-ink-soft">
+                                        <td class="px-4 py-2 text-xs tabular-nums whitespace-nowrap">{{ row.acceptedAt|date('Y-m-d H:i:s') }}</td>
+                                        <td class="px-2 py-2 text-xs truncate max-w-[14rem]">{{ row.account }}</td>
+                                        <td class="px-2 py-2 text-xs">{{ ('admin.performance.lag.slowest.in.' ~ (row.in ?? 'elsewhere'))|trans }}</td>
+                                        <td class="px-2 py-2 text-xs">{{ ('admin.performance.lag.slowest.by.' ~ (row.by ?? 'unknown'))|trans }}</td>
+                                        {# Under a minute is two clocks
+                                           disagreeing, not a journey. #}
+                                        <td class="px-2 py-2 text-xs text-right tabular-nums">{{ row.underway is not null and row.underway >= 60 ? ui.lag(row.underway) : '—' }}</td>
+                                        <td class="px-2 py-2 text-xs text-right tabular-nums pr-4 font-semibold {{ missed ? 'text-warning' : 'text-ink' }}">{{ ui.lag(row.lag) }}</td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    <p class="px-4 py-2 border-t border-line text-[12px] leading-snug text-ink-faint">
+                        {{ 'admin.performance.lag.slowest.footnote'|trans }}
+                    </p>
+                {% endif %}
+                </details>
             {% endif %}
         </section>
 

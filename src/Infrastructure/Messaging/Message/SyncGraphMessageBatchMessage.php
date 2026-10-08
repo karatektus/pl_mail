@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Infrastructure\Messaging\Message;
 
+use App\Domain\Enum\Mail\SyncTrigger;
+
 /**
  * Fetch and import one chunk of Graph message ids.
  *
@@ -18,5 +20,8 @@ readonly class SyncGraphMessageBatchMessage
     public function __construct(
         public int   $accountId,
         public array $graphIds,
+        // What started the sync that planned this batch, carried along so the
+        // messages it stores can say so. `??` when reading: see SyncAccountMessage.
+        public ?SyncTrigger $trigger = null,
     ) {}
 }

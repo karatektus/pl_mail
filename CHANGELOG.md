@@ -8,6 +8,25 @@ The published image tags: `latest` follows the most recent release below,
 
 ## Unreleased
 
+**Admin → Performance no longer blames plMail for mail that was late before it got here.** "How late
+mail arrives" measured from the date a message carries, which is the sender's clock: a newsletter
+dated half an hour before it was sent, or a first message held back by greylisting, was shown as
+plMail taking that long. It now measures from the moment your provider accepted the message. On the
+installation this was found on, an account showing "95% within 15 min" had in fact stored all of its
+inbox mail within a minute.
+
+- **Inbox mail and the rest are counted apart.** Providers only announce mail that lands in the
+  inbox; spam and filtered mail wait for the quarter-hourly check by design, and used to put a
+  fifteen-minute tail on accounts whose push was working. They now have a column of their own.
+- **The slowest messages are listed**, in a section you click open, one to a row: where each was filed, what brought it in (push,
+  IDLE, the schedule, the sync button) and how long it had already been under way before your
+  provider had it. No subject and no sender, like the rest of the page.
+- What brought a message in is recorded from this version on; older mail shows a dash. The last
+  week of mail is given its accept time in the background shortly after the update, so the panel
+  may be sparse for a few minutes.
+- This adds three columns and an index to the message table. On a very large mailbox, building the
+  index makes this start-up take a little longer than usual.
+
 **A label name that differs from an existing one only in capitals is refused.** "work" could be
 created beside "Work". Gmail treats the two as one label and rejected the second, but only later, in
 the background: the new label existed in plMail, could be put on mail, and never reached Gmail, with

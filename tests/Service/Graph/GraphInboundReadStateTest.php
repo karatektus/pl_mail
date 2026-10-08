@@ -217,6 +217,7 @@ final class GraphInboundReadStateTest extends KernelTestCase
             new \Psr\Log\NullLogger(),
             $container->get('App\Service\Mail\MessageEraser'),
             $container->get('App\Service\Mail\ThreadStatusUpdater'),
+            new \App\Service\Mail\SyncOrigin(),
         );
 
         $syncer->sync($this->account, [self::INBOX_FOLDER]);

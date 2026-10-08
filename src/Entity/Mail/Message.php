@@ -2,9 +2,11 @@
 
 namespace App\Entity\Mail;
 
+use App\Domain\Enum\Mail\ArrivalPlace;
 use App\Domain\Enum\Mail\MessageCategory;
 use App\Domain\Enum\Mail\MessageFlag;
 use App\Domain\Enum\Mail\MessagePriority;
+use App\Domain\Enum\Mail\SyncTrigger;
 use App\Domain\Model\MessageModel;
 use App\Entity\Label\Label;
 use App\Repository\Mail\MessageRepository;
@@ -41,6 +43,10 @@ use Doctrine\ORM\Mapping as ORM;
 // (account_id, received_at DESC NULLS LAST, id DESC) to match that ORDER BY;
 // the comparator does not see directions. See Version20260923140200.
 #[ORM\Index(name: 'idx_message_account_received_at', columns: ['account_id', 'received_at', 'id'])]
+// Admin → Performance's two arrival queries: one account's mail by when the
+// provider accepted it. They cannot use the index above, because they no
+// longer measure from received_at.
+#[ORM\Index(name: 'idx_message_account_accepted_at', columns: ['account_id', 'provider_accepted_at'])]
 #[ORM\Entity(repositoryClass: MessageRepository::class)]
 #[ORM\HasLifecycleCallbacks]
 class Message extends MessageModel
@@ -548,6 +554,30 @@ class Message extends MessageModel
 
     #[ORM\Column(name: 'ai_load_ms', nullable: true)]
     public ?int $aiLoadMs = null;
+
+    /**
+     * When the user's mail provider took delivery of this message, as the
+     * provider itself wrote it down. Null for mail that did not arrive — a
+     * draft, a sent copy — and for mail stored before this was recorded.
+     *
+     * NOT $receivedAt, and the difference is the reason this exists. That one
+     * is the date the message carries, which is the right thing to show and to
+     * sort by and is in practice the sender's clock; Admin → Performance
+     * measured from it and reported a newsletter stamped half an hour before
+     * it was sent as plMail being half an hour late. See ProviderAcceptTime.
+     *
+     * Written once, by ArrivalStamper, together with the two below.
+     */
+    #[ORM\Column(name: 'provider_accepted_at', nullable: true)]
+    public ?DateTimeImmutable $providerAcceptedAt = null;
+
+    /** What started the sync that stored this. Null when it was not a sync. */
+    #[ORM\Column(name: 'arrived_by', length: 10, nullable: true, enumType: SyncTrigger::class)]
+    public ?SyncTrigger $arrivedBy = null;
+
+    /** Where it was filed when it was stored — not where it is now. */
+    #[ORM\Column(name: 'arrived_in', length: 10, nullable: true, enumType: ArrivalPlace::class)]
+    public ?ArrivalPlace $arrivedIn = null;
 
     /**
      * @var Collection<int, Label>

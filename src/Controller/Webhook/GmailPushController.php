@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controller\Webhook;
 
+use App\Domain\Enum\Mail\SyncTrigger;
 use App\Entity\Mail\Account;
 use App\Infrastructure\Messaging\Message\SyncAccountMessage;
 use App\Repository\Mail\AccountRepository;
@@ -85,7 +86,7 @@ final class GmailPushController extends AbstractController
 
             $account->gmailLastPushAt = new DateTimeImmutable();
 
-            $this->bus->dispatch(new SyncAccountMessage((int) $account->id));
+            $this->bus->dispatch(new SyncAccountMessage((int) $account->id, SyncTrigger::Push));
             $dispatched++;
         }
 

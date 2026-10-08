@@ -1,4 +1,4 @@
-<!-- translated-from: features/admin.md sha1:5e085535bef18bac96f5928f8c1ba9cd08a45b4d -->
+<!-- translated-from: features/admin.md sha1:2767661fff94331fe0f8e24bd3f5ffc971865832 -->
 
 # Administration
 
@@ -100,12 +100,38 @@ aktualisiert sich nichts von selbst: Es ist eine Aufzeichnung, die du Zeile für
 **Zeitraum** wechselt zwischen der letzten Stunde, 24 Stunden und 7 Tagen.
 
 **Wie spät Mail ankommt.** Pro Konto die Zeit zwischen dem Moment, in dem der Anbieter eine
-Nachricht erhalten hat, und dem, in dem plMail sie gespeichert hat. Sekunden heißt: Der Anbieter
+Nachricht angenommen hat, und dem, in dem plMail sie gespeichert hat. Sekunden heißt: Der Anbieter
 meldet plMail neue Mail, sobald sie eintrifft — IMAP IDLE, Gmail-Push, eine Graph-Subscription. Eine
 übliche Verzögerung von fünf Minuten oder mehr wird hervorgehoben: Dieses Konto lebt von der
 Abfrage im Viertelstundentakt, was „funktioniert" — und genau deshalb würde es dir keine andere
 Seite sagen. Mail aus einem Import zählt nicht mit, ebenso wenig Mail, die aus plMail selbst
 verschickt wurde.
+
+Die drei Verzögerungswerte gelten für Mail, die im Posteingang gelandet ist, denn nur die meldet ein
+Anbieter. Spam und Mail, die ein Filter woanders abgelegt hat, wartet absichtlich auf den Takt;
+**Nicht im Posteingang** nennt ihre Anzahl und übliche Verzögerung getrennt, damit sie nicht wie ein
+Push aussieht, der ausfällt.
+
+Gemessen wird ab dem Moment, den der Anbieter selbst als Annahme festgehalten hat, nicht ab dem
+Datum, das die Nachricht trägt. Dieses Datum stammt vom Absender: Ein Newsletter, der eine halbe
+Stunde vor dem Versand datiert war, wurde früher so angezeigt, als sei plMail eine halbe Stunde zu
+spät gewesen.
+
+Unter den Konten listet **Die langsamsten in diesem Zeitraum** die langsamsten Nachrichten auf, eine
+pro Zeile. Die Liste ist zugeklappt, bis du sie anklickst, und beim nächsten Laden der Seite wieder
+zu:
+
+| Spalte | Was sie zeigt |
+|---|---|
+| **Beim Anbieter angekommen** | Wann der Anbieter die Nachricht angenommen hat |
+| **Abgelegt in** | Posteingang, Spam oder Woanders — wo sie bei der Ankunft lag, nicht wo sie jetzt liegt |
+| **Geholt durch** | Was plMail dazu gebracht hat, sie abzuholen: Push, IDLE, der Takt oder jemand, der den Sync-Knopf gedrückt hat. Ein Strich bei Mail, die gespeichert wurde, bevor das festgehalten wurde |
+| **Schon unterwegs seit** | Wie viel älter das Datum der Nachricht ist als der Moment, in dem der Anbieter sie hatte. Ein Absender, der sie zurückgehalten oder zu früh datiert hat; daran hätte plMail nichts verkürzen können |
+| **Danach bis plMail sie hatte** | Die Verzögerung selbst. Hervorgehoben, wenn Mail im Posteingang fünf Minuten oder länger gebraucht hat — dann ist eine Meldung nie gekommen |
+
+Mail im Posteingang, die auf einem Konto mit Push durch den Takt geholt wurde, ist die Zeile, nach
+der du suchst. Wie der Rest dieser Seite sagen die Zeilen nichts darüber, was in der Mail stand:
+kein Betreff, kein Absender.
 
 **Was bei jedem Worker wartet.** Die Warteschlangen-Zahlen aus **System**, geordnet nach dem
 Prozess, der sie abarbeitet: wie viele Jobs warten, wie lange der älteste schon wartet und wie lange

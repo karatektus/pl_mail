@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Command\Mail;
 
+use App\Domain\Enum\Mail\SyncTrigger;
 use App\Infrastructure\Messaging\Message\SyncAccountMessage;
 use App\Repository\Mail\AccountRepository;
 use App\Service\Demo\DemoMode;
@@ -69,7 +70,7 @@ final class MailSyncCommand extends Command
         }
 
         foreach ($accounts as $account) {
-            $this->bus->dispatch(new SyncAccountMessage($account->id));
+            $this->bus->dispatch(new SyncAccountMessage($account->id, SyncTrigger::Poll));
             $io->text(sprintf('→ dispatched sync for %s (#%d)', $account->email, $account->id));
         }
 

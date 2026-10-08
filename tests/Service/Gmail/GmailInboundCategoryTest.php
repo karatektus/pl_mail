@@ -187,6 +187,7 @@ final class GmailInboundCategoryTest extends KernelTestCase
             $container->get('App\Service\Mail\ThreadStatusUpdater'),
             $container->get('App\Service\Mail\MessageCategorizer'),
             $container->get('App\Service\Imap\MessageThreader'),
+            new \App\Service\Mail\SyncOrigin(),
         );
 
         $handler(new SyncGmailMessageBatchMessage((int) $this->account->id, [self::GMAIL_ID]));

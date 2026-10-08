@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controller\Webhook;
 
+use App\Domain\Enum\Mail\SyncTrigger;
 use App\Entity\Mail\Account;
 use App\Infrastructure\Messaging\Message\SyncAccountMessage;
 use App\Repository\Mail\AccountRepository;
@@ -69,7 +70,7 @@ final class GraphNotificationController extends AbstractController
         }
 
         foreach (array_keys($seen) as $accountId) {
-            $this->bus->dispatch(new SyncAccountMessage($accountId));
+            $this->bus->dispatch(new SyncAccountMessage($accountId, SyncTrigger::Push));
         }
 
         // 202 tells Graph the notification was accepted for processing.
@@ -118,7 +119,7 @@ final class GraphNotificationController extends AbstractController
             }
 
             // Every lifecycle event is a reason to reconcile.
-            $this->bus->dispatch(new SyncAccountMessage((int) $account->id));
+            $this->bus->dispatch(new SyncAccountMessage((int) $account->id, SyncTrigger::Push));
         }
 
         return new Response('', Response::HTTP_ACCEPTED);

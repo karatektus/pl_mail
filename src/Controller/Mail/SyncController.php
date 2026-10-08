@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Controller\Mail;
 
 use App\Controller\ChecksCsrf;
+use App\Domain\Enum\Mail\SyncTrigger;
 use App\Entity\Mail\Account;
 use App\Infrastructure\Messaging\Message\SyncAccountMessage;
 use App\Repository\Mail\AccountRepository;
@@ -56,7 +57,7 @@ final class SyncController extends AbstractController
         $accounts = $this->activeAccounts();
 
         foreach ($accounts as $account) {
-            $this->bus->dispatch(new SyncAccountMessage($account->id));
+            $this->bus->dispatch(new SyncAccountMessage($account->id, SyncTrigger::Manual));
         }
 
         return $this->json(['dispatched' => count($accounts)]);

@@ -85,11 +85,34 @@ How long things take, as opposed to whether they are working — which is what *
 Nothing here refreshes by itself: it is a record, read a row at a time. **Period** switches between
 the last hour, 24 hours and 7 days.
 
-**How late mail arrives.** Per account, the time between the provider receiving a message and
+**How late mail arrives.** Per account, the time between the provider accepting a message and
 plMail storing it. Seconds means the provider is telling plMail about new mail as it lands — IMAP
 IDLE, Gmail push, a Graph subscription. A typical delay of five minutes or more is highlighted: that
 account is living on the quarter-hourly poll, which "works" and is why nothing else on any page
 would tell you. Mail brought in by an import is not counted, nor is mail sent from plMail itself.
+
+The three delay figures are of mail that landed in the inbox, because that is the only mail a
+provider announces. Spam, and mail a filter filed somewhere else, waits for the schedule by design;
+**Not in the inbox** gives its count and typical delay separately so that it does not read as a push
+that is failing.
+
+The delay is measured from the provider's own record of taking delivery, not from the date the
+message carries. That date is the sender's: a newsletter dated half an hour before it was sent used
+to be shown as plMail being half an hour late.
+
+Under the accounts, **The slowest in this period** lists the slowest messages one to a row. It is
+closed until you click it, and closed again the next time the page loads:
+
+| Column | What it is |
+|---|---|
+| **Reached the provider** | When the provider accepted the message |
+| **Filed in** | Inbox, Spam or Elsewhere — where it was when it arrived, not where it is now |
+| **Brought in by** | What made plMail fetch it: Push, IDLE, the Schedule, or somebody pressing the Sync button. A dash for mail stored before this was recorded |
+| **Already under way for** | How much older the message's own date is than the moment the provider had it. A sender that queued it or dated it early; nothing plMail could have shortened |
+| **Then until plMail had it** | The delay itself. Highlighted when inbox mail took five minutes or more, which is an announcement that never came |
+
+Inbox mail brought in by the Schedule on an account that has push is the row to look for. Like the
+rest of this page, the rows say nothing about what was in the mail: no subject and no sender.
 
 **What each worker has waiting.** The queue numbers from **System**, arranged by the process that
 handles them: how many jobs are waiting, how long the oldest has waited, and how long the job in

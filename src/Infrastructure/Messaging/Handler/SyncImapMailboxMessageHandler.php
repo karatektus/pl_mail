@@ -10,6 +10,7 @@ use App\Infrastructure\Messaging\Message\SyncImapMailboxMessage;
 use App\Repository\Mail\MailboxRepository;
 use App\Service\Imap\MessageSyncer;
 use App\Service\Mail\SyncNotifier;
+use App\Service\Mail\SyncOrigin;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 
@@ -58,9 +59,17 @@ final readonly class SyncImapMailboxMessageHandler
         private ImapConnectionFactory $imapConnectionFactory,
         private SyncNotifier          $syncNotifier,
         private LoggerInterface       $logger,
+        private SyncOrigin            $origin,
     ) {}
 
     public function __invoke(SyncImapMailboxMessage $message): void
+    {
+        // Everything stored from here on is marked with what started this
+        // sync. See SyncOrigin, and SyncAccountMessage for the `??`.
+        $this->origin->during($message->trigger ?? null, fn () => $this->handle($message));
+    }
+
+    private function handle(SyncImapMailboxMessage $message): void
     {
         $mailbox = $this->mailboxRepository->find($message->mailboxId);
 

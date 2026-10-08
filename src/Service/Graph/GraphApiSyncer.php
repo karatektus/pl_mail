@@ -13,6 +13,7 @@ use App\Infrastructure\Messaging\Message\SyncGraphMessageBatchMessage;
 use App\Repository\Mail\MessageRepository;
 use App\Service\Mail\GraphApiClient;
 use App\Service\Mail\MessageEraser;
+use App\Service\Mail\SyncOrigin;
 use App\Service\Mail\ThreadStatusUpdater;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
@@ -59,6 +60,7 @@ final class GraphApiSyncer
         private readonly LoggerInterface        $logger,
         private readonly MessageEraser          $eraser,
         private readonly ThreadStatusUpdater    $status,
+        private readonly SyncOrigin             $origin,
     ) {}
 
     /**
@@ -457,6 +459,7 @@ final class GraphApiSyncer
             $this->bus->dispatch(new SyncGraphMessageBatchMessage(
                 (int) $account->id,
                 array_values($chunk),
+                $this->origin->current(),
             ));
         }
 

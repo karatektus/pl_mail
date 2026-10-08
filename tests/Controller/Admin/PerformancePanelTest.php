@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Tests\Controller\Admin;
 
+use App\Domain\Enum\Mail\ArrivalPlace;
+use App\Domain\Enum\Mail\SyncTrigger;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Message;
 use App\Entity\User\User;
@@ -144,24 +146,107 @@ final class PerformancePanelTest extends WebTestCase
     {
         $account = $this->account();
 
-        $this->arrived($account, 'somebody@elsewhere.test', receivedAgo: 40);
-        $this->arrived($account, 'somebody@elsewhere.test', receivedAgo: 60 * 60 * 24 * 400);
-        $this->arrived($account, (string) $account->email, receivedAgo: 5);
+        $this->arrived($account, 'somebody@elsewhere.test', acceptedAgo: 40);
+        $this->arrived($account, 'somebody@elsewhere.test', acceptedAgo: 60 * 60 * 24 * 400);
+        $this->arrived($account, (string) $account->email, acceptedAgo: 5);
 
-        $crawler = $this->client->request('GET', '/admin/performance?window=day');
-
-        self::assertResponseIsSuccessful();
-
-        $row = $crawler->filter('[data-testid="performance-lag"] tbody tr')
-            ->reduce(static fn ($tr): bool => str_contains($tr->text(), (string) $account->email));
-
-        self::assertCount(1, $row);
-
-        $cells = $row->filter('td')->each(static fn ($td): string => trim($td->text()));
+        $cells = $this->lagCells($account, 'day');
 
         self::assertSame('IMAP', $cells[1]);
         self::assertSame('1', $cells[2], 'one message arrived; the import and the sent copy are not arrivals');
         self::assertMatchesRegularExpression('/^(39|40|41|42) s$/', $cells[3]);
+    }
+
+    /**
+     * The bug this panel shipped with. The date a message carries is the
+     * sender's clock: a newsletter dated half an hour before it was sent is
+     * not plMail being half an hour late, and the half hour is shown as what
+     * it was.
+     */
+    public function testAMessageDatedLongBeforeItWasSentIsNotCountedAsALateArrival(): void
+    {
+        $account = $this->account();
+
+        $this->arrived($account, 'newsletter@elsewhere.test', acceptedAgo: 5, datedAgo: 30 * 60);
+
+        $cells = $this->lagCells($account, 'hour');
+
+        self::assertMatchesRegularExpression('/^[4-7] s$/', $cells[3]);
+
+        $row = $this->slowestRows($account, 'hour');
+
+        self::assertCount(1, $row);
+        self::assertStringContainsString('30 min', $row[0][4], 'the half hour belongs to the sender');
+        self::assertMatchesRegularExpression('/^[4-7] s$/', $row[0][5]);
+    }
+
+    /**
+     * A provider announces inbox mail and nothing else, so spam waits for the
+     * schedule by design. Counted with the rest it put a quarter-hour tail on
+     * an account whose push was perfect.
+     */
+    public function testMailOutsideTheInboxIsCountedApart(): void
+    {
+        $account = $this->account();
+
+        $this->arrived($account, 'somebody@elsewhere.test', acceptedAgo: 4, by: SyncTrigger::Push);
+        $this->arrived($account, 'spammer@elsewhere.test', acceptedAgo: 600, in: ArrivalPlace::Spam, by: SyncTrigger::Poll);
+
+        $cells = $this->lagCells($account, 'hour');
+
+        self::assertSame('1', $cells[2]);
+        self::assertMatchesRegularExpression('/^[3-6] s$/', $cells[5], 'the longest inbox delay, not the spam');
+        self::assertSame('1 · 10 min', $cells[6]);
+
+        // Slowest first, each saying where it was filed and what fetched it.
+        $rows = $this->slowestRows($account, 'hour');
+
+        self::assertCount(2, $rows);
+        self::assertSame(['Spam', 'Schedule'], [$rows[0][2], $rows[0][3]]);
+        self::assertSame(['Inbox', 'Push'], [$rows[1][2], $rows[1][3]]);
+    }
+
+    /** Ten minutes for spam is the schedule; ten minutes for inbox mail is a push that never came. */
+    public function testOnlyLateInboxMailIsHighlighted(): void
+    {
+        $account = $this->account();
+
+        $this->arrived($account, 'somebody@elsewhere.test', acceptedAgo: 610, by: SyncTrigger::Poll);
+        $this->arrived($account, 'spammer@elsewhere.test', acceptedAgo: 600, in: ArrivalPlace::Spam, by: SyncTrigger::Poll);
+
+        $crawler = $this->client->request('GET', '/admin/performance?window=hour');
+
+        $warned = $crawler->filter('[data-testid="performance-slowest"] tbody tr')
+            ->reduce(static fn ($tr): bool => str_contains($tr->text(), (string) $account->email))
+            ->each(static fn ($tr): bool => $tr->filter('td.text-warning')->count() > 0);
+
+        self::assertSame([true, false], $warned);
+    }
+
+    /** The accounts are the answer most visits want; the rows are for the one that asks why. */
+    public function testTheSlowestRowsStartCollapsed(): void
+    {
+        $this->arrived($this->account(), 'somebody@elsewhere.test', acceptedAgo: 30);
+
+        $crawler = $this->client->request('GET', '/admin/performance?window=hour');
+
+        $toggle = $crawler->filter('details[data-testid="performance-slowest-toggle"]');
+
+        self::assertCount(1, $toggle);
+        self::assertNull($toggle->attr('open'));
+        self::assertCount(1, $toggle->filter('[data-testid="performance-slowest"]'));
+    }
+
+    public function testTheSlowestRowsSayNothingAboutWhatWasInTheMail(): void
+    {
+        $this->arrived($this->account(), 'somebody@elsewhere.test', acceptedAgo: 30);
+
+        $this->client->request('GET', '/admin/performance?window=hour');
+
+        $page = (string) $this->client->getResponse()->getContent();
+
+        self::assertStringNotContainsString('Arrival fixture', $page);
+        self::assertStringNotContainsString('somebody@elsewhere.test', $page);
     }
 
     /**
@@ -240,18 +325,67 @@ final class PerformancePanelTest extends WebTestCase
         $this->em->flush();
     }
 
-    private function arrived(Account $account, string $from, int $receivedAgo): void
-    {
+    /**
+     * A message as a sync would have left it. The arrival columns are set
+     * here rather than left to ArrivalStamper, which has its own test: what
+     * is under test in this file is what the page makes of them.
+     */
+    private function arrived(
+        Account $account,
+        string $from,
+        int $acceptedAgo,
+        ?int $datedAgo = null,
+        ArrivalPlace $in = ArrivalPlace::Inbox,
+        ?SyncTrigger $by = null,
+    ): void {
         $message = new Message();
         $message->account = $account;
         $message->subject = 'Arrival fixture';
         $message->fromAddress = $from;
-        $message->receivedAt = new DateTimeImmutable(sprintf('-%d seconds', $receivedAgo));
+        $message->receivedAt = new DateTimeImmutable(sprintf('-%d seconds', $datedAgo ?? $acceptedAgo));
+        $message->providerAcceptedAt = new DateTimeImmutable(sprintf('-%d seconds', $acceptedAgo));
+        $message->arrivedIn = $in;
+        $message->arrivedBy = $by;
         $message->hasAttachments = false;
         $message->messageId = sprintf('<arrival-%s@example.test>', uniqid('', true));
 
         $this->em->persist($message);
         $this->em->flush();
+    }
+
+    /**
+     * The account's row in the summary, cell by cell.
+     *
+     * @return list<string>
+     */
+    private function lagCells(Account $account, string $window): array
+    {
+        $crawler = $this->client->request('GET', '/admin/performance?window=' . $window);
+
+        self::assertResponseIsSuccessful();
+
+        $row = $crawler->filter('[data-testid="performance-lag"] table')->first()->filter('tbody tr')
+            ->reduce(static fn ($tr): bool => str_contains($tr->text(), (string) $account->email));
+
+        self::assertCount(1, $row);
+
+        return $row->filter('td')->each(static fn ($td): string => trim($td->text()));
+    }
+
+    /**
+     * The account's rows in the slowest table, in the order they are shown.
+     *
+     * @return list<list<string>>
+     */
+    private function slowestRows(Account $account, string $window): array
+    {
+        $crawler = $this->client->request('GET', '/admin/performance?window=' . $window);
+
+        self::assertResponseIsSuccessful();
+
+        return $crawler->filter('[data-testid="performance-slowest"] tbody tr')
+            ->reduce(static fn ($tr): bool => str_contains($tr->text(), (string) $account->email))
+            ->each(static fn ($tr): array => $tr->filter('td')->each(static fn ($td): string => trim($td->text())));
     }
 
     private function account(): Account

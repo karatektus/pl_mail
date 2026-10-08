@@ -264,6 +264,7 @@ final class GraphFolderMoveTest extends KernelTestCase
             new \Psr\Log\NullLogger(),
             $container->get('App\Service\Mail\MessageEraser'),
             $container->get('App\Service\Mail\ThreadStatusUpdater'),
+            new \App\Service\Mail\SyncOrigin(),
         );
 
         $syncer->sync($this->account, array_keys($byFolder));
@@ -309,6 +310,7 @@ final class GraphFolderMoveTest extends KernelTestCase
             new \Psr\Log\NullLogger(),
             $container->get('App\Service\Mail\MessageEraser'),
             $container->get('App\Service\Mail\ThreadStatusUpdater'),
+            new \App\Service\Mail\SyncOrigin(),
         );
 
         $syncer->sync($this->account, [$folderId]);

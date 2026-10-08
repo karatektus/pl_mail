@@ -10,6 +10,7 @@ use App\Infrastructure\Messaging\Message\SyncGmailMessageBatchMessage;
 use App\Repository\Mail\MessageRepository;
 use App\Service\Mail\GmailApiClient;
 use App\Service\Mail\MessageEraser;
+use App\Service\Mail\SyncOrigin;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
@@ -44,6 +45,7 @@ final class GmailApiSyncer
         private readonly MessageBusInterface    $bus,
         private readonly LoggerInterface        $logger,
         private readonly MessageEraser          $eraser,
+        private readonly SyncOrigin             $origin,
     ) {}
 
     /**
@@ -499,6 +501,7 @@ final class GmailApiSyncer
             $this->bus->dispatch(new SyncGmailMessageBatchMessage(
                 (int) $account->id,
                 $batch,
+                $this->origin->current(),
             ));
         }
 

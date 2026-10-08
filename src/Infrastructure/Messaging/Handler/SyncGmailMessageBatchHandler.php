@@ -23,6 +23,7 @@ use App\Service\Mail\GmailApiClient;
 use App\Service\Mail\MessageCategorizer;
 use App\Service\Mail\PostIngestPipeline;
 use App\Service\Mail\SyncNotifier;
+use App\Service\Mail\SyncOrigin;
 use App\Service\Mail\ThreadStatusUpdater;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
@@ -53,9 +54,17 @@ final readonly class SyncGmailMessageBatchHandler
         private ThreadStatusUpdater     $status,
         private MessageCategorizer      $categorizer,
         private MessageThreader         $messageThreader,
+        private SyncOrigin              $origin,
     ) {}
 
     public function __invoke(SyncGmailMessageBatchMessage $message): void
+    {
+        // Everything stored from here on is marked with what started this
+        // sync. See SyncOrigin, and SyncAccountMessage for the `??`.
+        $this->origin->during($message->trigger ?? null, fn () => $this->handle($message));
+    }
+
+    private function handle(SyncGmailMessageBatchMessage $message): void
     {
         $account = $this->accountRepository->find($message->accountId);
 
@@ -114,7 +123,7 @@ final readonly class SyncGmailMessageBatchHandler
             ]);
 
             $this->bus->dispatch(
-                new SyncGmailMessageBatchMessage($account->id, $fetch['retryable']),
+                new SyncGmailMessageBatchMessage($account->id, $fetch['retryable'], $this->origin->current()),
                 [new DelayStamp(self::RETRY_DELAY_MS)],
             );
         }

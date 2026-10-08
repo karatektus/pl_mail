@@ -495,6 +495,7 @@ final class GmailApiSyncerHistoryTest extends TestCase
             $bus,
             new NullLogger(),
             $eraser,
+            new \App\Service\Mail\SyncOrigin(),
         );
     }
 

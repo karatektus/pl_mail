@@ -45,6 +45,12 @@ final class PerformanceController extends AbstractController
     /** Rows in the per-message table. The summary above it covers the whole window. */
     private const int DETAIL_ROWS = 50;
 
+    /**
+     * Rows in the slowest-arrivals table. Fewer than the hold table's: it is
+     * the tail that is being looked at, and the tail is short.
+     */
+    private const int SLOWEST_ROWS = 20;
+
     public function __construct(
         private readonly MessageRepository    $messages,
         private readonly AiSettingsRepository $settings,
@@ -69,6 +75,9 @@ final class PerformanceController extends AbstractController
             // Asked for here rather than fetched by the page: one indexed
             // lookup per account, over mail that is already in the database.
             'lag'     => $this->messages->arrivalLagByAccount($since),
+            // And the slowest of them, one message to a row: which is where
+            // "95% within 15 min" turns into spam collected on schedule.
+            'slowest' => $this->messages->slowestArrivals($since, self::SLOWEST_ROWS),
             'workers' => $this->workers(),
             // The model host's card is fetched by the page itself, the way
             // Admin → AI did it — a host that is switched off must not hold

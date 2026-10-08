@@ -227,6 +227,7 @@ final class GmailApiSyncerBackfillTest extends TestCase
             $this->bus,
             new NullLogger(),
             $this->createStub(MessageEraser::class),
+            new \App\Service\Mail\SyncOrigin(),
         );
     }
 

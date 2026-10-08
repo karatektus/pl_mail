@@ -11,6 +11,7 @@ use App\Infrastructure\Messaging\Message\SyncAccountMessage;
 use App\Repository\Mail\AccountRepository;
 use App\Repository\Mail\MailboxRepository;
 use App\Service\Mail\SyncNotifier;
+use App\Service\Mail\SyncOrigin;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\DependencyInjection\Attribute\AutowireIterator;
@@ -31,9 +32,17 @@ final readonly class SyncAccountMessageHandler
         private EntityManagerInterface $entityManager,
         #[AutowireIterator('app.account_syncer')]
         private iterable            $syncers,
+        private SyncOrigin          $origin,
     ) {}
 
     public function __invoke(SyncAccountMessage $message): void
+    {
+        // Everything stored from here on is marked with what started this
+        // sync. See SyncOrigin, and SyncAccountMessage for the `??`.
+        $this->origin->during($message->trigger ?? null, fn () => $this->handle($message));
+    }
+
+    private function handle(SyncAccountMessage $message): void
     {
         $account = $this->accountRepository->find($message->accountId);
 
