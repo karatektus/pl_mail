@@ -86,16 +86,20 @@ class LabelRepository extends ServiceEntityRepository
     }
 
     /**
-     * The sibling a NEW name would collide with, capitals ignored.
+     * The sibling a name would collide with — capitals ignored — or null when
+     * the name is free. THE rule for a name somebody is typing, and the only
+     * copy of it: Mailbox/set and the browser's label form both ask here, for
+     * a new label and for a rename, and differ only in how they word the
+     * refusal.
      *
      * Not the same question findOneChildByName() answers, and the two must not
      * be merged. That one is find-or-create for mail arriving from a provider,
      * where an exact match is the only safe one: a case-sensitive IMAP server
      * may really hold `work` and `Work` as two folders, and folding them would
      * file two folders' mail under one label. This one is the check in front
-     * of a person typing a name, and there the rule is the strictest
-     * provider's — Gmail treats `work` and `Work` as one label and answers a
-     * second with "409: Label name exists or conflicts".
+     * of a person, and there the rule is the strictest provider's — Gmail
+     * treats `work` and `Work` as one label and answers a second with "409:
+     * Label name exists or conflicts".
      *
      * That refusal arrives in ApplyGmailLabelsHandler, in a worker, long after
      * the request that made the label has answered "created" — so the label
@@ -103,20 +107,30 @@ class LabelRepository extends ServiceEntityRepository
      * nothing on any screen to say so. Refusing at the door is the only place
      * the person who typed it can be told.
      *
+     * $itself is the label being renamed, which is never in its own way: it
+     * may keep its name, and it may change nothing but its capitals. Left out
+     * in the query rather than compared afterwards, so a second label that IS
+     * in the way is still found when the first match was the label itself.
+     *
      * Roles are included on purpose: a custom "inbox" beside the Inbox is the
      * same collision with a name the provider reserves.
      *
      * LOWER() on both sides rather than ILIKE, so `%` and `_` in a name are
-     * characters and not wildcards.
+     * characters and not wildcards. An exact match sorts first, so a caller
+     * that says which label is in the way names the one that matches character
+     * for character where there is one.
      */
-    public function findOneChildByNameIgnoringCase(UserInterface $user, ?Label $parent, string $name): ?Label
+    public function findNameConflict(UserInterface $user, ?Label $parent, string $name, ?Label $itself = null): ?Label
     {
         $builder = $this->createQueryBuilder('label')
+            ->addSelect('CASE WHEN label.name = :exact THEN 0 ELSE 1 END AS HIDDEN distance')
             ->where('label.usr = :usr')
             ->andWhere('LOWER(label.name) = :name')
             ->setParameter('usr', $user)
             ->setParameter('name', mb_strtolower($name))
-            ->orderBy('label.id', 'ASC')
+            ->setParameter('exact', $name)
+            ->orderBy('distance', 'ASC')
+            ->addOrderBy('label.id', 'ASC')
             ->setMaxResults(1);
 
         if (null === $parent) {
@@ -125,11 +139,12 @@ class LabelRepository extends ServiceEntityRepository
             $builder->andWhere('label.parent = :parent')->setParameter('parent', $parent);
         }
 
-        // The exact spelling first, so a caller that reports which label is in
-        // the way names the one that matches character for character where
-        // there is one.
-        return $this->findOneChildByName($user, $parent, $name)
-            ?? $builder->getQuery()->getOneOrNullResult();
+        // A label not yet persisted has no id and cannot be in the table.
+        if (null !== $itself?->id) {
+            $builder->andWhere('label.id != :itself')->setParameter('itself', $itself->id);
+        }
+
+        return $builder->getQuery()->getOneOrNullResult();
     }
 
     /**

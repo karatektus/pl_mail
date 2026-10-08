@@ -12,7 +12,8 @@ The published image tags: `latest` follows the most recent release below,
 created beside "Work". Gmail treats the two as one label and rejected the second, but only later, in
 the background: the new label existed in plMail, could be put on mail, and never reached Gmail, with
 an error in the log and nothing on screen. plMail now refuses it when you create or rename the
-label, in the browser and from the apps, and says which label is in the way.
+label, in the browser and from the apps, and says which label is in the way. Renaming a label in the
+browser had no check at all and could take another label's exact name; it has the same one now.
 
 - **If you already have such a pair**, nothing is changed for you. Delete or rename the newer one;
   until you do, putting it on Gmail mail keeps failing in the background.

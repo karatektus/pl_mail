@@ -65,23 +65,9 @@ final class LabelController extends AbstractController
         if (true === $form->isSubmitted() && true === $form->isValid()) {
             $label->usr = $this->getUser();
 
-            // Capitals ignored — see the repository method for whose rule
-            // that is. The same check Mailbox/set makes.
-            $duplicate = $this->labelRepository->findOneChildByNameIgnoringCase(
-                $this->getUser(),
-                $label->parent,
-                (string) $label->name,
-            );
-
-            if (null !== $duplicate) {
-                // Translated here, not in the theme: form_errors renders
-                // error.message verbatim, and validator-produced errors arrive
-                // already translated — re-translating them in the shared theme
-                // would be the riskier fix.
-                $form->get('name')->addError(
-                    new FormError($this->translator->trans('label.error.duplicate'))
-                );
-            } else {
+            // Refused, and the error is on the field: fall through to the
+            // re-render below, which answers 422.
+            if (false === $this->refuseTakenName($form, $label)) {
                 $this->em->persist($label);
                 $this->em->flush();
 
@@ -122,6 +108,17 @@ final class LabelController extends AbstractController
         $form->handleRequest($request);
 
         if (true === $form->isSubmitted() && true === $form->isValid()) {
+            if (true === $this->refuseTakenName($form, $label, $label)) {
+                // The form has already written the refused name onto the
+                // managed entity. Nothing here flushes it, but "nothing
+                // flushes" is a property of this request today and not of the
+                // object: put the stored values back before anything can.
+                $response = $this->renderForm($form, $label);
+                $this->em->refresh($label);
+
+                return $response;
+            }
+
             $this->em->flush();
 
             $this->structurePropagator->renamed($label, $previousFullName);
@@ -277,6 +274,44 @@ final class LabelController extends AbstractController
      * modal_controller closes the dialog on any successful turbo:submit-end,
      * so a 200 here would swallow the errors and look like a silent save.
      */
+    /**
+     * Put an error on the form when the name is one the user already has, and
+     * say whether it did.
+     *
+     * The rule is LabelRepository::findNameConflict() — the same call
+     * Mailbox/set makes, so a name the apps are refused is refused here and
+     * the other way round. This only decides where the sentence goes. It used
+     * to be an exact-match lookup written out in new() alone: a rename was
+     * never checked at all, and "work" beside "Work" passed both.
+     *
+     * $itself is the label being edited, which is not in its own way.
+     *
+     * Translated here, not in the theme: form_errors renders error.message
+     * verbatim, and validator-produced errors arrive already translated —
+     * re-translating them in the shared theme would be the riskier fix.
+     */
+    private function refuseTakenName(FormInterface $form, Label $label, ?Label $itself = null): bool
+    {
+        $taken = $this->labelRepository->findNameConflict(
+            $this->getUser(),
+            $label->parent,
+            (string) $label->name,
+            $itself,
+        );
+
+        if (null === $taken) {
+            return false;
+        }
+
+        // A system label's form has no name field; the error then belongs to
+        // the form as a whole.
+        $field = true === $form->has('name') ? $form->get('name') : $form;
+
+        $field->addError(new FormError($this->translator->trans('label.error.duplicate')));
+
+        return true;
+    }
+
     private function renderForm(FormInterface $form, Label $label): Response
     {
         if (true === $form->isSubmitted() && false === $form->isValid()) {

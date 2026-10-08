@@ -121,8 +121,8 @@ final class LabelRepositoryTest extends KernelTestCase
         $work = $this->label('Work');
 
         self::assertNull($this->repository->findOneChildByName($this->user, null, 'work'));
-        self::assertSame($work, $this->repository->findOneChildByNameIgnoringCase($this->user, null, 'work'));
-        self::assertSame($work, $this->repository->findOneChildByNameIgnoringCase($this->user, null, 'WORK'));
+        self::assertSame($work, $this->repository->findNameConflict($this->user, null, 'work'));
+        self::assertSame($work, $this->repository->findNameConflict($this->user, null, 'WORK'));
     }
 
     /** Umlauts fold too: `ärzte` and `Ärzte` are one name to a person and to Gmail. */
@@ -130,7 +130,7 @@ final class LabelRepositoryTest extends KernelTestCase
     {
         $doctors = $this->label('Ärzte');
 
-        self::assertSame($doctors, $this->repository->findOneChildByNameIgnoringCase($this->user, null, 'ärzte'));
+        self::assertSame($doctors, $this->repository->findNameConflict($this->user, null, 'ärzte'));
     }
 
     public function testIgnoringCaseStillKeepsToTheParent(): void
@@ -138,8 +138,36 @@ final class LabelRepositoryTest extends KernelTestCase
         $work = $this->label('Work');
         $this->label('Invoices', parent: $work);
 
-        self::assertNull($this->repository->findOneChildByNameIgnoringCase($this->user, null, 'invoices'));
-        self::assertNotNull($this->repository->findOneChildByNameIgnoringCase($this->user, $work, 'invoices'));
+        self::assertNull($this->repository->findNameConflict($this->user, null, 'invoices'));
+        self::assertNotNull($this->repository->findNameConflict($this->user, $work, 'invoices'));
+    }
+
+    /**
+     * A label is never in its own way: it may keep its name and may change
+     * nothing but its capitals. Left out in the query rather than compared
+     * afterwards — the second assertion is the case a comparison gets wrong,
+     * where the label itself matches first and hides the one that IS in the
+     * way.
+     */
+    public function testALabelBeingRenamedIsNotItsOwnConflict(): void
+    {
+        $work = $this->label('Work');
+
+        self::assertNull($this->repository->findNameConflict($this->user, null, 'work', $work));
+
+        $older = $this->label('receipts');
+        $newer = $this->label('Receipts');
+
+        self::assertSame($newer, $this->repository->findNameConflict($this->user, null, 'RECEIPTS', $older));
+    }
+
+    /** Where one sibling matches exactly, that is the one named. */
+    public function testAnExactMatchIsReportedBeforeACloseOne(): void
+    {
+        $this->label('work');
+        $exact = $this->label('Work');
+
+        self::assertSame($exact, $this->repository->findNameConflict($this->user, null, 'Work'));
     }
 
     /** `%` and `_` are characters in a name, not wildcards. */
@@ -147,8 +175,8 @@ final class LabelRepositoryTest extends KernelTestCase
     {
         $this->label('Work');
 
-        self::assertNull($this->repository->findOneChildByNameIgnoringCase($this->user, null, 'w_rk'));
-        self::assertNull($this->repository->findOneChildByNameIgnoringCase($this->user, null, 'w%'));
+        self::assertNull($this->repository->findNameConflict($this->user, null, 'w_rk'));
+        self::assertNull($this->repository->findNameConflict($this->user, null, 'w%'));
     }
 
     // ── the parent picker ────────────────────────────────────────────────────

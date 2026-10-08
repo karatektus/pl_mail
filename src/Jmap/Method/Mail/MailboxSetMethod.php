@@ -470,8 +470,9 @@ final class MailboxSetMethod implements JmapMethod
     /**
      * Siblings must have distinct names — the same rule LabelResolver relies on
      * when it does find-or-create by (parent, name) — and names that differ
-     * only in capitals are not distinct. See
-     * LabelRepository::findOneChildByNameIgnoringCase() for whose rule that is.
+     * only in capitals are not distinct. The rule itself is
+     * LabelRepository::findNameConflict(), which the browser's form asks too;
+     * this only words the refusal.
      *
      * The description is written for a person, because a client shows it to
      * one: there is no error type for "taken", `invalidProperties` is what the
@@ -482,13 +483,9 @@ final class MailboxSetMethod implements JmapMethod
      */
     private function assertNameFree(Account $account, ?Label $parent, string $name, ?Label $ignore = null): void
     {
-        $existing = $this->labelRepository->findOneChildByNameIgnoringCase($account->usr, $parent, $name);
+        $existing = $this->labelRepository->findNameConflict($account->usr, $parent, $name, $ignore);
 
         if (null === $existing) {
-            return;
-        }
-
-        if (null !== $ignore && $existing->id === $ignore->id) {
             return;
         }
 
