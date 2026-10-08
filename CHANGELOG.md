@@ -6,7 +6,7 @@ so anything that changes the schema irreversibly is called out explicitly.
 The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, and `sha-…` pins one commit.
 
-## Unreleased
+## v0.3.1 — 2026-10-08
 
 **Mail with no plain-text part is read for insights.** Parcels, invoices, codes and the rest were
 looked for in a message's plain text only, and a shop's shipping notice is very often HTML and
