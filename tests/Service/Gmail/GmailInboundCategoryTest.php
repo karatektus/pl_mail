@@ -171,7 +171,7 @@ final class GmailInboundCategoryTest extends KernelTestCase
         $handler = new SyncGmailMessageBatchHandler(
             $container->get('App\Repository\Mail\MessageRepository'),
             $container->get('App\Repository\Mail\AccountRepository'),
-            new GmailApiClient($httpClient, $container->get('App\Service\OAuth\OAuthTokenManager')),
+            new GmailApiClient($httpClient, $container->get('App\Service\OAuth\OAuthTokenManager'), new \App\Service\Gmail\GmailQuotaPacer(new \Symfony\Component\Clock\MockClock())),
             $container->get('App\Service\Gmail\GmailMessageBuilder'),
             $container->get('App\Service\Gmail\GmailAddressFilter'),
             $container->get('App\Service\HarvestContactsService'),

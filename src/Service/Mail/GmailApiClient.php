@@ -8,6 +8,7 @@ use App\Domain\Exception\GmailApiException;
 use App\Domain\Exception\GmailPermanentException;
 use App\Domain\Exception\GmailThrottledException;
 use App\Entity\Mail\Account;
+use App\Service\Gmail\GmailQuotaPacer;
 use App\Service\OAuth\OAuthTokenManager;
 use Symfony\Contracts\HttpClient\Exception\ExceptionInterface as HttpException;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
@@ -60,6 +61,7 @@ final class GmailApiClient
     public function __construct(
         private readonly HttpClientInterface $httpClient,
         private readonly OAuthTokenManager  $tokenManager,
+        private readonly GmailQuotaPacer    $pacer,
     ) {}
 
     // ── messages ─────────────────────────────────────────────────────────────
@@ -89,6 +91,8 @@ final class GmailApiClient
             if (null !== $page) {
                 $query['pageToken'] = $page;
             }
+
+            $this->pacer->spend($account, GmailQuotaPacer::UNITS_PER_LIST_PAGE);
 
             $response = $this->httpClient->request('GET', self::BASE . '/messages', [
                 'auth_bearer' => $token,
@@ -136,6 +140,10 @@ final class GmailApiClient
                 'gone'      => [],
             ];
         }
+
+        // The one call here that can spend a minute's quota on its own, so it
+        // is the one that is paced. See GmailQuotaPacer.
+        $this->pacer->spend($account, GmailQuotaPacer::UNITS_PER_MESSAGE * count($messageIds));
 
         $token    = $this->tokenManager->getValidAccessToken($account);
         $boundary = 'plmail_batch_' . bin2hex(random_bytes(8));

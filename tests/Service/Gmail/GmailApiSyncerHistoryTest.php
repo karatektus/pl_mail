@@ -489,7 +489,7 @@ final class GmailApiSyncerHistoryTest extends TestCase
         );
 
         return new GmailApiSyncer(
-            new GmailApiClient($client, $tokenManager),
+            new GmailApiClient($client, $tokenManager, new \App\Service\Gmail\GmailQuotaPacer(new \Symfony\Component\Clock\MockClock())),
             $messageRepository,
             $this->createStub(EntityManagerInterface::class),
             $bus,

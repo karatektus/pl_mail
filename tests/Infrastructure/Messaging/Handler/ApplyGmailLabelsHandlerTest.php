@@ -238,7 +238,7 @@ final class ApplyGmailLabelsHandlerTest extends TestCase
             new GmailLabelColorMapper(),
             $messageRepository,
             $this->createStub(LabelRepository::class),
-            new GmailApiClient($http, $tokenManager),
+            new GmailApiClient($http, $tokenManager, new \App\Service\Gmail\GmailQuotaPacer(new \Symfony\Component\Clock\MockClock())),
             // final, so it cannot be doubled — and it is never reached on this
             // path, because system label ids skip resolution entirely. An
             // instance without its constructor fails loudly if that ever stops
@@ -305,7 +305,7 @@ final class ApplyGmailLabelsHandlerTest extends TestCase
             new GmailLabelColorMapper(),
             $messageRepository,
             $labelRepository,
-            new GmailApiClient($http, $tokenManager),
+            new GmailApiClient($http, $tokenManager, new \App\Service\Gmail\GmailQuotaPacer(new \Symfony\Component\Clock\MockClock())),
             new LabelResolver(
                 $labelRepository,
                 $bindingRepository,

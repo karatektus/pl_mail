@@ -8,6 +8,14 @@ The published image tags: `latest` follows the most recent release below,
 
 ## Unreleased
 
+**Importing a large Gmail mailbox no longer runs the account out of quota.** Google allows each
+Gmail account a fixed amount of work per minute, and since 0.3.0 an import fetched old mail fast
+enough to use all of it. The import itself recovered quietly; what failed was the regular check for
+new mail on the same account, with "Quota exceeded … Units per minute per user" in the log and new
+mail arriving late until the import was through. Fetching is now paced to stay well inside the
+allowance, so an import of a very large mailbox takes somewhat longer and new mail keeps arriving
+while it runs.
+
 **Admin → Performance no longer blames plMail for mail that was late before it got here.** "How late
 mail arrives" measured from the date a message carries, which is the sender's clock: a newsletter
 dated half an hour before it was sent, or a first message held back by greylisting, was shown as

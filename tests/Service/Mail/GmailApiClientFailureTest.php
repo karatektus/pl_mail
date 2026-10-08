@@ -311,7 +311,7 @@ final class GmailApiClientFailureTest extends TestCase
         $tokenManager = $this->createStub(OAuthTokenManager::class);
         $tokenManager->method('getValidAccessToken')->willReturn('test-token');
 
-        $client = new GmailApiClient($http, $tokenManager);
+        $client = new GmailApiClient($http, $tokenManager, new \App\Service\Gmail\GmailQuotaPacer(new \Symfony\Component\Clock\MockClock()));
 
         $ids = array_map(static fn (int $n): string => 'm' . $n, range(1, 2500));
 
@@ -395,7 +395,7 @@ final class GmailApiClientFailureTest extends TestCase
         $tokenManager = $this->createStub(OAuthTokenManager::class);
         $tokenManager->method('getValidAccessToken')->willReturn('test-token');
 
-        return new GmailApiClient($http, $tokenManager);
+        return new GmailApiClient($http, $tokenManager, new \App\Service\Gmail\GmailQuotaPacer(new \Symfony\Component\Clock\MockClock()));
     }
 
     /**

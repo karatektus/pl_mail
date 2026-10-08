@@ -221,7 +221,7 @@ final class GmailApiSyncerBackfillTest extends TestCase
         $tokenManager->method('getValidAccessToken')->willReturn('test-token');
 
         return new GmailApiSyncer(
-            new GmailApiClient($client, $tokenManager),
+            new GmailApiClient($client, $tokenManager, new \App\Service\Gmail\GmailQuotaPacer(new \Symfony\Component\Clock\MockClock())),
             $this->messageRepository,
             $this->createStub(EntityManagerInterface::class),
             $this->bus,
