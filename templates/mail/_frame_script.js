@@ -6,20 +6,74 @@
     // it cannot read this one, because reading it would require running.
     var send = function (message) { parent.postMessage(message, "*"); };
 
+    // A sender's viewport units, taken back out. The inline styles are the
+    // mail's design and survive the sanitizer, so `min-height: 100vh` arrives
+    // intact — and in here "the viewport" is this frame, whose height is
+    // whatever was last reported from in here. A wrapper that is one viewport
+    // tall with a footer under it measures viewport + footer, the frame grows
+    // to fit, the wrapper is a viewport tall again, and the message runs away
+    // down the page a footer at a time, taking everything below it along.
+    // Nothing sized by the viewport can mean anything in a frame sized by its
+    // content, so those declarations go and the element takes its own height.
+    var VIEWPORT_UNIT = /[\d.](?:[sld]?v(?:h|b|min|max))\b/i;
+    var dropViewportUnits = function () {
+        document.querySelectorAll("[style]").forEach(function (element) {
+            var style = element.style;
+            for (var i = style.length - 1; i >= 0; i--) {
+                var property = style[i];
+                if (VIEWPORT_UNIT.test(style.getPropertyValue(property))) { style.removeProperty(property); }
+            }
+        });
+    };
+    dropViewportUnits();
+
     var lastHeight = -1;
-    var reportHeight = function (force) {
-        var height = Math.max(
+    var lastWidth = window.innerWidth;
+    var measure = function () {
+        return Math.max(
             document.body.scrollHeight,
             document.documentElement.scrollHeight
         );
-        if (force || height !== lastHeight) { lastHeight = height; send({ plmail: "height", height: height }); }
+    };
+    var reportHeight = function (force) {
+        var height = measure();
+        if (force === true || height !== lastHeight) { lastHeight = height; send({ plmail: "height", height: height }); }
+    };
+    var changed = function () { reportHeight(false); };
+
+    // The backstop for the same loop by any other route — a stylesheet rule
+    // rather than an inline style, which dropViewportUnits() does not reach.
+    // What a loop looks like from in here: the parent made the frame taller,
+    // the width did not change, and the content grew by exactly as much as the
+    // frame did. That is the content following the frame, not the content
+    // changing, so it is taken as read and not reported: reporting it is what
+    // closes the loop. Resize steps run before ResizeObserver callbacks, so
+    // the observer below then finds nothing new either.
+    //
+    // "By exactly as much" is the whole test, and it has to be. A first version
+    // swallowed ANY height it found after a resize, and an image that happened
+    // to arrive between the parent's resize and this handler was swallowed
+    // with it — the message was cut off at the height it had before the image.
+    // An image adds its own height; only a viewport-sized element adds the
+    // frame's.
+    var lastFrameHeight = window.innerHeight;
+    var resized = function () {
+        var grewBy = window.innerHeight - lastFrameHeight;
+        lastFrameHeight = window.innerHeight;
+
+        if (window.innerWidth !== lastWidth) { lastWidth = window.innerWidth; changed(); return; }
+
+        var height = measure();
+        if (grewBy !== 0 && Math.abs((height - lastHeight) - grewBy) <= 1) { lastHeight = height; return; }
+
+        changed();
     };
 
-    window.addEventListener("load", reportHeight);
-    document.addEventListener("DOMContentLoaded", reportHeight);
+    window.addEventListener("load", changed);
+    document.addEventListener("DOMContentLoaded", changed);
     // Images settle after layout, and a mail is mostly images.
-    window.addEventListener("resize", reportHeight);
-    if (window.ResizeObserver) { new ResizeObserver(reportHeight).observe(document.documentElement); }
+    window.addEventListener("resize", resized);
+    if (window.ResizeObserver) { new ResizeObserver(changed).observe(document.documentElement); }
 
     // Link preview. Detected in here because this is where the links are;
     // DRAWN by the parent, because a status bar the message could paint over
@@ -97,6 +151,8 @@
                 element.removeAttribute("data-plmail-style");
                 element.removeAttribute("data-plmail-blocked");
             });
+            // The restored styles are the sender's originals, units and all.
+            dropViewportUnits();
             reportHeight();
         }
 

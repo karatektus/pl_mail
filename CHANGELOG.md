@@ -6,6 +6,14 @@ so anything that changes the schema irreversibly is called out explicitly.
 The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, and `sha-…` pins one commit.
 
+## Unreleased
+
+**A message no longer grows down the page without end.** Some mail sizes its outer block as "one
+screen tall". Inside plMail a message sits in a frame that is made as tall as its content, so the
+block grew with the frame, the frame grew to fit the block, and the message kept getting longer,
+pushing everything below it away. Sizes given in screen heights are now ignored inside a message,
+and a message whose content merely follows the frame is no longer resized again.
+
 ## v0.3.1 — 2026-10-08
 
 **Mail with no plain-text part is read for insights.** Parcels, invoices, codes and the rest were
