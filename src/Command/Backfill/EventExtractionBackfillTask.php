@@ -8,6 +8,7 @@ use App\Entity\Mail\Message;
 use App\Repository\Mail\MessageRepository;
 use App\Service\Calendar\EventReconciler;
 use App\Service\Calendar\Extraction\EventExtractionRunner;
+use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Style\SymfonyStyle;
@@ -30,7 +31,7 @@ use Symfony\Component\Console\Style\SymfonyStyle;
  * mostly newsletters, and parsing all of it to find the few per cent that are
  * bookings is work nobody gets back.
  */
-final readonly class EventExtractionBackfillTask implements BackfillTaskInterface
+final readonly class EventExtractionBackfillTask implements WindowedBackfillTaskInterface
 {
     private const int BATCH_SIZE = 200;
 
@@ -54,7 +55,12 @@ final readonly class EventExtractionBackfillTask implements BackfillTaskInterfac
 
     public function run(SymfonyStyle $io): int
     {
-        $total = $this->messages->countExtractionCandidates();
+        return $this->runSince($io, null);
+    }
+
+    public function runSince(SymfonyStyle $io, ?DateTimeImmutable $since): int
+    {
+        $total = $this->messages->countExtractionCandidates($since);
 
         if (0 === $total) {
             $io->success('No messages carry anything to extract.');
@@ -72,7 +78,7 @@ final readonly class EventExtractionBackfillTask implements BackfillTaskInterfac
 
         while (true) {
             /** @var list<Message> $batch */
-            $batch = $this->messages->extractionCandidates($lastId, self::BATCH_SIZE);
+            $batch = $this->messages->extractionCandidates($lastId, self::BATCH_SIZE, $since);
 
             if (0 === count($batch)) {
                 break;

@@ -17,7 +17,8 @@ empty.
 
 - A date announced as the day the shop hands the parcel to the carrier ("Voraussichtliche Übergabe
   an den Versanddienstleister") is no longer taken for the delivery date.
-- Mail already stored is not re-read on its own; `app:backfill insights` reads it again.
+- Mail already stored is not re-read on its own; `app:backfill insights` reads it again
+  (the last 24 hours unless `--since` says otherwise).
 
 **A calendar file somebody mails you is offered, not added.** Two changes that belong together:
 
@@ -31,7 +32,8 @@ empty.
   calendar** or **No thanks**. No reply is sent to anyone. Invitations addressed to you, bookings
   and your own events are unchanged, and events of this kind already on your calendar stay there.
 
-`app:backfill events` picks up mail that arrived before this.
+`app:backfill events` picks up mail that arrived before this (the last 24 hours unless `--since`
+says otherwise).
 
 **An Amazon order is on the radar from the moment it is placed.** The parcel card appeared with the
 dispatch mail; the order confirmation before it ("Bestellt: …", "Ordered: …") was not read at all,

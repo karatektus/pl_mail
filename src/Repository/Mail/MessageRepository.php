@@ -62,25 +62,31 @@ class MessageRepository extends ServiceEntityRepository
         )
         SQL;
 
-    /** Raw DBAL for the reasons EXTRACTION_CANDIDATE_WHERE gives above. */
-    public function countExtractionCandidates(): int
+    /**
+     * Raw DBAL for the reasons EXTRACTION_CANDIDATE_WHERE gives above.
+     *
+     * @param DateTimeImmutable|null $since only mail received at or after this; null for all of it
+     */
+    public function countExtractionCandidates(?DateTimeImmutable $since = null): int
     {
         return (int) $this->getEntityManager()->getConnection()->fetchOne(
-            'SELECT COUNT(*) FROM message m WHERE ' . self::EXTRACTION_CANDIDATE_WHERE,
-            $this->candidateParameters(0),
+            'SELECT COUNT(*) FROM message m WHERE ' . self::EXTRACTION_CANDIDATE_WHERE . $this->candidateSince($since),
+            $this->candidateParameters(0, $since),
             $this->candidateTypes(),
         );
     }
 
     /**
+     * @param DateTimeImmutable|null $since only mail received at or after this; null for all of it
+     *
      * @return list<Message>
      */
-    public function extractionCandidates(int $afterId, int $limit): array
+    public function extractionCandidates(int $afterId, int $limit, ?DateTimeImmutable $since = null): array
     {
         $ids = $this->getEntityManager()->getConnection()->fetchFirstColumn(
-            'SELECT m.id FROM message m WHERE ' . self::EXTRACTION_CANDIDATE_WHERE
+            'SELECT m.id FROM message m WHERE ' . self::EXTRACTION_CANDIDATE_WHERE . $this->candidateSince($since)
             . ' ORDER BY m.id ASC LIMIT ' . max(1, $limit),
-            $this->candidateParameters($afterId),
+            $this->candidateParameters($afterId, $since),
             $this->candidateTypes(),
         );
 
@@ -94,15 +100,62 @@ class MessageRepository extends ServiceEntityRepository
     /**
      * @return array<string, mixed>
      */
-    private function candidateParameters(int $afterId): array
+    private function candidateParameters(int $afterId, ?DateTimeImmutable $since = null): array
     {
-        return [
+        return (null === $since ? [] : ['extSince' => $since]) + [
             'extAfterId'       => $afterId,
             'extCalendarTypes' => CalendarAttachment::CONTENT_TYPES,
             'extCalendarName'  => '%' . CalendarAttachment::EXTENSION,
             'extMeetingHeader' => GraphMessageBuilder::MEETING_TYPE_HEADER,
             'extJsonLd'        => '%application/ld+json%',
         ];
+    }
+
+    /**
+     * The clause that narrows candidates to recent mail, or nothing.
+     *
+     * Appended rather than written into the constant as "IS NULL OR": Postgres
+     * cannot infer the type of a parameter that is only ever compared to NULL,
+     * and a clause that is absent needs no parameter at all.
+     */
+    private function candidateSince(?DateTimeImmutable $since): string
+    {
+        return null === $since ? '' : ' AND m.received_at >= :extSince';
+    }
+
+    /**
+     * Mail in id order, a batch at a time, optionally only what arrived since
+     * a given moment — the walk a backfill that re-reads mail makes.
+     *
+     * Keyset on the id rather than OFFSET, so the cost of a batch does not
+     * grow with how far the walk has got.
+     *
+     * @return list<Message>
+     */
+    public function receivedSince(?DateTimeImmutable $since, int $afterId, int $limit): array
+    {
+        $qb = $this->createQueryBuilder('m')
+            ->where('m.id > :afterId')
+            ->setParameter('afterId', $afterId)
+            ->orderBy('m.id', 'ASC')
+            ->setMaxResults(max(1, $limit));
+
+        if (null !== $since) {
+            $qb->andWhere('m.receivedAt >= :since')->setParameter('since', $since, Types::DATETIME_IMMUTABLE);
+        }
+
+        return $qb->getQuery()->getResult();
+    }
+
+    public function countReceivedSince(?DateTimeImmutable $since): int
+    {
+        $qb = $this->createQueryBuilder('m')->select('COUNT(m.id)');
+
+        if (null !== $since) {
+            $qb->where('m.receivedAt >= :since')->setParameter('since', $since, Types::DATETIME_IMMUTABLE);
+        }
+
+        return (int) $qb->getQuery()->getSingleScalarResult();
     }
 
     /**
@@ -114,6 +167,7 @@ class MessageRepository extends ServiceEntityRepository
             'extAfterId'       => ParameterType::INTEGER,
             'extCalendarTypes' => ArrayParameterType::STRING,
             'extCalendarName'  => ParameterType::STRING,
+            'extSince'         => Types::DATETIME_IMMUTABLE,
             'extMeetingHeader' => ParameterType::STRING,
             'extJsonLd'        => ParameterType::STRING,
         ];

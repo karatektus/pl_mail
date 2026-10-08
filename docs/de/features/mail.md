@@ -1,4 +1,4 @@
-<!-- translated-from: features/mail.md sha1:e4c2f01bebced62a2b1f4fcc67d4c72d5e8869f4 -->
+<!-- translated-from: features/mail.md sha1:4d527f6e86ae3478d94e7a628b559a798f22d239 -->
 
 # Mail
 
@@ -278,9 +278,10 @@ ausblendest. Die Menge der Quellen ist absichtlich erweiterbar — ein Extraktor
 hinzukommt, trägt sich selbst auf dieser Einstellungsseite ein und läuft los, ohne dass sich sonst
 etwas ändert.
 
-Neue Extraktoren lesen alte Mails nicht von allein noch einmal. `app:backfill insights` geht die
-Mails, die schon in der Datenbank liegen, einmal durch und reicht sie jedem eingeschalteten
-Extraktor — derselbe Durchlauf, den auch die anderen Backfill-Aufgaben machen.
+Neue Extraktoren lesen alte Mails nicht von allein noch einmal. `app:backfill insights` reicht
+Mails, die schon in der Datenbank liegen, jedem eingeschalteten Extraktor. Gelesen werden die
+letzten 24 Stunden, solange du nichts anderes sagst: `--since=7d`, `--since=2026-09-01` oder
+`--since=all` gehen weiter zurück.
 
 Einmalcodes sind die einzige Quelle, deren Zeitpunkt ein Ablauf ist und kein Termin. Die Karte
 trägt den Moment, an dem der Code laut Mail nicht mehr gilt — "gültig für 10 Minuten", "gültig bis

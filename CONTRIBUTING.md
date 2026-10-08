@@ -846,7 +846,7 @@ php bin/mirror-wiki.php --check
 | `app:mail:wake-snoozed` | Return snoozed conversations whose time has come. Runs every minute |
 | `app:mail:release-held` | Show mail that has been held for the assistant longer than **Wait at most** allows. Runs every minute and finds nothing on an ordinary day — the live worker releases held mail itself. It is the backstop for that worker being down, and it warns when it has to act |
 | `app:calendar:materialise [--dry-run]` | Redraw the occurrences of recurring events whose horizon no longer reaches far enough. Runs nightly; without it a long-untouched series eventually runs out of dates |
-| `app:backfill [task]` | Run a one-off backfill over stored data; with no argument it lists the tasks and asks. `events` re-runs calendar extraction, `proposals` re-reads mail for dates written in prose, `safe-html-table-links` restores links that were wrapped around a table and came out empty |
+| `app:backfill [task]` | Run a one-off backfill over stored data; with no argument it lists the tasks and asks. The tasks that re-read mail (`events`, `insights`) cover the last 24 hours unless `--since` says otherwise (`7d`, `2026-09-01`, `all`). `events` re-runs calendar extraction, `proposals` re-reads mail for dates written in prose, `safe-html-table-links` restores links that were wrapped around a table and came out empty |
 | `app:imap:idle <mailbox-id>` | Hold an IMAP IDLE connection for a single mailbox |
 | `app:imap:supervise` | Spawn and watch one `app:imap:idle` process per IDLE-enabled mailbox |
 | `app:imap:test [--account=ID]` | Test an IMAP connection and folder listing |

@@ -6,7 +6,12 @@ namespace App\Tests\Command\Backfill;
 
 use App\Command\Backfill\BackfillCommand;
 use App\Command\Backfill\BackfillTaskInterface;
+use App\Command\Backfill\WindowedBackfillTaskInterface;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\Clock\Clock;
+use Symfony\Component\Clock\MockClock;
+use Symfony\Component\Clock\NativeClock;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Style\SymfonyStyle;
 use Symfony\Component\Console\Tester\CommandTester;
@@ -26,6 +31,12 @@ use Symfony\Component\Console\Tester\CommandTester;
  */
 final class BackfillCommandTest extends TestCase
 {
+    protected function tearDown(): void
+    {
+        // --since is read against the global clock, which two tests pin.
+        Clock::set(new NativeClock());
+    }
+
     public function testItRunsTheTaskNamedOnTheCommandLine(): void
     {
         $wanted   = $this->task('wanted');
@@ -132,6 +143,134 @@ final class BackfillCommandTest extends TestCase
     private function tester(BackfillTaskInterface ...$tasks): CommandTester
     {
         return new CommandTester(new BackfillCommand($tasks));
+    }
+
+    // ── --since ───────────────────────────────────────────────────────────
+
+    /**
+     * The default is the point of the option: a task that re-reads mail and is
+     * told nothing reads a day, not a mailbox.
+     */
+    public function testATaskThatReadsMailGetsTheLastDayUnlessToldOtherwise(): void
+    {
+        Clock::set(new MockClock('2026-10-08 16:00:00 UTC'));
+
+        $events = $this->windowedTask('events');
+        $tester = $this->tester($events);
+
+        self::assertSame(Command::SUCCESS, $tester->execute(['task' => 'events']));
+        self::assertSame(['2026-10-07 16:00'], $events->windows);
+        self::assertStringContainsString('2026-10-07 16:00', $tester->getDisplay());
+        self::assertStringContainsString('--since=all', $tester->getDisplay(), 'How to widen it is said up front.');
+    }
+
+    /**
+     * @return iterable<string, array{0: string, 1: ?string}>
+     */
+    public static function windows(): iterable
+    {
+        yield 'hours'            => ['36h', '2026-10-07 04:00'];
+        yield 'days'             => ['7d', '2026-10-01 16:00'];
+        yield 'weeks'            => ['2w', '2026-09-24 16:00'];
+        yield 'a date, from its start' => ['2026-09-01', '2026-09-01 00:00'];
+        yield 'everything'       => ['all', null];
+        yield 'case and spaces'  => [' ALL ', null];
+    }
+
+    #[DataProvider('windows')]
+    public function testSinceIsReadAsAnAmountADateOrEverything(string $since, ?string $expected): void
+    {
+        Clock::set(new MockClock('2026-10-08 16:00:00 UTC'));
+
+        $events = $this->windowedTask('events');
+
+        self::assertSame(Command::SUCCESS, $this->tester($events)->execute(['task' => 'events', '--since' => $since]));
+        self::assertSame([$expected], $events->windows);
+    }
+
+    /**
+     * @return iterable<string, array{0: string}>
+     */
+    public static function nonsense(): iterable
+    {
+        yield 'words'             => ['yesterday'];
+        yield 'no unit'           => ['7'];
+        yield 'zero'              => ['0d'];
+        yield 'a unit not offered' => ['3m'];
+        yield 'a day that does not exist' => ['2026-02-31'];
+        yield 'empty'             => [''];
+    }
+
+    /**
+     * Refused, and nothing run. Guessing here would decide how much of a
+     * mailbox is re-read on the strength of a typo.
+     */
+    #[DataProvider('nonsense')]
+    public function testAWindowItCannotReadRunsNothing(string $since): void
+    {
+        $events = $this->windowedTask('events');
+        $tester = $this->tester($events);
+
+        self::assertSame(Command::FAILURE, $tester->execute(['task' => 'events', '--since' => $since]));
+        self::assertSame([], $events->windows);
+        self::assertStringContainsString('not understood', $tester->getDisplay());
+    }
+
+    /**
+     * A table repair has no window to honour. It still runs — over everything,
+     * as it always did — and says that it ignored the option.
+     */
+    public function testATableRepairSaysItTakesNoWindow(): void
+    {
+        $repair = $this->task('recipients');
+        $tester = $this->tester($repair);
+
+        self::assertSame(Command::SUCCESS, $tester->execute(['task' => 'recipients', '--since' => '7d']));
+        self::assertSame(1, $repair->runs);
+        self::assertStringContainsString('takes no --since', $tester->getDisplay());
+    }
+
+    public function testATableRepairGivenNoWindowSaysNothingAboutOne(): void
+    {
+        $tester = $this->tester($this->task('recipients'));
+        $tester->execute(['task' => 'recipients']);
+
+        self::assertStringNotContainsString('--since', $tester->getDisplay());
+    }
+
+    /**
+     * @return WindowedBackfillTaskInterface&object{windows: list<?string>}
+     */
+    private function windowedTask(string $name): object
+    {
+        return new class ($name) implements WindowedBackfillTaskInterface {
+            /** @var list<?string> what each run was told to read from, in UTC; null for everything */
+            public array $windows = [];
+
+            public function __construct(private readonly string $name) {}
+
+            public function getName(): string
+            {
+                return $this->name;
+            }
+
+            public function getDescription(): string
+            {
+                return sprintf('Description of %s', $this->name);
+            }
+
+            public function run(SymfonyStyle $io): int
+            {
+                throw new \LogicException('A windowed task is run through runSince().');
+            }
+
+            public function runSince(SymfonyStyle $io, ?\DateTimeImmutable $since): int
+            {
+                $this->windows[] = $since?->setTimezone(new \DateTimeZone('UTC'))->format('Y-m-d H:i');
+
+                return Command::SUCCESS;
+            }
+        };
     }
 
     /**

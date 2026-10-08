@@ -239,6 +239,16 @@ docker compose exec php php bin/console app:backfill proposals
 Run with no argument, `app:backfill` lists the available tasks and asks. Re-running is safe:
 anything you dismissed stays dismissed, and anything you edited yourself is not overwritten.
 
+`events` reads **the last 24 hours of mail** unless you say otherwise — the usual reason to run it is
+a mail from this week, not every calendar file of the last ten years. `--since` widens it: a count
+with `h`, `d` or `w`, a date, or `all`.
+
+```bash
+docker compose exec php php bin/console app:backfill events --since=7d
+docker compose exec php php bin/console app:backfill events --since=2026-09-01
+docker compose exec php php bin/console app:backfill events --since=all
+```
+
 ## Things that bite
 
 **An invitation you have not answered is not in your calendar.** That is deliberate — see above —
@@ -247,8 +257,8 @@ is where they are; press **Yes** or **Maybe** and they appear.
 
 **An invitation that arrived before this behaviour existed stays on the calendar whatever you
 answered.** Nothing was rewritten on upgrade, on purpose: emptying somebody's calendar during a
-`docker compose up` is not an acceptable way to ship a feature. `app:backfill events` re-reads the
-mail and brings the old ones in line.
+`docker compose up` is not an acceptable way to ship a feature. `app:backfill events --since=all`
+re-reads the mail and brings the old ones in line.
 
 **Your RSVP can be saved without the organiser hearing it.** The two halves are independent on
 purpose. When the reply cannot be sent, the toast says so — and that is the only notice you get.

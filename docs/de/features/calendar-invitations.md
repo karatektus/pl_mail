@@ -1,4 +1,4 @@
-<!-- translated-from: features/calendar-invitations.md sha1:4f37cd5044b46127ecf9f09948935b2a475a38cc -->
+<!-- translated-from: features/calendar-invitations.md sha1:2831c23dd958dfe411f1eb0b87c79d2d9ccb8719 -->
 
 # Einladungen und Termine aus E-Mails
 
@@ -260,6 +260,16 @@ docker compose exec php php bin/console app:backfill events
 docker compose exec php php bin/console app:backfill proposals
 ```
 
+`events` liest **die Mail der letzten 24 Stunden**, solange du nichts anderes sagst — der übliche
+Anlass ist eine Mail von dieser Woche, nicht jede Kalenderdatei der letzten zehn Jahre. `--since`
+weitet das aus: eine Zahl mit `h`, `d` oder `w`, ein Datum oder `all`.
+
+```bash
+docker compose exec php php bin/console app:backfill events --since=7d
+docker compose exec php php bin/console app:backfill events --since=2026-09-01
+docker compose exec php php bin/console app:backfill events --since=all
+```
+
 Ohne Argument aufgerufen, listet `app:backfill` die verfügbaren Aufgaben auf und fragt nach. Ein
 erneuter Lauf ist ungefährlich: Was du verworfen hast, bleibt verworfen, und was du selbst bearbeitet
 hast, wird nicht überschrieben.
@@ -274,7 +284,7 @@ oder **Vielleicht**, und sie erscheinen.
 **Eine Einladung, die vor dieser Änderung ankam, bleibt im Kalender stehen, ganz gleich, was du
 geantwortet hast.** Beim Upgrade wurde nichts umgeschrieben, und zwar mit Absicht: jemandem während
 eines `docker compose up` den Kalender zu leeren, ist keine annehmbare Art, eine Funktion
-auszuliefern. `app:backfill events` liest die Mail neu und bringt die alten in Ordnung.
+auszuliefern. `app:backfill events --since=all` liest die Mail neu und bringt die alten in Ordnung.
 
 **Deine Antwort kann gespeichert werden, ohne dass die Organisation davon erfährt.** Die beiden
 Hälften sind mit Absicht unabhängig. Kann die Antwort nicht gesendet werden, sagt die Meldung das —

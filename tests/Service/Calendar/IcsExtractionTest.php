@@ -578,6 +578,32 @@ final class IcsExtractionTest extends KernelTestCase
         self::assertContains($message->id, array_map(static fn (Message $m): ?int => $m->id, $candidates));
     }
 
+    /**
+     * `app:backfill events --since=…`: mail from before the window is not a
+     * candidate, however much calendar data it carries.
+     */
+    public function testTheCandidateQueryCanBeNarrowedToRecentMail(): void
+    {
+        $old = $this->messageWithInvite('BEGIN:VCALENDAR');
+        $old->receivedAt = new DateTimeImmutable('-3 days');
+        $new = $this->messageWithInvite('BEGIN:VCALENDAR');
+        $this->em->flush();
+
+        $messages = $this->em->getRepository(Message::class);
+        $after    = (int) $old->id - 1;
+        $ids      = static fn (array $found): array => array_map(static fn (Message $m): ?int => $m->id, $found);
+
+        $recent = $ids($messages->extractionCandidates($after, 10, new DateTimeImmutable('-24 hours')));
+
+        self::assertContains($new->id, $recent);
+        self::assertNotContains($old->id, $recent);
+        self::assertContains($old->id, $ids($messages->extractionCandidates($after, 10)), 'no window, no limit');
+        self::assertLessThan(
+            $messages->countExtractionCandidates(),
+            $messages->countExtractionCandidates(new DateTimeImmutable('-24 hours')),
+        );
+    }
+
     // ── Fixtures ──────────────────────────────────────────────────────────
 
     /**

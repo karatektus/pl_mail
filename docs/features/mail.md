@@ -252,9 +252,9 @@ from that source; what it already found stays until dismissed. The set of source
 design — an extractor added to a build lists itself on that settings page and starts running,
 without anything else changing.
 
-New extractors do not re-read old mail on their own. `app:backfill insights` walks the mail already
-in the database once and hands it to every enabled extractor, the same sweep the other backfill
-tasks run.
+New extractors do not re-read old mail on their own. `app:backfill insights` hands mail already in
+the database to every enabled extractor. It reads the last 24 hours unless told otherwise:
+`--since=7d`, `--since=2026-09-01` or `--since=all` go further back.
 
 One-time codes are the one source with an expiry rather than an occurrence. A code's card carries
 the moment the mail says the code stops working — "valid for 10 minutes", "gültig bis 09:30" — so

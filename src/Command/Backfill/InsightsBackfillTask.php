@@ -7,6 +7,7 @@ namespace App\Command\Backfill;
 use App\Entity\Mail\Message;
 use App\Repository\Mail\MessageRepository;
 use App\Service\Insight\InsightHarvester;
+use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Style\SymfonyStyle;
@@ -31,7 +32,7 @@ use Symfony\Component\Console\Style\SymfonyStyle;
  * writes into mail_insight and never touches `message`, so the set it pages
  * over cannot shift under it.
  */
-final readonly class InsightsBackfillTask implements BackfillTaskInterface
+final readonly class InsightsBackfillTask implements WindowedBackfillTaskInterface
 {
     private const int BATCH_SIZE = 200;
 
@@ -54,7 +55,12 @@ final readonly class InsightsBackfillTask implements BackfillTaskInterface
 
     public function run(SymfonyStyle $io): int
     {
-        $total = $this->messages->count([]);
+        return $this->runSince($io, null);
+    }
+
+    public function runSince(SymfonyStyle $io, ?DateTimeImmutable $since): int
+    {
+        $total = $this->messages->countReceivedSince($since);
 
         if (0 === $total) {
             $io->success('No mail to read.');
@@ -64,19 +70,19 @@ final readonly class InsightsBackfillTask implements BackfillTaskInterface
 
         $io->progressStart($total);
 
-        $offset = 0;
+        $lastId = 0;
         $written = 0;
 
         while (true) {
             /** @var list<Message> $batch */
-            $batch = $this->messages->findBy([], ['id' => 'ASC'], self::BATCH_SIZE, $offset);
+            $batch = $this->messages->receivedSince($since, $lastId, self::BATCH_SIZE);
 
             if (0 === count($batch)) {
                 break;
             }
 
             foreach ($batch as $message) {
-                $offset++;
+                $lastId = (int) $message->id;
 
                 // The harvester shields per extractor; a failed flush is the
                 // one fault left, and the manager-closed guard below is what
