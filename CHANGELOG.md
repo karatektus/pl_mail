@@ -8,6 +8,13 @@ The published image tags: `latest` follows the most recent release below,
 
 ## Unreleased
 
+**"Move to" is available to apps, not just the browser.** The Android and iOS apps talk to plMail
+over JMAP, which had no way to ask for a move: an app could only add one label and remove another
+itself, which files mail in two places on a plain IMAP account and cannot take mail out of Trash or
+Spam properly. `Thread/set` now accepts a `moveTo` instruction that runs the same code the browser's
+button does. Nothing changes in the web interface. For client authors:
+[Building a client → Moving](docs/CLIENT_DEVELOPMENT.md#moving-threadset-moveto).
+
 **Admin → Performance: how long things take, in one place.** A new section directly below System.
 System says whether plMail is working; this says how long it took.
 

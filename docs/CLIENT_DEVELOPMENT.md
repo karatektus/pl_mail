@@ -653,7 +653,7 @@ Everything registered in [`src/Jmap/Method/`](../src/Jmap/Method/):
 | `Mailbox/get` / `Mailbox/query` / `Mailbox/changes` / `Mailbox/set` | |
 | `Email/get` / `Email/query` / `Email/changes` / `Email/set` | |
 | `Thread/get` / `Thread/changes` | `/get` carries three plMail extensions: `snoozedUntil`, `category`, `isNew`. |
-| `Thread/set` | plMail extension. Two properties, `snoozedUntil` and `isNew` — see §4. |
+| `Thread/set` | plMail extension. `snoozedUntil`, `isNew`, and the instruction `moveTo` — see [Moving](#moving-threadset-moveto) and §4. |
 | `SearchSnippet/get` | |
 | `Calendar/get` | `urn:plmail:params:jmap:calendars`. One account serves calendars. |
 | `CalendarEvent/get` / `CalendarEvent/query` / `CalendarEvent/set` | An id is the series, not an occurrence; `/query` requires a date window, and `expandRecurrences: true` makes it answer per occurrence. |
@@ -865,6 +865,41 @@ Creates drafts, updates keywords and `mailboxIds`, and "destroys".
 **Semantic reminder:** "archived" in plMail's domain model means *carries no Inbox label*. To archive,
 remove the Inbox mailbox id. The Archive label itself is IMAP location bookkeeping for plain-IMAP
 accounts, and is hidden by default.
+
+### Moving: Thread/set `moveTo`
+
+"Move to" — file a conversation under a label and take it out of the list the user was looking at —
+is one instruction on `Thread/set`, not a `mailboxIds` patch you compose yourself:
+
+```json
+["Thread/set", {
+  "accountId": "7",
+  "update": { "812": { "moveTo": { "mailboxId": "17", "fromMailboxId": "42" } } }
+}, "m0"]
+```
+
+- **`mailboxId`** is where the conversation goes: one of the user's own labels, or the Inbox, Spam
+  or Trash mailbox. Anything else — Sent, Drafts, Archive — is refused with `invalidProperties`.
+- **`fromMailboxId`** is the list the user was in. Send the mailbox the list is showing; send `null`
+  or leave it out for a list with no mailbox of its own (a search, Starred, a category tab).
+  **You name the view; the server decides what that takes off.** From the Inbox that is "label and
+  archive", from a label it swaps that label for the target, from Trash or Spam it takes the mail
+  out of the bin without putting it back in the Inbox, and from anywhere else the only thing that
+  comes off is the Inbox. See [Mail → Move to](features/mail.md#move-to) for the whole table.
+- A `fromMailboxId` that does not resolve is refused, not read as "no view" — the two differ in
+  whether the Inbox comes off.
+- It is not a property: nothing reads it back. The result is the changed `mailboxIds`, reported
+  through `Email` and `Thread` state like any other label change.
+- **Undo is a move the other way round**: target and view swapped. That is exact for a single
+  conversation moved between two places; it does not restore labels the way the web's Undo does.
+
+**Do not rebuild this from `Email/set`.** Attaching the target and detaching the view looks
+equivalent and is not: leaving the Inbox for a tag is an *archive* on a plain IMAP account, leaving
+the bin is a provider *restore*, and only the messages that carried the view's label lose it. The
+Android app did it that way for one release and filed mail in two places on plain IMAP.
+
+A server older than this answers `notUpdated[id].type = "invalidProperties"` naming `moveTo` as
+not settable. That is the one case where falling back to an `Email/set` patch is right.
 
 ### Sending: EmailSubmission/set
 
@@ -1161,11 +1196,12 @@ Ordered roughly by how much users will miss them.
   [reading a submission back](#reading-a-submission-back).
 
 **Organising**
+- Move to — `Thread/set` `moveTo`, see [Moving](#moving-threadset-moveto).
 - Labels: apply, remove, create, delete. Nested labels exist in the data model; nested label *UI* is
   still on the server roadmap, so flat-with-paths is acceptable.
 - Archive = remove Inbox label. Trash = `destroy`. Both undoable.
 - Snooze — bring a conversation back later. A **thread-level** property (`MessageThread.snoozedUntil`),
-  exposed as `Thread/set`, which is a plMail extension accepting it and `isNew` and nothing else.
+  exposed as `Thread/set`, a plMail extension accepting it, `isNew` and `moveTo` and nothing else.
   It goes through the same `ThreadSnoozeService` the web UI does, so a snooze set from a client and
   one set in the browser mean the same thing — which is the point, and why a locally-tracked snooze
   is still the wrong idea: it would disagree with the web UI and break on reinstall. This section

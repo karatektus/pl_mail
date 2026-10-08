@@ -4,14 +4,18 @@ declare(strict_types=1);
 
 namespace App\Jmap\Method\Mail;
 
+use App\Entity\Label\Label;
 use App\Entity\Mail\MessageThread;
+use App\Entity\User\User;
 use App\Jmap\Account\AccountResolver;
 use App\Jmap\Method\JmapMethod;
 use App\Jmap\Protocol\Exception\MethodException;
 use App\Jmap\Protocol\JmapContext;
 use App\Jmap\State\JmapObjectType;
 use App\Jmap\State\StateManager;
+use App\Repository\Label\LabelBindingRepository;
 use App\Repository\Mail\MessageThreadRepository;
+use App\Service\Mail\MoveToService;
 use App\Service\Mail\ThreadSnoozeService;
 use Doctrine\ORM\EntityManagerInterface;
 
@@ -38,6 +42,18 @@ use Doctrine\ORM\EntityManagerInterface;
  * and a settable timestamp would let a client invent a display that never
  * happened.
  *
+ * The third is `moveTo`, which is not a property at all — nothing reads it
+ * back — but an instruction: file this conversation under one mailbox and take
+ * it out of the list the user was looking at. It is the web's "Move to", and it
+ * is here for the reason snooze is: the meaning lives in a service
+ * (MoveToService) that composes archive(), restore() and move() per provider,
+ * and a client that rebuilt it out of `Email/set` mailboxIds patches would be a
+ * second implementation of that decision. The Android app was exactly that for
+ * one release — it attached and detached, which is right for a tag and wrong
+ * for a folder on plain IMAP and for anything leaving the bin — and this is
+ * what it asked for instead. On a thread because a conversation is the unit of
+ * a move, as it is of a snooze.
+ *
  * Deliberately narrow. `create` and `destroy` are refused outright: threads
  * come into being by mail arriving and go away when their last message does,
  * and a client that could conjure one would be describing something the rest
@@ -56,6 +72,8 @@ final class ThreadSetMethod implements JmapMethod
         private readonly StateManager $stateManager,
         private readonly EntityManagerInterface $entityManager,
         private readonly ThreadSnoozeService $snoozeService,
+        private readonly MoveToService $moveTo,
+        private readonly LabelBindingRepository $bindingRepository,
     ) {
     }
 
@@ -127,7 +145,7 @@ final class ThreadSetMethod implements JmapMethod
             }
 
             try {
-                if (true === $this->applyPatch($thread, $patch)) {
+                if (true === $this->applyPatch($thread, $patch, $context->user, $accountId)) {
                     $shown[] = $thread;
                 }
             } catch (MethodException $error) {
@@ -193,14 +211,14 @@ final class ThreadSetMethod implements JmapMethod
      *
      * @throws MethodException when the patch names an unsettable property
      */
-    private function applyPatch(MessageThread $thread, mixed $patch): bool
+    private function applyPatch(MessageThread $thread, mixed $patch, User $user, int $accountId): bool
     {
         if (false === is_array($patch)) {
             throw new MethodException('invalidPatch', 'Each update must be an object.');
         }
 
         foreach (array_keys($patch) as $property) {
-            if (false === in_array($property, ['snoozedUntil', 'isNew'], true)) {
+            if (false === in_array($property, ['snoozedUntil', 'isNew', 'moveTo'], true)) {
                 throw new MethodException(
                     'invalidProperties',
                     sprintf('"%s" is not a settable Thread property.', (string) $property),
@@ -218,6 +236,13 @@ final class ThreadSetMethod implements JmapMethod
             // here from an entity this request loaded would be reading a value
             // another client may have changed since.
             $shown = true;
+        }
+
+        // Before the snooze, where a patch carries both: snoozing takes the
+        // conversation out of the Inbox, and a move planned after it would be
+        // leaving a list the thread had already left.
+        if (true === array_key_exists('moveTo', $patch)) {
+            $this->move($thread, $patch['moveTo'], $user, $accountId);
         }
 
         if (false === array_key_exists('snoozedUntil', $patch)) {
@@ -240,6 +265,105 @@ final class ThreadSetMethod implements JmapMethod
         }
 
         return $shown;
+    }
+
+    /**
+     * `moveTo: { mailboxId, fromMailboxId }` — the web's "Move to".
+     *
+     * `mailboxId` is where the conversation goes. `fromMailboxId` is the list
+     * the user was looking at, or null or absent for a list with no mailbox of
+     * its own — a search, Starred, a category tab that is not the Inbox's own
+     * binding. **The client names the view; what that takes off is decided
+     * here**, by MoveToService::plan(), for the reason LabelMove gives: a
+     * client-supplied "remove these" would be a way of stripping any label off
+     * any conversation through a property whose name says "move".
+     *
+     * Both are Mailbox ids, which is to say binding ids in this account, like
+     * every other mailbox id on this API. A `fromMailboxId` that resolves to
+     * nothing is refused rather than read as "no view": the two differ in
+     * whether the Inbox comes off, and a client that sent a stale id would have
+     * mail archived that it meant to swap one label on.
+     *
+     * Nothing is flushed or recorded here. MoveToService runs the move in a
+     * transaction and ThreadStatusUpdater, underneath it, records the Email and
+     * Thread state changes and queues the provider jobs — the same path the
+     * browser's button takes, which is the whole point of routing through it.
+     *
+     * @throws MethodException when the instruction is malformed or names a
+     *                         mailbox mail cannot be moved to
+     */
+    private function move(MessageThread $thread, mixed $instruction, User $user, int $accountId): void
+    {
+        if (false === is_array($instruction) || false === array_key_exists('mailboxId', $instruction)) {
+            throw new MethodException(
+                'invalidProperties',
+                '"moveTo" must be an object with a "mailboxId", and optionally a "fromMailboxId".',
+            );
+        }
+
+        foreach (array_keys($instruction) as $key) {
+            if (false === in_array($key, ['mailboxId', 'fromMailboxId'], true)) {
+                throw new MethodException(
+                    'invalidProperties',
+                    sprintf('"%s" is not part of a "moveTo".', (string) $key),
+                );
+            }
+        }
+
+        $target = $this->mailboxLabel($instruction['mailboxId'], $accountId, 'mailboxId');
+
+        // Sent, Drafts and the rest say how a message came to exist. The
+        // picker never offers them; this is the same list for a caller that is
+        // not the picker.
+        if (false === $this->moveTo->accepts($target)) {
+            throw new MethodException(
+                'invalidProperties',
+                sprintf('Mail cannot be moved to "%s".', (string) $target->name),
+            );
+        }
+
+        $from = $instruction['fromMailboxId'] ?? null;
+        $view = null === $from ? null : $this->mailboxLabel($from, $accountId, 'fromMailboxId');
+
+        // plan() takes the view the way the browser names it: `label` and an
+        // id. It reads the Inbox, the bin and spam off the label's own role and
+        // treats every other system label as a list with nothing of its own to
+        // take off, so nothing about that rule is repeated here.
+        $plan = $this->moveTo->plan(
+            $user,
+            $target,
+            null === $view ? '' : 'label',
+            null === $view ? '' : (string) $view->id,
+        );
+
+        $this->moveTo->move([$thread], $plan);
+    }
+
+    /**
+     * The label behind a Mailbox id on this account.
+     *
+     * @throws MethodException when the id names no mailbox here
+     */
+    private function mailboxLabel(mixed $mailboxId, int $accountId, string $property): Label
+    {
+        if (false === is_string($mailboxId) || false === ctype_digit($mailboxId)) {
+            throw new MethodException(
+                'invalidProperties',
+                sprintf('"%s" must be a Mailbox id.', $property),
+            );
+        }
+
+        $bindings = $this->bindingRepository->findForAccountAndIds($accountId, [(int) $mailboxId]);
+        $label = ($bindings[0] ?? null)?->label;
+
+        if (null === $label) {
+            throw new MethodException(
+                'invalidProperties',
+                sprintf('No such Mailbox "%s".', $mailboxId),
+            );
+        }
+
+        return $label;
     }
 
     /**

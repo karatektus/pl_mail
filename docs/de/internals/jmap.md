@@ -1,4 +1,4 @@
-<!-- translated-from: internals/jmap.md sha1:9c35c769c9467ef568f590017a4304ac8638e76b -->
+<!-- translated-from: internals/jmap.md sha1:e766d746221089f9c6476313842daea51ff4d33d -->
 # JMAP
 
 Was implementiert ist, was bewusst nicht, die ID-Räume und warum jeder von ihnen so aussieht,
@@ -429,7 +429,7 @@ Konversation und nicht irgendeiner Nachricht darin.
 Sie ist bewusst eng gehalten — `create` und `destroy` werden rundheraus abgelehnt, denn
 Konversationen entstehen, wenn Mail eintrifft, und vergehen, wenn ihre letzte Nachricht
 verschwindet, und ein Client, der eine herbeizaubern könnte, beschriebe etwas, für das der Rest
-des Systems keine Bedeutung hat. `update` nimmt eine Eigenschaft entgegen.
+des Systems keine Bedeutung hat. `update` nimmt zwei Eigenschaften und eine Anweisung entgegen.
 
 Das Setzen geht über `App\Service\Mail\ThreadSnoozeService`, denselben Dienst, den auch die
 Web-Oberfläche verwendet, damit Zurückstellen dasselbe bedeutet, welcher Client es auch gesetzt
@@ -437,6 +437,16 @@ hat: Die Konversation verlässt den Posteingang, erhält das Label „Zurückges
 Änderung pflanzt sich nach außen zum Anbieter fort. Der eine bewusste Unterschied zwischen den
 Aufrufern ist an beiden Enden benannt — ein Formular-Post bekommt bei einem nicht lesbaren Datum
 den Rückfall „in 1 Tag", wo `ThreadSetMethod::snoozeDate()` es zurückweist.
+
+`moveTo` ist die Anweisung: `{ mailboxId, fromMailboxId }`, das „Verschieben nach" der
+Web-Oberfläche. Sie liegt aus demselben Grund auf `Thread/set` wie das Zurückstellen — die
+Bedeutung steckt in einem Dienst, `App\Service\Mail\MoveToService`, der `archive()`, `restore()`
+und `move()` je Anbieter zusammensetzt, und ein Client, der das aus `mailboxIds`-Patches nachbaute,
+wäre eine zweite Umsetzung derselben Entscheidung. Die Methode löst die beiden Mailbox-IDs zu
+Labels auf und reicht `plan()` die Ansicht so, wie der Browser sie benennt; was wegfällt, ist die
+Antwort des Dienstes und nie die des Clients. In der Methode wird nichts geflusht und nichts
+aufgezeichnet: `ThreadStatusUpdater`, unterhalb des Dienstes, zeichnet die State-Änderungen auf
+und reiht die Anbieter-Jobs ein.
 
 Standard-Clients kennen diese Methode weder, noch brauchen sie sie; `Thread/get` antwortet
 weiterhin mit den zwei Eigenschaften der Spezifikation plus einer, die sie ignorieren werden.

@@ -399,13 +399,22 @@ that state belongs to the thread rather than to any message in it.
 It is deliberately narrow — `create` and `destroy` are refused outright, because threads come
 into being when mail arrives and go away when their last message does, and a client that could
 conjure one would be describing something the rest of the system has no meaning for. `update`
-accepts one property.
+accepts two properties and one instruction.
 
 Setting it goes through `App\Service\Mail\ThreadSnoozeService`, the same service the web UI
 uses, so a snooze means the same thing whichever client set it: the conversation leaves the
 Inbox, gains the Snoozed label, and that change propagates outward to the provider. The one
 deliberate difference between the callers is named at both ends — a form post gets an "in 1
 day" fallback on an unparseable date where `ThreadSetMethod::snoozeDate()` refuses it.
+
+`moveTo` is the instruction: `{ mailboxId, fromMailboxId }`, the web's "Move to". It is on
+`Thread/set` for the reason snooze is — the meaning lives in a service, `App\Service\Mail\MoveToService`,
+which composes `archive()`, `restore()` and `move()` per provider, and a client that rebuilt it from
+`mailboxIds` patches would be a second implementation of that decision. The method resolves the two
+Mailbox ids to labels and hands `plan()` the view the way the browser names it; what comes off is
+the service's answer, never the client's. Nothing is flushed or recorded in the method:
+`ThreadStatusUpdater`, underneath the service, records the state changes and queues the provider
+jobs.
 
 Standard clients neither know nor need this method; `Thread/get` still answers the spec's two
 properties plus one they will ignore.

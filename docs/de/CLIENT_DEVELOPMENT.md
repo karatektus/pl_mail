@@ -1,4 +1,4 @@
-<!-- translated-from: CLIENT_DEVELOPMENT.md sha1:a04ae0102574e54148720e3f7a97018ee6dd6908 -->
+<!-- translated-from: CLIENT_DEVELOPMENT.md sha1:1b3b2730a7c1034180f1e06fecb9d454194af4f6 -->
 # Einen Client für plMail bauen
 
 Alles, was eine Entwicklerin (oder ein Agent) braucht, um einen *neuen* plMail-Client zu schreiben
@@ -717,7 +717,7 @@ Alles, was in [`src/Jmap/Method/`](../src/Jmap/Method/) registriert ist:
 | `Mailbox/get` / `Mailbox/query` / `Mailbox/changes` / `Mailbox/set` | |
 | `Email/get` / `Email/query` / `Email/changes` / `Email/set` | |
 | `Thread/get` / `Thread/changes` | `/get` trägt drei plMail-Erweiterungen: `snoozedUntil`, `category`, `isNew`. |
-| `Thread/set` | plMail-Erweiterung. Zwei Eigenschaften, `snoozedUntil` und `isNew` — siehe §4. |
+| `Thread/set` | plMail-Erweiterung. `snoozedUntil`, `isNew` und die Anweisung `moveTo` — siehe [Verschieben](#verschieben-threadset-moveto) und §4. |
 | `SearchSnippet/get` | |
 | `Calendar/get` | `urn:plmail:params:jmap:calendars`. Kalender liefert genau ein Konto. |
 | `CalendarEvent/get` / `CalendarEvent/query` / `CalendarEvent/set` | Eine ID ist die Serie, nicht eine Termininstanz; `/query` verlangt einen Zeitraum, und `expandRecurrences: true` lässt sie je Termininstanz antworten. |
@@ -951,6 +951,47 @@ Legt Entwürfe an, aktualisiert Keywords und `mailboxIds`, und „zerstört".
 Posteingangs-Label*. Zum Archivieren entfernst du die Mailbox-ID des Posteingangs. Das
 Archiv-Label selbst ist Buchführung über den IMAP-Ort für reine IMAP-Konten und standardmäßig
 verborgen.
+
+### Verschieben: Thread/set `moveTo`
+
+„Verschieben nach" — eine Konversation unter einem Label ablegen und aus der Liste nehmen, in der
+du gerade warst — ist eine einzige Anweisung an `Thread/set`, kein `mailboxIds`-Patch, den du
+selbst zusammensetzt:
+
+```json
+["Thread/set", {
+  "accountId": "7",
+  "update": { "812": { "moveTo": { "mailboxId": "17", "fromMailboxId": "42" } } }
+}, "m0"]
+```
+
+- **`mailboxId`** ist das Ziel: eines der eigenen Labels oder das Postfach für Posteingang, Spam
+  oder Papierkorb. Alles andere — Gesendet, Entwürfe, Archiv — wird mit `invalidProperties`
+  abgelehnt.
+- **`fromMailboxId`** ist die Liste, in der du warst. Schick das Postfach, das die Liste zeigt;
+  schick `null` oder lass es weg bei einer Liste ohne eigenes Postfach (eine Suche, Markiert, ein
+  Kategorie-Tab). **Du benennst die Ansicht; der Server entscheidet, was dadurch wegfällt.** Aus
+  dem Posteingang heißt das „Label vergeben und archivieren", aus einem Label wird dieses Label
+  gegen das Ziel getauscht, aus Papierkorb oder Spam kommt die Mail heraus, ohne wieder im
+  Posteingang zu landen, und von überall sonst fällt nur der Posteingang weg. Die ganze Tabelle
+  steht unter [Mail → Verschieben nach](features/mail.md#verschieben-nach).
+- Ein `fromMailboxId`, das sich nicht auflösen lässt, wird abgelehnt und nicht als „keine
+  Ansicht" gelesen — die beiden unterscheiden sich darin, ob der Posteingang wegfällt.
+- Es ist keine Eigenschaft: Nichts liest sie zurück. Das Ergebnis sind die geänderten
+  `mailboxIds`, gemeldet über den `Email`- und `Thread`-State wie jede andere Label-Änderung.
+- **Rückgängig ist ein Verschieben in die andere Richtung**: Ziel und Ansicht getauscht. Das ist
+  genau für eine einzelne Konversation zwischen zwei Orten; es stellt keine Labels wieder her,
+  wie es das Rückgängig der Web-Oberfläche tut.
+
+**Bau das nicht aus `Email/set` nach.** Das Ziel anhängen und die Ansicht abnehmen sieht
+gleichwertig aus und ist es nicht: Den Posteingang für ein Schlagwort zu verlassen ist auf einem
+reinen IMAP-Konto ein *Archivieren*, den Papierkorb zu verlassen ist ein *Wiederherstellen* beim
+Anbieter, und nur die Nachrichten, die das Label der Ansicht trugen, verlieren es. Die Android-App
+hat es eine Version lang so gemacht und Mail auf reinem IMAP an zwei Orten abgelegt.
+
+Ein Server, der älter ist als das hier, antwortet mit `notUpdated[id].type = "invalidProperties"`
+und nennt `moveTo` als nicht setzbar. Das ist der eine Fall, in dem der Rückfall auf einen
+`Email/set`-Patch richtig ist.
 
 ### Senden: EmailSubmission/set
 
@@ -1274,13 +1315,14 @@ Grob danach geordnet, wie sehr Nutzerinnen sie vermissen werden.
   [Eine Submission zurücklesen](#eine-submission-zurücklesen).
 
 **Ordnen**
+- Verschieben nach — `Thread/set` `moveTo`, siehe [Verschieben](#verschieben-threadset-moveto).
 - Label: anwenden, entfernen, anlegen, löschen. Verschachtelte Label gibt es im Datenmodell; die
   *Oberfläche* für verschachtelte Label steht noch auf der Server-Roadmap, flach mit Pfaden ist
   also in Ordnung.
 - Archivieren = Posteingangs-Label entfernen. Papierkorb = `destroy`. Beides rückgängig zu machen.
 - Zurückstellen — eine Konversation später zurückholen. Eine Eigenschaft **auf
   Konversationsebene** (`MessageThread.snoozedUntil`), offengelegt als `Thread/set`, einer
-  plMail-Erweiterung, die sie und `isNew` annimmt und sonst nichts. Sie läuft über
+  plMail-Erweiterung, die sie, `isNew` und `moveTo` annimmt und sonst nichts. Sie läuft über
   denselben `ThreadSnoozeService` wie die Web-Oberfläche, ein aus einem Client gesetztes
   Zurückstellen bedeutet also dasselbe wie eines im Browser — genau darum geht es, und genau
   deshalb ist ein lokal geführtes Zurückstellen weiterhin die falsche Idee: Es widerspräche der

@@ -6,6 +6,7 @@ namespace App\Tests\Jmap\Method;
 
 use App\Domain\Enum\Mail\LabelRole;
 use App\Domain\Enum\Mail\ThreadingMethod;
+use App\Entity\Label\Label;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Mailbox;
 use App\Entity\Mail\Message;
@@ -311,6 +312,188 @@ final class ThreadSetMethodTest extends KernelTestCase
     }
 
     /**
+     * The web's "Move to", from the Inbox: the target goes on and the
+     * conversation leaves the Inbox. What it is filed under besides — Archive,
+     * on an account with no folder for the target — is MoveToService's
+     * business and MoveToServiceTest's to pin; what matters here is that the
+     * method reaches it with the right view.
+     */
+    public function testMoveToFromTheInboxFilesTheThreadAndTakesItOutOfTheInbox(): void
+    {
+        $thread = $this->inboxThread();
+        $receipts = $this->tag('Receipts');
+
+        $result = $this->handle(['update' => [(string) $thread->id => ['moveTo' => [
+            'mailboxId' => $this->mailboxId($receipts),
+            'fromMailboxId' => $this->mailboxId($this->role(LabelRole::Inbox)),
+        ]]]]);
+
+        self::assertArrayHasKey((string) $thread->id, (array) $result['updated']);
+        self::assertContains('Receipts', $this->namesOn($thread));
+        self::assertNotContains(LabelRole::Inbox, $this->rolesOn($thread));
+    }
+
+    /**
+     * No `fromMailboxId` is a list with no mailbox of its own — a search, a
+     * category tab — and there the one thing a move takes away is the Inbox.
+     */
+    public function testMoveToWithNoViewStillTakesTheThreadOutOfTheInbox(): void
+    {
+        $thread = $this->inboxThread();
+
+        $this->handle(['update' => [(string) $thread->id => ['moveTo' => [
+            'mailboxId' => $this->mailboxId($this->tag('Receipts')),
+        ]]]]);
+
+        self::assertContains('Receipts', $this->namesOn($thread));
+        self::assertNotContains(LabelRole::Inbox, $this->rolesOn($thread));
+    }
+
+    /**
+     * From a label, that label is swapped for the target and nothing else
+     * moves: the conversation was in the Inbox as well and still is.
+     */
+    public function testMoveToFromALabelSwapsItForTheTarget(): void
+    {
+        $work = $this->tag('Work');
+        $receipts = $this->tag('Receipts');
+        $thread = $this->inboxThread($work);
+
+        $this->handle(['update' => [(string) $thread->id => ['moveTo' => [
+            'mailboxId' => $this->mailboxId($receipts),
+            'fromMailboxId' => $this->mailboxId($work),
+        ]]]]);
+
+        $names = $this->namesOn($thread);
+
+        self::assertContains('Receipts', $names);
+        self::assertNotContains('Work', $names);
+        self::assertContains(LabelRole::Inbox, $this->rolesOn($thread));
+    }
+
+    /**
+     * Out of the bin and under a label — the case a client could not express
+     * as a mailboxIds patch, and the reason this property exists. The bin comes
+     * off, and the conversation does not land back in the Inbox.
+     */
+    public function testMoveToOutOfTheBinDoesNotPutTheThreadBackInTheInbox(): void
+    {
+        $trash = $this->role(LabelRole::Trash);
+        $thread = $this->threadWearing($trash);
+
+        $this->handle(['update' => [(string) $thread->id => ['moveTo' => [
+            'mailboxId' => $this->mailboxId($this->tag('Receipts')),
+            'fromMailboxId' => $this->mailboxId($trash),
+        ]]]]);
+
+        $roles = $this->rolesOn($thread);
+
+        self::assertContains('Receipts', $this->namesOn($thread));
+        self::assertNotContains(LabelRole::Trash, $roles);
+        self::assertNotContains(LabelRole::Inbox, $roles);
+    }
+
+    /**
+     * Sent says how a message came to exist. The picker never offers it, and
+     * a caller that is not the picker is told so rather than obeyed.
+     */
+    public function testMoveToAPlaceMailCannotBeFiledIsRefused(): void
+    {
+        $thread = $this->inboxThread();
+
+        $result = $this->handle(['update' => [(string) $thread->id => ['moveTo' => [
+            'mailboxId' => $this->mailboxId($this->role(LabelRole::Sent)),
+        ]]]]);
+
+        self::assertSame(
+            'invalidProperties',
+            ((array) $result['notUpdated'])[(string) $thread->id]['type'],
+        );
+        self::assertContains(LabelRole::Inbox, $this->rolesOn($thread));
+    }
+
+    /**
+     * A view that resolves to nothing is refused, not read as "no view". The
+     * two differ in whether the Inbox comes off, so a client holding a stale
+     * id would archive mail it meant to swap one label on.
+     */
+    public function testMoveToFromAMailboxThatDoesNotExistIsRefused(): void
+    {
+        $thread = $this->inboxThread();
+
+        $result = $this->handle(['update' => [(string) $thread->id => ['moveTo' => [
+            'mailboxId' => $this->mailboxId($this->tag('Receipts')),
+            'fromMailboxId' => '99999999',
+        ]]]]);
+
+        self::assertSame(
+            'invalidProperties',
+            ((array) $result['notUpdated'])[(string) $thread->id]['type'],
+        );
+        self::assertNotContains('Receipts', $this->namesOn($thread));
+        self::assertContains(LabelRole::Inbox, $this->rolesOn($thread));
+    }
+
+    public function testAMalformedMoveToIsRefused(): void
+    {
+        $thread = $this->inboxThread();
+        $id = (string) $thread->id;
+
+        foreach ([
+            'not an object' => 'Receipts',
+            'no mailboxId' => ['fromMailboxId' => null],
+            'an unknown key' => ['mailboxId' => '1', 'remove' => ['2']],
+            'a non-id' => ['mailboxId' => 'inbox'],
+        ] as $case => $instruction) {
+            $result = $this->handle(['update' => [$id => ['moveTo' => $instruction]]]);
+
+            self::assertSame(
+                'invalidProperties',
+                ((array) $result['notUpdated'])[$id]['type'] ?? null,
+                $case,
+            );
+        }
+    }
+
+    /** The Mailbox id a client would hold for a label on the fixture account. */
+    private function mailboxId(Label $label): string
+    {
+        return (string) $this->labelResolver->binding($label, $this->account)->id;
+    }
+
+    private function role(LabelRole $role): Label
+    {
+        return $this->labelResolver->systemLabel($role, $this->account);
+    }
+
+    /** A custom label with no folder — a tag the mail wears wherever it lives. */
+    private function tag(string $name): Label
+    {
+        $label = $this->labelResolver->customChain([$name], $this->account);
+
+        self::assertNotNull($label);
+        $this->em->flush();
+
+        return $label;
+    }
+
+    /** @return list<string> the names of every custom label on the thread's messages */
+    private function namesOn(MessageThread $thread): array
+    {
+        $names = [];
+
+        foreach ($thread->messages as $message) {
+            foreach ($message->labels as $label) {
+                if (null === $label->role) {
+                    $names[] = (string) $label->name;
+                }
+            }
+        }
+
+        return $names;
+    }
+
+    /**
      * @param array<string,mixed> $arguments
      *
      * @return array<string,mixed>
@@ -337,7 +520,12 @@ final class ThreadSetMethodTest extends KernelTestCase
         return $roles;
     }
 
-    private function inboxThread(): MessageThread
+    private function inboxThread(Label ...$also): MessageThread
+    {
+        return $this->threadWearing($this->labelResolver->systemLabel(LabelRole::Inbox, $this->account), ...$also);
+    }
+
+    private function threadWearing(Label ...$labels): MessageThread
     {
         $thread = new MessageThread();
         $thread->account = $this->account;
@@ -359,7 +547,10 @@ final class ThreadSetMethodTest extends KernelTestCase
         $message->messageId = sprintf('<threadset-%s@example.test>', uniqid('', true));
         $message->mailbox = $this->mailbox;
         $message->imapUid = 8000;
-        $message->addLabel($this->labelResolver->systemLabel(LabelRole::Inbox, $this->account));
+
+        foreach ($labels as $label) {
+            $message->addLabel($label);
+        }
 
         $thread->addMessage($message);
         $this->em->persist($message);
