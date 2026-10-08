@@ -179,16 +179,42 @@ final class InviteAcceptanceTest extends KernelTestCase
     }
 
     /**
-     * The population that must NOT be gated, and the one that would be the most
-     * expensive to get wrong: everything read out of mail that is not an
-     * invitation at all.
+     * An invitation that names nobody here — forwarded from somebody else's
+     * diary, or sent to a list. It used to be drawn at once, on the reasoning
+     * that it was not this mailbox's to accept; that made the calendar
+     * something anybody could write to by sending mail. It waits now, like an
+     * invitation, and the reader adds it or does not.
      */
-    public function testAnInvitationAddressedToSomebodyElseIsNotGated(): void
+    public function testAnInvitationAddressedToSomebodyElseWaitsToBeAdded(): void
     {
         $event = $this->invite('elsewhere@example.test', attendee: 'someone-else@example.test');
 
-        self::assertNull($event?->myParticipation, 'not addressed to this mailbox, so not this mailbox\'s to accept');
+        self::assertSame(ParticipationStatus::NeedsAction, $event?->myParticipation);
+        self::assertCount(0, $this->occurrencesOf($event));
+
+        $this->answer($event, ParticipationStatus::Accepted);
+
         self::assertCount(1, $this->occurrencesOf($event));
+    }
+
+    /**
+     * Re-reading stored mail must not empty a calendar. An event of this shape
+     * that is already drawn, with nothing recorded against it, was put there
+     * under the old rule and somebody has been looking at it since.
+     */
+    public function testOneThatWasAlreadyOnTheCalendarStaysThere(): void
+    {
+        $event = $this->invite('elsewhere@example.test', attendee: 'someone-else@example.test');
+        self::assertNotNull($event);
+
+        $event->myParticipation = null;
+        $this->materialiser->materialise($event);
+        $this->em->flush();
+
+        $again = $this->invite('elsewhere@example.test', attendee: 'someone-else@example.test', sequence: 1);
+
+        self::assertNull($again?->myParticipation);
+        self::assertCount(1, $this->occurrencesOf($again));
     }
 
     /** A meeting the owner organised is theirs; waiting for them to accept it is absurd. */

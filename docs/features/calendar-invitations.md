@@ -63,9 +63,26 @@ motion set to **Full** the answer itself travels there, turning into the meeting
 is the whole of it. With the calendar closed, the answer lands on the calendar button in the top
 bar, which keeps a dot until you open it.
 
-This applies to invitations addressed to you and to nothing else. A flight confirmation, a parcel, a
-date you accepted out of a sentence, a calendar you mirror from Google, a meeting *you* organised —
-none of those are anybody's to accept, and all of them appear straight away as they always did.
+This applies to invitations addressed to you. A flight confirmation, a parcel, a date you accepted
+out of a sentence, a calendar you mirror from Google, a meeting *you* organised — none of those are
+anybody's to accept, and all of them appear straight away as they always did.
+
+### A calendar file that is not an invitation to you
+
+Not every calendar file in a mail asks you anything. An appointment attached as `termin.ics` by a
+recruiter or a booking system names no organiser and no guests; an invitation forwarded from
+somebody else's diary names people, and you are not one of them. Anybody can send you either, so
+neither is put on your calendar for you.
+
+The card above the message says *"Attached to this message — nothing has been added to your
+calendar"* and offers two buttons. **Add to calendar** puts it there; **No thanks** leaves it off,
+and the card remembers which you chose. You can change your mind later with the other button. No
+reply is sent to anyone — nobody asked.
+
+Such a file is recognised by its name as well as by its type, because it is very often sent as "a
+file" and nothing more.
+
+Events of this kind that were already on your calendar before this rule existed stay there.
 
 Answering an invitation does **not** count as editing the event. The organiser is still the
 authority on when the meeting is, so a later message moving it still moves it here, even after you

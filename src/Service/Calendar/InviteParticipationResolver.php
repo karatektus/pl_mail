@@ -99,6 +99,41 @@ final readonly class InviteParticipationResolver
     }
 
     /**
+     * Whether none of this mailbox's addresses is on the event at all — an
+     * empty participant list included.
+     *
+     * resolve() answers null for that, and for an event the owner organised,
+     * and cannot tell the two apart; the reconciler has to, because a calendar
+     * file somebody else mailed in is theirs to offer and not theirs to put on
+     * a calendar. See EventReconciler::isOfferedByMail().
+     *
+     * @param array<string,mixed> $jscalendar
+     * @param list<string>        $ownedAddresses lowercased, as Account::$ownedAddresses gives them
+     */
+    public function namesNobodyHere(array $jscalendar, array $ownedAddresses): bool
+    {
+        $participants = $jscalendar['participants'] ?? null;
+
+        if (false === is_array($participants)) {
+            return true;
+        }
+
+        foreach ($participants as $key => $entry) {
+            if (false === is_array($entry)) {
+                continue;
+            }
+
+            $address = mb_strtolower(trim((string) ($entry['email'] ?? $key)));
+
+            if (true === in_array($address, $ownedAddresses, true)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
      * What to store, given what is already stored — the rule that keeps an
      * organiser from un-answering a meeting somebody is going to.
      *

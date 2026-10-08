@@ -4,6 +4,7 @@ namespace App\Repository\Mail;
 
 use App\Domain\Enum\Mail\LabelRole;
 use App\Domain\Enum\Mail\MailboxSpecialUse;
+use App\Domain\Helper\CalendarAttachment;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Mailbox;
 use App\Entity\Mail\Message;
@@ -22,18 +23,11 @@ use Doctrine\Persistence\ManagerRegistry;
 class MessageRepository extends ServiceEntityRepository
 {
     /**
-     * Content types that mean "there is an invite in here".
-     *
-     * @var list<string>
-     */
-    private const array CALENDAR_TYPES = ['text/calendar', 'application/ics'];
-
-    /**
      * Messages that could plausibly carry an event.
      *
      * A mailbox is mostly newsletters, and parsing every one to find the few
      * per cent that are bookings is work nobody gets back. Three signals, one
-     * per extractor: a text/calendar part (an invite, on IMAP or Gmail), the
+     * per extractor: a calendar part (an invite, on IMAP or Gmail — see CalendarAttachment), the
      * synthetic Graph meeting header (an invite with no part to find), and
      * schema.org markup in the raw body (a reservation).
      *
@@ -58,7 +52,10 @@ class MessageRepository extends ServiceEntityRepository
               EXISTS (
                   SELECT 1 FROM message_part p
                   WHERE p.message_id = m.id
-                    AND LOWER(p.content_type) IN (:extCalendarTypes)
+                    AND (
+                          LOWER(p.content_type) IN (:extCalendarTypes)
+                       OR LOWER(p.filename) LIKE :extCalendarName
+                    )
               )
            OR jsonb_exists(m.headers::jsonb, :extMeetingHeader)
            OR m.body_html LIKE :extJsonLd
@@ -101,7 +98,8 @@ class MessageRepository extends ServiceEntityRepository
     {
         return [
             'extAfterId'       => $afterId,
-            'extCalendarTypes' => self::CALENDAR_TYPES,
+            'extCalendarTypes' => CalendarAttachment::CONTENT_TYPES,
+            'extCalendarName'  => '%' . CalendarAttachment::EXTENSION,
             'extMeetingHeader' => GraphMessageBuilder::MEETING_TYPE_HEADER,
             'extJsonLd'        => '%application/ld+json%',
         ];
@@ -115,6 +113,7 @@ class MessageRepository extends ServiceEntityRepository
         return [
             'extAfterId'       => ParameterType::INTEGER,
             'extCalendarTypes' => ArrayParameterType::STRING,
+            'extCalendarName'  => ParameterType::STRING,
             'extMeetingHeader' => ParameterType::STRING,
             'extJsonLd'        => ParameterType::STRING,
         ];

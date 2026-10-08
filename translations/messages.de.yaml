@@ -1444,6 +1444,13 @@ calendar:
             tentative: Vielleicht
         attendees: '%count% eingeladen'
         cancelled: Dieser Termin wurde abgesagt.
+        offer:
+            accepted: In den Kalender
+            declined: Nein danke
+            hint: "An diese Nachricht angehängt — in deinem Kalender wurde nichts eingetragen."
+            status:
+                accepted: In deinem Kalender
+                declined: Nicht eingetragen
         organiser: Eingeladen von %name%
         organiser_tag: Organisation
         placed: '%title% steht jetzt in deinem Kalender: %when%.'
@@ -1455,6 +1462,8 @@ calendar:
             needs_action: Keine Antwort
             tentative: Vielleicht
         toast:
+            added: In deinen Kalender eingetragen.
+            not_added: Nicht in deinen Kalender eingetragen.
             not_sent: >-
                 Deine Antwort wurde hier gespeichert, konnte aber nicht an die
                 Organisation gesendet werden.

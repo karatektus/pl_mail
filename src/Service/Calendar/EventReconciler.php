@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Service\Calendar;
 
 use App\Domain\Enum\Calendar\EventStatus;
+use App\Domain\Enum\Calendar\ParticipationStatus;
 use App\Entity\Calendar\CalendarEvent;
 use App\Entity\Calendar\EventSourceLink;
 use App\Entity\Mail\Message;
@@ -13,6 +14,7 @@ use App\Repository\Calendar\CalendarEventRepository;
 use App\Repository\Calendar\EventSourceLinkRepository;
 use App\Repository\Calendar\EventSuppressionRepository;
 use App\Service\Calendar\Extraction\ExtractedEvent;
+use App\Service\Calendar\Extraction\IcsEventExtractor;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 
@@ -325,6 +327,49 @@ final readonly class EventReconciler
         return null === $arrived || null === $latest || $arrived >= $latest;
     }
 
+    /**
+     * A calendar file somebody else mailed in, naming nobody here.
+     *
+     * An appointment attached by a recruiter, a published calendar entry, an
+     * invitation forwarded from somebody else's diary: none of them is an
+     * invitation TO this mailbox, so resolve() says null, and null used to mean
+     * "draw it". That made a calendar anybody could write to by sending mail.
+     * It is held as unanswered instead — not drawn, with a card above the
+     * message offering to add it — which is the state an invitation waits in,
+     * minus the reply: there is nobody who asked.
+     *
+     * Three things are not this, and stay as they were:
+     *
+     *   the owner's own mail. A file they sent is in Sent for the reason they
+     *   sent it, and asking them to accept it is absurd;
+     *
+     *   anything that is not calendar data from the sender. A booking read out
+     *   of markup has no card to answer on and is confirmed by its own mail;
+     *
+     *   an event that is ALREADY on the calendar with nothing recorded against
+     *   it. It was drawn under the old rule, and re-reading stored mail must
+     *   not take things off a calendar that somebody has been looking at.
+     */
+    private function isOfferedByMail(CalendarEvent $event, ExtractedEvent $claim, Message $message): bool
+    {
+        if (IcsEventExtractor::NAME !== $claim->extractor) {
+            return false;
+        }
+
+        if (null !== $event->id && null === $event->myParticipation) {
+            return false;
+        }
+
+        $owned  = $message->account->ownedAddresses;
+        $sender = mb_strtolower(trim((string) $message->fromAddress));
+
+        if (true === in_array($sender, $owned, true)) {
+            return false;
+        }
+
+        return $this->participation->namesNobodyHere($claim->jscalendar, $owned);
+    }
+
     private function apply(
         CalendarEvent  $event,
         ExtractedEvent $claim,
@@ -344,10 +389,13 @@ final readonly class EventReconciler
         // Read off the CLAIM's object rather than the event's: the event still
         // holds the previous revision until write() merges the overlay below,
         // and the answer being decided here is the one this message states.
-        $event->myParticipation = $this->participation->merge(
-            $event->myParticipation,
-            $this->participation->resolve($claim->jscalendar, $message->account->ownedAddresses),
-        );
+        $incoming = $this->participation->resolve($claim->jscalendar, $message->account->ownedAddresses);
+
+        if (null === $incoming && true === $this->isOfferedByMail($event, $claim, $message)) {
+            $incoming = ParticipationStatus::NeedsAction;
+        }
+
+        $event->myParticipation = $this->participation->merge($event->myParticipation, $incoming);
 
         $this->writer->write(
             event:       $event,

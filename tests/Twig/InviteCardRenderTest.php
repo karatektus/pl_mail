@@ -6,6 +6,7 @@ namespace App\Tests\Twig;
 
 use App\Domain\Enum\Calendar\CalendarRole;
 use App\Domain\Enum\Calendar\EventStatus;
+use App\Domain\Enum\Calendar\ParticipationStatus;
 use App\Domain\Enum\Calendar\ExtractionKind;
 use App\Entity\Calendar\Calendar;
 use App\Entity\Calendar\CalendarEvent;
@@ -148,6 +149,48 @@ final class InviteCardRenderTest extends KernelTestCase
         self::assertStringNotContainsString('action="/calendar/invite/', $html);
     }
 
+    /**
+     * A calendar file somebody attached, naming nobody here. Two answers, in
+     * the words of what they do to the calendar — and no "Maybe", which is an
+     * answer to a person.
+     */
+    public function testAnOfferedFileAsksWhetherToAddIt(): void
+    {
+        $html = $this->render($this->offer(ParticipationStatus::NeedsAction));
+
+        self::assertStringContainsString('Add to calendar', $html);
+        self::assertStringContainsString('No thanks', $html);
+        self::assertStringContainsString('nothing has been added to your calendar', $html);
+        self::assertStringNotContainsString('Maybe', $html);
+        self::assertSame(2, substr_count($html, 'action="/calendar/invite/'));
+    }
+
+    public function testAnOfferThatWasAddedSaysWhereItIs(): void
+    {
+        $html = $this->render($this->offer(ParticipationStatus::Accepted));
+
+        self::assertStringContainsString('In your calendar', $html);
+        // Still two buttons: taking it off again is the other one.
+        self::assertSame(2, substr_count($html, 'action="/calendar/invite/'));
+    }
+
+    public function testAnOfferThatWasRefusedSaysSo(): void
+    {
+        self::assertStringContainsString('Not added', $this->render($this->offer(ParticipationStatus::Declined)));
+    }
+
+    /**
+     * The same shape with nothing recorded against it is an event that was
+     * drawn before offers existed. It is on the calendar; the card must not
+     * start asking about it.
+     */
+    public function testAnEventDrawnUnderTheOldRuleIsNotAsked(): void
+    {
+        $html = $this->render($this->offer(null));
+
+        self::assertStringNotContainsString('action="/calendar/invite/', $html);
+    }
+
     // ── Fixtures ──────────────────────────────────────────────────────────
 
     private function render(Message $message): string
@@ -209,6 +252,26 @@ final class InviteCardRenderTest extends KernelTestCase
         $link->dedupKey  = 'ics:' . $event->uid;
         $link->payload   = ['method' => 'REQUEST'];
         $this->em->persist($link);
+
+        $this->em->flush();
+        $this->reader->reset();
+
+        return $message;
+    }
+
+    /** A stored event from a mailed-in calendar file with no participants. */
+    private function offer(?ParticipationStatus $participation): Message
+    {
+        $message = $this->invitation();
+
+        $link = $this->em->getRepository(EventSourceLink::class)->findOneBy(['message' => $message]);
+        self::assertNotNull($link);
+
+        $link->payload = ['method' => 'PUBLISH'];
+
+        $event                  = $link->event;
+        $event->jscalendar      = ['@type' => 'Event', 'title' => 'Quarterly review'];
+        $event->myParticipation = $participation;
 
         $this->em->flush();
         $this->reader->reset();

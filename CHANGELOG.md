@@ -19,6 +19,20 @@ empty.
   an den Versanddienstleister") is no longer taken for the delivery date.
 - Mail already stored is not re-read on its own; `app:backfill insights` reads it again.
 
+**A calendar file somebody mails you is offered, not added.** Two changes that belong together:
+
+- **A file attached as an ordinary file is read.** An appointment sent as `termin.ics` was only
+  recognised when the sender also declared it as calendar data. Recruiting and booking systems often
+  attach it as a plain file, and then the mail offered a download and nothing else. It is now
+  recognised by its name too.
+- **Calendar data that does not invite you waits for a yes.** A file with no organiser and no
+  guests, or an invitation addressed to somebody else, used to go straight onto the calendar — which
+  let anybody put things there by sending mail. The card above the message now asks: **Add to
+  calendar** or **No thanks**. No reply is sent to anyone. Invitations addressed to you, bookings
+  and your own events are unchanged, and events of this kind already on your calendar stay there.
+
+`app:backfill events` picks up mail that arrived before this.
+
 **An Amazon order is on the radar from the moment it is placed.** The parcel card appeared with the
 dispatch mail; the order confirmation before it ("Bestellt: …", "Ordered: …") was not read at all,
 although it already names the order and the day it is promised for. It now makes the card, with a

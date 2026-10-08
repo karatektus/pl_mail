@@ -153,6 +153,10 @@ final class InviteReader implements ResetInterface
             me:             $me,
             isCancellation: $isCancellation,
             canRespond:     $this->canRespond($method, $organiser, $me, $isCancellation),
+            // A participation recorded against an event that lists nobody of
+            // ours can only have come from EventReconciler::isOfferedByMail():
+            // an invitation proper always has a row for the reader.
+            isOffer:        false === $isCancellation && null === $me && null !== $event->myParticipation,
         );
     }
 

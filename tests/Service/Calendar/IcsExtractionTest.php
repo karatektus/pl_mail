@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Service\Calendar;
 
 use App\Domain\Enum\Calendar\EventStatus;
+use App\Domain\Enum\Calendar\ParticipationStatus;
 use App\Entity\Calendar\Calendar;
 use App\Entity\Calendar\CalendarEvent;
 use App\Entity\Calendar\EventSourceLink;
@@ -495,15 +496,97 @@ final class IcsExtractionTest extends KernelTestCase
         self::assertGreaterThan($event->startsAt, $event->endsAt);
     }
 
+    /**
+     * Reported 2026-10-08: an interview invitation from a recruiting system,
+     * with the appointment attached as "termineinladung.ics" and declared as
+     * application/octet-stream. Nothing read it — the content type was the
+     * whole test — so the mail offered a download and the calendar stayed
+     * empty.
+     *
+     * The calendar below is the reported one with its description cut down:
+     * METHOD:PUBLISH, a named zone, no organiser and no attendee.
+     *
+     * Read, and NOT drawn. Anybody can mail a calendar file, so one that names
+     * nobody here waits as an unanswered offer — the card above the message
+     * asks — and reaches the calendar when the reader says so.
+     */
+    public function testACalendarFileAttachedAsAPlainFileIsOfferedAndNotDrawn(): void
+    {
+        $ics = implode("\r\n", [
+            'BEGIN:VCALENDAR',
+            'VERSION:2.0',
+            'PRODID:-//GuideCom//Recruiting//DE',
+            'METHOD:PUBLISH',
+            'BEGIN:VEVENT',
+            'UID:32a71733-927b-40e4-b3cc-e0ee0834e89b',
+            'DTSTAMP:20261008T143837Z',
+            'DTSTART;TZID=Europe/Berlin:20261023T130000',
+            'DTEND;TZID=Europe/Berlin:20261023T140000',
+            'LOCATION:',
+            'SUMMARY:Einladung zum digitalen Kennenlernen - Full Stack Webentwickler (w/m/x)',
+            'END:VEVENT',
+            'END:VCALENDAR',
+            '',
+        ]);
+
+        $event = $this->ingest($ics, 'application/octet-stream', 'Termineinladung.ICS');
+
+        self::assertNotNull($event);
+        self::assertSame('Einladung zum digitalen Kennenlernen - Full Stack Webentwickler (w/m/x)', $event->title);
+        // 13:00 in Berlin, still on summer time that week.
+        self::assertSame(
+            '2026-10-23 11:00',
+            $event->startsAt->setTimezone(new \DateTimeZone('UTC'))->format('Y-m-d H:i'),
+        );
+        self::assertSame(ParticipationStatus::NeedsAction, $event->myParticipation);
+        self::assertCount(0, $event->occurrences);
+    }
+
+    /** The owner's own file, in Sent, is not something to ask them about. */
+    public function testACalendarFileTheOwnerSentIsDrawn(): void
+    {
+        $ics = "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nMETHOD:PUBLISH\r\nBEGIN:VEVENT\r\n"
+            . "UID:own-file@example.test\r\nSUMMARY:Sommerfest\r\n"
+            . "DTSTART:20260803T090000Z\r\nDTEND:20260803T100000Z\r\n"
+            . "END:VEVENT\r\nEND:VCALENDAR";
+
+        $message = $this->messageWithInvite($ics, 'application/octet-stream', 'sommerfest.ics');
+        $message->fromAddress = 'ics-fixture@example.test';
+
+        $touched = $this->reconciler->reconcile($message, $this->runner->run($message));
+        $this->em->flush();
+
+        self::assertNull($touched[0]->myParticipation);
+        self::assertCount(1, $touched[0]->occurrences);
+    }
+
+    public function testAnAttachmentThatIsNotACalendarIsLeftAlone(): void
+    {
+        self::assertNull($this->ingest('%PDF-1.7', 'application/octet-stream', 'lebenslauf.pdf'));
+    }
+
+    /**
+     * The query that picks stored mail to re-read has to agree with the
+     * runner, or mail that arrived before the fix is never looked at again.
+     */
+    public function testAStoredMessageWithSuchAFileIsACandidateForReReading(): void
+    {
+        $message = $this->messageWithInvite('BEGIN:VCALENDAR', 'application/octet-stream', 'termineinladung.ics');
+
+        $candidates = $this->em->getRepository(Message::class)->extractionCandidates((int) $message->id - 1, 10);
+
+        self::assertContains($message->id, array_map(static fn (Message $m): ?int => $m->id, $candidates));
+    }
+
     // ── Fixtures ──────────────────────────────────────────────────────────
 
     /**
      * A message carrying one text/calendar part, run through the real
      * extractor and the real reconciler.
      */
-    private function ingest(string $ics): ?CalendarEvent
+    private function ingest(string $ics, string $contentType = 'text/calendar', string $filename = 'invite.ics'): ?CalendarEvent
     {
-        $message = $this->messageWithInvite($ics);
+        $message = $this->messageWithInvite($ics, $contentType, $filename);
 
         $touched = $this->reconciler->reconcile($message, $this->runner->run($message));
         $this->em->flush();
@@ -512,8 +595,11 @@ final class IcsExtractionTest extends KernelTestCase
     }
 
     /** A persisted message carrying one text/calendar part with these bytes. */
-    private function messageWithInvite(string $ics): Message
-    {
+    private function messageWithInvite(
+        string $ics,
+        string $contentType = 'text/calendar',
+        string $filename = 'invite.ics',
+    ): Message {
         $message = new Message();
         $message->account = $this->account;
         $message->subject = 'Invitation';
@@ -536,8 +622,8 @@ final class IcsExtractionTest extends KernelTestCase
 
         $part = new MessagePart();
         $part->message     = $message;
-        $part->contentType = 'text/calendar';
-        $part->filename    = 'invite.ics';
+        $part->contentType = $contentType;
+        $part->filename    = $filename;
         $part->disposition = 'inline';
         $part->size        = strlen($ics);
         $part->storagePath = $relative;
@@ -582,7 +668,12 @@ final class IcsExtractionTest extends KernelTestCase
             . "UID:{$uid}\r\nSUMMARY:{$summary}\r\nSEQUENCE:{$sequence}\r\n"
             . "DTSTART:{$start}\r\nDTEND:{$end}\r\n"
             . "ORGANIZER;CN=Organiser:mailto:organiser@example.test\r\n"
-            . "ATTENDEE;CN=Me;PARTSTAT=NEEDS-ACTION:mailto:me@example.test\r\n"
+            // Addressed to the fixture account, and already accepted. These
+            // tests are about what is read and drawn; whether an invitation
+            // waits for an answer is InviteAcceptanceTest's subject, and one
+            // that names nobody here would wait too — see
+            // testACalendarFileAttachedAsAPlainFileIsOfferedAndNotDrawn.
+            . "ATTENDEE;CN=Me;PARTSTAT=ACCEPTED:mailto:ics-fixture@example.test\r\n"
             . "END:VEVENT\r\nEND:VCALENDAR";
     }
 

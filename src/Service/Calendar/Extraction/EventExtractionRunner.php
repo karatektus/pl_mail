@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Service\Calendar\Extraction;
 
+use App\Domain\Helper\CalendarAttachment;
 use App\Domain\Interface\EventExtractorInterface;
 use App\Entity\Mail\Message;
 use App\Entity\Mail\MessagePart;
@@ -141,13 +142,12 @@ final readonly class EventExtractionRunner
     }
 
     /**
-     * Content type only, never disposition. Gmail invites are stored inline so
-     * they do not raise a paperclip, and an IMAP one may be either.
+     * Never by disposition. Gmail invites are stored inline so they do not
+     * raise a paperclip, and an IMAP one may be either. What does count is in
+     * CalendarAttachment, which the proposer and the candidate query share.
      */
     private function isCalendar(MessagePart $part): bool
     {
-        $type = mb_strtolower(trim((string) $part->contentType));
-
-        return in_array($type, ['text/calendar', 'application/ics'], true);
+        return CalendarAttachment::is($part);
     }
 }

@@ -1,4 +1,4 @@
-<!-- translated-from: features/calendar-invitations.md sha1:8a9f8424c7265facfddaee640a7794f1e5f6a504 -->
+<!-- translated-from: features/calendar-invitations.md sha1:4f37cd5044b46127ecf9f09948935b2a475a38cc -->
 
 # Einladungen und Termine aus E-Mails
 
@@ -70,10 +70,27 @@ Termin; bei **Dezent** oder **Keine**, oder wenn dein System weniger Bewegung ve
 nichts, und die Markierung ist alles. Ist der Kalender geschlossen, landet die Antwort auf dem
 Kalender-Knopf oben in der Leiste, der einen Punkt behält, bis du ihn öffnest.
 
-Das gilt für Einladungen an dich und für sonst nichts. Eine Flugbestätigung, ein Paket, ein Datum,
+Das gilt für Einladungen an dich. Eine Flugbestätigung, ein Paket, ein Datum,
 das du aus einem Satz übernommen hast, ein von Google gespiegelter Kalender, eine Besprechung, die
 *du* einberufen hast — nichts davon ist irgendjemandes Zusage, und all das erscheint sofort, wie es
 das immer getan hat.
+
+### Eine Kalenderdatei, die keine Einladung an dich ist
+
+Nicht jede Kalenderdatei in einer Mail fragt dich etwas. Ein Termin, den ein Recruiter oder ein
+Buchungssystem als `termin.ics` anhängt, nennt weder Organisator noch Gäste; eine Einladung, die aus
+dem Kalender von jemand anderem weitergeleitet wurde, nennt Leute, und du bist nicht dabei. Beides
+kann dir jeder schicken, also wird keines von beiden für dich in den Kalender eingetragen.
+
+Die Karte über der Nachricht sagt *„An diese Nachricht angehängt — in deinem Kalender wurde nichts
+eingetragen"* und bietet zwei Schaltflächen. **In den Kalender** trägt den Termin ein; **Nein danke**
+lässt ihn weg, und die Karte merkt sich, was du gewählt hast. Mit der anderen Schaltfläche kannst du
+es dir später anders überlegen. Eine Antwort wird an niemanden geschickt — es hat niemand gefragt.
+
+Erkannt wird eine solche Datei am Namen ebenso wie am Typ, denn sie wird sehr oft schlicht als „eine
+Datei" verschickt.
+
+Termine dieser Art, die schon in deinem Kalender standen, bevor es diese Regel gab, bleiben dort.
 
 Eine Einladung zu beantworten, zählt **nicht** als Bearbeiten des Termins. Die Organisation bleibt
 die Instanz dafür, wann die Besprechung ist, eine spätere Nachricht, die sie verschiebt, verschiebt

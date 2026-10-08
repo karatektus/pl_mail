@@ -68,13 +68,31 @@ final class InviteController extends AbstractController
             throw $this->createNotFoundException();
         }
 
-        if (false === $invite->canRespond) {
+        if (false === $invite->canRespond && false === $invite->isOffer) {
             throw $this->createAccessDeniedException();
+        }
+
+        // An offer is added or it is not. "Maybe" is an answer to a person,
+        // and nobody asked.
+        if (true === $invite->isOffer && ParticipationStatus::Tentative === $status) {
+            throw $this->createNotFoundException();
         }
 
         $sent = $this->responder->respond($invite, $status);
 
         $this->em->flush();
+
+        if (true === $invite->isOffer) {
+            // Nothing was sent and nothing could fail to be: the toast says
+            // what happened to the calendar, which is all that happened.
+            return $this->render('calendar/_invite_response.stream.html.twig', [
+                'invite'       => $this->reread($message, $user),
+                'toastMessage' => ParticipationStatus::Accepted === $status
+                    ? 'calendar.invite.toast.added'
+                    : 'calendar.invite.toast.not_added',
+                'toastType'    => 'success',
+            ], new Response(headers: ['Content-Type' => 'text/vnd.turbo-stream.html']));
+        }
 
         return $this->render('calendar/_invite_response.stream.html.twig', [
             // Re-read rather than reused: the DTO was built before the answer

@@ -1418,6 +1418,13 @@ calendar:
             tentative: Maybe
         attendees: '%count% invited'
         cancelled: This meeting has been called off.
+        offer:
+            accepted: Add to calendar
+            declined: No thanks
+            hint: "Attached to this message — nothing has been added to your calendar."
+            status:
+                accepted: In your calendar
+                declined: Not added
         organiser: Organised by %name%
         organiser_tag: organiser
         placed: '%title% is in your calendar: %when%.'
@@ -1429,6 +1436,8 @@ calendar:
             needs_action: No reply
             tentative: Maybe
         toast:
+            added: Added to your calendar.
+            not_added: Left off your calendar.
             not_sent: >-
                 Your answer was saved here, but the reply could not be sent to
                 the organiser.

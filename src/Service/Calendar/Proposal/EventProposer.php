@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Service\Calendar\Proposal;
 
 use App\Domain\Enum\Mail\MessageCategory;
+use App\Domain\Helper\CalendarAttachment;
 use App\Entity\Calendar\EventProposal;
 use App\Entity\Mail\Message;
 use App\Entity\User\User;
@@ -375,11 +376,7 @@ final readonly class EventProposer
     private function carriesRealEvent(Message $message): bool
     {
         foreach ($message->messageParts as $part) {
-            if (true === in_array(
-                mb_strtolower(trim((string) $part->contentType)),
-                ['text/calendar', 'application/ics'],
-                true,
-            )) {
+            if (true === CalendarAttachment::is($part)) {
                 return true;
             }
         }

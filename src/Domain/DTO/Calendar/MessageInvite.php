@@ -41,6 +41,12 @@ final readonly class MessageInvite
          * of this account's addresses, still standing, that somebody else sent.
          */
         public bool                $canRespond,
+        /**
+         * Calendar data somebody mailed in that names nobody here: not an
+         * invitation to answer, but not on the calendar either until the
+         * reader says so. The card offers to add it, and no reply is sent.
+         */
+        public bool                $isOffer = false,
     ) {
     }
 
@@ -52,6 +58,9 @@ final readonly class MessageInvite
     {
         // No `?->`: the coalesce already covers a null $me, and the two
         // together are the same expression written twice.
-        return $this->me->status ?? ParticipationStatus::NeedsAction;
+        //
+        // The event's own column second: on an offer nobody here is on the
+        // list, so the answer has no participant to live on and is only there.
+        return $this->me->status ?? $this->event->myParticipation ?? ParticipationStatus::NeedsAction;
     }
 }

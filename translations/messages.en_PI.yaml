@@ -1335,6 +1335,13 @@ calendar:
             tentative: Belike
         attendees: '%count% called aboard'
         cancelled: This gatherin' has been called off.
+        offer:
+            accepted: Mark it on the chart
+            declined: Nay, thankee
+            hint: "Lashed to this message — naught be marked on yer chart."
+            status:
+                accepted: On yer chart
+                declined: Left off the chart
         organiser: Called by %name%
         organiser_tag: called it
         placed: '%title% be marked on yer chart: %when%.'
@@ -1346,6 +1353,8 @@ calendar:
             needs_action: No word yet
             tentative: Belike
         toast:
+            added: Marked on yer chart.
+            not_added: Left off yer chart.
             not_sent: >-
                 Yer answer be stowed here, but the parrot never reached the one
                 who called the gatherin'.
