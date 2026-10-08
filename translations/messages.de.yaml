@@ -2104,7 +2104,7 @@ label:
     delete_confirm_children: '"%name%" und die %count% untergeordneten Label(s) löschen? Sie verschwinden aus allen Konten. Nachrichten werden nicht gelöscht.'
     deleted: Label gelöscht.
     error:
-        duplicate: Hier gibt es bereits ein Label mit diesem Namen.
+        duplicate: Hier gibt es bereits ein Label mit diesem Namen. Groß- und Kleinschreibung macht daraus keinen anderen.
     form:
         color: Farbe
         delete: Label löschen

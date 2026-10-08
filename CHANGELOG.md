@@ -8,6 +8,15 @@ The published image tags: `latest` follows the most recent release below,
 
 ## Unreleased
 
+**A label name that differs from an existing one only in capitals is refused.** "work" could be
+created beside "Work". Gmail treats the two as one label and rejected the second, but only later, in
+the background: the new label existed in plMail, could be put on mail, and never reached Gmail, with
+an error in the log and nothing on screen. plMail now refuses it when you create or rename the
+label, in the browser and from the apps, and says which label is in the way.
+
+- **If you already have such a pair**, nothing is changed for you. Delete or rename the newer one;
+  until you do, putting it on Gmail mail keeps failing in the background.
+
 **"Move to" is available to apps, not just the browser.** The Android and iOS apps talk to plMail
 over JMAP, which had no way to ask for a move: an app could only add one label and remove another
 itself, which files mail in two places on a plain IMAP account and cannot take mail out of Trash or

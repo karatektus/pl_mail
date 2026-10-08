@@ -469,11 +469,20 @@ final class MailboxSetMethod implements JmapMethod
 
     /**
      * Siblings must have distinct names — the same rule LabelResolver relies on
-     * when it does find-or-create by (parent, name).
+     * when it does find-or-create by (parent, name) — and names that differ
+     * only in capitals are not distinct. See
+     * LabelRepository::findOneChildByNameIgnoringCase() for whose rule that is.
+     *
+     * The description is written for a person, because a client shows it to
+     * one: there is no error type for "taken", `invalidProperties` is what the
+     * spec offers, and the sentence is the only part that says which label is
+     * in the way. When the capitals are the whole difference it names the
+     * existing label as it is actually spelled — somebody who typed "work" and
+     * is told "work already exists" goes looking for a label that is not there.
      */
     private function assertNameFree(Account $account, ?Label $parent, string $name, ?Label $ignore = null): void
     {
-        $existing = $this->labelRepository->findOneChildByName($account->usr, $parent, $name);
+        $existing = $this->labelRepository->findOneChildByNameIgnoringCase($account->usr, $parent, $name);
 
         if (null === $existing) {
             return;
@@ -483,7 +492,23 @@ final class MailboxSetMethod implements JmapMethod
             return;
         }
 
-        throw new MethodException('invalidProperties', sprintf('A mailbox named "%s" already exists here.', $name));
+        if ($existing->name === $name) {
+            throw new MethodException(
+                'invalidProperties',
+                sprintf('A label named "%s" already exists here.', $name),
+                ['properties' => ['name']],
+            );
+        }
+
+        throw new MethodException(
+            'invalidProperties',
+            sprintf(
+                'You already have a label named "%s". Names that differ only in capitals count as the same, so "%s" is taken.',
+                (string) $existing->name,
+                $name,
+            ),
+            ['properties' => ['name']],
+        );
     }
 
     /**

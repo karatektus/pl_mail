@@ -109,6 +109,48 @@ final class LabelRepositoryTest extends KernelTestCase
         self::assertNull($this->repository->findOneChildByName($this->user, null, 'Invoices'));
     }
 
+    // ── a name somebody is typing ────────────────────────────────────────────
+
+    /**
+     * The two lookups answer different questions and must keep doing so:
+     * find-or-create is exact, because a case-sensitive IMAP server may hold
+     * `work` and `Work` as two folders; the check in front of a person is not.
+     */
+    public function testCapitalsAreIgnoredOnlyByTheCheckForANewName(): void
+    {
+        $work = $this->label('Work');
+
+        self::assertNull($this->repository->findOneChildByName($this->user, null, 'work'));
+        self::assertSame($work, $this->repository->findOneChildByNameIgnoringCase($this->user, null, 'work'));
+        self::assertSame($work, $this->repository->findOneChildByNameIgnoringCase($this->user, null, 'WORK'));
+    }
+
+    /** Umlauts fold too: `ärzte` and `Ärzte` are one name to a person and to Gmail. */
+    public function testIgnoringCaseCoversLettersOutsideAscii(): void
+    {
+        $doctors = $this->label('Ärzte');
+
+        self::assertSame($doctors, $this->repository->findOneChildByNameIgnoringCase($this->user, null, 'ärzte'));
+    }
+
+    public function testIgnoringCaseStillKeepsToTheParent(): void
+    {
+        $work = $this->label('Work');
+        $this->label('Invoices', parent: $work);
+
+        self::assertNull($this->repository->findOneChildByNameIgnoringCase($this->user, null, 'invoices'));
+        self::assertNotNull($this->repository->findOneChildByNameIgnoringCase($this->user, $work, 'invoices'));
+    }
+
+    /** `%` and `_` are characters in a name, not wildcards. */
+    public function testAWildcardCharacterInANameMatchesOnlyItself(): void
+    {
+        $this->label('Work');
+
+        self::assertNull($this->repository->findOneChildByNameIgnoringCase($this->user, null, 'w_rk'));
+        self::assertNull($this->repository->findOneChildByNameIgnoringCase($this->user, null, 'w%'));
+    }
+
     // ── the parent picker ────────────────────────────────────────────────────
 
     /** A system mailbox is not somewhere a user gets to file things under. */

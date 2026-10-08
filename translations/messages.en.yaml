@@ -2104,7 +2104,7 @@ label:
     delete_confirm_children: 'Delete "%name%" and its %count% nested label(s)? They go from every account. Messages are not deleted.'
     deleted: Label deleted.
     error:
-        duplicate: A label with this name already exists here.
+        duplicate: A label with this name already exists here. Capitals do not make it a different name.
     form:
         color: Color
         delete: Delete label

@@ -86,6 +86,53 @@ class LabelRepository extends ServiceEntityRepository
     }
 
     /**
+     * The sibling a NEW name would collide with, capitals ignored.
+     *
+     * Not the same question findOneChildByName() answers, and the two must not
+     * be merged. That one is find-or-create for mail arriving from a provider,
+     * where an exact match is the only safe one: a case-sensitive IMAP server
+     * may really hold `work` and `Work` as two folders, and folding them would
+     * file two folders' mail under one label. This one is the check in front
+     * of a person typing a name, and there the rule is the strictest
+     * provider's — Gmail treats `work` and `Work` as one label and answers a
+     * second with "409: Label name exists or conflicts".
+     *
+     * That refusal arrives in ApplyGmailLabelsHandler, in a worker, long after
+     * the request that made the label has answered "created" — so the label
+     * existed here, could be put on mail here, and never reached Gmail, with
+     * nothing on any screen to say so. Refusing at the door is the only place
+     * the person who typed it can be told.
+     *
+     * Roles are included on purpose: a custom "inbox" beside the Inbox is the
+     * same collision with a name the provider reserves.
+     *
+     * LOWER() on both sides rather than ILIKE, so `%` and `_` in a name are
+     * characters and not wildcards.
+     */
+    public function findOneChildByNameIgnoringCase(UserInterface $user, ?Label $parent, string $name): ?Label
+    {
+        $builder = $this->createQueryBuilder('label')
+            ->where('label.usr = :usr')
+            ->andWhere('LOWER(label.name) = :name')
+            ->setParameter('usr', $user)
+            ->setParameter('name', mb_strtolower($name))
+            ->orderBy('label.id', 'ASC')
+            ->setMaxResults(1);
+
+        if (null === $parent) {
+            $builder->andWhere('label.parent IS NULL');
+        } else {
+            $builder->andWhere('label.parent = :parent')->setParameter('parent', $parent);
+        }
+
+        // The exact spelling first, so a caller that reports which label is in
+        // the way names the one that matches character for character where
+        // there is one.
+        return $this->findOneChildByName($user, $parent, $name)
+            ?? $builder->getQuery()->getOneOrNullResult();
+    }
+
+    /**
      * The labels a label may be nested under, for the parent picker.
      *
      * Returns the builder rather than the results because Symfony's EntityType

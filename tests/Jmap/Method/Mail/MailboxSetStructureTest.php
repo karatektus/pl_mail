@@ -117,6 +117,42 @@ final class MailboxSetStructureTest extends JmapTestCase
         self::assertSame('invalidProperties', ((array) $result['notCreated'])['m2']['type']);
     }
 
+    /**
+     * Capitals do not make a different name. Gmail holds `work` and `Work` to
+     * be one label and refuses the second — in a worker, after this method has
+     * answered "created" — so the label would exist here and never there. The
+     * refusal has to come from here, and it has to name the label that is
+     * actually in the way: somebody who typed "work" and is told "work exists"
+     * goes looking for a label that is not there.
+     */
+    public function testANameThatDiffersOnlyInCapitalsIsTaken(): void
+    {
+        $this->createMailbox('Work');
+
+        $result = $this->handle(['create' => ['m1' => ['name' => 'work']]]);
+        $error  = ((array) $result['notCreated'])['m1'];
+
+        self::assertSame('invalidProperties', $error['type']);
+        self::assertSame(['name'], $error['properties']);
+        self::assertStringContainsString('"Work"', $error['description']);
+        self::assertStringContainsString('capitals', $error['description']);
+    }
+
+    /** And a rename cannot arrive at one either — but may recapitalise itself. */
+    public function testARenameCannotLandOnANameThatDiffersOnlyInCapitals(): void
+    {
+        $this->createMailbox('Work');
+        $other = $this->createMailbox('Receipts');
+
+        $refused = $this->handle(['update' => [$other => ['name' => 'WORK']]]);
+
+        self::assertSame('invalidProperties', ((array) $refused['notUpdated'])[$other]['type']);
+
+        $recased = $this->handle(['update' => [$other => ['name' => 'receipts']]]);
+
+        self::assertArrayHasKey($other, (array) $recased['updated']);
+    }
+
     /** The same name under a different parent is a different mailbox. */
     public function testTheSameNameIsFreeUnderADifferentParent(): void
     {

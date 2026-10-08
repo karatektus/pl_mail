@@ -65,7 +65,9 @@ final class LabelController extends AbstractController
         if (true === $form->isSubmitted() && true === $form->isValid()) {
             $label->usr = $this->getUser();
 
-            $duplicate = $this->labelRepository->findOneChildByName(
+            // Capitals ignored — see the repository method for whose rule
+            // that is. The same check Mailbox/set makes.
+            $duplicate = $this->labelRepository->findOneChildByNameIgnoringCase(
                 $this->getUser(),
                 $label->parent,
                 (string) $label->name,
