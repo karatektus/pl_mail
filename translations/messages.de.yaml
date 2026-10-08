@@ -2041,6 +2041,7 @@ insights:
         announced: Angekündigt
         delivered: Zugestellt
         in_transit: Unterwegs
+        ordered: Bestellt
         out_for_delivery: In Zustellung
 
 integration:

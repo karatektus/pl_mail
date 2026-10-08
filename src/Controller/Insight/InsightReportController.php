@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Controller\Insight;
 
 use App\Controller\ChecksCsrf;
+use App\Domain\Helper\ReadableBody;
 use App\Entity\Insight\InsightReport;
 use App\Entity\Mail\Message;
 use App\Entity\User\User;
@@ -124,14 +125,15 @@ final class InsightReportController extends AbstractController
         $report->fromName    = $message->fromName;
         $report->subject     = $message->subject;
         $report->receivedAt  = $message->receivedAt;
-        // Plain text only, and only the first screenful of it: the export is a
+        // Text only, and only the first screenful of it: the export is a
         // corpus of mail SHAPES, and the shape is in the top of the mail rather
-        // than in the eleventh quoted reply. The HTML part is never taken — a
-        // parser is written against the text, and the markup would be most of
-        // the budget.
-        $report->bodyText    = null === $message->bodyText
-            ? null
-            : mb_substr($message->bodyText, 0, InsightReport::MAX_BODY_CHARS);
+        // than in the eleventh quoted reply. Markup is never taken — it would
+        // be most of the budget — but a mail with no plain part is taken as
+        // the text its HTML reads as, which is what the extractors are given
+        // too. Kept to plain parts only, a report about an HTML-only mail
+        // arrived with an empty body, and those are the mails most often
+        // missed.
+        $report->bodyText    = mb_substr(ReadableBody::of($message), 0, InsightReport::MAX_BODY_CHARS);
         $report->note        = $note;
 
         $this->entityManager->persist($report);

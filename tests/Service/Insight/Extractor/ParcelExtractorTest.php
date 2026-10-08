@@ -104,6 +104,95 @@ final class ParcelExtractorTest extends TestCase
             // because Amazon states none, the second never reached extract()
             // at all because "Dispatched" was not a shipping word. They are
             // kept verbatim enough to still be the mails that were reported.
+            // ── Reported as missed, 2026-09-24 ─────────────────────────────
+            // A shop's shipping notice with no plain-text part at all. The
+            // subject opened the gate and extract() was handed an empty body:
+            // the tracking number is the text of a link in a table cell. The
+            // markup is the reported mail's, cut down to the rows that matter —
+            // including the handover date, which is announced with
+            // "Voraussichtliche" and is not when the parcel arrives.
+            'html-only shop notice: the tracking number is in a table cell' => [
+                [
+                    'from'       => 'noreply@email.siemens-home.bsh-group.com',
+                    'fromName'   => 'Siemens Hausgeräte',
+                    'subject'    => 'Deine Lieferung trifft in Kürze ein 2111836566-0',
+                    'html'       => '<html><head><title>Deine Lieferung</title>'
+                        . '<style type="text/css">.es-m-p20r { padding-right:20px!important } h1 { font-size:40px }</style></head>'
+                        . '<body><!--[if gte mso 9]><xml><o:PixelsPerInch>96</o:PixelsPerInch></xml><![endif]-->'
+                        . '<p>Deine Bestellnummer: 2111836566-0 <br/></p>'
+                        . '<table><tr><td><p>Voraussichtliche &Uuml;bergabe an den Versanddienstleister</p></td>'
+                        . '<td><p>24.9.2026</p></td></tr>'
+                        . '<tr><td><p>Status</p></td><td><p>In Lieferung</p></td></tr>'
+                        . '<tr><td><p>Trackingnummer</p></td><td><p>'
+                        . '<a href="http://nolp.dhl.de/nextt-online-public/set_identcodes.do?lang=de&idc=00340434156079686499&rfn=&extendedSearch=true">'
+                        . '00340434156079686499</a></p></td></tr>'
+                        . '<tr><td><p>Lieferadresse</p></td><td><p>01702990375</p></td></tr></table>'
+                        . '</body></html>',
+                    'receivedAt' => '2026-09-24 14:01:58',
+                ],
+                true,
+                [[
+                    'title'     => 'DHL · 00340434156079686499',
+                    'dedupeKey' => '00340434156079686499',
+                    'payload'   => [
+                        'carrier'        => 'dhl',
+                        'trackingNumber' => '00340434156079686499',
+                        'trackingUrl'    => 'https://www.dhl.de/de/privatkunden/dhl-sendungsverfolgung.html?piececode=00340434156079686499',
+                        'merchant'       => 'Siemens Hausgeräte',
+                        'status'         => 'announced',
+                    ],
+                    'happensAt' => null,
+                ]],
+            ],
+            // ── Reported as missed, 2026-10-08 ─────────────────────────────
+            // The first mail of an order, and refused at the gate: "Bestellt"
+            // was not a shipping word. Its body is the progress bar with every
+            // stage on it, "In Zustellung" included, so the stage has to come
+            // from the subject or the card says the parcel is at the door.
+            'amazon order confirmation: ordered, and promised for a weekday' => [
+                [
+                    'from'       => 'bestellbestaetigung@amazon.de',
+                    'fromName'   => 'Amazon.de',
+                    'subject'    => 'Bestellt: „Goldblatt Trapezklingen...“ und 1 mehr Artikel',
+                    'body'       => "Meine Bestellungen\n\n"
+                        . "    Vielen Dank für deine Bestellung!\n"
+                        . "Bestellt\n\nVersendet\n\nIn Zustellung\n\nZugestellt\n\n"
+                        . "Zustellung: Freitag\n\n"
+                        . "Lea – Königstein Im Taunus\n\n"
+                        . "Bestellnr.\n303-9228807-3382718\n\n"
+                        . "Bestellung ansehen oder ändern\n"
+                        . 'https://www.amazon.de/your-orders/order-details?orderID=303-9228807-3382718&ref_=p_btn_fed_veo',
+                    'receivedAt' => '2026-10-07 20:05:43',
+                ],
+                true,
+                [[
+                    'title'     => 'Amazon · 303-9228807-3382718',
+                    // The key the dispatch mail for the same order will carry,
+                    // so that mail moves this card on instead of adding one.
+                    'dedupeKey' => '303-9228807-3382718#0',
+                    'payload'   => [
+                        'carrier'        => 'amazon',
+                        'trackingNumber' => null,
+                        'orderNumber'    => '303-9228807-3382718',
+                        'shipmentId'     => null,
+                        'trackingUrl'    => 'https://www.amazon.de/gp/your-account/order-details?orderID=303-9228807-3382718',
+                        'merchant'       => 'Amazon.de',
+                        'status'         => 'ordered',
+                    ],
+                    // Wednesday's "Freitag" is the Friday after it.
+                    'happensAt' => '2026-10-09 12:00',
+                ]],
+            ],
+            'amazon marketing that merely says bestellt is still refused' => [
+                [
+                    'from'     => 'store-news@amazon.de',
+                    'fromName' => 'Amazon.de',
+                    'subject'  => 'Heute bestellt, morgen da: Angebote für dich',
+                    'body'     => 'Angebote, die zu deinen letzten Einkäufen passen.',
+                ],
+                false,
+                [],
+            ],
             'amazon out for delivery: an order number is the only identity stated' => [
                 [
                     'from'       => 'shipment-tracking@amazon.de',
@@ -516,6 +605,7 @@ final class ParcelExtractorTest extends TestCase
         $message->fromName = $mail['fromName'] ?? null;
         $message->subject = $mail['subject'] ?? null;
         $message->bodyText = $mail['body'] ?? null;
+        $message->bodyHtml = $mail['html'] ?? null;
         $message->receivedAt = new DateTimeImmutable(
             $mail['receivedAt'] ?? '2026-11-10 08:00:00',
             new DateTimeZone('UTC'),

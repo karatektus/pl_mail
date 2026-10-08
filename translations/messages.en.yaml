@@ -2041,6 +2041,7 @@ insights:
         announced: Announced
         delivered: Delivered
         in_transit: On its way
+        ordered: Ordered
         out_for_delivery: Out for delivery
 
 integration:

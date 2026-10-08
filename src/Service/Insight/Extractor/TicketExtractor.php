@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Service\Insight\Extractor;
 
 use App\Domain\Enum\Insight\InsightKind;
+use App\Domain\Helper\ReadableBody;
 use App\Entity\Mail\Message;
 use App\Service\Insight\InsightDraft;
 use App\Service\Insight\InsightExtractorInterface;
@@ -153,7 +154,7 @@ final readonly class TicketExtractor implements InsightExtractorInterface
 
     public function extract(Message $message): array
     {
-        $body = (string) $message->bodyText;
+        $body = ReadableBody::of($message);
 
         $eventName = $this->eventName($message);
 
@@ -216,7 +217,7 @@ final readonly class TicketExtractor implements InsightExtractorInterface
             return $subject;
         }
 
-        foreach (preg_split('~\r?\n~', (string) $message->bodyText) ?: [] as $line) {
+        foreach (preg_split('~\r?\n~', ReadableBody::of($message)) ?: [] as $line) {
             $line = trim($line);
 
             if ('' !== $line && 80 > mb_strlen($line)) {

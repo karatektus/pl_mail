@@ -8,6 +8,23 @@ The published image tags: `latest` follows the most recent release below,
 
 ## Unreleased
 
+**Mail with no plain-text part is read for insights.** Parcels, invoices, codes and the rest were
+looked for in a message's plain text only, and a shop's shipping notice is very often HTML and
+nothing else: the tracking number was on the page and plMail was reading an empty string. Such mail
+is now read as the text its HTML shows — without stylesheets, hidden Outlook blocks or the addresses
+behind links. A report of a missed insight carries that text too; for these mails it used to arrive
+empty.
+
+- A date announced as the day the shop hands the parcel to the carrier ("Voraussichtliche Übergabe
+  an den Versanddienstleister") is no longer taken for the delivery date.
+- Mail already stored is not re-read on its own; `app:backfill insights` reads it again.
+
+**An Amazon order is on the radar from the moment it is placed.** The parcel card appeared with the
+dispatch mail; the order confirmation before it ("Bestellt: …", "Ordered: …") was not read at all,
+although it already names the order and the day it is promised for. It now makes the card, with a
+new first stage, *Ordered*, and the later mails about the same order move that card on. German
+mails that promise a weekday ("Zustellung: Freitag") get their date as well.
+
 **Importing a large Gmail mailbox no longer runs the account out of quota.** Google allows each
 Gmail account a fixed amount of work per minute, and since 0.3.0 an import fetched old mail fast
 enough to use all of it. The import itself recovered quietly; what failed was the regular check for

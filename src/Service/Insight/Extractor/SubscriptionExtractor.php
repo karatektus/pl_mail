@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Service\Insight\Extractor;
 
 use App\Domain\Enum\Insight\InsightKind;
+use App\Domain\Helper\ReadableBody;
 use App\Entity\Mail\Message;
 use App\Service\Insight\InsightDraft;
 use App\Service\Insight\InsightExtractorInterface;
@@ -133,7 +134,7 @@ final readonly class SubscriptionExtractor implements InsightExtractorInterface
     public function extract(Message $message): array
     {
         $subject = trim((string) $message->subject);
-        $body = trim((string) $message->bodyText);
+        $body = ReadableBody::of($message);
         $whole = $subject . "\n" . $body;
 
         // Folded once, and the offsets below index THIS string: case folding

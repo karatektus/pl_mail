@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Service\Insight\Extractor;
 
 use App\Domain\Enum\Insight\InsightKind;
+use App\Domain\Helper\ReadableBody;
 use App\Entity\Mail\Message;
 use App\Service\Insight\InsightDraft;
 use App\Service\Insight\InsightExtractorInterface;
@@ -78,6 +79,19 @@ final readonly class ParcelExtractor implements InsightExtractorInterface
         'lieferung', 'zustellung', 'package', 'paket', 'parcel', 'tracking',
         'sendung',
     ];
+
+    /**
+     * How a shop's order confirmation opens its subject: "Bestellt: …",
+     * "Ordered: …". The first mail of the series the shipping words above
+     * catch the rest of, and the one that already states the order number and
+     * the day it is promised for.
+     *
+     * Anchored to the start, and asked of a merchant sender only. "Bestellt"
+     * anywhere in a subject is every shop's marketing ("Jetzt bestellt, morgen
+     * da"); as the first word, from the shop itself, it is the stage of one
+     * order.
+     */
+    private const string ORDER_PLACED = '~^\s*(bestellt|ordered)\b~iu';
 
     /** @var array<string, string> carrier id to the name a card wears */
     private const array CARRIER_NAMES = [
@@ -183,7 +197,8 @@ final readonly class ParcelExtractor implements InsightExtractorInterface
             // A shop domain narrows to shipping mail by subject; anything else
             // it sends is receipts and recommendations.
             if (true === $this->isMerchantDomain($domain)) {
-                return $this->mentionsShipping((string) $message->subject);
+                return true === $this->mentionsShipping((string) $message->subject)
+                    || true === $this->announcesAnOrder((string) $message->subject);
             }
         }
 
@@ -197,7 +212,7 @@ final readonly class ParcelExtractor implements InsightExtractorInterface
     public function extract(Message $message): array
     {
         $subject = trim((string) $message->subject);
-        $body = trim((string) $message->bodyText);
+        $body = ReadableBody::of($message);
 
         // Context words count wherever they appear — the number sits in the
         // body while "Sendungsverfolgung" is the subject often enough.
@@ -484,10 +499,32 @@ final readonly class ParcelExtractor implements InsightExtractorInterface
      * Order matters within each pass: "wird zugestellt" contains "zugestellt",
      * so out-for-delivery has to be asked before delivered or every DHL
      * "arrives today" mail would claim the parcel already landed.
+     *
+     * "Ordered" is a stage only a subject can state, for the reason above
+     * turned round: the word is in the body of every mail of the series, as
+     * the first step of the progress bar. And it has to be settled before the
+     * body is asked at all — an order confirmation's body names every later
+     * stage too, and would report a parcel out for delivery on the evening it
+     * was ordered.
      */
     private function status(string $subject, string $whole): string
     {
-        return $this->statusIn($subject) ?? $this->statusIn($whole) ?? 'announced';
+        $stated = $this->statusIn($subject);
+
+        if (null !== $stated) {
+            return $stated;
+        }
+
+        if (true === $this->announcesAnOrder($subject)) {
+            return 'ordered';
+        }
+
+        return $this->statusIn($whole) ?? 'announced';
+    }
+
+    private function announcesAnOrder(string $subject): bool
+    {
+        return 1 === preg_match(self::ORDER_PLACED, $subject);
     }
 
     /** The stage this text names, or null when it names none. */
@@ -529,14 +566,25 @@ final readonly class ParcelExtractor implements InsightExtractorInterface
     private function eta(string $text, ?DateTimeImmutable $receivedAt): ?DateTimeImmutable
     {
         preg_match_all(
-            '~voraussichtlich|estimated|expected|arriving|zustellung am|liefertermin~iu',
+            '~voraussichtlich|estimated|expected|arriving|zustellung am|zustellung:|liefertermin~iu',
             $text,
             $matches,
             PREG_OFFSET_CAPTURE,
         );
 
         foreach ($matches[0] as [$word, $offset]) {
-            $date = $this->dateIn(substr($text, $offset, strlen($word) + self::ETA_WINDOW), $receivedAt);
+            $window = substr($text, $offset, strlen($word) + self::ETA_WINDOW);
+
+            // "Voraussichtliche Übergabe an den Versanddienstleister" is the
+            // day the shop hands the parcel over, not the day it arrives. It
+            // is announced with the same word and followed by a date, and on a
+            // card it would read as a delivery promised for a day on which the
+            // parcel had not left the warehouse.
+            if (1 === preg_match('~übergabe|handover|handed over~iu', $window)) {
+                continue;
+            }
+
+            $date = $this->dateIn($window, $receivedAt);
 
             if (null !== $date) {
                 return $date;

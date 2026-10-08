@@ -1923,6 +1923,7 @@ insights:
         announced: Word be given
         delivered: Come ashore
         in_transit: On the high seas
+        ordered: Sent fer
         out_for_delivery: "Rowin' the last stretch"
 
 integration:
