@@ -1,4 +1,4 @@
-<!-- translated-from: CLIENT_DEVELOPMENT.md sha1:6b43f264a89c985a980e7be7d7a41a889d379bbe -->
+<!-- translated-from: CLIENT_DEVELOPMENT.md sha1:2109f72c0c6d35f87935d1c97eb3f2575cec3571 -->
 # Einen Client für plMail bauen
 
 Alles, was eine Entwicklerin (oder ein Agent) braucht, um einen *neuen* plMail-Client zu schreiben
@@ -723,6 +723,8 @@ Alles, was in [`src/Jmap/Method/`](../src/Jmap/Method/) registriert ist:
 | `CalendarEvent/get` / `CalendarEvent/query` / `CalendarEvent/set` | Eine ID ist die Serie, nicht eine Termininstanz; `/query` verlangt einen Zeitraum, und `expandRecurrences: true` lässt sie je Termininstanz antworten. |
 | `EmailSubmission/get` / `EmailSubmission/set` / `EmailSubmission/changes` | |
 | `Identity/get` / `Identity/set` | |
+| `Template/get` / `Template/set` / `Template/render` | `urn:plmail:params:jmap:templates`. Kein `accountId`-Argument bei get und set; pro Benutzer. Siehe [Vorlagen](#vorlagen). |
+| `TemplateFolder/get` / `TemplateFolder/set` | Dieselbe Capability. Die Ordner, die ein Benutzer angelegt hat; die Konto-Ordner des Web-Baums sind keine Objekte. |
 
 **Heute nicht implementiert.** Nichts davon ist ein bewusster Ausschluss — es wurde bisher nur
 nicht gebraucht. Wenn dein Client etwas davon will, **frag danach, statt darum herum zu
@@ -1096,6 +1098,149 @@ Absenderadresse, mit der die Nachricht tatsächlich hinausgeht, und eine, die ke
 dieses Kontos ist, wird mit `forbiddenFrom` abgelehnt, statt auf die Kontoadresse
 zurückzufallen.
 
+### Vorlagen
+
+Wiederverwendbare Nachrichten: Der Benutzer schreibt eine unter **Einstellungen → Vorlagen** (oder
+in deiner App) und fügt sie beim Verfassen ein. Was der Benutzer davon sieht, steht unter
+[Vorlagen](features/templates.md); hier geht es um das Protokoll. Gib
+`urn:plmail:params:jmap:templates` in `using` an.
+
+**Zwei Objekte, beide pro Benutzer.** Keines der beiden Methodenpaare nimmt ein
+`accountId`-Argument — schickst du eines, bekommst du `invalidArguments`, wie bei `Appearance/get`.
+`accountId` ist stattdessen eine *Eigenschaft*: das E-Mail-Konto, unter dem ein Objekt abgelegt
+ist, oder `null` für die oberste Ebene.
+
+| `Template` | |
+|---|---|
+| `id` | |
+| `name` | Pflicht. Steht in Listen, wird nie gesendet. |
+| `subject` | String oder `null`. Darf Variablen enthalten. |
+| `htmlBody` | Bereinigtes HTML mit den Variablen darin als `{{tokens}}`. |
+| `accountId` | Eine Konto-ID aus der Session oder `null`. |
+| `folderId` | Die ID eines `TemplateFolder` oder `null`. |
+
+| `TemplateFolder` | |
+|---|---|
+| `id` | |
+| `name` | Pflicht. |
+| `accountId` | Eine Konto-ID aus der Session oder `null`. **Nur beim Anlegen.** |
+| `parentId` | Die ID eines anderen Ordners oder `null`. **Nur beim Anlegen** — ein Ordner lässt sich nicht verschieben. |
+
+**Zeichne den Baum selbst.** Das Web zeigt oben im Baum einen Ordner pro E-Mail-Konto. Das sind
+keine `TemplateFolder`-Objekte und sie haben keine ID: Zeichne einen Knoten pro Konto aus der
+Session und leg jede Vorlage und jeden Ordner hinein, deren `accountId` dieses Konto ist und deren
+`folderId` / `parentId` `null` ist. Objekte, bei denen alles `null` ist, liegen auf der obersten
+Ebene. Biete jede Vorlage an, egal von welchem Konto der Benutzer schreibt, und führ die des
+aktuellen Kontos zuerst auf — die Ablage sagt, wo eine Vorlage meistens gebraucht wird, nicht, wo
+sie erlaubt ist.
+
+**Ein Ordner bestimmt das Konto seines Inhalts.** Beim Schreiben darfst du `folderId` (oder
+`parentId`) allein schicken, und der Server ergänzt `accountId` und gibt es in `created` /
+`updated` zurück. Beides zu schicken wird angenommen, wenn es zusammenpasst, und ist sonst
+`invalidProperties`. Änderst du bei einer Vorlage nur `accountId`, landet sie auf der obersten
+Ebene dieses Kontos, und `folderId` wird geleert.
+
+**`/get` mit `ids: null` liefert alles; es gibt kein `/query` und kein `/changes`.** Ein Benutzer
+hat ein paar Dutzend davon. `state` ist ein Hash der Liste, kein Zähler: Weicht er von deinem ab,
+hol die Liste neu. Für Vorlagen wird nichts gepusht, lies also neu, wenn dein Auswahlfenster
+aufgeht.
+
+**Texte werden beim Eintreffen bereinigt**, mit derselben Erlaubnisliste wie eingehende Mail, weil
+eine in deiner App geschriebene Vorlage auch ins Verfassen-Fenster im Web eingefügt wird. Weicht
+der gespeicherte `htmlBody` von dem ab, was du geschickt hast, steht der gespeicherte in der
+Antwort.
+
+**Einen Ordner zu löschen löscht keine Vorlage.** Ordner darin verschwinden mit; die Vorlagen in
+ihnen rücken dorthin, wo der Ordner war, und der `Template`-State ändert sich.
+
+#### Variablen
+
+Eine Variable ist der Text `{{name}}` oder `{{name|schlüssel=wert|schlüssel=wert}}` in `subject`
+oder `htmlBody`. Das Capability-Objekt der Session führt das Vokabular auf, biete also genau diese
+an:
+
+```json
+"urn:plmail:params:jmap:templates": {
+  "variables": [
+    { "name": "recipient.first_name", "group": "recipient", "filledBy": "recipient" },
+    { "name": "recipient.name",       "group": "recipient", "filledBy": "recipient" },
+    { "name": "recipient.email",      "group": "recipient", "filledBy": "recipient" },
+    { "name": "sender.name",          "group": "sender",    "filledBy": "server" },
+    { "name": "sender.email",         "group": "sender",    "filledBy": "server" },
+    { "name": "signature",            "group": "sender",    "filledBy": "server" },
+    { "name": "date",                 "group": "date",      "filledBy": "server" }
+  ],
+  "dateFormats": ["short", "medium", "long", "full", "weekday", "iso"],
+  "dateOffsetUnits": ["d", "w", "m"],
+  "maxNameLength": 255
+}
+```
+
+Zwei Variablen nehmen Argumente:
+
+- `{{date|offset=+7d|format=long}}` — `offset` ist ein Vorzeichen, eine Zahl und eine der
+  `dateOffsetUnits`; `format` ist eines der `dateFormats` oder `pattern:` gefolgt von einem
+  ICU-Muster (`pattern:dd.MM.yyyy`). Beide sind optional; die Vorgabe ist heute, `long`. Kein `{`,
+  `}` oder `|` in einem Argument.
+- `{{signature}}` folgt der Adresse in Von. `{{signature|account=<accountId>}}` oder
+  `{{signature|alias=<identityId>}}` benennt eine, die genommen wird, egal welche Adresse in Von
+  steht.
+
+Geschweifte Klammern um alles, was keiner der aufgeführten Namen ist, sind normaler Text und
+bleiben stehen. Zeig Variablen in einem Editor als Plaketten, wenn du kannst; speichere sie als
+Tokens.
+
+#### Eine einfügen: `Template/render`
+
+**Füg nie `htmlBody` aus `Template/get` ein.** Lass den Server rendern:
+
+```json
+["Template/render", {
+  "id": "12",
+  "accountId": "3",
+  "identityId": "7",
+  "recipient": { "name": "Dana Whitfield", "email": "dana@example.org" }
+}, "r1"]
+```
+
+`accountId` ist **hier Pflicht** — es ist das Konto, von dem die Nachricht geschrieben wird.
+`identityId` ist die Identity in Von, wenn das nicht die eigene Adresse des Kontos ist; sie
+entscheidet, welche Signatur `{{signature}}` meint. `recipient` ist die erste **An**-Adresse und
+optional.
+
+```json
+["Template/render", {
+  "accountId": "3",
+  "id": "12",
+  "subject": "Reminder: invoice from September 25, 2026",
+  "htmlBody": "<p>Hi Dana,</p><p>…</p><div class=\"pl-signature\" data-pl-signature>…</div>",
+  "textBody": "Hi Dana,\n…",
+  "openVariables": []
+}, "r1"]
+```
+
+Was du mit der Antwort machst:
+
+- **`subject` füllt nur eine leere Betreffzeile.** Überschreib nie einen, den der Benutzer getippt
+  hat, und nie den einer Antwort.
+- **Füg `htmlBody` an der Schreibmarke ein** (oder `textBody` in einem Nur-Text-Editor). Von da an
+  ist es der Text des Benutzers.
+- **Eine Signatur.** Enthält `htmlBody` einen `data-pl-signature`-Block und die Nachricht hat schon
+  einen, ersetz den vorhandenen, statt einen zweiten anzuhängen. Ein Block, der zusätzlich
+  `data-pl-signature-pinned` trägt, wurde von der Vorlage benannt: Tausch ihn nicht, wenn sich Von
+  ändert.
+- **`openVariables` ist nicht leer, wenn eine Empfänger-Variable nicht beantwortet werden konnte**
+  — es wurde kein `recipient` geschickt, oder er hat eine Adresse und keinen Namen. plMail rät
+  keinen Vornamen aus einer Adresse. Diese Variablen stehen noch in den Texten: in `htmlBody` als
+  `<span data-pl-var="recipient.first_name">First name</span>`, in `subject` und `textBody` als
+  `{{recipient.first_name}}`. Render entweder noch einmal, sobald der Empfänger bekannt ist (wenn
+  der Benutzer den eingefügten Text noch nicht bearbeitet hat), oder ersetz die Markierungen
+  selbst, wenn An eine Adresse bekommt. **Frag vor dem Senden nach, solange welche offen sind** —
+  eine Nachricht, die mit einer offenen rausgeht, lautet „Hi First name,“.
+
+Daten werden in der Zeitzone des Benutzers berechnet und in der Sprache geschrieben, die er in
+plMail eingestellt hat, ebenso die Beschriftungen in offenen Markierungen.
+
 ### Blobs: hochladen und herunterladen
 
 **Upload** — `POST {uploadUrl}` mit rohen Bytes und einem `Content-Type`:
@@ -1340,6 +1485,9 @@ Grob danach geordnet, wie sehr Nutzerinnen sie vermissen werden.
   (siehe [§2](#2-aussehen-und-verhalten)). Bau das Token-System
   trotzdem; lies die Werte des Servers hinein, statt eigene Vorgaben zu erfinden.
 - Kontoliste und -reihenfolge.
+- Vorlagen — auflisten, bearbeiten und einfügen über `Template/*` und `TemplateFolder/*`; siehe
+  [Vorlagen](#vorlagen). Füg über `Template/render` ein und frag vor dem Senden nach, solange eine
+  Empfänger-Variable offen ist.
 - Benachrichtigungseinstellungen.
 - Die Verwaltung von App-Passwörtern gibt es heute nur im Web; verlinke dorthin, statt sie
   nachzubauen.

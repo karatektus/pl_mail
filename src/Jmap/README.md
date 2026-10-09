@@ -13,7 +13,7 @@ key fits one — and `App\Service\Calendar\Change\CalendarChangeReader` is the
 `StateManager` equivalent behind `Calendar/changes` and `CalendarEvent/changes`.
 The same log is what CalDAV's sync-collection counts in.
 
-**29 methods**, 6 HTTP endpoints. Tested against ltt.rs (Bearer) and Sterna
+**34 methods**, 6 HTTP endpoints. Tested against ltt.rs (Bearer) and Sterna
 Mail (Basic).
 
 | | |
@@ -29,6 +29,8 @@ Mail (Basic).
 | `CalendarEvent/` | `get`, `query`, `changes`, `set` |
 | `Appearance/` | `get`, `set` (plMail extension: the user's theme, a singleton) |
 | `Contact/` | `autocomplete` (plMail extension: recipient suggestions) |
+| `Template/` | `get`, `set`, `render` (plMail extension: reusable messages) |
+| `TemplateFolder/` | `get`, `set` (plMail extension: the folders they are sorted into) |
 
 ---
 
@@ -124,6 +126,20 @@ column.
 There is no mapper and no repository of its own: it is one call into
 `App\Repository\Mail\ContactRepository::findForAutocomplete()`, the same query
 the web composer's autocomplete runs.
+
+**Templates glue**
+- `Mapper/TemplateMapper` — `MailTemplate` and `TemplateFolder` → their JMAP
+  objects, and the hashed state token each list has in place of a change log.
+- `Method/Template/Template{Get,Set}Method`, `TemplateFolder{Get,Set}Method` —
+  per user, no `accountId` argument; `accountId` is a *property* saying which
+  mail account an object is filed under. Writes go through
+  `App\Service\Template\TemplateLibrary` and the mail sanitiser, the same two
+  things the settings page goes through.
+- `Method/Template/TemplateRenderMethod` — a template turned into what a
+  composer inserts. `App\Service\Template\TemplateRenderer` fills dates, sender
+  and signature; `TemplateRecipientFiller` fills the recipient when the client
+  supplies one, and is the server-side twin of the rule the web compose window
+  runs in the browser.
 
 **Session** — `Session/SessionBuilder`. One JMAP account per connected mail
 account; a unified inbox is a client-side concern. It also carries two things
@@ -377,6 +393,17 @@ Get these wrong and things fail quietly rather than loudly.
   decided.** The worker reads the From off the row, so an envelope handed to
   the bus before the transaction commits races it, and the mail that loses the
   race leaves as the address the client did not pick.
+- **A stored template is not an insertable message.** `Template/get` returns
+  `htmlBody` with its variables still in it as `{{tokens}}` — that is the form
+  a client edits and writes back. `Template/render` is the only place they
+  become values, because that needs the user's clock, the signature rules and
+  the token grammar, and a client doing it would be a second implementation of
+  all three. Its `openVariables` lists the recipient variables nobody could
+  answer; they are still in the bodies, and a client must not send them unseen.
+- **Templates have no `/changes`.** Their state token is a hash of the list
+  (`TemplateMapper::state()`), for the reason Appearance's is: the change log
+  is keyed by mail account and these belong to the user. A moved token means
+  "fetch the list again", which is one small call.
 - **`Contact/autocomplete` is a function call, not an object type.** It exists
   because ranking recipient suggestions is the one part of composing a client
   cannot do for itself: the order has to come from the *whole* address book —

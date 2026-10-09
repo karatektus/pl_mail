@@ -12,7 +12,7 @@
  * server's: App\Service\Template\TemplateTokens reads the same grammar and its
  * docblock is the reference. The pattern below is that class's PATTERN.
  *
- * RECIPIENT VARIABLES ARE FILLED HERE AND NOWHERE ELSE. The server hands an
+ * RECIPIENT VARIABLES ARE FILLED HERE, FOR THE WEB. The server hands an
  * inserted template over with `recipient.*` still open (TemplateRenderer says
  * why), in two shapes:
  *
@@ -23,6 +23,13 @@
  * the recipient cannot answer — a first name, for an address typed with no
  * name — is left open rather than filled with a guess, and the window asks
  * about it before sending.
+ *
+ * THE SAME RULE EXISTS ONCE MORE, IN PHP:
+ * App\Service\Template\TemplateRecipientFiller does for JMAP clients what
+ * recipientValues() and fillMarkers() do here, because a native app has the
+ * recipient as data and already asks the server for every template it
+ * inserts. Change what a first name is in one and change it in the other;
+ * TemplateRecipientFillerTest lists the cases both have to agree on.
  */
 
 const TOKEN = /\{\{\s*([a-z_.]+)\s*((?:\|[^|{}]*)*)\}\}/g;

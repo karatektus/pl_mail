@@ -16,6 +16,8 @@ use App\Domain\Enum\Theme\UnreadEmphasis;
 use App\Entity\Embeddable\Appearance;
 use App\Entity\Mail\Account;
 use App\Entity\User\User;
+use App\Domain\Enum\Template\DateFormatPreset;
+use App\Domain\Enum\Template\TemplateVariable;
 use App\Jmap\Account\CalendarAccountResolver;
 use App\Jmap\Mail\SubmissionEnvelope;
 use App\Jmap\Mapper\AppearanceMapper;
@@ -142,6 +144,7 @@ final class SessionBuilder
                 // account's entry under the same URN.
                 Capability::SYNC => new \stdClass(),
                 Capability::CONTACTS => $this->contactsCapabilities(),
+                Capability::TEMPLATES => $this->templatesCapabilities(),
             ],
             'accounts' => $accountsValue,
             'primaryAccounts' => $primaryAccountsValue,
@@ -349,6 +352,41 @@ final class SessionBuilder
                 'previewLines' => Appearance::RANGE_PREVIEW_LINES,
                 'fontScale' => Appearance::RANGE_FONT_SCALE,
             ],
+        ];
+    }
+
+    /**
+     * The closed vocabularies a template is written in: which variables exist,
+     * who fills each, and the date formats a `{{date}}` token may name.
+     *
+     * Published rather than left to the documentation because an editor has to
+     * offer exactly these — a variable the server does not know is left in the
+     * text as braces, and a client that offered one would be offering a typo.
+     * `filledBy` is the split TemplateRenderer documents: "server" is always a
+     * value in Template/render's answer, "recipient" is one only when a
+     * recipient was given and could answer it.
+     *
+     * No per-account entry and no primary account: templates are the user's.
+     *
+     * @return array<string, mixed>
+     */
+    private function templatesCapabilities(): array
+    {
+        return [
+            'variables' => array_map(
+                static fn (TemplateVariable $variable): array => [
+                    'name'     => $variable->value,
+                    'group'    => $variable->group(),
+                    'filledBy' => true === $variable->isRecipient() ? 'recipient' : 'server',
+                ],
+                TemplateVariable::cases(),
+            ),
+            'dateFormats'     => array_map(
+                static fn (DateFormatPreset $preset): string => $preset->value,
+                DateFormatPreset::cases(),
+            ),
+            'dateOffsetUnits' => ['d', 'w', 'm'],
+            'maxNameLength'   => 255,
         ];
     }
 

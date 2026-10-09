@@ -659,6 +659,8 @@ Everything registered in [`src/Jmap/Method/`](../src/Jmap/Method/):
 | `CalendarEvent/get` / `CalendarEvent/query` / `CalendarEvent/set` | An id is the series, not an occurrence; `/query` requires a date window, and `expandRecurrences: true` makes it answer per occurrence. |
 | `EmailSubmission/get` / `EmailSubmission/set` / `EmailSubmission/changes` | |
 | `Identity/get` / `Identity/set` | |
+| `Template/get` / `Template/set` / `Template/render` | `urn:plmail:params:jmap:templates`. No `accountId` argument on get and set; per-user. See [Templates](#templates). |
+| `TemplateFolder/get` / `TemplateFolder/set` | Same capability. The folders a user made; the per-account folders of the web tree are not objects. |
 
 **Not implemented today.** None of these is a deliberate exclusion — they haven't been needed yet. If
 your client wants one, **ask for it rather than engineering around it** (see [§0](#0-read-this-first-the-server-is-under-active-development)):
@@ -998,6 +1000,135 @@ on a submission decides the From address the mail really goes out with, and one 
 identity of that account is refused with `forbiddenFrom` rather than falling back to the account
 address.
 
+### Templates
+
+Reusable messages: the user writes one in **Settings → Templates** (or in your app) and inserts it
+while composing. The user-facing behaviour is in [Templates](features/templates.md); this is the
+wire. Declare `urn:plmail:params:jmap:templates` in `using`.
+
+**Two objects, both per user.** Neither method pair takes an `accountId` argument — send one and
+you get `invalidArguments`, as with `Appearance/get`. `accountId` is instead a *property*: the mail
+account an object is filed under, or `null` for the top level.
+
+| `Template` | |
+|---|---|
+| `id` | |
+| `name` | Required. Shown in lists, never sent. |
+| `subject` | String or `null`. May contain variables. |
+| `htmlBody` | Sanitised HTML with the variables in it as `{{tokens}}`. |
+| `accountId` | A Session account id, or `null`. |
+| `folderId` | A `TemplateFolder` id, or `null`. |
+
+| `TemplateFolder` | |
+|---|---|
+| `id` | |
+| `name` | Required. |
+| `accountId` | A Session account id, or `null`. **Create-only.** |
+| `parentId` | Another folder's id, or `null`. **Create-only** — a folder cannot be moved. |
+
+**Draw the tree yourself.** The web shows one folder per mail account at the top of the tree. Those
+are not `TemplateFolder` objects and have no id: draw one node per account in the Session and put
+into it every template and folder whose `accountId` is that account and whose `folderId` /
+`parentId` is `null`. Objects with all of them `null` sit at the top level. Offer every template
+whichever account the user is writing from, and list the current account's first — filing says
+where a template is usually wanted, not where it is allowed.
+
+**A folder decides its contents' account.** On a write you may send `folderId` (or `parentId`)
+alone and the server fills in `accountId`, echoing it in `created` / `updated`. Sending both is
+accepted when they agree and `invalidProperties` when they do not. Updating only a template's
+`accountId` moves it to that account's top level and clears `folderId`.
+
+**`/get` with `ids: null` returns everything; there is no `/query` and no `/changes`.** A user has
+a few dozen of these. `state` is a hash of the list, not a counter: when it differs from the one
+you hold, fetch the list again. Nothing is pushed for templates, so re-read when your picker opens.
+
+**Bodies are sanitised on the way in**, with the same allow-list as inbound mail, because a
+template written in your app is inserted into the web compose window too. When the stored
+`htmlBody` differs from what you sent, the response carries the stored one.
+
+**Destroying a folder destroys no template.** Folders inside it go with it; the templates in any of
+them move up to where the folder was, and the `Template` state changes.
+
+#### Variables
+
+A variable is the text `{{name}}` or `{{name|key=value|key=value}}` inside `subject` or
+`htmlBody`. The Session's capability object lists the vocabulary, so offer exactly these:
+
+```json
+"urn:plmail:params:jmap:templates": {
+  "variables": [
+    { "name": "recipient.first_name", "group": "recipient", "filledBy": "recipient" },
+    { "name": "recipient.name",       "group": "recipient", "filledBy": "recipient" },
+    { "name": "recipient.email",      "group": "recipient", "filledBy": "recipient" },
+    { "name": "sender.name",          "group": "sender",    "filledBy": "server" },
+    { "name": "sender.email",         "group": "sender",    "filledBy": "server" },
+    { "name": "signature",            "group": "sender",    "filledBy": "server" },
+    { "name": "date",                 "group": "date",      "filledBy": "server" }
+  ],
+  "dateFormats": ["short", "medium", "long", "full", "weekday", "iso"],
+  "dateOffsetUnits": ["d", "w", "m"],
+  "maxNameLength": 255
+}
+```
+
+Two variables take arguments:
+
+- `{{date|offset=+7d|format=long}}` — `offset` is a sign, a number and one of `dateOffsetUnits`;
+  `format` is one of `dateFormats` or `pattern:` followed by an ICU pattern (`pattern:dd.MM.yyyy`).
+  Both are optional; the default is today, `long`. No `{`, `}` or `|` inside an argument.
+- `{{signature}}` follows the address in From. `{{signature|account=<accountId>}}` or
+  `{{signature|alias=<identityId>}}` names one that is used whatever address is in From.
+
+Braces around anything that is not one of the listed names are ordinary text and are left alone.
+Show variables as chips in an editor if you can; store them as the tokens.
+
+#### Inserting one: `Template/render`
+
+**Never insert `htmlBody` from `Template/get`.** Ask the server to render it:
+
+```json
+["Template/render", {
+  "id": "12",
+  "accountId": "3",
+  "identityId": "7",
+  "recipient": { "name": "Dana Whitfield", "email": "dana@example.org" }
+}, "r1"]
+```
+
+`accountId` is **required here** — it is the account the message is being written from.
+`identityId` is the Identity in From when that is not the account's own address; it decides which
+signature `{{signature}}` means. `recipient` is the first **To** address, and optional.
+
+```json
+["Template/render", {
+  "accountId": "3",
+  "id": "12",
+  "subject": "Reminder: invoice from September 25, 2026",
+  "htmlBody": "<p>Hi Dana,</p><p>…</p><div class=\"pl-signature\" data-pl-signature>…</div>",
+  "textBody": "Hi Dana,\n…",
+  "openVariables": []
+}, "r1"]
+```
+
+What to do with the answer:
+
+- **`subject` fills an empty subject line only.** Never overwrite one the user typed, or a reply's.
+- **Insert `htmlBody` at the caret** (or `textBody` in a plain-text composer). From then on it is
+  the user's text.
+- **One signature.** If `htmlBody` contains a `data-pl-signature` block and the message already has
+  one, replace the existing block instead of adding a second. A block that also carries
+  `data-pl-signature-pinned` was named by the template: do not swap it when From changes.
+- **`openVariables` is not empty when a recipient variable could not be answered** — no `recipient`
+  was sent, or it has an address and no name. plMail does not guess a first name from an address.
+  Those variables are still in the bodies: in `htmlBody` as
+  `<span data-pl-var="recipient.first_name">First name</span>`, in `subject` and `textBody` as
+  `{{recipient.first_name}}`. Either render again once the recipient is known (if the user has not
+  edited the inserted text yet), or replace the markers yourself when To gains an address. **Ask
+  before sending while any remain** — a message sent with one open reads "Hi First name,".
+
+Dates are computed in the user's time zone and written in the language the user has set in
+plMail, as are the labels inside open markers.
+
 ### Blobs: upload and download
 
 **Upload** — `POST {uploadUrl}` with raw bytes and a `Content-Type`:
@@ -1217,6 +1348,9 @@ Ordered roughly by how much users will miss them.
   per-surface densities and the read-only `logoStyle`, `logoMotif` and `logoPaint` (see [§2](#2-look-and-feel)). Build the token system regardless; read the
   server's values into it rather than inventing your own defaults.
 - Account list and order.
+- Templates — list, edit and insert them over `Template/*` and `TemplateFolder/*`; see
+  [Templates](#templates). Insert through `Template/render`, and ask before sending with a
+  recipient variable still open.
 - Notification preferences.
 - App password management is web-only today; link out to the web UI rather than reimplementing.
 

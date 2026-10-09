@@ -1,4 +1,4 @@
-<!-- translated-from: features/templates.md sha1:a5777ed6509de0a4db4bf395c64599bfbbd69989 -->
+<!-- translated-from: features/templates.md sha1:0b0a9d2afe37324cea5972e7fcca068f782f153c -->
 
 # Vorlagen
 
@@ -169,5 +169,6 @@ neue. Entfernst du das Konto, zu dem sie gehört, fällt die Vorlage auf **Autom
 `{{recipient.first_name}}` gespeichert. Tippst du das von Hand in eine Vorlage, wird es eine
 Variable; `{{irgendetwas anderes}}` ist einfach Text und wird so eingefügt, wie er dasteht.
 
-**Vorlagen gibt es vorerst nur im Web.** JMAP-Clients bekommen sie nicht angeboten, die Android-
-und die iOS-App führen sie also nicht auf.
+**Die Apps zeigen Vorlagen vielleicht noch nicht.** Der Server bietet sie JMAP-Clients an, aber
+jede App muss die Ansichten dafür erst bauen. Bis dahin schreibst und fügst du Vorlagen im Web ein;
+was du dort schreibst, ist in der App da, sobald sie nachzieht.

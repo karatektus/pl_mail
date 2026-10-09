@@ -155,5 +155,6 @@ to and the template falls back to **Automatic**.
 `{{recipient.first_name}}`. Typing that into a template by hand makes a variable; typing
 `{{anything else}}` is just text and is inserted as written.
 
-**Templates are a web feature for now.** They are not offered to JMAP clients, so the Android and
-iOS apps do not list them.
+**The apps may not show templates yet.** The server offers them to JMAP clients, but each app has to
+add the screens. Until one does, templates are written and inserted in the web interface; what you
+write there will be in the app when it catches up.

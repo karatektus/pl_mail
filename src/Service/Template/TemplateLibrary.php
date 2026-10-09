@@ -151,7 +151,11 @@ final readonly class TemplateLibrary
      * deleted folder had a parent it could have moved into. Deleting "2024"
      * out of "Invoices" should leave its templates in "Invoices".
      *
-     * The subfolders are left to the database's cascade.
+     * The subfolders would go by the database's cascade alone, and are removed
+     * here as well, deepest first, so the unit of work knows they are gone. A
+     * caller that deletes several folders in one request (TemplateFolder/set)
+     * would otherwise be handed a managed object for a row that no longer
+     * exists.
      */
     public function deleteFolder(TemplateFolder $folder): void
     {
@@ -164,7 +168,10 @@ final readonly class TemplateLibrary
         // Before the delete, in its own flush: the templates must already point
         // elsewhere when the row goes, or the SET NULL gets there first.
         $this->em->flush();
-        $this->em->remove($folder);
+
+        foreach (array_reverse($doomed) as $gone) {
+            $this->em->remove($gone);
+        }
     }
 
     /** A second copy beside the first, for "like that one, but…". */

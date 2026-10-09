@@ -36,6 +36,15 @@ can also save the message on screen as a new template. Two new tables, `mail_tem
 `template_folder`; nothing existing changes. Removing a mail account keeps its templates and moves
 them to the top level. See [Templates](docs/features/templates.md).
 
+**Templates are available to JMAP clients.** A new capability, `urn:plmail:params:jmap:templates`,
+with `Template/get`, `Template/set`, `TemplateFolder/get`, `TemplateFolder/set` and
+`Template/render`. The first four read and write the same templates and folders as Settings →
+Templates, through the same sanitiser and the same ownership rules. `Template/render` returns a
+template ready to insert for the account being written from: dates, sender and signature filled in,
+the recipient too when the client supplies one, and a list of the recipient variables that are still
+open. The Session lists the variables and date formats an editor may offer. The apps do not use any
+of this yet. See [Client development → Templates](docs/CLIENT_DEVELOPMENT.md#templates).
+
 **A public demo can see how much it is used.** In demo mode the admin area has a new section, Demo
 visitors: how many demo sessions were started in the last hour, 24 hours, 7 days and 30 days, how
 many different visitors started them, the total so far and how many have a mailbox right now. No

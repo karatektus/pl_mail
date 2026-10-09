@@ -34,8 +34,10 @@ use Symfony\Contracts\Translation\TranslatorInterface;
  * `<span data-pl-var="recipient.first_name">First name</span>`, in the subject
  * as the token itself — and the compose window fills them when a recipient
  * exists, whether that is already or three minutes later
- * (assets/compose/template_variables.js). One implementation of "what is this
- * person's first name", in the one place that sees the To field change.
+ * (assets/compose/template_variables.js) — the one place that sees the To
+ * field change. A JMAP client cannot run that script and hands the recipient
+ * to `Template/render` instead, where TemplateRecipientFiller applies the same
+ * rule to this class's output; nothing in here knows about either.
  *
  * The span's text is the variable's readable name, so a message sent with one
  * still open says "First name" where the name should be rather than a row of

@@ -86,6 +86,13 @@ final class Capability
     public const string CONTACTS = 'urn:plmail:params:jmap:contacts';
 
     /**
+     * Email templates: the user's reusable messages, the folders they are
+     * sorted into, and rendering one for insertion. Per user, like APPEARANCE,
+     * so it appears at the top level of the Session and under no account.
+     */
+    public const string TEMPLATES = 'urn:plmail:params:jmap:templates';
+
+    /**
      * Capabilities a client is currently allowed to declare in "using".
      * Grow this list as new object types come online.
      *
@@ -104,5 +111,6 @@ final class Capability
         self::APPEARANCE,
         self::SYNC,
         self::CONTACTS,
+        self::TEMPLATES,
     ];
 }
