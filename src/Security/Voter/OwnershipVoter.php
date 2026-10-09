@@ -14,6 +14,8 @@ use App\Entity\Mail\Message;
 use App\Entity\Mail\MessagePart;
 use App\Entity\Mail\MessageThread;
 use App\Entity\Rule\MailRule;
+use App\Entity\Template\MailTemplate;
+use App\Entity\Template\TemplateFolder;
 use App\Entity\User\User;
 use Symfony\Component\Security\Core\Authentication\Token\TokenInterface;
 use Symfony\Component\Security\Core\Authorization\Voter\Vote;
@@ -81,9 +83,11 @@ final class OwnershipVoter extends Voter
             || $subject instanceof Label
             || $subject instanceof MailInsight
             || $subject instanceof MailRule
+            || $subject instanceof MailTemplate
             || $subject instanceof Message
             || $subject instanceof MessagePart
-            || $subject instanceof MessageThread;
+            || $subject instanceof MessageThread
+            || $subject instanceof TemplateFolder;
     }
 
     protected function voteOnAttribute(
@@ -129,20 +133,22 @@ final class OwnershipVoter extends Voter
     private function ownerOf(mixed $subject): ?User
     {
         return match (true) {
-            $subject instanceof Account       => $subject->usr,
-            $subject instanceof Calendar      => $subject->usr,
-            $subject instanceof CalendarEvent => $subject->usr,
-            $subject instanceof Integration   => $subject->usr,
-            $subject instanceof Label         => $subject->usr,
+            $subject instanceof Account        => $subject->usr,
+            $subject instanceof Calendar       => $subject->usr,
+            $subject instanceof CalendarEvent  => $subject->usr,
+            $subject instanceof Integration    => $subject->usr,
+            $subject instanceof Label          => $subject->usr,
             // Through the account, like Message: an insight belongs to whoever
             // owns the mailbox it was read out of, and its $account is the one
             // link the mapping declares non-nullable.
-            $subject instanceof MailInsight   => $subject->account->usr,
-            $subject instanceof MailRule      => $subject->usr,
-            $subject instanceof Message       => $subject->account->usr,
-            $subject instanceof MessagePart   => $subject->message?->account->usr,
-            $subject instanceof MessageThread => $subject->account?->usr,
-            default                           => null,
+            $subject instanceof MailInsight    => $subject->account->usr,
+            $subject instanceof MailRule       => $subject->usr,
+            $subject instanceof MailTemplate   => $subject->usr,
+            $subject instanceof Message        => $subject->account->usr,
+            $subject instanceof MessagePart    => $subject->message?->account->usr,
+            $subject instanceof MessageThread  => $subject->account?->usr,
+            $subject instanceof TemplateFolder => $subject->usr,
+            default                            => null,
         };
     }
 }

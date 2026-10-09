@@ -1,0 +1,10 @@
+{# One template in the tree. Variables: template (MailTemplate) #}
+<li>
+    <a href="{{ path('app_settings_templates_edit', { id: template.id }) }}"
+       data-turbo-frame="template-editor"
+       data-template-id="{{ template.id }}"
+       class="flex items-center gap-2 min-h-8 px-2 py-1 rounded-lg text-sm text-ink-muted hover:bg-hover hover:text-ink transition-colors">
+        <i class="fa-regular fa-file-lines w-4 text-center text-ink-faint shrink-0" aria-hidden="true"></i>
+        <span class="truncate">{{ template.name }}</span>
+    </a>
+</li>

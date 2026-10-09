@@ -3,6 +3,13 @@ import { Controller } from '@hotwired/stimulus'
 import { forgetPendingCancel, markPendingCancel } from "../../compose/pending_cancel.js";
 import { requestFailed } from "../../request_errors.js";
 import { csrfToken } from "../../csrf.js";
+import {
+    fillMarkers,
+    fillTokens,
+    hasOpenTokens,
+    markersAsTokens,
+    recipientValues,
+} from "../../compose/template_variables.js";
 
 /**
  * The compose window is the only place a send is announced, and the only place
@@ -244,6 +251,11 @@ export default class extends Controller {
 
         window.addEventListener('beforeunload', this._boundBeforeUnload);
 
+        // A draft saved with a template variable still open comes back with
+        // the marker in its body and, usually, the recipient it was waiting
+        // for already in To. Nothing fires an event for either, so ask once.
+        this._fillTemplateVariables();
+
         // Inline: the thread's reply buttons step aside while we're open.
         // Cached — by the time disconnect() runs the card is already detached
         // and closest() would find nothing.
@@ -409,6 +421,12 @@ export default class extends Controller {
             // fixed. It used to sit there indefinitely, pushing the Subject row
             // down, until the next Send happened to clear it.
             this._clearError();
+
+            // A recipient now exists, which is what an inserted template's
+            // open variables were waiting for. Asked on every row rather than
+            // only To: the function reads To itself, and a row that is not To
+            // simply finds nothing new to fill.
+            this._fillTemplateVariables();
         });
 
         this._reserveRoomForPanel(select, input);
@@ -1625,6 +1643,12 @@ export default class extends Controller {
 
         if (!existing) { return; }
 
+        // A signature a template chose by name stays the one it chose. The
+        // server marks it (SignatureProvider::block()), and following From
+        // here would replace exactly the thing the template's author pinned.
+        // The toolbar button still replaces it: that is somebody asking.
+        if (existing.hasAttribute('data-pl-signature-pinned')) { return; }
+
         const html = this._signatureFor(token);
 
         if ('' === html) {
@@ -1655,6 +1679,203 @@ export default class extends Controller {
         if (this.hasBodyTarget) {
             this.bodyTarget.dispatchEvent(new Event('input', { bubbles: true }));
         }
+    }
+
+    // ── Templates ─────────────────────────────────────────────────────
+    //
+    // compose--template-picker fetches a template the server has already
+    // filled in as far as it can (TemplateRenderer) and hands it to
+    // insertTemplate(). What is left open is the recipient, and closing that
+    // is this window's job because this window is the only thing that sees
+    // the To field change. assets/compose/template_variables.js holds the
+    // rules; these methods only decide WHEN.
+
+    /**
+     * Put a rendered template into the message.
+     *
+     * The subject only ever fills an empty subject line. A template dropped
+     * into a reply must not rename the conversation, and a subject somebody
+     * has already typed is theirs.
+     *
+     * @param {{subject: string, html: string}} template
+     */
+    insertTemplate({ subject, html }) {
+        if (false === this.hasBodyTarget) { return; }
+
+        if ('' !== (subject ?? '') && this.hasSubjectTarget && '' === this.subjectTarget.value.trim()) {
+            this.subjectTarget.value = subject;
+            this.subjectTarget.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+
+        const holder = document.createElement('div');
+        holder.innerHTML = html;
+
+        if (true === this._isPlainText()) {
+            this._insertPlainText(this._bodyAsText(holder));
+        } else {
+            this._insertTemplateNodes(holder);
+        }
+
+        this._fillTemplateVariables();
+    }
+
+    /**
+     * The rich half of insertTemplate().
+     *
+     * ONE SIGNATURE. A template that brings a signature replaces the one the
+     * window opened with, for the reason insertSignature() replaces rather
+     * than appends: two sign-offs is not what anyone asked for. A template
+     * without one leaves the window's alone.
+     *
+     * WHERE IT GOES. At the caret — but a template is paragraphs, and the
+     * caret is nearly always inside one. Paragraphs inserted into a paragraph
+     * are something the DOM tolerates and HTML does not: the body is
+     * serialised on every save and re-parsed on every reopen, and the parser
+     * would split them apart again with an empty paragraph left over each
+     * time. So an empty paragraph is replaced by the template, and a
+     * paragraph with writing in it gets the template after it.
+     */
+    _insertTemplateNodes(holder) {
+        if (null !== holder.querySelector('[data-pl-signature]')) {
+            this._signatureBlock()?.remove();
+        }
+
+        const nodes = [...holder.childNodes];
+
+        if (0 === nodes.length) { return; }
+
+        const anchor = document.createElement('span');
+        const toolbar = this._toolbar();
+
+        if (toolbar) {
+            toolbar._insertAtCaret(anchor);
+        } else {
+            this.bodyTarget.appendChild(anchor);
+        }
+
+        const block = anchor.parentElement;
+
+        if (block !== this.bodyTarget && block?.parentElement === this.bodyTarget && 'P' === block.tagName) {
+            anchor.remove();
+
+            if ('' === block.textContent.trim() && null === block.querySelector('img')) {
+                block.replaceWith(...nodes);
+            } else {
+                block.after(...nodes);
+            }
+        } else {
+            anchor.replaceWith(...nodes);
+        }
+
+        // The caret after what was inserted, where the next sentence goes —
+        // but never after the signature, which is the bug claimWritingSpace()
+        // documents.
+        const last = nodes.findLast((node) => false === (node instanceof Element && node.hasAttribute('data-pl-signature')))
+            ?? nodes[nodes.length - 1];
+        const range = document.createRange();
+
+        range.selectNodeContents(last);
+        range.collapse(false);
+
+        const selection = window.getSelection();
+        selection.removeAllRanges();
+        selection.addRange(range);
+
+        this._afterBodyEdit();
+    }
+
+    /** The plain half: text at the textarea's caret. */
+    _insertPlainText(text) {
+        const textarea = this.plainBodyTarget;
+        const start = textarea.selectionStart ?? textarea.value.length;
+        const end = textarea.selectionEnd ?? start;
+
+        textarea.setRangeText(text, start, end, 'end');
+        textarea.dispatchEvent(new Event('input', { bubbles: true }));
+        textarea.focus();
+    }
+
+    /**
+     * What the first To recipient's chip says, or '' with nobody in To.
+     *
+     * The first, and only To: a template speaks to one person, and with three
+     * recipients "Hi Dana," is at least true of the one the sender thought of
+     * first. Whoever disagrees edits the text — once inserted it is only text.
+     */
+    _firstRecipientLabel() {
+        if (false === this.hasToFieldTarget) {
+            return '';
+        }
+
+        const wrapper = this.toFieldTarget.querySelector('.ts-wrapper');
+        const select  = null === wrapper ? null : this._tomSelectFor(wrapper);
+        const value   = select?.items?.[0];
+
+        if (undefined !== value && null !== value) {
+            return String(select.options?.[value]?.text ?? value);
+        }
+
+        // Tom Select not built yet — a draft reopened with its recipient
+        // already selected. The server's markup has the same text.
+        return this.toFieldTarget.querySelector('select option:checked')?.textContent?.trim() ?? '';
+    }
+
+    /**
+     * Close every open template variable the current recipient can answer.
+     *
+     * Safe to call at any time and from anywhere: with no template in the
+     * message, or no recipient, it finds nothing and changes nothing. Markers
+     * are also made non-editable here rather than by the server, because the
+     * attribute is the editor's business and the sanitiser drops it from the
+     * stored draft — so a reopened draft gets it back on the first pass.
+     */
+    _fillTemplateVariables() {
+        const values = recipientValues(this._firstRecipientLabel());
+
+        if (this.hasSubjectTarget) {
+            const filled = fillTokens(this.subjectTarget.value, values);
+
+            if (filled !== this.subjectTarget.value) {
+                this.subjectTarget.value = filled;
+                this.subjectTarget.dispatchEvent(new Event('input', { bubbles: true }));
+            }
+        }
+
+        if (true === this._isPlainText()) {
+            const filled = fillTokens(this.plainBodyTarget.value, values);
+
+            if (filled !== this.plainBodyTarget.value) {
+                this.plainBodyTarget.value = filled;
+                this.plainBodyTarget.dispatchEvent(new Event('input', { bubbles: true }));
+            }
+
+            return;
+        }
+
+        if (false === this.hasBodyTarget) {
+            return;
+        }
+
+        this.bodyTarget.querySelectorAll('[data-pl-var]').forEach((marker) => {
+            marker.contentEditable = 'false';
+        });
+
+        if (true === fillMarkers(this.bodyTarget, values)) {
+            this._afterBodyEdit();
+        }
+    }
+
+    /** Is a template variable still waiting for a recipient? */
+    _hasOpenTemplateVariables() {
+        if (this.hasSubjectTarget && true === hasOpenTokens(this.subjectTarget.value)) {
+            return true;
+        }
+
+        if (true === this._isPlainText()) {
+            return hasOpenTokens(this.plainBodyTarget.value);
+        }
+
+        return this.hasBodyTarget && null !== this.bodyTarget.querySelector('[data-pl-var]');
     }
 
     // ── Plain text mode ───────────────────────────────────────────────
@@ -1868,7 +2089,12 @@ export default class extends Controller {
 
     /** The editor's content as text, block boundaries becoming newlines. */
     _bodyAsText(editor) {
-        const clone = editor.cloneNode(true);
+        // An open template variable is a span in the editor and cannot be one
+        // in a textarea, so it crosses as its token — which is the shape
+        // _fillTemplateVariables() looks for in text. As its label it would
+        // become the words "First name" in the message with nothing left to
+        // say they were a placeholder.
+        const clone = markersAsTokens(editor);
 
         clone.querySelectorAll('br').forEach((br) => br.replaceWith('\n'));
         clone.querySelectorAll('p, div, li, tr').forEach((block) => block.append('\n'));
@@ -2499,6 +2725,16 @@ export default class extends Controller {
         // empty mail?" about it told the user their content did not count.
         if (0 === this._typedLength() && false === this._forwardCarryingQuote()) {
             missing.push(this._t('confirmNoBody', 'This message has no text.'));
+        }
+
+        // One last chance to fill them — a recipient committed by
+        // _commitPendingAddresses() a moment ago is one the item_add hook has
+        // already seen, but a draft reopened with its recipient in place has
+        // had no event at all.
+        this._fillTemplateVariables();
+
+        if (true === this._hasOpenTemplateVariables()) {
+            missing.push(this._t('confirmOpenVariables', 'A template placeholder has not been filled in.'));
         }
 
         if (0 === missing.length) {

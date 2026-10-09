@@ -24,6 +24,18 @@ name, so a filter for `a@x.de` also caught `ba@x.de`, and anybody could match it
 address in their display name. The spam button's filters use the new conditions. Existing filters
 are unchanged. JMAP clients get the same two as `fromAddress` and `fromDomain` in `Email/query`.
 
+**Messages you send often can be saved as templates.** Settings → Templates is a new section: write
+a message once, file it in a folder, and insert it from a new button in the compose window. The
+folder tree opens with one folder per mail account, and the account you are writing from has its
+templates listed first. A template can hold variables — the recipient's first name, full name and
+address, your own name and address, a signature, and dates with an offset and a format of their own
+("14 days ago", written out long or as `dd.MM.yyyy`). Dates, sender and signature are filled in when
+the template is inserted. Recipient variables wait for a recipient: they stay in the message as
+placeholders until someone is in To, and Send asks first if one is still open. The compose window
+can also save the message on screen as a new template. Two new tables, `mail_template` and
+`template_folder`; nothing existing changes. Removing a mail account keeps its templates and moves
+them to the top level. See [Templates](docs/features/templates.md).
+
 **A public demo can see how much it is used.** In demo mode the admin area has a new section, Demo
 visitors: how many demo sessions were started in the last hour, 24 hours, 7 days and 30 days, how
 many different visitors started them, the total so far and how many have a mailbox right now. No

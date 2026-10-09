@@ -71,6 +71,7 @@ Variables: form, message, ctx (an App\Domain\DTO\Mail\ComposeContext)
              confirmNoSubject: 'compose.confirm.no_subject'|trans,
              confirmNoBody:    'compose.confirm.no_body'|trans,
              confirmSendAnyway: 'compose.confirm.send_anyway'|trans,
+             confirmOpenVariables: 'compose.confirm.open_variables'|trans,
              tooLarge:         'compose.attach_too_large'|trans({ '%name%': '%s', '%limit%': '%d' }),
              imageFailed:      'compose.image_insert_failed'|trans,
              noSignature:      'compose.signature_none'|trans,
@@ -993,6 +994,51 @@ Variables: form, message, ctx (an App\Domain\DTO\Mail\ComposeContext)
                             title="{{ 'compose.signature'|trans }}"
                             aria-label="{{ 'compose.signature'|trans }}"
                             class="{{ ic }}"><i class="fa-solid fa-pen-nib" aria-hidden="true"></i></button>
+
+                    {# ── Templates ─────────────────────────────────────
+                       Beside the signature button because it is the same kind
+                       of thing: writing that already exists, put into this
+                       message. Same dropdown shape as its neighbours — a `menu`
+                       target that starts hidden and opens upwards, anchored to
+                       the toolbar block rather than to a button whose x
+                       depends on where the row wrapped.
+
+                       THE PANEL IS FETCHED WHEN IT OPENS, not rendered here.
+                       This window is drawn for every reply and every draft,
+                       and the list of templates would be two queries and a
+                       tree on each of them for a button most messages never
+                       press. It also has to be current: a template saved in
+                       Settings in another tab should be in the list the next
+                       time it opens, and the list is grouped by whichever
+                       address is in From at that moment.
+
+                       Not `richOnly`: a template goes into a plain-text body
+                       too, as text — see compose--compose#insertTemplate.
+
+                       No variable of its own, for the reason the assistant's
+                       button below documents: this template is included `only`
+                       from the two undo streams. #}
+                    <div data-controller="ui--dropdown compose--template-picker"
+                         data-action="ui--dropdown:opened->compose--template-picker#load"
+                         data-compose--template-picker-panel-url-value="{{ path('app_compose_templates_panel') }}"
+                         data-compose--template-picker-save-url-value="{{ path('app_compose_templates_save_draft') }}"
+                         data-compose--template-picker-i18n-value="{{ {
+                             loading:      'compose.template.loading'|trans,
+                             failed:       'compose.template.failed'|trans,
+                             nothingToSave: 'compose.template.nothing_to_save'|trans,
+                         }|json_encode|e('html_attr') }}">
+                        <button type="button"
+                                data-action="click->ui--dropdown#toggle"
+                                title="{{ 'compose.template.insert'|trans }}"
+                                aria-label="{{ 'compose.template.insert'|trans }}"
+                                class="{{ ic }}"><i class="fa-regular fa-file-lines" aria-hidden="true"></i></button>
+
+                        <div data-ui--dropdown-target="menu" hidden
+                             data-enter="rise"
+                             data-compose--template-picker-target="panel"
+                             class="absolute bottom-full mb-2 left-2 right-2
+                                    md:left-auto md:right-3 md:w-[30rem] z-30 popover overflow-hidden"></div>
+                    </div>
 
                     {# ── More options ──────────────────────────────────
                        Same dropdown shape as the schedule menu above: a `menu`

@@ -1700,6 +1700,7 @@ compose:
         no_subject: This message has no subject.
         send_anyway: Send it anyway?
         plain_text: Switching to plain text removes all formatting from this message. Continue?
+        open_variables: 'A template placeholder has not been filled in.'
     # Every label inside the emoji picker. The component ships its own English
     # strings and takes a replacement object; this is that object, so the
     # picker is as translated as the window around it.
@@ -1865,6 +1866,21 @@ compose:
     undo: Undo
     body_placeholder: "Write your message…"
     attachment_remove: Remove attachment
+    # The template picker in the compose window. The templates themselves
+    # are written in Settings → Templates (settings.templates).
+    template:
+        all_accounts: 'All accounts'
+        empty: 'No templates yet. Write one in Settings, or save this message as one.'
+        failed: 'That template could not be loaded.'
+        insert: 'Insert template'
+        loading: 'Loading templates…'
+        manage: 'Manage templates'
+        no_match: 'No template with that name.'
+        nothing_to_save: 'There is no text here to save as a template.'
+        save_draft: 'Save this message as a template'
+        saved: 'Saved as template “%name%”. Rename or move it in Settings.'
+        search: 'Find a template'
+        untitled: 'Untitled template'
 
 demo:
     bar:
@@ -3612,6 +3628,7 @@ settings:
         security: Security
         sharing: Sharing
         signature: Signatures
+        templates: 'Templates'
     notifications:
         devices:
             empty: >-
@@ -3793,6 +3810,84 @@ settings:
         follow_default: 'Server default (%timezone%)'
         current_time: 'It is currently %time% in this zone.'
     title: Settings
+    templates:
+        add: 'New template'
+        add_folder: 'New folder'
+        body: 'Message'
+        body_placeholder: 'Write the message. Use “Insert variable” for the parts that change.'
+        copy_of: 'Copy of %name%'
+        date:
+            after: 'after today'
+            before: 'before today'
+            direction: 'Before or after today'
+            example: 'Written today, it reads:'
+            format: 'Format'
+            heading: 'Date'
+            offset: 'Offset'
+            pattern: 'Pattern'
+            pattern_hint: 'A pattern uses d for the day, M for the month, y for the year and E for the weekday: dd.MM.yyyy, EEEE d MMMM.'
+            unit: 'Unit'
+        delete: 'Delete'
+        delete_confirm: 'Delete the template “%name%”?'
+        deleted: 'Template deleted.'
+        duplicate: 'Duplicate'
+        duplicated: 'Template duplicated.'
+        editor_empty: 'Choose a template to edit it, or create a new one.'
+        empty: 'No templates yet. A template filed under an account is offered first when you write from it.'
+        error:
+            folder_name_required: 'Give the folder a name.'
+            name_required: 'Give the template a name.'
+        folder: 'Folder'
+        folder_delete_confirm: 'Delete the folder “%folder%”? Its templates move up one level and are kept.'
+        folder_deleted: 'Folder deleted. Its templates were kept.'
+        folder_heading_new: 'New folder'
+        folder_heading_rename: 'Rename folder'
+        folder_in: 'Inside'
+        folder_name: 'Name'
+        folder_saved: 'Folder saved.'
+        format:
+            custom: 'Custom pattern'
+            full: 'Full'
+            iso: 'ISO'
+            long: 'Long'
+            medium: 'Medium'
+            short: 'Short'
+            weekday: 'Weekday'
+        group:
+            date: 'Date'
+            recipient: 'Recipient'
+            sender: 'Sender'
+        heading: 'Templates'
+        insert_variable: 'Insert variable'
+        name: 'Name'
+        name_placeholder: 'Invoice reminder'
+        preview: 'Preview'
+        preview_heading: 'As it would be inserted today, for a sample recipient'
+        preview_no_subject: 'No subject'
+        preview_unavailable: 'Add a mail account to preview a template.'
+        # "Name (address)" exactly: it is read by the same code that reads a
+        # recipient chip in the compose window, so the preview fills a first
+        # name the way a real message would.
+        sample_recipient: 'Dana Whitfield (dana@example.org)'
+        saved: 'Template saved.'
+        signature:
+            automatic: 'Automatic — the address you are writing from'
+            heading: 'Signature'
+            hint: 'Automatic follows the From address and replaces the signature already in the message. A named signature stays, whichever address you write from.'
+        subheading: 'Messages you write once and insert while composing.'
+        subject: 'Subject'
+        subject_hint: 'optional, fills an empty subject line'
+        subject_placeholder: 'No subject'
+        top_level: 'No folder'
+        tree:
+            add_folder_here: 'New folder in %folder%'
+            add_here: 'New template in %folder%'
+            delete_folder: 'Delete the folder %folder%'
+            rename: 'Rename the folder %folder%'
+        unit:
+            d: 'days'
+            m: 'months'
+            w: 'weeks'
 
 sidebar:
     accounts:
@@ -4026,3 +4121,16 @@ two_factor:
 unread:
     empty: No unread mail.
     heading: All unread mail
+
+# The names of template variables, as they read on a chip in the editor and
+# on a placeholder still open in a message. Top-level because both the
+# settings page and the compose window use them.
+templates:
+    variable:
+        date: 'Date'
+        recipient_email: 'Recipient''s address'
+        recipient_first_name: 'First name'
+        recipient_name: 'Full name'
+        sender_email: 'Your address'
+        sender_name: 'Your name'
+        signature: 'Signature'

@@ -1,0 +1,24 @@
+{#
+Response to every template or folder write: redraw the tree and close the
+editor.
+
+Closing the editor is deliberate, and the same choice the filter editor makes:
+after a save the tree is what answers "did that work", and an editor left open
+on a template that was just deleted or moved is an invitation to save it again.
+
+  tree          App\Domain\DTO\Template\TemplateTree
+  toastMessage  translation key
+#}
+{% include '_partials/_toast.stream.html.twig' with { message: toastMessage|trans, type: 'success' } only %}
+
+<turbo-stream action="update" target="settings-template-tree">
+    <template>
+        {% include 'settings/templates/_tree.html.twig' with { tree: tree } only %}
+    </template>
+</turbo-stream>
+
+<turbo-stream action="replace" target="template-editor">
+    <template>
+        {% include 'settings/templates/_editor_empty.html.twig' %}
+    </template>
+</turbo-stream>

@@ -1,0 +1,144 @@
+{#
+compose/_template_panel.html.twig
+─────────────────────────────────────────────────────────────────────────────
+The compose window's template picker: a list to choose from, a preview of
+whichever row the pointer or the focus is on, and two ways out at the foot.
+
+Fetched into the dropdown each time it opens (see _window.html.twig for why it
+is not rendered with the window) and driven by compose--template-picker, which
+is on the dropdown's wrapper — this fragment declares targets and actions for
+it and no controller of its own.
+
+ORDER. The account being written from comes first, because that is where the
+template for this message most likely is. Then the top level, which belongs to
+no account. Then everything else, under its own headings: filed elsewhere, but
+still the user's, and still one click away.
+
+Inside a group the folders are flattened, each template carrying its folder's
+name at the right. A tree with disclosure triangles in a 13rem column of a
+dropdown is a tree nobody can aim at; the search field is how a long list is
+navigated here.
+
+EACH ROW CARRIES ITS OWN PREVIEW, as the stored subject and body, tokens and
+all. The controller draws the tokens as the same chips the editor draws
+(template_variables.js), so the preview shows what the template IS — which
+variable goes where — and the inserted message shows what it became. The body
+is in a <template> element so the browser parses it without rendering it or
+loading anything it refers to.
+
+Variables:
+  tree        App\Domain\DTO\Template\TemplateTree
+  current     Account|null  the account in From
+  chipLabels  see TemplateEditorViewData::chipLabels()
+#}
+{% macro rows(templates, folder) %}
+    {% for template in templates %}
+        <li>
+            <button type="button"
+                    data-compose--template-picker-target="item"
+                    data-url="{{ path('app_compose_templates_render', { id: template.id }) }}"
+                    data-name="{{ template.name|lower }}"
+                    data-subject="{{ template.subject }}"
+                    data-action="click->compose--template-picker#choose mouseenter->compose--template-picker#preview focus->compose--template-picker#preview"
+                    class="flex w-full items-center gap-2 min-h-9 md:min-h-8 px-2 py-1 rounded-lg text-sm text-left
+                           text-ink-muted hover:bg-hover hover:text-ink focus:bg-hover focus:text-ink focus:outline-none
+                           transition-colors cursor-pointer">
+                <i class="fa-regular fa-file-lines w-4 text-center text-ink-faint shrink-0" aria-hidden="true"></i>
+                <span class="truncate flex-1 min-w-0">{{ template.name }}</span>
+                {% if folder %}
+                    <span class="shrink-0 max-w-[40%] truncate text-[11px] text-ink-faint">{{ folder }}</span>
+                {% endif %}
+                <template>{{ template.body|raw }}</template>
+            </button>
+        </li>
+    {% endfor %}
+{% endmacro %}
+
+{% macro group(node, heading) %}
+    {% if node.total > 0 %}
+        <li data-compose--template-picker-target="group">
+            <p class="px-2 pt-2 pb-1 text-[11px] font-semibold uppercase tracking-wide text-ink-faint truncate">{{ heading }}</p>
+            <ul>
+                {% for folder in node.flattened %}
+                    {{ _self.rows(folder.templates, folder.depth > 0 ? folder.name : null) }}
+                {% endfor %}
+            </ul>
+        </li>
+    {% endif %}
+{% endmacro %}
+
+<div data-compose--template-picker-target="root"
+     data-chip-labels="{{ chipLabels|json_encode|e('html_attr') }}"
+     data-csrf="{{ csrf_token('template_save_draft') }}"
+     class="md:grid md:grid-cols-[13.5rem_minmax(0,1fr)]">
+
+    <div class="min-w-0 p-1.5 md:border-r border-line">
+        {% if tree.empty %}
+            <p class="px-2 py-6 text-center text-sm text-ink-faint">{{ 'compose.template.empty'|trans }}</p>
+        {% else %}
+            <label class="flex items-center gap-2 h-8 px-2 rounded-lg border border-field bg-field text-ink-faint">
+                <i class="fa-solid fa-magnifying-glass text-[11px]" aria-hidden="true"></i>
+                <input type="search"
+                       data-compose--template-picker-target="search"
+                       data-action="input->compose--template-picker#filter"
+                       placeholder="{{ 'compose.template.search'|trans }}"
+                       aria-label="{{ 'compose.template.search'|trans }}"
+                       class="flex-1 min-w-0 bg-transparent text-sm text-ink placeholder:text-ink-faint focus:outline-none">
+            </label>
+
+            <ul class="mt-1 max-h-64 overflow-y-auto">
+                {% for node in tree.accounts %}
+                    {% if current is not null and node.location.account is same as(current) %}
+                        {{ _self.group(node, node.name) }}
+                    {% endif %}
+                {% endfor %}
+
+                {% if tree.templates|length %}
+                    <li data-compose--template-picker-target="group">
+                        <p class="px-2 pt-2 pb-1 text-[11px] font-semibold uppercase tracking-wide text-ink-faint">
+                            {{ 'compose.template.all_accounts'|trans }}
+                        </p>
+                        <ul>{{ _self.rows(tree.templates, null) }}</ul>
+                    </li>
+                {% endif %}
+
+                {% for node in tree.accounts %}
+                    {% if current is null or node.location.account is not same as(current) %}
+                        {{ _self.group(node, node.name) }}
+                    {% endif %}
+                {% endfor %}
+                {% for node in tree.folders %}
+                    {{ _self.group(node, node.name) }}
+                {% endfor %}
+            </ul>
+
+            <p data-compose--template-picker-target="noMatch" hidden
+               class="px-2 py-4 text-center text-sm text-ink-faint">{{ 'compose.template.no_match'|trans }}</p>
+        {% endif %}
+    </div>
+
+    {# The preview. Hidden below md: there a row is tapped, not hovered, and a
+       tap inserts — a pane that only ever shows the template you have just
+       inserted is a pane showing you the message. #}
+    <div class="hidden md:flex flex-col min-w-0 p-3">
+        <p data-compose--template-picker-target="previewSubject"
+           class="pl-var-preview text-sm font-semibold text-ink break-words"></p>
+        <div data-compose--template-picker-target="previewBody"
+             class="pl-var-preview mt-1.5 max-h-56 overflow-y-auto text-xs leading-relaxed text-ink-soft"></div>
+    </div>
+
+    <div class="md:col-span-2 flex items-center justify-between gap-3 px-3 py-2 border-t border-line bg-sunken">
+        <button type="button"
+                data-action="click->compose--template-picker#saveDraft"
+                class="inline-flex items-center gap-1.5 text-xs text-ink-muted hover:text-ink transition-colors cursor-pointer">
+            <i class="fa-regular fa-floppy-disk" aria-hidden="true"></i>
+            {{ 'compose.template.save_draft'|trans }}
+        </button>
+        {# _top: this fragment lives inside the compose frame, and a link
+           followed in there would try to load the settings page into the
+           dock. #}
+        <a href="{{ path('app_settings_index', { section: 'templates' }) }}"
+           data-turbo-frame="_top"
+           class="text-xs text-accent hover:underline">{{ 'compose.template.manage'|trans }}</a>
+    </div>
+</div>

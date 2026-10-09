@@ -1,0 +1,74 @@
+{#
+settings/templates/_folder_editor.html.twig
+─────────────────────────────────────────────────────────────────────────────
+Name a new folder, or rename one. Shares the `template-editor` frame with the
+template editor: both are "the thing the tree row opened".
+
+WHERE is only asked for a new folder. An existing one cannot be moved — see
+TemplateController::saveFolder() — so on a rename `tree` and `location` are
+null and the field is not drawn.
+
+Variables:
+  folder    TemplateFolder   unsaved for "new"
+  location  string|null      key of the place a new folder goes
+  tree      TemplateTree|null
+  errors    list<string>     translation keys
+#}
+{% import '_partials/_select.html.twig' as select %}
+{% set field = "block w-full h-9 rounded-lg border border-field bg-field px-3 text-sm text-ink placeholder:text-ink-faint focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent" %}
+
+<turbo-frame id="template-editor" class="block">
+    <form method="post" action="{{ path('app_settings_templates_folder_save') }}">
+        <input type="hidden" name="_token" value="{{ csrf_token('template_folder_save') }}">
+        <input type="hidden" name="id" value="{{ folder.id }}">
+
+        {% if errors|length %}
+            <div role="alert" class="flex items-start gap-2.5 px-4 py-3 border-b border-line alert-danger text-sm text-danger">
+                <i class="fa-solid fa-circle-exclamation mt-0.5 shrink-0" aria-hidden="true"></i>
+                <div class="space-y-0.5">
+                    {% for error in errors %}<p class="leading-snug">{{ error|trans }}</p>{% endfor %}
+                </div>
+            </div>
+        {% endif %}
+
+        <div class="px-4 py-4 space-y-4">
+            <h3 class="text-sm font-semibold text-ink">
+                {{ (folder.id ? 'settings.templates.folder_heading_rename' : 'settings.templates.folder_heading_new')|trans }}
+            </h3>
+
+            <div>
+                <label for="template-folder-name" class="block text-[13px] font-medium text-ink-soft mb-1.5">
+                    {{ 'settings.templates.folder_name'|trans }}
+                </label>
+                <input id="template-folder-name" name="name" type="text" required autofocus maxlength="255"
+                       value="{{ folder.name }}" class="{{ field }}">
+            </div>
+
+            {% if tree is not null %}
+                <div>
+                    <label for="template-folder-location" class="block text-[13px] font-medium text-ink-soft mb-1.5">
+                        {{ 'settings.templates.folder_in'|trans }}
+                    </label>
+                    <select id="template-folder-location" name="location" {{ select.enhance() }}
+                            class="select-field w-full h-9 text-sm">
+                        <option value="root" {{ 'root' == location ? 'selected' : '' }}>{{ 'settings.templates.top_level'|trans }}</option>
+                        {% for node in tree.locations %}
+                            <option value="{{ node.location.key }}" {{ node.location.key == location ? 'selected' : '' }}>{{ node.path }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            {% endif %}
+        </div>
+
+        <div class="flex items-center justify-end gap-2 px-4 py-3 border-t border-line bg-sunken">
+            <a href="{{ path('app_settings_templates_cancel') }}"
+               class="inline-flex items-center justify-center h-8 px-3.5 rounded-lg text-sm font-medium text-ink-soft bg-field border border-field hover:bg-hover transition-colors">
+                {{ 'form.cancel'|trans }}
+            </a>
+            <button type="submit"
+                    class="inline-flex items-center justify-center h-8 px-3.5 rounded-lg text-sm font-medium text-accent-ink bg-accent hover:bg-accent-strong transition-colors cursor-pointer">
+                {{ 'form.submit'|trans }}
+            </button>
+        </div>
+    </form>
+</turbo-frame>

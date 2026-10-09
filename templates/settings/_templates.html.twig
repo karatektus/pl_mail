@@ -1,0 +1,25 @@
+{#
+settings/_templates.html.twig
+─────────────────────────────────────────────────────────────────────────────
+The Templates section: the tree of what there is, and one editor.
+
+Side by side once the pane is wide enough to hold both, stacked below that —
+by container query rather than breakpoint, for the reason settings/index
+documents: this pane's width and the window's do not move together.
+
+The tree is the left column on a wide pane and the top on a narrow one, in
+both cases FIRST: after every write the editor closes and the tree is what
+says whether the write worked, so it must be what is on screen.
+
+Variables:
+  tree  App\Domain\DTO\Template\TemplateTree
+#}
+<div class="@3xl:grid @3xl:grid-cols-[16rem_minmax(0,1fr)] @3xl:divide-x divide-line">
+    <div id="settings-template-tree" class="min-w-0 border-b border-line @3xl:border-b-0">
+        {% include 'settings/templates/_tree.html.twig' with { tree: tree } only %}
+    </div>
+
+    <div class="min-w-0">
+        {% include 'settings/templates/_editor_empty.html.twig' %}
+    </div>
+</div>

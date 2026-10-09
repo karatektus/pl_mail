@@ -1,0 +1,79 @@
+{#
+settings/templates/_tree_node.html.twig
+─────────────────────────────────────────────────────────────────────────────
+One folder of the tree with everything under it. Includes itself.
+
+A <details>, open by default: the tree is small, and a folder that started
+closed would hide the template somebody just saved into it. The browser keeps
+the open state while the page lives and nothing stores it, which is the right
+amount of memory for a settings page.
+
+AN ACCOUNT FOLDER HAS NO RENAME AND NO DELETE, and that is not a permission:
+it is not a stored folder at all (see App\Entity\Template\TemplateFolder), so
+there is no route either button could post to.
+
+The row's buttons appear on hover and on focus-within, and are always there
+below md, where there is no hover to reveal them with. Until then they are out
+of the layout, not merely transparent: four invisible buttons took 7rem of a
+16rem column and the folder they belonged to read "Invo…".
+
+Variables:
+  node  App\Domain\DTO\Template\TemplateTreeNode
+#}
+{% set key = node.location.key %}
+{% set tool = "w-7 h-7 inline-flex items-center justify-center rounded-lg text-xs text-ink-faint hover:text-ink hover:bg-raised transition-colors cursor-pointer" %}
+
+<li>
+    <details open class="group/folder">
+        <summary class="group/row flex items-center gap-2 min-h-8 pl-2 pr-1 rounded-lg list-none cursor-pointer
+                        text-sm text-ink-soft hover:bg-hover transition-colors"
+                 data-template-folder="{{ key }}">
+            <i class="fa-solid fa-chevron-right w-3 text-[10px] text-ink-faint transition-transform group-open/folder:rotate-90" aria-hidden="true"></i>
+            <i class="{{ node.account ? 'fa-solid fa-at' : 'fa-regular fa-folder' }} w-4 text-center text-ink-faint shrink-0" aria-hidden="true"></i>
+            <span class="truncate flex-1 min-w-0">{{ node.name }}</span>
+
+            <span class="flex items-center shrink-0 md:hidden md:group-hover/row:flex md:group-focus-within/row:flex">
+                <a href="{{ path('app_settings_templates_new', { in: key }) }}"
+                   data-turbo-frame="template-editor"
+                   title="{{ 'settings.templates.tree.add_here'|trans({ '%folder%': node.name }) }}"
+                   aria-label="{{ 'settings.templates.tree.add_here'|trans({ '%folder%': node.name }) }}"
+                   class="{{ tool }}"><i class="fa-solid fa-plus" aria-hidden="true"></i></a>
+                <a href="{{ path('app_settings_templates_folder_new', { in: key }) }}"
+                   data-turbo-frame="template-editor"
+                   title="{{ 'settings.templates.tree.add_folder_here'|trans({ '%folder%': node.name }) }}"
+                   aria-label="{{ 'settings.templates.tree.add_folder_here'|trans({ '%folder%': node.name }) }}"
+                   class="{{ tool }}"><i class="fa-solid fa-folder-plus" aria-hidden="true"></i></a>
+
+                {% if not node.account %}
+                    <a href="{{ path('app_settings_templates_folder_edit', { id: node.location.folder.id }) }}"
+                       data-turbo-frame="template-editor"
+                       title="{{ 'settings.templates.tree.rename'|trans({ '%folder%': node.name }) }}"
+                       aria-label="{{ 'settings.templates.tree.rename'|trans({ '%folder%': node.name }) }}"
+                       class="{{ tool }}"><i class="fa-solid fa-pen" aria-hidden="true"></i></a>
+                    <form method="post"
+                          action="{{ path('app_settings_templates_folder_delete', { id: node.location.folder.id }) }}"
+                          data-turbo-stream
+                          data-turbo-confirm="{{ 'settings.templates.folder_delete_confirm'|trans({ '%folder%': node.name }) }}"
+                          class="inline-flex">
+                        <input type="hidden" name="_token" value="{{ csrf_token('template_folder_delete' ~ node.location.folder.id) }}">
+                        <button type="submit"
+                                title="{{ 'settings.templates.tree.delete_folder'|trans({ '%folder%': node.name }) }}"
+                                aria-label="{{ 'settings.templates.tree.delete_folder'|trans({ '%folder%': node.name }) }}"
+                                class="{{ tool }} hover:text-danger"><i class="fa-regular fa-trash-can" aria-hidden="true"></i></button>
+                    </form>
+                {% endif %}
+            </span>
+        </summary>
+
+        {% if node.children|length or node.templates|length %}
+            <ul class="ml-3.5 pl-1.5 border-l border-line">
+                {% for child in node.children %}
+                    {% include 'settings/templates/_tree_node.html.twig' with { node: child } only %}
+                {% endfor %}
+                {% for template in node.templates %}
+                    {% include 'settings/templates/_tree_template.html.twig' with { template: template } only %}
+                {% endfor %}
+            </ul>
+        {% endif %}
+    </details>
+</li>

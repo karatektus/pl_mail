@@ -86,14 +86,28 @@ final readonly class SignatureProvider
         return $this->block($this->htmlFor($account, $address));
     }
 
-    /** Wrap a signature's HTML in the marker the composer swaps on. */
-    public function block(?string $html): string
+    /**
+     * Wrap a signature's HTML in the marker the composer swaps on.
+     *
+     * `$pinned` adds a second marker, `data-pl-signature-pinned`, and it means
+     * "this one was chosen, do not follow From". A template can name the
+     * signature it signs with (TemplateRenderer); without the second marker
+     * the first change of From would swap that choice for the new address's
+     * own, which is the one thing naming it was meant to prevent. It is still
+     * a `data-pl-signature` block, so there is still at most one signature in
+     * a body and the toolbar button still replaces it in place.
+     */
+    public function block(?string $html, bool $pinned = false): string
     {
         if (null === $html || '' === trim($html)) {
             return '';
         }
 
-        return '<div class="pl-signature" data-pl-signature>' . $html . '</div>';
+        return sprintf(
+            '<div class="pl-signature" data-pl-signature%s>%s</div>',
+            true === $pinned ? ' data-pl-signature-pinned' : '',
+            $html,
+        );
     }
 
     /**

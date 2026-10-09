@@ -1,0 +1,341 @@
+{#
+settings/templates/_editor.html.twig
+─────────────────────────────────────────────────────────────────────────────
+One template: its name, where it is filed, an optional subject, and the body.
+
+TWO CONTROLLERS ON ONE FORM. `compose--compose-toolbar` is the same controller
+behind the compose window's editor and the signature editor, so bold here is
+bold there. `settings--template-editor` adds what only a template has:
+variables. It draws each `{{token}}` in the stored text as a chip, inserts new
+ones, edits the two kinds that have settings, and writes the chips back as
+tokens into the two hidden inputs when the form is submitted.
+
+The toolbar controller is deliberately NOT given a `hiddenInput` target here.
+It would mirror the editor's innerHTML into it on every keystroke — chips and
+all — and the server would be sent the editor's rendering of a variable in
+place of the variable. The body input belongs to the template controller,
+which is the one that knows the difference.
+
+THE SUBJECT IS A CONTENTEDITABLE TOO, a one-line one, for the same reason the
+body is: a variable in it is a chip you can click, not a row of braces to type
+correctly.
+
+The settings of a date or signature variable appear in a strip under the body
+when its chip is selected, rather than in a popover on the chip. The editor is
+a frame inside a card inside a pane, each of which clips, and a strip in the
+flow needs no positioning to survive any of them.
+
+Delete and Duplicate are forms of their own after the main one, reached from
+the footer by `form=`: a form cannot nest, and they post to different routes
+with different tokens.
+
+Variables:
+  template          MailTemplate   unsaved for "new"
+  errors            list<string>   translation keys
+  tree              TemplateTree
+  location          string         key of where the template is filed
+  variables         list<TemplateVariable>
+  dateFormats       list<{value, example}>
+  signatureChoices  list<{argument, label}>
+  chipLabels        the wording of a chip, see TemplateEditorViewData::chipLabels()
+#}
+{% import '_partials/_select.html.twig' as select %}
+{% set field = "block w-full min-h-9 rounded-lg border border-field bg-field px-3 text-sm text-ink placeholder:text-ink-faint focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent" %}
+{% set label = "block text-[13px] font-medium text-ink-soft mb-1.5" %}
+{% set sb = "shrink-0 px-1.5 py-0.5 rounded text-sm text-ink-muted hover:bg-hover transition-colors" %}
+{% set quiet = "inline-flex items-center justify-center gap-1.5 h-8 px-3 rounded-lg text-sm font-medium text-ink-muted hover:bg-hover transition-colors cursor-pointer" %}
+
+<turbo-frame id="template-editor" class="block">
+    <form method="post" action="{{ path('app_settings_templates_save') }}"
+          data-controller="compose--compose-toolbar settings--template-editor"
+          data-action="submit->settings--template-editor#store"
+          data-compose--compose-toolbar-i18n-value="{{ {
+              linkAdd:     'compose.link.add'|trans,
+              linkEdit:    'compose.link.edit'|trans,
+              linkInvalid: 'compose.link.invalid'|trans,
+              linkUnsafe:  'compose.link.unsafe'|trans,
+          }|json_encode|e('html_attr') }}"
+          data-settings--template-editor-variables-value="{{ variables|map(v => v.value)|json_encode|e('html_attr') }}"
+          data-settings--template-editor-preview-url-value="{{ path('app_settings_templates_preview') }}"
+          data-settings--template-editor-date-url-value="{{ path('app_settings_templates_date_example') }}"
+          data-settings--template-editor-i18n-value="{{ chipLabels|merge({
+              sampleRecipient:    'settings.templates.sample_recipient'|trans,
+              previewUnavailable: 'settings.templates.preview_unavailable'|trans,
+              noSubject:          'settings.templates.preview_no_subject'|trans,
+          })|json_encode|e('html_attr') }}"
+          class="relative">
+        <input type="hidden" name="_token" value="{{ csrf_token('template_save') }}">
+        <input type="hidden" name="id" value="{{ template.id }}">
+        <input type="hidden" name="subject" value="{{ template.subject }}"
+               data-settings--template-editor-target="subjectInput">
+        <input type="hidden" name="body" value="{{ template.body|e('html_attr') }}"
+               data-settings--template-editor-target="bodyInput">
+
+        {% if errors|length %}
+            <div role="alert" class="flex items-start gap-2.5 px-4 py-3 border-b border-line alert-danger text-sm text-danger">
+                <i class="fa-solid fa-circle-exclamation mt-0.5 shrink-0" aria-hidden="true"></i>
+                <div class="space-y-0.5">
+                    {% for error in errors %}<p class="leading-snug">{{ error|trans }}</p>{% endfor %}
+                </div>
+            </div>
+        {% endif %}
+
+        <div class="px-4 py-4 space-y-4">
+            {# ── Name + folder ──────────────────────────────────────────── #}
+            <div class="flex flex-col sm:flex-row gap-3">
+                <div class="flex-1 min-w-0">
+                    <label for="template-name" class="{{ label }}">{{ 'settings.templates.name'|trans }}</label>
+                    <input id="template-name" name="name" type="text" required maxlength="255"
+                           {{ template.id ? '' : 'autofocus' }}
+                           value="{{ template.name }}"
+                           placeholder="{{ 'settings.templates.name_placeholder'|trans }}"
+                           class="{{ field }} h-9">
+                </div>
+                <div class="sm:w-60 min-w-0">
+                    <label for="template-location" class="{{ label }}">{{ 'settings.templates.folder'|trans }}</label>
+                    <select id="template-location" name="location" {{ select.enhance() }}
+                            data-settings--template-editor-target="location"
+                            class="select-field w-full h-9 text-sm">
+                        <option value="root" {{ 'root' == location ? 'selected' : '' }}>{{ 'settings.templates.top_level'|trans }}</option>
+                        {% for node in tree.locations %}
+                            <option value="{{ node.location.key }}" {{ node.location.key == location ? 'selected' : '' }}>{{ node.path }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            {# ── Subject ────────────────────────────────────────────────── #}
+            <div>
+                <span id="template-subject-label" class="{{ label }}">
+                    {{ 'settings.templates.subject'|trans }}
+                    <span class="font-normal text-ink-faint">· {{ 'settings.templates.subject_hint'|trans }}</span>
+                </span>
+                <div data-settings--template-editor-target="subject"
+                     data-action="keydown->settings--template-editor#singleLine paste->settings--template-editor#pastePlain"
+                     contenteditable="true"
+                     role="textbox"
+                     aria-labelledby="template-subject-label"
+                     data-placeholder="{{ 'settings.templates.subject_placeholder'|trans }}"
+                     class="{{ field }} py-1.5 whitespace-nowrap overflow-hidden
+                            empty:before:content-[attr(data-placeholder)]
+                            empty:before:text-ink-faint
+                            empty:before:pointer-events-none">{{ template.subject }}</div>
+            </div>
+
+            {# ── Body ───────────────────────────────────────────────────── #}
+            <div>
+                <span id="template-body-label" class="{{ label }}">{{ 'settings.templates.body'|trans }}</span>
+
+                {# Not overflow-hidden, unlike the signature editor's box: the
+                   variable menu hangs out of the toolbar and would be clipped
+                   to nothing. The corners are rounded on the two children
+                   instead. #}
+                <div class="rounded-lg border border-line bg-surface">
+                    <div class="flex items-center gap-0.5 border-b border-line bg-sunken px-1.5 py-1 rounded-t-lg">
+                        <button type="button" data-compose--compose-toolbar-action
+                                data-action="click->compose--compose-toolbar#bold"
+                                title="{{ 'compose.bold'|trans }}" aria-label="{{ 'compose.bold'|trans }}"
+                                class="{{ sb }} font-bold">B</button>
+                        <button type="button" data-compose--compose-toolbar-action
+                                data-action="click->compose--compose-toolbar#italic"
+                                title="{{ 'compose.italic'|trans }}" aria-label="{{ 'compose.italic'|trans }}"
+                                class="{{ sb }} italic">I</button>
+                        <button type="button" data-compose--compose-toolbar-action
+                                data-action="click->compose--compose-toolbar#underline"
+                                title="{{ 'compose.underline'|trans }}" aria-label="{{ 'compose.underline'|trans }}"
+                                class="{{ sb }} underline">U</button>
+                        <div class="w-px h-4 bg-line mx-1"></div>
+                        <button type="button" data-compose--compose-toolbar-action
+                                data-action="click->compose--compose-toolbar#unorderedList"
+                                title="{{ 'compose.list.unordered'|trans }}" aria-label="{{ 'compose.list.unordered'|trans }}"
+                                class="{{ sb }}"><i class="fa-solid fa-list-ul" aria-hidden="true"></i></button>
+                        <button type="button" data-compose--compose-toolbar-action
+                                data-action="click->compose--compose-toolbar#insertLink"
+                                title="{{ 'compose.insert_link'|trans }}" aria-label="{{ 'compose.insert_link'|trans }}"
+                                class="{{ sb }}"><i class="fa-solid fa-link" aria-hidden="true"></i></button>
+
+                        {# ── Insert variable ──────────────────────────────
+                           A <details>, so it opens and closes without a line
+                           of JavaScript and is a disclosure to a screen
+                           reader without any ARIA written by hand. The
+                           buttons hold the pointer's mousedown back
+                           (keepCaret) because a button that takes focus
+                           takes the caret out of the field the variable is
+                           meant to land in. #}
+                        <details class="relative ml-auto" data-settings--template-editor-target="menu">
+                            <summary class="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-lg list-none cursor-pointer
+                                            text-xs font-medium text-accent-text bg-accent-soft hover:bg-hover transition-colors">
+                                <i class="fa-solid fa-code text-[10px]" aria-hidden="true"></i>
+                                {{ 'settings.templates.insert_variable'|trans }}
+                                <i class="fa-solid fa-chevron-down text-[9px]" aria-hidden="true"></i>
+                            </summary>
+                            <div class="absolute right-0 top-full mt-1 z-20 w-60 py-1 rounded-pane border border-line bg-surface shadow-pop">
+                                {% for group in ['recipient', 'sender', 'date'] %}
+                                    <p class="px-3 pt-2 pb-1 text-[11px] font-semibold uppercase tracking-wide text-ink-faint">
+                                        {{ ('settings.templates.group.' ~ group)|trans }}
+                                    </p>
+                                    {% for variable in variables|filter(v => v.group == group) %}
+                                        <button type="button"
+                                                data-variable="{{ variable.value }}"
+                                                data-action="mousedown->settings--template-editor#keepCaret click->settings--template-editor#insert"
+                                                class="flex w-full items-center px-3 py-1.5 text-sm text-ink-muted hover:bg-hover hover:text-ink text-left transition-colors cursor-pointer">
+                                            {{ variable.labelKey|trans }}
+                                        </button>
+                                    {% endfor %}
+                                {% endfor %}
+                            </div>
+                        </details>
+                    </div>
+
+                    <div data-compose--compose-toolbar-target="editor"
+                         data-settings--template-editor-target="body"
+                         contenteditable="true"
+                         role="textbox"
+                         aria-multiline="true"
+                         aria-labelledby="template-body-label"
+                         data-placeholder="{{ 'settings.templates.body_placeholder'|trans }}"
+                         class="min-h-[180px] px-3 py-2 text-sm leading-relaxed text-ink outline-none rounded-b-lg
+                                empty:before:content-[attr(data-placeholder)]
+                                empty:before:text-ink-faint
+                                empty:before:pointer-events-none">{{ template.body|raw }}</div>
+                </div>
+            </div>
+
+            {# ── Settings of the selected variable ──────────────────────────
+               Hidden until a date or signature chip is selected. Both groups
+               are in the markup from the start and the controller shows one:
+               nothing here is built in JavaScript, so every word of it is
+               translated where every other word is. #}
+            <div data-settings--template-editor-target="inspector" hidden
+                 class="rounded-lg border border-line bg-sunken px-3 py-3">
+
+                <div data-settings--template-editor-target="dateFields" hidden class="space-y-3">
+                    <p class="text-xs font-semibold text-ink-soft">{{ 'settings.templates.date.heading'|trans }}</p>
+                    <div class="flex flex-wrap items-end gap-2">
+                        <div>
+                            <label for="template-date-amount" class="block text-xs text-ink-faint mb-1">{{ 'settings.templates.date.offset'|trans }}</label>
+                            <input id="template-date-amount" type="number" min="0" max="9999" step="1" value="0"
+                                   data-settings--template-editor-target="amount"
+                                   data-action="input->settings--template-editor#update"
+                                   class="{{ field }} h-9 w-20">
+                        </div>
+                        <select aria-label="{{ 'settings.templates.date.unit'|trans }}"
+                                data-settings--template-editor-target="unit"
+                                data-action="change->settings--template-editor#update"
+                                class="select-field h-9 text-sm">
+                            {% for unit in ['d', 'w', 'm'] %}
+                                <option value="{{ unit }}">{{ ('settings.templates.unit.' ~ unit)|trans }}</option>
+                            {% endfor %}
+                        </select>
+                        <select aria-label="{{ 'settings.templates.date.direction'|trans }}"
+                                data-settings--template-editor-target="direction"
+                                data-action="change->settings--template-editor#update"
+                                class="select-field h-9 text-sm">
+                            <option value="+">{{ 'settings.templates.date.after'|trans }}</option>
+                            <option value="-">{{ 'settings.templates.date.before'|trans }}</option>
+                        </select>
+                    </div>
+                    <div class="flex flex-wrap items-end gap-2">
+                        <div>
+                            <label for="template-date-format" class="block text-xs text-ink-faint mb-1">{{ 'settings.templates.date.format'|trans }}</label>
+                            <select id="template-date-format"
+                                    data-settings--template-editor-target="format"
+                                    data-action="change->settings--template-editor#update"
+                                    class="select-field h-9 text-sm">
+                                {% for format in dateFormats %}
+                                    <option value="{{ format.value }}">{{ ('settings.templates.format.' ~ format.value)|trans }} — {{ format.example }}</option>
+                                {% endfor %}
+                                <option value="custom">{{ 'settings.templates.format.custom'|trans }}</option>
+                            </select>
+                        </div>
+                        <div data-settings--template-editor-target="patternRow" hidden>
+                            <label for="template-date-pattern" class="block text-xs text-ink-faint mb-1">{{ 'settings.templates.date.pattern'|trans }}</label>
+                            <input id="template-date-pattern" type="text" maxlength="40" placeholder="dd.MM.yyyy"
+                                   data-settings--template-editor-target="pattern"
+                                   data-action="input->settings--template-editor#update"
+                                   class="{{ field }} h-9 w-40 font-mono">
+                        </div>
+                    </div>
+                    <p class="text-xs text-ink-faint">
+                        {{ 'settings.templates.date.example'|trans }}
+                        <span data-settings--template-editor-target="example" aria-live="polite" class="text-ink font-medium"></span>
+                    </p>
+                    <p data-settings--template-editor-target="patternHint" hidden class="text-xs text-ink-faint">
+                        {{ 'settings.templates.date.pattern_hint'|trans }}
+                    </p>
+                </div>
+
+                <div data-settings--template-editor-target="signatureFields" hidden class="space-y-2">
+                    <label for="template-signature" class="block text-xs font-semibold text-ink-soft">{{ 'settings.templates.signature.heading'|trans }}</label>
+                    <select id="template-signature"
+                            data-settings--template-editor-target="signature"
+                            data-action="change->settings--template-editor#update"
+                            class="select-field h-9 text-sm max-w-full">
+                        <option value="">{{ 'settings.templates.signature.automatic'|trans }}</option>
+                        {% for choice in signatureChoices %}
+                            <option value="{{ choice.argument }}">{{ choice.label }}</option>
+                        {% endfor %}
+                    </select>
+                    <p class="text-xs text-ink-faint">{{ 'settings.templates.signature.hint'|trans }}</p>
+                </div>
+            </div>
+
+            {# ── Preview ────────────────────────────────────────────────── #}
+            <div data-settings--template-editor-target="preview" hidden
+                 class="rounded-lg border border-line">
+                <p class="px-3 py-2 border-b border-line bg-sunken text-xs text-ink-faint rounded-t-lg">
+                    {{ 'settings.templates.preview_heading'|trans }}
+                </p>
+                <p data-settings--template-editor-target="previewSubject" class="px-3 pt-3 text-sm font-semibold text-ink"></p>
+                <div data-settings--template-editor-target="previewBody" class="px-3 py-3 text-sm leading-relaxed text-ink"></div>
+            </div>
+        </div>
+
+        {# ── Footer ─────────────────────────────────────────────────────── #}
+        <div class="flex flex-wrap items-center gap-2 px-4 py-3 border-t border-line bg-sunken">
+            {% if template.id %}
+                <button type="submit" form="template-delete-form" class="{{ quiet }} hover:text-danger">
+                    <i class="fa-regular fa-trash-can text-xs" aria-hidden="true"></i>
+                    {{ 'settings.templates.delete'|trans }}
+                </button>
+                <button type="submit" form="template-duplicate-form" class="{{ quiet }}">
+                    <i class="fa-regular fa-copy text-xs" aria-hidden="true"></i>
+                    {{ 'settings.templates.duplicate'|trans }}
+                </button>
+            {% endif %}
+
+            <div class="flex items-center gap-2 ml-auto">
+                <button type="button" data-action="click->settings--template-editor#preview"
+                        class="inline-flex items-center justify-center gap-1.5 h-8 px-3.5 rounded-lg text-sm font-medium text-ink-soft bg-field border border-field hover:bg-hover transition-colors cursor-pointer">
+                    <i class="fa-regular fa-eye text-xs" aria-hidden="true"></i>
+                    {{ 'settings.templates.preview'|trans }}
+                </button>
+                <a href="{{ path('app_settings_templates_cancel') }}"
+                   class="inline-flex items-center justify-center h-8 px-3.5 rounded-lg text-sm font-medium text-ink-soft bg-field border border-field hover:bg-hover transition-colors">
+                    {{ 'form.cancel'|trans }}
+                </a>
+                <button type="submit"
+                        class="inline-flex items-center justify-center h-8 px-3.5 rounded-lg text-sm font-medium text-accent-ink bg-accent hover:bg-accent-strong transition-colors cursor-pointer">
+                    {{ 'form.submit'|trans }}
+                </button>
+            </div>
+        </div>
+
+        {{ include('compose/_link_popover.html.twig', {
+            id:    'template-editor',
+            class: 'absolute left-4 top-48 w-80 max-w-[calc(100%-2rem)]',
+        }, with_context = false) }}
+    </form>
+
+    {% if template.id %}
+        <form id="template-delete-form" method="post"
+              action="{{ path('app_settings_templates_delete', { id: template.id }) }}"
+              data-turbo-confirm="{{ 'settings.templates.delete_confirm'|trans({ '%name%': template.name }) }}">
+            <input type="hidden" name="_token" value="{{ csrf_token('template_delete' ~ template.id) }}">
+        </form>
+        <form id="template-duplicate-form" method="post"
+              action="{{ path('app_settings_templates_duplicate', { id: template.id }) }}">
+            <input type="hidden" name="_token" value="{{ csrf_token('template_duplicate' ~ template.id) }}">
+        </form>
+    {% endif %}
+</turbo-frame>

@@ -1,0 +1,56 @@
+{#
+settings/templates/_tree.html.twig
+─────────────────────────────────────────────────────────────────────────────
+The template tree: top-level templates, then one folder per mail account, then
+the folders the user made beside them.
+
+The account folders are always drawn, empty ones included. That is the feature
+— the tree mirrors the accounts — and an account that only appeared once it
+held something would give a new user a tree with nothing in it and no hint of
+where a template for one address is meant to go.
+
+Every row that opens something is a link into the `template-editor` frame, so
+the tree works with JavaScript off and needs no controller of its own.
+
+Variables:
+  tree  App\Domain\DTO\Template\TemplateTree
+#}
+{% set action = "inline-flex items-center gap-1.5 px-2.5 h-8 rounded-lg text-xs font-medium transition-colors cursor-pointer" %}
+
+<div class="flex items-center justify-end gap-2 px-3 py-3 border-b border-line bg-sunken">
+    <a href="{{ path('app_settings_templates_folder_new') }}"
+       data-turbo-frame="template-editor"
+       class="{{ action }} bg-field border border-field text-ink-soft hover:bg-hover">
+        <i class="fa-solid fa-folder-plus text-[10px]" aria-hidden="true"></i>
+        {{ 'settings.templates.add_folder'|trans }}
+    </a>
+    <a href="{{ path('app_settings_templates_new') }}"
+       data-turbo-frame="template-editor"
+       class="{{ action }} bg-accent hover:bg-accent-strong text-accent-ink">
+        <i class="fa-solid fa-plus text-[10px]" aria-hidden="true"></i>
+        {{ 'settings.templates.add'|trans }}
+    </a>
+</div>
+
+<nav aria-label="{{ 'settings.templates.heading'|trans }}" class="p-2">
+    {% if tree.empty %}
+        <p class="px-2 pt-2 pb-3 text-xs text-ink-faint">{{ 'settings.templates.empty'|trans }}</p>
+    {% endif %}
+
+    {% if tree.templates|length %}
+        <ul class="pb-1.5 mb-1.5 border-b border-line">
+            {% for template in tree.templates %}
+                {% include 'settings/templates/_tree_template.html.twig' with { template: template } only %}
+            {% endfor %}
+        </ul>
+    {% endif %}
+
+    <ul>
+        {% for node in tree.accounts %}
+            {% include 'settings/templates/_tree_node.html.twig' with { node: node } only %}
+        {% endfor %}
+        {% for node in tree.folders %}
+            {% include 'settings/templates/_tree_node.html.twig' with { node: node } only %}
+        {% endfor %}
+    </ul>
+</nav>

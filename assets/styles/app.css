@@ -5186,3 +5186,48 @@ html[data-dnd-active] [data-dnd-ghost] {
     text-overflow: ellipsis;
     pointer-events: none;
 }
+
+/* ─── Template variables ─────────────────────────────────────────────────────
+   Two things that look alike on purpose and are not the same thing.
+
+   `.pl-var-chip` is a variable in the TEMPLATE EDITOR (and in the picker's
+   preview): the editor's drawing of a `{{token}}` in the stored text. It is
+   never saved and never sent — settings--template-editor turns it back into
+   the token before the form posts.
+
+   `[data-pl-var]` is a recipient variable in the COMPOSE WINDOW that is still
+   waiting for a recipient. It is real body markup: it is saved with the draft
+   and, if the user sends anyway, it goes out — as a plain span, since nothing
+   here reaches the recipient's mail client. That is why its text is the
+   variable's readable name and why this rule is all there is to it.
+
+   An attribute selector and a class rather than utilities in the markup: one
+   is written by the server into a mail body and the other by JavaScript into a
+   contenteditable, and neither place is a template Tailwind reads classes out
+   of. Accent-soft with accent text is the chip-filter-active pairing from
+   DESIGN.md — a thing that is set, not a thing to press. */
+.pl-var-chip,
+[contenteditable] [data-pl-var],
+.pl-var-preview [data-pl-var] {
+    display: inline-block;
+    padding: 0 0.375rem;
+    border-radius: 0.25rem;
+    background-color: var(--color-accent-soft);
+    color: var(--color-accent-text);
+    font-size: 0.8125em;
+    font-weight: 500;
+    line-height: 1.5;
+    white-space: nowrap;
+    vertical-align: baseline;
+}
+
+.pl-var-chip {
+    cursor: pointer;
+    user-select: all;
+}
+
+/* The chip whose settings are open in the strip below the editor. */
+.pl-var-chip[data-selected] {
+    outline: 2px solid rgb(var(--rgb-accent));
+    outline-offset: 1px;
+}

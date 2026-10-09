@@ -34,6 +34,7 @@ use App\Service\Ai\AiAssistant;
 use App\Service\Insight\InsightExtractorInterface;
 use App\Service\Insight\InsightExtractorRegistry;
 use App\Service\Push\PushSubscriptionRegistry;
+use App\Service\Template\TemplateLibrary;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\Form\FormInterface;
@@ -61,7 +62,7 @@ final class SettingsController extends AbstractController
     /** Where /settings opens: the first entry in the navigation. */
     private const string DEFAULT_SECTION = 'profile';
 
-    private const array SECTIONS = ['health', 'accounts', 'profile', 'security', 'labels', 'calendars', 'sharing', 'filters', 'insights', 'ai', 'integrations', 'appearance', 'aliases', 'read-receipts', 'signature', 'app-passwords', 'notifications', 'general'];
+    private const array SECTIONS = ['health', 'accounts', 'profile', 'security', 'labels', 'calendars', 'sharing', 'filters', 'insights', 'ai', 'integrations', 'appearance', 'aliases', 'read-receipts', 'signature', 'templates', 'app-passwords', 'notifications', 'general'];
 
     /**
      * One icon per AI feature, here rather than on the enum.
@@ -105,6 +106,7 @@ final class SettingsController extends AbstractController
         private readonly InsightExtractorRegistry $insightExtractors,
         private readonly AiAssistant $ai,
         private readonly LabelResolver $labelResolver,
+        private readonly TemplateLibrary $templateLibrary,
     ) {
     }
 
@@ -178,6 +180,7 @@ final class SettingsController extends AbstractController
             ...$this->healthSectionData($section),
             ...$this->insightsSectionData($section),
             ...$this->aiSectionData($section),
+            ...$this->templatesSectionData($section),
         ]);
     }
 
@@ -195,6 +198,26 @@ final class SettingsController extends AbstractController
      *
      * @return array<string, mixed>
      */
+    /**
+     * The template tree, for its own section only — like every other section's
+     * data here, so the other seventeen pages do not pay for two queries they
+     * draw nothing from.
+     *
+     * @return array<string, mixed>
+     */
+    private function templatesSectionData(string $section): array
+    {
+        $user = $this->getUser();
+
+        if ('templates' !== $section || false === $user instanceof User) {
+            return [];
+        }
+
+        return [
+            'templateTree' => $this->templateLibrary->tree($user),
+        ];
+    }
+
     private function healthSectionData(string $section): array
     {
         $user = $this->getUser();

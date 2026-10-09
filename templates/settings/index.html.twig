@@ -141,6 +141,7 @@
                                         { section: 'aliases',       icon: 'fa-solid fa-user-tag' },
                                         { section: 'read-receipts', icon: 'fa-solid fa-envelope-open-text', label: 'settings.nav.read_receipts' },
                                         { section: 'signature',     icon: 'fa-solid fa-signature' },
+                                        { section: 'templates',     icon: 'fa-regular fa-file-lines' },
                                         { section: 'labels',        icon: 'fa-solid fa-tag' },
                                         { section: 'filters',       icon: 'fa-solid fa-filter' },
                                         { section: 'insights',      icon: 'fa-solid fa-satellite-dish' },
@@ -443,6 +444,20 @@
                                                         manageableAccounts: manageableAccounts,
                                                     } %}
                                                 </div>
+                                            {% endblock %}
+                                        {% endembed %}
+                                    {% elseif section == 'templates' %}
+                                        {# ONE card holding both the tree and the editor, where
+                                           filters put the editor in a second card below the
+                                           list. A filter is edited and left; a template is
+                                           written, and a tree beside the page being written is
+                                           how every editor with folders looks. #}
+                                        {% embed 'settings/_card.html.twig' with {
+                                            heading:    'settings.templates.heading'|trans,
+                                            subheading: 'settings.templates.subheading'|trans,
+                                        } %}
+                                            {% block body %}
+                                                {% include 'settings/_templates.html.twig' with { tree: templateTree } only %}
                                             {% endblock %}
                                         {% endembed %}
                                     {% elseif section == 'filters' %}

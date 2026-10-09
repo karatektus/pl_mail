@@ -53,6 +53,14 @@ final readonly class MailBodySanitizer
         'data-quote-toggle',
         'data-pl-signature',
         'data-cid',
+        // Templates. `data-pl-signature-pinned` marks a signature a template
+        // chose by name, which a change of From must leave alone;
+        // `data-pl-var` marks a recipient variable still waiting for a
+        // recipient. Without them a draft saved between inserting a template
+        // and addressing it would come back with the placeholder as ordinary
+        // text: never filled in, and never warned about on Send.
+        'data-pl-signature-pinned',
+        'data-pl-var',
     ];
 
     public function __construct(
@@ -128,8 +136,8 @@ final readonly class MailBodySanitizer
      * is the path a reply to a hostile mail took — the read path was sandboxed,
      * the answer path was not.
      *
-     * What it adds is the five attributes the composer writes itself. The mail
-     * allow-list drops every `data-` attribute, which is right for a stranger's
+     * What it adds is the attributes the composer writes itself — the list is
+     * COMPOSE_MARKERS. The mail allow-list drops every `data-` attribute, which is right for a stranger's
      * HTML and wrong here: `data-quoted` is how the quote is found — to collapse
      * it, to cut it off the snippet, to tell the user's own writing from the
      * mail they are answering — `data-cid` is the whole bridge between an

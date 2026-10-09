@@ -1,4 +1,4 @@
-<!-- translated-from: README.md sha1:f8ba550e5982b1eb2b7fcec825eb1f332534ce7a -->
+<!-- translated-from: README.md sha1:fd1e366eaebecb469394c243e7d01102522944fe -->
 
 # plMail-Dokumentation
 
@@ -30,6 +30,7 @@ wo der Mechanismus dahinter steht.
 | [Mail](features/mail.md) | Lesen, Konversationen, Labels, Suche und ihre Operatoren, Zurückstellen, Anhänge, Verfassen, Signaturen, Emoji und eingebettete Bilder, später senden, Lesebestätigungen, Entwürfe, Senden rückgängig machen |
 | [Konten und Aliase](features/accounts.md) | Gmail-, Outlook- und IMAP-Konten hinzufügen, Absendeadressen, Einstellungen pro Konto |
 | [Zustand der Konten](features/health.md) | Was kaputt ist und was es behebt, ein Konto neu verbinden, ohne seine Post zu verlieren, die zwei Arten, wie Push kaputtgeht |
+| [Vorlagen](features/templates.md) | Wiederverwendbare Nachrichten, der Ordnerbaum, der deine Konten spiegelt, Variablen für Empfänger, Absender, Signatur und Datum, Einfügen beim Verfassen |
 | [Filter](features/filters.md) | Bedingungsbäume, Aktionen, die Rückübersetzung in einen Satz, eine Regel auf bereits eingetroffene Mail anwenden |
 | [Kalender](features/calendar.md) | Die vier Ansichten und das Zeitraster, Termine anlegen und bearbeiten, Wiederholungen, eine einzelne Termininstanz bearbeiten, der angedockte Bereich |
 | [Einladungen und Termine aus E-Mails](features/calendar-invitations.md) | Zu- und Absagen, Termine aus Einladungen und aus gewöhnlichem Fließtext, Vorschläge, „Demnächst“ |

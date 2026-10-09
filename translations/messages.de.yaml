@@ -1720,6 +1720,7 @@ compose:
         no_subject: Diese Nachricht hat keinen Betreff.
         send_anyway: Trotzdem senden?
         plain_text: Der Wechsel zu Nur-Text entfernt jede Formatierung aus dieser Nachricht. Fortfahren?
+        open_variables: 'Ein Platzhalter aus einer Vorlage ist noch nicht ausgefüllt.'
     emoji:
         activities: Aktivitäten
         animals_nature: Tiere und Natur
@@ -1868,6 +1869,21 @@ compose:
     undo: Rückgängig
     body_placeholder: "Schreibe deine Nachricht…"
     attachment_remove: Anhang entfernen
+    # The template picker in the compose window. The templates themselves
+    # are written in Settings → Templates (settings.templates).
+    template:
+        all_accounts: 'Alle Konten'
+        empty: 'Noch keine Vorlagen. Schreib eine in den Einstellungen oder speichere diese Nachricht als Vorlage.'
+        failed: 'Die Vorlage konnte nicht geladen werden.'
+        insert: 'Vorlage einfügen'
+        loading: 'Vorlagen werden geladen…'
+        manage: 'Vorlagen verwalten'
+        no_match: 'Keine Vorlage mit diesem Namen.'
+        nothing_to_save: 'Hier steht kein Text, der sich als Vorlage speichern ließe.'
+        save_draft: 'Diese Nachricht als Vorlage speichern'
+        saved: 'Als Vorlage „%name%“ gespeichert. Umbenennen oder verschieben kannst du sie in den Einstellungen.'
+        search: 'Vorlage suchen'
+        untitled: 'Unbenannte Vorlage'
 
 demo:
     bar:
@@ -3624,6 +3640,7 @@ settings:
         security: Sicherheit
         sharing: Teilen
         signature: Signaturen
+        templates: 'Vorlagen'
     notifications:
         devices:
             empty: >-
@@ -3811,6 +3828,84 @@ settings:
         follow_default: 'Server-Standard (%timezone%)'
         current_time: 'In dieser Zone ist es gerade %time%.'
     title: Einstellungen
+    templates:
+        add: 'Neue Vorlage'
+        add_folder: 'Neuer Ordner'
+        body: 'Nachricht'
+        body_placeholder: 'Schreib die Nachricht. Für alles, was sich ändert, nimm „Variable einfügen“.'
+        copy_of: 'Kopie von %name%'
+        date:
+            after: 'nach heute'
+            before: 'vor heute'
+            direction: 'Vor oder nach heute'
+            example: 'Heute geschrieben, steht dort:'
+            format: 'Format'
+            heading: 'Datum'
+            offset: 'Abstand'
+            pattern: 'Muster'
+            pattern_hint: 'Im Muster steht d für den Tag, M für den Monat, y für das Jahr und E für den Wochentag: dd.MM.yyyy, EEEE, d. MMMM.'
+            unit: 'Einheit'
+        delete: 'Löschen'
+        delete_confirm: 'Die Vorlage „%name%“ löschen?'
+        deleted: 'Vorlage gelöscht.'
+        duplicate: 'Duplizieren'
+        duplicated: 'Vorlage dupliziert.'
+        editor_empty: 'Wähl eine Vorlage aus, um sie zu bearbeiten, oder leg eine neue an.'
+        empty: 'Noch keine Vorlagen. Eine Vorlage, die unter einem Konto liegt, wird dir zuerst angeboten, wenn du von dort schreibst.'
+        error:
+            folder_name_required: 'Gib dem Ordner einen Namen.'
+            name_required: 'Gib der Vorlage einen Namen.'
+        folder: 'Ordner'
+        folder_delete_confirm: 'Den Ordner „%folder%“ löschen? Seine Vorlagen rücken eine Ebene nach oben und bleiben erhalten.'
+        folder_deleted: 'Ordner gelöscht. Seine Vorlagen sind noch da.'
+        folder_heading_new: 'Neuer Ordner'
+        folder_heading_rename: 'Ordner umbenennen'
+        folder_in: 'In'
+        folder_name: 'Name'
+        folder_saved: 'Ordner gespeichert.'
+        format:
+            custom: 'Eigenes Muster'
+            full: 'Ausführlich'
+            iso: 'ISO'
+            long: 'Lang'
+            medium: 'Mittel'
+            short: 'Kurz'
+            weekday: 'Wochentag'
+        group:
+            date: 'Datum'
+            recipient: 'Empfänger'
+            sender: 'Absender'
+        heading: 'Vorlagen'
+        insert_variable: 'Variable einfügen'
+        name: 'Name'
+        name_placeholder: 'Zahlungserinnerung'
+        preview: 'Vorschau'
+        preview_heading: 'So würde sie heute eingefügt, für einen Beispielempfänger'
+        preview_no_subject: 'Kein Betreff'
+        preview_unavailable: 'Füg ein E-Mail-Konto hinzu, um eine Vorschau zu sehen.'
+        # "Name (address)" exactly: it is read by the same code that reads a
+        # recipient chip in the compose window, so the preview fills a first
+        # name the way a real message would.
+        sample_recipient: 'Dana Weber (dana@example.org)'
+        saved: 'Vorlage gespeichert.'
+        signature:
+            automatic: 'Automatisch — die Adresse, von der du schreibst'
+            heading: 'Signatur'
+            hint: 'Automatisch folgt der Absenderadresse und ersetzt die Signatur, die schon in der Nachricht steht. Eine ausgewählte Signatur bleibt, egal von welcher Adresse du schreibst.'
+        subheading: 'Nachrichten, die du einmal schreibst und beim Verfassen einfügst.'
+        subject: 'Betreff'
+        subject_hint: 'optional, füllt eine leere Betreffzeile'
+        subject_placeholder: 'Kein Betreff'
+        top_level: 'Kein Ordner'
+        tree:
+            add_folder_here: 'Neuer Ordner in %folder%'
+            add_here: 'Neue Vorlage in %folder%'
+            delete_folder: 'Den Ordner %folder% löschen'
+            rename: 'Den Ordner %folder% umbenennen'
+        unit:
+            d: 'Tage'
+            m: 'Monate'
+            w: 'Wochen'
 
 sidebar:
     accounts:
@@ -4020,3 +4115,16 @@ two_factor:
 unread:
     empty: Keine ungelesenen Nachrichten.
     heading: Alle ungelesenen Nachrichten
+
+# The names of template variables, as they read on a chip in the editor and
+# on a placeholder still open in a message. Top-level because both the
+# settings page and the compose window use them.
+templates:
+    variable:
+        date: 'Datum'
+        recipient_email: 'Adresse des Empfängers'
+        recipient_first_name: 'Vorname'
+        recipient_name: 'Voller Name'
+        sender_email: 'Deine Adresse'
+        sender_name: 'Dein Name'
+        signature: 'Signatur'

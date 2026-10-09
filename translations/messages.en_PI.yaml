@@ -1606,6 +1606,7 @@ compose:
         no_subject: This scroll bears no heading.
         send_anyway: Cast it off regardless?
         plain_text: "Strikin' to plain text scrubs every flourish from this scroll. Carry on?"
+        open_variables: 'A blank in yer form letter be still unfilled.'
     emoji:
         activities: Sport and mischief
         animals_nature: Beasts and the wilds
@@ -1754,6 +1755,21 @@ compose:
     undo: Belay that
     body_placeholder: "Scrawl yer message…"
     attachment_remove: Heave the cargo overboard
+    # The template picker in the compose window. The templates themselves
+    # are written in Settings → Templates (settings.templates).
+    template:
+        all_accounts: 'All ships'
+        empty: 'No form letters yet. Pen one in the Settings, or stow this message as one.'
+        failed: 'That form letter would not come aboard.'
+        insert: 'Insert form letter'
+        loading: 'Hauling up the form letters…'
+        manage: 'Tend the form letters'
+        no_match: 'No form letter by that name.'
+        nothing_to_save: 'There be no words here to stow as a form letter.'
+        save_draft: 'Stow this message as a form letter'
+        saved: 'Stowed as form letter “%name%”. Rename or move it in the Settings.'
+        search: 'Find a form letter'
+        untitled: 'Nameless form letter'
 
 demo:
     bar:
@@ -3428,6 +3444,7 @@ settings:
         security: The ship's lock
         sharing: Sharing
         signature: Yer marks
+        templates: 'Form letters'
     notifications:
         devices:
             empty: "No device be signed on yet. Turnin' notifications on above signs on this browser; a phone app signs itself on."
@@ -3598,6 +3615,84 @@ settings:
         follow_default: 'Th'' harbour''s own (%timezone%)'
         current_time: 'It be %time% in these waters.'
     title: Riggin'
+    templates:
+        add: 'New form letter'
+        add_folder: 'New chest'
+        body: 'Message'
+        body_placeholder: 'Pen the message. Use “Insert blank” for the parts that change.'
+        copy_of: 'Copy o'' %name%'
+        date:
+            after: 'after today'
+            before: 'afore today'
+            direction: 'Afore or after today'
+            example: 'Penned today, it reads:'
+            format: 'Format'
+            heading: 'Date'
+            offset: 'Offset'
+            pattern: 'Pattern'
+            pattern_hint: 'A pattern uses d for the day, M for the month, y for the year and E for the weekday: dd.MM.yyyy, EEEE d MMMM.'
+            unit: 'Unit'
+        delete: 'Scuttle'
+        delete_confirm: 'Scuttle the form letter “%name%”?'
+        deleted: 'Form letter scuttled.'
+        duplicate: 'Copy'
+        duplicated: 'Form letter copied.'
+        editor_empty: 'Pick a form letter to mend it, or pen a new one.'
+        empty: 'No form letters yet. One stowed under a ship be offered first when ye write from it.'
+        error:
+            folder_name_required: 'Give the chest a name.'
+            name_required: 'Give the form letter a name.'
+        folder: 'Chest'
+        folder_delete_confirm: 'Scuttle the chest “%folder%”? Its form letters move up a deck and be kept.'
+        folder_deleted: 'Chest scuttled. Its form letters were kept.'
+        folder_heading_new: 'New chest'
+        folder_heading_rename: 'Rename chest'
+        folder_in: 'Inside'
+        folder_name: 'Name'
+        folder_saved: 'Chest stowed.'
+        format:
+            custom: 'Yer own pattern'
+            full: 'Full'
+            iso: 'ISO'
+            long: 'Long'
+            medium: 'Middling'
+            short: 'Short'
+            weekday: 'Weekday'
+        group:
+            date: 'Date'
+            recipient: 'Recipient'
+            sender: 'Sender'
+        heading: 'Form letters'
+        insert_variable: 'Insert blank'
+        name: 'Name'
+        name_placeholder: 'Reminder o'' debts'
+        preview: 'Spyglass'
+        preview_heading: 'As it would be inserted today, for a sample matey'
+        preview_no_subject: 'No subject'
+        preview_unavailable: 'Add a ship to preview a form letter.'
+        # "Name (address)" exactly: it is read by the same code that reads a
+        # recipient chip in the compose window, so the preview fills a first
+        # name the way a real message would.
+        sample_recipient: 'Anne Bonny (anne@example.org)'
+        saved: 'Form letter stowed.'
+        signature:
+            automatic: 'Automatic — the address ye be writing from'
+            heading: 'Mark'
+            hint: 'Automatic follows the From address and replaces the mark already in the message. A named mark stays, whichever address ye write from.'
+        subheading: 'Messages ye pen once and insert while composing.'
+        subject: 'Subject'
+        subject_hint: 'optional, fills an empty subject line'
+        subject_placeholder: 'No subject'
+        top_level: 'No chest'
+        tree:
+            add_folder_here: 'New chest in %folder%'
+            add_here: 'New form letter in %folder%'
+            delete_folder: 'Scuttle the chest %folder%'
+            rename: 'Rename the chest %folder%'
+        unit:
+            d: 'days'
+            m: 'months'
+            w: 'weeks'
 
 sidebar:
     accounts:
@@ -3806,3 +3901,16 @@ two_factor:
 unread:
     empty: Naught left uncorked.
     heading: Every bottle yet uncorked
+
+# The names of template variables, as they read on a chip in the editor and
+# on a placeholder still open in a message. Top-level because both the
+# settings page and the compose window use them.
+templates:
+    variable:
+        date: 'Date'
+        recipient_email: 'Recipient''s address'
+        recipient_first_name: 'First name'
+        recipient_name: 'Full name'
+        sender_email: 'Yer address'
+        sender_name: 'Yer name'
+        signature: 'Mark'
