@@ -677,11 +677,23 @@ final class StructuredDataExtractionTest extends KernelTestCase
         string             $bodyHtml,
         ?DateTimeImmutable $receivedAt = null,
         string             $from = 'noreply@lufthansa.com',
+        bool               $authenticated = true,
     ): array {
         $message = new Message();
         $message->account = $this->account;
         $message->subject = 'Your booking';
         $message->fromAddress = $from;
+
+        // What the account's own mail server says about the From line. A
+        // booking is only drawn unasked on its say-so (EventReconciler, issue
+        // #34), so the fixtures for ordinary bookings carry it and the ones
+        // about forgeries leave it out.
+        if (true === $authenticated) {
+            $message->headers = ['authentication-results' => sprintf(
+                'mx.example.test; dkim=pass header.d=%1$s; dmarc=pass header.from=%1$s',
+                substr($from, (int) strrpos($from, '@') + 1),
+            )];
+        }
         $message->receivedAt = $receivedAt ?? new DateTimeImmutable();
         $message->hasAttachments = false;
         $message->bodyHtml = $bodyHtml;
@@ -843,7 +855,9 @@ final class StructuredDataExtractionTest extends KernelTestCase
         $account->usr = $user;
         $account->email = 'Json Fixture';
         $account->username = 'jsonld-fixture@example.test';
-        $account->imapHost = 'localhost';
+        // A real name, so the server in the fixtures' Authentication-Results
+        // header is recognisably this account's own — see ingest().
+        $account->imapHost = 'imap.example.test';
         $account->imapPort = 993;
         $account->imapEncryption = 'ssl';
         $account->smtpHost = 'localhost';

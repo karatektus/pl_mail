@@ -90,6 +90,24 @@ accepted. Their update also cannot un-answer it: an organiser's "send update" ca
 list as *they* last saw it, which routinely still says nobody has replied, and believing that would
 quietly take an accepted meeting off your calendar.
 
+### A change from somebody who did not send the invitation
+
+A meeting is recognised by an identifier inside the calendar file, and that identifier is no secret:
+everyone who was invited has it, and so does anyone a copy was forwarded to. So a message asking to
+move or cancel a meeting is only acted on when it comes **from where the meeting came from** — the
+address that sent the invitation, or the organiser the event names. That covers the organiser's own
+mailbox and a calendar service that sends on their behalf, since such a service sends the updates
+from the same address as the invitation.
+
+From anybody else, nothing is changed. The card above the message says *"This message asks to change
+this event, but it was not sent by whoever the event came from. Nothing was changed"* and names the
+sender, with one button: **Apply the change**. Use it when you know the message is genuine — the
+organiser wrote from a different address, or a colleague sent the update for them. Once applied, that
+sender counts as one the meeting has come from, and their next update is not asked about.
+
+The same holds for a meeting that reached your calendar from a connected Google, Microsoft or CalDAV
+calendar rather than by mail: only mail from its organiser changes it unasked.
+
 ## Events read out of a booking
 
 Confirmation mail from airlines, couriers, hotels, restaurants and ticket sellers routinely carries
@@ -114,6 +132,24 @@ the sender stated, falling back to when the mail arrived; a superseded claim is 
 through; it never deletes the row.
 
 The moment you edit the event yourself, that stops. Your version is the one that stays.
+
+### Only from a sender your mail server vouches for
+
+Markup in a mail is written by whoever wrote the mail, and the From line is not proof of who that
+was. So a booking is put on your calendar unasked only when your mail server has checked the sender
+and says the From address is genuine (it records this in the message's `Authentication-Results`
+header). The same check decides whether a later mail may move or cancel a booking you already have.
+
+| Account | Whose verdict is believed |
+|---|---|
+| **Gmail** | Google's. |
+| **Outlook / Microsoft 365** | Microsoft's. |
+| **Other (IMAP)** | A server on the same domain as the account's IMAP host — `mx.example.org` for an account on `imap.example.org`. |
+
+Everything else — a sender that failed the check, a server that does not record one, a server
+plMail cannot tie to the account — gets the same card as a calendar file that is not an invitation
+to you: *nothing has been added to your calendar*, with **Add to calendar** and **No thanks**. A
+change to a booking you already have is held the way a meeting change is, with **Apply the change**.
 
 ### Not an event
 
@@ -250,6 +286,18 @@ docker compose exec php php bin/console app:backfill events --since=all
 ```
 
 ## Things that bite
+
+**Mail in Spam or the bin is not read for events.** An invitation or a booking your provider filed
+under Spam does not reach the calendar. Move the message out — **Not spam**, or restore it from the
+bin — and it is read then.
+
+**On a self-hosted mailbox, bookings may always ask first.** If your IMAP server does not stamp its
+verdict on incoming mail, or stamps it under a name on a different domain than the IMAP host, plMail
+has nobody to believe and every booking arrives as a card to accept. Invitations are unaffected.
+
+**A forged sender cannot be told from a real one where the server reports nothing.** On such an
+account a meeting change is judged by its From address alone, the same address you would judge it by
+reading the mail. Gmail and Outlook accounts do not have this gap.
 
 **An invitation you have not answered is not in your calendar.** That is deliberate — see above —
 but it does mean a week of unanswered requests looks like a free week. The card above each message

@@ -15,6 +15,7 @@ use App\Entity\Mail\Account;
 use App\Entity\Mail\Message;
 use App\Entity\User\User;
 use App\Service\Calendar\Extraction\IcsEventExtractor;
+use App\Service\Calendar\Extraction\StructuredDataEventExtractor;
 use App\Service\Calendar\InviteReader;
 use DateTimeImmutable;
 use DateTimeZone;
@@ -189,6 +190,70 @@ final class InviteCardRenderTest extends KernelTestCase
         $html = $this->render($this->offer(null));
 
         self::assertStringNotContainsString('action="/calendar/invite/', $html);
+    }
+
+    // ── Held changes and unverified bookings (issue #34) ──────────────────
+
+    /**
+     * A message whose change was turned down says so, offers to apply it, and
+     * offers nothing else. No RSVP: answering an invitation through the very
+     * message that was not believed would be believing it after all.
+     */
+    public function testAHeldChangeSaysNothingWasChangedAndOffersOnlyToApplyIt(): void
+    {
+        $message = $this->invitation();
+        $link    = $this->em->getRepository(EventSourceLink::class)->findOneBy(['message' => $message]);
+
+        $link->applied    = false;
+        $link->holdReason = EventSourceLink::HOLD_UNVERIFIED;
+        $link->payload    = ['method' => 'CANCEL'];
+
+        $this->em->flush();
+        $this->reader->reset();
+
+        $html = $this->render($message);
+
+        self::assertStringContainsString('Nothing was changed', $html);
+        self::assertStringContainsString('chair@example.org', $html, 'the card names who sent it');
+        self::assertSame(1, substr_count($html, 'action="/calendar/invite/'));
+        self::assertStringContainsString(sprintf('action="/calendar/invite/%d/apply"', $message->id), $html);
+        self::assertStringNotContainsString('has been cancelled', $html, 'its CANCEL is exactly what was not believed');
+    }
+
+    /**
+     * A booking from a sender nobody vouched for is offered on a card like a
+     * mailed-in calendar file. Until this there was no card for a booking at
+     * all, so "held for the reader" would have meant "invisible".
+     */
+    public function testAnUnverifiedBookingIsOfferedOnACard(): void
+    {
+        $message = $this->offer(ParticipationStatus::NeedsAction);
+        $link    = $this->em->getRepository(EventSourceLink::class)->findOneBy(['message' => $message]);
+
+        $link->extractor = StructuredDataEventExtractor::NAME;
+        $link->payload   = [];
+
+        $this->em->flush();
+        $this->reader->reset();
+
+        $html = $this->render($message);
+
+        self::assertStringContainsString('Add to calendar', $html);
+        self::assertSame(2, substr_count($html, 'action="/calendar/invite/'));
+    }
+
+    /** And one that was simply drawn has no card, as it never had. */
+    public function testABookingThatWasDrawnHasNoCard(): void
+    {
+        $message = $this->offer(null);
+        $link    = $this->em->getRepository(EventSourceLink::class)->findOneBy(['message' => $message]);
+
+        $link->extractor = StructuredDataEventExtractor::NAME;
+
+        $this->em->flush();
+        $this->reader->reset();
+
+        self::assertNull($this->reader->forMessage($message, $this->user));
     }
 
     // ── Fixtures ──────────────────────────────────────────────────────────

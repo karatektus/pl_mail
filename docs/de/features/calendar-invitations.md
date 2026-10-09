@@ -1,4 +1,4 @@
-<!-- translated-from: features/calendar-invitations.md sha1:2831c23dd958dfe411f1eb0b87c79d2d9ccb8719 -->
+<!-- translated-from: features/calendar-invitations.md sha1:2388fc922f8d8c7960cf50a0a591a781ad13a6a0 -->
 
 # Einladungen und Termine aus E-Mails
 
@@ -99,6 +99,28 @@ zurücknehmen: Ein „Update senden“ trägt die Teilnehmerliste so, wie *sie* 
 und darin steht regelmäßig noch, dass niemand geantwortet hat — das zu glauben würde einen
 zugesagten Termin lautlos aus deinem Kalender nehmen.
 
+### Eine Änderung von jemandem, der die Einladung nicht geschickt hat
+
+Eine Besprechung wird an einer Kennung in der Kalenderdatei erkannt, und diese Kennung ist kein
+Geheimnis: Alle Eingeladenen haben sie, und jeder, an den eine Kopie weitergeleitet wurde, auch. Eine
+Nachricht, die eine Besprechung verschieben oder absagen will, wird deshalb nur befolgt, wenn sie
+**von dort kommt, woher die Besprechung kam** — von der Adresse, die die Einladung geschickt hat,
+oder von der Organisation, die der Termin nennt. Das deckt das eigene Postfach der Organisation ab
+und einen Kalenderdienst, der in ihrem Namen sendet, denn so ein Dienst schickt die Aktualisierungen
+von derselben Adresse wie die Einladung.
+
+Von allen anderen wird nichts geändert. Die Karte über der Nachricht sagt *„Diese Nachricht will
+diesen Termin ändern, kommt aber nicht von dem Absender, von dem der Termin stammt. Es wurde nichts
+geändert“* und nennt den Absender, mit einer Schaltfläche: **Änderung übernehmen**. Nimm sie, wenn du
+weißt, dass die Nachricht echt ist — die Organisation hat von einer anderen Adresse geschrieben, oder
+jemand aus dem Team hat die Aktualisierung für sie geschickt. Einmal übernommen, zählt dieser
+Absender zu denen, von denen die Besprechung stammt, und nach seiner nächsten Aktualisierung wird
+nicht mehr gefragt.
+
+Dasselbe gilt für eine Besprechung, die aus einem verbundenen Google-, Microsoft- oder
+CalDAV-Kalender in deinen Kalender kam und nicht per Mail: Nur Mail von ihrer Organisation ändert sie
+ungefragt.
+
 ## Termine aus einer Buchung
 
 Bestätigungsmail von Fluggesellschaften, Paketdiensten, Hotels, Restaurants und Ticketverkäufern
@@ -124,6 +146,26 @@ ersatzweise anhand des Eintreffens der Mail; eine überholte Aussage wird trotzd
 streicht den Termin durch; sie löscht die Zeile nie.
 
 Sobald du den Termin selbst bearbeitest, hört das auf. Deine Fassung ist die, die bleibt.
+
+### Nur von einem Absender, für den dein Mailserver bürgt
+
+Die Auszeichnung in einer Mail schreibt, wer die Mail schreibt, und die Von-Zeile beweist nicht, wer
+das war. Eine Buchung wird deshalb nur dann ungefragt in deinen Kalender eingetragen, wenn dein
+Mailserver den Absender geprüft hat und sagt, dass die Von-Adresse echt ist (er hält das im Header
+`Authentication-Results` der Nachricht fest). Dieselbe Prüfung entscheidet, ob eine spätere Mail eine
+Buchung verschieben oder stornieren darf, die du schon hast.
+
+| Konto | Wessen Urteil geglaubt wird |
+|---|---|
+| **Gmail** | Dem von Google. |
+| **Outlook / Microsoft 365** | Dem von Microsoft. |
+| **Andere (IMAP)** | Dem eines Servers auf derselben Domain wie der IMAP-Host des Kontos — `mx.example.org` für ein Konto auf `imap.example.org`. |
+
+Alles andere — ein Absender, der die Prüfung nicht bestanden hat, ein Server, der keine festhält,
+ein Server, den plMail dem Konto nicht zuordnen kann — bekommt dieselbe Karte wie eine Kalenderdatei,
+die keine Einladung an dich ist: *in deinem Kalender wurde nichts eingetragen*, mit **In den
+Kalender** und **Nein danke**. Eine Änderung an einer Buchung, die du schon hast, wird
+zurückgehalten wie die Änderung einer Besprechung, mit **Änderung übernehmen**.
 
 ### Kein Termin
 
@@ -275,6 +317,20 @@ erneuter Lauf ist ungefährlich: Was du verworfen hast, bleibt verworfen, und wa
 hast, wird nicht überschrieben.
 
 ## Fallstricke
+
+**Mail im Spam oder im Papierkorb wird nicht nach Terminen durchsucht.** Eine Einladung oder eine
+Buchung, die dein Anbieter unter Spam abgelegt hat, kommt nicht in den Kalender. Hol die Nachricht
+heraus — **Kein Spam**, oder stell sie aus dem Papierkorb wieder her —, dann wird sie gelesen.
+
+**In einem selbst betriebenen Postfach fragen Buchungen womöglich immer erst.** Vermerkt dein
+IMAP-Server sein Urteil nicht auf eingehender Mail, oder unter einem Namen auf einer anderen Domain
+als der IMAP-Host, hat plMail niemanden, dem es glauben könnte, und jede Buchung kommt als Karte zum
+Annehmen an. Einladungen sind davon nicht betroffen.
+
+**Ein gefälschter Absender lässt sich von einem echten nicht unterscheiden, wo der Server nichts
+meldet.** In so einem Konto wird die Änderung einer Besprechung allein nach ihrer Von-Adresse
+beurteilt, derselben Adresse, nach der du sie beim Lesen der Mail beurteilen würdest. Gmail- und
+Outlook-Konten haben diese Lücke nicht.
 
 **Eine Einladung, die du nicht beantwortet hast, steht nicht in deinem Kalender.** Das ist Absicht
 — siehe oben —, es heißt aber auch, dass eine Woche voller unbeantworteter Anfragen wie eine freie

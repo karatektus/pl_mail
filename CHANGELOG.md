@@ -8,6 +8,29 @@ The published image tags: `latest` follows the most recent release below,
 
 ## Unreleased
 
+### Security
+
+**Mail from the wrong sender can no longer change your calendar.** Reported in
+[#34](https://github.com/karatektus/pl_mail/issues/34). Two holes, neither of which exposed data or
+ran code, both of which let an outsider put misleading entries on a calendar unnoticed.
+
+- **A meeting could be moved or cancelled by anyone who knew its identifier.** Everyone invited to
+  a meeting has that identifier, and so does anyone a copy was forwarded to. A cancellation or an
+  update from any of them was applied, and the changed meeting still showed as accepted. A change is
+  now applied only when it comes from the address that sent the invitation, or from the organiser
+  the event names. From anyone else nothing changes, and a card above the message says so and
+  offers **Apply the change**. The same now protects meetings mirrored from a connected calendar.
+- **A booking in a mail's markup was put on the calendar on the strength of an unchecked From
+  line.** A stranger could add a "flight", and a forged airline address with a real booking number
+  could cancel the real one. A booking is now added unasked only when your mail server vouches for
+  the sender; otherwise it is offered on a card with **Add to calendar**. For IMAP accounts the
+  server's verdict is believed when its name is on the same domain as the IMAP host.
+- **Mail in Spam or the bin is no longer read for events.** A message moved back out is read then.
+
+Nothing already on a calendar is removed or changed by upgrading. One new nullable column,
+`event_source_link.hold_reason`. See
+[Invitations and events from mail](docs/features/calendar-invitations.md).
+
 **Fixed: a fresh install could only be opened on the machine it runs on.** The stock `compose.yaml`
 served `https://localhost` and nothing else. Opened from another machine by address or hostname, the
 browser reported an SSL protocol error, which unlike a certificate warning cannot be clicked

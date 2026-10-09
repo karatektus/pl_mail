@@ -13,6 +13,7 @@ use App\Entity\Calendar\EventSourceLink;
 use App\Entity\Mail\Message;
 use App\Entity\User\User;
 use App\Repository\Calendar\EventSourceLinkRepository;
+use App\Service\Calendar\Extraction\IcsEventExtractor;
 use Symfony\Contracts\Service\ResetInterface;
 
 /**
@@ -145,18 +146,32 @@ final class InviteReader implements ResetInterface
 
         $isCancellation = 'CANCEL' === $method || EventStatus::Cancelled === $event->status;
 
+        $isHeld  = false === $link->applied && EventSourceLink::HOLD_UNVERIFIED === $link->holdReason;
+        // A participation recorded against an event that lists nobody of
+        // ours can only have come from EventReconciler::isOfferedByMail():
+        // an invitation proper always has a row for the reader.
+        $isOffer = false === $isHeld && false === $isCancellation && null === $me && null !== $event->myParticipation;
+
+        // A booking read out of markup has a card only while there is
+        // something to decide about it. One that was simply put on the
+        // calendar — its sender vouched for — has none, as before: the mail
+        // itself is the confirmation.
+        if (IcsEventExtractor::NAME !== $link->extractor && false === $isHeld && false === $isOffer) {
+            return null;
+        }
+
         return new MessageInvite(
             message:        $message,
             event:          $event,
             organiser:      $organiser,
             participants:   $participants,
             me:             $me,
-            isCancellation: $isCancellation,
-            canRespond:     $this->canRespond($method, $organiser, $me, $isCancellation),
-            // A participation recorded against an event that lists nobody of
-            // ours can only have come from EventReconciler::isOfferedByMail():
-            // an invitation proper always has a row for the reader.
-            isOffer:        false === $isCancellation && null === $me && null !== $event->myParticipation,
+            // The event as it stands, which a held message did not get to
+            // change: its own CANCEL is exactly what was not believed.
+            isCancellation: true === $isHeld ? EventStatus::Cancelled === $event->status : $isCancellation,
+            canRespond:     false === $isHeld && $this->canRespond($method, $organiser, $me, $isCancellation),
+            isOffer:        $isOffer,
+            isHeld:         $isHeld,
         );
     }
 

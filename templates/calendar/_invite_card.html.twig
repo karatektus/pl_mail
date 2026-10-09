@@ -106,7 +106,30 @@ Variables:
             {% endif %}
         </div>
 
-        {% if invite.isCancellation %}
+        {% if invite.isHeld %}
+            {# A change this message asked for and did not get — see
+               MessageInvite::$isHeld. Said in a sentence rather than with a
+               warning colour: nothing has gone wrong, and most of the time the
+               message is from a colleague rather than an attacker. One
+               button, a plain form post, so the state after the click is
+               whatever the server says it is. No RSVP beside it: the card
+               shows the event as it stands, and this message is not the one
+               to answer it through. #}
+            <p class="mt-3 text-xs text-ink-muted">
+                <i class="fa-solid fa-circle-info mr-1 text-ink-faint" aria-hidden="true"></i>
+                {{ 'calendar.invite.held.hint'|trans({ '%sender%': invite.message.fromAddress }) }}
+            </p>
+            <form method="post" class="mt-3"
+                  action="{{ path('app_calendar_invite_apply', { id: invite.message.id }) }}">
+                <input type="hidden" name="_token" value="{{ csrf_token('calendar_invite_apply' ~ invite.message.id) }}">
+                <button type="submit"
+                        class="inline-flex items-center gap-1.5 px-3 h-8 rounded-lg text-xs font-medium transition-colors cursor-pointer
+                               border border-line text-ink-muted hover:bg-hover hover:text-ink">
+                    <i class="fa-solid fa-check text-[10px]" aria-hidden="true"></i>
+                    {{ 'calendar.invite.held.apply'|trans }}
+                </button>
+            </form>
+        {% elseif invite.isCancellation %}
             <p class="mt-3 text-xs text-danger">
                 <i class="fa-solid fa-circle-exclamation mr-1" aria-hidden="true"></i>
                 {{ 'calendar.invite.cancelled'|trans }}

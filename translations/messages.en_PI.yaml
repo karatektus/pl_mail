@@ -1351,6 +1351,11 @@ calendar:
             tentative: Belike
         attendees: '%count% called aboard'
         cancelled: This gatherin' has been called off.
+        held:
+            applied: 'Change taken aboard.'
+            apply: 'Take the change aboard'
+            hint: 'This message would change this gatherin'', but it came not from whoever the gatherin'' came from (%sender%). Naught was changed.'
+            not_applied: 'That change could not be taken aboard — a newer one be already in place, or ye have mended the gatherin'' yerself.'
         offer:
             accepted: Mark it on the chart
             declined: Nay, thankee

@@ -10,6 +10,7 @@ use DateTimeImmutable;
 use App\Entity\Mail\Message;
 use App\Entity\Mail\MessageThread;
 use App\Service\Calendar\Extraction\IcsEventExtractor;
+use App\Service\Calendar\Extraction\StructuredDataEventExtractor;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 
@@ -18,6 +19,16 @@ use Doctrine\Persistence\ManagerRegistry;
  */
 class EventSourceLinkRepository extends ServiceEntityRepository
 {
+    /**
+     * The extractors whose claims can put a card above a message.
+     *
+     * An invitation always does. A booking read out of markup does only when
+     * the reader has something to decide about it — it is waiting to be added,
+     * or it tried to change an event and was held (InviteReader decides which)
+     * — but it has to be FOUND to be decided about, so both are read here.
+     */
+    private const array CARD_EXTRACTORS = [IcsEventExtractor::NAME, StructuredDataEventExtractor::NAME];
+
     public function __construct(ManagerRegistry $registry)
     {
         parent::__construct($registry, EventSourceLink::class);
@@ -65,6 +76,51 @@ class EventSourceLinkRepository extends ServiceEntityRepository
      *
      * @return list<string>
      */
+    /**
+     * The From addresses of every message whose claim was applied to this
+     * event, lowercased — "who has this event's content come from so far".
+     *
+     * EventReconciler's question when a later message wants to change the
+     * event: a sender who is in this list is the party the event came from,
+     * and anyone else is a third party who happens to know its UID.
+     *
+     * All of them rather than the first. An invitation sent through a calendar
+     * service and corrected from the organiser's own mailbox has two genuine
+     * senders, and once the second has been applied — which takes the
+     * reader's say-so — it is as much the event's source as the first.
+     *
+     * Asked of every copy the user holds under the UID, not of this row alone.
+     * A copy on a second calendar is a second row with no links of its own:
+     * the mail that made the meeting is filed against the first. Asked of one
+     * row, the copy would know no sender at all, every update would be held
+     * on it while its sibling took the change, and the calendar would draw
+     * one meeting at two different hours — the half-applied update
+     * SharedEventUpdateTest exists to prevent.
+     *
+     * @return list<string>
+     */
+    public function appliedSenders(CalendarEvent $event): array
+    {
+        if (null === $event->usr || '' === (string) $event->uid) {
+            return [];
+        }
+
+        $addresses = $this->createQueryBuilder('link')
+            ->select('DISTINCT LOWER(message.fromAddress)')
+            ->join('link.message', 'message')
+            ->join('link.event', 'event')
+            ->where('event.uid = :uid')
+            ->andWhere('event.usr = :usr')
+            ->andWhere('link.applied = true')
+            ->andWhere('message.fromAddress IS NOT NULL')
+            ->setParameter('uid', $event->uid)
+            ->setParameter('usr', $event->usr)
+            ->getQuery()
+            ->getSingleColumnResult();
+
+        return array_values(array_map(strval(...), $addresses));
+    }
+
     public function findDedupKeysForEvent(CalendarEvent $event): array
     {
         // An event that has never been flushed cannot be bound as a parameter,
@@ -110,9 +166,9 @@ class EventSourceLinkRepository extends ServiceEntityRepository
             ->join('link.event', 'event')
             ->join('event.calendar', 'calendar')
             ->where('message.thread = :thread')
-            ->andWhere('link.extractor = :extractor')
+            ->andWhere('link.extractor IN (:extractors)')
             ->setParameter('thread', $thread)
-            ->setParameter('extractor', IcsEventExtractor::NAME)
+            ->setParameter('extractors', self::CARD_EXTRACTORS)
             ->orderBy('link.id', 'ASC')
             ->getQuery()
             ->getResult();
@@ -131,9 +187,9 @@ class EventSourceLinkRepository extends ServiceEntityRepository
             ->join('link.event', 'event')
             ->join('event.calendar', 'calendar')
             ->where('link.message = :message')
-            ->andWhere('link.extractor = :extractor')
+            ->andWhere('link.extractor IN (:extractors)')
             ->setParameter('message', $message)
-            ->setParameter('extractor', IcsEventExtractor::NAME)
+            ->setParameter('extractors', self::CARD_EXTRACTORS)
             ->orderBy('link.id', 'ASC')
             ->getQuery()
             ->getResult();

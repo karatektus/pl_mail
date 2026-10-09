@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Infrastructure\Messaging\Handler;
 
+use App\Domain\Enum\Mail\LabelRole;
+use App\Entity\Mail\Message;
 use App\Entity\User\User;
 use App\Infrastructure\Messaging\Message\ExtractEventsMessage;
 use App\Repository\Mail\MessageRepository;
@@ -21,6 +23,15 @@ use Symfony\Component\Messenger\Attribute\AsMessageHandler;
  * per-message: one unparseable invite must not cost the batch, and the whole
  * batch must not be retried for it, because a message that cannot be parsed
  * will not parse on the second attempt either.
+ *
+ * MAIL IN SPAM OR THE BIN IS NOT READ FOR EVENTS. It used to be, which meant
+ * the one folder a provider puts mail it distrusts in was a way onto the
+ * calendar: an invitation or a booking filed under Spam was extracted like any
+ * other, and the reader found a meeting they had never seen mail about
+ * (issue #34). Checked here, at the moment of extraction, rather than where
+ * the batch is queued — a message can be moved between the two, and the
+ * question is where it is now. A message later taken OUT of Spam is read then:
+ * ThreadStatusUpdater::restore() queues it again.
  */
 #[AsMessageHandler]
 final readonly class ExtractEventsHandler
@@ -47,6 +58,10 @@ final readonly class ExtractEventsHandler
             if (null === $mail) {
                 // Deleted between the dispatch and the run. Normal, not an
                 // error: the batch is queued while the mailbox keeps moving.
+                continue;
+            }
+
+            if (true === $this->isDiscarded($mail)) {
                 continue;
             }
 
@@ -114,5 +129,17 @@ final readonly class ExtractEventsHandler
             'messages' => count($message->messageIds),
             'events'   => $found,
         ]);
+    }
+
+    /** In Spam or in the bin — see the class docblock. */
+    private function isDiscarded(Message $mail): bool
+    {
+        foreach ($mail->labels as $label) {
+            if (LabelRole::Spam === $label->role || LabelRole::Trash === $label->role) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

@@ -1,4 +1,4 @@
-<!-- translated-from: internals/event-extraction.md sha1:b0e440ab7375ede4a676e3318de2cca2e2a3aaea -->
+<!-- translated-from: internals/event-extraction.md sha1:8c058a6ccdf39d1a56836321655acee9c4e3404e -->
 # Extraktion von Terminen
 
 Wie aus einer `.ics`-Einladung ein Kalendereintrag wird, wie aus einem gewöhnlichen Satz das
@@ -183,7 +183,7 @@ meist über eine Konversation verteilt und nicht immer der Reihe nach. Das falsc
 sich als drei Kopien eines Abendessens oder als eine Besprechung, die sich klammheimlich selbst
 wieder absagt, weil eine ältere Mail zuletzt synchronisiert wurde.
 
-Sechs Regeln, jede davon, weil die naheliegende Alternative schlechter ist:
+Sieben Regeln, jede davon, weil die naheliegende Alternative schlechter ist:
 
 1. **Die Identität ist die UID, eindeutig pro Kalender.** Bei einer Einladung ist das die eigene
    UID des Absenders, wortwörtlich.
@@ -203,6 +203,34 @@ Sechs Regeln, jede davon, weil die naheliegende Alternative schlechter ist:
 6. **Und ebenso wenig ein Termin, für den das hier nie zuständig war.**
    `EventSource::mayBeRewrittenByMail()` zieht diese Grenze, und die Behauptung wird trotzdem
    beim Termin abgelegt, damit die Beweiskette erhalten bleibt.
+7. **Eine Behauptung wird nur dann ungefragt angewendet, wenn sie von dort kommt, woher der
+   Termin kam.** Die sechs Regeln oben entscheiden, welche Revision gewinnt, und sagen nichts
+   darüber, wer eine schicken darf, und eine UID ist kein Geheimnis: Jeder Eingeladene hat sie.
+   `EventReconciler::mayApplyUnasked()` fragt nach dem **Absender der Mail** — nie nach der
+   `ORGANIZER`-Zeile, die ein Fälscher abschreibt. Die Aktualisierung einer Einladung muss von
+   einer Adresse kommen, von der schon eine auf den Termin angewendete Behauptung kam
+   (`EventSourceLinkRepository::appliedSenders()`, über jede Kopie unter der UID gefragt), oder
+   von der Organisation, die der Termin nennt; die einer Buchung braucht ein
+   `SenderVerdict::Pass` von `App\Service\Mail\SenderAuthentication`. Ein `Fail` lehnt alles
+   ab, die eigene Adresse der Besitzerin eingeschlossen. Eine abgelehnte Behauptung wird
+   **zurückgehalten**: abgelegt mit `applied = false` und `holdReason = unverified`, auf der
+   Einladungskarte gezeigt und von `InviteController::apply()` angewendet, das die Extraktion
+   mit `confirmed: true` erneut laufen lässt.
+
+`SenderAuthentication` prüft selbst nichts. Es liest den Header `Authentication-Results` des
+empfangenden Servers, und seine ganze Aufgabe ist zu entscheiden, welchem solchen Header zu
+glauben ist, denn ein Absender kann auch einen schreiben: `mx.google.com` bei Gmail, der eine
+namenlose Header bei Microsoft, und bei IMAP ein Server auf derselben registrierbaren Domain wie
+der IMAP-Host des Kontos. Bestanden ist `dmarc=pass` oder ein DKIM- oder SPF-Pass, der zur
+Von-Domain **passt**.
+
+Dasselbe Urteil entscheidet über das Anlegen. Eine Buchung, für deren Absender niemand bürgt,
+wird als Angebot angelegt (`myParticipation = NeedsAction`, nicht gezeichnet), genau wie eine
+Kalenderdatei, die hier niemanden nennt — `EventReconciler::isOfferedByMail()`.
+
+`ExtractEventsHandler` überspringt eine Nachricht, die in dem Moment, in dem er läuft, im Spam
+oder im Papierkorb liegt, und `ThreadStatusUpdater::restore()` reiht eine Nachricht zur
+Extraktion ein, wenn sie wieder herauskommt.
 
 Wohin der Termin geht, entscheidet
 `App\Service\Calendar\ExtractedEventCalendarResolver`: auf den **Standardkalender** der

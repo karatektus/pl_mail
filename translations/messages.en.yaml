@@ -1434,6 +1434,11 @@ calendar:
             tentative: Maybe
         attendees: '%count% invited'
         cancelled: This meeting has been called off.
+        held:
+            applied: 'Change applied.'
+            apply: 'Apply the change'
+            hint: 'This message asks to change this event, but it was not sent by whoever the event came from (%sender%). Nothing was changed.'
+            not_applied: 'That change could not be applied — a newer one is already in place, or you have edited the event yourself.'
         offer:
             accepted: Add to calendar
             declined: No thanks

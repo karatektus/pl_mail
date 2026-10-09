@@ -6,6 +6,8 @@ namespace App\Service\Calendar;
 
 use App\Domain\Enum\Calendar\EventStatus;
 use App\Domain\Enum\Calendar\ParticipationStatus;
+use App\Domain\Enum\Mail\SenderVerdict;
+use App\Domain\Helper\AddressHelper;
 use App\Entity\Calendar\CalendarEvent;
 use App\Entity\Calendar\EventSourceLink;
 use App\Entity\Mail\Message;
@@ -15,6 +17,7 @@ use App\Repository\Calendar\EventSourceLinkRepository;
 use App\Repository\Calendar\EventSuppressionRepository;
 use App\Service\Calendar\Extraction\ExtractedEvent;
 use App\Service\Calendar\Extraction\IcsEventExtractor;
+use App\Service\Mail\SenderAuthentication;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 
@@ -26,7 +29,7 @@ use Psr\Log\LoggerInterface;
  * wrong shows up as three copies of one dinner, or a meeting that quietly
  * un-cancels itself because an older mail was synced last.
  *
- * Six rules, each of which exists because the obvious alternative is worse:
+ * Seven rules, each of which exists because the obvious alternative is worse:
  *
  *   Identity is the uid, unique per calendar. For an invite that is the
  *   sender's own UID, verbatim — RFC 5546 settled this and re-deciding it
@@ -52,6 +55,18 @@ use Psr\Log\LoggerInterface;
  *   one — EventSource::mayBeRewrittenByMail() is where that line is drawn, and
  *   the claim is still filed against the event so the audit trail survives.
  *
+ *   A claim is only applied unasked when it comes from where the event came
+ *   from. Everything above decides WHICH revision wins and says nothing about
+ *   WHO may send one, and for a long time nobody was asked: an event is found
+ *   by its UID, and a UID is not a secret — everyone invited holds it, and so
+ *   does anyone a copy was forwarded to. Any of them could mail in a CANCEL
+ *   or a REQUEST with a higher SEQUENCE and a different meeting link, and it
+ *   was applied, with the reader's earlier "accepted" carried over on top
+ *   (issue #34). mayApplyUnasked() is the rule and its docblock is the
+ *   reasoning; a claim it turns down is HELD — filed against the event,
+ *   marked, and offered on the message's card — never dropped, because the
+ *   rule is a judgment about a sender and the reader may know better.
+ *
  * Does not flush — it joins the caller's unit of work.
  */
 final readonly class EventReconciler
@@ -65,6 +80,7 @@ final readonly class EventReconciler
         private CalendarEventWriter            $writer,
         private RecurrenceRuleConverter        $recurrence,
         private RecurrenceMaterialiser         $materialiser,
+        private SenderAuthentication           $authentication,
         private EntityManagerInterface         $em,
         private LoggerInterface                $logger,
     ) {
@@ -73,9 +89,16 @@ final readonly class EventReconciler
     /**
      * @param list<ExtractedEvent> $extracted
      *
+     * @param bool $confirmed the reader has looked at this message's claim and
+     *                        said to apply it — the "apply anyway" on a held
+     *                        claim's card. It answers the one question
+     *                        mayApplyUnasked() asks and no other: a confirmed
+     *                        claim still loses to a newer revision, and still
+     *                        does not touch an event the reader edited.
+     *
      * @return list<CalendarEvent> the events this message created or changed
      */
-    public function reconcile(Message $message, array $extracted): array
+    public function reconcile(Message $message, array $extracted, bool $confirmed = false): array
     {
         if ([] === $extracted) {
             return [];
@@ -130,7 +153,7 @@ final readonly class EventReconciler
             $existing = $this->copiesOf($user, $calendar, $claim->uid);
 
             if ([] === $existing) {
-                $touched[] = $this->create($claim, $calendar, $user, $message);
+                $touched[] = $this->create($claim, $calendar, $user, $message, $confirmed);
 
                 continue;
             }
@@ -143,8 +166,8 @@ final readonly class EventReconciler
                 // instance-only invitation that became a one-off row of its own
                 // is simply updated, as before.
                 $event = null !== $claim->recurrenceId && true === $this->repeats($copy)
-                    ? $this->updateInstance($copy, $claim, $message)
-                    : $this->update($copy, $claim, $message);
+                    ? $this->updateInstance($copy, $claim, $message, $confirmed)
+                    : $this->update($copy, $claim, $message, $confirmed);
 
                 if (null !== $event) {
                     $touched[] = $event;
@@ -184,17 +207,18 @@ final readonly class EventReconciler
         object         $calendar,
         User           $user,
         Message        $message,
+        bool           $confirmed,
     ): CalendarEvent {
         $event      = new CalendarEvent();
         $event->uid = $claim->uid;
 
-        $this->apply($event, $claim, $calendar, $user, $message);
+        $this->apply($event, $claim, $calendar, $user, $message, $confirmed);
         $this->link($event, $claim, $message, applied: true);
 
         return $event;
     }
 
-    private function update(CalendarEvent $event, ExtractedEvent $claim, Message $message): ?CalendarEvent
+    private function update(CalendarEvent $event, ExtractedEvent $claim, Message $message, bool $confirmed): ?CalendarEvent
     {
         // Asked before isUserEdited, and not covered by it: that flag is only
         // ever set on an event that was extracted in the first place
@@ -232,7 +256,17 @@ final readonly class EventReconciler
             return null;
         }
 
-        $this->apply($event, $claim, $event->calendar, $event->usr, $message);
+        // After the three guards above, deliberately. Those are outcomes
+        // nobody is asked about — the reader's own edit stands, an older
+        // revision stays filed — and holding first would put "apply anyway"
+        // on a card for a claim that could not have been applied anyway.
+        if (false === $confirmed && false === $this->mayApplyUnasked($event, $claim, $message)) {
+            $this->hold($event, $claim, $message);
+
+            return null;
+        }
+
+        $this->apply($event, $claim, $event->calendar, $event->usr, $message, $confirmed);
         $this->link($event, $claim, $message, applied: true);
 
         return $event;
@@ -252,7 +286,7 @@ final readonly class EventReconciler
      * the instance's own start, length and title, keyed where the rule put the
      * instance, which is exactly what RecurrenceMaterialiser looks up.
      */
-    private function updateInstance(CalendarEvent $event, ExtractedEvent $claim, Message $message): ?CalendarEvent
+    private function updateInstance(CalendarEvent $event, ExtractedEvent $claim, Message $message, bool $confirmed): ?CalendarEvent
     {
         $recurrenceId = $claim->recurrenceId ?? throw new \LogicException('Not an instance claim.');
 
@@ -262,6 +296,14 @@ final readonly class EventReconciler
             || $claim->sequence < $event->sequence
         ) {
             $this->link($event, $claim, $message, applied: false, instance: true);
+
+            return null;
+        }
+
+        // One instance moved or struck out is as much somebody else's meeting
+        // changed as the whole series is. Same rule, same place in the order.
+        if (false === $confirmed && false === $this->mayApplyUnasked($event, $claim, $message)) {
+            $this->hold($event, $claim, $message, instance: true);
 
             return null;
         }
@@ -328,6 +370,129 @@ final readonly class EventReconciler
     }
 
     /**
+     * May this message change an event that already exists, without the
+     * reader being asked?
+     *
+     * RFC 5546 §3.2 gives REQUEST and CANCEL to the organiser alone, and for
+     * years this class read the method and never checked who was using it.
+     *
+     * The rule is about the SENDER OF THE MAIL, not the ORGANIZER line inside
+     * the calendar file. That line is the attacker's to write: a forged update
+     * names the real organiser, because the file it was copied from did.
+     *
+     *   No, if a believed server looked at the message and could not vouch
+     *   for its From (SenderVerdict::Fail). Nothing below is worth asking
+     *   about a From line that is itself not real — including "is it the
+     *   reader's own address", which is exactly what a forger would write.
+     *
+     *   Yes, for the reader's own mail. A change they sent is in their Sent
+     *   folder because they made it.
+     *
+     *   For an invitation: yes, when the sender is one this event's content
+     *   has already come from, or is the organiser the event already names.
+     *   "Already come from" rather than "is the organiser", because the two
+     *   routinely differ and the first is the one that holds: a calendar
+     *   service sends invitations from an address of its own, and it sends
+     *   the updates from the same one. An event that came from a connected
+     *   calendar has no such mail behind it, which is what the organiser half
+     *   is for.
+     *
+     *   For anything else — a booking read out of markup — yes only on a
+     *   Pass. Its identity is the issuer's domain plus a reservation number
+     *   that is printed on boarding passes; the domain is all that stands
+     *   between a stranger and somebody's flight, so it has to be real.
+     *
+     * What this does not catch, and cannot: a forged From on an account whose
+     * server reports nothing (SenderVerdict::Unknown) is indistinguishable
+     * from the genuine sender. Holding every such update would hold every
+     * update a self-hosted mailbox receives, so there the address is taken at
+     * its word — the same word the reader takes it at when they read the mail.
+     */
+    private function mayApplyUnasked(CalendarEvent $event, ExtractedEvent $claim, Message $message): bool
+    {
+        $verdict = $this->authentication->verdict($message);
+
+        if (SenderVerdict::Fail === $verdict) {
+            return false;
+        }
+
+        $sender = AddressHelper::email($message->fromAddress);
+
+        if ('' === $sender) {
+            return false;
+        }
+
+        if (true === $this->isOwn($sender, $message)) {
+            return true;
+        }
+
+        if (IcsEventExtractor::NAME !== $claim->extractor) {
+            return SenderVerdict::Pass === $verdict;
+        }
+
+        return true === in_array($sender, $this->knownSenders($event), true);
+    }
+
+    /**
+     * Everyone this event's content may come from without asking: the senders
+     * of the claims already applied to it, and the organiser it names.
+     *
+     * @return list<string> lowercased addresses
+     */
+    private function knownSenders(CalendarEvent $event): array
+    {
+        $known = $this->links->appliedSenders($event);
+
+        // The half the repository cannot see: a link this unit of work has
+        // queued. An invitation and its update land in one batch whenever a
+        // mailbox is imported, and the update must recognise the invitation
+        // that was read a moment before it.
+        foreach ($this->em->getUnitOfWork()->getScheduledEntityInsertions() as $queued) {
+            if (true === $queued instanceof EventSourceLink
+                && null !== $queued->event
+                && $queued->event->uid === $event->uid
+                && $queued->event->usr === $event->usr
+                && true === $queued->applied) {
+                $known[] = AddressHelper::email($queued->message?->fromAddress);
+            }
+        }
+
+        foreach ($event->jscalendar['participants'] ?? [] as $participant) {
+            if (true === is_array($participant) && true === ($participant['roles']['owner'] ?? false)) {
+                $known[] = AddressHelper::email((string) ($participant['email'] ?? ''));
+            }
+        }
+
+        return array_values(array_unique(array_filter($known, static fn (string $address): bool => '' !== $address)));
+    }
+
+    private function isOwn(string $sender, Message $message): bool
+    {
+        return true === in_array(
+            $sender,
+            array_map(static fn (string $owned): string => AddressHelper::email($owned), $message->account->ownedAddresses),
+            true,
+        );
+    }
+
+    /**
+     * File a claim that was turned down by mayApplyUnasked(): against the
+     * event, unapplied, and marked so the card can say why and offer to apply
+     * it.
+     */
+    private function hold(CalendarEvent $event, ExtractedEvent $claim, Message $message, bool $instance = false): void
+    {
+        $this->logger->info('EventReconciler: holding a claim from a sender the event did not come from', [
+            'eventId'   => $event->id,
+            'uid'       => $event->uid,
+            'messageId' => $message->id,
+            'extractor' => $claim->extractor,
+        ]);
+
+        $this->link($event, $claim, $message, applied: false, instance: $instance, hold: EventSourceLink::HOLD_UNVERIFIED);
+    }
+
+    /**
      * A calendar file somebody else mailed in, naming nobody here.
      *
      * An appointment attached by a recruiter, a published calendar entry, an
@@ -343,28 +508,38 @@ final readonly class EventReconciler
      *   the owner's own mail. A file they sent is in Sent for the reason they
      *   sent it, and asking them to accept it is absurd;
      *
-     *   anything that is not calendar data from the sender. A booking read out
-     *   of markup has no card to answer on and is confirmed by its own mail;
+     *   a booking read out of markup whose sender a believed server vouches
+     *   for. It is confirmed by its own mail, and asking about every flight
+     *   would be asking about the one kind of entry people want unasked;
      *
      *   an event that is ALREADY on the calendar with nothing recorded against
      *   it. It was drawn under the old rule, and re-reading stored mail must
      *   not take things off a calendar that somebody has been looking at.
+     *
+     * A booking whose sender is NOT vouched for is this, though, and that is
+     * the other half of issue #34. Markup in a mail body is a claim by whoever
+     * wrote the body, keyed on a From line nobody had checked, and it used to
+     * be drawn at once: a stranger's "flight" on the calendar, with a title,
+     * time and place of their choosing. It is held like the calendar file is.
      */
     private function isOfferedByMail(CalendarEvent $event, ExtractedEvent $claim, Message $message): bool
     {
-        if (IcsEventExtractor::NAME !== $claim->extractor) {
-            return false;
-        }
-
         if (null !== $event->id && null === $event->myParticipation) {
             return false;
         }
 
-        $owned  = $message->account->ownedAddresses;
-        $sender = mb_strtolower(trim((string) $message->fromAddress));
+        $owned   = $message->account->ownedAddresses;
+        $sender  = AddressHelper::email($message->fromAddress);
+        $verdict = $this->authentication->verdict($message);
 
-        if (true === in_array($sender, $owned, true)) {
+        // Asked before "is it their own", for the reason mayApplyUnasked()
+        // gives: on a From that failed, their own address is the forgery.
+        if (SenderVerdict::Fail !== $verdict && true === $this->isOwn($sender, $message)) {
             return false;
+        }
+
+        if (IcsEventExtractor::NAME !== $claim->extractor) {
+            return SenderVerdict::Pass !== $verdict;
         }
 
         return $this->participation->namesNobodyHere($claim->jscalendar, $owned);
@@ -376,6 +551,7 @@ final readonly class EventReconciler
         object         $calendar,
         User           $user,
         Message        $message,
+        bool           $confirmed = false,
     ): void {
         // Before write(), because write() materialises — and whether an
         // invitation is drawn at all is decided by this field. Setting it
@@ -391,7 +567,9 @@ final readonly class EventReconciler
         // and the answer being decided here is the one this message states.
         $incoming = $this->participation->resolve($claim->jscalendar, $message->account->ownedAddresses);
 
-        if (null === $incoming && true === $this->isOfferedByMail($event, $claim, $message)) {
+        // A confirmed claim is one the reader has already said yes to; it is
+        // not offered to them a second time.
+        if (null === $incoming && false === $confirmed && true === $this->isOfferedByMail($event, $claim, $message)) {
             $incoming = ParticipationStatus::NeedsAction;
         }
 
@@ -474,6 +652,7 @@ final readonly class EventReconciler
         Message        $message,
         bool           $applied,
         bool           $instance = false,
+        ?string        $hold = null,
     ): void {
         $existing = $this->links->findOneBy([
             'event'     => $event,
@@ -494,6 +673,9 @@ final readonly class EventReconciler
         $link->confidence  = $claim->confidence;
         $link->dedupKey    = $claim->dedupKey;
         $link->applied     = $applied;
+        // Set on every write, null included: a held claim the reader then
+        // applies goes through here again and must stop saying it is held.
+        $link->holdReason  = $hold;
         $link->payload     = $claim->sourcePayload;
 
         $this->em->persist($link);

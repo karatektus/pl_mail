@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace App\Service\Mail;
 
+use Symfony\Component\Messenger\Stamp\DelayStamp;
+use App\Service\Mail\PostIngest\EnrichmentRouter;
+use App\Infrastructure\Messaging\Message\ExtractEventsMessage;
 use App\Domain\DTO\Mail\RemoteFlagState;
 use App\Domain\Enum\Mail\LabelRole;
 use App\Domain\Enum\Mail\MessageCategory;
@@ -52,6 +55,9 @@ use Symfony\Component\Messenger\MessageBusInterface;
  */
 final readonly class ThreadStatusUpdater
 {
+    /** How long a restored message waits before it is read for events — see restore(). */
+    private const int REREAD_DELAY_MS = 5000;
+
     /**
      * How long a local flag change is allowed to stay unconfirmed before the
      * provider's answer outranks it again.
@@ -262,6 +268,29 @@ final readonly class ThreadStatusUpdater
         $this->propagator->restore($messages);
 
         $inboxMailbox = $inboxLabel->bindingFor($account)?->mailbox;
+
+        // Mail in Spam or the bin is not read for calendar events
+        // (ExtractEventsHandler), so a message coming back out has never been
+        // read for them — and an invitation the provider misfiled would stay
+        // invisible to the calendar for good. Collected before the labels
+        // move, which is the only moment "was it in there?" can be asked.
+        $unread = [];
+
+        foreach ($messages as $message) {
+            if (null !== $message->id && (true === $message->labels->contains($spamLabel) || true === $message->labels->contains($trashLabel))) {
+                $unread[] = (int) $message->id;
+            }
+        }
+
+        if ([] !== $unread) {
+            // Held back a few seconds: the caller has not flushed yet, and a
+            // worker that got there first would still find the message in
+            // Spam and skip it again.
+            $this->bus->dispatch(
+                new ExtractEventsMessage($unread),
+                [...EnrichmentRouter::live(), new DelayStamp(self::REREAD_DELAY_MS)],
+            );
+        }
 
         foreach ($messages as $message) {
             $message->addLabel($inboxLabel);

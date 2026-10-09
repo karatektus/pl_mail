@@ -55,6 +55,9 @@ use Symfony\Component\DependencyInjection\Attribute\AutowireIterator;
  */
 final readonly class StructuredDataEventExtractor implements EventExtractorInterface
 {
+    /** The name its claims are filed under — EventSourceLink::$extractor. */
+    public const string NAME = 'structuredData';
+
     /** Exact fields, inexact meanings. See the class docblock. */
     private const int CONFIDENCE = 90;
 
@@ -203,7 +206,7 @@ final readonly class StructuredDataEventExtractor implements EventExtractorInter
             jscalendar:    $this->toJsCalendar($hash, $mapped, $endsAt, $title, $location, $status),
             startsAt:      $mapped->startsAt,
             endsAt:        $endsAt,
-            extractor:     'structuredData',
+            extractor:     self::NAME,
             source:        EventSource::StructuredData,
             confidence:    self::CONFIDENCE,
             title:         $title,

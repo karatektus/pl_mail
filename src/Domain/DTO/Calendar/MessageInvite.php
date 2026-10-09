@@ -47,6 +47,16 @@ final readonly class MessageInvite
          * reader says so. The card offers to add it, and no reply is sent.
          */
         public bool                $isOffer = false,
+        /**
+         * This message asked to change or cancel the event and was not
+         * believed: it did not come from whoever the event came from, or its
+         * sender could not be authenticated (EventReconciler, issue #34).
+         * Nothing was changed. The card says so and offers to apply the change
+         * anyway, and offers nothing else — answering an invitation on the
+         * strength of a message that was just turned down would be believing
+         * it after all.
+         */
+        public bool                $isHeld = false,
     ) {
     }
 

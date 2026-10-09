@@ -163,7 +163,7 @@ where a booking's life happens — a confirmation, then a change, then a cancell
 across a thread and not always in order. Getting it wrong shows up as three copies of one
 dinner, or a meeting that quietly un-cancels itself because an older mail was synced last.
 
-Six rules, each because the obvious alternative is worse:
+Seven rules, each because the obvious alternative is worse:
 
 1. **Identity is the UID, unique per calendar.** For an invite that is the sender's own UID,
    verbatim.
@@ -182,6 +182,30 @@ Six rules, each because the obvious alternative is worse:
 6. **Nor is an event this was never responsible for.** `EventSource::mayBeRewrittenByMail()`
    draws that line, and the claim is still filed against the event so the audit trail
    survives.
+7. **A claim is only applied unasked when it comes from where the event came from.** The six
+   rules above decide which revision wins and say nothing about who may send one, and a UID is
+   not a secret: every invitee holds it. `EventReconciler::mayApplyUnasked()` asks about the
+   **sender of the mail** — never the `ORGANIZER` line, which a forger copies. An invitation's
+   update must come from an address a claim already applied to the event came from
+   (`EventSourceLinkRepository::appliedSenders()`, asked across every copy under the UID) or
+   from the organiser the event names; a booking's must carry a `SenderVerdict::Pass` from
+   `App\Service\Mail\SenderAuthentication`. A `Fail` refuses everything, the owner's own
+   address included. A refused claim is **held**: filed with `applied = false` and
+   `holdReason = unverified`, shown on the invite card, and applied by
+   `InviteController::apply()` re-running the extraction with `confirmed: true`.
+
+`SenderAuthentication` does no checking of its own. It reads the receiving server's
+`Authentication-Results` header and its whole job is deciding which such header to believe,
+since a sender can write one too: `mx.google.com` for Gmail, the single nameless header for
+Microsoft, and for IMAP a server on the same registrable domain as the account's IMAP host.
+A pass is `dmarc=pass`, or a DKIM or SPF pass **aligned** with the From domain.
+
+The same verdict gates creation. A booking whose sender is not vouched for is created as an
+offer (`myParticipation = NeedsAction`, not drawn), exactly as a calendar file naming nobody
+here is — `EventReconciler::isOfferedByMail()`.
+
+`ExtractEventsHandler` skips a message that is in Spam or the bin at the moment it runs, and
+`ThreadStatusUpdater::restore()` queues a message for extraction when it comes back out.
 
 Where the event goes is `App\Service\Calendar\ExtractedEventCalendarResolver`: the user's
 **default calendar**, with `Account::SETTING_CALENDAR_TARGET` as an override for anyone who

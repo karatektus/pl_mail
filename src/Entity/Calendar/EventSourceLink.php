@@ -81,6 +81,26 @@ class EventSourceLink
     public bool $applied = true;
 
     /**
+     * Why a claim that would otherwise have been applied was not, when the
+     * reason is one the reader can overrule. Null for everything else — an
+     * applied claim, and one that lost to a newer revision or to the user's
+     * own edit, which nobody is asked about.
+     *
+     * Today there is one value, HOLD_UNVERIFIED: the message did not come from
+     * whoever the event came from, or its sender could not be authenticated
+     * (EventReconciler, issue #34). The invite card reads this to say so and
+     * to offer "apply anyway"; `applied = false` alone could not tell it from
+     * an update that was merely out of date.
+     *
+     * A string rather than a boolean because the next reason to hold a claim
+     * will want its own sentence on the card.
+     */
+    #[ORM\Column(length: 32, nullable: true)]
+    public ?string $holdReason = null;
+
+    public const string HOLD_UNVERIFIED = 'unverified';
+
+    /**
      * The extracted fragment, verbatim.
      *
      * @var array<string,mixed>

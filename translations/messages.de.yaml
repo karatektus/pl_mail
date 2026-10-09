@@ -1460,6 +1460,11 @@ calendar:
             tentative: Vielleicht
         attendees: '%count% eingeladen'
         cancelled: Dieser Termin wurde abgesagt.
+        held:
+            applied: 'Änderung übernommen.'
+            apply: 'Änderung übernehmen'
+            hint: 'Diese Nachricht will diesen Termin ändern, kommt aber nicht von dem Absender, von dem der Termin stammt (%sender%). Es wurde nichts geändert.'
+            not_applied: 'Die Änderung ließ sich nicht übernehmen — eine neuere ist schon eingetragen, oder du hast den Termin selbst bearbeitet.'
         offer:
             accepted: In den Kalender
             declined: Nein danke

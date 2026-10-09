@@ -9,6 +9,9 @@ use App\Domain\DTO\Calendar\MessageInvite;
 use App\Domain\Enum\Calendar\ParticipationStatus;
 use App\Entity\Mail\Message;
 use App\Entity\User\User;
+use App\Service\Calendar\CalendarNotifier;
+use App\Service\Calendar\EventReconciler;
+use App\Service\Calendar\Extraction\EventExtractionRunner;
 use App\Service\Calendar\InviteReader;
 use App\Service\Calendar\InviteResponder;
 use Doctrine\ORM\EntityManagerInterface;
@@ -41,6 +44,9 @@ final class InviteController extends AbstractController
     public function __construct(
         private readonly InviteReader           $invites,
         private readonly InviteResponder        $responder,
+        private readonly EventExtractionRunner  $runner,
+        private readonly EventReconciler        $reconciler,
+        private readonly CalendarNotifier       $notifier,
         private readonly EntityManagerInterface $em,
     ) {
     }
@@ -108,6 +114,50 @@ final class InviteController extends AbstractController
     }
 
     // ── Private ───────────────────────────────────────────────────────────────
+
+    /**
+     * "Apply the change" on a held card: the reader overrules the rule that
+     * turned this message's claim down.
+     *
+     * The claim is not stored in a form that can be replayed — a link records
+     * that it was made, not what it said — so the message is read again and
+     * reconciled with `confirmed`. That is the same extraction that ran when it
+     * arrived, over the same stored message, so what is applied is what was
+     * held and not something the page posted.
+     *
+     * `confirmed` answers "may this sender change the event" and nothing else.
+     * A held change that a newer one has since overtaken still loses to it,
+     * and the toast says the change could not be applied rather than
+     * pretending it was.
+     */
+    #[Route('/{id}/apply', name: 'apply', requirements: ['id' => '\d+'], methods: ['POST'])]
+    public function apply(Request $request, Message $message, #[CurrentUser] User $user): Response
+    {
+        $this->assertCsrf($request, 'calendar_invite_apply' . $message->id);
+
+        $invite = $this->invites->forMessage($message, $user);
+
+        if (null === $invite) {
+            throw $this->createNotFoundException();
+        }
+
+        if (false === $invite->isHeld) {
+            throw $this->createAccessDeniedException();
+        }
+
+        $touched = $this->reconciler->reconcile($message, $this->runner->run($message), confirmed: true);
+        $this->em->flush();
+
+        if ([] !== $touched) {
+            $this->notifier->publishCalendarChanged($user);
+        }
+
+        return $this->render('calendar/_invite_response.stream.html.twig', [
+            'invite'       => $this->reread($message, $user),
+            'toastMessage' => [] !== $touched ? 'calendar.invite.held.applied' : 'calendar.invite.held.not_applied',
+            'toastType'    => [] !== $touched ? 'success' : 'error',
+        ], new Response(headers: ['Content-Type' => 'text/vnd.turbo-stream.html']));
+    }
 
     private function reread(Message $message, User $user): ?MessageInvite
     {
