@@ -1,4 +1,4 @@
-<!-- translated-from: install/docker.md sha1:c5abef947d51031887eb536d6c09b3784406aa96 -->
+<!-- translated-from: install/docker.md sha1:6a1b5ac4bb8a1c96bf13c943ef14a18ab8ce0cbf -->
 # Installation mit Docker Compose
 
 Der unterstützte Weg, von Anfang bis Ende: was du brauchst, was `docker compose up` tatsächlich tut,
@@ -57,6 +57,12 @@ docker compose up -d
 
 Öffne dann [https://localhost](https://localhost).
 
+Auf einer Maschine ohne eigenen Browser öffnest du von einer anderen aus `https://` und die Adresse
+oder den Hostnamen dieser Maschine — etwa `https://192.168.1.20`. In beiden Fällen hat der Container
+das Zertifikat selbst signiert; der Browser warnt also einmal und lässt dich weitermachen. Für ein
+Zertifikat, dem Browser vertrauen, setz `SERVER_NAME` auf eine Domain, die auf diese Maschine zeigt,
+oder stell einen [Reverse-Proxy](reverse-proxy.md) davor.
+
 **Schließe die Einrichtung ab, bevor du irgendetwas anderes machst.** Solange es noch keinen Nutzer
 gibt, steht `/install` jedem offen, der die Instanz erreicht — genau so legst du dein eigenes Konto
 an, und genau so wird jemand anderes zum Administrator, wenn er schneller da ist. Das ist der
@@ -85,7 +91,9 @@ die du kennen solltest:
    anschließend ein VAPID-Schlüsselpaar sowie das JMAP-JWT-Schlüsselpaar, falls diese fehlen.
 5. **Caddy nimmt den Betrieb auf.** Der `php`-Container veröffentlicht 80/tcp, 443/tcp und 443/udp —
    umlegbar über `HTTP_PORT`, `HTTPS_PORT` und `HTTP3_PORT` — und bedient die Namen aus
-   `SERVER_NAME`, das `compose.yaml` auf `localhost, php:80` setzt. Außerdem leitet er
+   `SERVER_NAME`, das `compose.yaml` auf `localhost, :443, php:80` setzt: `localhost` ist der Name,
+   für den das selbstsignierte Zertifikat ausgestellt wird, und `:443` beantwortet jeden anderen
+   Namen und jede andere Adresse mit demselben Zertifikat. Außerdem leitet er
    `/.well-known/mercure*` an den Hub-Container weiter, sodass der Browser den Hub auf derselben
    Origin erreicht und kein CORS nötig ist.
 

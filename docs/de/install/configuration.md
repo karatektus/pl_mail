@@ -1,4 +1,4 @@
-<!-- translated-from: install/configuration.md sha1:cb3491e232974eac33e32f1e9ef2fd9298c8a108 -->
+<!-- translated-from: install/configuration.md sha1:71e9bc427171913eea3f957a3abc1d2b01c32940 -->
 # Konfigurationsreferenz
 
 Jede Umgebungsvariable, die plMail liest, was sie bewirkt, welchen Vorgabewert sie hat und was
@@ -60,7 +60,7 @@ Das sind die Variablen aus `.env`, in der Reihenfolge, in der sie dort stehen.
 | `APP_DEMO_IMPRESSUM_EMAIL` | Kontaktadresse auf derselben Seite, als `mailto:`-Link. | leer | Wie oben | Wie oben. |
 | `APP_DEMO_PRIVACY_HOST` | Das Unternehmen, das den Server betreibt; wird in der Datenschutzerklärung der Demo (`/datenschutz`) als Auftragsverarbeiter genannt. | leer | Für eine öffentliche Demo: ja | Leer, und die Seite zeigt statt eines Namens eine sichtbare Warnung. Wer die Maschine betreibt, verarbeitet in deinem Auftrag die IP-Adressen der Besucher und muss genannt werden; prüfe, ob ein Auftragsverarbeitungsvertrag besteht — die Seite sagt, dass es einen gibt. Wird nur gelesen, wenn `APP_DEMO_MODE` an ist. |
 | `MERCURE_URL` | Die Hub-Adresse, an die die **Anwendung** innerhalb des Docker-Netzes veröffentlicht. | `http://mercure/.well-known/mercure` | Ja | Falsch, und nichts wird veröffentlicht: keine Live-Aktualisierungen, kein sichtbarer Fehler auf der Seite. |
-| `MERCURE_PUBLIC_URL` | Die Hub-Adresse, die der **Browser** abonniert. | `https://localhost/.well-known/mercure`, sowohl in `.env` als auch in `compose.yaml` | Ja | Falsch, und der Browser öffnet einen Stream dorthin, wo er nicht hinkommt — Maillisten hören auf, sich selbst zu aktualisieren, während der Rest der Anwendung funktioniert. Wird nur dann aus `APP_PUBLIC_URL` abgeleitet, wenn sie nicht gesetzt oder leer ist, was die Standard-`compose.yaml` verhindert. Siehe [Hinter einem Reverse-Proxy](reverse-proxy.md). |
+| `MERCURE_PUBLIC_URL` | Die Hub-Adresse, die der **Browser** abonniert. | `https://localhost/.well-known/mercure`, sowohl in `.env` als auch in `compose.yaml` | Ja | Falsch, und der Browser öffnet einen Stream dorthin, wo er nicht hinkommt — Maillisten hören auf, sich selbst zu aktualisieren, während der Rest der Anwendung funktioniert. Wird aus `APP_PUBLIC_URL` abgeleitet, wenn sie nicht gesetzt, leer oder noch der Vorgabewert der Standard-`compose.yaml` ist. Siehe [Hinter einem Reverse-Proxy](reverse-proxy.md). |
 | `MERCURE_JWT_SECRET` | Signiert die Publisher- und Subscriber-JWTs. | leer — 32 zufällige Bytes, hexadezimal, beim ersten Start erzeugt | Ja, aber erzeugt | Anwendung und Hub müssen denselben Wert halten. Weichen sie voneinander ab, weist der Hub jeden Subscriber ab — aus Sicht des Browsers lautlos. |
 | `MERCURE_COOKIE_NAME` | Der Name des Cookies, mit dem der Browser abonnieren darf. | leer — plMail wählt `__Secure-mercure_access_token`, wenn `APP_PUBLIC_URL` https ist, und sonst `mercure_access_token`, weil ein Browser ein `__Secure-`-Cookie verwirft, das nicht über HTTPS kam | Nein | Nur setzen, wenn du einen eigenen Namen willst; die Anwendung setzt das Cookie und der Hub liest es, beide aus dieser einen Variablen. Gewählt wird beim Start des Web-Containers, eine geänderte öffentliche Adresse wirkt also ab dem nächsten Neustart. |
 | `MERCURE_UPSTREAM` | Wohin der Webserver `/.well-known/mercure` weiterreicht: der Container, in dem der Hub läuft, als `host:port`. | `mercure:80` | Nein | Nur für einen Stack, der diesen Container nicht `mercure` nennt. Falsch, und der Stream des Browsers antwortet mit 502 — die Anzeige in der oberen Leiste bleibt rot, während Mail weiter ankommt. `MERCURE_URL` muss denselben Container nennen. |
@@ -96,7 +96,7 @@ sie direkt, wenn er `DATABASE_URL` zusammensetzt.
 
 | Variable | Was sie bewirkt | Vorgabe | Wenn sie falsch ist |
 |---|---|---|---|
-| `SERVER_NAME` | Der Hostname, den Caddy im `php`-Container bedient. | `localhost, php:80` | Caddy entscheidet daran, ob es TLS terminiert. `:80` liefert schlichtes HTTP aus, was du hinter einem Reverse-Proxy willst. Ein Hostname bringt Caddy dazu, ein Zertifikat dafür zu beschaffen. |
+| `SERVER_NAME` | Der Hostname, den Caddy im `php`-Container bedient. | `localhost, :443, php:80` | Caddy entscheidet daran, ob es TLS terminiert. Der Vorgabewert bedient jeden Namen und jede Adresse, unter der die Maschine erreicht wird, mit einem selbstsignierten Zertifikat. `:80` liefert schlichtes HTTP aus, was du hinter einem Reverse-Proxy willst. Ein Hostname bringt Caddy dazu, ein Zertifikat dafür zu beschaffen, und ist dann der einzige Name, der bedient wird. |
 | `HTTP_PORT` | Host-Port, der auf Container-Port 80/tcp abgebildet wird. | `80` | Ein bereits belegter Port hindert den `php`-Container am Start. |
 | `HTTPS_PORT` | Host-Port, der auf Container-Port 443/tcp abgebildet wird. | `443` | Wie oben. |
 | `HTTP3_PORT` | Host-Port, der auf Container-Port 443/udp abgebildet wird. | `443` | Nur relevant, wenn du HTTP/3 direkt ausliefern willst. |
@@ -239,11 +239,12 @@ Prüfung des Entrypoints lautet deshalb "trägt diese DSN ein Passwort?" und nic
 Eine DSN, die du *mit* Passwort mitgibst, wird als Absicht gewertet und vollständig in Ruhe
 gelassen.
 
-**`MERCURE_PUBLIC_URL` hat einen Vorgabewert, der nicht abgeleitet ist.**
-`config/bootstrap_generated_secrets.php` baut ihn aus `APP_PUBLIC_URL` — aber nur, wenn er nicht
-gesetzt oder leer ist, und `compose.yaml` setzt ihn bedingungslos auf
-`https://localhost/.well-known/mercure`. Auf jeder Installation, die nicht unter `https://localhost`
-erreicht wird, setze ihn ausdrücklich.
+**`MERCURE_PUBLIC_URL` folgt `APP_PUBLIC_URL`, solange du sie nicht auf etwas anderes setzt.**
+`config/bootstrap_generated_secrets.php` baut sie aus `APP_PUBLIC_URL`, wenn sie nicht gesetzt, leer
+oder `https://localhost/.well-known/mercure` ist — der Wert, den `compose.yaml` auf jeder
+Installation setzt und der deshalb nichts darüber sagt, was du wolltest. Jeder andere Wert gilt als
+Absicht und bleibt unangetastet. Eine Installation ohne gespeicherte öffentliche Adresse behält den
+`localhost`-Wert.
 
 **Ein leeres `GMAIL_PUBSUB_VERIFICATION_TOKEN` bedeutet "alles ablehnen", nicht "alles annehmen".**
 Für einen aus dem Internet erreichbaren Endpunkt ist das die richtige Vorgabe, aber es bedeutet:

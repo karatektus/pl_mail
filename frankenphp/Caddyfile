@@ -10,6 +10,25 @@
         # the same reason (BackgroundProcesses); browsers reconnect.
         grace_period 5s
 
+        # The certificate a browser gets when it asked for a name this server
+        # holds none for — `default_sni` for a handshake that names nothing,
+        # which is every one to an IP address, `fallback_sni` for a name
+        # nobody listed, such as the machine's own hostname on a LAN.
+        #
+        # Without them Caddy has nothing to offer and ends the handshake. The
+        # browser reports that as a protocol error, not a certificate error,
+        # and a protocol error has no "proceed anyway": an install on a
+        # headless machine could not be opened from any other machine, and the
+        # README's "open https://localhost" was the only address that worked.
+        # With them the answer is the self-signed `localhost` certificate and
+        # the warning every browser lets a person click through.
+        #
+        # Inert wherever there is no such certificate to hand out: an install
+        # serving a real domain never issues one, and SERVER_NAME ":80" does
+        # no TLS at all. compose.yaml's default SERVER_NAME is the other half.
+        default_sni localhost
+        fallback_sni localhost
+
         {$CADDY_GLOBAL_OPTIONS}
         frankenphp {
                 {$FRANKENPHP_CONFIG}

@@ -19,7 +19,7 @@ services:
       SERVER_NAME: ":80"        # FrankenPHP serves plain HTTP; no certificate here
 ```
 
-`SERVER_NAME` defaults to `localhost, php:80`, and Caddy inside the container decides from that name
+`SERVER_NAME` defaults to `localhost, :443, php:80`, and Caddy inside the container decides from that name
 whether to terminate TLS itself. `:80` tells it not to. Publish only the HTTP port then — `HTTP_PORT`
 maps the host port to container port 80 — and let the proxy reach it. `truenas.compose.yaml` does
 exactly this and publishes `30080`.
@@ -32,9 +32,8 @@ TRUSTED_PROXIES=127.0.0.1,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16
 MERCURE_PUBLIC_URL=https://mail.example.com/.well-known/mercure
 ```
 
-**The failure mode is leaving `SERVER_NAME` at its default behind a proxy.** Caddy then tries to
-serve `localhost` while the proxy addresses it by container name or IP, and the request does not
-match a site block.
+**The failure mode is leaving `SERVER_NAME` at its default behind a proxy.** Caddy then
+answers the proxy's plain-HTTP request with a redirect to HTTPS, and the browser goes round in a loop.
 
 ## `APP_PUBLIC_URL`
 
@@ -113,10 +112,10 @@ Two variables, and they point in opposite directions:
   `/.well-known/mercure`.
 
 `config/bootstrap_generated_secrets.php` derives the second from `APP_PUBLIC_URL` so there is one
-less thing to fill in — but **only when `MERCURE_PUBLIC_URL` is unset or empty**, and the stock
-`compose.yaml` sets it unconditionally to `https://localhost/.well-known/mercure`. On a proxied
-install, set it explicitly. `truenas.compose.yaml` leaves its own value blank precisely so the
-derivation can happen.
+less thing to fill in. It does so when `MERCURE_PUBLIC_URL` is unset, empty, or still
+`https://localhost/.well-known/mercure`, the value the stock `compose.yaml` sets on every install.
+Any other value is yours and is left alone. So a proxied install needs `APP_PUBLIC_URL` and nothing
+more — from the environment as above, or from the setup screen.
 
 The scheme matters as well as the host: Symfony derives the subscriber cookie's `secure` flag from
 this URL, so an `https` value on a plain-HTTP install mints a cookie the browser will not send back.
@@ -221,10 +220,10 @@ failure and retries with backoff.
 
 ## Things that bite
 
-**`MERCURE_PUBLIC_URL` is not derived on the stock compose file.** The derivation from
-`APP_PUBLIC_URL` only happens when the variable is unset or empty, and `compose.yaml` sets it to
-`https://localhost/.well-known/mercure`. This is the single most likely reason live updates work in
-development and not in production.
+**`MERCURE_PUBLIC_URL` is only derived once a public address exists.** With no `APP_PUBLIC_URL` in
+the environment and none stored by the setup screen, the stock compose file's
+`https://localhost/.well-known/mercure` stays, and live updates work at `https://localhost` and
+nowhere else. Admin → Address shows what is stored.
 
 **Push registration failing is not an error state.** Registration is retried hourly by
 `app:calendar:push` rather than being tied to the click that connected a calendar, so an install

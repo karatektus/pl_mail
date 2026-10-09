@@ -8,6 +8,16 @@ The published image tags: `latest` follows the most recent release below,
 
 ## Unreleased
 
+**Fixed: a fresh install could only be opened on the machine it runs on.** The stock `compose.yaml`
+served `https://localhost` and nothing else. Opened from another machine by address or hostname, the
+browser reported an SSL protocol error, which unlike a certificate warning cannot be clicked
+through, so a headless server could not be set up at all without first setting `SERVER_NAME`. The
+default now answers on every name and address with the same self-signed certificate, and the
+browser shows its usual warning. Live updates follow as well: the hub address is taken from the
+public address chosen during setup, where the stock file used to pin it to `localhost`. An install
+that sets `SERVER_NAME` or `MERCURE_PUBLIC_URL` itself is unchanged. See
+[Docker → Starting it](docs/install/docker.md#starting-it).
+
 **Mail can be marked as spam with a button.** It sits beside Delete: among a row's buttons, in an
 open conversation's toolbar and above a selection. On one conversation it opens a short menu — move
 it to Spam, or move it and also create a filter that sends everything from this sender, or from the

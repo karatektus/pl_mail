@@ -1,4 +1,4 @@
-<!-- translated-from: install/reverse-proxy.md sha1:0c7b41ef1eee378b74f5810cd9189eab728c4a1a -->
+<!-- translated-from: install/reverse-proxy.md sha1:72aecc70f1035f186e2322b3152b8dd4e0ad00f4 -->
 # Hinter einem Reverse-Proxy
 
 Alles, was von außerhalb des eigenen Netzes erreichbar ist, will ein echtes Zertifikat davor, und
@@ -21,7 +21,7 @@ services:
       SERVER_NAME: ":80"        # FrankenPHP serves plain HTTP; no certificate here
 ```
 
-`SERVER_NAME` steht standardmäßig auf `localhost, php:80`, und Caddy entscheidet im Container anhand
+`SERVER_NAME` steht standardmäßig auf `localhost, :443, php:80`, und Caddy entscheidet im Container anhand
 dieses Namens, ob es TLS selbst terminiert. `:80` sagt ihm, dass es das nicht tun soll. Veröffentliche
 dann nur den HTTP-Port — `HTTP_PORT` bildet den Host-Port auf den Container-Port 80 ab — und lass
 den Proxy ihn erreichen. `truenas.compose.yaml` macht genau das und veröffentlicht `30080`.
@@ -35,8 +35,8 @@ MERCURE_PUBLIC_URL=https://mail.example.com/.well-known/mercure
 ```
 
 **Der typische Fehlerfall ist, `SERVER_NAME` hinter einem Proxy auf dem Vorgabewert zu belassen.**
-Caddy versucht dann, `localhost` auszuliefern, während der Proxy es über Containernamen oder
-IP-Adresse anspricht — und die Anfrage passt auf keinen Site-Block.
+Caddy beantwortet die schlichte HTTP-Anfrage des Proxys dann mit einer Weiterleitung auf HTTPS, und
+der Browser dreht sich im Kreis.
 
 ## `APP_PUBLIC_URL`
 
@@ -121,11 +121,11 @@ Zwei Variablen, und sie zeigen in entgegengesetzte Richtungen:
   Adresse plus `/.well-known/mercure` sein.
 
 `config/bootstrap_generated_secrets.php` leitet die zweite aus `APP_PUBLIC_URL` ab, damit es eine
-Sache weniger auszufüllen gibt — aber **nur, wenn `MERCURE_PUBLIC_URL` nicht gesetzt oder leer
-ist**, und die Standard-`compose.yaml` setzt sie bedingungslos auf
-`https://localhost/.well-known/mercure`. Auf einer Installation hinter einem Proxy setze sie also
-ausdrücklich. `truenas.compose.yaml` lässt den eigenen Wert genau deshalb leer, damit die Ableitung
-stattfinden kann.
+Sache weniger auszufüllen gibt. Das geschieht, wenn `MERCURE_PUBLIC_URL` nicht gesetzt, leer oder
+noch `https://localhost/.well-known/mercure` ist, der Wert, den die Standard-`compose.yaml` auf
+jeder Installation setzt. Jeder andere Wert ist deiner und bleibt unangetastet. Eine Installation
+hinter einem Proxy braucht also `APP_PUBLIC_URL` und sonst nichts — aus der Umgebung wie oben oder
+aus dem Einrichtungsbildschirm.
 
 Nicht nur der Host zählt, sondern auch das Schema: Symfony leitet das `secure`-Flag des
 Subscriber-Cookies aus dieser URL ab, ein `https`-Wert auf einer Installation mit schlichtem HTTP
@@ -239,11 +239,11 @@ Anbieter als Zustellfehler wertet und mit Backoff wiederholt.
 
 ## Fallstricke
 
-**`MERCURE_PUBLIC_URL` wird bei der Standard-Compose-Datei nicht abgeleitet.** Die Ableitung aus
-`APP_PUBLIC_URL` findet nur statt, wenn die Variable nicht gesetzt oder leer ist, und `compose.yaml`
-setzt sie auf `https://localhost/.well-known/mercure`. Das ist der mit Abstand wahrscheinlichste
-Grund dafür, dass Live-Aktualisierungen in der Entwicklung funktionieren und in der Produktion
-nicht.
+**`MERCURE_PUBLIC_URL` wird erst abgeleitet, wenn es eine öffentliche Adresse gibt.** Ohne
+`APP_PUBLIC_URL` in der Umgebung und ohne eine vom Einrichtungsbildschirm gespeicherte bleibt das
+`https://localhost/.well-known/mercure` der Standard-Compose-Datei stehen, und Live-Aktualisierungen
+funktionieren unter `https://localhost` und nirgends sonst. Admin → Adresse zeigt, was gespeichert
+ist.
 
 **Eine fehlgeschlagene Push-Registrierung ist kein Fehlerzustand.** Die Registrierung wird stündlich
 von `app:calendar:push` wiederholt, statt an den Klick gebunden zu sein, mit dem ein Kalender

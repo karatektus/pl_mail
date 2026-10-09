@@ -117,10 +117,24 @@ declare(strict_types=1);
     // Derived here rather than configured: it is one less thing to fill in, and
     // it cannot drift from the public URL. An explicit MERCURE_PUBLIC_URL still
     // wins, for the install whose hub really does live somewhere else.
+    //
+    // "Is it set" is not quite the test, for the reason it is not for the
+    // database URL above: on the stock compose file it is always set.
+    // compose.yaml defaults it to https://localhost/.well-known/mercure, which
+    // is right for the install opened at https://localhost and for no other —
+    // one set up from another machine on the LAN told every browser to
+    // subscribe on its own loopback, and the lists never refreshed. That one
+    // value is the placeholder nobody chose, so a public address stored during
+    // setup replaces it. With no address stored it stays, and an install from
+    // before setup asked the question keeps working where it always did.
     $publicUrl = trim((string) ($_SERVER['APP_PUBLIC_URL'] ?? $_ENV['APP_PUBLIC_URL'] ?? ''));
+    $hubUrl    = trim((string) ($_SERVER['MERCURE_PUBLIC_URL'] ?? $_ENV['MERCURE_PUBLIC_URL'] ?? ''));
 
-    if (false === $isSet('MERCURE_PUBLIC_URL') && '' !== $publicUrl) {
-        $put('MERCURE_PUBLIC_URL', rtrim($publicUrl, '/').'/.well-known/mercure');
+    if ('' !== $publicUrl && ('' === $hubUrl || 'https://localhost/.well-known/mercure' === $hubUrl)) {
+        $derived = rtrim($publicUrl, '/').'/.well-known/mercure';
+
+        $_SERVER['MERCURE_PUBLIC_URL'] = $derived;
+        $_ENV['MERCURE_PUBLIC_URL']    = $derived;
     }
 
     // The subscriber cookie takes the `__Secure-` prefix where a browser will

@@ -89,7 +89,13 @@ services:
     restart: unless-stopped
     environment:
       <<: *app-env
-      SERVER_NAME: ${SERVER_NAME:-localhost}, php:80
+      # `localhost` is the name Caddy makes its self-signed certificate for.
+      # `:443` is every other name and address the machine is reached at: the
+      # same site, answered with that same certificate (frankenphp/Caddyfile
+      # says how), so an install on a headless box opens from the LAN behind
+      # the usual certificate warning. Both go when you set SERVER_NAME — a
+      # real domain is then the only name served, and ":80" is plain HTTP.
+      SERVER_NAME: ${SERVER_NAME:-localhost, :443}, php:80
       MAILER_DSN: ${MAILER_DSN:-null://null}
       APP_CONTAINER_NAME: web
     volumes:

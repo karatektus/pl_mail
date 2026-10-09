@@ -52,6 +52,12 @@ docker compose up -d
 
 Then open [https://localhost](https://localhost).
 
+On a machine with no browser of its own, open `https://` and that machine's address or hostname
+from another one — `https://192.168.1.20`, say. Either way the certificate is one the container
+signed for itself, so the browser warns once and lets you continue. To serve a certificate browsers
+trust, set `SERVER_NAME` to a domain that resolves to this machine, or put a
+[reverse proxy](reverse-proxy.md) in front.
+
 **Finish the setup screen before you go anywhere else.** Until the first user exists, `/install` is
 open to whoever reaches it — that is how you create your own account, and it means anybody who
 reaches the instance first becomes its administrator instead. This is the usual bargain for
@@ -77,7 +83,9 @@ knowing about:
    if they are missing.
 5. **Caddy serves.** The `php` container publishes 80/tcp, 443/tcp and 443/udp — remappable with
    `HTTP_PORT`, `HTTPS_PORT` and `HTTP3_PORT` — and serves the names in `SERVER_NAME`, which
-   `compose.yaml` sets to `localhost, php:80`. It also proxies `/.well-known/mercure*` to the hub
+   `compose.yaml` sets to `localhost, :443, php:80`: `localhost` is the name the self-signed
+   certificate is made for, and `:443` answers every other name and address with that same
+   certificate. It also proxies `/.well-known/mercure*` to the hub
    container, so the browser reaches the hub same-origin and needs no CORS.
 
 `docker compose up -d --wait` blocks until the healthchecks pass, which is the better form in a

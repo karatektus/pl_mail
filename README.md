@@ -108,7 +108,9 @@ cd pl_mail
 docker compose up -d
 ```
 
-Open [https://localhost](https://localhost) and create your account.
+Open [https://localhost](https://localhost) and create your account. From another machine, open
+`https://` and the server's address instead; the browser warns about the self-signed certificate
+once and lets you continue.
 
 ### TrueNAS
 

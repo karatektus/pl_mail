@@ -56,7 +56,7 @@ These are the variables in `.env`, in the order they appear there.
 | `APP_DEMO_IMPRESSUM_EMAIL` | Contact address on the same page, rendered as a `mailto:` link. | blank | As above | As above. |
 | `APP_DEMO_PRIVACY_HOST` | The company operating the server, named in the demo's privacy notice (`/datenschutz`) as a processor. | blank | For a public demo, yes | Blank and the page renders a visible warning instead of a name. Whoever runs the machine processes visitors' IP addresses on your behalf and has to be named; check you have a data processing agreement with them, because the notice says you do. Read only when `APP_DEMO_MODE` is on. |
 | `MERCURE_URL` | The hub address the **app** publishes to, inside the Docker network. | `http://mercure/.well-known/mercure` | Yes | Wrong and nothing publishes: no live updates, no visible error on the page. |
-| `MERCURE_PUBLIC_URL` | The hub address the **browser** subscribes to. | `https://localhost/.well-known/mercure` in both `.env` and `compose.yaml` | Yes | Wrong and the browser opens a stream to somewhere it cannot reach — mail lists stop updating by themselves while the rest of the app works. Derived from `APP_PUBLIC_URL` only when this is unset or empty, which the stock `compose.yaml` prevents. See [Behind a reverse proxy](reverse-proxy.md). |
+| `MERCURE_PUBLIC_URL` | The hub address the **browser** subscribes to. | `https://localhost/.well-known/mercure` in both `.env` and `compose.yaml` | Yes | Wrong and the browser opens a stream to somewhere it cannot reach — mail lists stop updating by themselves while the rest of the app works. Derived from `APP_PUBLIC_URL` when this is unset, empty, or still the stock `compose.yaml` default. See [Behind a reverse proxy](reverse-proxy.md). |
 | `MERCURE_JWT_SECRET` | Signs the publisher and subscriber JWTs. | blank — 32 random bytes, hex, generated on first start | Yes, but generated | The app and the hub must hold the same value. They disagree and the hub rejects every subscriber, silently, from the browser's point of view. |
 | `MERCURE_COOKIE_NAME` | The name of the cookie that lets the browser subscribe. | blank — plMail picks `__Secure-mercure_access_token` when `APP_PUBLIC_URL` is https and `mercure_access_token` otherwise, since a browser drops a `__Secure-` cookie that did not arrive over HTTPS | No | Set only to use a name of your own; the app sets it and the hub reads it, both from this one variable. The choice is made when the web container starts, so it follows a changed public address at the next restart. |
 | `MERCURE_UPSTREAM` | Where the web server proxies `/.well-known/mercure` to: the container running the hub, as `host:port`. | `mercure:80` | No | Only for a stack that does not call that container `mercure`. Wrong and the browser's stream answers 502 — the indicator in the top bar stays red while mail still arrives. `MERCURE_URL` has to name the same container. |
@@ -92,7 +92,7 @@ reads them directly when it assembles `DATABASE_URL`.
 
 | Variable | What it does | Default | If it is wrong |
 |---|---|---|---|
-| `SERVER_NAME` | The hostname Caddy serves, inside the `php` container. | `localhost, php:80` | Caddy decides whether to terminate TLS from this. `:80` serves plain HTTP, which is what you want behind a reverse proxy. A hostname makes Caddy try to obtain a certificate for it. |
+| `SERVER_NAME` | The hostname Caddy serves, inside the `php` container. | `localhost, :443, php:80` | Caddy decides whether to terminate TLS from this. The default serves every name and address the machine is reached at with a self-signed certificate. `:80` serves plain HTTP, which is what you want behind a reverse proxy. A hostname makes Caddy try to obtain a certificate for it, and is then the only name served. |
 | `HTTP_PORT` | Host port mapped to container port 80/tcp. | `80` | A port already in use stops the `php` container from starting. |
 | `HTTPS_PORT` | Host port mapped to container port 443/tcp. | `443` | As above. |
 | `HTTP3_PORT` | Host port mapped to container port 443/udp. | `443` | Only matters if you serve HTTP/3 directly. |
@@ -227,10 +227,11 @@ cache warmup during the image build with "could not find driver". The entrypoint
 therefore "does this DSN carry a password", not "is it set". A DSN you supply *with* a password is
 taken as intent and left completely alone.
 
-**`MERCURE_PUBLIC_URL` has a default that is not derived.** `config/bootstrap_generated_secrets.php`
-builds it from `APP_PUBLIC_URL` — but only when it is unset or empty, and `compose.yaml` sets it to
-`https://localhost/.well-known/mercure` unconditionally. On any install not reached at
-`https://localhost`, set it explicitly.
+**`MERCURE_PUBLIC_URL` follows `APP_PUBLIC_URL` unless you set it to something else.**
+`config/bootstrap_generated_secrets.php` builds it from `APP_PUBLIC_URL` when it is unset, empty, or
+`https://localhost/.well-known/mercure` — the value `compose.yaml` sets on every install, which
+therefore says nothing about what you wanted. Any other value is taken as intent and left alone.
+An install with no public address stored keeps the `localhost` one.
 
 **`GMAIL_PUBSUB_VERIFICATION_TOKEN` blank means "reject everything", not "accept everything".**
 That is the right default for an endpoint reachable from the internet, but it means an operator who

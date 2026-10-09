@@ -89,6 +89,32 @@ final class GeneratedSecretsBootstrapTest extends TestCase
     }
 
     /**
+     * The stock compose file sets the hub address to the `localhost` one on
+     * every install, so it says nothing about what the operator wanted. An
+     * install set up from another machine on the LAN kept it, and every browser
+     * was told to subscribe on its own loopback.
+     */
+    public function testTheStockComposePlaceholderGivesWayToTheAddressChosenDuringSetup(): void
+    {
+        file_put_contents($this->secretsFile, "APP_PUBLIC_URL=https://192.168.2.2\n");
+
+        self::assertSame(
+            'https://192.168.2.2/.well-known/mercure',
+            $this->mercurePublicUrlSeenBy(['MERCURE_PUBLIC_URL' => 'https://localhost/.well-known/mercure']),
+        );
+    }
+
+    public function testThePlaceholderStaysWhereNoAddressWasEverStored(): void
+    {
+        // An install older than the setup question has no address on file and
+        // is reached at https://localhost, where this value is the right one.
+        self::assertSame(
+            'https://localhost/.well-known/mercure',
+            $this->mercurePublicUrlSeenBy(['MERCURE_PUBLIC_URL' => 'https://localhost/.well-known/mercure']),
+        );
+    }
+
+    /**
      * The subscriber cookie's prefix follows the public address, because a
      * browser only keeps a `__Secure-` cookie that arrived over HTTPS. An
      * install on http://ip:port used to set one the browser threw away, and
