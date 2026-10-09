@@ -82,7 +82,7 @@ re-categorisation never needs a resync.
 ### An inbox without tabs
 
 If you would rather have one list, switch **Inbox tabs** to **One list** under **Settings → General
-→ What sorts your mail**. The inbox then shows everything in it, newest first, and the tabs are
+→ Categories**. The inbox then shows everything in it, newest first, and the tabs are
 gone along with what belongs to them: the "new" pills, dragging a conversation onto a tab, and the
 panel that explains why a message was filed where it was.
 
@@ -93,7 +93,7 @@ choosing **Rules** stops it.
 
 ### Choosing what sorts your mail
 
-Both of those defaults are yours to change, under **Settings → General → What sorts your mail**.
+Both of those defaults are yours to change, under **Settings → General → Categories**.
 
 **Sorted by** picks what decides. **Rules** reads headers — a mailing-list header, an unsubscribe
 link, a sender you have written to before — and answers the same way every time for the same

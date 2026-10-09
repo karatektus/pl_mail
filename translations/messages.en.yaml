@@ -3794,7 +3794,7 @@ settings:
             hint: The assistant answers once per message and keeps the answer. Ask again after the model, the prompt or a plMail release has changed — it costs a model call per message, so it is bounded to your newest mail.
             label: Sort recent mail again
         applies_to_new: Changing either of these re-files the mail you already have, in the background — a large mailbox takes a few minutes, so give the tabs a moment to settle. Conversations you moved to a tab yourself are left alone.
-        heading: What sorts your mail
+        heading: Categories
         override:
             hint: A Gmail account arrives already sorted by Google. This decides whether plMail leaves that alone or answers for itself.
             label: On Gmail accounts
@@ -3807,7 +3807,7 @@ settings:
             rules: Rules
             rules_help: Headers only — a mailing-list header, an unsubscribe link, a known sender. Predictable and literal, and it never asks the model anything.
             unavailable: Sorting by assistant needs mail sorting switched on for this installation, and for you.
-        subheading: Which tab a message lands in, and who decides.
+        subheading: Whether your inbox has tabs, which one a message lands in, and who decides.
         tabs:
             assistant_warning: The assistant is still reading every new message to decide which tab it belongs in — tabs you have switched off. Mail it has not answered for yet can be held back for a few seconds while it does. Choose Rules below to stop that.
             hint: Primary, Social, Promotions and the rest. Off shows the inbox as one list. Mail is still filed in the background, so the tabs are right the moment you switch them back on.

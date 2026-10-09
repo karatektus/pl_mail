@@ -3599,7 +3599,7 @@ settings:
             hint: "Th' oracle answers once per message an' keeps th' answer. Ask again when th' oracle, its orders or a plMail release have changed — it costs an askin' per message, so it be bounded to yer newest post."
             label: "Stow recent post again"
         applies_to_new: "Changin' either o' these re-stows the post ye already have, below decks — a big hold takes a few minutes, so give the tabs a moment. Yarns ye stowed by hand yerself be left be."
-        heading: "What stows yer post"
+        heading: Categories
         override:
             hint: "A Gmail account arrives already stowed by Google. This decides whether plMail leaves it be or answers for itself."
             label: "On Gmail accounts"
@@ -3612,7 +3612,7 @@ settings:
             rules: Rules
             rules_help: "Headers alone — a list header, an unsubscribe link, a known sender. Predictable an' literal, an' it never asks th' oracle owt."
             unavailable: "Stowin' by oracle needs th' sortin' switched on for this vessel, an' for ye."
-        subheading: "Which tab a message lands in, an' who decides."
+        subheading: "Whether yer inbox has tabs, which one a message lands in, an' who decides."
         tabs:
             assistant_warning: "The parrot still be readin' every new message to pick its tab — tabs ye've struck from the deck. Mail it has not squawked about yet may be held a few heartbeats while it thinks. Choose Rules below to belay that."
             hint: "Primary, Social, Promotions an' the rest. Off shows the inbox as one list. Mail still be stowed in the background, so the tabs be right the moment ye raise 'em again."

@@ -123,7 +123,7 @@ block grew with the frame, the frame grew to fit the block, and the message kept
 pushing everything below it away. Sizes given in screen heights are now ignored inside a message,
 and a message whose content merely follows the frame is no longer resized again.
 
-**The inbox can be one list.** Under Settings → General → What sorts your mail, **Inbox tabs** can
+**The inbox can be one list.** Under Settings → General → Categories, **Inbox tabs** can
 be switched to **One list**: no Primary, Social, Promotions and the rest, just the inbox, newest
 first. Per person, and tabs stay on unless you change it. Mail is still filed in the background, so
 switching back shows sorted tabs at once; if the assistant is what sorts your mail it keeps doing

@@ -1,4 +1,4 @@
-<!-- translated-from: features/mail.md sha1:294b3f0e2da25bfe528845665a8a5ac596f042b9 -->
+<!-- translated-from: features/mail.md sha1:c0e3361d814da9454b2dfbbf7bf355ac6bc16d55 -->
 
 # Mail
 
@@ -94,7 +94,7 @@ Synchronisierung.
 ### Ein Posteingang ohne Tabs
 
 Wenn dir eine einzige Liste lieber ist, stelle **Tabs im Posteingang** unter **Einstellungen →
-Allgemein → Was deine Mail einsortiert** auf **Eine Liste**. Der Posteingang zeigt dann alles, was
+Allgemein → Kategorien** auf **Eine Liste**. Der Posteingang zeigt dann alles, was
 darin liegt, das Neueste zuerst, und die Tabs sind weg — samt allem, was zu ihnen gehört: die
 „Neu“-Marken, das Ziehen einer Unterhaltung auf einen Tab und die Erklärung, warum eine Nachricht
 dort einsortiert wurde, wo sie ist.
@@ -106,8 +106,7 @@ sagt das, wenn beides zutrifft, und mit **Regeln** hört es auf.
 
 ### Auswählen, was deine Mail einsortiert
 
-Beide Voreinstellungen kannst du ändern, unter **Einstellungen → Allgemein → Was deine Mail
-einsortiert**.
+Beide Voreinstellungen kannst du ändern, unter **Einstellungen → Allgemein → Kategorien**.
 
 **Sortiert nach** legt fest, wer entscheidet. **Regeln** liest Header — einen Mailinglisten-Header,
 einen Abmeldelink, einen Absender, dem du schon geschrieben hast — und antwortet bei derselben
