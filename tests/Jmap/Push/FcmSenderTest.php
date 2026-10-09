@@ -111,6 +111,74 @@ final class FcmSenderTest extends KernelTestCase
         self::assertSame('plmail-state-change', $message['android']['collapse_key']);
     }
 
+    // ── payloads with content in them ────────────────────────────────────────
+
+    /**
+     * A reminder carries an event's title, and Firebase is Google. It used to
+     * go out as readable JSON under a docblock that said "encrypted end to
+     * end" (issue #34). To a device that has registered no key it is now not
+     * sent at all — and no request is made, so there is nothing for anybody to
+     * have read.
+     */
+    public function testAPayloadWithContentIsNotSentToADeviceThatGaveNoKey(): void
+    {
+        $sent = $this->sender()->send($this->subscription(), [
+            '@type' => 'CalendarAlert',
+            'title' => 'Dentist',
+            'body'  => 'in 15 minutes',
+        ]);
+
+        self::assertFalse($sent);
+        self::assertSame([], $this->requests, 'nothing reached Firebase');
+
+        $delivery = $this->deliveries()[0];
+
+        self::assertSame(PushDeliveryOutcome::Skipped, $delivery->outcome);
+        self::assertSame('no-encryption-key', $delivery->detail);
+    }
+
+    /**
+     * To a device that has, it is sealed: the message has no readable
+     * `payload`, and what it has instead opens with the device's private key
+     * and nothing else. Opened here the way the app opens it — RFC 8291 from
+     * the receiving side, written out rather than borrowed from the library
+     * that did the sealing, so the two cannot agree by being the same code.
+     */
+    public function testAPayloadWithContentIsSealedToTheDevicesKey(): void
+    {
+        $device       = self::deviceKeys();
+        $subscription = $this->subscription();
+
+        $subscription->p256dh = self::base64url($device['public']);
+        $subscription->auth   = self::base64url($device['auth']);
+        $this->em->flush();
+
+        $payload = ['@type' => 'CalendarAlert', 'title' => 'Dentist — Praxis Dr. Ilg', 'body' => 'in 15 minutes'];
+
+        self::assertTrue($this->sender()->send($subscription, $payload));
+
+        $data = $this->requests[0]['body']['message']['data'];
+
+        self::assertArrayNotHasKey('payload', $data, 'an older app must find nothing it would try to read');
+        self::assertStringNotContainsString('Dentist', json_encode($this->requests[0]['body'], JSON_THROW_ON_ERROR));
+        self::assertSame($payload, json_decode(self::open($data['encrypted'], $device), true, 512, JSON_THROW_ON_ERROR));
+    }
+
+    /** A state change is tokens and ids, and stays readable: there is nothing in it to hide. */
+    public function testAStateChangeIsNotSealedEvenForADeviceWithAKey(): void
+    {
+        $device       = self::deviceKeys();
+        $subscription = $this->subscription();
+
+        $subscription->p256dh = self::base64url($device['public']);
+        $subscription->auth   = self::base64url($device['auth']);
+        $this->em->flush();
+
+        $this->sender()->send($subscription, ['@type' => 'StateChange', 'changed' => ['7' => ['Email' => '9']]]);
+
+        self::assertArrayHasKey('payload', $this->requests[0]['body']['message']['data']);
+    }
+
     /** See the class docblock: one key would let ordinary traffic eat the handshake. */
     public function testAVerificationCollapsesUnderItsOwnKeyRatherThanTheStateChangeOne(): void
     {
@@ -326,6 +394,63 @@ final class FcmSenderTest extends KernelTestCase
             ['usr' => $this->user->id],
             ['id' => 'ASC'],
         );
+    }
+
+    /**
+     * A device's side of RFC 8291: a P-256 key pair and a 16-byte secret.
+     *
+     * @return array{private: \OpenSSLAsymmetricKey, public: string, auth: string}
+     */
+    private static function deviceKeys(): array
+    {
+        $key     = openssl_pkey_new(['curve_name' => 'prime256v1', 'private_key_type' => OPENSSL_KEYTYPE_EC]);
+        $details = openssl_pkey_get_details($key);
+
+        return [
+            'private' => $key,
+            // The uncompressed point, which is what a browser calls p256dh.
+            'public'  => "\x04" . str_pad($details['ec']['x'], 32, "\0", STR_PAD_LEFT) . str_pad($details['ec']['y'], 32, "\0", STR_PAD_LEFT),
+            'auth'    => random_bytes(16),
+        ];
+    }
+
+    /**
+     * Decrypt an `aes128gcm` push body (RFC 8188 framing, RFC 8291 keys).
+     *
+     * @param array{private: \OpenSSLAsymmetricKey, public: string, auth: string} $device
+     */
+    private static function open(string $encoded, array $device): string
+    {
+        $body = (string) base64_decode(strtr($encoded, '-_', '+/'), true);
+
+        $salt         = substr($body, 0, 16);
+        $idLength     = ord($body[20]);
+        $senderPublic = substr($body, 21, $idLength);
+        $ciphertext   = substr($body, 21 + $idLength);
+
+        // The sender's point as a key OpenSSL will do ECDH with: the fixed
+        // SubjectPublicKeyInfo prefix for P-256, then the point.
+        $pem = "-----BEGIN PUBLIC KEY-----\n"
+            . chunk_split(base64_encode((string) hex2bin('3059301306072a8648ce3d020106082a8648ce3d030107034200') . $senderPublic), 64, "\n")
+            . "-----END PUBLIC KEY-----\n";
+
+        $shared = (string) openssl_pkey_derive(openssl_pkey_get_public($pem), $device['private'], 32);
+
+        $ikm   = hash_hkdf('sha256', $shared, 32, "WebPush: info\0" . $device['public'] . $senderPublic, $device['auth']);
+        $key   = hash_hkdf('sha256', $ikm, 16, "Content-Encoding: aes128gcm\0", $salt);
+        $nonce = hash_hkdf('sha256', $ikm, 12, "Content-Encoding: nonce\0", $salt);
+
+        $plain = openssl_decrypt(substr($ciphertext, 0, -16), 'aes-128-gcm', $key, OPENSSL_RAW_DATA, $nonce, substr($ciphertext, -16));
+
+        self::assertNotFalse($plain, 'the body does not open with the device\'s key');
+
+        // One record: the plaintext, then the 0x02 that marks the last one.
+        return rtrim((string) $plain, "\0\x02");
+    }
+
+    private static function base64url(string $bytes): string
+    {
+        return rtrim(strtr(base64_encode($bytes), '+/', '-_'), '=');
     }
 
     private function subscription(): PushSubscription

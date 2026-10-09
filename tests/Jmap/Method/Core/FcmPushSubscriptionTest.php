@@ -90,6 +90,49 @@ final class FcmPushSubscriptionTest extends JmapTestCase
         self::assertFalse($subscription->verified, 'FCM is not exempt from the handshake');
     }
 
+    /**
+     * An FCM subscription may carry the keys a browser's would, so that a
+     * payload with content in it can be sealed to the device. They can also be
+     * added later, in place: that is how an app updated to a version that
+     * encrypts starts receiving reminders without registering again, and it
+     * redoes no handshake, because keys decide what a payload is sealed to and
+     * not where it goes.
+     */
+    public function testAnFcmSubscriptionMayCarryKeysAndGainThemLater(): void
+    {
+        $this->configureFcm();
+
+        $result = $this->handle(['create' => ['s1' => [
+            'deviceClientId' => 'a-phone',
+            'fcmToken'       => 'a-device-token',
+            'keys'           => ['p256dh' => 'a-public-key', 'auth' => 'a-secret'],
+        ]]]);
+
+        $created = (array) $result['created'];
+
+        self::assertArrayHasKey('s1', $created, json_encode($result['notCreated']));
+
+        $subscription = $this->find($created['s1']['id']);
+
+        self::assertSame('fcm', $subscription->transport->value);
+        self::assertSame('a-public-key', $subscription->p256dh);
+        self::assertSame('a-secret', $subscription->auth);
+
+        self::assertTrue($subscription->verify((string) $subscription->verificationCode));
+        $this->em->flush();
+
+        $result = $this->handle(['update' => [(string) $subscription->id => [
+            'keys' => ['p256dh' => 'a-new-key', 'auth' => 'a-new-secret'],
+        ]]]);
+
+        self::assertArrayHasKey((string) $subscription->id, (array) $result['updated'], json_encode($result['notUpdated']));
+
+        $subscription = $this->find((string) $subscription->id);
+
+        self::assertSame('a-new-key', $subscription->p256dh);
+        self::assertTrue($subscription->verified, 'new keys do not undo a verified subscription');
+    }
+
     public function testACreateCarryingBothATokenAndAUrlIsRefusedNamingTheConflict(): void
     {
         $this->configureFcm();

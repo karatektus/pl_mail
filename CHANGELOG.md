@@ -39,6 +39,13 @@ step around the per-address limits on login and booking. The per-account login l
 The default is unchanged — narrowing it blindly would break sign-in behind a proxy — and
 [Reverse proxy](docs/install/reverse-proxy.md) now says how and when to narrow it. Also from #34.
 
+**Reminders no longer reach Google readable.** A calendar reminder pushed to an Android device
+through Firebase carried the event's title as plain JSON, although the code said it was encrypted —
+that was only true of browser push. Anything with content in it is now sealed to a key the app
+registers, the same way a browser's push is, and a device that has registered none is not sent it
+at all. State changes carry no content and are unchanged. The Android app needs the version that
+registers a key to show these reminders; older versions never showed them. Also from #34.
+
 Nothing already on a calendar is removed or changed by upgrading. One new nullable column,
 `event_source_link.hold_reason`. See
 [Invitations and events from mail](docs/features/calendar-invitations.md).

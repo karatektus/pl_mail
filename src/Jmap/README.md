@@ -113,6 +113,10 @@ column.
   bearer token by the service-account JWT grant, `Push/FcmSettings` answers
   "configured and enabled, and with what?" for the sender, the Session and
   `PushSubscription/set` alike.
+- `Push/FcmPayloadCipher` seals a payload that carries content (a reminder's
+  title) to the RFC 8291 keys an FCM subscription may register, so Firebase
+  relays ciphertext. `FcmSender` sends such a payload sealed or not at all;
+  `StateChange` and `PushVerification` carry no content and stay readable.
 - `Push/PushDispatcher` fans out to a user's devices, per transport. Draining is
   driven by `App\Infrastructure\Event\Subscriber\JmapPushSubscriber`.
 

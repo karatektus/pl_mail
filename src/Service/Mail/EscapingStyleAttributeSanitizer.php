@@ -54,7 +54,7 @@ final readonly class EscapingStyleAttributeSanitizer implements AttributeSanitiz
         return ['style'];
     }
 
-    public function sanitizeAttribute(string $element, string $attribute, string $value, HtmlSanitizerConfig $config): ?string
+    public function sanitizeAttribute(string $element, string $attribute, string $value, HtmlSanitizerConfig $config): string
     {
         $kept = [];
 

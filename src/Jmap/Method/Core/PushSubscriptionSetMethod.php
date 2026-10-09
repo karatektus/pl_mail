@@ -58,7 +58,7 @@ final class PushSubscriptionSetMethod implements JmapMethod
      */
     private const array CREATE_PROPERTIES = [
         PushTransport::WebPush->value => ['deviceClientId', 'url', 'keys', 'types', 'expires'],
-        PushTransport::Fcm->value     => ['deviceClientId', 'fcmToken', 'types', 'expires'],
+        PushTransport::Fcm->value     => ['deviceClientId', 'fcmToken', 'keys', 'types', 'expires'],
     ];
 
     public function __construct(
@@ -128,7 +128,13 @@ final class PushSubscriptionSetMethod implements JmapMethod
                 $expires = $this->expires($properties['expires'] ?? null);
 
                 $url = PushTransport::WebPush === $transport ? $this->requireUrl($properties['url'] ?? null) : null;
-                $keys = PushTransport::WebPush === $transport ? $this->requireKeys($properties['keys'] ?? null) : null;
+                // Required for Web Push, where nothing is delivered without
+                // them. Optional for FCM: an app that sends none still gets
+                // state changes, and simply is not sent anything that would
+                // have to be readable by Google — see FcmSender.
+                $keys = PushTransport::WebPush === $transport || null !== ($properties['keys'] ?? null)
+                    ? $this->requireKeys($properties['keys'] ?? null)
+                    : null;
                 $token = PushTransport::Fcm === $transport ? $this->requireString($properties['fcmToken'] ?? null, 'fcmToken') : null;
             } catch (MethodException $exception) {
                 $notCreated[$creationId] = $exception->toError();
@@ -270,12 +276,27 @@ final class PushSubscriptionSetMethod implements JmapMethod
                     $reverify = true;
                     break;
 
+                case 'keys':
+                    // An FCM subscription may gain or change its keys in
+                    // place: they decide what a payload is sealed to, not
+                    // where it goes, so there is no handshake to redo. This
+                    // is how an app updated to a version that encrypts starts
+                    // receiving reminders without re-registering.
+                    if (PushTransport::Fcm !== $subscription->transport) {
+                        throw new MethodException('invalidPatch', 'The keys of a Web Push subscription are create-only: they belong to its endpoint. Create a new subscription with the same deviceClientId instead.');
+                    }
+
+                    $keys = $this->requireKeys($value);
+                    $subscription->p256dh = $keys['p256dh'];
+                    $subscription->auth   = $keys['auth'];
+                    break;
+
                 default:
                     // url and keys are create-only: changing where an encrypted
                     // payload goes has to redo the handshake, which means a new
                     // create. fcmToken above is the deliberate exception, and
                     // it redoes the handshake in place rather than skipping it.
-                    throw new MethodException('invalidPatch', sprintf('Property "%s" cannot be updated. Updatable properties are "verificationCode", "expires", "types" and, on an FCM subscription, "fcmToken".', $property));
+                    throw new MethodException('invalidPatch', sprintf('Property "%s" cannot be updated. Updatable properties are "verificationCode", "expires", "types" and, on an FCM subscription, "fcmToken" and "keys".', $property));
             }
         }
 
@@ -350,7 +371,11 @@ final class PushSubscriptionSetMethod implements JmapMethod
             return PushTransport::WebPush;
         }
 
-        foreach (['url', 'keys'] as $webPushOnly) {
+        // `url` is what makes a subscription a Web Push one. `keys` used to be
+        // listed here too and no longer is: an FCM subscription may carry
+        // them, so that payloads with content can be sealed to the device
+        // instead of travelling through Google readable (FcmPayloadCipher).
+        foreach (['url'] as $webPushOnly) {
             if (true === array_key_exists($webPushOnly, $properties) && null !== $properties[$webPushOnly]) {
                 throw new MethodException('invalidProperties', sprintf(
                     '"fcmToken" and "%s" cannot both be set: a subscription is either an FCM one or a Web Push one. '

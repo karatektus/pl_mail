@@ -124,6 +124,9 @@ final class FcmSender implements PushSenderInterface
      *
      * @var list<string>
      */
+    /** See isContentFree(). */
+    private const array CONTENT_FREE_TYPES = ['StateChange', 'PushVerification'];
+
     private const array TRANSIENT_CODES = [
         'QUOTA_EXCEEDED',
         'UNAVAILABLE',
@@ -150,6 +153,7 @@ final class FcmSender implements PushSenderInterface
         private readonly EntityManagerInterface $em,
         private readonly PushDeliveryRecorder   $deliveries,
         private readonly LoggerInterface        $logger,
+        private readonly FcmPayloadCipher       $cipher = new FcmPayloadCipher(),
     ) {}
 
     public function transport(): PushTransport
@@ -194,6 +198,18 @@ final class FcmSender implements PushSenderInterface
             return false;
         }
 
+        // A payload with content in it does not go to Google readable. Either
+        // it is sealed to the device's key, or it is not sent: an app too old
+        // to have given a key is also too old to know what a reminder push
+        // is, so nothing it could have shown is lost — only the copy Google
+        // would have kept. Decided before the access token is fetched, so a
+        // skipped send costs no request at all.
+        if (false === $this->isContentFree($payload) && false === $this->cipher->canSeal($subscription)) {
+            $this->deliveries->record($subscription, $payload, PushDeliveryOutcome::Skipped, 'no-encryption-key', $startedAt);
+
+            return false;
+        }
+
         $accessToken = $this->tokens->tokenFor($account);
 
         if (null === $accessToken) {
@@ -211,7 +227,7 @@ final class FcmSender implements PushSenderInterface
         try {
             $response = $this->http->request('POST', sprintf(self::SEND_ENDPOINT, $account->projectId), [
                 'auth_bearer' => $accessToken,
-                'json'        => ['message' => $this->message($token, $payload)],
+                'json'        => ['message' => $this->message($subscription, $token, $payload)],
             ]);
 
             $status = $response->getStatusCode();
@@ -258,7 +274,7 @@ final class FcmSender implements PushSenderInterface
      *
      * @return array<string,mixed>
      */
-    private function message(string $token, array $payload): array
+    private function message(PushSubscription $subscription, string $token, array $payload): array
     {
         $type = $payload['@type'] ?? null;
 
@@ -283,9 +299,33 @@ final class FcmSender implements PushSenderInterface
             // choice is one JSON string or a flattened shape that no longer
             // matches what Web Push delivers. The client parses this and gets
             // the identical object either way.
-            'data'    => ['payload' => json_encode($payload, JSON_THROW_ON_ERROR)],
+            //
+            // `payload` when the object says nothing Google may not read, and
+            // `encrypted` otherwise — the RFC 8291 body a browser would have
+            // been sent, which the app opens with the key it registered. Two
+            // keys rather than one with a flag, so an app that predates
+            // encryption sees no `payload` and ignores the message, instead of
+            // trying to parse ciphertext as JSON.
+            'data'    => true === $this->isContentFree($payload)
+                ? ['payload' => json_encode($payload, JSON_THROW_ON_ERROR)]
+                : ['encrypted' => $this->cipher->seal($subscription, $payload)],
             'android' => $android,
         ];
+    }
+
+    /**
+     * Whether a payload may travel readable.
+     *
+     * A closed list of the two types that are tokens and ids by construction.
+     * Everything else is treated as content, including types that do not
+     * exist yet — the next thing somebody pushes should have to be added here
+     * on purpose to go out in the clear, not by default.
+     *
+     * @param array<string,mixed> $payload
+     */
+    private function isContentFree(array $payload): bool
+    {
+        return true === in_array($payload['@type'] ?? null, self::CONTENT_FREE_TYPES, true);
     }
 
     /**

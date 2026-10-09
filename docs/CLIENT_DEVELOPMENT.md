@@ -538,6 +538,7 @@ instance can actually deliver over; RFC 8620 defines no standard place for any o
 | `vapidPublicKey` | Your `applicationServerKey` for a Web Push subscription. **Empty** means Web Push is unconfigured — don't offer it. |
 | `fcm` | Whether Firebase is configured *and* switched on. Always present, `true` or `false`. |
 | `fcmConfig` | The inputs to Android's `FirebaseOptions.Builder`. **Absent entirely when `fcm` is false** — not null. |
+| `fcmEncryption` | `true` when an FCM subscription may carry `keys` and the server seals payloads with content in them — see [Sealed payloads over FCM](#sealed-payloads-over-fcm). Absent on a server that predates it, which refuses `keys` on an FCM create. |
 
 `fcm` is always present so you can tell "this server does not do FCM" from "this server predates
 FCM"; the right reaction to each is the opposite one. `fcmConfig` takes the opposite rule for the
@@ -1183,8 +1184,10 @@ object; everything else — `deviceClientId`, `types`, `expires`, the handshake 
 }}}, "0"]
 ```
 
-The two shapes are exclusive. A create carrying both `fcmToken` and `url` (or `keys`) is refused
-with `invalidProperties` naming the conflict, rather than one being picked for you. A create
+The two shapes are exclusive. A create carrying both `fcmToken` and `url` is refused with
+`invalidProperties` naming the conflict, rather than one being picked for you. `keys` is required
+with `url` and **optional with `fcmToken`** — send it, see
+[Sealed payloads over FCM](#sealed-payloads-over-fcm). A create
 carrying `fcmToken` on an instance where FCM is unconfigured or switched off is refused with
 `forbidden` — check the capability first; this is only a backstop.
 
@@ -1261,12 +1264,60 @@ already looking at that mailbox. The object above is the string value of one dat
 ```
 
 So `RemoteMessage.getData()["payload"]` is a JSON string, and its `@type` is either `StateChange` or
-`PushVerification`. Collapse keys are per type — `plmail-state-change` and `plmail-push-verification`
+`PushVerification` — the two types that carry no content. Collapse keys are per type — `plmail-state-change` and `plmail-push-verification`
 — so a backlog of state changes collapses to the newest without ever discarding an undelivered
 verification. Messages live 24 hours.
 
 A token the server is told is `UNREGISTERED` or `NOT_FOUND` **destroys the subscription**, exactly as
 a 404/410 does for Web Push. Quota rejections and Firebase outages do not.
+
+#### Sealed payloads over FCM
+
+A state change and a verification are tokens and ids, and travel as readable JSON in `payload`.
+Anything that carries **content** — today `CalendarAlert`, a reminder with the event's title, and
+`UpdateAvailable` — is never sent through Firebase readable. It is sealed to a key your app
+registers, or it is not sent to that device at all.
+
+Register the key with the subscription, exactly as a browser does for Web Push (RFC 8291): generate
+a P-256 key pair and a 16-byte secret on the device, keep the private key there, and send
+
+```json
+["PushSubscription/set", { "create": { "s1": {
+  "deviceClientId": "phone-42",
+  "fcmToken": "cX9…:APA91b…",
+  "keys": { "p256dh": "<base64url, 65-byte uncompressed point>", "auth": "<base64url, 16 bytes>" },
+  "types": ["Email", "Mailbox"]
+}}}, "0"]
+```
+
+An existing FCM subscription can be given keys, or new ones, with an `update` carrying `keys`. It
+redoes no handshake. Check `fcmEncryption` in the session first: a server without it refuses the
+property.
+
+A sealed message has **no `payload` key**. It has `encrypted` instead:
+
+```json
+{ "message": { "token": "…", "data": { "encrypted": "<base64url>" }, "android": { "priority": "HIGH", "ttl": "86400s" } } }
+```
+
+The value is, base64url-encoded, byte for byte the body a Web Push POST would have carried with
+`Content-Encoding: aes128gcm`: the RFC 8188 header (16-byte salt, 4-byte record size, 1-byte key
+length, the server's 65-byte public key) followed by one encrypted record. Decrypt it as RFC 8291
+§3.4 describes — ECDH between your private key and the key in the header, HKDF with your `auth`
+secret — strip the trailing `0x02` delimiter, and you have the JSON object, to be handled like any
+other payload. RFC 8291 Appendix A is a complete test vector.
+
+```json
+{ "@type": "CalendarAlert", "title": "Dentist", "body": "in 15 minutes",
+  "url": "/calendar/day/2026-10-16", "tag": "412/display-15m/2026-10-16T09:00:00Z" }
+```
+
+`tag` identifies one reminder for one occurrence: use it so a redelivery replaces the notification
+instead of adding a second. A sealed message carries no collapse key, so two reminders about two
+appointments never replace one another.
+
+**A device that registered no key is not sent these at all.** The delivery log records the skip as
+`no-encryption-key`. Reminders on that device then depend on whatever the app schedules locally.
 
 Every token comes from the same state manager the `/get` and `/changes` methods use, so a push and a
 subsequent `/changes` can never disagree.

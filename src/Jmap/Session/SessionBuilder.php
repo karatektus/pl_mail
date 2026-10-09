@@ -443,6 +443,11 @@ final class SessionBuilder
         $capabilities = [
             'vapidPublicKey' => $this->vapidPublicKey,
             'fcm'            => $this->fcmSettings->isActive(),
+            // An FCM subscription may carry RFC 8291 `keys`, and payloads with
+            // content in them are then sealed to it (FcmPayloadCipher). Said
+            // here so an app can tell a server that will use its key from an
+            // older one that refuses the property outright.
+            'fcmEncryption'  => true,
         ];
 
         $client = $this->fcmSettings->clientConfig();

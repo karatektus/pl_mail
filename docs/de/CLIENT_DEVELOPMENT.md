@@ -1,4 +1,4 @@
-<!-- translated-from: CLIENT_DEVELOPMENT.md sha1:2109f72c0c6d35f87935d1c97eb3f2575cec3571 -->
+<!-- translated-from: CLIENT_DEVELOPMENT.md sha1:1d6665ffd18387e0a1ca17ff2db2e22177b8b892 -->
 # Einen Client für plMail bauen
 
 Alles, was eine Entwicklerin (oder ein Agent) braucht, um einen *neuen* plMail-Client zu schreiben
@@ -593,6 +593,7 @@ einen standardisierten Platz.
 | `vapidPublicKey` | Dein `applicationServerKey` für eine Web-Push-Subscription. **Leer** heißt, Web Push ist nicht konfiguriert — biete es dann nicht an. |
 | `fcm` | Ob Firebase konfiguriert *und* eingeschaltet ist. Immer vorhanden, `true` oder `false`. |
 | `fcmConfig` | Die Eingaben für Androids `FirebaseOptions.Builder`. **Fehlt vollständig, wenn `fcm` false ist** — nicht null. |
+| `fcmEncryption` | `true`, wenn eine FCM-Subscription `keys` tragen darf und der Server Nutzlasten mit Inhalt versiegelt — siehe [Versiegelte Nutzlasten über FCM](#versiegelte-nutzlasten-über-fcm). Fehlt auf einem Server, der das noch nicht kann und `keys` bei einem FCM-Create ablehnt. |
 
 `fcm` ist immer vorhanden, damit du „dieser Server kann kein FCM" von „dieser Server ist älter als
 FCM" unterscheiden kannst; die richtige Reaktion ist jeweils die entgegengesetzte. Bei `fcmConfig`
@@ -1299,9 +1300,10 @@ ist eine plMail-Erweiterung des Objekts aus RFC 8620; alles andere — `deviceCl
 }}}, "0"]
 ```
 
-Die beiden Formen schließen einander aus. Ein Create mit `fcmToken` *und* `url` (oder `keys`)
-wird mit `invalidProperties` abgelehnt und benennt den Konflikt, statt dass eines für dich
-ausgewählt wird. Ein Create mit `fcmToken` auf einer Instanz, auf der FCM nicht konfiguriert oder
+Die beiden Formen schließen einander aus. Ein Create mit `fcmToken` *und* `url` wird mit
+`invalidProperties` abgelehnt und benennt den Konflikt, statt dass eines für dich ausgewählt wird.
+`keys` ist mit `url` Pflicht und **mit `fcmToken` optional** — schick es mit, siehe
+[Versiegelte Nutzlasten über FCM](#versiegelte-nutzlasten-über-fcm). Ein Create mit `fcmToken` auf einer Instanz, auf der FCM nicht konfiguriert oder
 abgeschaltet ist, wird mit `forbidden` abgelehnt — prüf zuerst die Capability; das hier ist nur
 das Auffangnetz.
 
@@ -1385,13 +1387,64 @@ einzelnen Datenschlüssels:
 ```
 
 `RemoteMessage.getData()["payload"]` ist also ein JSON-String, und dessen `@type` ist entweder
-`StateChange` oder `PushVerification`. Die Collapse-Keys sind je Typ getrennt —
+`StateChange` oder `PushVerification` — die beiden Typen, die keinen Inhalt tragen. Die Collapse-Keys sind je Typ getrennt —
 `plmail-state-change` und `plmail-push-verification` —, damit ein Rückstau von StateChanges auf den
 neuesten zusammenfällt, ohne je eine unzugestellte Verifikation zu verwerfen. Nachrichten leben
 24 Stunden.
 
 Ein Token, zu dem FCM `UNREGISTERED` oder `NOT_FOUND` meldet, **löscht die Subscription**, genau
 wie ein 404/410 bei Web Push. Kontingent-Ablehnungen und Firebase-Ausfälle tun das nicht.
+
+#### Versiegelte Nutzlasten über FCM
+
+Ein StateChange und eine Verifikation sind Tokens und IDs und reisen als lesbares JSON in `payload`.
+Alles, was **Inhalt** trägt — heute `CalendarAlert`, eine Erinnerung mit dem Titel des Termins, und
+`UpdateAvailable` —, geht nie lesbar durch Firebase. Es wird für einen Schlüssel versiegelt, den
+deine App registriert, oder es wird an dieses Gerät gar nicht geschickt.
+
+Registrier den Schlüssel mit der Subscription, genau wie ein Browser es für Web Push tut
+(RFC 8291): Erzeug auf dem Gerät ein P-256-Schlüsselpaar und ein 16-Byte-Geheimnis, behalt den
+privaten Schlüssel dort und schick
+
+```json
+["PushSubscription/set", { "create": { "s1": {
+  "deviceClientId": "phone-42",
+  "fcmToken": "cX9…:APA91b…",
+  "keys": { "p256dh": "<base64url, unkomprimierter 65-Byte-Punkt>", "auth": "<base64url, 16 Bytes>" },
+  "types": ["Email", "Mailbox"]
+}}}, "0"]
+```
+
+Eine bestehende FCM-Subscription bekommt Schlüssel, oder neue, per `update` mit `keys`. Das
+wiederholt keinen Handshake. Prüf vorher `fcmEncryption` in der Session: Ein Server ohne das lehnt
+die Eigenschaft ab.
+
+Eine versiegelte Nachricht hat **keinen Schlüssel `payload`**. Sie hat stattdessen `encrypted`:
+
+```json
+{ "message": { "token": "…", "data": { "encrypted": "<base64url>" }, "android": { "priority": "HIGH", "ttl": "86400s" } } }
+```
+
+Der Wert ist, base64url-kodiert, Byte für Byte der Body, den ein Web-Push-POST mit
+`Content-Encoding: aes128gcm` getragen hätte: der RFC-8188-Header (16 Byte Salt, 4 Byte
+Record-Größe, 1 Byte Schlüssellänge, der 65-Byte-Public-Key des Servers), gefolgt von einem
+verschlüsselten Record. Entschlüssel ihn, wie RFC 8291 §3.4 es beschreibt — ECDH zwischen deinem
+privaten Schlüssel und dem Schlüssel im Header, HKDF mit deinem `auth`-Geheimnis —, nimm das
+abschließende `0x02` weg, und du hast das JSON-Objekt, das du wie jede andere Nutzlast behandelst.
+RFC 8291 Anhang A ist ein vollständiger Testvektor.
+
+```json
+{ "@type": "CalendarAlert", "title": "Dentist", "body": "in 15 minutes",
+  "url": "/calendar/day/2026-10-16", "tag": "412/display-15m/2026-10-16T09:00:00Z" }
+```
+
+`tag` bezeichnet eine Erinnerung für ein Vorkommen: Nimm es, damit eine erneute Zustellung die
+Benachrichtigung ersetzt, statt eine zweite hinzuzufügen. Eine versiegelte Nachricht trägt keinen
+Collapse-Key, zwei Erinnerungen an zwei Termine ersetzen einander also nie.
+
+**Ein Gerät, das keinen Schlüssel registriert hat, bekommt diese gar nicht.** Das Zustellprotokoll
+vermerkt das Auslassen als `no-encryption-key`. Erinnerungen auf diesem Gerät hängen dann davon ab,
+was die App lokal plant.
 
 Jedes Token kommt aus demselben State-Manager, den auch die `/get`- und `/changes`-Methoden
 verwenden; ein Push und ein anschließendes `/changes` können sich also nie widersprechen.

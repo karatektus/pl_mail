@@ -31,6 +31,12 @@ use Psr\Log\LoggerInterface;
  * title and a time — which the user is about to be shown on their lock screen
  * anyway.
  *
+ * That sentence was only true of Web Push for a while. Over FCM the same
+ * payload went to Google as readable JSON (issue #34). It is true of both now:
+ * FcmSender seals anything with content in it to a key the app registers
+ * (FcmPayloadCipher), and a device that has registered none is not sent the
+ * reminder at all rather than being sent it in the clear.
+ *
  * A user with no verified subscription is not an error. It is the ordinary state
  * of an install where nobody has granted notification permission, and it answers
  * false so AlertDeliverer can say so once rather than raise something.
