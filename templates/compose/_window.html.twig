@@ -523,7 +523,16 @@ Variables: form, message, ctx (an App\Domain\DTO\Mail\ComposeContext)
                      aria-multiline="true"
                      aria-label="{{ 'compose.body_placeholder'|trans }}"
                      data-placeholder="{{ 'compose.body_placeholder'|trans }}"
-                     class="w-full min-h-[170px] bg-transparent outline-none
+                     {# [contain:paint] makes the editor the containing block for
+                        anything positioned inside it, and clips to its box.
+                        The quote under a reply is the sender's HTML in the
+                        app's own document: without this, `position: fixed`
+                        in a mail covered the composer — or the whole app —
+                        with content of the sender's choosing the moment
+                        somebody pressed Reply. The sanitiser drops such
+                        declarations too; this is what holds when one gets
+                        past it. #}
+                     class="w-full min-h-[170px] bg-transparent outline-none [contain:paint]
                             text-sm leading-relaxed
                             text-ink {{ plainText ? 'hidden' : '' }}
                             empty:before:content-[attr(data-placeholder)]

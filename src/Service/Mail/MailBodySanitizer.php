@@ -290,6 +290,10 @@ final readonly class MailBodySanitizer
             $config = $config->allowAttribute($marker, '*');
         }
 
+        // A composed body is shown in the app's own document, not in a frame,
+        // so the stricter half applies: see EscapingStyleAttributeSanitizer.
+        $config = $config->withAttributeSanitizer(new EscapingStyleAttributeSanitizer(composing: true));
+
         // `cid:` on top of the mail schemes, because of WHERE this runs.
         // DraftPersister::save() rewrites the editor's attachment URLs into
         // `cid:` references BEFORE the draft is persisted — the stored body is
@@ -343,6 +347,9 @@ final readonly class MailBodySanitizer
             // view puts it straight into an app page — and becomes a request,
             // with the reader's session, somewhere the sender chose.
             ->withAttributeSanitizer(new RelativeUrlAttributeSanitizer())
+            // Styles stay, but not the ones that take an element out of the
+            // message and onto the page around it.
+            ->withAttributeSanitizer(new EscapingStyleAttributeSanitizer())
             ->withMaxInputLength(self::MAX_INPUT_LENGTH);
 
         return $config;
