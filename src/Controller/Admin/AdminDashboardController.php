@@ -11,6 +11,7 @@ use App\Repository\Monitoring\ClientErrorRepository;
 use App\Repository\Monitoring\LogEntryRepository;
 use App\Repository\Monitoring\LogSettingsRepository;
 use App\Repository\Monitoring\PostgresStatusRepository;
+use App\Service\Demo\DemoMode;
 use App\Service\Monitoring\AdminMonitoringService;
 use App\Service\Monitoring\DbPerformanceService;
 use App\Service\Monitoring\LogLevelResolver;
@@ -32,7 +33,8 @@ final class AdminDashboardController extends AbstractController
 {
     use ChecksCsrf;
 
-    private const array SECTIONS = ['system', 'performance', 'database', 'logs', 'insight-reports', 'address', 'integrations', 'push', 'ai', 'users', 'backup', 'updates', 'reset'];
+    private const array SECTIONS = ['system', 'performance', 'database', 'logs', 'insight-reports', 'address', 'integrations', 'push', 'ai', 'users', 'backup', 'updates', 'reset', self::SECTION_DEMO];
+    private const string SECTION_DEMO = 'demo';
     private const int LOGS_PER_PAGE = 100;
 
     /**
@@ -65,6 +67,7 @@ final class AdminDashboardController extends AbstractController
         private readonly InsightReportRepository $insightReports,
         private readonly TranslatorInterface $translator,
         private readonly UpdateChecker $updates,
+        private readonly DemoMode $demoMode,
     ) {}
 
     #[Route('', name: 'dashboard')]
@@ -73,6 +76,12 @@ final class AdminDashboardController extends AbstractController
         $section = (string) $request->query->get('section', 'system');
 
         if (false === in_array($section, self::SECTIONS, true)) {
+            $section = 'system';
+        }
+
+        // The demo's own section exists on a demo and nowhere else. Asked for
+        // on a normal install it is an unknown section like any other.
+        if (self::SECTION_DEMO === $section && false === $this->demoMode->isEnabled()) {
             $section = 'system';
         }
 

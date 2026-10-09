@@ -134,6 +134,26 @@ docker compose exec php php bin/console app:demo:reap --dry-run
 A user with no expiry stamp is left alone rather than treated as overdue — the safe direction for
 the failure that matters, which is a reaper that deletes the administrator.
 
+### Seeing how much it is used
+
+**Admin → Demo visitors** counts the sessions the instance has handed out: in the last hour, the
+last 24 hours, the last 7 days and the last 30 days, each beside the number of different visitors
+who started them, plus an all-time total and how many visitors have a mailbox right now. The section
+exists only in demo mode. On a normal install it is not in the navigation and its address answers
+404.
+
+The users themselves cannot be counted, because the reaper deletes them, so `/demo` writes one row
+per session into a table of its own. That row holds no address. The visitor's address is cut down
+first — the last octet of an IPv4 address, the last 80 bits of an IPv6 one — and what is stored is a
+hash of the remainder, keyed with the instance's `APP_SECRET`. So the most that could ever be worked
+back out of the table, by somebody holding the key, is a network and not a person.
+
+Two consequences follow. People who share a network count as one visitor, so "different visitors"
+is a slight undercount. And the hash is deleted after 30 days by the same `app:demo:reap` run that
+removes expired visitors, which is why the all-time total has no visitor count beside it.
+
+The privacy notice at `/datenschutz` describes this under its own heading.
+
 ### Sizing it
 
 Each visitor costs one user, one account, ten threads and ten contacts. Provisioning is rate

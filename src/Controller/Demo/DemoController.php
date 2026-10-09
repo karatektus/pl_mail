@@ -6,13 +6,16 @@ namespace App\Controller\Demo;
 
 use App\Controller\ChecksCsrf;
 use App\Controller\RendersTurboStreams;
+use App\Entity\Demo\DemoVisit;
 use App\Entity\User\User;
+use App\Repository\Demo\DemoVisitRepository;
 use App\Repository\Mail\AccountRepository;
 use App\Security\LoginFormAuthenticator;
 use App\Service\Demo\DemoInbox;
 use App\Service\Demo\DemoMode;
 use App\Service\Demo\DemoProvisioner;
 use App\Service\Demo\DemoScenarios;
+use App\Service\Demo\DemoVisitorFingerprint;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\RedirectResponse;
@@ -45,6 +48,7 @@ final class DemoController extends AbstractController
         private readonly DemoProvisioner             $provisioner,
         private readonly DemoInbox                   $inbox,
         private readonly DemoScenarios               $scenarios,
+        private readonly DemoVisitorFingerprint      $fingerprint,
         private readonly AccountRepository           $accounts,
         private readonly EntityManagerInterface      $entityManager,
         private readonly RateLimiterFactoryInterface $demoProvisionLimiter,
@@ -91,6 +95,12 @@ final class DemoController extends AbstractController
         }
 
         $user = $this->provisioner->provision();
+
+        // Counted for Admin → Demo visitors, which cannot count the users: the
+        // reaper takes them. The address goes no further than this line — what
+        // is stored is DemoVisitorFingerprint's hash of the network it is in.
+        $this->entityManager->persist(new DemoVisit($this->fingerprint->of($request->getClientIp())));
+        $this->entityManager->flush();
 
         $security->login($user, LoginFormAuthenticator::class);
 
@@ -210,6 +220,8 @@ final class DemoController extends AbstractController
             'operatorEmail'   => $this->impressumEmail,
             'host'            => $this->privacyHost,
             'ttl'             => $this->demoMode->ttlDescription(),
+            // Read off the constant the reaper acts on, like the TTL above.
+            'statsRetentionDays' => DemoVisitRepository::HASH_RETENTION_DAYS,
         ]);
     }
 

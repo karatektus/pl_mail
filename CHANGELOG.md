@@ -8,11 +8,24 @@ The published image tags: `latest` follows the most recent release below,
 
 ## Unreleased
 
+**A public demo can see how much it is used.** In demo mode the admin area has a new section, Demo
+visitors: how many demo sessions were started in the last hour, 24 hours, 7 days and 30 days, how
+many different visitors started them, the total so far and how many have a mailbox right now. No
+address is stored. What is kept per session is a keyed hash of the visitor's address with its last
+part cut off, and that hash is deleted after 30 days. The demo's privacy notice says so. None of
+this exists on a normal install: the section is not in the navigation, its address answers 404 and
+nothing is recorded. See [Demo mode](docs/install/demo-mode.md#seeing-how-much-it-is-used).
+
 **A message no longer grows down the page without end.** Some mail sizes its outer block as "one
 screen tall". Inside plMail a message sits in a frame that is made as tall as its content, so the
 block grew with the frame, the frame grew to fit the block, and the message kept getting longer,
 pushing everything below it away. Sizes given in screen heights are now ignored inside a message,
 and a message whose content merely follows the frame is no longer resized again.
+
+### Before you upgrade
+
+- **One migration, applied on boot.** It adds an empty table, `demo_visit`, which only a demo
+  instance ever writes to.
 
 ## v0.3.1 — 2026-10-08
 

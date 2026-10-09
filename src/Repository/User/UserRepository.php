@@ -148,6 +148,21 @@ class UserRepository extends ServiceEntityRepository implements PasswordUpgrader
     }
 
     /**
+     * Demo visitors who have an account right now: the users app:demo:reap has
+     * not taken yet. The mirror of countExcludingDemoVisitors(), on the same
+     * predicate.
+     */
+    public function countDemoVisitors(): int
+    {
+        return (int) $this->createQueryBuilder('usr')
+            ->select('COUNT(usr.id)')
+            ->where('usr.email LIKE :demoAddress')
+            ->setParameter('demoAddress', DemoMode::USER_PREFIX.'%@'.DemoMode::USER_DOMAIN)
+            ->getQuery()
+            ->getSingleScalarResult();
+    }
+
+    /**
      * Persist $user as the first administrator, or return false if someone
      * else got there first.
      *

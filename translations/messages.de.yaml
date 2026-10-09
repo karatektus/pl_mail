@@ -469,6 +469,21 @@ admin:
             empty: 'Noch keine Abfragen oberhalb des Schwellwerts.'
             heading: 'Langsamste Abfragen (nach Durchschnittszeit)'
             hint: 'Abfragen mit durchschnittlich ≥ 5 ms, aktuelle Datenbank.'
+    demo_stats:
+        active: 'Gerade offen: %count%'
+        col:
+            period: 'Zeitraum'
+            sessions: 'Gestartete Sitzungen'
+            visitors: 'Verschiedene Besucher'
+        heading: 'Demo-Besucher'
+        intro: 'Wie viele Demo-Sitzungen diese Instanz vergeben hat. Eine Sitzung ist ein Postfach, das über /demo angelegt wurde; wer nach Ablauf wiederkommt, startet eine neue.'
+        privacy: 'Es wird keine Adresse gespeichert. Jede Sitzung behält einen Hashwert mit geheimem Schlüssel über das Netz des Besuchers (die Adresse ohne ihren letzten Teil), damit jemand, der wiederkommt, einmal zählt; wer sich ein Netz teilt, zählt als einer. Der Hashwert wird nach %days% Tagen gelöscht, deshalb hat die Gesamtzahl keine Besucherzahl.'
+        window:
+            day: 'Letzte 24 Stunden'
+            hour: 'Letzte Stunde'
+            month: 'Letzte 30 Tage'
+            total: 'Insgesamt'
+            week: 'Letzte 7 Tage'
     failed:
         delete: 'Löschen'
         delete_confirm: 'Diese fehlgeschlagene Nachricht endgültig verwerfen?'
@@ -700,6 +715,7 @@ admin:
         ai: KI
         backup: Sicherung
         database: Datenbank
+        demo_stats: 'Demo-Besucher'
         insight_reports: Gemeldete Mails
         integrations: Integrationen
         logs: Protokolle
@@ -1905,6 +1921,15 @@ demo:
             ein Widerspruchsrecht und ein Recht auf Datenübertragbarkeit. Wende dich
             dafür an die oben genannte Adresse.
         rights_title: Deine Rechte
+        stats: >-
+            Um zu sehen, wie stark die Demo genutzt wird, wird jede gestartete Demo-Sitzung
+            gezählt. Gespeichert werden der Zeitpunkt und ein mit einem geheimen Schlüssel
+            gebildeter Hashwert der um ihren letzten Teil gekürzten IP-Adresse (bei IPv4 das
+            letzte Oktett, bei IPv6 die letzten 80 Bit) — nie die Adresse selbst. Der Hashwert
+            zeigt nur, dass zwei Sitzungen aus demselben Netz kamen, und wird nach %days% Tagen
+            gelöscht (Art. 6 Abs. 1 lit. f DSGVO — berechtigtes Interesse daran zu wissen,
+            wie stark die Demo genutzt wird).
+        stats_title: 'Nutzungsstatistik'
         third_parties: >-
             Es werden keine Daten an Dritte weitergegeben. Diese Seite lädt keine
             externen Schriftarten, Skripte, Karten oder Analysedienste — ihre Content

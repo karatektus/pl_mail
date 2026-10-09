@@ -402,6 +402,21 @@ admin:
             empty: 'No queries above the waterline yet.'
             heading: 'Slowest queries (by middlin'' time)'
             hint: 'Queries averagin'' ≥ 5ms, this here database.'
+    demo_stats:
+        active: 'Aboard now: %count%'
+        col:
+            period: 'Watch'
+            sessions: 'Berths handed out'
+            visitors: 'Different hands'
+        heading: 'Trial hands'
+        intro: 'How many trial berths this ship has handed out. A berth be one sea chest made by followin'' /demo; a hand comin'' back after theirs ran out takes another.'
+        privacy: 'No address be kept. Each berth keeps a keyed mark o'' th'' visitor''s home waters (th'' address wi'' its tail cut off), so a hand comin'' back counts once; hands sharin'' th'' same waters count as one. Th'' mark be scrubbed after %days% days, which be why th'' grand tally has no count o'' hands.'
+        window:
+            day: 'Last 24 hours'
+            hour: 'Last hour'
+            month: 'Last 30 days'
+            total: 'Since she launched'
+            week: 'Last 7 days'
     failed:
         delete: 'Feed to the fishes'
         delete_confirm: 'Send this lost bottle to Davy Jones for good?'
@@ -627,6 +642,7 @@ admin:
         ai: Oracle
         backup: "Ship's papers"
         database: Database
+        demo_stats: 'Trial hands'
         insight_reports: 'Reported letters'
         integrations: 'Friendly ports'
         logs: Ship's log
@@ -1787,6 +1803,14 @@ demo:
             struck, or held back, as well as th' right to object an' th' right to carry
             yer records elsewhere. Write to th' address above.
         rights_title: Yer rights
+        stats: >-
+            To see how much th' trial be used, each trial berth handed out be tallied. What
+            be kept be th' hour an' a keyed mark o' th' address wi' its tail cut off (th'
+            last octet o' an IPv4 address, th' last 80 bits o' an IPv6 one) — never th'
+            address itself. Th' mark shows only that two berths came from th' same waters,
+            an' it be scrubbed after %days% days (Art. 6(1)(f) o' th' articles — rightful
+            interest in knowin' how much th' trial be used).
+        stats_title: 'Th'' tally o'' visitors'
         third_parties: >-
             Naught be passed to other ships. This page draws no outside letterin',
             scripts, charts nor countin'-houses — her articles permit lines to this

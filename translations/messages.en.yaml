@@ -458,6 +458,21 @@ admin:
             empty: 'No statements above the threshold yet.'
             heading: 'Slowest queries (by mean time)'
             hint: 'Statements averaging ≥ 5ms, current database.'
+    demo_stats:
+        active: 'Open now: %count%'
+        col:
+            period: 'Period'
+            sessions: 'Sessions started'
+            visitors: 'Different visitors'
+        heading: 'Demo visitors'
+        intro: 'How many demo sessions this instance has handed out. A session is one mailbox created by following /demo; somebody coming back after theirs expired starts another.'
+        privacy: 'No address is stored. Each session keeps a keyed hash of the visitor''s network (the address with its last part cut off), so that somebody coming back counts once; people sharing a network count as one. The hash is deleted after %days% days, which is why the total has no visitor count.'
+        window:
+            day: 'Last 24 hours'
+            hour: 'Last hour'
+            month: 'Last 30 days'
+            total: 'All time'
+            week: 'Last 7 days'
     failed:
         delete: 'Delete'
         delete_confirm: 'Permanently drop this failed message?'
@@ -689,6 +704,7 @@ admin:
         ai: AI
         backup: Backup
         database: Database
+        demo_stats: 'Demo visitors'
         insight_reports: Reported mail
         integrations: Integrations
         logs: Logs
@@ -1900,6 +1916,14 @@ demo:
             correction, erasure or restriction, as well as the right to object to
             processing and the right to data portability. Write to the address above.
         rights_title: Your rights
+        stats: >-
+            To see how much the demo is used, each demo session that is started is counted.
+            What is stored is the time and a keyed hash of the IP address with its last part
+            cut off (the last octet of an IPv4 address, the last 80 bits of an IPv6 one) —
+            never the address itself. The hash shows only that two sessions came from the
+            same network, and it is deleted after %days% days (Art. 6(1)(f) GDPR —
+            legitimate interest in knowing how much the demo is used).
+        stats_title: 'Usage statistics'
         third_parties: >-
             No data is passed to third parties. This site loads no external fonts,
             scripts, maps or analytics — its content security policy allows connections

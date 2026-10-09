@@ -75,6 +75,17 @@
 
                     <div>
                         <h3 class="text-xs font-semibold uppercase tracking-wide text-ink-faint">
+                            {{ 'demo.privacy.stats_title'|trans }}
+                        </h3>
+                        {# What DemoController::start() writes down, and for how long
+                           DemoVisitRepository keeps the part that tells visitors apart. #}
+                        <p class="mt-1 text-sm text-ink-muted leading-relaxed">
+                            {{ 'demo.privacy.stats'|trans({ '%days%': statsRetentionDays }) }}
+                        </p>
+                    </div>
+
+                    <div>
+                        <h3 class="text-xs font-semibold uppercase tracking-wide text-ink-faint">
                             {{ 'demo.privacy.cookies_title'|trans }}
                         </h3>
                         <p class="mt-1 text-sm text-ink-muted leading-relaxed">{{ 'demo.privacy.cookies'|trans }}</p>

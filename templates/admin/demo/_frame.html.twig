@@ -1,0 +1,59 @@
+{% import '_partials/_card_chrome.html.twig' as chrome %}
+{#
+admin/demo/_frame.html.twig — Admin → Demo visitors. Demo mode only.
+
+Accepts:
+  windows       — { hour|day|week|month: { sessions, visitors } }
+  total         — every session this instance has handed out
+  active        — demo users the reaper has not taken yet
+  retentionDays — how long a visit keeps its visitor hash
+
+No auto-refresh: these are counts for looking at now and then, and the next
+visit to the page reads them again.
+#}
+<turbo-frame id="admin-demo">
+
+    <div class="{{ chrome.shell() }}">
+
+        <div class="flex items-center gap-2.5 {{ chrome.band() }}">
+            <i class="fa-solid fa-user-clock text-xs text-ink-faint" aria-hidden="true"></i>
+            <h2 class="text-sm font-semibold text-ink">{{ 'admin.demo_stats.heading'|trans }}</h2>
+            <span class="ml-auto text-[11px] font-medium px-2 py-0.5 rounded-full bg-raised text-ink-muted">
+                {{ 'admin.demo_stats.active'|trans({ '%count%': active }) }}
+            </span>
+        </div>
+
+        <div class="{{ chrome.body() }} space-y-5">
+
+            <p class="text-sm text-ink-soft leading-relaxed">{{ 'admin.demo_stats.intro'|trans }}</p>
+
+            <table class="w-full max-w-md text-sm">
+                <thead>
+                    <tr class="text-left text-xs text-ink-faint">
+                        <th scope="col" class="py-1.5 font-medium">{{ 'admin.demo_stats.col.period'|trans }}</th>
+                        <th scope="col" class="py-1.5 font-medium text-right">{{ 'admin.demo_stats.col.sessions'|trans }}</th>
+                        <th scope="col" class="py-1.5 font-medium text-right">{{ 'admin.demo_stats.col.visitors'|trans }}</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-line">
+                    {% for name, counts in windows %}
+                        <tr data-window="{{ name }}">
+                            <th scope="row" class="py-1.5 text-left font-normal text-ink-soft">{{ ('admin.demo_stats.window.' ~ name)|trans }}</th>
+                            <td class="py-1.5 text-right font-mono text-ink" data-count="sessions">{{ counts.sessions }}</td>
+                            <td class="py-1.5 text-right font-mono text-ink" data-count="visitors">{{ counts.visitors }}</td>
+                        </tr>
+                    {% endfor %}
+                    <tr data-window="total">
+                        <th scope="row" class="py-1.5 text-left font-normal text-ink-soft">{{ 'admin.demo_stats.window.total'|trans }}</th>
+                        <td class="py-1.5 text-right font-mono text-ink" data-count="sessions">{{ total }}</td>
+                        <td class="py-1.5 text-right text-ink-faint">–</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <p class="text-[11px] text-ink-faint leading-relaxed">
+                {{ 'admin.demo_stats.privacy'|trans({ '%days%': retentionDays }) }}
+            </p>
+        </div>
+    </div>
+</turbo-frame>

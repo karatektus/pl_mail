@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Command\Demo;
 
+use App\Repository\Demo\DemoVisitRepository;
 use App\Repository\User\UserRepository;
 use App\Service\Demo\DemoMode;
 use App\Service\Demo\DemoProvisioner;
@@ -35,6 +36,11 @@ use Throwable;
  * That is the safe direction for the failure that matters: an administrator
  * signed into their own demo instance has no stamp, and a reaper that read a
  * missing date as "long overdue" would delete them.
+ *
+ * It also takes the visitor hash off visits older than the statistics count
+ * unique visitors over — see DemoVisitRepository::forgetVisitorsBefore(). Here
+ * because this is the demo's one clean-up job, and a second command on a second
+ * timer for one UPDATE would be a second thing to forget to run.
  */
 #[AsCommand(
     name: 'app:demo:reap',
@@ -47,6 +53,7 @@ final class ReapDemoUsersCommand extends Command
         private readonly DemoUserEraser $eraser,
         private readonly DemoMode       $demoMode,
         private readonly LoggerInterface $logger,
+        private readonly DemoVisitRepository $visits,
     ) {
         parent::__construct();
     }
@@ -106,6 +113,12 @@ final class ReapDemoUsersCommand extends Command
 
                 $io->warning(sprintf('Could not delete %s: %s', (string) $user->email, $e->getMessage()));
             }
+        }
+
+        if (false === $dryRun) {
+            $this->visits->forgetVisitorsBefore(
+                $now->modify(sprintf('-%d days', DemoVisitRepository::HASH_RETENTION_DAYS)),
+            );
         }
 
         $io->success(sprintf(

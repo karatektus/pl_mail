@@ -77,7 +77,7 @@
                                 </a>
                             {% endif %}
 
-                            {% if section not in ['performance', 'logs', 'insight-reports', 'address', 'integrations', 'push', 'ai', 'backup', 'updates', 'reset'] %}
+                            {% if section not in ['performance', 'logs', 'insight-reports', 'address', 'integrations', 'push', 'ai', 'backup', 'updates', 'reset', 'demo'] %}
                                 <span class="ml-auto text-xs text-ink-faint">{{ 'admin.refresh_hint'|trans }}</span>
                             {% endif %}
                         </div>
@@ -195,6 +195,16 @@
                                                   aria-label="{{ 'admin.updates.state.available'|trans }}"></span>
                                         {% endif %}
                                     </a>
+                                    {# Only on a public demo: how many sessions it has
+                                       handed out. A normal install has no such
+                                       section, in the nav or behind it. #}
+                                    {% if demo.enabled %}
+                                        <a href="{{ path('app_admin_dashboard', { section: 'demo' }) }}"
+                                           class="{{ section == 'demo' ? navActive : navInactive }}">
+                                            <i class="fa-solid fa-user-clock w-4 {{ section == 'demo' ? 'text-ink-faint' : '' }}" aria-hidden="true"></i>
+                                            {{ 'admin.nav.demo_stats'|trans }}
+                                        </a>
+                                    {% endif %}
                                     {# Last, and the only one tinted: everything above reads or
                                        repairs, this one deletes. #}
                                     <a href="{{ path('app_admin_dashboard', { section: 'reset' }) }}"
@@ -385,6 +395,19 @@
                                         <turbo-frame id="admin-updates"
                                                      class="block space-y-3"
                                                      src="{{ path('app_admin_updates_panel') }}"
+                                                     loading="lazy">
+                                            <div class="py-10 text-center text-sm text-ink-faint">
+                                                <i class="fa-solid fa-circle-notch fa-spin mr-2" aria-hidden="true"></i>{{ 'admin.loading'|trans }}
+                                            </div>
+                                        </turbo-frame>
+
+                                    {% elseif section == 'demo' %}
+
+                                        {# The controller only lets this section
+                                           through in demo mode. #}
+                                        <turbo-frame id="admin-demo"
+                                                     class="block space-y-3"
+                                                     src="{{ path('app_admin_demo_stats_panel') }}"
                                                      loading="lazy">
                                             <div class="py-10 text-center text-sm text-ink-faint">
                                                 <i class="fa-solid fa-circle-notch fa-spin mr-2" aria-hidden="true"></i>{{ 'admin.loading'|trans }}
