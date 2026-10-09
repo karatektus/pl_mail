@@ -59,7 +59,7 @@
                                 <td class="px-2 py-2 font-mono text-xs">{{ row.key }}</td>
                                 <td class="px-2 py-2 font-mono text-xs">{{ row.pid ?? '—' }}</td>
                                 <td class="px-2 py-2 text-xs {{ row.healthy ? '' : 'text-danger' }}">
-                                    {{ row.age }} {{ 'admin.ago'|trans }}
+                                    {{ 'admin.ago'|trans({ '%age%': row.age }) }}
                                 </td>
                             </tr>
                         {% endfor %}
@@ -174,7 +174,7 @@
                                         {{ row.watchExpiry ? row.watchExpiry|date('Y-m-d H:i') : 'admin.webhooks.none'|trans }}
                                     </dd>
                                     <dt>{{ 'admin.webhooks.last_push'|trans }}</dt>
-                                    <dd>{{ row.lastPushAt ? (row.lastPushAge ~ ' ' ~ 'admin.ago'|trans) : 'admin.webhooks.never'|trans }}</dd>
+                                    <dd>{{ row.lastPushAt ? 'admin.ago'|trans({ '%age%': row.lastPushAge }) : 'admin.webhooks.never'|trans }}</dd>
                                     <dt>{{ 'admin.webhooks.history_id'|trans }}</dt>
                                     <dd class="font-mono">{{ row.historyId ?? '—' }}</dd>
                                     <dt>{{ 'admin.webhooks.resource'|trans }}</dt>
@@ -263,7 +263,7 @@
                                         <td class="py-0.5 pr-2 font-mono break-all">{{ event.message }}</td>
                                         <td class="py-0.5 pr-2 text-right tabular-nums">×{{ event.count }}</td>
                                         <td class="py-0.5 text-right whitespace-nowrap text-ink-faint">
-                                            {{ event.age }} {{ 'admin.ago'|trans }}
+                                            {{ 'admin.ago'|trans({ '%age%': event.age }) }}
                                         </td>
                                     </tr>
                                 {% endfor %}
@@ -294,7 +294,7 @@
                                     {{ ui.dot(row.healthy) }}
                                     <span class="font-medium text-ink">{{ row.account.email }}</span>
                                     <span class="ml-auto text-xs text-ink-faint">
-                                        {{ row.lastRefreshAt ? (row.lastRefreshAge ~ ' ' ~ 'admin.ago'|trans) : '—' }}
+                                        {{ row.lastRefreshAt ? 'admin.ago'|trans({ '%age%': row.lastRefreshAge }) : '—' }}
                                     </span>
                                 </div>
                                 {% if row.error %}

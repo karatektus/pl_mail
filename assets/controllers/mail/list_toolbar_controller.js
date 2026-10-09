@@ -11,6 +11,7 @@
 import { Controller } from "@hotwired/stimulus";
 import * as Turbo from "@hotwired/turbo";
 import { jsonCsrfHeaders } from "../../csrf.js";
+import { clearSelection, enterView, restoreSelection, selection } from "../../mail_selection.js";
 import { announceWrite } from "../../mail_writes.js";
 import { requestFailed } from "../../request_errors.js";
 
@@ -34,6 +35,7 @@ export default class extends Controller {
         "viewBanner",       // the "select all N in this view" strip
         "viewBannerText",
         "viewBannerAction",
+        "wholeView",        // "All N in this view", in the select menu
     ];
 
     static values = {
@@ -52,6 +54,9 @@ export default class extends Controller {
         viewScope: String,
         viewValue: String,
         unreadOnly: Boolean,
+        // Which list this is, page number aside — what a selection carried
+        // across pages belongs to. See assets/mail_selection.js.
+        viewKey: String,
         i18n: Object,
     };
 
@@ -70,11 +75,17 @@ export default class extends Controller {
     connect() {
         // Listen for the custom event fired by message_row_controller when
         // a row checkbox changes.
-        this._onRowChange    = this._syncFromRows.bind(this);
+        this._onRowChange    = this._rowsChanged.bind(this);
         this._onClickOutside = this._closeSelectMenu.bind(this);
 
         this.element.addEventListener("mail--list-toolbar:row-changed", this._onRowChange);
         document.addEventListener("click", this._onClickOutside, { capture: true });
+
+        // This toolbar is inside the list frame, so it is a new one on every
+        // page of the same list. What was ticked on the page before is put
+        // back where it is on screen again, and counted where it is not.
+        enterView(this.viewKeyValue);
+        restoreSelection();
 
         this._syncFromRows();
     }
@@ -84,9 +95,33 @@ export default class extends Controller {
         document.removeEventListener("click", this._onClickOutside, { capture: true });
     }
 
+    /**
+     * A row was ticked or unticked by something other than this toolbar.
+     *
+     * A whole-view selection does not survive that. "All 195 are selected" with
+     * one row visibly unticked is a sentence and a picture that disagree, and
+     * the request believed the sentence: the action ran on all 195, including
+     * the one somebody had just taken out. The docblock on #allInView always
+     * said anything that changes the selection clears it; unticking a row was
+     * the change that did not.
+     *
+     * Only when a row is actually unticked. The mail pane sends this same
+     * event after a background refresh puts the ticks back, and a refresh is
+     * not the reader changing their mind.
+     */
+    _rowsChanged() {
+        if (true === this.#allInView && this._rowCheckboxes().some((cb) => false === cb.checked)) {
+            this.#allInView = false;
+        }
+
+        this._syncFromRows();
+    }
+
     // ── Master checkbox (click handler) ───────────────────────────────────
 
     toggleAll() {
+        this.#allInView = false;
+
         // If anything is checked (all or some), uncheck everything.
         // If nothing is checked, check everything.
         const checkedCount = this._checkedRows().length;
@@ -105,6 +140,7 @@ export default class extends Controller {
 
     selectAll(event) {
         event?.preventDefault();
+        this.#allInView = false;
         this._setAllRows(true);
         this._syncFromRows();
         this._closeSelectMenu();
@@ -112,6 +148,10 @@ export default class extends Controller {
 
     selectNone(event) {
         event?.preventDefault();
+        this.#allInView = false;
+        // None means none: the rows on other pages too. It is the one control
+        // that reaches them — the master checkbox works the page it is on.
+        clearSelection();
         this._setAllRows(false);
         this._syncFromRows();
         this._closeSelectMenu();
@@ -179,11 +219,31 @@ export default class extends Controller {
         this._syncFromRows();
     }
 
+    /**
+     * The same selection, reached from the select menu in one step.
+     *
+     * The banner is an offer made after the fact — it appears once a page is
+     * fully ticked — and that made it the only door: nothing said a whole
+     * folder could be selected until most of the gesture had been made. The
+     * menu entry ticks the page and widens to the view together, and the
+     * banner then shows what it always shows for a widened selection,
+     * including the way back.
+     */
+    selectWholeView(event) {
+        event?.preventDefault();
+
+        this._setAllRows(true);
+        this.#allInView = true;
+        this._syncFromRows();
+        this._closeSelectMenu();
+    }
+
     /** Back to the rows on screen. */
     clearViewSelection(event) {
         event?.preventDefault();
 
         this.#allInView = false;
+        clearSelection();
         this._setAllRows(false);
         this._syncFromRows();
     }
@@ -240,11 +300,12 @@ export default class extends Controller {
         return this._rowCheckboxes().filter((cb) => cb.checked);
     }
 
+    /**
+     * The ticked rows on this page and the ones ticked on others — see
+     * assets/mail_selection.js, which is where the second half lives.
+     */
     _selectedIds() {
-        return this._checkedRows().map((cb) => {
-            const li = cb.closest("[data-mail--message-row-id-value]");
-            return li ? parseInt(li.getAttribute("data-mail--message-row-id-value"), 10) : null;
-        }).filter(Boolean);
+        return selection().map((selected) => selected.id).filter(Boolean);
     }
 
     _setAllRows(checked) {
@@ -252,6 +313,7 @@ export default class extends Controller {
     }
 
     _selectBy(predicate) {
+        this.#allInView = false;
         this._rowCheckboxes().forEach((cb) => {
             const li = cb.closest("li");
             cb.checked = li ? predicate(li) : false;
@@ -328,6 +390,7 @@ export default class extends Controller {
             // a second click would act on everything that had arrived since —
             // which is the shape of the desync that was reported, made worse.
             this.#allInView = false;
+            clearSelection();
             this._setAllRows(false);
             this._syncFromRows();
         }
@@ -342,7 +405,11 @@ export default class extends Controller {
         const checkedCount = all.filter((cb) => cb.checked).length;
         const allChecked   = all.length > 0 && checkedCount === all.length;
         const someChecked  = checkedCount > 0 && checkedCount < all.length;
-        const hasSelection = checkedCount > 0;
+        // Counted over every page, not this one: somebody who ticked three
+        // rows and pressed "next" still has three selected, and the actions
+        // have to be there to use on them.
+        const selectedCount = this._selectedIds().length;
+        const hasSelection  = selectedCount > 0;
 
         // ── Master checkbox button visual state ──────────────────────────
         this._setCheckboxState(allChecked, someChecked);
@@ -357,10 +424,35 @@ export default class extends Controller {
         if (this.hasSelectionCountTarget) {
             this.selectionCountTarget.textContent = this.#allInView
                 ? String(this.totalValue)
-                : (checkedCount > 0 ? String(checkedCount) : "");
+                : (selectedCount > 0 ? String(selectedCount) : "");
         }
 
         this.#syncViewBanner(allChecked);
+        this.#syncWholeViewEntry(all.length);
+    }
+
+    /**
+     * The menu entry, kept true to the total.
+     *
+     * Rendered by the server for the total it knew, and the total moves: mail
+     * arrives, a bulk action empties a page. Redrawn from the value the banner
+     * reads, so the two cannot name different numbers, and hidden where the
+     * view fits on the page and "All" already means all of it.
+     */
+    #syncWholeViewEntry(rowCount) {
+        if (false === this.hasWholeViewTarget) {
+            return;
+        }
+
+        const entry = this.wholeViewTarget;
+
+        const fits = this.totalValue <= rowCount;
+
+        // Both, as the actions wrapper does with `flex`: two display utilities
+        // on one element are decided by stylesheet order, not by intent.
+        entry.classList.toggle("hidden", fits);
+        entry.classList.toggle("block", false === fits);
+        entry.textContent = (entry.dataset.label ?? "").replace("%count%", String(this.totalValue));
     }
 
     /**

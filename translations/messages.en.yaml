@@ -89,7 +89,7 @@ admin:
             stack as well, so the workers register push at the new address.
         save: Save address
         saved: 'Saved — it takes effect at the next restart.'
-    ago: 'ago'
+    ago: '%age% ago'
     ai:
         backfill:
             chip:
@@ -4075,6 +4075,7 @@ toolbar:
         read: Read
         starred: Starred
         unread: Unread
+        whole_view: 'All %count% in this view'
     select_all: Select all conversations
     select_menu: More selection options
 

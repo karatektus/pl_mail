@@ -93,7 +93,7 @@ admin:
             Adresse anmelden.
         save: Adresse speichern
         saved: 'Gespeichert — greift beim nächsten Neustart.'
-    ago: 'her'
+    ago: 'vor %age%'
     ai:
         backfill:
             chip:
@@ -4069,6 +4069,7 @@ toolbar:
         read: Gelesene
         starred: Markierte
         unread: Ungelesene
+        whole_view: 'Alle %count% in dieser Ansicht'
     select_all: Alle Konversationen auswählen
     select_menu: Weitere Auswahloptionen
 

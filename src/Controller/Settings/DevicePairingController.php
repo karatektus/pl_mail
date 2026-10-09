@@ -6,6 +6,7 @@ namespace App\Controller\Settings;
 
 use App\Controller\ChecksCsrf;
 use App\Entity\User\User;
+use App\Service\Setup\PublicUrlSetting;
 use App\Service\User\DevicePairingService;
 use App\Service\User\TwoFactor\QrCodeRenderer;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -35,6 +36,7 @@ final class DevicePairingController extends AbstractController
     public function __construct(
         private readonly DevicePairingService $pairing,
         private readonly QrCodeRenderer $qrCodes,
+        private readonly PublicUrlSetting $publicUrl,
     ) {
     }
 
@@ -50,10 +52,13 @@ final class DevicePairingController extends AbstractController
 
         ['code' => $code, 'expiresAt' => $expiresAt] = $this->pairing->issue($user);
 
-        // The address the *browser* reached this server on, which is the one
-        // that resolves on this network. A configured canonical URL would be
-        // wrong for exactly the self-hosted case this exists for.
-        $uri = $this->pairing->pairingUri($request->getSchemeAndHttpHost(), $code);
+        // The configured public address where there is one, and the one this
+        // browser is on otherwise — see PublicUrlSetting::forDevices() for why
+        // it is that way round.
+        $uri = $this->pairing->pairingUri(
+            $this->publicUrl->forDevices($request->getSchemeAndHttpHost()),
+            $code,
+        );
 
         if (TurboBundle::STREAM_FORMAT === $request->getPreferredFormat()) {
             $request->setRequestFormat(TurboBundle::STREAM_FORMAT);

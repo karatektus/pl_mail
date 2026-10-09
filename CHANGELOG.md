@@ -123,6 +123,38 @@ block grew with the frame, the frame grew to fit the block, and the message kept
 pushing everything below it away. Sizes given in screen heights are now ignored inside a message,
 and a message whose content merely follows the frame is no longer resized again.
 
+**A round of first-impression fixes.** All reported by
+[@pmdevelopment](https://github.com/pmdevelopment) in
+[#37](https://github.com/karatektus/pl_mail/issues/37).
+
+- **A selection survives the pager.** Conversations ticked on one page of a list stay selected on
+  the next, the count and the actions follow, and one action covers all of them. Going to a
+  different list starts again with nothing selected, and **None** in the select menu clears every
+  page.
+- **A whole folder can be selected from the select menu.** "All 195 in this view" was only offered
+  after every row on the page had been ticked. Unticking a row afterwards now narrows the selection
+  back to what is ticked; before, the action still ran on the whole view.
+- **Fixed: moving mail into a folder could fill the log with "duplicate key" errors.** A sync that
+  was running while mail was moved tried to store the moved messages a second time, and each one was
+  logged as a message that could not be built. Nothing was lost or duplicated. The sync now notices
+  that the folder already holds them.
+- **A paired device and a mail app are given the public address.** The pairing code and the JMAP
+  address under Settings → App passwords carried whatever address the browser was on, so a phone
+  paired at home got a LAN address. Both now use the address from Admin → Public address, and fall
+  back to the browser's only when none is set.
+- **Hiding quoted text gives the space back.** The message kept the height it had with the quote
+  shown.
+- **Your own sent mail shows its images without asking.** Only mail in Sent: a message in the inbox
+  that merely claims to be from you is still blocked, and so is anything in Spam.
+- **Placeholder text is lighter than what you type.** In several themes an empty field and a filled
+  one looked the same.
+- **The actions on a connected integration are buttons**, lined up, where they were four small
+  words on different baselines.
+- **Save signature, and four buttons in the composer, stay readable under the pointer.** They went
+  white on white in light themes.
+- **The Spam badge is muted.** Still a count of unread, no longer in the accent colour.
+- **German: "vor 12s"** in the admin area, where it said "12s her".
+
 ### Before you upgrade
 
 - **One migration, applied on boot.** It adds an empty table, `demo_visit`, which only a demo

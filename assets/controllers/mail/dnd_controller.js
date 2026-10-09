@@ -1,5 +1,6 @@
 import { Controller } from "@hotwired/stimulus";
 import { jsonCsrfHeaders } from "../../csrf.js";
+import { clearSelection, selection } from "../../mail_selection.js";
 import { announceWrite } from "../../mail_writes.js";
 import { requestFailed } from "../../request_errors.js";
 
@@ -384,9 +385,22 @@ export default class extends Controller {
         const rows = [...list.querySelectorAll("[data-dnd-thread]")]
             .filter((candidate) => true === candidate.querySelector("[data-thread-select]")?.checked);
 
+        // The rows of this list, and — where this list is the mail list — the
+        // conversations ticked on its other pages, which have no row here to
+        // be found. See assets/mail_selection.js.
+        const elsewhere = document === list || null !== list.closest("#message-list, #inbox-list-frame")
+            ? selection().filter((selected) => null === list.querySelector(`[data-thread-select][value="${selected.id}"]`))
+            : [];
+
         return {
-            ids: rows.map((candidate) => Number(candidate.dataset.dndThread)),
-            accounts: new Set(rows.map((candidate) => candidate.dataset.dndAccount)),
+            ids: [
+                ...rows.map((candidate) => Number(candidate.dataset.dndThread)),
+                ...elsewhere.map((selected) => selected.id),
+            ],
+            accounts: new Set([
+                ...rows.map((candidate) => candidate.dataset.dndAccount),
+                ...elsewhere.map((selected) => selected.account),
+            ]),
             subject,
         };
     }
@@ -549,6 +563,8 @@ export default class extends Controller {
             for (const box of document.querySelectorAll("[data-thread-select]:checked")) {
                 box.checked = false;
             }
+
+            clearSelection();
 
             document
                 .querySelector("[data-controller~='mail--list-toolbar']")

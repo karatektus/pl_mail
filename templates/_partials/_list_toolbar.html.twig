@@ -100,6 +100,12 @@ The button itself carries `group` and `relative`.
     data-mail--list-toolbar-view-scope-value="{{ list_scope|default('') }}"
     data-mail--list-toolbar-view-value-value="{{ list_scope_value|default('') }}"
     data-mail--list-toolbar-unread-only-value="{{ unread_only|default(false) ? 'true' : 'false' }}"
+    {# The list, page number aside. A selection survives "next page" and does
+       not survive going to a different list, and this is how the two are told
+       apart — see assets/mail_selection.js. Route and parameters rather than
+       the scope above, because a search has no scope and is told from another
+       search only by its query. #}
+    data-mail--list-toolbar-view-key-value="{{ app.request.attributes.get('_route') }}?{{ base_params|filter((v, k) => k != 'page')|url_encode }}"
     data-mail--list-toolbar-i18n-value="{{ {
         selectAll:       'toolbar.view_select.offer'|trans,
         selectAllAction: 'toolbar.view_select.offer_action'|trans,
@@ -180,7 +186,7 @@ The button itself carries `group` and `relative`.
             <div
                 data-mail--list-toolbar-target="selectMenu"
                 data-enter="slide-down"
-                class="hidden absolute left-0 top-full mt-1 z-30 w-36
+                class="hidden absolute left-0 top-full mt-1 z-30 w-max min-w-36
                        bg-surface
                        border border-line
                        rounded-pane shadow-lg overflow-hidden py-1 text-sm"
@@ -194,7 +200,11 @@ The button itself carries `group` and `relative`.
                 } %}
                     <button type="button"
                             data-action="click->mail--list-toolbar#{{ key }}"
-                            class="w-full text-left px-3 py-1.5
+                            {# `block`: the menu is as wide as its widest
+                               entry now, and five inline-block buttons in a
+                               max-content box sit side by side to work that
+                               width out. #}
+                            class="block w-full text-left px-3 py-1.5
                                    text-ink-soft
                                    hover:bg-hover
                                    transition-colors cursor-pointer
@@ -202,6 +212,33 @@ The button itself carries `group` and `relative`.
                         {{ label|trans }}
                     </button>
                 {% endfor %}
+
+                {# The whole view, from the menu where selecting is done (#37).
+                   It was only ever offered by the banner below, and the banner
+                   only appears once every row on the page is ticked — so the
+                   one way to select a folder was hidden behind having already
+                   selected a page of it, and was reported as missing.
+
+                   Only where it differs from "All": on a list that fits on one
+                   page the two are the same selection, and offering both would
+                   be asking somebody to work out that they are.
+
+                   The wrapper is the pagination region's sibling in spirit:
+                   `total` moves when mail arrives or a bulk action runs, and
+                   the controller redraws the label from its own total value
+                   rather than trusting the number rendered here. #}
+                <button type="button"
+                        data-mail--list-toolbar-target="wholeView"
+                        data-action="click->mail--list-toolbar#selectWholeView"
+                        data-label="{{ 'toolbar.select.whole_view'|trans }}"
+                        class="{{ total > per_page ? 'block' : 'hidden' }} w-full text-left px-3 py-1.5
+                               border-t border-line mt-1 pt-2
+                               text-ink-soft whitespace-nowrap
+                               hover:bg-hover
+                               transition-colors cursor-pointer
+                               focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent">
+                    {{ 'toolbar.select.whole_view'|trans({ '%count%': total }) }}
+                </button>
             </div>
         </div>
 

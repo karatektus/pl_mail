@@ -1,4 +1,4 @@
-<!-- translated-from: internals/security-model.md sha1:f425b788c442ece83228dfdeba34bbf195cee3c1 -->
+<!-- translated-from: internals/security-model.md sha1:243b84b60c22700f7faa41c30e8676710cd0976f -->
 # Sicherheitsmodell
 
 Verschlüsselung ruhender Daten und die Prüfung, die den Start ohne brauchbaren Schlüssel
@@ -570,6 +570,13 @@ Blockade beim Ingest schützte also nur künftige Post; und die Antwort hängt d
 fragt*, denn „Bilder dieser Absenderin immer anzeigen“ gilt pro Benutzerin
 (`trusted_image_sender`). Eine gespeicherte Form kann keine Antwort tragen, die je nach
 Lesender anders ausfällt.
+
+**Post, die die Lesende selbst gesendet hat, wird nicht blockiert.** Die Blockade verhindert,
+dass eine Fremde erfährt, dass ihre Nachricht geöffnet wurde — bei der eigenen Post hieße das zu
+fragen, ob man sich selbst vertraut. „Eigene“ wird am Label Gesendet abgelesen, das nur die
+eigene Sitzung des Kontos an eine Nachricht hängt, und nie an der From-Zeile: Eine gefälschte
+Mail im Posteingang trägt dort deine Adresse so leicht wie jede andere. Die Bilder laden
+weiterhin über den Proxy, und Spam gewinnt weiterhin.
 
 Stimmt die Lesende zu, laden die Bilder **über `/mail/image-proxy`** statt direkt — auch ein
 zugestimmter Aufruf verrät so keine IP. Genau dafür gibt es einen Proxy und nicht bloß eine

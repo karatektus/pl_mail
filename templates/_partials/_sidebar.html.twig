@@ -4,7 +4,7 @@ sidebar controller can patch its text in place after a Mercure sync without
 having to re-render the markup. `key` must match a key from
 app_mail_sidebar_counts.
 #}
-{% macro unread_badge(count, key, href = null) %}
+{% macro unread_badge(count, key, href = null, quiet = false) %}
     {#
     A LINK when the row it sits in has an unread view to open, and a plain span
     otherwise — the LABELS heading's roll-up is the only badge with no single
@@ -29,7 +29,16 @@ app_mail_sidebar_counts.
     nothing patches one, so it would be the one part of the badge still showing
     a count from two minutes ago.
     #}
-    {% set _classes = 'rail-hide text-xs font-semibold px-1.5 py-0.5 rounded-full bg-accent text-accent-ink' ~ (count > 0 ? '' : ' hidden') %}
+    {#
+    `quiet` is Spam's (#37). The number is still an unread count and still the
+    same round pill — unread spam is new spam, and saying how much is the point
+    of the badge — but the accent is the colour of "this wants you", and nothing
+    in Spam does. A filled accent pill there sat level with the Inbox's and
+    drew the eye to the one folder nobody is meant to work through. The wash is
+    the faint ink rather than a grey of its own, so it follows every theme.
+    #}
+    {% set _tone    = quiet ? 'bg-ink-faint/20 text-ink-soft' : 'bg-accent text-accent-ink' %}
+    {% set _classes = 'rail-hide text-xs font-semibold px-1.5 py-0.5 rounded-full ' ~ _tone ~ (count > 0 ? '' : ' hidden') %}
 
     {% if href is null %}
         <span class="{{ _classes }}"
@@ -687,7 +696,7 @@ controller instead — the scroll position and which trees are open.
                         {{ macros.role_dot(enum('App\\Domain\\Enum\\Mail\\LabelRole').Spam) }}
                     </span>
                 </a>
-                {{ macros.unread_badge(sidebarCounts.forRoleBadge(enum('App\\Domain\\Enum\\Mail\\LabelRole').Spam), 'role:spam', path('app_mail_spam', { unread: 1 })) }}
+                {{ macros.unread_badge(sidebarCounts.forRoleBadge(enum('App\\Domain\\Enum\\Mail\\LabelRole').Spam), 'role:spam', path('app_mail_spam', { unread: 1 }), true) }}
             </div>
         {% endif %}
 

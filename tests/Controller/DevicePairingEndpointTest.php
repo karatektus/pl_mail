@@ -93,6 +93,44 @@ final class DevicePairingEndpointTest extends WebTestCase
     }
 
     /**
+     * The address in the code is the one the administrator configured, not
+     * the one this browser happened to arrive on (#37). A phone paired from
+     * inside the LAN was handed the LAN address and lost the server the moment
+     * it left the house.
+     */
+    public function testTheCodeCarriesTheConfiguredPublicAddress(): void
+    {
+        $client = $this->boot();
+        $client->loginUser($this->seedUser());
+        $token = $this->token($client);
+
+        $before = $_SERVER['APP_PUBLIC_URL'] ?? null;
+        $_SERVER['APP_PUBLIC_URL'] = 'https://mail.example.test/';
+
+        try {
+            $client->request(
+                'POST',
+                '/settings/pair',
+                ['_token' => $token],
+                server: ['HTTP_ACCEPT' => TurboBundle::STREAM_MEDIA_TYPE, 'HTTP_HOST' => '192.168.1.20:8080'],
+            );
+        } finally {
+            if (null === $before) {
+                unset($_SERVER['APP_PUBLIC_URL']);
+            } else {
+                $_SERVER['APP_PUBLIC_URL'] = $before;
+            }
+        }
+
+        self::assertResponseIsSuccessful();
+
+        $html = html_entity_decode((string) $client->getResponse()->getContent());
+
+        self::assertStringContainsString('plmail://pair?host=https%3A%2F%2Fmail.example.test&code=', $html);
+        self::assertStringNotContainsString('192.168.1.20', $html);
+    }
+
+    /**
      * Without a Turbo Stream request the page just reloads. Asserted so the
      * form keeps working with JavaScript off rather than dumping JSON into the
      * browser window.

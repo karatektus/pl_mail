@@ -84,13 +84,23 @@ final readonly class MessageRenderer
         $user      = $this->security->getUser();
         $trusted   = $user instanceof User
             && true === $this->trustedSenders->isTrusted($user, $message->fromAddress);
-        $inSpam    = self::isInSpam($message);
+        $inSpam    = self::hasRole($message, LabelRole::Spam);
+
+        // Mail the reader wrote. Being asked whether to trust yourself is a
+        // question with one answer (#37), and the block exists to keep a
+        // stranger from learning that their message was opened.
+        //
+        // Read off the Sent label and NOT off the From line. A From line is
+        // whatever the sender typed, so "it says it is from me" is exactly
+        // what a forged mail in the inbox says; a message is in Sent only
+        // because this account's own session put it there.
+        $own       = self::hasRole($message, LabelRole::Sent);
 
         // A message sitting in Spam never loads images on an allowlist. The
         // allowlist records a belief about a sender; a message in Spam is the
         // provider disagreeing about whether this really is that sender, and
         // the safe reading of a disagreement is the cautious one.
-        $allow = (true === $trusted || true === $forceImages) && false === $inSpam;
+        $allow = (true === $trusted || true === $own || true === $forceImages) && false === $inSpam;
 
         // The blocker settles what the body may load; the collapser then folds
         // its trailing reply-history behind a "Show quoted text" toggle. Both
@@ -150,10 +160,10 @@ final readonly class MessageRenderer
         ]);
     }
 
-    private static function isInSpam(Message $message): bool
+    private static function hasRole(Message $message, LabelRole $role): bool
     {
         foreach ($message->labels as $label) {
-            if (LabelRole::Spam === $label->role) {
+            if ($role === $label->role) {
                 return true;
             }
         }

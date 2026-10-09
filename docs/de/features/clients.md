@@ -1,4 +1,4 @@
-<!-- translated-from: features/clients.md sha1:5c4e7621822946ff0662da3a649ed21aef65c292 -->
+<!-- translated-from: features/clients.md sha1:56eb1e2bea02c9c442a076466c6e8b19c5fe6ce9 -->
 
 # Andere Clients
 
@@ -53,6 +53,10 @@ widerrufen muss.
 Der Code funktioniert **einmal**, läuft nach **zwei Minuten** ab und trägt selbst keine
 Zugangsdaten. Er wird aus deiner Sitzung heraus ausgestellt; der Tausch nicht, denn ein Gerät,
 das sich bereits authentifizieren könnte, müsste sich nicht koppeln.
+
+Der Code sagt der App auch, wo der Server zu finden ist. Das ist die öffentliche Adresse aus
+**Administration → Öffentliche Adresse**, damit ein zu Hause gekoppeltes Telefon auch unterwegs
+weiter funktioniert; ist keine hinterlegt, gilt die Adresse, unter der dein Browser gerade ist.
 
 ## Was ein Client erwarten darf
 

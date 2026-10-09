@@ -128,6 +128,95 @@ test.describe("selecting past the page", () => {
     });
 
     /**
+     * The whole view is in the select menu, not only behind a ticked page.
+     *
+     * Reported as a missing feature (#37): "selecting all emails within a
+     * folder should be possible". It was — through a banner that appears only
+     * after every row on the page is ticked, which nobody finds by looking for
+     * it. And once the view is selected, unticking a row has to mean something:
+     * the selection is the page again, not "all 67" with one row visibly out.
+     */
+    test("the select menu reaches the whole view, and unticking a row leaves it", async ({ page }) => {
+        await page.goto("/mail/inbox");
+        await expect(page.locator("#message-list li").first()).toBeVisible();
+
+        const toolbar = page.locator(TOOLBAR);
+        const total = Number(await toolbar.getAttribute("data-mail--list-toolbar-total-value"));
+        const rows = await page.locator("#message-list li").count();
+        const count = page.locator('[data-mail--list-toolbar-target="selectionCount"]');
+
+        await page.locator('[data-mail--list-toolbar-target="selectMenuBtn"]').click();
+
+        const entry = page.locator('[data-mail--list-toolbar-target="wholeView"]');
+        await expect(entry).toBeVisible();
+        await expect(entry).toContainText(String(total));
+        await expect(entry).not.toContainText("%count%");
+
+        await entry.click();
+
+        await expect(count).toHaveText(String(total));
+        await expect(page.locator(BANNER)).toBeVisible();
+
+        // One row out, and the selection is what is ticked: the page less one.
+        // Through the avatar, which is the checkbox's label and what a person
+        // clicks: the input itself is sr-only underneath it.
+        await page.locator("#message-list li label:has([data-thread-select])").first().click();
+
+        await expect(count).toHaveText(String(rows - 1));
+    });
+
+    /**
+     * A selection is not a property of the page it was made on (#37).
+     *
+     * It was nothing but the ticked checkboxes, so "next page" replaced the
+     * rows and the selection with them: three conversations ticked on page one
+     * and two on page two came to two.
+     */
+    test("a selection survives the pager, in both directions", async ({ page }) => {
+        await page.goto("/mail/inbox");
+        await expect(page.locator("#message-list li").first()).toBeVisible();
+
+        const count = page.locator('[data-mail--list-toolbar-target="selectionCount"]');
+        const tick = (index: number) =>
+            page.locator("#message-list li label:has([data-thread-select])").nth(index).click();
+        const firstId = await page.locator("#message-list li [data-thread-select]").first().getAttribute("value");
+
+        await tick(0);
+        await tick(1);
+        await expect(count).toHaveText("2");
+
+        await page.getByRole("link", { name: "Older" }).click();
+        await expect(page.locator(`#message-list li [data-thread-select][value="${firstId}"]`)).toHaveCount(0);
+
+        // Nothing on this page is ticked, and the two from the last one still
+        // count — with the actions there to use on them.
+        await expect(count).toHaveText("2");
+        await expect(page.locator(TOOLBAR).getByRole("button", { name: /archive/i })).toBeVisible();
+
+        await tick(0);
+        await expect(count).toHaveText("3");
+
+        // Back, and the rows say what the number says.
+        await page.getByRole("link", { name: "Newer" }).click();
+        await expect(page.locator(`#message-list li [data-thread-select][value="${firstId}"]`)).toBeChecked();
+        await expect(page.locator("#message-list li [data-thread-select]:checked")).toHaveCount(2);
+        await expect(count).toHaveText("3");
+
+        // One request, carrying all three.
+        const posted = page.waitForRequest((request) => request.url().includes("/status/bulk/read"));
+        await page.locator(TOOLBAR).getByRole("button", { name: "Mark as read" }).first().click();
+        expect((await posted).postDataJSON().ids).toHaveLength(3);
+
+        // And a different list starts with nothing selected.
+        await expect(count).toHaveText("");
+        await tick(0);
+        await page.goto("/mail/sent");
+        await page.goto("/mail/inbox");
+        await expect(page.locator("#message-list li").first()).toBeVisible();
+        await expect(count).toHaveText("");
+    });
+
+    /**
      * The pager and the empty state follow the rows.
      *
      * Reported separately: after archiving, the list lost its rows and kept

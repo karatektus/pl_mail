@@ -144,6 +144,42 @@ final class BatchStorageTest extends KernelTestCase
         self::assertSame(101, (int) $mailbox['last_seen_uid'], 'the mark stays below it, so it is asked for again');
     }
 
+    /**
+     * A row that reached this folder after the run began is not a failure.
+     *
+     * The syncer reads the UIDs a folder holds once, before it fetches. A move
+     * made in the app while it is fetching files a row under a UID that list
+     * does not have, so the batch tries to insert it a second time and the
+     * unique index on (mailbox, uid) refuses. That refusal is right. What was
+     * wrong is what came after: every such message was logged as one that
+     * could not be built and held back for a retry (#37).
+     */
+    public function testAUidFiledWhileTheRunWasFetchingIsNotStoredTwiceOrHeldBack(): void
+    {
+        // The other writer, landing between the snapshot and the batch.
+        $this->storeBatch($this->mail(102));
+
+        // The run that began before it: its list of held UIDs is empty.
+        $this->storeBatch($this->mail(101), $this->mail(102), $this->mail(103));
+
+        self::assertSame(
+            [101, 102, 103],
+            array_map('intval', $this->connection->fetchFirstColumn(
+                'SELECT imap_uid FROM message WHERE mailbox_id = ? ORDER BY imap_uid',
+                [$this->mailboxId],
+            )),
+        );
+
+        $mailbox = $this->connection->fetchAssociative(
+            'SELECT failed_uid, failed_uid_attempts, last_seen_uid FROM mailbox WHERE id = ?',
+            [$this->mailboxId],
+        );
+
+        self::assertNull($mailbox['failed_uid'], 'a message the folder already holds was held back as a failure');
+        self::assertSame(0, (int) $mailbox['failed_uid_attempts']);
+        self::assertSame(103, (int) $mailbox['last_seen_uid'], 'the mark must pass a UID that is already stored');
+    }
+
     private function storeBatch(ImapMessage ...$batch): void
     {
         $synced   = [];

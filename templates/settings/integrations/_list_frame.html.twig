@@ -27,12 +27,12 @@ into a message they can act on.
         {% else %}
             <ul class="divide-y divide-line">
                 {% for integration in integrations %}
-                    <li class="flex items-center gap-3 px-4 py-3">
+                    <li class="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3">
                         <i class="{{ integration.provider.icon }} text-base w-5 text-center shrink-0
                                   {{ integration.isActive and integration.isHealthy ? 'text-accent' : 'text-ink-faint' }}"
                            aria-hidden="true"></i>
 
-                        <div class="flex-1 min-w-0">
+                        <div class="flex-1 min-w-40">
                             <span class="block truncate text-sm text-ink">
                                 {{ integration.name }}
                                 {% if not integration.isActive %}
@@ -60,10 +60,25 @@ into a message they can act on.
                             {% endif %}
                         </span>
 
-                        <div class="shrink-0 flex items-center gap-2">
-                            <form method="post" action="{{ path('app_settings_integrations_test', { id: integration.id }) }}" data-turbo-stream>
+                        {# Buttons, drawn as buttons. These were four bare
+                           11px words in a row, which did not read as controls
+                           at all, and they did not even share a baseline: three
+                           of them are a <button> inside a <form>, the fourth is
+                           a <button> on its own, and a form is a block box that
+                           puts its button a pixel or two lower than a button
+                           laid straight into the flex row (#37).
+
+                           `contents` takes the form's box out of the layout, so
+                           all four buttons are items of the same row. The row
+                           wraps — in German the four labels are half as long
+                           again — and stays right-aligned when it does. #}
+                        {% set _action = 'inline-flex items-center h-7 px-2.5 rounded-lg text-[11px] font-medium
+                                          border border-line bg-raised text-ink-soft
+                                          hover:bg-hover hover:text-ink transition-colors cursor-pointer' %}
+                        <div class="shrink-0 ml-auto flex flex-wrap items-center justify-end gap-1.5">
+                            <form method="post" action="{{ path('app_settings_integrations_test', { id: integration.id }) }}" data-turbo-stream class="contents">
                                 <input type="hidden" name="_token" value="{{ csrf_token('settings-integration-' ~ integration.id) }}">
-                                <button type="submit" class="text-[11px] text-ink-faint hover:text-ink transition-colors cursor-pointer">
+                                <button type="submit" class="{{ _action }}">
                                     {{ 'settings.integrations.test'|trans }}
                                 </button>
                             </form>
@@ -73,22 +88,25 @@ into a message they can act on.
                                     data-ui--modal-src-value="{{ path('app_settings_integrations_edit', { id: integration.id }) }}"
                                     data-ui--modal-title-value="{{ integration.name }}"
                                     data-action="click->ui--modal#open"
-                                    class="text-[11px] text-ink-faint hover:text-ink transition-colors cursor-pointer">
+                                    class="{{ _action }}">
                                 {{ 'settings.integrations.edit'|trans }}
                             </button>
 
-                            <form method="post" action="{{ path('app_settings_integrations_toggle', { id: integration.id }) }}" data-turbo-stream>
+                            <form method="post" action="{{ path('app_settings_integrations_toggle', { id: integration.id }) }}" data-turbo-stream class="contents">
                                 <input type="hidden" name="_token" value="{{ csrf_token('settings-integration-' ~ integration.id) }}">
-                                <button type="submit" class="text-[11px] text-ink-faint hover:text-ink transition-colors cursor-pointer">
+                                <button type="submit" class="{{ _action }}">
                                     {{ integration.isActive ? 'settings.integrations.pause'|trans : 'settings.integrations.resume'|trans }}
                                 </button>
                             </form>
 
                             <form method="post" action="{{ path('app_settings_integrations_delete', { id: integration.id }) }}"
-                                  data-turbo-stream
+                                  data-turbo-stream class="contents"
                                   data-turbo-confirm="{{ 'settings.integrations.disconnect_confirm'|trans({ '%name%': integration.name }) }}">
                                 <input type="hidden" name="_token" value="{{ csrf_token('settings-integration-' ~ integration.id) }}">
-                                <button type="submit" class="text-[11px] text-ink-faint hover:text-red-400 transition-colors cursor-pointer">
+                                <button type="submit"
+                                        class="inline-flex items-center h-7 px-2.5 rounded-lg text-[11px] font-medium
+                                               border border-line bg-raised text-ink-soft
+                                               hover:bg-danger-soft hover:text-danger transition-colors cursor-pointer">
                                     {{ 'settings.integrations.disconnect'|trans }}
                                 </button>
                             </form>

@@ -105,6 +105,21 @@ final readonly class PublicUrlSetting
     }
 
     /**
+     * The address to hand to another device: a pairing code, a JMAP URL to
+     * copy into a mail app.
+     *
+     * The configured one where there is one, because it is the address that is
+     * meant to answer from anywhere, and the one this request arrived on
+     * otherwise. That order was the other way round for pairing, on the
+     * reasoning that the browser's address is the one known to resolve — and a
+     * phone paired from a desk at home was given a LAN address for it (#37).
+     */
+    public function forDevices(string $requestOrigin): string
+    {
+        return $this->current() ?? rtrim($requestOrigin, '/');
+    }
+
+    /**
      * What is on file, whatever the running processes were started with.
      *
      * Differs from current() in exactly two situations, and Admin → Address

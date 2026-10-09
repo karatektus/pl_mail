@@ -39,7 +39,10 @@
         var height = measure();
         if (force === true || height !== lastHeight) { lastHeight = height; send({ plmail: "height", height: height }); }
     };
-    var changed = function () { reportHeight(false); };
+    // Set while a collapse is waiting for the parent to shrink the frame — see
+    // the quote toggle below, which is the only thing that sets it.
+    var shrinking = false;
+    var changed = function () { if (shrinking) { return; } reportHeight(false); };
 
     // The backstop for the same loop by any other route — a stylesheet rule
     // rather than an inline style, which dropViewportUnits() does not reach.
@@ -58,6 +61,7 @@
     // frame's.
     var lastFrameHeight = window.innerHeight;
     var resized = function () {
+        shrinking = false;
         var grewBy = window.innerHeight - lastFrameHeight;
         lastFrameHeight = window.innerHeight;
 
@@ -113,6 +117,34 @@
             ? toggle.getAttribute("data-label-show")
             : toggle.getAttribute("data-label-hide");
         if (label) { toggle.setAttribute("aria-label", label); toggle.setAttribute("title", label); }
+
+        // Hiding is the one change measure() cannot see. scrollHeight is never
+        // less than the viewport, and in here the viewport is the frame — which
+        // is as tall as the quote it was just grown for. So the measurement
+        // after a collapse was the height before it, and the message kept a
+        // quote's worth of blank sheet under it (#37).
+        //
+        // The root element's own box is not held up by the viewport, so that is
+        // what is reported instead. It can come out too small — content that
+        // overflows its box is not in it — and that corrects itself: the parent
+        // shrinks the frame, the resize handler measures again, and scrollHeight
+        // now has a viewport small enough to say so.
+        //
+        // `shrinking` holds every other report until the parent has answered.
+        // Without it the ResizeObserver, which fires for the very box that just
+        // got smaller, measured the old way while the frame was still tall and
+        // sent the old height straight after this one. The timer is for a frame
+        // already at its floor, which the parent does not resize at all.
+        if (nowHidden) {
+            var collapsed = document.documentElement.offsetHeight;
+            if (collapsed > 0 && collapsed < lastHeight) {
+                lastHeight = collapsed;
+                shrinking = true;
+                send({ plmail: "height", height: collapsed });
+                setTimeout(function () { if (shrinking) { shrinking = false; changed(); } }, 500);
+                return;
+            }
+        }
 
         reportHeight(true);
     });

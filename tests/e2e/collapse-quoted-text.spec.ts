@@ -69,5 +69,19 @@ test.describe("collapse quoted text", () => {
         await expect
             .poll(async () => frameHeight(page), { timeout: 5000 })
             .toBeGreaterThan(collapsedHeight);
+        const expandedHeight = await frameHeight(page);
+
+        // And back again: hiding the quote gives the room back. The frame used
+        // to keep the height it had grown to, so the message ended in a quote's
+        // worth of blank sheet (#37) — scrollHeight cannot report less than the
+        // frame it is measured in. Compared with the expanded height rather
+        // than the first one read above: that reading can be the frame's 80px
+        // floor, taken before the first report arrived.
+        await frame.getByRole("button", { name: "Hide quoted text" }).click();
+
+        await expect(frame.getByText(QUOTED_TEXT)).toBeHidden();
+        await expect
+            .poll(async () => frameHeight(page), { timeout: 5000 })
+            .toBeLessThan(expandedHeight);
     });
 });

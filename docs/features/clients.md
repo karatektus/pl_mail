@@ -46,6 +46,10 @@ The code works **once**, expires after **two minutes**, and carries no credentia
 issued from behind your session; the exchange is not, because a device that could already
 authenticate would not need to pair.
 
+The code also tells the app where the server is. That is the public address from **Admin →
+Address**, so a phone paired at home keeps working away from it; an install with no address on file
+uses the one your browser is on.
+
 ## What a client can expect
 
 `Mailbox`, `Email`, `Thread`, `EmailSubmission`, `Identity` and `PushSubscription` are implemented,

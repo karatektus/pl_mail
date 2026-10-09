@@ -5231,3 +5231,31 @@ html[data-dnd-active] [data-dnd-ghost] {
     outline: 2px solid rgb(var(--rgb-accent));
     outline-offset: 1px;
 }
+
+/*
+   PLACEHOLDER TEXT IS NOT A VALUE, and has to look like it is not (#37).
+
+   Every field asks for `placeholder:text-ink-faint`, and the faint ink was the
+   right choice until the faint ink was darkened: each theme's --rgb-ink-faint
+   has since been walked down to clear 4.5:1 as CAPTION text, which it also is.
+   At that weight an empty field reading "What is it for? e.g. iPhone" and a
+   field somebody typed that into are the same field, and the only way to tell
+   is to click it.
+
+   So a placeholder is the faint ink at reduced strength. One rule rather than
+   a class swapped in twenty-three templates, and no new theme variable: built
+   from the channel every theme already declares, it is right in all of them,
+   light and dark, by construction.
+
+   Unlayered, like the rules above and for the same reason — the utility on the
+   element lives in a layer and would otherwise win. `opacity: 1` because
+   Firefox dims placeholders on its own and the two would multiply.
+
+   The second selector is the contenteditable editors, which have no
+   ::placeholder and draw theirs from data-placeholder.
+*/
+::placeholder,
+[data-placeholder]:empty::before {
+    color: rgb(var(--rgb-ink-faint) / 0.7);
+    opacity: 1;
+}

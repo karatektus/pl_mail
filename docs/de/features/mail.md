@@ -1,4 +1,4 @@
-<!-- translated-from: features/mail.md sha1:57def7ce9b8e9c88cee6508cfaac1ce4c2fe75f2 -->
+<!-- translated-from: features/mail.md sha1:2389d6b58713b40b680643cf419dcb6777f76fcb -->
 
 # Mail
 
@@ -557,6 +557,12 @@ Läufe nach dem Hinzufügen vollständig durchsuchbar und nicht sofort; siehe
 Die Knöpfe in der Zeile und die Werkzeugleiste tun dasselbe, die Werkzeugleiste über alles
 Ausgewählte. Neben der Auswahl aller Konversationen steht ein Menü mit **Alle**, **Keine**,
 **Gelesene**, **Ungelesene** und **Markierte**.
+
+Eine Auswahl gehört zur Liste, nicht zur Seite: Was du anhakst, bleibt angehakt, wenn du
+weiterblätterst, und die Zahl neben den Aktionen zählt alles mit. In einer Liste, die länger als
+eine Seite ist, bietet das Menü außerdem **Alle … in dieser Ansicht** an — das wählt jede
+Unterhaltung darin aus. **Keine** leert jede Seite, und in einer anderen Liste beginnst du wieder
+ohne Auswahl.
 
 Markieren, **Archivieren**, **Löschen**, **Label vergeben**, **Als gelesen markieren** /
 **Als ungelesen markieren** und **Zurückstellen** gelten für eine ganze Konversation oder für

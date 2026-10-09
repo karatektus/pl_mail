@@ -1,5 +1,6 @@
 import LabelMenuController from "./label_menu_controller.js";
 import { jsonCsrfHeaders } from "../../csrf.js";
+import { selection } from "../../mail_selection.js";
 import { announceWrite } from "../../mail_writes.js";
 import { requestFailed } from "../../request_errors.js";
 
@@ -143,10 +144,7 @@ export default class extends LabelMenuController {
             return new Set(this.carriedValue.map(String));
         }
 
-        const rows = [...document.querySelectorAll("[data-thread-select]:checked")]
-            .map((box) => box.closest("[data-label-ids]"))
-            .filter((row) => null !== row)
-            .map((row) => (row.dataset.labelIds ?? "").split(",").filter((id) => "" !== id));
+        const rows = selection().map((selected) => selected.labelIds);
 
         if (0 === rows.length) {
             return new Set();

@@ -1,5 +1,6 @@
 import { Controller } from "@hotwired/stimulus";
 import { jsonCsrfHeaders } from "../../csrf.js";
+import { relabelSelection, selection } from "../../mail_selection.js";
 import { requestFailed } from "../../request_errors.js";
 
 /**
@@ -107,6 +108,10 @@ export default class extends Controller {
             return;
         }
 
+        if (false === this.hasTargetIdValue) {
+            relabelSelection(labelId, attach);
+        }
+
         button.dataset.attached = attach ? "true" : "false";
 
         const check = button.querySelector("[data-mail--label-menu-target='check']");
@@ -140,16 +145,15 @@ export default class extends Controller {
             return;
         }
 
-        const rows = [...document.querySelectorAll("[data-thread-select]:checked")]
-            .map((box) => box.closest("[data-label-ids]"))
-            .filter((row) => null !== row);
+        // Every page of the selection, not only the rows on screen — a tick
+        // that spoke for this page alone would take the label off conversations
+        // on the others that never had it.
+        const rows = selection();
 
         for (const button of this.panelTarget.querySelectorAll("[data-label-id]")) {
             const id = button.dataset.labelId;
 
-            const attached = rows.length > 0 && rows.every(
-                (row) => (row.dataset.labelIds ?? "").split(",").includes(id),
-            );
+            const attached = rows.length > 0 && rows.every((row) => row.labelIds.includes(id));
 
             button.dataset.attached = attached ? "true" : "false";
 
@@ -163,14 +167,7 @@ export default class extends Controller {
             return [{ type: this.targetTypeValue, id: this.targetIdValue }];
         }
 
-        const checked = document.querySelectorAll("[data-thread-select]:checked");
-        const targets = [];
-
-        for (const box of checked) {
-            targets.push({ type: "thread", id: Number(box.value) });
-        }
-
-        return targets;
+        return selection().map((selected) => ({ type: "thread", id: selected.id }));
     }
 
     /** Answers false when the request failed, after saying so. */

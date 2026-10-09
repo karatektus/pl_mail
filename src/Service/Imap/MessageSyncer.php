@@ -238,6 +238,27 @@ class MessageSyncer
             $syncedUids       = $syncedBefore;
             $lowestSkippedUid = $lowestBefore;
 
+            // What this folder holds NOW, which is not what it held when the
+            // run began. $syncedUids is read once, before the first fetch, and
+            // a sync is not the only thing that gives a row a UID here: a move
+            // made in the app, or a second sync of the same account on another
+            // worker, files rows into this folder while this run is still
+            // fetching. Those UIDs then arrive as mail nobody has seen, the
+            // INSERT is refused on (mailbox, uid), and one at a time every one
+            // of them was refused again and logged as a message that could not
+            // be built (#37) — for mail that was stored, and correctly.
+            //
+            // Asked again here rather than before every batch: it is one
+            // indexed query, but the ordinary batch has no use for it, and a
+            // refusal is exactly the moment the snapshot is known to be old.
+            $mailboxNow = $this->mailboxRepository->find($mailboxId);
+
+            if (null !== $mailboxNow) {
+                foreach ($this->messageRepository->findSyncedUids($mailboxNow, $lastSeenUid) as $heldUid) {
+                    $syncedUids[(int) $heldUid] = true;
+                }
+            }
+
             [$mailbox, $messages, $rawBodies, $maxUid] = $this->storeMessages(
                 $batch, $mailboxId, $accountId, $lastSeenUid, $syncedUids, $lowestSkippedUid, $presence, true,
             );

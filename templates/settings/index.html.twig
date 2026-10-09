@@ -543,7 +543,7 @@
                                                     <p class="text-[11px] text-ink-muted leading-relaxed">
                                                         {{ 'settings.app_passwords.setup_hint'|trans }}
                                                     </p>
-                                                    <code class="mt-2 block break-all rounded-lg bg-zinc-500/10 px-3 py-2 text-[11px] font-mono text-ink select-all">{{ app.request.schemeAndHttpHost }}/jmap/session</code>
+                                                    <code class="mt-2 block break-all rounded-lg bg-zinc-500/10 px-3 py-2 text-[11px] font-mono text-ink select-all">{{ public_address() }}/jmap/session</code>
                                                 {% endblock %}
                                             {% endembed %}
                                         </div>

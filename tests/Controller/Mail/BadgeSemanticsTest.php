@@ -233,6 +233,31 @@ final class BadgeSemanticsTest extends WebTestCase
     }
 
     /**
+     * Spam counts unread like the Inbox does, and must not shout like it (#37).
+     *
+     * Still the round pill and still an unread count — only the tone differs,
+     * because the accent says "this wants you" and nothing in Spam does.
+     */
+    public function testTheSpamBadgeIsAnUnreadPillWithoutTheAccent(): void
+    {
+        $client = $this->signedIn();
+
+        $client->request('GET', '/mail/inbox');
+
+        $badge = $client->getCrawler()->filter('[data-count-key="role:spam"]');
+
+        if (0 === $badge->count()) {
+            self::markTestSkipped('Spam is not switched on in the sidebar for this user');
+        }
+
+        $classes = (string) $badge->first()->attr('class');
+
+        self::assertSame('unread', $badge->first()->attr('data-badge-kind'));
+        self::assertStringContainsString('rounded-full', $classes);
+        self::assertStringNotContainsString('bg-accent', $classes);
+    }
+
+    /**
      * Drafts is the other total role and was never asserted, which is how it
      * came to be reported alongside Trash.
      */

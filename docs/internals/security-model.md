@@ -520,6 +520,12 @@ would protect only future mail; and the answer depends on *who is asking*, becau
 "always show images from this sender" is per user (`trusted_image_sender`). A stored form
 cannot carry an answer that varies by reader.
 
+**Mail the reader sent is not blocked.** The block keeps a stranger from learning that their
+message was opened, and asking it of your own mail is asking whether you trust yourself. "Your
+own" is read off the Sent label, which only the account's own session puts on a message, and
+never off the From line — a forged mail in the inbox carries your address there as easily as any
+other. The images still load through the proxy, and Spam still wins.
+
 When the reader does opt in, the images load **through `/mail/image-proxy`** rather than
 directly — so an opted-in read leaks no IP either. That is the whole reason there is a proxy
 and not just an unblock.

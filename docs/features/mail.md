@@ -508,6 +508,11 @@ added rather than immediately; see [Accounts and aliases](accounts.md).
 Row buttons and the toolbar do the same things, the toolbar over everything selected. **Select
 all** has a menu beside it offering **All**, **None**, **Read**, **Unread** and **Starred**.
 
+A selection belongs to the list, not to the page: what you tick stays ticked when you go to the
+next page, and the number beside the actions counts all of it. On a list longer than a page the
+menu also offers **All … in this view**, which selects every conversation in it. **None** clears
+every page, and going to a different list starts with nothing selected.
+
 Star, **Archive**, **Delete**, **Label as**, **Mark as read** / **Mark as unread** and **Snooze**
 all apply to a whole conversation or to a single message, and all of them travel outward to the
 provider as well as changing what you see here. Archiving is modelled as removing the Inbox label

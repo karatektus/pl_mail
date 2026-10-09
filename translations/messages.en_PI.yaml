@@ -90,7 +90,7 @@ admin:
             besides, so the hands register push at the new address.
         save: Log the address
         saved: 'Logged — she takes hold at the next rousin''.'
-    ago: 'ago'
+    ago: '%age% ago'
     ai:
         backfill:
             chip:
@@ -3856,6 +3856,7 @@ toolbar:
         read: Read
         starred: Marked
         unread: Unread
+        whole_view: 'All %count% in this view, every last one'
     select_all: Pick every yarn
     select_menu: More ways to pick
 

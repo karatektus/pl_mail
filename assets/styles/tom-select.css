@@ -147,8 +147,9 @@
     color: rgb(var(--rgb-ink));
 }
 
+/* The strength every other placeholder has — see the note in app.css. */
 .ts-control input::placeholder {
-    color: rgb(var(--rgb-ink-faint));
+    color: rgb(var(--rgb-ink-faint) / 0.7);
 }
 
 /* ── Control — single select, styled as a normal form field ───────────
