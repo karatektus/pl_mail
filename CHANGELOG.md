@@ -10,8 +10,9 @@ The published image tags: `latest` follows the most recent release below,
 
 ### Security
 
-**Mail from the wrong sender can no longer change your calendar.** Reported in
-[#34](https://github.com/karatektus/pl_mail/issues/34). Two holes, neither of which exposed data or
+**Mail from the wrong sender can no longer change your calendar.** Reported by
+[@jhuber](https://github.com/jhuber) in [#34](https://github.com/karatektus/pl_mail/issues/34), who
+found everything in this section by reading the code. Two holes, neither of which exposed data or
 ran code, both of which let an outsider put misleading entries on a calendar unnoticed.
 
 - **A meeting could be moved or cancelled by anyone who knew its identifier.** Everyone invited to
