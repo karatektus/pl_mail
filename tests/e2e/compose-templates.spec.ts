@@ -1,6 +1,7 @@
 import { test, expect, type Page } from "./support/test";
 import { INBOX_SUBJECTS, mailRow, seed } from "./support/config";
 import { acceptConfirm } from "./support/confirm";
+import { pressLineEnd } from "./support/keyboard";
 
 /**
  * Templates, in the two places a browser is needed to see them work.
@@ -95,7 +96,7 @@ test.describe("templates", () => {
         // field, come back by clicking it, and finish the sentence.
         await editor.getByLabel("Name").click();
         await body.click();
-        await page.keyboard.press("End");
+        await pressLineEnd(page);
         await page.keyboard.type(".");
         // The zero-width space is the editor's own (it is what makes the
         // caret position exist) and is stripped before the form posts — the

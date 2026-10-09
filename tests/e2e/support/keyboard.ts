@@ -133,3 +133,23 @@ export async function publishedInset(page: Page): Promise<string> {
             .trim(),
     );
 }
+
+/**
+ * Move the caret to the end of its line, on whichever machine this runs.
+ *
+ * Not `press("End")`, which is the obvious spelling and is only right on the
+ * CI runner. Chromium on macOS binds End to "scroll to the bottom" and leaves
+ * the caret exactly where it was — the key that means end-of-line there is
+ * Cmd+Right. Nothing fails at the keypress: the test carries on typing from
+ * wherever the caret happened to be, and whatever it asserts next is then
+ * about a different edit from the one it describes. That is how "leaves
+ * ordinary typing alone" in compose-link-popover.spec.ts passed on Linux and
+ * failed on every Mac, typing into the middle of the link it meant to leave.
+ *
+ * `process.platform` is the machine running Playwright, which is also the
+ * machine running the browser — the app under test being in a Linux container
+ * has no say in what a key does.
+ */
+export async function pressLineEnd(page: Page): Promise<void> {
+    await page.keyboard.press("darwin" === process.platform ? "Meta+ArrowRight" : "End");
+}

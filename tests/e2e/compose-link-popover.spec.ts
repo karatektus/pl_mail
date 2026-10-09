@@ -1,5 +1,6 @@
 import { test, expect, type Page } from "./support/test";
 import { seed } from "./support/config";
+import { pressLineEnd } from "./support/keyboard";
 
 /**
  * The insert-link popover, and links being reachable inside the editor.
@@ -348,10 +349,18 @@ test.describe("a link in the editor", () => {
         await withLink(page);
 
         await page.locator(`${DOCK} ${EDITOR} a`).click();
-        await page.keyboard.press("End");
+        // To the end of the line, which is the end of the link: the click
+        // landed mid-word, and typing THERE is typing into the link — the
+        // caret never leaves it and the popover is right to stay.
+        await pressLineEnd(page);
         await page.keyboard.type(" and more");
 
         await expect(page.locator(`${DOCK} ${EDITOR}`)).toContainText("and more");
+        // Typed after the link, not into it. Without this the test cannot
+        // tell the two apart, and on a machine where the caret did not move
+        // it failed two lines late, on the popover, for a reason that had
+        // nothing to do with the popover.
+        await expect(page.locator(`${DOCK} ${EDITOR} a`)).toHaveText("plMail");
         await expect(page.locator(`${DOCK} ${POPOVER}`)).toBeHidden();
     });
 });
