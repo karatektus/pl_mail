@@ -3786,6 +3786,14 @@ settings:
         subheading: >-
             Links, die jemandem ohne Konto einen Teil deines Kalenders zeigen,
             und Seiten, auf denen er eine Stunde davon buchen kann.
+    shortcuts:
+        heading: "Tastenkürzel"
+        hint: "c zum Schreiben, e zum Archivieren, j und k, um durch eine Liste zu gehen. Sie wirken nur, solange du nicht gerade irgendwo tippst, und was du so ablegst, lässt sich wie sonst auch rückgängig machen."
+        label: "Kürzel"
+        'off': "Aus"
+        'on': "An"
+        show: "Kürzel anzeigen"
+        subheading: "Einzelne Tasten für das, was du den ganzen Tag tust."
     signature:
         for_alias: 'Signatur für %alias%'
         heading: Signaturen
@@ -3917,6 +3925,52 @@ settings:
             d: 'Tage'
             m: 'Monate'
             w: 'Wochen'
+
+shortcuts:
+    groups:
+        actions: "Auf Mail"
+        actions_hint: "Was ausgewählt ist; sonst die geöffnete Unterhaltung; sonst die hervorgehobene Zeile."
+        anywhere: "Überall"
+        conversation: "In einer Unterhaltung"
+        list: "In einer Liste"
+    keys:
+        archive: "Archivieren"
+        back: "Zurück zur Liste"
+        compose: "Neue Nachricht schreiben"
+        delete: "Löschen"
+        forward: "Weiterleiten"
+        go_archive: "Zum Archiv"
+        go_drafts: "Zu den Entwürfen"
+        go_inbox: "Zum Posteingang"
+        go_sent: "Zu Gesendet"
+        go_starred: "Zu Markiert"
+        help: "Diese Liste anzeigen"
+        label: "Label vergeben"
+        mark_read: "Als gelesen markieren"
+        mark_unread: "Als ungelesen markieren"
+        move: "Verschieben nach"
+        next: "Eine Unterhaltung nach unten"
+        next_conversation: "Nächste Unterhaltung öffnen"
+        open: "Hervorgehobene Unterhaltung öffnen"
+        previous: "Eine Unterhaltung nach oben"
+        previous_conversation: "Vorherige Unterhaltung öffnen"
+        reply: "Antworten"
+        reply_all: "Allen antworten"
+        search: "Suchen"
+        select: "Hervorgehobene Unterhaltung auswählen"
+        select_all: "Alle auf der Seite auswählen"
+        select_none: "Auswahl aufheben"
+        select_read: "Gelesene auswählen"
+        select_starred: "Markierte auswählen"
+        select_unread: "Ungelesene auswählen"
+        snooze: "Zurückstellen"
+        spam: "Als Spam markieren"
+        star: "Markieren oder Markierung entfernen"
+        undo: "Letzte Aktion rückgängig machen"
+    or: "oder"
+    switched_off: "Die Kürzel sind für dich ausgeschaltet. Schalte sie unter Einstellungen → Allgemein ein."
+    then: "dann"
+    title: "Tastenkürzel"
 
 sidebar:
     accounts:

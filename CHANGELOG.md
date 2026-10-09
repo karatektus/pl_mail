@@ -6,6 +6,17 @@ so anything that changes the schema irreversibly is called out explicitly.
 The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, and `sha-…` pins one commit.
 
+## Unreleased
+
+**Keyboard shortcuts, the ones Gmail uses.** `j` and `k` move through a list, `o` opens, `u` goes
+back, `x` selects, `e` archives, `#` deletes, `s` stars, `r` `a` `f` reply, reply to all and
+forward, `c` writes, `/` searches, `g` then a letter goes to a list, `z` undoes. **?** shows all of
+them. A key acts on the selection, otherwise on the open conversation, otherwise on the highlighted
+row, and does exactly what the button it stands for does. Nothing happens while you are typing or
+while a dialog or menu is open. On for everyone; Settings → General → Keyboard shortcuts switches
+them off per person. No migration.
+[#36](https://github.com/karatektus/pl_mail/issues/36).
+
 ## v0.3.2 — 2026-10-09
 
 ### Security

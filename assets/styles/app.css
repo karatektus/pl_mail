@@ -5259,3 +5259,25 @@ html[data-dnd-active] [data-dnd-ghost] {
     color: rgb(var(--rgb-ink-faint) / 0.7);
     opacity: 1;
 }
+
+/*
+   THE KEYBOARD'S ROW (#36). `j` and `k` move through a list, and this is where
+   they are: the row a key will act on. See ui--shortcuts.
+
+   An OUTLINE, inset, because every other channel on a row is already saying
+   something. The fill is unread, the tinted wash is selected, the bar down the
+   leading edge is unread at Strong emphasis, hover is a lighter fill again —
+   and a cursor has to be legible on a row that is all four at once. An outline
+   takes no box and paints over none of them.
+
+   Not :focus. Focus would have been the honest mechanism and was the wrong one:
+   moving it onto a row scrolls and announces on every keypress, and the rows
+   are replaced under it by every refresh, each time dropping focus to <body>.
+   The attribute is repainted from a remembered id instead.
+
+   Unlayered, like the rules above and for the same reason.
+*/
+[data-kbd-cursor] {
+    outline: 2px solid rgb(var(--rgb-accent) / 0.7);
+    outline-offset: -2px;
+}

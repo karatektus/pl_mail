@@ -893,6 +893,29 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
      */
     public const string SETTING_ONBOARDING_DONE_STEPS = 'onboarding.done_steps';
 
+    /**
+     * Whether single keys act on mail — `e` archives, `#` deletes, `j` and `k`
+     * move through the list. See assets/controllers/ui/shortcuts_controller.js.
+     *
+     * ON unless somebody has said otherwise, which is the opposite of the
+     * client these are borrowed from. Gmail ships them off because a stray key
+     * can file mail; here every one of those actions answers with an Undo, and
+     * a feature that has to be found in a settings page before it exists is a
+     * feature for the handful of people who went looking.
+     *
+     * Only a stored false is off, so the key is absent for nearly everybody
+     * and the default can be read without a migration having written it.
+     */
+    public const string SETTING_KEYBOARD_SHORTCUTS = 'keyboard.shortcuts';
+
+    /** Virtual, out of the settings bag — see SETTING_KEYBOARD_SHORTCUTS. */
+    public bool $keyboardShortcuts {
+        get => false !== $this->getSetting(self::SETTING_KEYBOARD_SHORTCUTS, true);
+        set(bool $on) {
+            $this->setSetting(self::SETTING_KEYBOARD_SHORTCUTS, $on ? null : false);
+        }
+    }
+
     public function getSetting(string $key, mixed $default = null): mixed
     {
         if (true === array_key_exists($key, $this->settings)) {

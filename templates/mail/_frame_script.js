@@ -91,6 +91,25 @@
         if (anchor) { send({ plmail: "link", href: null }); }
     });
 
+    // Keys, handed to the parent. This document is a frame of its own, so a
+    // key pressed after clicking into a message goes nowhere near the page
+    // around it — and the keyboard shortcuts stopped working the moment a mail
+    // was clicked on. Only the facts of the key cross, never the event, and
+    // never one typed into a field a mail brought with it. Whether it means
+    // anything is the parent's to decide.
+    document.addEventListener("keydown", function (event) {
+        var target = event.target;
+        if (target && target.closest && target.closest("input, textarea, select, [contenteditable]")) { return; }
+        send({
+            plmail: "key",
+            key: String(event.key).slice(0, 16),
+            shiftKey: event.shiftKey === true,
+            ctrlKey: event.ctrlKey === true,
+            metaKey: event.metaKey === true,
+            altKey: event.altKey === true
+        });
+    });
+
     // "Show quoted text". The wrapper and its toggle are server-rendered by
     // QuoteCollapser (a [data-plmail-quote] hidden by default, its button the
     // immediately-preceding sibling). Flipping [hidden] here — inside the frame,

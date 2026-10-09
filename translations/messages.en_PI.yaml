@@ -3573,6 +3573,14 @@ settings:
         subheading: >-
             Berths that show part o yer log to someone wi no account, an notices
             that let em board an hour o it.
+    shortcuts:
+        heading: "Keyboard shortcuts"
+        hint: "c to scribble, e to stow, j an' k to walk the list. They only act while ye be not typin' into somethin', an' post stowed this way can be hauled back like any other."
+        label: "Shortcuts"
+        'off': "Nay"
+        'on': "Aye"
+        show: "Show the shortcuts"
+        subheading: "Single keys fer the things ye do all day."
     signature:
         for_alias: 'Yer mark fer %alias%'
         heading: Yer marks
@@ -3704,6 +3712,52 @@ settings:
             d: 'days'
             m: 'months'
             w: 'weeks'
+
+shortcuts:
+    groups:
+        actions: "On post"
+        actions_hint: "What be chosen; else the open yarn; else the marked row."
+        anywhere: "Anywhere"
+        conversation: "In a yarn"
+        list: "In a list"
+    keys:
+        archive: "Stow in the hold"
+        back: "Back to the list"
+        compose: "Scribble a new message"
+        delete: "Feed to the fishes"
+        forward: "Pass it on"
+        go_archive: "Sail to the hold"
+        go_drafts: "Sail to Drafts"
+        go_inbox: "Sail to the Inbox"
+        go_sent: "Sail to Sent"
+        go_starred: "Sail to Marked"
+        help: "Show this list"
+        label: "Label as"
+        mark_read: "Mark as read"
+        mark_unread: "Mark as unread"
+        move: "Move to"
+        next: "Down one yarn"
+        next_conversation: "Open the next yarn"
+        open: "Open the marked yarn"
+        previous: "Up one yarn"
+        previous_conversation: "Open the yarn afore"
+        reply: "Answer"
+        reply_all: "Answer all hands"
+        search: "Search"
+        select: "Choose the marked yarn"
+        select_all: "Choose all on the page"
+        select_none: "Belay the choosin'"
+        select_read: "Choose read"
+        select_starred: "Choose marked"
+        select_unread: "Choose unread"
+        snooze: "Snooze"
+        spam: "Mark as bilge"
+        star: "Mark or unmark"
+        undo: "Undo the last deed"
+    or: "or"
+    switched_off: "Shortcuts be struck fer ye. Raise 'em under Settings → General."
+    then: "then"
+    title: "Keyboard shortcuts"
 
 sidebar:
     accounts:

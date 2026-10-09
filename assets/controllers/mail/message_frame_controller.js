@@ -12,6 +12,7 @@ import { Controller } from "@hotwired/stimulus";
  * Three conversations:
  *   frame → here   "height"  the content measured itself; resize to fit
  *   frame → here   "link"    a link is under the cursor; show/hide the preview
+ *   frame → here   "key"     a key was pressed in the message; see ui--shortcuts
  *   here  → frame  "theme"   the live mail-sheet colours, which CSS custom
  *                            properties cannot carry across a document boundary
  *   here  → frame  "show-images"  the reader clicked the bar
@@ -62,6 +63,23 @@ export default class extends Controller {
 
         if (data.plmail === "link") {
             this.showLink(data.href);
+        }
+
+        // A key pressed inside the message, for ui--shortcuts. Re-announced as
+        // an event of our own rather than as a synthetic keydown: nothing else
+        // listening for keys should mistake this for the keyboard, and the
+        // values are coerced here because they crossed from a document that
+        // renders a stranger's markup.
+        if (data.plmail === "key" && typeof data.key === "string") {
+            document.dispatchEvent(new CustomEvent("mail:frame-key", {
+                detail: {
+                    key: data.key,
+                    shiftKey: true === data.shiftKey,
+                    ctrlKey: true === data.ctrlKey,
+                    metaKey: true === data.metaKey,
+                    altKey: true === data.altKey,
+                },
+            }));
         }
     }
 

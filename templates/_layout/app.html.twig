@@ -209,7 +209,21 @@
     {# has-demo-bar: the fixed demo bar overlays the panes, so scrollers need
        room to bring their last row clear of it. See app.css. #}
     class="{% block body_class %}{% endblock %}{% if app.user and demo.isEnabled %} has-demo-bar{% endif %}"
-    data-controller="ui--tooltip {% if app.user %}{% block body_controllers %}core--mercure mail--jobs{% endblock %}{% endif %}"
+    {# ui--shortcuts is outside the block for the reason ui--tooltip is, and
+       for somebody who has not switched the shortcuts off — an absent
+       controller is the whole of "off", so there is no flag for the script to
+       remember to read. See App\Entity\User\User::SETTING_KEYBOARD_SHORTCUTS. #}
+    {% set _shortcuts = app.user and app.user.keyboardShortcuts %}
+    data-controller="ui--tooltip{% if _shortcuts %} ui--shortcuts{% endif %} {% if app.user %}{% block body_controllers %}core--mercure mail--jobs{% endblock %}{% endif %}"
+    {% if _shortcuts %}
+        data-ui--shortcuts-go-value="{{ {
+            i: path('app_mail_inbox'),
+            s: path('app_mail_starred'),
+            t: path('app_mail_sent'),
+            d: path('app_mail_drafts'),
+            a: path('app_mail_archive'),
+        }|json_encode }}"
+    {% endif %}
     {# On the BODY, beside the controller that reads it: a Stimulus value has to
        live on the same element as its controller, and this one sat on the pane
        below where it was silently never read. #}
@@ -253,6 +267,18 @@
     {% block body %}{% endblock %}
     {% block javascripts_body %}{% endblock %}
     {% include '_partials/_modal.html.twig' %}
+    {# What `?` presses. A real trigger for the shared dialog rather than a
+       dialog of its own, so the list of shortcuts opens, traps focus and
+       closes the way every other dialog here does. Hidden from everything but
+       the script: the same list is one click away in Settings → General. #}
+    {% if _shortcuts %}
+        <button type="button" hidden tabindex="-1" aria-hidden="true"
+                data-shortcut="help"
+                data-controller="ui--modal"
+                data-ui--modal-src-value="{{ path('app_shortcuts_help') }}"
+                data-ui--modal-title-value="{{ 'shortcuts.title'|trans }}"
+                data-action="click->ui--modal#open"></button>
+    {% endif %}
     {# After the modal, and only ever for a signed-in user who has not been
        through setup: it drives the dialog above, so that has to exist first. #}
     {% if app.user %}

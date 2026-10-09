@@ -3768,6 +3768,14 @@ settings:
         subheading: >-
             Links that show part of your calendar to someone without an account,
             and pages that let them book an hour of it.
+    shortcuts:
+        heading: "Keyboard shortcuts"
+        hint: "c to compose, e to archive, j and k to move through a list. They only act while you are not typing into something, and filing mail this way can be undone like any other."
+        label: "Shortcuts"
+        'off': "Off"
+        'on': "On"
+        show: "Show the shortcuts"
+        subheading: "Single keys for the things you do all day."
     signature:
         for_alias: 'Signature for %alias%'
         heading: Signatures
@@ -3899,6 +3907,52 @@ settings:
             d: 'days'
             m: 'months'
             w: 'weeks'
+
+shortcuts:
+    groups:
+        actions: "On mail"
+        actions_hint: "What is selected; otherwise the open conversation; otherwise the highlighted row."
+        anywhere: "Anywhere"
+        conversation: "In a conversation"
+        list: "In a list"
+    keys:
+        archive: "Archive"
+        back: "Back to the list"
+        compose: "Write a new message"
+        delete: "Delete"
+        forward: "Forward"
+        go_archive: "Go to Archive"
+        go_drafts: "Go to Drafts"
+        go_inbox: "Go to the Inbox"
+        go_sent: "Go to Sent"
+        go_starred: "Go to Starred"
+        help: "Show this list"
+        label: "Label as"
+        mark_read: "Mark as read"
+        mark_unread: "Mark as unread"
+        move: "Move to"
+        next: "Down one conversation"
+        next_conversation: "Open the next conversation"
+        open: "Open the highlighted conversation"
+        previous: "Up one conversation"
+        previous_conversation: "Open the previous conversation"
+        reply: "Reply"
+        reply_all: "Reply to all"
+        search: "Search"
+        select: "Select the highlighted conversation"
+        select_all: "Select all on the page"
+        select_none: "Clear the selection"
+        select_read: "Select read"
+        select_starred: "Select starred"
+        select_unread: "Select unread"
+        snooze: "Snooze"
+        spam: "Mark as spam"
+        star: "Star or unstar"
+        undo: "Undo the last action"
+    or: "or"
+    switched_off: "Shortcuts are switched off for you. Switch them on under Settings → General."
+    then: "then"
+    title: "Keyboard shortcuts"
 
 sidebar:
     accounts:

@@ -1,0 +1,98 @@
+{#
+shortcuts/help.html.twig — the list of keyboard shortcuts, for the shared dialog.
+
+Opened by `?` and from Settings → General. A fragment for the modal frame and
+nothing else: see _partials/_modal.html.twig.
+
+ONE LIST, AND IT IS THE DOCUMENTATION. The keys are spelt here and matched in
+assets/controllers/ui/shortcuts_controller.js; a key added to one and not the
+other is a key that is either undiscoverable or a lie. Kept in the order the
+controller's own switch is in, so the two can be read side by side.
+
+`kbd` because that is what these are. "then" is a word and not an arrow: `g`
+followed by `i` is two presses, and a "+" would say they are held together.
+#}
+{% set then = 'shortcuts.then'|trans %}
+{% set or = 'shortcuts.or'|trans %}
+
+{% set groups = [
+    { title: 'shortcuts.groups.anywhere', rows: [
+        [['c'], 'shortcuts.keys.compose'],
+        [['/'], 'shortcuts.keys.search'],
+        [['g', then, 'i'], 'shortcuts.keys.go_inbox'],
+        [['g', then, 's'], 'shortcuts.keys.go_starred'],
+        [['g', then, 't'], 'shortcuts.keys.go_sent'],
+        [['g', then, 'd'], 'shortcuts.keys.go_drafts'],
+        [['g', then, 'a'], 'shortcuts.keys.go_archive'],
+        [['z'], 'shortcuts.keys.undo'],
+        [['?'], 'shortcuts.keys.help'],
+    ] },
+    { title: 'shortcuts.groups.list', rows: [
+        [['j'], 'shortcuts.keys.next'],
+        [['k'], 'shortcuts.keys.previous'],
+        [['o', or, 'Enter'], 'shortcuts.keys.open'],
+        [['x'], 'shortcuts.keys.select'],
+        [['*', then, 'a'], 'shortcuts.keys.select_all'],
+        [['*', then, 'n'], 'shortcuts.keys.select_none'],
+        [['*', then, 'r'], 'shortcuts.keys.select_read'],
+        [['*', then, 'u'], 'shortcuts.keys.select_unread'],
+        [['*', then, 's'], 'shortcuts.keys.select_starred'],
+    ] },
+    { title: 'shortcuts.groups.actions', hint: 'shortcuts.groups.actions_hint', rows: [
+        [['e'], 'shortcuts.keys.archive'],
+        [['#'], 'shortcuts.keys.delete'],
+        [['!'], 'shortcuts.keys.spam'],
+        [['s'], 'shortcuts.keys.star'],
+        [['Shift', 'i'], 'shortcuts.keys.mark_read'],
+        [['Shift', 'u'], 'shortcuts.keys.mark_unread'],
+        [['l'], 'shortcuts.keys.label'],
+        [['v'], 'shortcuts.keys.move'],
+        [['b'], 'shortcuts.keys.snooze'],
+    ] },
+    { title: 'shortcuts.groups.conversation', rows: [
+        [['u'], 'shortcuts.keys.back'],
+        [['j'], 'shortcuts.keys.next_conversation'],
+        [['k'], 'shortcuts.keys.previous_conversation'],
+        [['r'], 'shortcuts.keys.reply'],
+        [['a'], 'shortcuts.keys.reply_all'],
+        [['f'], 'shortcuts.keys.forward'],
+    ] },
+] %}
+
+<turbo-frame id="modal">
+    <template data-ui--modal-frame-title>{{ 'shortcuts.title'|trans }}</template>
+
+    <div class="overflow-y-auto px-5 py-4" data-shortcuts-help>
+        {% if not app.user.keyboardShortcuts %}
+            <p class="mb-4 text-xs text-ink-muted">{{ 'shortcuts.switched_off'|trans }}</p>
+        {% endif %}
+
+        <div class="grid gap-x-8 gap-y-5 sm:grid-cols-2">
+            {% for group in groups %}
+                <section>
+                    <h3 class="text-xs font-semibold uppercase tracking-wide text-ink-faint">{{ group.title|trans }}</h3>
+                    {% if group.hint is defined %}
+                        <p class="mt-1 text-[11px] text-ink-faint">{{ group.hint|trans }}</p>
+                    {% endif %}
+
+                    <dl class="mt-2 space-y-1.5">
+                        {% for row in group.rows %}
+                            <div class="flex items-baseline justify-between gap-3 text-sm">
+                                <dt class="text-ink-soft">{{ row[1]|trans }}</dt>
+                                <dd class="shrink-0 whitespace-nowrap text-xs text-ink-faint">
+                                    {%- for part in row[0] -%}
+                                        {%- if part == then or part == or -%}
+                                            <span class="mx-1">{{ part }}</span>
+                                        {%- else -%}
+                                            <kbd class="inline-block min-w-5 rounded border border-line bg-raised px-1.5 py-0.5 text-center font-mono text-[11px] text-ink">{{ part }}</kbd>{{ loop.last ? '' : ' ' }}
+                                        {%- endif -%}
+                                    {%- endfor -%}
+                                </dd>
+                            </div>
+                        {% endfor %}
+                    </dl>
+                </section>
+            {% endfor %}
+        </div>
+    </div>
+</turbo-frame>

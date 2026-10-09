@@ -383,6 +383,17 @@
                                             {% endembed %}
 
                                             {% embed 'settings/_card.html.twig' with {
+                                                heading:    'settings.shortcuts.heading'|trans,
+                                                subheading: 'settings.shortcuts.subheading'|trans,
+                                            } %}
+                                                {% block body %}
+                                                    {% include 'settings/_shortcuts.html.twig' with {
+                                                        enabled: app.user.keyboardShortcuts,
+                                                    } only %}
+                                                {% endblock %}
+                                            {% endembed %}
+
+                                            {% embed 'settings/_card.html.twig' with {
                                                 heading:    'settings.sorting.heading'|trans,
                                                 subheading: 'settings.sorting.subheading'|trans,
                                             } %}

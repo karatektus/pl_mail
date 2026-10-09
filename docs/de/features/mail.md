@@ -1,4 +1,4 @@
-<!-- translated-from: features/mail.md sha1:c0e3361d814da9454b2dfbbf7bf355ac6bc16d55 -->
+<!-- translated-from: features/mail.md sha1:927c5cfb202b079fd0f642deaf6336138f940dcd -->
 
 # Mail
 
@@ -584,6 +584,36 @@ und als sonst nichts — wo die Nachricht danach landet, ist Sache des Anbieters
 
 **Aktualisieren** in der Werkzeugleiste reiht für jedes deiner aktiven Konten eine
 Synchronisierung ein und dreht sich, bis diese Aufträge abgearbeitet sind.
+
+### Tastenkürzel
+
+Die einzelnen Tasten, die Gmail benutzt, funktionieren auch hier. Mit **?** bekommst du überall die
+ganze Liste; diese lohnt es sich zuerst zu kennen:
+
+| Taste | Wirkung |
+|---|---|
+| `j` / `k` | In einer Liste nach unten und nach oben. Ist eine Unterhaltung geöffnet: die nächste oder vorherige öffnen. |
+| `o` oder `Enter` | Die hervorgehobene Unterhaltung öffnen. `u` führt zurück zur Liste. |
+| `x` | Die hervorgehobene Unterhaltung auswählen. `*` dann `a` wählt die Seite aus, `*` dann `n` hebt die Auswahl auf. |
+| `e` · `#` · `!` | Archivieren · löschen · als Spam markieren. |
+| `s` · `Shift`+`i` · `Shift`+`u` | Markieren · als gelesen markieren · als ungelesen markieren. |
+| `l` · `v` · `b` | Label vergeben · verschieben nach · zurückstellen. |
+| `r` · `a` · `f` | Antworten · allen antworten · weiterleiten, in einer geöffneten Unterhaltung. |
+| `c` · `/` | Neue Nachricht schreiben · suchen. |
+| `g` dann `i` `s` `t` `d` `a` | Zum Posteingang, zu Markiert, Gesendet, den Entwürfen, zum Archiv. |
+| `z` | Die letzte Aktion rückgängig machen, solange ihr Hinweis noch zu sehen ist. |
+
+**Worauf eine Taste wirkt:** auf das, was ausgewählt ist; ist nichts ausgewählt, auf die geöffnete
+Unterhaltung; ist keine geöffnet, auf die hervorgehobene Zeile. `e` mit drei angehakten
+Unterhaltungen archiviert also diese drei, egal wo die Hervorhebung gerade steht.
+
+Eine Taste tut genau das, was der Knopf tut, für den sie steht — samt dem Rückgängig danach —, und
+nichts, wo es diesen Knopf nicht gibt: Im Papierkorb gibt es kein Archivieren, also bleibt `e` dort
+stumm. Tasten werden in Ruhe gelassen, solange du irgendwo tippst, solange ein Dialog oder ein Menü
+offen ist und immer dann, wenn Strg, Alt oder ⌘ gedrückt ist.
+
+Sie sind für alle eingeschaltet. Unter **Einstellungen → Allgemein → Tastenkürzel** schaltest du sie
+für dich aus.
 
 ### Als Spam markieren
 

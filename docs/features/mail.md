@@ -533,6 +533,35 @@ and nothing else — where the message lands afterwards is the provider's busine
 **Refresh** in the toolbar queues a sync for every active account you own and spins until those
 jobs have drained.
 
+### Keyboard shortcuts
+
+The single keys Gmail uses work here too. Press **?** anywhere for the full list; the ones worth
+knowing first:
+
+| Key | Does |
+|---|---|
+| `j` / `k` | Move down and up a list. With a conversation open, open the next or previous one. |
+| `o` or `Enter` | Open the highlighted conversation. `u` goes back to the list. |
+| `x` | Select the highlighted conversation. `*` then `a` selects the page, `*` then `n` clears. |
+| `e` · `#` · `!` | Archive · delete · mark as spam. |
+| `s` · `Shift`+`i` · `Shift`+`u` | Star · mark as read · mark as unread. |
+| `l` · `v` · `b` | Label as · move to · snooze. |
+| `r` · `a` · `f` | Reply · reply to all · forward, in an open conversation. |
+| `c` · `/` | Write a new message · search. |
+| `g` then `i` `s` `t` `d` `a` | Go to the Inbox, Starred, Sent, Drafts, Archive. |
+| `z` | Undo the last action, while its notice is still showing. |
+
+**What a key acts on:** whatever is selected; if nothing is, the conversation that is open; if none
+is, the highlighted row. So `e` with three conversations ticked archives those three, wherever the
+highlight happens to be.
+
+A key does exactly what the button it stands for does, including the Undo that follows, and does
+nothing where that button is not offered — there is no Archive in the bin, so `e` is silent there.
+Keys are left alone while you are typing into anything, while a dialog or a menu is open, and
+whenever Ctrl, Alt or ⌘ is held.
+
+They are on for everyone. **Settings → General → Keyboard shortcuts** switches them off for you.
+
 ### Mark as spam
 
 The spam button sits beside **Delete**: among a row's buttons, in the toolbar of an open

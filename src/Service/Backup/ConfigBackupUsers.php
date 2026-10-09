@@ -125,6 +125,11 @@ final readonly class ConfigBackupUsers
         User::SETTING_CALENDAR_VIEW,
         User::SETTING_CALENDAR_PANE_VIEW,
         User::SETTING_SEARCH_SORT,
+        // Whether single keys act on mail. Stored only as a false, by
+        // somebody who decided they did not want that — and a restore that
+        // switched it back on would have `e` archiving mail for a person who
+        // had said no.
+        User::SETTING_KEYBOARD_SHORTCUTS,
         User::SETTING_ADMIN_COLLAPSED_PANELS,
         // Travels, unlike its `sidebar.expanded_account` neighbour, and the
         // difference is what these hold: this is section names and label FULL

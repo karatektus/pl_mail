@@ -46,6 +46,7 @@ The action buttons hide themselves while a compose card is open; see the
         <div data-reply-actions class="flex items-center gap-2 {{ sending ? 'hidden' : '' }}">
             <a
                 href="{{ path('app_compose_reply', params|merge({ id: last.id })) }}"
+                data-shortcut="reply"
                 data-turbo-frame="{{ frame }}"
                 data-controller="compose--frame-target"
                 data-turbo-prefetch="false"
@@ -59,6 +60,7 @@ The action buttons hide themselves while a compose card is open; see the
             {% if hasMultipleParticipants %}
                 <a
                     href="{{ path('app_compose_reply_all', params|merge({ id: last.id })) }}"
+                    data-shortcut="reply-all"
                     data-turbo-frame="{{ frame }}"
                     data-controller="compose--frame-target"
                 data-turbo-prefetch="false"
@@ -72,6 +74,7 @@ The action buttons hide themselves while a compose card is open; see the
 
             <a
                 href="{{ path('app_compose_forward', params|merge({ id: last.id })) }}"
+                data-shortcut="forward"
                 data-turbo-frame="{{ frame }}"
                 data-controller="compose--frame-target"
                 data-turbo-prefetch="false"
