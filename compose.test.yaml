@@ -162,7 +162,19 @@ services:
         # Not optional: specs assert toBeVisible()/toBeHidden(), which depend on
         # Tailwind's `.hidden { display: none }`. Building here also keeps this
         # stack independent of the dev `tailwind` watcher.
-        php bin/console tailwind:build
+        #
+        # Three goes, because the first build on a fresh tree downloads the
+        # Tailwind binary from a GitHub release, and GitHub answers that with a
+        # 500 now and then. When it did on the v0.3.2 tag, three of five
+        # Playwright jobs ended here, before a single spec had run, and the run
+        # went red with nothing wrong in the commit. A build that fails for a
+        # real reason fails three times and still stops the stack.
+        #
+        # Spelt out rather than looped: a shell variable in this file is
+        # Compose's to interpolate first.
+        php bin/console tailwind:build \
+            || { sleep 5; php bin/console tailwind:build; } \
+            || { sleep 20; php bin/console tailwind:build; }
         # Compiled, not served through PHP. Without this, `try_files {path}
         # index.php` in frankenphp/Caddyfile sends every asset request into a
         # full Symfony kernel boot: /login alone pulls 54 modulepreload entries
