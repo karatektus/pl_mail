@@ -15,6 +15,13 @@ Outlook, with the exact permissions to tick · how the internals work.
 Also on the [wiki](https://github.com/karatektus/pl_mail/wiki) and in [`docs/`](docs/) — all three
 are built from the same files.
 
+### 📱 Apps for your phone
+
+- **Android** — [karatektus/pl_mail_android](https://github.com/karatektus/pl_mail_android)
+- **iOS** — [karatektus/pl_mail_ios](https://github.com/karatektus/pl_mail_ios)
+
+Both connect to your own plMail server.
+
 ---
 
 ## What it is
