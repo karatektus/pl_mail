@@ -17,6 +17,12 @@ while a dialog or menu is open. On for everyone; Settings → General → Keyboa
 them off per person. No migration.
 [#36](https://github.com/karatektus/pl_mail/issues/36).
 
+**A config backup now carries how each person sorts their mail.** Settings → Categories — rules or
+the assistant, whether that overrules the provider's own categories, and whether the inbox has tabs
+at all — was never written into the file, so a restore put everyone back on rules, the provider's
+categories and a tabbed inbox. All three now travel with the user. Backups made before this still
+restore, onto those same defaults. No migration.
+
 ## v0.3.2 — 2026-10-09
 
 ### Security

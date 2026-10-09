@@ -6,10 +6,21 @@ namespace App\Tests\Service\Backup;
 
 use App\Entity\Mail\Account;
 use App\Entity\User\User;
+use App\Repository\Calendar\BookingPageRepository;
+use App\Repository\Calendar\CalendarRepository;
+use App\Repository\Calendar\CalendarShareLinkRepository;
+use App\Repository\Integration\IntegrationRepository;
+use App\Repository\Label\LabelRepository;
+use App\Repository\Mail\AccountRepository;
+use App\Repository\Rule\MailRuleRepository;
+use App\Repository\User\ApiTokenRepository;
+use App\Repository\User\UserRepository;
 use App\Service\Backup\ConfigBackupDatabase;
 use App\Service\Backup\ConfigBackupUsers;
+use Doctrine\ORM\Mapping\Embedded;
 use PHPUnit\Framework\TestCase;
 use ReflectionClass;
+use ReflectionProperty;
 
 /**
  * The backup has to fail when it stops being complete, and it could not.
@@ -28,7 +39,7 @@ use ReflectionClass;
  * whole AI configuration silently dropped — silently because a section that
  * does not exist produces no row on the review page to warn about.
  *
- * These two tests are the direction that was missing. Neither compares the
+ * The tests here are the direction that was missing. None compares the
  * backup against itself: each compares it against the application, and fails
  * closed. Adding a setting or an admin-configured table is then a red suite
  * until somebody has decided whether it travels — a cheap decision, and the
@@ -68,6 +79,61 @@ final class ConfigBackupCompletenessTest extends TestCase
             ConfigBackupUsers::EXCLUDED_ACCOUNT_SETTINGS,
             'ConfigBackupUsers::ACCOUNT_SETTINGS',
         );
+    }
+
+    /**
+     * Every embeddable on the user travels, under its own property name.
+     *
+     * The third direction, added after `categorySorting` was found missing.
+     * The two tests above watch the settings bag; an embeddable is the OTHER
+     * place a person's preferences live, and nothing watched it. Appearance and
+     * AiPreferences were carried because somebody remembered; CategorySorting
+     * shipped three columns over two releases without being, and a restore put
+     * everybody's inbox back the way it started.
+     *
+     * Discovered by reflection and not named, unlike the admin tables below,
+     * because here there is no judgement to make: an `#[ORM\Embedded]` on User
+     * is by construction something that person configured. Should one ever
+     * appear that must stay behind, this is the test to give an excluded map,
+     * with reasons, the way the two above have one.
+     *
+     * The exporter is built over stubs: exportUser() reads the embeddables off
+     * the entity itself, and every repository it also consults answers "none"
+     * for a user that was never persisted — which is the right answer.
+     */
+    public function testEveryUserEmbeddableIsCarried(): void
+    {
+        $exported = new ConfigBackupUsers(
+            self::createStub(UserRepository::class),
+            self::createStub(AccountRepository::class),
+            self::createStub(ApiTokenRepository::class),
+            self::createStub(IntegrationRepository::class),
+            self::createStub(LabelRepository::class),
+            self::createStub(MailRuleRepository::class),
+            self::createStub(CalendarRepository::class),
+            self::createStub(CalendarShareLinkRepository::class),
+            self::createStub(BookingPageRepository::class),
+        )->exportUser(new User());
+
+        $embedded = array_filter(
+            new ReflectionClass(User::class)->getProperties(),
+            static fn (ReflectionProperty $property): bool => [] !== $property->getAttributes(Embedded::class),
+        );
+
+        self::assertNotEmpty($embedded, 'User declares no embeddables — has the mapping changed?');
+
+        foreach ($embedded as $property) {
+            self::assertIsArray(
+                $exported[$property->getName()] ?? null,
+                sprintf(
+                    'User::$%s is an embeddable a person configures, and a config backup does not carry '
+                    . 'it. Give it toArray()/applyArray() and a line each in ConfigBackupUsers::exportUser() '
+                    . 'and ConfigBackupUserRestorer::createUser(), or a restore silently puts everybody '
+                    . 'back on its defaults — which is how the category sorting was lost.',
+                    $property->getName(),
+                ),
+            );
+        }
     }
 
     /**

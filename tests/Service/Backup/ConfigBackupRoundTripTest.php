@@ -7,6 +7,7 @@ namespace App\Tests\Service\Backup;
 use App\Domain\Enum\Account\MailProvider;
 use App\Domain\Enum\Ai\PromptSlot;
 use App\Domain\Enum\Integration\Provider;
+use App\Domain\Enum\Mail\CategorySource;
 use App\Entity\Ai\AiSettings;
 use App\Entity\Integration\IntegrationProviderConfig;
 use App\Entity\Integration\MailProviderConfig;
@@ -157,6 +158,9 @@ final class ConfigBackupRoundTripTest extends KernelTestCase
         $this->check('user.appearance.fontScale', 1.125, $user->appearance->fontScale);
         $this->check('user.appearance.previewLines', 2, $user->appearance->previewLines);
         $this->check('user.aiPreferences.aboutMe', 'Ich baue Fahrräder.', $user->aiPreferences->aboutMe);
+        $this->check('user.categorySorting.source', CategorySource::Assistant->value, $user->categorySorting->source);
+        $this->check('user.categorySorting.overrideProvider', true, $user->categorySorting->overrideProvider);
+        $this->check('user.categorySorting.tabs', false, $user->categorySorting->tabs);
         $this->check('user.signature (file)', 'anna-signature.png', $user->signature);
 
         // ── The user settings bag ─────────────────────────────────────────
@@ -370,6 +374,10 @@ final class ConfigBackupRoundTripTest extends KernelTestCase
         $user->appearance->previewLines = 2;
 
         $user->aiPreferences->aboutMe = 'Ich baue Fahrräder.';
+
+        $user->categorySorting->source           = CategorySource::Assistant->value;
+        $user->categorySorting->overrideProvider = true;
+        $user->categorySorting->tabs             = false;
 
         $user->setSetting(User::SETTING_CLOCK, '24h');
         $user->setSetting(User::SETTING_SEARCH_SORT, 'oldest');

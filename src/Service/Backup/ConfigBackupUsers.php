@@ -316,6 +316,11 @@ final readonly class ConfigBackupUsers
             // USER_SETTINGS' curated allowlist below does not give — it omits
             // several bag keys today with nothing catching it.
             'aiPreferences' => $user->aiPreferences->toArray(),
+            // The third embeddable, and the one that was forgotten: what sorts
+            // this person's mail into tabs, whether that overrules the
+            // provider, and whether there are tabs at all. Carried the way the
+            // two above are, so the next decision added to it travels too.
+            'categorySorting' => $user->categorySorting->toArray(),
             'settings'   => $this->settingsOf($user),
             'createdAt'  => $user->createdAt->format(DateTimeInterface::ATOM),
             // Carried for the reason export() gives about deletedAt: being

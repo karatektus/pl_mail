@@ -106,4 +106,83 @@ class CategorySorting
     {
         return $this->sourceEnum()->usesAssistant();
     }
+
+    /**
+     * The export payload, which is every field.
+     *
+     * The same contract AiPreferences::toArray() keeps, for the same reason: a
+     * config backup carries this through toArray()/applyArray() rather than
+     * through a line per column in ConfigBackupUsers, so a fourth decision
+     * added above travels by being listed here and nowhere else.
+     *
+     * It was missing until three columns had shipped, and nothing noticed. A
+     * restore put everybody back on the rules, the provider's own categories
+     * and a tabbed inbox — three defaults that each look like a working
+     * installation, which is exactly why nobody reported it as a lost setting.
+     * ConfigBackupUsersTest asserts the round trip now, because an embeddable
+     * that is simply never mentioned is not something a test of the mentioned
+     * ones can catch.
+     *
+     * The source leaves as its stored string and not through sourceEnum(): a
+     * value this build does not recognise is still what the person chose on
+     * the build that wrote it, and reading it charitably is the importing
+     * side's business.
+     *
+     * @return array<string, mixed>
+     */
+    public function toArray(): array
+    {
+        return [
+            'version'          => 1,
+            'source'           => $this->source,
+            'overrideProvider' => $this->overrideProvider,
+            'tabs'             => $this->tabs,
+        ];
+    }
+
+    /**
+     * @param array<string, mixed> $data
+     */
+    public function applyArray(array $data): static
+    {
+        // Each key on its own, so a document that carries only some of them —
+        // written before the tabs switch existed, say — restores what it has
+        // and leaves the rest on the default, which is what the application
+        // did for that person at the time.
+        if (true === isset($data['source'])) {
+            // from_() and not from(): a document written by a build that
+            // offered a third source must restore the rest of the person's
+            // setup rather than throwing, and the rules are a working answer.
+            // Stored as the recognised value, never the raw one — the column
+            // is sixteen characters wide and a hand-edited file is not.
+            $this->source = CategorySource::from_($data['source'])->value;
+        }
+
+        if (true === isset($data['overrideProvider'])) {
+            $this->overrideProvider = self::boolean($data['overrideProvider']);
+        }
+
+        if (true === isset($data['tabs'])) {
+            $this->tabs = self::boolean($data['tabs']);
+        }
+
+        return $this;
+    }
+
+    /**
+     * A switch out of a document, the same way AiPreferences reads one.
+     *
+     * A backup file carries real booleans, but it is also a file somebody may
+     * have edited, and "0" is truthy to PHP's cast. Both spellings are named
+     * rather than trusted to (bool) — for `tabs` in particular, where a wrong
+     * guess changes the shape of somebody's inbox.
+     */
+    private static function boolean(mixed $value): bool
+    {
+        if (true === is_bool($value)) {
+            return $value;
+        }
+
+        return false === in_array($value, ['0', 0, 'false', '', null], true);
+    }
 }

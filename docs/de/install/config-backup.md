@@ -1,4 +1,4 @@
-<!-- translated-from: install/config-backup.md sha1:aea7c7b52f687249d5b959194d61ddb6e0fb84d2 -->
+<!-- translated-from: install/config-backup.md sha1:9b19dac8e3efc0f076350b7bfa6b3915ba0cc396 -->
 # Konfigurationssicherung
 
 Die *Konfiguration* einer Installation ist nicht dasselbe wie ihre *Daten*, und beide gehen auf
@@ -163,7 +163,9 @@ Pro Person:
 das Konto            Anzeigename, Passwort-HASH (nie ein Passwort — den Klartext
                      gibt es nirgends), Administratorrolle, Sprache, Zeitzone,
                      Erscheinungsbild, Oberflächen-Einstellungen,
-                     Assistenten-Einstellungen, Onboarding-Stand
+                     Assistenten-Einstellungen, die Kategorien (Regeln oder
+                     Assistent, ob das den Anbieter überstimmt, Tabs an oder
+                     aus), Onboarding-Stand
 zweiter Faktor       das TOTP-Geheimnis, sein Bestätigungsdatum und die noch
                      ungenutzten Wiederherstellungscodes (bereits SHA-256-Digests)
 App-Passwörter       Name, Hinweis und Hash je Zugangsdatum, mit lastUsedAt und

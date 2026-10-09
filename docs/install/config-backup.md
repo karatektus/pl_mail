@@ -152,7 +152,8 @@ alone on import — restoring your Firebase key cannot switch somebody's assista
 the account          display name, password HASH (never a password — the
                      plaintext exists nowhere), admin role, locale, timezone,
                      appearance, interface preferences, assistant preferences,
-                     onboarding state
+                     category sorting (rules or assistant, whether it overrules
+                     the provider, tabs on or off), onboarding state
 two-factor           the TOTP secret, its confirmation date, and the unused
                      recovery codes (already SHA-256 digests)
 app passwords        name, hint and hash per credential, with lastUsedAt and

@@ -17,7 +17,9 @@ use App\Domain\Enum\Mail\LabelRole;
 use App\Domain\DTO\Backup\ConfigBackupPlan;
 use App\Domain\DTO\Backup\ConfigBackupPlanItem;
 use App\Entity\Calendar\Calendar;
+use App\Domain\Enum\Mail\CategorySource;
 use App\Entity\Embeddable\AiPreferences;
+use App\Entity\Embeddable\CategorySorting;
 use App\Entity\Calendar\CalendarShareLink;
 use App\Entity\Integration\Integration;
 use App\Entity\Label\Label;
@@ -146,6 +148,10 @@ final class ConfigBackupUsersTest extends KernelTestCase
             array_keys((new AiPreferences())->toArray()),
             array_keys($document['users'][self::EMAIL]['aiPreferences']),
         );
+        self::assertSame(
+            array_keys((new CategorySorting())->toArray()),
+            array_keys($document['users'][self::EMAIL]['categorySorting']),
+        );
 
         // Everything past this line is the other install: a different key, and
         // nobody at home.
@@ -194,6 +200,15 @@ final class ConfigBackupUsersTest extends KernelTestCase
         self::assertSame('Ich repariere Fahrräder in Leipzig.', $user->aiPreferences->aboutMe);
         self::assertSame('Halte dich kurz.', $user->aiPreferences->systemPrompt);
         self::assertSame(ReplyContext::Thread, $user->aiPreferences->replyContext);
+
+        // ── How this person's mail is sorted ──────────────────────────────
+        // Named literally for the reason summaryOff is above. All three were
+        // absent from the document until v0.3.2, and a restore that drops them
+        // hands back an inbox in tabs the person had switched off, sorted by
+        // rules they had replaced — with nothing on the screen saying so.
+        self::assertSame(CategorySource::Assistant->value, $user->categorySorting->source);
+        self::assertTrue($user->categorySorting->overrideProvider);
+        self::assertFalse($user->categorySorting->tabs);
 
         // ── The second factor ─────────────────────────────────────────────
         // Read back through the entity, so this is the value the new install's
@@ -542,6 +557,68 @@ final class ConfigBackupUsersTest extends KernelTestCase
     }
 
     /**
+     * A backup written before the sorting decisions were carried restores the
+     * person onto the defaults, and everything else about them as before.
+     *
+     * Not a hypothetical: it is every file an operator is holding from v0.3.2
+     * or earlier. The key is removed rather than emptied, because absent is
+     * what those files actually look like.
+     */
+    public function testABackupWithoutSortingDecisionsRestoresTheDefaults(): void
+    {
+        $this->seedTheOperator();
+
+        $document = $this->exporter->document();
+
+        unset($document['users'][self::EMAIL]['categorySorting']);
+
+        $this->becomeADifferentInstallation();
+        $this->importer->apply($document);
+
+        $this->entityManager->flush();
+        $this->entityManager->clear();
+
+        $user = static::getContainer()->get(UserRepository::class)->findOneBy(['email' => self::EMAIL]);
+
+        self::assertInstanceOf(User::class, $user, 'a document without the key no longer restores the user');
+        self::assertSame(CategorySource::Rules->value, $user->categorySorting->source);
+        self::assertFalse($user->categorySorting->overrideProvider);
+        self::assertTrue($user->categorySorting->tabs);
+        // The neighbouring embeddable, to show the missing key cost nothing else.
+        self::assertTrue($user->aiPreferences->searchOff);
+    }
+
+    /**
+     * A source this build has never heard of falls back to the rules, and the
+     * two switches beside it are still restored.
+     *
+     * The file a NEWER plMail wrote, or one somebody edited. Throwing here
+     * would lose the whole user over one word; storing the word as it came
+     * would put a value in a sixteen-character column that nothing can read.
+     */
+    public function testAnUnknownSortingSourceFallsBackWithoutLosingTheRest(): void
+    {
+        $this->seedTheOperator();
+
+        $document = $this->exporter->document();
+
+        $document['users'][self::EMAIL]['categorySorting']['source'] = 'a-source-from-a-future-release';
+
+        $this->becomeADifferentInstallation();
+        $this->importer->apply($document);
+
+        $this->entityManager->flush();
+        $this->entityManager->clear();
+
+        $user = static::getContainer()->get(UserRepository::class)->findOneBy(['email' => self::EMAIL]);
+
+        self::assertInstanceOf(User::class, $user, 'an unknown source cost the whole user');
+        self::assertSame(CategorySource::Rules->value, $user->categorySorting->source);
+        self::assertTrue($user->categorySorting->overrideProvider);
+        self::assertFalse($user->categorySorting->tabs);
+    }
+
+    /**
      * A document from before users were part of the format restores exactly as
      * it did then.
      *
@@ -655,6 +732,12 @@ final class ConfigBackupUsersTest extends KernelTestCase
         $user->aiPreferences->aboutMe        = 'Ich repariere Fahrräder in Leipzig.';
         $user->aiPreferences->systemPrompt   = 'Halte dich kurz.';
         $user->aiPreferences->replyContext   = ReplyContext::Thread;
+
+        // And every sorting decision, likewise: none of the three left where a
+        // new User starts, `tabs` included — its default is the only true one.
+        $user->categorySorting->source           = CategorySource::Assistant->value;
+        $user->categorySorting->overrideProvider = true;
+        $user->categorySorting->tabs             = false;
 
         $user->restoreTwoFactor(self::TOTP_SECRET, new \DateTimeImmutable('2026-02-03T04:05:06+00:00'));
         $user->backupCodes = [User::hashBackupCode('recovery-code-one'), User::hashBackupCode('recovery-code-two')];

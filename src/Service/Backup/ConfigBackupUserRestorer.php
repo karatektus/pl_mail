@@ -227,6 +227,12 @@ final readonly class ConfigBackupUserRestorer
         // document written before these existed: the defaults are what the
         // application already did.
         $user->aiPreferences->applyArray($this->map($document, 'aiPreferences'));
+        // The same again, and here the empty map is every backup written
+        // before this key was carried — which is all of them up to v0.3.2.
+        // Those restore onto rules, the provider's categories and a tabbed
+        // inbox: what such a restore has always produced, so an old file does
+        // not start behaving differently.
+        $user->categorySorting->applyArray($this->map($document, 'categorySorting'));
 
         foreach ($this->map($document, 'settings') as $key => $value) {
             $user->setSetting($key, $value);
