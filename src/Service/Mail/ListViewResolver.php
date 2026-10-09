@@ -102,7 +102,16 @@ final readonly class ListViewResolver
             // The inbox is per category tab, and the tab IS the view: selecting
             // everything while looking at Notifications must not reach into
             // Primary, which is not on screen.
-            $category = MessageCategory::tryFrom($value) ?? MessageCategory::Primary;
+            //
+            // Unless there are no tabs, and then the view is the inbox. Decided
+            // from the person's own setting and not from the value posted: the
+            // value is the client's account of what is on screen, and "select
+            // all, delete" has to mean the list the server would have drawn —
+            // all of it for somebody without tabs, never Primary alone because
+            // the page sent an empty string (#29).
+            $category = true === $user->categorySorting->tabs
+                ? MessageCategory::tryFrom($value) ?? MessageCategory::Primary
+                : null;
 
             return $this->threads->findForUnifiedInbox($user, $category, $page, self::CHUNK, unreadOnly: $unreadOnly);
         }

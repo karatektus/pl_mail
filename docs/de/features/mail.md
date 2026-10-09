@@ -1,4 +1,4 @@
-<!-- translated-from: features/mail.md sha1:2389d6b58713b40b680643cf419dcb6777f76fcb -->
+<!-- translated-from: features/mail.md sha1:294b3f0e2da25bfe528845665a8a5ac596f042b9 -->
 
 # Mail
 
@@ -90,6 +90,19 @@ Netzwerke**, **Werbung**, **Updates** und **Foren**. Bei einem Gmail-Konto vertr
 Gmails eigenen `CATEGORY_*`-Labels. Bei allem anderen leitet es die Kategorie aus Headern ab,
 die ohnehin schon gespeichert sind — darum braucht eine Neukategorisierung nie eine erneute
 Synchronisierung.
+
+### Ein Posteingang ohne Tabs
+
+Wenn dir eine einzige Liste lieber ist, stelle **Tabs im Posteingang** unter **Einstellungen →
+Allgemein → Was deine Mail einsortiert** auf **Eine Liste**. Der Posteingang zeigt dann alles, was
+darin liegt, das Neueste zuerst, und die Tabs sind weg — samt allem, was zu ihnen gehört: die
+„Neu“-Marken, das Ziehen einer Unterhaltung auf einen Tab und die Erklärung, warum eine Nachricht
+dort einsortiert wurde, wo sie ist.
+
+Es wird nichts umsortiert und nichts geht verloren. Mail bekommt beim Eintreffen weiterhin eine
+Kategorie, damit die Tabs stimmen, sobald du sie wieder einschaltest. Das heißt auch: Der Assistent
+liest neue Mail weiter, wenn du ihn unten gewählt hast — für Tabs, die du nicht siehst. Die Karte
+sagt das, wenn beides zutrifft, und mit **Regeln** hört es auf.
 
 ### Auswählen, was deine Mail einsortiert
 

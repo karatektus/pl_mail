@@ -62,6 +62,27 @@ class CategorySorting
     #[ORM\Column(name: 'override_provider', type: 'boolean', options: ['default' => false])]
     public bool $overrideProvider = false;
 
+    /**
+     * Whether the inbox is shown in tabs at all.
+     *
+     * A THIRD DECISION, AND INDEPENDENT OF THE TWO ABOVE. Those decide which
+     * tab a message is filed under; this decides whether anybody is shown the
+     * tabs. Some people do not want their inbox divided (#29), and for them it
+     * is one list, newest first, with nothing behind a second click.
+     *
+     * Off changes what is DISPLAYED and nothing about what is stored. Mail is
+     * still filed under a category as it arrives, by whatever the source above
+     * says, so switching the tabs back on shows a sorted inbox at once rather
+     * than one that has to be re-filed first. That includes the assistant: a
+     * person who leaves it sorting mail into tabs they have switched off has
+     * been told so on the settings card, and it is theirs to decide.
+     *
+     * On by default, and true on every existing row: nobody's inbox changes
+     * shape because this column appeared.
+     */
+    #[ORM\Column(name: 'tabs', type: 'boolean', options: ['default' => true])]
+    public bool $tabs = true;
+
     public function sourceEnum(): CategorySource
     {
         return CategorySource::from_($this->source);

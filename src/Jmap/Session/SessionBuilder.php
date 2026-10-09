@@ -325,6 +325,14 @@ final class SessionBuilder
     {
         return [
             'appearance' => $this->appearanceMapper->compact($user->appearance),
+            // Whether this person wants their inbox in category tabs — see
+            // CategorySorting::$tabs. Not an appearance property and not
+            // settable from here; published beside the hint because it is the
+            // same kind of fact, one user-level choice about how the lists are
+            // drawn, and a client that draws tabs of its own from
+            // Thread.category has no other way to learn that it should not.
+            // A hint like the one above it, and stale the same way.
+            'inboxTabs' => $user->categorySorting->tabs,
             'themes' => array_column(Theme::cases(), 'value'),
             'logoStyles' => array_column(LogoStyle::cases(), 'value'),
             'logoMotifs' => array_column(LogoMotif::cases(), 'value'),

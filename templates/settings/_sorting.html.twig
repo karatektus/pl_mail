@@ -13,6 +13,7 @@ The same two-segment idiom every boolean on these pages wears.
 Accepts:
   source            'rules' | 'assistant'
   overrideProvider  bool
+  tabs              bool — whether the inbox is shown in tabs at all
   assistantOffered  bool — whether categorisation is available to this person
                     at all. The choice is still SHOWN when it is not, because
                     hiding a setting is how somebody concludes the feature does
@@ -25,6 +26,52 @@ Accepts:
                   transition-colors cursor-pointer' %}
 
 <div class="px-4 py-3">
+
+{# Whether there are tabs at all (#29), above what fills them: it is the first
+   question, and the two controls below are about tabs somebody may not have.
+
+   They are NOT disabled when this is off. Mail keeps being filed either way —
+   that is what makes switching back instant — so what files it is still a
+   real setting, and greying it out would say otherwise. A third form for the
+   reason there were two: each control posts only its own key. #}
+<form method="post" action="{{ path('app_settings_sorting_update') }}" data-turbo="false" class="mb-4 pb-4 border-b border-line" data-controller="ui--auto-submit">
+    <input type="hidden" name="_token" value="{{ csrf_token('settings-sorting') }}">
+
+    <div class="flex items-start justify-between gap-3">
+        <span class="min-w-0">
+            <span class="block text-xs font-medium text-ink-muted">{{ 'settings.sorting.tabs.label'|trans }}</span>
+            <span class="block text-[11px] text-ink-faint mt-0.5">{{ 'settings.sorting.tabs.hint'|trans }}</span>
+        </span>
+
+        <div class="grid grid-flow-col auto-cols-fr shrink-0 rounded-pane border border-line overflow-hidden"
+             role="radiogroup" aria-label="{{ 'settings.sorting.tabs.label'|trans }}">
+            {% for shown in [true, false] %}
+                <label>
+                    <input type="radio" name="tabs" class="peer sr-only"
+                           value="{{ shown ? '1' : '0' }}"
+                           data-action="change->ui--auto-submit#submit"
+                           {{ tabs == shown ? 'checked' : '' }}>
+                    <span class="{{ segText }}">
+                        {{ (shown ? 'settings.sorting.tabs.on' : 'settings.sorting.tabs.off')|trans }}
+                    </span>
+                </label>
+            {% endfor %}
+        </div>
+    </div>
+
+    {# The one combination worth interrupting somebody for. With the tabs off
+       and the assistant still chosen, every new message costs a model call —
+       and may be held back while it is made — to pick a tab nobody is shown.
+       That is theirs to decide, so it is said and not prevented.
+
+       Only where the assistant is actually doing it: chosen AND available. #}
+    {% if not tabs and 'assistant' == source and assistantOffered %}
+        <p class="mt-2 flex items-start gap-2 text-[11px] text-warning" role="note" data-sorting-tabs-warning>
+            <i class="fa-solid fa-triangle-exclamation mt-0.5 shrink-0" aria-hidden="true"></i>
+            <span>{{ 'settings.sorting.tabs.assistant_warning'|trans }}</span>
+        </p>
+    {% endif %}
+</form>
 
 <form method="post" action="{{ path('app_settings_sorting_update') }}" data-turbo="false" data-controller="ui--auto-submit">
     <input type="hidden" name="_token" value="{{ csrf_token('settings-sorting') }}">

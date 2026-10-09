@@ -217,6 +217,16 @@ final class MailController extends AbstractController
         $tab = MessageCategory::tryFrom((string) $request->query->get('tab', ''))
             ?? MessageCategory::Primary;
 
+        // One list, for somebody who has switched the tabs off (#29). `?tab=`
+        // is then a link from before the switch, or from a bookmark, and it
+        // opens the inbox — the same answer a tab that does not exist gets
+        // above. See CategorySorting::$tabs.
+        $tabbed = $user instanceof User && true === $user->categorySorting->tabs;
+
+        if (false === $tabbed) {
+            $tab = null;
+        }
+
         $unreadOnly = $this->unreadOnly($request);
         $total      = $this->threadRepository->countForUnifiedInbox($user, $tab, $unreadOnly);
         $page       = $this->pageOrRedirect($request, $total);
@@ -231,20 +241,23 @@ final class MailController extends AbstractController
         // the template — the same memoised read the counts endpoint answers
         // with, so the two cannot disagree. Only which tabs EXIST is decided
         // here.
-        $tabTotals  = $this->threadRepository->countByCategoryForUnifiedInbox($user);
+        //
+        // Neither grouped read is made without tabs: there is no strip to
+        // decide the shape of and no icon to tint.
+        $tabTotals  = $tabbed ? $this->threadRepository->countByCategoryForUnifiedInbox($user) : [];
 
         // Which tabs hold unread, for the icon tint. One grouped query, the
         // same shape and cost as the totals above, on every inbox render — the
         // tint is not limited to the unread filter, so this cannot be either.
         // See the tab strip in mail/inbox.html.twig.
-        $tabUnread  = $this->threadRepository->countUnreadByCategoryForUnifiedInbox($user);
+        $tabUnread  = $tabbed ? $this->threadRepository->countUnreadByCategoryForUnifiedInbox($user) : [];
 
         // A tab nobody's mail lands in is a door to an empty room — Gmail
         // itself has quietly retired Forums. Primary always shows, a category
         // shows while it holds anything at all, and the tab being LOOKED AT
         // stays even when its last thread just left, so the ground does not
         // vanish underfoot; it disappears on the next natural navigation.
-        $tabs = array_values(array_filter(
+        $tabs = false === $tabbed ? [] : array_values(array_filter(
             MessageCategory::cases(),
             static fn (MessageCategory $case): bool => MessageCategory::Primary === $case
                 || $case === $tab
@@ -260,7 +273,7 @@ final class MailController extends AbstractController
         // Forums stays empty forever because nothing can be dropped there until
         // something is already there. These render as ghost tabs, visible only
         // while a drag is in flight. See mail/inbox.html.twig.
-        $dropTabs = array_values(array_filter(
+        $dropTabs = false === $tabbed ? [] : array_values(array_filter(
             MessageCategory::cases(),
             static fn (MessageCategory $case): bool => false === in_array($case, $tabs, true),
         ));
@@ -747,9 +760,15 @@ final class MailController extends AbstractController
         // nothing that distinguishes them, and the sidebar's Inbox badge is one
         // total that cannot say WHICH tab its mail is sitting in. The tint is
         // the only thing on the page that can, and it says it without counting.
-        $tabUnread = $this->threadRepository->countUnreadByCategoryForUnifiedInbox($this->getUser());
+        //
+        // None of the three for somebody with the tabs switched off: there is
+        // no element on their page carrying any of these keys, and each family
+        // is a grouped read of the inbox made on every sync.
+        $countsUser = $this->getUser();
+        $tabbed     = $countsUser instanceof User && true === $countsUser->categorySorting->tabs;
+        $tabUnread  = $tabbed ? $this->threadRepository->countUnreadByCategoryForUnifiedInbox($countsUser) : [];
 
-        foreach (MessageCategory::cases() as $category) {
+        foreach ($tabbed ? MessageCategory::cases() : [] as $category) {
             $payload[NewMailMarkers::categoryKey($category)]        = $newMail->forCategory($category);
             $payload[NewMailMarkers::categorySendersKey($category)] = implode(', ', $newMail->sendersForCategory($category));
             $payload['category:' . $category->value]                = $tabUnread[$category->value] ?? 0;

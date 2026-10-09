@@ -79,6 +79,18 @@ The inbox is split into the five Gmail categories — **Primary**, **Social**, *
 For everything else it works the category out from headers that were already stored, which is why
 re-categorisation never needs a resync.
 
+### An inbox without tabs
+
+If you would rather have one list, switch **Inbox tabs** to **One list** under **Settings → General
+→ What sorts your mail**. The inbox then shows everything in it, newest first, and the tabs are
+gone along with what belongs to them: the "new" pills, dragging a conversation onto a tab, and the
+panel that explains why a message was filed where it was.
+
+Nothing is re-filed and nothing is lost. Mail is still given a category as it arrives, so the tabs
+are right the moment you switch them back on. That also means the assistant keeps reading new mail
+if you have chosen it below, for tabs you are not shown — the card says so when both are true, and
+choosing **Rules** stops it.
+
 ### Choosing what sorts your mail
 
 Both of those defaults are yours to change, under **Settings → General → What sorts your mail**.

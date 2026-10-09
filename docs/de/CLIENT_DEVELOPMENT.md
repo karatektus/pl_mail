@@ -1,4 +1,4 @@
-<!-- translated-from: CLIENT_DEVELOPMENT.md sha1:1d6665ffd18387e0a1ca17ff2db2e22177b8b892 -->
+<!-- translated-from: CLIENT_DEVELOPMENT.md sha1:5fd7a5bbb81ccdbec381ba28943880f345abd8cb -->
 # Einen Client für plMail bauen
 
 Alles, was eine Entwicklerin (oder ein Agent) braucht, um einen *neuen* plMail-Client zu schreiben
@@ -229,6 +229,13 @@ Ein Layout auszuwählen *setzt* die Regler unten vor; danach kann die Nutzerin j
 
 `Appearance::toArray()` ist das Exportformat (versioniert, `version: 1`), `applyArray()` der
 Import. Die Web-Oberfläche lässt Nutzerinnen das als Datei exportieren und importieren.
+
+Dieselbe Capability trägt einen Boolean, der keine Appearance-Eigenschaft ist: **`inboxTabs`**.
+Eine Nutzerin kann die Kategorie-Tabs des Posteingangs ausschalten und möchte dann eine einzige
+Liste. `Thread.category` wird so oder so geliefert, weil Mail im Hintergrund weiter einsortiert
+wird — an der Kategorie lässt sich das also nicht ablesen. Zeichnest du Tabs daraus, zeichne keine,
+wenn `inboxTabs` `false` ist. Hier ist der Wert nur lesbar und, wie das kompakte `appearance`
+daneben, ein Hinweis, der in einer gecachten Session veraltet sein kann.
 
 > **Das ist über JMAP erreichbar.** `Appearance/get` und `Appearance/set` liefern das
 > Singleton-Objekt (Id `"singleton"`, kein `accountId` — es hängt an der `User`-Entität), und die

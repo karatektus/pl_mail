@@ -3808,6 +3808,12 @@ settings:
             rules_help: Headers only — a mailing-list header, an unsubscribe link, a known sender. Predictable and literal, and it never asks the model anything.
             unavailable: Sorting by assistant needs mail sorting switched on for this installation, and for you.
         subheading: Which tab a message lands in, and who decides.
+        tabs:
+            assistant_warning: The assistant is still reading every new message to decide which tab it belongs in — tabs you have switched off. Mail it has not answered for yet can be held back for a few seconds while it does. Choose Rules below to stop that.
+            hint: Primary, Social, Promotions and the rest. Off shows the inbox as one list. Mail is still filed in the background, so the tabs are right the moment you switch them back on.
+            label: Inbox tabs
+            'off': One list
+            'on': Tabs
     timezone:
         heading: Time zone
         subheading: The clock times and dates are shown in. Nothing is rewritten — the same instant is simply read on your own clock.

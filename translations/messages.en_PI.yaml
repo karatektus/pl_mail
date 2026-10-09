@@ -3613,6 +3613,12 @@ settings:
             rules_help: "Headers alone — a list header, an unsubscribe link, a known sender. Predictable an' literal, an' it never asks th' oracle owt."
             unavailable: "Stowin' by oracle needs th' sortin' switched on for this vessel, an' for ye."
         subheading: "Which tab a message lands in, an' who decides."
+        tabs:
+            assistant_warning: "The parrot still be readin' every new message to pick its tab — tabs ye've struck from the deck. Mail it has not squawked about yet may be held a few heartbeats while it thinks. Choose Rules below to belay that."
+            hint: "Primary, Social, Promotions an' the rest. Off shows the inbox as one list. Mail still be stowed in the background, so the tabs be right the moment ye raise 'em again."
+            label: Inbox tabs
+            'off': One list
+            'on': Tabs
     timezone:
         heading: Ship's bells
         subheading: The clock yer times be told by. Naught be rewrit — the same moment, read off yer own glass.

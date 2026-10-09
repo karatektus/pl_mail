@@ -130,8 +130,12 @@ class MessageThreadRepository extends ServiceEntityRepository
      * the category is on the thread itself. findBy() filters on fields of one
      * entity, so none of the two joins — nor the DISTINCT they make necessary —
      * is available to it.
+     *
+     * A null category is the whole inbox, for somebody who has switched the
+     * tabs off — see CategorySorting::$tabs. Null and not a default argument,
+     * so that every caller has to say which of the two it means.
      */
-    public function findForUnifiedInbox(UserInterface $user, MessageCategory $category, int $page = 1, int $perPage = 50, ListSortOrder $sort = ListSortOrder::Newest, bool $unreadOnly = false): array
+    public function findForUnifiedInbox(UserInterface $user, ?MessageCategory $category, int $page = 1, int $perPage = 50, ListSortOrder $sort = ListSortOrder::Newest, bool $unreadOnly = false): array
     {
         $offset = ($page - 1) * $perPage;
 
@@ -141,13 +145,13 @@ class MessageThreadRepository extends ServiceEntityRepository
             ->where('a.usr = :user')
             ->andWhere('a.isActive = true')
             ->andWhere('l.role = :inbox')
-            ->andWhere('t.category = :category')
             ->setParameter('user', $user)
             ->setParameter('inbox', LabelRole::Inbox)
-            ->setParameter('category', $category)
             ->setFirstResult($offset)
             ->setMaxResults($perPage)
             ->distinct();
+
+        $this->narrowToCategory($qb, $category);
 
         $this->excludeTrashed($qb);
         $this->narrowToUnread($qb, $unreadOnly);
@@ -157,8 +161,23 @@ class MessageThreadRepository extends ServiceEntityRepository
         return $qb->getQuery()->getResult();
     }
 
+    /**
+     * One tab of the inbox, or all of it for null. Shared by the list and its
+     * count so the two cannot come to mean different things — a pager offering
+     * a page the list does not have is what that looks like.
+     */
+    private function narrowToCategory(QueryBuilder $qb, ?MessageCategory $category): void
+    {
+        if (null === $category) {
+            return;
+        }
+
+        $qb->andWhere('t.category = :category')
+            ->setParameter('category', $category);
+    }
+
     /** Same two joins as findForUnifiedInbox(), so the same reason to keep it. */
-    public function countForUnifiedInbox(UserInterface $user, MessageCategory $category, bool $unreadOnly = false): int
+    public function countForUnifiedInbox(UserInterface $user, ?MessageCategory $category, bool $unreadOnly = false): int
     {
         // COUNT(DISTINCT t.id), not select-DISTINCT: the label join is to-many,
         // and ->distinct() would put the DISTINCT on the aggregate rather than
@@ -174,10 +193,10 @@ class MessageThreadRepository extends ServiceEntityRepository
             ->where('a.usr = :user')
             ->andWhere('a.isActive = true')
             ->andWhere('l.role = :inbox')
-            ->andWhere('t.category = :category')
             ->setParameter('user', $user)
-            ->setParameter('inbox', LabelRole::Inbox)
-            ->setParameter('category', $category);
+            ->setParameter('inbox', LabelRole::Inbox);
+
+        $this->narrowToCategory($qb, $category);
 
         // The same exclusion findForUnifiedInbox() applies, and it was missing
         // here. A thread keeps its Inbox label when it goes to the bin — the

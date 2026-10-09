@@ -57,6 +57,22 @@ final class AppearanceCapabilityTest extends JmapTestCase
         self::assertArrayHasKey('density', $appearance);
     }
 
+    /**
+     * A client that draws category tabs can tell when not to (#29).
+     *
+     * Thread.category is still served either way — the mail is still filed —
+     * so the category alone cannot say whether its owner wants to see tabs.
+     */
+    public function testItSaysWhetherTheInboxIsShownInTabs(): void
+    {
+        self::assertTrue($this->capability()['inboxTabs']);
+
+        $this->user->categorySorting->tabs = false;
+        $this->em->flush();
+
+        self::assertFalse($this->capability()['inboxTabs']);
+    }
+
     /** Per user: it is not repeated under every connected account. */
     public function testItIsNotPublishedPerAccount(): void
     {

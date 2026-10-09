@@ -123,6 +123,14 @@ block grew with the frame, the frame grew to fit the block, and the message kept
 pushing everything below it away. Sizes given in screen heights are now ignored inside a message,
 and a message whose content merely follows the frame is no longer resized again.
 
+**The inbox can be one list.** Under Settings → General → What sorts your mail, **Inbox tabs** can
+be switched to **One list**: no Primary, Social, Promotions and the rest, just the inbox, newest
+first. Per person, and tabs stay on unless you change it. Mail is still filed in the background, so
+switching back shows sorted tabs at once; if the assistant is what sorts your mail it keeps doing
+so, and the card says that when the tabs are off. "Select all in this view" then means the whole
+inbox. Apps can read the choice from the JMAP session as `inboxTabs`.
+[#29](https://github.com/karatektus/pl_mail/issues/29).
+
 **A round of first-impression fixes.** All reported by
 [@pmdevelopment](https://github.com/pmdevelopment) in
 [#37](https://github.com/karatektus/pl_mail/issues/37).
@@ -163,6 +171,7 @@ worked. Reported by [@pmdevelopment](https://github.com/pmdevelopment) in
 
 - **One migration, applied on boot.** It adds an empty table, `demo_visit`, which only a demo
   instance ever writes to.
+- **And one column, `user.category_tabs`,** true for everybody, so no inbox changes by upgrading.
 
 ## v0.3.1 — 2026-10-08
 

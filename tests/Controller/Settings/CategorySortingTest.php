@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Controller\Settings;
 
 use App\Domain\Enum\Mail\CategorySource;
+use App\Entity\Ai\AiSettings;
 use App\Entity\User\User;
 use App\Infrastructure\Messaging\Message\ReclassifyRecentMessage;
 use App\Infrastructure\Messaging\Message\ResortMailboxMessage;
@@ -92,6 +93,65 @@ final class CategorySortingTest extends WebTestCase
         self::assertTrue($this->reread()->categorySorting->overrideProvider);
 
         self::assertCount(1, $this->queued());
+    }
+
+    /**
+     * The tabs can be switched off, and that moves no mail (#29).
+     *
+     * On by default. Off is stored and queues nothing: hiding the tabs changes
+     * what is drawn, not which category anything is filed under, so there is no
+     * mailbox to re-file — unlike the two controls beside it.
+     */
+    public function testSwitchingTheTabsOffIsStoredAndRefilesNothing(): void
+    {
+        [$client] = $this->signedIn();
+
+        self::assertTrue($this->reread()->categorySorting->tabs, 'tabs are on until somebody says otherwise');
+
+        $this->post($client, ['tabs' => '0']);
+
+        self::assertResponseRedirects();
+        self::assertFalse($this->reread()->categorySorting->tabs);
+        self::assertCount(0, $this->queued());
+
+        // And a post that does not mention them leaves them as they are.
+        $this->post($client, ['overrideProvider' => '1']);
+
+        self::assertFalse($this->reread()->categorySorting->tabs);
+    }
+
+    /**
+     * Tabs off with the assistant still sorting is said out loud, and only then.
+     *
+     * It is allowed — the mail is theirs — but every new message then costs a
+     * model call to choose a tab nobody is shown, which is worth one sentence.
+     */
+    public function testTheCardWarnsOnlyWhenTheAssistantSortsIntoTabsThatAreOff(): void
+    {
+        [$client] = $this->signedIn();
+
+        $settings = $this->em->getRepository(AiSettings::class)->findOneBy([]) ?? new AiSettings();
+        $settings->isEnabled             = true;
+        $settings->baseUrl               = 'http://model-host.invalid:11434';
+        $settings->chatModel             = 'qwen3:4b-instruct';
+        $settings->categorisationEnabled = true;
+        $this->em->persist($settings);
+        $this->em->flush();
+
+        $warning = fn (): int => $client->request('GET', '/settings?section=general')
+            ->filter('[data-sorting-tabs-warning]')
+            ->count();
+
+        self::assertSame(0, $warning(), 'tabs on, rules');
+
+        $this->post($client, ['tabs' => '0']);
+        self::assertSame(0, $warning(), 'tabs off, rules: nothing is being asked of the model');
+
+        $this->post($client, ['source' => CategorySource::Assistant->value]);
+        self::assertSame(1, $warning(), 'tabs off and the assistant still sorting');
+
+        $this->post($client, ['tabs' => '1']);
+        self::assertSame(0, $warning(), 'tabs on, assistant: the ordinary case');
     }
 
     /**

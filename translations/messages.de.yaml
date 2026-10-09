@@ -3826,6 +3826,12 @@ settings:
             rules_help: Nur Header — ein Mailinglisten-Header, ein Abmeldelink, ein bekannter Absender. Vorhersagbar und wörtlich, und es fragt nie ein Modell.
             unavailable: Sortieren per Assistent setzt voraus, dass die Mail-Sortierung für diese Installation und für dich eingeschaltet ist.
         subheading: In welchem Tab eine Nachricht landet — und wer das entscheidet.
+        tabs:
+            assistant_warning: Der Assistent liest weiterhin jede neue Nachricht, um zu entscheiden, in welchen Tab sie gehört — in Tabs, die du ausgeschaltet hast. Mail, für die er noch nicht geantwortet hat, kann dabei ein paar Sekunden zurückgehalten werden. Wähle unten „Regeln“, um das zu beenden.
+            hint: Allgemein, Soziale Netzwerke, Werbung und der Rest. Aus zeigt den Posteingang als eine Liste. Mail wird im Hintergrund weiter einsortiert, damit die Tabs stimmen, sobald du sie wieder einschaltest.
+            label: Tabs im Posteingang
+            'off': Eine Liste
+            'on': Tabs
     timezone:
         heading: Zeitzone
         subheading: Die Uhr, nach der Zeiten und Daten angezeigt werden. Es wird nichts umgeschrieben — derselbe Zeitpunkt wird nur auf deiner Uhr gelesen.

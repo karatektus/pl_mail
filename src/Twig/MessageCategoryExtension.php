@@ -89,6 +89,14 @@ final class MessageCategoryExtension extends AbstractExtension
             return null;
         }
 
+        // Nothing to report to somebody who has the tabs switched off: "filed
+        // under Promotions, and here is why" describes a place they are never
+        // shown, and "this is in the wrong tab" has no tab to be wrong about.
+        // The template already draws neither for null.
+        if (false === $user->categorySorting->tabs) {
+            return null;
+        }
+
         $from = mb_strtolower(trim((string) $message->fromAddress));
 
         // Looked up once and handed to both calls. It is a database read, and

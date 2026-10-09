@@ -99,6 +99,13 @@ final class CategorySortingController extends AbstractController
             $user->categorySorting->overrideProvider = '1' === (string) $request->request->get('overrideProvider');
         }
 
+        // Not part of $before, on purpose. Showing or hiding the tabs moves
+        // no mail from one category to another, so there is nothing to re-file
+        // and a worker has no business scanning the mailbox for it.
+        if (true === $request->request->has('tabs')) {
+            $user->categorySorting->tabs = '1' === (string) $request->request->get('tabs');
+        }
+
         $em->flush();
 
         if ($before !== [$user->categorySorting->source, $user->categorySorting->overrideProvider]) {
