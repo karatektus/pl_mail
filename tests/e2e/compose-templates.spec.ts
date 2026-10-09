@@ -157,15 +157,15 @@ test.describe("templates", () => {
     test("a recipient with a name closes the first-name variable, in either order", async ({ page }) => {
         await openCompose(page);
 
-        // A known contact's chip reads "Name (address)". Put one in To the way
-        // the autocomplete does, without depending on which contacts the seed
-        // happens to have made.
+        // A known contact's chip reads "Name <address>" — the autocomplete
+        // field's choice_label. Put one in To the way the autocomplete does,
+        // surname first, which no seeded contact is.
         await page.evaluate((dock) => {
             const select = document.querySelector<HTMLSelectElement & { tomselect: any }>(
                 `${dock} [data-compose--compose-target="toField"] select`,
             )!.tomselect;
 
-            select.addOption({ value: "e2e-named", text: "Whitfield, Dana (dana@example.org)" });
+            select.addOption({ value: "e2e-named", text: "Whitfield, Dana <dana@example.org>" });
             select.addItem("e2e-named");
         }, DOCK);
 
@@ -207,6 +207,15 @@ test.describe("templates", () => {
         // default — includes text that sits inside a <br>, so it reported the
         // template as present while the screen showed an empty reply.
         await expect(editor).toContainText("I have your address as", { useInnerText: true });
+
+        // And it knows who it is answering. This recipient was put in To by
+        // the SERVER, as a real contact, so its chip is spelled the way the
+        // app spells one — which the test above cannot vouch for, since it
+        // writes its own label. That gap is how a first version of the
+        // parser shipped reading a format no chip has: the reply to a named
+        // sender kept its "First name" placeholder.
+        await expect(editor).toContainText("Hi E2E,", { useInnerText: true });
+        await expect(editor.locator("[data-pl-var]")).toHaveCount(0);
         await expect(inline.locator(SUBJECT)).toHaveValue(new RegExp(`^Re: ${INBOX_SUBJECTS.read}`));
     });
 

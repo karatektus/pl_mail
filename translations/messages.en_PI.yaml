@@ -3670,10 +3670,10 @@ settings:
         preview_heading: 'As it would be inserted today, for a sample matey'
         preview_no_subject: 'No subject'
         preview_unavailable: 'Add a ship to preview a form letter.'
-        # "Name (address)" exactly: it is read by the same code that reads a
+        # "Name <address>" exactly: it is read by the same code that reads a
         # recipient chip in the compose window, so the preview fills a first
         # name the way a real message would.
-        sample_recipient: 'Anne Bonny (anne@example.org)'
+        sample_recipient: 'Anne Bonny <anne@example.org>'
         saved: 'Form letter stowed.'
         signature:
             automatic: 'Automatic — the address ye be writing from'

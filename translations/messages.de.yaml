@@ -3883,10 +3883,10 @@ settings:
         preview_heading: 'So würde sie heute eingefügt, für einen Beispielempfänger'
         preview_no_subject: 'Kein Betreff'
         preview_unavailable: 'Füg ein E-Mail-Konto hinzu, um eine Vorschau zu sehen.'
-        # "Name (address)" exactly: it is read by the same code that reads a
+        # "Name <address>" exactly: it is read by the same code that reads a
         # recipient chip in the compose window, so the preview fills a first
         # name the way a real message would.
-        sample_recipient: 'Dana Weber (dana@example.org)'
+        sample_recipient: 'Dana Weber <dana@example.org>'
         saved: 'Vorlage gespeichert.'
         signature:
             automatic: 'Automatisch — die Adresse, von der du schreibst'

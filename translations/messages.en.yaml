@@ -3865,10 +3865,10 @@ settings:
         preview_heading: 'As it would be inserted today, for a sample recipient'
         preview_no_subject: 'No subject'
         preview_unavailable: 'Add a mail account to preview a template.'
-        # "Name (address)" exactly: it is read by the same code that reads a
+        # "Name <address>" exactly: it is read by the same code that reads a
         # recipient chip in the compose window, so the preview fills a first
         # name the way a real message would.
-        sample_recipient: 'Dana Whitfield (dana@example.org)'
+        sample_recipient: 'Dana Whitfield <dana@example.org>'
         saved: 'Template saved.'
         signature:
             automatic: 'Automatic — the address you are writing from'

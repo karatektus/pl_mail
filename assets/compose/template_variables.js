@@ -223,11 +223,20 @@ export function unchipped(root) {
 /**
  * What a recipient chip says about a person.
  *
- * The compose window's chips read `Name (address)` for a known contact and the
- * bare address for one that was typed (Contact::__toString() and Tom Select's
- * create row). A first name is the first word of the name, or the part after
- * the comma when the name was stored surname-first — "Whitfield, Dana" is how
- * a directory writes it and "Hi Whitfield," is how that goes wrong.
+ * The compose window's chips read `Name <address>` for a contact that has a
+ * name and the bare address for one that has none or was just typed — that is
+ * ContactAutocompleteField's `choice_label`, and it is the ONLY place the
+ * format is decided. This function was first written against
+ * Contact::__toString(), which spells it `Name (address)` and is not what the
+ * field uses: every real chip failed to parse, so a reply to "Priya Raman"
+ * kept its "First name" placeholder with her name sitting in To. The
+ * parenthesised form is still read, because it costs nothing and a label that
+ * arrives that way should not be the next silent miss.
+ *
+ * A first name is the first word of the name, or the part after the comma
+ * when the name was stored surname-first — "Whitfield, Dana" is how a
+ * directory writes it and "Hi Whitfield," is how that goes wrong. Quotes
+ * around a name are the address syntax's, not the person's.
  *
  * Deliberately no guessing from the address. "Hi d.whitfield," is worse than
  * a chip that says a name is missing.
@@ -237,13 +246,14 @@ export function unchipped(root) {
  */
 export function recipientValues(label) {
     const text  = (label ?? '').trim();
-    const match = /^(.*?)\s*\(([^()\s]+@[^()\s]+)\)$/.exec(text);
+    const match = /^(.*?)\s*<([^<>\s]+@[^<>\s]+)>$/.exec(text)
+        ?? /^(.*?)\s*\(([^()\s]+@[^()\s]+)\)$/.exec(text);
 
     let name  = '';
     let email = '';
 
     if (null !== match) {
-        name  = match[1].trim();
+        name  = match[1].trim().replace(/^(["'])(.*)\1$/, '$2').trim();
         email = match[2];
     } else if (/^[^@\s]+@[^@\s]+$/.test(text)) {
         email = text;
