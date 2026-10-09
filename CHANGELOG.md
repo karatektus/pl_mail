@@ -8,6 +8,22 @@ The published image tags: `latest` follows the most recent release below,
 
 ## Unreleased
 
+**Mail can be marked as spam with a button.** It sits beside Delete: among a row's buttons, in an
+open conversation's toolbar and above a selection. On one conversation it opens a short menu — move
+it to Spam, or move it and also create a filter that sends everything from this sender, or from the
+sender's whole domain, to Spam from now on. The domain filter asks once more before it acts, and for
+a mail provider's domain such as gmail.com it is behind **More options** first. The filter is an
+ordinary one under Settings → Filters. Undo takes back the move and a filter the same click created.
+Until now the only ways to say "this is spam" were Move to and dragging onto the Spam row. See
+[Mail → Mark as spam](docs/features/mail.md#mark-as-spam).
+
+**Filters can match a sender exactly.** Two new conditions sit beside "From contains": **From is
+exactly**, which matches the sender's whole address, and **Sender's domain is**, which matches
+everything after the `@`. "From contains" looks for the text anywhere in the address or the display
+name, so a filter for `a@x.de` also caught `ba@x.de`, and anybody could match it by putting that
+address in their display name. The spam button's filters use the new conditions. Existing filters
+are unchanged. JMAP clients get the same two as `fromAddress` and `fromDomain` in `Email/query`.
+
 **A public demo can see how much it is used.** In demo mode the admin area has a new section, Demo
 visitors: how many demo sessions were started in the last hour, 24 hours, 7 days and 30 days, how
 many different visitors started them, the total so far and how many have a mailbox right now. No

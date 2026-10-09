@@ -42,6 +42,8 @@ final class FilterAstValidatorTest extends TestCase
         // real stemming, which no PHP-side twin could have reproduced.
         yield 'full text'             => [['text' => 'invoice']];
         yield 'list id'               => [['listId' => 'acme.test']];
+        yield 'exact sender'          => [['fromAddress' => 'billing@acme.test']];
+        yield 'sender domain'         => [['fromDomain' => 'acme.test']];
         yield 'operator tree'         => [[
             'operator' => 'AND',
             'conditions' => [
@@ -76,6 +78,14 @@ final class FilterAstValidatorTest extends TestCase
         yield 'empty group'          => [['operator' => 'AND', 'conditions' => []]];
         yield 'stray key on group'   => [['operator' => 'AND', 'conditions' => [['subject' => 'x']], 'subject' => 'y']];
         yield 'blank text'           => [['subject' => '   ']];
+        // The sender conditions compare whole values, so a value that is not
+        // one would be stored and then match nothing, silently.
+        yield 'sender without an @'  => [['fromAddress' => 'acme.test']];
+        yield 'sender with no local part' => [['fromAddress' => '@acme.test']];
+        yield 'sender with a space'  => [['fromAddress' => 'billing @acme.test']];
+        yield 'domain with an @'     => [['fromDomain' => '@acme.test']];
+        yield 'domain given an address' => [['fromDomain' => 'billing@acme.test']];
+        yield 'blank domain'         => [['fromDomain' => '']];
         yield 'text given a number'  => [['subject' => 42]];
         yield 'size given a string'  => [['minSize' => '100']];
         yield 'bool given a string'  => [['hasAttachment' => 'yes']];

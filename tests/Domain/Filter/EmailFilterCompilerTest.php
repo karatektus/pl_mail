@@ -77,6 +77,18 @@ final class EmailFilterCompilerTest extends KernelTestCase
         yield 'subject no match'         => [['subject' => 'nothing matches this'], []];
         yield 'from address'             => [['from' => 'billing@'], [0]];
         yield 'from display name'        => [['from' => 'Acme'], [0]];
+        // The sender, whole. `from` above matched 'billing@' and 'Acme'; these
+        // match neither a part of an address nor a display name.
+        yield 'fromAddress'                 => [['fromAddress' => 'billing@acme.test'], [0]];
+        yield 'fromAddress ignores case'    => [['fromAddress' => 'Billing@ACME.test'], [0]];
+        yield 'fromAddress is not a suffix' => [['fromAddress' => 'illing@acme.test'], []];
+        yield 'fromAddress is not a prefix' => [['fromAddress' => 'billing@acme.tes'], []];
+        yield 'fromAddress is not the name' => [['fromAddress' => 'acme@billing'], []];
+        yield 'fromDomain'                  => [['fromDomain' => 'example.test'], [1, 2]];
+        yield 'fromDomain ignores case'     => [['fromDomain' => 'ACME.test'], [0]];
+        yield 'fromDomain is the whole one' => [['fromDomain' => 'cme.test'], []];
+        yield 'fromDomain is not a parent'  => [['fromDomain' => 'test'], []];
+        yield 'fromDomain escapes wildcards' => [['fromDomain' => 'ex_mple.test'], []];
         yield 'to'                       => [['to' => 'ops@example.test'], [0]];
         yield 'cc'                       => [['cc' => 'cc@example.test'], [1]];
         yield 'body'                     => [['body' => 'wire transfer'], [0]];

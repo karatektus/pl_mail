@@ -8,9 +8,11 @@ use App\Domain\Enum\Mail\LabelRole;
 use App\Entity\Label\Label;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Message;
+use App\Entity\Rule\MailRule;
 use App\Entity\User\User;
 use App\Repository\Label\LabelRepository;
 use App\Repository\Mail\MessageRepository;
+use App\Repository\Rule\MailRuleRepository;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\HttpFoundation\RequestStack;
@@ -77,6 +79,7 @@ final readonly class StatusUndoService
         private MessageRepository      $messages,
         private LabelRepository        $labels,
         private ThreadStatusUpdater    $status,
+        private MailRuleRepository     $rules,
     ) {
     }
 
@@ -120,6 +123,31 @@ final readonly class StatusUndoService
     }
 
     /**
+     * Make an Undo of this action take a filter back with it.
+     *
+     * For the spam button, whose one click can both move a conversation and
+     * create the rule that does the same to the sender's next mail. Undoing
+     * half of that would leave a filter the person has just said they did not
+     * mean. Called only for a rule the action itself created.
+     *
+     * A token that is no longer kept is left alone: there is nothing to attach
+     * to, and the rule is still listed under Settings → Filters.
+     */
+    public function alsoRemove(string $token, MailRule $rule): void
+    {
+        $session = $this->requestStack->getSession();
+        $kept    = (array) $session->get(self::SESSION_KEY, []);
+
+        if (false === isset($kept[$token]) || null === $rule->id) {
+            return;
+        }
+
+        $kept[$token]['rule'] = $rule->id;
+
+        $session->set(self::SESSION_KEY, $kept);
+    }
+
+    /**
      * Put back what remember() wrote down.
      *
      * Single use: the snapshot is taken out of the session before anything is
@@ -143,6 +171,8 @@ final readonly class StatusUndoService
 
         unset($kept[$token]);
         $session->set(self::SESSION_KEY, $kept);
+
+        $this->removeRule($snapshot['rule'] ?? null, $user);
 
         $messages = [];
 
@@ -173,6 +203,26 @@ final readonly class StatusUndoService
     }
 
     // ── Private ───────────────────────────────────────────────────────────────
+
+    /**
+     * The filter alsoRemove() attached, if there was one and it is still the
+     * user's. Gone already — deleted by hand in the seconds between — is fine.
+     */
+    private function removeRule(mixed $id, User $user): void
+    {
+        if (false === is_int($id)) {
+            return;
+        }
+
+        $rule = $this->rules->find($id);
+
+        if (null === $rule || $rule->usr?->id !== $user->id) {
+            return;
+        }
+
+        $this->em->remove($rule);
+        $this->em->flush();
+    }
 
     /**
      * Move every message that is not where it was back to where it was.

@@ -1,4 +1,4 @@
-<!-- translated-from: CLIENT_DEVELOPMENT.md sha1:1b3b2730a7c1034180f1e06fecb9d454194af4f6 -->
+<!-- translated-from: CLIENT_DEVELOPMENT.md sha1:6b43f264a89c985a980e7be7d7a41a889d379bbe -->
 # Einen Client für plMail bauen
 
 Alles, was eine Entwicklerin (oder ein Agent) braucht, um einen *neuen* plMail-Client zu schreiben
@@ -885,6 +885,8 @@ merken.
 | `hasAttachment` | Boolescher Wert. |
 | `text` | **Echte Volltextsuche** — Postgres `tsvector` + `websearch_to_tsquery('english')`. Gestemmt, gewichtet, kein Teilstring-Scan. |
 | `body` / `subject` / `from` | `ILIKE` auf Teilzeichenketten. `from` deckt Adresse und Anzeigename ab. |
+| `fromAddress` | **plMail-Erweiterung.** Die ganze Adresse des Absenders, ohne Beachtung der Groß- und Kleinschreibung. Keine Teilzeichenkette, und nicht der Anzeigename. |
+| `fromDomain` | **plMail-Erweiterung.** Der Teil der Absenderadresse hinter dem `@`, vollständig und ohne Beachtung der Groß- und Kleinschreibung; ohne das `@` angegeben. Eine Subdomain trifft nicht. |
 | `to` / `cc` / `bcc` | Teilzeichenkette über dem serialisierten JSON-Adressarray (trifft Name oder Adresse). |
 | `filename` | Teilzeichenkette über Dateinamen von Anhängen. Inline-Parts haben leere Dateinamen und treffen nie. |
 | `listId` | Teilzeichenkette über den kanonisierten `list-id`-Header. |

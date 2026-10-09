@@ -805,6 +805,8 @@ returns too many emails and the client cannot tell.
 | `hasAttachment` | Boolean. |
 | `text` | **Real full-text search** — Postgres `tsvector` + `websearch_to_tsquery('english')`. Stemmed, ranked, not a substring scan. |
 | `body` / `subject` / `from` | `ILIKE` substring. `from` covers both address and display name. |
+| `fromAddress` | **plMail extension.** The sender's whole address, case-insensitive. Not a substring, and not the display name. |
+| `fromDomain` | **plMail extension.** The part of the sender's address after the `@`, whole and case-insensitive; given without the `@`. A subdomain does not match. |
 | `to` / `cc` / `bcc` | Substring over the serialised JSON address array (matches name or address). |
 | `filename` | Substring over attachment filenames. Inline parts have null filenames and never match. |
 | `listId` | Substring over the canonicalised `list-id` header. |

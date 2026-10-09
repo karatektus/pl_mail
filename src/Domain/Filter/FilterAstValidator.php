@@ -140,6 +140,19 @@ final class FilterAstValidator
             return;
         }
 
+        if (true === in_array($property, FilterVocabulary::SENDER_CONDITIONS, true)) {
+            if (false === FilterVocabulary::isSenderValue($property, $value)) {
+                throw new InvalidFilterException(sprintf(
+                    'fromDomain' === $property
+                        ? '"%s" needs a domain, without the @.'
+                        : '"%s" needs a whole address.',
+                    $property,
+                ));
+            }
+
+            return;
+        }
+
         if (true === in_array($property, FilterVocabulary::INT_CONDITIONS, true)) {
             if (false === is_int($value)) {
                 throw new InvalidFilterException(sprintf('"%s" must be a whole number.', $property));

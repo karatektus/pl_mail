@@ -55,6 +55,14 @@ self-contained: no {% extends %}, no block dependencies.
             {{ tbtn('click->mail--message-actions#trash', 'fa-solid fa-trash', 'toolbar.actions.delete'|trans) }}
         {% endif %}
 
+        {# Beside Delete, because it is the same thought with a different
+           destination. Offered from the archive too — spam that was archived
+           by mistake is still spam — and not where the mail is already thrown
+           away. A controller of its own inside this one: see _spam_menu. #}
+        {% if placement not in ['trash', 'spam'] %}
+            {% include '_partials/_spam_menu.html.twig' with { threadId: thread.id, variant: 'toolbar' } only %}
+        {% endif %}
+
         {{ tbtn('click->mail--message-actions#markUnread', 'fa-regular fa-envelope', 'toolbar.actions.mark_unread'|trans) }}
     </div>
 

@@ -3019,6 +3019,8 @@ settings:
             cc: Cc enthält
             filename: Anhang heißt
             from: Von enthält
+            fromAddress: 'Von ist genau'
+            fromDomain: 'Absender-Domain ist'
             hasAttachment: Hat einen Anhang
             hasKeyword: Ist
             hasLabel: Hat Label
@@ -3083,6 +3085,7 @@ settings:
             running: 'Wird angewendet… bisher %count%'
         run_confirm: '"%name%" auf vorhandene Mail anwenden? Das kann viele Nachrichten auf einmal verschieben und neu beschriften.'
         saved: Filter gespeichert.
+        spam_rule_name: 'Spam: %sender%'
         stop: Nach diesem Filter aufhören
         stop_help: Für Nachrichten, auf die dieser Filter zutrifft, werden spätere Filter übersprungen.
         subheading: Mail automatisch beim Eintreffen sortieren.
@@ -3932,6 +3935,7 @@ toast:
     send_too_late: Zu spät — diese Nachricht wurde bereits gesendet.
     send_failed: 'Diese Nachricht konnte nicht gesendet werden: %subject%'
     sent: Nachricht gesendet.
+    spam_filtered: 'In den Spam verschoben. Künftige Mail von %sender% landet auch dort.'
     undo: Rückgängig
     undo_expired: Das lässt sich nicht mehr rückgängig machen.
     undone: Rückgängig gemacht.
@@ -3951,6 +3955,7 @@ toolbar:
         mark_unread: Als ungelesen markieren
         move_to: Verschieben nach
         snooze: Zurückstellen
+        spam: 'Als Spam markieren'
     filter:
         show_all: Alle anzeigen
         unread_only: Nur ungelesene
@@ -3970,6 +3975,19 @@ toolbar:
 spam:
     empty: Keine Spam-Nachrichten.
     heading: Spam
+
+spam_menu:
+    confirm_body: 'Mail von jeder Adresse bei %domain% landet dann im Spam, auch von Leuten, die dir noch nie geschrieben haben.'
+    confirm_cancel: 'Abbrechen'
+    confirm_shared: 'Das ist ein Mail-Anbieter, den viele nutzen.'
+    confirm_yes: 'Ganze Domain filtern'
+    domain: 'Diese ganze Domain immer in den Spam'
+    filter_heading: 'Und künftige Mail filtern'
+    heading: 'Als Spam markieren'
+    more: 'Weitere Optionen'
+    move: 'In den Spam verschieben'
+    move_hint: 'Nur diese Unterhaltung.'
+    sender: 'Diesen Absender immer in den Spam'
 
 trash:
     empty: Keine gelöschten Nachrichten.

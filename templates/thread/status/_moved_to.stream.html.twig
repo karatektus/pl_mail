@@ -16,6 +16,8 @@ Variables:
   staying    the ones still in the list they were moved from
   label      the target, for the toast
   undoToken  from StatusUndoService::remember()
+  message    optional, already translated: what the toast says instead of
+             "Moved to …" — the spam button's, which may also have made a filter
 #}
 <!-- plmail-bulk: {{ count }} -->
 
@@ -33,6 +35,6 @@ Variables:
 {% endfor %}
 
 {% include 'thread/status/_undo_toast.stream.html.twig' with {
-    message:   'toast.moved'|trans({ '%folder%': label|label_name }),
+    message:   message|default('toast.moved'|trans({ '%folder%': label|label_name })),
     undoToken: undoToken,
 } only %}

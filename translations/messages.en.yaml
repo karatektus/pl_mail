@@ -3029,6 +3029,8 @@ settings:
             cc: Cc contains
             filename: Attachment named
             from: From contains
+            fromAddress: 'From is exactly'
+            fromDomain: 'Sender''s domain is'
             hasAttachment: Has an attachment
             hasKeyword: Is
             hasLabel: Has label
@@ -3092,6 +3094,7 @@ settings:
             running: 'Applying… %count% so far'
         run_confirm: 'Apply "%name%" to mail you already have? This can move and relabel a lot of messages at once.'
         saved: Filter saved.
+        spam_rule_name: 'Spam: %sender%'
         stop: Stop after this filter
         stop_help: Later filters are skipped for any message this one matches.
         subheading: Sort mail automatically as it arrives.
@@ -3933,6 +3936,7 @@ toast:
     send_too_late: Too late — that message had already been sent.
     send_failed: 'That message could not be sent: %subject%'
     sent: Message sent.
+    spam_filtered: 'Moved to Spam. Future mail from %sender% goes there too.'
     undo: Undo
     # The Undo was pressed twice, or after newer actions pushed it out. Said
     # plainly: the button promised to put something back and has not.
@@ -3957,6 +3961,7 @@ toolbar:
         mark_unread: Mark as unread
         move_to: Move to
         snooze: Snooze
+        spam: 'Mark as spam'
     filter:
         show_all: Show all
         unread_only: Unread only
@@ -3976,6 +3981,19 @@ toolbar:
 spam:
     empty: No junk mail.
     heading: Spam
+
+spam_menu:
+    confirm_body: 'Mail from every address at %domain% will go to Spam, including people who have never written to you.'
+    confirm_cancel: 'Cancel'
+    confirm_shared: 'This is a mail provider that many people use.'
+    confirm_yes: 'Filter the whole domain'
+    domain: 'Always move this whole domain to Spam'
+    filter_heading: 'And filter future mail'
+    heading: 'Mark as spam'
+    more: 'More options'
+    move: 'Move to Spam'
+    move_hint: 'Only this conversation.'
+    sender: 'Always move this sender to Spam'
 
 trash:
     empty: No deleted messages.

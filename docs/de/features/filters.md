@@ -1,4 +1,4 @@
-<!-- translated-from: features/filters.md sha1:5e4d8cbf54aca3e66fde1708f1c3a05af4fd6fee -->
+<!-- translated-from: features/filters.md sha1:f344fbe7df852e520da9a62793d6cf5febeb3cc9 -->
 
 # Filter
 
@@ -28,6 +28,8 @@ verschachtelt eine weitere Gruppe darin.
 | Bedingung | Was sie prüft |
 |---|---|
 | **Von enthält** | Absenderadresse oder Anzeigename |
+| **Von ist genau** | Die ganze Adresse des Absenders, und sonst nichts — kein Teil einer Adresse, und nicht der Anzeigename |
+| **Absender-Domain ist** | Alles hinter dem `@` der Absenderadresse, vollständig. Ohne das `@` eingeben. Eine Subdomain ist eine andere Domain |
 | **An enthält**, **Cc enthält**, **Bcc enthält** | Die jeweilige Adressliste |
 | **Betreff enthält** | Die Betreffzeile |
 | **Text enthält** | Den Nachrichtentext |

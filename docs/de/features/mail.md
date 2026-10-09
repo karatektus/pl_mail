@@ -1,4 +1,4 @@
-<!-- translated-from: features/mail.md sha1:4d527f6e86ae3478d94e7a628b559a798f22d239 -->
+<!-- translated-from: features/mail.md sha1:57def7ce9b8e9c88cee6508cfaac1ce4c2fe75f2 -->
 
 # Mail
 
@@ -566,6 +566,42 @@ und als sonst nichts — wo die Nachricht danach landet, ist Sache des Anbieters
 
 **Aktualisieren** in der Werkzeugleiste reiht für jedes deiner aktiven Konten eine
 Synchronisierung ein und dreht sich, bis diese Aufträge abgearbeitet sind.
+
+### Als Spam markieren
+
+Der Spam-Knopf steht neben **Löschen**: unter den Knöpfen einer Zeile, in der Werkzeugleiste
+einer geöffneten Konversation und in der Werkzeugleiste über einer Auswahl. Bei einer einzelnen
+Konversation öffnet er ein kurzes Menü:
+
+| Auswahl | Was sie tut |
+|---|---|
+| **In den Spam verschieben** | Verschiebt diese Konversation in den Spam-Ordner des Kontos, und sonst nichts |
+| **Diesen Absender immer in den Spam** | Dasselbe, und legt einen Filter für die Adresse des Absenders an |
+| **Diese ganze Domain immer in den Spam** | Dasselbe, und legt einen Filter für alles hinter dem `@` an |
+
+Die ersten beiden wirken sofort. Der Domain-Filter fragt noch einmal nach, bevor er etwas tut,
+weil er auch Adressen trifft, die dir nie geschrieben haben. Gehört die Domain einem
+Mail-Anbieter — gmail.com, gmx.de, outlook.com und ähnliche —, steht diese Auswahl erst im Menü,
+wenn du **Weitere Optionen** drückst, und fragt dann trotzdem nach: Ein Filter auf so eine Domain
+schickt einen guten Teil jedes Adressbuchs in den Spam.
+
+Der Absender ist, wer außer dir zuletzt in der Konversation geschrieben hat; deine eigenen
+Antworten werden übersprungen. Eine Konversation, die nur deine eigene Mail enthält, bietet das
+Verschieben an und keinen Filter.
+
+Der Filter ist ein gewöhnlicher. Er steht unter **Einstellungen → Filter**, benannt nach dem,
+worauf er passt, und lässt sich dort bearbeiten, abschalten oder löschen wie jeder andere — siehe
+[Filter](filters.md). Er gilt für Mail, die ab jetzt ankommt, in jedem Konto; den Knopf noch
+einmal beim selben Absender zu drücken, legt keinen zweiten an. **Rückgängig** in der Meldung
+holt die Konversation zurück und nimmt einen Filter wieder weg, den derselbe Klick angelegt hat.
+
+Über einer Auswahl verschiebt der Knopf alles Ausgewählte in den Spam und bietet keinen Filter
+an: Eine Auswahl hat nicht den einen Absender. Für Mail, die schon im Spam oder im Papierkorb
+liegt, wird der Knopf nicht gezeigt.
+
+Mail in den Spam zu verschieben sagt plMail nichts über die nächste Nachricht. plMail hat keinen
+eigenen Spamfilter, der lernt; ob dein Anbieter das Verschieben als Signal wertet, entscheidet
+der Anbieter. Ein Filter ist der Weg, es hier dauerhaft zu machen.
 
 ## Zurückstellen
 

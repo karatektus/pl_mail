@@ -145,6 +145,17 @@ export default class extends Controller {
         await this._bulkPost("trash");
     }
 
+    /**
+     * The toolbar's spam button: the selection goes to Spam, and that is all.
+     *
+     * The same move "Move to → Spam" makes, without opening the picker. No
+     * filter is offered here, unlike the button on one conversation — a
+     * selection has no single sender to offer one for.
+     */
+    async spamSelected() {
+        await this._bulkPost("move-to", { role: "spam" });
+    }
+
     async markReadSelected() {
         await this._bulkPost("read", { read: true });
     }

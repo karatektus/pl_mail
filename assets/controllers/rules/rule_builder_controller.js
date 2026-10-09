@@ -34,7 +34,8 @@ const OPERATORS = [
 
 /** Field kind decides which input is rendered and how the value is coerced. */
 const FIELDS = {
-    from: "text", to: "text", cc: "text", bcc: "text",
+    from: "text", fromAddress: "text", fromDomain: "text",
+    to: "text", cc: "text", bcc: "text",
     subject: "text", body: "text", text: "text",
     filename: "text", listId: "text",
     hasLabel: "label", notLabel: "label",

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Jmap\Query;
 
+use App\Domain\Filter\FilterVocabulary;
 use App\Domain\Enum\Mail\MessageCategory;
 use App\Domain\Enum\Mail\MessageFlag;
 use App\Jmap\Protocol\Exception\MethodException;
@@ -137,6 +138,10 @@ final class EmailFilterCompiler
             'body' => $this->like(['m.body_text'], $value, $parameters),
             'subject' => $this->like(['m.subject'], $value, $parameters),
             'from' => $this->like(['m.from_address', 'm.from_name'], $value, $parameters),
+            // plMail extensions: the sender exactly, where `from` is any part
+            // of address or display name. See FilterVocabulary::SENDER_CONDITIONS.
+            'fromAddress' => $this->fromAddress($value, $parameters),
+            'fromDomain' => $this->fromDomain($value, $parameters),
             'to' => $this->jsonAddressLike('m.to_addresses', $value, $parameters),
             'cc' => $this->jsonAddressLike('m.cc_addresses', $value, $parameters),
             'bcc' => $this->jsonAddressLike('m.bcc_addresses', $value, $parameters),
@@ -444,6 +449,45 @@ final class EmailFilterCompiler
         }
 
         return '('.implode(' OR ', $parts).')';
+    }
+
+    /**
+     * The sender's address, whole and case-insensitively.
+     *
+     * Equality on the address column alone — not the display name, which the
+     * sender chooses and which `from` matches for exactly that reason.
+     *
+     * @param array<string,mixed> $parameters
+     */
+    private function fromAddress(mixed $value, array &$parameters): string
+    {
+        if (false === FilterVocabulary::isSenderValue('fromAddress', $value)) {
+            throw new MethodException('invalidArguments', '"fromAddress" must be a whole email address.');
+        }
+
+        $name = $this->bind(mb_strtolower((string) $value), $parameters);
+
+        return sprintf('LOWER(m.from_address) = :%s', $name);
+    }
+
+    /**
+     * Everything after the `@` of the sender's address, whole.
+     *
+     * A suffix match anchored on the `@`, which is what makes it the domain
+     * and not the end of one: `example.com` matches `a@example.com` and
+     * neither `a@notexample.com` nor `a@mail.example.com`.
+     *
+     * @param array<string,mixed> $parameters
+     */
+    private function fromDomain(mixed $value, array &$parameters): string
+    {
+        if (false === FilterVocabulary::isSenderValue('fromDomain', $value)) {
+            throw new MethodException('invalidArguments', '"fromDomain" must be a domain, without the @.');
+        }
+
+        $name = $this->bind('%@'.$this->escapeLike(mb_strtolower((string) $value)), $parameters);
+
+        return sprintf('LOWER(m.from_address) LIKE :%s', $name);
     }
 
     /**

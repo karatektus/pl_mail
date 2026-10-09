@@ -516,6 +516,39 @@ and nothing else — where the message lands afterwards is the provider's busine
 **Refresh** in the toolbar queues a sync for every active account you own and spins until those
 jobs have drained.
 
+### Mark as spam
+
+The spam button sits beside **Delete**: among a row's buttons, in the toolbar of an open
+conversation, and in the toolbar above a selection. On one conversation it opens a short menu:
+
+| Choice | What it does |
+|---|---|
+| **Move to Spam** | Moves this conversation to the account's spam folder, and nothing else |
+| **Always move this sender to Spam** | The same, and creates a filter for the sender's address |
+| **Always move this whole domain to Spam** | The same, and creates a filter for everything after the `@` |
+
+The first two act at once. The domain filter asks once more before it does anything, because it
+catches addresses that have never written to you. Where the domain belongs to a mail provider —
+gmail.com, gmx.de, outlook.com and the like — that choice is not on the menu until you press
+**More options**, and then still asks: a filter on such a domain sends a good part of anybody's
+address book to spam.
+
+The sender is whoever else wrote most recently in the conversation; your own replies are skipped.
+A conversation that holds only your own mail offers the move and no filter.
+
+The filter is an ordinary one. It appears under **Settings → Filters**, named after what it
+matches, and can be edited, switched off or deleted there like any other — see
+[Filters](filters.md). It applies to mail that arrives from now on, in every account; pressing the
+button again on the same sender does not create a second one. **Undo** in the toast puts the
+conversation back and takes away a filter the same click created.
+
+Above a selection the button moves everything selected to Spam and offers no filter: a selection
+has no one sender. The button is not shown for mail that is already in Spam or in the bin.
+
+Moving mail to spam tells plMail nothing about the next message. plMail has no spam filter of its
+own that learns; whether your provider treats the move as a signal is up to the provider. A filter
+is how you make it stick here.
+
 ## Snooze
 
 Snoozing is archiving with a timer. The conversation leaves the Inbox now — at the provider too,

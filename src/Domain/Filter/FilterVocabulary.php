@@ -40,6 +40,27 @@ final class FilterVocabulary
         'listId',
     ];
 
+    /**
+     * Conditions over the sender that match the whole of something, where
+     * `from` matches any part of it.
+     *
+     *   fromAddress  the sender's address is exactly this one
+     *   fromDomain   the part of the sender's address after the `@` is exactly
+     *                this — no `@`, and a subdomain is a different domain
+     *
+     * `from` is a substring over address and display name, which is the right
+     * tool for "anything mentioning Acme" and the wrong one for "this sender":
+     * `a@x.de` also matches `ba@x.de`, and a display name can be made to
+     * contain any address at all. A rule that files a sender under Spam needs
+     * to mean that sender and nobody whose address merely ends the same way.
+     *
+     * Case does not matter for either; nothing else is loosened.
+     */
+    public const array SENDER_CONDITIONS = [
+        'fromAddress',
+        'fromDomain',
+    ];
+
     /** Conditions taking an integer. */
     public const array INT_CONDITIONS = [
         'minSize',
@@ -81,11 +102,37 @@ final class FilterVocabulary
     {
         return array_merge(
             self::TEXT_CONDITIONS,
+            self::SENDER_CONDITIONS,
             self::INT_CONDITIONS,
             self::DATE_CONDITIONS,
             self::BOOL_CONDITIONS,
             self::KEYWORD_CONDITIONS,
         );
+    }
+
+    /**
+     * Whether a value is one a sender condition can match on.
+     *
+     * One definition for the validator, which refuses to store anything else,
+     * and the compiler, which JMAP reaches without going through the
+     * validator. Deliberately loose about what an address looks like — the
+     * column holds whatever the mail said — and strict only about the shape
+     * the comparison depends on: an address has something either side of an
+     * `@`, a domain has no `@` in it, and neither has whitespace.
+     */
+    public static function isSenderValue(string $condition, mixed $value): bool
+    {
+        if (false === is_string($value) || '' === $value || 1 === preg_match('/\s/u', $value)) {
+            return false;
+        }
+
+        $at = strrpos($value, '@');
+
+        if ('fromDomain' === $condition) {
+            return false === $at;
+        }
+
+        return false !== $at && $at > 0 && $at < strlen($value) - 1;
     }
 
     public static function supports(string $condition): bool

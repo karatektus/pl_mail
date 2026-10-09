@@ -1,0 +1,104 @@
+{#
+mail/_spam_menu_panel.html.twig — what the spam button's menu offers for one
+conversation. Rendered by SpamController::menu() into the empty panel of
+_partials/_spam_menu.html.twig.
+
+Variables:
+  sender   App\Domain\DTO\Mail\SpamSender|null — null when nobody but the user
+           wrote in this conversation, and then only the move is offered
+
+The three choices are not equally dangerous and do not cost the same:
+
+  - moving, and filtering one sender, act on the first click;
+  - filtering a whole domain asks once more, in place, because it catches
+    addresses that have never written;
+  - and where the domain is a mail provider's (gmail.com, gmx.de), that choice
+    is not on the menu at all until "More options" is pressed — it is very
+    rarely what somebody means there, and a row that is always in view gets
+    clicked.
+
+Every click is handled by mail--spam-menu, which owns the panel this lands in.
+#}
+{% set entry_class = 'w-full flex items-start gap-2.5 px-3 py-2 text-left
+                      hover:bg-hover transition-colors cursor-pointer' %}
+{% set heading_class = 'px-3 py-1 text-[10px] font-semibold uppercase tracking-wide text-ink-faint' %}
+
+<p class="{{ heading_class }}">{{ 'spam_menu.heading'|trans }}</p>
+
+<button type="button" role="menuitem"
+        data-action="click->mail--spam-menu#report"
+        data-spam-filter="none"
+        data-testid="spam-move"
+        class="{{ entry_class }}">
+    <i class="fa-solid fa-circle-exclamation w-3.5 mt-0.5 text-ink-faint" aria-hidden="true"></i>
+    <span class="min-w-0">
+        <span class="block text-sm text-ink">{{ 'spam_menu.move'|trans }}</span>
+        <span class="block text-xs text-ink-muted">{{ 'spam_menu.move_hint'|trans }}</span>
+    </span>
+</button>
+
+{% if sender %}
+    <div class="border-t border-line mt-1 pt-1">
+        <p class="{{ heading_class }}">{{ 'spam_menu.filter_heading'|trans }}</p>
+
+        <button type="button" role="menuitem"
+                data-action="click->mail--spam-menu#report"
+                data-spam-filter="sender"
+                data-testid="spam-filter-sender"
+                class="{{ entry_class }}">
+            <i class="fa-solid fa-user-slash w-3.5 mt-0.5 text-ink-faint" aria-hidden="true"></i>
+            <span class="min-w-0">
+                <span class="block text-sm text-ink">{{ 'spam_menu.sender'|trans }}</span>
+                <span class="block text-xs text-ink-muted font-mono break-all">{{ sender.address }}</span>
+            </span>
+        </button>
+
+        {% if sender.sharedDomain %}
+            <button type="button" role="menuitem"
+                    data-mail--spam-menu-target="more"
+                    data-action="click->mail--spam-menu#moreOptions"
+                    data-testid="spam-more"
+                    class="{{ entry_class }}">
+                <i class="fa-solid fa-ellipsis w-3.5 mt-0.5 text-ink-faint" aria-hidden="true"></i>
+                <span class="block text-sm text-ink-soft">{{ 'spam_menu.more'|trans }}</span>
+            </button>
+        {% endif %}
+
+        <button type="button" role="menuitem"
+                data-mail--spam-menu-target="domain"
+                data-action="click->mail--spam-menu#askDomain"
+                data-testid="spam-filter-domain"
+                {{ sender.sharedDomain ? 'hidden' : '' }}
+                class="{{ entry_class }}">
+            <i class="fa-solid fa-globe w-3.5 mt-0.5 text-ink-faint" aria-hidden="true"></i>
+            <span class="min-w-0">
+                <span class="block text-sm text-ink">{{ 'spam_menu.domain'|trans }}</span>
+                <span class="block text-xs text-ink-muted font-mono break-all">{{ sender.domainPattern }}</span>
+            </span>
+        </button>
+
+        {# The second click. In place of the row that asked for it, so the
+           pointer is already where the answer is. #}
+        <div data-mail--spam-menu-target="confirm" hidden
+             class="mx-2 my-1 rounded-lg bg-danger-soft px-3 py-2.5 space-y-2">
+            <p class="text-xs leading-relaxed text-danger">
+                {{ 'spam_menu.confirm_body'|trans({ '%domain%': sender.domain }) }}
+                {% if sender.sharedDomain %}{{ 'spam_menu.confirm_shared'|trans }}{% endif %}
+            </p>
+            <div class="flex flex-wrap gap-2">
+                <button type="button"
+                        data-action="click->mail--spam-menu#report"
+                        data-spam-filter="domain"
+                        data-testid="spam-filter-domain-confirm"
+                        class="inline-flex items-center h-7 px-2.5 rounded-lg text-xs font-medium text-danger border border-danger/40 hover:bg-danger-soft transition-colors cursor-pointer">
+                    {{ 'spam_menu.confirm_yes'|trans }}
+                </button>
+                <button type="button"
+                        data-action="click->mail--spam-menu#cancelDomain"
+                        class="inline-flex items-center h-7 px-2.5 rounded-lg text-xs font-medium btn-quiet hover:bg-hover transition-colors cursor-pointer">
+                    {{ 'spam_menu.confirm_cancel'|trans }}
+                </button>
+            </div>
+        </div>
+    </div>
+{% endif %}

@@ -2871,6 +2871,8 @@ settings:
             cc: Cc carries
             filename: Cargo named
             from: From carries
+            fromAddress: 'From be exactly'
+            fromDomain: 'Sender''s home port be'
             hasAttachment: Carries cargo
             hasKeyword: Be
             hasLabel: Flies flag
@@ -2930,6 +2932,7 @@ settings:
             running: 'Workin''… %count% so far'
         run_confirm: 'Run "%name%" over the yarns already aboard? It can shift and re-flag a great many at once.'
         saved: Sieve saved.
+        spam_rule_name: 'Bilge: %sender%'
         stop: Stop after this sieve
         stop_help: Later sieves be skipped for any yarn this one catches.
         subheading: Sort yarns automatic-like as they come aboard.
@@ -3719,6 +3722,7 @@ toast:
     send_too_late: Too late, matey — that message has already sailed.
     send_failed: 'That message could not be hoisted: %subject%'
     sent: Message away!
+    spam_filtered: 'Pumped into th'' bilge. Whatever %sender% sends next goes th'' same way.'
     undo: Belay that
     undo_expired: Too late to belay that, matey.
     undone: Belayed.
@@ -3738,6 +3742,7 @@ toolbar:
         mark_unread: Mark as unread
         move_to: Haul off to
         snooze: Let it drift
+        spam: 'Call it bilge'
     filter:
         show_all: Show every last one
         unread_only: Unread only
@@ -3757,6 +3762,19 @@ toolbar:
 spam:
     empty: No bilge aboard.
     heading: Bilge
+
+spam_menu:
+    confirm_body: 'Letters from every hand at %domain% will go to th'' bilge, even them as never wrote ye.'
+    confirm_cancel: 'Belay that'
+    confirm_shared: 'This be a port half th'' seven seas sail from.'
+    confirm_yes: 'Bilge th'' whole port'
+    domain: 'Always send this whole port to th'' bilge'
+    filter_heading: 'An'' sort what comes after'
+    heading: 'Call it bilge'
+    more: 'More choices'
+    move: 'Pump into th'' bilge'
+    move_hint: 'Only this parley.'
+    sender: 'Always send this hand to th'' bilge'
 
 trash:
     empty: Naught fed to the fishes.

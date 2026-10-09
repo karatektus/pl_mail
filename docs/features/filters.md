@@ -23,6 +23,8 @@ group; **Add group** nests another group inside it.
 | Condition | What it tests |
 |---|---|
 | **From contains** | Sender address or display name |
+| **From is exactly** | The sender's whole address, and nothing else — not part of an address, and not the display name |
+| **Sender's domain is** | Everything after the `@` of the sender's address, whole. Enter it without the `@`. A subdomain is a different domain |
 | **To contains**, **Cc contains**, **Bcc contains** | The corresponding address list |
 | **Subject contains** | The subject line |
 | **Body contains** | The message body |

@@ -652,7 +652,7 @@ be a worse regression than the one this feature fixes.
                    them. Stacked there is no hover, so it simply sits there. #}
                 <span class="absolute inset-0 flex items-center justify-end gap-1.5
                              text-xs text-ink-faint whitespace-nowrap
-                             @xl:group-hover:invisible">
+                             @xl:group-hover:invisible @xl:group-has-[[aria-expanded=true]]:invisible">
                     {# The visibility classes go on a wrapper, never on the <i>
                        itself: Font Awesome's own .fa-solid rule sets display,
                        and it lands after Tailwind's utilities, so `hidden` on
@@ -689,7 +689,11 @@ be a worse regression than the one this feature fixes.
                     {% endif %}
                 </span>
 
-                <div class="hidden @xl:flex absolute inset-0 items-center justify-end invisible group-hover:visible pointer-events-auto gap-1">
+                {# Shown on hover — and for as long as the spam menu hanging off
+                   one of these buttons is open. That menu is a descendant, so
+                   without the second rule a pointer that strays off the row on
+                   its way to the menu hides the menu it was heading for. #}
+                <div class="hidden @xl:flex absolute inset-0 items-center justify-end invisible group-hover:visible has-[[aria-expanded=true]]:visible pointer-events-auto gap-1">
                 {% if false == draft and placement == 'normal' %}
                     <button type="button" data-action="click->mail--message-row#archive"
                             data-mail--message-row-archive-url-param="{{ path('app_status_archive', {'type': type, 'id': rowId}) }}"
@@ -712,6 +716,13 @@ be a worse regression than the one this feature fixes.
                         class="z-10 p-1.5 cursor-pointer rounded-lg text-ink-faint hover:text-danger hover:bg-danger-soft transition-colors">
                     <i class="fa-solid fa-trash w-4 h-4" aria-hidden="true"></i>
                 </button>
+                {% endif %}
+
+                {# The spam button, with its menu. Threads only: the menu's
+                   routes take a conversation, and a row that is a single
+                   message (a search hit, a draft) has Move to for this. #}
+                {% if false == draft and type == 'thread' and placement not in ['trash', 'spam'] %}
+                    {% include '_partials/_spam_menu.html.twig' with { threadId: rowId, variant: 'row' } only %}
                 {% endif %}
 
                 {# Anywhere that is not the inbox: the way back.

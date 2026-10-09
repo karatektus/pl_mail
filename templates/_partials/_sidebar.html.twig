@@ -663,9 +663,9 @@ controller instead — the scroll position and which trees are open.
         {% if _showSpam %}
             {% set _href = path('app_mail_spam') %}
             <div class="nav-item flex items-center justify-between gap-2 pl-9 pr-3 rounded-lg transition-colors {{ sidebar_row_state(_href) }}"
-                 {# "This is junk", said by dropping. The only way to say it in
-                    the interface: there is no mark-as-spam button anywhere, and
-                    the row is here because the folder is. #}
+                 {# "This is junk", said by dropping — the same move the spam
+                    button and Move to make, for a pointer that is already
+                    holding the mail. #}
                  {{ macros.drop_target(sidebarCounts.roleLabelId(enum('App\\Domain\\Enum\\Mail\\LabelRole').Spam), null, true) }}>
                 {# The tier rides on the LINK, not on the pill around it. The pill is
                    what you see — .nav-item draws it — but the row's height comes from

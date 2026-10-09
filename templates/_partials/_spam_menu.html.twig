@@ -1,0 +1,65 @@
+{#
+_spam_menu.html.twig
+─────────────────────────────────────────────────────────────────────────────
+The spam button, for ONE conversation: in the reading pane's toolbar and among
+a list row's hover actions. Pressing it opens a small menu — move this to Spam,
+or move it and also filter the sender, or the sender's whole domain.
+
+The panel is empty here and filled when the button is pressed
+(SpamController::menu). What it offers depends on who the conversation is from,
+and working that out for every row of a list, to render fifty menus nobody
+opens, is the wrong trade.
+
+The list toolbar does not use this. A selection has no one sender, so its
+button moves the selection and offers nothing more (mail--list-toolbar).
+
+Variables:
+  threadId   int     the conversation
+  variant    string  `toolbar` (reading pane) or `row` (list hover actions):
+                     which button it is drawn as, and whether the pane showing
+                     the conversation closes afterwards
+#}
+{% set variant = variant|default('toolbar') %}
+
+<div data-controller="mail--spam-menu"
+     data-mail--spam-menu-url-value="{{ path('app_status_spam_menu', { id: threadId }) }}"
+     data-mail--spam-menu-report-url-value="{{ path('app_status_spam_report', { id: threadId }) }}"
+     data-mail--spam-menu-closes-pane-value="{{ variant == 'toolbar' ? 'true' : 'false' }}"
+     {# The toolbar's button is at the pane's left edge, a row's at its right:
+        the menu opens towards the side that has the room. #}
+     data-mail--spam-menu-align-value="{{ variant == 'toolbar' ? 'start' : 'end' }}"
+     class="relative {{ variant == 'row' ? 'z-10' : '' }}">
+
+    <button type="button"
+            data-action="click->mail--spam-menu#toggle"
+            aria-label="{{ 'toolbar.actions.spam'|trans }}"
+            title="{{ 'toolbar.actions.spam'|trans }}"
+            aria-haspopup="menu"
+            aria-expanded="false"
+            data-mail--spam-menu-target="trigger"
+            data-testid="spam-button"
+            {% if variant == 'row' %}
+            class="p-1.5 cursor-pointer rounded-lg text-ink-faint hover:text-danger hover:bg-danger-soft transition-colors"
+            {% else %}
+            class="flex items-center justify-center w-8 h-8 rounded-full
+                   text-ink-muted hover:text-danger hover:bg-hover
+                   transition-colors duration-100 cursor-pointer"
+            {% endif %}>
+        <i class="fa-solid fa-circle-exclamation {{ variant == 'row' ? 'w-4 h-4' : 'text-[15px]' }}" aria-hidden="true"></i>
+    </button>
+
+    {# A click anywhere in the panel stays in the panel. In a list it is a
+       descendant of the row, and a row opens its conversation when clicked.
+
+       `visible` for the same reason: a row's actions are `invisible` until the
+       row is hovered, visibility is inherited, and an open menu must not
+       depend on where the pointer happens to be. #}
+    <div data-mail--spam-menu-target="panel"
+         data-action="click->mail--spam-menu#stop"
+         role="menu"
+         aria-label="{{ 'toolbar.actions.spam'|trans }}"
+         class="hidden visible absolute {{ variant == 'toolbar' ? 'left-0' : 'right-0' }} top-full mt-1 z-30 w-80 max-h-96 overflow-y-auto rounded-pane
+                bg-pane-soft backdrop-blur-sm
+                border border-line
+                shadow-pop py-1 text-left"></div>
+</div>
