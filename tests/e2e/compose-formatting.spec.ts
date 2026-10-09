@@ -1,5 +1,5 @@
 import { test, expect, type Page } from "./support/test";
-import { seed } from "./support/config";
+import { INBOX_SUBJECTS, mailRow, seed } from "./support/config";
 
 /**
  * The formatting toolbar, and what it puts in the draft.
@@ -276,6 +276,37 @@ test.describe("emoji", () => {
         await expect(page.locator(`${DOCK} ${HIDDEN}`)).toHaveValue(
             new RegExp(`before${glyph}\\s*after`),
         );
+    });
+
+    /**
+     * A reply nobody has clicked into yet. The window parks the caret inside
+     * the <br> of the empty first line, and an emoji picked then was inserted
+     * INTO that <br> — held by the DOM, rendered by nothing. The test above
+     * cannot see it: it places a caret of its own first.
+     *
+     * Read as innerText on purpose. textContent counts text inside a <br>, so
+     * the default assertion passes on exactly the bug.
+     */
+    test("an emoji picked in a reply nobody has clicked into is visible in it", async ({ page }) => {
+        await page.goto("/mail/inbox");
+        await mailRow(page, INBOX_SUBJECTS.read).click();
+        await page.getByRole("link", { name: "Reply", exact: true }).first().click();
+
+        const inline = page.locator("#compose_inline");
+        const editor = inline.locator(EDITOR);
+
+        await expect(editor).toBeVisible();
+        await inline.locator('button[title="Insert emoji"]').click();
+
+        const first = inline.locator(`${PICKER} .emoji-menu [role="menuitem"]`).first();
+
+        await expect(first).toBeVisible();
+
+        const glyph = (await first.innerText()).trim();
+
+        await first.click();
+
+        await expect(editor.locator("p").first()).toHaveText(glyph, { useInnerText: true });
     });
 
     /**

@@ -56,6 +56,12 @@ export default class extends Controller {
      */
     static LINK_SCHEMES = ['http', 'https', 'mailto', 'tel'];
 
+    /**
+     * Elements a caret can be reported inside and nothing can be inserted
+     * into. See _insertAtCaret().
+     */
+    static VOID_ELEMENTS = ['BR', 'IMG', 'HR'];
+
     // Saved selection range — populated on editor blur so colour picker
     // and other focus-stealing controls can restore it before acting.
     #savedRange = null;
@@ -363,6 +369,25 @@ export default class extends Controller {
             range = document.createRange();
             range.selectNodeContents(this.editorTarget);
             range.collapse(false);
+        }
+
+        // A caret can be INSIDE an element that cannot have children, and one
+        // routinely is: compose--compose#_focusCursorAtTop() parks it at
+        // offset 0 of the first node of the first block, which in a fresh
+        // reply is the <br> of `<p><br></p>`. insertNode() obliges and puts
+        // the node inside the <br> — where the DOM holds it and nothing ever
+        // renders or serialises it. Whatever was inserted into a reply nobody
+        // had clicked into yet simply did not appear: that was "the template
+        // does not load in a reply", and the same went for an emoji, an inline
+        // image and the signature. Typing never showed it, because the
+        // browser moves the caret out of the <br> before it inserts a
+        // character; a script has to do that for itself.
+        const container = range.startContainer;
+
+        if (Node.ELEMENT_NODE === container.nodeType
+            && true === this.constructor.VOID_ELEMENTS.includes(container.nodeName)) {
+            range.setStartBefore(container);
+            range.collapse(true);
         }
 
         range.deleteContents();

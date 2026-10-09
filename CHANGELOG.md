@@ -50,6 +50,12 @@ the seeded mail and calendar: a quote follow-up, an invoice reminder, an out-of-
 filed at the top level, under the demo account and in a folder inside it. They use every variable
 between them. `app:test:seed-demo` seeds the same six. Nothing changes on a normal install.
 
+**Fixed: an emoji picked in a reply you had not clicked into yet did not appear.** A reply opens with
+the cursor on its empty first line, and whatever a toolbar button inserted there — an emoji, an
+inline image, and now a template — went somewhere that is never drawn: the button seemed to do
+nothing, and the reply stayed empty. Typing was never affected, and neither was a message you had
+clicked into first. The insertion now lands on the line.
+
 **A public demo can see how much it is used.** In demo mode the admin area has a new section, Demo
 visitors: how many demo sessions were started in the last hour, 24 hours, 7 days and 30 days, how
 many different visitors started them, the total so far and how many have a mailbox right now. No

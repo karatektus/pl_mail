@@ -1,5 +1,5 @@
 import { test, expect, type Page } from "./support/test";
-import { seed } from "./support/config";
+import { INBOX_SUBJECTS, mailRow, seed } from "./support/config";
 import { acceptConfirm } from "./support/confirm";
 
 /**
@@ -175,6 +175,38 @@ test.describe("templates", () => {
 
         await expect(editor).toContainText("Hi Dana, I have your address as dana@example.org.");
         await expect(editor.locator("[data-pl-var]")).toHaveCount(0);
+    });
+
+    /**
+     * The reported bug: "in a reply the template does not load".
+     *
+     * A reply opens with the caret parked inside the <br> of its empty first
+     * line, and nobody has clicked into the body yet. The template was
+     * inserted INTO that <br>, where nothing renders it — the request
+     * succeeded, the picker closed and the message stayed empty. The dock
+     * tests above never saw it because a new message is typed into or
+     * addressed first.
+     *
+     * The subject is the other half of what a reply is for: it keeps its own.
+     */
+    test("a template lands in a reply nobody has clicked into yet, and leaves its subject alone", async ({ page }) => {
+        await page.goto("/mail/inbox");
+        await mailRow(page, INBOX_SUBJECTS.read).click();
+        await page.getByRole("link", { name: "Reply", exact: true }).first().click();
+
+        const inline = page.locator("#compose_inline");
+        const editor = inline.locator(EDITOR);
+
+        await expect(editor).toBeVisible();
+
+        await inline.getByRole("button", { name: "Insert template" }).click();
+        await inline.getByRole("button", { name: NAME }).click();
+
+        // By innerText, and that is the assertion. textContent — Playwright's
+        // default — includes text that sits inside a <br>, so it reported the
+        // template as present while the screen showed an empty reply.
+        await expect(editor).toContainText("I have your address as", { useInnerText: true });
+        await expect(inline.locator(SUBJECT)).toHaveValue(new RegExp(`^Re: ${INBOX_SUBJECTS.read}`));
     });
 
     test("the template is deleted from its editor", async ({ page }) => {
