@@ -45,7 +45,9 @@ Variables:
             </div>
 
             {% if tree is not null %}
-                <div>
+                {# Same constraint as the template editor's Folder field, for
+                   the same long paths. #}
+                <div class="min-w-0 [&_.ts-control]:min-w-0 [&_.ts-control_.item]:min-w-0 [&_.ts-control_.item]:truncate">
                     <label for="template-folder-location" class="block text-[13px] font-medium text-ink-soft mb-1.5">
                         {{ 'settings.templates.folder_in'|trans }}
                     </label>

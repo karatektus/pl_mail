@@ -8,6 +8,7 @@ use App\Repository\Label\LabelRepository;
 use App\Repository\Mail\AccountRepository;
 use App\Repository\User\UserRepository;
 use App\Service\Demo\DemoMailbox;
+use App\Service\Demo\DemoTemplates;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
@@ -48,6 +49,7 @@ final class SeedDemoMailboxCommand extends Command
         private readonly AccountRepository       $accountRepository,
         private readonly LabelRepository         $labelRepository,
         private readonly DemoMailbox             $demoMailbox,
+        private readonly DemoTemplates           $demoTemplates,
         #[Autowire('%kernel.environment%')]
         private readonly string                  $environment,
     ) {
@@ -114,11 +116,17 @@ final class SeedDemoMailboxCommand extends Command
         $messages = $this->demoMailbox->seed($user, $account);
         $events   = $this->demoMailbox->seedCalendar($user);
 
+        // The same templates a hosted demo's visitor gets, for the same reason
+        // the mailbox is the same one: a screenshot of the picker should be a
+        // picture of the demo.
+        $templates = $this->demoTemplates->seed($user, $account);
+
         $io->success(sprintf(
-            'Seeded %d demo threads, %d labels and %d calendar events for %s.',
+            'Seeded %d demo threads, %d labels, %d calendar events and %d templates for %s.',
             count($messages),
             count(DemoMailbox::LABELS),
             $events,
+            $templates,
             $userEmail,
         ));
 

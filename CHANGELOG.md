@@ -45,6 +45,11 @@ the recipient too when the client supplies one, and a list of the recipient vari
 open. The Session lists the variables and date formats an editor may offer. The apps do not use any
 of this yet. See [Client development → Templates](docs/CLIENT_DEVELOPMENT.md#templates).
 
+**A demo mailbox starts with templates.** A visitor to a public demo gets six templates along with
+the seeded mail and calendar: a quote follow-up, an invoice reminder, an out-of-office and others,
+filed at the top level, under the demo account and in a folder inside it. They use every variable
+between them. `app:test:seed-demo` seeds the same six. Nothing changes on a normal install.
+
 **A public demo can see how much it is used.** In demo mode the admin area has a new section, Demo
 visitors: how many demo sessions were started in the last hour, 24 hours, 7 days and 30 days, how
 many different visitors started them, the total so far and how many have a mailbox right now. No

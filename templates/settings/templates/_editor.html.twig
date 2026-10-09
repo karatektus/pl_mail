@@ -91,7 +91,13 @@ Variables:
                            placeholder="{{ 'settings.templates.name_placeholder'|trans }}"
                            class="{{ field }} h-9">
                 </div>
-                <div class="sm:w-60 min-w-0">
+                {# The three arbitrary variants are for one thing: a folder's
+                   path can be long ("you@example.com / Quotes and invoices"),
+                   and the widget's control is a no-wrap flex row that grows
+                   to fit its text. Unconstrained it pushed the box out past
+                   the card's edge. Allowed to shrink, the path is cut with an
+                   ellipsis; the open list still shows every path whole. #}
+                <div class="sm:w-60 min-w-0 [&_.ts-control]:min-w-0 [&_.ts-control_.item]:min-w-0 [&_.ts-control_.item]:truncate">
                     <label for="template-location" class="{{ label }}">{{ 'settings.templates.folder'|trans }}</label>
                     <select id="template-location" name="location" {{ select.enhance() }}
                             data-settings--template-editor-target="location"

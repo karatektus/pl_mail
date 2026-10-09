@@ -272,6 +272,14 @@ final class DemoFlowTest extends WebTestCase
             'the demo should provision a calendar too',
         );
 
+        // And templates to pick from: an empty picker shows nothing of what
+        // the feature does. What is in them is DemoTemplatesTest's.
+        self::assertNotEmpty(
+            $container->get(\App\Repository\Template\MailTemplateRepository::class)
+                ->findBy(['usr' => $visitor]),
+            'the demo should provision templates too',
+        );
+
         // The visitor really is signed in — the chain must land in a mailbox
         // rather than back on the login form. Two hops: /demo redirects to the
         // app root, which redirects again to the inbox.

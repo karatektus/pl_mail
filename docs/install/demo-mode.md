@@ -20,6 +20,10 @@ Following `/demo` provisions a throwaway user, signs them in and drops them in a
   product would look broken while working perfectly.
 - **Ten seeded threads**, with labels, contacts and dates — the same mailbox the README screenshots
   are taken against, so the demo and the pictures of it cannot drift apart.
+- **A week of calendar events and six templates.** The templates sit in **Settings → Templates** and
+  behind **Insert template** in the compose window: a few under the demo account, some in a folder
+  inside it, two at the top level. Between them they use every variable, so inserting one shows a
+  date already worked out and a recipient's name filled in once there is a recipient.
 - **A bar at the foot of the page** saying what this is, with a **Receive mail** button.
 - **Two hours**, by default. After that `app:demo:reap` deletes the user and everything they own.
 

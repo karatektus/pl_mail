@@ -33,6 +33,7 @@ final readonly class DemoProvisioner
         private EntityManagerInterface      $entityManager,
         private UserPasswordHasherInterface $passwordHasher,
         private DemoMailbox                 $demoMailbox,
+        private DemoTemplates               $demoTemplates,
         private DemoMode                    $demoMode,
     ) {
     }
@@ -84,6 +85,10 @@ final readonly class DemoProvisioner
         // The calendar too: plMail's argument is mail and a diary side by side,
         // and half of that on an empty grid is not the argument.
         $this->demoMailbox->seedCalendar($user);
+
+        // And a few templates. An empty tree and an empty picker are both
+        // accurate and neither shows what the feature does — see DemoTemplates.
+        $this->demoTemplates->seed($user, $account);
 
         return $user;
     }
