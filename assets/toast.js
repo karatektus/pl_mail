@@ -75,7 +75,12 @@ function referenceChip({ id, label = "%id%", copyLabel = "" }, template) {
         + "text-ink-faint hover:text-ink hover:bg-hover transition-colors cursor-pointer";
 
     const icon = document.createElement("i");
-    icon.className = "fa-regular fa-copy text-[11px]";
+    // fa-solid, and it has to be. ui--clipboard confirms by exchanging the
+    // glyph class alone — fa-copy for fa-check — and leaves the style class
+    // where it is. The free set has a regular fa-copy and no regular fa-check,
+    // so the confirmation was drawn in a font that has no such glyph: an empty
+    // box where the tick should be (#33).
+    icon.className = "fa-solid fa-copy text-[11px]";
     icon.setAttribute("data-ui--clipboard-target", "icon");
     icon.setAttribute("aria-hidden", "true");
     button.append(icon);

@@ -19,6 +19,11 @@ import { Controller } from "@hotwired/stimulus";
  * defaults here are English), idleIcon/confirmIcon/failedIcon (Font Awesome
  * glyph classes, style class untouched), resetAfter (ms).
  *
+ * "Style class untouched" is a condition on the call site: the idle icon's
+ * style has to be one that also has the confirm and failed glyphs. In the free
+ * set that means fa-solid — there is a regular fa-copy, and no regular
+ * fa-check to exchange it for.
+ *
  * navigator.clipboard needs a secure context, which a self-hosted plMail on a
  * plain-HTTP LAN hostname is not — so there is a deprecated-but-working
  * execCommand path behind it rather than a dead button. Selecting the text and

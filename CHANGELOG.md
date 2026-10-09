@@ -155,6 +155,10 @@ and a message whose content merely follows the frame is no longer resized again.
 - **The Spam badge is muted.** Still a count of unread, no longer in the accent colour.
 - **German: "vor 12s"** in the admin area, where it said "12s her".
 
+**Fixed: copying an error's reference showed an empty box instead of a tick.** The copy itself
+worked. Reported by [@pmdevelopment](https://github.com/pmdevelopment) in
+[#33](https://github.com/karatektus/pl_mail/issues/33).
+
 ### Before you upgrade
 
 - **One migration, applied on boot.** It adds an empty table, `demo_visit`, which only a demo

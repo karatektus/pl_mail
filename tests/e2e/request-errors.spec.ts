@@ -46,6 +46,14 @@ test("a failed form submission raises a toast and leaves the page alone", async 
     await toast.getByRole("button", { name: "Copy the reference" }).click();
     await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toBe("abcd1234");
 
+    // And it says so with a tick that exists. The icon was in the regular
+    // style, which has a copy glyph and no check: the confirmation was an
+    // empty box (#33). The solid face is weight 900, and it is the one that
+    // has both.
+    const icon = toast.locator('[data-ui--clipboard-target="icon"]');
+    await expect(icon).toHaveClass(/fa-check/);
+    await expect(icon).toHaveCSS("font-weight", "900");
+
     // Nothing of the error page was drawn, and the settings page is intact.
     await expect(page.getByRole("heading", { name: "Something went wrong" })).toHaveCount(0);
     await expect(page.locator("#sidebar")).toBeVisible();
