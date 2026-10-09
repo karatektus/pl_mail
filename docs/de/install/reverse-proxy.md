@@ -1,4 +1,4 @@
-<!-- translated-from: install/reverse-proxy.md sha1:72aecc70f1035f186e2322b3152b8dd4e0ad00f4 -->
+<!-- translated-from: install/reverse-proxy.md sha1:781b856b21629be768f778e6c04d76360defb8ec -->
 # Hinter einem Reverse-Proxy
 
 Alles, was von außerhalb des eigenen Netzes erreichbar ist, will ein echtes Zertifikat davor, und
@@ -102,6 +102,26 @@ daraus, und keines davon meldet sich:
 Setzt du ihn zu weit — alles wird als vertrauenswürdig behandelt —, dann kann ein Client
 `X-Forwarded-For` fälschen und sich als beliebige Adresse ausgeben, was die Ratenbegrenzung pro
 Adresse aushebelt und einen frei wählbaren Wert in deine Logs schreibt.
+
+**Die mitgelieferte Vorgabe liegt mit Absicht auf der weiten Seite.** Sie vertraut jeder privaten
+Adresse, weil sich die Adresse des Proxys nicht im Voraus wissen lässt und ihr Fehlen die vier Dinge
+oben kaputt macht. Der Preis: Jede andere Maschine in deinem LAN und jeder andere Container im
+Docker-Netz, die plMail *am Proxy vorbei* erreichen, wird geglaubt, wenn sie `X-Forwarded-For`
+schickt. Sie kann sich dann bei jeder Anfrage als neue Adresse ausgeben und die Grenzen umgehen, die
+pro Adresse zählen: die 25 Anmeldeversuche pro 15 Minuten von einer Adresse und die Grenze der
+öffentlichen Buchungsseite. Die Grenze von 20 Versuchen pro **Konto** schaut nicht auf die Adresse
+und gilt weiter, ein einzelnes Konto lässt sich so also nicht schneller durchprobieren.
+
+Sobald der Proxy funktioniert, eng es auf den Proxy allein ein:
+
+```dotenv
+# die Adresse des Proxys oder das Subnetz des Docker-Netzes, das er mit plMail teilt
+TRUSTED_PROXIES=127.0.0.1,172.20.0.0/16
+```
+
+`docker network inspect <netz> --format '{{(index .IPAM.Config 0).Subnet}}'` gibt das Subnetz eines
+Docker-Netzes aus. Ist der Port von plMail nur für den Proxy und nicht ins LAN veröffentlicht,
+kostet die weite Vorgabe nichts — es gibt sonst niemanden, dem geglaubt würde.
 
 **Der typische Fehlerfall ist, das als OAuth-Problem zu diagnostizieren.** Eine
 Redirect-URI-Abweichung nennt die URI, und das `http://` darin ist der ganze Hinweis.
@@ -255,6 +275,11 @@ müsste.
 eine Installation, die ihre eigene Konfiguration verwaltet, ist das das gewünschte Verhalten — es
 bedeutet aber auch: Änderst du die Adresse in der Compose-Datei und erwartest, dass der Wert aus dem
 Einrichtungsbildschirm zählt, bearbeitest du die falsche Stelle, und umgekehrt.
+
+**Die Vorgabe für `TRUSTED_PROXIES` glaubt deinem ganzen privaten Netz.** Deshalb funktioniert ein
+Proxy ohne weiteres Zutun, und es heißt, dass eine Maschine im LAN, die plMail direkt erreicht, ihre
+Adresse fälschen und die Ratenbegrenzung pro Adresse umgehen kann. Eng es ein, sobald der Proxy
+läuft — siehe oben.
 
 **Ein falsches `TRUSTED_PROXIES` sieht aus wie vier voneinander unabhängige Fehler.**
 OAuth-Abweichungen, ein von allen geteiltes Kontingent an Anmeldeversuchen, Cookies ohne `secure`

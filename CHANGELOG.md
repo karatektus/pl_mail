@@ -27,6 +27,18 @@ ran code, both of which let an outsider put misleading entries on a calendar unn
   server's verdict is believed when its name is on the same domain as the IMAP host.
 - **Mail in Spam or the bin is no longer read for events.** A message moved back out is read then.
 
+**A mail's styles can no longer draw over plMail when you reply to it or print it.** Inline styles
+are kept because in mail they are the design, and in the reading pane that is harmless: the message
+is in a sandboxed frame. The quote in the reply composer and the print page are not framed, and a
+mail using `position: fixed` could cover the composer with content of its own. Such declarations are
+now removed, and both places clip what is inside them. Also from #34.
+
+**The default `TRUSTED_PROXIES` is documented for what it is.** It trusts every private address so a
+reverse proxy works unconfigured, which also lets another machine on the LAN forge its address and
+step around the per-address limits on login and booking. The per-account login limit is unaffected.
+The default is unchanged — narrowing it blindly would break sign-in behind a proxy — and
+[Reverse proxy](docs/install/reverse-proxy.md) now says how and when to narrow it. Also from #34.
+
 Nothing already on a calendar is removed or changed by upgrading. One new nullable column,
 `event_source_link.hold_reason`. See
 [Invitations and events from mail](docs/features/calendar-invitations.md).

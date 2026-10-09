@@ -94,6 +94,26 @@ Get it wrong in the wide direction — trusting everything — and a client can 
 and present itself as any address it likes, which defeats the per-address rate limits and puts a
 chosen value into your logs.
 
+**The committed default is on the wide side of that, deliberately.** It trusts every private
+address, because the proxy's own address cannot be known in advance and leaving it out breaks the
+four things above. The price is that any other machine on your LAN, or any other container on the
+Docker network, that can reach plMail *without* going through the proxy is believed when it sends
+`X-Forwarded-For`. It can then pose as a new address for every request and step around the limits
+that count per address: the 25-per-15-minutes cap on login attempts from one address, and the cap
+on the public booking page. The limit of 20 attempts per **account** does not look at the address
+and still holds, so one account cannot be guessed at faster this way.
+
+Once the proxy works, narrow it to the proxy alone:
+
+```dotenv
+# the proxy's address, or the subnet of the Docker network it shares with plMail
+TRUSTED_PROXIES=127.0.0.1,172.20.0.0/16
+```
+
+`docker network inspect <network> --format '{{(index .IPAM.Config 0).Subnet}}'` prints the subnet
+of a Docker network. If plMail's port is published only to the proxy and not to the LAN, the wide
+default costs nothing — there is nobody else to believe.
+
 **The failure mode is diagnosing this as an OAuth problem.** A redirect-URI mismatch names the URI,
 and the `http://` in it is the entire clue.
 
@@ -234,6 +254,10 @@ re-subscribing anything.
 intended behaviour for a deployment that manages its own configuration — but it also means an
 operator who changes the address in the Compose file and expects the setup screen's value to matter
 is editing the wrong one, and vice versa.
+
+**The default `TRUSTED_PROXIES` believes your whole private network.** That is what makes a proxy
+work out of the box, and it means a machine on the LAN that reaches plMail directly can forge its
+address and dodge the per-address rate limits. Narrow it once the proxy is working — see above.
 
 **A wrong `TRUSTED_PROXIES` looks like four unrelated bugs.** OAuth mismatches, everyone sharing a
 login-attempt allowance, cookies without `secure`, and share links with the wrong scheme are all one
