@@ -8,6 +8,13 @@ The published image tags: `latest` follows the most recent release below,
 
 ## Unreleased
 
+**The Immich picker no longer lists the video half of a Live Photo.** Immich keeps it as an asset of
+its own, hidden from its timeline and without a preview, so the picker showed it as a grey tile that
+could only be attached as a three-second clip — on a library full of iPhone photos, a large share of
+the grid. Library, search, album and person views now leave those clips out. Archived photos stay,
+and so does anything a server that predates the `visibility` field sends. No migration.
+[#46](https://github.com/karatektus/pl_mail/issues/46).
+
 **Keyboard shortcuts, the ones Gmail uses.** `j` and `k` move through a list, `o` opens, `u` goes
 back, `x` selects, `e` archives, `#` deletes, `s` stars, `r` `a` `f` reply, reply to all and
 forward, `c` writes, `/` searches, `g` then a letter goes to a list, `z` undoes. **?** shows all of
