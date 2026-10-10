@@ -160,6 +160,26 @@ test.describe("reading pane right", () => {
         await expect(selected).toHaveAttribute("aria-current", "true");
     });
 
+    test("the list keeps following the mailbox while a message is open, asking for its own address", async ({ page }) => {
+        await openMessage(page);
+
+        // A refresh asks for the page's own address by default, and with a
+        // message open that is the MESSAGE's, whose list frame is empty by
+        // design and is dropped on arrival — so the list would stop updating
+        // for as long as anything was open. Beside the list it must ask for the
+        // list's address instead. Observed as the request itself: nothing in
+        // the seeded mailbox changes on cue, and a refresh that fetched the
+        // wrong address also changes nothing on screen, which is what made it
+        // easy to ship.
+        const refresh = page.waitForRequest(
+            (request) => "inbox-list-frame" === request.headers()["x-list-fragment"],
+        );
+
+        await page.evaluate(() => document.dispatchEvent(new Event("visibilitychange")));
+
+        expect(new URL((await refresh).url()).pathname).toBe("/mail/inbox");
+    });
+
     test("the back arrow closes the message and leaves the list where it was", async ({ page }) => {
         await openMessage(page);
 
