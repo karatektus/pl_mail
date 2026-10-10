@@ -160,6 +160,28 @@ test.describe("reading pane right", () => {
         await expect(selected).toHaveAttribute("aria-current", "true");
     });
 
+    test("the open row is still marked after the server replaces it", async ({ page }) => {
+        // Opening a message posts that it was read, and the answer is a
+        // turbo-stream that swaps the whole <li> for one the server rendered —
+        // which knows nothing about what is open. The mark was set on the old
+        // node and went with it about a hundred milliseconds later, and every
+        // other assertion in this file looks at the row before that happens.
+        // So this one waits for the replacement it is about, and fails loudly
+        // rather than passing early if the row is ever not replaced.
+        const before = await mailRow(page, INBOX_SUBJECTS.read).elementHandle();
+
+        await mailRow(page, INBOX_SUBJECTS.read).click();
+        await expect(page.locator('li[data-selected="true"]')).toHaveCount(1);
+
+        await page.waitForFunction((row) => false === row?.isConnected, before);
+
+        const selected = page.locator('li[data-selected="true"]');
+
+        await expect(selected).toHaveCount(1);
+        await expect(selected).toContainText(INBOX_SUBJECTS.read);
+        await expect(selected).toHaveAttribute("aria-current", "true");
+    });
+
     test("the list keeps following the mailbox while a message is open, asking for its own address", async ({ page }) => {
         await openMessage(page);
 

@@ -173,6 +173,29 @@ export default class extends Controller {
         this._onSplitLayout = () => this._fillBesideList();
         document.addEventListener("reading-split:layout", this._onSplitLayout);
 
+        // The open row's mark has to outlive anything that replaces the row.
+        //
+        // The morph keeps attributes this controller owns (see CLIENT_OWNED), but
+        // a morph is only one way a row is replaced. Opening a message posts
+        // that it was read, and the answer is a turbo-stream that swaps the
+        // whole <li> for a fresh one the server rendered — which knows nothing
+        // about what is open, so the mark was gone about a hundred milliseconds
+        // after it was set. Found by looking at a screenshot, not by a test:
+        // every assertion about the mark ran before the stream landed.
+        //
+        // So the rows are watched instead of the causes being enumerated. The
+        // check is one query and only does anything when a mark is wanted and
+        // missing; setting the attribute is not a child change, so this cannot
+        // observe itself.
+        this._selectionObserver = new MutationObserver(() => {
+            if (null === this._selectedPath || null !== this.listTarget.querySelector("li[data-selected]")) {
+                return;
+            }
+
+            this._markSelected(this._selectedPath);
+        });
+        this._selectionObserver.observe(this.listTarget, { childList: true, subtree: true });
+
         // The sidebar's mail links navigate the LIST FRAME rather than the
         // page (so the calendar pane holds perfectly still). This pane sits
         // outside that frame, so a swap would otherwise leave the previous
@@ -241,6 +264,7 @@ export default class extends Controller {
     disconnect() {
         window.removeEventListener("popstate", this._onPopState);
         document.removeEventListener("reading-split:layout", this._onSplitLayout);
+        this._selectionObserver?.disconnect();
         document.removeEventListener("turbo:frame-load", this._onListSwap);
         document.removeEventListener("visibilitychange", this._onVisibility);
 
