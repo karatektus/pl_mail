@@ -71,19 +71,23 @@ final readonly class MessageEmbedder
             return 0;
         }
 
-        $settings = $this->settings->currentOrDefault();
+        $settings = clone $this->settings->currentOrDefault();
 
-        $model  = (string) $settings->embeddingModel;
+        $model  = $settings->embeddingSpace();
         $stored = 0;
 
         foreach ($messages as $message) {
+            $current = $this->settings->currentOrDefault();
+            if (!$current->enabledFor(AiFeature::Search) || $current->embeddingSpace() !== $model) {
+                break;
+            }
             $id = $message->id;
 
             if (null === $id) {
                 continue;
             }
 
-            $vector = $this->ai->embed(AiCallFeature::MailIndex, $this->describe($message));
+            $vector = $this->ai->embedResult(AiCallFeature::MailIndex, $this->describe($message), $settings)->vector;
 
             if (null === $vector) {
                 // The host is down, the model was deleted, or this message has
@@ -93,18 +97,25 @@ final readonly class MessageEmbedder
                 continue;
             }
 
-            if (true === $this->store->store((int) $id, $vector, $model)) {
+            $current = $this->settings->currentOrDefault();
+            if (!$current->enabledFor(AiFeature::Search) || $current->embeddingSpace() !== $model) {
+                break;
+            }
+            // Claim the width once. A concurrent first batch must not overwrite it.
+            if (null === $current->embeddingDimensions) {
+                $this->entityManager->getConnection()->executeStatement(
+                    'UPDATE ai_settings SET embedding_dimensions = :width WHERE id = :id AND embedding_dimensions IS NULL AND embedding_reindex_required = FALSE AND (embedding_approved_space IS NULL OR embedding_approved_space = :space)',
+                    ['width' => count($vector), 'id' => $current->id, 'space' => $model],
+                );
+                $current = $this->settings->currentOrDefault();
+            }
+            if ($current->embeddingDimensions !== count($vector)) {
+                continue;
+            }
+            if (true === $this->store->store((int) $id, $vector, $model, true)) {
                 ++$stored;
             }
 
-            // Recorded the first time a model actually answers. The width is
-            // not in the model's name and 768 and 1024 are both common, so this
-            // is the only place it can be learned — and it is what lets a later
-            // change of model be detected rather than silently mixing widths.
-            if (null === $settings->embeddingDimensions) {
-                $settings->embeddingDimensions = count($vector);
-                $this->entityManager->flush();
-            }
         }
 
         return $stored;

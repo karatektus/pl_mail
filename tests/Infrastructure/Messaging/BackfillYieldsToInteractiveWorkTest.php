@@ -73,7 +73,7 @@ final class BackfillYieldsToInteractiveWorkTest extends KernelTestCase
         // Somebody just asked the composer for a draft.
         self::getContainer()->get(InteractiveAiActivity::class)->touch($now);
 
-        ($this->handler)(new BackfillEmbeddingsMessage(1, 500));
+        ($this->handler)(new BackfillEmbeddingsMessage(1, 500, $this->state->current()->runId));
 
         $run = $this->state->current();
 
@@ -124,7 +124,7 @@ final class BackfillYieldsToInteractiveWorkTest extends KernelTestCase
         $this->state->begin('nomic-embed-text', [1], $now);
         $this->state->recordChunk(1, 900, false, 0, $now);
 
-        ($this->handler)(new BackfillEmbeddingsMessage(1, 100));
+        ($this->handler)(new BackfillEmbeddingsMessage(1, 100, $this->state->current()->runId));
 
         self::assertCount(0, $this->queue()->getSent());
         self::assertSame(900, $this->state->current()->cursorFor(1));
@@ -148,6 +148,9 @@ final class BackfillYieldsToInteractiveWorkTest extends KernelTestCase
         $em       = self::getContainer()->get(EntityManagerInterface::class);
         $settings = $em->getRepository(AiSettings::class)->findOneBy([]) ?? new AiSettings();
 
+        $settings->embeddingBaseUrl = null;
+        $settings->embeddingApprovedSpace = null;
+        $settings->embeddingReindexRequired = false;
         $settings->isEnabled      = true;
         $settings->baseUrl        = 'http://model-host.invalid:11434';
         $settings->embeddingModel = 'nomic-embed-text';

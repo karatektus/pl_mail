@@ -110,6 +110,10 @@ final readonly class AdminAiStepHandler implements OnboardingStepHandlerInterfac
         if ('' !== trim($openAiToken)) {
             $settings->openAiApiToken = $openAiToken;
         }
+        $embeddingToken = (string) $form->get('embeddingApiToken')->getData();
+        if ('' !== trim($embeddingToken)) {
+            $settings->embeddingApiToken = $embeddingToken;
+        }
         $token = (string) $form->get('apiToken')->getData();
 
         if ('' !== trim($token)) {

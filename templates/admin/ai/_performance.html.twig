@@ -425,7 +425,7 @@ there is no other screen anywhere that would tell you.
             {% endif %}
 
             {% if backfill.blockedReason %}
-                <p class="text-sm text-ink-soft leading-relaxed">{{ 'admin.ai.backfill.search_off'|trans }}</p>
+                <p class="text-sm text-ink-soft leading-relaxed">{{ (backfill.blockedReason == 'approval_required' ? 'admin.ai.embedding.approval_required' : 'admin.ai.backfill.search_off')|trans }}</p>
             {% endif %}
 
             {% if backfill.eligible > 0 %}

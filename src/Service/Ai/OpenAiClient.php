@@ -126,13 +126,37 @@ final readonly class OpenAiClient
         }
     }
 
+    public function embed(string $baseUrl, string $model, string $text, ?string $key = null): \App\Domain\DTO\Ai\AiEmbedResult
+    {
+        $response = null;
+        try {
+            $response = $this->http->request('POST', $this->url($baseUrl, '/embeddings'), $this->options($key, ['model'=>$model, 'input'=>$text]));
+            if (200 !== $response->getStatusCode()) return \App\Domain\DTO\Ai\AiEmbedResult::failed(OllamaClient::ERROR_HTTP_STATUS);
+            $body = $response->toArray(false);
+            $entries = $body['data'] ?? null;
+            if (!is_array($entries) || count($entries)!==1 || ($entries[0]['index'] ?? null)!==0 || !is_array($entries[0]['embedding'] ?? null) || !array_is_list($entries[0]['embedding']) || [] === $entries[0]['embedding']) return \App\Domain\DTO\Ai\AiEmbedResult::failed(OllamaClient::ERROR_BAD_RESPONSE);
+            $vector = [];
+            foreach ($entries[0]['embedding'] as $component) {
+                if ((!is_int($component) && !is_float($component)) || !is_finite((float)$component)) return \App\Domain\DTO\Ai\AiEmbedResult::failed(OllamaClient::ERROR_BAD_RESPONSE);
+                $vector[] = (float)$component;
+            }
+            return \App\Domain\DTO\Ai\AiEmbedResult::ok($vector, $this->timing($body));
+        } catch (TimeoutExceptionInterface) {
+            return \App\Domain\DTO\Ai\AiEmbedResult::failed(OllamaClient::ERROR_TIMEOUT);
+        } catch (DecodingExceptionInterface) {
+            return \App\Domain\DTO\Ai\AiEmbedResult::failed(OllamaClient::ERROR_BAD_RESPONSE);
+        } catch (\Throwable) {
+            return \App\Domain\DTO\Ai\AiEmbedResult::failed(OllamaClient::ERROR_UNREACHABLE);
+        } finally { $response?->cancel(); }
+    }
+
     /** Optional discovery; generation itself never depends on /models. */
-    public function probe(string $baseUrl, ?string $key = null, float $timeout = 2.5): AiProbe
+    public function probe(string $baseUrl, ?string $key = null, float $timeout = 2.5, bool $embeddings = false): AiProbe
     {
         try {
             $options = $this->options($key);
             $options['max_duration'] = $timeout;
-            $response = $this->http->request('GET', $this->url($baseUrl, '/models'), $options);
+            $response = $this->http->request('GET', $this->url($baseUrl, $embeddings && 'openrouter.ai' === strtolower((string)parse_url($baseUrl, PHP_URL_HOST)) ? '/embeddings/models' : '/models'), $options);
             if (200 !== $response->getStatusCode()) {
                 return AiProbe::unreachable(match ($response->getStatusCode()) { 401 => 'unauthorized', 403 => 'forbidden', 404 => 'not_found', 429 => 'rate_limit', default => 'status' }, ['status' => $response->getStatusCode()]);
             }

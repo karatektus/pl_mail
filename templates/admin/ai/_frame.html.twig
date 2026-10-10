@@ -142,7 +142,7 @@ poll would empty a field mid-word.
                 {% endif %}
             {% endif %}
 
-            {{ form_start(form, { attr: { 'data-turbo-frame': 'admin-ai' } }) }}
+            {{ form_start(form, { attr: { 'data-turbo-frame': 'admin-ai', 'data-controller': 'admin--ai-provider', 'data-action': 'change->admin--ai-provider#update' } }) }}
                 <div class="space-y-4">
                     {# Rendered row by row rather than with form_widget(form),
                        for one reason: the warm-up button has to sit with the
@@ -157,10 +157,13 @@ poll would empty a field mid-word.
                         {{ form_errors(form) }}
 
                         {{ form_row(form.isEnabled) }}
+                        <h3 class="text-sm font-semibold">{{ 'admin.ai.generation.heading'|trans }}</h3>
                         {{ form_row(form.chatProvider) }}
+                        <div data-ai-panel="generationOpenai" class="space-y-5">
                         {{ form_row(form.openAiBaseUrl) }}
                         {{ form_row(form.openAiModel) }}
                         {{ form_row(form.openAiApiToken) }}
+                        </div><div data-ai-panel="generationOllama" class="space-y-5">
                         {{ form_row(form.baseUrl) }}
                         {{ form_row(form.apiToken) }}
 
@@ -224,6 +227,17 @@ poll would empty a field mid-word.
                         </div>
 
                         {% endif %}
+                        </div>
+                        {{ form_row(form.searchEnabled) }}
+                        <div data-ai-panel="embeddings" class="space-y-5">
+                        <h3 class="text-sm font-semibold">{{ 'admin.ai.embedding.heading'|trans }}</h3>
+                        <p class="text-sm text-ink-soft">{{ 'admin.ai.embedding.explanation'|trans }}</p>
+                        {{ form_row(form.embeddingSharedConnection) }}
+                        <div data-ai-panel="independent" class="space-y-5">
+                        {{ form_row(form.embeddingProvider) }}
+                        {{ form_row(form.embeddingBaseUrl) }}
+                        {{ form_row(form.embeddingApiToken) }}
+                        </div>
 
                         {# The model, its query instruction and its threshold
                            are one decision written in three boxes: any two of
@@ -234,7 +248,7 @@ poll would empty a field mid-word.
                            measurements behind each. #}
                         <div data-controller="admin--embedding-preset"
                              class="flex flex-col gap-3">
-                            {{ form_row(form.embeddingModel) }}
+                            {{ form_row(form.embeddingModel) }}{{ form_row(form.embeddingRevision) }}
 
                             {# Autocomplete on the free-text field. A closed
                                dropdown would refuse a model that works; this
@@ -245,7 +259,7 @@ poll would empty a field mid-word.
                                 {% endfor %}
                             </datalist>
 
-                            <div class="flex flex-col gap-1.5">
+                            <div data-ai-panel="embeddingOllama" class="flex flex-col gap-1.5">
                                 <p class="text-[12px] text-muted">{{ 'admin.ai.embedding_preset.heading'|trans }}</p>
 
                                 {% for preset in embedding_presets() %}
@@ -265,9 +279,9 @@ poll would empty a field mid-word.
                             {{ form_row(form.semanticMinSimilarity) }}
                         </div>
 
-                        {{ form_row(form.embeddingKeepAlive) }}
-
-                        {{ form_row(form.searchEnabled) }}
+                        <div data-ai-panel="embeddingOllama">{{ form_row(form.embeddingKeepAlive) }}</div>
+                        <button type="submit" name="probe_target" value="embeddings" formaction="{{ path('app_admin_ai_test') }}" class="btn-quiet rounded-lg px-3 py-2">{{ 'admin.ai.embedding.test'|trans }}</button>
+                        </div>
                         {{ form_row(form.categorisationEnabled) }}
 
                         {# The two that qualify the switch above, set in from
@@ -326,6 +340,14 @@ poll would empty a field mid-word.
                     </div>
                 </div>
             {{ form_end(form) }}
+            {% if settings.embeddingReindexRequired %}
+                <form method="post" action="{{ path('app_admin_ai_approve_embeddings') }}" data-turbo-frame="admin-ai" class="mt-4 space-y-3">
+                    <p role="alert" class="text-sm text-amber-500">{{ 'admin.ai.embedding.confirmation'|trans({ '%count%': embedding_count|default(0) }) }}</p>
+                    <input type="hidden" name="_token" value="{{ csrf_token('admin-ai-embedding-index') }}">
+                    <input type="hidden" name="space" value="{{ settings.embeddingSpace }}">
+                    <button type="submit" class="btn-quiet rounded-lg px-3 py-2">{{ 'admin.ai.embedding.confirm'|trans }}</button>
+                </form>
+            {% endif %}
         </div>
     </details>
 

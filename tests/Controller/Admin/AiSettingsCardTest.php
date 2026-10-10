@@ -66,6 +66,34 @@ final class AiSettingsCardTest extends WebTestCase
         parent::tearDown();
     }
 
+    public function testIndexChangeRequiresSeparateCsrfAndExactSpaceConfirmation(): void
+    {
+        $this->client->disableReboot();
+        $this->connection->executeStatement('DELETE FROM ai_settings');
+        $settings = new \App\Entity\Ai\AiSettings();
+        $settings->isEnabled = $settings->searchEnabled = true;
+        $settings->embeddingProvider = 'openai';
+        $settings->embeddingBaseUrl = 'https://synthetic.test/v1';
+        $settings->embeddingModel = 'embedding-only';
+        $settings->embeddingReindexRequired = true;
+        $settings->embeddingApprovedSpace = 'previous-space';
+        $this->em->persist($settings);
+        $this->em->flush();
+        $space = $settings->embeddingSpace();
+        $crawler = $this->client->request('GET', '/admin/ai');
+        $token = $crawler->filter('form[action="/admin/ai/approve-embeddings"] input[name="_token"]')->attr('value');
+        $this->client->request('POST', '/admin/ai/approve-embeddings', ['_token'=>'invalid','space'=>$space]);
+        self::assertResponseStatusCodeSame(403);
+        self::assertTrue($this->settings->currentOrDefault()->embeddingReindexRequired);
+        $this->client->request('POST', '/admin/ai/approve-embeddings', ['_token'=>$token,'space'=>'stale-space']);
+        self::assertResponseStatusCodeSame(403);
+        self::assertTrue($this->settings->currentOrDefault()->embeddingReindexRequired);
+        $this->client->request('POST', '/admin/ai/approve-embeddings', ['_token'=>$token,'space'=>$space]);
+        self::assertResponseRedirects('/admin/ai');
+        self::assertFalse($this->settings->currentOrDefault()->embeddingReindexRequired);
+        self::assertSame($space, $this->settings->currentOrDefault()->embeddingApprovedSpace);
+    }
+
     public function testFirstCompatibleProbeUsesValidatedSnapshotWithoutSavingOrLeakingKey(): void
     {
         $this->client->disableReboot();

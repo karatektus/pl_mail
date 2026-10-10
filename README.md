@@ -59,7 +59,7 @@ provider doesn't.
   the foot of the sidebar with the next thing coming up.
 - **Files where you keep them** — attach from and save to Drive, Photos, OneDrive, Dropbox,
   Nextcloud, Immich and Paperless-ngx.
-- **A language model, if you want one** — use Ollama on your own network for semantic search, or an OpenAI-compatible endpoint for text generation. It
+- **A language model, if you want one** — use Ollama or an OpenAI-compatible endpoint, with separate generation and embedding models. It
   can search by meaning, draft replies, summarise a thread and sort mail into tabs. A long thread is
   summarised from as much of it as fits, and says so; ask for the whole conversation and it runs as a
   job with a context window to match. What it has been told about how you write is editable in the

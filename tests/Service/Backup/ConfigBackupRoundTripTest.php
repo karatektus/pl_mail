@@ -117,6 +117,26 @@ final class ConfigBackupRoundTripTest extends KernelTestCase
         parent::tearDown();
     }
 
+    public function testRestoreCannotApprovePendingEmbeddingConfiguration(): void
+    {
+        $settings = new AiSettings();
+        $settings->embeddingProvider = 'openai';
+        $settings->embeddingBaseUrl = 'https://old.synthetic.test/v1';
+        $settings->embeddingModel = 'embedding-model';
+        $settings->embeddingApprovedSpace = $settings->embeddingSpace();
+        $settings->embeddingBaseUrl = 'https://new.synthetic.test/v1';
+        $settings->embeddingReindexRequired = true;
+        $this->entityManager->persist($settings);
+        $this->entityManager->flush();
+        static::getContainer()->get(\App\Service\Backup\ConfigBackupDatabase::class)->restoreAiSettings([
+            'isEnabled' => true, 'searchEnabled' => true, 'embeddingProvider' => 'openai',
+            'embeddingBaseUrl' => 'https://new.synthetic.test/v1', 'embeddingModel' => 'embedding-model',
+        ]);
+        $restored = static::getContainer()->get(AiSettingsRepository::class)->currentOrDefault();
+        self::assertTrue($restored->embeddingReindexRequired);
+        self::assertFalse($restored->embeddingSpaceApproved());
+    }
+
     public function testTheWholeRoundTripIntoAFreshInstall(): void
     {
         $aliasId = $this->seedTheInstall();

@@ -116,6 +116,85 @@ final class EmbeddingStoreTest extends KernelTestCase
         parent::tearDown();
     }
 
+    public function testEqualWidthVectorsFromOtherEndpointAreIsolatedAndLateWritesRefused(): void
+    {
+        $settings = new \App\Entity\Ai\AiSettings();
+        $settings->isEnabled = $settings->searchEnabled = true;
+        $settings->embeddingModel = 'same-model';
+        $settings->embeddingProvider = 'openai';
+        $settings->embeddingBaseUrl = 'https://first.synthetic.test/v1';
+        $old = $settings->embeddingSpace();
+        $settings->embeddingBaseUrl = 'https://second.synthetic.test/v1';
+        $fresh = $settings->embeddingSpace();
+        $settings->embeddingApprovedSpace = $fresh;
+        $this->connection->executeStatement('DELETE FROM ai_settings');
+        $this->em->persist($settings);
+        $this->em->flush();
+        self::assertTrue($this->store->store($this->messageId, [1.0, 0.0], $fresh, true));
+        self::assertFalse($this->store->store($this->messageId, [0.0, 1.0], $old, true));
+        self::assertSame([], $this->store->alreadyStored([$this->messageId], $old));
+        self::assertSame([$this->messageId], $this->store->alreadyStored([$this->messageId], $fresh));
+        self::assertSame(0, $this->store->coverageFor($this->userId, $old)['embedded']);
+        self::assertSame(1, $this->store->coverageFor($this->userId, $fresh)['embedded']);
+    }
+
+    public function testMigrationPreservesLegacyOllamaVectorsAndEncryptedCredential(): void
+    {
+        $this->connection->executeStatement('DELETE FROM ai_settings');
+        $settings = new \App\Entity\Ai\AiSettings();
+        $settings->baseUrl = 'http://legacy.synthetic.test:11434';
+        $settings->apiToken = 'synthetic-legacy-secret';
+        $settings->embeddingModel = 'legacy-embedding';
+        $this->em->persist($settings);
+        $this->em->flush();
+        $encrypted = $this->connection->fetchOne('SELECT api_token FROM ai_settings');
+        self::assertTrue($this->store->store($this->messageId, [1.0, 0.0], 'legacy-embedding'));
+        $this->connection->executeStatement('ALTER TABLE ai_settings DROP embedding_revision, DROP embedding_provider, DROP embedding_shared_connection, DROP embedding_base_url, DROP embedding_api_token, DROP embedding_approved_space, DROP embedding_reindex_required');
+        $this->connection->executeStatement('ALTER TABLE ai_backfill_state DROP run_id');
+        require_once dirname(__DIR__, 3) . '/migrations/Version20261010140000.php';
+        $migration = (new \ReflectionClass('DoctrineMigrations\\Version20261010140000'))->newInstance($this->connection, new NullLogger());
+        self::assertInstanceOf(\Doctrine\Migrations\AbstractMigration::class, $migration);
+        $migration->up(new \Doctrine\DBAL\Schema\Schema());
+        foreach ($migration->getSql() as $query) $this->connection->executeStatement($query->getStatement(), $query->getParameters(), $query->getTypes());
+        $space = \App\Domain\Ai\EmbeddingSpace::identity('ollama', $settings->baseUrl, $settings->embeddingModel);
+        self::assertSame($space, $this->connection->fetchOne('SELECT model FROM message_embedding WHERE message_id = ?', [$this->messageId]));
+        self::assertSame($encrypted, $this->connection->fetchOne('SELECT embedding_api_token FROM ai_settings'));
+        self::assertSame($settings->baseUrl, $this->connection->fetchOne('SELECT embedding_base_url FROM ai_settings'));
+    }
+
+    public function testInFlightOldProviderCannotOverwriteNewSpaceOrContinueItsBatch(): void
+    {
+        $this->connection->executeStatement('DELETE FROM ai_settings');
+        $settings = new \App\Entity\Ai\AiSettings();
+        $settings->isEnabled = $settings->searchEnabled = true;
+        $settings->embeddingProvider = 'openai';
+        $settings->embeddingBaseUrl = 'https://first.synthetic.test/v1';
+        $settings->embeddingModel = 'same-model';
+        $settings->embeddingDimensions = 2;
+        $settings->embeddingApprovedSpace = $settings->embeddingSpace();
+        $this->em->persist($settings);
+        $this->em->flush();
+        $calls = 0;
+        $http = new \Symfony\Component\HttpClient\MockHttpClient(function () use ($settings, &$calls) {
+            ++$calls;
+            $settings->embeddingBaseUrl = 'https://second.synthetic.test/v1';
+            $settings->embeddingApprovedSpace = $settings->embeddingSpace();
+            $this->em->flush();
+            self::assertTrue($this->store->store($this->messageId, [0.0, 1.0], $settings->embeddingSpace(), true));
+            return new \Symfony\Component\HttpClient\Response\MockResponse('{"data":[{"index":0,"embedding":[1,0]}]}');
+        });
+        $repository = self::getContainer()->get(\App\Repository\Ai\AiSettingsRepository::class);
+        $ai = new \App\Service\Ai\AiAssistant($repository, new \App\Service\Ai\OllamaClient($http, new NullLogger()), self::getContainer()->get(\App\Service\Ai\AiCallRecorder::class), new NullLogger(), new \App\Service\Ai\OpenAiClient($http));
+        $embedder = new \App\Service\Ai\MessageEmbedder($ai, new \App\Service\Ai\AiPermissions($ai), $this->store, $repository, $this->em);
+        $user = $this->em->find(\App\Entity\User\User::class, $this->userId);
+        $message = $this->em->find(\App\Entity\Mail\Message::class, $this->messageId);
+        self::assertInstanceOf(\App\Entity\Mail\Message::class, $message);
+        self::assertSame(0, $embedder->embedAll($user, [$message, $message]));
+        self::assertSame(1, $calls);
+        self::assertSame($settings->embeddingSpace(), $this->connection->fetchOne('SELECT model FROM message_embedding WHERE message_id = ?', [$this->messageId]));
+        self::assertSame('{0,1}', $this->connection->fetchOne('SELECT embedding::text FROM message_embedding WHERE message_id = ?', [$this->messageId]));
+    }
+
     public function testAStoredVectorComesBackWithUnitLength(): void
     {
         // Deliberately not unit length going in.

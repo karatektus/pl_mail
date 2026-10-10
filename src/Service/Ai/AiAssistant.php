@@ -140,9 +140,9 @@ final readonly class AiAssistant
      * both carry an error kind of their own so a caller can tell them from a
      * host that answered badly.
      */
-    public function embedResult(AiCallFeature $workload, string $text): AiEmbedResult
+    public function embedResult(AiCallFeature $workload, string $text, ?AiSettings $snapshot = null): AiEmbedResult
     {
-        $settings = $this->settings();
+        $settings = $snapshot ?? $this->settings();
 
         if (false === $settings->enabledFor(AiFeature::Search)) {
             return AiEmbedResult::failed(self::ERROR_DISABLED);
@@ -154,11 +154,14 @@ final readonly class AiAssistant
 
         $model = (string) $settings->embeddingModel;
 
-        $result = $this->client->embed(
-            (string) $settings->baseUrl,
+        $result = 'openai' === $settings->effectiveEmbeddingProvider()
+            ? ($this->openAi?->embed((string)$settings->effectiveEmbeddingUrl(), $model, $text, $settings->effectiveEmbeddingToken()) ?? AiEmbedResult::failed(OllamaClient::ERROR_UNREACHABLE))
+            : $this->client->embed(
+            (string) $settings->effectiveEmbeddingUrl(),
             $model,
             $text,
             $settings->keepAliveFor(AiFeature::Search),
+            $settings->effectiveEmbeddingToken(),
         );
 
         // Recorded here rather than in the client, because the client knows the
@@ -223,7 +226,7 @@ final readonly class AiAssistant
         $result = 'openai' === $settings->chatProvider
             ? $this->openAi?->chat((string) $settings->openAiBaseUrl, $model, $messages, $temperature, $settings->openAiApiToken)
                 ?? AiChatResult::failed(OllamaClient::ERROR_UNREACHABLE)
-            : $this->client->chat(
+            : $this->client->authenticated($settings->apiToken)->chat(
             (string) $settings->baseUrl,
             $model,
             $messages,
@@ -301,7 +304,7 @@ final readonly class AiAssistant
             $model,
             ('openai' === $settings->chatProvider
                 ? $this->openAi->chatStream((string) $settings->openAiBaseUrl, $model, $messages, $temperature, $settings->openAiApiToken, $timeout)
-                : $this->client->chatStream(
+                : $this->client->authenticated($settings->apiToken)->chatStream(
                 (string) $settings->baseUrl,
                 $model,
                 $messages,
@@ -351,7 +354,7 @@ final readonly class AiAssistant
             return false;
         }
 
-        foreach ($this->client->ps((string) $settings->baseUrl, self::RESIDENCY_TIMEOUT) as $loaded) {
+        foreach ($this->client->authenticated($settings->apiToken)->ps((string) $settings->baseUrl, self::RESIDENCY_TIMEOUT) as $loaded) {
             if ($wanted === self::tagged($loaded->name)) {
                 return true;
             }
@@ -471,7 +474,15 @@ final readonly class AiAssistant
             return AiProbe::unreachable('no_host');
         }
 
-        return $this->client->probe($target);
+        return $this->client->authenticated($target === $settings->baseUrl ? $settings->apiToken : null)->probe($target);
+    }
+
+    public function probeEmbeddingSettings(AiSettings $settings): AiProbe
+    {
+        if ('openai' === $settings->effectiveEmbeddingProvider()) {
+            return $this->openAi?->probe((string)$settings->effectiveEmbeddingUrl(), $settings->effectiveEmbeddingToken(), embeddings: true) ?? AiProbe::unreachable('unreachable');
+        }
+        return null === $settings->effectiveEmbeddingUrl() ? AiProbe::unreachable('no_host') : $this->client->authenticated($settings->effectiveEmbeddingToken())->probe((string)$settings->effectiveEmbeddingUrl());
     }
 
     /** Probe the validated, unsaved form snapshot, including first-time setup. */
@@ -484,7 +495,7 @@ final readonly class AiAssistant
         if (null === $settings->baseUrl || '' === trim($settings->baseUrl)) {
             return AiProbe::unreachable('no_host');
         }
-        return $this->client->probe($settings->baseUrl);
+        return $this->client->authenticated($settings->apiToken)->probe($settings->baseUrl);
     }
 
     /**
@@ -536,7 +547,7 @@ final readonly class AiAssistant
             return AiWarmUp::failed('no_model');
         }
 
-        return $this->client->preload(
+        return $this->client->authenticated($settings->apiToken)->preload(
             (string) $settings->baseUrl,
             trim($model),
             $settings->keepAliveFor(AiFeature::WritingHelp),

@@ -256,6 +256,11 @@ final readonly class ConfigBackupDatabase
             'openAiModel'           => $settings->openAiModel,
             'chatModel'             => $settings->chatModel,
             'chatKeepAlive'         => $settings->chatKeepAlive,
+            'embeddingRevision' => $settings->embeddingRevision,
+            'embeddingProvider' => $settings->embeddingProvider,
+            'embeddingSharedConnection' => $settings->embeddingSharedConnection,
+            'embeddingBaseUrl' => $settings->embeddingBaseUrl,
+            'embeddingApiToken' => $settings->embeddingApiToken,
             'embeddingModel'        => $settings->embeddingModel,
             'embeddingKeepAlive'    => $settings->embeddingKeepAlive,
             'embeddingDimensions'   => $settings->embeddingDimensions,
@@ -297,6 +302,8 @@ final readonly class ConfigBackupDatabase
     public function restoreAiSettings(array $values): void
     {
         $settings = $this->aiSettings->current() ?? new AiSettings();
+        $oldSpace = $settings->embeddingApprovedSpace ?? $settings->embeddingSpace();
+        $pendingApproval = $settings->embeddingReindexRequired;
 
         $settings->isEnabled             = true === ($values['isEnabled'] ?? false);
         $settings->baseUrl               = $this->string($values, 'baseUrl');
@@ -306,6 +313,11 @@ final readonly class ConfigBackupDatabase
         $settings->openAiApiToken        = $this->string($values, 'openAiApiToken');
         $settings->openAiModel           = $this->string($values, 'openAiModel');
         $settings->chatModel             = $this->string($values, 'chatModel');
+        $settings->embeddingRevision = $this->string($values, 'embeddingRevision');
+        $settings->embeddingProvider = 'openai' === ($values['embeddingProvider'] ?? null) ? 'openai' : 'ollama';
+        $settings->embeddingSharedConnection = true === ($values['embeddingSharedConnection'] ?? false);
+        $settings->embeddingBaseUrl = $this->string($values, 'embeddingBaseUrl') ?? $settings->baseUrl;
+        $settings->embeddingApiToken = $this->string($values, 'embeddingApiToken');
         $settings->embeddingModel        = $this->string($values, 'embeddingModel');
         // Through KeepAlive::normalised() rather than string() alone, because
         // this is the one writer that is not the form. A file can carry
@@ -326,6 +338,9 @@ final readonly class ConfigBackupDatabase
         $settings->holdMaxSeconds        = is_int($values['holdMaxSeconds'] ?? null) ? $values['holdMaxSeconds'] : AiSettings::DEFAULT_HOLD_MAX_SECONDS;
         $settings->writingHelpEnabled    = true === ($values['writingHelpEnabled'] ?? false);
         $settings->summaryEnabled        = true === ($values['summaryEnabled'] ?? false);
+
+        $settings->embeddingReindexRequired = $pendingApproval || $oldSpace !== $settings->embeddingSpace();
+        $settings->embeddingApprovedSpace = $oldSpace;
 
         $prompts = $values['prompts'] ?? [];
 

@@ -92,6 +92,9 @@ final readonly class BackfillEmbeddingsHandler
     {
         $now = new DateTimeImmutable();
         $run = $this->state->current();
+        if ($run->runId !== $message->runId || (null !== $message->spaceIdentity && $message->spaceIdentity !== $this->settings->currentOrDefault()->embeddingSpace())) {
+            return;
+        }
 
         // Asked every chunk, so Pause in the admin panel stops the walk within
         // one chunk rather than at the end of a mailbox — and so does a run
@@ -128,7 +131,7 @@ final readonly class BackfillEmbeddingsHandler
         // return: "it stopped because you switched it off" is a sentence the
         // panel can say, and "it stopped" is not.
         if (false === $this->ai->isEnabledFor(AiFeature::Search)) {
-            $this->state->pause(BackfillPauseReason::FeatureOff, $now);
+            $this->state->pause(BackfillPauseReason::FeatureOff, $now, $message->runId);
 
             $this->logger->info('BackfillEmbeddings: stopping, the feature is off', [
                 'userId' => $message->userId,
@@ -140,9 +143,9 @@ final readonly class BackfillEmbeddingsHandler
         // Somebody is using the AI. Step aside and come back — before any work,
         // because the whole value of this is not being in front of them.
         if (true === $this->activity->shouldYield($this->policy->cooldownSeconds, $now)) {
-            $this->state->yieldFor(BackfillPauseReason::Interactive, $now);
+            $this->state->yieldFor(BackfillPauseReason::Interactive, $now, $message->runId);
 
-            $this->postNext($message->userId, $message->afterMessageId, $this->activity->secondsUntilQuiet($this->policy->cooldownSeconds, $now) * 1000);
+            $this->postNext($message->userId, $message->afterMessageId, $this->activity->secondsUntilQuiet($this->policy->cooldownSeconds, $now) * 1000, $message);
 
             return;
         }
@@ -157,8 +160,8 @@ final readonly class BackfillEmbeddingsHandler
             // The mailbox went away mid-run — a user deleted while a backfill
             // was walking. Marked finished rather than left pending, or the run
             // could never reach "complete".
-            $this->state->recordChunk($message->userId, $message->afterMessageId, true, 0, $now);
-            $this->finishIfDone($now);
+            $this->state->recordChunk($message->userId, $message->afterMessageId, true, 0, $now, $message->runId);
+            $this->finishIfDone($now, $message->runId);
 
             return;
         }
@@ -174,8 +177,8 @@ final readonly class BackfillEmbeddingsHandler
             // installation; this is one mailbox out of many opting out, and
             // stopping everybody's backfill for it would be the wrong scope.
             // Its own log line, because the two are different facts.
-            $this->state->recordChunk($message->userId, $message->afterMessageId, true, 0, $now);
-            $this->finishIfDone($now);
+            $this->state->recordChunk($message->userId, $message->afterMessageId, true, 0, $now, $message->runId);
+            $this->finishIfDone($now, $message->runId);
 
             $this->logger->info('BackfillEmbeddings: skipping a mailbox whose owner has search switched off', [
                 'userId' => $message->userId,
@@ -187,18 +190,18 @@ final readonly class BackfillEmbeddingsHandler
         $ids = $this->messages->idsForUserAfter($message->userId, $message->afterMessageId, $this->policy->batchSize);
 
         if ([] === $ids) {
-            $this->state->recordChunk($message->userId, $message->afterMessageId, true, 0, $now);
-            $this->finishIfDone($now);
+            $this->state->recordChunk($message->userId, $message->afterMessageId, true, 0, $now, $message->runId);
+            $this->finishIfDone($now, $message->runId);
 
             $this->logger->info('BackfillEmbeddings: finished a mailbox', [
                 'userId'   => $message->userId,
-                'embedded' => $this->store->countFor((string) $this->settings->currentOrDefault()->embeddingModel),
+                'embedded' => $this->store->countFor($this->settings->currentOrDefault()->embeddingSpace()),
             ]);
 
             return;
         }
 
-        $model   = (string) $this->settings->currentOrDefault()->embeddingModel;
+        $model   = $this->settings->currentOrDefault()->embeddingSpace();
         $done    = $this->store->alreadyStored($ids, $model);
         $pending = array_values(array_diff($ids, $done));
         $stored  = 0;
@@ -207,18 +210,23 @@ final readonly class BackfillEmbeddingsHandler
             $stored = $this->embedder->embedAll($user, $this->messages->findByIds($pending));
         }
 
+        if ($this->state->current()->runId !== $message->runId) {
+            $this->entityManager->clear();
+            return;
+        }
+
         // A whole chunk that stored nothing, with work to do, is a host that is
         // not answering — one message can fail for its own reasons, fifty in a
         // row cannot. Retried on a long delay rather than failed outright,
         // because a host that is rebooting comes back and a backfill that gave
         // up on the first blink would need restarting by hand every time.
         if ([] !== $pending && 0 === $stored) {
-            $inARow = $this->state->noteEmptyChunk($now);
+            $inARow = $this->state->noteEmptyChunk($now, $message->runId);
 
             $this->entityManager->clear();
 
             if ($inARow >= $this->policy->maxEmptyChunks) {
-                $this->state->markFailed('no_answer', $now);
+                $this->state->markFailed('no_answer', $now, $message->runId);
 
                 $this->logger->warning('BackfillEmbeddings: giving up, the host answered nothing', [
                     'userId'   => $message->userId,
@@ -228,12 +236,12 @@ final readonly class BackfillEmbeddingsHandler
                 return;
             }
 
-            $this->state->yieldFor(BackfillPauseReason::HostUnreachable, $now);
+            $this->state->yieldFor(BackfillPauseReason::HostUnreachable, $now, $message->runId);
 
             // The SAME cursor: nothing was stored, so there is nothing to step
             // past. Advancing here would silently skip a chunk of the mailbox
             // every time the host blinked.
-            $this->postNext($message->userId, $message->afterMessageId, $this->policy->retrySeconds * 1000);
+            $this->postNext($message->userId, $message->afterMessageId, $this->policy->retrySeconds * 1000, $message);
 
             return;
         }
@@ -244,14 +252,14 @@ final readonly class BackfillEmbeddingsHandler
         // nothing was written for it.
         $cursor = max($ids);
 
-        $this->state->recordChunk($message->userId, $cursor, false, count($pending) - $stored, $now);
+        $this->state->recordChunk($message->userId, $cursor, false, count($pending) - $stored, $now, $message->runId);
 
         // Cleared before posting the next chunk: this handler has walked a
         // batch of entities it will never look at again, and a long walk that
         // keeps every one is killed for memory rather than finishing.
         $this->entityManager->clear();
 
-        $this->postNext($message->userId, $cursor, $this->policy->pauseMs);
+        $this->postNext($message->userId, $cursor, $this->policy->pauseMs, $message);
     }
 
     /**
@@ -262,9 +270,9 @@ final readonly class BackfillEmbeddingsHandler
      * and admin sweeps that is a worker nobody else can have. A delayed message
      * costs a row's available_at and frees the process entirely.
      */
-    private function postNext(int $userId, ?int $afterMessageId, int $delayMs): void
+    private function postNext(int $userId, ?int $afterMessageId, int $delayMs, BackfillEmbeddingsMessage $source): void
     {
-        $envelope = new BackfillEmbeddingsMessage($userId, $afterMessageId);
+        $envelope = new BackfillEmbeddingsMessage($userId, $afterMessageId, $source->runId, $source->spaceIdentity);
 
         $this->bus->dispatch(
             $envelope,
@@ -273,10 +281,10 @@ final readonly class BackfillEmbeddingsHandler
     }
 
     /** The run is complete once every mailbox in it has been walked to the end. */
-    private function finishIfDone(DateTimeImmutable $now): void
+    private function finishIfDone(DateTimeImmutable $now, ?string $runId): void
     {
         if (true === $this->state->current()->everyMailboxFinished()) {
-            $this->state->markComplete($now);
+            $this->state->markComplete($now, $runId);
         }
     }
 }

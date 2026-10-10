@@ -120,6 +120,40 @@ class AiSettings
     #[ORM\Column(name: 'openai_model', length: 128, nullable: true)]
     public ?string $openAiModel = null;
 
+    #[ORM\Column(name: 'embedding_provider', length: 32, options: ['default' => 'ollama'])]
+    public string $embeddingProvider = 'ollama';
+    #[ORM\Column(name: 'embedding_shared_connection', options: ['default' => false])]
+    public bool $embeddingSharedConnection = false;
+    #[ORM\Column(name: 'embedding_base_url', length: 255, nullable: true)]
+    public ?string $embeddingBaseUrl = null;
+    #[ORM\Column(name: 'embedding_revision', length: 64, nullable: true)]
+    public ?string $embeddingRevision = null;
+    #[ORM\Column(name: 'embedding_api_token', type: EncryptedStringType::NAME, nullable: true)]
+    public ?string $embeddingApiToken = null;
+    #[ORM\Column(name: 'embedding_approved_space', length: 80, nullable: true)]
+    public ?string $embeddingApprovedSpace = null;
+    #[ORM\Column(name: 'embedding_reindex_required', options: ['default' => false])]
+    public bool $embeddingReindexRequired = false;
+
+    public function effectiveEmbeddingProvider(): string { return $this->embeddingSharedConnection ? $this->chatProvider : $this->embeddingProvider; }
+    public function effectiveEmbeddingUrl(): ?string
+    {
+        return $this->embeddingSharedConnection ? $this->generationBaseUrl() : ($this->embeddingBaseUrl ?? ('ollama' === $this->embeddingProvider ? $this->baseUrl : null));
+    }
+    public function effectiveEmbeddingToken(): ?string
+    {
+        if ($this->embeddingSharedConnection) return 'openai' === $this->chatProvider ? $this->openAiApiToken : $this->apiToken;
+        return $this->embeddingApiToken ?? ('ollama' === $this->embeddingProvider && $this->effectiveEmbeddingUrl() === $this->baseUrl ? $this->apiToken : null);
+    }
+    public function embeddingSpace(): string
+    {
+        return \App\Domain\Ai\EmbeddingSpace::identity($this->effectiveEmbeddingProvider(), $this->effectiveEmbeddingUrl(), $this->embeddingModel, $this->embeddingRevision);
+    }
+    public function embeddingSpaceApproved(): bool
+    {
+        return !$this->embeddingReindexRequired && (null === $this->embeddingApprovedSpace || $this->embeddingApprovedSpace === $this->embeddingSpace());
+    }
+
     public function generationBaseUrl(): ?string
     {
         return 'openai' === $this->chatProvider ? $this->openAiBaseUrl : $this->baseUrl;
@@ -371,7 +405,8 @@ class AiSettings
      */
     public function enabledFor(AiFeature $feature): bool
     {
-        if (false === $this->isEnabled || '' === trim((string) (AiFeature::Search === $feature ? $this->baseUrl : $this->generationBaseUrl()))) {
+        if (AiFeature::Search === $feature && !$this->embeddingSpaceApproved()) return false;
+        if (false === $this->isEnabled || '' === trim((string) (AiFeature::Search === $feature ? $this->effectiveEmbeddingUrl() : $this->generationBaseUrl()))) {
             return false;
         }
 

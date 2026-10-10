@@ -11,6 +11,28 @@ use Symfony\Component\Form\FormFactoryInterface;
 
 final class AiProviderSettingsTest extends KernelTestCase
 {
+    public function testEmbeddingEndpointChangeRequiresApprovalAndClearsOnlyItsSecret(): void
+    {
+        self::bootKernel();
+        $settings = new AiSettings();
+        $settings->embeddingProvider = 'openai';
+        $settings->embeddingBaseUrl = 'https://old.synthetic.test/v1';
+        $settings->embeddingApiToken = 'synthetic-embedding-secret';
+        $settings->embeddingModel = 'embedding-model';
+        $settings->openAiApiToken = 'synthetic-generation-secret';
+        $settings->openAiBaseUrl = 'https://generation.synthetic.test/v1';
+        $old = $settings->embeddingSpace();
+        $form = self::getContainer()->get(FormFactoryInterface::class)->create(AiSettingsType::class, $settings, ['csrf_protection'=>false]);
+        $form->submit(['chatProvider'=>'openai', 'openAiBaseUrl'=>$settings->openAiBaseUrl, 'embeddingProvider'=>'openai', 'embeddingBaseUrl'=>'https://new.synthetic.test/v1', 'embeddingModel'=>'embedding-model', 'semanticMinSimilarity'=>'0.42', 'holdMaxSeconds'=>'60']);
+        self::assertTrue($form->isValid());
+        self::assertNull($settings->embeddingApiToken);
+        self::assertSame('synthetic-generation-secret', $settings->openAiApiToken);
+        self::assertSame($old, $settings->embeddingApprovedSpace);
+        self::assertTrue($settings->embeddingReindexRequired);
+        self::assertFalse($settings->embeddingSpaceApproved());
+        self::assertSame('', $form->createView()->children['embeddingApiToken']->vars['value']);
+    }
+
     public function testSavedSecretIsNotRenderedAndCannotFollowAnEndpointChange(): void
     {
         self::bootKernel();

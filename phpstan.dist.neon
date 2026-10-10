@@ -37,6 +37,9 @@ parameters:
     # Everything with PHP in it is named below. A new top-level directory that
     # holds code has to be added here, which is the cost of this; the previous
     # arrangement's cost was that the command did not run.
+    scanFiles:
+        - migrations/Version20261010140000.php
+
     paths:
         - bin
         - config

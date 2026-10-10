@@ -68,7 +68,7 @@ final readonly class EmbedMessagesHandler
             return;
         }
 
-        $model = (string) $this->settings->currentOrDefault()->embeddingModel;
+        $model = $this->settings->currentOrDefault()->embeddingSpace();
 
         // Skip what is already done under the CURRENT model. A redelivery, or a
         // batch that overlaps a backfill, must not pay for the same vectors

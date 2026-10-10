@@ -20,7 +20,11 @@ final class AiSettingsRepository extends ServiceEntityRepository
 
     public function current(): ?AiSettings
     {
-        return $this->findOneBy([], ['id' => 'ASC']);
+        $settings = $this->findOneBy([], ['id' => 'ASC']);
+        if (null !== $settings) {
+            $this->getEntityManager()->refresh($settings);
+        }
+        return $settings;
     }
 
     /**

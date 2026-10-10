@@ -96,7 +96,7 @@ final class EmbedMailboxCommand extends Command
             return Command::FAILURE;
         }
 
-        $model = (string) $this->settings->currentOrDefault()->embeddingModel;
+        $model = $this->settings->currentOrDefault()->embeddingSpace();
 
         $userIds = [];
 

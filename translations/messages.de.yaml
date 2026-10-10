@@ -153,11 +153,11 @@ admin:
             categorisation_help: 'Läuft bei jeder eingehenden Nachricht. Immer nur als Stichentscheid — zuerst entscheiden die normalen Regeln.'
             chat_keep_alive: 'Schreib-Modell geladen lassen für'
             chat_keep_alive_help: '5m, 30m, 4h oder einfach eine Zahl in Sekunden. -1 lässt es dauerhaft geladen, 0 entlädt es nach jeder Anfrage. Je länger, desto schneller kommt die erste Antwort — der Host hält den Speicher aber die ganze Zeit belegt. Leer lassen, um das zu nehmen, was am Host selbst eingestellt ist.'
-            chat_model: 'Schreib-Modell'
+            chat_model: 'Modell für Texterzeugung'
             chat_model_help: 'Für Antworten, Zusammenfassungen und das Einsortieren. Nimm ein instruction-tuned Modell.'
             embedding_keep_alive: 'Such-Modell geladen lassen für'
             embedding_keep_alive_help: 'Gleiches Format wie oben. Dieses Modell ist klein und wird ständig gebraucht, deshalb kostet -1 — dauerhaft geladen — meist kaum etwas und spart bei jeder Suche eine Wartezeit; wenn der Host den Speicher übrig hat, lohnt es sich. Leer lassen, um das zu nehmen, was am Host selbst eingestellt ist.'
-            embedding_model: 'Such-Modell'
+            embedding_model: 'Embedding-Modell'
             embedding_model_help: 'Wandelt Mail in Vektoren um, damit die Suche Bedeutung statt Wörter findet.'
             hold: 'Auf den Assistenten warten, bevor neue Mail in einem Tab erscheint'
             hold_help: 'Für alle, die ihre Mail vom Assistenten sortieren lassen. Neue Mail bleibt für den Moment, den der Assistent braucht, aus den Posteingangs-Tabs heraus — sie erscheint dann einmal, im richtigen Tab, statt in einem aufzutauchen und in einen anderen zu wandern. Mail aus dem ersten Import wird nie zurückgehalten.'
@@ -4206,8 +4206,30 @@ templates:
 
 admin.ai.field.provider: Anbieter für Textgenerierung
 admin.ai.field.openai_url: OpenAI-kompatible Basis-URL (mit /v1)
-admin.ai.field.openai_model: OpenAI-kompatibles Modell
+admin.ai.field.openai_model: 'Modell für Texterzeugung'
 admin.ai.field.openai_key: OpenAI-kompatibler API-Schlüssel
 admin.ai.field.openai_help: 'Dieser Endpunkt wird nur für Textgenerierung verwendet. Suchvektoren bleiben auf dem Ollama-Host unten. Eine geänderte URL löscht den gespeicherten Schlüssel. Kategorisierung sendet eingehende E-Mails automatisch; Schreibhilfe und Zusammenfassungen senden den angeforderten Inhalt. Externe Dienste können Kosten verursachen.'
 
 admin.ai.perf.discovery_unavailable: 'Modellabfrage nicht verfügbar. Manche kompatiblen Dienste bieten /models nicht an; Textgenerierung kann trotzdem funktionieren. Speicher- und GPU-Diagnosen werden nicht unterstützt.'
+
+admin.ai.generation.heading: 'Texterzeugung — Antworten, Zusammenfassungen und Klassifizierung'
+
+admin.ai.embedding.heading: 'Embeddings — Modelle für semantische Suche'
+
+admin.ai.embedding.explanation: 'Embedding-Modelle wandeln E-Mails und Suchanfragen in Vektoren um. Verwende ein Embedding-Modell, kein Chat-Modell. Sie schreiben keine Antworten oder Zusammenfassungen.'
+
+admin.ai.embedding.shared: 'Denselben Anbieter und dieselbe Verbindung wie für die Texterzeugung verwenden'
+
+admin.ai.embedding.confirmation: 'Ein anderer Embedding-Anbieter, Endpunkt oder ein anderes Modell erfordert einen neuen Index. Bis zu %count% Nachrichten senden Betreff, Absender und Text an den konfigurierten Anbieter; externe Anbieter können Kosten berechnen. Alte Vektoren bleiben getrennt, die Textsuche bleibt verfügbar. Erst speichern, dann ausdrücklich bestätigen.'
+
+admin.ai.embedding.confirm: 'Neuen Suchindex bestätigen und vorbereiten'
+
+admin.ai.embedding.test: 'Embedding-Verbindung testen'
+
+admin.ai.embedding.revision: 'Indexrevision (optional)'
+admin.ai.embedding.revision_help: 'Ändere diesen Wert, wenn der Anbieter das Modell unter demselben Namen oder seine Vektorbreite ändert. Die alten Vektoren bleiben getrennt; der neue Index erfordert eine separate Bestätigung.'
+
+admin.ai.embedding.url: 'Basis-URL des Embedding-Anbieters'
+admin.ai.embedding.url_help: 'Verwende die Ollama-Host-URL oder den kompatiblen API-Endpunkt einschließlich /v1, falls erforderlich.'
+
+admin.ai.embedding.approval_required: 'Die Embedding-Konfiguration hat sich geändert. Prüfe und bestätige den neuen Index oben, bevor Nachrichten indexiert werden.'

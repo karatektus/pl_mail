@@ -62,6 +62,7 @@ final class AiSettingsController extends AbstractController
         private readonly EntityManagerInterface $entityManager,
         private readonly AiPerformancePanel     $panel,
         private readonly EmbeddingBackfill      $backfill,
+        private readonly \App\Service\Ai\EmbeddingStore $embeddingStore,
         private readonly PromptLibrary          $prompts,
         private readonly TranslatorInterface    $translator,
     ) {
@@ -93,6 +94,10 @@ final class AiSettingsController extends AbstractController
             if ('' !== trim($openAiToken)) {
                 $settings->openAiApiToken = $openAiToken;
             }
+            $embeddingToken = (string) $form->get('embeddingApiToken')->getData();
+            if ('' !== trim($embeddingToken)) {
+                $settings->embeddingApiToken = $embeddingToken;
+            }
             $token = (string) $form->get('apiToken')->getData();
 
             if ('' !== trim($token)) {
@@ -118,6 +123,7 @@ final class AiSettingsController extends AbstractController
         }
 
         return $this->render('admin/ai/_frame.html.twig', [
+            'embedding_count' => $this->embeddingStore->coverage($settings->embeddingSpace())['eligible'],
             'settings' => $settings,
             'form'     => $form,
             'saved'    => $saved,
@@ -125,6 +131,24 @@ final class AiSettingsController extends AbstractController
             'prompts'  => $this->promptRows(),
             'hold'     => $this->holdDelay(),
         ]);
+    }
+
+    #[Route('/approve-embeddings', name: 'approve_embeddings', methods: ['POST'])]
+    public function approveEmbeddings(Request $request): Response
+    {
+        $this->assertCsrf($request, 'admin-ai-embedding-index');
+        $settings = $this->settings->currentOrDefault();
+        if ($request->request->get('space') !== $settings->embeddingSpace()) {
+            throw $this->createAccessDeniedException('Embedding configuration changed; review it again.');
+        }
+        $this->backfill->pause();
+        $settings->embeddingApprovedSpace = $settings->embeddingSpace();
+        $settings->embeddingReindexRequired = false;
+        $settings->embeddingDimensions = null;
+        $this->entityManager->persist($settings);
+        $this->entityManager->flush();
+        $this->backfill->start();
+        return $this->redirectToRoute('app_admin_ai_settings');
     }
 
     /**
@@ -156,21 +180,27 @@ final class AiSettingsController extends AbstractController
             if ('' !== trim($typedKey)) {
                 $settings->openAiApiToken = $typedKey;
             }
-            $probe = $this->assistant->probeSettings($settings);
+            $ollamaKey = (string)$form->get('apiToken')->getData();
+            if ('' !== trim($ollamaKey)) $settings->apiToken = $ollamaKey;
+            $embeddingKey = (string)$form->get('embeddingApiToken')->getData();
+            if ('' !== trim($embeddingKey)) $settings->embeddingApiToken = $embeddingKey;
+            $probe = 'embeddings' === $request->request->get('probe_target')
+                ? $this->assistant->probeEmbeddingSettings($settings) : $this->assistant->probeSettings($settings);
         }
         // Remove submitted secrets from the response even when validation fails.
         $form = $this->form($settings);
 
         return $this->render('admin/ai/_frame.html.twig', [
+            'embedding_count' => $this->embeddingStore->coverage($settings->embeddingSpace())['eligible'],
             'settings' => $settings,
             'form'     => $form,
             'saved'    => false,
             'probe'    => $probe,
             // So the template can say "the model you named is not on that host",
             // which is a completely different errand from "nothing answered".
-            'wanted'   => 'openai' === $settings->chatProvider
+            'wanted'   => 'embeddings' === $request->request->get('probe_target') ? [$settings->embeddingModel] : ('openai' === $settings->chatProvider
                 ? array_values(array_filter([$submitted['openAiModel'] ?? null]))
-                : array_values(array_filter([$submitted['chatModel'] ?? null, $submitted['embeddingModel'] ?? null])),
+                : array_values(array_filter([$submitted['chatModel'] ?? null]))),
             'prompts'  => $this->promptRows(),
             'hold'     => $this->holdDelay(),
         ]);

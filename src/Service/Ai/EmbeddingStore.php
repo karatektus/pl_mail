@@ -46,7 +46,7 @@ final readonly class EmbeddingStore
      *
      * @return bool whether anything was stored
      */
-    public function store(int $messageId, array $vector, string $model): bool
+    public function store(int $messageId, array $vector, string $model, bool $requireApproved = false): bool
     {
         $unit = self::normalise($vector);
 
@@ -62,10 +62,17 @@ final readonly class EmbeddingStore
         try {
             // Upsert: re-embedding after a model change has to replace rather
             // than collide, and the primary key is the message.
-            $this->connection->executeStatement(
+            $affected = $this->connection->executeStatement(
                 <<<'SQL'
                     INSERT INTO message_embedding (message_id, embedding, dimensions, model, created_at)
-                    VALUES (:id, :embedding, :dimensions, :model, :now)
+                    SELECT :id, :embedding::real[], :dimensions, :model, :now::timestamp
+                    WHERE NOT :requireApproved::boolean OR EXISTS (
+                        SELECT 1 FROM ai_settings WHERE is_enabled = TRUE AND search_enabled = TRUE
+                        AND embedding_reindex_required = FALSE
+                        AND (embedding_dimensions IS NULL OR embedding_dimensions = :dimensions)
+                        AND (embedding_approved_space IS NULL OR embedding_approved_space = :model)
+                        FOR SHARE
+                    )
                     ON CONFLICT (message_id) DO UPDATE
                         SET embedding  = EXCLUDED.embedding,
                             dimensions = EXCLUDED.dimensions,
@@ -73,6 +80,7 @@ final readonly class EmbeddingStore
                             created_at = EXCLUDED.created_at
                 SQL,
                 [
+                    'requireApproved' => $requireApproved ? 'true' : 'false',
                     'id'         => $messageId,
                     'embedding'  => self::toPostgresArray($unit),
                     'dimensions' => count($unit),
@@ -81,7 +89,7 @@ final readonly class EmbeddingStore
                 ],
             );
 
-            return true;
+            return $affected > 0;
         } catch (Throwable $exception) {
             $this->logger->error('EmbeddingStore: could not store an embedding', [
                 'messageId' => $messageId,

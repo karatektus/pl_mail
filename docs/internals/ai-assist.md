@@ -10,9 +10,39 @@ using a separate base URL (including `/v1`), model and encrypted API key. The ke
 filled from storage. Changing that URL clears its saved key; enter a new key for the new endpoint.
 Redirects are disabled, so a provider response cannot forward the key elsewhere.
 
-Search embeddings continue to use the existing Ollama host and embedding model. Switching the
-text provider does not change the stored vector space or start a backfill. Generalized embeddings
-need a separate endpoint/model identity migration and explicit reindexing plan in a later stage.
+Embeddings use a separate model and can use an independent Ollama or OpenAI-compatible
+connection. The optional shared connection switch inherits the generation provider, endpoint and
+credential by reference; it never inherits the generation model or duplicates the shared key.
+Existing installations keep their Ollama embedding connection when the generation provider changes.
+
+The compatible adapter sends one input to `/embeddings` and accepts one finite ordered vector.
+Models are entered manually; discovery is optional. OpenRouter's embedding Test uses
+`/embeddings/models`, while generic compatible connections use `/models`.
+
+The persisted vector `model` field now carries a bounded space identity: provider, canonical
+endpoint, exact model and optional index revision. Search SQL, caches, deduplication, coverage and
+backfill all use that identity, as well as the vector width where comparison requires it. Keys
+are excluded. Changing the space saves a pending configuration and disables semantic calls until
+the administrator separately confirms the exact saved space, with CSRF protection and an estimate
+of the number of messages whose subject, sender and body may leave the server. Confirmation starts
+a backfill only if AI and search are enabled; plain text search remains available. Old vectors are
+isolated and are replaced per message as the new index progresses, not silently reindexed on Save.
+
+The migration tags current legacy Ollama vectors and pins their existing endpoint and encrypted
+credential without HTTP calls. Historical models stay unmatched. It pauses old backfill deliveries.
+Because identities cannot safely be converted back into model names, database rollback requires a
+pre-migration backup rather than a guessed reverse mapping.
+
+A model can change behind an unchanged name: no compatible API can prove its weights stayed the
+same. The first vector width is claimed atomically; a different width is refused. To rebuild after
+a provider changes weights or width, change the optional Index revision and explicitly confirm the
+new index. This also creates a new identity for caches and deduplication.
+
+Workers use immutable connection snapshots, recheck enabled/approved settings before each request
+and after each response, and guard vector writes against a changed space or width. Start, Resume
+and operator Pause invalidate run generations; stale deliveries cannot update or continue a newer
+run. Failed chunks remain visible in backfill progress. Backup restore preserves pending approval
+and cannot authorize a new provider on its own.
 
 With remote generation enabled, writing help sends the selected composer context, summaries send
 the conversation transcript, and categorisation automatically sends newly arriving message content.

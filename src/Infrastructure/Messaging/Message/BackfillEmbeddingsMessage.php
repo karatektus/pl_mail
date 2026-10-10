@@ -24,5 +24,7 @@ final readonly class BackfillEmbeddingsMessage
     public function __construct(
         public int  $userId,
         public ?int $afterMessageId = null,
+        public ?string $runId = null,
+        public ?string $spaceIdentity = null,
     ) {}
 }

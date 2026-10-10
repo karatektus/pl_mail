@@ -50,6 +50,31 @@ final class AiSettingsType extends AbstractType
             }
         });
 
+        $oldSpace = $settings instanceof AiSettings ? $settings->embeddingSpace() : null;
+        $oldEmbeddingEndpoint = $settings instanceof AiSettings ? $settings->embeddingBaseUrl : null;
+        $oldEmbeddingProvider = $settings instanceof AiSettings ? $settings->embeddingProvider : null;
+        $oldOllamaEndpoint = $settings instanceof AiSettings ? $settings->baseUrl : null;
+        $builder->addEventListener(FormEvents::PRE_SUBMIT, static function (FormEvent $event) use ($settings, $oldEmbeddingEndpoint, $oldEmbeddingProvider, $oldOllamaEndpoint): void {
+            $data = $event->getData();
+            if (!$settings instanceof AiSettings || !is_array($data)) {
+                return;
+            }
+            if ($oldEmbeddingEndpoint !== ($data['embeddingBaseUrl'] ?? null) || $oldEmbeddingProvider !== ($data['embeddingProvider'] ?? 'ollama')) {
+                $settings->embeddingApiToken = null;
+            }
+            if ($oldOllamaEndpoint !== ($data['baseUrl'] ?? null)) {
+                $settings->apiToken = null;
+            }
+        });
+        $builder->addEventListener(FormEvents::POST_SUBMIT, static function (FormEvent $event) use ($settings, $oldSpace): void {
+            if ($settings instanceof AiSettings) {
+                $settings->embeddingApprovedSpace ??= $oldSpace;
+            }
+            if ($settings instanceof AiSettings && $oldSpace !== $settings->embeddingSpace()) {
+                $settings->embeddingReindexRequired = true;
+            }
+        });
+
         $builder
             ->add('isEnabled', CheckboxType::class, [
                 'label'    => 'admin.ai.field.enabled',
@@ -63,7 +88,7 @@ final class AiSettingsType extends AbstractType
             ->add('openAiBaseUrl', TextType::class, [
                 'label' => 'admin.ai.field.openai_url', 'required' => false,
                 'help' => 'admin.ai.field.openai_help',
-                'constraints' => [new Regex(pattern: '~^https?://[^\\s]+$~i')],
+                'constraints' => [new Regex(pattern: '~^https?://[^@?#\\s]+$~i')],
             ])
             ->add('openAiModel', TextType::class, [
                 'label' => 'admin.ai.field.openai_model', 'required' => false,
@@ -86,7 +111,7 @@ final class AiSettingsType extends AbstractType
                     // refuse is a scheme this cannot speak, which is the one
                     // mistake that produces a silent nothing.
                     new Regex(
-                        pattern: '~^https?://[^\s]+$~i',
+                        pattern: '~^https?://[^@?#\s]+$~i',
                         message: 'admin.ai.field.base_url_invalid',
                         match: true,
                     ),
@@ -127,6 +152,11 @@ final class AiSettingsType extends AbstractType
             // and refuse a model that works. The list is a shortcut, not a
             // gate — see the preset buttons in the template, which are where
             // the up- and downsides are actually written down.
+            ->add('embeddingRevision', TextType::class, ['label'=>'admin.ai.embedding.revision', 'help'=>'admin.ai.embedding.revision_help', 'required'=>false, 'constraints'=>[new \Symfony\Component\Validator\Constraints\Length(max: 64)], 'attr'=>['maxlength'=>64]])
+            ->add('embeddingSharedConnection', CheckboxType::class, ['label' => 'admin.ai.embedding.shared', 'required' => false])
+            ->add('embeddingProvider', ChoiceType::class, ['label' => 'admin.ai.field.provider', 'empty_data' => 'ollama', 'choices' => ['Ollama' => 'ollama', 'OpenAI-compatible' => 'openai']])
+            ->add('embeddingBaseUrl', TextType::class, ['label' => 'admin.ai.embedding.url', 'help' => 'admin.ai.embedding.url_help', 'required' => false, 'constraints' => [new Regex(pattern: '~^https?://[^@?#\\s]+$~i')]])
+            ->add('embeddingApiToken', PasswordType::class, ['label' => 'admin.ai.field.openai_key', 'required' => false, 'mapped' => false, 'always_empty' => true, 'empty_data' => '', 'attr' => PasswordManagerIgnore::SECRET])
             ->add('embeddingModel', TextType::class, [
                 'label'    => 'admin.ai.field.embedding_model',
                 'help'     => 'admin.ai.field.embedding_model_help',

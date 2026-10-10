@@ -80,7 +80,7 @@ final readonly class SemanticQuery
     public function forQuery(?User $user, ?string $freeText): SemanticSearch
     {
         $text     = trim((string) $freeText);
-        $settings = $this->ai->settings();
+        $settings = clone $this->ai->settings();
 
         // Asked BEFORE the length check, which the previous order had the other
         // way round. The reason is not efficiency — it is that "you typed two
@@ -138,6 +138,7 @@ final readonly class SemanticQuery
         $result = $this->ai->embedResult(
             AiCallFeature::SearchQuery,
             $settings->searchQueryInstruction . $text,
+            $settings,
         );
 
         if (null === $result->vector) {
@@ -160,7 +161,7 @@ final readonly class SemanticQuery
         // vectors from the same model at the same width — see SemanticSearch.
         return SemanticSearch::ran(
             $literal,
-            (string) $settings->embeddingModel,
+            $settings->embeddingSpace(),
             count($result->vector),
             $settings->semanticMinSimilarity,
         );

@@ -122,7 +122,7 @@ final class SearchSemanticFeedbackTest extends WebTestCase
         $this->seedThread('Holiday photos', 'Nothing to do with anything.');
 
         $store = static::getContainer()->get(EmbeddingStore::class);
-        $store->store($this->messageIdOf($meaning), [1.0, 0.0, 0.0], 'test-model');
+        $store->store($this->messageIdOf($meaning), [1.0, 0.0, 0.0], self::getContainer()->get(\App\Repository\Ai\AiSettingsRepository::class)->currentOrDefault()->embeddingSpace());
 
         $crawler = $client->request('GET', '/mail/search?q=pelican');
 

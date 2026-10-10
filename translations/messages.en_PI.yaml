@@ -150,11 +150,11 @@ admin:
             categorisation_help: "Runs on ev'ry message that arrives. Only breaks a tie — the ordinary rules speak first."
             chat_keep_alive: "Keep the scrivener aboard for"
             chat_keep_alive_help: "5m, 30m, 4h, or a plain count o' seconds. -1 keeps it aboard for good, 0 puts it ashore after ev'ry errand. Longer means the first reply comes quicker — but the berth stays taken the whole while. Leave it empty to sail by whatever the host itself says."
-            chat_model: 'Scrivener model'
+            chat_model: 'Generation model'
             chat_model_help: "For replies, summaries an' sortin'. Somethin' instruction-tuned."
             embedding_keep_alive: "Keep the diviner aboard for"
             embedding_keep_alive_help: "Same shape as above. This one be small an' called for constantly, so -1 — aboard for good — mostly costs barely a crumb an' spares a wait on ev'ry search; worth settin' if the host has the hold to spare. Leave it empty to sail by whatever the host itself says."
-            embedding_model: "Divinin' model"
+            embedding_model: 'Embedding model'
             embedding_model_help: "Turns mail into vectors so the search finds meanin', not words."
             hold: "Wait fer the oracle afore showin' new mail in a hold"
             hold_help: "Fer hands who let the oracle sort their mail. New mail stays out o' the holds fer the moment the oracle needs, so it turns up once, in the right hold, 'stead o' landin' in one an' driftin' to another. Mail hauled in by a first import be never held back."
@@ -3992,8 +3992,30 @@ templates:
 
 admin.ai.field.provider: Text generation provider
 admin.ai.field.openai_url: OpenAI-compatible base URL (include /v1)
-admin.ai.field.openai_model: OpenAI-compatible model
+admin.ai.field.openai_model: 'Generation model'
 admin.ai.field.openai_key: OpenAI-compatible API key
 admin.ai.field.openai_help: 'Only text generation uses this endpoint. Search embeddings remain on the Ollama host below. Changing the URL clears the saved key; re-enter it for the new endpoint. Enabled categorisation sends incoming mail automatically; writing and summaries send the requested content. Remote services may charge for usage.'
 
 admin.ai.perf.discovery_unavailable: 'Model discovery be unavailable. Some compatible ports lack /models; writing may still work. GPU and residency charts be unsupported.'
+
+admin.ai.generation.heading: 'Text generation — replies, summaries and classification'
+
+admin.ai.embedding.heading: 'Embeddings — models for semantic search'
+
+admin.ai.embedding.explanation: 'Embedding models convert mail and search queries into vectors. Use an embedding model, not a chat model. They do not write replies or summaries.'
+
+admin.ai.embedding.shared: 'Use the same provider and connection as text generation'
+
+admin.ai.embedding.confirmation: 'Changing the embedding provider, endpoint or model requires a new index. Up to %count% messages will send their subject, sender and text to the configured provider; external providers may charge. Existing vectors remain isolated and plain text search stays available. Save first, then confirm explicitly to start.'
+
+admin.ai.embedding.confirm: 'Confirm and prepare the new search index'
+
+admin.ai.embedding.test: 'Test embedding connection'
+
+admin.ai.embedding.revision: 'Index revision (optional)'
+admin.ai.embedding.revision_help: 'Change this value when the provider changes the model under the same name or its vector width. A new index requires separate confirmation.'
+
+admin.ai.embedding.url: 'Embedding provider base URL'
+admin.ai.embedding.url_help: 'Use the Ollama host URL or the compatible API root, including /v1 when required.'
+
+admin.ai.embedding.approval_required: 'The embedding configuration changed. Confirm the new index above before any mail is indexed.'
