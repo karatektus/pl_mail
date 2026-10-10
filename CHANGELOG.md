@@ -8,6 +8,12 @@ The published image tags: `latest` follows the most recent release below,
 
 ## Unreleased
 
+**Concurrent Gmail imports share the same quota budget.** Settings now control the
+per-user and project rate with safety headroom; throttled work waits for a shared cooldown
+instead of losing message IDs. A new quota-state table is created automatically on boot.
+The down migration deliberately refuses to erase live cooldown state; roll back using a
+pre-upgrade database, secrets and storage backup with the previous image.
+
 **Keyboard shortcuts, the ones Gmail uses.** `j` and `k` move through a list, `o` opens, `u` goes
 back, `x` selects, `e` archives, `#` deletes, `s` stars, `r` `a` `f` reply, reply to all and
 forward, `c` writes, `/` searches, `g` then a letter goes to a list, `z` undoes. **?** shows all of
