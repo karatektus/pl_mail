@@ -55,6 +55,7 @@ class MessageSyncer
         private readonly VanishedMessageReconciler $vanished,
         private readonly GhostMessageReaper $ghosts,
         private readonly ManagerRegistry $registry,
+        private readonly ImapPagedFetch $pagedFetch,
     ) {}
 
     /**
@@ -148,14 +149,16 @@ class MessageSyncer
         $lowestSkippedUid = null;
 
         try {
-            $folder->messages()
-                ->where(self::uidRangeCriteria($uidRange))
-                ->chunked(function ($batch) use ($mailboxId, $accountId, $lastSeenUid, &$synced, &$syncedUids, &$lowestSkippedUid, $presence) {
-                    $this->processBatch($batch, $mailboxId, $accountId, $lastSeenUid, $syncedUids, $lowestSkippedUid, $presence);
-                    $synced += count($batch);
-                    $this->startNextBatch();
-                    $this->logger->info(sprintf('Synced %d messages so far', $synced));
-                }, self::BATCH_SIZE);
+            // Not the library's chunked(): one message it cannot parse ends
+            // that loop for the whole folder, on every sync. See ImapPagedFetch.
+            $query = $folder->messages()->where(self::uidRangeCriteria($uidRange));
+
+            foreach ($this->pagedFetch->pages($query, self::BATCH_SIZE) as [$batch, $unreadable]) {
+                $this->processBatch($batch, $mailboxId, $accountId, $lastSeenUid, $syncedUids, $lowestSkippedUid, $presence, $unreadable);
+                $synced += count($batch);
+                $this->startNextBatch();
+                $this->logger->info(sprintf('Synced %d messages so far', $synced));
+            }
 
             $mailbox = $this->mailboxRepository->find($mailboxId);
 
@@ -197,6 +200,10 @@ class MessageSyncer
      *                                      registered within the same sync run
      *                                      (guards against duplicates inside a
      *                                      single chunked call)
+     * @param array<int, \Throwable> $unreadable  the UIDs of this page the
+     *                                      library could not build a message
+     *                                      from, and what it threw — see
+     *                                      ImapPagedFetch
      * @param int|null        $lowestSkippedUid  the run-wide lowest UID held
      *                                      back for a retry; the high-water
      *                                      mark is clamped below it
@@ -209,6 +216,7 @@ class MessageSyncer
         array            &$syncedUids,
         ?int             &$lowestSkippedUid,
         ImapUidPresence  $presence,
+        array            $unreadable = [],
     ): void {
         // The run as it stood before this batch. A batch the database refuses
         // is decided again from here, one message at a time.
@@ -217,7 +225,7 @@ class MessageSyncer
 
         try {
             [$mailbox, $messages, $rawBodies, $maxUid] = $this->storeMessages(
-                $batch, $mailboxId, $accountId, $lastSeenUid, $syncedUids, $lowestSkippedUid, $presence, false,
+                $batch, $mailboxId, $accountId, $lastSeenUid, $syncedUids, $lowestSkippedUid, $presence, false, $unreadable,
             );
         } catch (\Throwable $refused) {
             // Only a refused write closes the manager. Anything else, the
@@ -260,7 +268,7 @@ class MessageSyncer
             }
 
             [$mailbox, $messages, $rawBodies, $maxUid] = $this->storeMessages(
-                $batch, $mailboxId, $accountId, $lastSeenUid, $syncedUids, $lowestSkippedUid, $presence, true,
+                $batch, $mailboxId, $accountId, $lastSeenUid, $syncedUids, $lowestSkippedUid, $presence, true, $unreadable,
             );
         }
 
@@ -334,6 +342,7 @@ class MessageSyncer
         ?int             &$lowestSkippedUid,
         ImapUidPresence  $presence,
         bool             $oneAtATime,
+        array            $unreadable = [],
     ): array {
         $mailbox  = $this->mailboxRepository->find($mailboxId);
         $messages = [];
@@ -342,13 +351,39 @@ class MessageSyncer
         $rawBodies = [];
         $maxUid   = 0;
 
-        // Pass 1 — build + persist Message rows (no threading yet)
-        foreach ($batch as $imapMessage) {
+        // The page in UID order, with the messages the library could not
+        // build standing where they would have stood. The order is not
+        // tidiness: holdForRetry() counts the LOWEST failure of a run, and
+        // decides which that is by the order it is told of them. Handed the
+        // unreadable ones before or after the rest, two poison messages would
+        // take the counter from each other on every sync and neither would
+        // ever reach the attempt that lets it go.
+        /** @var array<int, ImapMessage|\Throwable> $page */
+        $page = $unreadable;
+
+        foreach ($batch as $fetched) {
             // Cast because webklex only declares it in a docblock
             // (`@method integer getUid()`), which static analysis cannot read
             // as an int. The value always is one: holdForRetry() takes it as
             // one and would have thrown.
-            $uid = (int) $imapMessage->getUid();
+            $page[(int) $fetched->getUid()] = $fetched;
+        }
+
+        ksort($page);
+
+        // Pass 1 — build + persist Message rows (no threading yet)
+        foreach ($page as $uid => $imapMessage) {
+            if ($imapMessage instanceof \Throwable) {
+                if (true === $this->holdUnreadable($mailbox, $uid, $imapMessage, $lastSeenUid, $syncedUids, $lowestSkippedUid)) {
+                    $maxUid = max($maxUid, $uid);
+                }
+
+                if (true === $oneAtATime) {
+                    $this->em->flush();
+                }
+
+                continue;
+            }
 
             // A `lastSeenUid+1:*` range still returns the highest-UID message when
             // nothing newer exists (`*` clamps to it), so every run re-delivers the
@@ -515,6 +550,55 @@ class MessageSyncer
         }
 
         $this->registry->resetManager();
+    }
+
+    /**
+     * A message the library could not build from what the server sent: held
+     * for a retry like one that would not store, and let go on the same count.
+     *
+     * These never used to get here. The library threw while it was fetching
+     * the page, the page never arrived, and the retry-then-skip below was
+     * never told there was anything to count — which is how one message with
+     * a header the parser disliked stopped a folder for good (#45).
+     *
+     * A UID this folder already holds is not a failure, whatever the library
+     * made of it this time: `lastSeenUid+1:*` re-delivers the newest message
+     * on every run, and a message that is stored was once read.
+     *
+     * @param array<int,bool> $syncedUids
+     *
+     * @return bool whether the mark may pass this UID — it is already held, or
+     *              it has failed often enough to be given up
+     */
+    private function holdUnreadable(
+        Mailbox    $mailbox,
+        int        $uid,
+        \Throwable $reason,
+        int        $lastSeenUid,
+        array      $syncedUids,
+        ?int       &$lowestSkippedUid,
+    ): bool {
+        if ($uid <= $lastSeenUid || true === isset($syncedUids[$uid])) {
+            return true;
+        }
+
+        $retrying = $this->holdForRetry($mailbox, $uid, $lowestSkippedUid);
+
+        $this->logger->error(
+            true === $retrying
+                ? 'Could not read a message the server sent; it is asked for again next sync'
+                : 'Could not read a message the server sent, too many times; skipping it for good',
+            [
+                'uid'       => $uid,
+                'mailboxId' => $mailbox->id,
+                'mailbox'   => $mailbox->fullPath,
+                'attempts'  => $mailbox->failedUidAttempts,
+                'error'     => $reason->getMessage(),
+                'exception' => $reason,
+            ],
+        );
+
+        return false === $retrying;
     }
 
     /**

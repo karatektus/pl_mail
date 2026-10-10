@@ -8,6 +8,17 @@ The published image tags: `latest` follows the most recent release below,
 
 ## Unreleased
 
+**One message could stop an IMAP folder from syncing, for good.** A multipart message whose
+header puts spaces around the equals sign — `boundary = "…"`, which the standard allows and some
+mailers write — could not be read, and because that failed while a page of mail was being fetched,
+the whole folder's sync failed with `no content found` on every poll until the message was deleted
+on the server. Nothing newer in that folder arrived, and nothing in plMail said so. Such a message
+is read now. And a message that cannot be read for any other reason no longer takes its folder with
+it: the rest of the page is stored, the message is asked for again on the next five syncs, and then
+it is skipped with an error in the log naming the folder and the UID. A folder that was stuck this
+way catches up by itself on the next poll after upgrading. No migration.
+[#45](https://github.com/karatektus/pl_mail/issues/45).
+
 **A reading pane beside the message list.** Opening a message used to replace the list; Settings →
 Reading pane now offers **Right**, which puts the message beside the list on a screen
 that has room for both. The open row is marked, the back arrow closes the message and leaves the
