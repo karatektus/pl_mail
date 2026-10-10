@@ -45,6 +45,10 @@ class ThreadStatusController extends AbstractController
     {
         $body = $request->getPayload()->all();
 
+        if ('all_mail_unified' === ($body['scope'] ?? '') && '' === ($body['value'] ?? '')) {
+            return null !== $thread && true === $thread->account?->isActive;
+        }
+
         return 'all_mail' === ($body['scope'] ?? '')
             && null !== $thread && (string) $thread->account?->id === (string) ($body['value'] ?? '');
     }
@@ -89,6 +93,7 @@ class ThreadStatusController extends AbstractController
             $type       => 'message' === $type ? $messages[0] : $messages[0]->thread,
             'undoToken' => $undoToken,
             'stays' => $this->allMailOrigin($request, $messages[0]->thread),
+            'unified' => 'all_mail' !== ($request->getPayload()->all()['scope'] ?? ''),
         ]);
     }
 
@@ -243,6 +248,7 @@ class ThreadStatusController extends AbstractController
         return $this->renderTurboStream('thread/status/_snooze.stream.html.twig', [
             'thread' => $thread,
             'stays' => $this->allMailOrigin($request, $thread),
+            'unified' => 'all_mail' !== ($request->getPayload()->all()['scope'] ?? ''),
         ]);
     }
 

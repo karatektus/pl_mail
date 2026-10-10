@@ -4,7 +4,7 @@
 {% else %}
     <turbo-stream action="replace" target="thread_{{ thread.id }}">
         <template>
-            {% include '_partials/_thread_row.html.twig' with { thread: thread, unified: not stays|default(false) } %}
+            {% include '_partials/_thread_row.html.twig' with { thread: thread, unified: unified|default(not stays|default(false)) } %}
         </template>
     </turbo-stream>
 {% endif %}

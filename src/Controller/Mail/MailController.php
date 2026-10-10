@@ -440,6 +440,24 @@ final class MailController extends AbstractController
         ]);
     }
 
+    #[Route('/all', name: 'all')]
+    public function allMail(Request $request): Response
+    {
+        /** @var User $user */
+        $user = $this->getUser();
+        $unreadOnly = $this->unreadOnly($request);
+        $total = $this->threadRepository->countForUnifiedAllMail($user, $unreadOnly);
+        $page = $this->pageOrRedirect($request, $total);
+        if ($page instanceof RedirectResponse) return $page;
+        $sort = $this->listSort($request);
+        $threads = $this->threadRepository->findForUnifiedAllMail($user, $page, self::PER_PAGE, $sort, $unreadOnly);
+        $this->threadRows->preload($threads);
+        return $this->renderList($request, 'mail/unified_all_mail.html.twig', $threads, [
+            'page' => $page, 'total' => $total, 'per_page' => self::PER_PAGE,
+            'list_sort' => $sort, 'unread_only' => $unreadOnly,
+        ]);
+    }
+
     #[Route('/account/{account}/all', name: 'account_all', requirements: ['account' => '\d+'])]
     public function accountAllMail(Account $account, Request $request): Response
     {

@@ -552,6 +552,13 @@ controller instead — the scroll position and which trees are open.
         </a>
         {% endif %}
 
+        {% set _href = path('app_mail_all') %}
+        <a href="{{ _href }}" class="nav-item flex items-center justify-between gap-2 px-3 rounded-lg transition-colors {{ sidebar_row_state(_href) }}"
+           data-nav-tier="row" data-ui--sidebar-target="link" data-action="{{ _drawerClose }}"
+           {{ macros.list_frame() }} title="{{ 'sidebar.nav.all_mail'|trans }}">
+            <span class="flex items-center gap-2"><i class="fa-solid fa-layer-group w-4" aria-hidden="true"></i><span class="rail-hide">{{ 'sidebar.nav.all_mail'|trans }}</span></span>
+        </a>
+
         {# Drawer only. On a wide screen the calendar is a panel that slides in
            beside the mail, and a control for that is not a destination — as a
            nav row it read as a link that did not navigate. It lives in the

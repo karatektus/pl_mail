@@ -87,6 +87,31 @@ final class AllMailViewTest extends WebTestCase
         self::assertSelectorNotExists('#thread_' . $thread->id);
     }
 
+    public function testUnifiedNavigationAndArchiveStayInAllMail(): void
+    {
+        $thread = $this->thread('unified action');
+        $this->seedAccount();
+        $crawler = $this->client->request('GET', '/mail/all');
+        self::assertResponseIsSuccessful();
+        self::assertSelectorExists('#inbox-list-frame[data-sync-scope="all_mail_unified"][data-list-scope-value=""]');
+        self::assertSelectorExists('a[href="/mail/all"][data-nav-tier="row"]');
+        self::assertSelectorExists('#thread_' . $thread->id);
+        $token = $crawler->filter('meta[name="csrf-token"]')->attr('content');
+        $descriptor = ['scope'=>'all_mail_unified', 'value'=>''];
+        foreach (['archive', 'snooze'] as $action) {
+            $this->post('/status/thread/' . $thread->id . '/' . $action, $token, $descriptor + ['until'=>'2030-01-01T00:00:00Z']);
+            self::assertResponseIsSuccessful();
+            self::assertStringNotContainsString('action="remove" target="thread_' . $thread->id, (string)$this->client->getResponse()->getContent());
+        }
+        $this->post('/status/bulk/archive', $token, $descriptor + ['ids'=>[$thread->id]]);
+        self::assertResponseIsSuccessful();
+        self::assertStringNotContainsString('action="remove" target="thread_' . $thread->id, (string)$this->client->getResponse()->getContent());
+        $this->client->request('GET', '/mail/all');
+        self::assertSelectorExists('#thread_' . $thread->id);
+        $this->client->request('GET', '/mail/all?page=999');
+        self::assertResponseRedirects();
+    }
+
     public function testForeignAndMalformedAccountsAreRejected(): void
     {
         $original = $this->user;

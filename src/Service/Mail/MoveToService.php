@@ -198,6 +198,9 @@ final readonly class MoveToService
      */
     public function staysInView(MessageThread $thread, User $user, string $scope, string $value): bool
     {
+        if ('all_mail_unified' === $scope && ('' !== $value || $thread->account?->usr?->id !== $user->id || true !== $thread->account?->isActive)) {
+            return false;
+        }
         if ('all_mail' === $scope && ((string) $thread->account?->id !== $value
             || $thread->account?->usr?->id !== $user->id)) {
             return false;

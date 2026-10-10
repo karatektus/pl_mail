@@ -301,7 +301,7 @@ final class BulkStatusController extends AbstractController
                 'count'   => count($threads),
                 'threads' => $threads,
                 'unified' => 'all_mail' !== ($body['scope'] ?? ''),
-                'leaves'  => 'all_mail' !== ($body['scope'] ?? ''),
+                'leaves'  => !in_array($body['scope'] ?? '', ['all_mail', 'all_mail_unified'], true),
             ]);
         }
 
@@ -455,7 +455,7 @@ final class BulkStatusController extends AbstractController
             // from. Archive, trash and restore all move it somewhere else;
             // marking read leaves it exactly where it was and only changes how
             // it draws.
-            'leaves'    => 'read' !== $action && !('archive' === $action && 'all_mail' === ($body['scope'] ?? '')),
+            'leaves'    => 'read' !== $action && !('archive' === $action && in_array($body['scope'] ?? '', ['all_mail', 'all_mail_unified'], true)),
             'undoToken' => $undoToken,
             'undoToast' => 'toast.archived',
         ]);

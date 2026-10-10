@@ -100,6 +100,10 @@ final readonly class ListViewResolver
      */
     private function page(User $user, string $scope, string $value, bool $unreadOnly, int $page): array
     {
+        if ('all_mail_unified' === $scope) {
+            return '' === $value ? $this->threads->findForUnifiedAllMail($user, $page, self::CHUNK, unreadOnly: $unreadOnly) : [];
+        }
+
         if ('all_mail' === $scope) {
             if (!ctype_digit($value)) {
                 return [];

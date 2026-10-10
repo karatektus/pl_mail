@@ -141,3 +141,7 @@ the test suites and the console commands.
 ## License
 
 AGPL-3.0.
+
+All Mail is available in the primary navigation across your active accounts, and
+under each account for its own mail. It includes sent, draft, archived and snoozed
+conversations, excluding Spam and Trash.
