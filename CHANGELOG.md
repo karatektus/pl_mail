@@ -11,7 +11,7 @@ The published image tags: `latest` follows the most recent release below,
 **Keyboard shortcuts, the ones Gmail uses.** `j` and `k` move through a list, `o` opens, `u` goes
 back, `x` selects, `e` archives, `#` deletes, `s` stars, `r` `a` `f` reply, reply to all and
 forward, `c` writes, `/` searches, `g` then a letter goes to a list, `z` undoes. **?** shows all of
-them. A key acts on the selection, otherwise on the open conversation, otherwise on the highlighted
+them, and so does the keyboard button above a mail list. A key acts on the selection, otherwise on the open conversation, otherwise on the highlighted
 row, and does exactly what the button it stands for does. Nothing happens while you are typing or
 while a dialog or menu is open. On for everyone; Settings → General → Keyboard shortcuts switches
 them off per person. No migration.

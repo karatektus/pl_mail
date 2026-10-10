@@ -1,4 +1,4 @@
-<!-- translated-from: features/mail.md sha1:927c5cfb202b079fd0f642deaf6336138f940dcd -->
+<!-- translated-from: features/mail.md sha1:15c2febd1a3f8601aa57a89a38c29946ef9718cb -->
 
 # Mail
 
@@ -588,7 +588,8 @@ Synchronisierung ein und dreht sich, bis diese Aufträge abgearbeitet sind.
 ### Tastenkürzel
 
 Die einzelnen Tasten, die Gmail benutzt, funktionieren auch hier. Mit **?** bekommst du überall die
-ganze Liste; diese lohnt es sich zuerst zu kennen:
+ganze Liste, ebenso über den Tastatur-Knopf über einer Mail-Liste; diese lohnt es sich zuerst zu
+kennen:
 
 | Taste | Wirkung |
 |---|---|

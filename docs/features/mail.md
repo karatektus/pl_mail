@@ -535,8 +535,8 @@ jobs have drained.
 
 ### Keyboard shortcuts
 
-The single keys Gmail uses work here too. Press **?** anywhere for the full list; the ones worth
-knowing first:
+The single keys Gmail uses work here too. Press **?** anywhere for the full list, or the
+keyboard button above a mail list; the ones worth knowing first:
 
 | Key | Does |
 |---|---|

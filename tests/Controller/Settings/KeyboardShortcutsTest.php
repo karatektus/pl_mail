@@ -97,6 +97,25 @@ final class KeyboardShortcutsTest extends WebTestCase
         self::assertNull($this->reread()->getSetting(User::SETTING_KEYBOARD_SHORTCUTS));
     }
 
+    /**
+     * The list bar offers the list of shortcuts, to somebody who has them.
+     *
+     * `?` opens it too, and a key nobody has told you about is not a way in.
+     * Switched off the button goes with the keys: it would advertise ones that
+     * do nothing.
+     */
+    public function testTheListBarShowsTheShortcutsButtonOnlyWhileTheyAreOn(): void
+    {
+        $button = fn (): Crawler => $this->client->request('GET', '/mail/inbox')->filter('[data-shortcuts-button]');
+
+        self::assertCount(1, $button());
+        self::assertSame('/shortcuts', $button()->attr('data-ui--modal-src-value'));
+
+        $this->post(['enabled' => '0']);
+
+        self::assertCount(0, $button());
+    }
+
     /** A post that does not mention the switch does not move it. */
     public function testAPostWithoutTheFieldChangesNothing(): void
     {

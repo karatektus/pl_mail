@@ -334,6 +334,31 @@ The button itself carries `group` and `relative`.
     {# Spacer #}
     <div class="flex-1"></div>
 
+    {# The list of keyboard shortcuts, for somebody who has them. `?` opens the
+       same dialog, and a key nobody has told you about is not a way in — this
+       is the visible one, on the bar the keys act on. Absent with the
+       shortcuts switched off, where it would advertise keys that do nothing;
+       the list is still in Settings → General for deciding to switch them on.
+
+       Before the sort menu and the pager so those two keep the far end, where
+       they have always been. #}
+    {% if app.user and app.user.keyboardShortcuts %}
+        <button type="button"
+                data-controller="ui--modal"
+                data-ui--modal-src-value="{{ path('app_shortcuts_help') }}"
+                data-ui--modal-title-value="{{ 'shortcuts.title'|trans }}"
+                data-action="click->ui--modal#open"
+                data-shortcuts-button
+                aria-label="{{ 'shortcuts.title'|trans }}"
+                title="{{ 'shortcuts.title'|trans }} (?)"
+                class="hidden md:flex items-center justify-center shrink-0
+                       w-8 h-8 mr-1 rounded-full
+                       text-ink-faint hover:text-ink hover:bg-hover
+                       transition-colors duration-100 cursor-pointer">
+            <i class="fa-regular fa-keyboard text-[15px]" aria-hidden="true"></i>
+        </button>
+    {% endif %}
+
     {# ── Sort order ────────────────────────────────────────────────────────
        Sits before the pagination because switching it resets the pagination,
        and a control that changes the one beside it belongs upstream of it.
