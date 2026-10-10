@@ -202,6 +202,13 @@ final readonly class OAuthAccountLinker
             $account->email = $email;
             $account->name = $duplicate ? sprintf('%s (%s)', $email, ucfirst($provider->value)) : $email;
             $account->isActive = true;
+
+            // AccountCreator hands the colour out at creation and this path
+            // does not go through it, so without this every OAuth account kept
+            // the column default of 0 and wore the same dot as the others.
+            $account->colorIndex = $this->accountCreator->freeColorIndex(
+                $this->accounts->findForUserOrdered($user),
+            );
         }
 
         $account->username = $email;

@@ -39,6 +39,12 @@ field. A scanned photograph from Paperless-ngx is now taken as the original — 
 the archived PDF and be refused. The setup wizard's profile step still has the small grid, because
 the picker would replace the wizard it is inside. No migration.
 
+**A Gmail or Microsoft account gets its own colour when you connect it.** Accounts added with a
+password were already given the first colour no other account was wearing; accounts connected
+through Google or Microsoft skipped that step and all kept the first colour, so their dots in the
+sidebar and the corner mark on every message row looked the same. They now take the first free
+colour like any other. Accounts you connected before this keep the colour they have. No migration.
+
 ## v0.3.2 — 2026-10-09
 
 ### Security
