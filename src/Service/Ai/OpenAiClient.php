@@ -1,0 +1,232 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Service\Ai;
+
+use App\Domain\DTO\Ai\AiCallTiming;
+use App\Domain\DTO\Ai\AiChatResult;
+use App\Domain\DTO\Ai\AiProbe;
+use App\Domain\DTO\Ai\OllamaModel;
+use Symfony\Contracts\HttpClient\HttpClientInterface;
+use Symfony\Contracts\HttpClient\Exception\TimeoutExceptionInterface;
+use Symfony\Contracts\HttpClient\Exception\DecodingExceptionInterface;
+
+/**
+ * OpenAI-compatible text generation, with SSE translated to the application's
+ * token stream. Embeddings deliberately stay on Ollama: a provider switch must
+ * never mix stored vectors. Upstream bodies and exception messages may contain
+ * credentials or mail, so failures expose only the existing error categories.
+ */
+final readonly class OpenAiClient
+{
+    public function __construct(private HttpClientInterface $http, private ?AiTaskContext $tasks = null) {}
+
+    /** @param list<array{role: string, content: string}> $messages */
+    public function chat(string $baseUrl, string $model, array $messages, ?float $temperature = null, ?string $key = null, array $headers = []): AiChatResult
+    {
+        try {
+            $response = $this->http->request('POST', $this->url($baseUrl, '/chat/completions'), $this->options($key, $this->payload($model, $messages, $temperature, false), $headers));
+            if (200 !== $response->getStatusCode()) {
+                return AiChatResult::failed(OllamaClient::ERROR_HTTP_STATUS);
+            }
+            $body = $response->toArray(false);
+            $content = $body['choices'][0]['message']['content'] ?? null;
+            if (!is_string($content)) {
+                return AiChatResult::failed(OllamaClient::ERROR_BAD_RESPONSE);
+            }
+
+            return AiChatResult::ok($content, $this->timing($body));
+        } catch (TimeoutExceptionInterface) {
+            return AiChatResult::failed(OllamaClient::ERROR_TIMEOUT);
+        } catch (DecodingExceptionInterface) {
+            return AiChatResult::failed(OllamaClient::ERROR_BAD_RESPONSE);
+        } catch (\Throwable) {
+            return AiChatResult::failed(OllamaClient::ERROR_UNREACHABLE);
+        }
+    }
+
+    /**
+     * SSE boundaries need not coincide with network chunks. Buffer complete
+     * events, accepting CRLF and multiple data lines, and require [DONE] so a
+     * truncated draft cannot be recorded as successful. Destruction cancels the
+     * response, including when the caller stops between tokens.
+     *
+     * @param list<array{role: string, content: string}> $messages
+     * @return \Generator<int, string, void, AiChatResult>
+     */
+    public function chatStream(string $baseUrl, string $model, array $messages, ?float $temperature = null, ?string $key = null, ?float $timeout = null, array $headers = []): \Generator
+    {
+        $response = null;
+        $content = '';
+        $timing = AiCallTiming::none();
+        $buffer = '';
+        try {
+            $options = $this->options($key, $this->payload($model, $messages, $temperature, true), $headers);
+            $options['max_duration'] = $timeout ?? 180.0;
+            $response = $this->http->request('POST', $this->url($baseUrl, '/chat/completions'), $options);
+            if (200 !== $response->getStatusCode()) {
+                return AiChatResult::failed(OllamaClient::ERROR_HTTP_STATUS);
+            }
+            foreach ($this->http->stream($response, 1.0) as $chunk) {
+                if ($chunk->isTimeout()) {
+                    yield ''; // Existing application heartbeat contract.
+                    continue;
+                }
+                $buffer .= $chunk->getContent();
+                while (preg_match('/\r?\n\r?\n/', $buffer, $match, PREG_OFFSET_CAPTURE)) {
+                    $offset = $match[0][1];
+                    $event = substr($buffer, 0, $offset);
+                    $buffer = substr($buffer, $offset + strlen($match[0][0]));
+                    $data = [];
+                    foreach (preg_split('/\r?\n/', $event) as $line) {
+                        if (str_starts_with($line, 'data:')) {
+                            $data[] = ltrim(substr($line, 5), ' ');
+                        }
+                    }
+                    if ([] === $data) {
+                        continue;
+                    }
+                    $json = implode("\n", $data);
+                    if ('[DONE]' === $json) {
+                        return AiChatResult::ok($content, $timing);
+                    }
+                    $body = json_decode($json, true, flags: JSON_THROW_ON_ERROR);
+                    if (!is_array($body) || isset($body['error'])) {
+                        return AiChatResult::failed(OllamaClient::ERROR_HTTP_STATUS);
+                    }
+                    if (isset($body['usage'])) {
+                        $timing = $this->timing($body);
+                    }
+                    $token = $body['choices'][0]['delta']['content'] ?? null;
+                    if (null !== $token && !is_string($token)) {
+                        return AiChatResult::failed(OllamaClient::ERROR_BAD_RESPONSE);
+                    }
+                    if (is_string($token) && '' !== $token) {
+                        $content .= $token;
+                        yield $token;
+                    }
+                }
+                if (strlen($buffer) > 1_048_576) {
+                    return AiChatResult::failed(OllamaClient::ERROR_BAD_RESPONSE);
+                }
+            }
+
+            return AiChatResult::failed(OllamaClient::ERROR_HTTP_STATUS);
+        } catch (\JsonException) {
+            return AiChatResult::failed(OllamaClient::ERROR_BAD_RESPONSE);
+        } catch (TimeoutExceptionInterface) {
+            return AiChatResult::failed(OllamaClient::ERROR_TIMEOUT);
+        } catch (DecodingExceptionInterface) {
+            return AiChatResult::failed(OllamaClient::ERROR_BAD_RESPONSE);
+        } catch (\Throwable) {
+            return AiChatResult::failed(OllamaClient::ERROR_UNREACHABLE);
+        } finally {
+            $response?->cancel();
+        }
+    }
+
+    public function embed(string $baseUrl, string $model, string $text, ?string $key = null, array $headers = []): \App\Domain\DTO\Ai\AiEmbedResult
+    {
+        $response = null;
+        try {
+            $response = $this->http->request('POST', $this->url($baseUrl, '/embeddings'), $this->options($key, ['model'=>$model, 'input'=>$text], $headers));
+            if (200 !== $response->getStatusCode()) return \App\Domain\DTO\Ai\AiEmbedResult::failed(OllamaClient::ERROR_HTTP_STATUS);
+            $body = $response->toArray(false);
+            $entries = $body['data'] ?? null;
+            if (!is_array($entries) || count($entries)!==1 || ($entries[0]['index'] ?? null)!==0 || !is_array($entries[0]['embedding'] ?? null) || !array_is_list($entries[0]['embedding']) || [] === $entries[0]['embedding']) return \App\Domain\DTO\Ai\AiEmbedResult::failed(OllamaClient::ERROR_BAD_RESPONSE);
+            $vector = [];
+            foreach ($entries[0]['embedding'] as $component) {
+                if ((!is_int($component) && !is_float($component)) || !is_finite((float)$component)) return \App\Domain\DTO\Ai\AiEmbedResult::failed(OllamaClient::ERROR_BAD_RESPONSE);
+                $vector[] = (float)$component;
+            }
+            return \App\Domain\DTO\Ai\AiEmbedResult::ok($vector, $this->timing($body));
+        } catch (TimeoutExceptionInterface) {
+            return \App\Domain\DTO\Ai\AiEmbedResult::failed(OllamaClient::ERROR_TIMEOUT);
+        } catch (DecodingExceptionInterface) {
+            return \App\Domain\DTO\Ai\AiEmbedResult::failed(OllamaClient::ERROR_BAD_RESPONSE);
+        } catch (\Throwable) {
+            return \App\Domain\DTO\Ai\AiEmbedResult::failed(OllamaClient::ERROR_UNREACHABLE);
+        } finally { $response?->cancel(); }
+    }
+
+    /** Optional discovery; generation itself never depends on /models. */
+    public function probe(string $baseUrl, ?string $key = null, float $timeout = 2.5, bool $embeddings = false, array $headers = []): AiProbe
+    {
+        try {
+            $options = $this->options($key, headers: $headers);
+            $options['max_duration'] = $timeout;
+            $response = $this->http->request('GET', $this->url($baseUrl, $embeddings && 'openrouter.ai' === strtolower((string)parse_url($baseUrl, PHP_URL_HOST)) ? '/embeddings/models' : '/models'), $options);
+            if (200 !== $response->getStatusCode()) {
+                return AiProbe::unreachable(match ($response->getStatusCode()) { 401 => 'unauthorized', 403 => 'forbidden', 404 => 'not_found', 429 => 'rate_limit', default => 'status' }, ['status' => $response->getStatusCode()]);
+            }
+            $models = [];
+            foreach ($response->toArray(false)['data'] ?? [] as $entry) {
+                if (is_string($entry['id'] ?? null)) {
+                    $models[] = new OllamaModel($entry['id']);
+                }
+            }
+
+            return AiProbe::reachable($models, 'OpenAI-compatible');
+        } catch (DecodingExceptionInterface|\JsonException) {
+            return AiProbe::unreachable('bad_response');
+        } catch (\Throwable $error) {
+            return AiProbe::transportFailure($error);
+        }
+    }
+
+    private function url(string $baseUrl, string $path): string
+    {
+        if (!preg_match('~^https?://[^\s]+$~i', $baseUrl)) {
+            throw new \InvalidArgumentException('Invalid AI endpoint');
+        }
+        $parts = parse_url($baseUrl);
+        if (false === $parts || isset($parts['user']) || isset($parts['pass']) || isset($parts['query']) || isset($parts['fragment'])) {
+            throw new \InvalidArgumentException('Invalid AI endpoint');
+        }
+
+        return rtrim($baseUrl, '/') . $path;
+    }
+
+    /** @return array<string, mixed> */
+    private function options(?string $key, ?array $payload = null, array $headers = []): array
+    {
+        $headers = \App\Domain\Ai\ConnectionHeaders::validate($headers);
+        $sessionId = null;
+        foreach ($headers as &$value) { if (is_array($value)) { $value = $sessionId ??= ($this->tasks ?? new AiTaskContext())->id(); } }
+        unset($value);
+        $options = ['headers' => ['User-Agent' => 'plMail', ...$headers], 'timeout' => 30.0, 'max_duration' => 180.0, 'max_redirects' => 0];
+        if (null !== $key && '' !== trim($key)) {
+            $options['auth_bearer'] = $key;
+        }
+        if (null !== $payload) {
+            $options['json'] = $payload;
+        }
+
+        return $options;
+    }
+
+    /** @param list<array{role: string, content: string}> $messages
+     *  @return array<string, mixed>
+     */
+    private function payload(string $model, array $messages, ?float $temperature, bool $stream): array
+    {
+        $payload = ['model' => $model, 'messages' => $messages, 'stream' => $stream];
+        if (null !== $temperature) {
+            $payload['temperature'] = $temperature;
+        }
+
+        return $payload;
+    }
+
+    /** @param array<string, mixed> $body */
+    private function timing(array $body): AiCallTiming
+    {
+        $usage = $body['usage'] ?? [];
+
+        return new AiCallTiming(
+            promptTokens: is_int($usage['prompt_tokens'] ?? null) ? $usage['prompt_tokens'] : null,
+            evalTokens: is_int($usage['completion_tokens'] ?? null) ? $usage['completion_tokens'] : null,
+        );
+    }
+}

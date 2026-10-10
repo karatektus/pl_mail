@@ -89,6 +89,7 @@ final readonly class AiBackfillStateRepository
             startedAt:         self::moment($row['started_at'] ?? null),
             lastProgressAt:    self::moment($row['last_progress_at'] ?? null),
             finishedAt:        self::moment($row['finished_at'] ?? null),
+            runId: isset($row['run_id']) ? (string) $row['run_id'] : null,
             interactiveSeenAt: self::moment($row['interactive_seen_at'] ?? null),
         );
     }
@@ -105,7 +106,7 @@ final readonly class AiBackfillStateRepository
      *
      * @return bool false when a live run already holds it
      */
-    public function begin(string $model, array $userIds, DateTimeImmutable $now): bool
+    public function begin(string $model, array $userIds, DateTimeImmutable $now, ?string $runId = null): bool
     {
         $this->ensureRow($now);
 
@@ -117,7 +118,8 @@ final readonly class AiBackfillStateRepository
 
         $sql = <<<'SQL'
             UPDATE ai_backfill_state
-               SET status           = 'running',
+               SET run_id = :runId,
+                   status           = 'running',
                    pause_reason     = NULL,
                    model            = :model,
                    mailboxes        = :mailboxes::jsonb,
@@ -138,6 +140,7 @@ final readonly class AiBackfillStateRepository
         SQL;
 
         return $this->write($sql, [
+            'runId'     => $runId ?? bin2hex(random_bytes(16)),
             'model'     => $model,
             'mailboxes' => json_encode($mailboxes, JSON_THROW_ON_ERROR),
             'now'       => $now,
@@ -152,11 +155,12 @@ final readonly class AiBackfillStateRepository
      * the queue already, and dispatching a second chain for the same mailbox is
      * how a "resume" doubles the load it was meant to restore.
      */
-    public function resume(DateTimeImmutable $now): bool
+    public function resume(DateTimeImmutable $now, ?string $runId = null): bool
     {
         $sql = <<<'SQL'
             UPDATE ai_backfill_state
-               SET status           = 'running',
+               SET run_id = :runId,
+                   status           = 'running',
                    pause_reason     = NULL,
                    empty_batches    = 0,
                    last_error       = NULL,
@@ -173,6 +177,7 @@ final readonly class AiBackfillStateRepository
         SQL;
 
         return $this->write($sql, [
+            'runId' => $runId ?? bin2hex(random_bytes(16)),
             'now'   => $now,
             'stale' => $now->modify('-' . self::STALE_AFTER_SECONDS . ' seconds'),
         ], ['now' => Types::DATETIME_IMMUTABLE, 'stale' => Types::DATETIME_IMMUTABLE]) > 0;
@@ -185,17 +190,18 @@ final readonly class AiBackfillStateRepository
      * themselves leave a delayed delivery in the queue, and the two that do not
      * have ended the chain. {@see BackfillPauseReason}.
      */
-    public function pause(BackfillPauseReason $reason, DateTimeImmutable $now): void
+    public function pause(BackfillPauseReason $reason, DateTimeImmutable $now, ?string $runId = null): void
     {
         $this->write(
             <<<'SQL'
                 UPDATE ai_backfill_state
-                   SET status       = 'paused',
+                   SET run_id = CASE WHEN :reason IN ('operator', 'feature_off') THEN md5(random()::text || clock_timestamp()::text) ELSE run_id END,
+                       status       = 'paused',
                        pause_reason = :reason,
                        updated_at   = :now
-                 WHERE singleton = 1
+                 WHERE singleton = 1 AND (:runId::text IS NULL OR run_id = :runId)
             SQL,
-            ['reason' => $reason->value, 'now' => $now],
+            ['runId' => $runId, 'reason' => $reason->value, 'now' => $now],
             ['now' => Types::DATETIME_IMMUTABLE],
         );
     }
@@ -213,7 +219,7 @@ final readonly class AiBackfillStateRepository
      * chain go through pause() and deliberately stop touching the clock, so
      * that a run abandoned mid-pause is still recognisable as abandoned.
      */
-    public function yieldFor(BackfillPauseReason $reason, DateTimeImmutable $now): void
+    public function yieldFor(BackfillPauseReason $reason, DateTimeImmutable $now, ?string $runId = null): void
     {
         $this->write(
             <<<'SQL'
@@ -222,9 +228,9 @@ final readonly class AiBackfillStateRepository
                        pause_reason     = :reason,
                        last_progress_at = :now,
                        updated_at       = :now
-                 WHERE singleton = 1
+                 WHERE singleton = 1 AND (:runId::text IS NULL OR run_id = :runId)
             SQL,
-            ['reason' => $reason->value, 'now' => $now],
+            ['runId' => $runId, 'reason' => $reason->value, 'now' => $now],
             ['now' => Types::DATETIME_IMMUTABLE],
         );
     }
@@ -241,7 +247,7 @@ final readonly class AiBackfillStateRepository
      * resumes itself — the walk demonstrating it is moving again rather than a
      * separate transition somebody has to remember to write.
      */
-    public function recordChunk(int $userId, ?int $cursor, bool $done, int $failures, DateTimeImmutable $now): void
+    public function recordChunk(int $userId, ?int $cursor, bool $done, int $failures, DateTimeImmutable $now, ?string $runId = null): void
     {
         $this->write(
             <<<'SQL'
@@ -258,9 +264,10 @@ final readonly class AiBackfillStateRepository
                        pause_reason     = NULL,
                        last_progress_at = :now,
                        updated_at       = :now
-                 WHERE singleton = 1
+                 WHERE singleton = 1 AND (:runId::text IS NULL OR run_id = :runId)
             SQL,
             [
+                'runId' => $runId,
                 'userId'   => (string) $userId,
                 'cursor'   => $cursor,
                 'done'     => $done ? 'true' : 'false',
@@ -280,23 +287,23 @@ final readonly class AiBackfillStateRepository
      *
      * @return int how many in a row now
      */
-    public function noteEmptyChunk(DateTimeImmutable $now): int
+    public function noteEmptyChunk(DateTimeImmutable $now, ?string $runId = null): int
     {
         $this->write(
             <<<'SQL'
                 UPDATE ai_backfill_state
                    SET empty_batches = empty_batches + 1,
                        updated_at    = :now
-                 WHERE singleton = 1
+                 WHERE singleton = 1 AND (:runId::text IS NULL OR run_id = :runId)
             SQL,
-            ['now' => $now],
+            ['runId' => $runId, 'now' => $now],
             ['now' => Types::DATETIME_IMMUTABLE],
         );
 
         return $this->current()->emptyBatches;
     }
 
-    public function markFailed(string $errorKind, DateTimeImmutable $now): void
+    public function markFailed(string $errorKind, DateTimeImmutable $now, ?string $runId = null): void
     {
         $this->write(
             <<<'SQL'
@@ -305,14 +312,14 @@ final readonly class AiBackfillStateRepository
                        pause_reason = NULL,
                        last_error   = :error,
                        updated_at   = :now
-                 WHERE singleton = 1
+                 WHERE singleton = 1 AND (:runId::text IS NULL OR run_id = :runId)
             SQL,
-            ['error' => mb_substr($errorKind, 0, 32), 'now' => $now],
+            ['runId' => $runId, 'error' => mb_substr($errorKind, 0, 32), 'now' => $now],
             ['now' => Types::DATETIME_IMMUTABLE],
         );
     }
 
-    public function markComplete(DateTimeImmutable $now): void
+    public function markComplete(DateTimeImmutable $now, ?string $runId = null): void
     {
         $this->write(
             <<<'SQL'
@@ -321,9 +328,9 @@ final readonly class AiBackfillStateRepository
                        pause_reason = NULL,
                        finished_at  = :now,
                        updated_at   = :now
-                 WHERE singleton = 1
+                 WHERE singleton = 1 AND (:runId::text IS NULL OR run_id = :runId)
             SQL,
-            ['now' => $now],
+            ['runId' => $runId, 'now' => $now],
             ['now' => Types::DATETIME_IMMUTABLE],
         );
     }

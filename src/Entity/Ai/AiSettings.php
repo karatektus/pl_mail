@@ -107,6 +107,82 @@ class AiSettings
     #[ORM\Column(name: 'api_token', type: EncryptedStringType::NAME, nullable: true)]
     public ?string $apiToken = null;
 
+    /** Generation settings are separate so changing provider cannot alter stored vectors. */
+    #[ORM\Column(name: 'chat_provider', length: 32, options: ['default' => 'ollama'])]
+    public string $chatProvider = 'ollama';
+
+    #[ORM\Column(name: 'openai_base_url', length: 255, nullable: true)]
+    public ?string $openAiBaseUrl = null;
+
+    #[ORM\Column(name: 'openai_api_token', type: EncryptedStringType::NAME, nullable: true)]
+    public ?string $openAiApiToken = null;
+
+    #[ORM\Column(name: 'openai_headers', type: EncryptedStringType::NAME, nullable: true)]
+    public ?string $openAiHeaders = null;
+
+    #[ORM\Column(name: 'embedding_headers', type: EncryptedStringType::NAME, nullable: true)]
+    public ?string $embeddingHeaders = null;
+
+    /** @return array<string,string|array{mode: 'session'}> */
+    public function effectiveEmbeddingHeaders(): array
+    {
+        return \App\Domain\Ai\ConnectionHeaders::decode($this->embeddingSharedConnection ? $this->openAiHeaders : $this->embeddingHeaders);
+    }
+
+
+    #[ORM\Column(name: 'openai_model', length: 128, nullable: true)]
+    public ?string $openAiModel = null;
+
+    #[ORM\Column(name: 'embedding_provider', length: 32, options: ['default' => 'ollama'])]
+    public string $embeddingProvider = 'ollama';
+    #[ORM\Column(name: 'embedding_shared_connection', options: ['default' => false])]
+    public bool $embeddingSharedConnection = false;
+    #[ORM\Column(name: 'embedding_base_url', length: 255, nullable: true)]
+    public ?string $embeddingBaseUrl = null;
+    #[ORM\Column(name: 'embedding_revision', length: 64, nullable: true)]
+    public ?string $embeddingRevision = null;
+    #[ORM\Column(name: 'embedding_api_token', type: EncryptedStringType::NAME, nullable: true)]
+    public ?string $embeddingApiToken = null;
+    #[ORM\Column(name: 'embedding_approved_space', length: 80, nullable: true)]
+    public ?string $embeddingApprovedSpace = null;
+    #[ORM\Column(name: 'embedding_reindex_required', options: ['default' => false])]
+    public bool $embeddingReindexRequired = false;
+
+    public function effectiveEmbeddingProvider(): string { return $this->embeddingSharedConnection ? $this->chatProvider : $this->embeddingProvider; }
+    public function effectiveEmbeddingUrl(): ?string
+    {
+        return $this->embeddingSharedConnection ? $this->generationBaseUrl() : ($this->embeddingBaseUrl ?? ('ollama' === $this->embeddingProvider ? $this->baseUrl : null));
+    }
+    public function effectiveEmbeddingToken(): ?string
+    {
+        if ($this->embeddingSharedConnection) return 'openai' === $this->chatProvider ? $this->openAiApiToken : $this->apiToken;
+        return $this->embeddingApiToken ?? ('ollama' === $this->embeddingProvider && $this->effectiveEmbeddingUrl() === $this->baseUrl ? $this->apiToken : null);
+    }
+    public function embeddingSpace(): string
+    {
+        return \App\Domain\Ai\EmbeddingSpace::identity($this->effectiveEmbeddingProvider(), $this->effectiveEmbeddingUrl(), $this->embeddingModel, $this->embeddingRevision);
+    }
+    public function embeddingSpaceApproved(): bool
+    {
+        return !$this->embeddingReindexRequired && (null === $this->embeddingApprovedSpace || $this->embeddingApprovedSpace === $this->embeddingSpace());
+    }
+
+    public function generationBaseUrl(): ?string
+    {
+        return 'openai' === $this->chatProvider ? $this->openAiBaseUrl : $this->baseUrl;
+    }
+
+    public function generationModel(): ?string
+    {
+        return 'openai' === $this->chatProvider ? $this->openAiModel : $this->chatModel;
+    }
+
+    /** Bounded identity for summary caches; endpoint is part of the model's identity. */
+    public function generationIdentity(): string
+    {
+        return hash('sha256', $this->chatProvider . "\0" . rtrim((string) $this->generationBaseUrl(), '/') . "\0" . (string) $this->generationModel());
+    }
+
     /** The model that writes: replies, subject lines, summaries. */
     #[ORM\Column(name: 'chat_model', length: 128, nullable: true)]
     public ?string $chatModel = null;
@@ -329,7 +405,7 @@ class AiSettings
      */
     public function isConfigured(): bool
     {
-        return null !== $this->baseUrl && '' !== trim($this->baseUrl);
+        return '' !== trim((string) $this->baseUrl) || '' !== trim((string) $this->generationBaseUrl());
     }
 
     /**
@@ -342,7 +418,8 @@ class AiSettings
      */
     public function enabledFor(AiFeature $feature): bool
     {
-        if (false === $this->isEnabled || false === $this->isConfigured()) {
+        if (AiFeature::Search === $feature && !$this->embeddingSpaceApproved()) return false;
+        if (false === $this->isEnabled || '' === trim((string) (AiFeature::Search === $feature ? $this->effectiveEmbeddingUrl() : $this->generationBaseUrl()))) {
             return false;
         }
 
@@ -350,7 +427,7 @@ class AiSettings
             AiFeature::Search       => $this->embeddingModel,
             AiFeature::Categorise,
             AiFeature::WritingHelp,
-            AiFeature::Summary      => $this->chatModel,
+            AiFeature::Summary      => $this->generationModel(),
         };
 
         if (null === $model || '' === trim($model)) {

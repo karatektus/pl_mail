@@ -1,13 +1,21 @@
-{#
-The optional step. Everything here may be left exactly as it is, and pressing
-Next with nothing filled in is a complete answer — see AdminAiStepHandler on why
-that has to be recorded rather than merely tolerated.
-
-The form is the admin panel's own, so there is one description of these fields
-rather than two that drift apart.
-#}
-<p class="text-sm text-ink-soft leading-relaxed">
-    {{ 'onboarding.step.admin-ai.intro'|trans }}
-</p>
-
-{{ form_widget(form) }}
+<p class="text-sm text-ink-soft">{{ 'onboarding.step.admin-ai.intro'|trans }}</p>
+<div data-controller="admin--ai-provider" data-action="change->admin--ai-provider#update" class="space-y-5">
+    {{ form_row(form.isEnabled) }}
+    <h3>{{ 'admin.ai.generation.heading'|trans }}</h3>
+    {{ form_row(form.chatProvider) }}
+    <div data-ai-panel="generationOpenai" class="space-y-5">
+        {{ form_row(form.openAiBaseUrl) }}{{ form_row(form.openAiModel) }}{{ form_row(form.openAiApiToken) }}{% include 'admin/ai/_headers.html.twig' with {field: form.openAiHeaders} %}
+    </div>
+    <div data-ai-panel="generationOllama" class="space-y-5">
+        {{ form_row(form.baseUrl) }}{{ form_row(form.apiToken) }}{{ form_row(form.chatModel) }}{{ form_row(form.chatKeepAlive) }}
+    </div>
+    {{ form_row(form.searchEnabled) }}
+    <div data-ai-panel="embeddings" class="space-y-5">
+        <h3>{{ 'admin.ai.embedding.heading'|trans }}</h3><p>{{ 'admin.ai.embedding.explanation'|trans }}</p>
+        {{ form_row(form.embeddingSharedConnection) }}
+        <div data-ai-panel="independent" class="space-y-5">{{ form_row(form.embeddingProvider) }}{{ form_row(form.embeddingBaseUrl) }}{{ form_row(form.embeddingApiToken) }}<div data-ai-panel="embeddingOpenai">{% include 'admin/ai/_headers.html.twig' with {field: form.embeddingHeaders} %}</div></div>
+        {{ form_row(form.embeddingModel) }}{{ form_row(form.embeddingRevision) }}{{ form_row(form.searchQueryInstruction) }}{{ form_row(form.semanticMinSimilarity) }}
+        <div data-ai-panel="embeddingOllama">{{ form_row(form.embeddingKeepAlive) }}</div>
+    </div>
+    {{ form_rest(form) }}
+</div>

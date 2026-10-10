@@ -91,7 +91,7 @@ final readonly class WritingAssistant
      * off disk, and thirteen silent seconds is the whole of the "I press the
      * button and nothing happens" report.
      */
-    public function isModelWarm(): bool
+    public function isModelWarm(): ?bool
     {
         return $this->ai->isModelResident(AiFeature::WritingHelp);
     }
@@ -121,7 +121,7 @@ final readonly class WritingAssistant
             return null;
         }
 
-        $answer = $this->ai->chat(AiFeature::WritingHelp, $messages, $task->temperature());
+        $answer = $this->ai->chat(AiFeature::WritingHelp, $messages, $task->temperature(), execution: new \App\Domain\Ai\AiExecutionContext());
 
         return null === $answer ? null : $this->tidy($answer);
     }
@@ -171,7 +171,7 @@ final readonly class WritingAssistant
             return null;
         }
 
-        $tokens = $this->ai->chatStream(AiFeature::WritingHelp, $messages, $task->temperature());
+        $tokens = $this->ai->chatStream(AiFeature::WritingHelp, $messages, $task->temperature(), execution: new \App\Domain\Ai\AiExecutionContext());
 
         // Not a generator function, for the reason AiAssistant::chatStream()
         // gives: the refusals above have to happen when this is CALLED, not

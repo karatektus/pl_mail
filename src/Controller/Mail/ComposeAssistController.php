@@ -337,7 +337,7 @@ final class ComposeAssistController extends AbstractController
         // keep-alive it is reporting on.
         $this->frame([
             'type'  => 'state',
-            'value' => true === $this->assistant->isModelWarm() ? 'generating' : 'waiting',
+            'value' => false !== $this->assistant->isModelWarm() ? 'generating' : 'waiting',
         ]);
 
         foreach ($tokens as $token) {

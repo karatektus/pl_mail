@@ -63,6 +63,29 @@ final class AiBackfillStateRepositoryTest extends KernelTestCase
         parent::tearDown();
     }
 
+    public function testOldChunkCannotResurrectPausedOrResumedGeneration(): void
+    {
+        $now = new DateTimeImmutable();
+        $this->repository->begin('old-space', [1], $now);
+        $old = $this->repository->current()->runId;
+        self::assertNotNull($old);
+        $this->repository->pause(BackfillPauseReason::Operator, $now);
+        $this->repository->recordChunk(1, 100, false, 1, $now, $old);
+        self::assertSame(BackfillStatus::Paused, $this->repository->current()->status);
+        self::assertNull($this->repository->current()->cursorFor(1));
+        self::assertTrue($this->repository->resume($now));
+        $fresh = $this->repository->current()->runId;
+        self::assertNotSame($old, $fresh);
+        $this->repository->recordChunk(1, 200, true, 4, $now, $old);
+        $this->repository->markFailed('stale', $now, $old);
+        $this->repository->markComplete($now, $old);
+        self::assertSame(BackfillStatus::Running, $this->repository->current()->status);
+        self::assertNull($this->repository->current()->cursorFor(1));
+        self::assertSame(0, $this->repository->current()->failures);
+        $this->repository->recordChunk(1, 300, false, 0, $now, $fresh);
+        self::assertSame(300, $this->repository->current()->cursorFor(1));
+    }
+
     public function testARunIsClaimedOnceAndRefusedTheSecondTime(): void
     {
         $now = new DateTimeImmutable();

@@ -178,7 +178,7 @@ final readonly class EmbeddingCatchUp
             return 0;
         }
 
-        $model = (string) $this->settings->currentOrDefault()->embeddingModel;
+        $model = $this->settings->currentOrDefault()->embeddingSpace();
 
         $ids = $this->messages->unembeddedIdsForUser($userId, $model, $limit);
 

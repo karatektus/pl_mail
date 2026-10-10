@@ -107,7 +107,7 @@ admin:
             failures_label: 'Skipped'
             finished_label: 'Finished'
             heading: 'Search index'
-            intro: 'Search by meaning only sees mail that has been indexed. This walks every mailbox once; after that, new mail is indexed shortly after someone searches, and once a night as a backstop.'
+            intro: 'Enabled AI features send data to their configured endpoints. Nothing is enabled automatically; external providers may charge for requests.'
             last_activity_label: 'Last checked in'
             model_label: 'Indexed with'
             no_mail: 'There is no mail to index yet.'
@@ -149,11 +149,11 @@ admin:
             categorisation_help: 'Runs on every message that arrives. Only ever a tie-breaker — the ordinary rules decide first.'
             chat_keep_alive: 'Keep the writing model loaded for'
             chat_keep_alive_help: '5m, 30m, 4h, or a plain number of seconds. -1 keeps it loaded for good, 0 unloads it after every request. Longer means the first reply comes back sooner; the host keeps the memory reserved for the whole time either way. Leave empty to use whatever the host itself is set to.'
-            chat_model: 'Writing model'
+            chat_model: 'Generation model'
             chat_model_help: 'Used for replies, summaries and sorting. Something instruction-tuned.'
             embedding_keep_alive: 'Keep the search model loaded for'
             embedding_keep_alive_help: 'Same format as above. This model is small and asked for constantly, so -1 — loaded for good — usually costs little and saves a wait on every search; it is worth setting if the host has the memory to spare. Leave empty to use whatever the host itself is set to.'
-            embedding_model: 'Search model'
+            embedding_model: 'Embedding model'
             embedding_model_help: 'Turns mail into vectors so search can find meaning rather than words.'
             hold: 'Wait for the assistant before showing new mail in a tab'
             hold_help: 'For people who let the assistant sort their mail. New mail is kept out of the inbox tabs for the moment the assistant needs, so it appears once, in the right tab, instead of appearing in one and moving to another. Mail brought in by a first import is never held.'
@@ -235,6 +235,14 @@ admin:
                 week: '7 days'
         probe:
             missing_model: 'That host answered, but it is not holding: %models%. Pull them on the host first.'
+            timeout: 'The endpoint timed out.'
+            dns: 'The endpoint host could not be resolved.'
+            tls: 'TLS verification failed. Check the certificate and trust configuration.'
+            unauthorized: 'Authentication was rejected (HTTP 401). Check the API key.'
+            forbidden: 'Access was denied (HTTP 403). Check provider permissions.'
+            not_found: 'Model discovery was not found (HTTP 404). Check the base URL; manual models may still work.'
+            rate_limit: 'The provider rate limit was reached (HTTP 429).'
+            bad_response: 'The endpoint returned an invalid model-list response.'
             no_host: 'Type an address first.'
             ok: 'That host answered, and is holding %count% models.'
             models: 'Show the %count% models it is holding'
@@ -4201,3 +4209,52 @@ templates:
         sender_email: 'Your address'
         sender_name: 'Your name'
         signature: 'Signature'
+
+admin.ai.field.provider: Text generation provider
+admin.ai.field.openai_url: OpenAI-compatible base URL (include /v1)
+admin.ai.field.openai_model: 'Generation model'
+admin.ai.field.openai_key: OpenAI-compatible API key
+admin.ai.field.openai_help: 'Only text generation uses this endpoint. Search embeddings remain on the Ollama host below. Changing the URL clears the saved key; re-enter it for the new endpoint. Enabled categorisation sends incoming mail automatically; writing and summaries send the requested content. Remote services may charge for usage.'
+
+admin.ai.perf.discovery_unavailable: 'Model discovery is unavailable. Some compatible services do not offer /models; text generation can still work. Residency and GPU memory diagnostics are not supported.'
+
+admin.ai.generation.heading: 'Text generation — replies, summaries and classification'
+
+admin.ai.embedding.heading: 'Embeddings — models for semantic search'
+
+admin.ai.embedding.explanation: 'Embedding models convert mail and search queries into vectors. Use an embedding model, not a chat model. They do not write replies or summaries.'
+
+admin.ai.embedding.shared: 'Use the same provider and connection as text generation'
+
+admin.ai.embedding.confirmation: 'Changing the embedding provider, endpoint or model requires a new index. Up to %count% messages will send their subject, sender and text to the configured provider; external providers may charge. Existing vectors remain isolated and plain text search stays available. Save first, then confirm explicitly to start.'
+
+admin.ai.embedding.confirm: 'Confirm and prepare the new search index'
+
+admin.ai.embedding.test: 'Test embedding connection'
+
+admin.ai.embedding.revision: 'Index revision (optional)'
+admin.ai.embedding.revision_help: 'Change this value when the provider changes the model under the same name or its vector width. This isolates the previous vectors and requires separate confirmation before building the new index.'
+
+admin.ai.embedding.url: 'Embedding provider base URL'
+admin.ai.embedding.url_help: 'Use the Ollama host URL, or the compatible API root including /v1 when required.'
+
+admin.ai.embedding.approval_required: 'The embedding configuration changed. Review and confirm the new index above before any mail is indexed.'
+
+admin.ai.headers.name: 'Header name'
+admin.ai.headers.value: 'Secret value (blank keeps saved value)'
+admin.ai.headers.mode: 'Value mode'
+admin.ai.headers.fixed: 'Fixed value'
+admin.ai.headers.session: 'Task ID'
+admin.ai.headers.help: 'Values are encrypted. Leave blank to keep a saved value. Changing the endpoint clears saved values.'
+admin.ai.headers.add: 'Add header'
+admin.ai.headers.remove: 'Remove header'
+
+admin.ai.headers.embedding_space_help: 'If a header changes the model or vector space, update Embedding revision and confirm a new index.'
+
+admin.ai.headers.title: 'Additional headers'
+admin.ai.headers.value_short: 'Value'
+admin.ai.headers.saved_value: 'Saved — leave blank to keep'
+admin.ai.headers.new_value: 'Enter value'
+admin.ai.headers.automatic: 'Created automatically'
+admin.ai.headers.details: 'More details'
+admin.ai.headers.task_help: 'Task ID is created once per task and reused for retries.'

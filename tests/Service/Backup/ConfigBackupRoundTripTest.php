@@ -117,6 +117,26 @@ final class ConfigBackupRoundTripTest extends KernelTestCase
         parent::tearDown();
     }
 
+    public function testRestoreCannotApprovePendingEmbeddingConfiguration(): void
+    {
+        $settings = new AiSettings();
+        $settings->embeddingProvider = 'openai';
+        $settings->embeddingBaseUrl = 'https://old.synthetic.test/v1';
+        $settings->embeddingModel = 'embedding-model';
+        $settings->embeddingApprovedSpace = $settings->embeddingSpace();
+        $settings->embeddingBaseUrl = 'https://new.synthetic.test/v1';
+        $settings->embeddingReindexRequired = true;
+        $this->entityManager->persist($settings);
+        $this->entityManager->flush();
+        static::getContainer()->get(\App\Service\Backup\ConfigBackupDatabase::class)->restoreAiSettings([
+            'isEnabled' => true, 'searchEnabled' => true, 'embeddingProvider' => 'openai',
+            'embeddingBaseUrl' => 'https://new.synthetic.test/v1', 'embeddingModel' => 'embedding-model',
+        ]);
+        $restored = static::getContainer()->get(AiSettingsRepository::class)->currentOrDefault();
+        self::assertTrue($restored->embeddingReindexRequired);
+        self::assertFalse($restored->embeddingSpaceApproved());
+    }
+
     public function testTheWholeRoundTripIntoAFreshInstall(): void
     {
         $aliasId = $this->seedTheInstall();
@@ -226,6 +246,10 @@ final class ConfigBackupRoundTripTest extends KernelTestCase
         $this->check('aiSettings row exists', true, $ai instanceof AiSettings);
         $this->check('aiSettings.baseUrl', 'http://10.0.0.5:11434', $ai?->baseUrl);
         $this->check('aiSettings.apiToken', self::AI_TOKEN, $ai?->apiToken);
+        $this->check('aiSettings.chatProvider', 'openai', $ai?->chatProvider);
+        $this->check('aiSettings.openAiBaseUrl', 'https://synthetic.test/v1', $ai?->openAiBaseUrl);
+        $this->check('aiSettings.openAiApiToken', 'synthetic-openai-secret', $ai?->openAiApiToken);
+        $this->check('aiSettings.openAiModel', 'synthetic-model', $ai?->openAiModel);
         $this->check('aiSettings.chatModel', 'llama3.1:8b', $ai?->chatModel);
         $this->check('aiSettings.embeddingModel', 'nomic-embed-text', $ai?->embeddingModel);
         $this->check('aiSettings.embeddingDimensions', 768, $ai?->embeddingDimensions);
@@ -438,6 +462,10 @@ final class ConfigBackupRoundTripTest extends KernelTestCase
         $ai->isEnabled           = true;
         $ai->baseUrl             = 'http://10.0.0.5:11434';
         $ai->apiToken            = self::AI_TOKEN;
+        $ai->chatProvider        = 'openai';
+        $ai->openAiBaseUrl       = 'https://synthetic.test/v1';
+        $ai->openAiApiToken      = 'synthetic-openai-secret';
+        $ai->openAiModel         = 'synthetic-model';
         $ai->chatModel           = 'llama3.1:8b';
         $ai->embeddingModel      = 'nomic-embed-text';
         $ai->embeddingDimensions = 768;

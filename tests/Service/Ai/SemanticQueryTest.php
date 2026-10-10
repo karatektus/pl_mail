@@ -184,7 +184,7 @@ final class SemanticQueryTest extends KernelTestCase
         // vectors from two models are not comparable, and the search has to be
         // able to leave the ones that do not match alone rather than compare
         // across two spaces and rank the result.
-        self::assertSame('nomic-embed-text', $result->model);
+        self::assertSame($this->settings->currentOrDefault()->embeddingSpace(), $result->model);
         self::assertSame(2, $result->dimensions, 'counted from the answer, not read from settings');
     }
 

@@ -59,6 +59,73 @@ final class AiAssistantTest extends KernelTestCase
         parent::tearDown();
     }
 
+    public function testCompatibleGenerationWorksWithoutAnOllamaHost(): void
+    {
+        $settings = new AiSettings();
+        $settings->isEnabled = true;
+        $settings->writingHelpEnabled = true;
+        $settings->chatProvider = 'openai';
+        $settings->openAiBaseUrl = 'https://synthetic.test/v1';
+        $settings->openAiModel = 'same-model';
+        self::assertTrue($settings->isConfigured());
+        self::assertTrue($settings->enabledFor(AiFeature::WritingHelp));
+        self::assertFalse($settings->enabledFor(AiFeature::Search));
+        $identity = $settings->generationIdentity();
+        $settings->baseUrl = $settings->openAiBaseUrl;
+        $settings->chatModel = $settings->openAiModel;
+        $settings->chatProvider = 'ollama';
+        self::assertNotSame($identity, $settings->generationIdentity());
+    }
+
+    public function testProbeDoesNotForwardSavedKeyToAnUnsavedEndpoint(): void
+    {
+        $settings = $this->configured();
+        $settings->chatProvider = 'openai';
+        $settings->openAiBaseUrl = 'https://synthetic.test/v1';
+        $settings->openAiApiToken = 'synthetic-key';
+        $this->em->persist($settings);
+        $this->em->flush();
+        $stored = $this->connection->fetchOne('SELECT openai_api_token FROM ai_settings');
+        self::assertStringNotContainsString('synthetic-key', $stored);
+        $headers = [];
+        $http = new MockHttpClient(function ($method, $url, $options) use (&$headers) {
+            $headers = $options['headers'];
+            return new MockResponse('{"data":[]}');
+        });
+        $assistant = new AiAssistant($this->repository, new OllamaClient($http, new NullLogger()), $this->recorder(), new NullLogger(), new \App\Service\Ai\OpenAiClient($http));
+        $assistant->probe('https://other-synthetic.test/v1');
+        self::assertStringNotContainsString('synthetic-key', implode(' ', $headers));
+    }
+
+    public function testCompatibleGenerationDoesNotMoveEmbeddingsToTheNewHost(): void
+    {
+        $settings = $this->configured();
+        $settings->writingHelpEnabled = true;
+        $settings->searchEnabled = true;
+        $settings->chatProvider = 'openai';
+        $settings->openAiBaseUrl = 'https://synthetic.test/v1';
+        $settings->openAiModel = 'compatible-model';
+        $settings->openAiApiToken = 'synthetic-key';
+        $this->em->persist($settings);
+        $this->em->flush();
+        $urls = [];
+        $http = new MockHttpClient(function ($method, $url, $options) use (&$urls) {
+            $urls[] = $url;
+            if (str_contains($url, '/api/embed')) {
+                return new MockResponse('{"embeddings":[[1,2]]}');
+            }
+            return new MockResponse('{"choices":[{"message":{"content":"compatible answer"}}]}');
+        });
+        $assistant = new AiAssistant($this->repository, new OllamaClient($http, new NullLogger()), $this->recorder(), new NullLogger(), new \App\Service\Ai\OpenAiClient($http));
+        self::assertSame('compatible answer', $assistant->chat(AiFeature::WritingHelp, [['role'=>'user','content'=>'synthetic']]));
+        self::assertSame([1.0, 2.0], $assistant->embed(AiCallFeature::SearchQuery, 'synthetic query'));
+        self::assertSame('https://synthetic.test/v1/chat/completions', $urls[0]);
+        self::assertStringStartsWith((string) $settings->baseUrl, $urls[1]);
+        $identity = $settings->generationIdentity();
+        $settings->openAiBaseUrl = 'https://other-synthetic.test/v1';
+        self::assertNotSame($identity, $settings->generationIdentity());
+    }
+
     public function testAFreshInstallationAsksNothingOfAnybody(): void
     {
         $calls = 0;

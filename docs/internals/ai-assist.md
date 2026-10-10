@@ -5,8 +5,54 @@ existing installation is in and the state most will stay in. That is not a discl
 constraint the whole design is bent around, and most of the decisions below only make sense in its
 light.
 
-The model host is an **Ollama container on the operator's own network**. Nothing is sent anywhere
-else, and there is no hosted service to fall back to.
+Ollama remains the default. Administrators can select **OpenAI-compatible** for text generation,
+using a separate base URL (including `/v1`), model and encrypted API key. The key input is never
+filled from storage. Changing that URL clears its saved key; enter a new key for the new endpoint.
+Redirects are disabled, so a provider response cannot forward the key elsewhere.
+
+Embeddings use a separate model and can use an independent Ollama or OpenAI-compatible
+connection. The optional shared connection switch inherits the generation provider, endpoint and
+credential by reference; it never inherits the generation model or duplicates the shared key.
+Existing installations keep their Ollama embedding connection when the generation provider changes.
+
+The compatible adapter sends one input to `/embeddings` and accepts one finite ordered vector.
+Models are entered manually; discovery is optional. OpenRouter's embedding Test uses
+`/embeddings/models`, while generic compatible connections use `/models`.
+
+The persisted vector `model` field now carries a bounded space identity: provider, canonical
+endpoint, exact model and optional index revision. Search SQL, caches, deduplication, coverage and
+backfill all use that identity, as well as the vector width where comparison requires it. Keys
+are excluded. Changing the space saves a pending configuration and disables semantic calls until
+the administrator separately confirms the exact saved space, with CSRF protection and an estimate
+of the number of messages whose subject, sender and body may leave the server. Confirmation starts
+a backfill only if AI and search are enabled; plain text search remains available. Old vectors are
+isolated and are replaced per message as the new index progresses, not silently reindexed on Save.
+
+The migration tags current legacy Ollama vectors and pins their existing endpoint and encrypted
+credential without HTTP calls. Historical models stay unmatched. It pauses old backfill deliveries.
+Because identities cannot safely be converted back into model names, database rollback requires a
+pre-migration backup rather than a guessed reverse mapping.
+
+A model can change behind an unchanged name: no compatible API can prove its weights stayed the
+same. The first vector width is claimed atomically; a different width is refused. To rebuild after
+a provider changes weights or width, change the optional Index revision and explicitly confirm the
+new index. This also creates a new identity for caches and deduplication.
+
+Workers use immutable connection snapshots, recheck enabled/approved settings before each request
+and after each response, and guard vector writes against a changed space or width. Start, Resume
+and operator Pause invalidate run generations; stale deliveries cannot update or continue a newer
+run. Failed chunks remain visible in backfill progress. Backup restore preserves pending approval
+and cannot authorize a new provider on its own.
+
+With remote generation enabled, writing help sends the selected composer context, summaries send
+the conversation transcript, and categorisation automatically sends newly arriving message content.
+These are the same feature switches as Ollama, off by default. Services may charge per request/token;
+only choose an endpoint whose data handling you accept. No fallback sends content to another service.
+Compatible APIs do not expose Ollama residency, VRAM, keep-alive or warm-up. The optional `/models`
+probe is discovery only; `/chat/completions` does not require it. SSE is parsed inside the adapter;
+the browser still receives the application's NDJSON stream. Unknown timing values remain null.
+Summary cache identity includes provider, endpoint and model, so changing any of them hides stale
+summaries. Existing Ollama summaries are regenerated on demand once under the new identity.
 
 > **Status.** All of it is written and passes unit tests and PHPStan; none of it has been run
 > against a real Ollama. One end-to-end test —
@@ -370,6 +416,33 @@ rather than everything *stored*, so one unanswerable message never becomes a wal
 It runs on the **maintenance** transport, not ingest: a backfill in front of the ingest queue would
 stop new mail appearing until an old mailbox had finished being catalogued.
 
+## Additional compatible connection headers
+
+Admin → AI supports additional name/value pairs for compatible endpoints, with
+fixed values or an automatic task session UUID. Values use the existing encrypted
+Doctrine string storage. The form renders names and empty password inputs only:
+blank retains a fixed value, removing a row deletes it, and changing the endpoint
+discards old values. Shared embeddings inherit generation headers; independent
+embeddings have their own collection. Probe, completion, streaming and embedding
+requests use the same validation and forbid redirects. Managed transport headers
+and Authorization are refused; the application identifies itself as `plMail`.
+
+One task gets one opaque UUID. New queued classification, embedding batches and
+background summaries persist one `AiTaskStamp` before transport serialization;
+retry and worker restart retain it. Existing backfill `runId` defines one execution
+across its chunks. Starting or explicitly resuming a backfill creates a new run
+and therefore a new task. Legacy queued messages without a stamp derive a stable
+fallback from their original delivery ID, then carry it on subsequent retries.
+Doctrine queue row IDs change when retried, so they are not sent directly.
+Synchronous writing, summary and semantic search pass an explicit execution
+context; probe is a separate one-shot task. A new user invocation creates a new
+task. No address, subject, body or other personal data enters the UUID.
+
+Credential and automatic session header changes preserve embedding identity. For a deliberate change of model/vector routing, explicitly change the existing Embedding revision and confirm the new index. Secret header values never enter fingerprints.
+
+These are general endpoint settings. They do not make plMail a coding agent or
+guarantee access to a provider subscription restricted to coding-agent traffic.
+
 ## Things that bite
 
 - **A model change invalidates every stored summary as well as every stored vector.** Both filter by
@@ -393,3 +466,19 @@ stop new mail appearing until an old mailbox had finished being catalogued.
   for that reason: without one, the first night on an install that never ran a pass would queue a
   hundred thousand messages onto the ingest transport and put new mail behind them — with no state
   row, no pause button and no panel, because those belong to `app:ai:embed-mailbox`.
+
+### Focused browser verification
+
+`tests/e2e/openai-settings.spec.ts` uses only the synthetic mock in
+`tests/e2e/support/openai-mock.mjs`. Run that mock in an isolated container on the
+application test network (port 8000; publish its port only on localhost).
+Set `E2E_OPENAI_MOCK_BASE_URL` to its application-accessible `/v1` URL and
+`E2E_OPENAI_MOCK_LOG_URL` to its Playwright-accessible `/log` URL, then run
+`npx playwright test openai-settings.spec.ts` against the test stack.
+Without both variables the scenario skips. Never point it at a real provider:
+the test changes installation-wide settings and uses a fixed synthetic key.
+It verifies probing, saving, secret-free responses, and stripping the saved key
+when probing a different endpoint. The mock implements discovery only and
+records authorization as a boolean, without retaining or logging credentials.
+
+Additional headers are transport credentials by default. Rotating credentials or switching automatic task-session headers does not change embedding identity. When a routing header deliberately changes the model, tenant vector space or width, the administrator must explicitly change Embedding revision; the existing confirmation gate prevents indexing into an unapproved space. Secret header values and task UUIDs are never part of that identity.

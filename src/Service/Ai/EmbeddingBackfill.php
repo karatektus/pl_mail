@@ -126,7 +126,7 @@ final readonly class EmbeddingBackfill
             return self::SEARCH_OFF;
         }
 
-        $model = (string) $this->settings->currentOrDefault()->embeddingModel;
+        $model = $this->settings->currentOrDefault()->embeddingSpace();
 
         if ([] === $userIds) {
             foreach ($this->users->findAll() as $user) {
@@ -151,12 +151,13 @@ final readonly class EmbeddingBackfill
 
         // The claim is the guard. Two administrators pressing Start together
         // both get here; only one of them gets the row.
-        if (false === $this->state->begin($model, $userIds, $now)) {
+        $runId = bin2hex(random_bytes(16));
+        if (false === $this->state->begin($model, $userIds, $now, $runId)) {
             return self::ALREADY_RUNNING;
         }
 
         foreach ($userIds as $userId) {
-            $this->bus->dispatch(new BackfillEmbeddingsMessage($userId));
+            $this->bus->dispatch(new BackfillEmbeddingsMessage($userId, runId: $runId, spaceIdentity: $model));
         }
 
         $this->logger->info('EmbeddingBackfill: started', ['mailboxes' => count($userIds), 'model' => $model]);
@@ -187,6 +188,9 @@ final readonly class EmbeddingBackfill
     public function resume(): string
     {
         $run    = $this->state->current();
+        if ($run->model !== $this->settings->currentOrDefault()->embeddingSpace()) {
+            return $this->start();
+        }
         $now    = new DateTimeImmutable();
         $stalled = self::isStalled($run->isLive(), $run->lastProgressAt, $now);
 
@@ -211,12 +215,13 @@ final readonly class EmbeddingBackfill
             return self::NOTHING_TO_RESUME;
         }
 
-        if (false === $this->state->resume($now)) {
+        $runId = bin2hex(random_bytes(16));
+        if (false === $this->state->resume($now, $runId)) {
             return self::NOTHING_TO_RESUME;
         }
 
         foreach ($pending as $userId) {
-            $this->bus->dispatch(new BackfillEmbeddingsMessage($userId, $run->cursorFor($userId)));
+            $this->bus->dispatch(new BackfillEmbeddingsMessage($userId, $run->cursorFor($userId), $runId, $run->model));
         }
 
         return self::RESUMED;
@@ -237,7 +242,7 @@ final readonly class EmbeddingBackfill
         // "none of this mailbox is searchable any more", which is the truth.
         $model = null === $settings->embeddingModel || '' === trim((string) $settings->embeddingModel)
             ? $run->model
-            : (string) $settings->embeddingModel;
+            : $settings->embeddingSpace();
 
         $coverage = null === $model
             ? ['embedded' => 0, 'eligible' => 0]
@@ -256,7 +261,7 @@ final readonly class EmbeddingBackfill
         return new BackfillProgress(
             status:          $run->status,
             pauseReason:     $run->pauseReason,
-            model:           $model,
+            model:           $settings->embeddingModel,
             embedded:        $coverage['embedded'],
             eligible:        $coverage['eligible'],
             failures:        $run->failures,
@@ -273,7 +278,7 @@ final readonly class EmbeddingBackfill
                 || $stalled
                 || (BackfillStatus::Paused === $run->status && false === ($run->pauseReason?->resumesItself() ?? false))
             ),
-            blockedReason:   $searchOn ? null : self::SEARCH_OFF,
+            blockedReason:   $searchOn ? null : ($settings->embeddingSpaceApproved() ? self::SEARCH_OFF : 'approval_required'),
             batchSize:       $this->policy->batchSize,
             pauseMs:         $this->policy->pauseMs,
             cooldownSeconds: $this->policy->cooldownSeconds,

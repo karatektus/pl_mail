@@ -127,6 +127,14 @@ final readonly class OllamaClient
     ) {
     }
 
+    public function authenticated(?string $key): self
+    {
+        if (null === $key || '' === $key) {
+            return $this;
+        }
+        return new self($this->http->withOptions(['headers' => ['Authorization' => 'Bearer ' . $key], 'max_redirects' => 0]), $this->logger);
+    }
+
     /**
      * What the host has in MEMORY right now.
      *
@@ -272,14 +280,12 @@ final readonly class OllamaClient
         } catch (HttpClientException $exception) {
             // The ordinary case, and not worth an error: an address typed one
             // digit wrong, or a container that is not up yet.
-            return AiProbe::unreachable('unreachable', ['error' => $exception->getMessage()]);
+            return AiProbe::transportFailure($exception);
         } catch (Throwable $exception) {
             $this->logger->error('OllamaClient: probe failed unexpectedly', [
-                'error'     => $exception->getMessage(),
-                'exception' => $exception,
             ]);
 
-            return AiProbe::unreachable('unreachable', ['error' => $exception->getMessage()]);
+            return AiProbe::transportFailure($exception);
         }
     }
 
@@ -299,14 +305,14 @@ final readonly class OllamaClient
      * omitting it would mean the setting silently stopped applying on exactly
      * the hosts that pay the most for a reload.
      */
-    public function embed(string $baseUrl, string $model, string $text, ?string $keepAlive = null): AiEmbedResult
+    public function embed(string $baseUrl, string $model, string $text, ?string $keepAlive = null, ?string $key = null): AiEmbedResult
     {
         $text = $this->utf8($text, $model);
 
         $modern = $this->tryEmbed($baseUrl, '/api/embed', self::withKeepAlive([
             'model' => $model,
             'input' => $text,
-        ], $keepAlive), static fn (array $body): ?array => $body['embeddings'][0] ?? null);
+        ], $keepAlive), static fn (array $body): ?array => $body['embeddings'][0] ?? null, $key);
 
         if (true === $modern->succeeded) {
             return $modern;
@@ -315,7 +321,7 @@ final readonly class OllamaClient
         $legacy = $this->tryEmbed($baseUrl, '/api/embeddings', self::withKeepAlive([
             'model'  => $model,
             'prompt' => $text,
-        ], $keepAlive), static fn (array $body): ?array => $body['embedding'] ?? null);
+        ], $keepAlive), static fn (array $body): ?array => $body['embedding'] ?? null, $key);
 
         if (true === $legacy->succeeded) {
             // The older dialect answered, so the embedding worked. Its timings
@@ -401,16 +407,12 @@ final readonly class OllamaClient
             // most of why "the AI does nothing" had no diagnosis.
             $this->logger->warning('OllamaClient: chat timed out', [
                 'model'     => $model,
-                'error'     => $exception->getMessage(),
-                'exception' => $exception,
             ]);
 
             return AiChatResult::failed(self::ERROR_TIMEOUT);
         } catch (TransportExceptionInterface $exception) {
             $this->logger->warning('OllamaClient: chat could not reach the host', [
                 'model'     => $model,
-                'error'     => $exception->getMessage(),
-                'exception' => $exception,
             ]);
 
             return AiChatResult::failed(self::ERROR_UNREACHABLE);
@@ -419,24 +421,18 @@ final readonly class OllamaClient
             // often, which is a configuration problem and not a model one.
             $this->logger->warning('OllamaClient: chat answered with something that is not JSON', [
                 'model'     => $model,
-                'error'     => $exception->getMessage(),
-                'exception' => $exception,
             ]);
 
             return AiChatResult::failed(self::ERROR_BAD_RESPONSE);
         } catch (HttpClientException $exception) {
             $this->logger->warning('OllamaClient: chat failed', [
                 'model'     => $model,
-                'error'     => $exception->getMessage(),
-                'exception' => $exception,
             ]);
 
             return AiChatResult::failed(self::ERROR_UNREACHABLE);
         } catch (Throwable $exception) {
             $this->logger->error('OllamaClient: chat failed unexpectedly', [
                 'model'     => $model,
-                'error'     => $exception->getMessage(),
-                'exception' => $exception,
             ]);
 
             return AiChatResult::failed(self::ERROR_UNEXPECTED);
@@ -696,8 +692,6 @@ final readonly class OllamaClient
                 'waited_seconds' => round(microtime(true) - $started),
                 'budget_seconds' => round($budget),
                 'heartbeat'      => self::HEARTBEAT_SECONDS,
-                'error'          => $exception->getMessage(),
-                'exception'      => $exception,
             ]);
 
             return AiChatResult::failed(self::ERROR_TIMEOUT, $timing);
@@ -709,16 +703,12 @@ final readonly class OllamaClient
                 'model'          => $model,
                 'waited_seconds' => round(microtime(true) - $started),
                 'chars_so_far'   => mb_strlen($whole),
-                'error'          => $exception->getMessage(),
-                'exception'      => $exception,
             ]);
 
             return AiChatResult::failed(self::ERROR_UNREACHABLE, $timing);
         } catch (Throwable $exception) {
             $this->logger->error('OllamaClient: streamed chat failed unexpectedly', [
                 'model'     => $model,
-                'error'     => $exception->getMessage(),
-                'exception' => $exception,
             ]);
 
             return AiChatResult::failed(self::ERROR_UNEXPECTED, $timing);
@@ -803,27 +793,21 @@ final readonly class OllamaClient
         } catch (TimeoutExceptionInterface $exception) {
             $this->logger->warning('OllamaClient: preload timed out', [
                 'model'     => $model,
-                'error'     => $exception->getMessage(),
-                'exception' => $exception,
             ]);
 
             return AiWarmUp::failed('timeout', [], self::elapsed($started));
         } catch (HttpClientException $exception) {
             $this->logger->warning('OllamaClient: preload could not reach the host', [
                 'model'     => $model,
-                'error'     => $exception->getMessage(),
-                'exception' => $exception,
             ]);
 
-            return AiWarmUp::failed('unreachable', ['error' => $exception->getMessage()], self::elapsed($started));
+            return AiWarmUp::failed('unreachable', ['error' => 'transport error'], self::elapsed($started));
         } catch (Throwable $exception) {
             $this->logger->error('OllamaClient: preload failed unexpectedly', [
                 'model'     => $model,
-                'error'     => $exception->getMessage(),
-                'exception' => $exception,
             ]);
 
-            return AiWarmUp::failed('unexpected', ['error' => $exception->getMessage()], self::elapsed($started));
+            return AiWarmUp::failed('unexpected', ['error' => 'transport error'], self::elapsed($started));
         }
     }
 
@@ -956,12 +940,14 @@ final readonly class OllamaClient
      * @param array<string, mixed>                       $payload
      * @param callable(array<string,mixed>): (list<float>|null) $pluck
      */
-    private function tryEmbed(string $baseUrl, string $path, array $payload, callable $pluck): AiEmbedResult
+    private function tryEmbed(string $baseUrl, string $path, array $payload, callable $pluck, ?string $key = null): AiEmbedResult
     {
         try {
             $response = $this->http->request('POST', $this->url($baseUrl, $path), [
                 'json'    => $payload,
                 'timeout' => self::EMBED_TIMEOUT,
+                'max_redirects' => 0,
+                'headers' => null === $key || '' === $key ? [] : ['Authorization' => 'Bearer ' . $key],
             ]);
 
             $status = $response->getStatusCode();
@@ -1060,6 +1046,9 @@ final readonly class OllamaClient
     /** Tolerates a trailing slash, which is what people paste. */
     private function url(string $baseUrl, string $path): string
     {
+        if (!preg_match('~^https?://[^@?#\\s]+$~i', $baseUrl)) {
+            throw new \InvalidArgumentException('Invalid AI endpoint');
+        }
         return rtrim(trim($baseUrl), '/') . $path;
     }
 }

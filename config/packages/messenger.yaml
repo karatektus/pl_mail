@@ -226,6 +226,7 @@ framework:
         buses:
             messenger.bus.default:
                 middleware:
+                    - App\Infrastructure\Messaging\Middleware\AiTaskMiddleware
                     # What becomes of a sync job a provider is still
                     # rate-limiting after its last retry. See the class: one
                     # kind is dropped with a warning, the other is put back to

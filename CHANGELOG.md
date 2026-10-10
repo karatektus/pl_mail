@@ -28,6 +28,14 @@ while a dialog or menu is open. On for everyone; Settings → General → Keyboa
 them off per person. No migration.
 [#36](https://github.com/karatektus/pl_mail/issues/36).
 
+**AI can use an OpenAI-compatible service.** Generation and embeddings have separate
+connections, with encrypted keys and optional headers. Ollama remains the default. Changes
+to the embedding vector space require explicit confirmation before indexing.
+Schema changes add provider settings and relabel existing Ollama vector identities; this
+migration is irreversible. Back up the database, generated secrets and stored files before
+upgrading. A rollback needs the previous image and that complete backup. Active embedding
+backfills are paused on upgrade and never automatically restarted by this migration.
+
 `a` replies on a message that has only one recipient, where there is no Reply to all to press. The
 toolbar above a selection has a **Star** button, and `s` presses it; before, `s` did nothing with
 rows ticked. An open conversation has a **Snooze** button in its toolbar, which is what `b` presses

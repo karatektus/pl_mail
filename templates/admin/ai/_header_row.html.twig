@@ -1,0 +1,15 @@
+<div data-header-row class="grid grid-cols-[minmax(0,1fr)_2.25rem] md:grid-cols-[minmax(0,1.2fr)_9rem_minmax(0,1fr)_2.25rem] gap-x-3 gap-y-4 items-start">
+    <div class="min-w-0 col-span-2 md:col-span-1">{{ form_row(row.name, {attr: {placeholder: 'X-Header-Name'}}) }}</div>
+    <div class="min-w-0 col-span-2 md:col-span-1">{{ form_row(row.mode, {attr: {'data-header-mode': '', 'data-action': 'change->admin--ai-headers#modeChanged'}}) }}</div>
+    <div class="min-w-0 flex flex-col gap-2">
+        {{ form_label(row.value) }}
+        <div data-header-fixed>{{ form_widget(row.value, {attr: {placeholder: (row.vars.has_saved_value ? 'admin.ai.headers.saved_value' : 'admin.ai.headers.new_value')|trans}}) }}</div>
+        <output data-header-automatic hidden class="h-9 rounded-lg border border-field bg-field px-3 py-2 text-sm text-ink-faint" aria-label="{{ 'admin.ai.headers.value_short'|trans }}">{{ 'admin.ai.headers.automatic'|trans }}</output>
+        {{ form_errors(row.value) }}
+    </div>
+    <div class="flex flex-col gap-2">
+        <span aria-hidden="true" class="text-[13px] leading-none">&nbsp;</span>
+        <button type="button" data-action="admin--ai-headers#remove" class="h-9 w-9 flex items-center justify-center rounded-lg text-ink-faint hover:text-danger hover:bg-hover transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent" aria-label="{{ 'admin.ai.headers.remove'|trans }}" title="{{ 'admin.ai.headers.remove'|trans }}"><i class="fa-solid fa-trash-can" aria-hidden="true"></i></button>
+    </div>
+</div>
+{% do row.setRendered %}

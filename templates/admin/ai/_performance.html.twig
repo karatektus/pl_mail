@@ -77,6 +77,8 @@ there is no other screen anywhere that would tell you.
                 <span class="ml-auto text-[11px] font-medium px-2 py-0.5 rounded-full bg-raised text-ink-muted">
                     {{ 'admin.ai.perf.chip.off'|trans }}
                 </span>
+            {% elseif panel.host.compatible|default(false) %}
+                <span class="ml-auto text-[11px]">OpenAI-compatible</span>
             {% elseif not panel.host.reachable %}
                 {# Not red. A host that is off is a fact about somebody's
                    network, not a fault in this application, and colouring it as
@@ -113,6 +115,8 @@ there is no other screen anywhere that would tell you.
 
                 <p class="text-sm text-ink-soft leading-relaxed">{{ 'admin.ai.perf.no_host'|trans }}</p>
 
+            {% elseif panel.host.compatible|default(false) and not panel.host.reachable %}
+                <p class="text-sm text-ink-soft">{{ 'admin.ai.perf.discovery_unavailable'|trans }}</p>
             {% elseif not panel.host.reachable %}
 
                 {# State 2. One calm line and the address, which is the thing
@@ -166,6 +170,7 @@ there is no other screen anywhere that would tell you.
                 {% endif %}
 
                 {# ── What is in memory right now ──────────────────────────── #}
+                {% if not panel.host.compatible|default(false) %}
                 <div class="space-y-2">
                     <h3 class="text-xs font-semibold text-ink-muted">{{ 'admin.ai.perf.resident.heading'|trans }}</h3>
 
@@ -245,6 +250,8 @@ there is no other screen anywhere that would tell you.
 
                     {% endif %}
                 </div>
+
+                {% endif %}
 
                 {# ── What the calls have cost ─────────────────────────────── #}
                 <div class="space-y-2 pt-1">
@@ -418,7 +425,7 @@ there is no other screen anywhere that would tell you.
             {% endif %}
 
             {% if backfill.blockedReason %}
-                <p class="text-sm text-ink-soft leading-relaxed">{{ 'admin.ai.backfill.search_off'|trans }}</p>
+                <p class="text-sm text-ink-soft leading-relaxed">{{ (backfill.blockedReason == 'approval_required' ? 'admin.ai.embedding.approval_required' : 'admin.ai.backfill.search_off')|trans }}</p>
             {% endif %}
 
             {% if backfill.eligible > 0 %}

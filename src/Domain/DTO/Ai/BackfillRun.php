@@ -51,6 +51,7 @@ final readonly class BackfillRun
         public ?DateTimeImmutable   $lastProgressAt = null,
         public ?DateTimeImmutable   $finishedAt = null,
         public ?DateTimeImmutable   $interactiveSeenAt = null,
+        public ?string              $runId = null,
     ) {
     }
 

@@ -284,7 +284,7 @@ final class ThreadSummaryTest extends WebTestCase
 
         self::assertIsArray($row);
         self::assertSame('A summary.', $row['summary']);
-        self::assertSame('qwen3:30b', $row['model']);
+        self::assertSame(static::getContainer()->get(ThreadSummariser::class)->model(), $row['model']);
         self::assertSame(
             static::getContainer()->get(ThreadSummariser::class)->promptFingerprint(),
             $row['prompt_hash'],
@@ -725,7 +725,7 @@ final class ThreadSummaryTest extends WebTestCase
                 'id'      => $thread->id,
                 'summary' => $text,
                 'hash'    => $hash,
-                'model'   => 'qwen3:30b',
+                'model'   => static::getContainer()->get(ThreadSummariser::class)->model(),
                 // The fingerprint of the prompt in force right now, asked of
                 // the summariser rather than written out here — a literal would
                 // be a second copy of the prompt assembly that goes stale the
