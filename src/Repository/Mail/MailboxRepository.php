@@ -37,6 +37,24 @@ class MailboxRepository extends ServiceEntityRepository
     }
 
     /**
+     * The folders somebody can choose between: the ones the server still
+     * lists.
+     *
+     * A folder the server has stopped listing is left out. Nothing polls it
+     * (see ImapAccountSyncer) and it is on its way to being removed, so a
+     * switch beside it would be wired to nothing.
+     *
+     * By path, which is a stable order and not the one they are shown in:
+     * FolderTree arranges them as the tree their paths describe.
+     *
+     * @return list<Mailbox>
+     */
+    public function findForAccountOrdered(Account $account): array
+    {
+        return $this->findBy(['account' => $account, 'missingSince' => null], ['fullPath' => 'ASC']);
+    }
+
+    /**
      * The oldest full-listing this account's folders have between them, or null
      * if any of them has never had one.
      *

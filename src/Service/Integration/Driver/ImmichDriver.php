@@ -88,6 +88,12 @@ final readonly class ImmichDriver implements IntegrationDriverInterface, Searcha
     /** Assets per page, for both the timeline and search results. */
     private const int PAGE_SIZE = 100;
 
+    /**
+     * The `visibility` Immich gives the video half of a Live Photo. Its own
+     * timeline never lists such an asset, and it never makes a preview for one.
+     */
+    private const string VISIBILITY_HIDDEN = 'hidden';
+
     public function __construct(
         private HttpClientInterface                 $httpClient,
         private IntegrationUrlValidator             $urlValidator,
@@ -584,7 +590,17 @@ final readonly class ImmichDriver implements IntegrationDriverInterface, Searcha
     }
 
     /**
-     * One asset as a picker entry, or null if it has no usable id.
+     * One asset as a picker entry, or null if it has no usable id or is not
+     * something a person picks.
+     *
+     * A metadata search lists every visibility but `locked` unless it is asked
+     * for one, so the motion half of each Live Photo arrived as a tile of its
+     * own — a grey placeholder, because Immich makes no preview for it, and
+     * attachable only as a three-second video. They are left out here instead
+     * of by a `visibility` filter in the request: that filter can name one
+     * value only, and `timeline` would take the archived photos away with the
+     * clips. A server too old to send the field says nothing, which keeps the
+     * asset.
      *
      * @param array<string,mixed> $asset
      */
@@ -593,6 +609,10 @@ final readonly class ImmichDriver implements IntegrationDriverInterface, Searcha
         $id = $this->stringOrNull($asset['id'] ?? null);
 
         if (null === $id) {
+            return null;
+        }
+
+        if (self::VISIBILITY_HIDDEN === ($asset['visibility'] ?? null)) {
             return null;
         }
 

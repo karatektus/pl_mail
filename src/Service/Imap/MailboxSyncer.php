@@ -168,9 +168,10 @@ readonly class MailboxSyncer
                 return $result;
             }
 
-            $specialUses = self::assignSpecialUses($serverFolders);
-            $existing    = $this->mailboxRepository->findIndexedByFullPath($account);
-            $unmatched   = [];
+            $specialUses  = self::assignSpecialUses($serverFolders);
+            $unselectable = self::unselectablePaths($serverFolders);
+            $existing     = $this->mailboxRepository->findIndexedByFullPath($account);
+            $unmatched    = [];
 
             foreach ($serverFolders as ['folder' => $folder]) {
                 $mailbox = $existing[$folder->path] ?? null;
@@ -182,7 +183,8 @@ readonly class MailboxSyncer
                 }
 
                 unset($existing[$folder->path]);
-                $this->update($mailbox, $folder, $specialUses[$folder->path] ?? null, $account);
+                $selectable = false === isset($unselectable[$folder->path]);
+                $this->update($mailbox, $folder, $specialUses[$folder->path] ?? null, $account, $selectable);
                 $this->clearMissing($mailbox);
                 $result['updated']++;
             }
@@ -192,10 +194,11 @@ readonly class MailboxSyncer
             // rename, and keeps its row and its mail.
             foreach ($unmatched as $folder) {
                 $specialUse = $specialUses[$folder->path] ?? null;
+                $selectable = false === isset($unselectable[$folder->path]);
                 $source     = $this->findRenameSource($client, $folder, $specialUse, $existing);
 
                 if (null === $source) {
-                    $this->create($account, $folder, $specialUse);
+                    $this->create($account, $folder, $specialUse, $selectable);
                     $result['created']++;
 
                     continue;
@@ -208,7 +211,7 @@ readonly class MailboxSyncer
                 ]);
 
                 unset($existing[(string) $source->fullPath]);
-                $this->update($source, $folder, $specialUse, $account);
+                $this->update($source, $folder, $specialUse, $account, $selectable);
                 $this->clearMissing($source);
                 $result['renamed']++;
             }
@@ -420,6 +423,36 @@ readonly class MailboxSyncer
     }
 
     /**
+     * The folders the server marked \Noselect: placeholders that hold no mail
+     * and cannot be opened, Gmail's "[Gmail]" being the usual one.
+     *
+     * Read off the raw attribute list rather than Folder::$no_select. RFC 3501
+     * makes attributes case-insensitive and the library matches two spellings.
+     *
+     * Public and static for the same reason as assignSpecialUses().
+     *
+     * @param list<array{folder: Folder, attributes: list<string>}> $folders
+     *
+     * @return array<string, true> keyed by the folder's raw path
+     */
+    public static function unselectablePaths(array $folders): array
+    {
+        $paths = [];
+
+        foreach ($folders as ['folder' => $folder, 'attributes' => $attributes]) {
+            foreach ($attributes as $attribute) {
+                if ('\\noselect' === strtolower($attribute)) {
+                    $paths[$folder->path] = true;
+
+                    break;
+                }
+            }
+        }
+
+        return $paths;
+    }
+
+    /**
      * @param list<string> $attributes
      */
     private static function specialUseFromAttributes(array $attributes): ?MailboxSpecialUse
@@ -446,11 +479,12 @@ readonly class MailboxSyncer
         return self::SPECIAL_USE_NAMES[mb_strtolower(trim($folder->name))] ?? null;
     }
 
-    private function create(Account $account, Folder $folder, ?MailboxSpecialUse $specialUse): void
+    private function create(Account $account, Folder $folder, ?MailboxSpecialUse $specialUse, bool $selectable): void
     {
         $mailbox = new Mailbox();
         $mailbox->account = $account;
-        $mailbox->isSyncEnabled = true;
+        $mailbox->isSyncEnabled = $selectable;
+        $mailbox->isSelectable  = $selectable;
         $mailbox->isIdleEnabled = in_array(
             $specialUse?->value,
             ['\\Inbox', '\\Junk'],
@@ -464,8 +498,22 @@ readonly class MailboxSyncer
         $this->hydrate($mailbox, $folder, $specialUse, $account);
     }
 
-    private function update(Mailbox $mailbox, Folder $folder, ?MailboxSpecialUse $specialUse, Account $account): void
+    private function update(Mailbox $mailbox, Folder $folder, ?MailboxSpecialUse $specialUse, Account $account, bool $selectable): void
     {
+        // Switches off, never on: a folder somebody turned off stays off, and a
+        // row created enabled before this rule existed is healed here. The
+        // other direction is deliberately not handled — nothing records whether
+        // the flag was the rule's doing or a person's, so a folder the server
+        // later makes selectable stays off until somebody turns it back on.
+        if (false === $selectable) {
+            $mailbox->isSyncEnabled = false;
+        }
+
+        // What the server said, in both directions — unlike the switch above,
+        // this is a fact about the folder and not anybody's choice. It is what
+        // Settings reads to withhold the switch from a placeholder.
+        $mailbox->isSelectable = $selectable;
+
         $this->hydrate($mailbox, $folder, $specialUse, $account);
     }
 

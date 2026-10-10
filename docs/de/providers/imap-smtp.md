@@ -1,4 +1,4 @@
-<!-- translated-from: providers/imap-smtp.md sha1:a63a352201b6840dd517647e669c8fd3ac19fec8 -->
+<!-- translated-from: providers/imap-smtp.md sha1:fd8e43c65cd158f4e298cdf3ea0384299bba5d68 -->
 
 # IMAP und SMTP
 
@@ -159,3 +159,10 @@ paar Minuten spät" und nichts, was kaputt aussieht.
 **Markierungen wandern nur nach außen.** Eine Nachricht in plMail als gelesen oder markiert zu
 kennzeichnen wird zum Server geschoben, der umgekehrte Weg ist aber noch nicht umgesetzt — eine
 Nachricht in einem anderen Client zu lesen markiert sie hier derzeit nicht als gelesen.
+
+**Gmail über IMAP führt einen Ordner `[Gmail]` auf, der keiner ist.** Er ist ein Platzhalter, der
+die Gmail-Systemordner wie „Alle Nachrichten“, „Gesendet“ und „Entwürfe“ zusammenfasst. Gmail
+markiert ihn mit `\Noselect` und lässt sich nicht darauf ein, ihn zu öffnen; plMail legt ihn deshalb
+mit ausgeschalteter Synchronisation an und fragt ihn nie ab. Die Ordner darunter sind gewöhnlich und
+werden wie üblich synchronisiert. Ein Ordner, den der Server später auswählbar macht, wird nicht von
+selbst wieder eingeschaltet.

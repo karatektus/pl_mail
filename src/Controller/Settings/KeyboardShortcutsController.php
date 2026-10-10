@@ -45,7 +45,7 @@ final class KeyboardShortcutsController extends AbstractController
 
         $em->flush();
 
-        return $this->redirectToRoute('app_settings_index', ['section' => 'general']);
+        return $this->redirectToRoute('app_settings_index', ['section' => 'shortcuts']);
     }
 
     #[Route('/shortcuts', name: 'app_shortcuts_help', methods: ['GET'])]

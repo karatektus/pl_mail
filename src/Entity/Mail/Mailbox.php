@@ -69,6 +69,27 @@ class Mailbox
     public bool $isIdleEnabled = false;
 
     /**
+     * Whether the server lets this folder be opened at all.
+     *
+     * False for a folder it lists with \Noselect: a placeholder that only
+     * groups other folders — Gmail's "[Gmail]", or the "Projects" above
+     * "Projects/Alpha" on a server where a folder holds either mail or
+     * folders. Such a folder has no mail to fetch and refuses SELECT.
+     *
+     * Written by MailboxSyncer on every folder sync, in both directions, so
+     * it says what the server said last. It is a column and not something
+     * read off the listing when needed because the place that needs it is the
+     * folders dialog in Settings, which has no IMAP connection: without it a
+     * placeholder was offered a sync switch that the next folder sync quietly
+     * turned back off (see MailboxSyncer::update()).
+     *
+     * Not the same thing as isSyncEnabled, which is a choice. This is a fact,
+     * and the reason that choice is not offered.
+     */
+    #[ORM\Column(options: ['default' => true])]
+    public bool $isSelectable = true;
+
+    /**
      * Which label this folder feeds is recorded on LabelBinding, alongside the
      * Gmail and Graph ids for the same label — one row per (label, account)
      * describes every provider. Mailbox reads through it and does not carry a

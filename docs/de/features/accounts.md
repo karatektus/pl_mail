@@ -1,4 +1,4 @@
-<!-- translated-from: features/accounts.md sha1:3c63f9c65f0a7e82c8dd84517d821aa08ddc9aa6 -->
+<!-- translated-from: features/accounts.md sha1:dd31f87ab1777ab4166251dc0b7cb0ce6aef417f -->
 
 # Konten und Aliase
 
@@ -98,6 +98,7 @@ Jede Zeile bietet:
 | **Als primär festlegen** | Verfasst neue Nachrichten künftig aus diesem Konto — in jeder Zeile außer der primären |
 | **Konto deaktivieren** / **Konto aktivieren** | Hält die Synchronisierung an oder nimmt sie wieder auf, ohne etwas zu löschen |
 | **Konto bearbeiten** | Servereinstellungen und Passwort — nur bei Konten mit Passwort |
+| **Zu synchronisierende Ordner wählen** | Schaltet einzelne IMAP-Ordner ein oder aus — nur bei IMAP-Konten; siehe [Zu synchronisierende Ordner](#zu-synchronisierende-ordner) |
 | **Konto entfernen** | Löscht das Konto und jede daraus synchronisierte Nachricht |
 
 Die Kennzeichnung als primär geht nie verloren. Wird das Konto entfernt, das sie trug, geht sie an
@@ -187,6 +188,23 @@ Aktualisierungen, die im Hintergrund laufen.
 Labels, die tatsächlich auf einem echten Exchange-Ordner beruhen — die, die von einem stammen —,
 werden stattdessen als Ordner umbenannt, und es muss nichts neu etikettiert werden.
 
+### Zu synchronisierende Ordner
+
+**Zu synchronisierende Ordner wählen** öffnet die Ordner des Kontos, jeweils mit einem Schalter.
+Jeder Ordner beginnt eingeschaltet. Schaltest du einen aus, ruft plMail ihn nicht mehr ab: Die
+bereits gespeicherte Mail bleibt, wo sie ist, und schaltest du den Ordner wieder ein, geht es dort
+weiter, wo es aufgehört hat. Der Posteingang hat keinen Schalter, denn ein Client, der seinen
+Posteingang nicht mehr abruft, ist kein Client — um ein Konto ganz anzuhalten, deaktiviere es.
+
+Verschachtelte Ordner sind unter ihrem übergeordneten Ordner eingerückt. Ein Ordner, der nur andere
+zusammenfasst und selbst keine Post enthält — etwa `[Gmail]` bei Gmail —, steht ausgegraut in der
+Liste, sein Schalter aus und gesperrt: Der Server lässt ihn nicht öffnen, also gibt es nichts
+abzurufen.
+
+Es erscheint nur bei IMAP-Konten. Ein Gmail- oder Microsoft-Konto synchronisiert über die API seines
+Anbieters und hat keine Ordner zur Auswahl. Ein Ordner, den der Server nicht mehr auflistet, wird
+nicht angezeigt.
+
 ## Absendeadressen
 
 **Einstellungen → Aliase** listet die Adressen auf, unter denen jedes Konto sendet und
@@ -261,3 +279,11 @@ Lösung ist, erneut zu verbinden und das Häkchen gesetzt zu lassen.
 **Ein fehlgeschlagener Push ist kein Fehlerzustand.** Eine selbst gehostete Installation hat
 womöglich überhaupt keine öffentlich erreichbare HTTPS-Adresse. Eine gescheiterte Registrierung
 heißt „bleib beim Abrufen“, und der Durchlauf alle fünfzehn Minuten bleibt davon unberührt.
+
+**Eine Nachricht, die du in einem anderen Mailprogramm in einen ausgeschalteten Ordner verschiebst,
+sieht für plMail aus wie eine, die das Konto verlassen hat.** Die Prüfung, die anderswo gelöschte
+Mail aus plMail verschwinden lässt, schaut nur in die eingeschalteten Ordner; eine Nachricht, die
+anderswo in einen Ordner abgelegt wird, den plMail nicht abruft, verschwindet deshalb hier, obwohl
+sie auf dem Server noch existiert. Das ist genau, was der Schalter verspricht, und es geht nichts
+verloren: Schalte den Ordner ein, und plMail ruft die Nachricht wieder ab. Verschiebst du in plMail
+selbst, ist es anders — plMail weiß, wohin es die Nachricht gelegt hat, und behält seine Kopie.
