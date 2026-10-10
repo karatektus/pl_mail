@@ -34,9 +34,6 @@ use Symfony\Component\Messenger\Stamp\DelayStamp;
 #[AsMessageHandler]
 final readonly class SyncGmailMessageBatchHandler
 {
-    /** Delay before re-fetching sub-requests that hit the rate limit. */
-    private const int RETRY_DELAY_MS = 30000;
-
     public function __construct(
         private MessageRepository      $messageRepository,
         private AccountRepository      $accountRepository,
@@ -116,16 +113,22 @@ final readonly class SyncGmailMessageBatchHandler
             ]);
         }
 
+        $retryExhausted = false;
         if (count($fetch['retryable']) > 0) {
-            $this->logger->info('SyncGmailMessageBatch: re-queueing failed sub-requests', [
-                'accountId' => $account->id,
-                'count'     => count($fetch['retryable']),
-            ]);
-
-            $this->bus->dispatch(
-                new SyncGmailMessageBatchMessage($account->id, $fetch['retryable'], $this->origin->current()),
-                [new DelayStamp(self::RETRY_DELAY_MS)],
-            );
+            $attempt = $message->partialRetryAttempt ?? 0;
+            $delay = $this->apiClient->retryDelay($account, $attempt);
+            if (null === $delay) {
+                $retryExhausted = true;
+                $this->apiClient->recordRetryExhausted($account);
+                $this->logger->warning('Gmail message fetching remains incomplete after bounded retries', [
+                    'accountId' => $account->id, 'count' => count($fetch['retryable']),
+                ]);
+            } else {
+                $this->bus->dispatch(
+                    new SyncGmailMessageBatchMessage($account->id, $fetch['retryable'], $this->origin->current(), $attempt + 1),
+                    [new DelayStamp($delay)],
+                );
+            }
         }
 
         /** @var list<array{message: Message, account: Account}> $built */
@@ -230,6 +233,7 @@ final readonly class SyncGmailMessageBatchHandler
         }
 
         if (count($built) === 0 && 0 === $enriched) {
+            if ($retryExhausted) { throw new \Symfony\Component\Messenger\Exception\UnrecoverableMessageHandlingException('Gmail partial fetch retry budget exhausted; mail remains incomplete.'); }
             return;
         }
 
@@ -259,6 +263,7 @@ final readonly class SyncGmailMessageBatchHandler
         foreach ($affectedAccounts as $affectedAccount) {
             $this->syncNotifier->publishAccountSynced($affectedAccount);
         }
+        if ($retryExhausted) { throw new \Symfony\Component\Messenger\Exception\UnrecoverableMessageHandlingException('Gmail partial fetch retry budget exhausted; mail remains incomplete.'); }
     }
 
     // ── Private ───────────────────────────────────────────────────────────────

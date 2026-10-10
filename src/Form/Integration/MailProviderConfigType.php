@@ -14,6 +14,8 @@ use Symfony\Component\Form\FormEvents;
 use Symfony\Component\Form\Extension\Core\Type\CheckboxType;
 use Symfony\Component\Form\Extension\Core\Type\PasswordType;
 use Symfony\Component\Form\Extension\Core\Type\TextType;
+use Symfony\Component\Form\Extension\Core\Type\IntegerType;
+use Symfony\Component\Validator\Constraints\Range;
 use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\OptionsResolver\OptionsResolver;
 
@@ -72,6 +74,18 @@ final class MailProviderConfigType extends AbstractType
         }
 
         if (MailProvider::Google === $provider) {
+            $builder->add('gmailQuotaPerMinute', IntegerType::class, [
+                'mapped' => false, 'required' => false, 'empty_data' => '6000', 'label' => 'admin.integrations.gmail_quota',
+                'help' => 'admin.integrations.gmail_quota_help',
+                'data' => $config instanceof MailProviderConfig ? ($config->settings['gmail.quota_per_minute'] ?? 6000) : 6000,
+                'constraints' => [new Range(min: 3000, max: 15000)],
+                'attr' => ['min' => 3000, 'max' => 15000],
+            ])->add('gmailQuotaHeadroom', IntegerType::class, [
+                'mapped' => false, 'required' => false, 'empty_data' => '20', 'label' => 'admin.integrations.gmail_headroom',
+                'data' => $config instanceof MailProviderConfig ? ($config->settings['gmail.quota_headroom_percent'] ?? 20) : 20,
+                'constraints' => [new Range(min: 0, max: 50)],
+                'attr' => ['min' => 0, 'max' => 50],
+            ]);
             $builder
                 ->add('pubsubTopic', TextType::class, [
                     'label'    => 'admin.integrations.field.pubsub_topic',

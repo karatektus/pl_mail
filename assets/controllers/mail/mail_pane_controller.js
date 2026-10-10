@@ -56,7 +56,7 @@ const FRAGMENT_HEADER = "X-List-Fragment";
  * Order matters on the way out: rows last, so the selection is put back after
  * the elements holding it exist again.
  */
-const REFRESHABLE_REGIONS = ["tabs", "pagination", "rows"];
+const REFRESHABLE_REGIONS = ["tabs", "pagination", "rows", "sync-health"];
 
 /**
  * The one region that is morphed rather than assigned over, and why it is the

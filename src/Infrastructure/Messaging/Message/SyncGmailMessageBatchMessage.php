@@ -23,5 +23,6 @@ readonly class SyncGmailMessageBatchMessage
         // What started the sync that planned this batch, carried along so the
         // messages it stores can say so. `??` when reading: see SyncAccountMessage.
         public ?SyncTrigger $trigger = null,
+        public ?int $partialRetryAttempt = 0,
     ) {}
 }

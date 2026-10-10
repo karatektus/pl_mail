@@ -313,6 +313,8 @@ which of the two is happening.
                  data-list-rendered="{% block list_rendered %}1{% endblock %}"
                  data-sync-scope="{% block list_scope %}*{% endblock %}">
 
+        <div data-list-region="sync-health" class="contents">{% include 'mail/_gmail_sync_warning.html.twig' %}</div>
+
         {# ── Gmail-style toolbar ──────────────────────────────────────────── #}
         {% block inbox_toolbar %}
             {# list_scope is the same block the sync scope uses, so a view

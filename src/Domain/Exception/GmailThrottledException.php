@@ -35,6 +35,7 @@ final class GmailThrottledException extends GmailApiException implements Recover
         int $status,
         string $reason,
         private readonly ?int $retryAfterSeconds = null,
+        private readonly ?int $backoffDelayMs = null,
     ) {
         parent::__construct($message, $status, $reason);
     }
@@ -43,7 +44,14 @@ final class GmailThrottledException extends GmailApiException implements Recover
     // null would hand the delay back to the transport's strategy.
     public function getRetryDelay(): int
     {
-        return 1000 * ($this->retryAfterSeconds ?? self::FALLBACK_DELAY_SECONDS);
+        return $this->backoffDelayMs ?? 1000 * ($this->retryAfterSeconds ?? self::FALLBACK_DELAY_SECONDS);
+    }
+
+    /** Messenger supplies the attempt; do not repeat HTTP inside the API client. */
+    public function withBackoff(int $attempt, ?int $jitterMs = null): self
+    {
+        $delay = max($this->getRetryDelay(), min(300000, 60000 * (2 ** min(10, max(0, $attempt)))));
+        return new self($this->getMessage(), $this->getStatus(), $this->getReason(), $this->retryAfterSeconds, $delay + ($jitterMs ?? random_int(0, 1000)));
     }
 
     public function forceRetry(): bool

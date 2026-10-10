@@ -100,7 +100,7 @@ final class GmailApiClientFailureTest extends TestCase
         }
     }
 
-    public function testAnHttpDateRetryAfterFallsBackInsteadOfBeingMisparsed(): void
+    public function testAnHttpDateRetryAfterIsHonoured(): void
     {
         $client = $this->client(
             403,
@@ -112,8 +112,9 @@ final class GmailApiClientFailureTest extends TestCase
             $client->listLabels($this->account());
             self::fail('a 403 must not be swallowed');
         } catch (GmailThrottledException $e) {
-            self::assertNull($e->getRetryAfterSeconds());
-            self::assertSame(60000, $e->getRetryDelay());
+            self::assertNotNull($e->getRetryAfterSeconds());
+            self::assertGreaterThan(0, $e->getRetryAfterSeconds());
+            self::assertSame(1000 * $e->getRetryAfterSeconds(), $e->getRetryDelay());
         }
     }
 

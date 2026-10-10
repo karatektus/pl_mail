@@ -90,6 +90,7 @@ enum HealthIssueKind: string
      * different repairs and the user should be shown the one that fits.
      */
     case AccountSyncFailing = 'account_sync_failing';
+    case GmailSyncPaused = 'gmail_sync_paused';
 
     /**
      * The mail server has something to tell the user, in its own words.
@@ -206,7 +207,8 @@ enum HealthIssueKind: string
             self::AccountScopeMissing  => HealthSeverity::Warning,
             // Critical: this one means new mail is not arriving, which is the
             // application not doing its job rather than a part of it missing.
-            self::AccountSyncFailing   => HealthSeverity::Critical,
+            self::GmailSyncPaused => HealthSeverity::Warning,
+            self::AccountSyncFailing => HealthSeverity::Critical,
             // Warning: mail may still be arriving, and the server has not said
             // anything is broken — only that somebody should know something.
             self::ServerAlert          => HealthSeverity::Warning,
@@ -261,7 +263,7 @@ enum HealthIssueKind: string
             self::AccountGrantWeeklyExpiry => 'fa-hourglass-half',
             // A permission that was not given, rather than a link that broke.
             self::AccountScopeMissing  => 'fa-calendar-day',
-            self::AccountSyncFailing   => 'fa-inbox',
+            self::GmailSyncPaused, self::AccountSyncFailing   => 'fa-inbox',
             self::ServerAlert          => 'fa-bullhorn',
             self::CalendarSyncFailing  => 'fa-calendar-xmark',
             self::CalendarsBlocked     => 'fa-calendar-xmark',

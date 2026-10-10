@@ -92,6 +92,14 @@ final readonly class GiveUpQuietlyOnThrottling implements MiddlewareInterface
             return $stack->next()->handle($envelope, $stack);
         } catch (HandlerFailedException $failure) {
             if (false === $this->isLastAttempt($envelope) || false === $this->isThrottling($failure)) {
+                $attempt = RedeliveryStamp::getRetryCountFromEnvelope($envelope);
+                $wrapped = $failure->getWrappedExceptions();
+                if (null !== $envelope->last(ReceivedStamp::class) && array_any($wrapped, static fn (\Throwable $error): bool => $error instanceof GmailThrottledException)) {
+                    throw new HandlerFailedException($envelope, array_map(
+                        static fn (\Throwable $error): \Throwable => $error instanceof GmailThrottledException ? $error->withBackoff($attempt) : $error,
+                        $wrapped,
+                    ));
+                }
                 throw $failure;
             }
 
