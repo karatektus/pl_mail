@@ -220,6 +220,51 @@ test.describe("reading pane right", () => {
         await expect(page.locator('li[data-selected="true"]')).toHaveCount(0);
     });
 
+    test("switching folders leaves the open message where it is, and only the list moves on", async ({ page }) => {
+        // A folder, a category tab, the pager, a sort and a search all swap the
+        // list frame, and the pane sits outside it. The swap used to close the
+        // message, which is right while the message has the whole row and
+        // wrong beside the list, where the list is not what it was covering.
+        await openMessage(page);
+
+        await page.locator("#sidebar a[href='/mail/sent']").first().click();
+        await expect(page).toHaveURL(/\/mail\/sent/);
+
+        // The list really moved: the inbox row is gone from it. Without this
+        // the assertions below would also hold for a click that did nothing.
+        await expect(mailRow(page, INBOX_SUBJECTS.read)).toHaveCount(0);
+
+        await expect(reading(page)).toBeVisible();
+        await expect(reading(page)).toContainText(INBOX_SUBJECTS.read);
+        await expect(list(page)).toBeVisible();
+        await expect(placeholder(page)).toBeHidden();
+
+        // Not a row of this folder, so nothing in it can claim to be the open one…
+        await expect(page.locator('li[data-selected="true"]')).toHaveCount(0);
+
+        // …but the pane still knows which message it is showing: back in the
+        // folder it came from, the row is marked again.
+        await page.locator("#sidebar a[href='/mail/inbox']").first().click();
+        await expect(page).toHaveURL(/\/mail\/inbox/);
+        await expect(page.locator('li[data-selected="true"]')).toContainText(INBOX_SUBJECTS.read);
+        await expect(reading(page)).toContainText(INBOX_SUBJECTS.read);
+    });
+
+    test("the back arrow, after switching folders, returns to the folder that was switched to", async ({ page }) => {
+        await openMessage(page);
+
+        await page.locator("#sidebar a[href='/mail/sent']").first().click();
+        await expect(page).toHaveURL(/\/mail\/sent/);
+        await expect(mailRow(page, INBOX_SUBJECTS.read)).toHaveCount(0);
+
+        await reading(page).getByRole("button", { name: /back/i }).first().click();
+
+        await expect(reading(page)).toBeHidden();
+        await expect(placeholder(page)).toBeVisible();
+        await expect(page).toHaveURL(/\/mail\/sent/);
+        await expect(list(page)).toBeVisible();
+    });
+
     test("the list runs up to the divider, with no strip of bare card between them", async ({ page }) => {
         // The divider used to be its own eight-pixel hit area with the line
         // down the middle, so the toolbar band and every row rule stopped four
@@ -392,6 +437,18 @@ test.describe("reading pane right, on a card too narrow for two panes", () => {
             await dockCalendar(page, "mail");
 
             await fallsBackToOnePane(page);
+        });
+
+        test("a folder switch still closes the message, because it had covered the list", async ({ page }) => {
+            await store(page, { mode: "right" });
+            await dockCalendar(page, "mail");
+            await fallsBackToOnePane(page);
+
+            await page.locator("#sidebar a[href='/mail/sent']").first().click();
+            await expect(page).toHaveURL(/\/mail\/sent/);
+
+            await expect(list(page)).toBeVisible();
+            await expect(reading(page)).toBeHidden();
         });
     });
 
