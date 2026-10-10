@@ -3981,3 +3981,5 @@ templates:
         sender_email: 'Yer address'
         sender_name: 'Yer name'
         signature: 'Mark'
+
+sidebar.nav.all_mail: All Mail

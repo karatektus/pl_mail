@@ -1,0 +1,9 @@
+{% extends 'mail/all_mail.html.twig' %}
+{% block title %}{{ 'sidebar.nav.all_mail'|trans }} — {{ 'app.name'|trans }}{% endblock %}
+{% block list_scope %}all_mail_unified{% endblock %}
+{% block list_scope_value %}{% endblock %}
+{% block inbox_tabs %}<div class="px-4 py-2.5 border-b border-line"><h2 class="text-sm font-semibold text-ink-soft">{{ 'sidebar.nav.all_mail'|trans }}</h2></div>{% endblock %}
+{% block message_list %}
+    {% if threads is empty %}<li class="px-4 py-8 text-center text-sm text-ink-faint">{{ 'inbox.empty_account'|trans }}</li>
+    {% else %}{% for thread in threads %}{% include '_partials/_thread_row.html.twig' with { thread: thread, unified: true } %}{% endfor %}{% endif %}
+{% endblock %}

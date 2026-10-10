@@ -36,6 +36,11 @@ Clicking an account opens **its inbox** — the same question the top-level Inbo
 mailbox instead of all of them. Its Sent, Drafts, Spam and Trash are folder rows underneath it, one
 click further; the account row is not an archive of everything the account has ever held.
 
+**All Mail** opens one list of incoming, sent and archived conversations, including drafts,
+without requiring an Inbox label. Spam and Trash are excluded. It is available both across
+accounts and underneath each account; an account entry still opens its Inbox. Multiple Gmail
+labels do not duplicate a conversation, and unread counts use the same scope as the list.
+
 Under **Accounts**, expanding an account shows the labels that actually exist on it. That list is
 narrower than the sidebar's own label list on purpose: the sidebar means "across every account",
 and the per-account list answers "what does this mailbox actually have". Which account you left

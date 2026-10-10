@@ -339,6 +339,21 @@ final class RunBulkStatusHandlerTest extends KernelTestCase
         );
     }
 
+    public function testUnifiedAllMailWholeViewProcessesEveryChunk(): void
+    {
+        $ids = $this->seedThreads();
+        $job = $this->job();
+        $job->view = ['scope' => 'all_mail_unified', 'value' => '', 'unreadOnly' => true];
+        $this->em->flush();
+        $this->handler()(new RunBulkStatusMessage((int)$job->id));
+        $this->em->clear();
+        $fresh = $this->em->find(BackgroundJob::class, $job->id);
+        self::assertNotNull($fresh);
+        self::assertSame(JobState::Done, $fresh->state);
+        self::assertSame(self::THREADS, $fresh->processed);
+        foreach ($ids as $id) self::assertNotNull($this->em->find(Message::class, $id)?->seenAt);
+    }
+
     private function job(): BackgroundJob
     {
         $job = new BackgroundJob($this->user, JobKind::MarkRead);

@@ -28,6 +28,10 @@ while a dialog or menu is open. On for everyone; Settings → General → Keyboa
 them off per person. No migration.
 [#36](https://github.com/karatektus/pl_mail/issues/36).
 
+**Archived mail is now one click away.** All Mail lists incoming, sent, archived and draft
+conversations across accounts or within one account, excluding Spam and Trash. Inbox stays
+a separate view. Counts and pagination deduplicate Gmail labels. No schema change.
+
 `a` replies on a message that has only one recipient, where there is no Reply to all to press. The
 toolbar above a selection has a **Star** button, and `s` presses it; before, `s` did nothing with
 rows ticked. An open conversation has a **Snooze** button in its toolbar, which is what `b` presses

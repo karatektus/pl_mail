@@ -14,6 +14,7 @@ use App\Entity\Label\Label;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Message;
 use App\Entity\Mail\MessageThread;
+use App\Entity\User\User;
 use App\Service\Search\FreeTextCompiler;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\DBAL\ArrayParameterType;
@@ -479,6 +480,61 @@ class MessageThreadRepository extends ServiceEntityRepository
         $this->excludeTrashed($qb);
 
         return (int) $qb->getQuery()->getSingleScalarResult();
+    }
+
+    /**
+     * All conversations in one account, including archived, unlabelled and
+     * snoozed mail. Drafts belong here too: Gmail's All Mail includes drafts.
+     * Labels are a thread union, so any Spam/Trash label excludes the whole
+     * conversation. No outer label join means multiple labels cannot duplicate
+     * rows or hide old unlabelled mail.
+     *
+     * @return list<MessageThread>
+     */
+    public function findForAccountAllMail(Account $account, int $page = 1, int $perPage = 50, ListSortOrder $sort = ListSortOrder::Newest, bool $unreadOnly = false): array
+    {
+        $qb = $this->allMailQuery($account, $unreadOnly)
+            ->setFirstResult(($page - 1) * $perPage)
+            ->setMaxResults($perPage);
+        $sort->applyTo($qb);
+
+        return $qb->getQuery()->getResult();
+    }
+
+    public function countForAccountAllMail(Account $account, bool $unreadOnly = false): int
+    {
+        return (int) $this->allMailQuery($account, $unreadOnly)
+            ->select('COUNT(t.id)')->getQuery()->getSingleScalarResult();
+    }
+
+    /** All eligible threads across the current user's active accounts. */
+    public function findForUnifiedAllMail(User $user, int $page = 1, int $perPage = 50, ListSortOrder $sort = ListSortOrder::Newest, bool $unreadOnly = false): array
+    {
+        $qb = $this->allMailQuery($user, $unreadOnly)->setFirstResult(($page - 1) * $perPage)->setMaxResults($perPage);
+        $sort->applyTo($qb);
+        return $qb->getQuery()->getResult();
+    }
+
+    public function countForUnifiedAllMail(User $user, bool $unreadOnly = false): int
+    {
+        return (int) $this->allMailQuery($user, $unreadOnly)->select('COUNT(t.id)')->getQuery()->getSingleScalarResult();
+    }
+
+    private function allMailQuery(Account|User $owner, bool $unreadOnly): QueryBuilder
+    {
+        $qb = $this->createQueryBuilder('t')
+            ->andWhere('t.id NOT IN (SELECT excluded.id FROM ' . MessageThread::class
+                . ' excluded JOIN excluded.labels excludedLabel WHERE excludedLabel.role IN (:excludedRoles))')
+            ->setParameter('excludedRoles', [LabelRole::Spam, LabelRole::Trash]);
+        if ($owner instanceof Account) {
+            $qb->andWhere('t.account = :account')->setParameter('account', $owner);
+        } else {
+            $qb->join('t.account', 'allAccount')->andWhere('allAccount.usr = :user')
+                ->andWhere('allAccount.isActive = true')->setParameter('user', $owner);
+        }
+        $this->narrowToUnread($qb, $unreadOnly);
+
+        return $qb;
     }
 
     /** No-op when no account was asked for, so callers need no branch. */

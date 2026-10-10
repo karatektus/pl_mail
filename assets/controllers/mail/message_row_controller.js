@@ -138,7 +138,7 @@ export default class extends Controller {
             response = await fetch(url, {
                 method: "POST",
                 headers: jsonCsrfHeaders(),
-                body: JSON.stringify(body),
+                body: JSON.stringify({ ...body, scope: document.getElementById("inbox-list-frame")?.dataset.syncScope, value: document.getElementById("inbox-list-frame")?.dataset.listScopeValue }),
             });
         } catch {
             requestFailed(null);

@@ -160,6 +160,90 @@ final class MessageThreadRepositoryTest extends KernelTestCase
         self::assertSame(1, $this->repository->countForAccountInbox($this->account));
     }
 
+    public function testAllMailIncludesUnlabelledSentDraftAndSnoozedWithoutDuplicates(): void
+    {
+        $inbox = $this->seedSystemLabel(LabelRole::Inbox);
+        $sent = $this->seedSystemLabel(LabelRole::Sent);
+        $spam = $this->seedSystemLabel(LabelRole::Spam);
+        $trash = $this->seedSystemLabel(LabelRole::Trash);
+        $thread = $this->inboxThread('multi', '2026-03-01 09:00', $inbox);
+        $thread->labels->add($sent);
+        $this->thread('unlabelled archive', '2026-02-01 09:00');
+        $this->inboxThread('draft', '2026-01-02 09:00', $this->seedSystemLabel(LabelRole::Drafts));
+        $this->inboxThread('snoozed', '2026-01-01 09:00', $this->seedSystemLabel(LabelRole::Snoozed));
+        $bad = $this->inboxThread('spam union', '2026-04-01 09:00', $inbox);
+        $bad->labels->add($spam);
+        $bad = $this->inboxThread('trash union', '2026-04-02 09:00', $sent);
+        $bad->labels->add($trash);
+        $this->em->flush();
+
+        self::assertSame(['multi', 'unlabelled archive', 'draft', 'snoozed'], $this->subjectsOf($this->repository->findForAccountAllMail($this->account)));
+        self::assertSame(4, $this->repository->countForAccountAllMail($this->account));
+    }
+
+    public function testAllMailPaginationAndAccountIsolation(): void
+    {
+        for ($i = 0; $i < 51; ++$i) {
+            $this->thread('row-' . $i, '2026-03-01 09:00');
+        }
+        $other = $this->seedAccount($this->user, 'other@example.test');
+        $this->thread('other account', '2026-04-01 09:00', $other);
+        $foreign = $this->seedAccount($this->seedUser(), 'foreign@example.test');
+        $this->thread('foreign owner', '2026-04-01 09:00', $foreign);
+        $first = $this->repository->findForAccountAllMail($this->account);
+        $second = $this->repository->findForAccountAllMail($this->account, page: 2);
+        self::assertCount(50, $first);
+        self::assertCount(1, $second);
+        self::assertNotContains($second[0]->id, array_map(fn ($t) => $t->id, $first));
+        self::assertSame(51, $this->repository->countForAccountAllMail($this->account));
+        $this->account->isActive = false;
+        $first[0]->unreadCount = 1;
+        $this->em->flush();
+        self::assertCount(1, $this->repository->findForAccountAllMail($this->account, unreadOnly: true));
+        self::assertSame(1, $this->repository->countForAccountAllMail($this->account, true));
+        $resolver = self::getContainer()->get(\App\Service\Mail\ListViewResolver::class);
+        self::assertCount(51, $resolver->threadsIn($this->user, 'all_mail', (string) $this->account->id, false));
+        self::assertSame([], $resolver->threadsIn($this->user, 'all_mail', (string) $foreign->id, false));
+        self::assertSame([], $resolver->threadsIn($this->user, 'all_mail', '1invalid', false));
+    }
+
+    public function testUnifiedAllMailUsesOnlyOwnedActiveAccountsWithoutLabelDuplicates(): void
+    {
+        $second = $this->seedAccount($this->user, 'second@example.test');
+        $disabled = $this->seedAccount($this->user, 'disabled@example.test');
+        $disabled->isActive = false;
+        $foreign = $this->seedAccount($this->seedUser(), 'foreign@example.test');
+        for ($i = 0; $i < 51; ++$i) $this->thread('owned-' . $i, '2026-03-01 09:00');
+        $sent = $this->thread('owned sent', '2026-04-01 09:00', $second);
+        $draft = $this->thread('owned draft', '2026-04-02 09:00', $second);
+        $draft->snoozedUntil = new DateTimeImmutable('2030-01-01');
+        $draft->unreadCount = 1;
+        foreach ([LabelRole::Sent, LabelRole::Drafts] as $role) {
+            $label = $this->seedLabel($role->value); $label->role = $role;
+            $sent->labels->add($label); $draft->labels->add($label);
+        }
+        foreach ([LabelRole::Spam, LabelRole::Trash] as $role) {
+            $bad = $this->thread('excluded-' . $role->value, '2026-05-01 09:00', $second);
+            $label = $this->seedLabel($role->value); $label->role = $role; $bad->labels->add($label);
+        }
+        $this->thread('disabled', '2026-05-01 09:00', $disabled);
+        $this->thread('foreign', '2026-05-01 09:00', $foreign);
+        $this->em->flush();
+        self::assertSame(53, $this->repository->countForUnifiedAllMail($this->user));
+        $first = $this->repository->findForUnifiedAllMail($this->user);
+        $last = $this->repository->findForUnifiedAllMail($this->user, page: 2);
+        self::assertCount(50, $first); self::assertCount(3, $last);
+        self::assertCount(53, array_unique(array_map(fn ($t) => $t->id, [...$first,...$last])));
+        self::assertSame($draft->id, $first[0]->id);
+        self::assertSame(1, $this->repository->countForUnifiedAllMail($this->user, true));
+        self::assertSame([$draft->id], array_map(fn ($t) => $t->id, $this->repository->findForUnifiedAllMail($this->user, unreadOnly: true)));
+        $resolver = self::getContainer()->get(\App\Service\Mail\ListViewResolver::class);
+        self::assertCount(53, $resolver->threadsIn($this->user, 'all_mail_unified', '', false));
+        self::assertSame([], $resolver->threadsIn($this->user, 'all_mail_unified', (string)$foreign->id, false));
+        self::assertSame([], $resolver->threadsIn($this->user, 'all_mail', (string)$foreign->id, false));
+        self::assertSame([], $resolver->threadsIn($this->user, 'all_mail', '', false));
+    }
+
     // ── rethread carry-over ──────────────────────────────────────────────────
 
     /**

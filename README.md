@@ -38,6 +38,8 @@ provider doesn't.
 
 ## Highlights
 
+- **All Mail per account** — incoming, sent, archived, drafts and snoozed conversations in one
+  view, excluding conversations carrying Spam or Trash. The account Inbox stays separate.
 - **Every account in one place** — IMAP, Gmail and Outlook side by side, sending aliases included.
   Credentials are encrypted before they touch the database.
 - **New mail arrives on its own** — IMAP IDLE, Gmail and Outlook push, browser notifications.
@@ -139,3 +141,7 @@ the test suites and the console commands.
 ## License
 
 AGPL-3.0.
+
+All Mail is available in the primary navigation across your active accounts, and
+under each account for its own mail. It includes sent, draft, archived and snoozed
+conversations, excluding Spam and Trash.
