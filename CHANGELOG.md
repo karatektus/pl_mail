@@ -39,6 +39,11 @@ field. A scanned photograph from Paperless-ngx is now taken as the original — 
 the archived PDF and be refused. The setup wizard's profile step still has the small grid, because
 the picker would replace the wizard it is inside. No migration.
 
+**The envelope on a row's read button shows what pressing it does.** On an unread row, "Mark as
+read" wore the closed envelope, while the same action above a selection wears the open one — which
+looked like a Promotions problem only because that is where mail is unread. A row's button now
+matches the toolbar: open envelope to mark read, closed envelope to mark unread. No migration.
+
 ## v0.3.2 — 2026-10-09
 
 ### Security

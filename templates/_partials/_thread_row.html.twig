@@ -810,10 +810,15 @@ be a worse regression than the one this feature fixes.
                             aria-label="{{ unread ? 'thread_row.actions.mark_read'|trans : 'thread_row.actions.mark_unread'|trans }}"
                             title="{{ unread ? 'thread_row.actions.mark_read'|trans : 'thread_row.actions.mark_unread'|trans }}"
                             class="z-10 p-1.5 cursor-pointer rounded-lg text-ink-faint hover:text-ink hover:bg-hover transition-colors">
+                        {# The action, as the selection toolbar draws it: open
+                           envelope to mark read, closed to mark unread. This
+                           used to draw what the row IS, which looked right in
+                           a list of read mail and backwards in a list of
+                           unread. #}
                         {% if unread %}
-                            <i class="fa-solid fa-envelope w-4 h-4" aria-hidden="true"></i>
-                        {% else %}
                             <i class="fa-solid fa-envelope-open w-4 h-4" aria-hidden="true"></i>
+                        {% else %}
+                            <i class="fa-solid fa-envelope w-4 h-4" aria-hidden="true"></i>
                         {% endif %}
                     </button>
                 {% endif %}
