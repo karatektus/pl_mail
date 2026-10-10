@@ -89,4 +89,23 @@ final class OpenAiClientTest extends TestCase
         self::assertTrue($probe->hasModel('org:model'));
         self::assertFalse($probe->hasModel('org'));
     }
+    public function testProbeReportsSafeHttpCategoriesAndTranslationParameters(): void
+    {
+        foreach ([401=>'unauthorized',403=>'forbidden',404=>'not_found',429=>'rate_limit',500=>'status'] as $status=>$reason) {
+            $probe=(new OpenAiClient(new MockHttpClient(new MockResponse('synthetic-secret mail body',['http_code'=>$status]))))->probe('https://synthetic.test/v1','synthetic-secret');
+            self::assertSame($reason,$probe->reason);
+            self::assertSame(['%status%'=>$status],$probe->getTranslationParameters());
+            self::assertStringNotContainsString('synthetic-secret',json_encode($probe));
+        }
+    }
+
+    public function testTransportErrorsNeverExposeExceptionText(): void
+    {
+        foreach (['Could not resolve host synthetic-secret'=>'dns','SSL certificate synthetic-secret'=>'tls','Connection refused synthetic-secret'=>'unreachable'] as $text=>$reason) {
+            $probe=\App\Domain\DTO\Ai\AiProbe::transportFailure(new \RuntimeException($text));
+            self::assertSame($reason,$probe->reason);
+            self::assertSame([],$probe->getTranslationParameters());
+        }
+    }
+
 }

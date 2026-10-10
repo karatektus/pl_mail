@@ -108,7 +108,7 @@ admin:
             failures_label: 'Skipped'
             finished_label: 'Made port'
             heading: 'The search charts'
-            intro: "Search by meanin' sees only charted mail. This walks ev'ry mailbox once; after that, new letters be charted soon after someone searches, an' once a night for safety."
+            intro: 'Enabled oracle features send data to their chosen berths. Nowt starts by itself; outside providers may charge for requests.'
             last_activity_label: 'Last sighted'
             model_label: 'Charted with'
             no_mail: 'No letters to chart yet.'
@@ -236,6 +236,14 @@ admin:
                 week: '7 days'
         probe:
             missing_model: "That berth answered, but holds no: %models%. Haul 'em aboard there first."
+            timeout: 'The berth took too long to answer.'
+            dns: 'Could not resolve that berth name.'
+            tls: 'TLS verification failed. Check the certificate.'
+            unauthorized: 'The key was refused (HTTP 401).'
+            forbidden: 'Access was refused (HTTP 403).'
+            not_found: 'Model discovery was not found (HTTP 404). Check the base address; manual models may still sail.'
+            rate_limit: 'Too many requests (HTTP 429).'
+            bad_response: 'The model list was malformed.'
             no_host: 'Write an address first.'
             ok: "That berth answered, an' holds %count% models."
             models: 'Show the %count% models it holds'

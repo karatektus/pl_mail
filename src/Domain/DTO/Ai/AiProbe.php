@@ -46,6 +46,27 @@ final readonly class AiProbe
         return new self(false, [], $reason, $params);
     }
 
+    /** Translation placeholders use percent-delimited names, unlike DTO keys. @return array<string, string|int> */
+    public function getTranslationParameters(): array
+    {
+        $result = [];
+        foreach ($this->reasonParams as $key => $value) $result['%' . trim($key, '%') . '%'] = $value;
+        return $result;
+    }
+
+    public static function transportFailure(\Throwable $error): self
+    {
+        $text = strtolower($error->getMessage());
+        $reason = match (true) {
+            $error instanceof \Symfony\Contracts\HttpClient\Exception\TimeoutExceptionInterface => 'timeout',
+            str_contains($text, 'resolve host'), str_contains($text, 'getaddrinfo'), str_contains($text, 'dns') => 'dns',
+            str_contains($text, 'certificate'), str_contains($text, 'ssl'), str_contains($text, 'tls') => 'tls',
+            default => 'unreachable',
+        };
+        // Never expose exception text, URLs, headers, request data or credentials.
+        return self::unreachable($reason);
+    }
+
     public function hasModel(string $name): bool
     {
         foreach ($this->models as $model) {

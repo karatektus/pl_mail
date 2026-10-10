@@ -136,7 +136,7 @@ poll would empty a field mid-word.
                     <div role="alert" class="flex items-start gap-2.5 rounded-lg alert-danger px-3.5 py-3 text-sm text-danger">
                         <i class="fa-solid fa-plug-circle-xmark mt-0.5 shrink-0" aria-hidden="true"></i>
                         <p class="leading-snug break-words">
-                            {{ ('admin.ai.probe.' ~ probe.reason)|trans(probe.reasonParams) }}
+                            {{ ('admin.ai.probe.' ~ probe.reason)|trans(probe.translationParameters) }}
                         </p>
                     </div>
                 {% endif %}

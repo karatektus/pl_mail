@@ -134,7 +134,7 @@ final readonly class OpenAiClient
             $options['max_duration'] = $timeout;
             $response = $this->http->request('GET', $this->url($baseUrl, '/models'), $options);
             if (200 !== $response->getStatusCode()) {
-                return AiProbe::unreachable('status', ['status' => $response->getStatusCode()]);
+                return AiProbe::unreachable(match ($response->getStatusCode()) { 401 => 'unauthorized', 403 => 'forbidden', 404 => 'not_found', 429 => 'rate_limit', default => 'status' }, ['status' => $response->getStatusCode()]);
             }
             $models = [];
             foreach ($response->toArray(false)['data'] ?? [] as $entry) {
@@ -144,8 +144,10 @@ final readonly class OpenAiClient
             }
 
             return AiProbe::reachable($models, 'OpenAI-compatible');
-        } catch (\Throwable) {
-            return AiProbe::unreachable('unreachable');
+        } catch (DecodingExceptionInterface|\JsonException) {
+            return AiProbe::unreachable('bad_response');
+        } catch (\Throwable $error) {
+            return AiProbe::transportFailure($error);
         }
     }
 

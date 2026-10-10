@@ -272,14 +272,14 @@ final readonly class OllamaClient
         } catch (HttpClientException $exception) {
             // The ordinary case, and not worth an error: an address typed one
             // digit wrong, or a container that is not up yet.
-            return AiProbe::unreachable('unreachable', ['error' => $exception->getMessage()]);
+            return AiProbe::transportFailure($exception);
         } catch (Throwable $exception) {
             $this->logger->error('OllamaClient: probe failed unexpectedly', [
                 'error'     => $exception->getMessage(),
                 'exception' => $exception,
             ]);
 
-            return AiProbe::unreachable('unreachable', ['error' => $exception->getMessage()]);
+            return AiProbe::transportFailure($exception);
         }
     }
 
