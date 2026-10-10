@@ -215,7 +215,14 @@ export default class extends Controller {
             case "b": return this.#act("snooze");
 
             case "r": return this.#press(this.#reading()?.querySelector(OPEN.reply));
-            case "a": return this.#press(this.#reading()?.querySelector(OPEN.replyAll));
+            // Reply to all, and a plain reply where there is nobody else to
+            // include. The Reply-all link is only drawn for a message with more
+            // than one recipient, so on every other message `a` found no button
+            // and did nothing — which reads as a broken key, not as "there is
+            // only one person here". Gmail answers `a` with a reply there too.
+            case "a": return this.#press(
+                this.#reading()?.querySelector(OPEN.replyAll) ?? this.#reading()?.querySelector(OPEN.reply),
+            );
             case "f": return this.#press(this.#reading()?.querySelector(OPEN.forward));
 
             default: return false;

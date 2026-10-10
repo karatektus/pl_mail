@@ -165,6 +165,25 @@ test.describe("keyboard shortcuts", () => {
         await expect(page.locator("turbo-frame#compose_dock form").first()).toBeVisible();
     });
 
+    /**
+     * `a` answers on every message, not only on one with several recipients.
+     *
+     * Reported from the demo within a day: r and f worked and a did not. The
+     * Reply-all link is only drawn when there is more than one recipient, and
+     * `a` pressed a link that was not there. It replies instead, which is what
+     * "all" comes to when all is one person.
+     */
+    test("a replies even where there is nobody else to reply to", async ({ page }) => {
+        await inbox(page);
+        await mailRow(page, INBOX_SUBJECTS.read).click();
+
+        await expect(page.locator('[data-shortcut="reply"]')).toBeVisible();
+        await expect(page.locator('[data-shortcut="reply-all"]'), "this fixture has one recipient").toHaveCount(0);
+
+        await page.keyboard.press("a");
+        await expect(page.locator(".compose-window").first()).toBeVisible();
+    });
+
     test("switched off, a key is only a key", async ({ page }) => {
         await setShortcuts(page, "Off");
 
