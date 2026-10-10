@@ -1,4 +1,4 @@
-<!-- translated-from: features/mail.md sha1:c3811a2b971bdd163dd95eeb34d8f2a8a08ff7b7 -->
+<!-- translated-from: features/mail.md sha1:e5f4e03da7c3ee149c6dcf4583bba6ec87b848fe -->
 
 # Mail
 
@@ -666,9 +666,12 @@ Papierkorb und eines zweiten Löschens dort. Die Frage nennt, um wie viele Konve
 Mail wird auch vom Mailserver entfernt, nicht nur aus plMail, und lässt sich nicht zurückholen —
 **In den Posteingang** ist der Ausweg davor.
 
-Gelöscht wird, was angehakt ist. Nach **Alle** und dann **Alle N auswählen** — einer Auswahl, die
-über die Seite hinausreicht — tut der Knopf nichts, damit Mail nur dann endgültig gelöscht wird, wenn
-sie auf dem Bildschirm zu sehen ist. Lösche eine Seite, dann die nächste.
+Gelöscht wird, was angehakt ist. Eine Auswahl, die über die Seite hinausreicht — **Alle N
+auswählen**, angeboten nach **Alle** —, löst hier nichts aus, damit Mail nur dann endgültig gelöscht
+wird, wenn sie auf dem Bildschirm zu sehen ist. Lösche eine Seite, dann die nächste.
+
+`#` drückt **Löschen**, das über einer Auswahl im Spam nicht da ist, und tut dort deshalb nichts. Die
+Flamme mit ihrer Frage ist der einzige Weg, dort eine Auswahl zu löschen.
 
 ## Zurückstellen
 
