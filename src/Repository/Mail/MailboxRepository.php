@@ -156,27 +156,116 @@ class MailboxRepository extends ServiceEntityRepository
     }
 
     /**
-     * How many of an account's folders have never finished a sync.
+     * How many of an account's folders still have history to bring in.
      *
      * What "the first import is still running" means for IMAP, which has no
-     * account-level cursor to ask: every folder that is synced at all gets a
-     * syncedAt at the end of MessageSyncer::syncMailbox(), so a folder without
-     * one is a folder still being read for the first time — or one discovered
-     * a moment ago, which is the same thing as far as its mail is concerned.
+     * account-level cursor to ask. See findImporting() for what counts.
      *
      * A count rather than a boolean so the caller can tell "none outstanding"
      * from "no folders at all"; see InitialImportState.
      */
     public function countAwaitingFirstSync(Account $account): int
     {
-        return (int) $this->createQueryBuilder('mailbox')
-            ->select('COUNT(mailbox.id)')
-            ->andWhere('mailbox.account = :account')
-            ->andWhere('mailbox.isSyncEnabled = :isSyncEnabled')
-            ->andWhere('mailbox.syncedAt IS NULL')
-            ->setParameter('account', $account)
-            ->setParameter('isSyncEnabled', true)
+        return count($this->findImporting($account));
+    }
+
+    /**
+     * How much history the folders of each of these accounts set out to bring
+     * in, how much of it is still to come, and how many folders are not done.
+     *
+     * One grouped query for all of a person's accounts, because the topbar
+     * asks on every page and the answer is nearly always "none are". The
+     * conditions are findImporting()'s, except that finished folders are
+     * counted too: what they brought in is part of the total.
+     *
+     * A folder nobody has planned yet has no total and counts as importing,
+     * with nothing to add to the figures until its first page has asked the
+     * server what is there.
+     *
+     * @param list<Account> $accounts
+     *
+     * @return array<int, array{total: int, remaining: int, importing: int}> by account id
+     */
+    public function importTotalsByAccount(array $accounts): array
+    {
+        if ([] === $accounts) {
+            return [];
+        }
+
+        $rows = $this->createQueryBuilder('mailbox')
+            ->select('IDENTITY(mailbox.account) AS accountId')
+            ->addSelect('COALESCE(SUM(mailbox.importTotal), 0) AS total')
+            ->addSelect('COALESCE(SUM(mailbox.importRemaining), 0) AS remaining')
+            ->addSelect('SUM(CASE WHEN mailbox.importFloorUid IS NULL OR mailbox.importFloorUid <> 0 THEN 1 ELSE 0 END) AS importing')
+            ->andWhere('mailbox.account IN (:accounts)')
+            ->andWhere('mailbox.isSyncEnabled = :enabled')
+            ->andWhere('mailbox.isSelectable = :selectable')
+            ->andWhere('mailbox.missingSince IS NULL')
+            ->setParameter('accounts', $accounts)
+            ->setParameter('enabled', true)
+            ->setParameter('selectable', true)
+            ->groupBy('mailbox.account')
             ->getQuery()
-            ->getSingleScalarResult();
+            ->getArrayResult();
+
+        $totals = [];
+
+        foreach ($rows as $row) {
+            $totals[(int) $row['accountId']] = [
+                'total'     => (int) $row['total'],
+                'remaining' => (int) $row['remaining'],
+                'importing' => (int) $row['importing'],
+            ];
+        }
+
+        return $totals;
+    }
+
+    /**
+     * An account's folders that still have history to bring in, the ones to
+     * read first leading.
+     *
+     * "Still importing" is the folder's own marker — see
+     * Mailbox::$importFloorUid — and not the absence of a syncedAt, which was
+     * the test while a first sync read a folder whole: a folder gets its
+     * syncedAt at the end of its first pass, and that pass now ends at once,
+     * with new mail in hand and the history still to come.
+     *
+     * Only folders that are synced at all, that the server still lists and
+     * that it will open: nothing fetches the others, so nothing would ever
+     * finish them.
+     *
+     * THE ORDER IS THE PRIORITY. The Inbox first, because it is what a person
+     * opens; then what they wrote; then their own folders; the archive after
+     * those, since on Gmail over IMAP "All Mail" is every message again; and
+     * Spam and the bin last, which nobody is waiting for. PHP sorts it rather
+     * than SQL: the rank is a rule about an enum, and it belongs beside the
+     * enum's other rules rather than in a CASE expression here.
+     *
+     * @return list<Mailbox>
+     */
+    public function findImporting(Account $account): array
+    {
+        /** @var list<Mailbox> $mailboxes */
+        $mailboxes = $this->createQueryBuilder('mailbox')
+            ->andWhere('mailbox.account = :account')
+            ->andWhere('mailbox.isSyncEnabled = :enabled')
+            ->andWhere('mailbox.isSelectable = :selectable')
+            ->andWhere('mailbox.missingSince IS NULL')
+            ->andWhere('mailbox.importFloorUid IS NULL OR mailbox.importFloorUid <> 0')
+            ->setParameter('account', $account)
+            ->setParameter('enabled', true)
+            ->setParameter('selectable', true)
+            ->orderBy('mailbox.fullPath', 'ASC')
+            ->getQuery()
+            ->getResult();
+
+        // Stable, so the path order survives within a rank.
+        usort(
+            $mailboxes,
+            static fn (Mailbox $a, Mailbox $b): int => MailboxSpecialUse::importRank($a->specialUse) <=> MailboxSpecialUse::importRank($b->specialUse),
+        );
+
+        return $mailboxes;
     }
 }

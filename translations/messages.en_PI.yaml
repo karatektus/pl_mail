@@ -17,6 +17,9 @@ account:
         smtp:
             heading: Outgoin' — SMTP
             host: Port o' call
+            password: "Password fer sendin'"
+            same: "Use th' same password fer sendin'"
+            separate: "Use a different password fer sendin'"
         username: Name ye go by
     oauth:
         calendar_declined: The account be aboard, but ye never granted the almanac — so its calendars will not sync. Sign in again and tick the calendar box when Google asks.
@@ -2029,7 +2032,17 @@ integration:
         too_big: 'Too heavy to haul'
 
 jobs:
+    button:
+        failed: "Somethin' ran aground"
+        importing: "Haulin' aboard"
+        importing_percent: "Haulin' · %percent%%"
+        working: "Hard at work…"
     heading: Work below decks
+    import:
+        folder: "Now: %folder%"
+        heading: "Haulin' %account% aboard"
+        newest_first: "Freshest post first"
+        waiting: "Waitin' fer the tide"
     started: 'Started %action% — she runs below decks.'
     failure:
         abandoned: "Cut adrift — she stopped half way, and what were already done stays done."

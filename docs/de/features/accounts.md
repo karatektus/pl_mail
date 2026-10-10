@@ -1,4 +1,4 @@
-<!-- translated-from: features/accounts.md sha1:dd31f87ab1777ab4166251dc0b7cb0ce6aef417f -->
+<!-- translated-from: features/accounts.md sha1:0a9e8d4f75f2ed1058799d55ad90b09e851c653b -->
 
 # Konten und Aliase
 
@@ -30,7 +30,16 @@ daran, aber ein Konto, das sauber abgelegt wird und sich nicht anmelden kann, is
 Fehler, den man lieber jetzt als bei der ersten Synchronisierung findet — deshalb läuft die
 Prüfung beim Speichern noch einmal, und ihr Ergebnis bleibt am Konto vermerkt.
 
-Die erste Synchronisierung startet sofort. Danach hält plMail eine IMAP-IDLE-Verbindung zu
+Die erste Synchronisierung startet sofort, und die vorhandene Mail des Kontos wird danach
+hereingeholt, die neueste zuerst: das Jüngste aus dem Posteingang binnen etwa einer Minute, dann
+der Rest des Posteingangs, dann Gesendet, Entwürfe und deine eigenen Ordner, das Archiv und
+zuletzt Spam und Papierkorb. Mail, die währenddessen ankommt, wird davon nicht aufgehalten. Neben
+dem Suchfeld steht **Import läuft**, solange ein Konto importiert — ein Klick darauf zeigt den
+Stand je Konto und den Ordner, an dem es gerade ist; bewegt sich eine Weile nichts, steht dort
+**Wartet darauf, weiterzumachen**, und ein Konto, das nicht erreichbar ist, erscheint unter
+**Zustand der Konten**.
+
+Danach hält plMail eine IMAP-IDLE-Verbindung zu
 jedem Postfach und synchronisiert in dem Moment, in dem sich etwas ändert, mit einem geplanten
 Durchlauf alle fünfzehn Minuten dahinter.
 
@@ -54,7 +63,7 @@ Google abgelehnt werden und beim nächsten Abgleich wieder verschwinden. Ein Mic
 dieselben Rechte per Richtlinie zurückhalten.
 
 plMail vergleicht jetzt, was es bekommen hat, mit dem, wonach es gefragt hat, und zeigt bei einem
-Unterschied eine Karte unter **Kontozustand** — mit einem Knopf, um das Konto neu zu verbinden und
+Unterschied eine Karte unter **Zustand der Konten** — mit einem Knopf, um das Konto neu zu verbinden und
 den Rest zu erteilen. Wenn du ein Konto verbunden hast, bevor es das gab, erscheint die Karte beim
 ersten Erneuern der Anmeldung oder sobald eine Änderung zum ersten Mal abgelehnt wird.
 

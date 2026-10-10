@@ -163,7 +163,7 @@ delayed retry is never left waiting on a restart.
 
 Separate transports are not enough on their own. A worker already inside a long handler
 cannot pick up a send however it is prioritised, so each transport has its own process:
-`worker-export`, `worker-ingest`, `worker-live`, `worker-release`, `worker-enrich`, `worker-maintenance` and
+`worker-export`, `worker-ingest`, `worker-backlog`, `worker-live`, `worker-release`, `worker-enrich`, `worker-maintenance` and
 `worker-bulk`, which `app:work` runs side by side in the worker container. `worker-enrich` is the one
 that takes two transports, `enrich` and `enrich_backlog`, in that order — see
 [Mail ingest](mail-ingest.md#what-follows-a-message-and-where-it-runs). A

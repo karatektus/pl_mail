@@ -85,6 +85,8 @@ final readonly class BackgroundProcesses
      * The order within a row is the priority — Messenger drains an earlier
      * transport before it looks at a later one:
      *
+     *   worker-backlog  a mailbox's history, a page at a time, so that mail
+     *                   arriving now is never behind it on worker-ingest
      *   worker-live     mail that has just arrived, and nothing else, so that
      *                   it is never behind an import
      *   worker-release  ends holds, and is otherwise idle on purpose
@@ -100,6 +102,7 @@ final readonly class BackgroundProcesses
         return [
             'worker-export'      => ['export'],
             'worker-ingest'      => ['ingest'],
+            'worker-backlog'     => ['ingest_backlog'],
             'worker-live'        => ['enrich_live'],
             'worker-release'     => ['release'],
             'worker-enrich'      => ['enrich', 'enrich_backlog'],

@@ -89,6 +89,39 @@ class Account extends AccountModel
     #[ORM\Column(type: EncryptedStringType::NAME, nullable: true)]
     public ?string $password = null;
 
+    /**
+     * A password for sending, where the server wants a different one than for
+     * reading. Null — which is nearly always — means there is one password and
+     * it is $password.
+     *
+     * Zoho hands out an app password per protocol, and some hosts front their
+     * SMTP with a relay that has credentials of its own. Until this existed
+     * such an account could be added and would sync, and every send failed on
+     * authentication with nothing in the form to put the second password in
+     * (#42).
+     *
+     * Only the password differs. The username is shared: nobody has asked for
+     * two, and the form stays one field shorter for everyone who has one.
+     * Read through $sendingPassword, never directly, by anything that sends.
+     */
+    #[ORM\Column(type: EncryptedStringType::NAME, nullable: true)]
+    public ?string $smtpPassword = null;
+
+    /**
+     * What SMTP authenticates with: the sending password if the account has
+     * one, the account's password otherwise.
+     *
+     * Virtual, and the one place the fallback is written, so a sender cannot
+     * read $password by habit and work for every account but the ones this
+     * was added for. An empty string counts as "has none": that is what a
+     * form field left blank submits.
+     */
+    public ?string $sendingPassword {
+        get => null !== $this->smtpPassword && '' !== $this->smtpPassword
+            ? $this->smtpPassword
+            : $this->password;
+    }
+
     #[ORM\Column(length: 255, nullable: true)]
     public ?string $smtpHost = null;
 
@@ -435,11 +468,32 @@ class Account extends AccountModel
      */
     public const string SETTING_BACKFILL_TARGET = 'sync.backfill_target';
 
+    /** When the last sync of this account began. See $syncBeganAt. */
+    public const string SETTING_SYNC_BEGAN_AT = 'sync.began_at';
+
+    /** When this account's first import last did something. See $importBeatAt. */
+    public const string SETTING_IMPORT_BEAT_AT = 'sync.import_beat_at';
+
+    /** How many messages the provider says the mailbox holds. See $importTotal. */
+    public const string SETTING_IMPORT_TOTAL = 'sync.import_total';
+
     /** When the last backfill listing ran, to keep runs from overlapping. */
     public const string SETTING_BACKFILL_RAN_AT = 'sync.backfill_ran_at';
 
+    /** Where a backfill listing that is under way has got to. See $backfillPageToken. */
+    public const string SETTING_BACKFILL_PAGE_TOKEN = 'sync.backfill_page_token';
+
+    /** Unfetched messages the listing under way has found so far. */
+    public const string SETTING_BACKFILL_PENDING = 'sync.backfill_pending';
+
     /** Consecutive backfill listings that still found unfetched messages. */
     public const string SETTING_BACKFILL_ATTEMPTS = 'sync.backfill_attempts';
+
+    /** The Microsoft folders whose history is still to be read. See $graphImport. */
+    public const string SETTING_GRAPH_IMPORT = 'sync.graph_import';
+
+    /** Removals a Microsoft import was not yet able to judge. See $graphRemovals. */
+    public const string SETTING_GRAPH_REMOVALS = 'sync.graph_removals';
 
     /**
      * What this account does when a sender asks for a read receipt, for any
@@ -634,6 +688,198 @@ class Account extends AccountModel
                 $ranAt?->getTimestamp(),
             );
         }
+    }
+
+    /**
+     * The token for the next page of a backfill listing that is under way, or
+     * null between listings.
+     *
+     * A listing is walked a page at a time by MailImporter, each page a job of
+     * its own, and this is what one job leaves for the next. Null therefore
+     * means "the next page asked for is the first of a new listing", which is
+     * when the hourly cooldown is checked.
+     */
+    public ?string $backfillPageToken {
+        get {
+            $token = $this->getSetting(self::SETTING_BACKFILL_PAGE_TOKEN);
+
+            return is_string($token) && '' !== $token ? $token : null;
+        }
+        set (?string $token) {
+            $this->setSetting(self::SETTING_BACKFILL_PAGE_TOKEN, $token);
+        }
+    }
+
+    /**
+     * How many unfetched messages the listing under way has turned up, across
+     * the pages walked so far. Handed to the settling at the end, which used
+     * to be given the count of one whole listing made in one go.
+     */
+    public int $backfillPending {
+        get => max(0, (int) $this->getSetting(self::SETTING_BACKFILL_PENDING, 0));
+        set (int $pending) {
+            $this->setSetting(self::SETTING_BACKFILL_PENDING, max(0, $pending));
+        }
+    }
+
+    /**
+     * When the last sync of this account began, whether or not it went through.
+     *
+     * Beside $lastSyncedAt, which is when one last FINISHED cleanly, because
+     * the pair answers a question neither can alone: was there a sync that
+     * started after a given moment and succeeded? See isSyncedSince().
+     *
+     * Virtual and a Unix timestamp, like $backfillRanAt.
+     */
+    public ?DateTimeImmutable $syncBeganAt {
+        get {
+            $timestamp = $this->getSetting(self::SETTING_SYNC_BEGAN_AT);
+
+            return null === $timestamp ? null : (new DateTimeImmutable())->setTimestamp((int) $timestamp);
+        }
+        set (?DateTimeImmutable $beganAt) {
+            $this->setSetting(self::SETTING_SYNC_BEGAN_AT, $beganAt?->getTimestamp());
+        }
+    }
+
+    /**
+     * Whether a sync that began after $requestedAt has already gone through.
+     *
+     * The test for a redundant sync request. "Began after" is the whole of it:
+     * a sync that was already running when the request was made may have read
+     * the server before whatever prompted the request arrived, so its success
+     * says nothing about it. One that started later has seen it.
+     *
+     * Strictly after, to the second. A sync beginning in the same second as
+     * the request is not counted, which costs one repeated sync now and then
+     * and never costs mail.
+     */
+    public function isSyncedSince(int $requestedAt): bool
+    {
+        $beganAt = $this->syncBeganAt;
+
+        return null !== $beganAt
+            && $beganAt->getTimestamp() > $requestedAt
+            && null !== $this->lastSyncedAt
+            && $this->lastSyncedAt >= $beganAt
+            && null === $this->lastSyncError;
+    }
+
+    /**
+     * When this account's first import last did something: planned a folder,
+     * stored a page.
+     *
+     * Two readers. The import's own safety net, which starts a fresh chain of
+     * pages only when this has gone quiet (see MailImporter::ensureRunning()),
+     * and the progress line in the topbar, which says "waiting" rather than
+     * showing a bar that has stopped moving.
+     *
+     * Virtual and a Unix timestamp, like $backfillRanAt.
+     */
+    public ?DateTimeImmutable $importBeatAt {
+        get {
+            $timestamp = $this->getSetting(self::SETTING_IMPORT_BEAT_AT);
+
+            return null === $timestamp ? null : (new DateTimeImmutable())->setTimestamp((int) $timestamp);
+        }
+        set (?DateTimeImmutable $beatAt) {
+            $this->setSetting(self::SETTING_IMPORT_BEAT_AT, $beatAt?->getTimestamp());
+        }
+    }
+
+    /**
+     * How many messages the provider says this mailbox holds, as of the moment
+     * its import was planned. Gmail answers that in one call and Microsoft in
+     * its folder list; an IMAP account's total is the sum of its folders'
+     * (Mailbox::$importTotal).
+     *
+     * For the progress line and nothing else. It is a snapshot and is allowed
+     * to be a little wrong — mail arrives and is deleted while an import runs.
+     */
+    public ?int $importTotal {
+        get {
+            $total = $this->getSetting(self::SETTING_IMPORT_TOTAL);
+
+            return null === $total ? null : max(0, (int) $total);
+        }
+        set (?int $total) {
+            $this->setSetting(self::SETTING_IMPORT_TOTAL, $total);
+        }
+    }
+
+    /**
+     * The Microsoft folders whose history has not been read to its end, in the
+     * order they are to be read.
+     *
+     * A Microsoft folder is followed by a delta link (see $graphDeltaLinks),
+     * and the only way to be given one is to enumerate the folder once. That
+     * enumeration IS the import, so a folder is in exactly one of two places:
+     * it has a delta link and the sync follows it, or it has an entry here and
+     * MailImporter is reading it a page at a time.
+     *
+     * Each entry is the folder's id, the moment it was planned — the sync asks
+     * for mail received since then, because a folder with no delta link has no
+     * other way to say that something new arrived — and the link to the next
+     * page of an enumeration that is under way, null before the first.
+     *
+     * A list and not a map keyed by folder id: the order is the point, and a
+     * JSON object does not promise to keep one.
+     *
+     * @var list<array{folder: string, since: int, next: string|null}>
+     */
+    public array $graphImport {
+        get {
+            $entries = $this->getSetting(self::SETTING_GRAPH_IMPORT, []);
+            $clean   = [];
+
+            foreach (is_array($entries) ? $entries : [] as $entry) {
+                if (false === is_array($entry) || false === is_string($entry['folder'] ?? null)) {
+                    continue;
+                }
+
+                $next = $entry['next'] ?? null;
+
+                $clean[] = [
+                    'folder' => $entry['folder'],
+                    'since'  => (int) ($entry['since'] ?? 0),
+                    'next'   => is_string($next) && '' !== $next ? $next : null,
+                ];
+            }
+
+            return $clean;
+        }
+        set (array $entries) {
+            $this->setSetting(self::SETTING_GRAPH_IMPORT, array_values($entries));
+        }
+    }
+
+    /**
+     * Messages Microsoft reported as gone from a folder while another folder
+     * was still being imported.
+     *
+     * "Gone from a folder" is a deletion only if the message arrived in no
+     * other, and a folder whose history is still being read cannot say whether
+     * it did. A removal is reported once, so the ones that could not be judged
+     * are kept here and judged by the first sync that has every folder's
+     * answer. See GraphApiSyncer::sync().
+     *
+     * @var list<string>
+     */
+    public array $graphRemovals {
+        get {
+            $ids = $this->getSetting(self::SETTING_GRAPH_REMOVALS, []);
+
+            return array_values(array_filter(is_array($ids) ? $ids : [], is_string(...)));
+        }
+        set (array $ids) {
+            $this->setSetting(self::SETTING_GRAPH_REMOVALS, array_values($ids));
+        }
+    }
+
+    /** Whether a Microsoft account has folders whose history is still to be read. */
+    public function needsGraphImport(): bool
+    {
+        return [] !== $this->graphImport;
     }
 
     /** Virtual for the same reason as $backfillTarget. */

@@ -164,6 +164,67 @@ class Mailbox
     #[ORM\Column(options: ['default' => 0])]
     public int $failedUidAttempts = 0;
 
+    /**
+     * How far down this folder's history has been brought in: every UID at or
+     * above this one has been dealt with, and everything below it is still to
+     * come.
+     *
+     *   null  nobody has looked yet. The next sync plans the import — see
+     *         ImapImportPlan — and nothing is fetched until it has.
+     *   0     there is nothing left below. The import is over, or the folder
+     *         was read whole before imports worked this way.
+     *   n     the import is under way and has reached n.
+     *
+     * WHY A SECOND MARKER BESIDE lastSeenUid
+     *
+     * lastSeenUid is a high-water mark and only moves up: it is what makes a
+     * poll ask for new mail alone. A first import run through it reads a
+     * folder from UID 1, oldest first, in one sitting — twenty thousand
+     * messages before today's, with the newest last, and the whole account's
+     * other mail waiting behind it (#42).
+     *
+     * So the two ends are separate. On first contact lastSeenUid is put at the
+     * TOP of the folder, which makes new mail arrive at once and for ever
+     * after, and this marker starts just above it and walks DOWN a page at a
+     * time on a queue of its own (MailImporter). The newest mail is the first
+     * page.
+     */
+    #[ORM\Column(nullable: true)]
+    public ?int $importFloorUid = null;
+
+    /**
+     * How many messages this folder's import set out to bring in, and how many
+     * of those are still to come. For the progress line, and allowed to be a
+     * little wrong: mail is deleted and filed while an import runs.
+     *
+     * Null until the first page has asked the server what is there.
+     */
+    #[ORM\Column(nullable: true)]
+    public ?int $importTotal = null;
+
+    #[ORM\Column(nullable: true)]
+    public ?int $importRemaining = null;
+
+    /**
+     * How many times in a row the page just above the floor has come back
+     * with a message that would not store.
+     *
+     * The import's own counter, apart from failedUid above, and counted by
+     * the page rather than by the message. The two ends of a folder are read
+     * by different workers, and one ledger between them would have a message
+     * failing at the top and one failing at the bottom take the count from
+     * each other on every pass — the fault holdForRetry() already describes,
+     * arrived at from a new direction. See ImapMailboxImporter.
+     */
+    #[ORM\Column(options: ['default' => 0])]
+    public int $importPageAttempts = 0;
+
+    /** Whether there is still history to bring in, or nobody has looked yet. */
+    public function isImporting(): bool
+    {
+        return 0 !== $this->importFloorUid;
+    }
+
 
 
     /**

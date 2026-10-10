@@ -145,6 +145,47 @@ final class PageRendersTest extends WebTestCase
     }
 
     /**
+     * The topbar's background-work indicator is told to look again by a
+     * controller on <body>, and a layout that replaces the body's controller
+     * list has to keep it.
+     *
+     * The mailbox layout did not. It wrote its own three names over the base
+     * list, the indicator's controller was not among them, and on every mail
+     * page — where every bulk action is started — the indicator showed what
+     * the server had rendered and never changed again (#42). A string
+     * comparison, like AccountFormControllersTest and for its reason: nothing
+     * else notices a controller that is simply not mounted.
+     *
+     * @return iterable<string, array{string}>
+     */
+    public static function pagesWithATopbar(): iterable
+    {
+        yield 'a mail list' => ['/mail/inbox'];
+        yield 'settings' => ['/settings?section=profile'];
+    }
+
+    #[DataProvider('pagesWithATopbar')]
+    public function testTheBackgroundWorkIndicatorIsMountedWhereverThereIsATopbar(string $path): void
+    {
+        $client = static::createClient();
+
+        $user = static::getContainer()->get(UserRepository::class)
+            ->findOneBy(['email' => self::ADMIN_EMAIL]);
+
+        if (null === $user) {
+            self::markTestSkipped('run `app:test:seed-user --admin` first');
+        }
+
+        $client->loginUser($user);
+
+        $controllers = (string) $client->request('GET', $path)->filter('body')->attr('data-controller');
+
+        self::assertMatchesRegularExpression('/\bmail--jobs\b/', $controllers, $path);
+        // Presence: the page's own controllers are still there beside it.
+        self::assertMatchesRegularExpression('/\bcore--mercure\b/', $controllers, $path);
+    }
+
+    /**
      * No page renders a select the browser will draw its own popup for.
      *
      * The decision is that there are no native selects in the UI: the popup is

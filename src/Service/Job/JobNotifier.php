@@ -6,6 +6,7 @@ namespace App\Service\Job;
 
 use App\Domain\Helper\ThrowableSeverity;
 use App\Entity\Job\BackgroundJob;
+use App\Entity\User\User;
 use App\Infrastructure\Mercure\UserUpdate;
 use Psr\Log\LoggerInterface;
 use Psr\Log\LogLevel;
@@ -25,6 +26,35 @@ final readonly class JobNotifier
         private HubInterface $hub,
         private LoggerInterface $logger,
     ) {
+    }
+
+    /**
+     * Tell a person's open pages to look at the background-work indicator
+     * again, without a job to point at.
+     *
+     * For an import, which shows in the same indicator and is not a job row:
+     * how far it has got is read off the account and its folders (see
+     * ImportProgress), so there is nothing to name here but the reader.
+     */
+    public function nudge(User $user): void
+    {
+        if (null === $user->id) {
+            return;
+        }
+
+        try {
+            $this->hub->publish(UserUpdate::create(
+                topics: [sprintf('mail/user/%d', $user->id)],
+                data: json_encode(['type' => 'jobs.changed'], JSON_THROW_ON_ERROR),
+            ));
+        } catch (\Throwable $e) {
+            // The doorbell, not the delivery — as for changed() below.
+            $this->logger->log(
+                ThrowableSeverity::level($e, LogLevel::WARNING),
+                'JobNotifier: publish failed',
+                ['error' => $e->getMessage(), 'exception' => $e],
+            );
+        }
     }
 
     public function changed(BackgroundJob $job): void

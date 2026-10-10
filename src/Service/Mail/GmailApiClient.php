@@ -81,33 +81,56 @@ final class GmailApiClient
      */
     public function listMessages(Account $account, array $params = []): array
     {
-        $token    = $this->tokenManager->getValidAccessToken($account);
         $messages = [];
         $page     = null;
 
         do {
-            $query = $params;
+            $listed = $this->listMessagesPage($account, $params, $page);
+            $page   = $listed['nextPageToken'];
 
-            if (null !== $page) {
-                $query['pageToken'] = $page;
-            }
-
-            $this->pacer->spend($account, GmailQuotaPacer::UNITS_PER_LIST_PAGE);
-
-            $response = $this->httpClient->request('GET', self::BASE . '/messages', [
-                'auth_bearer' => $token,
-                'query'       => $query,
-            ]);
-
-            $body = $this->decode($response, 'messages.list');
-            $page = $body['nextPageToken'] ?? null;
-
-            foreach ($body['messages'] ?? [] as $m) {
+            foreach ($listed['messages'] as $m) {
                 $messages[] = $m;
             }
         } while (null !== $page);
 
         return $messages;
+    }
+
+    /**
+     * One page of a message listing, and the token for the page after it.
+     *
+     * listMessages() above walks every page before it answers, which for a
+     * mailbox of twenty thousand is forty requests and several minutes inside
+     * whichever job asked — the first thing a new account did, before a single
+     * message was fetched (#42). An import asks for a page, acts on it, and
+     * comes back for the next.
+     *
+     * @param array<string, mixed> $params
+     *
+     * @return array{messages: list<array<string, mixed>>, nextPageToken: ?string}
+     */
+    public function listMessagesPage(Account $account, array $params = [], ?string $pageToken = null): array
+    {
+        $token = $this->tokenManager->getValidAccessToken($account);
+
+        if (null !== $pageToken) {
+            $params['pageToken'] = $pageToken;
+        }
+
+        $this->pacer->spend($account, GmailQuotaPacer::UNITS_PER_LIST_PAGE);
+
+        $response = $this->httpClient->request('GET', self::BASE . '/messages', [
+            'auth_bearer' => $token,
+            'query'       => $params,
+        ]);
+
+        $body = $this->decode($response, 'messages.list');
+        $next = $body['nextPageToken'] ?? null;
+
+        return [
+            'messages'      => array_values($body['messages'] ?? []),
+            'nextPageToken' => is_string($next) && '' !== $next ? $next : null,
+        ];
     }
 
     /**

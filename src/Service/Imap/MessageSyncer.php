@@ -20,6 +20,7 @@ use App\Service\Mail\InlineAttachmentDetector;
 use App\Service\Mail\MisfiledBodyDetector;
 use App\Service\Mail\MisfiledBodyUnpacker;
 use App\Service\Mail\PostIngestPipeline;
+use App\Service\Monitoring\ProcessHeartbeatService;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\Persistence\ManagerRegistry;
@@ -56,7 +57,20 @@ class MessageSyncer
         private readonly GhostMessageReaper $ghosts,
         private readonly ManagerRegistry $registry,
         private readonly ImapPagedFetch $pagedFetch,
+        private readonly ImapImportPlan $importPlan,
+        private readonly ProcessHeartbeatService $heartbeats,
     ) {}
+
+    /**
+     * Whether the page being stored is history rather than new mail — set for
+     * the length of storeImportPage() and at no other time.
+     *
+     * State on a service, which this class otherwise has none of, because the
+     * one thing it changes is four calls down: how a message that would not
+     * store is held (see holdForRetry()). Carried as an argument it would be a
+     * parameter on five signatures to reach one `if`.
+     */
+    private bool $importing = false;
 
     /**
      * A UID range as a search criterion the library will not quote.
@@ -73,7 +87,7 @@ class MessageSyncer
      * generate_query() appends verbatim. A single UID would have been fine
      * either way, which is why this never showed up in a first sync of one.
      */
-    private static function uidRangeCriteria(string $uidRange): string
+    public static function uidRangeCriteria(string $uidRange): string
     {
         return 'CUSTOM UID '.$uidRange;
     }
@@ -118,6 +132,16 @@ class MessageSyncer
         // it only lists a folder every SWEEP_INTERVAL_MINUTES.
         $this->vanished->sweep($mailbox, $client);
 
+        // A folder nobody has looked at yet: put the mark at its top, so what
+        // follows asks for new mail only, and leave everything below to the
+        // importer, which brings it in newest first on its own queue. Without
+        // this the range below was `1:*` — the whole folder, oldest first, in
+        // this one job (#42). A server that will not say where its top is
+        // leaves the folder unplanned, and it is read that old way.
+        if (null === $mailbox->importFloorUid) {
+            $this->importPlan->begin($mailbox, $client);
+        }
+
         $lastSeenUid = $mailbox->lastSeenUid ?? 0;
         $uidRange    = ($lastSeenUid + 1) . ':*';
 
@@ -157,6 +181,7 @@ class MessageSyncer
                 $this->processBatch($batch, $mailboxId, $accountId, $lastSeenUid, $syncedUids, $lowestSkippedUid, $presence, $unreadable);
                 $synced += count($batch);
                 $this->startNextBatch();
+                $this->heartbeats->beatWhileBusy();
                 $this->logger->info(sprintf('Synced %d messages so far', $synced));
             }
 
@@ -193,6 +218,66 @@ class MessageSyncer
         $mailbox->unreadMessages = $this->messageRepository->countUnseenForMailbox($mailbox);
         $mailbox->totalMessages = $this->messageRepository->countTotalForMailbox($mailbox);
         $this->em->flush();
+    }
+
+    /**
+     * Store one page of a folder's history, fetched by ImapMailboxImporter.
+     *
+     * The same path new mail takes — processBatch(), the post-ingest pipeline
+     * and all — so an imported message is in every way a message. What differs
+     * is the bookkeeping around it: the page is below the high-water mark by
+     * definition, so the mark is not what says "already here" (nothing is
+     * passed as already synced; the importer asked only for what is missing),
+     * and a message that will not store is reported back rather than counted
+     * on the mailbox.
+     *
+     * @param iterable<ImapMessage>  $batch
+     * @param array<int, \Throwable> $unreadable as for processBatch()
+     *
+     * @return int|null the lowest UID of the page that was held back, or null
+     *                  when every message of it was dealt with
+     */
+    public function storeImportPage(Mailbox $mailbox, iterable $batch, array $unreadable): ?int
+    {
+        $syncedUids = [];
+        $lowestHeld = null;
+        $presence   = new ImapUidPresence($mailbox->account, $this->connections, $this->logger);
+
+        $this->importing = true;
+
+        try {
+            $this->processBatch(
+                $batch,
+                (int) $mailbox->id,
+                (int) $mailbox->account->id,
+                0,
+                $syncedUids,
+                $lowestHeld,
+                $presence,
+                $unreadable,
+            );
+        } finally {
+            $this->importing = false;
+            $presence->close();
+        }
+
+        $this->startNextBatch();
+
+        return $lowestHeld;
+    }
+
+    /**
+     * A set of UIDs as a search criterion: `UID 912,915:917,930`.
+     *
+     * For the importer, which asks for exactly the messages a folder is
+     * missing rather than for a range. Through the same escape hatch as
+     * uidRangeCriteria(), for the same reason.
+     *
+     * @param list<int> $uids
+     */
+    public static function uidSetCriteria(array $uids): string
+    {
+        return self::uidRangeCriteria(implode(',', $uids));
     }
 
     /**
@@ -621,6 +706,19 @@ class MessageSyncer
      */
     private function holdForRetry(Mailbox $mailbox, int $uid, ?int &$lowestSkippedUid): bool
     {
+        // A page of history keeps no count here. The counter on the mailbox
+        // belongs to the top of the folder, where new mail arrives, and the
+        // importer is reading the bottom of the same folder from another
+        // worker: one ledger between them and a message failing at each end
+        // would take the count from the other on every pass. The importer
+        // counts by the page instead — see ImapMailboxImporter — and all it
+        // needs from here is to be told that something was held.
+        if (true === $this->importing) {
+            $lowestSkippedUid = null === $lowestSkippedUid ? $uid : min($lowestSkippedUid, $uid);
+
+            return true;
+        }
+
         if (null !== $lowestSkippedUid && $lowestSkippedUid < $uid) {
             return true;
         }

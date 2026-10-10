@@ -30,7 +30,8 @@ use App\Repository\Mail\MailboxRepository;
  *   Gmail  has real backfill state. needsBackfill() is false only once a
  *          listing has found nothing left to fetch — see GmailApiSyncer.
  *   Graph  keeps a delta link per folder, written once that folder has been
- *          enumerated. None at all means no folder has been.
+ *          enumerated, and a list of the folders still to be (see
+          Account::$graphImport). No link at all means no sync has run.
  *   IMAP   has neither, but every folder gets a syncedAt when its first pass
  *          ends, so a sync-enabled folder without one is still importing.
  *
@@ -40,7 +41,7 @@ use App\Repository\Mail\MailboxRepository;
  * not held, so it may move tabs once. The opposite mistake — calling an import
  * finished early — would hold a mailbox's worth of mail and queue it as live.
  *
- * A folder discovered later makes an IMAP account "importing" again until that
+ * A folder discovered later makes an IMAP or Microsoft account "importing" again until that
  * folder has been read, which is correct rather than a quirk: what is about to
  * arrive from it is a folder's history, not new mail.
  */
@@ -57,7 +58,7 @@ final readonly class InitialImportState
         }
 
         if (true === $account->isMicrosoft()) {
-            return [] !== $account->graphDeltaLinks;
+            return [] !== $account->graphDeltaLinks && false === $account->needsGraphImport();
         }
 
         // Read from the database rather than off $account->mailboxes: the

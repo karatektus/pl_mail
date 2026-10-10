@@ -91,6 +91,27 @@ enum LabelRole: string
         };
     }
 
+    /**
+     * Where a folder of this role stands in the order an import reads them.
+     *
+     * MailboxSpecialUse::importRank() is the order and the reasons; this is
+     * the same question asked of a provider that has labels where IMAP has
+     * mailboxes. Static and taking null for the same reason: the commonest
+     * folder is one somebody made, and has no role.
+     */
+    public static function importRank(?self $role): int
+    {
+        return MailboxSpecialUse::importRank(match ($role) {
+            self::Inbox   => MailboxSpecialUse::INBOX,
+            self::Sent    => MailboxSpecialUse::SENT,
+            self::Drafts  => MailboxSpecialUse::DRAFTS,
+            self::Archive => MailboxSpecialUse::ARCHIVE,
+            self::Spam    => MailboxSpecialUse::JUNK,
+            self::Trash   => MailboxSpecialUse::TRASH,
+            default       => null,
+        });
+    }
+
     public static function fromSpecialUse(MailboxSpecialUse $specialUse): self
     {
         return match ($specialUse) {

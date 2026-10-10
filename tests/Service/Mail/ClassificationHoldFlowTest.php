@@ -451,10 +451,11 @@ final class ClassificationHoldFlowTest extends KernelTestCase
         $this->em->flush();
     }
 
-    /** What ends an IMAP import: every folder has completed a sync. */
+    /** What ends an IMAP import: no folder has history left to bring in. */
     private function importFinished(): void
     {
-        $this->mailbox->syncedAt = new DateTimeImmutable('-1 day');
+        $this->mailbox->syncedAt       = new DateTimeImmutable('-1 day');
+        $this->mailbox->importFloorUid = 0;
 
         $this->em->flush();
     }

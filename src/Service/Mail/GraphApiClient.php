@@ -225,6 +225,93 @@ final class GraphApiClient
     }
 
     /**
+     * One page of a folder's first enumeration, newest mail first.
+     *
+     * deltaMessages() reads a delta round to its end, which is right for a
+     * round that carries the last quarter of an hour and wrong for the one
+     * that carries a folder's whole history: that is a listing of everything
+     * in it, made in one go by whoever asked. This is the same round a page at
+     * a time, for MailImporter — pass null to begin, and then whatever came
+     * back as `nextLink` until a `deltaLink` arrives instead. That link is the
+     * folder's, exactly as if deltaMessages() had been given null.
+     *
+     * `$orderby=receivedDateTime desc` is the one ordering a message delta
+     * accepts, and it is what puts the mail somebody is looking for on the
+     * first page instead of the last. The page size is a preference the server
+     * is free to round, so nothing may depend on it being exact.
+     *
+     * A link the server no longer honours answers `resyncRequired`, as it
+     * does for deltaMessages(): the enumeration starts again from null.
+     *
+     * @return array{items: list<array<string,mixed>>, nextLink: string|null, deltaLink: string|null, resyncRequired: bool}
+     */
+    public function deltaMessagesPage(Account $account, string $folderId, ?string $nextLink, int $pageSize): array
+    {
+        $options = [
+            // One header, both preferences: request() merges by header name,
+            // and a second `Prefer` would replace the immutable-id one.
+            'headers' => ['Prefer' => sprintf('IdType="ImmutableId", odata.maxpagesize=%d', $pageSize)],
+        ];
+
+        if (null !== $nextLink && '' !== $nextLink) {
+            $url = $nextLink;
+        } else {
+            $url              = self::ME . '/mailFolders/' . rawurlencode($folderId) . '/messages/delta';
+            $options['query'] = [
+                '$select'  => self::DELTA_SELECT,
+                '$orderby' => 'receivedDateTime desc',
+            ];
+        }
+
+        try {
+            $body = $this->request($account, 'GET', $url, $options)->toArray();
+        } catch (GraphResyncRequiredException) {
+            return ['items' => [], 'nextLink' => null, 'deltaLink' => null, 'resyncRequired' => true];
+        }
+
+        $next  = $body['@odata.nextLink'] ?? null;
+        $delta = $body['@odata.deltaLink'] ?? null;
+
+        return [
+            'items'          => array_values($body['value'] ?? []),
+            'nextLink'       => is_string($next) && '' !== $next ? $next : null,
+            'deltaLink'      => is_string($delta) && '' !== $delta ? $delta : null,
+            'resyncRequired' => false,
+        ];
+    }
+
+    /**
+     * The newest messages a folder received since a moment, in the delta
+     * projection and at most `$limit` of them.
+     *
+     * For a folder that has no delta link yet because its history is still
+     * being read. Such a folder cannot be asked what changed, but it can be
+     * asked what arrived, and that is the half that cannot wait for an import
+     * to end. One request and one page: more than `$limit` new messages in a
+     * folder between two syncs is the import's to find.
+     *
+     * @return list<array<string,mixed>>
+     */
+    public function listReceivedSince(Account $account, string $folderId, \DateTimeImmutable $since, int $limit): array
+    {
+        $body = $this->request(
+            $account,
+            'GET',
+            self::ME . '/mailFolders/' . rawurlencode($folderId) . '/messages',
+            ['query' => [
+                '$select'  => self::DELTA_SELECT,
+                // Filter and order on the same property, in that order: Graph
+                // refuses a sort on a property the filter does not lead with.
+                '$filter'  => 'receivedDateTime ge ' . $since->setTimezone(new \DateTimeZone('UTC'))->format('Y-m-d\TH:i:s\Z'),
+                '$orderby' => 'receivedDateTime desc',
+                '$top'     => $limit,
+            ]],
+        )->toArray();
+
+        return array_values($body['value'] ?? []);
+    }
+
+    /**
      * Fetch full message resources for up to BATCH_LIMIT ids in one $batch POST.
      *
      * Graph sub-responses fail INDIVIDUALLY — a 200 on the outer batch says

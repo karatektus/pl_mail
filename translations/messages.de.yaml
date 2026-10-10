@@ -17,6 +17,9 @@ account:
         smtp:
             heading: Ausgehend — SMTP
             host: Server
+            password: Passwort zum Senden
+            same: Zum Senden dasselbe Passwort verwenden
+            separate: Zum Senden ein anderes Passwort verwenden
         username: Benutzername
     oauth:
         calendar_declined: Das Konto ist verbunden, aber der Kalenderzugriff wurde nicht erteilt — seine Kalender werden also nicht synchronisiert. Verbinde es neu und hak auf Googles Zustimmungsseite den Kalenderzugriff an.
@@ -2150,7 +2153,17 @@ integration:
         too_big: 'Zu groß zum Anhängen'
 
 jobs:
+    button:
+        failed: "Etwas ist fehlgeschlagen"
+        importing: "Import läuft"
+        importing_percent: "Import · %percent% %"
+        working: "Arbeitet …"
     heading: Hintergrundarbeit
+    import:
+        folder: "Gerade: %folder%"
+        heading: "%account% wird importiert"
+        newest_first: "Neueste Mail zuerst"
+        waiting: "Wartet darauf, weiterzumachen"
     started: '%action% gestartet — das läuft im Hintergrund.'
     failure:
         abandoned: 'Unterbrochen — das ist auf halber Strecke stehen geblieben; was schon erledigt war, bleibt erledigt.'

@@ -15,6 +15,7 @@ use App\Infrastructure\Messaging\Message\SyncGmailMessageBatchMessage;
 use App\Repository\Mail\AccountRepository;
 use App\Repository\Mail\MessageRepository;
 use App\Service\Gmail\GmailAddressFilter;
+use App\Service\Gmail\GmailApiSyncer;
 use App\Service\Gmail\GmailMessageBuilder;
 use App\Service\HarvestContactsService;
 use App\Service\Label\ThreadLabelSynchronizer;
@@ -30,6 +31,7 @@ use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Messenger\Stamp\DelayStamp;
+use Symfony\Component\Messenger\Stamp\TransportNamesStamp;
 
 #[AsMessageHandler]
 final readonly class SyncGmailMessageBatchHandler
@@ -122,9 +124,20 @@ final readonly class SyncGmailMessageBatchHandler
                 'count'     => count($fetch['retryable']),
             ]);
 
+            // Back onto the queue this kind of work belongs on. Left to the
+            // routing table a retry lands on the live queue, and while an
+            // account is importing that is its history jumping in front of
+            // the mail arriving now — a few ids at a time, on every batch
+            // Google throttled, which during an import is most of them.
+            $stamps = [new DelayStamp(self::RETRY_DELAY_MS)];
+
+            if (true === $account->needsBackfill()) {
+                $stamps[] = new TransportNamesStamp([GmailApiSyncer::IMPORT_QUEUE]);
+            }
+
             $this->bus->dispatch(
                 new SyncGmailMessageBatchMessage($account->id, $fetch['retryable'], $this->origin->current()),
-                [new DelayStamp(self::RETRY_DELAY_MS)],
+                $stamps,
             );
         }
 

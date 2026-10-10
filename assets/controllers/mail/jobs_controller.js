@@ -14,6 +14,10 @@ import { Controller } from "@hotwired/stimulus";
  * percent. A trailing reload keeps the last one, so the FINAL state — the one
  * that says done, or failed — always lands.
  */
+/** The list of work inside the indicator, and the button that opens it. */
+const MENU = "[data-ui--dropdown-target='menu']";
+const TOGGLE = "[data-action~='click->ui--dropdown#toggle']";
+
 export default class extends Controller {
     static values = { url: String };
 
@@ -54,10 +58,46 @@ export default class extends Controller {
             return;
         }
 
+        // Read before the frame is replaced: whether somebody has the list
+        // open and is watching it.
+        const wasOpen = null !== frame.querySelector(`${MENU}:not([hidden])`);
+
+        if (true === wasOpen) {
+            // The answer is a whole new frame, dropdown included, and a new
+            // dropdown is a closed one. To somebody watching a count go up,
+            // that was the list shutting in their face every second and a
+            // half — which is the same as it not working. Opened again as soon
+            // as the new one is in, on the next frame so its controller has
+            // connected and there is something to hear the click.
+            frame.addEventListener("turbo:frame-load", () => {
+                requestAnimationFrame(() => {
+                    const menu = frame.querySelector(MENU);
+
+                    if (null !== menu && true === menu.hidden) {
+                        // No entrance the second time: it never left.
+                        menu.setAttribute("data-enter", "none");
+                        frame.querySelector(TOGGLE)?.click();
+                    }
+                });
+            }, { once: true });
+        }
+
         // The frame carries no src — one on the page would fetch itself on
         // every load, for every user, to say nothing is happening. So the URL
         // is set here, at the one moment there is something to look at, and
         // Turbo fetches it because assigning src is what triggers that.
-        frame.src = this.urlValue;
+        //
+        // ONCE. Assigning the same URL again changes nothing, and Turbo
+        // fetches on a change: the first nudge of a page's life updated the
+        // indicator and every one after it did nothing at all, so a job
+        // showed whatever it had reached when it was first looked at and then
+        // sat there. From the second nudge on the frame is told to reload.
+        if (null === frame.getAttribute("src")) {
+            frame.src = this.urlValue;
+
+            return;
+        }
+
+        frame.reload();
     }
 }

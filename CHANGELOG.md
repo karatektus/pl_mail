@@ -8,6 +8,53 @@ The published image tags: `latest` follows the most recent release below,
 
 ## Unreleased
 
+**A new account shows its newest mail first, and no longer holds up everybody else's.** Adding an
+account used to bring its whole history in through the sync itself: every IMAP folder from its
+oldest message to its newest, or every Gmail message or Microsoft folder listed before one message
+was fetched, in one job on the queue all new mail arrives on. A large account showed an empty
+Inbox for most of an hour, new mail on every other account waited behind it, and the worker doing
+it was shown as dead.
+[#42](https://github.com/karatektus/pl_mail/issues/42).
+
+- **Newest first, Inbox first.** The most recent mail of the Inbox arrives within about a minute,
+  then the rest of it, then Sent, Drafts and your own folders, the archive, and Spam and the bin
+  last. Several accounts added together take turns, so each has a usable Inbox early.
+- **Its own queue and worker.** History is imported on `ingest_backlog` by a new `worker-backlog`
+  process, a page at a time. Mail arriving now stays on `ingest` and is never behind it. The
+  worker starts by itself; there is nothing to configure.
+- **You can see it.** A chip beside the search box says **Importing** and how far along it is
+  while an import runs. It opens a list of each importing account with how much is in and which
+  folder it is on, and says so when an import is waiting.
+- **Repeated sync requests collapse.** The quarter-hour poll, a push and the Sync button used to
+  queue a full sync each, one behind the other. A request a later sync has already covered is
+  skipped.
+- **One message that will not import costs itself.** It is retried with its page five times and
+  then passed over, with an error in the log, instead of stopping its folder.
+
+This covers IMAP, Gmail and Microsoft accounts alike. Folders that had already synced are
+untouched; a folder that was in the middle of its first sync when you upgrade is picked up again
+from the top, and what it had stored is not fetched twice. One migration adds four columns to the
+folder table.
+
+Two things change for Microsoft accounts beyond the import. A folder whose sync state expired on
+Microsoft's side used to be read again from end to end inside the sync; it is handed to the import
+instead. And a message deleted in Outlook while another folder's sync was failing is now removed
+here once that folder answers, where it used to stay behind: in no list, and counted in every
+total.
+
+**The Background work button updates while you watch it.** It never did on a mail page: the
+controller that refreshes it was not loaded there, so a bulk action's progress showed whatever it
+had reached when the page was drawn. Where it was loaded, it refreshed once and then not again,
+and a refresh shut the open list. All three are fixed.
+
+**A separate password for sending, for the servers that want one.** The account form has one
+password field, as before, and under the SMTP settings a new **Use a different password for
+sending**, which reveals a second. Zoho issues an app password per protocol, and an account set up
+with one of them synced and then failed every send on authentication, with nowhere to enter the
+other. The username stays shared. The connection test uses both, and a config backup carries both.
+One migration adds a column to the account table; it runs by itself and rewrites nothing.
+[#42](https://github.com/karatektus/pl_mail/issues/42).
+
 **One message could stop an IMAP folder from syncing, for good.** A multipart message whose
 header puts spaces around the equals sign — `boundary = "…"`, which the standard allows and some
 mailers write — could not be read, and because that failed while a page of mail was being fetched,

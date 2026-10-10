@@ -1446,6 +1446,23 @@ class MessageRepository extends ServiceEntityRepository
     }
 
     /**
+     * How many messages are stored for an account.
+     *
+     * For the progress line of a Gmail import, which has no folders to add
+     * up: what is stored against what the provider said the mailbox holds.
+     * Asked only while such an import is running.
+     */
+    public function countForAccount(Account $account): int
+    {
+        return (int) $this->createQueryBuilder('m')
+            ->select('COUNT(m.id)')
+            ->where('m.account = :account')
+            ->setParameter('account', $account)
+            ->getQuery()
+            ->getSingleScalarResult();
+    }
+
+    /**
      * What this mailbox's rows currently say about their flags, and nothing
      * else about them.
      *

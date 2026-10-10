@@ -79,6 +79,50 @@ genuinely needed, merge onto form.<field>.vars.attr.
         {{ form_row(form.smtpPort, { label: 'account.form.port'|trans }) }}
     </div>
     {{ form_row(form.smtpEncryption, { label: 'account.form.encryption'|trans }) }}
+
+    {# ── A different password for sending ──
+       Nearly every server takes one password for both directions, so this is
+       one line of text until somebody asks for more: a button, which ticks
+       the (unseen) box and reveals the field. See AccountType for why the box
+       and not the field is what the server believes.
+
+       The box is rendered by the form and hidden with the `hidden` attribute,
+       not left out and recreated by script: after a failed validation the
+       form comes back with the box as it was submitted, and the controller
+       reads its state from there on connect, so the second field does not
+       fold itself away with what was typed in it. #}
+    <div data-controller="settings--smtp-password">
+        {{ form_widget(form.separateSmtpPassword, { attr: {
+            hidden: 'hidden',
+            tabindex: '-1',
+            'data-settings--smtp-password-target': 'separate',
+        } }) }}
+
+        <button type="button"
+                data-settings--smtp-password-target="offer"
+                data-action="click->settings--smtp-password#separate"
+                class="inline-flex items-center gap-1.5 text-xs text-ink-muted hover:text-ink hover:underline cursor-pointer">
+            <i class="fa-solid fa-key text-[10px]" aria-hidden="true"></i>
+            {{ 'account.form.smtp.separate'|trans }}
+        </button>
+
+        <div data-settings--smtp-password-target="fields" hidden class="space-y-2">
+            {{ form_row(form.smtpPassword, {
+                label: 'account.form.smtp.password'|trans,
+                help: mode == 'edit' and form.separateSmtpPassword.vars.checked ? 'settings.accounts.password_help'|trans : null,
+                attr: form.smtpPassword.vars.attr|merge({
+                    placeholder: '••••••••',
+                    'data-settings--smtp-password-target': 'password',
+                })
+            }) }}
+            <button type="button"
+                    data-action="click->settings--smtp-password#same"
+                    class="inline-flex items-center gap-1.5 text-xs text-ink-muted hover:text-ink hover:underline cursor-pointer">
+                <i class="fa-solid fa-xmark text-[10px]" aria-hidden="true"></i>
+                {{ 'account.form.smtp.same'|trans }}
+            </button>
+        </div>
+    </div>
 </div>
 
 <div class="border-t border-line"></div>

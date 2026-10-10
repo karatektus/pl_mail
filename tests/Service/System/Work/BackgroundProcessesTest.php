@@ -19,7 +19,7 @@ final class BackgroundProcessesTest extends TestCase
     public function testEveryProcessKeepsTheNameItsContainerHad(): void
     {
         self::assertSame(
-            ['mercure', 'imap-supervisor', 'worker-export', 'worker-ingest', 'worker-live', 'worker-release', 'worker-enrich', 'worker-maintenance', 'worker-bulk', 'scheduler'],
+            ['mercure', 'imap-supervisor', 'worker-export', 'worker-ingest', 'worker-backlog', 'worker-live', 'worker-release', 'worker-enrich', 'worker-maintenance', 'worker-bulk', 'scheduler'],
             new BackgroundProcesses(self::IDENTIFIER)->names(),
         );
     }

@@ -29,7 +29,7 @@ Variables: job
    and the point of this response is that something appears NOW. #}
 <turbo-stream action="replace" target="jobs-indicator">
     <template>
-        {{ include('mail/_jobs_indicator.html.twig', { jobs: [job] }) }}
+        {{ include('mail/_jobs_indicator.html.twig', { jobs: [job], imports: mail_imports() }) }}
     </template>
 </turbo-stream>
 

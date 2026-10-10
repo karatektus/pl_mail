@@ -29,7 +29,10 @@ final readonly class GmailAccountSyncer implements AccountSyncerInterface
         $this->labelSyncer->sync($account);
 
         if (null === $account->gmailHistoryId) {
-            $this->gmailApiSyncer->initialSync($account);
+            // Not initialSync(): that lists the whole mailbox before it
+            // returns. The listing belongs to MailImporter, a page at a time
+            // on the import queue — see GmailApiSyncer::beginImport().
+            $this->gmailApiSyncer->beginImport($account);
 
             return [];
         }
@@ -39,8 +42,11 @@ final readonly class GmailAccountSyncer implements AccountSyncerInterface
         // only says where incremental sync resumes, and treating it as "the
         // mailbox is fully synced" is what used to strand accounts on
         // whatever the first run happened to fetch.
+        //
+        // The backlog itself is no longer walked here. SyncAccountMessageHandler
+        // asks MailImporter to see that it is under way, which is the same
+        // "every sync resumes it" with the listing off this queue.
         $this->gmailApiSyncer->syncIncremental($account);
-        $this->gmailApiSyncer->backfill($account);
 
         return [];
     }

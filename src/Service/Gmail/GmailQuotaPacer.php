@@ -38,8 +38,11 @@ use Symfony\Component\Clock\ClockInterface;
  * syncs, and whatever else is signed in to the same Google account.
  *
  * IN MEMORY, in this process. That is enough because the bulk fetching is one
- * worker's job, and it survives from one message to the next because a worker
- * only resets services that ask to be. A restart forgets what was spent and
+ * worker's job — worker-backlog, which runs an import's listing and its
+ * batches; worker-ingest also talks to Gmail, but for the handful of calls a
+ * "see what is new" sync makes, and those are what the headroom above is left
+ * for. It survives from one message to the next because a worker only resets
+ * services that ask to be. A restart forgets what was spent and
  * starts with a full reserve, which can overshoot for at most the reserve.
  * Shared storage would close that, at the price of a database round trip per
  * batch to guard against something GmailThrottledException already handles.

@@ -104,7 +104,7 @@
        `.search-shell` in app.css), so what is left in this group is two icons
        that belong beside the account controls rather than adrift in the
        middle of an empty row. #}
-    <div class="flex-1 max-w-2xl mx-auto flex items-center gap-2 min-w-0 max-md:justify-end"
+    <div class="flex-1 max-w-2xl mx-auto flex items-center gap-2 min-w-0 max-md:justify-end xl:relative"
          data-controller="ui--mobile-search"
          {# On the controller element, where Stimulus reads values from — not on
             the button, which is only a target. Both labels are rendered here
@@ -131,6 +131,22 @@
         >
             <i class="fa-solid fa-magnifying-glass text-base" aria-hidden="true"></i>
         </button>
+
+        {# Background work, and nothing at all when there is none.
+
+           A whole-view action runs on a worker now — the request that used to
+           mark five thousand conversations read inline died at thirty seconds —
+           so this is the only place the user can see it happening. The frame
+           renders empty when there are no jobs, which is why there is no
+           wrapper or spacing around it: an indicator that is always present is
+           another fixture to learn to ignore.
+
+           Directly left of the search box, which is where the eye is: it
+           was the first of six muted icons at the far right, and nobody saw
+           it there. #}
+        {% if app.user %}
+            {{ include('mail/_jobs_indicator.html.twig', { jobs: background_jobs(), imports: mail_imports() }) }}
+        {% endif %}
 
     {# The search box is a combobox in the ARIA sense — a text field with a
        popup list attached — and the parts of that live in three places: the
@@ -479,18 +495,6 @@
 
     {# Right actions #}
     <div class="flex items-center gap-1 flex-shrink-0">
-        {# Background work, and nothing at all when there is none.
-
-           A whole-view action runs on a worker now — the request that used to
-           mark five thousand conversations read inline died at thirty seconds —
-           so this is the only place the user can see it happening. The frame
-           renders empty when there are no jobs, which is why there is no
-           wrapper or spacing around it: an indicator that is always present is
-           another fixture to learn to ignore. #}
-        {% if app.user %}
-            {{ include('mail/_jobs_indicator.html.twig', { jobs: background_jobs() }) }}
-        {% endif %}
-
         {# Sync now: the same account syncs as app:mail:sync, for this user (SyncController). #}
         <button
             type="button"

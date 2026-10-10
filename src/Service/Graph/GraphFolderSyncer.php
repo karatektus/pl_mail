@@ -126,6 +126,7 @@ final readonly class GraphFolderSyncer
 
         $syncable = [];
         $synced   = 0;
+        $messages = 0;
 
         foreach ($byId as $id => $folder) {
             $wellKnown = $nameByFolderId[$id] ?? '';
@@ -161,6 +162,7 @@ final readonly class GraphFolderSyncer
 
             $syncable[] = $id;
             $synced++;
+            $messages += max(0, (int) ($folder['totalItemCount'] ?? 0));
         }
 
         // Drop stale links: a binding pointing at a folder that no longer
@@ -177,6 +179,11 @@ final readonly class GraphFolderSyncer
                 $binding->graphFolderId = null;
             }
         }
+
+        // What the progress line of an import measures itself against. The
+        // folder list already says it, so it is kept current here rather than
+        // asked for separately.
+        $account->importTotal = $messages;
 
         $this->em->flush();
 

@@ -64,6 +64,17 @@ export default class extends Controller {
             smtpEncryption: this._value("smtpEncryption"),
         };
 
+        // A second password for sending, only while the form is asking for
+        // one — see settings--smtp-password. Sent as a flag and a value, like
+        // the form itself: a blank value with the flag set means "the stored
+        // one" on the edit form.
+        const separate = this.element.querySelector('[name$="[separateSmtpPassword]"]');
+
+        if (null !== separate && true === separate.checked) {
+            payload.separateSmtpPassword = true;
+            payload.smtpPassword = this._value("smtpPassword");
+        }
+
         if (this.hasAccountIdValue === true) {
             payload.accountId = this.accountIdValue;
         }

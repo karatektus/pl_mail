@@ -17,6 +17,9 @@ account:
         smtp:
             heading: Outgoing — SMTP
             host: Host
+            password: Sending password
+            same: Use the same password for sending
+            separate: Use a different password for sending
         username: Username
     oauth:
         calendar_declined: The account is connected, but calendar access was not granted — so its calendars will not sync. Reconnect it and tick calendar access on Google's consent screen.
@@ -2149,7 +2152,17 @@ integration:
         too_big: 'Too large to attach'
 
 jobs:
+    button:
+        failed: "Something failed"
+        importing: "Importing"
+        importing_percent: "Importing · %percent%%"
+        working: "Working…"
     heading: Background work
+    import:
+        folder: "Now: %folder%"
+        heading: "Importing %account%"
+        newest_first: "Newest mail first"
+        waiting: "Waiting to continue"
     started: 'Started %action% — this runs in the background.'
     failure:
         abandoned: 'Interrupted — this stopped part-way, and whatever it had already done was kept.'
