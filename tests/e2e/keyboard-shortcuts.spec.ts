@@ -211,6 +211,34 @@ test.describe("keyboard shortcuts", () => {
         await expect(page.locator(".compose-window").first()).toBeVisible();
     });
 
+    /**
+     * `b` snoozes the conversation that is open.
+     *
+     * It did nothing there: every row had a snooze menu and the open
+     * conversation had none, so there was no control for the key to press. The
+     * toolbar has one now, and the mail leaves the inbox for Snoozed.
+     */
+    test("b snoozes the open conversation", async ({ page }) => {
+        await inbox(page);
+
+        const subject = INBOX_SUBJECTS.read;
+        await mailRow(page, subject).click();
+        await expect(page.locator('[data-shortcut="reply"]')).toBeVisible();
+
+        await page.keyboard.press("b");
+
+        const option = page.locator('[data-surface="reading"] [data-snooze-key="tomorrow"]');
+        await expect(option).toBeVisible();
+        await option.click();
+
+        // Back on the list, without it.
+        await expect(page.locator(ROWS).first()).toBeVisible();
+        await expect(mailRow(page, subject)).toHaveCount(0);
+
+        await page.goto("/mail/snoozed");
+        await expect(mailRow(page, subject)).toHaveCount(1);
+    });
+
     test("switched off, a key is only a key", async ({ page }) => {
         await setShortcuts(page, "Off");
 

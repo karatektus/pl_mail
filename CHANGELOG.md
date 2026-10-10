@@ -19,7 +19,8 @@ them off per person. No migration.
 
 `a` replies on a message that has only one recipient, where there is no Reply to all to press. The
 toolbar above a selection has a **Star** button, and `s` presses it; before, `s` did nothing with
-rows ticked.
+rows ticked. An open conversation has a **Snooze** button in its toolbar, which is what `b` presses
+there.
 
 **A config backup now carries how each person sorts their mail.** Settings → Categories — rules or
 the assistant, whether that overrules the provider's own categories, and whether the inbox has tabs

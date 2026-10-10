@@ -77,6 +77,30 @@ export default class extends Controller {
         this._closePane();
     }
 
+    /**
+     * Snooze the open conversation, from its own toolbar.
+     *
+     * The wake time arrives as a param from mail--snooze-menu, which works it
+     * out in the browser — the server has no timezone for the session. Absent,
+     * this clears the snooze, exactly as the row's does.
+     *
+     * A snoozed conversation has left the list it was opened from, so the pane
+     * closes, as it does after Archive. Clearing a snooze moves nothing the
+     * reader is looking at, and they stay where they are.
+     */
+    async snooze(event) {
+        const { until = null } = event.params;
+        event.stopPropagation();
+
+        if (false === await this._post(this._url("snooze"), { until })) {
+            return;
+        }
+
+        if (null !== until) {
+            this._closePane();
+        }
+    }
+
     async archive(event) {
         event.stopPropagation();
         this._close();

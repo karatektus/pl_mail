@@ -51,6 +51,7 @@ export default class extends Controller {
             // than teaching this controller which surface it is on.
             element.setAttribute("data-mail--message-row-until-param", at.toISOString());
             element.setAttribute("data-mail--list-toolbar-until-param", at.toISOString());
+            element.setAttribute("data-mail--message-actions-until-param", at.toISOString());
 
             const when = element.querySelector("[data-snooze-when]");
 

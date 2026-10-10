@@ -69,6 +69,7 @@ const OPEN = {
     star:     "[data-action*='mail--message-actions#star']",
     label:    "[data-action='click->mail--label-menu#toggle']",
     move:     "[data-action='click->mail--move-menu#toggle']",
+    snooze:   "[data-shortcut='snooze']",
     back:     "[data-action='click->mail--mail-pane#close']",
     reply:    "[data-shortcut='reply']",
     replyAll: "[data-shortcut='reply-all']",

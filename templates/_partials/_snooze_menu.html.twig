@@ -15,6 +15,9 @@
                    derives per-row URLs itself
       snoozed    — whether the target is currently snoozed, which is the only
                    thing that puts "Unsnooze" on the menu
+      align      — "left" to open from the button's left edge. The default
+                   opens from its right, which suits a button at the end of a
+                   row and runs off the pane from one at the start of a toolbar
 #}
 {% set snoozed = snoozed|default(false) %}
 {% set url = url|default(null) %}
@@ -23,7 +26,7 @@
 <div data-ui--dropdown-target="menu" hidden
      data-controller="mail--snooze-menu"
      data-action="ui--dropdown:opened->mail--snooze-menu#refresh"
-     class="absolute top-full mt-1 right-0 z-20 min-w-56 popover py-1">
+     class="absolute top-full mt-1 {{ 'left' == align|default('right') ? 'left-0' : 'right-0' }} z-20 min-w-56 popover py-1">
 
     <p class="px-3 py-1 text-[10px] font-semibold uppercase tracking-wide text-ink-faint">
         {{ 'thread_row.actions.snooze'|trans }}

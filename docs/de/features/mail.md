@@ -1,4 +1,4 @@
-<!-- translated-from: features/mail.md sha1:15c2febd1a3f8601aa57a89a38c29946ef9718cb -->
+<!-- translated-from: features/mail.md sha1:52f9fcdc53048f91fd103d949726d5cb242ac80f -->
 
 # Mail
 
@@ -656,7 +656,8 @@ der Anbieter. Ein Filter ist der Weg, es hier dauerhaft zu machen.
 
 Zurückstellen ist Archivieren mit Wecker. Die Konversation verlässt den Posteingang sofort —
 auch beim Anbieter, nicht nur in plMails Sicht darauf —, bekommt das Label Zurückgestellt und
-kommt zurück, wenn ihre Zeit um ist.
+kommt zurück, wenn ihre Zeit um ist. Den Uhr-Knopf gibt es in jeder Zeile, über einer Auswahl und
+in der Leiste einer geöffneten Unterhaltung.
 
 Das Menü bietet **Später heute**, **Morgen**, **Dieses Wochenende**, **Nächste Woche**, **Datum
 und Uhrzeit wählen** und, bei bereits Zurückgestelltem, **Zurückholen**. Später heute ist 18:00

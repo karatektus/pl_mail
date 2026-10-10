@@ -598,7 +598,8 @@ is how you make it stick here.
 ## Snooze
 
 Snoozing is archiving with a timer. The conversation leaves the Inbox now — at the provider too,
-not only in plMail's view of it — gains the Snoozed label, and comes back when its time is up.
+not only in plMail's view of it — gains the Snoozed label, and comes back when its time is up. The
+clock button is on every row, above a selection and in the toolbar of an open conversation.
 
 The menu offers **Later today**, **Tomorrow**, **This weekend**, **Next week**, **Pick a date and
 time**, and **Unsnooze** on something already snoozed. Later today is 18:00 and is offered only

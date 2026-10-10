@@ -64,6 +64,37 @@ self-contained: no {% extends %}, no block dependencies.
         {% endif %}
 
         {{ tbtn('click->mail--message-actions#markUnread', 'fa-regular fa-envelope', 'toolbar.actions.mark_unread'|trans) }}
+
+        {# Snooze, which every row offered and the conversation itself did not:
+           deciding "not now" is something done after reading a mail at least
+           as often as before opening it, and from here it meant going back to
+           the list to find the row again. It is also what `b` presses — see
+           ui--shortcuts, whose keys do nothing where there is no control.
+
+           Where the row offers it and for the row's reason: not for mail that
+           is already put away. Written out rather than through tbtn() for the
+           one attribute the macro has no room for. #}
+        {% if placement == 'normal' %}
+            <div class="relative" data-controller="ui--dropdown">
+                <button type="button"
+                        data-action="click->ui--dropdown#toggle"
+                        data-shortcut="snooze"
+                        aria-label="{{ 'toolbar.actions.snooze'|trans }}"
+                        title="{{ 'toolbar.actions.snooze'|trans }}"
+                        class="flex items-center justify-center w-8 h-8 rounded-full
+                               text-ink-muted hover:text-ink hover:bg-hover
+                               transition-colors duration-100 cursor-pointer">
+                    <i class="fa-solid fa-clock text-[15px]" aria-hidden="true"></i>
+                </button>
+
+                {% include '_partials/_snooze_menu.html.twig' with {
+                    controller: 'mail--message-actions',
+                    method:     'snooze',
+                    snoozed:    thread.isSnoozed,
+                    align:      'left',
+                } only %}
+            </div>
+        {% endif %}
     </div>
 
     {% include '_partials/_label_menu.html.twig' with {
