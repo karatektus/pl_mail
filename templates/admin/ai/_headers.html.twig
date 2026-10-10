@@ -1,13 +1,14 @@
-<div data-controller="admin--ai-headers" data-ai-headers="{{ field.vars.name }}" class="space-y-3">
+<div data-controller="admin--ai-headers" data-ai-headers="{{ field.vars.name }}" class="space-y-4">
     <p class="text-sm font-semibold">{{ 'admin.ai.headers.title'|trans }}</p>
     {{ form_errors(field) }}
     {% set prototype %}{% include 'admin/ai/_header_row.html.twig' with {row: field.vars.prototype} only %}{% endset %}
-    <div data-admin--ai-headers-target="rows" class="space-y-3" data-prototype="{{ prototype|e('html_attr') }}" data-index="{{ field|length }}">
+    <div data-admin--ai-headers-target="rows" class="space-y-4" data-prototype="{{ prototype|e('html_attr') }}" data-index="{{ field|length }}">
         {% for row in field %}{% include 'admin/ai/_header_row.html.twig' with {row: row} only %}{% endfor %}
     </div>
-    <button type="button" data-action="admin--ai-headers#add" class="text-sm font-semibold text-accent"><span aria-hidden="true">＋ </span>{{ 'admin.ai.headers.add'|trans }}</button>
-    <details class="text-sm"><summary>{{ 'admin.ai.headers.details'|trans }}</summary>
-        <div class="space-y-2 mt-2"><p>{{ 'admin.ai.headers.help'|trans }}</p><p>{{ 'admin.ai.headers.embedding_space_help'|trans }}</p></div>
+    <button type="button" data-action="admin--ai-headers#add" class="inline-flex h-8 items-center gap-2 px-3 rounded-lg border border-line bg-pane-soft text-[13px] font-medium text-ink-soft hover:bg-hover transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"><i class="fa-solid fa-plus" aria-hidden="true"></i>{{ 'admin.ai.headers.add'|trans }}</button>
+    <details class="group/header-details">
+        <summary class="inline-flex items-center gap-2 rounded cursor-pointer select-none list-none [&::-webkit-details-marker]:hidden text-xs font-medium text-ink-faint hover:text-ink-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"><i class="fa-solid fa-chevron-right text-[10px] transition-transform group-open/header-details:rotate-90" aria-hidden="true"></i>{{ 'admin.ai.headers.details'|trans }}</summary>
+        <div class="space-y-2 mt-3 text-xs leading-snug text-ink-faint"><p>{{ 'admin.ai.headers.help'|trans }}</p><p>{{ 'admin.ai.headers.task_help'|trans }}</p><p>{{ 'admin.ai.headers.embedding_space_help'|trans }}</p></div>
     </details>
 </div>
 {% do field.setRendered %}

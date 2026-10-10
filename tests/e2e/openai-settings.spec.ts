@@ -160,7 +160,21 @@ test('header rows start empty, switch mode, recover after last removal and fit m
     expect(new Set(names).size).toBe(2);
     await page.setViewportSize({width:390,height:844});
     expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBeTruthy();
-    await group.screenshot({path:'.local-test/headers-ux-mobile.png'});
+    await page.reload();
+    if(await card.getAttribute('open')===null)await card.locator('summary').first().click();
+    await page.locator('#ai_settings_chatProvider').evaluate(el=>el.tomselect.setValue('openai'));
+    await group.getByRole('button',{name:'Add header',exact:true}).click();
+    await rows.first().locator('select').evaluate(el=>el.tomselect.setValue('session'));
+    await rows.first().locator('input[name$="[name]"]').fill('x-opencode-session');
+    await group.locator('summary').click();
+    await group.screenshot({path:'.local-test/headers-design-mobile.png'});
     await page.setViewportSize({width:1440,height:1100});
-    await group.screenshot({path:'.local-test/headers-ux-desktop.png'});
+    const bounds = await rows.first().evaluate(row => {
+        const field = row.querySelector('[data-header-automatic]').getBoundingClientRect();
+        const button = row.querySelector('button').getBoundingClientRect();
+        return {fieldTop: field.top, buttonTop: button.top, fieldHeight: field.height, buttonHeight: button.height};
+    });
+    expect(Math.abs(bounds.fieldTop - bounds.buttonTop)).toBeLessThan(1);
+    expect(bounds.fieldHeight).toBe(bounds.buttonHeight);
+    await group.screenshot({path:'.local-test/headers-design-desktop.png'});
 });
