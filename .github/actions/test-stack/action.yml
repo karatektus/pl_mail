@@ -156,7 +156,7 @@ runs:
     - name: Start the test stack
       if: inputs.stack == 'true'
       shell: bash
-      run: docker compose -f compose.test.yaml up -d --wait app worker-bulk
+      run: docker compose -f compose.test.yaml up -d --wait app worker-bulk openai-mock
 
     - name: Setup Node
       if: inputs.playwright == 'true'

@@ -108,7 +108,7 @@ export default defineConfig({
       use: { ...devices["Desktop Chrome"] },
       // integrations.spec.ts, mercure.spec.ts, ai-compose.spec.ts and
       // thread-summary.spec.ts are handled separately below.
-      testIgnore: /(integrations|mercure|ai-compose|thread-summary)\.spec\.ts/,
+      testIgnore: /(integrations|mercure|ai-compose|thread-summary|openai-settings)\.spec\.ts/,
       // No `storageState` here, and no `setup` project: signing in is now a
       // worker-scoped fixture in tests/e2e/support/test.ts, because the path
       // has to differ per worker and project config is static.
@@ -155,7 +155,7 @@ export default defineConfig({
       // under the other — an inline composer with no "Help me write" button,
       // failing in a file that passes alone.
       workers: 1,
-      testMatch: /(integrations|mercure|ai-compose|thread-summary)\.spec\.ts/,
+      testMatch: /(integrations|mercure|ai-compose|thread-summary|openai-settings)\.spec\.ts/,
       dependencies: ["chromium"],
     },
   ],

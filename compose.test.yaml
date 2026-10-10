@@ -115,6 +115,14 @@ x-test-app: &test-app
       condition: service_healthy
 
 services:
+  # Synthetic provider only. No credential or mail leaves the test network.
+  openai-mock:
+    image: node:24-alpine
+    command: ["node", "/mock/openai-mock.mjs"]
+    volumes:
+      - ./tests/e2e/support/openai-mock.mjs:/mock/openai-mock.mjs:ro
+    ports:
+      - "127.0.0.1:18026:8000"
   database:
     image: postgres:18-alpine
     environment:

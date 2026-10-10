@@ -3,8 +3,8 @@ import { seedUser, TEST_ADMIN, login } from './support/config';
 
 test.use({storageState:{cookies:[],origins:[]}});
 
-const mockBaseUrl = process.env.E2E_OPENAI_MOCK_BASE_URL;
-const mockLogUrl = process.env.E2E_OPENAI_MOCK_LOG_URL;
+const mockBaseUrl = process.env.E2E_OPENAI_MOCK_BASE_URL ?? (process.env.CI ? 'http://openai-mock:8000/v1' : undefined);
+const mockLogUrl = process.env.E2E_OPENAI_MOCK_LOG_URL ?? (process.env.CI ? 'http://127.0.0.1:18026/log' : undefined);
 test.skip(!mockBaseUrl || !mockLogUrl, 'Requires the synthetic OpenAI mock; never use a real provider.');
 
 test('compatible settings probe, save and endpoint change keep keys private', async ({ page }) => {
@@ -167,7 +167,7 @@ test('header rows start empty, switch mode, recover after last removal and fit m
     await rows.first().locator('select').evaluate(el=>el.tomselect.setValue('session'));
     await rows.first().locator('input[name$="[name]"]').fill('x-opencode-session');
     await group.locator('summary').click();
-    await group.screenshot({path:'.local-test/headers-design-mobile.png'});
+    await group.screenshot({path:'test-results/headers-design-mobile.png', animations:'disabled'});
     await page.setViewportSize({width:1440,height:1100});
     const bounds = await rows.first().evaluate(row => {
         const field = row.querySelector('[data-header-automatic]').getBoundingClientRect();
@@ -176,5 +176,5 @@ test('header rows start empty, switch mode, recover after last removal and fit m
     });
     expect(Math.abs(bounds.fieldTop - bounds.buttonTop)).toBeLessThan(1);
     expect(bounds.fieldHeight).toBe(bounds.buttonHeight);
-    await group.screenshot({path:'.local-test/headers-design-desktop.png'});
+    await group.screenshot({path:'test-results/headers-design-desktop.png', animations:'disabled'});
 });
