@@ -106,9 +106,14 @@ const MORPHED_REGION = "rows";
  * though the row is usually finished animating by the time a refresh lands:
  * a sync arriving mid-entrance would otherwise swap the row's timings under a
  * running animation.
+ *
+ * `data-selected` and `aria-current` are the same kind of thing: which row is
+ * open beside the list is something only this controller knows (see
+ * _markSelected), and the server renders every row as if none were.
  */
 const CLIENT_OWNED = new Set([
     "data-entered", "data-enter", "data-enter-scope", "data-leaving",
+    "data-selected", "aria-current",
 ]);
 
 /**
@@ -154,12 +159,19 @@ const TOOLBAR = "[data-controller~='mail--list-toolbar']";
 
 export default class extends Controller {
     static targets = ["list", "reading"];
-    static values = { open: Boolean , mailBoxId: Number};
+    static values = { open: Boolean , mailBoxId: Number, inboxUrl: String };
 
     connect() {
         this._listUrl = this.openValue ? null : window.location.href;
+        this._selectedPath = null;
         this._onPopState = this._handlePopState.bind(this);
         window.addEventListener("popstate", this._onPopState);
+
+        // The reading pane moved beside the list or away from it — the window
+        // was resized, or the calendar pane opened and took the room. See
+        // _fillBesideList for the one case where that needs anything done.
+        this._onSplitLayout = () => this._fillBesideList();
+        document.addEventListener("reading-split:layout", this._onSplitLayout);
 
         // The sidebar's mail links navigate the LIST FRAME rather than the
         // page (so the calendar pane holds perfectly still). This pane sits
@@ -219,6 +231,8 @@ export default class extends Controller {
         // Restore correct visual state on direct load / refresh
         if (this.openValue) {
             this._showReading();
+            this._markSelected(window.location.pathname);
+            this._fillBesideList();
         } else {
             this._showList();
         }
@@ -226,6 +240,7 @@ export default class extends Controller {
 
     disconnect() {
         window.removeEventListener("popstate", this._onPopState);
+        document.removeEventListener("reading-split:layout", this._onSplitLayout);
         document.removeEventListener("turbo:frame-load", this._onListSwap);
         document.removeEventListener("visibilitychange", this._onVisibility);
 
@@ -358,11 +373,105 @@ export default class extends Controller {
         const html = await response.text();
         this.readingTarget.innerHTML = html;
         this._showReading();
+        this._markSelected(new URL(url, window.location.href).pathname);
     }
 
     _showReading() {
         this.listTarget.classList.add("hidden");
         this.readingTarget.classList.remove("hidden");
+
+        // Told to the layout as well as to the two panes' own classes: beside
+        // the list neither pane is hidden, and the placeholder has to know a
+        // message is open to give way to it. See app.css.
+        this._setOpen(true);
+    }
+
+    /**
+     * Whether the reading pane sits beside the list at this moment.
+     *
+     * Asked of the divider rather than of the mode or the width. The mode is a
+     * preference and the width is a measurement; what decides is the container
+     * query in app.css, and the one thing it leaves behind that script can read
+     * is whether the divider is drawn. A second copy of the threshold here
+     * would be a second number to keep in step with the stylesheet's.
+     */
+    _besideList() {
+        const handle = document.querySelector("[data-reading-handle]");
+
+        return null !== handle && "none" !== getComputedStyle(handle).display;
+    }
+
+    /**
+     * A message opened by its own address has no list to sit beside.
+     *
+     * The thread route renders an empty list frame on purpose (see
+     * _listNeedsRendering), which is right while the message has the whole row
+     * and wrong the moment the row has room for both: the column beside it
+     * would stay empty until the next poll. So when the reading pane is beside
+     * the list and there is no list, one is fetched — the Inbox, because the
+     * route does not know which folder the message was opened from, and
+     * "the Inbox, with this conversation highlighted if it is on the page" is a
+     * better answer than a blank.
+     *
+     * Also the answer to "close", from then on: with no list URL of its own
+     * the back arrow would walk history back out of plMail, which is not what
+     * dismissing a message beside the list means.
+     *
+     * Called on connect and whenever the layout changes, because a window
+     * widened after the page loaded is the same situation arriving late.
+     */
+    _fillBesideList() {
+        if (false === this._besideList() || false === this._listNeedsRendering() || "" === this.inboxUrlValue) {
+            return;
+        }
+
+        this._listUrl = this._listUrl ?? this.inboxUrlValue;
+
+        this._refreshList({ immediate: true, url: this.inboxUrlValue });
+    }
+
+    /**
+     * Mark which row is open, so the list can say which message the pane beside
+     * it is showing.
+     *
+     * Found by the row's own link rather than by an id parsed out of the URL:
+     * the thread route and the message route number different things, and the
+     * row already carries the address it opens.
+     *
+     * Remembered as a PATH, not as a node, because the rows are morphed on every
+     * refresh and a remembered node may have been replaced; _refreshList applies
+     * it again afterwards. `null` clears.
+     *
+     * @param {string|null} path  the pathname of the open message
+     */
+    _markSelected(path) {
+        this._selectedPath = path;
+
+        this.listTarget.querySelectorAll("li[data-selected]").forEach((row) => {
+            delete row.dataset.selected;
+            row.removeAttribute("aria-current");
+        });
+
+        if (null === path) {
+            return;
+        }
+
+        const link = [...this.listTarget.querySelectorAll(`${ROW} > a[data-action~="click->mail--mail-pane#open"]`)]
+            .find((candidate) => new URL(candidate.href).pathname === path);
+
+        const row = link?.closest("li");
+
+        if (undefined === row || null === row) {
+            return;
+        }
+
+        row.dataset.selected = "true";
+        row.setAttribute("aria-current", "true");
+    }
+
+    /** Tells the layout a message is open, so the placeholder beside the list stands down. */
+    _setOpen(open) {
+        this.readingTarget.parentElement.toggleAttribute("data-reading-open", open);
     }
 
     /**
@@ -417,6 +526,8 @@ export default class extends Controller {
     _reveal() {
         this.readingTarget.classList.add("hidden");
         this.listTarget.classList.remove("hidden");
+        this._setOpen(false);
+        this._markSelected(null);
     }
 
     /**
@@ -586,11 +697,14 @@ export default class extends Controller {
      * alone — the same content the DOMParser below was extracting from 80 KB of
      * document and discarding the rest of.
      *
-     * @param {{immediate?: boolean}} options  `immediate` skips the rate limit,
-     *        for a refresh a person is waiting on rather than one a sync asked
-     *        for — going back to an unrendered list, specifically.
+     * @param {{immediate?: boolean, url?: string|null}} options  `immediate`
+     *        skips the rate limit, for a refresh a person is waiting on rather
+     *        than one a sync asked for — going back to an unrendered list,
+     *        specifically. `url` names the list to fetch when the page's own
+     *        address has none: a message opened by its address, with the
+     *        reading pane beside where a list belongs.
      */
-    async _refreshList({ immediate = false } = {}) {
+    async _refreshList({ immediate = false, url = null } = {}) {
         const frame = document.getElementById(LIST_FRAME_ID);
 
         if (frame === null) {
@@ -642,7 +756,14 @@ export default class extends Controller {
         this._lastRefreshAt = Date.now();
 
         try {
-            const response = await fetch(window.location.href, {
+            // Beside a message the page's own address is the MESSAGE's, whose
+            // list frame is empty by design, so a refresh of it would be
+            // dropped below and the list would stop following the mailbox for
+            // as long as anything was open. The list's own address is what to
+            // ask for then — the one `close` would return to.
+            const target = url ?? (this._besideList() && this._listUrl ? this._listUrl : window.location.href);
+
+            const response = await fetch(target, {
                 headers: {
                     [FRAGMENT_HEADER]: LIST_FRAME_ID,
                     Accept: "text/html",
@@ -675,6 +796,11 @@ export default class extends Controller {
             }
 
             this._swapRegions(frame, fresh);
+
+            // The morph keeps the attributes this controller owns, but a list
+            // that was replaced whole — or filled for the first time, beside a
+            // message opened by its address — has none to keep.
+            this._markSelected(this._selectedPath);
 
             // Carried over with the content: the response says whether it
             // actually rendered a list, and _listNeedsRendering() reads it back

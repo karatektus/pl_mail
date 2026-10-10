@@ -2362,6 +2362,13 @@ profile:
         name_first: First name
         name_last: Family name
 
+# The reading pane beside the message list (Settings → Appearance turns it on).
+# `handle` is what a screen reader calls the divider between the two; the
+# placeholder stands where the message will be until one is opened.
+reading_pane:
+    handle: Shift the rail 'tween list an' letter
+    placeholder: Pick a conversation, matey, an' it'll be laid out here
+
 # Said in a toast when a request fails and there is no better place to say it;
 # see request_errors.js.
 request_error:
@@ -2800,6 +2807,11 @@ settings:
             subject6: "Term weightin', an' why it matters"
             subject7: "Spannin' tree draft for review"
             subject8: "Optimisin' th' inner loop: results"
+        reading_pane:
+            heading: Spyglass deck
+            off: Stowed
+            right: Starboard
+            subheading: Where the open letter be laid. Stowed shows the list an' the letter one at a time; Starboard lays the letter beside the list when the ship has room for both — drag the rail between 'em to say how much deck each gets.
         reset: Back to how she came
         subheading: Colours, crampedness, letterin' an' the backdrop — the whole look o' the ship, all in one spot.
         seg:

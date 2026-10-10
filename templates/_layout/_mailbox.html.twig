@@ -39,6 +39,12 @@ dozen other reasons while the conversation was open.
 {% block body_controllers %}core--mercure mail--mail-pane mail--dnd{% endblock %}
 
 {% block body_values %}
+    {# The list to draw beside a message that was opened by its own address.
+       A thread page has no list behind it — the route knows a conversation, not
+       the folder and page it was opened from — so with the reading pane beside
+       the list, a reload or a bookmark would otherwise leave an empty column
+       next to the message. The Inbox is the one list that always exists. #}
+    data-mail--mail-pane-inbox-url-value="{{ path('app_mail_inbox') }}"
     {# Two whole URLs rather than a base the controller appends an action to.
        A route is the router's to spell, and `path()` cannot be asked for a
        prefix — building one by trimming the end off a generated path is a
@@ -230,14 +236,45 @@ csrf token. Both measured: see App\Twig\ListFragmentGlobal.
                 {# Main content. Targeted by ui--split so the drag can enforce a
                    minimum on this side too — the pane knows how much room it is
                    taking only by measuring what is left. #}
+                {#
+                The reading pane position, drawn from the first paint.
+
+                `data-reading-pane` is the STORED mode and nothing the browser has
+                measured: whether the message actually goes beside the list is a
+                question about this card's width, answered in app.css by a
+                container query, so a window the calendar has squeezed falls back
+                to one pane at a time without a script having to notice. It is
+                rendered here rather than applied on connect for the reason the
+                calendar mode is — a reload that painted one pane and then
+                rearranged itself would flash on every visit.
+
+                `data-reading-open` is the one thing that varies within a mode: a
+                message is open. The thread page renders it directly; everywhere
+                else mail--mail-pane sets and clears it as messages open and
+                close, so the placeholder and the message never both show.
+                #}
+                {% set readingPane = app.user ? app.user.readingPaneMode : enum('App\\Domain\\Enum\\Mail\\ReadingPaneMode').Off %}
                 <div class="flex flex-1 overflow-hidden relative main-pane"
-                     {% if app.user %}data-ui--split-target="main"{% endif %}>
+                     data-reading-pane="{{ readingPane.value }}"
+                     {% if 'true' == block('pane_open')|trim %}data-reading-open{% endif %}
+                     {% if app.user %}
+                     data-ui--split-target="main"
+                     data-controller="mail--reading-split"
+                     style="--reading-pane-pct: {{ app.user.readingPaneWidthPct }}%"
+                     data-mail--reading-split-state-url-value="{{ path('app_appearance_reading_pane_state') }}"
+                     data-mail--reading-split-token-value="{{ csrf_token('reading_pane_state') }}"
+                     data-mail--reading-split-min-value="{{ constant('App\\Entity\\User\\User::READING_PANE_MIN_PCT') }}"
+                     data-mail--reading-split-max-value="{{ constant('App\\Entity\\User\\User::READING_PANE_MAX_PCT') }}"
+                     data-mail--reading-split-default-value="{{ constant('App\\Entity\\User\\User::READING_PANE_DEFAULT_PCT') }}"
+                     data-mail--reading-split-width-value="{{ app.user.readingPaneWidthPct }}"
+                     {% endif %}>
 
                     {# List pane #}
                     <div
                         id="message-list"
                         data-surface="list"
                         data-mail--mail-pane-target="list"
+                        data-mail--reading-split-target="list"
                         {# Confirms to the server that the rows below reached the
                            screen. Mounted on the container rather than on each
                            row so fifty rows are one report, and here rather than
@@ -258,9 +295,37 @@ csrf token. Both measured: see App\Twig\ListFragmentGlobal.
                         {{ block('list_frame') }}
                     </div>
 
+                    {#
+                    The divider between list and message. Drawn only when the
+                    reading pane is beside the list (see app.css), which is also
+                    how mail--mail-pane tells that it is: a handle that is
+                    `display: none` means one pane at a time.
+
+                    A separator rather than a button, because it is a window
+                    splitter in the ARIA sense: it has a value, a range and arrow
+                    keys, and a screen reader announces it as such. The value is
+                    the MESSAGE's share of the card, in percent, which is what is
+                    stored and what the keys step.
+                    #}
+                    {% if app.user %}
+                        <div
+                            data-reading-handle
+                            data-mail--reading-split-target="handle"
+                            data-action="pointerdown->mail--reading-split#start keydown->mail--reading-split#nudge dblclick->mail--reading-split#reset"
+                            role="separator"
+                            aria-orientation="vertical"
+                            aria-valuemin="{{ constant('App\\Entity\\User\\User::READING_PANE_MIN_PCT') }}"
+                            aria-valuemax="{{ constant('App\\Entity\\User\\User::READING_PANE_MAX_PCT') }}"
+                            aria-valuenow="{{ app.user.readingPaneWidthPct }}"
+                            aria-label="{{ 'reading_pane.handle'|trans }}"
+                            tabindex="0"
+                        ></div>
+                    {% endif %}
+
                     {# Reading pane #}
                     <div
                         data-mail--mail-pane-target="reading"
+                        data-mail--reading-split-target="reading"
                         data-surface="reading"
                         class="flex flex-col flex-1 overflow-hidden {% block reading_hidden %}hidden{% endblock %}"
                     >
@@ -269,6 +334,19 @@ csrf token. Both measured: see App\Twig\ListFragmentGlobal.
                                 {% include 'mail/_message_content.html.twig' with { message: selectedMessage } %}
                             {% endif %}
                         {% endblock %}
+                    </div>
+
+                    {#
+                    What the right-hand pane says while no message is open. A
+                    sibling of the reading pane and not content inside it,
+                    because mail--mail-pane REPLACES the reading pane's
+                    innerHTML with each message it loads — a hint placed in it
+                    would be wiped by the first click and never come back.
+                    Hidden everywhere the reading pane is not beside the list.
+                    #}
+                    <div data-reading-placeholder aria-hidden="true">
+                        <i class="fa-regular fa-envelope-open" aria-hidden="true"></i>
+                        <p>{{ 'reading_pane.placeholder'|trans }}</p>
                     </div>
 
                 </div>

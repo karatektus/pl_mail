@@ -2488,6 +2488,13 @@ profile:
         name_first: Vorname
         name_last: Nachname
 
+# The reading pane beside the message list (Settings → Appearance turns it on).
+# `handle` is what a screen reader calls the divider between the two; the
+# placeholder stands where the message will be until one is opened.
+reading_pane:
+    handle: Größe des Nachrichtenbereichs ändern
+    placeholder: Wähle eine Unterhaltung aus, um sie hier zu lesen
+
 # Said in a toast when a request fails and there is no better place to say it;
 # see request_errors.js.
 request_error:
@@ -2948,6 +2955,11 @@ settings:
             subject6: Termgewichtung, und warum sie zählt
             subject7: Entwurf für den Spanning Tree
             subject8: 'Die innere Schleife optimieren: Ergebnisse'
+        reading_pane:
+            heading: Lesebereich
+            off: Aus
+            right: Rechts
+            subheading: Wo die geöffnete Nachricht erscheint. „Aus“ zeigt Liste und Nachricht nacheinander; „Rechts“ stellt die Nachricht neben die Liste, sobald das Fenster genug Platz für beide hat – am Trenner dazwischen stellst du ein, wie viel jede bekommt.
         reset: Auf Standard zurücksetzen
         subheading: Farbschema, Dichte, Schrift und Hintergrund — das ganze Erscheinungsbild der App an einem Ort.
         seg:

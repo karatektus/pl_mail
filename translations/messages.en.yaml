@@ -2502,6 +2502,13 @@ profile:
         name_first: First name
         name_last: Last name
 
+# The reading pane beside the message list (Settings → Appearance turns it on).
+# `handle` is what a screen reader calls the divider between the two; the
+# placeholder stands where the message will be until one is opened.
+reading_pane:
+    handle: Resize the message pane
+    placeholder: Select a conversation to read it here
+
 # Said in a toast when a request fails and there is no better place to say it;
 # see request_errors.js.
 request_error:
@@ -2955,6 +2962,11 @@ settings:
             subject6: Term weighting, and why it matters
             subject7: Spanning tree draft for review
             subject8: 'Optimising the inner loop: results'
+        reading_pane:
+            heading: Reading pane
+            off: Off
+            right: Right
+            subheading: Where the open message goes. Off shows the list and the message one at a time; Right puts the message beside the list when the window has room for both — drag the divider between them to choose how much each gets.
         reset: Reset to defaults
         subheading: Theme, density, type and background — the whole look of the app, in one place.
         seg:
