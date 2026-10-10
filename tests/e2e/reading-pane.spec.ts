@@ -1,5 +1,5 @@
 import { test, expect, type Page } from "./support/test";
-import { INBOX_SUBJECTS, mailRow, seed } from "./support/config";
+import { INBOX_SUBJECTS, ajaxPost, mailRow, seed } from "./support/config";
 
 /**
  * The reading pane beside the message list.
@@ -94,6 +94,34 @@ const dockCalendar = async (page: Page, mode: "mail" | "split") => {
     }, mode);
 
     await page.goto("/mail/inbox");
+};
+
+/**
+ * Click something that navigates the list frame, and return once the frame's
+ * own `turbo:frame-load` has been handled.
+ *
+ * Not the URL and not the new rows, which is what a test would naturally wait
+ * for: Turbo advances the address and renders the list BEFORE it fires the
+ * event the mail pane answers, so a test that asserted "the message is still
+ * open" the moment the new rows appeared would pass in the gap — before the
+ * pane had decided anything — and keep passing with the fix removed. The
+ * listener is added after the pane's own, so by the time the flag is set the
+ * pane has run.
+ */
+const swapList = async (page: Page, link: string) => {
+    await page.evaluate(() => {
+        const flagged = window as unknown as { __listSwapped: boolean };
+
+        flagged.__listSwapped = false;
+        document.addEventListener("turbo:frame-load", (event) => {
+            if ("inbox-list-frame" === (event.target as Element).id) {
+                flagged.__listSwapped = true;
+            }
+        });
+    });
+
+    await page.locator(link).first().click();
+    await page.waitForFunction(() => (window as unknown as { __listSwapped: boolean }).__listSwapped);
 };
 
 const openMessage = async (page: Page) => {
@@ -227,7 +255,7 @@ test.describe("reading pane right", () => {
         // wrong beside the list, where the list is not what it was covering.
         await openMessage(page);
 
-        await page.locator("#sidebar a[href='/mail/sent']").first().click();
+        await swapList(page, "#sidebar a[href='/mail/sent']");
         await expect(page).toHaveURL(/\/mail\/sent/);
 
         // The list really moved: the inbox row is gone from it. Without this
@@ -244,16 +272,41 @@ test.describe("reading pane right", () => {
 
         // …but the pane still knows which message it is showing: back in the
         // folder it came from, the row is marked again.
-        await page.locator("#sidebar a[href='/mail/inbox']").first().click();
+        await swapList(page, "#sidebar a[href='/mail/inbox']");
         await expect(page).toHaveURL(/\/mail\/inbox/);
         await expect(page.locator('li[data-selected="true"]')).toContainText(INBOX_SUBJECTS.read);
         await expect(reading(page)).toContainText(INBOX_SUBJECTS.read);
     });
 
+    test("switching a category tab leaves the open message where it is", async ({ page }) => {
+        // The tab strip only renders when more than one category holds mail,
+        // and the seeded mailbox is all Primary. Scaffolded the way dnd.spec.ts
+        // does it, for the same reason: no console seed sets a category.
+        const id = Number((await mailRow(page, INBOX_SUBJECTS.star).getAttribute("id"))?.replace("thread_", ""));
+
+        expect((await ajaxPost(page, "/status/bulk/category", { ids: [id], category: "social" })).ok()).toBe(true);
+
+        await page.goto("/mail/inbox");
+        await openMessage(page);
+
+        await swapList(page, "nav > a[href*='tab=social']");
+        await expect(page).toHaveURL(/tab=social/);
+
+        // The list is the Social tab's: the thread moved there is on it and
+        // the one that is open (Primary) is not. Without this the assertions
+        // below also hold for a click that did nothing.
+        await expect(mailRow(page, INBOX_SUBJECTS.star)).toBeVisible();
+        await expect(mailRow(page, INBOX_SUBJECTS.read)).toHaveCount(0);
+
+        await expect(reading(page)).toBeVisible();
+        await expect(reading(page)).toContainText(INBOX_SUBJECTS.read);
+        await expect(placeholder(page)).toBeHidden();
+    });
+
     test("the back arrow, after switching folders, returns to the folder that was switched to", async ({ page }) => {
         await openMessage(page);
 
-        await page.locator("#sidebar a[href='/mail/sent']").first().click();
+        await swapList(page, "#sidebar a[href='/mail/sent']");
         await expect(page).toHaveURL(/\/mail\/sent/);
         await expect(mailRow(page, INBOX_SUBJECTS.read)).toHaveCount(0);
 
@@ -444,7 +497,7 @@ test.describe("reading pane right, on a card too narrow for two panes", () => {
             await dockCalendar(page, "mail");
             await fallsBackToOnePane(page);
 
-            await page.locator("#sidebar a[href='/mail/sent']").first().click();
+            await swapList(page, "#sidebar a[href='/mail/sent']");
             await expect(page).toHaveURL(/\/mail\/sent/);
 
             await expect(list(page)).toBeVisible();
