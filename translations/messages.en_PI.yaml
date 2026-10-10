@@ -2534,6 +2534,18 @@ settings:
         edit: Amend the papers
         empty: No crew yet. Sign one on to start haulin' mail aboard.
         enable: Restore the papers
+        folders:
+            always_synced: The inbox be always hauled aboard
+            button: Pick which folders to haul aboard
+            empty: No folders yet. They be listed after the first haul.
+            intro: >-
+                Switch a folder off and plMail stops haulin it aboard. Post
+                already stowed stays where it lies, and switchin the folder back
+                on picks up where it left off.
+            placeholder: 'A marker that only herds other folders — there be nothin in it to haul aboard'
+            start_sync: 'Start haulin %folder%'
+            stop_sync: 'Stop haulin %folder%'
+            title: 'Folders — %account%'
         heading: Th' crew
         make_primary: Name her flagship
         make_primary_explained: 'Send new bottles from %account% by default'

@@ -2670,6 +2670,19 @@ settings:
         edit: Konto bearbeiten
         empty: Noch keine Konten. Füge eines hinzu, um E-Mails zu synchronisieren.
         enable: Konto aktivieren
+        folders:
+            always_synced: Der Posteingang wird immer synchronisiert
+            button: Zu synchronisierende Ordner wählen
+            empty: Noch keine Ordner. Nach der ersten Synchronisation erscheinen sie hier.
+            intro: >-
+                Schalte einen Ordner aus, und plMail ruft ihn nicht mehr ab.
+                Bereits gespeicherte Nachrichten bleiben, wo sie sind, und wenn
+                du den Ordner wieder einschaltest, geht es dort weiter, wo es
+                aufgehört hat.
+            placeholder: 'Ein Platzhalter, der nur andere Ordner zusammenfasst — darin gibt es nichts zu synchronisieren'
+            start_sync: 'Synchronisierung von %folder% starten'
+            stop_sync: 'Synchronisierung von %folder% beenden'
+            title: 'Ordner — %account%'
         heading: E-Mail-Konten
         make_primary: Als primär festlegen
         make_primary_explained: 'Neue Nachrichten standardmäßig von %account% senden'

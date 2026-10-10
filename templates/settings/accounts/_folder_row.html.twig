@@ -1,0 +1,104 @@
+{# One folder's sync switch, a row of the folders modal.
+
+   Include with the account and the folder's row of the tree
+   (App\Domain\DTO\Mail\FolderTreeRow, from App\Service\Imap\FolderTree):
+
+       {{ include('settings/accounts/_folder_row.html.twig', {account: account, row: row}) }}
+
+   The toggle answers with this same partial, so the frame replaces itself and
+   nothing else on the page moves.
+
+   The name is the folder's label name, as the sidebar and the Labels list
+   print it, so a system folder reads "Drafts" or "Entwürfe" here exactly as it
+   does there; the stored name is only the fallback for a folder with no label.
+
+   The inbox gets the control but disabled and with no form behind it: it is
+   always synced, and a switch that is simply absent would leave the row
+   looking unfinished next to its siblings.
+
+   A folder the server will not open (\Noselect — a placeholder that only
+   groups other folders) gets the same treatment the other way round: off,
+   disabled, and greyed out. It is still listed, because the folders under it
+   hang from it and would otherwise hang from nothing.
+
+   ── The tree ──
+   `name` is the last segment of the path alone, so "Projects/Alpha" would
+   read "Alpha", filed under P. Each row is indented one step per ancestor and
+   joined to its parent by lines, drawn in app.css ("The folder tree") from
+   three kinds of element positioned against this frame:
+
+     data-tree-line   an ancestor's vertical, running on past this row because
+                      that ancestor has a sibling further down
+     data-tree-branch this folder's own vertical — to the middle of the row for
+                      a last child (└), the whole height otherwise (├)
+     data-tree-twig   the short horizontal from that vertical to the icon
+     data-tree-stem   from under this folder's own icon to the foot of the row,
+                      where its first child's vertical takes over
+
+   `--tree-x` is where a level's vertical stands: under the middle of the
+   parent's icon. STEP and the 16px gutter are the same numbers the padding
+   below is made of, so the lines and the indent cannot drift apart. #}
+
+{% set mailbox = row.mailbox %}
+{% set STEP = 18 %}
+{% set GUTTER = 16 %}
+{% set ICON_HALF = 7 %}
+{% set isInbox = mailbox.specialUse is same as enum('App\\Domain\\Enum\\Mail\\MailboxSpecialUse').INBOX %}
+{% set isPlaceholder = false == mailbox.isSelectable %}
+{% set folderName = mailbox.label ? mailbox.label|label_name : mailbox.name %}
+{% set enabled = mailbox.isSyncEnabled and false == isPlaceholder %}
+{% set switchLabel = isInbox
+    ? 'settings.accounts.folders.always_synced'|trans
+    : (isPlaceholder
+        ? 'settings.accounts.folders.placeholder'|trans
+        : (enabled
+            ? 'settings.accounts.folders.stop_sync'|trans({ '%folder%': folderName })
+            : 'settings.accounts.folders.start_sync'|trans({ '%folder%': folderName }))) %}
+
+<turbo-frame id="account-folder-sync-{{ mailbox.id }}" class="relative flex items-center gap-3 px-4 py-1 hover:bg-hover transition-colors"
+             data-folder-depth="{{ row.depth }}"
+             style="padding-left: {{ GUTTER + row.depth * STEP }}px">
+    {% for runsOn in row.continue %}
+        {% if runsOn %}
+            <span data-tree-line aria-hidden="true" style="--tree-x: {{ GUTTER + loop.index0 * STEP + ICON_HALF }}px"></span>
+        {% endif %}
+    {% endfor %}
+    {% if row.depth > 0 %}
+        {% set branchX = GUTTER + (row.depth - 1) * STEP + ICON_HALF %}
+        <span data-tree-branch="{{ row.isLast ? 'last' : 'more' }}" aria-hidden="true" style="--tree-x: {{ branchX }}px"></span>
+        <span data-tree-twig aria-hidden="true" style="--tree-x: {{ branchX }}px"></span>
+    {% endif %}
+    {% if row.hasChildren %}
+        <span data-tree-stem aria-hidden="true" style="--tree-x: {{ GUTTER + row.depth * STEP + ICON_HALF }}px"></span>
+    {% endif %}
+
+    {# The placeholder's grey is on the icon and the name, not on the frame:
+       the lines through this row belong to the folders under it as much as
+       to it, and a dimmed frame would break them where they pass. #}
+    <i class="{{ isPlaceholder ? 'fa-regular opacity-60' : 'fa-solid' }} fa-folder w-3.5 text-xs text-ink-faint shrink-0" aria-hidden="true"></i>
+
+    <span class="flex-1 min-w-0 truncate text-sm {{ enabled ? 'text-ink' : 'text-ink-faint' }}{{ isPlaceholder ? ' opacity-60' : '' }}"
+          {% if isPlaceholder %}data-folder-placeholder{% endif %}>
+        {{ folderName }}
+    </span>
+
+    {% if isInbox or isPlaceholder %}
+        <button type="button" disabled
+                class="w-8 h-8 flex items-center justify-center rounded-lg text-ink-faint disabled:cursor-not-allowed disabled:opacity-40"
+                aria-label="{{ switchLabel }}" title="{{ switchLabel }}">
+            <i class="fa-solid {{ isInbox ? 'fa-toggle-on' : 'fa-toggle-off' }} text-base" aria-hidden="true"></i>
+        </button>
+    {% else %}
+        {# data-ui--modal-keep-open: the modal closes on every successful submit,
+           which is right for a form and wrong for a switch — this one answers
+           with the row, and the list is meant to stay open for the next. #}
+        <form method="post" action="{{ path('settings_account_folder_sync_toggle', { id: account.id, mailbox: mailbox.id }) }}" class="contents" data-ui--modal-keep-open>
+            <input type="hidden" name="_token" value="{{ csrf_token('account_folder_sync_' ~ mailbox.id) }}">
+            <button type="submit"
+                    class="w-8 h-8 flex items-center justify-center rounded-lg text-ink-faint hover:text-ink hover:bg-hover transition-colors cursor-pointer"
+                    aria-label="{{ switchLabel }}" title="{{ switchLabel }}">
+                <i class="fa-solid {{ enabled ? 'fa-toggle-on text-success' : 'fa-toggle-off' }} text-base" aria-hidden="true"></i>
+            </button>
+        </form>
+    {% endif %}
+</turbo-frame>

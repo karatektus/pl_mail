@@ -2871,6 +2871,56 @@
     cursor: col-resize;
 }
 
+/* ═══ The folder tree ══════════════════════════════════════════════════════
+   The lines that join a folder to its parent in Settings → Accounts → folders
+   (settings/accounts/_folder_row.html.twig, which says what each element is).
+
+   Positioned against the row and not drawn as borders on nested lists, because
+   the list is flat: one <li> per folder, each a turbo-frame that replaces
+   itself when its switch is pressed. The tree is only in how the rows are
+   drawn, so each row carries its own share of the lines.
+
+   The list has no rules between its rows for the lines' sake — see
+   _folders_modal.html.twig — so a vertical runs from one row straight into
+   the next with nothing to step over.
+
+   Twelve pixels of twig: from the vertical, which stands under the middle of
+   the parent's icon, to just short of this row's own icon one step in. */
+[data-tree-line],
+[data-tree-branch],
+[data-tree-twig],
+[data-tree-stem] {
+    position: absolute;
+    left: var(--tree-x);
+    background-color: rgb(var(--rgb-ink-faint) / 0.45);
+    pointer-events: none;
+}
+
+[data-tree-line],
+[data-tree-branch] {
+    top: 0;
+    bottom: 0;
+    width: 1px;
+}
+
+[data-tree-branch="last"] {
+    bottom: 50%;
+}
+
+[data-tree-twig] {
+    top: 50%;
+    width: 12px;
+    height: 1px;
+}
+
+/* Starts clear of the icon it hangs from: half the icon's height and a little
+   air, below the row's middle. */
+[data-tree-stem] {
+    top: calc(50% + 0.6rem);
+    bottom: 0;
+    width: 1px;
+}
+
 /* ═══ A selection in a narrow list ══════════════════════════════════════════
    Ticking a row puts the bulk actions into the toolbar, and beside them the
    keyboard button, the sort menu and "1–50 of 312" do not all fit a list that
