@@ -8,6 +8,8 @@ The published image tags: `latest` follows the most recent release below,
 
 ## Unreleased
 
+**The mail list is readable beside an open message.** A row went to a single line once the list was about 575px wide, which left the subject around 120px and its preview wrapped next to it ("Facture pour Co…") whenever the reading pane was open, or on a large phone. A row now stays stacked — sender and time, then the subject, then the preview — until the list is 58rem (about 930px) wide, so each gets the full width. Archive, delete, snooze and the other row actions appear on hover in stacked rows too, instead of only in one-line rows. Also fixed: with the two-line preview setting on, a one-line row wrapped its preview anyway. No setting; no migration.
+
 **One message could stop an IMAP folder from syncing, for good.** A multipart message whose
 header puts spaces around the equals sign — `boundary = "…"`, which the standard allows and some
 mailers write — could not be read, and because that failed while a page of mail was being fetched,
