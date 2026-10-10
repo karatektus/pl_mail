@@ -1,4 +1,4 @@
-<!-- translated-from: features/accounts.md sha1:8d5dad77d991a74b26569ea952599d058e5c4c81 -->
+<!-- translated-from: features/accounts.md sha1:dd31f87ab1777ab4166251dc0b7cb0ce6aef417f -->
 
 # Konten und Aliase
 
@@ -196,6 +196,11 @@ bereits gespeicherte Mail bleibt, wo sie ist, und schaltest du den Ordner wieder
 weiter, wo es aufgehört hat. Der Posteingang hat keinen Schalter, denn ein Client, der seinen
 Posteingang nicht mehr abruft, ist kein Client — um ein Konto ganz anzuhalten, deaktiviere es.
 
+Verschachtelte Ordner sind unter ihrem übergeordneten Ordner eingerückt. Ein Ordner, der nur andere
+zusammenfasst und selbst keine Post enthält — etwa `[Gmail]` bei Gmail —, steht ausgegraut in der
+Liste, sein Schalter aus und gesperrt: Der Server lässt ihn nicht öffnen, also gibt es nichts
+abzurufen.
+
 Es erscheint nur bei IMAP-Konten. Ein Gmail- oder Microsoft-Konto synchronisiert über die API seines
 Anbieters und hat keine Ordner zur Auswahl. Ein Ordner, den der Server nicht mehr auflistet, wird
 nicht angezeigt.
@@ -275,8 +280,10 @@ Lösung ist, erneut zu verbinden und das Häkchen gesetzt zu lassen.
 womöglich überhaupt keine öffentlich erreichbare HTTPS-Adresse. Eine gescheiterte Registrierung
 heißt „bleib beim Abrufen“, und der Durchlauf alle fünfzehn Minuten bleibt davon unberührt.
 
-**Eine von Hand in einen ausgeschalteten Ordner verschobene Nachricht sieht für plMail aus wie eine,
-die das Konto verlassen hat.** Die Prüfung, die anderswo gelöschte Mail aus plMail verschwinden
-lässt, schaut nur in die eingeschalteten Ordner; eine Nachricht, die du in einen Ordner ziehst, den
-plMail nicht abruft, kann deshalb hier entfernt werden, obwohl sie auf dem Server noch existiert.
-Schalte den Ordner zuerst ein, wenn die Nachricht bleiben soll.
+**Eine Nachricht, die du in einem anderen Mailprogramm in einen ausgeschalteten Ordner verschiebst,
+sieht für plMail aus wie eine, die das Konto verlassen hat.** Die Prüfung, die anderswo gelöschte
+Mail aus plMail verschwinden lässt, schaut nur in die eingeschalteten Ordner; eine Nachricht, die
+anderswo in einen Ordner abgelegt wird, den plMail nicht abruft, verschwindet deshalb hier, obwohl
+sie auf dem Server noch existiert. Das ist genau, was der Schalter verspricht, und es geht nichts
+verloren: Schalte den Ordner ein, und plMail ruft die Nachricht wieder ab. Verschiebst du in plMail
+selbst, ist es anders — plMail weiß, wohin es die Nachricht gelegt hat, und behält seine Kopie.

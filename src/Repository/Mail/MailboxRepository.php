@@ -38,25 +38,20 @@ class MailboxRepository extends ServiceEntityRepository
 
     /**
      * The folders somebody can choose between: the ones the server still
-     * lists, the inbox first and the rest by path.
+     * lists.
      *
      * A folder the server has stopped listing is left out. Nothing polls it
      * (see ImapAccountSyncer) and it is on its way to being removed, so a
      * switch beside it would be wired to nothing.
      *
+     * By path, which is a stable order and not the one they are shown in:
+     * FolderTree arranges them as the tree their paths describe.
+     *
      * @return list<Mailbox>
      */
     public function findForAccountOrdered(Account $account): array
     {
-        $mailboxes = $this->findBy(['account' => $account, 'missingSince' => null], ['fullPath' => 'ASC']);
-
-        // usort() is stable, so the path order survives within each group.
-        usort(
-            $mailboxes,
-            static fn(Mailbox $a, Mailbox $b): int => (MailboxSpecialUse::INBOX === $b->specialUse) <=> (MailboxSpecialUse::INBOX === $a->specialUse),
-        );
-
-        return $mailboxes;
+        return $this->findBy(['account' => $account, 'missingSince' => null], ['fullPath' => 'ASC']);
     }
 
     /**

@@ -10,6 +10,7 @@ use App\Entity\Mail\Account;
 use App\Entity\Mail\Mailbox;
 use App\Repository\Mail\MailboxRepository;
 use App\Security\Voter\OwnershipVoter;
+use App\Service\Imap\FolderTree;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
@@ -36,6 +37,9 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
  *
  * The inbox is not offered. A client that has stopped fetching the inbox is
  * not a client, and the answer to wanting that is to disable the account.
+ *
+ * Nor is a folder the server will not open (Mailbox::$isSelectable): it holds
+ * no mail, and MailboxSyncer switches it off again on every folder sync.
  */
 #[IsGranted('ROLE_USER')]
 final class AccountFoldersController extends AbstractController
@@ -44,6 +48,7 @@ final class AccountFoldersController extends AbstractController
 
     public function __construct(
         private readonly MailboxRepository      $mailboxes,
+        private readonly FolderTree             $tree,
         private readonly EntityManagerInterface $em,
     ) {}
 
@@ -54,8 +59,8 @@ final class AccountFoldersController extends AbstractController
         $this->assertSyncsOverImap($account);
 
         return $this->render('settings/accounts/_folders_modal.html.twig', [
-            'account'   => $account,
-            'mailboxes' => $this->mailboxes->findForAccountOrdered($account),
+            'account' => $account,
+            'rows'    => $this->tree->rows($this->mailboxes->findForAccountOrdered($account)),
         ]);
     }
 
@@ -79,12 +84,22 @@ final class AccountFoldersController extends AbstractController
             throw $this->createAccessDeniedException('The inbox is always synced.');
         }
 
+        // A placeholder the server will not open. Switching it on would be
+        // undone by the next folder sync, and in between it would be polled
+        // and fail — which is the error MailboxSyncer exists to prevent.
+        if (false === $mailbox->isSelectable) {
+            throw $this->createAccessDeniedException('This folder only groups other folders; there is nothing in it to sync.');
+        }
+
         $mailbox->isSyncEnabled = false === $mailbox->isSyncEnabled;
         $this->em->flush();
 
+        // The row alone, but with its place in the tree: it draws the lines
+        // that join it to its parent and its siblings, and those are a fact
+        // about the whole list.
         return $this->render('settings/accounts/_folder_row.html.twig', [
             'account' => $account,
-            'mailbox' => $mailbox,
+            'row'     => $this->tree->rowFor($mailbox, $this->mailboxes->findForAccountOrdered($account)),
         ]);
     }
 

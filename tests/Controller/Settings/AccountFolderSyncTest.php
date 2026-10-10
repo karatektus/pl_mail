@@ -241,6 +241,77 @@ final class AccountFolderSyncTest extends WebTestCase
         self::assertTrue($this->flag($id), 'the inbox is still synced');
     }
 
+    /**
+     * A folder the server will not open — \\Noselect, a placeholder that only
+     * groups other folders — holds nothing to fetch. It was offered a switch
+     * like any other, and switching it on lasted until the next folder sync,
+     * which turns such a folder off again: a control that did not stick.
+     */
+    public function testAPlaceholderFolderIsListedGreyedOutAndCannotBeSwitchedOn(): void
+    {
+        $placeholder = $this->mailbox($this->account, 'Projects');
+        $placeholder->isSelectable  = false;
+        $placeholder->isSyncEnabled = false;
+        $this->em->flush();
+
+        $ordinary = $this->mailbox($this->account, 'Receipts');
+
+        $this->client->request('GET', $this->foldersUrl($this->account));
+
+        self::assertResponseIsSuccessful();
+
+        $frame = sprintf('turbo-frame#account-folder-sync-%d', (int) $placeholder->id);
+
+        self::assertSelectorExists(sprintf('%s button[disabled]', $frame));
+        self::assertSelectorNotExists(sprintf('%s form', $frame));
+        self::assertSelectorExists(sprintf('%s [data-folder-placeholder]', $frame));
+
+        // Presence: an ordinary folder beside it is neither.
+        $other = sprintf('turbo-frame#account-folder-sync-%d', (int) $ordinary->id);
+
+        self::assertSelectorExists(sprintf('%s form', $other));
+        self::assertSelectorNotExists(sprintf('%s [data-folder-placeholder]', $other));
+
+        // And the endpoint agrees with the page, for whoever posts without it.
+        $id = (int) $placeholder->id;
+        $this->post($this->account, $id, $this->csrfToken($id));
+
+        self::assertSame(403, $this->client->getResponse()->getStatusCode());
+        self::assertFalse($this->flag($id), 'still off');
+    }
+
+    /**
+     * A row prints the last segment of the path, so "Projects/Alpha" reads
+     * "Alpha" — filed under P among its neighbours with nothing to say why,
+     * and indistinguishable from an "Alpha" under anything else.
+     */
+    public function testANestedFolderIsIndentedUnderItsParentRatherThanFiledByItsLastName(): void
+    {
+        $this->mailbox($this->account, 'Projects');
+        $child      = $this->mailbox($this->account, 'Alpha', null, 'Projects/Alpha');
+        $grandchild = $this->mailbox($this->account, '2026', null, 'Projects/Alpha/2026');
+        $top        = $this->mailbox($this->account, 'Receipts');
+
+        $crawler = $this->client->request('GET', $this->foldersUrl($this->account));
+
+        self::assertResponseIsSuccessful();
+
+        $depth = static fn (Mailbox $mailbox): string => (string) $crawler
+            ->filter(sprintf('turbo-frame#account-folder-sync-%d', (int) $mailbox->id))
+            ->attr('data-folder-depth');
+
+        self::assertSame('0', $depth($top));
+        self::assertSame('1', $depth($child));
+        self::assertSame('2', $depth($grandchild));
+
+        $padding = static fn (Mailbox $mailbox): int => (int) preg_replace('/\\D+/', '', (string) $crawler
+            ->filter(sprintf('turbo-frame#account-folder-sync-%d', (int) $mailbox->id))
+            ->attr('style'));
+
+        self::assertGreaterThan($padding($top), $padding($child));
+        self::assertGreaterThan($padding($child), $padding($grandchild));
+    }
+
     public function testAnApiAccountHasNoFolderListToChooseFrom(): void
     {
         $gmail = $this->imapAccount($this->user);
@@ -354,12 +425,13 @@ final class AccountFolderSyncTest extends WebTestCase
         return $account;
     }
 
-    private function mailbox(Account $account, string $name, ?MailboxSpecialUse $specialUse = null): Mailbox
+    private function mailbox(Account $account, string $name, ?MailboxSpecialUse $specialUse = null, ?string $fullPath = null): Mailbox
     {
         $mailbox = new Mailbox();
         $mailbox->account       = $account;
         $mailbox->name          = $name;
-        $mailbox->fullPath      = $name;
+        $mailbox->fullPath      = $fullPath ?? $name;
+        $mailbox->delimiter     = '/';
         $mailbox->specialUse    = $specialUse;
         $mailbox->isSyncEnabled = true;
         $mailbox->isIdleEnabled = false;

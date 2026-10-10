@@ -2696,6 +2696,7 @@ settings:
                 Switch a folder off and plMail stops fetching it. Mail already
                 stored stays where it is, and switching the folder back on
                 resumes from where it stopped.
+            placeholder: 'A placeholder that only groups other folders — there is nothing in it to sync'
             start_sync: 'Start syncing %folder%'
             stop_sync: 'Stop syncing %folder%'
             title: 'Folders — %account%'

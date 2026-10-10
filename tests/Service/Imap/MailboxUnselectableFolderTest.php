@@ -129,6 +129,26 @@ final class MailboxUnselectableFolderTest extends KernelTestCase
     }
 
     /**
+     * The fact is stored beside the switch, and unlike the switch it follows
+     * the server both ways. Settings reads it to withhold the switch from a
+     * placeholder, and a folder the server later makes selectable has to get
+     * its switch back even though nothing turns its sync on for it.
+     */
+    public function testWhetherAFolderCanBeOpenedIsRecordedAndFollowsTheServerBothWays(): void
+    {
+        $this->sync($this->gmailListing('\\Noselect'));
+
+        self::assertFalse($this->mailbox('[Gmail]')->isSelectable);
+        // Presence: only the one the server marked.
+        self::assertTrue($this->mailbox('[Gmail]/All Mail')->isSelectable);
+
+        $this->sync($this->gmailListing(null));
+
+        self::assertTrue($this->mailbox('[Gmail]')->isSelectable, 'selectable again, so the switch is offered');
+        self::assertFalse($this->mailbox('[Gmail]')->isSyncEnabled, 'and still off until somebody turns it on');
+    }
+
+    /**
      * What the folder cost besides the log line. A folder that is polled and
      * cannot be opened never records a sweep, and one never-swept folder makes
      * MailboxRepository::earliestSweepAcross() answer null — so nothing deleted

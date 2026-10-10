@@ -2679,6 +2679,7 @@ settings:
                 Bereits gespeicherte Nachrichten bleiben, wo sie sind, und wenn
                 du den Ordner wieder einschaltest, geht es dort weiter, wo es
                 aufgehört hat.
+            placeholder: 'Ein Platzhalter, der nur andere Ordner zusammenfasst — darin gibt es nichts zu synchronisieren'
             start_sync: 'Synchronisierung von %folder% starten'
             stop_sync: 'Synchronisierung von %folder% beenden'
             title: 'Ordner — %account%'

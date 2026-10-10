@@ -1,7 +1,10 @@
 {# The folders modal: which of an IMAP account's folders plMail fetches.
 
-   Same shell as account/_edit_modal.html.twig, with the list styled like the
-   Labels pane's. There is no form around it — each row carries its own, and a
+   Same shell as account/_edit_modal.html.twig. The list is a tree and is
+   drawn as one: no rules between the rows, which the Labels pane's list has
+   and this one began with — a hairline under every row cut each of the tree's
+   verticals into dashes and made the two sets of lines fight. What separates
+   one row from the next here is the row under the pointer lighting up. There is no form around it — each row carries its own, and a
    form inside a form is not HTML — and no footer: every switch has done its
    work the moment it is pressed, and the modal's own header closes it, as it
    does for the calendar's read-only dialogs. #}
@@ -14,15 +17,25 @@
         <div class="flex-1 min-h-0 overflow-y-auto pb-2">
             <p class="px-6 pb-3 text-xs text-ink-faint">{{ 'settings.accounts.folders.intro'|trans }}</p>
 
-            {% if mailboxes is empty %}
+            {% if rows is empty %}
                 <p class="px-4 py-8 text-center text-sm text-ink-faint italic">
                     {{ 'settings.accounts.folders.empty'|trans }}
                 </p>
             {% else %}
-                <ul class="py-2 divide-y divide-line">
-                    {% for mailbox in mailboxes %}
-                        <li>
-                            {{ include('settings/accounts/_folder_row.html.twig', { account: account, mailbox: mailbox }) }}
+                {# The dialog is opened at its `narrow` width (see the button in
+                   settings/_accounts.html.twig): a row is a name and a switch,
+                   and at the usual width the switch sat a hand's breadth from
+                   the name it belongs to — far enough to press the one on the
+                   line above. #}
+                <ul class="py-1">
+                    {# Striped: with no rules between the rows, every second one
+                       is tinted so the eye can follow a name across to its
+                       switch — starting with the first, so the list opens on a
+                       band that sets it off from the explanation above it. A tint sits behind the tree's lines where a rule
+                       cut through them. #}
+                    {% for row in rows %}
+                        <li class="odd:bg-raised">
+                            {{ include('settings/accounts/_folder_row.html.twig', { account: account, row: row }) }}
                         </li>
                     {% endfor %}
                 </ul>

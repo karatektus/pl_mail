@@ -67,10 +67,13 @@ restore, onto those same defaults. No migration.
 **Choose which folders an IMAP account fetches.** Settings → Accounts has a new **Choose which
 folders to sync** button on every IMAP account's row. It opens the account's folders with a switch
 beside each: switch one off and plMail stops fetching it, the mail already stored stays where it is,
-and switching it back on resumes from where it stopped. The inbox has no switch. Gmail and Microsoft
-accounts, which sync through their provider's API, do not get the button. A message you move by hand
-into a folder that is switched off may be removed from plMail, because the check for mail deleted
-elsewhere only looks in the folders that are on. No migration.
+and switching it back on resumes from where it stopped. The inbox has no switch. Nested folders are
+indented under their parent, and a folder that only groups others — Gmail's `[Gmail]` — is greyed
+out with no switch to press, since the server will not open it. Gmail and Microsoft accounts, which
+sync through their provider's API, do not get the button. A message you move in another mail client
+into a folder that is switched off disappears from plMail, because the check for mail deleted
+elsewhere only looks in the folders that are on; switching the folder back on fetches it again.
+One migration adds a column to the folder table; it runs by itself and rewrites nothing.
 
 **Gmail's `[Gmail]` folder no longer fails on every poll.** Over IMAP, Gmail lists `[Gmail]` as a
 folder, but it is only a placeholder that groups All Mail, Sent Mail and the rest: the server marks

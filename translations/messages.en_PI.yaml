@@ -2542,6 +2542,7 @@ settings:
                 Switch a folder off and plMail stops haulin it aboard. Post
                 already stowed stays where it lies, and switchin the folder back
                 on picks up where it left off.
+            placeholder: 'A marker that only herds other folders — there be nothin in it to haul aboard'
             start_sync: 'Start haulin %folder%'
             stop_sync: 'Stop haulin %folder%'
             title: 'Folders — %account%'

@@ -173,6 +173,10 @@ on. Switching one off stops plMail fetching it: the mail already stored stays wh
 switching the folder back on resumes from where it stopped. The inbox has no switch, because a client
 that has stopped fetching its inbox is not a client — to stop an account altogether, disable it.
 
+Nested folders are indented under their parent. A folder that only groups others and holds no mail
+of its own — Gmail's `[Gmail]`, for one — is listed greyed out with its switch off and disabled:
+the server will not open it, so there is nothing to fetch.
+
 It appears only for IMAP accounts. A Gmail or Microsoft account syncs through its provider's API and
 has no folders to choose between. A folder the server has stopped listing is not shown.
 
@@ -245,7 +249,9 @@ connects, mail works, and no calendars appear. Reconnecting with the box left ti
 address at all. Registration failing means "stay on polling", and the fifteen-minute sweep is
 unaffected.
 
-**A message moved by hand into a folder that is switched off looks, to plMail, like one that left the
-account.** The check that lets mail deleted elsewhere disappear from plMail only looks in the folders
-that are switched on, so a message dragged into a folder plMail is not fetching may be removed here
-although it still exists on the server. Switch the folder on first if you want the message kept.
+**A message moved in another mail client into a folder that is switched off looks, to plMail, like
+one that left the account.** The check that lets mail deleted elsewhere disappear from plMail only
+looks in the folders that are switched on, so a message filed elsewhere into a folder plMail is not
+fetching disappears here although it still exists on the server. That is the switch doing what it
+says, and nothing is lost: switch the folder on and plMail fetches the message again. A move made
+inside plMail is different — plMail knows where it put the message and keeps its copy.

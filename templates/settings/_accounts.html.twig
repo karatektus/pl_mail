@@ -128,6 +128,7 @@
                             data-action="click->ui--modal#open"
                             data-ui--modal-title-value="{{ 'settings.accounts.folders.title'|trans({ '%account%': account.displayAddress }) }}"
                             data-ui--modal-src-value="{{ path('settings_account_folders', { id: account.id }) }}"
+                            data-ui--modal-size-value="narrow"
                             class="w-8 h-8 flex items-center justify-center rounded-lg text-ink-faint hover:text-ink hover:bg-hover transition-colors cursor-pointer"
                             aria-label="{{ 'settings.accounts.folders.button'|trans }}" title="{{ 'settings.accounts.folders.button'|trans }}"
                         >

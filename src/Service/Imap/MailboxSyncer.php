@@ -484,6 +484,7 @@ readonly class MailboxSyncer
         $mailbox = new Mailbox();
         $mailbox->account = $account;
         $mailbox->isSyncEnabled = $selectable;
+        $mailbox->isSelectable  = $selectable;
         $mailbox->isIdleEnabled = in_array(
             $specialUse?->value,
             ['\\Inbox', '\\Junk'],
@@ -507,6 +508,11 @@ readonly class MailboxSyncer
         if (false === $selectable) {
             $mailbox->isSyncEnabled = false;
         }
+
+        // What the server said, in both directions — unlike the switch above,
+        // this is a fact about the folder and not anybody's choice. It is what
+        // Settings reads to withhold the switch from a placeholder.
+        $mailbox->isSelectable = $selectable;
 
         $this->hydrate($mailbox, $folder, $specialUse, $account);
     }
