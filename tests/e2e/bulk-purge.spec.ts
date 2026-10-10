@@ -139,6 +139,33 @@ test.describe("deleting a selection in Spam for good", () => {
         await expect(mailRow(page, IN_SPAM[0]), "and still in Spam on the server").toBeVisible();
     });
 
+    /**
+     * `#` presses the toolbar's Delete, so with that button gone from Spam the
+     * key has nothing to press. It used to move the selection to the bin; what
+     * it must NOT become is a way round the question above, and it does not
+     * fall back to a row's button or the reading pane's either — those are not
+     * consulted while something is ticked.
+     *
+     * A fixed wait, because the claim is that nothing happens: there is no
+     * event to wait for, and the failure being ruled out (the selection going
+     * to the bin or being deleted) lands well inside it.
+     */
+    test("# above a selection in Spam does nothing", async ({ page }) => {
+        await page.goto("/mail/spam");
+
+        await select(mailRow(page, IN_SPAM[0]));
+        await expect(actions(page).getByRole("button", { name: "Delete forever" })).toBeVisible();
+
+        await page.keyboard.press("#");
+        await page.waitForTimeout(1500);
+
+        await expect(page.locator("#confirm-dialog"), "no question was asked").toBeHidden();
+        await expect(mailRow(page, IN_SPAM[0]), "and the row is still in Spam").toBeVisible();
+
+        await page.goto("/mail/trash");
+        await expect(mailRow(page, IN_SPAM[0]), "it did not go to the bin either").toHaveCount(0);
+    });
+
     test("Spam offers Delete forever instead of Delete, and the inbox keeps Delete", async ({ page }) => {
         await page.goto("/mail/spam");
 
