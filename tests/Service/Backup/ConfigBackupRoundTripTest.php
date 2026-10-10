@@ -167,6 +167,10 @@ final class ConfigBackupRoundTripTest extends KernelTestCase
         $this->check('setting display.clock', '24h', $user->getSetting(User::SETTING_CLOCK));
         $this->check('setting search.sort', 'oldest', $user->getSetting(User::SETTING_SEARCH_SORT));
         $this->check('setting calendar.pane_width', 420, $user->getSetting(User::SETTING_CALENDAR_PANE_WIDTH));
+        // Neither value is the default (off, 55), so a restore that dropped the
+        // keys and read the defaults back would fail here rather than pass.
+        $this->check('setting reading.pane_mode', 'right', $user->getSetting(User::SETTING_READING_PANE_MODE));
+        $this->check('setting reading.pane_width_pct', 40, $user->getSetting(User::SETTING_READING_PANE_WIDTH));
         $this->check('setting sidebar.collapsed_sections', ['section:labels'], $user->getSetting(User::SETTING_SIDEBAR_COLLAPSED));
         $this->check('setting onboarding.completed_at', '2026-02-01T00:00:00+00:00', $user->getSetting(User::SETTING_ONBOARDING_COMPLETED_AT));
         $this->check('setting admin.collapsed_panels', ['health'], $user->getSetting(User::SETTING_ADMIN_COLLAPSED_PANELS));
@@ -382,6 +386,8 @@ final class ConfigBackupRoundTripTest extends KernelTestCase
         $user->setSetting(User::SETTING_CLOCK, '24h');
         $user->setSetting(User::SETTING_SEARCH_SORT, 'oldest');
         $user->setSetting(User::SETTING_CALENDAR_PANE_WIDTH, 420);
+        $user->setSetting(User::SETTING_READING_PANE_MODE, 'right');
+        $user->setSetting(User::SETTING_READING_PANE_WIDTH, 40);
         $user->setSetting(User::SETTING_SIDEBAR_COLLAPSED, ['section:labels']);
         $user->setSetting(User::SETTING_ONBOARDING_COMPLETED_AT, '2026-02-01T00:00:00+00:00');
         $user->setSetting(User::SETTING_ADMIN_COLLAPSED_PANELS, ['health']);

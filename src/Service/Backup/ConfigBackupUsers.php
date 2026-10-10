@@ -147,6 +147,15 @@ final readonly class ConfigBackupUsers
         // thing on any install — so there was never an argument for leaving
         // them out, only an absence of one.
         User::SETTING_APPEARANCE_PREVIEW_WIDTH,
+        // Whether the open message sits beside the list, and how much of the mail
+        // card it takes. In the backup for the reason the calendar pane's mode
+        // and width are: it is a preference somebody set about their own screen,
+        // it costs a short string and a number, and a restore that put the
+        // mailbox back to one pane at a time would be the kind of small
+        // wrongness that makes a restore feel like a different installation.
+        // Neither holds an id, and a percentage means the same on any install.
+        User::SETTING_READING_PANE_MODE,
+        User::SETTING_READING_PANE_WIDTH,
         User::SETTING_INSIGHTS_DISABLED,
         User::SETTING_INSIGHT_PANE_DISABLED,
         User::SETTING_COMPOSE_FORWARD_QUOTE_COLLAPSED,
