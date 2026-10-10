@@ -252,17 +252,8 @@ final class MailController extends AbstractController
         // See the tab strip in mail/inbox.html.twig.
         $tabUnread  = $tabbed ? $this->threadRepository->countUnreadByCategoryForUnifiedInbox($user) : [];
 
-        // A tab nobody's mail lands in is a door to an empty room — Gmail
-        // itself has quietly retired Forums. Primary always shows, a category
-        // shows while it holds anything at all, and the tab being LOOKED AT
-        // stays even when its last thread just left, so the ground does not
-        // vanish underfoot; it disappears on the next natural navigation.
-        $tabs = false === $tabbed ? [] : array_values(array_filter(
-            MessageCategory::cases(),
-            static fn (MessageCategory $case): bool => MessageCategory::Primary === $case
-                || $case === $tab
-                || ($tabTotals[$case->value] ?? 0) > 0,
-        ));
+        // A tab exists while it holds something — see visibleTabs().
+        $tabs = $this->visibleTabs($tabbed, $tab, $tabTotals);
 
         // The categories the strip does NOT show, so a drag has somewhere to
         // put mail that no thread is in yet.
@@ -302,6 +293,39 @@ final class MailController extends AbstractController
      * Declared before the id-based route so "/label/path/…" never collides
      * with "/label/{id}".
      */
+    /**
+     * Which tabs the strip is made of, for the unified inbox and for one
+     * account's.
+     *
+     * A tab nobody's mail lands in is a door to an empty room — Gmail itself
+     * has quietly retired Forums. Primary always shows, a category shows while
+     * it holds anything at all, and the tab being LOOKED AT stays even when its
+     * last thread just left, so the ground does not vanish underfoot; it
+     * disappears on the next natural navigation. Nothing at all for somebody
+     * who has switched the tabs off.
+     *
+     * One rule in one place because two inboxes drawing the same strip by two
+     * copies of it is how one of them quietly keeps an old answer.
+     *
+     * @param array<string, int> $totals threads per category, from the
+     *                                   repository's grouped count
+     *
+     * @return list<MessageCategory>
+     */
+    private function visibleTabs(bool $tabbed, ?MessageCategory $current, array $totals): array
+    {
+        if (false === $tabbed) {
+            return [];
+        }
+
+        return array_values(array_filter(
+            MessageCategory::cases(),
+            static fn (MessageCategory $case): bool => MessageCategory::Primary === $case
+                || $case === $current
+                || ($totals[$case->value] ?? 0) > 0,
+        ));
+    }
+
     #[Route('/label/path/{path}', name: 'label_path', requirements: ['path' => '.+'])]
     public function labelPathView(string $path, Request $request): Response
     {
@@ -419,7 +443,17 @@ final class MailController extends AbstractController
     {
         $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $account);
 
-        $total   = $this->threadRepository->countForAccountInbox($account);
+        // The same tabs as the unified inbox, and read the same way: `?tab=` is
+        // an editable URL, so a category that does not exist is Primary rather
+        // than a fault, and somebody who has switched the tabs off gets the
+        // whole inbox whatever a stale link says. See inbox().
+        $user   = $this->getUser();
+        $tabbed = $user instanceof User && true === $user->categorySorting->tabs;
+        $tab    = true === $tabbed
+            ? MessageCategory::tryFrom((string) $request->query->get('tab', '')) ?? MessageCategory::Primary
+            : null;
+
+        $total   = $this->threadRepository->countForAccountInbox($account, $tab);
         $page    = $this->pageOrRedirect($request, $total);
 
         if ($page instanceof RedirectResponse) {
@@ -427,12 +461,25 @@ final class MailController extends AbstractController
         }
 
         $sort    = $this->listSort($request);
-        $threads = $this->threadRepository->findForAccountInbox($account, $page, self::PER_PAGE, $sort);
+        $threads = $this->threadRepository->findForAccountInbox($account, $page, self::PER_PAGE, $sort, $tab);
+
+        // Which tabs exist comes from THIS account's mail. The "new" pills and
+        // the unread tint the unified inbox draws on them are not passed on
+        // purpose: they are summed across every account, and the sidebar
+        // controller rewrites them from that same payload, so on this page
+        // they would be wrong and then overwritten with the wrong thing.
+        $tabs = $this->visibleTabs(
+            $tabbed,
+            $tab,
+            true === $tabbed ? $this->threadRepository->countByCategoryForAccountInbox($account) : [],
+        );
 
         $this->threadRows->preload($threads);
 
         return $this->renderList($request, 'mail/account.html.twig', $threads, [
             'account'   => $account,
+            'tab'       => $tab,
+            'tabs'      => $tabs,
             'page'      => $page,
             'total'     => $total,
             'per_page'  => self::PER_PAGE,
