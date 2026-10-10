@@ -199,7 +199,7 @@ test.describe("counters after reading one mail", () => {
      * would pass the read case alone.
      */
     test("the row's own mark-read button moves the badge, and back again", async ({ page }) => {
-        // The row action strip is `hidden @xl:flex` — a container query on the
+        // The row action strip is `hidden @rowwide:flex` — a container query on the
         // list pane — so it does not exist at all in a narrow window.
         await page.setViewportSize({ width: 1600, height: 900 });
         await page.goto("/mail/inbox");

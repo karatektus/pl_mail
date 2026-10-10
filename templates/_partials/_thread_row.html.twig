@@ -361,7 +361,7 @@ be a worse regression than the one this feature fixes.
            move, not a restyle. What it buys is that both are now custom
            properties, which is what lets the density differ per surface and the
            unread tint scale with the emphasis setting. #}
-        class="pointer-events-auto flex items-center @xl:items-center gap-3 pl-3 pr-4 list-row-y cursor-pointer transition-colors
+        class="pointer-events-auto flex items-center @rowwide:items-center gap-3 pl-3 pr-4 list-row-y cursor-pointer transition-colors
             {{ unread ? 'row-unread' : 'bg-transparent' }}
             hover:bg-white/60 dark:hover:bg-white/[0.06]"
     >
@@ -406,10 +406,10 @@ be a worse regression than the one this feature fixes.
 
         {# Content — one line when the list is wide, three when it is not #}
         <div data-row-layout
-             class="flex-1 min-w-0 flex flex-col @xl:flex-row @xl:items-center @xl:gap-4">
+             class="flex-1 min-w-0 flex flex-col @rowwide:flex-row @rowwide:items-center @rowwide:gap-4">
 
             {# Row 1 (stacked) / sender column (wide) #}
-            <div class="flex items-center justify-between gap-2 @xl:justify-start @xl:w-40 @xl:flex-shrink-0">
+            <div class="flex items-center justify-between gap-2 @rowwide:justify-start @rowwide:w-40 @rowwide:flex-shrink-0">
                 {# Sender and its marker travel together in one group, so the
                    badge sits to the LEFT of the name at both container widths.
                    Hanging it off the outer flex instead would have put it at
@@ -501,8 +501,8 @@ be a worse regression than the one this feature fixes.
                that are already competing for one line, so they drop to a line
                of their own underneath. #}
             <div class="min-w-0 flex-1 flex flex-col">
-                <div class="min-w-0 flex flex-col @xl:flex-row @xl:items-baseline @xl:gap-2">
-                    <span class="truncate text-sm mt-1 @xl:mt-0 @xl:flex-shrink-0 @xl:max-w-[45%]
+                <div class="min-w-0 flex flex-col @rowwide:flex-row @rowwide:items-baseline @rowwide:gap-2">
+                    <span class="truncate text-sm mt-1 @rowwide:mt-0 @rowwide:flex-shrink-0 @rowwide:max-w-[45%]
                                  {{ unread ? 'font-semibold text-ink' : 'font-normal text-ink-soft' }}">
                         {{ subjectLine }}
                         {% if count > 1 %}
@@ -513,7 +513,7 @@ be a worse regression than the one this feature fixes.
                     {# A little air above the preview when stacked. It separates
                        the subject from the snippet, and the meta column mirrors
                        the same margin so the dot stays level with it. #}
-                    <span class="min-w-0 flex-1 flex items-center gap-1.5 text-sm mt-1.5 @xl:mt-0">
+                    <span class="min-w-0 flex-1 flex items-center gap-1.5 text-sm mt-1.5 @rowwide:mt-0">
                         {# A draft with a send time on it. Without this the
                            Drafts list is the one place a scheduled message
                            lives and the only place that does not say so — the
@@ -589,7 +589,7 @@ be a worse regression than the one this feature fixes.
                                 </button>
                             </span>
                         {% endif %}
-                        <span class="@xl:hidden contents">
+                        <span class="@rowwide:hidden contents">
                             {% include '_partials/_thread_labels.html.twig' with { item: item } %}
                         </span>
                         {# A stacked row has one line for the preview, and a
@@ -598,24 +598,24 @@ be a worse regression than the one this feature fixes.
                            is two characters and an ellipsis, which is noise
                            where the badge is information. Wide, both fit and
                            both are shown. #}
-                        {# `@xl:inline-block`, not `@xl:block`, and this is the
+                        {# `@rowwide:inline-block`, not `@rowwide:block`, and this is the
                            second time this file has paid for it: Tailwind emits
-                           `.hidden` AFTER `.block`, so `hidden @xl:block` is
+                           `.hidden` AFTER `.block`, so `hidden @rowwide:block` is
                            hidden at every width — the container variant does
                            not outrank it. `.inline-block` is emitted after
                            `.hidden` and wins, and a flex item blockifies it
                            anyway, so `truncate` still truncates. The pairing
-                           further down this file (`hidden @xl:flex`) works for
+                           further down this file (`hidden @rowwide:flex`) works for
                            the same reason in the other direction. #}
                         {# `data-row-snippet` carries the preview-lines setting;
                            `truncate` stays for the one-line default, and
                            app.css releases its white-space only when the
                            setting asks for two. #}
-                        <span data-row-snippet class="truncate text-ink-faint {{ scheduledAt is not null ? 'hidden @xl:inline-block' : '' }}">{{ snippet }}</span>
+                        <span data-row-snippet class="truncate text-ink-faint {{ scheduledAt is not null ? 'hidden @rowwide:inline-block' : '' }}">{{ snippet }}</span>
                     </span>
                 </div>
 
-                <div class="hidden @xl:flex items-center mt-1">
+                <div class="hidden @rowwide:flex items-center mt-1">
                     {% include '_partials/_thread_labels.html.twig' with { item: item } %}
                 </div>
             </div>
@@ -642,17 +642,17 @@ be a worse regression than the one this feature fixes.
         <div data-row-meta
              class="flex flex-shrink-0 ml-2
                     flex-col items-end self-start
-                    @xl:flex-row-reverse @xl:items-center @xl:justify-end @xl:gap-2
-                    @xl:self-center @xl:w-36">
+                    @rowwide:flex-row-reverse @rowwide:items-center @rowwide:justify-end @rowwide:gap-2
+                    @rowwide:self-center @rowwide:w-36">
 
-            <div class="relative flex items-center justify-end w-full h-5 @xl:h-6 @xl:w-auto @xl:flex-1">
+            <div class="relative flex items-center justify-end w-full h-5 @rowwide:h-6 @rowwide:w-auto @rowwide:flex-1">
                 {# The paperclip rides with the date: wide, it sits just inboard
                    of it and vanishes with it when the hover actions take the
                    row over. Leaving it outside meant it stayed put underneath
                    them. Stacked there is no hover, so it simply sits there. #}
                 <span class="absolute inset-0 flex items-center justify-end gap-1.5
                              text-xs text-ink-faint whitespace-nowrap
-                             @xl:group-hover:invisible @xl:group-has-[[aria-expanded=true]]:invisible">
+                             group-hover:invisible group-has-[[aria-expanded=true]]:invisible">
                     {# The visibility classes go on a wrapper, never on the <i>
                        itself: Font Awesome's own .fa-solid rule sets display,
                        and it lands after Tailwind's utilities, so `hidden` on
@@ -660,7 +660,7 @@ be a worse regression than the one this feature fixes.
                        Every other icon in this file is wrapped for the same
                        reason. #}
                     {% if hasAttachment %}
-                        <span class="hidden @xl:inline" aria-hidden="true">
+                        <span class="hidden @rowwide:inline" aria-hidden="true">
                             <i class="fa-solid fa-paperclip text-[11px]"></i>
                         </span>
                     {% endif %}
@@ -693,7 +693,7 @@ be a worse regression than the one this feature fixes.
                    one of these buttons is open. That menu is a descendant, so
                    without the second rule a pointer that strays off the row on
                    its way to the menu hides the menu it was heading for. #}
-                <div class="hidden @xl:flex absolute inset-0 items-center justify-end invisible group-hover:visible has-[[aria-expanded=true]]:visible pointer-events-auto gap-1">
+                <div class="hidden [@media(hover:hover)]:flex @rowwide:flex absolute inset-y-0 right-0 items-center justify-end invisible group-hover:visible has-[[aria-expanded=true]]:visible pointer-events-auto gap-1 rounded-lg bg-surface @rowwide:bg-transparent">
                 {% if false == draft and placement == 'normal' %}
                     <button type="button" data-action="click->mail--message-row#archive"
                             data-mail--message-row-archive-url-param="{{ path('app_status_archive', {'type': type, 'id': rowId}) }}"
@@ -823,13 +823,13 @@ be a worse regression than the one this feature fixes.
             {# The star, on the row's trailing edge where the pointer already
                is. The paperclip lives with the date above — it is a fact about
                the row, not a control, and it belongs to the same line. #}
-            <div class="flex items-center gap-2 h-5 mt-1 @xl:mt-0 @xl:order-first">
+            <div class="flex items-center gap-2 h-5 mt-1 @rowwide:mt-0 @rowwide:order-first">
                 {# Stacked, the paperclip belongs with the star: there is no
                    hover for it to vanish under, and a three-line row reads
                    better with its two marks together than with one stranded
                    beside the time. The wide copy lives with the date. #}
                 {% if hasAttachment %}
-                    <span class="@xl:hidden text-ink-faint" title="{{ 'thread_row.has_attachment'|trans }}">
+                    <span class="@rowwide:hidden text-ink-faint" title="{{ 'thread_row.has_attachment'|trans }}">
                         <i class="fa-solid fa-paperclip text-xs" aria-hidden="true"></i>
                     </span>
                     <span class="sr-only">{{ 'thread_row.has_attachment'|trans }}</span>
@@ -857,7 +857,7 @@ be a worse regression than the one this feature fixes.
                the dot is 8px and the star glyph is 14, so aligning their right
                edges puts their centres 3px apart. #}
             {% if unread %}
-                <span class="@xl:hidden h-5 mt-1.5 w-3.5 flex items-center justify-center shrink-0" aria-hidden="true">
+                <span class="@rowwide:hidden h-5 mt-1.5 w-3.5 flex items-center justify-center shrink-0" aria-hidden="true">
                     <span class="w-2 h-2 rounded-full bg-success"></span>
                 </span>
                 {# No |default: a missing key comes back from |trans as the key

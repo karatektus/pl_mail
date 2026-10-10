@@ -5060,6 +5060,23 @@ label:has(> input.sr-only) {
    preview in the settings pane is styled by these same rules rather than by a
    copy of them that could drift. */
 
+/*
+   Where a list row stops being three stacked lines and becomes one.
+
+   This was Tailwind's stock `@xl` (36rem), and it was too early: one line has to
+   carry the avatar, a 13rem sender column and a 9rem date/actions column before
+   the subject and preview get a single pixel, so a list with the reading pane
+   open (about 45rem) left them ~260px between them — "Facture pour Co…" and a
+   preview wrapped to two cramped lines. Stacked gives them the full width, and
+   it is already the layout a phone gets. One line pays off only when there is
+   room for it; 58rem is where the subject keeps ~20 characters after the fixed
+   columns. `@rowwide:` in _thread_row.html.twig is this token, and the
+   `@container (min-width: 58rem)` rule below must carry the same number.
+*/
+@theme {
+    --container-rowwide: 58rem;
+}
+
 /* The account corner: the coloured triangle in a row's lower-left. */
 [data-account-corner] {
     display: var(--list-corner-display);
@@ -5101,14 +5118,16 @@ label:has(> input.sr-only) {
    arrangement the wide layout exists to avoid. So the wide branch takes the
    same on/off switch without the clamp.
 
-   `@container`, matching the row's own `@xl` (Tailwind's 36rem container
-   width, written out by hand because a plain rule cannot use the variant): the
+   `@container`, matching the row's own `@rowwide` (the 58rem container width
+   declared by --container-rowwide in the "Mail list display" block above,
+   written out by hand because a plain rule can use neither the variant nor the
+   token — change the two together): the
    row switches on the LIST's width, not the viewport's — the list is narrower
    than a phone whenever the calendar pane is docked wide.
 */
 /*
    `:not(.hidden)` is load-bearing, and only on the stacked branch. A scheduled
-   draft's row carries `hidden @xl:inline-block` on this very element — the
+   draft's row carries `hidden @rowwide:inline-block` on this very element — the
    badge saying when it goes has already eaten the line, and what is left of
    the snippet at 393px is two characters and an ellipsis. These rules are
    unlayered and would otherwise beat that `.hidden` and put the fragment back.
@@ -5122,8 +5141,13 @@ label:has(> input.sr-only) {
     overflow: hidden;
 }
 
-@container (min-width: 36rem) {
-    [data-row-snippet] {
+@container (min-width: 58rem) {
+    /* `:not(.hidden)` for SPECIFICITY, not for the exemption above: a container
+       query adds none, so a bare `[data-row-snippet]` (0,1,0) lost to the
+       stacked rule's `[data-row-snippet]:not(.hidden)` (0,2,0) and the
+       "wide is always one line" override never applied — with the two-line
+       setting on, a one-line row wrapped its preview anyway. */
+    [data-row-snippet]:not(.hidden) {
         display: var(--list-preview-display-wide);
         -webkit-line-clamp: 1;
         white-space: nowrap;
