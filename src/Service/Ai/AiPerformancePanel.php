@@ -59,6 +59,7 @@ final readonly class AiPerformancePanel
         private OllamaClient           $client,
         private AiCallMetricRepository $metrics,
         private EmbeddingBackfill      $backfill,
+        private ?OpenAiClient          $openAi = null,
     ) {
     }
 
@@ -70,15 +71,18 @@ final readonly class AiPerformancePanel
         $settings = $this->settings->currentOrDefault();
         $now      = new DateTimeImmutable();
 
-        $configured = $settings->isConfigured();
+        $configured = '' !== trim((string) $settings->generationBaseUrl());
         $ready      = $settings->isEnabled && $configured;
 
         // Nothing is asked of the host while the master switch is off. Off is a
         // valid configuration, not a fault, and a panel that kept probing would
         // be reporting on a feature nobody has switched on.
-        $probe = $ready ? $this->client->probe((string) $settings->baseUrl, self::PROBE_TIMEOUT) : null;
+        $compatible = 'openai' === $settings->chatProvider;
+        $probe = $ready ? ($compatible
+            ? $this->openAi?->probe((string) $settings->openAiBaseUrl, $settings->openAiApiToken, self::PROBE_TIMEOUT)
+            : $this->client->probe((string) $settings->baseUrl, self::PROBE_TIMEOUT)) : null;
 
-        $loaded = null !== $probe && true === $probe->reachable
+        $loaded = !$compatible && null !== $probe && true === $probe->reachable
             ? $this->client->ps((string) $settings->baseUrl, self::PS_TIMEOUT)
             : [];
 
@@ -96,12 +100,13 @@ final readonly class AiPerformancePanel
                 'summary'    => $settings->summaryEnabled,
             ],
             'host' => [
-                'baseUrl'   => $settings->baseUrl,
+                'baseUrl'   => $settings->generationBaseUrl(),
+                'compatible' => $compatible,
                 'reachable' => $probe->reachable ?? false,
                 'version'   => $probe?->version,
                 'reason'    => $probe?->reason,
             ],
-            'models'      => $this->models($settings->chatModel, $settings->embeddingModel, $probe, $loaded),
+            'models'      => $this->models($settings->generationModel(), $compatible ? null : $settings->embeddingModel, $probe, $loaded),
             'loaded'      => array_map(static fn (LoadedModel $model): array => self::describe($model, $now), $loaded),
             'anyPartial'  => self::anyPartial($loaded),
             'latest'      => $this->metrics->latest(),
@@ -115,7 +120,7 @@ final readonly class AiPerformancePanel
             // rows, and during a backfill that month holds a row per embedded
             // message; running it on every five-second poll would make the
             // panel the most expensive thing on the installation.
-            'coldLoadMs'  => $ready && [] === $loaded
+            'coldLoadMs'  => !$compatible && $ready && [] === $loaded
                 ? $this->metrics->typicalColdLoadMs($now->modify(self::COLD_LOAD_LOOKBACK))
                 : null,
             'backfill'    => $this->backfill->progress(),
@@ -170,7 +175,7 @@ final readonly class AiPerformancePanel
             $rows[] = [
                 'role'      => $role,
                 'name'      => $named ? trim((string) $name) : null,
-                'installed' => $named && null !== $probe && true === $probe->reachable
+                'installed' => 'OpenAI-compatible' !== $probe?->version && $named && null !== $probe && true === $probe->reachable
                     ? $probe->hasModel(trim((string) $name))
                     : null,
                 'resident'  => $named && self::isResident(trim((string) $name), $loaded),

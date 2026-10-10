@@ -57,7 +57,7 @@ final readonly class AiProbe
             // "llama3.1", meaning the default tag. Treating those as different
             // would fail a test against a host that is holding exactly what was
             // asked for.
-            if ($name === explode(':', $model->name)[0]) {
+            if ('OpenAI-compatible' !== $this->version && $name === explode(':', $model->name)[0]) {
                 return true;
             }
         }

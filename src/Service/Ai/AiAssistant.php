@@ -87,6 +87,7 @@ final readonly class AiAssistant
         private OllamaClient         $client,
         private AiCallRecorder       $recorder,
         private LoggerInterface      $logger,
+        private ?OpenAiClient        $openAi = null,
     ) {
     }
 
@@ -217,9 +218,12 @@ final readonly class AiAssistant
             return null;
         }
 
-        $model = (string) $settings->chatModel;
+        $model = (string) $settings->generationModel();
 
-        $result = $this->client->chat(
+        $result = 'openai' === $settings->chatProvider
+            ? $this->openAi?->chat((string) $settings->openAiBaseUrl, $model, $messages, $temperature, $settings->openAiApiToken)
+                ?? AiChatResult::failed(OllamaClient::ERROR_UNREACHABLE)
+            : $this->client->chat(
             (string) $settings->baseUrl,
             $model,
             $messages,
@@ -287,12 +291,17 @@ final readonly class AiAssistant
             return null;
         }
 
-        $model = (string) $settings->chatModel;
+        $model = (string) $settings->generationModel();
+        if ('openai' === $settings->chatProvider && null === $this->openAi) {
+            return null;
+        }
 
         return $this->recorded(
             AiCallFeature::forChat($feature),
             $model,
-            $this->client->chatStream(
+            ('openai' === $settings->chatProvider
+                ? $this->openAi->chatStream((string) $settings->openAiBaseUrl, $model, $messages, $temperature, $settings->openAiApiToken, $timeout)
+                : $this->client->chatStream(
                 (string) $settings->baseUrl,
                 $model,
                 $messages,
@@ -300,7 +309,7 @@ final readonly class AiAssistant
                 $settings->keepAliveFor($feature),
                 $numCtx,
                 $timeout,
-            ),
+            )),
         );
     }
 
@@ -324,12 +333,16 @@ final readonly class AiAssistant
      * failure a moment later, where the other way round would have it promise
      * tokens that are never coming.
      */
-    public function isModelResident(AiFeature $feature): bool
+    public function isModelResident(AiFeature $feature): ?bool
     {
         $settings = $this->settings();
 
         if (false === $settings->enabledFor($feature)) {
             return false;
+        }
+
+        if ('openai' === $settings->chatProvider) {
+            return null; // Compatible APIs do not expose model residency.
         }
 
         $wanted = self::tagged((string) $settings->chatModel);
@@ -445,7 +458,14 @@ final readonly class AiAssistant
      */
     public function probe(?string $baseUrl = null): AiProbe
     {
-        $target = $baseUrl ?? $this->settings()->baseUrl;
+        $settings = $this->settings();
+        if ('openai' === $settings->chatProvider) {
+            $target = $baseUrl ?? $settings->openAiBaseUrl;
+            // A saved key is never forwarded to a different, unsaved endpoint.
+            $key = $target === $settings->openAiBaseUrl ? $settings->openAiApiToken : null;
+            return $this->openAi?->probe((string) $target, $key) ?? AiProbe::unreachable('unreachable');
+        }
+        $target = $baseUrl ?? $settings->baseUrl;
 
         if (null === $target || '' === trim($target)) {
             return AiProbe::unreachable('no_host');
@@ -488,6 +508,10 @@ final readonly class AiAssistant
     public function warmUp(): AiWarmUp
     {
         $settings = $this->settings();
+
+        if ('openai' === $settings->chatProvider) {
+            return AiWarmUp::failed('disabled');
+        }
 
         if (false === $settings->isConfigured()) {
             return AiWarmUp::failed('no_host');

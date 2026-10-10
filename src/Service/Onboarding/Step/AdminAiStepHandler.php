@@ -106,6 +106,10 @@ final readonly class AdminAiStepHandler implements OnboardingStepHandlerInterfac
 
         // Unmapped, so an empty box leaves a stored token alone rather than
         // clearing it — the same rule the admin page follows.
+        $openAiToken = (string) $form->get('openAiApiToken')->getData();
+        if ('' !== trim($openAiToken)) {
+            $settings->openAiApiToken = $openAiToken;
+        }
         $token = (string) $form->get('apiToken')->getData();
 
         if ('' !== trim($token)) {

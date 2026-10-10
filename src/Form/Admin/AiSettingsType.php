@@ -10,12 +10,15 @@ use App\Entity\Ai\AiSettings;
 use App\Form\PasswordManagerIgnore;
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\Extension\Core\Type\CheckboxType;
+use Symfony\Component\Form\Extension\Core\Type\ChoiceType;
 use Symfony\Component\Form\Extension\Core\Type\IntegerType;
 use Symfony\Component\Form\Extension\Core\Type\NumberType;
 use Symfony\Component\Form\Extension\Core\Type\PasswordType;
 use Symfony\Component\Form\Extension\Core\Type\TextareaType;
 use Symfony\Component\Form\Extension\Core\Type\TextType;
 use Symfony\Component\Form\FormBuilderInterface;
+use Symfony\Component\Form\FormEvent;
+use Symfony\Component\Form\FormEvents;
 use Symfony\Component\OptionsResolver\OptionsResolver;
 use Symfony\Component\Validator\Constraints\Range;
 use Symfony\Component\Validator\Constraints\Regex;
@@ -37,11 +40,38 @@ final class AiSettingsType extends AbstractType
         $settings = $options['data'];
         $hasToken = $settings instanceof AiSettings && null !== $settings->apiToken;
 
+        // Bind the credential to its endpoint in both admin and onboarding.
+        $endpoint = $settings instanceof AiSettings ? $settings->openAiBaseUrl : null;
+        $builder->addEventListener(FormEvents::PRE_SUBMIT, static function (FormEvent $event) use ($settings, $endpoint): void {
+            $data = $event->getData();
+            if ($settings instanceof AiSettings && is_array($data)
+                && $endpoint !== ($data['openAiBaseUrl'] ?? null)) {
+                $settings->openAiApiToken = null;
+            }
+        });
+
         $builder
             ->add('isEnabled', CheckboxType::class, [
                 'label'    => 'admin.ai.field.enabled',
                 'help'     => 'admin.ai.field.enabled_help',
                 'required' => false,
+            ])
+            ->add('chatProvider', ChoiceType::class, [
+                'label' => 'admin.ai.field.provider',
+                'choices' => ['Ollama' => 'ollama', 'OpenAI-compatible' => 'openai'],
+            ])
+            ->add('openAiBaseUrl', TextType::class, [
+                'label' => 'admin.ai.field.openai_url', 'required' => false,
+                'help' => 'admin.ai.field.openai_help',
+                'constraints' => [new Regex(pattern: '~^https?://[^\\s]+$~i')],
+            ])
+            ->add('openAiModel', TextType::class, [
+                'label' => 'admin.ai.field.openai_model', 'required' => false,
+            ])
+            ->add('openAiApiToken', PasswordType::class, [
+                'label' => 'admin.ai.field.openai_key', 'required' => false,
+                'mapped' => false, 'always_empty' => true, 'empty_data' => '',
+                'attr' => PasswordManagerIgnore::SECRET,
             ])
             ->add('baseUrl', TextType::class, [
                 'label'       => 'admin.ai.field.base_url',

@@ -107,6 +107,35 @@ class AiSettings
     #[ORM\Column(name: 'api_token', type: EncryptedStringType::NAME, nullable: true)]
     public ?string $apiToken = null;
 
+    /** Generation settings are separate so changing provider cannot alter stored vectors. */
+    #[ORM\Column(name: 'chat_provider', length: 32, options: ['default' => 'ollama'])]
+    public string $chatProvider = 'ollama';
+
+    #[ORM\Column(name: 'openai_base_url', length: 255, nullable: true)]
+    public ?string $openAiBaseUrl = null;
+
+    #[ORM\Column(name: 'openai_api_token', type: EncryptedStringType::NAME, nullable: true)]
+    public ?string $openAiApiToken = null;
+
+    #[ORM\Column(name: 'openai_model', length: 128, nullable: true)]
+    public ?string $openAiModel = null;
+
+    public function generationBaseUrl(): ?string
+    {
+        return 'openai' === $this->chatProvider ? $this->openAiBaseUrl : $this->baseUrl;
+    }
+
+    public function generationModel(): ?string
+    {
+        return 'openai' === $this->chatProvider ? $this->openAiModel : $this->chatModel;
+    }
+
+    /** Bounded identity for summary caches; endpoint is part of the model's identity. */
+    public function generationIdentity(): string
+    {
+        return hash('sha256', $this->chatProvider . "\0" . rtrim((string) $this->generationBaseUrl(), '/') . "\0" . (string) $this->generationModel());
+    }
+
     /** The model that writes: replies, subject lines, summaries. */
     #[ORM\Column(name: 'chat_model', length: 128, nullable: true)]
     public ?string $chatModel = null;
@@ -329,7 +358,7 @@ class AiSettings
      */
     public function isConfigured(): bool
     {
-        return null !== $this->baseUrl && '' !== trim($this->baseUrl);
+        return '' !== trim((string) $this->baseUrl) || '' !== trim((string) $this->generationBaseUrl());
     }
 
     /**
@@ -342,7 +371,7 @@ class AiSettings
      */
     public function enabledFor(AiFeature $feature): bool
     {
-        if (false === $this->isEnabled || false === $this->isConfigured()) {
+        if (false === $this->isEnabled || '' === trim((string) (AiFeature::Search === $feature ? $this->baseUrl : $this->generationBaseUrl()))) {
             return false;
         }
 
@@ -350,7 +379,7 @@ class AiSettings
             AiFeature::Search       => $this->embeddingModel,
             AiFeature::Categorise,
             AiFeature::WritingHelp,
-            AiFeature::Summary      => $this->chatModel,
+            AiFeature::Summary      => $this->generationModel(),
         };
 
         if (null === $model || '' === trim($model)) {

@@ -305,7 +305,7 @@ final readonly class ThreadSummariser
      */
     public function model(): string
     {
-        return (string) $this->ai->settings()->chatModel;
+        return $this->ai->settings()->generationIdentity();
     }
 
     /**
@@ -373,7 +373,7 @@ final readonly class ThreadSummariser
      * nothing on screen. A silent interface for forty seconds is
      * indistinguishable from a broken one.
      */
-    public function isModelWarm(): bool
+    public function isModelWarm(): ?bool
     {
         return $this->ai->isModelResident(AiFeature::Summary);
     }

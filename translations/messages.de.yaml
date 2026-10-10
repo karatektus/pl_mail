@@ -4195,3 +4195,11 @@ templates:
         sender_email: 'Deine Adresse'
         sender_name: 'Dein Name'
         signature: 'Signatur'
+
+admin.ai.field.provider: Anbieter für Textgenerierung
+admin.ai.field.openai_url: OpenAI-kompatible Basis-URL (mit /v1)
+admin.ai.field.openai_model: OpenAI-kompatibles Modell
+admin.ai.field.openai_key: OpenAI-kompatibler API-Schlüssel
+admin.ai.field.openai_help: 'Dieser Endpunkt wird nur für Textgenerierung verwendet. Suchvektoren bleiben auf dem Ollama-Host unten. Eine geänderte URL löscht den gespeicherten Schlüssel. Kategorisierung sendet eingehende E-Mails automatisch; Schreibhilfe und Zusammenfassungen senden den angeforderten Inhalt. Externe Dienste können Kosten verursachen.'
+
+admin.ai.perf.discovery_unavailable: 'Modellabfrage nicht verfügbar. Manche kompatiblen Dienste bieten /models nicht an; Textgenerierung kann trotzdem funktionieren. Speicher- und GPU-Diagnosen werden nicht unterstützt.'

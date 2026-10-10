@@ -157,6 +157,10 @@ poll would empty a field mid-word.
                         {{ form_errors(form) }}
 
                         {{ form_row(form.isEnabled) }}
+                        {{ form_row(form.chatProvider) }}
+                        {{ form_row(form.openAiBaseUrl) }}
+                        {{ form_row(form.openAiModel) }}
+                        {{ form_row(form.openAiApiToken) }}
                         {{ form_row(form.baseUrl) }}
                         {{ form_row(form.apiToken) }}
 
@@ -174,6 +178,7 @@ poll would empty a field mid-word.
 
                            type="button", so a stray Enter in a text field
                            above cannot make it the form's default submit. #}
+                        {% if settings.chatProvider == 'ollama' %}
                         <div data-controller="admin--ai-warmup"
                              data-admin--ai-warmup-url-value="{{ path('app_admin_ai_warmup') }}"
                              data-admin--ai-warmup-csrf-value="{{ csrf_token('admin-ai-warmup') }}"
@@ -217,6 +222,8 @@ poll would empty a field mid-word.
                                hidden
                                class="text-[12px] leading-snug"></p>
                         </div>
+
+                        {% endif %}
 
                         {# The model, its query instruction and its threshold
                            are one decision written in three boxes: any two of

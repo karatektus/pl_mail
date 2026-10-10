@@ -250,6 +250,10 @@ final readonly class ConfigBackupDatabase
             'isEnabled'             => $settings->isEnabled,
             'baseUrl'               => $settings->baseUrl,
             'apiToken'              => $settings->apiToken,
+            'chatProvider'          => $settings->chatProvider,
+            'openAiBaseUrl'         => $settings->openAiBaseUrl,
+            'openAiApiToken'        => $settings->openAiApiToken,
+            'openAiModel'           => $settings->openAiModel,
             'chatModel'             => $settings->chatModel,
             'chatKeepAlive'         => $settings->chatKeepAlive,
             'embeddingModel'        => $settings->embeddingModel,
@@ -297,6 +301,10 @@ final readonly class ConfigBackupDatabase
         $settings->isEnabled             = true === ($values['isEnabled'] ?? false);
         $settings->baseUrl               = $this->string($values, 'baseUrl');
         $settings->apiToken              = $this->string($values, 'apiToken');
+        $settings->chatProvider          = 'openai' === ($values['chatProvider'] ?? null) ? 'openai' : 'ollama';
+        $settings->openAiBaseUrl         = $this->string($values, 'openAiBaseUrl');
+        $settings->openAiApiToken        = $this->string($values, 'openAiApiToken');
+        $settings->openAiModel           = $this->string($values, 'openAiModel');
         $settings->chatModel             = $this->string($values, 'chatModel');
         $settings->embeddingModel        = $this->string($values, 'embeddingModel');
         // Through KeepAlive::normalised() rather than string() alone, because

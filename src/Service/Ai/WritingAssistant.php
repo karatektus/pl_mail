@@ -91,7 +91,7 @@ final readonly class WritingAssistant
      * off disk, and thirteen silent seconds is the whole of the "I press the
      * button and nothing happens" report.
      */
-    public function isModelWarm(): bool
+    public function isModelWarm(): ?bool
     {
         return $this->ai->isModelResident(AiFeature::WritingHelp);
     }

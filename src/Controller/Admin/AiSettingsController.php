@@ -76,6 +76,7 @@ final class AiSettingsController extends AbstractController
         // to the DOCUMENT url, and this renders inside a Turbo Frame — so the
         // POST would go to /admin?section=ai and quietly do nothing. The trap
         // PushSettingsController and IntegrationProviderController both record.
+        $savedEndpoint = $settings->openAiBaseUrl;
         $form = $this->form($settings);
         $form->handleRequest($request);
 
@@ -85,6 +86,13 @@ final class AiSettingsController extends AbstractController
             // Unmapped, so an empty box leaves the stored token alone. Clearing
             // it needs its own gesture rather than being what happens whenever
             // somebody saves the page without retyping a credential.
+            if ($savedEndpoint !== $settings->openAiBaseUrl) {
+                $settings->openAiApiToken = null;
+            }
+            $openAiToken = (string) $form->get('openAiApiToken')->getData();
+            if ('' !== trim($openAiToken)) {
+                $settings->openAiApiToken = $openAiToken;
+            }
             $token = (string) $form->get('apiToken')->getData();
 
             if ('' !== trim($token)) {
@@ -130,17 +138,28 @@ final class AiSettingsController extends AbstractController
     {
         $settings = $this->settings->currentOrDefault();
 
+        $savedEndpoint = $settings->openAiBaseUrl;
         $form = $this->form($settings);
         $form->handleRequest($request);
 
         /** @var array<string, mixed> $submitted */
         $submitted = $request->request->all('ai_settings');
 
-        $typed = trim((string) ($submitted['baseUrl'] ?? ''));
-
-        $probe = '' === $typed
-            ? AiProbe::unreachable('no_host')
-            : $this->assistant->probe($typed);
+        // Form validity includes CSRF. Never probe raw, unvalidated input,
+        // and never send a stored credential to an unsaved endpoint.
+        $probe = AiProbe::unreachable('no_host');
+        if ($form->isSubmitted() && $form->isValid()) {
+            if ($savedEndpoint !== $settings->openAiBaseUrl) {
+                $settings->openAiApiToken = null;
+            }
+            $typedKey = (string) $form->get('openAiApiToken')->getData();
+            if ('' !== trim($typedKey)) {
+                $settings->openAiApiToken = $typedKey;
+            }
+            $probe = $this->assistant->probe($settings->generationBaseUrl());
+        }
+        // Remove submitted secrets from the response even when validation fails.
+        $form = $this->form($settings);
 
         return $this->render('admin/ai/_frame.html.twig', [
             'settings' => $settings,
@@ -149,10 +168,9 @@ final class AiSettingsController extends AbstractController
             'probe'    => $probe,
             // So the template can say "the model you named is not on that host",
             // which is a completely different errand from "nothing answered".
-            'wanted'   => array_values(array_filter([
-                $submitted['chatModel'] ?? null,
-                $submitted['embeddingModel'] ?? null,
-            ])),
+            'wanted'   => 'openai' === $settings->chatProvider
+                ? array_values(array_filter([$submitted['openAiModel'] ?? null]))
+                : array_values(array_filter([$submitted['chatModel'] ?? null, $submitted['embeddingModel'] ?? null])),
             'prompts'  => $this->promptRows(),
             'hold'     => $this->holdDelay(),
         ]);

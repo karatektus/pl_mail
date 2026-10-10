@@ -5,8 +5,24 @@ existing installation is in and the state most will stay in. That is not a discl
 constraint the whole design is bent around, and most of the decisions below only make sense in its
 light.
 
-The model host is an **Ollama container on the operator's own network**. Nothing is sent anywhere
-else, and there is no hosted service to fall back to.
+Ollama remains the default. Administrators can select **OpenAI-compatible** for text generation,
+using a separate base URL (including `/v1`), model and encrypted API key. The key input is never
+filled from storage. Changing that URL clears its saved key; enter a new key for the new endpoint.
+Redirects are disabled, so a provider response cannot forward the key elsewhere.
+
+Search embeddings continue to use the existing Ollama host and embedding model. Switching the
+text provider does not change the stored vector space or start a backfill. Generalized embeddings
+need a separate endpoint/model identity migration and explicit reindexing plan in a later stage.
+
+With remote generation enabled, writing help sends the selected composer context, summaries send
+the conversation transcript, and categorisation automatically sends newly arriving message content.
+These are the same feature switches as Ollama, off by default. Services may charge per request/token;
+only choose an endpoint whose data handling you accept. No fallback sends content to another service.
+Compatible APIs do not expose Ollama residency, VRAM, keep-alive or warm-up. The optional `/models`
+probe is discovery only; `/chat/completions` does not require it. SSE is parsed inside the adapter;
+the browser still receives the application's NDJSON stream. Unknown timing values remain null.
+Summary cache identity includes provider, endpoint and model, so changing any of them hides stale
+summaries. Existing Ollama summaries are regenerated on demand once under the new identity.
 
 > **Status.** All of it is written and passes unit tests and PHPStan; none of it has been run
 > against a real Ollama. One end-to-end test —

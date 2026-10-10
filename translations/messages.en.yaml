@@ -4201,3 +4201,11 @@ templates:
         sender_email: 'Your address'
         sender_name: 'Your name'
         signature: 'Signature'
+
+admin.ai.field.provider: Text generation provider
+admin.ai.field.openai_url: OpenAI-compatible base URL (include /v1)
+admin.ai.field.openai_model: OpenAI-compatible model
+admin.ai.field.openai_key: OpenAI-compatible API key
+admin.ai.field.openai_help: 'Only text generation uses this endpoint. Search embeddings remain on the Ollama host below. Changing the URL clears the saved key; re-enter it for the new endpoint. Enabled categorisation sends incoming mail automatically; writing and summaries send the requested content. Remote services may charge for usage.'
+
+admin.ai.perf.discovery_unavailable: 'Model discovery is unavailable. Some compatible services do not offer /models; text generation can still work. Residency and GPU memory diagnostics are not supported.'

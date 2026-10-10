@@ -448,7 +448,7 @@ final class ThreadSummaryController extends AbstractController
         // cold barely moves it, so residency is not even the question any more.
         $this->frame([
             'type'  => 'state',
-            'value' => true === $this->summariser->isModelWarm() ? 'generating' : 'waiting',
+            'value' => false !== $this->summariser->isModelWarm() ? 'generating' : 'waiting',
         ]);
 
         // When the reading started, so each heartbeat can say how long it has
