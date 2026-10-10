@@ -22,6 +22,13 @@ toolbar above a selection has a **Star** button, and `s` presses it; before, `s`
 rows ticked. An open conversation has a **Snooze** button in its toolbar, which is what `b` presses
 there.
 
+**A selection in Spam can be deleted for good.** The toolbar above ticked spam now offers **Delete
+forever** where it used to offer **Delete**, which only moved the mail to the bin to be deleted a
+second time from there. It asks first, says how many, and removes the mail from the mail server too;
+there is no Undo. It acts on the ticked rows, not on **Select all N** across pages. Rows in Spam and
+the bin already had the button. `#` used to move a ticked selection in Spam to the bin and now does
+nothing there, since the Delete it presses is gone. No migration.
+
 **A config backup now carries how each person sorts their mail.** Settings → Categories — rules or
 the assistant, whether that overrules the provider's own categories, and whether the inbox has tabs
 at all — was never written into the file, so a restore put everyone back on rules, the provider's

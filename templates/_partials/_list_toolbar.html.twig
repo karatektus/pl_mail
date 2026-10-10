@@ -111,6 +111,8 @@ The button itself carries `group` and `relative`.
         selectAllAction: 'toolbar.view_select.offer_action'|trans,
         allSelected:     'toolbar.view_select.selected'|trans,
         clear:           'toolbar.view_select.clear'|trans,
+        purgeConfirmOne:  'toolbar.purge_confirm.one'|trans,
+        purgeConfirmMany: 'toolbar.purge_confirm.many'|trans,
     }|json_encode }}"
 >
 
@@ -258,7 +260,15 @@ The button itself carries `group` and `relative`.
         aria-hidden="true"
     >
         {{ m.tbtn('click->mail--list-toolbar#archiveSelected',    'fa-solid fa-box-archive',  'toolbar.actions.archive'|trans) }}
-        {{ m.tbtn('click->mail--list-toolbar#deleteSelected',     'fa-solid fa-trash',         'toolbar.actions.delete'|trans,   'hover:text-danger') }}
+        {# In Spam the Delete is Delete forever, as it is on the rows there: the
+           trash would only be a second place to delete the same mail from, and
+           a row in Spam has no trash button either. The bin keeps its Delete
+           for now — see mail--list-toolbar#purgeSelected for what asks first. #}
+        {% if 'spam' == list_scope|default('') %}
+            {{ m.tbtn('click->mail--list-toolbar#purgeSelected',  'fa-solid fa-fire',          'toolbar.actions.purge'|trans,    'hover:text-danger') }}
+        {% else %}
+            {{ m.tbtn('click->mail--list-toolbar#deleteSelected', 'fa-solid fa-trash',         'toolbar.actions.delete'|trans,   'hover:text-danger') }}
+        {% endif %}
         {# Not where the selection is already thrown away. In the bin the move
            would pull mail back out of it and into Spam; in Spam it is nothing. #}
         {% if list_scope|default('') not in ['spam', 'trash'] %}

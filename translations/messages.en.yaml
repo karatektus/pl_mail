@@ -4120,9 +4120,15 @@ toolbar:
         mark_read: Mark as read
         mark_unread: Mark as unread
         move_to: Move to
+        purge: Delete forever
         snooze: Snooze
         spam: 'Mark as spam'
         star: Star
+    # Asked before a selection in Spam is deleted for good. Two sentences rather
+    # than one with a number swapped in, because "1 conversations" is not English.
+    purge_confirm:
+        one: 'Delete this conversation for good? It cannot be brought back, and it is removed from the mail server too.'
+        many: 'Delete these %count% conversations for good? They cannot be brought back, and they are removed from the mail server too.'
     filter:
         show_all: Show all
         unread_only: Unread only
