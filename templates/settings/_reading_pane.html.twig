@@ -1,0 +1,55 @@
+{#
+settings/_reading_pane.html.twig
+─────────────────────────────────────────────────────────────────────────────
+Where the open message goes: in place of the list (Off, which is how plMail
+always worked) or beside it.
+
+A page of its own under Features, not a control on Appearance where it first
+lived. Appearance is the look of the app — one JSON payload that becomes an
+exported theme — and this is something the mailbox DOES. It sat there as the
+one control on the page that was not part of the theme, with a paragraph
+explaining why not.
+
+Posted by `settings--reading-pane` to its own endpoint, with its own token
+(see AppearanceController::readingPaneState), and not a form that submits and
+redirects like the shortcuts card beside it: that endpoint is also what the
+divider on the mailbox posts its width to, so it answers JSON for both.
+
+The divider that sets how much each pane gets is on the mailbox itself, where
+it can be dragged against real mail. There is no slider for it here.
+
+Accepts:
+  mode  App\Domain\Enum\Mail\ReadingPaneMode  the user's current choice
+#}
+{% set segText = 'flex h-full items-center justify-center px-3 py-1.5 text-center text-[11px] leading-tight text-ink-muted
+                  peer-checked:bg-accent peer-checked:text-accent-ink
+                  peer-focus-visible:ring-2 peer-focus-visible:ring-inset peer-focus-visible:ring-accent
+                  transition-colors cursor-pointer' %}
+
+<div class="px-4 py-3"
+     data-controller="settings--reading-pane"
+     data-settings--reading-pane-url-value="{{ path('app_appearance_reading_pane_state') }}"
+     data-settings--reading-pane-token-value="{{ csrf_token('reading_pane_state') }}">
+    <div class="flex items-start justify-between gap-3">
+        <span class="min-w-0">
+            <span class="block text-xs font-medium text-ink-muted" id="reading-pane-label">{{ 'settings.reading_pane.label'|trans }}</span>
+            <span class="block text-[11px] text-ink-faint mt-0.5">{{ 'settings.reading_pane.hint'|trans }}</span>
+        </span>
+
+        <div class="grid grid-flow-col auto-cols-fr shrink-0 rounded-pane border border-line overflow-hidden"
+             role="radiogroup" aria-labelledby="reading-pane-label">
+            {% for case in enum('App\\Domain\\Enum\\Mail\\ReadingPaneMode').cases %}
+                <label>
+                    <input type="radio" name="readingPane" class="peer sr-only"
+                           value="{{ case.value }}"
+                           data-action="change->settings--reading-pane#pick"
+                           aria-label="{{ ('settings.reading_pane.' ~ case.value)|trans }}"
+                           {{ mode == case ? 'checked' : '' }}>
+                    <span class="{{ segText }}">
+                        {{ ('settings.reading_pane.' ~ case.value)|trans }}
+                    </span>
+                </label>
+            {% endfor %}
+        </div>
+    </div>
+</div>

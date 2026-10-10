@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Controller\Settings;
 
 use App\Controller\ChecksCsrf;
+use App\Domain\Enum\Mail\ReadingPaneMode;
 use App\Domain\Enum\Theme\BackgroundKind;
 use App\Entity\Embeddable\Appearance;
 use App\Entity\User\User;
@@ -89,6 +90,58 @@ final class AppearanceController extends AbstractController
         }
 
         return $this->json(['width' => $user->appearancePreviewWidth]);
+    }
+
+    /**
+     * Remembers whether the open message sits beside the list, and how much of
+     * the mail card it takes.
+     *
+     * One endpoint for both, with either field optional, because the two arrive
+     * from different places: the Settings control posts the mode, the drag
+     * handle on the mail card posts the width, and neither knows the other's
+     * current value. A field that is absent is left exactly as it is — writing
+     * a default for the missing one would reset the share every time somebody
+     * switched the pane off and on again.
+     *
+     * Its own token id for the reason pane-state's gives: the drag posts a form
+     * body, and this is a layout preference, not part of the theme, so it must
+     * not turn up in an exported theme file or be applied by importing one.
+     *
+     * Both values are clamped HERE. The handle bounds what it sends, which is a
+     * convenience for the person dragging; a stored share of 4000 would draw a
+     * list nobody can see. A mode this build does not know keeps the one the
+     * user is already in rather than resetting it: it is posted by a controller,
+     * so an unrecognised value is a bug or a forgery, and neither is a reason to
+     * switch off a pane somebody chose.
+     */
+    #[Route('/reading-pane', name: 'reading_pane_state', methods: ['POST'])]
+    public function readingPaneState(Request $request): JsonResponse
+    {
+        $this->assertCsrf($request, 'reading_pane_state');
+
+        /** @var User $user */
+        $user = $this->getUser();
+
+        if (true === $request->request->has('mode')) {
+            $user->readingPaneMode = ReadingPaneMode::fromSetting(
+                $request->request->getString('mode'),
+                $user->readingPaneMode,
+            );
+        }
+
+        if (true === $request->request->has('width')) {
+            $user->setSetting(User::SETTING_READING_PANE_WIDTH, max(
+                User::READING_PANE_MIN_PCT,
+                min(User::READING_PANE_MAX_PCT, $request->request->getInt('width')),
+            ));
+        }
+
+        $this->entityManager->flush();
+
+        return $this->json([
+            'mode'  => $user->readingPaneMode->value,
+            'width' => $user->readingPaneWidthPct,
+        ]);
     }
 
     #[Route('/background', name: 'background_upload', methods: ['POST'])]

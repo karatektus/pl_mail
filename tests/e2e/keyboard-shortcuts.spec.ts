@@ -17,13 +17,13 @@ const CURSOR = `${ROWS}[data-kbd-cursor]`;
 const COUNT = '[data-mail--list-toolbar-target="selectionCount"]';
 
 async function setShortcuts(page: Page, option: "On" | "Off"): Promise<void> {
-    await page.goto("/settings?section=general");
+    await page.goto("/settings?section=shortcuts");
 
     const group = page.getByRole("radiogroup", { name: "Shortcuts" });
 
     if (false === (await group.getByRole("radio", { name: option, exact: true }).isChecked())) {
         await Promise.all([
-            page.waitForURL(/section=general/),
+            page.waitForURL(/section=shortcuts/),
             group.getByText(option, { exact: true }).click(),
         ]);
     }

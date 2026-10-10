@@ -1,5 +1,5 @@
 import { test, expect } from "./support/test";
-import { INBOX_SUBJECTS, mailRow, seed } from "./support/config";
+import { INBOX_SUBJECTS, bulkMore, mailRow, seed } from "./support/config";
 
 /**
  * A label put on from the list can be taken off again.
@@ -62,7 +62,7 @@ async function openBulkLabelMenu(page: import("@playwright/test").Page) {
     await expect(toolbar).toBeVisible();
 
     const menu = toolbar.locator('[data-controller="mail--label-menu"]').first();
-    await menu.locator("button").first().click();
+    await bulkMore(page, "Label as");
 
     const panel = menu.locator('[data-mail--label-menu-target="panel"]');
     await expect(panel).toBeVisible();

@@ -2502,6 +2502,13 @@ profile:
         name_first: First name
         name_last: Last name
 
+# The reading pane beside the message list (Settings → Reading pane turns it on).
+# `handle` is what a screen reader calls the divider between the two; the
+# placeholder stands where the message will be until one is opened.
+reading_pane:
+    handle: Resize the message pane
+    placeholder: Select a conversation to read it here
+
 # Said in a toast when a request fails and there is no better place to say it;
 # see request_errors.js.
 request_error:
@@ -3632,6 +3639,7 @@ settings:
         group:
             access: Access
             calendar: Calendar
+            features: Features
             mail: Mail
             personal: Personal
         health: 'Account health'
@@ -3641,8 +3649,10 @@ settings:
         notifications: Notifications
         profile: Profile
         read_receipts: Read receipts
+        reading_pane: Reading pane
         security: Security
         sharing: Sharing
+        shortcuts: Keyboard shortcuts
         signature: Signatures
         templates: 'Templates'
     notifications:
@@ -3710,6 +3720,13 @@ settings:
         remember_me_note: 'Changing your password signs out every remembered browser except this one. That is what makes it worth doing when a device goes missing.'
         subheading: 'What you sign in with. Only you can change it — not even an administrator can set it for you.'
         submit: Change password
+    reading_pane:
+        heading: Reading pane
+        hint: 'Off shows the list and the message one at a time. Right puts the message beside the list when the window has room for both — drag the divider between them to choose how much each gets.'
+        label: 'Show the open message'
+        off: Off
+        right: Right
+        subheading: 'Where a conversation opens: in place of the list, or beside it.'
     security:
         codes:
             copy: Copy codes
@@ -4130,6 +4147,7 @@ toolbar:
         label: Label as
         mark_read: Mark as read
         mark_unread: Mark as unread
+        more: More
         move_to: Move to
         snooze: Snooze
         spam: 'Mark as spam'

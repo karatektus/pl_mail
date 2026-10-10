@@ -185,6 +185,21 @@ export function mailRow(page: Page, subject: string): Locator {
  * the way the Stimulus controllers do. The token is read from a rendered
  * settings page rather than /mail/inbox, which would mark list rows as seen.
  */
+/**
+ * Presses one of the bulk actions that live under "More" in the toolbar above
+ * a selection: Star, Mark as read, Mark as unread, Snooze, Label as, Mark as
+ * spam. Archive, Delete and Move to are buttons of their own and need no help.
+ *
+ * Here rather than in each spec because nine files press these, and the day
+ * the toolbar is rearranged again it should be one function that learns of it.
+ */
+export async function bulkMore(page: Page, name: string): Promise<void> {
+    const actions = page.locator('[data-mail--list-toolbar-target="actions"]');
+
+    await actions.getByRole("button", { name: "More", exact: true }).click();
+    await actions.getByRole("menuitem", { name, exact: true }).click();
+}
+
 export async function ajaxPost(page: Page, url: string, data?: unknown): Promise<APIResponse> {
     const html = await (await page.request.get("/settings?section=appearance")).text();
     const token = /<meta name="csrf-token" content="([^"]*)"/.exec(html)?.[1] ?? "";
