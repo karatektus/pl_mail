@@ -56,13 +56,20 @@ class Account extends AccountModel
     /**
      * Which entry of the account palette this account paints its dot with.
      *
-     * Assigned once, at creation, and then left alone — that is the whole point
-     * of it. The dot was keyed off sortOrder, so a reorder swapped the colours
-     * of two accounts: the mark whose only job is "this is the same account you
-     * saw on that message" changed meaning under the user, on the sidebar and
-     * on every list row at once. Dense and lowest-free at creation, so the first
-     * eight accounts are still guaranteed distinct, which is why sortOrder was
-     * used in the first place.
+     * Handed out at creation and then changed ONLY by the user, from the colour
+     * swatch on the account's row (AccountController::colour()) — never as a
+     * side effect of anything else, and that is the whole point of it. The dot
+     * was keyed off sortOrder, so a reorder swapped the colours of two accounts:
+     * the mark whose only job is "this is the same account you saw on that
+     * message" changed meaning under the user, on the sidebar and on every list
+     * row at once. Reordering, choosing a primary and resequencing must leave
+     * it alone.
+     *
+     * Dense and lowest-free at creation, so the first eight accounts start out
+     * guaranteed distinct, which is why sortOrder was used in the first place.
+     * That is a property of the handing-out and not an invariant: the user may
+     * give two accounts the same colour on purpose, so nothing may assume the
+     * values are unique.
      */
     #[ORM\Column(options: ['default' => 0])]
     public int $colorIndex = 0;

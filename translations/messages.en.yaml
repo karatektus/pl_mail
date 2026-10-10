@@ -1,6 +1,7 @@
 account:
     add_title: Add account
     added: Account added successfully
+    colour_set: Account colour changed
     disabled: Account disabled
     enabled: Account enabled
     form:
@@ -2683,6 +2684,17 @@ settings:
             off: 'Off'
             on: 'On'
     accounts:
+        colour:
+            change: 'Change the colour of %account%'
+            swatch:
+                '0': Orange
+                '1': Green
+                '2': Blue
+                '3': Violet
+                '4': Amber
+                '5': Pink
+                '6': Teal
+                '7': Olive
         delete: Remove account
         delete_confirm: 'Remove %account%? This permanently deletes all synced messages for this account and cannot be undone.'
         disable: Disable account

@@ -17,6 +17,7 @@ use App\Service\Mail\AliasSeeder;
 use App\Service\Mail\ConnectionTester;
 use App\Service\Mail\GmailApiClient;
 use App\Service\Push\PushSubscriptionRegistry;
+use App\Twig\SenderAvatarExtension;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
@@ -247,6 +248,41 @@ final class AccountController extends AbstractController
         $this->entityManager->flush();
 
         return $this->streamAccountList($request, 'account.primary_set');
+    }
+
+    /**
+     * Choose which entry of the palette this account's dot is painted with.
+     *
+     * `colorIndex` was handed out once, at creation, and nothing wrote it again.
+     * This is the only thing that does, and it is a route of its own rather than
+     * a field in edit() because edit() refuses an OAuth account outright — a
+     * colour field there would have been missing on every Gmail and Outlook
+     * account.
+     *
+     * The value is range-checked, not wrapped. SenderAvatarExtension::accountColor()
+     * takes a modulo, which is right for a stored row it must never fail on and
+     * wrong for input: 8 would be accepted and stored, and render as entry 0
+     * while the picker marked nothing. Choosing a colour another account already
+     * wears is allowed — it is the user's list, and "these two are a pair" is a
+     * thing a person might want.
+     */
+    #[Route('/{id}/colour', name: 'colour', methods: ['POST'])]
+    public function colour(Request $request, Account $account): Response
+    {
+        $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $account);
+
+        $this->assertCsrf($request, 'account-colour' . $account->id);
+
+        $index = filter_var($request->request->get('colour'), FILTER_VALIDATE_INT);
+
+        if (false === $index || 0 > $index || SenderAvatarExtension::ACCOUNT_COLOURS <= $index) {
+            throw new BadRequestHttpException('The colour is not one of the account palette.');
+        }
+
+        $account->colorIndex = $index;
+        $this->entityManager->flush();
+
+        return $this->streamAccountList($request, 'account.colour_set');
     }
 
     #[Route('/test-connection', name: 'test_connection', methods: ['POST'])]

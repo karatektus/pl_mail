@@ -429,10 +429,11 @@ final readonly class ConfigBackupUsers
                 'email'             => $account->email,
                 'sortOrder'         => $account->sortOrder,
                 'isPrimary'         => $account->isPrimary,
-                // The account's dot colour, which is assigned at creation and
-                // is not recoverable from anything else in this file — restore
-                // it and every account keeps the mark the user recognises it
-                // by; leave it out and they all come back sharing colour 0.
+                // The account's dot colour — handed out at creation, then
+                // whatever the user picked — which is not recoverable from
+                // anything else in this file: restore it and every account
+                // keeps the mark the user recognises it by; leave it out and
+                // they all come back sharing colour 0.
                 'colorIndex'        => $account->colorIndex,
                 'imapHost'          => $account->imapHost,
                 'imapPort'          => $account->imapPort,

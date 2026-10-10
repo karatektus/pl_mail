@@ -1,6 +1,7 @@
 account:
     add_title: Sign on a new crew member
     added: Crew member signed on, arr!
+    colour_set: Th' colours be changed
     disabled: Ship's papers revoked
     enabled: Ship's papers restored
     form:
@@ -2529,6 +2530,17 @@ settings:
             off: 'Nay'
             on: 'Aye'
     accounts:
+        colour:
+            change: 'Change the colours o'' %account%'
+            swatch:
+                '0': Orange
+                '1': Green
+                '2': Blue
+                '3': Violet
+                '4': Amber
+                '5': Pink
+                '6': Teal
+                '7': Olive
         delete: Put this crew member ashore
         delete_confirm: 'Put %account% ashore? Every bottle hauled aboard for this crew member goes to Davy Jones for good, and there be no gettin'' them back.'
         disable: Revoke the papers

@@ -1,6 +1,7 @@
 account:
     add_title: Konto hinzufügen
     added: Konto wurde hinzugefügt
+    colour_set: Kontofarbe geändert
     disabled: Konto deaktiviert
     enabled: Konto aktiviert
     form:
@@ -2665,6 +2666,17 @@ settings:
             off: 'Aus'
             on: 'An'
     accounts:
+        colour:
+            change: 'Farbe von %account% ändern'
+            swatch:
+                '0': Orange
+                '1': Grün
+                '2': Blau
+                '3': Violett
+                '4': Bernstein
+                '5': Pink
+                '6': Petrol
+                '7': Oliv
         delete: Konto entfernen
         delete_confirm: '%account% entfernen? Dadurch werden alle synchronisierten Nachrichten dieses Kontos endgültig gelöscht. Das lässt sich nicht rückgängig machen.'
         disable: Konto deaktivieren
