@@ -1,10 +1,13 @@
-<div data-controller="admin--ai-headers" data-remove-label="{{ 'admin.ai.headers.remove'|trans }}" data-ai-headers="{{ field.vars.name }}" class="space-y-3">
-    <p class="text-sm">{{ 'admin.ai.headers.help'|trans }}</p>
-    <p class="text-sm text-muted">{{ 'admin.ai.headers.embedding_space_help'|trans }}</p>
+<div data-controller="admin--ai-headers" data-ai-headers="{{ field.vars.name }}" class="space-y-3">
+    <p class="text-sm font-semibold">{{ 'admin.ai.headers.title'|trans }}</p>
     {{ form_errors(field) }}
-    <div data-admin--ai-headers-target="rows" data-prototype="{{ form_widget(field.vars.prototype)|e('html_attr') }}" data-index="{{ field|length }}">
-    {% for row in field %}<div data-header-row class="border border-line rounded-pane p-3 mb-3 space-y-2">{{ form_widget(row) }}<button type="button" data-action="admin--ai-headers#remove" class="text-sm text-accent">{{ 'admin.ai.headers.remove'|trans }}</button></div>{% endfor %}
+    {% set prototype %}{% include 'admin/ai/_header_row.html.twig' with {row: field.vars.prototype} only %}{% endset %}
+    <div data-admin--ai-headers-target="rows" class="space-y-3" data-prototype="{{ prototype|e('html_attr') }}" data-index="{{ field|length }}">
+        {% for row in field %}{% include 'admin/ai/_header_row.html.twig' with {row: row} only %}{% endfor %}
     </div>
-    <button type="button" data-action="admin--ai-headers#add" class="text-sm font-semibold text-accent">{{ 'admin.ai.headers.add'|trans }}</button>
+    <button type="button" data-action="admin--ai-headers#add" class="text-sm font-semibold text-accent"><span aria-hidden="true">＋ </span>{{ 'admin.ai.headers.add'|trans }}</button>
+    <details class="text-sm"><summary>{{ 'admin.ai.headers.details'|trans }}</summary>
+        <div class="space-y-2 mt-2"><p>{{ 'admin.ai.headers.help'|trans }}</p><p>{{ 'admin.ai.headers.embedding_space_help'|trans }}</p></div>
+    </details>
 </div>
 {% do field.setRendered %}

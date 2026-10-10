@@ -4,16 +4,23 @@ export default class extends Controller {
     connect() {
         const names = [...this.rowsTarget.querySelectorAll('input[name]')].map(el => Number(el.name.match(/\[(\d+)\]/)?.[1] ?? -1));
         this.rowsTarget.dataset.index = Math.max(-1, ...names) + 1;
+        if (!this.rowsTarget.querySelector('[data-header-row]')) this.add();
+        this.rowsTarget.querySelectorAll('[data-header-row]').forEach(row => this.updateMode(row));
     }
     add() {
-        const row = document.createElement('div');
-        row.dataset.headerRow = ''; row.className = 'border border-line rounded-pane p-3 mb-3 space-y-2';
         const index = Number(this.rowsTarget.dataset.index); this.rowsTarget.dataset.index = index + 1;
-        row.innerHTML = this.rowsTarget.dataset.prototype.replaceAll('__name__', String(index));
-        const remove = this.element.querySelector('[data-action="admin--ai-headers#remove"]')?.cloneNode(true);
-        if (remove) row.append(remove);
-        else { const button = document.createElement('button'); button.type = 'button'; button.textContent = this.element.dataset.removeLabel; button.dataset.action = 'admin--ai-headers#remove'; row.append(button); }
-        this.rowsTarget.append(row);
+        this.rowsTarget.insertAdjacentHTML('beforeend', this.rowsTarget.dataset.prototype.replaceAll('__name__', String(index)));
+        this.updateMode(this.rowsTarget.lastElementChild);
     }
-    remove(event) { event.target.closest('[data-header-row]').remove(); }
+    remove(event) {
+        event.currentTarget.closest('[data-header-row]').remove();
+        if (!this.rowsTarget.querySelector('[data-header-row]')) this.add();
+    }
+    modeChanged(event) { this.updateMode(event.currentTarget.closest('[data-header-row]')); }
+    updateMode(row) {
+        const automatic = row.querySelector('[data-header-mode]').value === 'session';
+        row.querySelector('[data-header-fixed]').hidden = automatic;
+        row.querySelector('[data-header-fixed] input').disabled = automatic;
+        row.querySelector('[data-header-automatic]').hidden = !automatic;
+    }
 }

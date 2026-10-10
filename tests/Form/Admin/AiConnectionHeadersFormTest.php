@@ -68,4 +68,22 @@ final class AiConnectionHeadersFormTest extends KernelTestCase
         $form = $this->submit($s, [['name' => 'X-A', 'mode' => 'fixed', 'value' => "secret\r\nHost: attack"]]);
         self::assertFalse($form->isValid()); self::assertStringNotContainsString('attack', (string) $form->getErrors(true));
     }
+    public function testEmptyNewRowIsIgnoredAndPartialRowHasInlineError(): void
+    {
+        $s = new AiSettings(); $s->openAiBaseUrl = 'https://synthetic.test/v1';
+        $form = $this->submit($s, [['name' => '', 'mode' => 'session', 'value' => '']]);
+        self::assertTrue($form->isValid(), (string) $form->getErrors(true));
+        self::assertNull($s->openAiHeaders);
+        self::ensureKernelShutdown();
+        $form = $this->submit($s, [['name' => 'X-New', 'mode' => 'fixed', 'value' => '']]);
+        self::assertFalse($form->isValid());
+        self::assertCount(1, $form->get('openAiHeaders')->get('0')->get('value')->getErrors());
+        self::ensureKernelShutdown();
+        $form = $this->submit($s, [['name' => 'X-New', 'mode' => 'fixed', 'value' => '']], 'https://other.test/v1');
+        self::assertFalse($form->isValid());
+        self::ensureKernelShutdown();
+        $form = $this->submit($s, [['name' => '', 'mode' => 'fixed', 'value' => 'synthetic']]);
+        self::assertFalse($form->isValid());
+        self::assertCount(1, $form->get('openAiHeaders')->get('0')->get('name')->getErrors());
+    }
 }

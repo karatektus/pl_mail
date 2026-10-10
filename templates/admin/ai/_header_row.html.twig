@@ -1,0 +1,12 @@
+<div data-header-row class="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_10rem_minmax(0,1fr)_auto] gap-2 items-start">
+    <div class="min-w-0">{{ form_label(row.name) }}{{ form_widget(row.name, {attr: {placeholder: 'X-Header-Name'}}) }}{{ form_errors(row.name) }}</div>
+    <div class="min-w-0">{{ form_label(row.mode) }}{{ form_widget(row.mode, {attr: {'data-header-mode': '', 'data-action': 'change->admin--ai-headers#modeChanged'}}) }}{{ form_errors(row.mode) }}</div>
+    <div class="min-w-0">
+        {{ form_label(row.value) }}
+        <div data-header-fixed>{{ form_widget(row.value, {attr: {placeholder: (row.vars.has_saved_value ? 'admin.ai.headers.saved_value' : 'admin.ai.headers.new_value')|trans}}) }}</div>
+        <p data-header-automatic hidden class="text-sm py-2">{{ 'admin.ai.headers.automatic'|trans }}</p>
+        {{ form_errors(row.value) }}
+    </div>
+    <button type="button" data-action="admin--ai-headers#remove" class="text-sm text-accent md:mt-7" aria-label="{{ 'admin.ai.headers.remove'|trans }}">{{ 'admin.ai.headers.remove'|trans }}</button>
+</div>
+{% do row.setRendered %}

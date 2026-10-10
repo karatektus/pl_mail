@@ -46,26 +46,29 @@ final class AiSettingsType extends AbstractType
             $builder->add($field, \Symfony\Component\Form\Extension\Core\Type\CollectionType::class, [
                 'mapped' => false, 'entry_type' => AiHeaderType::class, 'allow_add' => true, 'allow_delete' => true,
                 'label' => false, 'required' => false,
-                'data' => array_map(static fn (string $name): array => ['name' => $name, 'value' => '', 'mode' => is_array($stored[$name]) ? 'session' : 'fixed'], array_keys($stored)),
+                'entry_options' => ['saved_names' => array_keys(array_filter($stored, is_string(...)))],
+                'data' => array_map(static fn (string $name): array => ['name' => $name, 'value' => '', 'mode' => is_array($stored[$name]) ? 'session' : 'fixed'], array_keys($stored)) ?: [['name' => '', 'value' => '', 'mode' => 'fixed']],
             ]);
             $builder->addEventListener(FormEvents::POST_SUBMIT, static function (FormEvent $event) use ($settings, $field, $oldEndpoint, $stored): void {
                 if (!$settings instanceof AiSettings) { return; }
                 $endpoint = 'openAiHeaders' === $field ? $settings->openAiBaseUrl : $settings->embeddingBaseUrl;
                 $previous = $oldEndpoint === $endpoint ? $stored : [];
                 $next = []; $seen = [];
-                foreach ($event->getForm()->get($field)->getData() ?? [] as $row) {
+                foreach ($event->getForm()->get($field)->getData() ?? [] as $index => $row) {
+                    $rowForm = $event->getForm()->get($field)->get((string) $index);
                     $name = $row['name'] ?? ''; $value = $row['value'] ?? '';
                     if ('' === $name && '' === $value) { continue; }
+                    if ('' === $name) { $rowForm->get('name')->addError(new \Symfony\Component\Form\FormError('Enter a header name.')); return; }
                     $lower = strtolower($name);
-                    if (isset($seen[$lower])) { $event->getForm()->get($field)->addError(new \Symfony\Component\Form\FormError('Duplicate additional header.')); return; }
+                    if (isset($seen[$lower])) { $rowForm->get('name')->addError(new \Symfony\Component\Form\FormError('Duplicate additional header.')); return; }
                     $seen[$lower] = true;
                     if ('session' === ($row['mode'] ?? 'fixed')) { $value = ['mode' => 'session']; }
                     if ('' === $value) {
                         // Changing the endpoint discards stored credentials; only newly typed values survive.
-                        if ($oldEndpoint !== $endpoint) { continue; }
+                        if ($oldEndpoint !== $endpoint && isset($stored[$name])) { continue; }
                         $value = is_string($previous[$name] ?? null) ? $previous[$name] : '';
                         if ('session' === ($row['mode'] ?? 'fixed')) { $value = ['mode' => 'session']; }
-                    if ('' === $value) { $event->getForm()->get($field)->addError(new \Symfony\Component\Form\FormError('Enter a value for the additional header.')); return; }
+                    if ('' === $value) { $rowForm->get('value')->addError(new \Symfony\Component\Form\FormError('Enter a value for the additional header.')); return; }
                     }
                     $next[$name] = $value;
                 }
