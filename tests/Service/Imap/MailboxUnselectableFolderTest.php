@@ -13,6 +13,7 @@ use App\Repository\Mail\MessageRepository;
 use App\Service\Imap\MailboxSyncer;
 use App\Service\Label\LabelResolver;
 use App\Service\Mail\MessageEraser;
+use DateTimeImmutable;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -135,7 +136,7 @@ final class MailboxUnselectableFolderTest extends KernelTestCase
      */
     public function testAnUnselectableFolderDoesNotWithholdSweepCoverage(): void
     {
-        $swept = new \DateTimeImmutable('2026-01-01 00:00:00');
+        $swept = new DateTimeImmutable('2026-01-01 00:00:00');
 
         // Before the rule: all four folders enabled. The three that can be
         // opened have been swept; "[Gmail]" never can be.
@@ -243,7 +244,7 @@ final class MailboxUnselectableFolderTest extends KernelTestCase
             'fullPath' => $fullPath,
         ]);
 
-        self::assertNotNull($mailbox, 'no mailbox row for ' . $fullPath);
+        self::assertNotNull($mailbox, sprintf('no mailbox row for %s', $fullPath));
 
         return $mailbox;
     }
