@@ -595,6 +595,22 @@ Moving mail to spam tells plMail nothing about the next message. plMail has no s
 own that learns; whether your provider treats the move as a signal is up to the provider. A filter
 is how you make it stick here.
 
+### Deleting spam for good
+
+Mail in Spam, and in the bin, can be deleted for good — the only deletion in plMail that is not a
+move. Each row there has a **Delete forever** button (the flame) beside **Move to inbox**, and it
+asks first. Nothing else can be deleted for good: a conversation in the inbox or the archive has to be
+thrown away once before this is offered, because there is no Undo to catch a slip.
+
+In **Spam**, the toolbar above a selection has the same **Delete forever** in place of **Delete**, so
+a page of spam is one click and one question rather than a trip to the bin and a second deletion
+there. The question says how many conversations it is about. It is removed from the mail server too,
+not only from plMail, and it cannot be brought back — **Move to inbox** is the way out beforehand.
+
+It deletes what is ticked. After **Select all** and then **Select all N** — a selection that reaches
+past the page — the button does nothing, so that mail is only ever deleted for good when it is on
+screen. Delete a page, then the next.
+
 ## Snooze
 
 Snoozing is archiving with a timer. The conversation leaves the Inbox now — at the provider too,

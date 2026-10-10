@@ -1,4 +1,4 @@
-<!-- translated-from: features/mail.md sha1:52f9fcdc53048f91fd103d949726d5cb242ac80f -->
+<!-- translated-from: features/mail.md sha1:c3811a2b971bdd163dd95eeb34d8f2a8a08ff7b7 -->
 
 # Mail
 
@@ -651,6 +651,24 @@ liegt, wird der Knopf nicht gezeigt.
 Mail in den Spam zu verschieben sagt plMail nichts über die nächste Nachricht. plMail hat keinen
 eigenen Spamfilter, der lernt; ob dein Anbieter das Verschieben als Signal wertet, entscheidet
 der Anbieter. Ein Filter ist der Weg, es hier dauerhaft zu machen.
+
+### Spam endgültig löschen
+
+Mail im Spam und im Papierkorb lässt sich endgültig löschen — das einzige Löschen in plMail, das
+kein Verschieben ist. Jede Zeile dort hat neben **In den Posteingang** einen Knopf **Endgültig
+löschen** (die Flamme), und er fragt vorher nach. Sonst lässt sich nichts endgültig löschen: Eine
+Konversation im Posteingang oder im Archiv muss erst einmal weggeworfen worden sein, bevor das
+angeboten wird, denn es gibt kein Rückgängig, das einen Fehlklick auffängt.
+
+Im **Spam** hat die Werkzeugleiste über einer Auswahl dasselbe **Endgültig löschen** anstelle von
+**Löschen**, sodass eine Seite voll Spam ein Klick und eine Frage ist statt eines Umwegs über den
+Papierkorb und eines zweiten Löschens dort. Die Frage nennt, um wie viele Konversationen es geht. Die
+Mail wird auch vom Mailserver entfernt, nicht nur aus plMail, und lässt sich nicht zurückholen —
+**In den Posteingang** ist der Ausweg davor.
+
+Gelöscht wird, was angehakt ist. Nach **Alle** und dann **Alle N auswählen** — einer Auswahl, die
+über die Seite hinausreicht — tut der Knopf nichts, damit Mail nur dann endgültig gelöscht wird, wenn
+sie auf dem Bildschirm zu sehen ist. Lösche eine Seite, dann die nächste.
 
 ## Zurückstellen
 
