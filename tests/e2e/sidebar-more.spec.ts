@@ -139,13 +139,36 @@ test.describe("sidebar: what waits behind More (desktop)", () => {
         await more.locator("> summary").click();
         await expect(more).toHaveAttribute("open", "");
 
-        // A real in-app click rather than page.goto: the sidebar is
-        // re-rendered per visit, which is exactly when a disclosure that only
-        // the browser remembered would snap shut under the row just chosen.
+        // A real in-app click. A folder link swaps the list inside its frame
+        // and leaves the sidebar alone, so what this shows is that choosing a
+        // folder behind More does not shut it — NOT that the server renders it
+        // open, which only a fresh load can show; see the next test.
         await more.locator('a[href="/mail/sent"]').first().click();
         await expect(page).toHaveURL(/\/mail\/sent/);
 
         await expect(page.locator("#sidebar [data-sidebar-more]")).toHaveAttribute("open", "");
+    });
+
+    test("More arrives open when the page you load is inside it, and shut otherwise", async ({
+        page,
+    }) => {
+        await setBehindMore(page, "Sent", true);
+
+        // Rendered by the server on a full load — a reload, a bookmark, a link
+        // from elsewhere. The sidebar is not kept between visits, so the answer
+        // to "should this be open?" is "are you in it?", and nothing but the
+        // markup can carry it. Each half has its opposite beside it.
+        await page.goto("/mail/sent");
+        await expect(page.locator("#sidebar [data-sidebar-more]")).toHaveAttribute("open", "");
+
+        await page.goto("/mail/inbox");
+        await expect(page.locator("#sidebar [data-sidebar-more]")).not.toHaveAttribute("open", "");
+
+        // Archive is not behind More any more, so being on it opens nothing.
+        await page.goto("/settings?section=general");
+        await setBehindMore(page, "Archive", false);
+        await page.goto("/mail/archive");
+        await expect(page.locator("#sidebar [data-sidebar-more]")).not.toHaveAttribute("open", "");
     });
 
     test("with nothing behind More there is no More", async ({ page }) => {
