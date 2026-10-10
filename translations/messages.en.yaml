@@ -2097,6 +2097,7 @@ insights:
         in_transit: On its way
         ordered: Ordered
         out_for_delivery: Out for delivery
+        ready_for_pickup: Ready for pickup
 
 integration:
     save_failed: 'Could not save: %reason%'

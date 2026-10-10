@@ -1,4 +1,4 @@
-<!-- translated-from: features/mail.md sha1:1b0f4bc71f5ded31114f624e9ab1ec35cd64a969 -->
+<!-- translated-from: features/mail.md sha1:713358fc065ed7968b682a1336e6b57f184e3727 -->
 
 # Mail
 
@@ -255,6 +255,14 @@ einen Link in den eigenen Tracker und nirgends eine Sendungsnummer — genau das
 Und ein Liefertag, der in Worten statt in Ziffern steht ("Arriving today", "Ankunft Montag"), wird
 gegen den Eingang der Mail aufgelöst und nie gegen die Uhr: Wer eine alte Mail noch einmal liest,
 landet auf demselben Tag wie beim ersten Mal.
+
+Auch die französischen Zusteller werden gelesen — Colissimo, Chronopost, Mondial Relay, Colis Privé,
+DPD France und Cainiao, und Amazon.fr wie die anderen Amazon-Shops. Ein Paket, das in einem
+Paketshop oder Locker auf dich wartet, hat eine eigene Stufe, **Abholbereit**, weder unterwegs noch
+zugestellt. Noch nicht gelesen werden GLS France und das Pickup-Relaisnetz, deren Mails keine Nummer
+nennen, die das Radar erkennen kann, sowie die Stufen "an den Absender zurück" und "Zustellversuch
+gescheitert". Die Zufriedenheitsumfrage, die ein Zusteller nach der Zustellung schickt, wird
+ignoriert, damit sie eine Karte **Zugestellt** nicht in etwas anderes zurückverwandelt.
 
 ### Die Leiste über der Mailliste
 

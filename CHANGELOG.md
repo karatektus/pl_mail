@@ -64,6 +64,16 @@ at all — was never written into the file, so a restore put everyone back on ru
 categories and a tabbed inbox. All three now travel with the user. Backups made before this still
 restore, onto those same defaults. No migration.
 
+**The radar reads French parcels.** Colissimo, Chronopost, Mondial Relay, Colis Privé, DPD France
+and Cainiao mail now yields a parcel card, with their number shapes, French wording for the stage
+and for the day ("sera livré après-demain", "prévue le 14/11"), and Amazon.fr alongside the other
+Amazon shops — its button now opens amazon.fr, not the German site. A parcel waiting at a relay
+point or locker is a new stage, **Ready for pickup**. The satisfaction survey a carrier sends after
+delivery is ignored, where it would otherwise have turned a delivered card back. A French S10
+number from a shop of unknown carrier reads as La Poste instead of Deutsche Post. Not read yet: GLS
+France and the Pickup relay network (no number to recognise), and "returned" and "attempt failed".
+Existing mail is not re-read on its own; `app:backfill insights` picks it up. No migration.
+
 **Choose which folders an IMAP account fetches.** Settings → Accounts has a new **Choose which
 folders to sync** button on every IMAP account's row. It opens the account's folders with a switch
 beside each: switch one off and plMail stops fetching it, the mail already stored stays where it is,
