@@ -8,6 +8,10 @@ The published image tags: `latest` follows the most recent release below,
 
 ## Unreleased
 
+**The category tabs fit a phone.** On a narrow screen the tabs (Primary, Social, Promotions, …)
+ran into each other, labels underneath the next tab's icon. They now keep their size and the strip
+scrolls sideways inside itself, opening on the tab you are on. No migration.
+
 **Keyboard shortcuts, the ones Gmail uses.** `j` and `k` move through a list, `o` opens, `u` goes
 back, `x` selects, `e` archives, `#` deletes, `s` stars, `r` `a` `f` reply, reply to all and
 forward, `c` writes, `/` searches, `g` then a letter goes to a list, `z` undoes. **?** shows all of
