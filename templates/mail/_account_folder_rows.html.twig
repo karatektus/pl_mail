@@ -27,7 +27,7 @@
 <nav class="nav-rows"{% if entering|default(false) %} data-enter="fade"{% endif %}>
     {% set allMailHref = path('app_mail_account_all', { account: account.id }) %}
     <div class="nav-item flex items-center text-xs {{ sidebar_row_state(allMailHref) }}" data-nav-tier="tree" style="--label-depth: 12px">
-        <a href="{{ allMailHref }}" data-ui--sidebar-target="link" data-turbo-frame="_top" {{ sidebarMacros.list_frame() }} data-turbo-prefetch="false" class="flex-1 px-3 py-1.5">{{ 'sidebar.nav.all_mail'|trans }}</a>
+        <a href="{{ allMailHref }}" data-ui--sidebar-target="link" data-turbo-frame="_top" {{ sidebarMacros.list_frame() }} data-turbo-prefetch="false" class="flex-1 min-w-0 truncate">{{ 'sidebar.nav.all_mail'|trans }}</a>
     </div>
     {% for label in labels %}
         {# The same .nav-item pill as the rest of the sidebar, and a sidebar

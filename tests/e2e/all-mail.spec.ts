@@ -14,6 +14,14 @@ test('All Mail account navigation preserves archive, bulk actions and undo', asy
         await page.getByRole('button', { name: 'Show or hide folders in E2E Mailbox' }).click();
     }
     await expect(allLink).toBeVisible();
+    const geometry = await allLink.evaluate(link => {
+        const siblings = Array.from(link.closest('nav')!.querySelectorAll<HTMLElement>(':scope > [style="--label-depth: 12px"] > a'));
+        return siblings.map(item => ({ text: item.textContent?.trim(), left: item.getBoundingClientRect().left, top: item.getBoundingClientRect().top, height: item.getBoundingClientRect().height }));
+    });
+    expect(geometry.length).toBeGreaterThan(1);
+    for (const sibling of geometry) {
+        expect(Math.abs(sibling.left - geometry[0].left), `Account folder alignment: ${sibling.text}`).toBeLessThanOrEqual(1);
+    }
     await allLink.click();
     await expect(page.locator('#inbox-list-frame')).toHaveAttribute('data-sync-scope', 'all_mail');
     await expect(page.locator('#inbox-list-frame')).toHaveAttribute('data-list-scope-value', accountHref!.split('/').pop()!);
