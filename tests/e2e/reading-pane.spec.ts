@@ -243,27 +243,6 @@ test.describe("reading pane right", () => {
         await expect(separator).toHaveAttribute("aria-valuenow", String(DEFAULT_PCT));
     });
 
-    test("Home and End go to the two ends of the range", async ({ page }) => {
-        const separator = handle(page);
-
-        await separator.focus();
-
-        await page.keyboard.press("End");
-        const high = Number(await separator.getAttribute("aria-valuenow"));
-
-        await page.keyboard.press("Home");
-        const low = Number(await separator.getAttribute("aria-valuenow"));
-
-        // The server's range is 25 to 75, and the minimum widths of the two
-        // panes may be the tighter limit, so the ends are asserted as ends
-        // rather than as figures: the high end is above the default, the low
-        // end below it, and neither left the range.
-        expect(high).toBeGreaterThan(DEFAULT_PCT);
-        expect(high).toBeLessThanOrEqual(75);
-        expect(low).toBeLessThan(DEFAULT_PCT);
-        expect(low).toBeGreaterThanOrEqual(25);
-    });
-
     test("a message opened by its own address still has a list beside it", async ({ page }) => {
         const href = await mailRow(page, INBOX_SUBJECTS.read)
             .locator('a[data-action~="click->mail--mail-pane#open"]')
@@ -322,5 +301,58 @@ test.describe("reading pane right, on a card too narrow for two panes", () => {
             await dockCalendar(page, "split");
             await fallsBackToOnePane(page);
         });
+    });
+});
+
+test.describe("reading pane right, on a card where the minimum widths bind", () => {
+    /**
+     * Its own width, and the reason is what the clamp is for. At 1920 the mail
+     * card is so wide that neither pane's minimum ever binds, so the dragged
+     * share can reach the ends of the server's range 25 to 75 and nothing
+     * needs clamping — the first version of this test ran there and let a
+     * clamp-less drag through. At 1280, with no calendar docked, the card is
+     * a little over 1000px: 24rem is well over a quarter of it and the list's
+     * 22rem leaves well under 75%, so the ends are real limits.
+     */
+    test.use({ viewport: MIDDLE });
+
+    test.beforeEach(async ({ page }) => {
+        await store(page, { mode: "right", width: String(DEFAULT_PCT) });
+        await dockCalendar(page, "mail");
+    });
+
+    test("Home and End go to the two ends of what the card can actually draw", async ({ page }) => {
+        // With a message open, so the pane is on screen to be measured.
+        await openMessage(page);
+
+        const separator = handle(page);
+
+        await separator.focus();
+
+        for (const key of ["End", "Home"]) {
+            await page.keyboard.press(key);
+
+            const stored = Number(await separator.getAttribute("aria-valuenow"));
+
+            expect(stored).toBeGreaterThanOrEqual(25);
+            expect(stored).toBeLessThanOrEqual(75);
+
+            // The figure and the screen agree. The range is 25 to 75 but the two
+            // panes keep a minimum width, so on this card the ends are a few
+            // percent inside it, and a share the layout cannot draw would still
+            // be inside 25 to 75: asserting only that let an unclamped drag
+            // through. What must hold is that what is stored is what is shown.
+            expect(Math.abs((await share(page)) - stored), `after ${key}`).toBeLessThan(1);
+        }
+
+        // And the two ends are different ends.
+        await page.keyboard.press("End");
+        const high = Number(await separator.getAttribute("aria-valuenow"));
+
+        await page.keyboard.press("Home");
+        const low = Number(await separator.getAttribute("aria-valuenow"));
+
+        expect(high).toBeGreaterThan(DEFAULT_PCT);
+        expect(low).toBeLessThan(DEFAULT_PCT);
     });
 });
