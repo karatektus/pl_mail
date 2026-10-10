@@ -2127,6 +2127,7 @@ integration:
         link: Link
         more: 'Show more'
         no_results: 'Nothing found for “%query%”.'
+        not_an_image: 'Not a picture'
         search: Search
         search_placeholder:
             dropbox: 'Search Dropbox'
@@ -2146,6 +2147,7 @@ integration:
             skipped: 'Skipped: %files%'
         timeline: 'Jump to a date'
         too_big: 'Too large to attach'
+        use_as_avatar: 'Use as profile picture'
 
 jobs:
     heading: Background work

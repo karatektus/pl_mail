@@ -11,6 +11,7 @@ use App\Domain\Enum\Integration\Provider;
 use App\Domain\Exception\IntegrationException;
 use App\Domain\Interface\DestinationDriverInterface;
 use App\Domain\Interface\IntegrationDriverInterface;
+use App\Domain\Interface\OriginalFileDriverInterface;
 use App\Domain\Interface\SearchableDriverInterface;
 use App\Entity\Integration\Integration;
 use App\Repository\Integration\IntegrationProviderConfigRepository;
@@ -62,7 +63,7 @@ use Symfony\Contracts\HttpClient\ResponseInterface;
  * so neither needs a prefix to tell it from the other. The one id that *is*
  * prefixed is the one upload() hands back; see there for why.
  */
-final readonly class PaperlessDriver implements IntegrationDriverInterface, SearchableDriverInterface, DestinationDriverInterface
+final readonly class PaperlessDriver implements IntegrationDriverInterface, SearchableDriverInterface, DestinationDriverInterface, OriginalFileDriverInterface
 {
     private const string API = '/api';
 
@@ -204,14 +205,31 @@ final readonly class PaperlessDriver implements IntegrationDriverInterface, Sear
 
     public function download(Integration $integration, string $fileId): RemoteFile
     {
-        $id = $this->documentFrom($fileId);
-
         // No ?original=true: /download/ answers with the archived PDF where
         // Paperless made one and falls back to the original by itself where it
         // could not. That is the copy the user saw when they filed the document
         // — searchable, with the OCR layer baked in — and asking for the
         // original would attach the unreadable scan instead.
-        $response = $this->request($integration, 'GET', $this->url($integration, '/documents/'.$id.'/download/'));
+        return $this->fetch($integration, $fileId, false);
+    }
+
+    /**
+     * For a profile picture, which has to be the picture: a scanned photograph's
+     * archived copy is a PDF, and the listing it was chosen from said JPEG.
+     */
+    public function downloadOriginal(Integration $integration, string $fileId): RemoteFile
+    {
+        return $this->fetch($integration, $fileId, true);
+    }
+
+    private function fetch(Integration $integration, string $fileId, bool $original): RemoteFile
+    {
+        $id = $this->documentFrom($fileId);
+
+        $response = $this->request($integration, 'GET', $this->url(
+            $integration,
+            '/documents/'.$id.'/download/'.(true === $original ? '?original=true' : ''),
+        ));
 
         try {
             $contents = $response->getContent();

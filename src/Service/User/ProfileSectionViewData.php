@@ -4,12 +4,10 @@ declare(strict_types=1);
 
 namespace App\Service\User;
 
-use App\Entity\Integration\Integration;
 use App\Entity\User\User;
 use App\Form\User\ProfileType;
 use Symfony\Component\Form\FormFactoryInterface;
 use Symfony\Component\Form\FormInterface;
-use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 
 /**
@@ -20,6 +18,10 @@ use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
  * avatar picker's variables in both places — the save endpoint rendering it
  * with only the form is how picking a picture used to crash with
  * "Variable avatarSources does not exist".
+ *
+ * The picture is chosen in the file picker's dialog, so what is passed here is
+ * only which connections to offer. It used to carry the chosen connection's
+ * first page of images as well; that grid is gone from Settings.
  */
 final readonly class ProfileSectionViewData
 {
@@ -36,55 +38,17 @@ final readonly class ProfileSectionViewData
      *
      * @return array<string, mixed>
      */
-    public function build(User $user, Request $request, ?FormInterface $form = null): array
+    public function build(User $user, ?FormInterface $form = null): array
     {
-        $sources = $this->avatarSources->availableFor($user);
-        $picking = $this->picking($sources, $request);
-
-        $pickUrls = [];
-
-        foreach ($sources as $source) {
-            $pickUrls[(string) $source->id] = $this->sectionUrl((string) $source->id);
-        }
-
         $form ??= $this->formFactory->create(ProfileType::class, $user, [
-            'action'        => $this->urlGenerator->generate('app_settings_profile_save'),
-            'avatar_source' => null === $picking ? null : (string) $picking->id,
+            'action' => $this->urlGenerator->generate('app_settings_profile_save'),
         ]);
 
         return [
-            'profileForm'    => $form->createView(),
-            'avatarSources'  => $sources,
-            'avatarPicking'  => $picking,
-            'avatarEntries'  => null === $picking ? [] : $this->avatarSources->browse($picking),
-            'avatarPickUrls' => $pickUrls,
-            'avatarCloseUrl' => $this->sectionUrl(),
+            'profileForm'   => $form->createView(),
+            // Which connections to offer; the pictures themselves are browsed in
+            // the file picker's dialog, not rendered here.
+            'avatarSources' => $this->avatarSources->availableFor($user),
         ];
-    }
-
-    /**
-     * The connection whose pictures are on screen, if any.
-     *
-     * @param list<Integration> $sources
-     */
-    private function picking(array $sources, Request $request): ?Integration
-    {
-        foreach ($sources as $source) {
-            // Matched against the user's own connections rather than looked up
-            // by id, so a borrowed id cannot browse somebody else's photos.
-            if ((string) $source->id === (string) $request->query->get('pick', '')) {
-                return $source;
-            }
-        }
-
-        return null;
-    }
-
-    private function sectionUrl(?string $pick = null): string
-    {
-        return $this->urlGenerator->generate('app_settings_index', array_filter([
-            'section' => 'profile',
-            'pick'    => $pick,
-        ]));
     }
 }

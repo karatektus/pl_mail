@@ -279,6 +279,27 @@ final class PaperlessDriverTest extends TestCase
         self::assertStringEndsWith('/api/documents/91/download/', $this->requests[0]['url']);
     }
 
+    /**
+     * The listing says image/jpeg for a scanned photograph and the default
+     * download is the archived PDF, so something that has to be the picture asks
+     * for the original explicitly.
+     */
+    public function testDownloadOriginalAsksForTheFileAsItWasPutIn(): void
+    {
+        $driver = $this->driver([
+            new MockResponse('jpeg-bytes', ['response_headers' => [
+                'content-type'        => 'image/jpeg',
+                'content-disposition' => 'attachment; filename="holiday.jpg"',
+            ]]),
+        ]);
+
+        $file = $driver->downloadOriginal($this->integration(), '91');
+
+        self::assertSame('holiday.jpg', $file->filename);
+        self::assertSame('image/jpeg', $file->mime);
+        self::assertStringEndsWith('/api/documents/91/download/?original=true', $this->requests[0]['url']);
+    }
+
     public function testDownloadAsksForTheNameWhenTheHeaderWasStripped(): void
     {
         $driver = $this->driver([

@@ -161,7 +161,6 @@ final class SettingsController extends AbstractController
             // comes back whole with the errors on it — see ProfileController.
             ...$this->profileSection->build(
                 $this->getUser(),
-                $request,
                 $request->attributes->get('profileForm') instanceof FormInterface
                     ? $request->attributes->get('profileForm')
                     : null,

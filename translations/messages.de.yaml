@@ -2128,6 +2128,7 @@ integration:
         link: Link
         more: 'Mehr anzeigen'
         no_results: 'Nichts gefunden für „%query%“.'
+        not_an_image: 'Keine Bilddatei'
         search: Suchen
         search_placeholder:
             dropbox: 'Dropbox durchsuchen'
@@ -2147,6 +2148,7 @@ integration:
             skipped: 'Übersprungen: %files%'
         timeline: 'Zu einem Datum springen'
         too_big: 'Zu groß zum Anhängen'
+        use_as_avatar: 'Als Profilbild verwenden'
 
 jobs:
     heading: Hintergrundarbeit

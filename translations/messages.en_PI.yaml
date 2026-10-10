@@ -2007,6 +2007,7 @@ integration:
         link: Link
         more: 'Show more'
         no_results: 'Naught found for “%query%”.'
+        not_an_image: 'Not a picture'
         search: Search
         search_placeholder:
             dropbox: 'Search Dropbox'
@@ -2026,6 +2027,7 @@ integration:
             skipped: 'Left on the dock: %files%'
         timeline: 'Jump to a date'
         too_big: 'Too heavy to haul'
+        use_as_avatar: 'Hoist as me flag'
 
 jobs:
     heading: Work below decks

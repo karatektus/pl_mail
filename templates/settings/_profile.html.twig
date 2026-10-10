@@ -22,17 +22,19 @@ find.
 } %}
     {% block body %}
     <div class="max-w-md">
-        {{ form_start(profileForm) }}
+        {# The picker dialog hands its choice to this form — see
+           settings/avatar_from_service_controller.js. #}
+        {{ form_start(profileForm, { attr: {
+            'data-controller': 'settings--avatar-from-service',
+            'data-settings--avatar-from-service-name-value': profileForm.vars.full_name,
+            'data-action': 'plmail:avatar-picked@document->settings--avatar-from-service#picked',
+        } }) }}
             {{ form_widget(profileForm) }}
 
             {% include '_partials/_avatar_picker.html.twig' with {
-                sources:   avatarSources,
-                picking:   avatarPicking,
-                entries:   avatarEntries,
-                pickUrls:  avatarPickUrls,
-                closeUrl:  avatarCloseUrl,
-                fileField: avatarPicking is null ? '' : profileForm.avatarFileId.vars.full_name,
-                current:   app.user.avatar ? path('app_settings_profile_avatar', { filename: app.user.avatar }) : null,
+                sources:     avatarSources,
+                modalPicker: true,
+                current:     app.user.avatar ? path('app_settings_profile_avatar', { filename: app.user.avatar }) : null,
             } only %}
 
             <button

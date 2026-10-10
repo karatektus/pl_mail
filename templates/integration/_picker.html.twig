@@ -27,6 +27,13 @@ gap under the shortcuts row.
 {% set isGrid = canThumb and integration.provider.isMediaLibrary %}
 {% set isPeople = listing is not null and listing.people is not empty %}
 
+{# Which way out of the picker. 'avatar' chooses one picture for the profile form
+   instead of attaching files to a draft, and every link below is a navigation
+   inside the frame: one that forgot the mode would quietly turn the next click
+   back into an attach picker. They all start from navArgs for that reason. #}
+{% set isAvatar = mode|default('attach') == 'avatar' %}
+{% set navArgs = isAvatar ? { id: integration.id, mode: 'avatar' } : { id: integration.id, draft: draftId } %}
+
 {% block body %}
     <turbo-frame id="modal">
         <template data-ui--modal-frame-title>{{ integration.name }}</template>
@@ -37,6 +44,9 @@ gap under the shortcuts row.
              data-ui--modal-keep-open
              data-integration--integration-picker-url-value="{{ path('app_integration_attach', { id: integration.id }) }}"
              data-integration--integration-picker-draft-value="{{ draftId }}"
+             data-integration--integration-picker-mode-value="{{ isAvatar ? 'avatar' : 'attach' }}"
+             data-integration--integration-picker-integration-value="{{ integration.id }}"
+             data-action="change->integration--integration-picker#changed"
              data-integration--integration-picker-token-value="{{ csrf_token('integration-picker') }}"
              data-integration--integration-picker-i18n-value="{{ {
                  loading:         'integration.picker.status.loading'|trans,
@@ -60,7 +70,11 @@ gap under the shortcuts row.
                 {% if canSearch %}
                     <form method="get" action="{{ path('app_integration_browse', { id: integration.id }) }}"
                           class="flex items-center gap-2 px-6 py-3 shrink-0">
-                        <input type="hidden" name="draft" value="{{ draftId }}">
+                        {% if isAvatar %}
+                            <input type="hidden" name="mode" value="avatar">
+                        {% else %}
+                            <input type="hidden" name="draft" value="{{ draftId }}">
+                        {% endif %}
                         <div class="relative flex-1 min-w-0">
                             <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-[11px] text-ink-faint" aria-hidden="true"></i>
                             <input type="search" name="q" value="{{ query }}"
@@ -84,7 +98,7 @@ gap under the shortcuts row.
                     <nav class="flex items-center gap-1 flex-wrap text-xs text-ink-muted">
                         {% for crumb in listing.breadcrumb %}
                             {% if not loop.last %}
-                                <a href="{{ path('app_integration_browse', { id: integration.id, folder: crumb.id, draft: draftId }) }}"
+                                <a href="{{ path('app_integration_browse', navArgs|merge({ folder: crumb.id })) }}"
                                    class="hover:text-ink transition-colors">{{ crumb.name }}</a>
                                 <i class="fa-solid fa-chevron-right text-[8px] text-ink-faint" aria-hidden="true"></i>
                             {% else %}
@@ -94,7 +108,7 @@ gap under the shortcuts row.
                     </nav>
 
                     {% for shortcut in listing.shortcuts %}
-                        <a href="{{ path('app_integration_browse', { id: integration.id, folder: shortcut.id, draft: draftId }) }}"
+                        <a href="{{ path('app_integration_browse', navArgs|merge({ folder: shortcut.id })) }}"
                            class="{{ loop.first ? 'ml-auto' : '' }} inline-flex items-center h-7 px-2.5 rounded-lg
                                   text-xs font-medium text-ink-soft bg-field border border-field
                                   hover:bg-hover transition-colors">
@@ -134,6 +148,7 @@ gap under the shortcuts row.
                                         integration: integration,
                                         entry: entry,
                                         draftId: draftId,
+                                        mode: mode|default('attach'),
                                     } only %}
                                 {% endfor %}
                             </div>
@@ -147,6 +162,7 @@ gap under the shortcuts row.
                                             integration: integration,
                                             entry: entry,
                                             draftId: draftId,
+                                            mode: mode|default('attach'),
                                             isMediaLibrary: true,
                                         } only %}
                                     {% endfor %}
@@ -170,6 +186,7 @@ gap under the shortcuts row.
                                         integration: integration,
                                         entry: entry,
                                         maxBytes: maxBytes,
+                                        refusedIds: refusedIds|default([]),
                                     } only %}
                                 {% endfor %}
                             </div>
@@ -181,7 +198,9 @@ gap under the shortcuts row.
                                         integration: integration,
                                         entry: entry,
                                         draftId: draftId,
+                                        mode: mode|default('attach'),
                                         maxBytes: maxBytes,
+                                        refusedIds: refusedIds|default([]),
                                         canLink: canLink,
                                         canThumb: canThumb,
                                         isMediaLibrary: integration.provider.isMediaLibrary,
@@ -197,13 +216,11 @@ gap under the shortcuts row.
                            if that script never runs. #}
                         {% if listing.nextCursor %}
                             <div class="pt-3 text-center" data-integration--integration-picker-target="sentinel">
-                                <a href="{{ path('app_integration_browse', {
-                                       id: integration.id,
+                                <a href="{{ path('app_integration_browse', navArgs|merge({
                                        folder: folderId,
-                                       draft: draftId,
                                        q: query,
                                        cursor: listing.nextCursor,
-                                   }) }}"
+                                   })) }}"
                                    data-action="integration--integration-picker#loadMore"
                                    class="inline-flex items-center gap-2 h-8 px-3.5 rounded-lg text-sm font-medium
                                           text-ink-soft bg-field border border-field hover:bg-hover transition-colors">
@@ -219,6 +236,7 @@ gap under the shortcuts row.
                     integration: integration,
                     buckets: buckets,
                     draftId: draftId,
+                    mode: mode|default('attach'),
                 } only %}
                 </div>
 
@@ -240,7 +258,7 @@ gap under the shortcuts row.
                         data-integration--integration-picker-target="submit"
                         class="inline-flex items-center justify-center h-8 px-3.5 rounded-lg text-sm font-medium text-accent-ink
                                bg-accent hover:bg-accent-strong transition-colors disabled:opacity-50">
-                    {{ 'integration.picker.attach'|trans }}
+                    {{ (isAvatar ? 'integration.picker.use_as_avatar' : 'integration.picker.attach')|trans }}
                 </button>
             </div>
 

@@ -55,10 +55,12 @@ final class ProfileType extends AbstractType
                 'attr' => ['accept' => implode(',', AvatarStorage::ALLOWED_MIME)],
             ]);
 
-        // Present only while pictures from a connected service are on screen.
-        // The file id is set by the thumbnail the user clicks — each is a submit
-        // button carrying this field's name — so the choice and the submission
-        // are one action rather than two.
+        // Present only when a picture from a connected service is being posted.
+        // In the setup wizard the file id is set by the thumbnail the user
+        // clicks — each is a submit button carrying this field's name. In
+        // Settings the file picker's dialog announces its choice and
+        // settings/avatar_from_service_controller.js adds both fields and
+        // submits. Either way the choice and the submission are one action.
         if (null !== $options['avatar_source']) {
             $builder
                 ->add('avatarIntegrationId', HiddenType::class, [

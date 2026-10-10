@@ -45,12 +45,11 @@ year is skipped if it would land too close to the last one drawn.
                 {% set offset = running / total * 100 %}
                 {% set running = running + bucket.count %}
 
-                <a href="{{ path('app_integration_browse', {
-                       id: integration.id,
-                       folder: 'timeline',
-                       draft: draftId,
-                       cursor: bucket.cursor,
-                   }) }}"
+                {# The mode travels with the navigation — see FilePickerController::browse(). #}
+                {% set segmentArgs = mode|default('attach') == 'avatar'
+                    ? { id: integration.id, folder: 'timeline', mode: 'avatar', cursor: bucket.cursor }
+                    : { id: integration.id, folder: 'timeline', draft: draftId, cursor: bucket.cursor } %}
+                <a href="{{ path('app_integration_browse', segmentArgs) }}"
                    data-integration--picker-scrubber-target="segment"
                    data-title="{{ bucket.title }}"
                    data-action="mouseenter->integration--picker-scrubber#show mouseleave->integration--picker-scrubber#hide"
