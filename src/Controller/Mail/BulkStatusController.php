@@ -15,6 +15,8 @@ use App\Infrastructure\Messaging\Message\RunBulkStatusMessage;
 use App\Repository\Label\LabelRepository;
 use App\Repository\Mail\MessageThreadRepository;
 use App\Security\Voter\OwnershipVoter;
+use App\Service\Mail\MailPlacement;
+use App\Service\Mail\MessagePurger;
 use App\Service\Mail\MoveToService;
 use App\Service\Mail\StatusUndoService;
 use App\Service\Mail\ThreadSnoozeService;
@@ -48,7 +50,7 @@ final class BulkStatusController extends AbstractController
     /**
      * The actions that refuse a whole-view selection.
      *
-     * Every one of them is a drop target and nothing else: a drag names the
+     * Most of them are a drop target and nothing else: a drag names the
      * rows it is carrying, so "everything in this view" is not a shape any of
      * them can arrive in. Spelled as a list rather than inline so the guard
      * below and this reasoning stay in one place as they are joined.
@@ -58,9 +60,14 @@ final class BulkStatusController extends AbstractController
      * purpose: it is a toolbar button, the toolbar can select a whole view,
      * and JobKind::MoveTo runs it.
      *
+     * `purge` is a toolbar button too, and is here for another reason. Deleting
+     * for good has no undo, so it is limited to the rows somebody ticked and
+     * can see: a whole view would be handed to a worker and run minutes later
+     * against whatever the view had grown to by then.
+     *
      * @var list<string>
      */
-    private const array EXPLICIT_ONLY = ['move', 'label', 'category', 'star'];
+    private const array EXPLICIT_ONLY = ['move', 'label', 'category', 'star', 'purge'];
 
     public function __construct(
         private readonly MessageThreadRepository $threadRepository,
@@ -71,6 +78,8 @@ final class BulkStatusController extends AbstractController
         private readonly ThreadSnoozeService     $snoozeService,
         private readonly MoveToService           $moveTo,
         private readonly StatusUndoService       $undo,
+        private readonly MessagePurger           $purger,
+        private readonly MailPlacement           $placement,
     ) {
     }
 
@@ -92,7 +101,7 @@ final class BulkStatusController extends AbstractController
      *      than as the URL the user is on — it is resolved by
      *      RunBulkStatusHandler now, where the work happens.
      */
-    #[Route('/{action}', name: 'run', methods: ['POST'], requirements: ['action' => 'archive|trash|read|restore|snooze|move|move-to|label|category|star'])]
+    #[Route('/{action}', name: 'run', methods: ['POST'], requirements: ['action' => 'archive|trash|read|restore|snooze|move|move-to|label|category|star|purge'])]
     public function bulk(Request $request, string $action): Response
     {
         $this->assertCsrf($request, 'ajax');
@@ -241,6 +250,37 @@ final class BulkStatusController extends AbstractController
                 'count'   => 0,
                 'threads' => [],
                 'leaves'  => false,
+            ]);
+        }
+
+        // DELETE FOR GOOD — the only action here that destroys mail.
+        //
+        // The single-row route (ThreadStatusController::purge) is the rule and
+        // this is the same rule over a selection: only mail already thrown away
+        // once, in the bin or in Spam, because "delete forever" one click from
+        // "archive" has no undo to catch the mistake.
+        //
+        // Every message is checked before any is removed, so a selection that
+        // holds one conversation it should not is refused whole. Trimming it to
+        // the allowed part would delete mail the person was never told about,
+        // on the strength of a list the browser sent.
+        if ('purge' === $action) {
+            foreach ($selected as $message) {
+                if (false === $this->placement->isDiscarded($message)) {
+                    throw $this->createAccessDeniedException(
+                        'Only mail already in the trash or in spam can be deleted for good.',
+                    );
+                }
+            }
+
+            // Before the purge, not after: a purged thread has no id left, and
+            // the stream that removes its row is addressed by it.
+            $threadIds = array_map(static fn ($thread): ?int => $thread->id, $threads);
+
+            $this->purger->purge($selected);
+
+            return $this->renderTurboStream('thread/status/_bulk_purge.stream.html.twig', [
+                'threadIds' => $threadIds,
             ]);
         }
 
@@ -438,9 +478,9 @@ final class BulkStatusController extends AbstractController
             // requirement and forgets this arm, a silent no-op is the worst
             // possible answer for an action that says it deleted things.
             //
-            // move, move-to, label, category and star are not here on purpose:
-            // each is handled by a branch of its own above, which is where the
-            // payload they need is resolved.
+            // move, move-to, label, category, star and purge are not here on
+            // purpose: each is handled by a branch of its own above, which is
+            // where the payload they need is resolved.
                 default   => throw $this->createNotFoundException(sprintf('Unknown bulk action "%s".', $action)),
             };
         }

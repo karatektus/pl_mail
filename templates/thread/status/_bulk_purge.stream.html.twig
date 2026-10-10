@@ -1,0 +1,18 @@
+{#
+The answer to a bulk delete for good: take each row out of the list.
+
+Not _bulk.stream.html.twig, which is addressed by the conversations themselves.
+These no longer exist — the purge clears their ids — so the controller captures
+the ids first and hands those over, exactly as _purge.stream.html.twig does for
+the one row. The client re-reads the list frame afterwards for the pager and the
+empty state, as it does for every bulk action.
+
+Variables:
+  threadIds  the ids of the conversations that were deleted
+#}
+<!-- plmail-bulk: {{ threadIds|length }} -->
+
+{% for id in threadIds %}
+    <turbo-stream action="remove" target="thread_{{ id }}">
+    </turbo-stream>
+{% endfor %}
