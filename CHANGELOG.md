@@ -17,7 +17,9 @@ while a dialog or menu is open. On for everyone; Settings → General → Keyboa
 them off per person. No migration.
 [#36](https://github.com/karatektus/pl_mail/issues/36).
 
-`a` replies on a message that has only one recipient, where there is no Reply to all to press.
+`a` replies on a message that has only one recipient, where there is no Reply to all to press. The
+toolbar above a selection has a **Star** button, and `s` presses it; before, `s` did nothing with
+rows ticked.
 
 **A config backup now carries how each person sorts their mail.** Settings → Categories — rules or
 the assistant, whether that overrules the provider's own categories, and whether the inbox has tabs

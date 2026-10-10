@@ -124,6 +124,33 @@ test.describe("keyboard shortcuts", () => {
         await expect(page.locator(ROWS)).toHaveCount(before - 2);
     });
 
+    /**
+     * `s` on a selection stars the selection.
+     *
+     * It did nothing: a key presses the control that is there, each row has a
+     * star and the toolbar above a selection had none. Found by trying every
+     * key in every context after `a` turned out to have the same shape of gap.
+     */
+    test("s stars everything that is ticked", async ({ page }) => {
+        await inbox(page);
+
+        await page.keyboard.press("j");
+        await page.keyboard.press("x");
+        await page.keyboard.press("j");
+        await page.keyboard.press("x");
+
+        const ticked = await page.locator(`${ROWS}:has([data-thread-select]:checked)`).evaluateAll((rows) =>
+            rows.map((row) => row.getAttribute("data-mail--message-row-id-value")));
+        expect(ticked).toHaveLength(2);
+
+        await page.keyboard.press("s");
+
+        for (const id of ticked) {
+            await expect(page.locator(`${ROWS}[data-mail--message-row-id-value="${id}"]`))
+                .toHaveAttribute("data-starred", "true");
+        }
+    });
+
     test("keys typed into a field are text", async ({ page }) => {
         await inbox(page);
 

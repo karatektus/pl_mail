@@ -3903,6 +3903,7 @@ toolbar:
         move_to: Haul off to
         snooze: Let it drift
         spam: 'Call it bilge'
+        star: Mark
     filter:
         show_all: Show every last one
         unread_only: Unread only

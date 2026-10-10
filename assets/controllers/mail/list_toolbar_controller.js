@@ -196,6 +196,22 @@ export default class extends Controller {
         await this._bulkPost("move-to", { role: "spam" });
     }
 
+    /**
+     * Stars everything ticked. Only ever on, like the drop on Starred whose
+     * endpoint this is.
+     *
+     * Not for a whole-view selection: the server takes a star for named
+     * conversations only (BulkStatusController::EXPLICIT_ONLY), and would
+     * answer that with an error about a button somebody simply pressed.
+     */
+    async starSelected() {
+        if (true === this.#allInView) {
+            return;
+        }
+
+        await this._bulkPost("star");
+    }
+
     async markReadSelected() {
         await this._bulkPost("read", { read: true });
     }

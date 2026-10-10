@@ -4122,6 +4122,7 @@ toolbar:
         move_to: Move to
         snooze: Snooze
         spam: 'Mark as spam'
+        star: Star
     filter:
         show_all: Show all
         unread_only: Unread only

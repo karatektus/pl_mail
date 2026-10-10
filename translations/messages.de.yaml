@@ -4116,6 +4116,7 @@ toolbar:
         move_to: Verschieben nach
         snooze: Zurückstellen
         spam: 'Als Spam markieren'
+        star: Markieren
     filter:
         show_all: Alle anzeigen
         unread_only: Nur ungelesene

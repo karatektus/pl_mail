@@ -264,6 +264,14 @@ The button itself carries `group` and `relative`.
         {% if list_scope|default('') not in ['spam', 'trash'] %}
             {{ m.tbtn('click->mail--list-toolbar#spamSelected',   'fa-solid fa-circle-exclamation', 'toolbar.actions.spam'|trans, 'hover:text-danger') }}
         {% endif %}
+        {# Star, for the selection. The rows each have a star of their own and
+           the toolbar had none, which nobody missed until `s` became a key: a
+           shortcut presses the control that is there, and with three rows
+           ticked there was nothing to press, so the one key that works on a
+           single row did nothing on several. It stars; it does not toggle —
+           a selection is a mix of both, and the server's bulk star is the one
+           a drop on Starred already uses. #}
+        {{ m.tbtn('click->mail--list-toolbar#starSelected',       'fa-solid fa-star',          'toolbar.actions.star'|trans) }}
         {{ m.tbtn('click->mail--list-toolbar#markReadSelected',   'fa-solid fa-envelope-open', 'toolbar.actions.mark_read'|trans) }}
         {{ m.tbtn('click->mail--list-toolbar#markUnreadSelected', 'fa-solid fa-envelope',      'toolbar.actions.mark_unread'|trans) }}
         {# A menu, not a direct action: this used to hardcode "tomorrow 8am"

@@ -52,6 +52,7 @@ const BULK = {
     archive: "[data-action='click->mail--list-toolbar#archiveSelected']",
     trash:   "[data-action='click->mail--list-toolbar#deleteSelected']",
     spam:    "[data-action='click->mail--list-toolbar#spamSelected']",
+    star:    "[data-action='click->mail--list-toolbar#starSelected']",
     read:    "[data-action='click->mail--list-toolbar#markReadSelected']",
     unread:  "[data-action='click->mail--list-toolbar#markUnreadSelected']",
     label:   "[data-action='click->mail--label-menu#toggle']",
