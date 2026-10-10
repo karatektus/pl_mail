@@ -21,6 +21,17 @@ someone chooses it. Per person, not part of an exported theme, and carried by a 
 A message opened by its own address (a reload, a bookmark) has no list behind it, so with the
 reading pane on the right it is shown beside the Inbox, whichever folder it was opened from.
 
+**The category tabs fit a phone.** On a narrow screen the tabs (Primary, Social, Promotions, …)
+ran into each other, labels underneath the next tab's icon. They now keep their size and the strip
+scrolls sideways inside itself, opening on the tab you are on. No migration.
+
+**The Immich picker no longer lists the video half of a Live Photo.** Immich keeps it as an asset of
+its own, hidden from its timeline and without a preview, so the picker showed it as a grey tile that
+could only be attached as a three-second clip — on a library full of iPhone photos, a large share of
+the grid. Library, search, album and person views now leave those clips out. Archived photos stay,
+and so does anything a server that predates the `visibility` field sends. No migration.
+[#46](https://github.com/karatektus/pl_mail/issues/46).
+
 **Keyboard shortcuts, the ones Gmail uses.** `j` and `k` move through a list, `o` opens, `u` goes
 back, `x` selects, `e` archives, `#` deletes, `s` stars, `r` `a` `f` reply, reply to all and
 forward, `c` writes, `/` searches, `g` then a letter goes to a list, `z` undoes. **?** shows all of
@@ -40,6 +51,14 @@ the assistant, whether that overrules the provider's own categories, and whether
 at all — was never written into the file, so a restore put everyone back on rules, the provider's
 categories and a tabbed inbox. All three now travel with the user. Backups made before this still
 restore, onto those same defaults. No migration.
+
+**Gmail's `[Gmail]` folder no longer fails on every poll.** Over IMAP, Gmail lists `[Gmail]` as a
+folder, but it is only a placeholder that groups All Mail, Sent Mail and the rest: the server marks
+it `\Noselect` and refuses to open it. plMail tried anyway, logged an error each time, and — because
+the folder could never be swept — withheld the check that lets mail deleted elsewhere disappear from
+the account. A folder marked `\Noselect` is now created with sync off, and one that already exists
+is switched off on the next folder sync, with nothing to do on your part. It held no mail, so
+nothing is lost. No migration.
 
 ## v0.3.2 — 2026-10-09
 
