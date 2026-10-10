@@ -13,6 +13,7 @@ import * as Turbo from "@hotwired/turbo";
 import { jsonCsrfHeaders } from "../../csrf.js";
 import { clearSelection, enterView, restoreSelection, selection } from "../../mail_selection.js";
 import { announceWrite } from "../../mail_writes.js";
+import { askConfirm } from "../../confirm.js";
 import { requestFailed } from "../../request_errors.js";
 
 // Classes applied to the checkbox button in each state
@@ -212,6 +213,41 @@ export default class extends Controller {
         await this._bulkPost("star");
     }
 
+    /**
+     * Deletes the ticked conversations for good — offered only in Spam, where
+     * it stands in for Delete.
+     *
+     * Asks first, here and not through `data-turbo-confirm`, for the reason the
+     * row's button does (see mail--message-row#purge): this posts with fetch(),
+     * which Turbo never consults. The question names how many, because a
+     * selection can run past what is on screen.
+     *
+     * Not for a whole-view selection, the same way as the star above: the
+     * server takes a delete for good for named conversations only
+     * (BulkStatusController::EXPLICIT_ONLY), and would answer with an error
+     * about a button somebody simply pressed. Nothing is deleted, nothing asked.
+     */
+    async purgeSelected() {
+        if (true === this.#allInView) {
+            return;
+        }
+
+        const count = this._selectedIds().length;
+
+        if (0 === count) {
+            return;
+        }
+
+        const i18n     = this.i18nValue ?? {};
+        const question = (1 === count ? i18n.purgeConfirmOne : i18n.purgeConfirmMany) ?? "";
+
+        if (false === await askConfirm(question.replace("%count%", String(count)))) {
+            return;
+        }
+
+        await this._bulkPost("purge");
+    }
+
     async markReadSelected() {
         await this._bulkPost("read", { read: true });
     }
@@ -340,7 +376,7 @@ export default class extends Controller {
     /**
      * One request for the whole selection.
      *
-     * @param {string} action - POST /status/bulk/{action}: archive | trash | read | restore | snooze | move-to
+     * @param {string} action - POST /status/bulk/{action}: archive | trash | read | restore | snooze | move-to | star | purge
      * @param {object} body   - optional JSON body (e.g. { read: true }, { until }, { labelId } or { role })
      *
      * It used to be one request per conversation, fired in parallel. That is

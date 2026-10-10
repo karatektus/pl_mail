@@ -4114,9 +4114,15 @@ toolbar:
         mark_read: Als gelesen markieren
         mark_unread: Als ungelesen markieren
         move_to: Verschieben nach
+        purge: Endgültig löschen
         snooze: Zurückstellen
         spam: 'Als Spam markieren'
         star: Markieren
+    # Asked before a selection in Spam is deleted for good. Two sentences rather
+    # than one with a number swapped in, because the singular reads differently.
+    purge_confirm:
+        one: 'Diese Unterhaltung endgültig löschen? Sie lässt sich nicht zurückholen und wird auch vom Mailserver entfernt.'
+        many: 'Diese %count% Unterhaltungen endgültig löschen? Sie lassen sich nicht zurückholen und werden auch vom Mailserver entfernt.'
     filter:
         show_all: Alle anzeigen
         unread_only: Nur ungelesene
