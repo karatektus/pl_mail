@@ -105,6 +105,7 @@ final class ReadingPaneStateTest extends WebTestCase
 
         self::assertSame(200, $client->getResponse()->getStatusCode());
         self::assertSame(40, $this->reread()->readingPaneWidthPct);
+        self::assertSame(40, $this->reread()->getSetting(User::SETTING_READING_PANE_WIDTH), 'stored, not only read back');
     }
 
     /** @return iterable<string, array{string, int}> */
@@ -116,6 +117,15 @@ final class ReadingPaneStateTest extends WebTestCase
         yield 'negative'             => ['-50', User::READING_PANE_MIN_PCT];
     }
 
+    /**
+     * What the ENDPOINT stores, read straight out of the bag.
+     *
+     * Not through $readingPaneWidthPct: that getter clamps on its own, so a
+     * test reading the width back through it passes whether or not the
+     * endpoint clamped anything — the two guards hide each other. Removing
+     * either clamp from the endpoint survived the first version of this test.
+     * The raw value is the only place the endpoint's own clamp is visible.
+     */
     #[DataProvider('outOfRange')]
     public function testTheWidthIsClampedServerSide(string $posted, int $expected): void
     {
@@ -124,7 +134,11 @@ final class ReadingPaneStateTest extends WebTestCase
         $client->request('POST', self::PATH, ['width' => $posted, '_token' => $this->token($client)]);
 
         self::assertSame(200, $client->getResponse()->getStatusCode());
-        self::assertSame($expected, $this->reread()->readingPaneWidthPct);
+        self::assertSame(
+            $expected,
+            $this->reread()->getSetting(User::SETTING_READING_PANE_WIDTH),
+            'the bag holds what was posted, not what the endpoint made of it',
+        );
     }
 
     public function testPostingTheModeLeavesTheWidthAlone(): void
