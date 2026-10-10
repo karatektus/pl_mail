@@ -124,8 +124,23 @@
     {% set _dropTabs = drop_tabs|default([]) %}
 
     {% if tabs|length > 1 %}
+    {# The strip scrolls inside itself instead of squeezing.
+
+       Five tabs at px-5 with an icon, a label and a pill are wider than a
+       phone-sized card, and `min-w-0` on each tab let them all shrink until
+       the labels ran under the next tab's icon. So a tab keeps its own width
+       (`shrink-0`) and the row overflows sideways — inside the nav, never the
+       page. Padding tightens below the list's `@xl`, the same breakpoint the
+       rows use, because the card can be narrow on a wide viewport too.
+
+       `pb-px -mb-px` on the nav is what the tabs' own `-mb-px` used to do
+       against the wrapper's hairline: an overflow container clips whatever
+       pokes out of its padding box, and without it the active underline lost
+       a pixel of its two. The scroll controller puts the active tab in view,
+       since a strip that opens on Forums with Forums off-screen says nothing. #}
     <div class="border-b border-line px-1">
-        <nav class="flex text-sm">
+        <nav class="relative flex text-sm overflow-x-auto overflow-y-hidden pb-px -mb-px [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+             data-controller="ui--scroll-active">
             {% for tabCase in tabs %}
                 {% set isActive = tabCase === tab %}
                 {% set tabName = ('tabs.' ~ tabCase.value)|trans %}
@@ -169,7 +184,8 @@
                     href="{{ path('app_mail_inbox', tabQuery|merge({tab: tabCase.value})) }}"
                     data-turbo-frame="inbox-list-frame"
                     {% if false == isActive %}data-dnd-category="{{ tabCase.value }}"{% endif %}
-                    class="flex items-center gap-2.5 px-5 py-1.5 min-h-14 font-medium border-b-2 -mb-px transition-colors min-w-0 {{ isActive ? 'text-accent border-accent' : 'text-ink-muted hover:text-gray-700 border-transparent hover:border-gray-300' }}"
+                    {% if isActive %}data-ui--scroll-active-target="current"{% endif %}
+                    class="flex items-center gap-2.5 px-3 @xl:px-5 py-1.5 min-h-14 font-medium border-b-2 -mb-px transition-colors shrink-0 {{ isActive ? 'text-accent border-accent' : 'text-ink-muted hover:text-gray-700 border-transparent hover:border-gray-300' }}"
                 >
                     {% if isActive %}
                         <svg class="w-5 h-5 shrink-0{{ unreadHere > 0 ? ' ' ~ iconTone : '' }}" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"
@@ -246,7 +262,7 @@
                 <span
                     data-dnd-category="{{ tabCase.value }}"
                     data-dnd-ghost
-                    class="flex items-center px-5 py-1.5 min-h-14 text-sm font-medium
+                    class="flex items-center shrink-0 px-3 @xl:px-5 py-1.5 min-h-14 text-sm font-medium
                            text-ink-faint border-b-2 border-dashed border-transparent
                            whitespace-nowrap transition-colors"
                 >{{ ('tabs.' ~ tabCase.value)|trans }}</span>

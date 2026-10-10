@@ -8,6 +8,10 @@ The published image tags: `latest` follows the most recent release below,
 
 ## Unreleased
 
+**The category tabs fit a phone.** On a narrow screen the tabs (Primary, Social, Promotions, …)
+ran into each other, labels underneath the next tab's icon. They now keep their size and the strip
+scrolls sideways inside itself, opening on the tab you are on. No migration.
+
 **The Immich picker no longer lists the video half of a Live Photo.** Immich keeps it as an asset of
 its own, hidden from its timeline and without a preview, so the picker showed it as a grey tile that
 could only be attached as a three-second clip — on a library full of iPhone photos, a large share of
