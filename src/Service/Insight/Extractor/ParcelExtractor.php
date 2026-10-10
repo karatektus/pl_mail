@@ -96,6 +96,14 @@ final readonly class ParcelExtractor implements InsightExtractorInterface
     ];
 
     /**
+     * The words of eta()'s list that are French, which is what licenses reading
+     * "14/11" day first — see dateIn(). Matched against the word that was
+     * found, so "estimated" is not taken for "estimé" by its first five
+     * letters.
+     */
+    private const string FRENCH_ETA_WORD = '~^(?:pr[ée]vue?|sera livr[ée]|date de livraison|estim[ée]e?|au plus tard)$~iu';
+
+    /**
      * Subjects that are about the service and not the parcel: the satisfaction
      * survey a carrier sends after delivery. It quotes the very number the card
      * is keyed on and names no stage, and the harvester lets the newest mail
@@ -103,9 +111,12 @@ final readonly class ParcelExtractor implements InsightExtractorInterface
      * back into "announced".
      *
      * "avis" alone is not here on purpose: an "avis de passage" is a missed
-     * delivery, which is exactly what a card should state.
+     * delivery, which is exactly what a card should state. And "expérience"
+     * only with its possessive: this is asked of every mail before the sender
+     * is, and a shop's subject quotes what was bought — "Shipped: The
+     * Experience Machine" is a parcel, "Votre expérience avec …" is a survey.
      */
-    private const string SURVEY_SUBJECT = '~donnez votre avis|votre avis nous|satisf|exp[ée]rience|sondage|suite à votre livraison~iu';
+    private const string SURVEY_SUBJECT = '~donnez votre avis|votre avis nous|satisf|(?:votre|your) exp[ée]rience|sondage|suite à votre livraison~iu';
 
     /**
      * How a shop's order confirmation opens its subject: "Bestellt: …",
@@ -554,18 +565,28 @@ final readonly class ParcelExtractor implements InsightExtractorInterface
      * Numbers read out of the links of the html part, for the one sender whose
      * number only lives there: seventeen digits, bounded by non-digits.
      *
+     * Out of the links and nothing else. The first version searched the whole
+     * html part, where seventeen digits in a row are also a tracking pixel's
+     * id, a timestamp in an image address and a style sheet's cache key — each
+     * of which became a parcel of its own on the radar. An `href` is the one
+     * place the number is put for a person to follow.
+     *
      * @return list<array{number: string, carrier: string}>
      */
     private function linkNumbersIn(Message $message, string $carrier): array
     {
         $html = (string) ($message->bodyHtml ?? $message->bodyHtmlSafe);
 
-        preg_match_all('~(?<![0-9])[0-9]{17}(?![0-9])~', $html, $matches);
+        preg_match_all('~\bhref\s*=\s*(["\'])(.*?)\1~is', $html, $links);
 
         $found = [];
 
-        foreach ($matches[0] as $number) {
-            $found = $this->remember($found, $number, $carrier);
+        foreach ($links[2] as $href) {
+            preg_match_all('~(?<![0-9])[0-9]{17}(?![0-9])~', $href, $matches);
+
+            foreach ($matches[0] as $number) {
+                $found = $this->remember($found, $number, $carrier);
+            }
         }
 
         return $found;
@@ -730,7 +751,7 @@ final readonly class ParcelExtractor implements InsightExtractorInterface
                 continue;
             }
 
-            $date = $this->dateIn($window, $receivedAt);
+            $date = $this->dateIn($window, $receivedAt, 1 === preg_match(self::FRENCH_ETA_WORD, $word));
 
             if (null !== $date) {
                 return $date;
@@ -745,7 +766,7 @@ final readonly class ParcelExtractor implements InsightExtractorInterface
      * carrier promises a day, never an hour, and midnight would render as the
      * previous evening in any timezone west of the parcel.
      */
-    private function dateIn(string $window, ?DateTimeImmutable $receivedAt): ?DateTimeImmutable
+    private function dateIn(string $window, ?DateTimeImmutable $receivedAt, bool $dayFirstSlashes): ?DateTimeImmutable
     {
         // 24.12.2026 — the German convention, day first, full year required.
         if (1 === preg_match('~\b(\d{1,2})\.(\d{1,2})\.(\d{4})\b~', $window, $m)) {
@@ -760,8 +781,22 @@ final readonly class ParcelExtractor implements InsightExtractorInterface
         // 14/11 and 14/11/2026 — day first, as in France. The year is optional
         // here and not in the dotted form: a slash date in a delivery mail
         // is written for a reader who knows what year it is.
-        if (1 === preg_match('~\b(\d{1,2})/(\d{1,2})(?:/(\d{4}))?\b~', $window, $m)) {
-            return $this->dateFrom((int) $m[1], (int) $m[2], '' === ($m[3] ?? '') ? null : (int) $m[3], $receivedAt);
+        //
+        // Only after a French word for the promise. Two digits, a slash and
+        // two digits are a date in French mail and several other things
+        // elsewhere: "expected 3/4" in an American one is the fourth of March,
+        // and "estimated … our 24/7 support" is no date at all, yet both read
+        // as a delivery day here before this asked which language was
+        // speaking. A slash pair that is not a day of a month is passed over
+        // rather than returned as "no date", so a month name further along
+        // the same window is still found.
+        if (true === $dayFirstSlashes
+            && 1 === preg_match('~\b(\d{1,2})/(\d{1,2})(?:/(\d{4}))?\b~', $window, $m)) {
+            $date = $this->dateFrom((int) $m[1], (int) $m[2], '' === ($m[3] ?? '') ? null : (int) $m[3], $receivedAt);
+
+            if (null !== $date) {
+                return $date;
+            }
         }
 
         $months = implode('|', array_keys(self::MONTHS));

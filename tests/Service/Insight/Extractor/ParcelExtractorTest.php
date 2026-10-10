@@ -1023,6 +1023,24 @@ final class ParcelExtractorTest extends TestCase
                 ]],
             ],
 
+            // Seventeen digits in a row are also a tracking pixel's id and a
+            // timestamp in an image address. Only an href is where the number
+            // is put for a person to follow; the row above is the companion
+            // that shows the link itself is still read.
+            'colis privé: seventeen digits outside a link are not a parcel' => [
+                [
+                    'from'     => 'notification@notification.colisprive.com',
+                    'fromName' => 'Colis Privé',
+                    'subject'  => 'Votre colis est en cours de livraison',
+                    'body'     => "Bonjour,\n\nVotre colis arrive.\n",
+                    'html'     => '<img src="https://px.example.test/o.gif?id=99999999999999999" width="1" height="1">'
+                        . '<p data-ts="20261110080000123">Votre colis arrive.</p>'
+                        . '<a href="https://suivi.example.test/aide">Aide</a>',
+                ],
+                true,
+                [],
+            ],
+
             'the same link from a shop that is not Colis Privé is not a parcel' => [
                 [
                     'from'     => 'newsletter@boutique-exemple.fr',
@@ -1221,6 +1239,21 @@ final class ParcelExtractorTest extends TestCase
                     'body'    => 'Colis 6A12345678901',
                 ],
             ],
+            // The gate is asked of every mail before the sender is, and a
+            // shop's subject quotes what was bought. "Experience" as a word in
+            // a title is not a survey; with its possessive it is.
+            'a survey says YOUR experience; a product called one is still a parcel' => [
+                [
+                    'from'    => 'no-reply@dhl.de',
+                    'subject' => 'How was your experience with DHL?',
+                    'body'    => 'Sendungsnummer 00340434161094042557',
+                ],
+                [
+                    'from'    => 'shipment-tracking@amazon.com',
+                    'subject' => 'Shipped: "The Experience Machine" and 1 more item',
+                    'body'    => 'Your order 112-1234567-7654321 has shipped.',
+                ],
+            ],
             'amazon.fr cancellation' => [
                 [
                     'from'    => 'commande@amazon.fr',
@@ -1232,6 +1265,68 @@ final class ParcelExtractorTest extends TestCase
                     'subject' => 'Votre commande Amazon.fr (#406-1234567-7654321) a été expédiée.',
                     'body'    => 'Votre commande 406-1234567-7654321 a été expédiée.',
                 ],
+            ],
+        ];
+    }
+
+    /**
+     * Two digits, a slash and two digits are a date in French mail and several
+     * other things elsewhere. Read day-first in every language, "expected 3/4"
+     * in an American mail became the third of April and a "24/7" in the line
+     * after "estimated" became a delivery on the 24th of July.
+     *
+     * @param array<string, ?string> $mail
+     */
+    #[DataProvider('slashesThatAreNotFrenchDates')]
+    public function testASlashDateIsOnlyReadDayFirstAfterAFrenchPromise(array $mail, ?string $happensAt): void
+    {
+        $found = $this->extractor->extract(self::message($mail));
+
+        self::assertCount(1, $found, 'the parcel is read either way; only its day is in question');
+        self::assertSame($happensAt, $found[0]->happensAt?->format('Y-m-d H:i'));
+    }
+
+    /**
+     * @return array<string, array{0: array<string, ?string>, 1: ?string}>
+     */
+    public static function slashesThatAreNotFrenchDates(): array
+    {
+        return [
+            'english: "24/7" after "estimated" is not the 24th of July' => [
+                [
+                    'from'    => 'no-reply@dhl.de',
+                    'subject' => 'Your parcel has shipped',
+                    'body'    => "Tracking 00340434161094042557\nEstimated delivery: soon. Our 24/7 support is here.\n",
+                ],
+                null,
+            ],
+            'english: a month-first "3/4" is not read as the third of April' => [
+                [
+                    'from'    => 'no-reply@dhl.de',
+                    'subject' => 'Your parcel has shipped',
+                    'body'    => "Tracking 00340434161094042557\nExpected 3/4.\n",
+                ],
+                null,
+            ],
+            // Presence: the same digits after a French word are the date.
+            'french: "prévue le 3/4" is the third of April' => [
+                [
+                    'from'       => 'noreply@notif-colissimo-laposte.info',
+                    'subject'    => 'Votre colis est en chemin',
+                    'body'       => "Votre colis 6A12345678901 : livraison prévue le 3/4.\n",
+                    'receivedAt' => '2026-03-30 08:00:00',
+                ],
+                '2026-04-03 12:00',
+            ],
+            // A slash pair that is no day of any month is passed over, and the
+            // month name further along the same window is still found.
+            'french: "32/15" is skipped and the written month wins' => [
+                [
+                    'from'    => 'noreply@notif-colissimo-laposte.info',
+                    'subject' => 'Votre colis est en chemin',
+                    'body'    => "Votre colis 6A12345678901 : livraison prévue (réf 32/15) le 14 novembre.\n",
+                ],
+                '2026-11-14 12:00',
             ],
         ];
     }
