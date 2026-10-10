@@ -26,6 +26,17 @@ and **Spam** where an account has a junk folder — has an eye in **Settings →
 and its row leaves the sidebar, switch it back on and it returns, both straight away. **Unread** is
 the one that starts off.
 
+**Snoozed**, **Archive**, **Spam** and **Trash** wait behind a **More** row, and **Settings → General →
+Sidebar** chooses which rows those are: tick a folder there and it moves behind More, clear it and it
+comes back to the sidebar proper. The **Inbox** always stays on top, the other rows keep the
+sidebar's own order whichever side of More they are on, and with nothing ticked there is no More at
+all. This decides where a row sits, never whether it exists — the eye in Settings → Labels still
+switches one off altogether, and **Unread** and **Spam** still wait for their label to be on and
+**Snoozed** for something to be snoozed, wherever you put them. More comes back open when you are on
+a page inside it. The choice is remembered against your account, is kept in a configuration backup,
+and shows only in the full sidebar: the narrow icon rail has no More, so a folder tucked behind it is
+not in the rail. No migration.
+
 **Unread** gathers unread mail from everywhere — archived and labelled conversations included, with
 no category tabs — and leaves out only what you have put away: the bin, spam and anything snoozed.
 Dropping a conversation on it marks the conversation unread and leaves it where it is, which is

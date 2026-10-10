@@ -1,4 +1,4 @@
-<!-- translated-from: features/mail.md sha1:713358fc065ed7968b682a1336e6b57f184e3727 -->
+<!-- translated-from: features/mail.md sha1:784489aec298a550556095e8ac07c471cc2d4baf -->
 
 # Mail
 
@@ -29,6 +29,19 @@ Jeder Systemeintrag — **Posteingang**, **Ungelesen**, **Gesendet**, **Entwürf
 **Einstellungen → Labels** ein Auge: Schaltest du einen aus, verschwindet seine Zeile aus der
 Seitenleiste, schaltest du ihn wieder ein, ist sie zurück — beides sofort. **Ungelesen** ist der
 einzige, der ausgeschaltet beginnt.
+
+**Zurückgestellt**, **Archiv**, **Spam** und **Papierkorb** warten hinter einer Zeile **Mehr**, und
+unter **Einstellungen → Allgemein → Seitenleiste** legst du fest, welche Zeilen das sind: Haken
+setzen, und der Ordner rutscht hinter „Mehr“; Haken entfernen, und er kommt zurück in die
+Seitenleiste selbst. Der **Posteingang** bleibt immer oben, die übrigen Zeilen behalten auf beiden
+Seiten die Reihenfolge der Seitenleiste, und ohne einen einzigen Haken gibt es gar kein „Mehr“.
+Das bestimmt, wo eine Zeile steht, nie, ob es sie gibt — das Auge unter Einstellungen → Labels
+schaltet sie weiterhin ganz aus, und **Ungelesen** und **Spam** warten weiterhin darauf, dass ihr
+Label eingeschaltet ist, **Zurückgestellt** darauf, dass etwas zurückgestellt ist, egal wohin du sie
+legst. „Mehr“ ist aufgeklappt, sobald du dich auf einer Seite darin befindest. Die Wahl
+wird an dein Konto gebunden, steckt in einer Konfigurationssicherung und zeigt sich nur in der
+vollen Seitenleiste: Die schmale Symbolleiste hat kein „Mehr“, ein dahinter versteckter Ordner
+fehlt dort also. Keine Migration.
 
 **Ungelesen** sammelt ungelesene Mails von überall — archivierte und gelabelte Konversationen
 eingeschlossen, ohne Kategorie-Tabs — und lässt nur weg, was du weggeräumt hast: Papierkorb, Spam

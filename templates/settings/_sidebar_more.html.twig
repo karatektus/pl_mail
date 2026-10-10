@@ -1,0 +1,63 @@
+{#
+settings/_sidebar_more.html.twig
+─────────────────────────────────────────────────────────────────────────────
+Which of the sidebar's system folders wait behind "More".
+
+One box per folder, ticked when the folder is behind More — so the page opens
+showing exactly what the sidebar shows, and the default (Snoozed, Archive, Spam
+and Trash) is simply what is ticked until somebody changes it.
+
+The Inbox is not offered: it stays on top whatever anybody chooses, and says so
+rather than being silently missing from the list. See SidebarRow::isPinned().
+
+Checkboxes rather than the On/Off segment the booleans on this page wear,
+because this is a list of eight questions with one answer each, not one
+question; the calendar editor's list of calendars is the same shape and the same
+control. Each change submits on its own (ui--auto-submit), like every control
+here, so there is no Save to forget.
+
+The hidden `rows[]` entry is always posted. A form with every box cleared would
+otherwise post no `rows` at all, which is indistinguishable from a post that
+did not mention them — and "nothing behind More" is a choice that has to be
+storable. See SidebarMoreController.
+
+This is only WHERE a folder is drawn. Hiding one altogether is the eye toggle in
+Labels, which the note says, because the two are easy to confuse and a person
+looking for the second will find the first.
+#}
+{% set behind = app.user.sidebarMoreRows %}
+
+<form method="post"
+      action="{{ path('app_settings_sidebar_more_update') }}"
+      data-turbo="false"
+      data-controller="ui--auto-submit"
+      class="px-4 py-3">
+    <input type="hidden" name="_token" value="{{ csrf_token('settings-sidebar') }}">
+    <input type="hidden" name="rows[]" value="">
+
+    <fieldset>
+        <legend class="text-xs font-medium text-ink-muted">{{ 'settings.sidebar.label'|trans }}</legend>
+        <p class="text-[11px] text-ink-faint mt-0.5 mb-2">{{ 'settings.sidebar.hint'|trans }}</p>
+
+        <ul class="space-y-1.5">
+            {% for row in enum('App\\Domain\\Enum\\Mail\\SidebarRow').cases()|filter(r => not r.isPinned) %}
+                <li>
+                    <label class="flex items-center gap-2 text-sm text-ink cursor-pointer">
+                        <input type="checkbox"
+                               name="rows[]"
+                               value="{{ row.value }}"
+                               {{ row in behind ? 'checked' : '' }}
+                               data-action="change->ui--auto-submit#submit"
+                               class="rounded border-line accent-accent focus:ring-accent">
+                        <span>{{ ('sidebar.nav.' ~ row.value)|trans }}</span>
+                    </label>
+                </li>
+            {% endfor %}
+        </ul>
+    </fieldset>
+
+    <p class="text-[11px] text-ink-faint mt-3">
+        {{ 'settings.sidebar.pinned'|trans }}
+        {{ 'settings.sidebar.hide_note'|trans }}
+    </p>
+</form>

@@ -409,6 +409,15 @@
                                                     } %}
                                                 {% endblock %}
                                             {% endembed %}
+
+                                            {% embed 'settings/_card.html.twig' with {
+                                                heading:    'settings.sidebar.heading'|trans,
+                                                subheading: 'settings.sidebar.subheading'|trans,
+                                            } %}
+                                                {% block body %}
+                                                    {% include 'settings/_sidebar_more.html.twig' %}
+                                                {% endblock %}
+                                            {% endembed %}
                                         </div>
                                     {% elseif section == 'reading-pane' %}
                                         {% embed 'settings/_card.html.twig' with {
