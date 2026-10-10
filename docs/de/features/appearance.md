@@ -1,4 +1,4 @@
-<!-- translated-from: features/appearance.md sha1:9d9ac77d8ed5aee02d91bc7f6b86cdaf94b4297f -->
+<!-- translated-from: features/appearance.md sha1:5b7b6e415631a623b053ff5401be859a867d5c02 -->
 
 # Darstellung
 
@@ -143,6 +143,8 @@ Anders als die übrigen Bedienelemente dieser Seite gehört der Lesebereich nich
 Farbschema: Wo eine Nachricht gezeichnet wird, ist eine Entscheidung über das Postfach und nicht Teil
 eines Erscheinungsbilds, das jemand teilen könnte, und ein importiertes Farbschema ordnet die Post,
 in der es landet, nicht um. **Auf Standard zurücksetzen** lässt ihn aus demselben Grund in Ruhe.
+Eine Konfigurationssicherung enthält ihn dagegen, sodass eine Wiederherstellung das Postfach so
+zurückbringt, wie du es eingerichtet hattest.
 
 ## Typografie
 

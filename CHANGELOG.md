@@ -16,7 +16,7 @@ double-click resets it). Its position is stored as a percentage of the mail card
 than in pixels, so it keeps its meaning when the calendar pane opens or is resized. It is drawn only
 while the card is at least 52rem wide — a narrow window, a phone, or a docked calendar that leaves
 the mail too little room fall back to one pane at a time. Off by default, so nothing changes until
-someone chooses it. Per person, not part of an exported theme. No migration.
+someone chooses it. Per person, not part of an exported theme, and carried by a config backup. No migration.
 
 A message opened by its own address (a reload, a bookmark) has no list behind it, so with the
 reading pane on the right it is shown beside the Inbox, whichever folder it was opened from.

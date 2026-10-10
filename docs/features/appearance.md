@@ -129,7 +129,8 @@ only just wide enough gives way before the list becomes a sliver.
 Unlike the other controls on this page, the reading pane is not part of an exported theme: where a
 message is drawn is a decision about the mailbox, not part of a look somebody might share, and
 importing a colour scheme does not rearrange the mail it lands in. **Reset to defaults** leaves it
-alone for the same reason.
+alone for the same reason. A config backup does carry it, so a restore puts the mailbox back the way
+you had it.
 
 ## Typography
 
