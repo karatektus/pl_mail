@@ -2723,6 +2723,192 @@
     :root { --pane-alpha: 1; --popover-alpha: 1; --pane-blur: 0px; --scrim-alpha: 0; --main-alpha: 1;}
 }
 
+/* ═══ The reading pane beside the list ══════════════════════════════════════
+   One attribute on the mail card — `data-reading-pane`, the STORED mode — and
+   one question this file answers that the server cannot: is the card wide
+   enough to hold both panes? See App\Domain\Enum\Mail\ReadingPaneMode.
+
+   Rules rather than classes toggled by a script, for the reason the calendar
+   switch's are: the server renders the mode and the browser changes it, and
+   they must not be able to disagree about what it looks like. It also means a
+   reload paints the right layout the first time, with no flash of one pane
+   rearranging itself into two.
+
+   ── Why the CARD's width and not the viewport's ───────────────────────────
+   A docked calendar takes up to 900px of the row, so a 1440px window can leave
+   a mail card narrower than a phone. A media query would draw two panes there,
+   each too small to use, in the one situation where the setting most needs to
+   step aside. The query measures the box the panes actually share.
+
+   The container is declared ONLY for the mode that uses it. Containment is not
+   free — it changes how the box is sized — and somebody who has not turned the
+   setting on should be getting exactly the layout they had before it existed.
+
+   ── What it does NOT touch ────────────────────────────────────────────────
+   mail--mail-pane still hides and shows the two panes with `hidden`, which is
+   what one-pane-at-a-time means below the threshold. These rules sit outside
+   every layer, so they beat that utility regardless of the order Tailwind
+   emits it in, and the same script state reads correctly at both widths: a
+   message open when the window is narrowed is simply the one pane that was
+   showing.
+
+   ── The two minimums ──────────────────────────────────────────────────────
+   The share is a preference and the minimums are a fact. At 75% on a card just
+   over the threshold the list would be a sliver, so each pane keeps a floor
+   and the other gives way; the drag handle reads the same two floors, which is
+   why they are real `min-width`s and not numbers in a script.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.main-pane[data-reading-pane="right"] {
+    container: mailcard / inline-size;
+}
+
+/* The divider and the hint exist everywhere and show nowhere but beside the
+   list, so one-pane mailboxes carry no stray element. */
+[data-reading-handle],
+[data-reading-placeholder] {
+    display: none;
+}
+
+@container mailcard (min-width: 52rem) {
+    [data-reading-pane="right"] [data-mail--mail-pane-target="list"] {
+        display: flex;
+        flex: 1 1 0%;
+        min-width: 22rem;
+    }
+
+    [data-reading-pane="right"] [data-mail--mail-pane-target="reading"],
+    [data-reading-pane="right"] [data-reading-placeholder] {
+        flex: 0 1 var(--reading-pane-pct, 55%);
+        min-width: 24rem;
+    }
+
+    [data-reading-pane="right"] [data-mail--mail-pane-target="reading"] {
+        display: flex;
+    }
+
+    /* Nothing open: the hint stands where the message will be. The message
+       pane is hidden rather than left empty so its own border and sheet do not
+       frame a blank. */
+    [data-reading-pane="right"]:not([data-reading-open]) [data-mail--mail-pane-target="reading"] {
+        display: none;
+    }
+
+    [data-reading-pane="right"]:not([data-reading-open]) [data-reading-placeholder] {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 0.75rem;
+        font-size: 0.875rem;
+        color: rgb(var(--rgb-ink-faint));
+    }
+
+    [data-reading-pane="right"] [data-reading-placeholder] i {
+        font-size: 2rem;
+        opacity: 0.6;
+    }
+
+    /* One pixel of layout, eight of grip. The divider used to BE its hit area
+       — an 8px box with the line down its middle — and the four pixels either
+       side of the line showed as a strip of bare card between the list and
+       the message: the toolbar band and every row rule stopped short of the
+       line. So the box is the line, and the grip is a pseudo-element laid
+       over the edges of both panes, which takes the pointer for its element
+       without taking any room. */
+    [data-reading-pane="right"] [data-reading-handle] {
+        display: block;
+        flex: none;
+        position: relative;
+        z-index: 1;
+        width: 1px;
+        background-color: rgb(var(--rgb-border) / var(--border-alpha));
+        cursor: col-resize;
+        /* The browser would otherwise take a horizontal touch drag for a scroll
+           or a back-swipe, and the pointer events this divider depends on
+           would never arrive. */
+        touch-action: none;
+    }
+
+    [data-reading-pane="right"] [data-reading-handle]::before {
+        content: "";
+        position: absolute;
+        inset-block: 0;
+        inset-inline: -0.25rem;
+    }
+
+    /* What hover, focus and a drag thicken. Drawn over the line rather than
+       by widening it, so the panes do not shift by two pixels under the
+       pointer. */
+    [data-reading-pane="right"] [data-reading-handle]::after {
+        content: "";
+        position: absolute;
+        inset-block: 0;
+        left: 50%;
+        width: 3px;
+        transform: translateX(-50%);
+        background-color: rgb(var(--rgb-accent));
+        opacity: 0;
+        transition: opacity 120ms ease-out;
+        pointer-events: none;
+    }
+
+    [data-reading-pane="right"] [data-reading-handle]:hover::after,
+    [data-reading-pane="right"] [data-reading-handle]:focus-visible::after,
+    [data-reading-pane="right"][data-reading-resizing] [data-reading-handle]::after {
+        opacity: 1;
+    }
+
+    [data-reading-pane="right"] [data-reading-handle]:focus-visible {
+        outline: none;
+    }
+}
+
+/* While the divider is dragged: no text selection under the pointer, and the
+   cursor stays a resize cursor however far from the divider it strays. */
+[data-reading-resizing] {
+    user-select: none;
+    cursor: col-resize;
+}
+
+/* ═══ A selection in a narrow list ══════════════════════════════════════════
+   Ticking a row puts the bulk actions into the toolbar, and beside them the
+   keyboard button, the sort menu and "1–50 of 312" do not all fit a list that
+   is sharing its card with an open message — the sort label was cut off
+   mid-word and the pager pushed out of the pane. The same happens with a
+   calendar docked wide; the reading pane only made it the ordinary case.
+
+   Most of the answer is in the toolbar itself, which keeps three actions out
+   and puts the rest behind "More". This is the remainder: while rows are
+   ticked and the list is under 36rem, the three things that are not about the
+   selection step aside, and come back when it is cleared. The previous and
+   next arrows stay: a selection survives a page change, and paging is how a
+   larger one is made.
+
+   On the LIST's width — `#message-list` is the container — for the reason the
+   row snippet below gives. `:not(.hidden)` is how the toolbar's own script
+   says "there is a selection". */
+@container (max-width: 36rem) {
+    [data-toolbar-row]:has(> [data-mail--list-toolbar-target="actions"]:not(.hidden)) :is([data-shortcuts-button], [data-search-sort-menu], [data-page-range]) {
+        display: none;
+    }
+}
+
+/* The open row, so the list says which message the pane beside it is showing.
+   Set by mail--mail-pane and kept across refreshes (see CLIENT_OWNED there).
+   A tint and a bar on the leading edge, the bar being what survives a theme
+   whose tint is too close to the surface to read. */
+li[data-selected="true"] {
+    background-color: rgb(var(--rgb-accent) / 0.1);
+    box-shadow: inset 3px 0 0 rgb(var(--rgb-accent));
+}
+
+@media (prefers-reduced-motion: reduce) {
+    [data-reading-handle]::after {
+        transition: none;
+    }
+}
+
 /* ═══ A section that FILLS its scroll port ══════════════════════════════════
    What .main-pane does for the mail shell, for a section that lives inside
    somebody else's scroll port: two peer cards side by side, each exactly as

@@ -166,7 +166,7 @@ final class KeyboardShortcutsTest extends WebTestCase
 
     private function settings(): Crawler
     {
-        return $this->client->request('GET', '/settings?section=general');
+        return $this->client->request('GET', '/settings?section=shortcuts');
     }
 
     private function reread(): User

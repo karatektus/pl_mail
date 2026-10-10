@@ -2488,6 +2488,13 @@ profile:
         name_first: Vorname
         name_last: Nachname
 
+# The reading pane beside the message list (Settings → Reading pane turns it on).
+# `handle` is what a screen reader calls the divider between the two; the
+# placeholder stands where the message will be until one is opened.
+reading_pane:
+    handle: Größe des Nachrichtenbereichs ändern
+    placeholder: Wähle eine Unterhaltung aus, um sie hier zu lesen
+
 # Said in a toast when a request fails and there is no better place to say it;
 # see request_errors.js.
 request_error:
@@ -3633,6 +3640,7 @@ settings:
         group:
             access: Zugriff
             calendar: Kalender
+            features: Funktionen
             mail: E-Mail
             personal: Persönlich
         health: 'Zustand der Konten'
@@ -3642,8 +3650,10 @@ settings:
         notifications: Benachrichtigungen
         profile: Profil
         read_receipts: Lesebestätigungen
+        reading_pane: Lesebereich
         security: Sicherheit
         sharing: Teilen
+        shortcuts: Tastenkürzel
         signature: Signaturen
         templates: 'Vorlagen'
     notifications:
@@ -3715,6 +3725,13 @@ settings:
         remember_me_note: 'Ein Passwortwechsel meldet jeden gemerkten Browser ab, außer diesem. Genau deshalb lohnt er sich, wenn ein Gerät abhandenkommt.'
         subheading: 'Womit du dich anmeldest. Nur du kannst es ändern — nicht einmal die Administration kann es für dich setzen.'
         submit: Passwort ändern
+    reading_pane:
+        heading: Lesebereich
+        hint: '„Aus“ zeigt Liste und Nachricht nacheinander; „Rechts“ stellt die Nachricht neben die Liste, sobald das Fenster genug Platz für beide hat – am Trenner dazwischen stellst du ein, wie viel jede bekommt.'
+        label: 'Geöffnete Nachricht anzeigen'
+        off: Aus
+        right: Rechts
+        subheading: 'Wo eine Unterhaltung aufgeht: anstelle der Liste oder daneben.'
     security:
         codes:
             copy: Codes kopieren
@@ -4113,6 +4130,7 @@ toolbar:
         label: Label vergeben
         mark_read: Als gelesen markieren
         mark_unread: Als ungelesen markieren
+        more: Mehr
         move_to: Verschieben nach
         snooze: Zurückstellen
         spam: 'Als Spam markieren'

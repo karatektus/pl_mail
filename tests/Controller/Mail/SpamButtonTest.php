@@ -301,7 +301,7 @@ final class SpamButtonTest extends WebTestCase
 
         self::assertResponseIsSuccessful();
         self::assertCount(1, $list->filter(sprintf('#thread_%d [data-controller="mail--spam-menu"]', $thread->id)));
-        self::assertCount(1, $list->filter('[data-action="click->mail--list-toolbar#spamSelected"]'));
+        self::assertCount(1, $list->filter('[data-action~="click->mail--list-toolbar#spamSelected"]'));
 
         $pane = $this->client->request('GET', sprintf('/mail/thread/%d', $thread->id));
 

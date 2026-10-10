@@ -8,6 +8,31 @@ The published image tags: `latest` follows the most recent release below,
 
 ## Unreleased
 
+**A reading pane beside the message list.** Opening a message used to replace the list; Settings →
+Reading pane now offers **Right**, which puts the message beside the list on a screen
+that has room for both. The open row is marked, the back arrow closes the message and leaves the
+list where it was, and the divider between the two can be dragged (or moved with the arrow keys;
+double-click resets it). Its position is stored as a percentage of the mail card, 25 to 75, rather
+than in pixels, so it keeps its meaning when the calendar pane opens or is resized. It is drawn only
+while the card is at least 52rem wide — a narrow window, a phone, or a docked calendar that leaves
+the mail too little room fall back to one pane at a time. Off by default, so nothing changes until
+someone chooses it. Per person, not part of an exported theme, and carried by a config backup. No migration.
+
+**Settings has a Features group**, with a page each for the reading pane and the keyboard
+shortcuts. The shortcuts switch moved there from General.
+
+**Above a selection the toolbar is three buttons and a menu.** Archive, Delete and Move to stay;
+star, mark as read or unread, snooze, label and spam are under **More**. Nine buttons in a row were
+wider than the list whenever it shared its card — with a docked calendar, or now with a message
+open beside it — and the row was cut off at the edge. The keys still reach all of them directly.
+
+**Keys work after ticking a row with the mouse.** A click left the focus on the row's checkbox,
+which counted as typing, so `e` after ticking three rows did nothing; rows ticked with `x` were
+unaffected.
+
+A message opened by its own address (a reload, a bookmark) has no list behind it, so with the
+reading pane on the right it is shown beside the Inbox, whichever folder it was opened from.
+
 **The category tabs fit a phone.** On a narrow screen the tabs (Primary, Social, Promotions, …)
 ran into each other, labels underneath the next tab's icon. They now keep their size and the strip
 scrolls sideways inside itself, opening on the tab you are on. No migration.
@@ -24,7 +49,7 @@ back, `x` selects, `e` archives, `#` deletes, `s` stars, `r` `a` `f` reply, repl
 forward, `c` writes, `/` searches, `g` then a letter goes to a list, `z` undoes. **?** shows all of
 them, and so does the keyboard button above a mail list. A key acts on the selection, otherwise on the open conversation, otherwise on the highlighted
 row, and does exactly what the button it stands for does. Nothing happens while you are typing or
-while a dialog or menu is open. On for everyone; Settings → General → Keyboard shortcuts switches
+while a dialog or menu is open. On for everyone; Settings → Keyboard shortcuts switches
 them off per person. No migration.
 [#36](https://github.com/karatektus/pl_mail/issues/36).
 

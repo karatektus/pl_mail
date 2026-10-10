@@ -1,5 +1,5 @@
 import { test, expect } from "./support/test";
-import { seed } from "./support/config";
+import { bulkMore, seed } from "./support/config";
 
 /**
  * "Select all" means all of them, and one action is one request.
@@ -204,7 +204,7 @@ test.describe("selecting past the page", () => {
 
         // One request, carrying all three.
         const posted = page.waitForRequest((request) => request.url().includes("/status/bulk/read"));
-        await page.locator(TOOLBAR).getByRole("button", { name: "Mark as read" }).first().click();
+        await bulkMore(page, "Mark as read");
         expect((await posted).postDataJSON().ids).toHaveLength(3);
 
         // And a different list starts with nothing selected.

@@ -51,6 +51,28 @@ The button itself carries `group` and `relative`.
     </button>
 {% endmacro %}
 
+{#
+mrow macro — one row of the "More" menu above a selection.
+
+The same `data-action` a toolbar button would carry, so a shortcut finds the
+control by what it does and not by where it is drawn, followed by the one that
+closes the menu: ui--dropdown closes on a click OUTSIDE it, and a row is inside.
+`flyout` names the panel a row hands over to — see openFlyout in the controller.
+#}
+{% macro mrow(action, icon, label, extra_classes, flyout) %}
+    <button
+        type="button"
+        role="menuitem"
+        data-action="{{ action }} click->ui--dropdown#close"
+        {% if flyout ?? false %}data-mail--list-toolbar-flyout-param="{{ flyout }}"{% endif %}
+        class="w-full flex items-center gap-2.5 px-3 py-1.5 text-sm text-left whitespace-nowrap
+               text-ink-soft hover:bg-hover transition-colors cursor-pointer {{ extra_classes ?? '' }}"
+    >
+        <i class="{{ icon }} w-4 text-center text-[13px] text-ink-muted" aria-hidden="true"></i>
+        {{ label }}
+    </button>
+{% endmacro %}
+
 {# Same treatment for pagination nav links (they're <a> not <button>) #}
 {% macro pgnav(href, icon, label, disabled) %}
     {% if disabled %}
@@ -259,41 +281,89 @@ The button itself carries `group` and `relative`.
     >
         {{ m.tbtn('click->mail--list-toolbar#archiveSelected',    'fa-solid fa-box-archive',  'toolbar.actions.archive'|trans) }}
         {{ m.tbtn('click->mail--list-toolbar#deleteSelected',     'fa-solid fa-trash',         'toolbar.actions.delete'|trans,   'hover:text-danger') }}
-        {# Not where the selection is already thrown away. In the bin the move
-           would pull mail back out of it and into Spam; in Spam it is nothing. #}
-        {% if list_scope|default('') not in ['spam', 'trash'] %}
-            {{ m.tbtn('click->mail--list-toolbar#spamSelected',   'fa-solid fa-circle-exclamation', 'toolbar.actions.spam'|trans, 'hover:text-danger') }}
-        {% endif %}
-        {# Star, for the selection. The rows each have a star of their own and
-           the toolbar had none, which nobody missed until `s` became a key: a
-           shortcut presses the control that is there, and with three rows
-           ticked there was nothing to press, so the one key that works on a
-           single row did nothing on several. It stars; it does not toggle —
-           a selection is a mix of both, and the server's bulk star is the one
-           a drop on Starred already uses. #}
-        {{ m.tbtn('click->mail--list-toolbar#starSelected',       'fa-solid fa-star',          'toolbar.actions.star'|trans) }}
-        {{ m.tbtn('click->mail--list-toolbar#markReadSelected',   'fa-solid fa-envelope-open', 'toolbar.actions.mark_read'|trans) }}
-        {{ m.tbtn('click->mail--list-toolbar#markUnreadSelected', 'fa-solid fa-envelope',      'toolbar.actions.mark_unread'|trans) }}
-        {# A menu, not a direct action: this used to hardcode "tomorrow 8am"
-           with a comment asking for a picker. #}
-        <div class="relative" data-controller="ui--dropdown">
-            {{ m.tbtn('click->ui--dropdown#toggle', 'fa-solid fa-clock', 'toolbar.actions.snooze'|trans) }}
-            {% include '_partials/_snooze_menu.html.twig' with {
-                controller: 'mail--list-toolbar',
-                method:     'snoozeSelected',
-                snoozed:    false,
-            } only %}
-        </div>
-        {% include '_partials/_label_menu.html.twig' with {
-            labels: sidebarCounts.flattenedUserLabels,
-            targetType: 'thread',
-        } %}
-        {# Directly beside the label button, because it is the other half of
-           the same thought: that one adds a label and leaves the mail here,
-           this one files it under a label and takes it out of this list. #}
+        {# Beside archive and delete because it is the third way a selection
+           LEAVES this list, and those three are what a selection is nearly
+           always made for. #}
         {% include '_partials/_move_menu.html.twig' with {
             labels: sidebarCounts.flattenedUserLabels,
         } only %}
+
+        {# ── More ──────────────────────────────────────────────────────────
+           Everything else a selection can have done to it. Nine buttons in a
+           row were wider than the list whenever it shared its card — with a
+           docked calendar, or with the reading pane beside it — and the row
+           was cut off at the pane's edge. Three stay out; six go in here.
+
+           Snooze and Label are menus themselves, and a menu inside a menu is
+           two things to dismiss. So their rows close this one and open theirs
+           in its place: the two panels live in this wrapper, under the same
+           button, each behind a trigger nobody sees. That trigger is also what
+           `b` and `l` press, so the keys and the rows go through one door. #}
+        <div class="relative" data-controller="ui--dropdown" data-toolbar-more>
+            <button
+                type="button"
+                data-action="click->ui--dropdown#toggle"
+                aria-haspopup="menu"
+                aria-label="{{ 'toolbar.actions.more'|trans }}"
+                title="{{ 'toolbar.actions.more'|trans }}"
+                class="flex items-center justify-center w-8 h-8 rounded-full
+                       text-ink-muted hover:text-ink hover:bg-hover
+                       transition-colors duration-100 cursor-pointer"
+            >
+                <i class="fa-solid fa-ellipsis-vertical text-[15px]" aria-hidden="true"></i>
+            </button>
+
+            <div data-ui--dropdown-target="menu" hidden role="menu"
+                 aria-label="{{ 'toolbar.actions.more'|trans }}"
+                 class="absolute left-0 top-full mt-1 z-30 w-max min-w-48 popover py-1">
+                {# Star stars; it does not toggle — a selection is a mix of both,
+                   and the server's bulk star is the one a drop on Starred
+                   already uses. It is here for `s` as much as for the pointer:
+                   a key presses the control that exists. #}
+                {{ m.mrow('click->mail--list-toolbar#starSelected',       'fa-solid fa-star',          'toolbar.actions.star'|trans) }}
+                {{ m.mrow('click->mail--list-toolbar#markReadSelected',   'fa-solid fa-envelope-open', 'toolbar.actions.mark_read'|trans) }}
+                {{ m.mrow('click->mail--list-toolbar#markUnreadSelected', 'fa-solid fa-envelope',      'toolbar.actions.mark_unread'|trans) }}
+                {{ m.mrow('click->mail--list-toolbar#openFlyout',         'fa-solid fa-clock',         'toolbar.actions.snooze'|trans, '', 'snooze') }}
+                {{ m.mrow('click->mail--list-toolbar#openFlyout',         'fa-solid fa-tag',           'toolbar.actions.label'|trans,  '', 'label') }}
+                {# Not where the selection is already thrown away. In the bin the move
+                   would pull mail back out of it and into Spam; in Spam it is nothing. #}
+                {% if list_scope|default('') not in ['spam', 'trash'] %}
+                    <div class="my-1 border-t border-line"></div>
+                    {{ m.mrow('click->mail--list-toolbar#spamSelected',   'fa-solid fa-circle-exclamation', 'toolbar.actions.spam'|trans, 'hover:text-danger') }}
+                {% endif %}
+            </div>
+
+            {# The two panels the rows above hand over to. Laid exactly over
+               the button and deaf to the pointer, so the button under it still
+               takes its own clicks; the panels switch the pointer back on for
+               themselves. Over the button, not beside it, because that is
+               where a panel has to hang from — the label panel measures its
+               trigger to place itself, and a trigger with no box measures as
+               the corner of the window. #}
+            <div class="absolute inset-0 pointer-events-none *:pointer-events-none [&_[data-ui--dropdown-target=menu]]:pointer-events-auto">
+                {# A menu, not a direct action: this used to hardcode "tomorrow
+                   8am" with a comment asking for a picker. #}
+                <div class="absolute inset-0" data-controller="ui--dropdown">
+                    <button type="button" tabindex="-1" aria-hidden="true"
+                            data-toolbar-flyout="snooze"
+                            data-action="click->ui--dropdown#toggle"
+                            class="block w-full h-full invisible"
+                            aria-label="{{ 'toolbar.actions.snooze'|trans }}"></button>
+                    {% include '_partials/_snooze_menu.html.twig' with {
+                        controller: 'mail--list-toolbar',
+                        method:     'snoozeSelected',
+                        snoozed:    false,
+                        align:      'left',
+                    } only %}
+                </div>
+                {% include '_partials/_label_menu.html.twig' with {
+                    labels: sidebarCounts.flattenedUserLabels,
+                    targetType: 'thread',
+                    trigger: false,
+                    align: 'left',
+                } %}
+            </div>
+        </div>
         <span
             data-mail--list-toolbar-target="selectionCount"
             class="ml-1 text-xs text-ink-muted tabular-nums whitespace-nowrap"
@@ -405,7 +475,9 @@ The button itself carries `group` and `relative`.
     <div data-list-region="pagination" class="contents">
     {% if total > 0 %}
         <div class="flex items-center gap-1 text-xs text-ink-muted shrink-0 pr-1">
-            <span class="tabular-nums mr-1">
+            {# `data-page-range`: what app.css takes out of a narrow toolbar
+               while rows are ticked — see "A selection in a narrow list". #}
+            <span class="tabular-nums mr-1" data-page-range>
                 {{ page_start }}–{{ page_end }} {{ 'toolbar.pagination.of'|trans }} {{ total }}
             </span>
 

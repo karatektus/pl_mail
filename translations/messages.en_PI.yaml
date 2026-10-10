@@ -2362,6 +2362,13 @@ profile:
         name_first: First name
         name_last: Family name
 
+# The reading pane beside the message list (Settings → Reading pane turns it on).
+# `handle` is what a screen reader calls the divider between the two; the
+# placeholder stands where the message will be until one is opened.
+reading_pane:
+    handle: Shift the rail 'tween list an' letter
+    placeholder: Pick a conversation, matey, an' it'll be laid out here
+
 # Said in a toast when a request fails and there is no better place to say it;
 # see request_errors.js.
 request_error:
@@ -3437,6 +3444,7 @@ settings:
         group:
             access: "Boardin' rights"
             calendar: "Th' almanac"
+            features: 'Riggin'''
             mail: "Th' post"
             personal: Yerself
         health: "State o' yer crew"
@@ -3446,8 +3454,10 @@ settings:
         notifications: Word from the crow's nest
         profile: Yer colours
         read_receipts: Read-marks
+        reading_pane: Spyglass deck
         security: The ship's lock
         sharing: Sharing
+        shortcuts: Keyboard shortcuts
         signature: Yer marks
         templates: 'Form letters'
     notifications:
@@ -3508,6 +3518,13 @@ settings:
         remember_me_note: 'Changing yer secret word puts every remembered deck ashore but this one. That be why it be worth doing when a spyglass goes missing.'
         subheading: 'What ye board with. Only ye can change it — not even a quartermaster may set it for ye.'
         submit: Change th' secret word
+    reading_pane:
+        heading: Spyglass deck
+        hint: 'Stowed shows the list an'' the letter one at a time; Starboard lays the letter beside the list when the ship has room for both — drag the rail between ''em to say how much deck each gets.'
+        label: 'Lay out the open letter'
+        off: Stowed
+        right: Starboard
+        subheading: 'Where a parley opens: in place o'' the list, or beside it.'
     security:
         codes:
             copy: Copy the tokens
@@ -3900,6 +3917,7 @@ toolbar:
         label: Fly a flag
         mark_read: Mark as read
         mark_unread: Mark as unread
+        more: More besides
         move_to: Haul off to
         snooze: Let it drift
         spam: 'Call it bilge'

@@ -1,5 +1,5 @@
 import { test, expect, type Page } from "./support/test";
-import { seed } from "./support/config";
+import { bulkMore, seed } from "./support/config";
 import { settled } from "./support/motion";
 
 /**
@@ -100,7 +100,7 @@ test.describe("the clock setting reaches the browser", () => {
         // caller's markup.
         await settled(page);
         await page.locator("[data-thread-select]").first().check({ force: true });
-        await page.getByRole("button", { name: "Snooze" }).first().click();
+        await bulkMore(page, "Snooze");
 
         const times = page.locator("[data-snooze-when]:not(:empty)");
         await expect(times.first()).toBeVisible();
