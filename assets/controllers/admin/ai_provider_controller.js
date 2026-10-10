@@ -16,7 +16,7 @@ export default class extends Controller {
         }
         for (const panel of form.querySelectorAll('[data-ai-panel]')) {
             const show = { generationOpenai: openai, generationOllama: !openai, embeddings,
-                independent: !shared, embeddingOllama: !compatibleEmbedding }[panel.dataset.aiPanel];
+                independent: !shared, embeddingOpenai: compatibleEmbedding, embeddingOllama: !compatibleEmbedding }[panel.dataset.aiPanel];
             panel.style.display = show ? '' : 'none';
         }
     }

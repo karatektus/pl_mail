@@ -20,13 +20,13 @@ use Symfony\Contracts\HttpClient\Exception\DecodingExceptionInterface;
  */
 final readonly class OpenAiClient
 {
-    public function __construct(private HttpClientInterface $http) {}
+    public function __construct(private HttpClientInterface $http, private ?AiTaskContext $tasks = null) {}
 
     /** @param list<array{role: string, content: string}> $messages */
-    public function chat(string $baseUrl, string $model, array $messages, ?float $temperature = null, ?string $key = null): AiChatResult
+    public function chat(string $baseUrl, string $model, array $messages, ?float $temperature = null, ?string $key = null, array $headers = []): AiChatResult
     {
         try {
-            $response = $this->http->request('POST', $this->url($baseUrl, '/chat/completions'), $this->options($key, $this->payload($model, $messages, $temperature, false)));
+            $response = $this->http->request('POST', $this->url($baseUrl, '/chat/completions'), $this->options($key, $this->payload($model, $messages, $temperature, false), $headers));
             if (200 !== $response->getStatusCode()) {
                 return AiChatResult::failed(OllamaClient::ERROR_HTTP_STATUS);
             }
@@ -55,14 +55,14 @@ final readonly class OpenAiClient
      * @param list<array{role: string, content: string}> $messages
      * @return \Generator<int, string, void, AiChatResult>
      */
-    public function chatStream(string $baseUrl, string $model, array $messages, ?float $temperature = null, ?string $key = null, ?float $timeout = null): \Generator
+    public function chatStream(string $baseUrl, string $model, array $messages, ?float $temperature = null, ?string $key = null, ?float $timeout = null, array $headers = []): \Generator
     {
         $response = null;
         $content = '';
         $timing = AiCallTiming::none();
         $buffer = '';
         try {
-            $options = $this->options($key, $this->payload($model, $messages, $temperature, true));
+            $options = $this->options($key, $this->payload($model, $messages, $temperature, true), $headers);
             $options['max_duration'] = $timeout ?? 180.0;
             $response = $this->http->request('POST', $this->url($baseUrl, '/chat/completions'), $options);
             if (200 !== $response->getStatusCode()) {
@@ -126,11 +126,11 @@ final readonly class OpenAiClient
         }
     }
 
-    public function embed(string $baseUrl, string $model, string $text, ?string $key = null): \App\Domain\DTO\Ai\AiEmbedResult
+    public function embed(string $baseUrl, string $model, string $text, ?string $key = null, array $headers = []): \App\Domain\DTO\Ai\AiEmbedResult
     {
         $response = null;
         try {
-            $response = $this->http->request('POST', $this->url($baseUrl, '/embeddings'), $this->options($key, ['model'=>$model, 'input'=>$text]));
+            $response = $this->http->request('POST', $this->url($baseUrl, '/embeddings'), $this->options($key, ['model'=>$model, 'input'=>$text], $headers));
             if (200 !== $response->getStatusCode()) return \App\Domain\DTO\Ai\AiEmbedResult::failed(OllamaClient::ERROR_HTTP_STATUS);
             $body = $response->toArray(false);
             $entries = $body['data'] ?? null;
@@ -151,10 +151,10 @@ final readonly class OpenAiClient
     }
 
     /** Optional discovery; generation itself never depends on /models. */
-    public function probe(string $baseUrl, ?string $key = null, float $timeout = 2.5, bool $embeddings = false): AiProbe
+    public function probe(string $baseUrl, ?string $key = null, float $timeout = 2.5, bool $embeddings = false, array $headers = []): AiProbe
     {
         try {
-            $options = $this->options($key);
+            $options = $this->options($key, headers: $headers);
             $options['max_duration'] = $timeout;
             $response = $this->http->request('GET', $this->url($baseUrl, $embeddings && 'openrouter.ai' === strtolower((string)parse_url($baseUrl, PHP_URL_HOST)) ? '/embeddings/models' : '/models'), $options);
             if (200 !== $response->getStatusCode()) {
@@ -189,9 +189,13 @@ final readonly class OpenAiClient
     }
 
     /** @return array<string, mixed> */
-    private function options(?string $key, ?array $payload = null): array
+    private function options(?string $key, ?array $payload = null, array $headers = []): array
     {
-        $options = ['timeout' => 30.0, 'max_duration' => 180.0, 'max_redirects' => 0];
+        $headers = \App\Domain\Ai\ConnectionHeaders::validate($headers);
+        $sessionId = null;
+        foreach ($headers as &$value) { if (is_array($value)) { $value = $sessionId ??= ($this->tasks ?? new AiTaskContext())->id(); } }
+        unset($value);
+        $options = ['headers' => ['User-Agent' => 'plMail', ...$headers], 'timeout' => 30.0, 'max_duration' => 180.0, 'max_redirects' => 0];
         if (null !== $key && '' !== trim($key)) {
             $options['auth_bearer'] = $key;
         }

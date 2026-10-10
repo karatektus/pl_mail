@@ -4233,3 +4233,14 @@ admin.ai.embedding.url: 'Basis-URL des Embedding-Anbieters'
 admin.ai.embedding.url_help: 'Verwende die Ollama-Host-URL oder den kompatiblen API-Endpunkt einschließlich /v1, falls erforderlich.'
 
 admin.ai.embedding.approval_required: 'Die Embedding-Konfiguration hat sich geändert. Prüfe und bestätige den neuen Index oben, bevor Nachrichten indexiert werden.'
+
+admin.ai.headers.name: 'Header name'
+admin.ai.headers.value: 'Secret value (blank keeps saved value)'
+admin.ai.headers.mode: 'Value mode'
+admin.ai.headers.fixed: 'Fixed value'
+admin.ai.headers.session: 'Automatic task session UUID'
+admin.ai.headers.help: 'Additional headers are encrypted. Blank keeps a saved fixed value; remove a row to delete it. A changed endpoint discards old values. Automatic UUID is shared within one task, including queued retries. User-Agent remains plMail. Endpoint access rules still apply.'
+admin.ai.headers.add: 'Add header'
+admin.ai.headers.remove: 'Remove header'
+
+admin.ai.headers.embedding_space_help: 'Credentials and automatic session IDs do not change the embedding index. If a header change selects a different model, tenant vector space or vector width, explicitly change the Embedding revision below. Review and confirm the new index before reindexing.'

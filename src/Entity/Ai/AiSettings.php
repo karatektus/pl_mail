@@ -117,6 +117,19 @@ class AiSettings
     #[ORM\Column(name: 'openai_api_token', type: EncryptedStringType::NAME, nullable: true)]
     public ?string $openAiApiToken = null;
 
+    #[ORM\Column(name: 'openai_headers', type: EncryptedStringType::NAME, nullable: true)]
+    public ?string $openAiHeaders = null;
+
+    #[ORM\Column(name: 'embedding_headers', type: EncryptedStringType::NAME, nullable: true)]
+    public ?string $embeddingHeaders = null;
+
+    /** @return array<string,string|array{mode: 'session'}> */
+    public function effectiveEmbeddingHeaders(): array
+    {
+        return \App\Domain\Ai\ConnectionHeaders::decode($this->embeddingSharedConnection ? $this->openAiHeaders : $this->embeddingHeaders);
+    }
+
+
     #[ORM\Column(name: 'openai_model', length: 128, nullable: true)]
     public ?string $openAiModel = null;
 

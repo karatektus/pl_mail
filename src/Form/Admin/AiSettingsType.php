@@ -40,6 +40,42 @@ final class AiSettingsType extends AbstractType
         $settings = $options['data'];
         $hasToken = $settings instanceof AiSettings && null !== $settings->apiToken;
 
+        // Names are public; decrypted values never become form data or prototypes.
+        foreach (['openAiHeaders' => $settings?->openAiBaseUrl, 'embeddingHeaders' => $settings?->embeddingBaseUrl] as $field => $oldEndpoint) {
+            $stored = \App\Domain\Ai\ConnectionHeaders::decode($settings?->$field);
+            $builder->add($field, \Symfony\Component\Form\Extension\Core\Type\CollectionType::class, [
+                'mapped' => false, 'entry_type' => AiHeaderType::class, 'allow_add' => true, 'allow_delete' => true,
+                'label' => false, 'required' => false,
+                'data' => array_map(static fn (string $name): array => ['name' => $name, 'value' => '', 'mode' => is_array($stored[$name]) ? 'session' : 'fixed'], array_keys($stored)),
+            ]);
+            $builder->addEventListener(FormEvents::POST_SUBMIT, static function (FormEvent $event) use ($settings, $field, $oldEndpoint, $stored): void {
+                if (!$settings instanceof AiSettings) { return; }
+                $endpoint = 'openAiHeaders' === $field ? $settings->openAiBaseUrl : $settings->embeddingBaseUrl;
+                $previous = $oldEndpoint === $endpoint ? $stored : [];
+                $next = []; $seen = [];
+                foreach ($event->getForm()->get($field)->getData() ?? [] as $row) {
+                    $name = $row['name'] ?? ''; $value = $row['value'] ?? '';
+                    if ('' === $name && '' === $value) { continue; }
+                    $lower = strtolower($name);
+                    if (isset($seen[$lower])) { $event->getForm()->get($field)->addError(new \Symfony\Component\Form\FormError('Duplicate additional header.')); return; }
+                    $seen[$lower] = true;
+                    if ('session' === ($row['mode'] ?? 'fixed')) { $value = ['mode' => 'session']; }
+                    if ('' === $value) {
+                        // Changing the endpoint discards stored credentials; only newly typed values survive.
+                        if ($oldEndpoint !== $endpoint) { continue; }
+                        $value = is_string($previous[$name] ?? null) ? $previous[$name] : '';
+                        if ('session' === ($row['mode'] ?? 'fixed')) { $value = ['mode' => 'session']; }
+                    if ('' === $value) { $event->getForm()->get($field)->addError(new \Symfony\Component\Form\FormError('Enter a value for the additional header.')); return; }
+                    }
+                    $next[$name] = $value;
+                }
+                try { \App\Domain\Ai\ConnectionHeaders::validate($next); }
+                catch (\InvalidArgumentException $error) { $event->getForm()->get($field)->addError(new \Symfony\Component\Form\FormError($error->getMessage())); return; }
+                $settings->$field = [] === $next ? null : json_encode($next, JSON_THROW_ON_ERROR);
+            });
+        }
+
+
         // Bind the credential to its endpoint in both admin and onboarding.
         $endpoint = $settings instanceof AiSettings ? $settings->openAiBaseUrl : null;
         $builder->addEventListener(FormEvents::PRE_SUBMIT, static function (FormEvent $event) use ($settings, $endpoint): void {

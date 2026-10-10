@@ -416,6 +416,33 @@ rather than everything *stored*, so one unanswerable message never becomes a wal
 It runs on the **maintenance** transport, not ingest: a backfill in front of the ingest queue would
 stop new mail appearing until an old mailbox had finished being catalogued.
 
+## Additional compatible connection headers
+
+Admin → AI supports additional name/value pairs for compatible endpoints, with
+fixed values or an automatic task session UUID. Values use the existing encrypted
+Doctrine string storage. The form renders names and empty password inputs only:
+blank retains a fixed value, removing a row deletes it, and changing the endpoint
+discards old values. Shared embeddings inherit generation headers; independent
+embeddings have their own collection. Probe, completion, streaming and embedding
+requests use the same validation and forbid redirects. Managed transport headers
+and Authorization are refused; the application identifies itself as `plMail`.
+
+One task gets one opaque UUID. New queued classification, embedding batches and
+background summaries persist one `AiTaskStamp` before transport serialization;
+retry and worker restart retain it. Existing backfill `runId` defines one execution
+across its chunks. Starting or explicitly resuming a backfill creates a new run
+and therefore a new task. Legacy queued messages without a stamp derive a stable
+fallback from their original delivery ID, then carry it on subsequent retries.
+Doctrine queue row IDs change when retried, so they are not sent directly.
+Synchronous writing, summary and semantic search pass an explicit execution
+context; probe is a separate one-shot task. A new user invocation creates a new
+task. No address, subject, body or other personal data enters the UUID.
+
+Credential and automatic session header changes preserve embedding identity. For a deliberate change of model/vector routing, explicitly change the existing Embedding revision and confirm the new index. Secret header values never enter fingerprints.
+
+These are general endpoint settings. They do not make plMail a coding agent or
+guarantee access to a provider subscription restricted to coding-agent traffic.
+
 ## Things that bite
 
 - **A model change invalidates every stored summary as well as every stored vector.** Both filter by
@@ -453,3 +480,5 @@ the test changes installation-wide settings and uses a fixed synthetic key.
 It verifies probing, saving, secret-free responses, and stripping the saved key
 when probing a different endpoint. The mock implements discovery only and
 records authorization as a boolean, without retaining or logging credentials.
+
+Additional headers are transport credentials by default. Rotating credentials or switching automatic task-session headers does not change embedding identity. When a routing header deliberately changes the model, tenant vector space or width, the administrator must explicitly change Embedding revision; the existing confirmation gate prevents indexing into an unapproved space. Secret header values and task UUIDs are never part of that identity.

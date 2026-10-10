@@ -81,3 +81,45 @@ test('provider panels and separate embedding connection survive save without sta
     await expect(page.locator('#ai_settings_embeddingModel')).toHaveValue('synthetic-embedding-only');
     await expect(page.locator('#ai_settings_embeddingApiToken')).toHaveValue('');
 });
+
+test('additional headers add, mask, preserve, reject duplicates and remove', async ({ page }) => {
+    seedUser({email: TEST_ADMIN.email, password: TEST_ADMIN.password, admin: true});
+    await login(page, TEST_ADMIN.email, TEST_ADMIN.password);
+    const open = async () => {
+        await page.goto('/admin?section=ai');
+        const card = page.locator('details').filter({has:page.locator('#ai_settings_chatProvider')});
+        if (await card.getAttribute('open') === null) await card.locator('summary').first().click();
+        await page.locator('#ai_settings_chatProvider').selectOption('openai');
+    };
+    await open();
+    const headers = page.locator('[data-ai-headers="openAiHeaders"]');
+    await headers.getByRole('button', {name:'Add header',exact:true}).click();
+    let row = headers.locator('[data-header-row]').last();
+    await row.locator('input[name$="[name]"]').fill('X-Synthetic-Credential');
+    await row.locator('input[name$="[value]"]').fill('synthetic-header-private');
+    const save = async () => {
+        const response = page.waitForResponse(r=>r.url().endsWith('/admin/ai')&&r.request().method()==='POST');
+        await page.locator('form[name="ai_settings"]').getByRole('button',{name:'Save',exact:true}).click();
+        const result = await response;
+        expect(await result.text()).not.toContain('synthetic-header-private');
+        return result.status();
+    };
+    expect(await save()).toBe(200);
+    await open();
+    row = headers.locator('[data-header-row]').filter({has:page.locator('input[value="X-Synthetic-Credential"]')});
+    await expect(row.locator('input[name$="[value]"]')).toHaveValue('');
+    expect(await save()).toBe(200);
+    await open();
+    await headers.getByRole('button',{name:'Add header',exact:true}).click();
+    const duplicate = headers.locator('[data-header-row]').last();
+    await duplicate.locator('input[name$="[name]"]').fill('x-synthetic-credential');
+    await duplicate.locator('input[name$="[value]"]').fill('synthetic-header-private');
+    expect(await save()).toBe(422);
+    await expect(page.getByText('Duplicate additional header.')).toBeVisible();
+    await open();
+    row = headers.locator('[data-header-row]').filter({has:page.locator('input[value="X-Synthetic-Credential"]')});
+    await row.getByRole('button',{name:'Remove header',exact:true}).click();
+    expect(await save()).toBe(200);
+    await open();
+    await expect(headers.locator('input[value="X-Synthetic-Credential"]')).toHaveCount(0);
+});

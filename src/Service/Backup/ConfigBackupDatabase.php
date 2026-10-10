@@ -253,6 +253,8 @@ final readonly class ConfigBackupDatabase
             'chatProvider'          => $settings->chatProvider,
             'openAiBaseUrl'         => $settings->openAiBaseUrl,
             'openAiApiToken'        => $settings->openAiApiToken,
+            'openAiHeaders' => $settings->openAiHeaders,
+            'embeddingHeaders' => $settings->embeddingHeaders,
             'openAiModel'           => $settings->openAiModel,
             'chatModel'             => $settings->chatModel,
             'chatKeepAlive'         => $settings->chatKeepAlive,
@@ -311,6 +313,11 @@ final readonly class ConfigBackupDatabase
         $settings->chatProvider          = 'openai' === ($values['chatProvider'] ?? null) ? 'openai' : 'ollama';
         $settings->openAiBaseUrl         = $this->string($values, 'openAiBaseUrl');
         $settings->openAiApiToken        = $this->string($values, 'openAiApiToken');
+        foreach (['openAiHeaders', 'embeddingHeaders'] as $field) {
+            $value = $this->string($values, $field);
+            \App\Domain\Ai\ConnectionHeaders::decode($value);
+            $settings->$field = $value;
+        }
         $settings->openAiModel           = $this->string($values, 'openAiModel');
         $settings->chatModel             = $this->string($values, 'chatModel');
         $settings->embeddingRevision = $this->string($values, 'embeddingRevision');

@@ -427,6 +427,7 @@ final readonly class ThreadSummariser
             // sending one without the other is what made the option fail every
             // time it was used on a conversation big enough to need it.
             true === $full ? self::timeoutFor($transcript) : null,
+            execution: $this->ai->executionContext(),
         );
 
         // Not a generator function, for the reason AiAssistant::chatStream()

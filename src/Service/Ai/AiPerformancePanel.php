@@ -79,7 +79,7 @@ final readonly class AiPerformancePanel
         // be reporting on a feature nobody has switched on.
         $compatible = 'openai' === $settings->chatProvider;
         $probe = $ready ? ($compatible
-            ? $this->openAi?->probe((string) $settings->openAiBaseUrl, $settings->openAiApiToken, self::PROBE_TIMEOUT)
+            ? $this->openAi?->probe((string) $settings->openAiBaseUrl, $settings->openAiApiToken, self::PROBE_TIMEOUT, headers: \App\Domain\Ai\ConnectionHeaders::decode($settings->openAiHeaders))
             : $this->client->probe((string) $settings->baseUrl, self::PROBE_TIMEOUT)) : null;
 
         $loaded = !$compatible && null !== $probe && true === $probe->reachable

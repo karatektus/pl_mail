@@ -1,0 +1,10 @@
+<div data-controller="admin--ai-headers" data-remove-label="{{ 'admin.ai.headers.remove'|trans }}" data-ai-headers="{{ field.vars.name }}" class="space-y-3">
+    <p class="text-sm">{{ 'admin.ai.headers.help'|trans }}</p>
+    <p class="text-sm text-muted">{{ 'admin.ai.headers.embedding_space_help'|trans }}</p>
+    {{ form_errors(field) }}
+    <div data-admin--ai-headers-target="rows" data-prototype="{{ form_widget(field.vars.prototype)|e('html_attr') }}" data-index="{{ field|length }}">
+    {% for row in field %}<div data-header-row class="border border-line rounded-pane p-3 mb-3 space-y-2">{{ form_widget(row) }}<button type="button" data-action="admin--ai-headers#remove" class="text-sm text-accent">{{ 'admin.ai.headers.remove'|trans }}</button></div>{% endfor %}
+    </div>
+    <button type="button" data-action="admin--ai-headers#add" class="text-sm font-semibold text-accent">{{ 'admin.ai.headers.add'|trans }}</button>
+</div>
+{% do field.setRendered %}

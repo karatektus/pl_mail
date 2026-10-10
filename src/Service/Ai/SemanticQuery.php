@@ -139,7 +139,7 @@ final readonly class SemanticQuery
             AiCallFeature::SearchQuery,
             $settings->searchQueryInstruction . $text,
             $settings,
-        );
+            execution: new \App\Domain\Ai\AiExecutionContext());
 
         if (null === $result->vector) {
             return SemanticSearch::skipped(self::fromErrorKind($result->errorKind));

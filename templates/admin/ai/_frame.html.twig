@@ -162,7 +162,7 @@ poll would empty a field mid-word.
                         <div data-ai-panel="generationOpenai" class="space-y-5">
                         {{ form_row(form.openAiBaseUrl) }}
                         {{ form_row(form.openAiModel) }}
-                        {{ form_row(form.openAiApiToken) }}
+                        {{ form_row(form.openAiApiToken) }}{% include 'admin/ai/_headers.html.twig' with {field: form.openAiHeaders} %}
                         </div><div data-ai-panel="generationOllama" class="space-y-5">
                         {{ form_row(form.baseUrl) }}
                         {{ form_row(form.apiToken) }}
@@ -236,7 +236,7 @@ poll would empty a field mid-word.
                         <div data-ai-panel="independent" class="space-y-5">
                         {{ form_row(form.embeddingProvider) }}
                         {{ form_row(form.embeddingBaseUrl) }}
-                        {{ form_row(form.embeddingApiToken) }}
+                        {{ form_row(form.embeddingApiToken) }}<div data-ai-panel="embeddingOpenai">{% include 'admin/ai/_headers.html.twig' with {field: form.embeddingHeaders} %}</div>
                         </div>
 
                         {# The model, its query instruction and its threshold
