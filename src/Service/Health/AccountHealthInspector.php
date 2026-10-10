@@ -92,6 +92,7 @@ final readonly class AccountHealthInspector
         private PushSubscriptionRegistry $pushRegistry,
         private QueueMonitor             $queueMonitor,
         private PushRenewalRecord        $renewals,
+        private ?\App\Service\Gmail\GmailQuotaPacer $gmailQuota = null,
     ) {
     }
 
@@ -148,7 +149,9 @@ final readonly class AccountHealthInspector
                 // now" — a button whose entire behaviour is to fail, three
                 // times over, with nothing on the page connecting any of them
                 // to the permission that was never granted.
-                $deadGrants[(int) $account->id] = $scope->id;
+                if (HealthIssueKind::GmailSyncPaused !== $scope->kind) {
+                    $deadGrants[(int) $account->id] = $scope->id;
+                }
 
                 continue;
             }
@@ -617,6 +620,17 @@ final readonly class AccountHealthInspector
             return null;
         }
 
+        if ($account->isGmail() && null !== $this->gmailQuota?->health($account)['warning']) {
+            return new HealthIssue(
+                id: 'account-sync-' . $account->id,
+                kind: HealthIssueKind::GmailSyncPaused,
+                severity: HealthSeverity::Warning,
+                subject: $account->email,
+                titleParams: ['%account%' => $account->email],
+                bodyParams: ['%account%' => $account->email],
+                repairs: [], facts: $this->resyncFacts($account), detail: null,
+            );
+        }
         if (null === $account->lastSyncError || $account->syncFailureCount < self::SYNC_FAILURES_BEFORE_REPORTING) {
             return null;
         }

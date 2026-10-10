@@ -1,0 +1,14 @@
+{% for issue in gmailSync.warnings(account ?? mailbox.account ?? null) %}
+    <div role="status" data-gmail-sync-warning="{{ issue.account.id }}"
+         class="border-b border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+        <p class="font-semibold">{{ 'gmail_sync.title'|trans({'%account%': issue.account.displayAddress}) }}</p>
+        <p>{{ ('gmail_sync.' ~ issue.warning)|trans }}</p>
+        <p>{{ 'gmail_sync.incomplete_mail'|trans }}</p>
+        {% if issue.account.lastSyncedAt %}
+            <p>{{ 'gmail_sync.last_success'|trans({'%when%': issue.account.lastSyncedAt|date('Y-m-d H:i T')}) }}</p>
+        {% endif %}
+        {% if issue.retryAt %}
+            <p>{{ 'gmail_sync.retry_not_before'|trans({'%when%': issue.retryAt|date('Y-m-d H:i T')}) }}</p>
+        {% endif %}
+    </div>
+{% endfor %}

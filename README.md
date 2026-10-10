@@ -139,3 +139,5 @@ the test suites and the console commands.
 ## License
 
 AGPL-3.0.
+
+Gmail quota budgets and incomplete-sync warnings are described in [Gmail quota](docs/internals/gmail-quota.md).

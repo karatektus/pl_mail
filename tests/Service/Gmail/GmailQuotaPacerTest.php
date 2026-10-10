@@ -11,7 +11,7 @@ use ReflectionProperty;
 use Symfony\Component\Clock\MockClock;
 
 /**
- * The pacer exists to keep an import under Google's 15,000 units a minute, so
+ * The pacer exists to keep an import under Google's 6,000 units a minute, so
  * the test that matters is the one that counts a minute. The rest pin down who
  * is made to wait and who is not.
  *
@@ -20,8 +20,8 @@ use Symfony\Component\Clock\MockClock;
  */
 final class GmailQuotaPacerTest extends TestCase
 {
-    /** A full batch: a hundred messages.get at five units. */
-    private const int BATCH = 500;
+    /** A full batch: fifty messages.get at twenty units. */
+    private const int BATCH = 1000;
 
     public function testAFewBatchesInARowAreNotHeld(): void
     {
@@ -30,7 +30,7 @@ final class GmailQuotaPacerTest extends TestCase
         $account = $this->account(1);
         $start   = $clock->now();
 
-        for ($i = 0; $i < 6; $i++) {
+        for ($i = 0; $i < 1; $i++) {
             $pacer->spend($account, self::BATCH);
         }
 
@@ -59,9 +59,9 @@ final class GmailQuotaPacerTest extends TestCase
             $worst    = max($worst, $inWindow * self::BATCH);
         }
 
-        self::assertLessThanOrEqual(12_500, $worst);
+        self::assertLessThanOrEqual(4_800, $worst);
         // And not so cautious that an import crawls: the steady rate is used.
-        self::assertGreaterThanOrEqual(9_000, $worst);
+        self::assertGreaterThanOrEqual(3_800, $worst);
     }
 
     public function testOneAccountImportingDoesNotHoldAnother(): void
@@ -92,7 +92,7 @@ final class GmailQuotaPacerTest extends TestCase
         $clock->sleep(120);
         $before = $clock->now();
 
-        for ($i = 0; $i < 6; $i++) {
+        for ($i = 0; $i < 1; $i++) {
             $pacer->spend($account, self::BATCH);
         }
 

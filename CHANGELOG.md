@@ -28,6 +28,12 @@ while a dialog or menu is open. On for everyone; Settings → General → Keyboa
 them off per person. No migration.
 [#36](https://github.com/karatektus/pl_mail/issues/36).
 
+**Concurrent Gmail imports share the same quota budget.** Settings now control the
+per-user and project rate with safety headroom; throttled work waits for a shared cooldown
+instead of losing message IDs. A new quota-state table is created automatically on boot.
+The down migration deliberately refuses to erase live cooldown state; roll back using a
+pre-upgrade database, secrets and storage backup with the previous image.
+
 `a` replies on a message that has only one recipient, where there is no Reply to all to press. The
 toolbar above a selection has a **Star** button, and `s` presses it; before, `s` did nothing with
 rows ticked. An open conversation has a **Snooze** button in its toolbar, which is what `b` presses

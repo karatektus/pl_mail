@@ -4,95 +4,164 @@ declare(strict_types=1);
 
 namespace App\Service\Gmail;
 
+use App\Domain\Exception\GmailThrottledException;
 use App\Entity\Mail\Account;
+use Doctrine\DBAL\Connection;
 use Symfony\Component\Clock\ClockInterface;
+use Symfony\Component\DependencyInjection\Attribute\Autowire;
 
-/**
- * Spaces out the bulk Gmail calls so an import stays inside the account's
- * quota instead of finding its edge by being refused.
- *
- * Google allows one Gmail user 15,000 quota units a minute, across everything
- * done in that user's name. Fetching a message costs 5, so a batch of a
- * hundred is 500 and thirty batches are the whole minute. Nothing used to
- * count: the worker fetched one batch after another as fast as Google
- * answered. While the same worker also did the follow-up work for every
- * message, that was slow enough to stay under the limit by accident. Once the
- * ingest queue held nothing but fetching, an import ran into it — and
- * the call that reported it was not the import. A batch that is partly refused
- * re-queues the refused ids at `info` and carries on; what failed out loud was
- * the next "see what is new" sync of the same account, on labels.list, a call
- * that costs one unit. New mail was held up by old mail being fetched too
- * fast.
- *
- * So this keeps a rate rather than reacting to a refusal. Each account has a
- * steady allowance and a small reserve on top of it for a burst; a caller says
- * what it is about to spend, and is made to wait first if that would run ahead
- * of the allowance. The wait is a few seconds at most for one batch, which is
- * why it is a sleep in the handler and not a delayed redelivery: the queue
- * behind it is no worse off than behind any other batch, and nothing has to
- * be re-sent.
- *
- * WELL UNDER the limit on purpose — the worst minute here is 12,000 units of
- * the 15,000. The rest belongs to what is not counted: the person using the
- * mailbox (a send is 100, a label change on a selection 50), push-driven
- * syncs, and whatever else is signed in to the same Google account.
- *
- * IN MEMORY, in this process. That is enough because the bulk fetching is one
- * worker's job, and it survives from one message to the next because a worker
- * only resets services that ask to be. A restart forgets what was spent and
- * starts with a full reserve, which can overshoot for at most the reserve.
- * Shared storage would close that, at the price of a database round trip per
- * batch to guard against something GmailThrottledException already handles.
- */
+/** Shared token bucket: its burst plus one minute of refill fit the configured budget. */
 final class GmailQuotaPacer
 {
-    /** What a messages.get costs, and so what each id in a batch costs. */
-    public const int UNITS_PER_MESSAGE = 5;
-
-    /** What one page of messages.list costs. */
+    public const int UNITS_PER_MESSAGE = 20;
     public const int UNITS_PER_LIST_PAGE = 5;
 
-    /** The steady allowance: 9,000 units a minute. */
-    private const float UNITS_PER_SECOND = 150.0;
-
-    /** How far ahead of the allowance a burst may run: 3,000 units. */
-    private const float RESERVE_SECONDS = 20.0;
-
-    /**
-     * Per account id, the moment its spending so far is paid off at the
-     * steady rate. In the past for an account that has been idle.
-     *
-     * @var array<int, float>
-     */
-    private array $paidOffAt = [];
+    /** @var array<string,array<string,mixed>> Isolated unit-test fallback; production injects DBAL. */
+    private array $memory = [];
 
     public function __construct(
         private readonly ClockInterface $clock,
-    ) {
+        private readonly ?Connection $connection = null,
+        #[Autowire('%env(GOOGLE_OAUTH_CLIENT_ID)%')]
+        private readonly string $googleClientId = '',
+    ) {}
+
+    public function now(): float
+    {
+        return (float) $this->clock->now()->format('U.u');
+    }
+
+    /** No secrets are read. Query fresh configuration so long-lived workers see edits. */
+    private function configuration(): array
+    {
+        $row = $this->connection?->fetchAssociative("SELECT client_id, settings FROM mail_provider_config WHERE provider = 'google'");
+        $settings = is_array($row) ? json_decode((string) $row['settings'], true) : [];
+        $settings = is_array($settings) ? $settings : [];
+        return [
+            'client' => is_array($row) && !empty($row['client_id']) ? (string) $row['client_id'] : $this->googleClientId,
+            'budget' => max(3000, min(15000, (int) ($settings['gmail.quota_per_minute'] ?? 6000))),
+            'headroom' => max(0, min(50, (int) ($settings['gmail.quota_headroom_percent'] ?? 20))),
+        ];
+    }
+
+    public function key(Account $account): string
+    {
+        $client = $this->configuration()['client'];
+        // Google client IDs contain their project number. Separate app clients in that
+        // project share a budget. Missing/nonstandard IDs use a conservative fallback.
+        $project = preg_match('/^(\d+)-.+\.apps\.googleusercontent\.com$/', $client, $match) === 1
+            ? $match[1] : ('' === $client ? 'unknown-project' : $client);
+        $user = strtolower(trim($account->email ?? $account->username ?? ''));
+        if ('' === $user) { $user = 'account:' . $account->id; }
+        return hash('sha256', $project . "\0" . $user);
+    }
+
+    public function spend(Account $account, int $units): void
+    {
+        if ($units <= 0) { return; }
+        if ($units > 1000) { throw new \InvalidArgumentException('Split Gmail requests into batches of at most 50 messages.'); }
+        $key = $this->key($account);
+        while (true) {
+            $config = $this->configuration();
+            $usable = $config['budget'] * (100 - $config['headroom']) / 100;
+            $rate = ($usable - 1000) / 60;
+            $wait = $this->mutate($key, function (array &$state) use ($units, $rate): float {
+                $now = $this->now();
+                if ((float) $state['blocked_until'] > $now) {
+                    throw new GmailThrottledException('Gmail sync paused by a shared quota cooldown.', 429, 'localCooldown', (int) ceil((float) $state['blocked_until'] - $now));
+                }
+                // Clamp existing credit on a settings change; never create a fresh burst.
+                $credit = min(1000.0, (float) $state['credits'] + max(0, $now - (float) $state['updated_at']) * $rate);
+                $state['credits'] = $credit;
+                $state['updated_at'] = max($now, (float) $state['updated_at']);
+                if ($credit + 0.000001 < $units) { return ($units - $credit) / $rate; }
+                $state['credits'] = max(0, $credit - $units);
+                return 0.0;
+            });
+            if ($wait <= 0) { return; }
+            // DB row lock is released before waiting. Recheck after another worker spends.
+            $this->clock->sleep(min(60.0, $wait + 0.001));
+        }
+    }
+
+    public function retryAfter(string $header): ?int
+    {
+        $header = trim($header);
+        if (ctype_digit($header)) { return (int) $header; }
+        $date = \DateTimeImmutable::createFromFormat('!D, d M Y H:i:s \G\M\T', $header, new \DateTimeZone('UTC'));
+        return false === $date ? null : max(0, (int) ceil($date->getTimestamp() - $this->now()));
+    }
+
+    public function throttle(Account $account, int $seconds): void
+    {
+        $this->mutate($this->key($account), function (array &$state) use ($seconds): void {
+            $state['blocked_until'] = max((float) $state['blocked_until'], $this->now() + max(1, $seconds));
+            $state['warning'] = 'throttled';
+        });
+    }
+
+    public function incomplete(Account $account, string $warning = 'incomplete'): void
+    {
+        $this->mutate($this->key($account), static function (array &$state) use ($warning): void { $state['warning'] = $warning; });
+    }
+
+    /** @param list<string> $ids */
+    public function beginBatch(Account $account, array $ids): void
+    {
+        $this->mutate($this->key($account), static function (array &$state) use ($ids): void {
+            $pending = json_decode((string) $state['pending_ids'], true);
+            $state['pending_ids'] = json_encode(array_values(array_unique(array_merge(is_array($pending) ? $pending : [], $ids))), JSON_THROW_ON_ERROR);
+        });
+    }
+
+    /** @param list<string> $requested @param list<string> $retryable @param list<string> $permanent */
+    public function batchResult(Account $account, array $requested, array $retryable, array $permanent): void
+    {
+        $this->mutate($this->key($account), function (array &$state) use ($requested, $retryable, $permanent): void {
+            $pending = json_decode((string) $state['pending_ids'], true);
+            $pending = is_array($pending) ? $pending : [];
+            $pending = array_values(array_unique(array_merge(array_diff($pending, $requested), $retryable, $permanent)));
+            $state['pending_ids'] = json_encode($pending, JSON_THROW_ON_ERROR);
+            if ([] !== $permanent) { $state['warning'] = 'permanent'; }
+            elseif ([] !== $pending && null === $state['warning']) { $state['warning'] = 'incomplete'; }
+            elseif ([] === $pending && (float) $state['blocked_until'] <= $this->now()) { $state['warning'] = null; }
+        });
+    }
+
+    /** @return array{warning: ?string, retryAt: ?\DateTimeImmutable} */
+    public function health(Account $account): array
+    {
+        $key = $this->key($account);
+        $state = $this->connection?->fetchAssociative('SELECT warning, blocked_until FROM gmail_quota_state WHERE quota_key = ?', [$key]) ?? ($this->memory[$key] ?? false);
+        $warning = is_array($state) && is_string($state['warning']) ? $state['warning'] : null;
+        // Existing failures predating this shared table still deserve an immediate,
+        // correctly worded warning. No retry deadline can be inferred from that text.
+        if (null === $warning && null !== $account->lastSyncError) {
+            if (preg_match('/userRateLimitExceeded|rateLimitExceeded|quotaExceeded|Gmail.+429/', $account->lastSyncError)) { $warning = 'throttled'; }
+        }
+        $until = is_array($state) ? (float) $state['blocked_until'] : 0;
+        return ['warning' => $warning, 'retryAt' => $until > $this->now() ? new \DateTimeImmutable('@' . (int) ceil($until)) : null];
     }
 
     /**
-     * Announce a spend, and wait here until the account can afford it.
+     * @template T
+     * @param callable(array<string,mixed>):T $change
+     * @return T
      */
-    public function spend(Account $account, int $units): void
+    private function mutate(string $key, callable $change): mixed
     {
-        if ($units <= 0) {
-            return;
+        $initial = ['credits' => 1000.0, 'updated_at' => $this->now(), 'blocked_until' => 0.0, 'warning' => null, 'pending_ids' => '[]'];
+        if (null === $this->connection) {
+            $this->memory[$key] ??= $initial;
+            return $change($this->memory[$key]);
         }
-
-        $key = (int) $account->id;
-        $now = (float) $this->clock->now()->format('U.u');
-
-        $paidOffAt = max($this->paidOffAt[$key] ?? 0.0, $now) + $units / self::UNITS_PER_SECOND;
-
-        // Recorded before the wait, not after: what was spent is spent whether
-        // or not the sleep is interrupted by the worker being stopped.
-        $this->paidOffAt[$key] = $paidOffAt;
-
-        $ahead = $paidOffAt - $now - self::RESERVE_SECONDS;
-
-        if ($ahead > 0.0) {
-            $this->clock->sleep($ahead);
-        }
+        return $this->connection->transactional(function (Connection $db) use ($key, $initial, $change): mixed {
+            $db->executeStatement('INSERT INTO gmail_quota_state (quota_key, credits, updated_at, blocked_until, pending_ids) VALUES (?, ?, ?, 0, ?) ON CONFLICT DO NOTHING', [$key, $initial['credits'], $initial['updated_at'], '[]']);
+            $state = $db->fetchAssociative('SELECT credits, updated_at, blocked_until, warning, pending_ids FROM gmail_quota_state WHERE quota_key = ? FOR UPDATE', [$key]);
+            if (false === $state) { throw new \LogicException('Missing Gmail quota state.'); }
+            $result = $change($state);
+            $db->executeStatement('UPDATE gmail_quota_state SET credits = ?, updated_at = ?, blocked_until = ?, warning = ?, pending_ids = ? WHERE quota_key = ?', [$state['credits'], $state['updated_at'], $state['blocked_until'], $state['warning'], $state['pending_ids'], $key]);
+            return $result;
+        });
     }
 }

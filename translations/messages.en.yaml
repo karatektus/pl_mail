@@ -535,6 +535,9 @@ admin:
             not_asked: 'not asked'
             rules: 'The rules said'
     integrations:
+        gmail_quota: Gmail quota units per minute per user
+        gmail_quota_help: 'Limits plMail; does not raise Google quota. Default: 6000. Use 15000 only if this older limit is confirmed for your project.'
+        gmail_headroom: Gmail safety headroom (%)
         base_url_per_user: 'Each user enters their own server address.'
         base_url_pinned: 'pinned for all users'
         clear_secret: 'Remove the stored client secret'
@@ -3239,6 +3242,9 @@ settings:
                     next sync. Connect the account again and allow everything
                     you are asked for.
                 title: '%account% was not given full access'
+            gmail_sync_paused:
+                title: 'Gmail sync for %account% is incomplete'
+                body: 'Gmail has limited requests or message downloads have failed. Stored mail remains available. Check the warning in the mail view; do not change server or password settings for this condition.'
             account_sync_failing:
                 body: >-
                     Several attempts in a row have failed, so new mail is not
@@ -4201,3 +4207,13 @@ templates:
         sender_email: 'Your address'
         sender_name: 'Your name'
         signature: 'Signature'
+
+gmail_sync:
+    title: 'Gmail sync: %account%'
+    throttled: Gmail is limiting requests. Sync is waiting for another attempt.
+    incomplete: Some messages could not be downloaded yet.
+    exhausted: Repeated downloads failed. Automatic retries for this batch have ended; sync remains incomplete.
+    permanent: Gmail permanently refused some message downloads. Check account permissions and status.
+    incomplete_mail: Stored mail remains available. New mail and an empty Inbox may be incomplete.
+    last_success: 'Last successful sync planning: %when%'
+    retry_not_before: 'Known cooldown until at least %when%. This is not a promise of when new mail will appear.'

@@ -30,7 +30,7 @@ final class GmailApiSyncer
     private const int PAGE_SIZE = 500;
 
     /** Gmail message IDs per fan-out batch. */
-    private const int BATCH_SIZE = 100;
+    private const int BATCH_SIZE = 50;
 
     /** Seconds before an unfinished backfill lists again. */
     private const int BACKFILL_COOLDOWN = 3600;

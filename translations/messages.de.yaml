@@ -546,6 +546,9 @@ admin:
             not_asked: 'nicht gefragt'
             rules: 'Die Regeln sagen'
     integrations:
+        gmail_quota: Gmail-Kontingenteinheiten pro Minute und Nutzer
+        gmail_quota_help: 'Begrenzt plMail; erhöht kein Google-Kontingent. Standard: 6000. Verwende 15000 nur, wenn dieses ältere Limit für dein Projekt bestätigt ist.'
+        gmail_headroom: Gmail-Sicherheitsreserve (%)
         base_url_per_user: 'Jede Person gibt ihre eigene Serveradresse ein.'
         base_url_pinned: 'für alle festgelegt'
         clear_secret: 'Gespeichertes Client-Secret entfernen'
@@ -3234,6 +3237,9 @@ settings:
                     zurückgesetzt. Verbinde das Konto neu und erlaube alles,
                     wonach du gefragt wirst.
                 title: '%account% hat nicht alle Rechte bekommen'
+            gmail_sync_paused:
+                title: 'Gmail-Synchronisierung für %account% ist unvollständig'
+                body: 'Gmail hat Anfragen begrenzt oder Nachrichtendownloads sind fehlgeschlagen. Gespeicherte Nachrichten bleiben verfügbar. Prüfe den Hinweis in der Mailansicht; ändere dafür keine Server- oder Passworteinstellungen.'
             account_sync_failing:
                 body: >-
                     Mehrere Versuche hintereinander sind fehlgeschlagen — für
@@ -4195,3 +4201,13 @@ templates:
         sender_email: 'Deine Adresse'
         sender_name: 'Dein Name'
         signature: 'Signatur'
+
+gmail_sync:
+    title: 'Gmail-Synchronisierung: %account%'
+    throttled: Gmail begrenzt momentan Anfragen. Die Synchronisierung wartet auf einen weiteren Versuch.
+    incomplete: Einige Nachrichten konnten noch nicht geladen werden.
+    exhausted: Wiederholte Downloads waren erfolglos. Die automatische Wiederholung dieses Pakets ist beendet; die Synchronisierung ist unvollständig.
+    permanent: Gmail hat einige Nachrichtendownloads dauerhaft verweigert. Prüfe die Berechtigungen und das Konto.
+    incomplete_mail: Gespeicherte Nachrichten bleiben verfügbar. Neue Nachrichten und ein leerer Posteingang können unvollständig sein.
+    last_success: 'Letzte erfolgreiche Synchronisierungsplanung: %when%'
+    retry_not_before: 'Bekannte Wartefrist bis mindestens %when%. Das ist keine Zusage, wann neue Mail erscheint.'

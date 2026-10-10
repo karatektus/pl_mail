@@ -28,6 +28,7 @@ class GmailApiSender implements MailSenderInterface
         private readonly OAuthTokenManager   $tokenManager,
         private readonly HttpClientInterface $httpClient,
         private readonly LoggerInterface     $logger,
+        private readonly ?\App\Service\Gmail\GmailQuotaPacer $pacer = null,
     ) {
     }
 
@@ -56,6 +57,7 @@ class GmailApiSender implements MailSenderInterface
         // recipients from the raw message. See ApiMime.
         $raw         = $this->toBase64Url(ApiMime::toString($email));
 
+        $this->pacer?->spend($account, 100);
         try {
             $response = $this->httpClient->request('POST', self::SEND_ENDPOINT, [
                 'auth_bearer' => $accessToken,
@@ -64,6 +66,14 @@ class GmailApiSender implements MailSenderInterface
 
             $statusCode = $response->getStatusCode();
 
+            if (429 === $statusCode || 403 === $statusCode) {
+                $error = json_decode($response->getContent(false), true);
+                $reason = is_array($error) ? ($error['error']['errors'][0]['reason'] ?? $error['error']['status'] ?? '') : '';
+                if (429 === $statusCode || in_array($reason, ['rateLimitExceeded', 'userRateLimitExceeded', 'quotaExceeded', 'RESOURCE_EXHAUSTED'], true)) {
+                    $retry = $response->getHeaders(false)['retry-after'][0] ?? '';
+                    $this->pacer?->throttle($account, $this->pacer->retryAfter($retry) ?? 60);
+                }
+            }
             if ($statusCode < 200 || $statusCode >= 300) {
                 $this->logger->error('GmailApiSender: send failed', [
                     'status'  => $statusCode,

@@ -1,4 +1,4 @@
-<!-- translated-from: README.md sha1:fd1e366eaebecb469394c243e7d01102522944fe -->
+<!-- translated-from: README.md sha1:6383186417c51e9d67d9f8173e0f091f5f581a47 -->
 
 # plMail-Dokumentation
 
@@ -78,6 +78,7 @@ plMail prüft oder erweitert, statt es zu betreiben.
 |---|---|
 | [Architektur](internals/architecture.md) | Die Schichten, was wo liegt, und die Regeln, die das so halten |
 | [Mail-Ingest](internals/mail-ingest.md) | Der Weg vom Anbieter in die Datenbank, Zuordnung zu Konversationen, Kategorisierung |
+| [Gmail-Kontingent und Sync-Warnungen](internals/gmail-quota.md) | Gemeinsames Budget, begrenzte Wiederholungen und Hinweise auf unvollständige Post |
 | [Das Kalendermodell](internals/calendar-model.md) | JSCalendar in jsonb, projizierte Spalten, Termininstanzen, Wiederholungen und Ausnahmen |
 | [Die Sync-Engine](internals/calendar-sync-engine.md) | Der Treibervertrag, den jeder Anbieter erfüllt, Push-Kanäle, Deduplizierung |
 | [KI-Unterstützung](internals/ai-assist.md) | Die optionalen Modell-Funktionen: was standardmäßig aus ist und warum das Vektor-Design ohne pgvector auskommt |

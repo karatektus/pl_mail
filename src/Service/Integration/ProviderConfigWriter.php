@@ -103,6 +103,13 @@ final readonly class ProviderConfigWriter
             $config->pubsubTopic = $form->get('pubsubTopic')->getData();
         }
 
+        if ($form->has('gmailQuotaPerMinute') && $form->has('gmailQuotaHeadroom')) {
+            $config->settings = array_replace($config->settings, [
+                'gmail.quota_per_minute' => (int) $form->get('gmailQuotaPerMinute')->getData(),
+                'gmail.quota_headroom_percent' => (int) $form->get('gmailQuotaHeadroom')->getData(),
+            ]);
+        }
+
         // Write-only, like every other secret here.
         if (true === $form->has('pushVerificationToken')) {
             $submittedToken = $this->nullIfBlank($form->get('pushVerificationToken')->getData());

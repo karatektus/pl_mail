@@ -45,6 +45,7 @@ final class GmailApiClient
         'rateLimitExceeded',
         'userRateLimitExceeded',
         'quotaExceeded',
+        'RESOURCE_EXHAUSTED',
     ];
 
     /**
@@ -92,9 +93,7 @@ final class GmailApiClient
                 $query['pageToken'] = $page;
             }
 
-            $this->pacer->spend($account, GmailQuotaPacer::UNITS_PER_LIST_PAGE);
-
-            $response = $this->httpClient->request('GET', self::BASE . '/messages', [
+                        $response = $this->request($account, 'GET', self::BASE . '/messages', [
                 'auth_bearer' => $token,
                 'query'       => $query,
             ]);
@@ -113,7 +112,7 @@ final class GmailApiClient
     /**
      * Fetch multiple messages (format=full) using the Gmail Batch API.
      *
-     * Packs up to 100 individual messages.get sub-requests into a single
+     * Packs up to 50 individual messages.get sub-requests into a single
      * multipart/mixed HTTP POST. This avoids hammering the per-user per-second
      * quota with individual concurrent requests and dramatically reduces
      * round-trips for large initial syncs.
@@ -128,11 +127,22 @@ final class GmailApiClient
      * empty would let the Messenger message ack and silently drop every id
      * in the batch.
      *
-     * @param list<string> $messageIds  Maximum 100 per call (enforced by caller via BATCH_SIZE)
+     * @param list<string> $messageIds  Larger legacy jobs are split into at most 50 requests per HTTP batch
      * @return array{payloads: array<string,array<string,mixed>>, retryable: list<string>, gone: list<string>}
      */
     public function getMessages(Account $account, array $messageIds): array
     {
+        if (count($messageIds) > 50) {
+            $combined = ['payloads' => [], 'retryable' => [], 'gone' => []];
+            foreach (array_chunk($messageIds, 50) as $chunk) {
+                $result = $this->getMessages($account, $chunk);
+                $combined['payloads'] += $result['payloads'];
+                $combined['retryable'] = array_merge($combined['retryable'], $result['retryable']);
+                $combined['gone'] = array_merge($combined['gone'], $result['gone']);
+            }
+            return $combined;
+        }
+
         if (count($messageIds) === 0) {
             return [
                 'payloads'  => [],
@@ -140,6 +150,8 @@ final class GmailApiClient
                 'gone'      => [],
             ];
         }
+
+        $this->pacer->beginBatch($account, $messageIds);
 
         // The one call here that can spend a minute's quota on its own, so it
         // is the one that is paced. See GmailQuotaPacer.
@@ -149,17 +161,28 @@ final class GmailApiClient
         $boundary = 'plmail_batch_' . bin2hex(random_bytes(8));
         $body     = $this->buildBatchBody($messageIds, $boundary);
 
-        $response = $this->httpClient->request('POST', self::BATCH, [
-            'auth_bearer' => $token,
-            'headers'     => [
-                'Content-Type' => 'multipart/mixed; boundary="' . $boundary . '"',
-            ],
-            'body' => $body,
-        ]);
+        try {
+            $response = $this->request($account, 'POST', self::BATCH, [
+                'auth_bearer' => $token,
+                'headers'     => [
+                    'Content-Type' => 'multipart/mixed; boundary="' . $boundary . '"',
+                ],
+                'body' => $body,
+            ]);
+        } catch (GmailThrottledException $failure) {
+            throw $failure;
+        } catch (GmailPermanentException $failure) {
+            $this->pacer->incomplete($account, 'permanent');
+            throw $failure;
+        } catch (GmailApiException|HttpException $failure) {
+            $this->pacer->incomplete($account);
+            throw $failure;
+        }
 
         try {
-            $rawBody = $response->getContent();
+            $rawBody = $response->getContent(false);
         } catch (HttpException $e) {
+            $this->pacer->incomplete($account);
             throw new \RuntimeException(
                 'Gmail batch request failed: ' . $e->getMessage(),
                 0,
@@ -168,9 +191,10 @@ final class GmailApiClient
         }
 
         $parsed    = $this->parseBatchResponse($rawBody);
-        $payloads  = $parsed['payloads'];
+        $payloads  = array_intersect_key($parsed['payloads'], array_flip($messageIds));
         $retryable = [];
         $gone      = [];
+        $permanent = [];
 
         foreach ($messageIds as $id) {
             if (true === isset($payloads[$id])) {
@@ -185,7 +209,16 @@ final class GmailApiClient
                 continue;
             }
 
-            if (true === in_array($status, [429, 403, 500, 502, 503, 504], true)) {
+            $reason = $parsed['reasons'][$id] ?? '';
+            if (403 === $status && in_array($reason, self::PERMANENT_REASONS, true)) {
+                $permanent[] = $id;
+                $gone[] = $id;
+                continue;
+            }
+            if (429 === $status || (403 === $status && in_array($reason, self::TRANSIENT_REASONS, true))) {
+                $this->pacer->throttle($account, $parsed['retryAfter'][$id] ?? 60);
+            }
+            if (true === in_array($status, [200, 401, 429, 403, 500, 502, 503, 504], true)) {
                 $retryable[] = $id;
                 continue;
             }
@@ -193,6 +226,7 @@ final class GmailApiClient
             $gone[] = $id;
         }
 
+        $this->pacer->batchResult($account, $messageIds, $retryable, $permanent);
         return [
             'payloads'  => $payloads,
             'retryable' => $retryable,
@@ -210,7 +244,7 @@ final class GmailApiClient
     {
         $token = $this->tokenManager->getValidAccessToken($account);
 
-        $response = $this->httpClient->request(
+        $response = $this->request($account,
             'GET',
             self::BASE . '/messages/' . urlencode($messageId),
             [
@@ -233,7 +267,7 @@ final class GmailApiClient
     {
         $token = $this->tokenManager->getValidAccessToken($account);
 
-        $response = $this->httpClient->request(
+        $response = $this->request($account,
             'GET',
             self::BASE . '/messages/' . urlencode($messageId),
             [
@@ -275,7 +309,7 @@ final class GmailApiClient
                 $query['pageToken'] = $page;
             }
 
-            $response = $this->httpClient->request('GET', self::BASE . '/history', [
+            $response = $this->request($account, 'GET', self::BASE . '/history', [
                 'auth_bearer' => $token,
                 'query'       => $query,
             ]);
@@ -307,7 +341,7 @@ final class GmailApiClient
     {
         $token = $this->tokenManager->getValidAccessToken($account);
 
-        $response = $this->httpClient->request('POST', self::BASE . '/watch', [
+        $response = $this->request($account, 'POST', self::BASE . '/watch', [
             'auth_bearer' => $token,
             'json'        => [
                 'topicName'           => $topicName,
@@ -326,7 +360,7 @@ final class GmailApiClient
     {
         $token = $this->tokenManager->getValidAccessToken($account);
 
-        $this->httpClient->request('POST', self::BASE . '/stop', [
+        $this->request($account, 'POST', self::BASE . '/stop', [
             'auth_bearer' => $token,
         ]);
     }
@@ -340,7 +374,7 @@ final class GmailApiClient
     {
         $token = $this->tokenManager->getValidAccessToken($account);
 
-        $response = $this->httpClient->request('GET', self::BASE . '/profile', [
+        $response = $this->request($account, 'GET', self::BASE . '/profile', [
             'auth_bearer' => $token,
         ]);
 
@@ -360,7 +394,7 @@ final class GmailApiClient
         $token = $this->tokenManager->getValidAccessToken($account);
 
         try {
-            $response = $this->httpClient->request('GET', self::BASE . '/settings/sendAs', [
+            $response = $this->request($account, 'GET', self::BASE . '/settings/sendAs', [
                 'auth_bearer' => $token,
             ]);
 
@@ -401,7 +435,7 @@ final class GmailApiClient
     {
         $token = $this->tokenManager->getValidAccessToken($account);
 
-        $response = $this->httpClient->request(
+        $response = $this->request($account,
             'GET',
             self::BASE . '/messages/' . urlencode($messageId) . '/attachments/' . urlencode($attachmentId),
             ['auth_bearer' => $token],
@@ -454,7 +488,7 @@ final class GmailApiClient
      * by a JSON body. 200 parts are decoded into payloads; every part's
      * status is recorded so the caller can classify failures per id.
      *
-     * @return array{payloads: array<string,array<string,mixed>>, statuses: array<string,int>}
+     * @return array{payloads: array<string,array<string,mixed>>, statuses: array<string,int>, reasons: array<string,string>, retryAfter: array<string,int>}
      */
     private function parseBatchResponse(string $rawBody): array
     {
@@ -466,13 +500,15 @@ final class GmailApiClient
         if (1 !== preg_match('/--([a-zA-Z0-9_\-]+)/', $head, $m)) {
             return [
                 'payloads' => [],
-                'statuses' => [],
+                'statuses' => [], 'reasons' => [], 'retryAfter' => [],
             ];
         }
 
         $boundary = $m[1];
         $payloads = [];
         $statuses = [];
+        $reasons = [];
+        $retryAfter = [];
 
         // Split on the boundary lines, drop the preamble and epilogue.
         $parts = preg_split('/\r?\n--' . preg_quote($boundary, '/') . '(?:--)?(?:\r?\n|$)/', $rawBody);
@@ -480,7 +516,7 @@ final class GmailApiClient
         if (false === $parts) {
             return [
                 'payloads' => [],
-                'statuses' => [],
+                'statuses' => [], 'reasons' => [], 'retryAfter' => [],
             ];
         }
 
@@ -522,13 +558,20 @@ final class GmailApiClient
             }
 
             if (null !== $contentId && null !== $status) {
+                $decoded = json_decode($json, true);
+                $reason = is_array($decoded) ? ($decoded['error']['errors'][0]['reason'] ?? $decoded['error']['status'] ?? '') : '';
+                $reasons[$contentId] = is_string($reason) ? $reason : '';
+                if (preg_match('/^Retry-After:\s*([^\r\n]+)/mi', $part, $header) === 1) {
+                    $delay = $this->pacer->retryAfter($header[1]);
+                    if (null !== $delay) { $retryAfter[$contentId] = $delay; }
+                }
                 $statuses[$contentId] = $status;
             }
         }
 
         return [
             'payloads' => $payloads,
-            'statuses' => $statuses,
+            'statuses' => $statuses, 'reasons' => $reasons, 'retryAfter' => $retryAfter,
         ];
     }
     // ── labels ────────────────────────────────────────────────────────────────
@@ -540,7 +583,7 @@ final class GmailApiClient
     {
         $token = $this->tokenManager->getValidAccessToken($account);
 
-        $response = $this->httpClient->request('GET', self::BASE . '/labels', [
+        $response = $this->request($account, 'GET', self::BASE . '/labels', [
             'auth_bearer' => $token,
         ]);
 
@@ -576,7 +619,7 @@ final class GmailApiClient
             $payload['color'] = $color;
         }
 
-        $response = $this->httpClient->request('POST', self::BASE . '/labels', [
+        $response = $this->request($account, 'POST', self::BASE . '/labels', [
             'auth_bearer' => $token,
             'json'        => $payload,
         ]);
@@ -594,7 +637,7 @@ final class GmailApiClient
     {
         $token = $this->tokenManager->getValidAccessToken($account);
 
-        $response = $this->httpClient->request('PATCH', self::BASE . '/labels/' . rawurlencode($labelId), [
+        $response = $this->request($account, 'PATCH', self::BASE . '/labels/' . rawurlencode($labelId), [
             'auth_bearer' => $token,
             'json'        => ['name' => $name],
         ]);
@@ -615,7 +658,7 @@ final class GmailApiClient
     {
         $token = $this->tokenManager->getValidAccessToken($account);
 
-        $response = $this->httpClient->request('DELETE', self::BASE . '/labels/' . rawurlencode($labelId), [
+        $response = $this->request($account, 'DELETE', self::BASE . '/labels/' . rawurlencode($labelId), [
             'auth_bearer' => $token,
         ]);
 
@@ -674,7 +717,7 @@ final class GmailApiClient
                 $payload['removeLabelIds'] = $removeLabelIds;
             }
 
-            $response = $this->httpClient->request('POST', self::BASE . '/messages/batchModify', [
+            $response = $this->request($account, 'POST', self::BASE . '/messages/batchModify', [
                 'auth_bearer' => $token,
                 'json'        => $payload,
             ]);
@@ -715,7 +758,7 @@ final class GmailApiClient
         // ids, and a refused batchDelete leaves mail at Google that plMail has
         // already destroyed its own copy of.
         foreach (array_chunk($gmailMessageIds, self::IDS_PER_BATCH) as $chunk) {
-            $response = $this->httpClient->request('POST', self::BASE . '/messages/batchDelete', [
+            $response = $this->request($account, 'POST', self::BASE . '/messages/batchDelete', [
                 'auth_bearer' => $token,
                 'json'        => ['ids' => $chunk],
             ]);
@@ -726,17 +769,63 @@ final class GmailApiClient
 
     // ── Failure handling ──────────────────────────────────────────────────────
 
-    /**
-     * Classify the response, then decode it.
-     *
-     * Every single-shot call goes through here rather than calling toArray()
-     * directly. toArray() raises Symfony's own HTTP exception, whose message is
-     * just `HTTP/2 403 returned for "…"` — the body, and with it Google's
-     * reason, is thrown away. That is how a Gmail rate limit spent production
-     * looking like a scope problem.
-     *
-     * @return array<string,mixed>
-     */
+    public function retryDelay(Account $account, int $attempt): ?int
+    {
+        $health = $this->pacer->health($account);
+        $seconds = null === $health['retryAt'] ? null : max(0, (int) ceil($health['retryAt']->getTimestamp() - $this->pacer->now()));
+        return \App\Service\Gmail\GmailBatchRetryPolicy::delay($attempt, $seconds);
+    }
+
+    public function recordRetryExhausted(Account $account): void
+    {
+        $this->pacer->incomplete($account, 'exhausted');
+    }
+
+    /** @param array<string,mixed> $options */
+    private function request(Account $account, string $method, string $url, array $options): ResponseInterface
+    {
+        $path = str_starts_with($url, self::BASE) ? substr($url, strlen(self::BASE)) : '/batch';
+        $units = match (true) {
+            '/batch' === $path => 0, // Individual messages.get already charged above.
+            '/messages' === $path => 5,
+            '/history' === $path => 2,
+            '/profile' === $path => 1,
+            '/watch' === $path => 100,
+            '/stop' === $path => 50,
+            '/settings/sendAs' === $path => 1,
+            '/labels' === $path => 'GET' === $method ? 1 : 5,
+            str_starts_with($path, '/labels/') => 5,
+            '/messages/batchModify' === $path, '/messages/batchDelete' === $path => 50,
+            str_starts_with($path, '/messages/') => 20,
+            default => throw new \LogicException('Unknown Gmail quota cost.'),
+        };
+        $this->pacer->spend($account, $units);
+        $response = $this->httpClient->request($method, $url, $options);
+        try {
+            $operation = match (true) {
+                '/labels' === $path => 'GET' === $method ? 'labels.list' : 'labels.create',
+                str_starts_with($path, '/labels/') => 'DELETE' === $method ? 'labels.delete' : 'labels.patch',
+                '/messages' === $path => 'messages.list',
+                '/messages/batchModify' === $path => 'messages.batchModify',
+                '/messages/batchDelete' === $path => 'messages.batchDelete',
+                '/history' === $path => 'history.list',
+                '/profile' === $path => 'getProfile',
+                str_contains($path, '/attachments/') => 'attachments.get',
+                str_starts_with($path, '/messages/') => 'messages.get',
+                default => ltrim($path, '/'),
+            };
+            if (in_array($response->getStatusCode(), [403, 429], true) || in_array($path, ['/batch', '/stop'], true)) {
+                $this->assertSuccess($response, $operation);
+            }
+        } catch (GmailThrottledException $exception) {
+            $this->pacer->throttle($account, $exception->getRetryAfterSeconds() ?? 60);
+            throw $exception;
+        } catch (GmailApiException $exception) {
+            if ('/settings/sendAs' !== $path) { throw $exception; }
+        }
+        return $response;
+    }
+
     private function decode(ResponseInterface $response, string $operation): array
     {
         $this->assertSuccess($response, $operation);
@@ -859,10 +948,8 @@ final class GmailApiClient
     /**
      * Retry-After in seconds, when Gmail bothered to send one.
      *
-     * It usually does not on a 403 quota rejection, which is why
-     * GmailThrottledException carries its own fallback. The header also has an
-     * HTTP-date form; that is ignored rather than parsed, because Google sends
-     * the delta form and a misparsed date would produce a nonsense delay.
+     * Both delta seconds and the standard HTTP-date form use the injected clock.
+     * An absent or invalid header uses GmailThrottledException's fallback.
      */
     private function retryAfterSeconds(ResponseInterface $response): ?int
     {
@@ -872,10 +959,7 @@ final class GmailApiClient
             return null;
         }
 
-        if (null === $header || false === ctype_digit(trim($header))) {
-            return null;
-        }
-
-        return (int) trim($header);
+        return null === $header ? null : $this->pacer->retryAfter($header);
     }
+
 }
