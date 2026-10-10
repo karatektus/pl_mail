@@ -257,11 +257,11 @@ function patchTabMarks(counts) {
 /**
  * The category-tab icon tint, from the same payload.
  *
- * The "category:" family is an unread count, and the only one on this page that
- * is never printed. It decides a colour instead: tinted means there is unread
- * mail behind that tab, untinted means there is not. See the tabIconTones
- * comment in mail/inbox.html.twig for why the tint exists at all and why only
- * the unread-only view draws it.
+ * The "category:" family is an unread count. Here it decides a colour: tinted
+ * means there is unread mail behind that tab, untinted means there is not —
+ * patchTabUnread() below prints the same number. See the tabIconTones comment
+ * in mail/inbox.html.twig for why the tint exists at all and why only the
+ * unread-only view draws it.
  *
  * The tone class travels on the element rather than living here, because which
  * of the five a tab wears is the template's business — this only knows whether
@@ -287,6 +287,40 @@ function patchTabIcons(counts) {
         }
 
         tone.forEach((cls) => icon.classList.toggle(cls, count > 0));
+    });
+}
+
+/**
+ * The unread number on each category tab, from the same payload as the tint.
+ *
+ * The "category:" family is the number of conversations holding unread mail in
+ * that tab — the figure the sidebar's Inbox badge adds up, split by tab. The
+ * element is rendered whatever the number is and hidden at zero, so this only
+ * writes text, the accessible name and the visibility.
+ *
+ * Not patchNewDots(), and not given data-new-dot: that family is the "3 new"
+ * pill, whose template would write "N new" over an unread count. The label
+ * template travels on the element for the same reason it does there — which
+ * sentence a number belongs to is the template's business, rendered in the
+ * viewer's language.
+ *
+ * Document-wide for the same reason as the patchers above, and idempotent: a
+ * pass with nothing changed rewrites the same text.
+ */
+function patchTabUnread(counts) {
+    document.querySelectorAll("[data-tab-unread]").forEach((badge) => {
+        const count = counts[badge.dataset.countKey];
+
+        if (count === undefined) {
+            return;
+        }
+
+        badge.textContent = String(count);
+        badge.classList.toggle("hidden", count === 0);
+
+        if (badge.dataset.labelTemplate !== undefined) {
+            badge.setAttribute("aria-label", badge.dataset.labelTemplate.replace("%count%", String(count)));
+        }
     });
 }
 
@@ -585,6 +619,7 @@ export default class extends Controller {
         patchNewDots(counts);
         patchTabMarks(counts);
         patchTabIcons(counts);
+        patchTabUnread(counts);
 
         this._updateTitle(counts);
     }
