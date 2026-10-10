@@ -333,6 +333,63 @@ final class SidebarMoreTest extends WebTestCase
     }
 
     /**
+     * Each row's badge is the row's own and goes with it.
+     *
+     * What the nine hand-written rows did, kept when they became one macro, and
+     * written here from those rows rather than from the macro: Inbox, Starred,
+     * Archive and Spam link their number to their own unread view; Unread and
+     * Sent show a plain unread number; Drafts and Trash show a TOTAL, not an
+     * unread count; and Spam's is the quiet one, because unread junk is not a
+     * call to action. Asserted in all three layouts so that neither group is
+     * the one that happens to be right.
+     *
+     * Snoozed has the same shape as Archive and is left out only because
+     * showing it takes a snoozed conversation.
+     */
+    public function testEveryRowKeepsItsBadgeWhereverItSits(): void
+    {
+        $this->seedLabel('Spam', LabelRole::Spam);
+        $this->seedLabel('Unread', LabelRole::Unread);
+
+        $router     = static::getContainer()->get(RouterInterface::class);
+        $unreadView = static fn (SidebarRow $row): string => $router->generate($row->route(), ['unread' => 1]);
+
+        // count key => [element, badge kind, href, quiet]
+        $expected = [
+            'role:inbox'   => ['a', 'unread', $unreadView(SidebarRow::Inbox), false],
+            'unread'       => ['span', 'unread', null, false],
+            'starred'      => ['a', 'unread', $unreadView(SidebarRow::Starred), false],
+            'role:sent'    => ['span', 'unread', null, false],
+            'role:drafts'  => ['span', 'total', null, false],
+            'role:archive' => ['a', 'unread', $unreadView(SidebarRow::Archive), false],
+            'role:spam'    => ['a', 'unread', $unreadView(SidebarRow::Spam), true],
+            'role:trash'   => ['span', 'total', null, false],
+        ];
+
+        $offered = array_values(array_filter(
+            SidebarRow::cases(),
+            static fn (SidebarRow $row): bool => false === $row->isPinned(),
+        ));
+
+        foreach ([[], SidebarRow::defaultBehindMore(), $offered] as $behind) {
+            $this->choose($behind);
+
+            $page = $this->client->request('GET', '/mail/inbox');
+
+            foreach ($expected as $key => [$element, $kind, $href, $quiet]) {
+                $badge = $page->filter('#sidebar [data-count-key="' . $key . '"]');
+                $where = $key . ' with ' . count($behind) . ' rows behind More';
+
+                self::assertCount(1, $badge, $where . ': no such badge');
+                self::assertSame($element, $badge->nodeName(), $where);
+                self::assertSame($kind, $badge->attr('data-badge-kind'), $where);
+                self::assertSame($href, $badge->attr('href'), $where);
+                self::assertSame($quiet, str_contains((string) $badge->attr('class'), 'bg-ink-faint/20'), $where . ': quiet');
+            }
+        }
+    }
+
+    /**
      * More comes back open when you are somewhere inside it — the sidebar is
      * re-rendered on every navigation, so a closed one would snap shut on the
      * row just clicked. "Inside it" is whatever the person put there.
