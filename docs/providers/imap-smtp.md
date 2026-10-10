@@ -149,3 +149,8 @@ late" rather than anything that looks broken.
 **Flags travel outward only.** Marking a message read or starred in plMail is pushed to the server,
 but the reverse is not implemented yet — reading a message in another client does not currently
 mark it read here.
+
+**Gmail over IMAP lists a `[Gmail]` folder that is not one.** It is a placeholder that groups All
+Mail, Sent Mail, Drafts and the rest. Gmail marks it `\Noselect` and refuses to open it, so plMail
+creates it with sync switched off and never polls it; the folders underneath are ordinary and sync as
+usual. A folder the server later makes selectable is not switched back on by itself.
