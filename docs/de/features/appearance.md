@@ -109,6 +109,41 @@ Zwei Zeilen sind die Obergrenze, weil die Zeile nur für zwei Platz hat, und die
 gestapelten Layout gezeichnet — auf einem breiten Bildschirm teilen sich Betreff und Vorschau
 absichtlich eine Zeile, eine zweite würde den Betreff dort aus seiner eigenen Zeile schieben.
 
+## Der Lesebereich
+
+**Lesebereich** legt fest, wohin die Nachricht kommt, die du öffnest: **Aus** oder **Rechts**. Aus
+ist, wie plMail immer funktioniert hat — Liste und geöffnete Nachricht wechseln sich auf derselben
+Fläche ab, und der Zurück-Pfeil bringt dich zur Liste. Rechts stellt die Nachricht neben die Liste,
+sodass du eine Unterhaltung lesen und den Rest des Postfachs gleichzeitig sehen kannst. Aus ist die
+Voreinstellung, und an deinem Postfach ändert sich nichts, bis du Rechts wählst.
+
+Steht der Lesebereich rechts, bleibt die Liste beim Öffnen stehen, wo sie ist. Die geöffnete Zeile
+ist mit einem Farbton und einem Balken an der vorderen Kante markiert, und der Bereich neben der
+Liste sagt *Wähle eine Unterhaltung aus, um sie hier zu lesen*, bis du eine öffnest. Der
+Zurück-Pfeil schließt die Nachricht und lässt die Liste, wie sie war.
+
+**Der Trenner** dazwischen wird mit der Maus gezogen, oder mit den Pfeiltasten bewegt, sobald er den
+Fokus hat (zwei Prozent pro Schritt; Pos1 und Ende springen an die Enden). Ein Doppelklick setzt ihn
+auf die Voreinstellung zurück. Gespeichert wird der Anteil der Nachricht an der **Postfachkarte** —
+Liste und Nachricht zusammen, ohne Seitenleiste und ohne angedockten Kalender — als Prozentwert
+zwischen 25 und 75, anfangs 55. Es ist ein Prozentwert und keine Breite in Pixeln, weil sich die
+Karte jedes Mal ändert, wenn der Kalenderbereich geöffnet, geschlossen oder gezogen wird, und ein
+Anteil in all diesen Fällen seine Bedeutung behält. Wie der Rest dieser Seite wird er für dein
+Konto gespeichert, nicht für den Browser. Du stellst ihn im Postfach selbst ein, an echter Post,
+und hier gibt es dafür keinen Regler.
+
+**Er weicht aus, wenn der Platz fehlt.** Rechts ist eine Vorliebe, kein Versprechen: gezeichnet wird
+es nur, solange die Postfachkarte mindestens 52rem breit ist (832 Pixel bei der Standardschrift-
+größe). Ein schmales Fenster, ein Telefon oder ein breites Fenster mit angedocktem Kalender neben
+der Post fallen auf ein Fenster nach dem anderen zurück, ohne dass du etwas umstellen musst. Jeder
+Bereich behält außerdem eine Mindestbreite, sodass 75 % auf einer gerade eben breiten Karte nachgeben,
+bevor die Liste zum Streifen wird.
+
+Anders als die übrigen Bedienelemente dieser Seite gehört der Lesebereich nicht zu einem exportierten
+Farbschema: Wo eine Nachricht gezeichnet wird, ist eine Entscheidung über das Postfach und nicht Teil
+eines Erscheinungsbilds, das jemand teilen könnte, und ein importiertes Farbschema ordnet die Post,
+in der es landet, nicht um. **Auf Standard zurücksetzen** lässt ihn aus demselben Grund in Ruhe.
+
 ## Typografie
 
 **Schriftart** bietet **System**, **Grotesk**, **Serif** und **Dickengleich**. Jede davon ist ein
