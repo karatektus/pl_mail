@@ -531,50 +531,6 @@
                 </div>
             </section>
 
-            {# ── Reading pane ──────────────────────────────────────────────
-               Where the open message goes: in place of the list (Off, which is
-               how plMail always worked) or beside it. The same segmented group
-               as the rest of this page, for the reason the note at the top
-               gives, with two differences that are both about where the value
-               lives.
-
-               It is NOT one of the appearance fields. Those travel in one JSON
-               payload and become part of an exported theme, and where a message
-               is drawn is a layout choice about the mailbox, not part of a
-               palette somebody might share — importing a colour scheme must not
-               rearrange the mail it lands in. So the radios carry no
-               `data-settings--appearance-field`, which is also what keeps
-               save() from picking them up, and `settings--reading-pane` posts
-               the one value to its own endpoint (see AppearanceController::
-               readingPaneState).
-
-               The divider that sets how much each pane gets is on the mailbox
-               itself, where it can be dragged against real mail. There is no
-               slider for it here. #}
-            <section data-controller="settings--reading-pane"
-                     data-settings--reading-pane-url-value="{{ path('app_appearance_reading_pane_state') }}"
-                     data-settings--reading-pane-token-value="{{ csrf_token('reading_pane_state') }}">
-                <div class="mb-4">
-                    <h3 class="text-sm font-semibold text-ink" id="reading-pane-label">{{ 'settings.appearance.reading_pane.heading'|trans }}</h3>
-                    <p class="text-xs text-ink-faint mt-0.5">{{ 'settings.appearance.reading_pane.subheading'|trans }}</p>
-                </div>
-
-                <div class="{{ segGroup }}" role="radiogroup" aria-labelledby="reading-pane-label">
-                    {% for mode in enum('App\\Domain\\Enum\\Mail\\ReadingPaneMode').cases %}
-                        <label class="cursor-pointer">
-                            <input type="radio" name="readingPane" class="peer sr-only"
-                                   value="{{ mode.value }}"
-                                   data-action="change->settings--reading-pane#pick"
-                                   aria-label="{{ ('settings.appearance.reading_pane.' ~ mode.value)|trans }}"
-                                {{ app.user.readingPaneMode == mode ? 'checked' : '' }}>
-                            <span class="{{ segText }}">
-                                {{ ('settings.appearance.reading_pane.' ~ mode.value)|trans }}
-                            </span>
-                        </label>
-                    {% endfor %}
-                </div>
-            </section>
-
             {# ── Motion ────────────────────────────────────────────────────
                Three steps rather than a checkbox, because the two complaints
                about animation are separate dials: things appearing out of

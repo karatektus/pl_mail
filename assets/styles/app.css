@@ -2809,11 +2809,20 @@
         opacity: 0.6;
     }
 
+    /* One pixel of layout, eight of grip. The divider used to BE its hit area
+       — an 8px box with the line down its middle — and the four pixels either
+       side of the line showed as a strip of bare card between the list and
+       the message: the toolbar band and every row rule stopped short of the
+       line. So the box is the line, and the grip is a pseudo-element laid
+       over the edges of both panes, which takes the pointer for its element
+       without taking any room. */
     [data-reading-pane="right"] [data-reading-handle] {
         display: block;
         flex: none;
         position: relative;
-        width: 0.5rem;
+        z-index: 1;
+        width: 1px;
+        background-color: rgb(var(--rgb-border) / var(--border-alpha));
         cursor: col-resize;
         /* The browser would otherwise take a horizontal touch drag for a scroll
            or a back-swipe, and the pointer events this divider depends on
@@ -2821,24 +2830,33 @@
         touch-action: none;
     }
 
-    /* The hairline is a pseudo-element so the hit area can be wider than what
-       is drawn: an eight-pixel target, a one-pixel line. */
+    [data-reading-pane="right"] [data-reading-handle]::before {
+        content: "";
+        position: absolute;
+        inset-block: 0;
+        inset-inline: -0.25rem;
+    }
+
+    /* What hover, focus and a drag thicken. Drawn over the line rather than
+       by widening it, so the panes do not shift by two pixels under the
+       pointer. */
     [data-reading-pane="right"] [data-reading-handle]::after {
         content: "";
         position: absolute;
         inset-block: 0;
         left: 50%;
-        width: 1px;
+        width: 3px;
         transform: translateX(-50%);
-        background-color: rgb(var(--rgb-border) / var(--border-alpha));
-        transition: width 120ms ease-out, background-color 120ms ease-out;
+        background-color: rgb(var(--rgb-accent));
+        opacity: 0;
+        transition: opacity 120ms ease-out;
+        pointer-events: none;
     }
 
     [data-reading-pane="right"] [data-reading-handle]:hover::after,
     [data-reading-pane="right"] [data-reading-handle]:focus-visible::after,
     [data-reading-pane="right"][data-reading-resizing] [data-reading-handle]::after {
-        width: 3px;
-        background-color: rgb(var(--rgb-accent));
+        opacity: 1;
     }
 
     [data-reading-pane="right"] [data-reading-handle]:focus-visible {
@@ -2851,6 +2869,29 @@
 [data-reading-resizing] {
     user-select: none;
     cursor: col-resize;
+}
+
+/* ═══ A selection in a narrow list ══════════════════════════════════════════
+   Ticking a row puts the bulk actions into the toolbar, and beside them the
+   keyboard button, the sort menu and "1–50 of 312" do not all fit a list that
+   is sharing its card with an open message — the sort label was cut off
+   mid-word and the pager pushed out of the pane. The same happens with a
+   calendar docked wide; the reading pane only made it the ordinary case.
+
+   Most of the answer is in the toolbar itself, which keeps three actions out
+   and puts the rest behind "More". This is the remainder: while rows are
+   ticked and the list is under 36rem, the three things that are not about the
+   selection step aside, and come back when it is cleared. The previous and
+   next arrows stay: a selection survives a page change, and paging is how a
+   larger one is made.
+
+   On the LIST's width — `#message-list` is the container — for the reason the
+   row snippet below gives. `:not(.hidden)` is how the toolbar's own script
+   says "there is a selection". */
+@container (max-width: 36rem) {
+    [data-toolbar-row]:has(> [data-mail--list-toolbar-target="actions"]:not(.hidden)) :is([data-shortcuts-button], [data-search-sort-menu], [data-page-range]) {
+        display: none;
+    }
 }
 
 /* The open row, so the list says which message the pane beside it is showing.

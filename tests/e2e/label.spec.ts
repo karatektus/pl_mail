@@ -1,5 +1,5 @@
 import { test, expect } from "./support/test";
-import { INBOX_SUBJECTS, mailRow, seed } from "./support/config";
+import { INBOX_SUBJECTS, bulkMore, mailRow, seed } from "./support/config";
 import { acceptConfirm } from "./support/confirm";
 
 /**
@@ -298,7 +298,7 @@ test.describe("label as", () => {
         await expect(actions).toBeVisible();
 
         // Open the "Label as" menu and pick the seeded label.
-        await actions.getByRole("button", { name: "Label as" }).click();
+        await bulkMore(page, "Label as");
 
         const panel = page.locator(
             '[data-controller="mail--label-menu"] [data-mail--label-menu-target="panel"]',
@@ -323,7 +323,7 @@ test.describe("label as", () => {
         await row.locator("label:has(input[data-thread-select])").click();
 
         const actions = page.locator('[data-mail--list-toolbar-target="actions"]');
-        await actions.getByRole("button", { name: "Label as" }).click();
+        await bulkMore(page, "Label as");
 
         const panel = page.locator(
             '[data-controller="mail--label-menu"] [data-mail--label-menu-target="panel"]',

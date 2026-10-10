@@ -232,12 +232,43 @@ final class ReadingPaneStateTest extends WebTestCase
         $user->readingPaneMode = ReadingPaneMode::Right;
         static::getContainer()->get(EntityManagerInterface::class)->flush();
 
-        $crawler = $client->request('GET', '/settings?section=appearance');
+        $crawler = $client->request('GET', '/settings?section=reading-pane');
 
         self::assertResponseIsSuccessful();
         self::assertCount(2, $crawler->filter('input[name="readingPane"]'));
         self::assertCount(1, $crawler->filter('input[name="readingPane"][value="right"][checked]'));
         self::assertCount(0, $crawler->filter('input[name="readingPane"][value="off"][checked]'));
+    }
+
+    /**
+     * The control began as the last one on Appearance, the one thing on that
+     * page that was not part of the theme, and the shortcuts switch as the
+     * fifth card on General. Both have a page under Features now, and the
+     * places they came from must not still be drawing a second copy: two
+     * controls for one stored value is how one of them ends up stale.
+     */
+    public function testItHasAPageOfItsOwnAndTheShortcutsDoTooRatherThanACornerOfAnotherPage(): void
+    {
+        [$client] = $this->signedIn();
+
+        $appearance = $client->request('GET', '/settings?section=appearance');
+
+        self::assertResponseIsSuccessful();
+        self::assertCount(0, $appearance->filter('input[name="readingPane"]'));
+        self::assertCount(1, $appearance->filter('a[href$="section=reading-pane"]'), 'the navigation offers the page');
+        self::assertCount(1, $appearance->filter('a[href$="section=shortcuts"]'));
+
+        $general = $client->request('GET', '/settings?section=general');
+
+        self::assertResponseIsSuccessful();
+        self::assertCount(0, $general->filter('form[action$="/settings/shortcuts"]'));
+
+        // Presence: the form is where the navigation says it is.
+        $shortcuts = $client->request('GET', '/settings?section=shortcuts');
+
+        self::assertResponseIsSuccessful();
+        self::assertCount(1, $shortcuts->filter('form[action$="/settings/shortcuts"]'));
+        self::assertCount(1, $shortcuts->filter('a[href$="section=shortcuts"][aria-current="page"]'));
     }
 
     protected function tearDown(): void
@@ -259,7 +290,7 @@ final class ReadingPaneStateTest extends WebTestCase
      */
     private function token(KernelBrowser $client): string
     {
-        $crawler = $client->request('GET', '/settings?section=appearance');
+        $crawler = $client->request('GET', '/settings?section=reading-pane');
 
         return (string) $crawler
             ->filter('[data-settings--reading-pane-token-value]')

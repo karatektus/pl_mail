@@ -98,40 +98,6 @@ Two lines is the ceiling because the row only has room for two, and the second l
 drawn in the stacked layout — on a wide screen the subject and the preview share a single line by
 design, so a second one there would push the subject off its own row.
 
-## The reading pane
-
-**Reading pane** decides where the message you open goes: **Off** or **Right**. Off is how plMail
-has always worked — the list and the open message take turns on the same space, and the back arrow
-returns you to the list. Right puts the message beside the list, so you can read one conversation
-and see the rest of the mailbox at the same time. Off is the default, and nothing about your
-mailbox changes until you pick Right.
-
-With the pane on the right, the list stays where it is when you open something. The open row is
-marked with a tint and a bar on its leading edge, and the area beside the list says
-*Select a conversation to read it here* until you open one. The back arrow closes the message and
-leaves the list as it was.
-
-**The divider** between the two is dragged with the mouse, or moved with the arrow keys once it has
-focus (two percent a step; Home and End go to the ends). A double-click puts it back to the
-default. What is stored is the message's share of the **mail card** — the list and the message
-together, without the sidebar or a docked calendar — as a percentage between 25 and 75, 55 to
-begin with. It is a percentage rather than a width in pixels because the card changes size whenever
-the calendar pane opens, closes or is dragged, and a share keeps its meaning across all of those.
-Like the rest of this page it is remembered for your account, not for the browser. It is set on the
-mailbox itself, against real mail, and there is no slider for it here.
-
-**It steps aside when there is no room.** Right is a preference, not a promise: it is drawn only
-while the mail card is at least 52rem (832 pixels at the default text size) wide. A narrow window,
-a phone, or a wide window with the calendar docked beside the mail all fall back to one pane at a
-time, with no setting to change. Each pane also keeps a minimum width, so a share of 75% on a card
-only just wide enough gives way before the list becomes a sliver.
-
-Unlike the other controls on this page, the reading pane is not part of an exported theme: where a
-message is drawn is a decision about the mailbox, not part of a look somebody might share, and
-importing a colour scheme does not rearrange the mail it lands in. **Reset to defaults** leaves it
-alone for the same reason. A config backup does carry it, so a restore puts the mailbox back the way
-you had it.
-
 ## Typography
 
 **Typeface** offers **System**, **Grotesque**, **Serif** and **Monospace**. Every one of them is a

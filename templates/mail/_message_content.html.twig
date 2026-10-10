@@ -2,7 +2,9 @@
 {# White sheet across the pane, same as the thread view. #}
 <div class="mail-sheet flex flex-col flex-1 min-h-0">
 
-<div class="flex items-center gap-2 px-4 py-2 border-b border-line">
+{# The list toolbar's height — see the note on the toolbar in _thread_content. #}
+<div class="px-4 py-1 border-b border-line">
+<div class="flex items-center gap-2 min-h-[var(--pane-header-h)]">
     <button
         type="button"
         data-action="click->mail--mail-pane#close"
@@ -16,6 +18,7 @@
         {{ message.mailbox ? message.mailbox.name : message.thread.account.email }}
     </span>
 </div>
+</div>{# /toolbar #}
 
 <div class="flex-1 overflow-y-auto">
     {# The same division the conversation view makes: the bar above holds still

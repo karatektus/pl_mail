@@ -2488,7 +2488,7 @@ profile:
         name_first: Vorname
         name_last: Nachname
 
-# The reading pane beside the message list (Settings → Appearance turns it on).
+# The reading pane beside the message list (Settings → Reading pane turns it on).
 # `handle` is what a screen reader calls the divider between the two; the
 # placeholder stands where the message will be until one is opened.
 reading_pane:
@@ -2955,11 +2955,6 @@ settings:
             subject6: Termgewichtung, und warum sie zählt
             subject7: Entwurf für den Spanning Tree
             subject8: 'Die innere Schleife optimieren: Ergebnisse'
-        reading_pane:
-            heading: Lesebereich
-            off: Aus
-            right: Rechts
-            subheading: Wo die geöffnete Nachricht erscheint. „Aus“ zeigt Liste und Nachricht nacheinander; „Rechts“ stellt die Nachricht neben die Liste, sobald das Fenster genug Platz für beide hat – am Trenner dazwischen stellst du ein, wie viel jede bekommt.
         reset: Auf Standard zurücksetzen
         subheading: Farbschema, Dichte, Schrift und Hintergrund — das ganze Erscheinungsbild der App an einem Ort.
         seg:
@@ -3645,6 +3640,7 @@ settings:
         group:
             access: Zugriff
             calendar: Kalender
+            features: Funktionen
             mail: E-Mail
             personal: Persönlich
         health: 'Zustand der Konten'
@@ -3654,8 +3650,10 @@ settings:
         notifications: Benachrichtigungen
         profile: Profil
         read_receipts: Lesebestätigungen
+        reading_pane: Lesebereich
         security: Sicherheit
         sharing: Teilen
+        shortcuts: Tastenkürzel
         signature: Signaturen
         templates: 'Vorlagen'
     notifications:
@@ -3727,6 +3725,13 @@ settings:
         remember_me_note: 'Ein Passwortwechsel meldet jeden gemerkten Browser ab, außer diesem. Genau deshalb lohnt er sich, wenn ein Gerät abhandenkommt.'
         subheading: 'Womit du dich anmeldest. Nur du kannst es ändern — nicht einmal die Administration kann es für dich setzen.'
         submit: Passwort ändern
+    reading_pane:
+        heading: Lesebereich
+        hint: '„Aus“ zeigt Liste und Nachricht nacheinander; „Rechts“ stellt die Nachricht neben die Liste, sobald das Fenster genug Platz für beide hat – am Trenner dazwischen stellst du ein, wie viel jede bekommt.'
+        label: 'Geöffnete Nachricht anzeigen'
+        off: Aus
+        right: Rechts
+        subheading: 'Wo eine Unterhaltung aufgeht: anstelle der Liste oder daneben.'
     security:
         codes:
             copy: Codes kopieren
@@ -4125,6 +4130,7 @@ toolbar:
         label: Label vergeben
         mark_read: Als gelesen markieren
         mark_unread: Als ungelesen markieren
+        more: Mehr
         move_to: Verschieben nach
         snooze: Zurückstellen
         spam: 'Als Spam markieren'

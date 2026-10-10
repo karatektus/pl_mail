@@ -1,5 +1,5 @@
 import { test, expect, type Page } from "./support/test";
-import { INBOX_SUBJECTS, mailRow } from "./support/config";
+import { INBOX_SUBJECTS, mailRow, seed } from "./support/config";
 
 /**
  * The reading pane beside the message list.
@@ -53,7 +53,7 @@ const handle = (page: Page) => page.locator("[data-reading-handle]");
  * real one comes from.
  */
 const store = async (page: Page, fields: Record<string, string>) => {
-    const html = await (await page.request.get("/settings?section=appearance")).text();
+    const html = await (await page.request.get("/settings?section=reading-pane")).text();
     const token = /data-settings--reading-pane-token-value="([^"]*)"/.exec(html)?.[1] ?? "";
 
     const response = await page.request.post("/settings/appearance/reading-pane", {
@@ -100,6 +100,13 @@ const openMessage = async (page: Page) => {
     await mailRow(page, INBOX_SUBJECTS.read).click();
     await expect(reading(page)).toBeVisible();
 };
+
+// The four seeded threads, put back before every test. This file opens them,
+// and one test archives one; it used to seed nothing and read whatever the
+// spec before it had left in the mailbox.
+test.beforeEach(() => {
+    seed("seed-mail");
+});
 
 test.afterEach(async ({ page }) => {
     await store(page, { mode: "off", width: String(DEFAULT_PCT) });
@@ -211,6 +218,86 @@ test.describe("reading pane right", () => {
         await expect(reading(page)).toBeHidden();
         await expect(placeholder(page)).toBeVisible();
         await expect(page.locator('li[data-selected="true"]')).toHaveCount(0);
+    });
+
+    test("the list runs up to the divider, with no strip of bare card between them", async ({ page }) => {
+        // The divider used to be its own eight-pixel hit area with the line
+        // down the middle, so the toolbar band and every row rule stopped four
+        // pixels short of the line. It takes one pixel of layout now and the
+        // grip is laid over the panes' edges.
+        await openMessage(page);
+
+        const listBox = (await list(page).boundingBox())!;
+        const readingBox = (await reading(page).boundingBox())!;
+
+        expect(readingBox.x - (listBox.x + listBox.width)).toBeLessThanOrEqual(1);
+
+        // Presence companion: the grip is still wide enough to take hold of,
+        // which "one pixel wide" alone would not be.
+        const grip = await handle(page).evaluate((element) => Number.parseFloat(getComputedStyle(element, "::before").width));
+
+        expect(grip).toBeGreaterThanOrEqual(8);
+    });
+
+    test("the two toolbars are the same height, so one rule runs under both", async ({ page }) => {
+        // Four pixels apart while they took turns on the same space, which
+        // nobody could see; side by side it was a step in the line.
+        await openMessage(page);
+
+        const listBar = (await page.locator("[data-toolbar-row]").locator("..").boundingBox())!;
+        const back = page.locator('[data-surface="reading"] [data-action="click->mail--mail-pane#close"]');
+        const readingBar = (await back.locator("xpath=../..").boundingBox())!;
+
+        expect(Math.abs(readingBar.y - listBar.y)).toBeLessThan(1);
+        expect(Math.abs(readingBar.height - listBar.height)).toBeLessThan(1);
+    });
+
+    test("a key acts on the ticked rows rather than on the conversation open beside them", async ({ page }) => {
+        // Beside the list a selection and an open conversation are on screen
+        // together, which one pane at a time never allowed. The keys asked only
+        // whether a conversation was open, so `e` with other rows ticked
+        // archived the one being read and left the ticked ones where they were.
+        await openMessage(page);
+        await mailRow(page, INBOX_SUBJECTS.archive).locator("[data-thread-select]").check({ force: true });
+
+        const posted = page.waitForRequest((request) => request.url().includes("/status/bulk/archive"));
+        await page.keyboard.press("e");
+        expect((await posted).postDataJSON().ids).toHaveLength(1);
+
+        await expect(mailRow(page, INBOX_SUBJECTS.archive)).toHaveCount(0);
+
+        // The open conversation was not what the key was for.
+        await expect(mailRow(page, INBOX_SUBJECTS.read)).toHaveCount(1);
+        await expect(reading(page)).toBeVisible();
+    });
+
+    test("the toolbar above a selection fits a list that is sharing its card", async ({ page }) => {
+        // The message at its widest, which leaves the list a quarter of the
+        // card: the bulk actions, the sort menu and the page range do not all
+        // fit that, and what did not fit was cut off at the pane's edge.
+        await store(page, { width: "75" });
+        await page.goto("/mail/inbox");
+
+        const row = page.locator("[data-toolbar-row]");
+        const range = page.locator("[data-page-range]");
+
+        // Presence companion: nothing ticked, the range is there to be hidden.
+        await expect(range).toBeVisible();
+
+        // Dispatched rather than clicked: the box is visually hidden behind the
+        // avatar, and what this test is about is the toolbar, not the pointer.
+        const box = mailRow(page, INBOX_SUBJECTS.archive).locator("[data-thread-select]");
+
+        await box.dispatchEvent("click");
+        await expect(box).toBeChecked();
+
+        await expect(range).toBeHidden();
+        await expect(page.getByRole("button", { name: "Archive" }).first()).toBeVisible();
+        await expect(page.getByRole("button", { name: "More", exact: true })).toBeVisible();
+        expect(await row.evaluate((element) => element.scrollWidth - element.clientWidth)).toBeLessThanOrEqual(0);
+
+        await box.dispatchEvent("click");
+        await expect(range).toBeVisible();
     });
 
     test("the message takes the stored share of the card", async ({ page }) => {

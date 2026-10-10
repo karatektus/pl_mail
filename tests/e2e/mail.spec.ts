@@ -1,5 +1,5 @@
 import { test, expect, type Page } from "./support/test";
-import { INBOX_SUBJECTS, mailRow, seed } from "./support/config";
+import { INBOX_SUBJECTS, bulkMore, mailRow, seed } from "./support/config";
 import { settled } from "./support/motion";
 import { rowAction } from "./support/rows";
 
@@ -311,7 +311,7 @@ test.describe("mail UI actions", () => {
         await expectSeededRows(page);
 
         await selectAll(page);
-        await bulkAction(page, "Mark as read").click();
+        await bulkMore(page, "Mark as read");
 
         for (const subject of Object.values(INBOX_SUBJECTS)) {
             await expect(mailRow(page, subject)).toHaveAttribute(
@@ -327,7 +327,7 @@ test.describe("mail UI actions", () => {
         await expectSeededRows(page);
 
         await selectAll(page);
-        await bulkAction(page, "Mark as read").click();
+        await bulkMore(page, "Mark as read");
         for (const subject of Object.values(INBOX_SUBJECTS)) {
             await expect(mailRow(page, subject)).toHaveAttribute(
                 "data-unread",
@@ -336,7 +336,7 @@ test.describe("mail UI actions", () => {
         }
 
         await selectAll(page);
-        await bulkAction(page, "Mark as unread").click();
+        await bulkMore(page, "Mark as unread");
         for (const subject of Object.values(INBOX_SUBJECTS)) {
             await expect(mailRow(page, subject)).toHaveAttribute(
                 "data-unread",
@@ -397,7 +397,7 @@ test.describe("mail UI actions", () => {
 
         // ── First action, whose refresh is now stuck at the network ──────────
         await selectAll(page);
-        await bulkAction(page, "Mark as read").click();
+        await bulkMore(page, "Mark as read");
         for (const subject of Object.values(INBOX_SUBJECTS)) {
             await expect(mailRow(page, subject)).toHaveAttribute("data-unread", "false");
         }
@@ -422,7 +422,7 @@ test.describe("mail UI actions", () => {
         ).toBeVisible();
 
         // ── Second action: the outcome, not the click ────────────────────────
-        await bulkAction(page, "Mark as unread").click();
+        await bulkMore(page, "Mark as unread");
         for (const subject of Object.values(INBOX_SUBJECTS)) {
             await expect(mailRow(page, subject)).toHaveAttribute("data-unread", "true");
         }

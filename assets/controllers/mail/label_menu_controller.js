@@ -298,8 +298,12 @@ export default class extends Controller {
             const above = rect.top - margin;
             const flip  = below < 140 && above > below;
             const width = panel.getBoundingClientRect().width;
+            // Hung from the button's right edge unless the template asked for
+            // the left: under a trigger near the start of a toolbar a
+            // right-hung panel opens back over the sidebar.
+            const hung  = "left" === panel.dataset.align ? rect.left : rect.right - width;
             const left  = Math.min(
-                Math.max(margin, rect.right - width),
+                Math.max(margin, hung),
                 Math.max(margin, window.innerWidth - width - margin),
             );
 

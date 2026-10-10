@@ -71,12 +71,22 @@
                                 {# Grouped by what the setting is about, not by when it was
                                    added — thirteen equal-weight links in one column is a list
                                    nobody reads, they scan it for a word they already have in
-                                   mind. Four groups, in the order someone new meets them:
-                                   themselves, their mail, their calendar, and finally what
+                                   mind. Five groups, in the order someone new meets them:
+                                   themselves, their mail, their calendar, the ways of
+                                   working that can be switched on or off, and finally what
                                    else can reach the account. Security closes the list rather
                                    than sitting third: it is the section people arrive at
                                    deliberately, and it has the two neighbours it belongs with
                                    — app passwords and integrations are the other two ways in.
+
+                                   Features is for what the app DOES differently when asked,
+                                   as opposed to how it looks or whose mail it reads: the
+                                   reading pane beside the list, the keyboard shortcuts. Each
+                                   gets a page of its own although it is one card, because
+                                   that is what makes it findable — the reading pane began as
+                                   the last control on Appearance and the shortcuts as the
+                                   fifth card on General, and neither was where anybody
+                                   looked.
 
                                    Sharing stays next to Calendars rather than moving to that
                                    last group: a shared link and a booking page are calendar
@@ -154,6 +164,10 @@
                                         { section: 'calendars',     icon: 'fa-regular fa-calendar' },
                                         { section: 'sharing',       icon: 'fa-solid fa-share-nodes' },
                                     ] },
+                                    { label: 'settings.nav.group.features', items: [
+                                        { section: 'reading-pane',  icon: 'fa-solid fa-table-columns', label: 'settings.nav.reading_pane' },
+                                        { section: 'shortcuts',     icon: 'fa-regular fa-keyboard' },
+                                    ] },
                                     { label: 'settings.nav.group.access', items: [
                                         { section: 'integrations',  icon: 'fa-solid fa-plug' },
                                         { section: 'app-passwords', icon: 'fa-solid fa-key',   label: 'settings.nav.app_passwords' },
@@ -161,9 +175,9 @@
                                     ] },
                                 ] %}
 
-                                {# Not a <nav> per group: it is one navigation with four
-                                   labelled parts, and four landmarks would be read out as
-                                   four separate menus. The headings are presentational —
+                                {# Not a <nav> per group: it is one navigation with five
+                                   labelled parts, and five landmarks would be read out as
+                                   five separate menus. The headings are presentational —
                                    aria-hidden, with the same word given to the list it
                                    labels — so a screen reader hears "Mail, list, 5 items"
                                    once instead of the word twice. #}
@@ -383,17 +397,6 @@
                                             {% endembed %}
 
                                             {% embed 'settings/_card.html.twig' with {
-                                                heading:    'settings.shortcuts.heading'|trans,
-                                                subheading: 'settings.shortcuts.subheading'|trans,
-                                            } %}
-                                                {% block body %}
-                                                    {% include 'settings/_shortcuts.html.twig' with {
-                                                        enabled: app.user.keyboardShortcuts,
-                                                    } only %}
-                                                {% endblock %}
-                                            {% endembed %}
-
-                                            {% embed 'settings/_card.html.twig' with {
                                                 heading:    'settings.sorting.heading'|trans,
                                                 subheading: 'settings.sorting.subheading'|trans,
                                             } %}
@@ -407,6 +410,28 @@
                                                 {% endblock %}
                                             {% endembed %}
                                         </div>
+                                    {% elseif section == 'reading-pane' %}
+                                        {% embed 'settings/_card.html.twig' with {
+                                            heading:    'settings.reading_pane.heading'|trans,
+                                            subheading: 'settings.reading_pane.subheading'|trans,
+                                        } %}
+                                            {% block body %}
+                                                {% include 'settings/_reading_pane.html.twig' with {
+                                                    mode: app.user.readingPaneMode,
+                                                } only %}
+                                            {% endblock %}
+                                        {% endembed %}
+                                    {% elseif section == 'shortcuts' %}
+                                        {% embed 'settings/_card.html.twig' with {
+                                            heading:    'settings.shortcuts.heading'|trans,
+                                            subheading: 'settings.shortcuts.subheading'|trans,
+                                        } %}
+                                            {% block body %}
+                                                {% include 'settings/_shortcuts.html.twig' with {
+                                                    enabled: app.user.keyboardShortcuts,
+                                                } only %}
+                                            {% endblock %}
+                                        {% endembed %}
                                     {% elseif section == 'aliases' %}
                                         <div class="space-y-4">
                                             {% embed 'settings/_card.html.twig' with {

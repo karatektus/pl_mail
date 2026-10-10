@@ -4,10 +4,12 @@ import { requestFailed } from "../../request_errors.js";
 /**
  * The Off / Right choice for where the open message is shown.
  *
- * Its own controller and not a field of settings--appearance, because the
- * appearance panel saves one JSON payload that becomes part of an exported
- * theme, and this is a layout preference about the mailbox rather than part of
- * a palette. See the note above the control in _appearance.html.twig.
+ * Its own controller, posting one value to its own endpoint. It is on a
+ * settings page of its own (Features → Reading pane) and never was a field of
+ * settings--appearance, even while it sat on that page: the appearance panel
+ * saves one JSON payload that becomes part of an exported theme, and this is
+ * something the mailbox does rather than part of a palette. See
+ * settings/_reading_pane.html.twig.
  *
  * Nothing is repainted here. The setting takes effect on the next mailbox page
  * the user opens, and the settings page has no list for it to rearrange — the
