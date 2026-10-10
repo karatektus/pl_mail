@@ -74,7 +74,22 @@ final class SidebarMoreTest extends WebTestCase
      */
     public function testTheFormOffersEveryRowButTheInboxWithTodaysDefaultTicked(): void
     {
-        $boxes = $this->settings()->filter('form[action="/settings/sidebar/more"] input[type="checkbox"][name="rows[]"]');
+        $page  = $this->settings();
+        $boxes = $page->filter('form[action="/settings/sidebar/more"] input[type="checkbox"][name="rows[]"]');
+
+        // A missing translation renders as its own key, on a page that is
+        // otherwise fine.
+        self::assertStringNotContainsString('settings.sidebar.', $page->text());
+        self::assertCount(1, $page->filter('form[action="/settings/sidebar/more"]'));
+
+        // The entry that says "the form was submitted", without which a form
+        // with every box cleared posts nothing and "nothing behind More" could
+        // never be saved from the page. The other half of
+        // testClearingEveryBoxStoresAnEmptyList(), which posts it by hand.
+        self::assertCount(
+            1,
+            $page->filter('form[action="/settings/sidebar/more"] input[type="hidden"][name="rows[]"][value=""]'),
+        );
 
         self::assertSame(
             ['unread', 'starred', 'sent', 'drafts', 'snoozed', 'archive', 'spam', 'trash'],
