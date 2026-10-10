@@ -474,6 +474,19 @@ final readonly class AiAssistant
         return $this->client->probe($target);
     }
 
+    /** Probe the validated, unsaved form snapshot, including first-time setup. */
+    public function probeSettings(AiSettings $settings): AiProbe
+    {
+        if ('openai' === $settings->chatProvider) {
+            return $this->openAi?->probe((string) $settings->openAiBaseUrl, $settings->openAiApiToken)
+                ?? AiProbe::unreachable('unreachable');
+        }
+        if (null === $settings->baseUrl || '' === trim($settings->baseUrl)) {
+            return AiProbe::unreachable('no_host');
+        }
+        return $this->client->probe($settings->baseUrl);
+    }
+
     /**
      * Load the writing model now, so the next person to ask does not wait.
      *

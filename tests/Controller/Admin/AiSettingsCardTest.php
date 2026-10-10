@@ -66,6 +66,35 @@ final class AiSettingsCardTest extends WebTestCase
         parent::tearDown();
     }
 
+    public function testFirstCompatibleProbeUsesValidatedSnapshotWithoutSavingOrLeakingKey(): void
+    {
+        $this->client->disableReboot();
+        $this->connection->executeStatement('DELETE FROM ai_settings');
+        $calls = [];
+        $http = new \Symfony\Component\HttpClient\MockHttpClient(function ($method, $url, $options) use (&$calls) {
+            $calls[] = [$url, $options['headers']];
+            return new \Symfony\Component\HttpClient\Response\MockResponse('{"data":[{"id":"synthetic-model"}]}');
+        });
+        static::getContainer()->set(\App\Service\Ai\OpenAiClient::class, new \App\Service\Ai\OpenAiClient($http));
+        $crawler = $this->client->request('GET', '/admin/ai');
+        $form = $crawler->filter('form[name="ai_settings"]')->form();
+        $form['ai_settings[chatProvider]'] = 'openai';
+        $form['ai_settings[openAiBaseUrl]'] = 'https://synthetic.test/v1';
+        $form['ai_settings[openAiModel]'] = 'synthetic-model';
+        $form['ai_settings[openAiApiToken]'] = 'synthetic-probe-secret';
+        $values = $form->getPhpValues();
+        $this->client->request('POST', '/admin/ai/test', $values);
+        self::assertResponseIsSuccessful();
+        self::assertCount(1, $calls);
+        self::assertSame('https://synthetic.test/v1/models', $calls[0][0]);
+        self::assertStringContainsString('synthetic-probe-secret', implode(' ', $calls[0][1]));
+        self::assertStringNotContainsString('synthetic-probe-secret', (string) $this->client->getResponse()->getContent());
+        self::assertSame(0, (int) $this->connection->fetchOne('SELECT COUNT(*) FROM ai_settings'));
+        $values['ai_settings']['_token'] = 'invalid';
+        $this->client->request('POST', '/admin/ai/test', $values);
+        self::assertCount(1, $calls, 'invalid CSRF must not make a probe request');
+    }
+
     /**
      * Nothing configured: open, because there is something to do in it.
      *

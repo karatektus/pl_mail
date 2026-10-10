@@ -48,6 +48,25 @@ final class OpenAiClientTest extends TestCase
         self::assertTrue($stream->getReturn()->succeeded);
     }
 
+    public function testAbandoningStreamCancelsHttpResponse(): void
+    {
+        $response = new MockResponse((function () {
+            yield "data: {\"choices\":[{\"delta\":{\"content\":\"first\"}}]}\n\n";
+            yield "data: [DONE]\n\n";
+        })());
+        $http = new class($response) extends MockHttpClient {
+            public ?\Symfony\Contracts\HttpClient\ResponseInterface $actualResponse = null;
+            public function request(string $method, string $url, array $options = []): \Symfony\Contracts\HttpClient\ResponseInterface
+            {
+                return $this->actualResponse = parent::request($method, $url, $options);
+            }
+        };
+        $stream = (new OpenAiClient($http))->chatStream('https://synthetic.test/v1', 'test', []);
+        self::assertSame('first', $stream->current());
+        unset($stream);
+        self::assertTrue($http->actualResponse?->getInfo('canceled'));
+    }
+
     public function testTruncatedStreamFails(): void
     {
         $stream = (new OpenAiClient(new MockHttpClient(new MockResponse(["data: {\"choices\":[{\"delta\":{\"content\":\"partial\"}}]}\n\n"]))))->chatStream('https://synthetic.test/v1', 'test', []);

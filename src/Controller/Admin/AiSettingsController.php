@@ -156,7 +156,7 @@ final class AiSettingsController extends AbstractController
             if ('' !== trim($typedKey)) {
                 $settings->openAiApiToken = $typedKey;
             }
-            $probe = $this->assistant->probe($settings->generationBaseUrl());
+            $probe = $this->assistant->probeSettings($settings);
         }
         // Remove submitted secrets from the response even when validation fails.
         $form = $this->form($settings);
