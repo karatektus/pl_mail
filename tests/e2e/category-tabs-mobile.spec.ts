@@ -98,3 +98,24 @@ test("the tab you are on is in view when the strip opens", async ({ page }) => {
         })
         .toBe(true);
 });
+
+test("a mouse wheel scrolls the strip, until it runs out", async ({ page }) => {
+    // Touch and a trackpad scroll the strip natively; a wheel only reports
+    // vertical movement, so without the controller it moves nothing.
+    await page.goto("/mail/inbox");
+
+    expect(await overflow(page)).toBeGreaterThan(0);
+
+    const box = (await page.locator(STRIP).boundingBox())!;
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+
+    const left = () => page.locator(STRIP).evaluate((nav) => Math.round(nav.scrollLeft));
+
+    await page.mouse.wheel(0, 40);
+    await expect.poll(left).toBeGreaterThan(0);
+
+    // Past the end the strip stops, and the wheel is handed back to the page.
+    await page.mouse.wheel(0, 2000);
+    const max = await page.locator(STRIP).evaluate((nav) => nav.scrollWidth - nav.clientWidth);
+    await expect.poll(left).toBeGreaterThanOrEqual(max - 1);
+});

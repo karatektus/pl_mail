@@ -17,6 +17,37 @@ export default class extends Controller {
 
     connect() {
         this.center()
+
+        // Not a Stimulus `data-action`: those register passive listeners for
+        // wheel events, and a passive listener cannot preventDefault.
+        this.onWheel = this.wheel.bind(this)
+        this.element.addEventListener("wheel", this.onWheel, { passive: false })
+    }
+
+    disconnect() {
+        this.element.removeEventListener("wheel", this.onWheel)
+    }
+
+    // The strip has no visible scrollbar, and a mouse wheel only ever reports
+    // vertical movement, so without this a desktop user on a narrow window has
+    // no way to reach the tabs past the edge (touch and a trackpad's sideways
+    // swipe already scroll it natively). A sideways delta is left alone, and so
+    // is a wheel that has run out of strip in its direction, so the page can
+    // still scroll once the strip is at its end.
+    wheel(event) {
+        if (Math.abs(event.deltaY) <= Math.abs(event.deltaX)) {
+            return
+        }
+
+        const max = this.element.scrollWidth - this.element.clientWidth
+        const next = this.element.scrollLeft + event.deltaY
+
+        if (max <= 0 || (event.deltaY < 0 && this.element.scrollLeft <= 0) || (event.deltaY > 0 && this.element.scrollLeft >= max)) {
+            return
+        }
+
+        event.preventDefault()
+        this.element.scrollLeft = Math.max(0, Math.min(max, next))
     }
 
     // Layout may not be final when connect() runs (the strip can arrive inside
