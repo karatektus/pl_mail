@@ -8,6 +8,13 @@ The published image tags: `latest` follows the most recent release below,
 
 ## Unreleased
 
+**An open message stays open when you change what the list shows.** With the reading pane on the
+right, choosing another folder, switching a category tab, turning the page, sorting or searching
+closed the message you were reading, although it had never covered the list. It stays now, and the
+back arrow closes it and leaves you on the folder you moved to. The open row is marked again when
+you return to the folder it is in. With one pane at a time nothing changes: there the message has
+covered the list, so choosing a folder still closes it. No migration.
+
 **One message could stop an IMAP folder from syncing, for good.** A multipart message whose
 header puts spaces around the equals sign — `boundary = "…"`, which the standard allows and some
 mailers write — could not be read, and because that failed while a page of mail was being fetched,
