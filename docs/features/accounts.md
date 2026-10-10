@@ -84,6 +84,7 @@ Each row offers:
 | **Make primary** | Sends new messages from this account by default — on any row but the primary's |
 | **Disable account** / **Enable account** | Stops or resumes syncing without deleting anything |
 | **Edit account** | Server settings and password — password accounts only |
+| **Choose which folders to sync** | Switches individual IMAP folders on or off — IMAP accounts only; see [Folders to sync](#folders-to-sync) |
 | **Remove account** | Deletes the account and every message synced from it |
 
 The primary flag is never lost. Removing the account that held it hands it to another, and the very
@@ -165,6 +166,16 @@ therefore means thousands of updates, sent in the background.
 Labels that ARE backed by a real Exchange folder — the ones that came from one — are renamed as
 folders instead, and nothing has to be re-tagged.
 
+### Folders to sync
+
+**Choose which folders to sync** opens the account's folders, each with a switch. Every folder starts
+on. Switching one off stops plMail fetching it: the mail already stored stays where it is, and
+switching the folder back on resumes from where it stopped. The inbox has no switch, because a client
+that has stopped fetching its inbox is not a client — to stop an account altogether, disable it.
+
+It appears only for IMAP accounts. A Gmail or Microsoft account syncs through its provider's API and
+has no folders to choose between. A folder the server has stopped listing is not shown.
+
 ## Sending aliases
 
 **Settings → Aliases** lists the addresses each account sends and receives as. **Refresh from
@@ -233,3 +244,8 @@ connects, mail works, and no calendars appear. Reconnecting with the box left ti
 **Push failing is not an error state.** A self-hosted install may have no publicly reachable HTTPS
 address at all. Registration failing means "stay on polling", and the fifteen-minute sweep is
 unaffected.
+
+**A message moved by hand into a folder that is switched off looks, to plMail, like one that left the
+account.** The check that lets mail deleted elsewhere disappear from plMail only looks in the folders
+that are switched on, so a message dragged into a folder plMail is not fetching may be removed here
+although it still exists on the server. Switch the folder on first if you want the message kept.

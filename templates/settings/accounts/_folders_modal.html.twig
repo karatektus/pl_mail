@@ -1,0 +1,32 @@
+{# The folders modal: which of an IMAP account's folders plMail fetches.
+
+   Same shell as account/_edit_modal.html.twig, with the list styled like the
+   Labels pane's. There is no form around it — each row carries its own, and a
+   form inside a form is not HTML — and no footer: every switch has done its
+   work the moment it is pressed, and the modal's own header closes it, as it
+   does for the calendar's read-only dialogs. #}
+{% extends '_layout/app.html.twig' %}
+
+{% block body %}
+    <turbo-frame id="modal">
+        <template data-ui--modal-frame-title>{{ 'settings.accounts.folders.title'|trans({ '%account%': account.displayAddress }) }}</template>
+
+        <div class="flex-1 min-h-0 overflow-y-auto pb-2">
+            <p class="px-6 pb-3 text-xs text-ink-faint">{{ 'settings.accounts.folders.intro'|trans }}</p>
+
+            {% if mailboxes is empty %}
+                <p class="px-4 py-8 text-center text-sm text-ink-faint italic">
+                    {{ 'settings.accounts.folders.empty'|trans }}
+                </p>
+            {% else %}
+                <ul class="py-2 divide-y divide-line">
+                    {% for mailbox in mailboxes %}
+                        <li>
+                            {{ include('settings/accounts/_folder_row.html.twig', { account: account, mailbox: mailbox }) }}
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% endif %}
+        </div>
+    </turbo-frame>
+{% endblock %}

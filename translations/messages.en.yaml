@@ -2681,6 +2681,17 @@ settings:
         edit: Edit account
         empty: No accounts yet. Add one to start syncing mail.
         enable: Enable account
+        folders:
+            always_synced: The inbox is always synced
+            button: Choose which folders to sync
+            empty: No folders yet. They are listed after the first sync.
+            intro: >-
+                Switch a folder off and plMail stops fetching it. Mail already
+                stored stays where it is, and switching the folder back on
+                resumes from where it stopped.
+            start_sync: 'Start syncing %folder%'
+            stop_sync: 'Stop syncing %folder%'
+            title: 'Folders — %account%'
         heading: Mail accounts
         make_primary: Make primary
         make_primary_explained: 'Send new messages from %account% by default'

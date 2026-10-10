@@ -116,6 +116,24 @@
                             <i class="fa-solid fa-pen text-xs" aria-hidden="true"></i>
                         </button>
                     {% endif %}
+                    {# Which folders to fetch. Only an account that syncs over
+                       IMAP has folder rows to choose between; a Gmail or
+                       Microsoft one syncs through its API and gets no button,
+                       which is the condition AccountFoldersController refuses
+                       the rest on. #}
+                    {% if not (account.microsoft or account.gmail) %}
+                        <button
+                            type="button"
+                            data-controller="ui--modal"
+                            data-action="click->ui--modal#open"
+                            data-ui--modal-title-value="{{ 'settings.accounts.folders.title'|trans({ '%account%': account.displayAddress }) }}"
+                            data-ui--modal-src-value="{{ path('settings_account_folders', { id: account.id }) }}"
+                            class="w-8 h-8 flex items-center justify-center rounded-lg text-ink-faint hover:text-ink hover:bg-hover transition-colors cursor-pointer"
+                            aria-label="{{ 'settings.accounts.folders.button'|trans }}" title="{{ 'settings.accounts.folders.button'|trans }}"
+                        >
+                            <i class="fa-solid fa-folder-open text-xs" aria-hidden="true"></i>
+                        </button>
+                    {% endif %}
                     {# Reconnect, always offered on an OAuth account and not
                        only when something is already known to be broken.
 

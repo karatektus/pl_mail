@@ -28,6 +28,14 @@ at all — was never written into the file, so a restore put everyone back on ru
 categories and a tabbed inbox. All three now travel with the user. Backups made before this still
 restore, onto those same defaults. No migration.
 
+**Choose which folders an IMAP account fetches.** Settings → Accounts has a new **Choose which
+folders to sync** button on every IMAP account's row. It opens the account's folders with a switch
+beside each: switch one off and plMail stops fetching it, the mail already stored stays where it is,
+and switching it back on resumes from where it stopped. The inbox has no switch. Gmail and Microsoft
+accounts, which sync through their provider's API, do not get the button. A message you move by hand
+into a folder that is switched off may be removed from plMail, because the check for mail deleted
+elsewhere only looks in the folders that are on. No migration.
+
 ## v0.3.2 — 2026-10-09
 
 ### Security
