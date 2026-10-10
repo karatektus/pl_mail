@@ -211,7 +211,7 @@ final readonly class AccountCreator
      *
      * @param iterable<Account> $existing
      */
-    private function freeColorIndex(iterable $existing): int
+    public function freeColorIndex(iterable $existing): int
     {
         $taken = [];
 

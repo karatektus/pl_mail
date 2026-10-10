@@ -273,6 +273,12 @@ the account. A folder marked `\Noselect` is now created with sync off, and one t
 is switched off on the next folder sync, with nothing to do on your part. It held no mail, so
 nothing is lost. No migration.
 
+**A Gmail or Microsoft account gets its own colour when you connect it.** Accounts added with a
+password were already given the first colour no other account was wearing; accounts connected
+through Google or Microsoft skipped that step and all kept the first colour, so their dots in the
+sidebar and the corner mark on every message row looked the same. They now take the first free
+colour like any other. Accounts you connected before this keep the colour they have. No migration.
+
 ## v0.3.2 — 2026-10-09
 
 ### Security
