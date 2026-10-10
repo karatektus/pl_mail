@@ -8,6 +8,10 @@ The published image tags: `latest` follows the most recent release below,
 
 ## Unreleased
 
+**Archived mail is now one click away.** All Mail lists incoming, sent, archived and draft
+conversations across accounts or within one account, excluding Spam and Trash. Inbox stays
+a separate view. Counts and pagination deduplicate Gmail labels. No schema change.
+
 **Keyboard shortcuts, the ones Gmail uses.** `j` and `k` move through a list, `o` opens, `u` goes
 back, `x` selects, `e` archives, `#` deletes, `s` stars, `r` `a` `f` reply, reply to all and
 forward, `c` writes, `/` searches, `g` then a letter goes to a list, `z` undoes. **?** shows all of

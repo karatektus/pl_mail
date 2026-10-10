@@ -1,4 +1,4 @@
-<!-- translated-from: features/mail.md sha1:52f9fcdc53048f91fd103d949726d5cb242ac80f -->
+<!-- translated-from: features/mail.md sha1:3784c09854538c98e5faa08fa961bf929fe1e2be -->
 
 # Mail
 
@@ -82,6 +82,11 @@ Zähler gelten je Konto, und geladen ist immer nur das eine, das du aufgeklappt 
 
 Jede Liste umfasst fünfzig Konversationen pro Seite. **Neuer** und **Älter** in der
 Werkzeugleiste blättern.
+
+**All Mail** zeigt eingehende, gesendete und archivierte Konversationen einschließlich Entwürfen.
+Spam und Trash sind ausgeschlossen. Die Liste gibt es kontoübergreifend und unter jedem Konto;
+der Kontoeintrag öffnet weiterhin den Posteingang. Mehrere Gmail-Labels erzeugen keine doppelten
+Konversationen, und der Zähler ungelesener Konversationen verwendet denselben Bereich wie die Liste.
 
 ## Tabs
 
