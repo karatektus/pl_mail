@@ -409,3 +409,17 @@ stop new mail appearing until an old mailbox had finished being catalogued.
   for that reason: without one, the first night on an install that never ran a pass would queue a
   hundred thousand messages onto the ingest transport and put new mail behind them — with no state
   row, no pause button and no panel, because those belong to `app:ai:embed-mailbox`.
+
+### Focused browser verification
+
+`tests/e2e/openai-settings.spec.ts` uses only the synthetic mock in
+`tests/e2e/support/openai-mock.mjs`. Run that mock in an isolated container on the
+application test network (port 8000; publish its port only on localhost).
+Set `E2E_OPENAI_MOCK_BASE_URL` to its application-accessible `/v1` URL and
+`E2E_OPENAI_MOCK_LOG_URL` to its Playwright-accessible `/log` URL, then run
+`npx playwright test openai-settings.spec.ts` against the test stack.
+Without both variables the scenario skips. Never point it at a real provider:
+the test changes installation-wide settings and uses a fixed synthetic key.
+It verifies probing, saving, secret-free responses, and stripping the saved key
+when probing a different endpoint. The mock implements discovery only and
+records authorization as a boolean, without retaining or logging credentials.
