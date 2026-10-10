@@ -16,10 +16,58 @@ it and from the account's other folders beside it.
 {% block title %}{{ account.displayAddress }} — {{ 'app.name'|trans }}{% endblock %}
 
 {% block inbox_tabs %}
+    {% import '_partials/_category_tab_glyphs.html.twig' as glyphs %}
+
     <div class="px-4 py-2.5 border-b border-line flex items-center gap-2">
         <h2 class="text-sm font-semibold text-ink-soft">{{ 'sidebar.nav.inbox'|trans }}</h2>
         <span class="text-xs text-ink-faint truncate">{{ account.displayAddress }}</span>
     </div>
+
+    {# The category tabs, for this account's mail.
+
+       The same five as the unified inbox and chosen by the same rule — one
+       exists while it holds mail, the one you are on stays — but deliberately
+       plainer: an icon and a name. What the unified strip adds is a set of
+       counters ("3 new", the sender hint, the unread tint) that are summed
+       across EVERY account and rewritten by the sidebar controller from that
+       same payload. Drawn here they would describe the wrong mailbox, and be
+       overwritten with the wrong numbers after the next sync, so they are not
+       drawn; the keys they are patched by are not emitted either. Dragging a
+       conversation onto a tab is the unified inbox's, for the same reason: its
+       targets are built from that page's counts.
+
+       Links go to THIS page with `?tab=`, carrying whatever else narrows the
+       list and dropping `page`, because page four of Primary is not page four
+       of Social. The strip scrolls inside itself rather than squeezing, since
+       five tabs are wider than a phone. #}
+    {% set tabQuery = app.request.query.all|filter((v, k) => k not in ['tab', 'page']) %}
+
+    {% if tabs|length > 1 %}
+        <div class="border-b border-line px-1">
+            <nav class="flex text-sm overflow-x-auto overflow-y-hidden pb-px -mb-px [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                {% for tabCase in tabs %}
+                    {% set isActive = tabCase === tab %}
+                    <a
+                        href="{{ path('app_mail_account', {account: account.id}|merge(tabQuery)|merge({tab: tabCase.value})) }}"
+                        data-turbo-frame="inbox-list-frame"
+                        {% if isActive %}aria-current="page"{% endif %}
+                        class="flex items-center gap-2.5 px-3 @xl:px-5 py-1.5 min-h-14 font-medium border-b-2 -mb-px transition-colors shrink-0 whitespace-nowrap {{ isActive ? 'text-accent border-accent' : 'text-ink-muted hover:text-gray-700 border-transparent hover:border-gray-300' }}"
+                    >
+                        {% if isActive %}
+                            <svg class="w-5 h-5 shrink-0" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                                <path fill-rule="evenodd" clip-rule="evenodd" d="{{ glyphs.solid(tabCase.value) }}"/>
+                            </svg>
+                        {% else %}
+                            <svg class="w-5 h-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="{{ glyphs.outline(tabCase.value) }}"/>
+                            </svg>
+                        {% endif %}
+                        {{ ('tabs.' ~ tabCase.value)|trans }}
+                    </a>
+                {% endfor %}
+            </nav>
+        </div>
+    {% endif %}
 {% endblock %}
 
 {% block message_list %}

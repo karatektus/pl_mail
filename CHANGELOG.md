@@ -8,6 +8,14 @@ The published image tags: `latest` follows the most recent release below,
 
 ## Unreleased
 
+**An account's own inbox has the category tabs.** Clicking an account in the sidebar opened a plain
+list, so on an Outlook account — or any account — the tabs were nowhere to be found unless you
+went back to the top-level Inbox. The categories were being worked out all along; that page just
+never drew them. It now shows Primary, Social, Promotions, Updates and Forums for that account's
+mail, and **One list** under Settings → General → Categories switches them off there too. The tabs
+on this page are plainer than the top-level Inbox's: no "new" pills, sender hints or unread tint
+(those add up every account), and no dropping a conversation onto a tab. No migration.
+
 **Keyboard shortcuts, the ones Gmail uses.** `j` and `k` move through a list, `o` opens, `u` goes
 back, `x` selects, `e` archives, `#` deletes, `s` stars, `r` `a` `f` reply, reply to all and
 forward, `c` writes, `/` searches, `g` then a letter goes to a list, `z` undoes. **?** shows all of

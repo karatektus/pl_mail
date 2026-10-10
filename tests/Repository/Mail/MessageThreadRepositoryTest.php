@@ -410,6 +410,108 @@ final class MessageThreadRepositoryTest extends KernelTestCase
         self::assertSame(1, $this->repository->countForAccountInbox($this->account));
     }
 
+    // ── the account's inbox, by category ─────────────────────────────────────
+
+    /**
+     * The tab strip on an account's own inbox, and the list a tab opens.
+     *
+     * Fixture: primary ×1, promotions ×2. A category narrows the list AND its
+     * count to the same rows — a pager offering a page the list does not have
+     * is what the two drifting apart looks like — and null is still the whole
+     * inbox, which is what an untabbed reader and every caller from before the
+     * tabs existed get.
+     */
+    public function testTheAccountInboxNarrowsToOneCategory(): void
+    {
+        $inbox = $this->seedSystemLabel(LabelRole::Inbox);
+
+        $this->categorisedThread('person', '2026-03-03 09:00', $inbox, MessageCategory::Primary);
+        $this->categorisedThread('sale one', '2026-03-02 09:00', $inbox, MessageCategory::Promotions);
+        $this->categorisedThread('sale two', '2026-03-01 09:00', $inbox, MessageCategory::Promotions);
+
+        self::assertSame(
+            ['sale one', 'sale two'],
+            $this->subjectsOf($this->repository->findForAccountInbox($this->account, category: MessageCategory::Promotions)),
+        );
+        self::assertSame(2, $this->repository->countForAccountInbox($this->account, MessageCategory::Promotions));
+
+        // The presence companion: the other tab is not empty, so the two
+        // lines above are narrowing rather than finding nothing.
+        self::assertSame(
+            ['person'],
+            $this->subjectsOf($this->repository->findForAccountInbox($this->account, category: MessageCategory::Primary)),
+        );
+        self::assertSame(1, $this->repository->countForAccountInbox($this->account, MessageCategory::Primary));
+
+        self::assertSame(
+            ['person', 'sale one', 'sale two'],
+            $this->subjectsOf($this->repository->findForAccountInbox($this->account)),
+        );
+        self::assertSame(3, $this->repository->countForAccountInbox($this->account));
+    }
+
+    /**
+     * What decides which tabs the strip shows.
+     *
+     * Fixture, by hand: this account's inbox holds primary ×2 and promotions ×1
+     * that count. Three more are there to be left out — a promotion in ANOTHER
+     * account, a promotion in the sent folder, and a binned update whose inbox
+     * label a provider left on. So: primary 2, promotions 1, and no `updates`
+     * key at all.
+     */
+    public function testCategoryCountsCoverOnlyThisAccountsLiveInbox(): void
+    {
+        $inbox = $this->seedSystemLabel(LabelRole::Inbox);
+        $sent  = $this->seedSystemLabel(LabelRole::Sent);
+        $trash = $this->seedSystemLabel(LabelRole::Trash);
+        $other = $this->seedAccount($this->user, 'other@example.test');
+
+        $this->categorisedThread('person one', '2026-03-05 09:00', $inbox, MessageCategory::Primary);
+        $this->categorisedThread('person two', '2026-03-04 09:00', $inbox, MessageCategory::Primary);
+        $this->categorisedThread('sale', '2026-03-03 09:00', $inbox, MessageCategory::Promotions);
+
+        $this->categorisedThread('their sale', '2026-03-02 09:00', $inbox, MessageCategory::Promotions, $other);
+        $this->categorisedThread('my own sale', '2026-03-01 09:00', $sent, MessageCategory::Promotions);
+
+        $binned           = $this->thread('binned update', '2026-02-01 09:00');
+        $binned->category = MessageCategory::Updates;
+        $binnedMessage    = $this->message($binned, '2026-02-01 09:00');
+        $binnedMessage->addLabel($inbox);
+        $binnedMessage->addLabel($trash);
+        $this->syncThreadLabels($binned);
+
+        self::assertSame(
+            ['primary' => 2, 'promotions' => 1],
+            $this->repository->countByCategoryForAccountInbox($this->account),
+        );
+
+        // And the other account has its own answer, so the first one is
+        // scoped rather than empty-handed.
+        self::assertSame(
+            ['promotions' => 1],
+            $this->repository->countByCategoryForAccountInbox($other),
+        );
+    }
+
+    /** One thread wearing the inbox label twice is one in the tab's number. */
+    public function testACategoryCountCountsATwiceLabelledThreadOnce(): void
+    {
+        $inbox = $this->seedSystemLabel(LabelRole::Inbox);
+
+        $second       = $this->seedSystemLabel(LabelRole::Inbox);
+        $second->name = 'Inbox (second binding)';
+        $this->em->flush();
+
+        $thread           = $this->thread('arrived', '2026-03-01 09:00');
+        $thread->category = MessageCategory::Social;
+        $message          = $this->message($thread, '2026-03-01 09:00');
+        $message->addLabel($inbox);
+        $message->addLabel($second);
+        $this->syncThreadLabels($thread);
+
+        self::assertSame(['social' => 1], $this->repository->countByCategoryForAccountInbox($this->account));
+    }
+
     public function testTheInboxHidesTrashedThreads(): void
     {
         $inbox = $this->seedSystemLabel(LabelRole::Inbox);
@@ -544,6 +646,21 @@ final class MessageThreadRepositoryTest extends KernelTestCase
         $message = $this->message($thread, $lastMessageAt);
         $message->addLabel($label);
         $this->syncThreadLabels($thread);
+
+        return $thread;
+    }
+
+    /** An inbox thread with the category the tabs are built from. */
+    private function categorisedThread(
+        string $subject,
+        string $lastMessageAt,
+        Label $label,
+        MessageCategory $category,
+        ?Account $account = null,
+    ): MessageThread {
+        $thread           = $this->inboxThread($subject, $lastMessageAt, $label, $account);
+        $thread->category = $category;
+        $this->em->flush();
 
         return $thread;
     }

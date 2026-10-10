@@ -79,6 +79,12 @@ The inbox is split into the five Gmail categories — **Primary**, **Social**, *
 For everything else it works the category out from headers that were already stored, which is why
 re-categorisation never needs a resync.
 
+The tabs are on the top-level Inbox and on **an account's own inbox** (click the account in the
+sidebar), so an Outlook or any other account has them too. A tab is there while it holds mail, and
+on an account's page it counts only that account's mail. The account page's tabs are plainer: no
+"new" pills, sender hints or unread tint, because those add up every account and would describe the
+wrong mailbox there. Dragging a conversation onto a tab is on the top-level Inbox only.
+
 ### An inbox without tabs
 
 If you would rather have one list, switch **Inbox tabs** to **One list** under **Settings → General
