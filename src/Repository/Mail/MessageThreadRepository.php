@@ -481,6 +481,43 @@ class MessageThreadRepository extends ServiceEntityRepository
         return (int) $qb->getQuery()->getSingleScalarResult();
     }
 
+    /**
+     * All conversations in one account, including archived, unlabelled and
+     * snoozed mail. Drafts belong here too: Gmail's All Mail includes drafts.
+     * Labels are a thread union, so any Spam/Trash label excludes the whole
+     * conversation. No outer label join means multiple labels cannot duplicate
+     * rows or hide old unlabelled mail.
+     *
+     * @return list<MessageThread>
+     */
+    public function findForAccountAllMail(Account $account, int $page = 1, int $perPage = 50, ListSortOrder $sort = ListSortOrder::Newest, bool $unreadOnly = false): array
+    {
+        $qb = $this->allMailQuery($account, $unreadOnly)
+            ->setFirstResult(($page - 1) * $perPage)
+            ->setMaxResults($perPage);
+        $sort->applyTo($qb);
+
+        return $qb->getQuery()->getResult();
+    }
+
+    public function countForAccountAllMail(Account $account, bool $unreadOnly = false): int
+    {
+        return (int) $this->allMailQuery($account, $unreadOnly)
+            ->select('COUNT(t.id)')->getQuery()->getSingleScalarResult();
+    }
+
+    private function allMailQuery(Account $account, bool $unreadOnly): QueryBuilder
+    {
+        $qb = $this->createQueryBuilder('t')
+            ->where('t.account = :account')->setParameter('account', $account)
+            ->andWhere('t.id NOT IN (SELECT excluded.id FROM ' . MessageThread::class
+                . ' excluded JOIN excluded.labels excludedLabel WHERE excludedLabel.role IN (:excludedRoles))')
+            ->setParameter('excludedRoles', [LabelRole::Spam, LabelRole::Trash]);
+        $this->narrowToUnread($qb, $unreadOnly);
+
+        return $qb;
+    }
+
     /** No-op when no account was asked for, so callers need no branch. */
     private function narrowToAccount(QueryBuilder $qb, ?Account $account): void
     {

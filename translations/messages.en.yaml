@@ -4201,3 +4201,5 @@ templates:
         sender_email: 'Your address'
         sender_name: 'Your name'
         signature: 'Signature'
+
+sidebar.nav.all_mail: All Mail

@@ -1,4 +1,4 @@
-{% if thread.snoozed %}
+{% if thread.snoozed and not stays|default(false) %}
     <turbo-stream action="remove" target="thread_{{ thread.id }}">
     </turbo-stream>
 {% else %}

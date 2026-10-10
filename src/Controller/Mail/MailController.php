@@ -440,6 +440,26 @@ final class MailController extends AbstractController
         ]);
     }
 
+    #[Route('/account/{account}/all', name: 'account_all', requirements: ['account' => '\d+'])]
+    public function accountAllMail(Account $account, Request $request): Response
+    {
+        $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $account);
+        $unreadOnly = $this->unreadOnly($request);
+        $total = $this->threadRepository->countForAccountAllMail($account, $unreadOnly);
+        $page = $this->pageOrRedirect($request, $total);
+        if ($page instanceof RedirectResponse) {
+            return $page;
+        }
+        $sort = $this->listSort($request);
+        $threads = $this->threadRepository->findForAccountAllMail($account, $page, self::PER_PAGE, $sort, $unreadOnly);
+        $this->threadRows->preload($threads);
+
+        return $this->renderList($request, 'mail/all_mail.html.twig', $threads, [
+            'account' => $account, 'page' => $page, 'total' => $total,
+            'per_page' => self::PER_PAGE, 'list_sort' => $sort, 'unread_only' => $unreadOnly,
+        ]);
+    }
+
     #[Route('/starred', name: 'starred')]
     public function starred(Request $request): Response
     {

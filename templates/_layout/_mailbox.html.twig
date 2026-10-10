@@ -311,7 +311,8 @@ which of the two is happening.
        when it discards a draft. #}
     <turbo-frame id="inbox-list-frame" data-turbo-action="advance" class="contents"
                  data-list-rendered="{% block list_rendered %}1{% endblock %}"
-                 data-sync-scope="{% block list_scope %}*{% endblock %}">
+                 data-sync-scope="{% block list_scope %}*{% endblock %}"
+                 data-list-scope-value="{{ block('list_scope_value') }}">
 
         {# ── Gmail-style toolbar ──────────────────────────────────────────── #}
         {% block inbox_toolbar %}

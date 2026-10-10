@@ -1,0 +1,9 @@
+{% extends 'mail/account.html.twig' %}
+{% block list_scope %}all_mail{% endblock %}
+{% block list_scope_value %}{{ account.id }}{% endblock %}
+{% block inbox_tabs %}
+    <div class="px-4 py-2.5 border-b border-line flex items-center gap-2">
+        <h2 class="text-sm font-semibold text-ink-soft">{{ 'sidebar.nav.all_mail'|trans }}</h2>
+        <span class="text-xs text-ink-faint truncate">{{ account.displayAddress }}</span>
+    </div>
+{% endblock %}

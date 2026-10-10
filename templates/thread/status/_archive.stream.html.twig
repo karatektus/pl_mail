@@ -1,5 +1,9 @@
+{% if stays|default(false) %}
+<turbo-stream action="replace" target="thread_{{ message is defined ? message.thread.id : thread.id }}"><template>{% include '_partials/_thread_row.html.twig' with {thread: message is defined ? message.thread : thread} %}</template></turbo-stream>
+{% else %}
 <turbo-stream action="remove" target="thread_{{ message is defined ? message.id : thread.id }}">
 </turbo-stream>
+{% endif %}
 
 {# Archive is a button whose result is a row that is no longer there, which is
    also what a slip of the pointer looks like. The toast says which of the two

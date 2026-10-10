@@ -9,6 +9,7 @@ use App\Domain\Enum\Mail\MessageCategory;
 use App\Entity\Mail\MessageThread;
 use App\Entity\User\User;
 use App\Repository\Label\LabelRepository;
+use App\Repository\Mail\AccountRepository;
 use App\Repository\Mail\MessageThreadRepository;
 
 /**
@@ -60,6 +61,7 @@ final readonly class ListViewResolver
     public function __construct(
         private MessageThreadRepository $threads,
         private LabelRepository         $labels,
+        private ?AccountRepository      $accounts = null,
     ) {
     }
 
@@ -98,6 +100,18 @@ final readonly class ListViewResolver
      */
     private function page(User $user, string $scope, string $value, bool $unreadOnly, int $page): array
     {
+        if ('all_mail' === $scope) {
+            if (!ctype_digit($value)) {
+                return [];
+            }
+            $account = $this->accounts?->find((int) $value);
+            if (null === $account || $account->usr?->id !== $user->id) {
+                return [];
+            }
+
+            return $this->threads->findForAccountAllMail($account, $page, self::CHUNK, unreadOnly: $unreadOnly);
+        }
+
         if ('inbox' === $scope) {
             // The inbox is per category tab, and the tab IS the view: selecting
             // everything while looking at Notifications must not reach into

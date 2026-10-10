@@ -300,7 +300,7 @@ final class BulkStatusController extends AbstractController
             return $this->renderTurboStream('thread/status/_bulk.stream.html.twig', [
                 'count'   => count($threads),
                 'threads' => $threads,
-                'leaves'  => true,
+                'leaves'  => 'all_mail' !== ($body['scope'] ?? ''),
             ]);
         }
 
@@ -452,7 +452,7 @@ final class BulkStatusController extends AbstractController
             // from. Archive, trash and restore all move it somewhere else;
             // marking read leaves it exactly where it was and only changes how
             // it draws.
-            'leaves'    => 'read' !== $action,
+            'leaves'    => 'read' !== $action && !('archive' === $action && 'all_mail' === ($body['scope'] ?? '')),
             'undoToken' => $undoToken,
             'undoToast' => 'toast.archived',
         ]);

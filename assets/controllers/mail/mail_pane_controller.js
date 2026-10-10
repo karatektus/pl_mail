@@ -553,7 +553,7 @@ export default class extends Controller {
         // Unread gathers mail from every folder, so a sync of any of them can
         // change it — the same answer "*" gives. Without this, new mail put the
         // badge up and left the list beside it as it was.
-        if (scope === "*" || scope === "unread") {
+        if (scope === "*" || scope === "unread" || scope === "all_mail") {
             return true;
         }
 

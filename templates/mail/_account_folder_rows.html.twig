@@ -23,7 +23,12 @@
    navigation; and fetched into a frame when somebody expands a different
    account, where they genuinely do arrive out of nowhere a request later. Only
    the second one is an arrival, and only the second one is told so. #}
+{% import '_partials/_sidebar.html.twig' as sidebarMacros %}
 <nav class="nav-rows"{% if entering|default(false) %} data-enter="fade"{% endif %}>
+    {% set allMailHref = path('app_mail_account_all', { account: account.id }) %}
+    <div class="nav-item flex items-center text-xs {{ sidebar_row_state(allMailHref) }}" data-nav-tier="tree" style="--label-depth: 12px">
+        <a href="{{ allMailHref }}" data-ui--sidebar-target="link" data-turbo-frame="_top" {{ sidebarMacros.list_frame() }} data-turbo-prefetch="false" class="flex-1 px-3 py-1.5">{{ 'sidebar.nav.all_mail'|trans }}</a>
+    </div>
     {% for label in labels %}
         {# The same .nav-item pill as the rest of the sidebar, and a sidebar
            link target so the open folder is highlighted at all — these rows had

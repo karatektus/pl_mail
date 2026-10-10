@@ -4195,3 +4195,5 @@ templates:
         sender_email: 'Deine Adresse'
         sender_name: 'Dein Name'
         signature: 'Signatur'
+
+sidebar.nav.all_mail: Alle E-Mails
