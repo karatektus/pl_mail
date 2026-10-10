@@ -173,6 +173,10 @@ final readonly class ConfigBackupUsers
         // NAMES, which the restorer recreates verbatim, not a row id that means
         // somebody else on the target.
         User::SETTING_SIDEBAR_COLLAPSED,
+        // Row names, no ids, and the same on any install — and an empty list
+        // is a choice that has to survive ("nothing behind More"), which is
+        // why this is carried even though most bags never hold it.
+        User::SETTING_SIDEBAR_MORE,
         User::SETTING_ONBOARDING_COMPLETED_AT,
         User::SETTING_ONBOARDING_STEP,
         User::SETTING_ONBOARDING_SKIPPED,

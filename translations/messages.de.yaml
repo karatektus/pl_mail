@@ -4563,6 +4563,13 @@ settings:
         'on': "An"
         show: "Kürzel anzeigen"
         subheading: "Einzelne Tasten für das, was du den ganzen Tag tust."
+    sidebar:
+        heading: Seitenleiste
+        hide_note: Einen Ordner ganz auszublenden geht weiterhin unter Labels.
+        hint: Angehakte Ordner stehen hinter „Mehr“. Die übrigen bleiben direkt in der Seitenleiste.
+        label: Hinter „Mehr“
+        pinned: Der Posteingang bleibt immer, wo er ist.
+        subheading: Welche Ordner sich hinter „Mehr“ verstecken.
     signature:
         for_alias: 'Signatur für %alias%'
         heading: Signaturen

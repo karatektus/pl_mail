@@ -241,6 +241,7 @@ final class ConfigBackupRoundTripTest extends KernelTestCase
         $this->check('setting reading.pane_mode', 'right', $user->getSetting(User::SETTING_READING_PANE_MODE));
         $this->check('setting reading.pane_width_pct', 40, $user->getSetting(User::SETTING_READING_PANE_WIDTH));
         $this->check('setting sidebar.collapsed_sections', ['section:labels'], $user->getSetting(User::SETTING_SIDEBAR_COLLAPSED));
+        $this->check('setting sidebar.more_rows', [], $user->getSetting(User::SETTING_SIDEBAR_MORE));
         $this->check('setting onboarding.completed_at', '2026-02-01T00:00:00+00:00', $user->getSetting(User::SETTING_ONBOARDING_COMPLETED_AT));
         $this->check('setting admin.collapsed_panels', ['health'], $user->getSetting(User::SETTING_ADMIN_COLLAPSED_PANELS));
         $this->check('setting insights.disabled_extractors', ['parcel'], $user->getSetting(User::SETTING_INSIGHTS_DISABLED));
@@ -472,6 +473,10 @@ final class ConfigBackupRoundTripTest extends KernelTestCase
         $user->setSetting(User::SETTING_READING_PANE_MODE, 'right');
         $user->setSetting(User::SETTING_READING_PANE_WIDTH, 40);
         $user->setSetting(User::SETTING_SIDEBAR_COLLAPSED, ['section:labels']);
+        // The EMPTY list, the awkward one: "nothing behind More" is a choice
+        // and the default is the key being absent, so a backup that dropped an
+        // empty value would restore the default over somebody's decision.
+        $user->setSetting(User::SETTING_SIDEBAR_MORE, []);
         $user->setSetting(User::SETTING_ONBOARDING_COMPLETED_AT, '2026-02-01T00:00:00+00:00');
         $user->setSetting(User::SETTING_ADMIN_COLLAPSED_PANELS, ['health']);
         $user->setSetting(User::SETTING_INSIGHTS_DISABLED, ['parcel']);

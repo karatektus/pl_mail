@@ -4335,6 +4335,13 @@ settings:
         'on': "Aye"
         show: "Show the shortcuts"
         subheading: "Single keys fer the things ye do all day."
+    sidebar:
+        heading: Sidebar
+        hide_note: To hide a folder altogether, switch it off under Labels.
+        hint: Ticked folders wait behind More. The rest stay on deck, in the sidebar itself.
+        label: Behind More
+        pinned: The Inbox always stays where it be.
+        subheading: Which folders be stowed behind More.
     signature:
         for_alias: 'Yer mark fer %alias%'
         heading: Yer marks

@@ -12,6 +12,7 @@ use App\Domain\Enum\Mail\ReadingPaneMode;
 use App\Domain\Enum\Mail\SwipeAction;
 use App\Domain\Enum\Mail\SwipeDirection;
 use App\Domain\Enum\Mail\SearchSortOrder;
+use App\Domain\Enum\Mail\SidebarRow;
 use App\Domain\Enum\User\ClockPlacement;
 use App\Domain\Helper\TimezoneHelper;
 use App\Domain\Model\UserEntityModel;
@@ -768,6 +769,27 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
     /** The collapse keys for the two whole-section disclosures. */
     public const string SIDEBAR_SECTION_LABELS = 'section:labels';
     public const string SIDEBAR_SECTION_ACCOUNTS = 'section:accounts';
+
+    /**
+     * The sidebar rows the user keeps behind "More", as a list of
+     * {@see SidebarRow} values — absent for everybody who has never chosen.
+     *
+     * Three states, and they are three: ABSENT is the default
+     * ({@see SidebarRow::defaultBehindMore()}), a list is the choice, and an
+     * EMPTY list is a choice too — "nothing behind More" — which is why this
+     * is not stored the way SETTING_SIDEBAR_COLLAPSED is. Reading an empty
+     * list as absent would hand the default back to the person who had just
+     * switched it off.
+     *
+     * The rows that are behind More are stored rather than the rows that are
+     * on top, for the reason the collapsed keys are: a row added in a later
+     * version then appears on top, the quiet place, without anybody's bag
+     * needing a backfill.
+     *
+     * Not the same question as the eye toggle in label settings, which hides a
+     * row entirely. This only says WHERE a row that exists is drawn.
+     */
+    public const string SETTING_SIDEBAR_MORE = 'sidebar.more_rows';
 
     /**
      * When this admin last had the log browser open, as an ISO 8601 string.
@@ -1698,6 +1720,52 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
     public function isSidebarSectionCollapsed(string $key): bool
     {
         return in_array($key, $this->collapsedSidebarSections, true);
+    }
+
+    /**
+     * The rows behind "More", in the order the sidebar draws them — see
+     * SETTING_SIDEBAR_MORE for why absent and empty are different answers.
+     *
+     * Read defensively, because the bag outlives the code that wrote it: what
+     * is not a row, a repeat, and the pinned Inbox are dropped rather than
+     * thrown on, so one bad value cannot take the sidebar down. The result is
+     * sorted into the enum's own order so the caller never has to.
+     *
+     * @var list<SidebarRow>
+     */
+    public array $sidebarMoreRows {
+        get {
+            $stored = $this->getSetting(self::SETTING_SIDEBAR_MORE);
+
+            if (false === is_array($stored)) {
+                return SidebarRow::defaultBehindMore();
+            }
+
+            return array_values(array_filter(
+                SidebarRow::cases(),
+                static fn (SidebarRow $row): bool => false === $row->isPinned() && in_array($row->value, $stored, true),
+            ));
+        }
+    }
+
+    /**
+     * Stores the choice as clean strings in the sidebar's order — see
+     * $sidebarMoreRows. An empty list is stored as an empty list, never as a
+     * cleared key.
+     *
+     * @param list<SidebarRow> $rows
+     */
+    public function setSidebarMoreRows(array $rows): static
+    {
+        $values = array_map(
+            static fn (SidebarRow $row): string => $row->value,
+            array_values(array_filter(
+                SidebarRow::cases(),
+                static fn (SidebarRow $row): bool => false === $row->isPinned() && in_array($row, $rows, true),
+            )),
+        );
+
+        return $this->setSetting(self::SETTING_SIDEBAR_MORE, $values);
     }
 
     /** The sidebar's half of setAdminPanelCollapsed(), and the same shape. */

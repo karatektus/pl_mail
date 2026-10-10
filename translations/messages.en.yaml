@@ -4534,6 +4534,13 @@ settings:
         'on': "On"
         show: "Show the shortcuts"
         subheading: "Single keys for the things you do all day."
+    sidebar:
+        heading: Sidebar
+        hide_note: To hide a folder altogether, switch it off under Labels.
+        hint: Ticked folders wait behind More. The others stay in the sidebar itself.
+        label: Behind More
+        pinned: The Inbox always stays where it is.
+        subheading: Which folders wait behind More.
     signature:
         for_alias: 'Signature for %alias%'
         heading: Signatures
