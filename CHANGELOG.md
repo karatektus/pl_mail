@@ -8,6 +8,13 @@ The published image tags: `latest` follows the most recent release below,
 
 ## Unreleased
 
+**Each inbox tab shows how many conversations in it are unread.** The number is the sidebar's
+Inbox badge split by category, so the tabs add up to it, and it appears on every tab, the one you
+are on included, and updates in place on sync. Before, an unread conversation in Promotions made
+the Inbox badge read 1 while Primary, the tab that opens, showed nothing unread, and the only hint
+on the strip was a colour on the Promotions icon. The "3 new" pill is unchanged: it says what
+arrived that you have not been shown, the unread count says what is unread. No migration.
+
 **Keyboard shortcuts, the ones Gmail uses.** `j` and `k` move through a list, `o` opens, `u` goes
 back, `x` selects, `e` archives, `#` deletes, `s` stars, `r` `a` `f` reply, reply to all and
 forward, `c` writes, `/` searches, `g` then a letter goes to a list, `z` undoes. **?** shows all of

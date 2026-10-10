@@ -164,15 +164,20 @@ messages reports from. You can close the settings page; it carries on.
 
 Each tab reads the way Gmail's do: an icon — filled in on the tab you are on — and, while a
 category holds mail you have never been shown, a **"3 new"** pill in that category's colour with
-a second line naming who that new mail is from, newest arrival first. That is deliberately the
-only number on a tab: unread already has the sidebar badge and the bold rows, so the tab keeps
-the one thing only it can say. The strip is live — pill and sender names update in place when
-mail arrives, without waiting for a reload, and a hint is retired the moment you look at its tab.
+a second line naming who that new mail is from, newest arrival first. "New" and "unread" are
+different questions, so a tab carries two numbers: the pill says what arrived that you have never
+been shown, and a plain **unread count** beside the tab's name says how many conversations in that
+category hold unread mail. The count is the sidebar's Inbox badge split by tab, so the tabs add up
+to it; it shows on every tab including the one you are on, and is hidden at zero. (Earlier
+versions kept this number off the tabs, on the argument that the badge and the bold rows already
+say unread. They cannot say *where*: with the Inbox badge reading 1 and Primary open and empty,
+nothing on the strip pointed at the tab holding the mail.) The strip is live — pills, counts and
+sender names update in place when mail arrives, without waiting for a reload, and a hint is
+retired the moment you look at its tab.
 
 A tab holding unread mail also wears its category's colour on the icon. Not the tab you are on —
 its mail is already in the list underneath it, and the tint is there to point at what you
-*cannot* see. Still no second number: the colour says *there is something here* and the list
-header says how much.
+*cannot* see. The colour says *there is something here*; the count beside the name says how much.
 
 It matters most under **Unread only**, where the strip is otherwise mute — every row on screen
 is unread, so boldness no longer separates anything, and the sidebar's Inbox badge is a single

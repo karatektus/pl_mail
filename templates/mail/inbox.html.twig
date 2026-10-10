@@ -187,13 +187,43 @@
                         <span class="flex items-center whitespace-nowrap">
                             {{ tabName }}
 
-                            {# "3 new", the Gmail way — and the ONLY number on
-                               a tab. There used to be an unread count beside
-                               it, and the pair was two demands in one glance;
-                               unread already has the sidebar's Inbox badge
-                               and the bold rows themselves, so the tab keeps
-                               the one thing only it can say: what arrived
-                               here that you have never seen. The macro's
+                            {# How many conversations here hold unread mail —
+                               the number the sidebar's Inbox badge adds up,
+                               split by tab. It was taken off the strip once,
+                               on the argument that the badge and the bold rows
+                               already say unread. They say it, and cannot say
+                               WHERE: the badge reads 1, the open tab shows
+                               nothing unread, and the conversation is on
+                               another tab behind an icon colour that means
+                               nothing until it has been explained. The number
+                               is the one thing on the page a reader can match
+                               to the badge by eye.
+
+                               On every tab, the one being looked at included:
+                               the colour stays off that tab (see the tint above)
+                               because it points at what you cannot see, and a
+                               number is not a pointer, it is a total, and the
+                               total is still true of the tab you are on.
+
+                               Rendered whatever the number is and hidden at
+                               zero, like everything the sidebar controller
+                               patches. It carries the key the counts endpoint
+                               already emits for the tint. Deliberately no
+                               data-new-dot: that attribute is the "3 new"
+                               pill's, and patchNewDots would write "N new" over
+                               this. #}
+                            {% set unreadCount = tab_unread[tabCase.value]|default(0) %}
+                            <span class="ml-1.5 text-xs font-semibold px-1.5 py-0.5 rounded-full shrink-0 bg-accent text-accent-ink{{ unreadCount > 0 ? '' : ' hidden' }}"
+                                  data-tab-unread
+                                  data-count-key="category:{{ tabCase.value }}"
+                                  data-label-template="{{ 'sidebar.badge.unread'|trans }}"
+                                  aria-label="{{ 'sidebar.badge.unread'|trans({ '%count%': unreadCount }) }}"
+                            >{{ unreadCount }}</span>
+
+                            {# "3 new", the Gmail way: what arrived here that
+                               you have never seen — a different question from
+                               unread, which is why it keeps its own pill and
+                               its own colour. The macro's
                                header comment holds the pill's own argument,
                                and why the sidebar's copy of this marker stays
                                a wordless dot.

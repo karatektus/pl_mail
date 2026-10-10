@@ -1,4 +1,4 @@
-<!-- translated-from: features/mail.md sha1:52f9fcdc53048f91fd103d949726d5cb242ac80f -->
+<!-- translated-from: features/mail.md sha1:bb071b62f816157425cc53f3eaa6956bb3b1c298 -->
 
 # Mail
 
@@ -182,16 +182,22 @@ läuft weiter.
 Jeder Tab liest sich wie bei Gmail: ein Symbol — ausgefüllt auf dem Tab, auf dem du gerade bist
 — und, solange in einer Kategorie Post liegt, die dir nie gezeigt wurde, ein Fähnchen **„3 neu”**
 in der Farbe der Kategorie, mit einer zweiten Zeile, die nennt, von wem diese neue Post ist,
-neueste zuerst. Das ist mit Absicht die einzige Zahl auf einem Tab: Ungelesenes hat schon den
-Badge in der Seitenleiste und die fetten Zeilen selbst, also behält der Tab das eine, das nur er
-sagen kann. Die Leiste ist live — Fähnchen und Absendernamen aktualisieren sich an Ort und
+neueste zuerst. „Neu” und „ungelesen” sind verschiedene Fragen, deshalb trägt ein Tab zwei Zahlen:
+Das Fähnchen sagt, was angekommen ist, ohne dir gezeigt worden zu sein, und eine schlichte
+**Ungelesen-Zahl** neben dem Namen des Tabs sagt, in wie vielen Unterhaltungen dieser Kategorie
+Ungelesenes liegt. Die Zahl ist der Posteingangs-Badge der Seitenleiste, nach Tabs aufgeteilt — die
+Tabs ergeben zusammen also genau ihn. Sie steht auf jedem Tab, auch auf dem, auf dem du gerade bist,
+und ist bei null ausgeblendet. (Frühere Versionen hielten diese Zahl von den Tabs fern, mit dem
+Argument, Badge und fette Zeilen sagten Ungelesenes schon. Sie können aber nicht sagen, *wo*: Zeigt
+der Posteingangs-Badge 1, ist Primär geöffnet und leer, deutete nichts auf der Leiste auf den Tab
+mit der Post.) Die Leiste ist live — Fähnchen, Zahlen und Absendernamen aktualisieren sich an Ort und
 Stelle, wenn Post eintrifft, ohne auf ein Neuladen zu warten, und ein Hinweis verschwindet in
 dem Moment, in dem du seinen Tab anschaust.
 
 Ein Tab mit ungelesener Post trägt außerdem die Farbe seiner Kategorie auf dem Symbol. Nicht der
 Tab, auf dem du gerade bist — dessen Post steht ohnehin in der Liste darunter, und die Farbe soll
-auf das zeigen, was du *nicht* siehst. Weiterhin keine zweite Zahl: Die Farbe sagt *hier liegt
-etwas*, und der Kopf der Liste sagt, wie viel.
+auf das zeigen, was du *nicht* siehst. Die Farbe sagt *hier liegt etwas*, die Zahl neben dem Namen
+sagt, wie viel.
 
 Am meisten bringt das unter **Nur ungelesene**, wo die Leiste sonst stumm ist: Jede Zeile auf dem
 Schirm ist ungelesen, fette Schrift unterscheidet also nichts mehr, und der Posteingangs-Badge in
