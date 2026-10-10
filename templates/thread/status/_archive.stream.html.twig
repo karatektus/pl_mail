@@ -1,5 +1,5 @@
 {% if stays|default(false) %}
-<turbo-stream action="replace" target="thread_{{ message is defined ? message.thread.id : thread.id }}"><template>{% include '_partials/_thread_row.html.twig' with {thread: message is defined ? message.thread : thread} %}</template></turbo-stream>
+<turbo-stream action="replace" target="thread_{{ message is defined ? message.thread.id : thread.id }}"><template>{% include '_partials/_thread_row.html.twig' with {thread: message is defined ? message.thread : thread, unified: false} %}</template></turbo-stream>
 {% else %}
 <turbo-stream action="remove" target="thread_{{ message is defined ? message.id : thread.id }}">
 </turbo-stream>

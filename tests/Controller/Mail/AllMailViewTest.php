@@ -59,6 +59,7 @@ final class AllMailViewTest extends WebTestCase
     public function testArchiveAndSnoozeStayWhileTrashLeaves(): void
     {
         $thread = $this->thread('synthetic action');
+        $this->seedAccount(); // A second account makes unintended account dots observable.
         $url = '/mail/account/' . $this->account->id . '/all';
         $token = $this->client->request('GET', $url)->filter('meta[name="csrf-token"]')->attr('content');
         $descriptor = ['scope'=>'all_mail', 'value'=>(string) $this->account->id];
@@ -66,6 +67,7 @@ final class AllMailViewTest extends WebTestCase
             $this->post('/status/thread/' . $thread->id . '/' . $action, $token, $descriptor + $payload);
             self::assertResponseIsSuccessful();
             self::assertStringNotContainsString('action="remove" target="thread_' . $thread->id, (string) $this->client->getResponse()->getContent());
+            self::assertStringNotContainsString('data-account-corner', (string) $this->client->getResponse()->getContent());
             if ('archive' === $action) {
                 preg_match('#/status/undo/[a-f0-9]{32}#', (string) $this->client->getResponse()->getContent(), $undo);
                 self::assertNotEmpty($undo);
@@ -78,6 +80,7 @@ final class AllMailViewTest extends WebTestCase
         $this->post('/status/bulk/archive', $token, $descriptor + ['ids'=>[$thread->id]]);
         self::assertResponseIsSuccessful();
         self::assertStringNotContainsString('action="remove" target="thread_' . $thread->id, (string) $this->client->getResponse()->getContent());
+        self::assertStringNotContainsString('data-account-corner', (string) $this->client->getResponse()->getContent());
         $this->post('/status/thread/' . $thread->id . '/trash', $token, $descriptor);
         self::assertResponseIsSuccessful();
         $this->client->request('GET', $url);

@@ -300,6 +300,7 @@ final class BulkStatusController extends AbstractController
             return $this->renderTurboStream('thread/status/_bulk.stream.html.twig', [
                 'count'   => count($threads),
                 'threads' => $threads,
+                'unified' => 'all_mail' !== ($body['scope'] ?? ''),
                 'leaves'  => 'all_mail' !== ($body['scope'] ?? ''),
             ]);
         }
@@ -317,6 +318,7 @@ final class BulkStatusController extends AbstractController
             return $this->renderTurboStream('thread/status/_bulk.stream.html.twig', [
                 'count'   => count($threads),
                 'threads' => $threads,
+                'unified' => 'all_mail' !== ($body['scope'] ?? ''),
                 'leaves'  => false,
             ]);
         }
@@ -448,6 +450,7 @@ final class BulkStatusController extends AbstractController
         return $this->renderTurboStream('thread/status/_bulk.stream.html.twig', [
             'count'   => count($threads),
             'threads' => $threads,
+            'unified' => 'all_mail' !== ($body['scope'] ?? ''),
             // Whether the conversation is still in the list it was acted on
             // from. Archive, trash and restore all move it somewhere else;
             // marking read leaves it exactly where it was and only changes how
