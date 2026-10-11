@@ -1,4 +1,4 @@
-<!-- translated-from: features/admin.md sha1:2767661fff94331fe0f8e24bd3f5ffc971865832 -->
+<!-- translated-from: features/admin.md sha1:bdcf84527dd58c67dc64ef2545d3631a9fce5354 -->
 
 # Administration
 
@@ -461,17 +461,93 @@ Aufbewahrt wird 30 Tage, nächtlich weggeräumt von `app:monitoring:prune`; `--p
 ## KI
 
 Optional, standardmäßig aus, und plMail ist auch ohne einen vollständigen Mail-Client. Hier wird
-nichts eingeschaltet, bis du es einschaltest, und es verlässt nichts dein Netz: Das Modell läuft auf
-einer Maschine, die dir gehört.
+nichts eingeschaltet, bis du es einschaltest. Mails gehen an den Modell-Host, den du einträgst, und
+sonst nirgendwohin: Läuft das Modell auf einer Maschine, die dir gehört, verlässt nichts dein Netz.
 
-**Modell-Host** ist die Adresse eines [Ollama](https://ollama.com)-Containers in deinem eigenen Netz,
-mit Port — `http://10.0.0.5:11434`. Ein **Token** brauchst du nur, wenn du den Host hinter etwas
-gestellt hast, das danach fragt; Ollama selbst hat keine Authentifizierung.
+**Anbieter** ist die API, die der Modell-Host spricht. Es gibt zwei:
+
+| Anbieter | Was das ist | Was plMail damit kann |
+|---|---|---|
+| **Ollama** | Ein [Ollama](https://ollama.com)-Container, meist in deinem eigenen Netz | Alles auf dieser Seite |
+| **OpenAI-kompatibel** | Alles, was `/chat/completions` und `/embeddings` im OpenAI-Format beantwortet: llama.cpp, vLLM, LM Studio, LiteLLM, ein gehosteter Anbieter oder Ollama unter `/v1` | Schreiben, Zusammenfassungen, Einsortieren und Suche. Nicht die Keep-alive-Felder und nicht **Jetzt vorwärmen** |
+
+Das OpenAI-Format kann nicht fragen, was ein Host im Speicher hält, kann kein Modell geladen halten
+und keines vorab laden. Ist dieser Anbieter gewählt, werden die beiden Keep-alive-Felder und **Jetzt
+vorwärmen** weggeräumt, und die Karte zum Modell-Host unter **Admin → Performance** zeigt, ob der Host
+antwortet und was die Aufrufe gekostet haben, ohne die Hälfte „im Speicher“. Die Werte bleiben
+erhalten, beim Zurückwechseln geht also nichts verloren.
+
+**Wählst du einen gehosteten Anbieter, gehen deine Mails an ihn.** Das Einsortieren schickt jede
+ankommende Nachricht, die keine Regel erkannt hat; die Suche schickt jede Nachricht einmal zum
+Indizieren und jede Suchanfrage; Schreibhilfe und Zusammenfassungen schicken das, worum du sie
+bittest. Gehostete Anbieter rechnen meist pro Anfrage ab. plMail weicht nie auf einen anderen Host
+aus und schickt nie etwas an eine Adresse, die du nicht eingetragen hast.
+
+**Modell-Host** ist die Adresse. Bei Ollama ist das der Container, mit Port —
+`http://10.0.0.5:11434`. Bei einem OpenAI-kompatiblen Endpunkt ist es die Wurzel der API samt
+Version, etwa `https://api.example.com/v1`; plMail hängt `/chat/completions` und den Rest an genau
+das, was du eintippst. Das **Token** ist der API-Schlüssel eines gehosteten Anbieters, oder du
+brauchst es nur, wenn du den Host hinter etwas gestellt hast, das danach fragt; Ollama selbst hat
+keine Authentifizierung. Es geht als Bearer-Token
+mit jeder Anfrage an diese Adresse und ist für diese Adresse gespeichert: Änderst du den Modell-Host,
+ohne ein Token einzutippen, wird das gespeicherte verworfen. So landet es nie bei einem Host, für den
+es nicht ausgestellt wurde. Ein Wechsel des Anbieters zählt als Wechsel der Adresse. Weiterleitungen
+werden nicht verfolgt, sobald ein Token mitgeht, und bei einem OpenAI-kompatiblen Endpunkt nie: Die
+Antwort wird als der Status gemeldet, der sie ist.
+
+**Zusätzliche Header** sind für das, was vor dem Modell steht und mehr als ein Token verlangt: ein
+Reverse-Proxy mit Basic Auth, ein Zero-Trust-Gateway, das eine Client-ID und ein Secret will, ein
+Routing- oder Logging-Gateway mit eigenem Schlüssel, ein Anbieter, der ein Projekt per Header wählt.
+Schreib einen pro Zeile als `Name: Wert`:
+
+```
+CF-Access-Client-Id: 1a2b3c.access
+CF-Access-Client-Secret: …
+```
+
+Sie gehen mit jeder Anfrage an den Modell-Host, bei beiden Anbietern, und werden verschlüsselt
+gespeichert. Die Seite nennt die Namen dessen, was hinterlegt ist, und zeigt nie wieder einen Wert.
+Lässt du das Feld leer, bleiben sie; tippst du etwas ein, ersetzt das alle; **Gespeicherte Header
+entfernen** verwirft sie. Wie das Token werden sie verworfen, wenn sich Adresse oder Anbieter ändern.
+Ein hier eingetippter `Authorization`-Header geht anstelle des Tokens, so schreibt man Basic Auth.
+Die Header, die plMail selbst setzt, `Host`, `Content-Type`, `Content-Length` und ähnliche, werden
+abgelehnt. Der Einrichtungsassistent lässt dieses Feld weg; es steht nur unter Admin → KI.
 
 Zwei Modelle, weil die Aufgaben verschieden sind. Das **Schreib-Modell** sollte instruction-tuned
 sein und wird zum Entwerfen und Einsortieren benutzt; das **Such-Modell** ist ein Embedding-Modell
 und meist deutlich kleiner. `llama3.1:8b` und `qwen3-embedding:0.6b` sind brauchbare Startpunkte.
 Beide musst du vorher auf dem Host ziehen — plMail lädt nie ein Modell herunter.
+
+### Suche auf einem eigenen Modell-Host
+
+**Die Suche nutzt einen anderen Modell-Host** gibt dem Such-Modell einen eigenen Anbieter, eine
+eigene Adresse, ein eigenes Token und eigene zusätzliche Header. Das ist standardmäßig aus, und
+solange es aus ist, fragt die Suche den Modell-Host oben wie alles andere auch.
+
+Die beiden Aufgaben wollen oft verschiedene Maschinen. Schreiben will das größte Modell, das du
+betreiben oder mieten kannst. Die Suche will ein kleines, das ständig gefragt wird: bei jeder
+Suchanfrage, und einmal für jede Nachricht eines Postfachs, um sie zu indizieren. Zwei Aufteilungen
+kommen am häufigsten vor:
+
+| Schreiben | Suche | Warum |
+|---|---|---|
+| Ein gehosteter, OpenAI-kompatibler Endpunkt | Ein Ollama zu Hause | Gute Entwürfe ohne eigene große GPU, während das Postfach auf einer Maschine indiziert wird, die dir gehört, und nichts pro Nachricht abgerechnet wird |
+| Ein Ollama zu Hause | Ein anderer Host | Die GPU, die schreibt, wird nicht vom Indizieren unterbrochen |
+
+Jeder Host bekommt nur sein eigenes Token und seine eigenen Header. Ein Such-Host ohne Token
+bekommt keines; er leiht sich nie das des anderen. **Testen** fragt beide Hosts, jeden nach dem
+Modell, das bei ihm liegt.
+
+**Der Index gehört zum Modell, nicht zur Adresse.** Ziehst du die Suche auf einen anderen Host um,
+der dasselbe Modell unter demselben Namen anbietet, bleibt der vorhandene Index erhalten. Ein anderer
+Modellname ist ein neuer Index, wie schon immer: Starte einen Durchlauf über die Karte unten. Ist der
+Name gleich, das Modell aber nicht, kann plMail das nicht erkennen; gib ihm einen anderen Namen, sonst
+werden alte und neue Vektoren zusammen durchsucht und die Ergebnisse sind schlecht.
+
+Das Keep-alive des Such-Modells wird angezeigt, wenn der Host, auf dem die Suche läuft, ein Ollama
+ist, egal welcher der beiden das ist. Die Karte zum Modell-Host unter **Admin → Performance** liest
+den Host, der schreibt, und sagt nichts über ein Such-Modell, das woanders liegt. Der
+Einrichtungsassistent lässt das weg; es steht nur unter Admin → KI.
 
 ### Zum Such-Modell gehören zwei Einstellungen, und die sind nicht optional
 
@@ -504,7 +580,17 @@ Es sagt dir den Unterschied zwischen „unter der Adresse hat nichts geantwortet
 geantwortet, hat aber nicht das Modell, das du eingetragen hast“ — und das führt an zwei ganz
 verschiedene Stellen.
 
+Bei einem OpenAI-kompatiblen Endpunkt liest Testen dessen Modell-Liste unter `/models`. Dabei
+unterscheidet es drei weitere Antworten: Der Host hat das Token abgelehnt, unter der Adresse
+antwortet etwas, das nicht die API ist (meist eine Anmeldeseite), und unter der Adresse gibt es
+keine Modell-Liste. Das Letzte heißt meistens, dass der Adresse ihr `/v1` fehlt. Einige Server haben
+keine Liste und funktionieren trotzdem, deshalb ist es eine Warnung und kein Urteil: Speichere und
+probier einen Entwurf aus.
+
 ### Wie lange die Modelle geladen bleiben
+
+Dieser Abschnitt handelt von Ollama. Ein OpenAI-kompatibler Endpunkt entscheidet selbst, was er
+geladen hält, und die Felder unten werden für ihn nicht angezeigt.
 
 Ollama wirft ein Modell ein paar Minuten nach der letzten Anfrage aus dem Speicher, und es wieder
 von der Platte zu lesen ist die ganze Wartezeit beim ersten „Hilf mir schreiben“ nach einer Pause —

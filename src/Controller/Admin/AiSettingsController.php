@@ -8,6 +8,8 @@ use App\Controller\ChecksCsrf;
 use App\Domain\DTO\Ai\AiProbe;
 use App\Domain\Enum\Ai\MetricWindow;
 use App\Domain\Enum\Ai\PromptSlot;
+use App\Entity\Ai\AiFeature;
+use App\Entity\Ai\AiSettings;
 use App\Form\Admin\AiSettingsType;
 use App\Repository\Ai\AiSettingsRepository;
 use App\Repository\Mail\MessageRepository;
@@ -82,14 +84,9 @@ final class AiSettingsController extends AbstractController
         $saved = false;
 
         if (true === $form->isSubmitted() && true === $form->isValid()) {
-            // Unmapped, so an empty box leaves the stored token alone. Clearing
-            // it needs its own gesture rather than being what happens whenever
-            // somebody saves the page without retyping a credential.
-            $token = (string) $form->get('apiToken')->getData();
-
-            if ('' !== trim($token)) {
-                $settings->apiToken = $token;
-            }
+            // The key is not read here. Its field is unmapped and the form
+            // decides what it means — typed, left alone, or dropped because the
+            // address it belonged to has changed. See AiSettingsType::keyAfter().
 
             // The two keep-alive fields are NOT normalised here, and that is
             // deliberate rather than an omission. An emptied TextType bound to
@@ -113,7 +110,7 @@ final class AiSettingsController extends AbstractController
             'settings' => $settings,
             'form'     => $form,
             'saved'    => $saved,
-            'probe'    => null,
+            'probes'   => [],
             'prompts'  => $this->promptRows(),
             'hold'     => $this->holdDelay(),
         ]);
@@ -124,38 +121,101 @@ final class AiSettingsController extends AbstractController
      *
      * The address comes off the submitted form rather than out of the database
      * so this can answer for something that has not been committed to yet.
+     *
+     * BOUND TO A COPY. The form writes what was typed onto the object it is
+     * given, and the row Doctrine manages would then be one flush away from
+     * storing an address somebody only wanted to try. A copy is not managed, so
+     * there is nothing for a flush to find.
+     *
+     * The copy is also what carries the key. A key typed beside the address is
+     * shown to that address; a stored one is shown only if the address is still
+     * the one it was stored for — the form's rule, applied to a test the same
+     * as to a save.
+     *
+     * ONLY A VALID FORM IS TESTED. The CSRF token is part of validity, and this
+     * action makes the server send a request, possibly with a credential, to an
+     * address taken from the request body.
      */
     #[Route('/test', name: 'test', methods: ['POST'])]
     public function test(Request $request): Response
     {
-        $settings = $this->settings->currentOrDefault();
+        $draft = clone $this->settings->currentOrDefault();
 
-        $form = $this->form($settings);
+        $form = $this->form($draft);
         $form->handleRequest($request);
 
-        /** @var array<string, mixed> $submitted */
-        $submitted = $request->request->all('ai_settings');
-
-        $typed = trim((string) ($submitted['baseUrl'] ?? ''));
-
-        $probe = '' === $typed
-            ? AiProbe::unreachable('no_host')
-            : $this->assistant->probe($typed);
-
         return $this->render('admin/ai/_frame.html.twig', [
-            'settings' => $settings,
+            'settings' => $draft,
             'form'     => $form,
             'saved'    => false,
-            'probe'    => $probe,
-            // So the template can say "the model you named is not on that host",
-            // which is a completely different errand from "nothing answered".
-            'wanted'   => array_values(array_filter([
-                $submitted['chatModel'] ?? null,
-                $submitted['embeddingModel'] ?? null,
-            ])),
+            'probes'   => true === $form->isSubmitted() && true === $form->isValid() ? $this->probes($draft) : [],
             'prompts'  => $this->promptRows(),
             'hold'     => $this->holdDelay(),
         ]);
+    }
+
+    /**
+     * Ask every model host these settings name, and say what each should hold.
+     *
+     * One host on nearly every installation, asked for both models. Two when
+     * search has a host of its own — and then each is asked only for the model
+     * that lives on it, so that the template can say "the model you named is
+     * not on that host" about the right host. Asked for both models, a writing
+     * host would be reported as missing the search model it was never meant to
+     * have.
+     *
+     * A host that was not filled in is not asked. With search pointed at its
+     * own host and nothing typed for writing, "type an address first" about
+     * the writing host would be an error message for a field somebody left
+     * empty on purpose. If NOTHING was filled in, that is the one thing to say.
+     *
+     * @return list<array{role: string, probe: AiProbe, wanted: list<string>}>
+     */
+    private function probes(AiSettings $settings): array
+    {
+        $writing = $settings->connectionFor(AiFeature::WritingHelp);
+        $search  = $settings->connectionFor(AiFeature::Search);
+
+        if (false === $settings->embeddingOwnConnection) {
+            return [[
+                'role'   => 'writing',
+                'probe'  => $this->assistant->probe($writing),
+                'wanted' => self::named($settings->chatModel, $settings->embeddingModel),
+            ]];
+        }
+
+        $probes = [];
+
+        if (true === $writing->isSet() || false === $search->isSet()) {
+            $probes[] = [
+                'role'   => 'writing',
+                'probe'  => $this->assistant->probe($writing),
+                'wanted' => self::named($settings->chatModel),
+            ];
+        }
+
+        if (true === $search->isSet()) {
+            $probes[] = [
+                'role'   => 'search',
+                'probe'  => $this->assistant->probe($search),
+                'wanted' => self::named($settings->embeddingModel),
+            ];
+        }
+
+        return $probes;
+    }
+
+    /**
+     * The model names that were actually typed.
+     *
+     * @return list<string>
+     */
+    private static function named(?string ...$models): array
+    {
+        return array_values(array_filter(
+            $models,
+            static fn (?string $model): bool => null !== $model && '' !== trim($model),
+        ));
     }
 
     /**
@@ -307,7 +367,7 @@ final class AiSettingsController extends AbstractController
             'millis'  => $result->milliseconds,
             'message' => $this->translator->trans(
                 'admin.ai.warmup.' . (string) $result->reason,
-                $result->reasonParams,
+                $result->placeholders(),
             ),
         ]);
     }
@@ -365,7 +425,7 @@ final class AiSettingsController extends AbstractController
             'settings'     => $settings,
             'form'         => $this->form($settings),
             'saved'        => false,
-            'probe'        => null,
+            'probes'       => [],
             'prompts'      => $this->promptRows(),
             'hold'         => $this->holdDelay(),
             'promptsSaved' => true,

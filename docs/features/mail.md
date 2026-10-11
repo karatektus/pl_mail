@@ -617,6 +617,14 @@ marked with a tint and a bar on its leading edge, and the area beside the list s
 *Select a conversation to read it here* until you open one. The back arrow closes the message and
 leaves the list as it was.
 
+The open message also stays put while you move around the list. Choosing another folder, switching
+a category tab, turning the page, sorting or searching changes what the list shows and leaves the
+conversation you were reading where it is, so you can look for the next one without losing this one.
+No row is marked while the list shows a folder the message is not in, and the mark comes back when
+you return to its folder. The back arrow then closes the message and leaves you on the folder you
+switched to. With one pane at a time (see below) the message has covered the list, so choosing a
+folder closes it and shows the new list, as it always did.
+
 **The divider** between the two is dragged with the mouse, or moved with the arrow keys once it has
 focus (two percent a step; Home and End go to the ends). A double-click puts it back to the
 default. What is stored is the message's share of the **mail card** — the list and the message

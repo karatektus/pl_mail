@@ -1,4 +1,4 @@
-<!-- translated-from: features/mail.md sha1:713358fc065ed7968b682a1336e6b57f184e3727 -->
+<!-- translated-from: features/mail.md sha1:b70dc1209cf44fb05d838ac890f42bff0abd9e85 -->
 
 # Mail
 
@@ -675,6 +675,15 @@ Steht der Lesebereich rechts, bleibt die Liste beim Öffnen stehen, wo sie ist. 
 ist mit einem Farbton und einem Balken an der vorderen Kante markiert, und der Bereich neben der
 Liste sagt *Wähle eine Unterhaltung aus, um sie hier zu lesen*, bis du eine öffnest. Der
 Zurück-Pfeil schließt die Nachricht und lässt die Liste, wie sie war.
+
+Die geöffnete Nachricht bleibt auch stehen, während du dich in der Liste bewegst. Wählst du einen
+anderen Ordner, wechselst du den Kategorie-Tab, blätterst um, sortierst oder suchst, ändert sich,
+was die Liste zeigt, und die Konversation, die du gerade liest, bleibt, wo sie ist, sodass du nach
+der nächsten suchen kannst, ohne diese zu verlieren. Solange die Liste einen Ordner zeigt, in dem die
+Nachricht nicht liegt, ist keine Zeile markiert, und die Markierung kommt zurück, wenn du in ihren
+Ordner zurückkehrst. Der Zurück-Pfeil schließt die Nachricht dann und lässt dich in dem Ordner, zu dem
+du gewechselt hast. Bei einem Bereich nach dem anderen (siehe unten) hat die Nachricht die Liste
+verdeckt, deshalb schließt die Wahl eines Ordners sie und zeigt die neue Liste, wie es immer war.
 
 **Der Trenner** dazwischen wird mit der Maus gezogen, oder mit den Pfeiltasten bewegt, sobald er den
 Fokus hat (zwei Prozent pro Schritt; Pos1 und Ende springen an die Enden). Ein Doppelklick setzt ihn

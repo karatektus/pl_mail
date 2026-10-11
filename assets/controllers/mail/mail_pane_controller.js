@@ -202,12 +202,25 @@ export default class extends Controller {
         // message open beside a list it was never part of, with a back-URL
         // pointing at the label the user just left. A swap shows the new
         // list and adopts its URL as the place `close` returns to.
+        //
+        // Beside the list that reasoning does not apply: the message was never
+        // covering the list, so the swap has nothing to uncover and no reason to
+        // close what is open. It stays, and so does the remembered row mark —
+        // the mutation observer above puts the highlight back if the new list
+        // has the row. Only an open message is kept; with none open the list is
+        // shown as before, which is also what fills a frame that was never
+        // rendered.
         this._onListSwap = (event) => {
             if (LIST_FRAME_ID !== event.target.id) {
                 return;
             }
 
             this._listUrl = window.location.href;
+
+            if (this._besideList() && false === this.readingTarget.classList.contains("hidden")) {
+                return;
+            }
+
             this._showList();
         };
         document.addEventListener("turbo:frame-load", this._onListSwap);

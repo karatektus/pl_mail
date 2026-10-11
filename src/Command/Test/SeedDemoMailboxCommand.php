@@ -34,6 +34,17 @@ use Symfony\Component\DependencyInjection\Attribute\Autowire;
  *
  * Not for prod, and it says so. Everything it writes belongs to one account it
  * owns outright and wipes on every run, so it cannot touch mail that was synced.
+ *
+ * Not for a user who has a mailbox already, either, and it says that too. The
+ * mailbox is the least of what this replaces: the user's calendar is wiped and
+ * rewritten, their address book goes, and so does every custom label the demo
+ * does not use. It used to remove their other accounts as well, so that "E2E
+ * Mailbox" stayed out of the pictures — which made it a command that quietly
+ * dismantled whichever fixture user it was pointed at, and it was pointed at
+ * the one the whole regression suite signs in as. Their specs failed a day
+ * later, on a badge count and an all-day chip, with nothing to connect the
+ * failure to a screenshot retake. A user of the demo's own has no other
+ * account to hide, so the removal is gone and the refusal is in its place.
  */
 #[AsCommand(
     name: 'app:test:seed-demo',
@@ -81,7 +92,23 @@ final class SeedDemoMailboxCommand extends Command
         }
 
         $accounts = $this->accountRepository->findBy(['usr' => $user]);
-        $account  = $this->demoMailbox->account($user, $accounts);
+
+        // Before anything is written, including the demo account itself: a
+        // refusal that leaves half a demo behind is the pollution it refuses.
+        foreach ($accounts as $other) {
+            if (DemoMailbox::ACCOUNT_USERNAME !== $other->username) {
+                $io->error(sprintf(
+                    '%s already owns the mailbox "%s" — the demo replaces a user\'s calendar, contacts and '
+                    .'labels, so it wants a user of its own. Seed one with app:test:seed-user and pass --email.',
+                    $userEmail,
+                    (string) $other->name,
+                ));
+
+                return Command::FAILURE;
+            }
+        }
+
+        $account = $this->demoMailbox->account($user, $accounts);
 
         // The calendar is no longer cleared here: DemoMailbox::seedCalendar()
         // wipes and rewrites it, the same way seed() does the mailbox, so the
@@ -89,22 +116,9 @@ final class SeedDemoMailboxCommand extends Command
         // thing that then puts a real week in their place. Two callers deleting
         // the same rows was harmless and said the opposite of what is true.
 
-        // The demo mailbox ends up the only one, because the sidebar lists
-        // every account and "E2E Mailbox" in a readme screenshot gives the
-        // game away. Safe here and nowhere else: this command already refuses
-        // to run in prod, and in dev or test the other accounts are fixtures.
-        foreach ($accounts as $other) {
-            if ($other->username !== DemoMailbox::ACCOUNT_USERNAME) {
-                $this->entityManager->remove($other);
-            }
-        }
-
-        $this->entityManager->flush();
-
-        // Custom labels from other fixtures go too — "E2E Label" in the
-        // sidebar of a readme screenshot is the same tell as "E2E Trash Me" in
-        // the message list. System labels stay: they are this account's
-        // folders, not decoration.
+        // Custom labels that are not the demo's go — a filter built for one
+        // retake's picture leaves its label behind for the next. System labels
+        // stay: they are this account's folders, not decoration.
         foreach ($this->labelRepository->findBy(['usr' => $user, 'role' => null]) as $label) {
             if (false === in_array((string) $label->name, DemoMailbox::LABELS, true)) {
                 $this->entityManager->remove($label);

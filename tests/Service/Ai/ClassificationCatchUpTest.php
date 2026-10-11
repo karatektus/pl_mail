@@ -198,7 +198,8 @@ final class ClassificationCatchUpTest extends KernelTestCase
 
     private function importFinished(): void
     {
-        $this->mailbox->syncedAt = new DateTimeImmutable('-1 day');
+        $this->mailbox->syncedAt       = new DateTimeImmutable('-1 day');
+        $this->mailbox->importFloorUid = 0;
 
         $this->em->flush();
     }

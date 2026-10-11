@@ -140,6 +140,33 @@ async function shiftTimesBy(modal: Locator, hours: number) {
     await setWhen(ends, localValue(movedEnd));
 }
 
+/**
+ * Put a new event at noon for an hour, on the day the editor offered.
+ *
+ * The editor offers the next full hour, so without this the recurring cases
+ * below test a different event depending on when the suite runs — and the
+ * agenda they count chips in is thirty days long, which is long enough to reach
+ * a daylight-saving change for two months of every year. Run late in the
+ * evening in October, the series sat at 00:00 and "moving all events" put it at
+ * 02:00 to 03:00: on the last Sunday of the month that hour happens twice, the
+ * occurrence runs from the first 02:00 to the second, and its chip reads
+ * "2:00 – 2:00" among twenty-eight that read "2:00 – 3:00". That is the right
+ * hour-long event and one label too many for a case that asserts they all match.
+ * In March the same hour does not exist and the chip moves to 3:00 instead.
+ *
+ * Noon, and the 14:00 the cases shift it to, are hours no zone changes its
+ * clock in, so every occurrence of the series carries the same label whatever
+ * the date and whatever the time of day.
+ */
+async function moveToMidday(modal: Locator) {
+    const starts = modal.locator("#event-starts");
+    const day    = (await starts.inputValue()).slice(0, 10);
+
+    // The start first, for the reason shiftTimesBy() gives.
+    await setWhen(starts, `${day}T12:00`);
+    await setWhen(modal.locator("#event-ends"), `${day}T13:00`);
+}
+
 test.describe("calendar", () => {
     test.afterEach(async ({ page }) => {
         // Delete anything this spec created, so a second run starts where the
@@ -360,6 +387,7 @@ test.describe("calendar", () => {
         await expect(modal.getByLabel("Title")).toHaveValue("");
 
         await modal.getByLabel("Title").fill(TITLE);
+        await moveToMidday(modal);
         await choose(modal, "Repeat", REPEAT[repeat]);
         await submit(page, modal, "Save");
 

@@ -30,6 +30,7 @@ use App\Service\Ai\LiveMailPriority;
 use App\Service\Ai\PromptLibrary;
 use App\Service\Mail\MessageCategorizer;
 use App\Service\Ai\OllamaClient;
+use App\Service\Ai\OpenAiClient;
 use App\Service\Mail\HeldMailReleaser;
 use App\Service\Mail\PostIngestPipeline;
 use DateTimeImmutable;
@@ -374,6 +375,7 @@ final class ClassificationHoldFlowTest extends KernelTestCase
                 new MockHttpClient(new MockResponse((string) json_encode(['message' => ['content' => $answer]]))),
                 new NullLogger(),
             ),
+            new OpenAiClient(new MockHttpClient([]), new NullLogger()),
             $container->get(AiCallRecorder::class),
             new NullLogger(),
         );
@@ -451,10 +453,11 @@ final class ClassificationHoldFlowTest extends KernelTestCase
         $this->em->flush();
     }
 
-    /** What ends an IMAP import: every folder has completed a sync. */
+    /** What ends an IMAP import: no folder has history left to bring in. */
     private function importFinished(): void
     {
-        $this->mailbox->syncedAt = new DateTimeImmutable('-1 day');
+        $this->mailbox->syncedAt       = new DateTimeImmutable('-1 day');
+        $this->mailbox->importFloorUid = 0;
 
         $this->em->flush();
     }
