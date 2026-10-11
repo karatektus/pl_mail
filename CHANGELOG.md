@@ -8,6 +8,11 @@ The published image tags: `latest` follows the most recent release below,
 
 ## Unreleased
 
+**The "+" beside Labels and Accounts in the sidebar appears when you point at its heading.** Both
+were on screen all the time. They also appear when reached with the keyboard, and stay visible on
+a touch screen, where there is no pointer to reveal them with.
+[#66](https://github.com/karatektus/pl_mail/pull/66), by @Flouss.
+
 **Search by meaning can use a model host of its own.** Admin → AI has a tick box, **Search uses a
 different model host**, with its own provider, address, token and extra headers. Off by default.
 It is for running the two models on different machines: a hosted model for writing and a small one

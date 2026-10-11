@@ -777,6 +777,20 @@ controller instead — the scroll position and which trees are open.
                    number from three syncs ago the moment it was reopened. #}
                 <span class="group-open/labels:hidden">{{ macros.unread_badge(sidebarCounts.unreadInLabels(), 'labels:unread') }}</span>
 
+                {# Quiet until its heading row is hovered. A "+" on every
+                   section heading is two controls permanently on screen for
+                   something done a few times a year. The row is the summary
+                   (`group/head`), not the section: a label further down must
+                   not light it up.
+
+                   Two exits from "hidden", and both are needed. Keyboard focus
+                   shows it, or a button reached with Tab would be invisible
+                   while it holds focus. And it is only ever hidden where there
+                   is a hover to reveal it with — `[@media(hover:hover)]` — or
+                   a phone could neither create a label nor add an account.
+
+                   `transition` rather than `transition-colors`, so the fade is
+                   one. The Accounts heading below has the same button. #}
                 <button
                     data-controller="ui--modal"
                     data-action="click->ui--modal#open {{ _drawerClose }}"
