@@ -10,25 +10,39 @@ Variables:
   targetId      int|null  when null the Stimulus controller resolves selected
                           rows from the list instead (bulk mode)
   activeLabels  int[]     ids of labels currently attached (single-target mode)
+  trigger       bool      false where something else opens the panel — the list
+                          toolbar's "More" menu has a row for it. The button is
+                          still rendered, and still has a box: it is what that
+                          row and the `l` key press, so there is one way in, and
+                          it is what the panel is placed against, so it cannot
+                          be `display: none` — a button with no box measures as
+                          a point in the window's corner, and the panel opened
+                          there. Invisible, unfocusable, and filling whatever
+                          positioned box the include sits in. Default true.
+  align         string    "right" (default) | "left": which edge of the trigger
+                          the panel hangs from. Left where the trigger sits near
+                          the start of a toolbar, so the panel opens into the
+                          pane and not off its edge.
 #}
+{% set trigger = trigger is defined ? trigger : true %}
 <div data-controller="mail--label-menu"
      data-mail--label-menu-target-type-value="{{ targetType }}"
      {% if targetId is defined and targetId is not null %}data-mail--label-menu-target-id-value="{{ targetId }}"{% endif %}
-     class="relative">
+     class="{{ trigger ? 'relative' : 'absolute inset-0' }}">
 
     <button type="button"
             data-action="click->mail--label-menu#toggle"
+            {% if false == trigger %}data-toolbar-flyout="label" tabindex="-1" aria-hidden="true"{% endif %}
             aria-label="{{ 'toolbar.actions.label'|trans }}"
-            class="group relative flex items-center justify-center w-8 h-8 rounded-full
-                   text-ink-muted
-                   hover:text-ink
-                   hover:bg-hover
-                   transition-colors duration-100 cursor-pointer">
+            class="{{ trigger
+                ? 'group relative flex items-center justify-center w-8 h-8 rounded-full text-ink-muted hover:text-ink hover:bg-hover transition-colors duration-100 cursor-pointer'
+                : 'block w-full h-full invisible' }}">
         <i class="fa-solid fa-tag text-sm" aria-hidden="true"></i>
     </button>
 
     <div data-mail--label-menu-target="panel"
-         class="hidden absolute right-0 top-full mt-1 z-30 w-56 max-h-72 overflow-y-auto rounded-pane
+         data-align="{{ align|default('right') }}"
+         class="hidden absolute {{ 'left' == align|default('right') ? 'left-0' : 'right-0' }} top-full mt-1 z-30 w-56 max-h-72 pointer-events-auto overflow-y-auto rounded-pane
                 bg-pane-soft backdrop-blur-sm
                 border border-line
                 shadow-pop py-1">

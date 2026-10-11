@@ -313,11 +313,16 @@ working copy to prepare such a change in, and is behind upstream after every rel
 ## README screenshots
 
 `tests/e2e/screenshots.spec.ts` regenerates the images in `docs/screenshots/`. It asserts nothing and
-is not part of the regression suite — run it deliberately, against a stack seeded with demo data:
+is not part of the regression suite — run it deliberately, against the E2E stack:
 
 ```bash
-npx playwright test screenshots.spec.ts --project=chromium --workers=1
+npm run test:e2e:screenshots -- --project=chromium --workers=1
 ```
+
+It seeds the demo mailbox onto two users of its own, `e2e-demo-w0@plmail.test` and
+`e2e-demo-admin-w0@plmail.test`, and never onto the users the regression suite signs in as:
+`app:test:seed-demo` replaces a user's calendar, contacts and labels, and refuses anyone who
+already owns a mailbox.
 
 Never point it at a stack holding real mail.
 

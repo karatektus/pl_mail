@@ -1,4 +1,4 @@
-<!-- translated-from: features/appearance.md sha1:9d9ac77d8ed5aee02d91bc7f6b86cdaf94b4297f -->
+<!-- translated-from: features/appearance.md sha1:43f57642347736db71ec013bef9e22bfb70ee747 -->
 
 # Darstellung
 
@@ -96,6 +96,7 @@ die Liste schon vor diesen Bedienelementen tat — es bewegt sich also nichts, b
 |---|---|
 | **Konto-Ecke** | Das farbige Dreieck unten links in einer Zeile, das sagt, über welches Konto die Nachricht eingegangen ist. Standardmäßig an; gezeichnet wird es ohnehin nur in einer Liste, die mehrere Konten mischt |
 | **Absenderkreise** | Der farbige Kreis mit der Initiale des Absenders — siehe den Fallstrick unten, dieser hier verschwindet nicht |
+| **Ungelesen-Zahl auf den Posteingangs-Tabs** | Die Zahl neben dem Namen jedes Kategorie-Tabs: in wie vielen Unterhaltungen darin Ungelesenes liegt. Standardmäßig an. Aus blendet nur die Zahl aus; die Farbe auf dem Symbol eines Tabs und das Fähnchen „3 neu“ bleiben |
 | **Vorschauzeilen** | **Keine**, **Eine Zeile** oder **Zwei Zeilen** aus dem Nachrichtentext unter dem Betreff |
 | **Ungelesene Zeilen** | **Dezent**, **Standard** oder **Stark** — wie laut die Liste sagt, dass eine Zeile ungelesen ist |
 

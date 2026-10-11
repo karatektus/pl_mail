@@ -5,8 +5,78 @@ existing installation is in and the state most will stay in. That is not a discl
 constraint the whole design is bent around, and most of the decisions below only make sense in its
 light.
 
-The model host is an **Ollama container on the operator's own network**. Nothing is sent anywhere
-else, and there is no hosted service to fall back to.
+The model host is whatever address the operator enters, speaking one of two dialects: **Ollama**,
+which is what plMail was built against, or the **OpenAI-compatible** request format that nearly
+everything else implements. Mail is sent to that address and nowhere else. There is no hosted
+service plMail falls back to and no address it ships with.
+
+## Two dialects, one door
+
+`AiProvider` is the choice, `AiConnection` is what a request is built from — the dialect, the
+address, and the key that address was given — and `AiAssistant` is the only class that knows there
+are two clients. It reads the connection for the feature being served and hands the request to
+`OllamaClient` or `OpenAiClient`; both answer in the same value objects and the same six error
+categories, so the controllers, the recorder and the metrics table are written once.
+
+`OpenAiClient` uses three paths and no more: `/chat/completions`, `/embeddings`, and `/models` for
+the Test button and the panel. That is the part of the format every server has. Three decisions in
+it are worth knowing before changing it:
+
+- **Nothing outside the format is sent.** No `keep_alive`, no `num_ctx`, no `stream_options`. Several
+  servers validate the body strictly and answer 400 or 422 to an unknown field. Token counts are
+  kept where a server volunteers a `usage` block and stay null where it does not.
+- **The stream is read a line at a time.** Tokens arrive as `data: {json}` lines; comment lines and
+  `event:` lines are skipped, because at least one router sends comments as keep-alives. `[DONE]` is
+  honoured and not required. An `error` object inside a 200 fails the call, so half a sentence is
+  never recorded as a finished draft.
+- **Redirects are never followed.** The request carries a key and somebody's mail, and a 301 names
+  an address neither was meant for.
+
+What only Ollama can be asked is not asked of the other dialect. `AiProvider::managesMemory()` is
+the one question, and it decides four things: no keep-alive is sent (`AiSettings::keepAliveFor()`
+answers null), `AiAssistant::isModelResident()` answers true so the composer does not promise a cold
+start, `warmUp()` refuses with a reason of its own, and the panel asks no `/api/ps`. The full
+conversation summary passes a `num_ctx` that only Ollama receives; an OpenAI-compatible endpoint has
+whatever context window it was started with.
+
+The durations in the metrics table are Ollama's own figures for an Ollama host. For the other
+dialect the total is the round trip measured from plMail, and a streamed call's generation time runs
+from its first token — recorded only when the server also sent a token count to divide by.
+
+**Extra headers** ride on the same object. `ConnectionHeaders` owns the format: typed as
+`Name: value` lines, stored as JSON in an encrypted column, and read back by
+`AiSettings::connectionFor()` into `AiConnection::$headers`. `parse()` is strict and runs in front of
+whoever typed them; `decode()` never throws and runs in front of every request, so an unreadable
+column costs the headers and not the feature. Values are fixed strings. There is deliberately no
+header whose value is made up per request: nothing plMail does needs one, and it would be a
+mechanism to carry through the queue for one endpoint's benefit. A typed `Authorization` replaces
+the bearer token, matched without regard to case.
+
+**Search may have a host of its own.** `AiSettings::$embeddingOwnConnection` is the switch, and
+four columns hold the second host's provider, address, token and headers.
+`AiSettings::connectionFor(AiFeature::Search)` returns that connection when the switch is on and the
+first host's otherwise; every other feature always gets the first. Nothing else changed to make this
+work, because every call already asked for the connection of its feature. Three rules:
+
+- The second host gets all four of its own values and none of the first's. A search host with no
+  token is sent no token.
+- `enabledFor()` asks whether the host *that feature runs on* is filled in, so search pointed at an
+  empty second host is off whatever the first host says, and a search host alone is enough for
+  search.
+- Stored vectors are filed under the model name and nothing else. The address and the provider are
+  not part of a vector's identity, so moving search to another host serving the same model re-uses
+  the index and needs no migration. An identity that included the address would have forced a full
+  re-embed whenever a host changed its IP.
+
+The panel reads the host that writes. With search elsewhere, the search model's `installed` is null
+and its `resident` is false there: unknown, not missing.
+
+**The key belongs to the address.** `AiSettingsType` drops a stored key when the provider or the
+address changes and none is typed, and the Test action binds the form to a copy of the settings, so
+a stored key is never shown to an address it was not stored for. The extra headers follow the same
+rule. `OllamaClient::authorised()` scopes
+its HTTP client to the connection, which is what puts the key on every request including the two a
+caller does not see.
 
 > **Status.** All of it is written and passes unit tests and PHPStan; none of it has been run
 > against a real Ollama. One end-to-end test —

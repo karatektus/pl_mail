@@ -89,6 +89,7 @@ final readonly class AppearanceRenderer
             // ── Mail list display ─────────────────────────────────────────
             '--list-corner-display' => $appearance->accountCorner ? 'block' : 'none',
             '--list-avatar-hide'    => $appearance->listAvatars ? '0' : '1',
+            '--tab-unread-display'  => $appearance->tabUnreadCount ? 'inline' : 'none',
             '--unread-emphasis'     => self::number($appearance->unreadEmphasis->tintScale()),
             '--unread-bar-w'        => $appearance->unreadEmphasis->barWidth(),
 

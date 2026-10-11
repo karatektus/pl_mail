@@ -27,7 +27,8 @@ use ReflectionClass;
  * certainly not repainting a mark whose whole purpose is to be recognisable.
  * So sortOrder means display position and nothing else, isPrimary is set
  * explicitly by a button that says what it does, and colorIndex is handed out
- * once at creation and never moves.
+ * at creation and moves only when the user picks another colour — never as a
+ * side effect of the list being rearranged.
  *
  * These are the invariants that make that true. They are unit tests on the
  * service rather than controller tests, because the coupling lived in the

@@ -180,9 +180,159 @@ final class BatchStorageTest extends KernelTestCase
         self::assertSame(103, (int) $mailbox['last_seen_uid'], 'the mark must pass a UID that is already stored');
     }
 
+    /**
+     * A message the library cannot build never reached this code: the fetch
+     * threw, the page never arrived, and nothing counted the failure — so the
+     * folder stopped at it on every sync for as long as the message existed
+     * (#45). It arrives beside its page now, and is held like any other
+     * message that would not store: the rest of the page is written, the mark
+     * waits below it, and the mailbox records which UID it is waiting for.
+     */
+    public function testAMessageTheLibraryCouldNotReadIsHeldForARetryAndCostsNothingElse(): void
+    {
+        $this->storeBatchWith([102 => new \RuntimeException('no content found')], $this->mail(101), $this->mail(103));
+
+        self::assertSame([101, 103], $this->storedUids(), 'its neighbours are stored');
+
+        $mailbox = $this->mailboxRow();
+
+        self::assertSame(102, (int) $mailbox['failed_uid']);
+        self::assertSame(1, (int) $mailbox['failed_uid_attempts']);
+        self::assertSame(101, (int) $mailbox['last_seen_uid'], 'the mark waits below it, so the next sync asks again');
+    }
+
+    /**
+     * Held, not held for ever. A message the parser will never take is let go
+     * after MessageSyncer::MAX_UID_ATTEMPTS syncs, and the mark moves past it
+     * — which is the whole difference between losing one message and losing a
+     * folder.
+     */
+    public function testAfterEnoughSyncsItIsLetGoAndTheMarkMovesPastIt(): void
+    {
+        $unreadable = [102 => new \RuntimeException('no content found')];
+
+        for ($sync = 1; $sync <= 4; ++$sync) {
+            $this->storeBatchWith($unreadable, $this->mail(101), $this->mail(103));
+
+            self::assertSame(101, (int) $this->mailboxRow()['last_seen_uid'], sprintf('still held after sync %d', $sync));
+        }
+
+        $this->storeBatchWith($unreadable, $this->mail(101), $this->mail(103));
+
+        $mailbox = $this->mailboxRow();
+
+        self::assertSame(5, (int) $mailbox['failed_uid_attempts']);
+        self::assertSame(103, (int) $mailbox['last_seen_uid'], 'the fifth failure lets it go');
+        self::assertSame([101, 103], $this->storedUids(), 'and nothing was stored twice on the way');
+    }
+
+    /**
+     * It is given up even when it is the newest message in the folder, with
+     * nothing above it to carry the mark past. Otherwise it would be fetched
+     * and fail on every poll until other mail arrived.
+     */
+    public function testTheNewestMessageInTheFolderIsLetGoToo(): void
+    {
+        for ($sync = 1; $sync <= 5; ++$sync) {
+            $this->storeBatchWith([102 => new \RuntimeException('no content found')], $this->mail(101));
+        }
+
+        self::assertSame(102, (int) $this->mailboxRow()['last_seen_uid']);
+    }
+
+    /**
+     * The retry counter belongs to the LOWEST failure of a run. Told of the
+     * unreadable messages in any other order than by UID, two of them in one
+     * folder would take the counter from each other on every sync, neither
+     * would reach the attempt that lets it go, and the folder would be held
+     * between them for good.
+     */
+    public function testTwoUnreadableMessagesDoNotHoldAFolderBetweenThem(): void
+    {
+        $unreadable = [
+            104 => new \RuntimeException('no content found'),
+            102 => new \RuntimeException('no content found'),
+        ];
+
+        for ($sync = 1; $sync <= 5; ++$sync) {
+            $this->storeBatchWith($unreadable, $this->mail(101), $this->mail(103), $this->mail(105));
+        }
+
+        $mailbox = $this->mailboxRow();
+
+        self::assertSame(103, (int) $mailbox['last_seen_uid'], 'the lower one was counted five times and let go');
+        self::assertSame(104, (int) $mailbox['failed_uid'], 'and the counter has moved on to the next');
+        self::assertSame(1, (int) $mailbox['failed_uid_attempts']);
+    }
+
+    /**
+     * `lastSeenUid+1:*` hands back the newest message on every sync. If the
+     * library trips over it this time, it is still a message this folder
+     * holds, and holding it back would reset the counter a real failure is
+     * being counted on.
+     */
+    public function testAMessageAlreadyStoredIsNotAFailureWhateverTheLibraryMadeOfItThisTime(): void
+    {
+        $this->storeBatch($this->mail(101));
+
+        $synced = [101 => true];
+
+        $this->invokeProcessBatch([], $synced, [101 => new \RuntimeException('no content found')]);
+
+        $mailbox = $this->mailboxRow();
+
+        self::assertNull($mailbox['failed_uid']);
+        self::assertSame(101, (int) $mailbox['last_seen_uid']);
+    }
+
     private function storeBatch(ImapMessage ...$batch): void
     {
-        $synced   = [];
+        $synced = [];
+
+        $this->invokeProcessBatch($batch, $synced, []);
+    }
+
+    /**
+     * One sync's worth: the mark and the stored UIDs read fresh, as
+     * syncMailbox() reads them before it fetches.
+     *
+     * @param array<int, \Throwable> $unreadable
+     */
+    private function storeBatchWith(array $unreadable, ImapMessage ...$batch): void
+    {
+        $synced = array_fill_keys($this->storedUids(), true);
+
+        $this->invokeProcessBatch($batch, $synced, $unreadable, (int) $this->mailboxRow()['last_seen_uid']);
+    }
+
+    /** @return list<int> */
+    private function storedUids(): array
+    {
+        return array_map('intval', $this->connection->fetchFirstColumn(
+            'SELECT imap_uid FROM message WHERE mailbox_id = ? ORDER BY imap_uid',
+            [$this->mailboxId],
+        ));
+    }
+
+    /** @return array<string, mixed> */
+    private function mailboxRow(): array
+    {
+        $this->em->clear();
+
+        return (array) $this->connection->fetchAssociative(
+            'SELECT failed_uid, failed_uid_attempts, last_seen_uid FROM mailbox WHERE id = ?',
+            [$this->mailboxId],
+        );
+    }
+
+    /**
+     * @param array<int, ImapMessage> $batch
+     * @param array<int, bool>        $synced
+     * @param array<int, \Throwable>  $unreadable
+     */
+    private function invokeProcessBatch(array $batch, array &$synced, array $unreadable, int $lastSeenUid = 0): void
+    {
+        // The run-wide lowest held UID: a run of one batch starts with none.
         $lowest   = null;
         $presence = new ImapUidPresence(
             $this->account,
@@ -192,7 +342,7 @@ final class BatchStorageTest extends KernelTestCase
 
         new \ReflectionMethod(MessageSyncer::class, 'processBatch')->invokeArgs(
             static::getContainer()->get(MessageSyncer::class),
-            [$batch, $this->mailboxId, (int) $this->account->id, 0, &$synced, &$lowest, $presence],
+            [$batch, $this->mailboxId, (int) $this->account->id, $lastSeenUid, &$synced, &$lowest, $presence, $unreadable],
         );
     }
 

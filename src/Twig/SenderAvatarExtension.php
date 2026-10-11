@@ -100,9 +100,10 @@ final class SenderAvatarExtension extends AbstractExtension
      * already learned.
      *
      * `Account::$colorIndex` is the same dense 0-based number, handed out at
-     * creation from the lowest free slot and then never touched. Same guarantee,
-     * and now the same account really is the same colour wherever and whenever
-     * it appears.
+     * creation from the lowest free slot and afterwards changed only when the
+     * user picks another colour. Same guarantee at the start, and the same
+     * account is the same colour wherever and whenever it appears — until its
+     * owner says otherwise, and not because of anything they did to the list.
      */
     public function accountColor(int $colorIndex): string
     {

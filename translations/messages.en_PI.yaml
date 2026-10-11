@@ -1,6 +1,7 @@
 account:
     add_title: Sign on a new crew member
     added: Crew member signed on, arr!
+    colour_set: Th' colours be changed
     disabled: Ship's papers revoked
     enabled: Ship's papers restored
     form:
@@ -17,6 +18,9 @@ account:
         smtp:
             heading: Outgoin' — SMTP
             host: Port o' call
+            password: "Password fer sendin'"
+            same: "Use th' same password fer sendin'"
+            separate: "Use a different password fer sendin'"
         username: Name ye go by
     oauth:
         calendar_declined: The account be aboard, but ye never granted the almanac — so its calendars will not sync. Sign in again and tick the calendar box when Google asks.
@@ -145,7 +149,17 @@ admin:
             qwen3-embedding_0_6b: "The default, an' the one to take unless ye have cause otherwise. Speaks many tongues, which counts more than any benchmark for a hold that be not all one language, an' the only one here to strike perfect precision in testin'. 639 MB."
         field:
             base_url: "Oracle's berth"
-            base_url_help: "Where yer Ollama box lies on the network, port an' all."
+            embedding_base_url: "Searcher's berth"
+            embedding_own: 'The searcher sails from another berth'
+            embedding_own_help: "For keepin' the search model somewhere other than the scrivener: a hired oracle for writin' an' a small one at home for searchin', or t'other way about. Ev'ry message goes to the searcher's berth once to be charted. If the search model bears the same name there, the old chart be kept."
+            embedding_provider: "Searcher's tongue"
+            headers: 'Extra colours'
+            headers_clear: 'Strike the stowed colours'
+            headers_help: "One to a line, writ Name: value. Flown on ev'ry call to the oracle, for a gate or go-between that wants more than a token. Stowed under lock an' never shown again."
+            headers_help_set: "Stowed: %names%. Leave it empty to keep 'em. Aught ye write here replaces the lot; what be stowed is never shown."
+            provider: 'Tongue'
+            provider_help: "Which tongue the oracle speaks. Ollama be the one plMail knows best: it can keep a model aboard an' fetch one ahead o' time. OpenAI-compatible covers near ev'rythin' else, in yer own waters or hired."
+            base_url_help: "For Ollama, where the box lies on yer network, port an' all. For an OpenAI-compatible port, the root o' the API with its version, like https://api.example.com/v1."
             categorisation: 'Sort mail into holds'
             categorisation_help: "Runs on ev'ry message that arrives. Only breaks a tie — the ordinary rules speak first."
             chat_keep_alive: "Keep the scrivener aboard for"
@@ -171,21 +185,24 @@ admin:
             summary: 'Yarn-in-short'
             summary_help: "Uses th' scrivenin' oracle. A cold askin' takes near a minute an' holds th' engine th' whole while."
             token: 'Token'
-            token_help: "Only if ye put a guard in front o' the box."
-            token_help_set: 'A token be on file. Leave it blank to keep it.'
+            token_help: "Only if ye put a guard in front o' the box. Shown to the guard as a bearer token on every call."
+            token_help_set: "A token be on file. Leave it blank to keep it. Change the berth above without typin' one an' it goes overboard."
             writing_help: 'Help me write'
             writing_help_help: "Offers drafts an' rewrites at the writin' desk, when ye ask."
         heading: 'Oracle'
+        headers:
+            summary: 'Extra colours for a gate or go-between'
         hold:
             details: 'See each message'
             measured: "Last 7 days: %count% messages held, most fer %median% s (95% within %p95% s). %timeout% were shown with no answer, the wait havin' run out."
             no_data: "No mail's been held these 7 days, so there be no delay to report yet."
-        intro: "plMail can consult an oracle ye run yerself. Nowt leaves yer waters, nowt starts until ye say so, an' while this be off the mail works exactly as it does now."
+        intro: "plMail can consult an oracle, on a box ye run yerself or at a port o' yer choosin'. Mail goes to the berth ye write here an' nowhere else, nowt starts until ye say so, an' while this be off the mail works exactly as it does now."
         perf:
             by_model: 'By model'
             chip:
                 cold: 'Nowt aboard'
                 off: 'Off'
+                answering: "Answerin'"
                 split: 'Part ashore on the CPU'
                 unreachable: 'Nowt answers'
                 warm: 'Aboard'
@@ -234,9 +251,18 @@ admin:
                 day: '24 hours'
                 hour: 'Hour'
                 week: '7 days'
+        provider:
+            ollama: 'Ollama'
+            openai: 'OpenAI-compatible'
         probe:
             missing_model: "That berth answered, but holds no: %models%. Haul 'em aboard there first."
+            host:
+                search: "Searcher's berth"
+                writing: "Oracle's berth"
             no_host: 'Write an address first.'
+            no_model_list: "Somethin' answered at that berth, but it keeps no list o' models (HTTP %status%). See that the address ends in the API version, most often /v1. Some keep no list an' sail fine all the same; stow it an' try a draft."
+            not_an_api: "Somethin' answered at that berth, but not in JSON. Most like a gate or a go-between, not the API."
+            refused: 'That berth answered an'' turned ye away (HTTP %status%). Check the token.'
             ok: "That berth answered, an' holds %count% models."
             models: 'Show the %count% models it holds'
             status: 'That berth answered with HTTP %status%.'
@@ -289,6 +315,7 @@ admin:
             model_missing: "That host carries no model named “%model%”. Haul it aboard there, or name one that be. (%error%)"
             no_host: "Name a model host first, an' stow it."
             no_model: "Name a scrivener model first, an' stow it."
+            not_ollama: "Only an Ollama box can be asked to fetch a model ahead o' time."
             status: 'The host refused with HTTP %status%. (%error%)'
             timeout: "Four minutes an' the host were still haulin', so plMail stopped waitin'. It may yet finish — like as not the model be too heavy for the hold it has."
             unexpected: "Somethin' went wrong afore the host could answer. (%error%)"
@@ -1979,6 +2006,7 @@ insights:
         in_transit: On the high seas
         ordered: Sent fer
         out_for_delivery: "Rowin' the last stretch"
+        ready_for_pickup: "Waitin' at the dock"
 
 integration:
     save_failed: 'Could not stow: %reason%'
@@ -2028,7 +2056,17 @@ integration:
         too_big: 'Too heavy to haul'
 
 jobs:
+    button:
+        failed: "Somethin' ran aground"
+        importing: "Haulin' aboard"
+        importing_percent: "Haulin' · %percent%%"
+        working: "Hard at work…"
     heading: Work below decks
+    import:
+        folder: "Now: %folder%"
+        heading: "Haulin' %account% aboard"
+        newest_first: "Freshest post first"
+        waiting: "Waitin' fer the tide"
     started: 'Started %action% — she runs below decks.'
     failure:
         abandoned: "Cut adrift — she stopped half way, and what were already done stays done."
@@ -2260,7 +2298,7 @@ onboarding:
                 For Gmail an' Outlook, use the sign-aboard buttons under Riggin' → Mailbags
                 instead — no addresses needed.
         admin_ai:
-            body: "The berth of an Ollama box on yer network, an' the names o' two models it holds — one for writin', one for searchin'. Nowt leaves yer waters."
+            body: "The berth of an Ollama box on yer network, or of any OpenAI-compatible port, an' the names o' two models it offers — one for writin', one for searchin'. Mail goes to that berth an' nowhere else."
             heading: 'What ye need'
             skip_body: "Press Next with all of it empty. plMail be a whole mail client without any o' this, an' ye can come back later under Admin -> Oracle."
             skip_heading: 'Not for ye?'
@@ -2324,7 +2362,7 @@ onboarding:
             lead: Hitch up the mailbag ye actually read, an' plMail starts haulin' it in.
             title: Mailbag
         admin-ai:
-            intro: "plMail can consult an oracle ye run yerself — for searchin' by meanin', sortin' mail, an' help with writin'. Wholly optional; leave ev'ry box below empty if ye like."
+            intro: "plMail can consult an oracle — one ye run yerself, or a port o' yer choosin' — for searchin' by meanin', sortin' mail, an' help with writin'. Wholly optional; leave ev'ry box below empty if ye like."
             lead: "Optional. Leave it be if ye don't want it."
             title: 'Oracle'
         admin-integrations:
@@ -2361,6 +2399,13 @@ profile:
         avatar_remove: Strike the current likeness
         name_first: First name
         name_last: Family name
+
+# The reading pane beside the message list (Settings → Reading pane turns it on).
+# `handle` is what a screen reader calls the divider between the two; the
+# placeholder stands where the message will be until one is opened.
+reading_pane:
+    handle: Shift the rail 'tween list an' letter
+    placeholder: Pick a conversation, matey, an' it'll be laid out here
 
 # Said in a toast when a request fails and there is no better place to say it;
 # see request_errors.js.
@@ -2521,12 +2566,35 @@ settings:
             off: 'Nay'
             on: 'Aye'
     accounts:
+        colour:
+            change: 'Change the colours o'' %account%'
+            swatch:
+                '0': Orange
+                '1': Green
+                '2': Blue
+                '3': Violet
+                '4': Amber
+                '5': Pink
+                '6': Teal
+                '7': Olive
         delete: Put this crew member ashore
         delete_confirm: 'Put %account% ashore? Every bottle hauled aboard for this crew member goes to Davy Jones for good, and there be no gettin'' them back.'
         disable: Revoke the papers
         edit: Amend the papers
         empty: No crew yet. Sign one on to start haulin' mail aboard.
         enable: Restore the papers
+        folders:
+            always_synced: The inbox be always hauled aboard
+            button: Pick which folders to haul aboard
+            empty: No folders yet. They be listed after the first haul.
+            intro: >-
+                Switch a folder off and plMail stops haulin it aboard. Post
+                already stowed stays where it lies, and switchin the folder back
+                on picks up where it left off.
+            placeholder: 'A marker that only herds other folders — there be nothin in it to haul aboard'
+            start_sync: 'Start haulin %folder%'
+            stop_sync: 'Stop haulin %folder%'
+            title: 'Folders — %account%'
         heading: Th' crew
         make_primary: Name her flagship
         make_primary_explained: 'Send new bottles from %account% by default'
@@ -2696,6 +2764,8 @@ settings:
             heading: Manifest
             listAvatars: Sender medallions
             listAvatarsHint: The coloured coin bearin' the sender's initial. Struck off it turns a plain ring rather than vanishin' — 'tis also the row's tick-box.
+            tabUnreadCount: 'Unread tally on the inbox tabs'
+            tabUnreadCountHint: 'The number beside each tab''s name: how many yarns in that hold carry unread mail. Together the tabs make the Inbox tally in the sidebar. The "3 new" pennant be a separate thing an'' stays.'
             previewLines: Peek lines
             previewLines0: None
             previewLines1: One line
@@ -3437,6 +3507,7 @@ settings:
         group:
             access: "Boardin' rights"
             calendar: "Th' almanac"
+            features: 'Riggin'''
             mail: "Th' post"
             personal: Yerself
         health: "State o' yer crew"
@@ -3446,8 +3517,10 @@ settings:
         notifications: Word from the crow's nest
         profile: Yer colours
         read_receipts: Read-marks
+        reading_pane: Spyglass deck
         security: The ship's lock
         sharing: Sharing
+        shortcuts: Keyboard shortcuts
         signature: Yer marks
         templates: 'Form letters'
     notifications:
@@ -3508,6 +3581,13 @@ settings:
         remember_me_note: 'Changing yer secret word puts every remembered deck ashore but this one. That be why it be worth doing when a spyglass goes missing.'
         subheading: 'What ye board with. Only ye can change it — not even a quartermaster may set it for ye.'
         submit: Change th' secret word
+    reading_pane:
+        heading: Spyglass deck
+        hint: 'Stowed shows the list an'' the letter one at a time; Starboard lays the letter beside the list when the ship has room for both — drag the rail between ''em to say how much deck each gets.'
+        label: 'Lay out the open letter'
+        off: Stowed
+        right: Starboard
+        subheading: 'Where a parley opens: in place o'' the list, or beside it.'
     security:
         codes:
             copy: Copy the tokens
@@ -3900,6 +3980,7 @@ toolbar:
         label: Fly a flag
         mark_read: Mark as read
         mark_unread: Mark as unread
+        more: More besides
         move_to: Haul off to
         purge: "Send to Davy Jones for good"
         snooze: Let it drift

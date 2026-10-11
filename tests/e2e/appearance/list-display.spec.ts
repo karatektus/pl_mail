@@ -1,4 +1,5 @@
 import { test, expect, type Page } from "../support/test";
+import { INBOX_SUBJECTS, ajaxPost, mailRow, seed } from "../support/config";
 import { settled } from "../support/motion";
 
 /**
@@ -88,9 +89,53 @@ test.describe("appearance — mail list display", () => {
         await open(page);
         await setToggle(page, "accountCorner", true);
         await setToggle(page, "listAvatars", true);
+        await setToggle(page, "tabUnreadCount", true);
         await pick(page, "previewLines", "1");
         await pick(page, "unreadEmphasis", "standard");
         await page.waitForTimeout(700);
+    });
+
+    test("the unread count on the inbox tabs goes off and comes back", async ({ page }) => {
+        // The tab strip only renders when more than one category holds mail,
+        // and the seeded mailbox is all Primary. One thread is moved to Social,
+        // the way reading-pane.spec.ts does it; the seed puts it back for
+        // whoever runs next.
+        seed("seed-mail");
+        await page.goto("/mail/inbox");
+
+        const id = Number((await mailRow(page, INBOX_SUBJECTS.star).getAttribute("id"))?.replace("thread_", ""));
+
+        expect((await ajaxPost(page, "/status/bulk/category", { ids: [id], category: "social" })).ok()).toBe(true);
+
+        await page.goto("/mail/inbox");
+
+        // A tab with unread mail behind it. `:not(.hidden)` leaves out the tabs
+        // at zero, which are hidden whatever this setting says.
+        const count = page.locator("nav [data-tab-unread]:not(.hidden)").first();
+
+        await expect(count).toBeVisible();
+        await expect(count).toHaveText(/^[1-9]\d*$/);
+
+        await open(page);
+        await setToggle(page, "tabUnreadCount", false);
+        expect(await cssVar(page, "--tab-unread-display")).toBe("none");
+
+        // Hidden in the list it is about — and still in the page, so it is
+        // still patched and is right the moment it is switched back on.
+        await page.goto("/mail/inbox");
+        await expect(count).toBeAttached();
+        await expect(count).toBeHidden();
+
+        // Off takes the number and nothing else: the strip is still there.
+        await expect(page.locator("nav > a[href*='tab=social']")).toBeVisible();
+
+        await open(page);
+        await setToggle(page, "tabUnreadCount", true);
+
+        await page.goto("/mail/inbox");
+        await expect(count).toBeVisible();
+
+        seed("seed-mail");
     });
 
     test("the account corner goes off and comes back", async ({ page }) => {

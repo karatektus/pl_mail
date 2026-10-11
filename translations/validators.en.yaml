@@ -24,3 +24,9 @@ setup.install.password_too_short: Use at least {{ limit }} characters. This acco
 user.email_taken: Somebody already uses that address. Every address on this install belongs to exactly one person.
 admin.ai.field.base_url_invalid: 'This has to start with http:// or https://.'
 profile.avatar_wrong_type: 'Use a PNG, JPEG, GIF or WebP image.'
+admin.ai.headers.malformed: 'Write each header on its own line as Name: value.'
+admin.ai.headers.name: 'A header name may only contain letters, digits and hyphens, and cannot be empty.'
+admin.ai.headers.value: 'A header value cannot be empty, cannot contain a line break or other control characters, and can be at most 4096 characters.'
+admin.ai.headers.reserved: 'One of these headers is set by plMail itself and cannot be overridden: Host, Content-Type, Content-Length, Connection and the like.'
+admin.ai.headers.duplicate: 'The same header is listed twice.'
+admin.ai.headers.too_many: 'At most %max% extra headers.'

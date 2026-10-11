@@ -85,6 +85,12 @@ there is no other screen anywhere that would tell you.
                 <span class="ml-auto text-[11px] font-medium px-2 py-0.5 rounded-full bg-raised text-ink-muted">
                     {{ 'admin.ai.perf.chip.unreachable'|trans }}
                 </span>
+            {% elseif not panel.host.managesMemory %}
+                {# The host answered, and that is all this dialect can be asked.
+                   "Loaded" and "nothing loaded" would both be guesses. #}
+                <span class="ml-auto text-[11px] font-medium px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-500">
+                    {{ 'admin.ai.perf.chip.answering'|trans }}
+                </span>
             {% elseif panel.anyPartial %}
                 <span class="ml-auto text-[11px] font-medium px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-500">
                     {{ 'admin.ai.perf.chip.split'|trans }}
@@ -165,7 +171,11 @@ there is no other screen anywhere that would tell you.
                     </div>
                 {% endif %}
 
-                {# ── What is in memory right now ──────────────────────────── #}
+                {# ── What is in memory right now ────────────────────────────
+                   Ollama's alone. The other dialect cannot be asked, and "no
+                   model is loaded" printed about a host that was never asked
+                   would be a statement this page has no grounds for. #}
+                {% if panel.host.managesMemory %}
                 <div class="space-y-2">
                     <h3 class="text-xs font-semibold text-ink-muted">{{ 'admin.ai.perf.resident.heading'|trans }}</h3>
 
@@ -245,6 +255,7 @@ there is no other screen anywhere that would tell you.
 
                     {% endif %}
                 </div>
+                {% endif %}
 
                 {# ── What the calls have cost ─────────────────────────────── #}
                 <div class="space-y-2 pt-1">

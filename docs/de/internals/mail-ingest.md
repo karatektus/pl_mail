@@ -1,4 +1,4 @@
-<!-- translated-from: internals/mail-ingest.md sha1:38b6beb3ba071c7ee0ef05200adc575b44fdf9c7 -->
+<!-- translated-from: internals/mail-ingest.md sha1:dcb2b781f03c1702974cc382857086d18024e21c -->
 # Mail-Ingest
 
 Vom Anbieter in die Datenbank: wie aus Bytes eine Zeile `Message` wird, was mit ihr geschieht,
@@ -43,8 +43,10 @@ geholt hatte.
 **Graph hat keinen Cursor auf Kontoebene.** Ein Gegenstück zur einen `historyId` gibt es nicht,
 also liegt der Delta-Zustand pro Ordner vor, gespeichert als Abbildung `folderId => deltaLink`
 auf dem `Account`. Eine Delta-Abfrage ohne gespeicherten Link zählt den Ordner auf und gibt
-einen zurück; derselbe Aufruf mit Link liefert nur noch Änderungen, sodass ein Codepfad den
-Erst- und den Folgefall abdeckt.
+einen zurück; derselbe Aufruf mit Link liefert nur noch Änderungen. Für Graph ist das ein
+Vorgang. Für plMail sind es zwei: einem Ordner mit Link zu folgen ist Sache des Abgleichs, und
+die Aufzählung, die den Link erst einbringt, ist Sache des Imports — siehe „Ein Erstimport ist
+kein Abgleich" weiter unten.
 
 Die scharfe Kante bei Graph sind die Ordnerbewegungen. Eine Nachricht aus einem Ordner
 herauszuschieben erscheint im Delta des Quellordners als `@removed` und im Delta des Zielordners
@@ -60,6 +62,63 @@ Die Batch-Handler entdoppeln in PHP, bevor sie einfügen, doch diese Prüfung is
 veraltetem Stand. Was tatsächlich hält, wenn Stapel sich über Läufe oder Retries hinweg
 überlappen, ist `uniq_message_gmail_id_account` und sein Graph-Gegenstück auf `message`, mit der
 Anbieter-Id vorn in der Spaltenliste, damit der Index auch die reinen Id-Nachschläge bedient.
+
+### Ein erster Import ist kein Abgleich
+
+Ein Abgleich holte früher neben der neuen Mail auch die Vorgeschichte eines Kontos: ein einziger
+Job, der jeden IMAP-Ordner von der ältesten Nachricht bis zur neuesten las oder jede
+Gmail-Nachrichten-Id auflistete, bevor er eine abrief. Bei einem Konto mit zwanzigtausend
+Nachrichten hielt dieser Job die Warteschlange `ingest` so lange besetzt, wie er eben brauchte,
+zeigte die meiste Zeit einen leeren Posteingang und stellte die neue Mail aller anderen Konten
+dahinter an.
+
+Beides ist jetzt getrennt. Ein Abgleich sorgt dafür, dass neue Mail gesehen wird, und hört auf;
+die Vorgeschichte gehört `App\Service\Mail\MailImporter`, auf der Warteschlange
+`ingest_backlog` mit eigenem Worker.
+
+- **Eine Nachricht ist eine Seite.** `ImportMailMessage` trägt eine Konto-Id und sonst nichts;
+  ihr Handler holt eine Seite und stößt die nächste an. Nirgends darin steckt ein langer Job,
+  also wechseln sich die Seiten mehrerer Konten in der Warteschlange ab, und jedes hat einen
+  brauchbaren Posteingang, bevor irgendeines sein Archiv hat.
+- **IMAP liest jeden Ordner von oben nach unten.** Beim ersten Kontakt setzt `ImapImportPlan`
+  `lastSeenUid` an das obere Ende des Ordners und `importFloorUid` direkt darüber. Neue Mail
+  ist alles oberhalb des ersten; Vorgeschichte ist alles unterhalb des zweiten, und
+  `ImapMailboxImporter` arbeitet sich fünfzig Nachrichten pro Aufruf nach unten. Eine Seite
+  entsteht, indem der Server gefragt wird, welche UIDs unterhalb der Marke existieren, und die
+  schon gespeicherten herausgenommen werden — eine Nachricht, die da ist, wird nie zweimal
+  abgerufen.
+- **Ordner kommen in der Reihenfolge, die jemand sich wünschen würde:** Posteingang, Gesendet,
+  Entwürfe, eigene Ordner, das Archiv und zuletzt Spam und Papierkorb.
+  `MailboxSpecialUse::importRank()` ist die Regel.
+- **Gmail fragt zuerst namentlich nach dem Posteingang,** dann blättert es die Auflistung des
+  ganzen Postfachs Anfrage für Anfrage durch; das Seiten-Token liegt zwischen den Jobs auf dem
+  Konto.
+- **Microsoft liest die erste Delta-Runde jedes Ordners seitenweise.** Ein Ordner ohne
+  Delta-Link wird auf dem Konto eingeplant (`Account::$graphImport`), statt vom Abgleich
+  aufgezählt zu werden, und `GraphApiSyncer::importPage()` geht diese Runde in Schritten von
+  fünfzig Nachrichten durch, die neuesten zuerst, in derselben Ordnerreihenfolge nach
+  `LabelRole::importRank()`. Die Seite, die die Runde beendet, bringt den Delta-Link des
+  Ordners mit, und ab da folgt ihm der Abgleich. Bis dahin fragt der Abgleich einen solchen
+  Ordner nur nach dem, was seit der Einplanung eingegangen ist. Ein abgelaufener Delta-Link
+  gibt seinen Ordner an den Import zurück, statt im Abgleich neu aufgezählt zu werden.
+- **Eine Nachricht, die sich nicht speichern lässt, kostet nur sich selbst.** Die Marke bleibt,
+  wo sie ist, und die Seite wird erneut angefragt; nach fünf Versuchen rückt die Marke an ihr
+  vorbei, und der Ordner geht weiter.
+
+Jeder gewöhnliche Abgleich endet in `MailImporter::ensureRunning()`, das einen Import startet,
+der Arbeit hat und seit fünf Minuten still ist. Das startet den Import eines neuen Kontos, und
+es startet einen neu, dessen Kette von Nachrichten gerissen ist.
+
+„Importiert dieses Konto noch" ist `InitialImportState`, und für IMAP wird es an
+`importFloorUid` der Ordner abgelesen: `syncedAt` eines Ordners sagt das nicht mehr, weil sein
+erster Abgleich jetzt sofort endet und die Vorgeschichte noch aussteht. Ein Microsoft-Konto
+importiert, solange `Account::$graphImport` einen Ordner aufführt.
+
+Eines ändert ein Microsoft-Import am Abgleich: Eine Nachricht, die aus einem Ordner entfernt
+wurde, ist nur dann gelöscht, wenn sie in keinem anderen angekommen ist, und ein Ordner, der
+noch gelesen wird, kann das nicht sagen. Solche Entfernungen bleiben auf dem Konto
+(`Account::$graphRemovals`) und werden vom ersten Abgleich beurteilt, bei dem jeder Ordner
+geantwortet hat.
 
 ## Die Post-Ingest-Pipeline
 
@@ -156,8 +215,9 @@ Regeln der Nutzerin, ihre Kontakte — und keinen Job. Die Backfill-Aufgaben (`a
 insights`, `event-extraction`, …) sind der Weg, Vergangenes zu lesen, wenn jemand es will.
 
 **Live.** `App\Service\Mail\InitialImportState` sagt, ob ein Konto sein Postfach noch zum ersten
-Mal hereinholt: Gmail über `needsBackfill()`, Graph darüber, ob es überhaupt einen Delta-Link
-gibt, IMAP darüber, ob jeder zum Abgleich aktivierte Ordner ein `syncedAt` hat. Die Pipeline
+Mal hereinholt: Gmail über `needsBackfill()`, Graph darüber, ob es einen Delta-Link gibt und kein
+Ordner mehr zu lesen ist, IMAP darüber, ob kein zum Abgleich aktivierter Ordner noch
+Vorgeschichte offen hat. Die Pipeline
 fragt einmal pro Stapel und trägt die Antwort in `PostIngestResult::$live`; `EnrichmentRouter`
 macht daraus einen `TransportNamesStamp`. Mail eines fertigen Kontos geht auf `enrich_live`,
 dessen Worker nie Import-Arbeit vor sich hat. Im Zweifel heißt es „importiert noch" — ein

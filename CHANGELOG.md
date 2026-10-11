@@ -8,12 +8,195 @@ The published image tags: `latest` follows the most recent release below,
 
 ## Unreleased
 
+**Each inbox tab shows how many conversations in it are unread.** The number is the sidebar's
+Inbox badge split by category, so the tabs add up to it, and it appears on every tab, the one you
+are on included, and updates in place on sync. Before, an unread conversation in Promotions made
+the Inbox badge read 1 while Primary, the tab that opens, showed nothing unread, and the only hint
+on the strip was a colour on the Promotions icon. The "3 new" pill is unchanged: it says what
+arrived that you have not been shown, the unread count says what is unread. On for everyone;
+Settings → Appearance → Message list switches it off per person. One column is added to the user
+table; the migration is reversible.
+[#54](https://github.com/karatektus/pl_mail/pull/54), by @Flouss.
+
+**An account's colour can be changed.** The coloured dot beside each account, and the mark on its
+messages in a mixed list, was picked for you when the account was added and could never be changed.
+Settings → Mail accounts now has a colour swatch on every row — Gmail and Outlook accounts included,
+which the Edit form is closed to — that opens the palette of eight. Two accounts may share a colour
+if you want them to read as a pair. No migration.
+[#69](https://github.com/karatektus/pl_mail/pull/69), by @Flouss.
+
+**An open message stays open when you change what the list shows.** With the reading pane on the
+right, choosing another folder, switching a category tab, turning the page, sorting or searching
+closed the message you were reading, although it had never covered the list. It stays now, and the
+back arrow closes it and leaves you on the folder you moved to. The open row is marked again when
+you return to the folder it is in. With one pane at a time nothing changes: there the message has
+covered the list, so choosing a folder still closes it. No migration.
+[#63](https://github.com/karatektus/pl_mail/pull/63), by @Flouss.
+
+**The "+" beside Labels and Accounts in the sidebar appears when you point at its heading.** Both
+were on screen all the time. They also appear when reached with the keyboard, and stay visible on
+a touch screen, where there is no pointer to reveal them with.
+[#66](https://github.com/karatektus/pl_mail/pull/66), by @Flouss.
+
+**Search by meaning can use a model host of its own.** Admin → AI has a tick box, **Search uses a
+different model host**, with its own provider, address, token and extra headers. Off by default.
+It is for running the two models on different machines: a hosted model for writing and a small one
+at home for search, so the mailbox is indexed on a machine you own and nothing is billed per
+message, or the reverse.
+
+- **The index is kept** when the search model has the same name on the new host. A vector belongs
+  to its model, not to the address it was made at.
+- **Each host gets only its own token and headers.** A search host without a token is sent none.
+- **Test asks both hosts**, each for the model that lives on it.
+
+Five columns are added to `ai_settings`, unused until the box is ticked; the migration is
+reversible.
+
+**The model host can be sent extra headers.** For a reverse proxy with basic auth, a zero-trust
+gateway, a routing gateway with its own key, or a provider that takes a project or tenant header.
+Admin → AI has an **Extra headers** box under the token: one `Name: value` per line, sent with every
+request for either provider, stored encrypted. The page lists the names on file and never shows a
+value again. They are dropped when the address or the provider changes, like the token. One column
+is added to `ai_settings`; the migration is reversible.
+
+**The language model can be any OpenAI-compatible endpoint.** Admin → AI has a **Provider** field:
+Ollama, as before, or OpenAI-compatible, which covers llama.cpp, vLLM, LM Studio, LiteLLM, hosted
+providers and Ollama under `/v1`. Writing help, summaries, sorting and search by meaning all work
+with either. The address is the API root including its version, such as
+`https://api.example.com/v1`, and the token is the API key.
+
+- **Ollama is still the default** and nothing changes for an existing installation.
+- **Not for the other provider:** the keep-alive fields, **Warm up now** and the "in memory" half of
+  the model host card. The OpenAI format cannot ask for any of them, so they are put away while it
+  is chosen.
+- **A hosted provider receives your mail.** Sorting sends every arriving message no rule recognised,
+  and search sends every message once to index it. plMail sends only to the address you enter.
+- **Changing the provider re-uses the index** when the search model has the same name. A different
+  model still needs a new pass from Admin → AI, as it always has.
+
+One column is added to `ai_settings`; the migration is reversible. Built on
+[#58](https://github.com/karatektus/pl_mail/pull/58) by @shady2k.
+
+**The token in Admin → AI is now sent to the model host.** It was stored and never used, so an
+Ollama behind a reverse proxy that asks for one answered 401 to every request while the page said a
+token was on file. It goes as a bearer token with every request, including the Test button and the
+panel on Admin → Performance. The token belongs to the address it was typed for: changing the model
+host without typing a token drops the stored one. No migration.
+
+**Admin → AI shows what the model host said when a test or a warm-up fails.** The message kept the
+percent signs of its own placeholder, so a refusal read "HTTP %403%" and the host's reason sat
+between two stray percent signs.
+
+## v0.3.3 — 2026-10-11
+
+**The emoji picker is no longer almost empty on an iPhone or in Safari.** Nearly every cell of the
+grid was blank, with a handful of emoji scattered through it, and an emoji typed into a message
+from the iOS keyboard could not be seen in the message. plMail ships its own emoji font so the
+picker looks the same everywhere, in a format Safari does not draw; the browser found each emoji
+in the font and painted nothing. The font is now only used where the browser can draw it. On an
+iPhone, iPad and in Safari on a Mac the picker and the message show Apple's own emoji instead.
+[#39](https://github.com/karatektus/pl_mail/issues/39).
+
+**A new account shows its newest mail first, and no longer holds up everybody else's.** Adding an
+account used to bring its whole history in through the sync itself: every IMAP folder from its
+oldest message to its newest, or every Gmail message or Microsoft folder listed before one message
+was fetched, in one job on the queue all new mail arrives on. A large account showed an empty
+Inbox for most of an hour, new mail on every other account waited behind it, and the worker doing
+it was shown as dead.
+[#42](https://github.com/karatektus/pl_mail/issues/42).
+
+- **Newest first, Inbox first.** The most recent mail of the Inbox arrives within about a minute,
+  then the rest of it, then Sent, Drafts and your own folders, the archive, and Spam and the bin
+  last. Several accounts added together take turns, so each has a usable Inbox early.
+- **Its own queue and worker.** History is imported on `ingest_backlog` by a new `worker-backlog`
+  process, a page at a time. Mail arriving now stays on `ingest` and is never behind it. The
+  worker starts by itself; there is nothing to configure.
+- **You can see it.** A chip beside the search box says **Importing** and how far along it is
+  while an import runs. It opens a list of each importing account with how much is in and which
+  folder it is on, and says so when an import is waiting.
+- **Repeated sync requests collapse.** The quarter-hour poll, a push and the Sync button used to
+  queue a full sync each, one behind the other. A request a later sync has already covered is
+  skipped.
+- **One message that will not import costs itself.** It is retried with its page five times and
+  then passed over, with an error in the log, instead of stopping its folder.
+
+This covers IMAP, Gmail and Microsoft accounts alike. Folders that had already synced are
+untouched; a folder that was in the middle of its first sync when you upgrade is picked up again
+from the top, and what it had stored is not fetched twice. One migration adds four columns to the
+folder table.
+
+Two things change for Microsoft accounts beyond the import. A folder whose sync state expired on
+Microsoft's side used to be read again from end to end inside the sync; it is handed to the import
+instead. And a message deleted in Outlook while another folder's sync was failing is now removed
+here once that folder answers, where it used to stay behind: in no list, and counted in every
+total.
+
+**The Background work button updates while you watch it.** It never did on a mail page: the
+controller that refreshes it was not loaded there, so a bulk action's progress showed whatever it
+had reached when the page was drawn. Where it was loaded, it refreshed once and then not again,
+and a refresh shut the open list. All three are fixed.
+
+**A separate password for sending, for the servers that want one.** The account form has one
+password field, as before, and under the SMTP settings a new **Use a different password for
+sending**, which reveals a second. Zoho issues an app password per protocol, and an account set up
+with one of them synced and then failed every send on authentication, with nowhere to enter the
+other. The username stays shared. The connection test uses both, and a config backup carries both.
+One migration adds a column to the account table; it runs by itself and rewrites nothing.
+[#42](https://github.com/karatektus/pl_mail/issues/42).
+
+**One message could stop an IMAP folder from syncing, for good.** A multipart message whose
+header puts spaces around the equals sign — `boundary = "…"`, which the standard allows and some
+mailers write — could not be read, and because that failed while a page of mail was being fetched,
+the whole folder's sync failed with `no content found` on every poll until the message was deleted
+on the server. Nothing newer in that folder arrived, and nothing in plMail said so. Such a message
+is read now. And a message that cannot be read for any other reason no longer takes its folder with
+it: the rest of the page is stored, the message is asked for again on the next five syncs, and then
+it is skipped with an error in the log naming the folder and the UID. A folder that was stuck this
+way catches up by itself on the next poll after upgrading. No migration.
+[#45](https://github.com/karatektus/pl_mail/issues/45).
+
+**A reading pane beside the message list.** Opening a message used to replace the list; Settings →
+Reading pane now offers **Right**, which puts the message beside the list on a screen
+that has room for both. The open row is marked, the back arrow closes the message and leaves the
+list where it was, and the divider between the two can be dragged (or moved with the arrow keys;
+double-click resets it). Its position is stored as a percentage of the mail card, 25 to 75, rather
+than in pixels, so it keeps its meaning when the calendar pane opens or is resized. It is drawn only
+while the card is at least 52rem wide — a narrow window, a phone, or a docked calendar that leaves
+the mail too little room fall back to one pane at a time. Off by default, so nothing changes until
+someone chooses it. Per person, not part of an exported theme, and carried by a config backup. No migration.
+
+**Settings has a Features group**, with a page each for the reading pane and the keyboard
+shortcuts. The shortcuts switch moved there from General.
+
+**Above a selection the toolbar is three buttons and a menu.** Archive, Delete and Move to stay;
+star, mark as read or unread, snooze, label and spam are under **More**. Nine buttons in a row were
+wider than the list whenever it shared its card — with a docked calendar, or now with a message
+open beside it — and the row was cut off at the edge. The keys still reach all of them directly.
+
+**Keys work after ticking a row with the mouse.** A click left the focus on the row's checkbox,
+which counted as typing, so `e` after ticking three rows did nothing; rows ticked with `x` were
+unaffected.
+
+A message opened by its own address (a reload, a bookmark) has no list behind it, so with the
+reading pane on the right it is shown beside the Inbox, whichever folder it was opened from.
+
+**The category tabs fit a phone.** On a narrow screen the tabs (Primary, Social, Promotions, …)
+ran into each other, labels underneath the next tab's icon. They now keep their size and the strip
+scrolls sideways inside itself, opening on the tab you are on. No migration.
+
+**The Immich picker no longer lists the video half of a Live Photo.** Immich keeps it as an asset of
+its own, hidden from its timeline and without a preview, so the picker showed it as a grey tile that
+could only be attached as a three-second clip — on a library full of iPhone photos, a large share of
+the grid. Library, search, album and person views now leave those clips out. Archived photos stay,
+and so does anything a server that predates the `visibility` field sends. No migration.
+[#46](https://github.com/karatektus/pl_mail/issues/46).
+
 **Keyboard shortcuts, the ones Gmail uses.** `j` and `k` move through a list, `o` opens, `u` goes
 back, `x` selects, `e` archives, `#` deletes, `s` stars, `r` `a` `f` reply, reply to all and
 forward, `c` writes, `/` searches, `g` then a letter goes to a list, `z` undoes. **?** shows all of
 them, and so does the keyboard button above a mail list. A key acts on the selection, otherwise on the open conversation, otherwise on the highlighted
 row, and does exactly what the button it stands for does. Nothing happens while you are typing or
-while a dialog or menu is open. On for everyone; Settings → General → Keyboard shortcuts switches
+while a dialog or menu is open. On for everyone; Settings → Keyboard shortcuts switches
 them off per person. No migration.
 [#36](https://github.com/karatektus/pl_mail/issues/36).
 
@@ -40,6 +223,35 @@ the assistant, whether that overrules the provider's own categories, and whether
 at all — was never written into the file, so a restore put everyone back on rules, the provider's
 categories and a tabbed inbox. All three now travel with the user. Backups made before this still
 restore, onto those same defaults. No migration.
+
+**The radar reads French parcels.** Colissimo, Chronopost, Mondial Relay, Colis Privé, DPD France
+and Cainiao mail now yields a parcel card, with their number shapes, French wording for the stage
+and for the day ("sera livré après-demain", "prévue le 14/11"), and Amazon.fr alongside the other
+Amazon shops — its button now opens amazon.fr, not the German site. A parcel waiting at a relay
+point or locker is a new stage, **Ready for pickup**. The satisfaction survey a carrier sends after
+delivery is ignored, where it would otherwise have turned a delivered card back. A French S10
+number from a shop of unknown carrier reads as La Poste instead of Deutsche Post. Not read yet: GLS
+France and the Pickup relay network (no number to recognise), and "returned" and "attempt failed".
+Existing mail is not re-read on its own; `app:backfill insights` picks it up. No migration.
+
+**Choose which folders an IMAP account fetches.** Settings → Accounts has a new **Choose which
+folders to sync** button on every IMAP account's row. It opens the account's folders with a switch
+beside each: switch one off and plMail stops fetching it, the mail already stored stays where it is,
+and switching it back on resumes from where it stopped. The inbox has no switch. Nested folders are
+indented under their parent, and a folder that only groups others — Gmail's `[Gmail]` — is greyed
+out with no switch to press, since the server will not open it. Gmail and Microsoft accounts, which
+sync through their provider's API, do not get the button. A message you move in another mail client
+into a folder that is switched off disappears from plMail, because the check for mail deleted
+elsewhere only looks in the folders that are on; switching the folder back on fetches it again.
+One migration adds a column to the folder table; it runs by itself and rewrites nothing.
+
+**Gmail's `[Gmail]` folder no longer fails on every poll.** Over IMAP, Gmail lists `[Gmail]` as a
+folder, but it is only a placeholder that groups All Mail, Sent Mail and the rest: the server marks
+it `\Noselect` and refuses to open it. plMail tried anyway, logged an error each time, and — because
+the folder could never be swept — withheld the check that lets mail deleted elsewhere disappear from
+the account. A folder marked `\Noselect` is now created with sync off, and one that already exists
+is switched off on the next folder sync, with nothing to do on your part. It held no mail, so
+nothing is lost. No migration.
 
 ## v0.3.2 — 2026-10-09
 

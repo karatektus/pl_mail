@@ -10,6 +10,7 @@ use App\Entity\Mail\Account;
 use App\Infrastructure\Messaging\Message\SyncAccountMessage;
 use App\Repository\Mail\AccountRepository;
 use App\Repository\Mail\MailboxRepository;
+use App\Service\Mail\MailImporter;
 use App\Service\Mail\SyncNotifier;
 use App\Service\Mail\SyncOrigin;
 use Doctrine\ORM\EntityManagerInterface;
@@ -33,6 +34,7 @@ final readonly class SyncAccountMessageHandler
         #[AutowireIterator('app.account_syncer')]
         private iterable            $syncers,
         private SyncOrigin          $origin,
+        private MailImporter        $importer,
     ) {}
 
     public function __invoke(SyncAccountMessage $message): void
@@ -55,6 +57,23 @@ final readonly class SyncAccountMessageHandler
             $this->logger->info('Account inactive', ['accountId' => $message->accountId]);
             return;
         }
+
+        // Asked for the same thing a sync has since done. The poll, a push and
+        // the Sync button each queue one of these, and behind a sync that took
+        // a while they used to run one after another, each over a mailbox the
+        // one before had just read. See SyncAccountMessage::$requestedAt.
+        $requestedAt = $message->requestedAt ?? null;
+
+        if (null !== $requestedAt && true === $account->isSyncedSince($requestedAt)) {
+            $this->logger->debug('Sync skipped: a later one has already gone through', [
+                'accountId' => $message->accountId,
+            ]);
+
+            return;
+        }
+
+        $account->syncBeganAt = new \DateTimeImmutable();
+        $this->entityManager->flush();
 
         $syncer = $this->resolveSyncer($account);
 
@@ -128,6 +147,12 @@ final readonly class SyncAccountMessageHandler
         // indistinguishable from one that synced a minute ago.
         $account->recordSyncSuccess();
         $this->entityManager->flush();
+
+        // The sync brings in what is new and plans what is old; the old is
+        // fetched elsewhere, a page at a time. This starts that for an account
+        // that has just been planned, and restarts it for one whose import
+        // went quiet. See MailImporter.
+        $this->importer->ensureRunning($account);
 
         foreach ($mailboxIds as $mailboxId) {
             $mailbox = $this->mailboxRepository->find($mailboxId);

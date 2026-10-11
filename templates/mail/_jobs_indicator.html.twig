@@ -30,26 +30,65 @@ the record and a missed nudge costs one stale render, never a wrong answer.
    it is already making a page render for. From then on it is replaced: by the
    response to starting a job, and by mail--jobs when Mercure says one moved.
    The route stays, because that is what mail--jobs re-reads. #}
-<turbo-frame id="jobs-indicator">
-    {% if jobs is defined and jobs|length > 0 %}
-        {% set active = jobs|filter(j => j.isActive())|length %}
+{# An import is shown here too, and is not a job: `imports` is a list of
+   App\Domain\DTO\Mail\ImportLine, one per account still bringing in its
+   history, worked out from the account each time (see ImportProgress). It
+   counts as something running, so the button is there and moving for as long
+   as mail is still arriving from the past. #}
+{% set jobs = jobs|default([]) %}
+{% set imports = imports|default([]) %}
+{# `contents`, so an empty frame is no box at all: as a flex item it would
+   still claim a gap beside the search box and push it off centre. #}
+<turbo-frame id="jobs-indicator" class="contents">
+    {% if jobs|length > 0 or imports|length > 0 %}
+        {% set active = jobs|filter(j => j.isActive())|length + imports|filter(i => false == i.waiting)|length %}
         {% set failed = jobs|filter(j => j.state.value == 'failed')|length %}
 
-        <div class="relative" data-controller="ui--dropdown">
+        {# From xl up it hangs off the left edge of the search group instead
+           of sitting in it, so the search box stays in the middle of the
+           topbar whether or not anything is running. Narrower than that there
+           is no room to its left and it takes a place in the row as an icon. #}
+        <div class="relative xl:absolute xl:right-full xl:top-1/2 xl:-translate-y-1/2 xl:mr-2" data-controller="ui--dropdown">
+            {# A tinted chip with words on it, not a bare icon. It used to be
+               a muted glyph that faded in and out — from barely visible to
+               nearly invisible — beside five other muted glyphs. Tinted rather
+               than filled: a solid block of accent beside the search box
+               outshouted Compose, and this is a notice, not an action. The
+               colour says which of three things is true: running (accent),
+               failed (danger), or stopped with something to read (plain).
+
+               The label goes below xl, where the chip is in the row and has
+               no room for it; the chip and its colour stay. #}
+            {% set importing = imports|filter(i => false == i.waiting)|first %}
+            {% if failed > 0 %}
+                {% set tone  = 'border border-danger/40 bg-danger/10 text-danger hover:bg-danger/15' %}
+                {% set label = 'jobs.button.failed'|trans %}
+            {% elseif active > 0 %}
+                {% set tone  = 'border border-accent/40 bg-accent-soft text-accent hover:bg-accent/20' %}
+                {% set label = importing
+                    ? (importing.total is not null
+                        ? 'jobs.button.importing_percent'|trans({ '%percent%': importing.percent() })
+                        : 'jobs.button.importing'|trans)
+                    : 'jobs.button.working'|trans %}
+            {% else %}
+                {% set tone  = 'border border-line text-ink-muted hover:bg-hover' %}
+                {% set label = imports|length > 0 ? 'jobs.import.waiting'|trans : 'jobs.heading'|trans %}
+            {% endif %}
             <button
                 type="button"
                 data-action="click->ui--dropdown#toggle"
-                class="flex cursor-pointer items-center justify-center w-9 h-9 rounded-lg
-                       text-ink-muted hover:bg-hover transition-colors flex-shrink-0"
+                data-jobs-button
+                class="flex cursor-pointer items-center justify-center gap-1.5 h-8 px-2.5 max-xl:w-8 max-xl:px-0 rounded-lg
+                       text-xs font-medium whitespace-nowrap transition-colors flex-shrink-0 {{ tone }}"
                 aria-label="{{ 'jobs.heading'|trans }}"
                 title="{{ 'jobs.heading'|trans }}"
             >
-                {# Spinning only while something is actually running: a static
-                   glyph for "finished, here is what happened" and a moving one
-                   for "still going" is the difference the eye reads first. #}
-                <i class="fa-solid fa-list-check text-base {{ active > 0 ? 'fa-fade' : '' }}
-                          {{ failed > 0 ? 'text-danger' : (active > 0 ? 'text-accent' : '') }}"
+                {# Turning only while something is actually running: a still
+                   glyph for "here is what happened" and a moving one for
+                   "still going" is the difference the eye reads first. #}
+                <i class="fa-solid {{ failed > 0 ? 'fa-triangle-exclamation' : (active > 0 ? 'fa-arrows-rotate fa-spin' : 'fa-list-check') }} text-xs"
                    aria-hidden="true"></i>
+                <span class="max-xl:hidden">{{ label }}</span>
             </button>
 
             {# The `hidden` ATTRIBUTE, not the Tailwind class.
@@ -65,13 +104,53 @@ the record and a missed nudge costs one stale render, never a wrong answer.
                 data-ui--dropdown-target="menu"
                 data-enter="slide-down"
                 hidden
-                class="absolute right-0 top-full mt-1 z-30 w-80
-                       rounded-pane bg-pane-soft backdrop-blur-sm
+                class="absolute left-0 max-md:left-auto max-md:right-0 top-full mt-1 z-30 w-80 text-left
+                       rounded-pane bg-surface
                        border border-line shadow-pop p-2 text-sm"
             >
                 <p class="px-2 py-1 text-xs font-semibold text-ink">{{ 'jobs.heading'|trans }}</p>
 
                 <ul class="mt-1 space-y-1">
+                    {# Imports lead: they are the long ones, and the answer to
+                       "why is my Inbox still filling up". #}
+                    {% for line in imports %}
+                        <li class="rounded-lg px-2 py-2 {{ line.waiting ? '' : 'bg-accent-soft/40' }}" data-import-line>
+                            <div class="flex items-baseline justify-between gap-2">
+                                <span class="text-xs font-medium text-ink truncate">
+                                    {{ 'jobs.import.heading'|trans({ '%account%': line.account.displayAddress }) }}
+                                </span>
+                                <span class="text-[11px] text-ink-faint tabular-nums shrink-0">
+                                    {% if line.total is not null %}
+                                        {{ line.done|number_format }} / {{ line.total|number_format }}
+                                    {% else %}
+                                        {{ 'jobs.state.queued'|trans }}
+                                    {% endif %}
+                                </span>
+                            </div>
+
+                            {% if line.total is not null %}
+                                <div class="mt-1.5 h-1 rounded-full bg-line overflow-hidden">
+                                    <div class="h-full bg-accent transition-all duration-300"
+                                         style="width: {{ line.percent() }}%"></div>
+                                </div>
+                            {% endif %}
+
+                            {# What it is on, or that it is not on anything. A
+                               bar that has stopped says nothing by itself;
+                               "waiting" at least says it is known to have. #}
+                            <p class="mt-1 text-[11px] text-ink-faint truncate">
+                                {% if line.waiting %}
+                                    {{ 'jobs.import.waiting'|trans }}
+                                {% elseif line.label %}
+                                    {{ 'jobs.import.folder'|trans({ '%folder%': line.label|label_name }) }}
+                                {% elseif line.folder %}
+                                    {{ 'jobs.import.folder'|trans({ '%folder%': line.folder.label ? line.folder.label|label_name : line.folder.name }) }}
+                                {% else %}
+                                    {{ 'jobs.import.newest_first'|trans }}
+                                {% endif %}
+                            </p>
+                        </li>
+                    {% endfor %}
                     {% for job in jobs %}
                         <li class="rounded-lg px-2 py-2 {{ job.isActive() ? 'bg-accent-soft/40' : '' }}">
                             <div class="flex items-baseline justify-between gap-2">
