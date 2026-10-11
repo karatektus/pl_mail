@@ -240,17 +240,12 @@ export default class extends Controller {
      * which Turbo never consults. The question names how many, because a
      * selection can run past what is on screen.
      *
-     * Not for a whole-view selection, the same way as the star above: the
-     * server takes a delete for good for named conversations only
-     * (BulkStatusController::EXPLICIT_ONLY), and would answer with an error
-     * about a button somebody simply pressed. Nothing is deleted, nothing asked.
+     * A whole-view selection is how Spam or the bin is emptied: the count in
+     * the question is then the view's total, and the server hands the work to
+     * a background job (BulkStatusController::PURGEABLE_VIEWS).
      */
     async purgeSelected() {
-        if (true === this.#allInView) {
-            return;
-        }
-
-        const count = this._selectedIds().length;
+        const count = true === this.#allInView ? this.totalValue : this._selectedIds().length;
 
         if (0 === count) {
             return;

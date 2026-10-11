@@ -635,9 +635,11 @@ inbox** is the way out of it. Switching it off again takes the buttons away at o
 refuses a request to delete for good while it is off as well, so it is the choice that decides, not
 only what is drawn.
 
-It deletes what is ticked. A selection that reaches past the page — **Select all N**, offered after
-**All** — does nothing here, so that mail is only ever deleted for good when it is on screen. Delete
-a page, then the next.
+To empty Spam or the bin, tick **All**, take the **Select all N** it offers, and press **Delete
+forever**. The question then names the whole count, not the rows on the page. A folder is emptied in
+the background, with the same progress indicator as any other action over a whole view, and a
+conversation moved back to the inbox before the job reaches it is left alone. Only Spam and the bin
+can be emptied this way; a search or a label cannot.
 
 `#` presses **Delete**. With the switch on, that button is not there above a selection in Spam or the
 bin, so `#` does nothing in those places; the flame, with its question, is the one way to delete a

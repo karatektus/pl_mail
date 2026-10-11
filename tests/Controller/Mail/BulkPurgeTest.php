@@ -4,13 +4,16 @@ declare(strict_types=1);
 
 namespace App\Tests\Controller\Mail;
 
+use App\Domain\Enum\Job\JobKind;
 use App\Domain\Enum\Mail\LabelRole;
+use App\Entity\Job\BackgroundJob;
 use App\Entity\Label\Label;
 use App\Entity\Mail\Message;
 use App\Entity\Mail\MessageThread;
 use App\Tests\Support\Mail\SeedsMarkerFixtures;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 
@@ -219,21 +222,54 @@ final class BulkPurgeTest extends WebTestCase
     }
 
     /**
-     * "Select all N" has no caller here: a whole view goes to a worker, and
-     * deleting for good from one is a decision this endpoint does not make.
+     * "Select all N" in Spam is how Spam is emptied: the request starts a job
+     * and deletes nothing itself. What the job then does is
+     * RunBulkStatusHandlerTest's.
      */
-    public function testAWholeViewSelectionIsRefused(): void
+    public function testAWholeViewOfSpamStartsAJobAndDeletesNothingInTheRequest(): void
     {
         $spam   = $this->spamThread('Spam');
         $spamId = $spam->id;
 
         $this->post(['all' => true, 'scope' => 'spam', 'value' => '']);
 
-        self::assertSame(403, $this->client->getResponse()->getStatusCode());
+        self::assertSame(200, $this->client->getResponse()->getStatusCode());
+
+        $job = $this->em->getRepository(BackgroundJob::class)->findOneBy(['usr' => $this->user]);
+
+        self::assertNotNull($job, 'no job was started');
+        self::assertSame(JobKind::Purge, $job->kind);
+        self::assertSame('spam', $job->view['scope']);
 
         $this->em->clear();
 
-        self::assertNotNull($this->em->find(MessageThread::class, $spamId));
+        self::assertNotNull($this->em->find(MessageThread::class, $spamId), 'the request itself deletes nothing');
+    }
+
+    /**
+     * Only Spam and the bin can be emptied. Every other view can hold mail
+     * that was never thrown away, and "everything in it" has no list of ids
+     * for the guard to read — so it is refused before a job exists.
+     */
+    #[DataProvider('viewsThatCannotBeEmptied')]
+    public function testAWholeViewOfAnythingElseIsRefused(string $scope, string $value): void
+    {
+        $this->post(['all' => true, 'scope' => $scope, 'value' => $value]);
+
+        self::assertSame(403, $this->client->getResponse()->getStatusCode());
+        self::assertNull(
+            $this->em->getRepository(BackgroundJob::class)->findOneBy(['usr' => $this->user]),
+            'a job was started for a view that must not be emptied',
+        );
+    }
+
+    /** @return iterable<string, array{string, string}> */
+    public static function viewsThatCannotBeEmptied(): iterable
+    {
+        yield 'the inbox' => ['inbox', 'primary'];
+        yield 'the archive' => ['archive', ''];
+        yield 'a search' => ['search', 'spam'];
+        yield 'no view named' => ['', ''];
     }
 
     /** One conversation of one message, carrying Spam and not the Inbox. */

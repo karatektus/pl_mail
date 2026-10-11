@@ -93,10 +93,11 @@ buttons exist at all: the flame on a row in Spam and the bin, which was always t
 same button above a ticked selection. **This changes things for anyone who used the row button: it
 is gone until the switch is on.** With it on, a selection in Spam or the bin is deleted for good
 from the toolbar, instead of a trip to the bin and a second deletion there. It asks first, says how
-many, and removes the mail from the mail server too; there is no Undo. It acts on the ticked rows, not on
-**Select all N** across pages. `#` does nothing above a selection there, since the Delete it
-presses is replaced. The server refuses to delete for good while the switch is off, whatever a
-page sends. It is per person and a config backup carries it. No migration.
+many, and removes the mail from the mail server too; there is no Undo. **Select all N** followed by
+**Delete forever** empties the whole of Spam or the bin in the background. `#` does nothing above a
+selection there, since the Delete it presses is replaced. The server refuses to delete for good
+while the switch is off, whatever a page sends. It is per person and a config backup carries it. No
+migration.
 [#71](https://github.com/karatektus/pl_mail/pull/71), by @Flouss.
 
 **Delete above a selection in the bin no longer says it deleted what it did not.** Ticking mail in

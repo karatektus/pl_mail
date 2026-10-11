@@ -318,7 +318,109 @@ final class RunBulkStatusHandlerTest extends KernelTestCase
         self::assertTrue($reloaded->isActive(), 'a lock collision ended the job instead of leaving it to be redelivered');
     }
 
+    /**
+     * Emptying Spam deletes what is in Spam and nothing that is not.
+     *
+     * Three conversations are in the view when the job is resolved. Two are
+     * spam through and through. The third carries Spam on the conversation and
+     * the Inbox on its message, which is what a conversation looks like when
+     * part of it was moved back between the click and the worker: it is in the
+     * view and must survive it. There is no undo behind this one, so the
+     * survivor is the assertion that matters.
+     */
+    public function testEmptyingSpamDeletesOnlyConversationsThatAreWhollyInSpam(): void
+    {
+        [$first, $second, $mixed] = $this->seedThreads(3);
+
+        $this->moveToSpam($first, true);
+        $this->moveToSpam($second, true);
+        $this->moveToSpam($mixed, false);
+
+        $this->user->deleteNowButtons = true;
+
+        $job = $this->purgeJob();
+
+        $this->handler()(new RunBulkStatusMessage((int) $job->id));
+
+        $this->em->clear();
+
+        $fresh = $this->em->find(BackgroundJob::class, $job->id);
+
+        self::assertNotNull($fresh);
+        self::assertSame(JobState::Done, $fresh->state, (string) $fresh->failureReason);
+        self::assertSame(3, $fresh->total, 'all three were in the view, or the survivor below proves nothing');
+
+        self::assertNull($this->em->find(Message::class, $first), 'spam is deleted for good');
+        self::assertNull($this->em->find(Message::class, $second), 'all of it');
+        self::assertNotNull(
+            $this->em->find(Message::class, $mixed),
+            'a conversation with a message outside Spam was deleted with the rest',
+        );
+    }
+
+    /**
+     * A job that waited in the queue while the switch was turned off deletes
+     * nothing, and says it failed rather than that it finished.
+     */
+    public function testEmptyingSpamIsRefusedOnceTheSwitchIsOff(): void
+    {
+        [$spam] = $this->seedThreads(1);
+
+        $this->moveToSpam($spam, true);
+
+        $job = $this->purgeJob();
+
+        try {
+            $this->handler()(new RunBulkStatusMessage((int) $job->id));
+            self::fail('the handler deleted for good with the switch off');
+        } catch (\LogicException) {
+        }
+
+        $this->em->clear();
+
+        self::assertNotNull($this->em->find(Message::class, $spam), 'the mail is still there');
+        self::assertSame(JobState::Failed, $this->em->find(BackgroundJob::class, $job->id)?->state);
+    }
+
     // ── fixtures ─────────────────────────────────────────────────────────────
+
+    private function purgeJob(): BackgroundJob
+    {
+        $job       = new BackgroundJob($this->user, JobKind::Purge);
+        $job->view = ['scope' => 'spam', 'value' => '', 'unreadOnly' => false];
+
+        $this->em->persist($job);
+        $this->em->flush();
+
+        return $job;
+    }
+
+    /**
+     * Puts a seeded conversation in Spam.
+     *
+     * @param bool $whole false leaves the message itself in the Inbox, so the
+     *                    conversation is listed under Spam without being
+     *                    wholly in it
+     */
+    private function moveToSpam(int $messageId, bool $whole): void
+    {
+        $inbox   = $this->labelResolver->systemLabel(LabelRole::Inbox, $this->account);
+        $spam    = $this->labelResolver->systemLabel(LabelRole::Spam, $this->account);
+        $message = $this->em->find(Message::class, $messageId);
+
+        self::assertNotNull($message);
+        self::assertNotNull($message->thread);
+
+        $message->thread->removeLabel($inbox);
+        $message->thread->addLabel($spam);
+
+        if (true === $whole) {
+            $message->removeLabel($inbox);
+            $message->addLabel($spam);
+        }
+
+        $this->em->flush();
+    }
 
     private function handler(?MessageThreadRepository $threads = null): RunBulkStatusHandler
     {
@@ -331,6 +433,8 @@ final class RunBulkStatusHandlerTest extends KernelTestCase
             $container->get(\App\Service\Mail\ThreadStatusUpdater::class),
             $container->get(\App\Service\Mail\ThreadSnoozeService::class),
             $container->get(\App\Service\Mail\MoveToService::class),
+            $container->get(\App\Service\Mail\MessagePurger::class),
+            $container->get(\App\Service\Mail\MailPlacement::class),
             $container->get(\App\Repository\Label\LabelRepository::class),
             $container->get(\App\Service\Job\JobNotifier::class),
             $this->em,

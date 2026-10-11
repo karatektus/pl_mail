@@ -35,6 +35,14 @@ enum JobKind: string
     case MoveTo = 'move_to';
 
     /**
+     * Emptying Spam or the bin: every conversation in the view deleted for
+     * good. The one kind here whose work cannot be undone, which is why
+     * RunBulkStatusHandler checks the user's switch and each conversation's
+     * placement again rather than trusting what the controller saw.
+     */
+    case Purge = 'purge';
+
+    /**
      * Asking the assistant again about mail it has already sorted.
      *
      * THE ODD ONE OUT, and deliberately admitted rather than disguised. Every
@@ -72,6 +80,7 @@ enum JobKind: string
             self::Restore                    => 'restore',
             self::Snooze, self::Wake         => 'snooze',
             self::MoveTo                     => 'move-to',
+            self::Purge                      => 'purge',
             // Reclassify has no bulk action behind it and no caller that could
             // want one: RunBulkStatusHandler is the only reader of this method
             // and only ever holds a kind it was dispatched for. Throwing beats
@@ -98,6 +107,7 @@ enum JobKind: string
             'trash'   => self::Trash,
             'restore' => self::Restore,
             'move-to' => self::MoveTo,
+            'purge'   => self::Purge,
             default   => throw new \InvalidArgumentException(sprintf('Unknown bulk action "%s".', $action)),
         };
     }

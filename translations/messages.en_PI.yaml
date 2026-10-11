@@ -2079,6 +2079,7 @@ jobs:
         snooze: Lettin' it drift
         wake: Haulin' it back from the drift
         move_to: Haulin'
+        purge: Sendin' to Davy Jones for good
         reclassify: Stowin' recent post again
     state:
         done: '%count% done'

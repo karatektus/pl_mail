@@ -2199,6 +2199,7 @@ jobs:
         snooze: Snoozing
         wake: Bringing back from snooze
         move_to: Moving
+        purge: Deleting for good
         reclassify: Sorting recent mail again
     state:
         done: '%count% done'

@@ -60,14 +60,25 @@ final class BulkStatusController extends AbstractController
      * purpose: it is a toolbar button, the toolbar can select a whole view,
      * and JobKind::MoveTo runs it.
      *
-     * `purge` is a toolbar button too, and is here for another reason. Deleting
-     * for good has no undo, so it is limited to the rows somebody ticked and
-     * can see: a whole view would be handed to a worker and run minutes later
-     * against whatever the view had grown to by then.
+     * `purge` is not in it either: emptying Spam or the bin is a whole view
+     * by definition. What it may be a whole view OF is PURGEABLE_VIEWS below.
      *
      * @var list<string>
      */
-    private const array EXPLICIT_ONLY = ['move', 'label', 'category', 'star', 'purge'];
+    private const array EXPLICIT_ONLY = ['move', 'label', 'category', 'star'];
+
+    /**
+     * The views a delete for good may take whole.
+     *
+     * Spam and the bin, and nothing else: they are the two lists that hold only
+     * mail already thrown away once, so "everything in this view" cannot reach
+     * mail that was not. A search, a label or the inbox can, which is why an
+     * explicit selection there is checked message by message and a whole view
+     * is refused before a job exists.
+     *
+     * @var list<string>
+     */
+    private const array PURGEABLE_VIEWS = ['spam', 'trash'];
 
     public function __construct(
         private readonly MessageThreadRepository $threadRepository,
@@ -129,6 +140,16 @@ final class BulkStatusController extends AbstractController
             throw $this->createAccessDeniedException(
                 sprintf('The "%s" action takes an explicit list of conversations.', $action),
             );
+        }
+
+        // Emptying Spam or the bin, and only those — see PURGEABLE_VIEWS. The
+        // worker checks each conversation again before it removes one, so this
+        // is the legible refusal and not the only one.
+        if ('purge' === $action
+            && true === ($body['all'] ?? false)
+            && false === in_array((string) ($body['scope'] ?? ''), self::PURGEABLE_VIEWS, true)
+        ) {
+            throw $this->createAccessDeniedException('Only Spam and the bin can be emptied for good.');
         }
 
         // Resolved and refused ahead of the whole-view hand-off below as well

@@ -2200,6 +2200,7 @@ jobs:
         snooze: Zurückstellen
         wake: Zurückholen
         move_to: Verschieben
+        purge: Endgültig löschen
         reclassify: Sortiert neueste Mail neu
     state:
         done: '%count% erledigt'

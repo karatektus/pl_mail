@@ -1,4 +1,4 @@
-<!-- translated-from: features/mail.md sha1:ef8327981f978f13c3819537321acd8c070aba29 -->
+<!-- translated-from: features/mail.md sha1:d9a7adcb753fe43c9c0fd2cff88d98382f05cefb -->
 
 # Mail
 
@@ -696,9 +696,12 @@ hinaus. Schaltest du sie wieder aus, verschwinden die Knöpfe sofort. Der Server
 zum endgültigen Löschen auch ab, solange sie aus ist; es entscheidet also deine Wahl, nicht nur,
 was gezeichnet wird.
 
-Gelöscht wird, was angehakt ist. Eine Auswahl, die über die Seite hinausreicht — **Alle N
-auswählen**, angeboten nach **Alle** —, löst hier nichts aus, damit Mail nur dann endgültig gelöscht
-wird, wenn sie auf dem Bildschirm zu sehen ist. Lösche eine Seite, dann die nächste.
+Um Spam oder den Papierkorb zu leeren, hake **Alle** an, nimm das angebotene **Alle N auswählen**
+und drücke **Endgültig löschen**. Die Rückfrage nennt dann die gesamte Anzahl, nicht die Zeilen auf
+der Seite. Ein Ordner wird im Hintergrund geleert, mit derselben Fortschrittsanzeige wie jede andere
+Aktion über eine ganze Ansicht, und eine Unterhaltung, die vorher zurück in den Posteingang
+verschoben wurde, bleibt unangetastet. Nur Spam und der Papierkorb lassen sich so leeren, eine Suche
+oder ein Label nicht.
 
 `#` drückt **Löschen**. Ist die Einstellung an, gibt es das über einer Auswahl im Spam und im
 Papierkorb nicht, und `#` tut dort nichts; die Flamme mit ihrer Frage ist der einzige Weg, dort
