@@ -9,8 +9,10 @@ import { INBOX_SUBJECTS, mailRow, seed } from "./support/config";
  * the sender column and the date column took ~450px of it and the subject was
  * left ~120px — "Facture pour Co…" — with a preview wrapped into two cramped
  * lines beside it. The stacked layout gives both the full width and is the one a
- * phone already gets, so one line now starts at 58rem (`--container-rowwide`
- * in app.css; the `@rowwide:` variant in _thread_row.html.twig).
+ * phone already gets, so one line now starts at 75rem (`--container-rowwide`
+ * in app.css; the `@rowwide:` variant in _thread_row.html.twig). 58rem was the
+ * first value and was still too early: a 2560px window with the reading pane
+ * open gives a list of ~65rem, where real subjects were cut after ~30 chars.
  *
  * Measured on the LIST's width, not the viewport's: the row is a container
  * query on #message-list. The viewports below are chosen so the list lands on
@@ -44,13 +46,13 @@ test.describe("list row layout around the one-line breakpoint", () => {
     });
 
     test("a list in the middle band is stacked and gives the subject the width", async ({ page }) => {
-        // List ≈ 850px: wider than the old 36rem line, narrower than 58rem.
+        // List ≈ 850px: wider than the old 36rem line, narrower than 75rem.
         await openInbox(page, 1100);
         const g = await geometry(page);
 
         // Presence companion: the list really is in the band under test.
         expect(g.list.width).toBeGreaterThan(36 * 16);
-        expect(g.list.width).toBeLessThan(58 * 16);
+        expect(g.list.width).toBeLessThan(75 * 16);
 
         // Stacked: the preview sits BELOW the subject, not beside it …
         expect(g.snippet.y).toBeGreaterThan(g.subject.y + g.subject.height - 2);
@@ -58,12 +60,27 @@ test.describe("list row layout around the one-line breakpoint", () => {
         expect(g.subject.width).toBeGreaterThan(g.row.width * 0.5);
     });
 
-    test("a wide list keeps subject and preview on one line", async ({ page }) => {
-        // List ≈ 1250px.
-        await openInbox(page, 1500);
+    test("a list past the first 58rem guess is still stacked", async ({ page }) => {
+        // List ≈ 1050px (~65rem): the width a 2560px window with the reading
+        // pane open gives. One line here cut real subjects after ~30
+        // characters, which is why 58rem was raised to 75rem.
+        await openInbox(page, 1300);
         const g = await geometry(page);
 
+        // Presence companion: the list is above the OLD line, so a regression
+        // to 58rem is what this fails on.
         expect(g.list.width).toBeGreaterThan(58 * 16);
+        expect(g.list.width).toBeLessThan(75 * 16);
+
+        expect(g.snippet.y).toBeGreaterThan(g.subject.y + g.subject.height - 2);
+    });
+
+    test("a wide list keeps subject and preview on one line", async ({ page }) => {
+        // List ≈ 1350px.
+        await openInbox(page, 1600);
+        const g = await geometry(page);
+
+        expect(g.list.width).toBeGreaterThan(75 * 16);
         // Same line: the preview starts to the right of the subject's end and
         // within a line's height of its top.
         expect(g.snippet.x).toBeGreaterThanOrEqual(g.subject.x + g.subject.width - 2);
@@ -83,7 +100,7 @@ test.describe("list row layout around the one-line breakpoint", () => {
     });
 
     test("the two-line preview setting stays out of the one-line layout", async ({ page }) => {
-        await openInbox(page, 1500);
+        await openInbox(page, 1600);
 
         // What AppearanceRenderer writes on <html> for previewLines = 2, set
         // directly so the spec does not depend on the saved setting.

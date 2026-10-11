@@ -5087,12 +5087,17 @@ label:has(> input.sr-only) {
    open (about 45rem) left them ~260px between them — "Facture pour Co…" and a
    preview wrapped to two cramped lines. Stacked gives them the full width, and
    it is already the layout a phone gets. One line pays off only when there is
-   room for it; 58rem is where the subject keeps ~20 characters after the fixed
-   columns. `@rowwide:` in _thread_row.html.twig is this token, and the
-   `@container (min-width: 58rem)` rule below must carry the same number.
+   room for it. 58rem was the first guess and still too early for real mail: a
+   list of about 65rem (a 2560px window with the reading pane open) cut a
+   subject like "Votre Colis N°8373 Nécessite Une Vérification" after ~30
+   characters and the preview after ~35. Measured by sweeping the list width
+   with long French and English subjects: at 75rem both the subject and a
+   usable preview fit; wider only adds preview. `@rowwide:` in
+   _thread_row.html.twig is this token, and the
+   `@container (min-width: 75rem)` rule below must carry the same number.
 */
 @theme {
-    --container-rowwide: 58rem;
+    --container-rowwide: 75rem;
 }
 
 /* The account corner: the coloured triangle in a row's lower-left. */
@@ -5151,7 +5156,7 @@ label:has(> input.sr-only) {
    arrangement the wide layout exists to avoid. So the wide branch takes the
    same on/off switch without the clamp.
 
-   `@container`, matching the row's own `@rowwide` (the 58rem container width
+   `@container`, matching the row's own `@rowwide` (the 75rem container width
    declared by --container-rowwide in the "Mail list display" block above,
    written out by hand because a plain rule can use neither the variant nor the
    token — change the two together): the
@@ -5174,7 +5179,7 @@ label:has(> input.sr-only) {
     overflow: hidden;
 }
 
-@container (min-width: 58rem) {
+@container (min-width: 75rem) {
     /* `:not(.hidden)` for SPECIFICITY, not for the exemption above: a container
        query adds none, so a bare `[data-row-snippet]` (0,1,0) lost to the
        stacked rule's `[data-row-snippet]:not(.hidden)` (0,2,0) and the
