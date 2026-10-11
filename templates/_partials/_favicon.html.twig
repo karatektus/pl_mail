@@ -12,10 +12,18 @@
     operating system happens to draw. A tab strip is where people find plMail
     among thirty other tabs, and the thing they look for is the icon.
 
-    Now the real mark, in the same two forms every other icon here takes:
-    an SVG that stays sharp at 16px and any pixel ratio, and the 192px PNG for
-    anything that will not take an SVG favicon. Browsers pick the first `rel`
-    they understand, so the SVG is listed first.
+    Now the real mark, as an SVG that stays sharp at 16px and any pixel ratio.
+
+    It is the ONLY tab icon linked, and that is deliberate. This used to be
+    followed by `<link rel="icon" type="image/png" sizes="192x192"
+    href="/icons/icon-192.png">` as a fallback, and the fallback won: Firefox
+    stores an SVG icon at width 65535 and a PNG at its declared size, and picks
+    the smallest icon that is big enough for the tab, which is the 192px PNG.
+    A static file can only wear the product default, so every account saw the
+    wax seal in its tabs whatever icon it had chosen. A second candidate can
+    only be wrong for someone. The PNGs still serve the places that need a
+    raster and have no per-account route: the apple-touch-icon in app.html.twig
+    and the manifest's install icons.
 
     The SVG comes from a route rather than a file, because the logo is a
     per-user setting now (Settings → Appearance → Logo: an icon, then its
@@ -30,4 +38,3 @@
    it live on every pick (see repaintLogo) — before the save has landed, which
    is why the drawing cannot come from the session. See BrandingController. #}
 <link rel="icon" type="image/svg+xml" href="{{ logo_favicon_url(appearance().effectiveLogoMotif, appearance().effectiveLogoPaint) }}">
-<link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png">

@@ -8,6 +8,12 @@ The published image tags: `latest` follows the most recent release below,
 
 ## Unreleased
 
+**The tab icon is the one you picked, in Firefox too.** Settings → Appearance → Logo changed the
+icon in the app but not in the tab, which kept showing the wax seal. Every page also linked a
+fixed 192px wax-seal PNG as a second tab icon, and Firefox prefers that to the SVG for a tab. The
+PNG is gone from the tab icons; the home-screen and install icons are unchanged. No migration.
+[#74](https://github.com/karatektus/pl_mail/pull/74), by @Flouss.
+
 **A message with a stray non-UTF-8 byte in the wrong place was never stored.** Over IMAP, a mail
 whose text was labelled `us-ascii` but written in Latin-1 — "Grüße" from a mailer nobody configured
 — was refused by the database ("invalid byte sequence for encoding UTF8: 0xfc"), asked for again
