@@ -205,18 +205,24 @@ toolbar above a selection has a **Star** button, and `s` presses it; before, `s`
 rows ticked. An open conversation has a **Snooze** button in its toolbar, which is what `b` presses
 there.
 
-**A selection in Spam can be deleted for good.** The toolbar above ticked spam now offers **Delete
-forever** where it used to offer **Delete**, which only moved the mail to the bin to be deleted a
-second time from there. It asks first, says how many, and removes the mail from the mail server too;
-there is no Undo. It acts on the ticked rows, not on **Select all N** across pages. Rows in Spam and
-the bin already had the button. `#` used to move a ticked selection in Spam to the bin and now does
-nothing there, since the Delete it presses is gone. No migration.
+**Deleting mail for good is a choice you make, off until you make it.** Settings → Mail →
+**Disposal** has one switch, **Delete-now buttons**. It decides whether the **Delete forever**
+buttons exist at all: the flame on a row in Spam and the bin, which was always there, and now the
+same button above a ticked selection. **This changes things for anyone who used the row button: it
+is gone until the switch is on.** With it on, a selection in Spam or the bin is deleted for good
+from the toolbar, instead of a trip to the bin and a second deletion there. It asks first, says how
+many, and removes the mail from the mail server too; there is no Undo. It acts on the ticked rows, not on
+**Select all N** across pages. `#` does nothing above a selection there, since the Delete it
+presses is replaced. The server refuses to delete for good while the switch is off, whatever a
+page sends. It is per person and a config backup carries it. No migration.
+[#56](https://github.com/karatektus/pl_mail/pull/56), by @Flouss.
 
 **Delete above a selection in the bin no longer says it deleted what it did not.** Ticking mail in
 the bin and pressing **Delete** took the rows off the list, and they were back on the next load:
 the mail was already in the bin, so there was nothing to trash, and the list reported a change
-anyway. The toolbar above a selection in the bin now offers **Delete forever** instead, as Spam
-does, with the same question and the same count. `#` does nothing there, as in Spam. No migration.
+anyway. The bin has no **Delete** above a selection now. With the Disposal switch on it has
+**Delete forever** in its place, with the same question and the same count; with it off, **Move to
+inbox** is the way out. `#` does nothing there. No migration.
 
 **A config backup now carries how each person sorts their mail.** Settings → Categories — rules or
 the assistant, whether that overrules the provider's own categories, and whether the inbox has tabs
