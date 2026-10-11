@@ -163,6 +163,15 @@ final class DeleteNowSettingTest extends WebTestCase
         $crawler = $this->client->request('GET', '/mail/spam');
         self::assertSame(0, $crawler->filter($this->toolbarButton('deleteSelected'))->count(), 'on: the ordinary Delete gives way');
         self::assertSame(1, $crawler->filter($this->toolbarButton('purgeSelected'))->count(), 'on: to Delete forever');
+
+        // The question the button asks travels with the toolbar. Without it the
+        // dialog falls back to a bare "Are you sure?" that names nothing and
+        // counts nothing, which is how a toolbar that was merged by hand lost
+        // it once without a PHP test noticing.
+        $i18n = (string) $crawler->filter('[data-controller~="mail--list-toolbar"]')->attr('data-mail--list-toolbar-i18n-value');
+
+        self::assertStringContainsString('purgeConfirmOne', $i18n, 'the singular question is on the toolbar');
+        self::assertStringContainsString('purgeConfirmMany', $i18n, 'and so is the plural one');
     }
 
     /**

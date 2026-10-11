@@ -1,6 +1,7 @@
 import { test, expect } from "./support/test";
 import { INBOX_SUBJECTS, ajaxPost, mailRow, seed } from "./support/config";
 import { acceptConfirm } from "./support/confirm";
+import { setDeleteNow } from "./support/disposal";
 import type { Locator, Page } from "@playwright/test";
 
 /**
@@ -27,6 +28,10 @@ const STAYS = INBOX_SUBJECTS.read;
 test.beforeEach(async ({ page }) => {
     seed("seed-mail");
 
+    // Off for anybody who has not chosen it (delete-now-setting.spec.ts); this
+    // spec is about what the button does once somebody has.
+    await setDeleteNow(page, true);
+
     await page.goto("/mail/inbox");
 
     const ids: number[] = [];
@@ -50,6 +55,11 @@ test.beforeEach(async ({ page }) => {
 // wipes the account's threads before it seeds, so this is a full reset.
 test.afterAll(() => {
     seed("seed-mail");
+});
+
+// And the switch put back off, for the same reason.
+test.afterEach(async ({ page }) => {
+    await setDeleteNow(page, false);
 });
 
 /**

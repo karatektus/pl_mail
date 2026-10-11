@@ -1,5 +1,6 @@
 import { test, expect } from "./support/test";
 import { INBOX_SUBJECTS, mailRow, seed } from "./support/config";
+import { setDeleteNow } from "./support/disposal";
 import { rowActionAwaited } from "./support/rows";
 
 /**
@@ -19,6 +20,12 @@ import { rowActionAwaited } from "./support/rows";
  */
 test.beforeEach(() => {
     seed("seed-mail");
+});
+
+// The trash test below turns Delete forever on (it is off until a user does:
+// Settings → Mail → Disposal), and the worker's user is shared with the next file.
+test.afterEach(async ({ page }) => {
+    await setDeleteNow(page, false);
 });
 
 /** The row's hover actions only exist once the pointer is on the row. */
@@ -80,8 +87,21 @@ test.describe("getting mail back", () => {
 
         const trashed = await actionsFor(page, INBOX_SUBJECTS.read);
 
-        // Both are offered here, and this is the only place delete forever is.
-        await expect(trashed.getByRole("button", { name: /forever/i })).toHaveCount(1);
+        // Restore is offered here whatever the user has chosen, and it is the
+        // companion that shows the row's actions are painted at all.
+        await expect(trashed.getByRole("button", { name: /inbox/i })).toHaveCount(1);
+
+        // Delete forever is not, until they switch it on (Settings → Mail → Disposal)...
+        await expect(trashed.getByRole("button", { name: /forever/i }), "offered to somebody who never asked for it").toHaveCount(0);
+
+        // ...and once they have, this is the only place it is, and only for mail
+        // already thrown away once.
+        await setDeleteNow(page, true);
+        await page.goto("/mail/trash");
+
+        const trashedOn = await actionsFor(page, INBOX_SUBJECTS.read);
+
+        await expect(trashedOn.getByRole("button", { name: /forever/i })).toHaveCount(1);
 
         await rowActionAwaited(page, trashed, /inbox/i, "/restore");
 
