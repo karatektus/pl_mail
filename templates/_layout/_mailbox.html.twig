@@ -32,6 +32,14 @@ dozen other reasons while the conversation was open.
     <meta name="turbo-cache-control" content="no-cache">
 {% endblock %}
 
+{# The base layout puts the Inbox's unread count in front of every title, which
+   is right for settings or the calendar and wrong here: a mail folder says its
+   own number or none (the bin counts a total, Sent and Archive count nothing),
+   and the Inbox says its own in its own title block. Off by default for all of
+   them, and each page that does count names its key again, as before. #}
+{% block title_prefix %}{% endblock %}
+{% block title_count_key %}{% endblock %}
+
 {# mail--dnd is here rather than in the base layout for the same reason
    mail--mail-pane is: it is about a mail LIST. It listens on <body> because
    the two ends of a drag — the rows in the list frame and the folders in the

@@ -8,6 +8,13 @@ The published image tags: `latest` follows the most recent release below,
 
 ## Unreleased
 
+**The browser tab shows the Inbox's unread count on every page that is not a mail folder.** The
+"(3)" in front of the tab's title appeared on the Inbox and vanished on Settings, the calendar and
+the admin pages, although the sidebar there still showed the same number. It stays now, and updates
+on sync like the Inbox's does. Mail folders are unchanged: each shows its own figure or none, so
+Trash, Sent and Archive do not borrow the Inbox's. No migration.
+[#72](https://github.com/karatektus/pl_mail/pull/72), by @Flouss.
+
 **Attachments on Outlook and Hotmail mail show up.** A message with a file on it arrived in plMail
 with no attachment at all, no paperclip, nothing to download, for every Outlook.com, Hotmail and
 Microsoft 365 account. The list of a message's attachments was asked of Microsoft in a form it
