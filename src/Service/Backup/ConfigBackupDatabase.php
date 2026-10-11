@@ -12,6 +12,7 @@ use App\Entity\Push\FcmConfig;
 use App\Repository\Integration\IntegrationProviderConfigRepository;
 use App\Repository\Integration\MailProviderConfigRepository;
 use App\Repository\Push\FcmConfigRepository;
+use App\Domain\Ai\ConnectionHeaders;
 use App\Domain\Ai\KeepAlive;
 use App\Entity\Ai\AiSettings;
 use App\Domain\Enum\System\UpdateChannel;
@@ -19,6 +20,7 @@ use App\Entity\Monitoring\LogSettings;
 use App\Repository\Ai\AiSettingsRepository;
 use App\Repository\Monitoring\LogSettingsRepository;
 use App\Repository\System\UpdateCheckRepository;
+use App\Domain\Enum\Ai\AiProvider;
 use App\Domain\Enum\Ai\PromptSlot;
 use Doctrine\ORM\EntityManagerInterface;
 
@@ -248,10 +250,20 @@ final readonly class ConfigBackupDatabase
 
         return [
             'isEnabled'             => $settings->isEnabled,
+            'provider'              => $settings->provider->value,
             'baseUrl'               => $settings->baseUrl,
             'apiToken'              => $settings->apiToken,
+            // By name, in plaintext, for the reason apiToken is: the envelope
+            // is what is sealed, and a restore onto another encryption key has
+            // to be able to read it.
+            'headers'               => ConnectionHeaders::decode($settings->headers),
             'chatModel'             => $settings->chatModel,
             'chatKeepAlive'         => $settings->chatKeepAlive,
+            'embeddingOwnConnection' => $settings->embeddingOwnConnection,
+            'embeddingProvider'     => $settings->embeddingProvider->value,
+            'embeddingBaseUrl'      => $settings->embeddingBaseUrl,
+            'embeddingApiToken'     => $settings->embeddingApiToken,
+            'embeddingHeaders'      => ConnectionHeaders::decode($settings->embeddingHeaders),
             'embeddingModel'        => $settings->embeddingModel,
             'embeddingKeepAlive'    => $settings->embeddingKeepAlive,
             'embeddingDimensions'   => $settings->embeddingDimensions,
@@ -288,6 +300,23 @@ final readonly class ConfigBackupDatabase
     }
 
     /**
+     * Extra headers out of a backup, as the column holds them.
+     *
+     * Through ConnectionHeaders both ways, because this is the one writer that
+     * is not the form: a file can carry a name or a value the form would have
+     * refused, and decode() drops exactly those. Absent, or not a list of
+     * pairs, means none — every backup taken before this existed.
+     */
+    private static function headers(mixed $value): ?string
+    {
+        if (false === is_array($value)) {
+            return null;
+        }
+
+        return ConnectionHeaders::encode(ConnectionHeaders::decode((string) json_encode($value)));
+    }
+
+    /**
      * @param array<string, mixed> $values
      */
     public function restoreAiSettings(array $values): void
@@ -295,9 +324,23 @@ final readonly class ConfigBackupDatabase
         $settings = $this->aiSettings->current() ?? new AiSettings();
 
         $settings->isEnabled             = true === ($values['isEnabled'] ?? false);
+        // Absent from every backup taken before there was a choice, and absent
+        // means Ollama: it is what those installations were talking to. An
+        // unknown value means the same rather than a failed restore — a file
+        // from a later release naming a dialect this one has not heard of.
+        $settings->provider              = AiProvider::tryFrom((string) ($values['provider'] ?? '')) ?? AiProvider::Ollama;
         $settings->baseUrl               = $this->string($values, 'baseUrl');
         $settings->apiToken              = $this->string($values, 'apiToken');
+        $settings->headers               = self::headers($values['headers'] ?? null);
         $settings->chatModel             = $this->string($values, 'chatModel');
+        // Absent from every backup taken before search could have a host of
+        // its own, and absent has to mean "it does not": the switch off, and
+        // the four fields behind it empty.
+        $settings->embeddingOwnConnection = true === ($values['embeddingOwnConnection'] ?? false);
+        $settings->embeddingProvider     = AiProvider::tryFrom((string) ($values['embeddingProvider'] ?? '')) ?? AiProvider::Ollama;
+        $settings->embeddingBaseUrl      = $this->string($values, 'embeddingBaseUrl');
+        $settings->embeddingApiToken     = $this->string($values, 'embeddingApiToken');
+        $settings->embeddingHeaders      = self::headers($values['embeddingHeaders'] ?? null);
         $settings->embeddingModel        = $this->string($values, 'embeddingModel');
         // Through KeepAlive::normalised() rather than string() alone, because
         // this is the one writer that is not the form. A file can carry

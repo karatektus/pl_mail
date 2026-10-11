@@ -7,7 +7,9 @@ namespace App\Service\Ai;
 use App\Domain\DTO\Ai\AiProbe;
 use App\Domain\DTO\Ai\BackfillProgress;
 use App\Domain\DTO\Ai\LoadedModel;
+use App\Domain\Enum\Ai\AiProvider;
 use App\Domain\Enum\Ai\MetricWindow;
+use App\Entity\Ai\AiFeature;
 use App\Repository\Ai\AiCallMetricRepository;
 use App\Repository\Ai\AiSettingsRepository;
 use DateTimeImmutable;
@@ -57,6 +59,7 @@ final readonly class AiPerformancePanel
     public function __construct(
         private AiSettingsRepository   $settings,
         private OllamaClient           $client,
+        private OpenAiClient           $openAi,
         private AiCallMetricRepository $metrics,
         private EmbeddingBackfill      $backfill,
     ) {
@@ -76,10 +79,28 @@ final readonly class AiPerformancePanel
         // Nothing is asked of the host while the master switch is off. Off is a
         // valid configuration, not a fault, and a panel that kept probing would
         // be reporting on a feature nobody has switched on.
-        $probe = $ready ? $this->client->probe((string) $settings->baseUrl, self::PROBE_TIMEOUT) : null;
+        //
+        // With the key, when there is one. Without it a host behind a proxy
+        // answers 401 here while every feature works, and the panel reports a
+        // healthy installation as unreachable.
+        $connection = $settings->connectionFor(AiFeature::WritingHelp);
+        $client     = $this->client->authorised($connection);
 
-        $loaded = null !== $probe && true === $probe->reachable
-            ? $this->client->ps((string) $settings->baseUrl, self::PS_TIMEOUT)
+        $probe = match (true) {
+            false === $ready                            => null,
+            AiProvider::OpenAi === $connection->provider => $this->openAi->probe($connection, self::PROBE_TIMEOUT),
+            default                                     => $client->probe($connection->baseUrl, self::PROBE_TIMEOUT),
+        };
+
+        // What is in memory is a question only Ollama answers. For the other
+        // dialect the list is empty because nobody was asked, not because
+        // nothing is loaded — which is why the template is told which it is and
+        // leaves that half of the card out, rather than printing "no model is
+        // loaded" about a host that may be holding three.
+        $managesMemory = $connection->provider->managesMemory();
+
+        $loaded = true === $managesMemory && null !== $probe && true === $probe->reachable
+            ? $client->ps($connection->baseUrl, self::PS_TIMEOUT)
             : [];
 
         $features = $this->metrics->perFeatureSince($window->since($now));
@@ -96,12 +117,14 @@ final readonly class AiPerformancePanel
                 'summary'    => $settings->summaryEnabled,
             ],
             'host' => [
-                'baseUrl'   => $settings->baseUrl,
-                'reachable' => $probe->reachable ?? false,
-                'version'   => $probe?->version,
-                'reason'    => $probe?->reason,
+                'baseUrl'       => $settings->baseUrl,
+                'provider'      => $connection->provider->value,
+                'managesMemory' => $managesMemory,
+                'reachable'     => self::answers($probe),
+                'version'       => $probe?->version,
+                'reason'        => $probe?->reason,
             ],
-            'models'      => $this->models($settings->chatModel, $settings->embeddingModel, $probe, $loaded),
+            'models'      => $this->models($settings->chatModel, $settings->embeddingModel, self::listing($probe, $managesMemory), $loaded, $settings->embeddingOwnConnection),
             'loaded'      => array_map(static fn (LoadedModel $model): array => self::describe($model, $now), $loaded),
             'anyPartial'  => self::anyPartial($loaded),
             'latest'      => $this->metrics->latest(),
@@ -115,12 +138,51 @@ final readonly class AiPerformancePanel
             // rows, and during a backfill that month holds a row per embedded
             // message; running it on every five-second poll would make the
             // panel the most expensive thing on the installation.
-            'coldLoadMs'  => $ready && [] === $loaded
+            'coldLoadMs'  => $ready && $managesMemory && [] === $loaded
                 ? $this->metrics->typicalColdLoadMs($now->modify(self::COLD_LOAD_LOOKBACK))
                 : null,
             'backfill'    => $this->backfill->progress(),
             'checkedAt'   => $now->format(DateTimeImmutable::ATOM),
         ];
+    }
+
+    /**
+     * Whether something speaking the right dialect is at the address.
+     *
+     * Wider than AiProbe::$reachable by one case. An OpenAI-compatible server
+     * with no `/models` answers 404 to the probe and writes perfectly well, and
+     * a card that said "no answer" about it would be reporting a missing
+     * convenience as a dead host — every five seconds, on an installation where
+     * everything works. The Test button keeps the distinction, because there
+     * the 404 may equally mean the address is wrong and somebody is looking at
+     * the address.
+     */
+    private static function answers(?AiProbe $probe): bool
+    {
+        if (null === $probe) {
+            return false;
+        }
+
+        return true === $probe->reachable || 'no_model_list' === $probe->reason;
+    }
+
+    /**
+     * The probe, when it is evidence about which models the host has.
+     *
+     * Ollama's list is the whole truth: a model that is not on it has not been
+     * pulled, and saying so is the most useful thing this card does. The other
+     * dialect's list is whatever the server chose to publish — a router lists
+     * thousands, a single-model server may list an alias, some list nothing —
+     * so an empty one says nothing, and "not on this host" beside a model that
+     * answers every request would send somebody to fix what is not broken.
+     */
+    private static function listing(?AiProbe $probe, bool $managesMemory): ?AiProbe
+    {
+        if (null === $probe || false === $probe->reachable) {
+            return null;
+        }
+
+        return true === $managesMemory || [] !== $probe->models ? $probe : null;
     }
 
     /**
@@ -154,26 +216,34 @@ final readonly class AiPerformancePanel
      *
      * `installed` is null when nothing could be asked — an unreachable host
      * says nothing about which models it holds, and painting "missing" over
-     * that would send an operator to pull a model they already have.
+     * that would send an operator to pull a model they already have. The
+     * listing is null in that case, and in the one {@see listing()} describes.
+     *
+     * THE SEARCH MODEL MAY LIVE SOMEWHERE ELSE. This card reads one host, the
+     * one that writes, and when search has a host of its own that host was not
+     * asked. Its model is then neither "installed" nor "missing" here — it is
+     * unknown, the same null — and never "in memory", because the memory that
+     * was read is another machine's.
      *
      * @param list<LoadedModel> $loaded
      *
      * @return list<array<string, mixed>>
      */
-    private function models(?string $chat, ?string $embedding, ?AiProbe $probe, array $loaded): array
+    private function models(?string $chat, ?string $embedding, ?AiProbe $listing, array $loaded, bool $searchElsewhere): array
     {
         $rows = [];
 
         foreach ([['chat', $chat], ['embedding', $embedding]] as [$role, $name]) {
             $named = null !== $name && '' !== trim($name);
+            $here  = 'chat' === $role || false === $searchElsewhere;
 
             $rows[] = [
                 'role'      => $role,
                 'name'      => $named ? trim((string) $name) : null,
-                'installed' => $named && null !== $probe && true === $probe->reachable
-                    ? $probe->hasModel(trim((string) $name))
+                'installed' => $named && $here && null !== $listing
+                    ? $listing->hasModel(trim((string) $name))
                     : null,
-                'resident'  => $named && self::isResident(trim((string) $name), $loaded),
+                'resident'  => $named && $here && self::isResident(trim((string) $name), $loaded),
             ];
         }
 

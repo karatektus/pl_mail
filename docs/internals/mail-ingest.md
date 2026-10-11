@@ -38,7 +38,9 @@ to strand an account on whatever the first run happened to fetch.
 **Graph has no account-level cursor.** There is no equivalent of a single `historyId`, so
 delta state is per folder, stored as a `folderId => deltaLink` map on the `Account`. A delta
 query with no stored link enumerates the folder and hands back one; the same call with a link
-returns only changes, so one code path covers both the initial and the incremental case.
+returns only changes. To Graph that is one operation. To plMail it is two: following a folder
+that has a link is the sync's, and the enumeration that earns the link is the import's — see
+"A first import is not a sync" below.
 
 Graph's folder moves are the sharp edge. Moving a message out of a folder appears as
 `@removed` on the source folder's delta and as an addition on the destination's, and the two
@@ -53,6 +55,56 @@ Batch handlers deduplicate in PHP before inserting, but that check is a read on 
 The guard that actually holds when batches overlap across runs or retries is
 `uniq_message_gmail_id_account` and its Graph counterpart on `message`, with the provider id
 leading the column list so the index also serves the id-only lookups.
+
+### A first import is not a sync
+
+A sync used to bring in an account's history as well as its new mail: one job that read every
+IMAP folder from its oldest message to its newest, or listed every Gmail message id before
+fetching one. On an account of twenty thousand messages that job held the `ingest` queue for
+as long as it took, showed an empty Inbox for most of it, and put every other account's new
+mail behind it.
+
+The two are separate now. A sync arranges for new mail to be seen and stops; the history is
+`App\Service\Mail\MailImporter`'s, on the `ingest_backlog` queue with a worker of its own.
+
+- **One message is one page.** `ImportMailMessage` carries an account id and nothing else; its
+  handler brings in one page and dispatches the next. There is no long job anywhere in it, so
+  several accounts' pages interleave on the queue and each gets a usable Inbox before any gets
+  its archive.
+- **IMAP reads each folder from the top down.** On first contact `ImapImportPlan` puts
+  `lastSeenUid` at the top of the folder and `importFloorUid` just above it. New mail is
+  everything above the first; history is everything below the second, and
+  `ImapMailboxImporter` walks that down fifty messages at a call. A page is found by asking
+  the server which UIDs exist below the floor and taking out the ones already stored, so a
+  message that is here is never fetched twice.
+- **Folders are read in the order somebody would ask for:** Inbox, Sent, Drafts, a person's own
+  folders, the archive, and Spam and the bin last. `MailboxSpecialUse::importRank()` is the
+  rule.
+- **Gmail asks for the Inbox by name first,** then pages the whole-mailbox listing one request
+  at a time, with the page token kept on the account between jobs.
+- **Microsoft reads each folder's first delta round a page at a time.** A folder without a
+  delta link is planned on the account (`Account::$graphImport`) instead of being enumerated
+  by the sync, and `GraphApiSyncer::importPage()` walks that round fifty messages at a call,
+  newest first, in the same folder order by `LabelRole::importRank()`. The page that ends the
+  round carries the folder's delta link, and from then on the sync follows it. Until then the
+  sync asks such a folder only for what it received since it was planned. A delta link that
+  expires hands its folder back to the import rather than being re-enumerated in the sync.
+- **A message that will not store costs itself.** The floor stays where it is and the page is
+  asked for again; after five tries the floor moves past it and the folder goes on.
+
+Every ordinary sync ends in `MailImporter::ensureRunning()`, which starts an import that has
+work and has gone quiet for five minutes. That is what starts a new account's import and what
+restarts one whose chain of messages broke.
+
+"Is this account still importing" is `InitialImportState`, and for IMAP it is read off the
+folders' `importFloorUid`: a folder's `syncedAt` no longer says so, because its first sync now
+ends at once with the history still to come. A Microsoft account is importing for as long as
+`Account::$graphImport` lists a folder.
+
+One thing a Microsoft import changes about the sync: a message removed from one folder is a
+deletion only if it arrived in no other, and a folder still being read cannot say. Such
+removals are kept on the account (`Account::$graphRemovals`) and judged by the first sync
+whose every folder answered.
 
 ## The post-ingest pipeline
 
@@ -137,8 +189,8 @@ tasks (`app:backfill insights`, `event-extraction`, …) are how history is read
 wants it.
 
 **Live.** `App\Service\Mail\InitialImportState` says whether an account is still bringing in its
-mailbox for the first time: Gmail by `needsBackfill()`, Graph by having a delta link at all,
-IMAP by every sync-enabled folder having a `syncedAt`. The pipeline asks once per batch and
+mailbox for the first time: Gmail by `needsBackfill()`, Graph by having a delta link and no folder
+left to read, IMAP by no sync-enabled folder having history still to fetch. The pipeline asks once per batch and
 carries the answer on `PostIngestResult::$live`; `EnrichmentRouter` turns it into a
 `TransportNamesStamp`. Mail of a finished account goes to `enrich_live`, whose worker never has
 import work in front of it. It errs towards "still importing" — a Gmail backfill settles up to

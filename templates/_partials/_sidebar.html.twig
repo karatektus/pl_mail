@@ -755,7 +755,7 @@ controller instead — the scroll position and which trees are open.
                "Create label" button — unnamed, it read as "Labels 3 unread
                Create label". The same string as the visible heading, so a
                voice user asking for "Labels" still gets this. #}
-            <summary class="nav-section-y pb-1 px-3 flex items-center gap-2 cursor-pointer list-none rounded-lg transition-colors hover:bg-hover"
+            <summary class="group/head nav-section-y pb-1 px-3 flex items-center gap-2 cursor-pointer list-none rounded-lg transition-colors hover:bg-hover"
                      aria-label="{{ 'sidebar.labels.heading'|trans }}"
                      aria-expanded="{{ _labelsCollapsed ? 'false' : 'true' }}"
                      data-ui--sidebar-target="collapseSummary">
@@ -777,12 +777,27 @@ controller instead — the scroll position and which trees are open.
                    number from three syncs ago the moment it was reopened. #}
                 <span class="group-open/labels:hidden">{{ macros.unread_badge(sidebarCounts.unreadInLabels(), 'labels:unread') }}</span>
 
+                {# Quiet until its heading row is hovered. A "+" on every
+                   section heading is two controls permanently on screen for
+                   something done a few times a year. The row is the summary
+                   (`group/head`), not the section: a label further down must
+                   not light it up.
+
+                   Two exits from "hidden", and both are needed. Keyboard focus
+                   shows it, or a button reached with Tab would be invisible
+                   while it holds focus. And it is only ever hidden where there
+                   is a hover to reveal it with — `[@media(hover:hover)]` — or
+                   a phone could neither create a label nor add an account.
+
+                   `transition` rather than `transition-colors`, so the fade is
+                   one. The Accounts heading below has the same button. #}
                 <button
                     data-controller="ui--modal"
                     data-action="click->ui--modal#open {{ _drawerClose }}"
                     data-ui--modal-title-value="{{ 'sidebar.labels.add'|trans }}"
                     data-ui--modal-src-value="{{ path('app_label_new') }}"
-                    class="p-1 rounded hover:bg-hover text-gray-400 hover:text-ink-soft transition-colors cursor-pointer"
+                    class="p-1 rounded hover:bg-hover text-gray-400 hover:text-ink-soft transition cursor-pointer
+                           [@media(hover:hover)]:opacity-0 group-hover/head:opacity-100 focus-visible:opacity-100"
                     aria-label="{{ 'sidebar.labels.add'|trans }}"
                 >
                     <i class="fa-solid fa-plus w-3.5 h-3.5" aria-hidden="true"></i>
@@ -822,7 +837,7 @@ controller instead — the scroll position and which trees are open.
                  data-action="toggle->ui--sidebar#rememberCollapse"
                  data-collapse-key="{{ constant('App\\Entity\\User\\User::SIDEBAR_SECTION_ACCOUNTS') }}"
                  {{ _accountsCollapsed ? '' : 'open' }}>
-            <summary class="nav-section-y pb-1 px-3 flex items-center gap-2 cursor-pointer list-none rounded-lg transition-colors hover:bg-hover"
+            <summary class="group/head nav-section-y pb-1 px-3 flex items-center gap-2 cursor-pointer list-none rounded-lg transition-colors hover:bg-hover"
                      aria-label="{{ 'sidebar.accounts.heading'|trans }}"
                      aria-expanded="{{ _accountsCollapsed ? 'false' : 'true' }}"
                      data-ui--sidebar-target="collapseSummary">
@@ -833,7 +848,8 @@ controller instead — the scroll position and which trees are open.
                     data-action="click->ui--modal#open {{ _drawerClose }}"
                     data-ui--modal-title-value="{{ 'sidebar.accounts.add'|trans }}"
                     data-ui--modal-src-value="{{ path('app_account_new') }}"
-                    class="p-1 rounded hover:bg-hover text-gray-400 hover:text-ink-soft transition-colors cursor-pointer"
+                    class="p-1 rounded hover:bg-hover text-gray-400 hover:text-ink-soft transition cursor-pointer
+                           [@media(hover:hover)]:opacity-0 group-hover/head:opacity-100 focus-visible:opacity-100"
                     aria-label="{{ 'sidebar.accounts.add'|trans }}"
                 >
                     <i class="fa-solid fa-plus w-3.5 h-3.5" aria-hidden="true"></i>

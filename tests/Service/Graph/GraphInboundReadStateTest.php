@@ -220,6 +220,11 @@ final class GraphInboundReadStateTest extends KernelTestCase
             new \App\Service\Mail\SyncOrigin(),
         );
 
+        // Folders that are already being followed. One without a delta link is
+        // the import's and would not be asked for changes at all — see
+        // GraphImportTest for that half.
+        $this->account->graphDeltaLinks = array_fill_keys([self::INBOX_FOLDER], 'https://graph.microsoft.com/v1.0/me/mailFolders/x/messages/delta?$deltatoken=old');
+
         $syncer->sync($this->account, [self::INBOX_FOLDER]);
 
         $this->em->flush();

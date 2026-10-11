@@ -28,6 +28,11 @@ connection to come up, and about the handful of settings providers genuinely dis
 5. **Outgoing — SMTP** takes the same three, and all of it is optional. A mailbox with no SMTP
    settings is a mailbox you can read and not send from, which is a legitimate thing to want for an
    archive.
+
+   The one password is used for both directions. Where the server wants a different one to send —
+   Zoho issues an app password per protocol, and some hosts put a relay with its own credentials in
+   front of SMTP — **Use a different password for sending** under the SMTP fields reveals a second
+   field. The username stays shared. **Use the same password for sending** takes it away again.
 6. **Test connection** probes IMAP and SMTP separately and reports each one, so a working mailbox
    with a wrong SMTP port says so instead of failing at the first send.
 

@@ -218,6 +218,13 @@ final readonly class ConfigBackupUsers
         Account::SETTING_BACKFILL_RAN_AT => 'a counter about a sync that happened on the other host',
         Account::SETTING_BACKFILL_ATTEMPTS => 'the same, and resetting it on the target is the correct start',
         Account::SETTING_BACKFILL_TARGET => 'how much mail the OTHER host still had to fetch; carried, a settled 0 tells Gmail on the target that its empty mailbox is complete and the existing mail is never imported',
+        Account::SETTING_BACKFILL_PAGE_TOKEN => 'a place in a listing the other host was walking; the target starts its own from the first page',
+        Account::SETTING_BACKFILL_PENDING => 'what that listing had found so far, which is nothing on a host that has not listed',
+        Account::SETTING_SYNC_BEGAN_AT => 'when the other host last started a sync; here it would make a sync nobody has run look done',
+        Account::SETTING_IMPORT_BEAT_AT => 'when the other host\'s import last moved; here it would hold a new import back as though one were running',
+        Account::SETTING_GRAPH_IMPORT => 'the folders the OTHER host had still to read, by ids and page links that mean nothing to a mailbox connected afresh; the target plans its own on its first sync',
+        Account::SETTING_GRAPH_REMOVALS => 'message ids the other host was waiting to judge, for rows this host does not have',
+        Account::SETTING_IMPORT_TOTAL => 'the size of the mailbox as the other host found it, for a progress line about an import that is not this one',
     ];
 
     public function __construct(
@@ -442,6 +449,7 @@ final readonly class ConfigBackupUsers
                 'smtpEncryption'    => $account->smtpEncryption,
                 'username'          => $account->username,
                 'password'          => $account->password,
+                'smtpPassword'      => $account->smtpPassword,
                 'authType'          => $account->authType,
                 'oauthProvider'     => $account->oauthProvider,
                 'oauthAccessToken'  => $account->oauthAccessToken,
