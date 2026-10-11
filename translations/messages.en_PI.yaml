@@ -3495,6 +3495,13 @@ settings:
     language:
         heading: Tongue
         subheading: The tongue plMail speaks to ye in. Yer bottles be left as they were writ.
+    disposal:
+        delete_now: "Davy Jones buttons"
+        delete_now_hint: "Shows 'Send to Davy Jones for good' on a bottle in Spam an' the bin, an' above a ticked pile there. It strikes the mail from the mail server too an' can't be fished back, so it be off till ye turn it on."
+        heading: Disposal
+        'off': Off
+        'on': On
+        subheading: "How bottles be sunk for good."
     nav:
         accounts: Th' crew
         ai: "Ship's Oracle"
@@ -3502,6 +3509,7 @@ settings:
         app_passwords: Spare keys
         appearance: Look o' the ship
         calendars: Almanacs
+        disposal: Disposal
         filters: Sieves
         general: General
         group:

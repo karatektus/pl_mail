@@ -988,6 +988,30 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
         }
     }
 
+    /**
+     * Whether the buttons that delete mail for good are offered: the flame on a
+     * row in Spam and the bin, and the same button above a selection there.
+     *
+     * OFF unless somebody switches it on — the opposite of the shortcuts above,
+     * and for the opposite reason. This is the one action in plMail with no
+     * Undo, and nothing that cannot be taken back should be one stray click
+     * away for somebody who never asked for it. Only a stored true is on, so
+     * the key is absent for nearly everybody, and routes that delete for good
+     * refuse with a 403 while it is, not only the templates that draw the
+     * button: a switch that only hid the flame would leave a hand-made POST
+     * working. Per USER, like every setting in this bag — Settings → Mail →
+     * Disposal.
+     */
+    public const string SETTING_DISPOSAL_DELETE_NOW = 'disposal.delete_now';
+
+    /** Virtual, out of the settings bag — see SETTING_DISPOSAL_DELETE_NOW. */
+    public bool $deleteNowButtons {
+        get => true === $this->getSetting(self::SETTING_DISPOSAL_DELETE_NOW, false);
+        set(bool $on) {
+            $this->setSetting(self::SETTING_DISPOSAL_DELETE_NOW, $on ? true : null);
+        }
+    }
+
     public function getSetting(string $key, mixed $default = null): mixed
     {
         if (true === array_key_exists($key, $this->settings)) {

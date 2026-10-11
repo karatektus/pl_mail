@@ -3692,6 +3692,16 @@ settings:
     language:
         heading: Sprache
         subheading: Die Sprache der plMail-Oberfläche. Deine E-Mails bleiben so, wie sie geschrieben wurden.
+    disposal:
+        delete_now: Knöpfe zum sofortigen Löschen
+        delete_now_hint: >-
+            Zeigt „Endgültig löschen“ an einer Zeile im Spam und im Papierkorb und
+            über einer Auswahl dort. Die Mail wird auch vom Mailserver entfernt und
+            lässt sich nicht zurückholen, deshalb ist es aus, bis du es einschaltest.
+        heading: Entsorgen
+        'off': Aus
+        'on': An
+        subheading: Wie Mail endgültig weggeworfen wird.
     nav:
         accounts: E-Mail-Konten
         ai: 'Assistent'
@@ -3699,6 +3709,7 @@ settings:
         app_passwords: App-Passwörter
         appearance: Darstellung
         calendars: Kalender
+        disposal: Entsorgen
         filters: Filter
         general: Allgemein
         group:

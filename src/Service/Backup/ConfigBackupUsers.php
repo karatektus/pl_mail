@@ -160,6 +160,12 @@ final readonly class ConfigBackupUsers
         User::SETTING_INSIGHT_PANE_DISABLED,
         User::SETTING_COMPOSE_FORWARD_QUOTE_COLLAPSED,
         User::SETTING_COMPOSE_SEND_FEEDBACK,
+        // Whether the buttons that delete mail for good are offered. In the
+        // backup because a restore that quietly took the flame away, or worse
+        // put it back for somebody who had switched it off, is a change to a
+        // choice about irreversible deletion. A boolean, no id, means the same
+        // on any install.
+        User::SETTING_DISPOSAL_DELETE_NOW,
     ];
 
     /**

@@ -58,6 +58,13 @@ final class BulkPurgeTest extends WebTestCase
         $this->connection->beginTransaction();
 
         $this->user    = $this->seedUser();
+
+        // Deleting for good is the user's switch and is off by default
+        // (DeleteNowSettingTest pins that). This class is about what the route
+        // does once somebody has turned it on.
+        $this->user->deleteNowButtons = true;
+        $this->em->flush();
+
         $this->account = $this->seedAccount();
         $this->inbox   = $this->seedLabel('Inbox', LabelRole::Inbox);
         $this->spam    = $this->seedLabel('Spam', LabelRole::Spam);

@@ -751,8 +751,14 @@ be a worse regression than the one this feature fixes.
                        data-turbo-confirm: Turbo only consults that attribute
                        for links and form submissions, and this posts with
                        fetch(). The controller asks the application's dialog
-                       itself — see mail--message-row#purge. #}
-                    {% if placement in ['trash', 'spam'] %}
+                       itself — see mail--message-row#purge.
+
+                       And only for somebody who has switched it on, in
+                       Settings → Mail → Disposal: nothing in the list that
+                       cannot be taken back should be one click away until
+                       they have asked for it. The route refuses without the
+                       switch as well, so this is not the only guard. #}
+                    {% if placement in ['trash', 'spam'] and app.user and app.user.deleteNowButtons %}
                     <button type="button" data-action="click->mail--message-row#purge"
                             data-mail--message-row-purge-url-param="{{ path('app_status_purge', {'type': type, 'id': rowId}) }}"
                             data-mail--message-row-purge-confirm-param="{{ 'discarded.actions.purge_confirm'|trans }}"

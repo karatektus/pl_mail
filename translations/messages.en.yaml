@@ -3679,6 +3679,16 @@ settings:
     language:
         heading: Language
         subheading: The language plMail's interface is shown in. Your mail is left as it was written.
+    disposal:
+        delete_now: Delete-now buttons
+        delete_now_hint: >-
+            Offers Delete forever on a row in Spam and the bin, and above a ticked
+            selection there. It removes the mail from your mail server too and
+            cannot be undone, so it is off until you turn it on.
+        heading: Disposal
+        'off': 'Off'
+        'on': 'On'
+        subheading: How mail is thrown away for good.
     nav:
         accounts: Mail accounts
         ai: 'Assistant'
@@ -3686,6 +3696,7 @@ settings:
         app_passwords: App passwords
         appearance: Appearance
         calendars: Calendars
+        disposal: Disposal
         filters: Filters
         general: General
         group:

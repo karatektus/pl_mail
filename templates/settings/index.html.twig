@@ -154,7 +154,8 @@
                                         { section: 'templates',     icon: 'fa-regular fa-file-lines' },
                                         { section: 'labels',        icon: 'fa-solid fa-tag' },
                                         { section: 'filters',       icon: 'fa-solid fa-filter' },
-                                        { section: 'insights',      icon: 'fa-solid fa-satellite-dish' },
+                                        { section: 'disposal',      icon: 'fa-solid fa-trash-can' },
+                                        { section: 'insights',     icon: 'fa-solid fa-satellite-dish' },
                                     ]|merge(ai_settings_available() or section == 'ai'
                                             ? [{ section: 'ai', icon: 'fa-solid fa-wand-magic-sparkles' }]
                                             : [])|merge([
@@ -418,6 +419,17 @@
                                             {% block body %}
                                                 {% include 'settings/_reading_pane.html.twig' with {
                                                     mode: app.user.readingPaneMode,
+                                                } only %}
+                                            {% endblock %}
+                                        {% endembed %}
+                                    {% elseif section == 'disposal' %}
+                                        {% embed 'settings/_card.html.twig' with {
+                                            heading:    'settings.disposal.heading'|trans,
+                                            subheading: 'settings.disposal.subheading'|trans,
+                                        } %}
+                                            {% block body %}
+                                                {% include 'settings/_disposal.html.twig' with {
+                                                    deleteNow: app.user.deleteNowButtons,
                                                 } only %}
                                             {% endblock %}
                                         {% endembed %}
