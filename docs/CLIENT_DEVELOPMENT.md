@@ -1401,7 +1401,7 @@ Ordered roughly by how much users will miss them.
 
 **Settings**
 - Appearance — `Appearance/get` and `Appearance/set` serve the whole object, including `fontFamily`,
-  `fontScale`, `previewLines`, `unreadEmphasis`, `accountCorner`, `listAvatars`, the three
+  `fontScale`, `previewLines`, `unreadEmphasis`, `accountCorner`, `listAvatars`, `tabUnreadCount`, the three
   per-surface densities and the read-only `logoStyle`, `logoMotif` and `logoPaint` (see [§2](#2-look-and-feel)). Build the token system regardless; read the
   server's values into it rather than inventing your own defaults.
 - Account list and order.

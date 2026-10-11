@@ -6,8 +6,10 @@ Accepts:
   settings — App\Entity\Ai\AiSettings (unsaved when nothing was ever configured)
   form     — App\Form\Admin\AiSettingsType, bound to it
   saved    — true immediately after a successful save
-  probe    — App\Domain\DTO\Ai\AiProbe, or null when nothing was tested
-  wanted   — model names typed into the form, for the probe result to check
+  probes   — what the Test button found, one entry per model host that was
+             asked: {role: 'writing'|'search', probe: App\Domain\DTO\Ai\AiProbe,
+             wanted: the model names that host is expected to hold}. Absent or
+             empty when nothing was tested
   prompts  — the seven editable system prompts; see admin/ai/_prompts.html.twig,
              which this includes and which reads them out of the same context
 
@@ -94,7 +96,16 @@ poll would empty a field mid-word.
                answered, something answered but is not holding the model that
                was named, or all is well. A single red cross for the first two
                would send them to the wrong one. #}
-            {% if probe is not null %}
+            {% for tested in probes|default([]) %}
+                {% set probe = tested.probe %}
+                {% set wanted = tested.wanted %}
+
+                {# Named only when there are two. With one host, a heading
+                   saying which host it was would be a heading about nothing. #}
+                {% if probes|length > 1 %}
+                    <p class="text-xs font-semibold text-ink-muted -mb-2">{{ ('admin.ai.probe.host.' ~ tested.role)|trans }}</p>
+                {% endif %}
+
                 {% if probe.reachable %}
                     {% set missing = [] %}
                     {% for name in wanted|default([]) %}
@@ -136,11 +147,11 @@ poll would empty a field mid-word.
                     <div role="alert" class="flex items-start gap-2.5 rounded-lg alert-danger px-3.5 py-3 text-sm text-danger">
                         <i class="fa-solid fa-plug-circle-xmark mt-0.5 shrink-0" aria-hidden="true"></i>
                         <p class="leading-snug break-words">
-                            {{ ('admin.ai.probe.' ~ probe.reason)|trans(probe.reasonParams) }}
+                            {{ ('admin.ai.probe.' ~ probe.reason)|trans(probe.placeholders) }}
                         </p>
                     </div>
                 {% endif %}
-            {% endif %}
+            {% endfor %}
 
             {{ form_start(form, { attr: { 'data-turbo-frame': 'admin-ai' } }) }}
                 <div class="space-y-4">
@@ -153,14 +164,52 @@ poll would empty a field mid-word.
                        adds for a root form, and form_rest() below still emits
                        the CSRF token — dropping it is how this kind of
                        hand-rendered form silently stops validating. #}
-                    <div class="space-y-5">
+                    <div class="space-y-5" data-controller="admin--ai-connection">
                         {{ form_errors(form) }}
 
                         {{ form_row(form.isEnabled) }}
+                        {{ form_row(form.provider) }}
                         {{ form_row(form.baseUrl) }}
                         {{ form_row(form.apiToken) }}
 
+                        {# Folded away, and open only when it is in use or has
+                           just been refused. Most installations never need it,
+                           and two more boxes between the token and the model
+                           are two more things to wonder about on a page that
+                           already has plenty. #}
+                        <details class="group/headers" {{ (settings.headers is not null or not form.headers.vars.valid) ? 'open' : '' }}>
+                            <summary class="inline-flex items-center gap-2 cursor-pointer list-none text-[13px] font-medium text-ink-soft hover:text-ink">
+                                <i class="fa-solid fa-chevron-right w-3 text-[10px] text-ink-faint transition-transform group-open/headers:rotate-90" aria-hidden="true"></i>
+                                {{ 'admin.ai.headers.summary'|trans }}
+                            </summary>
+                            <div class="mt-4 space-y-5">
+                                {{ form_row(form.headers) }}
+                                {% if settings.headers is not null %}
+                                    {{ form_row(form.clearHeaders) }}
+                                {% else %}
+                                    {# Rendered nowhere, on purpose: with nothing
+                                       stored there is nothing to remove. Marked
+                                       so form_rest() does not print it below. #}
+                                    {% do form.clearHeaders.setRendered %}
+                                {% endif %}
+                            </div>
+                        </details>
+
                         {{ form_row(form.chatModel) }}
+
+                        {# ── What only Ollama can be asked ────────────────
+                           How long the model is held, and loading it ahead of
+                           time. The OpenAI-compatible dialect has no word for
+                           either, so for that provider both are put away — by
+                           the server for the saved choice, and by
+                           admin--ai-connection when the select changes. See
+                           that controller on why hidden and not disabled.
+
+                           A plain wrapper, with no display class: `hidden`
+                           loses to one. #}
+                        {% set manages_memory = settings.provider.managesMemory %}
+                        <div data-admin--ai-connection-target="ollamaOnly" {{ manages_memory ? '' : 'hidden' }}>
+                        <div class="space-y-5">
                         {{ form_row(form.chatKeepAlive) }}
 
                         {# ── Warm up now ──────────────────────────────────
@@ -217,6 +266,8 @@ poll would empty a field mid-word.
                                hidden
                                class="text-[12px] leading-snug"></p>
                         </div>
+                        </div>
+                        </div>
 
                         {# The model, its query instruction and its threshold
                            are one decision written in three boxes: any two of
@@ -225,6 +276,40 @@ poll would empty a field mid-word.
                            they sit together, under a row of presets that fills
                            all three at once. See EmbeddingPreset for the
                            measurements behind each. #}
+                        {# ── Search on a host of its own ─────────────────────
+                           One tick, and the same four fields the host above
+                           has. Put away until it is ticked, because it is off
+                           on nearly every installation and four more boxes
+                           about a second host would make the first one look
+                           unfinished. Set in from the tick box so they read as
+                           belonging to it.
+
+                           A plain outer wrapper again: the inner one has the
+                           layout classes, and `hidden` would lose to them. #}
+                        {{ form_row(form.embeddingOwnConnection) }}
+                        <div data-admin--ai-connection-target="searchOwn" {{ settings.embeddingOwnConnection ? '' : 'hidden' }}>
+                            <div class="flex flex-col gap-5 pl-4 border-l border-subtle">
+                                {{ form_row(form.embeddingProvider) }}
+                                {{ form_row(form.embeddingBaseUrl) }}
+                                {{ form_row(form.embeddingApiToken) }}
+
+                                <details class="group/search-headers" {{ (settings.embeddingHeaders is not null or not form.embeddingHeaders.vars.valid) ? 'open' : '' }}>
+                                    <summary class="inline-flex items-center gap-2 cursor-pointer list-none text-[13px] font-medium text-ink-soft hover:text-ink">
+                                        <i class="fa-solid fa-chevron-right w-3 text-[10px] text-ink-faint transition-transform group-open/search-headers:rotate-90" aria-hidden="true"></i>
+                                        {{ 'admin.ai.headers.summary'|trans }}
+                                    </summary>
+                                    <div class="mt-4 space-y-5">
+                                        {{ form_row(form.embeddingHeaders) }}
+                                        {% if settings.embeddingHeaders is not null %}
+                                            {{ form_row(form.clearEmbeddingHeaders) }}
+                                        {% else %}
+                                            {% do form.clearEmbeddingHeaders.setRendered %}
+                                        {% endif %}
+                                    </div>
+                                </details>
+                            </div>
+                        </div>
+
                         <div data-controller="admin--embedding-preset"
                              class="flex flex-col gap-3">
                             {{ form_row(form.embeddingModel) }}
@@ -258,7 +343,13 @@ poll would empty a field mid-word.
                             {{ form_row(form.semanticMinSimilarity) }}
                         </div>
 
-                        {{ form_row(form.embeddingKeepAlive) }}
+                        {# The search model's keep-alive follows the host
+                           SEARCH runs on, which is the one above unless the
+                           tick box says otherwise. #}
+                        {% set search_manages_memory = (settings.embeddingOwnConnection ? settings.embeddingProvider : settings.provider).managesMemory %}
+                        <div data-admin--ai-connection-target="searchOllamaOnly" {{ search_manages_memory ? '' : 'hidden' }}>
+                            {{ form_row(form.embeddingKeepAlive) }}
+                        </div>
 
                         {{ form_row(form.searchEnabled) }}
                         {{ form_row(form.categorisationEnabled) }}

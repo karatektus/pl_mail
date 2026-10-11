@@ -712,6 +712,11 @@
                             on:    a.listAvatars,
                             vars:  { on: { '--list-avatar-hide': '0' }, off: { '--list-avatar-hide': '1' } },
                         },
+                        {
+                            field: 'tabUnreadCount',
+                            on:    a.tabUnreadCount,
+                            vars:  { on: { '--tab-unread-display': 'inline' }, off: { '--tab-unread-display': 'none' } },
+                        },
                     ] %}
 
                     {# Segmented like every other short choice on this page. The

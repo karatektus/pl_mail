@@ -168,7 +168,8 @@ a second line naming who that new mail is from, newest arrival first. "New" and 
 different questions, so a tab carries two numbers: the pill says what arrived that you have never
 been shown, and a plain **unread count** beside the tab's name says how many conversations in that
 category hold unread mail. The count is the sidebar's Inbox badge split by tab, so the tabs add up
-to it; it shows on every tab including the one you are on, and is hidden at zero. (Earlier
+to it; it shows on every tab including the one you are on, and is hidden at zero. It can be
+switched off under **Settings → Appearance → Message list**. (Earlier
 versions kept this number off the tabs, on the argument that the badge and the bold rows already
 say unread. They cannot say *where*: with the Inbox badge reading 1 and Primary open and empty,
 nothing on the strip pointed at the tab holding the mail.) The strip is live — pills, counts and
@@ -237,6 +238,13 @@ into its own tracker and no tracking number anywhere, so that is what the card c
 delivery day promised in words rather than digits ("arriving today", "Arriving Monday") is resolved
 against the mail's own arrival, never against the clock, so re-reading an old mail lands on the day
 it always did.
+
+The French carriers are read too — Colissimo, Chronopost, Mondial Relay, Colis Privé, DPD France
+and Cainiao, with Amazon.fr treated like the other Amazon shops. A parcel waiting at a relay point
+or a locker is its own stage, **Ready for pickup**, neither on its way nor delivered. Not read yet:
+GLS France and the Pickup relay network, whose mail states no number the radar can recognise, and
+the "returned to sender" and "delivery attempt failed" stages. The satisfaction survey a carrier
+sends after delivery is ignored, so it cannot turn a **Delivered** card back into something else.
 
 ### The strip above the mail list
 
@@ -396,8 +404,8 @@ something whose reach it has not mentioned.
 
 ### Move to
 
-The folder button beside the label button — in the toolbar above a selection, and in an open
-conversation — files mail under one label in a single step: **the label you pick goes on, and the
+The folder button — beside **Delete** in the toolbar above a selection, and beside the label
+button in an open conversation — files mail under one label in a single step: **the label you pick goes on, and the
 label of the list you were looking at comes off.** Every other label stays.
 
 | Where you are | What "Move to *Receipts*" does |
@@ -522,7 +530,9 @@ added rather than immediately; see [Accounts and aliases](accounts.md).
 
 ## Acting on mail
 
-Row buttons and the toolbar do the same things, the toolbar over everything selected. **Select
+Row buttons and the toolbar do the same things, the toolbar over everything selected. Above a
+selection it shows **Archive**, **Delete** and **Move to**; star, mark as read or unread, snooze,
+label and spam are behind **More** beside them. **Select
 all** has a menu beside it offering **All**, **None**, **Read**, **Unread** and **Starred**.
 
 A selection belongs to the list, not to the page: what you tick stays ticked when you go to the
@@ -565,12 +575,12 @@ nothing where that button is not offered — there is no Archive in the bin, so 
 Keys are left alone while you are typing into anything, while a dialog or a menu is open, and
 whenever Ctrl, Alt or ⌘ is held.
 
-They are on for everyone. **Settings → General → Keyboard shortcuts** switches them off for you.
+They are on for everyone. **Settings → Keyboard shortcuts** switches them off for you.
 
 ### Mark as spam
 
 The spam button sits beside **Delete**: among a row's buttons, in the toolbar of an open
-conversation, and in the toolbar above a selection. On one conversation it opens a short menu:
+conversation, and under **More** above a selection. On one conversation it opens a short menu:
 
 | Choice | What it does |
 |---|---|
@@ -600,11 +610,58 @@ Moving mail to spam tells plMail nothing about the next message. plMail has no s
 own that learns; whether your provider treats the move as a signal is up to the provider. A filter
 is how you make it stick here.
 
+## The reading pane
+
+**Settings → Reading pane** decides where the message you open goes: **Off** or **Right**. Off is how plMail
+has always worked — the list and the open message take turns on the same space, and the back arrow
+returns you to the list. Right puts the message beside the list, so you can read one conversation
+and see the rest of the mailbox at the same time. Off is the default, and nothing about your
+mailbox changes until you pick Right.
+
+With the pane on the right, the list stays where it is when you open something. The open row is
+marked with a tint and a bar on its leading edge, and the area beside the list says
+*Select a conversation to read it here* until you open one. The back arrow closes the message and
+leaves the list as it was.
+
+The open message also stays put while you move around the list. Choosing another folder, switching
+a category tab, turning the page, sorting or searching changes what the list shows and leaves the
+conversation you were reading where it is, so you can look for the next one without losing this one.
+No row is marked while the list shows a folder the message is not in, and the mark comes back when
+you return to its folder. The back arrow then closes the message and leaves you on the folder you
+switched to. With one pane at a time (see below) the message has covered the list, so choosing a
+folder closes it and shows the new list, as it always did.
+
+**The divider** between the two is dragged with the mouse, or moved with the arrow keys once it has
+focus (two percent a step; Home and End go to the ends). A double-click puts it back to the
+default. What is stored is the message's share of the **mail card** — the list and the message
+together, without the sidebar or a docked calendar — as a percentage between 25 and 75, 55 to
+begin with. It is a percentage rather than a width in pixels because the card changes size whenever
+the calendar pane opens, closes or is dragged, and a share keeps its meaning across all of those.
+It is remembered for your account, not for the browser. It is set on the mailbox itself, against
+real mail, and there is no slider for it in Settings.
+
+**It steps aside when there is no room.** Right is a preference, not a promise: it is drawn only
+while the mail card is at least 52rem (832 pixels at the default text size) wide. A narrow window,
+a phone, or a wide window with the calendar docked beside the mail all fall back to one pane at a
+time, with no setting to change. Each pane also keeps a minimum width, so a share of 75% on a card
+only just wide enough gives way before the list becomes a sliver.
+
+The reading pane is not part of an exported theme, although it changes how the mailbox looks: where
+a message is drawn is a decision about the mailbox, not part of a look somebody might share, and
+importing a colour scheme does not rearrange the mail it lands in. **Reset to defaults** on the Appearance page
+leaves it alone for the same reason. A config backup does carry it, so a restore puts the mailbox back the way
+you had it.
+
+**Keys and ticked rows.** Beside the list a selection and an open conversation can be on screen
+together. A key still goes to the selection first: `e` with two rows ticked archives those two and
+leaves the conversation you are reading open.
+
 ## Snooze
 
 Snoozing is archiving with a timer. The conversation leaves the Inbox now — at the provider too,
 not only in plMail's view of it — gains the Snoozed label, and comes back when its time is up. The
-clock button is on every row, above a selection and in the toolbar of an open conversation.
+clock button is on every row and in the toolbar of an open conversation; above a selection it is
+under **More**.
 
 The menu offers **Later today**, **Tomorrow**, **This weekend**, **Next week**, **Pick a date and
 time**, and **Unsnooze** on something already snoozed. Later today is 18:00 and is offered only

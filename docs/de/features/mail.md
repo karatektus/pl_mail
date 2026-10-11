@@ -1,4 +1,4 @@
-<!-- translated-from: features/mail.md sha1:bb071b62f816157425cc53f3eaa6956bb3b1c298 -->
+<!-- translated-from: features/mail.md sha1:638ad69a45eb1420a172eade8e49bebc2c7cc2ea -->
 
 # Mail
 
@@ -187,7 +187,8 @@ Das Fähnchen sagt, was angekommen ist, ohne dir gezeigt worden zu sein, und ein
 **Ungelesen-Zahl** neben dem Namen des Tabs sagt, in wie vielen Unterhaltungen dieser Kategorie
 Ungelesenes liegt. Die Zahl ist der Posteingangs-Badge der Seitenleiste, nach Tabs aufgeteilt — die
 Tabs ergeben zusammen also genau ihn. Sie steht auf jedem Tab, auch auf dem, auf dem du gerade bist,
-und ist bei null ausgeblendet. (Frühere Versionen hielten diese Zahl von den Tabs fern, mit dem
+und ist bei null ausgeblendet. Abschalten lässt sie sich unter **Einstellungen → Erscheinungsbild →
+Nachrichtenliste**. (Frühere Versionen hielten diese Zahl von den Tabs fern, mit dem
 Argument, Badge und fette Zeilen sagten Ungelesenes schon. Sie können aber nicht sagen, *wo*: Zeigt
 der Posteingangs-Badge 1, ist Primär geöffnet und leer, deutete nichts auf der Leiste auf den Tab
 mit der Post.) Die Leiste ist live — Fähnchen, Zahlen und Absendernamen aktualisieren sich an Ort und
@@ -261,6 +262,14 @@ einen Link in den eigenen Tracker und nirgends eine Sendungsnummer — genau das
 Und ein Liefertag, der in Worten statt in Ziffern steht ("Arriving today", "Ankunft Montag"), wird
 gegen den Eingang der Mail aufgelöst und nie gegen die Uhr: Wer eine alte Mail noch einmal liest,
 landet auf demselben Tag wie beim ersten Mal.
+
+Auch die französischen Zusteller werden gelesen — Colissimo, Chronopost, Mondial Relay, Colis Privé,
+DPD France und Cainiao, und Amazon.fr wie die anderen Amazon-Shops. Ein Paket, das in einem
+Paketshop oder Locker auf dich wartet, hat eine eigene Stufe, **Abholbereit**, weder unterwegs noch
+zugestellt. Noch nicht gelesen werden GLS France und das Pickup-Relaisnetz, deren Mails keine Nummer
+nennen, die das Radar erkennen kann, sowie die Stufen "an den Absender zurück" und "Zustellversuch
+gescheitert". Die Zufriedenheitsumfrage, die ein Zusteller nach der Zustellung schickt, wird
+ignoriert, damit sie eine Karte **Zugestellt** nicht in etwas anderes zurückverwandelt.
 
 ### Die Leiste über der Mailliste
 
@@ -436,8 +445,8 @@ statt dich etwas bestätigen zu lassen, dessen Reichweite sie verschwiegen hat.
 
 ### Verschieben nach
 
-Der Ordner-Knopf neben dem Label-Knopf — in der Leiste über einer Auswahl und in einer geöffneten
-Konversation — legt Mail in einem Schritt unter einem Label ab: **Das gewählte Label kommt dazu,
+Der Ordner-Knopf — neben **Löschen** in der Leiste über einer Auswahl und neben dem Label-Knopf in
+einer geöffneten Konversation — legt Mail in einem Schritt unter einem Label ab: **Das gewählte Label kommt dazu,
 und das Label der Liste, in der du gerade warst, fällt weg.** Alle anderen Labels bleiben.
 
 | Wo du bist | Was „Verschieben nach *Belege*“ tut |
@@ -573,7 +582,9 @@ Läufe nach dem Hinzufügen vollständig durchsuchbar und nicht sofort; siehe
 ## Mail bearbeiten
 
 Die Knöpfe in der Zeile und die Werkzeugleiste tun dasselbe, die Werkzeugleiste über alles
-Ausgewählte. Neben der Auswahl aller Konversationen steht ein Menü mit **Alle**, **Keine**,
+Ausgewählte. Über einer Auswahl zeigt die Leiste **Archivieren**, **Löschen** und
+**Verschieben nach**; Markieren, als gelesen oder ungelesen markieren, Zurückstellen, Label und
+Spam stehen daneben unter **Mehr**. Neben der Auswahl aller Konversationen steht ein Menü mit **Alle**, **Keine**,
 **Gelesene**, **Ungelesene** und **Markierte**.
 
 Eine Auswahl gehört zur Liste, nicht zur Seite: Was du anhakst, bleibt angehakt, wenn du
@@ -619,13 +630,13 @@ nichts, wo es diesen Knopf nicht gibt: Im Papierkorb gibt es kein Archivieren, a
 stumm. Tasten werden in Ruhe gelassen, solange du irgendwo tippst, solange ein Dialog oder ein Menü
 offen ist und immer dann, wenn Strg, Alt oder ⌘ gedrückt ist.
 
-Sie sind für alle eingeschaltet. Unter **Einstellungen → Allgemein → Tastenkürzel** schaltest du sie
+Sie sind für alle eingeschaltet. Unter **Einstellungen → Tastenkürzel** schaltest du sie
 für dich aus.
 
 ### Als Spam markieren
 
 Der Spam-Knopf steht neben **Löschen**: unter den Knöpfen einer Zeile, in der Werkzeugleiste
-einer geöffneten Konversation und in der Werkzeugleiste über einer Auswahl. Bei einer einzelnen
+einer geöffneten Konversation und unter **Mehr** über einer Auswahl. Bei einer einzelnen
 Konversation öffnet er ein kurzes Menü:
 
 | Auswahl | Was sie tut |
@@ -658,12 +669,64 @@ Mail in den Spam zu verschieben sagt plMail nichts über die nächste Nachricht.
 eigenen Spamfilter, der lernt; ob dein Anbieter das Verschieben als Signal wertet, entscheidet
 der Anbieter. Ein Filter ist der Weg, es hier dauerhaft zu machen.
 
+## Der Lesebereich
+
+**Einstellungen → Lesebereich** legt fest, wohin die Nachricht kommt, die du öffnest: **Aus** oder
+**Rechts**. Aus
+ist, wie plMail immer funktioniert hat — Liste und geöffnete Nachricht wechseln sich auf derselben
+Fläche ab, und der Zurück-Pfeil bringt dich zur Liste. Rechts stellt die Nachricht neben die Liste,
+sodass du eine Unterhaltung lesen und den Rest des Postfachs gleichzeitig sehen kannst. Aus ist die
+Voreinstellung, und an deinem Postfach ändert sich nichts, bis du Rechts wählst.
+
+Steht der Lesebereich rechts, bleibt die Liste beim Öffnen stehen, wo sie ist. Die geöffnete Zeile
+ist mit einem Farbton und einem Balken an der vorderen Kante markiert, und der Bereich neben der
+Liste sagt *Wähle eine Unterhaltung aus, um sie hier zu lesen*, bis du eine öffnest. Der
+Zurück-Pfeil schließt die Nachricht und lässt die Liste, wie sie war.
+
+Die geöffnete Nachricht bleibt auch stehen, während du dich in der Liste bewegst. Wählst du einen
+anderen Ordner, wechselst du den Kategorie-Tab, blätterst um, sortierst oder suchst, ändert sich,
+was die Liste zeigt, und die Konversation, die du gerade liest, bleibt, wo sie ist, sodass du nach
+der nächsten suchen kannst, ohne diese zu verlieren. Solange die Liste einen Ordner zeigt, in dem die
+Nachricht nicht liegt, ist keine Zeile markiert, und die Markierung kommt zurück, wenn du in ihren
+Ordner zurückkehrst. Der Zurück-Pfeil schließt die Nachricht dann und lässt dich in dem Ordner, zu dem
+du gewechselt hast. Bei einem Bereich nach dem anderen (siehe unten) hat die Nachricht die Liste
+verdeckt, deshalb schließt die Wahl eines Ordners sie und zeigt die neue Liste, wie es immer war.
+
+**Der Trenner** dazwischen wird mit der Maus gezogen, oder mit den Pfeiltasten bewegt, sobald er den
+Fokus hat (zwei Prozent pro Schritt; Pos1 und Ende springen an die Enden). Ein Doppelklick setzt ihn
+auf die Voreinstellung zurück. Gespeichert wird der Anteil der Nachricht an der **Postfachkarte** —
+Liste und Nachricht zusammen, ohne Seitenleiste und ohne angedockten Kalender — als Prozentwert
+zwischen 25 und 75, anfangs 55. Es ist ein Prozentwert und keine Breite in Pixeln, weil sich die
+Karte jedes Mal ändert, wenn der Kalenderbereich geöffnet, geschlossen oder gezogen wird, und ein
+Anteil in all diesen Fällen seine Bedeutung behält. Er wird für dein Konto gespeichert, nicht für den
+Browser. Du stellst ihn im Postfach selbst ein, an echter Post, und in den Einstellungen gibt es
+dafür keinen Regler.
+
+**Er weicht aus, wenn der Platz fehlt.** Rechts ist eine Vorliebe, kein Versprechen: gezeichnet wird
+es nur, solange die Postfachkarte mindestens 52rem breit ist (832 Pixel bei der Standardschrift-
+größe). Ein schmales Fenster, ein Telefon oder ein breites Fenster mit angedocktem Kalender neben
+der Post fallen auf ein Fenster nach dem anderen zurück, ohne dass du etwas umstellen musst. Jeder
+Bereich behält außerdem eine Mindestbreite, sodass 75 % auf einer gerade eben breiten Karte nachgeben,
+bevor die Liste zum Streifen wird.
+
+Der Lesebereich gehört nicht zu einem exportierten Farbschema, obwohl er verändert, wie das Postfach
+aussieht: Wo eine Nachricht gezeichnet wird, ist eine Entscheidung über das Postfach und nicht Teil
+eines Erscheinungsbilds, das jemand teilen könnte, und ein importiertes Farbschema ordnet die Post,
+in der es landet, nicht um. **Auf Standard zurücksetzen** auf der Seite Darstellung lässt ihn aus
+demselben Grund in Ruhe.
+Eine Konfigurationssicherung enthält ihn dagegen, sodass eine Wiederherstellung das Postfach so
+zurückbringt, wie du es eingerichtet hattest.
+
+**Tasten und angehakte Zeilen.** Neben der Liste können eine Auswahl und eine geöffnete
+Unterhaltung gleichzeitig zu sehen sein. Eine Taste gilt trotzdem zuerst der Auswahl: `e` mit zwei
+angehakten Zeilen archiviert diese zwei und lässt die Unterhaltung offen, die du gerade liest.
+
 ## Zurückstellen
 
 Zurückstellen ist Archivieren mit Wecker. Die Konversation verlässt den Posteingang sofort —
 auch beim Anbieter, nicht nur in plMails Sicht darauf —, bekommt das Label Zurückgestellt und
-kommt zurück, wenn ihre Zeit um ist. Den Uhr-Knopf gibt es in jeder Zeile, über einer Auswahl und
-in der Leiste einer geöffneten Unterhaltung.
+kommt zurück, wenn ihre Zeit um ist. Den Uhr-Knopf gibt es in jeder Zeile und in der Leiste einer
+geöffneten Unterhaltung; über einer Auswahl steht er unter **Mehr**.
 
 Das Menü bietet **Später heute**, **Morgen**, **Dieses Wochenende**, **Nächste Woche**, **Datum
 und Uhrzeit wählen** und, bei bereits Zurückgestelltem, **Zurückholen**. Später heute ist 18:00

@@ -267,6 +267,11 @@ final class GraphFolderMoveTest extends KernelTestCase
             new \App\Service\Mail\SyncOrigin(),
         );
 
+        // Folders that are already being followed. One without a delta link is
+        // the import's and would not be asked for changes at all — see
+        // GraphImportTest for that half.
+        $this->account->graphDeltaLinks = array_fill_keys(array_keys($byFolder), 'https://graph.microsoft.com/v1.0/me/mailFolders/x/messages/delta?$deltatoken=old');
+
         $syncer->sync($this->account, array_keys($byFolder));
 
         $this->em->flush();
@@ -312,6 +317,11 @@ final class GraphFolderMoveTest extends KernelTestCase
             $container->get('App\Service\Mail\ThreadStatusUpdater'),
             new \App\Service\Mail\SyncOrigin(),
         );
+
+        // Folders that are already being followed. One without a delta link is
+        // the import's and would not be asked for changes at all — see
+        // GraphImportTest for that half.
+        $this->account->graphDeltaLinks = array_fill_keys([$folderId], 'https://graph.microsoft.com/v1.0/me/mailFolders/x/messages/delta?$deltatoken=old');
 
         $syncer->sync($this->account, [$folderId]);
 

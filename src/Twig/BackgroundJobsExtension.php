@@ -5,7 +5,10 @@ declare(strict_types=1);
 namespace App\Twig;
 
 use App\Entity\Job\BackgroundJob;
+use App\Domain\DTO\Mail\ImportLine;
+use App\Entity\User\User;
 use App\Repository\Job\BackgroundJobRepository;
+use App\Service\Mail\ImportProgress;
 use Symfony\Bundle\SecurityBundle\Security;
 use Twig\Extension\AbstractExtension;
 use Twig\TwigFunction;
@@ -28,6 +31,7 @@ final class BackgroundJobsExtension extends AbstractExtension
     public function __construct(
         private readonly Security                $security,
         private readonly BackgroundJobRepository $jobs,
+        private readonly ImportProgress          $imports,
     ) {
     }
 
@@ -35,6 +39,7 @@ final class BackgroundJobsExtension extends AbstractExtension
     {
         return [
             new TwigFunction('background_jobs', $this->forCurrentUser(...)),
+            new TwigFunction('mail_imports', $this->importsForCurrentUser(...)),
         ];
     }
 
@@ -48,5 +53,19 @@ final class BackgroundJobsExtension extends AbstractExtension
         }
 
         return $this->jobs->findVisibleForUser($user);
+    }
+
+    /**
+     * The accounts of the person looking that are still importing — shown in
+     * the same indicator as the jobs above, and for the same reason asked
+     * here rather than fetched by the page. See ImportProgress.
+     *
+     * @return list<ImportLine>
+     */
+    public function importsForCurrentUser(): array
+    {
+        $user = $this->security->getUser();
+
+        return $user instanceof User ? $this->imports->forUser($user) : [];
     }
 }

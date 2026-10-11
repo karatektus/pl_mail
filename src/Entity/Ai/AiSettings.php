@@ -4,8 +4,11 @@ declare(strict_types=1);
 
 namespace App\Entity\Ai;
 
+use App\Domain\Ai\ConnectionHeaders;
 use App\Domain\Ai\EmbeddingPreset;
 use App\Domain\Ai\KeepAlive;
+use App\Domain\DTO\Ai\AiConnection;
+use App\Domain\Enum\Ai\AiProvider;
 use App\Domain\Trait\TimestampableTrait;
 use App\Entity\Embeddable\AiPrompts;
 use App\Infrastructure\Doctrine\Type\EncryptedStringType;
@@ -93,7 +96,21 @@ class AiSettings
     #[ORM\Column(options: ['default' => false])]
     public bool $isEnabled = false;
 
-    /** e.g. `http://10.0.0.5:11434`. A box on the operator's own network. */
+    /**
+     * Which dialect $baseUrl speaks.
+     *
+     * Ollama for every installation that existed before this column did, and
+     * for every new one until somebody says otherwise. See {@see AiProvider}
+     * for what the other choice gives up.
+     */
+    #[ORM\Column(name: 'provider', length: 16, enumType: AiProvider::class, options: ['default' => 'ollama'])]
+    public AiProvider $provider = AiProvider::Ollama;
+
+    /**
+     * e.g. `http://10.0.0.5:11434`, a box on the operator's own network — or,
+     * for the OpenAI-compatible dialect, the API root including its version
+     * segment, `https://api.example.com/v1`.
+     */
     #[ORM\Column(name: 'base_url', length: 255, nullable: true)]
     public ?string $baseUrl = null;
 
@@ -102,10 +119,27 @@ class AiSettings
      * behind a reverse proxy that does, and a feature that cannot be used
      * behind one would push them towards exposing it instead.
      *
-     * Encrypted at rest like every other credential this application stores.
+     * Encrypted at rest like every other credential this application stores,
+     * and sent as a bearer token with every request to $baseUrl — see
+     * {@see connectionFor()}, which is the only way a client gets either.
      */
     #[ORM\Column(name: 'api_token', type: EncryptedStringType::NAME, nullable: true)]
     public ?string $apiToken = null;
+
+    /**
+     * Extra HTTP headers sent to $baseUrl with every request, as JSON.
+     *
+     * For whatever stands in front of the model and wants more than a bearer
+     * token: basic auth on a reverse proxy, a gateway's own key, a tenant or
+     * project header. {@see ConnectionHeaders} owns the format and says what is
+     * refused.
+     *
+     * Encrypted like the token, because a value here is a credential as often
+     * as not. Read through {@see connectionFor()} and written by the settings
+     * form; null means none.
+     */
+    #[ORM\Column(name: 'headers', type: EncryptedStringType::NAME, nullable: true)]
+    public ?string $headers = null;
 
     /** The model that writes: replies, subject lines, summaries. */
     #[ORM\Column(name: 'chat_model', length: 128, nullable: true)]
@@ -135,6 +169,52 @@ class AiSettings
     /** The model that turns text into vectors. Usually a much smaller one. */
     #[ORM\Column(name: 'embedding_model', length: 128, nullable: true)]
     public ?string $embeddingModel = null;
+
+    /**
+     * Whether search has a model host of its own.
+     *
+     * OFF, AND OFF IS THE ORDINARY CASE. One host holds both models on nearly
+     * every installation, and while this is false the four columns below are
+     * not read at all: search asks $baseUrl like everything else does.
+     *
+     * WHY ANYBODY TURNS IT ON
+     * ───────────────────────
+     * The two jobs want different machines more often than it first appears.
+     * Writing wants the largest model somebody can afford to run or to rent.
+     * Embedding wants a small one that is asked constantly — every search, and
+     * every message of a mailbox once — which is cheap on a box in the cupboard
+     * and adds up quickly on a provider that bills per request. So: writing
+     * from a hosted endpoint and search from the Ollama at home, or the other
+     * way about for somebody whose GPU is busy writing.
+     *
+     * It is also the privacy split. Indexing sends the text of every message in
+     * the mailbox; a draft sends the one conversation somebody asked about.
+     * Keeping the first on a machine you own while renting the second is a
+     * reasonable thing to want, and one host for both cannot express it.
+     *
+     * A VECTOR BELONGS TO ITS MODEL, NOT TO ITS ADDRESS. Moving search to
+     * another host that serves the same model re-uses the index: stored vectors
+     * are filed under $embeddingModel and nothing else. A different model is a
+     * new index, as it always was.
+     */
+    #[ORM\Column(name: 'embedding_own_connection', options: ['default' => false])]
+    public bool $embeddingOwnConnection = false;
+
+    /** Which dialect $embeddingBaseUrl speaks. Read only while $embeddingOwnConnection is on. */
+    #[ORM\Column(name: 'embedding_provider', length: 16, enumType: AiProvider::class, options: ['default' => 'ollama'])]
+    public AiProvider $embeddingProvider = AiProvider::Ollama;
+
+    /** The search host's address, in the same two spellings $baseUrl takes. */
+    #[ORM\Column(name: 'embedding_base_url', length: 255, nullable: true)]
+    public ?string $embeddingBaseUrl = null;
+
+    /** The search host's token. Its own, and never the other host's: see {@see connectionFor()}. */
+    #[ORM\Column(name: 'embedding_api_token', type: EncryptedStringType::NAME, nullable: true)]
+    public ?string $embeddingApiToken = null;
+
+    /** The search host's extra headers, in $headers' format. */
+    #[ORM\Column(name: 'embedding_headers', type: EncryptedStringType::NAME, nullable: true)]
+    public ?string $embeddingHeaders = null;
 
     /**
      * What is put in front of the search text before it is embedded.
@@ -309,6 +389,19 @@ class AiSettings
     }
 
     /**
+     * A copy that shares nothing with the row it was made from.
+     *
+     * The Test button binds the form to a copy, so that what somebody typed and
+     * did not save can be tried without it being one flush away from stored.
+     * The prompts are an object, and a shallow copy would have handed the copy
+     * the row's own.
+     */
+    public function __clone()
+    {
+        $this->prompts = clone $this->prompts;
+    }
+
+    /**
      * $holdMaxSeconds as something safe to wait for.
      *
      * Clamped on the way out rather than on the way in: the column is written
@@ -329,7 +422,11 @@ class AiSettings
      */
     public function isConfigured(): bool
     {
-        return null !== $this->baseUrl && '' !== trim($this->baseUrl);
+        // Either host counts. An installation that uses only search, from a
+        // host of its own, has configured something — and a card that said
+        // "nothing set up" above a working search would be wrong.
+        return true === $this->connectionFor(AiFeature::WritingHelp)->isSet()
+            || true === $this->connectionFor(AiFeature::Search)->isSet();
     }
 
     /**
@@ -342,7 +439,10 @@ class AiSettings
      */
     public function enabledFor(AiFeature $feature): bool
     {
-        if (false === $this->isEnabled || false === $this->isConfigured()) {
+        // The host THIS feature runs on, which is not always the same one:
+        // search may have its own. A writing host on file does not make search
+        // usable when search was pointed somewhere that was never filled in.
+        if (false === $this->isEnabled || false === $this->connectionFor($feature)->isSet()) {
             return false;
         }
 
@@ -366,6 +466,43 @@ class AiSettings
     }
 
     /**
+     * Where the model for this feature is, with the key that address wants.
+     *
+     * Asked per feature for the reason enabledFor() is: a caller does not get
+     * "the" host, it gets the one its job runs on, and it should not have to
+     * know which that is.
+     *
+     * An address that was never typed comes back as an empty one rather than
+     * as null. Every caller has already asked enabledFor() or isConfigured(),
+     * and {@see AiConnection::isSet()} answers the same question for the one
+     * that has not.
+     *
+     * SEARCH MAY HAVE ITS OWN, and when it does it gets ALL of it: address,
+     * dialect, token and headers from the four embedding columns, and nothing
+     * from the others. No falling back to the writing host's token when the
+     * search host has none — a token is issued by one host, and "none" is a
+     * perfectly good answer for an Ollama on the LAN.
+     */
+    public function connectionFor(AiFeature $feature): AiConnection
+    {
+        if (AiFeature::Search === $feature && true === $this->embeddingOwnConnection) {
+            return new AiConnection(
+                (string) $this->embeddingBaseUrl,
+                $this->embeddingApiToken,
+                $this->embeddingProvider,
+                ConnectionHeaders::decode($this->embeddingHeaders),
+            );
+        }
+
+        return new AiConnection(
+            (string) $this->baseUrl,
+            $this->apiToken,
+            $this->provider,
+            ConnectionHeaders::decode($this->headers),
+        );
+    }
+
+    /**
      * How long to ask the host to hold the model this feature uses.
      *
      * The same split enabledFor() makes and for the same reason: a feature does
@@ -382,6 +519,13 @@ class AiSettings
      */
     public function keepAliveFor(AiFeature $feature): ?string
     {
+        // Nothing to hold on a host whose dialect has no word for it. Null is
+        // already "send no keep_alive", so the stored value survives a switch
+        // of provider and back without ever reaching a host that cannot use it.
+        if (false === $this->connectionFor($feature)->provider->managesMemory()) {
+            return null;
+        }
+
         return match ($feature) {
             AiFeature::Search      => $this->embeddingKeepAlive,
             AiFeature::Categorise,

@@ -4,6 +4,7 @@ namespace App\Entity\User;
 
 use App\Domain\Enum\Calendar\CalendarPaneMode;
 use App\Domain\Enum\Calendar\CalendarView;
+use App\Domain\Enum\Mail\ReadingPaneMode;
 use App\Domain\Enum\Mail\SearchSortOrder;
 use App\Domain\Enum\User\ClockPlacement;
 use App\Domain\Helper\TimezoneHelper;
@@ -652,6 +653,43 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
     public const string SETTING_APPEARANCE_PREVIEW_WIDTH = 'appearance.preview_width';
 
     /**
+     * Whether the open message sits beside the message list, and how much of the
+     * mail card it takes — see ReadingPaneMode.
+     *
+     * The settings bag for the reasons the calendar pane's keys are: rendered
+     * into the first paint, the same at every desk, no migration. And its own
+     * keys rather than a place in the Appearance embeddable, which is what a
+     * theme export, a JMAP appearance method and the config backup all read:
+     * where the message is drawn is a layout choice about THIS screen, not part
+     * of a palette somebody might share, and importing a colour scheme must not
+     * rearrange the mailbox it lands in.
+     *
+     * The width is a PERCENTAGE of the mail card — the list and the message
+     * together, without the sidebar or a docked calendar — and not pixels. The
+     * card changes width whenever the calendar pane opens, closes or is dragged,
+     * and a pixel figure remembered from one of those states is wrong in the
+     * next: 520px is a comfortable half of a wide card and most of a narrow one.
+     * A share keeps its meaning across all of them.
+     */
+    public const string SETTING_READING_PANE_MODE = 'reading.pane_mode';
+    public const string SETTING_READING_PANE_WIDTH = 'reading.pane_width_pct';
+
+    /**
+     * The range the divider can be dragged through, in percent of the mail card.
+     *
+     * Matches the clamp in mail--reading-split; the server is what enforces it.
+     * The ends are 25 and 75 rather than something tighter because a share
+     * outside them leaves one pane too narrow to read or to click a row in on
+     * the card widths this layout is drawn at, and the pixel floors in app.css
+     * take over before these figures are ever the limit on a small card.
+     */
+    public const int READING_PANE_MIN_PCT = 25;
+    public const int READING_PANE_MAX_PCT = 75;
+
+    /** A little over half: the message is the thing being read, the list is how it was found. */
+    public const int READING_PANE_DEFAULT_PCT = 55;
+
+    /**
      * Insight extractors this user has switched OFF, as a list of extractor
      * keys. Disabled rather than enabled, so an extractor shipped next
      * release starts working without every user finding a new toggle — the
@@ -779,6 +817,40 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
             }
 
             return max(self::APPEARANCE_PREVIEW_MIN_WIDTH, min(self::APPEARANCE_PREVIEW_MAX_WIDTH, $width));
+        }
+    }
+
+    /**
+     * Virtual, out of the settings bag — see SETTING_READING_PANE_MODE.
+     *
+     * Off until somebody chooses, so an upgrade changes nothing about a
+     * mailbox anybody already uses.
+     */
+    public ReadingPaneMode $readingPaneMode {
+        get => ReadingPaneMode::fromSetting($this->getSetting(self::SETTING_READING_PANE_MODE));
+        set (ReadingPaneMode $mode) {
+            $this->setSetting(self::SETTING_READING_PANE_MODE, $mode->value);
+        }
+    }
+
+    /**
+     * Virtual, out of the settings bag — see SETTING_READING_PANE_WIDTH.
+     *
+     * Clamped on the way out as well as on the way in. The endpoint clamps what
+     * it stores, but the bag is JSON that a restore or an older build may have
+     * written, and a value outside the range here is a divider nobody can reach.
+     * Anything that is not an integer reads as the default rather than being
+     * coerced: a stored "60" is a value nobody on this build wrote.
+     */
+    public int $readingPaneWidthPct {
+        get {
+            $share = $this->getSetting(self::SETTING_READING_PANE_WIDTH, self::READING_PANE_DEFAULT_PCT);
+
+            if (false === is_int($share)) {
+                return self::READING_PANE_DEFAULT_PCT;
+            }
+
+            return max(self::READING_PANE_MIN_PCT, min(self::READING_PANE_MAX_PCT, $share));
         }
     }
 

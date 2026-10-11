@@ -96,6 +96,36 @@ export const TEST_ADMIN = {
 };
 
 /**
+ * The two people in the README's pictures, who are nobody else.
+ *
+ * `app:test:seed-demo` does not add a mailbox to a user, it replaces what they
+ * have: the calendar is wiped and rewritten, the address book goes, and every
+ * custom label that is not the demo's own is removed. screenshots.spec.ts used
+ * to do that to TEST_USER and TEST_ADMIN, which every regression spec on the
+ * same slot then signed in as — an inbox badge one higher than live-counts
+ * expected, an all-day birthday that became the first chip calendar-narrow-week
+ * looked at, and all of it dated relative to the day of the seed, so the
+ * failures arrived a day later and moved about.
+ *
+ * Nothing can clean that up afterwards, because what was deleted is not there
+ * to put back. So the demo gets users of its own, and the command refuses
+ * anyone who already owns a mailbox (see SeedDemoMailboxCommand).
+ *
+ * The admin is a second person rather than a flag on the first: an
+ * administrator's chrome carries an Admin entry, and seven of the eight
+ * pictures are of what an ordinary user sees.
+ */
+export const TEST_DEMO = {
+    email: `e2e-demo-w${SLOT}@plmail.test`,
+    password: "e2e-demo-password",
+};
+
+export const TEST_DEMO_ADMIN = {
+    email: `e2e-demo-admin-w${SLOT}@plmail.test`,
+    password: "e2e-demo-admin-password",
+};
+
+/**
  * Subjects seeded by `app:test:seed-mail` (kept in sync with the PHP command).
  * Each maps to one row the mail-UI specs act on independently.
  */
@@ -185,6 +215,21 @@ export function mailRow(page: Page, subject: string): Locator {
  * the way the Stimulus controllers do. The token is read from a rendered
  * settings page rather than /mail/inbox, which would mark list rows as seen.
  */
+/**
+ * Presses one of the bulk actions that live under "More" in the toolbar above
+ * a selection: Star, Mark as read, Mark as unread, Snooze, Label as, Mark as
+ * spam. Archive, Delete and Move to are buttons of their own and need no help.
+ *
+ * Here rather than in each spec because nine files press these, and the day
+ * the toolbar is rearranged again it should be one function that learns of it.
+ */
+export async function bulkMore(page: Page, name: string): Promise<void> {
+    const actions = page.locator('[data-mail--list-toolbar-target="actions"]');
+
+    await actions.getByRole("button", { name: "More", exact: true }).click();
+    await actions.getByRole("menuitem", { name, exact: true }).click();
+}
+
 export async function ajaxPost(page: Page, url: string, data?: unknown): Promise<APIResponse> {
     const html = await (await page.request.get("/settings?section=appearance")).text();
     const token = /<meta name="csrf-token" content="([^"]*)"/.exec(html)?.[1] ?? "";

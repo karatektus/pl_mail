@@ -224,6 +224,87 @@ final class ImmichDriverTest extends TestCase
         self::assertArrayNotHasKey('query', $this->jsonBodyOf(0));
     }
 
+    /**
+     * Immich stores the video half of a Live Photo as an asset of its own, with
+     * visibility `hidden`: its timeline never shows it and it never generates a
+     * preview for it. A metadata search keeps only `locked` assets out unless it
+     * is asked to filter, so those clips came back in the listing as grey tiles
+     * that could only be attached as a three-second video — on a library full
+     * of iPhone photos, a large share of everything the picker listed.
+     *
+     * Dropped here rather than filtered in the request, because the request can
+     * only say "this one visibility" — asking for `timeline` would take the
+     * archived photos away with the clips. An archived photo is still a photo
+     * somebody may want to attach.
+     */
+    public function testLivePhotoMotionClipsAreLeftOutRatherThanShownAsGreyTiles(): void
+    {
+        $driver = $this->driver([
+            new JsonMockResponse(['assets' => ['items' => [
+                ['id' => 'still-1', 'originalFileName' => 'beach.jpg', 'visibility' => 'timeline'],
+                // The motion half of beach.jpg: no preview exists for it.
+                ['id' => 'clip-1', 'originalFileName' => 'beach.mov', 'visibility' => 'hidden'],
+                ['id' => 'old-1', 'originalFileName' => 'archived.jpg', 'visibility' => 'archive'],
+                // A server that predates the field says nothing, and that must
+                // not read as "hidden".
+                ['id' => 'legacy-1', 'originalFileName' => 'legacy.jpg'],
+            ]]]),
+        ]);
+
+        $listing = $driver->list($this->integration());
+
+        self::assertSame(
+            ['beach.jpg', 'archived.jpg', 'legacy.jpg'],
+            array_map(static fn ($e) => $e->name, $listing->entries),
+            'the hidden clip goes; the timeline, archived and field-less photos stay',
+        );
+    }
+
+    /**
+     * Smart search ends in the same mapping as the library view, and a search
+     * that surfaced the motion clip of the photo it found would show the grey
+     * tile right beside the real one.
+     */
+    public function testSearchLeavesLivePhotoMotionClipsOutToo(): void
+    {
+        $driver = $this->driver([
+            new JsonMockResponse(['assets' => ['items' => [
+                ['id' => 'still-1', 'originalFileName' => 'sunset.jpg', 'visibility' => 'timeline'],
+                ['id' => 'clip-1', 'originalFileName' => 'sunset.mov', 'visibility' => 'hidden'],
+            ]]]),
+        ]);
+
+        $listing = $driver->search($this->integration(), 'beach at sunset', null);
+
+        self::assertSame(['sunset.jpg'], array_map(static fn ($e) => $e->name, $listing->entries));
+        self::assertStringEndsWith('/api/search/smart', $this->requests[0]['url']);
+    }
+
+    /**
+     * Leaving clips out makes pages shorter, and a page can in principle be
+     * nothing but clips. The cursor still has to come back: Immich reports
+     * `nextPage` for the page it sent, not for what is left of it, so dropping
+     * the cursor along with the entries would end the scroll halfway through
+     * the library.
+     */
+    public function testAPageOfNothingButMotionClipsStillCarriesTheCursorOn(): void
+    {
+        $driver = $this->driver([
+            new JsonMockResponse(['assets' => [
+                'items'    => [
+                    ['id' => 'clip-1', 'originalFileName' => 'a.mov', 'visibility' => 'hidden'],
+                    ['id' => 'clip-2', 'originalFileName' => 'b.mov', 'visibility' => 'hidden'],
+                ],
+                'nextPage' => '2',
+            ]]),
+        ]);
+
+        $listing = $driver->list($this->integration());
+
+        self::assertSame([], $listing->entries);
+        self::assertSame('2', $listing->nextCursor, 'the scroll must go on to the next page');
+    }
+
     public function testDownloadTakesTheFilenameFromContentDisposition(): void
     {
         $driver = $this->driver([

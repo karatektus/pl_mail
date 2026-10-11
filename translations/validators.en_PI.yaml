@@ -22,3 +22,9 @@ setup.install.password_too_short: Use {{ limit }} marks at least. There be no ge
 user.email_taken: Another soul sails under that address already. One address, one shipmate.
 admin.ai.field.base_url_invalid: 'That must begin with http:// or https://.'
 profile.avatar_wrong_type: 'Use a PNG, JPEG, GIF or WebP likeness.'
+admin.ai.headers.malformed: 'Write each colour on its own line, as Name: value.'
+admin.ai.headers.name: "A header's name may hold only letters, digits an' hyphens, an' can't be empty."
+admin.ai.headers.value: "A header's value can't be empty, can't hold a line break or other such devilry, an' runs to 4096 marks at most."
+admin.ai.headers.reserved: "One o' these plMail flies herself an' ye can't override: Host, Content-Type, Content-Length, Connection an' their kin."
+admin.ai.headers.duplicate: 'The same header be listed twice.'
+admin.ai.headers.too_many: '%max% extra headers at most.'

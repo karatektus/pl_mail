@@ -118,6 +118,41 @@ final class ListAndTypographyVariablesTest extends TestCase
         self::assertSame('none', $this->render($appearance)['--list-corner-display']);
     }
 
+    /**
+     * The unread count on the inbox tabs is on unless somebody turns it off.
+     *
+     * `inline` and `none` and nothing else: the variable is a `display` value,
+     * read by the `[data-tab-unread]` rule, so anything CSS cannot use there
+     * would leave the number showing for somebody who switched it off.
+     */
+    public function testTheTabUnreadCountIsOnByDefaultAndCanBeSwitchedOff(): void
+    {
+        $appearance = new Appearance();
+
+        self::assertSame('inline', $this->render($appearance)['--tab-unread-display']);
+
+        $appearance->tabUnreadCount = false;
+
+        self::assertSame('none', $this->render($appearance)['--tab-unread-display']);
+    }
+
+    /** It travels with a theme export and a config backup like the others. */
+    public function testTheTabUnreadCountSurvivesAnExportAndImport(): void
+    {
+        $source = new Appearance();
+        $source->tabUnreadCount = false;
+
+        self::assertFalse($source->toArray()['tabUnreadCount']);
+        self::assertFalse(new Appearance()->applyArray($source->toArray())->tabUnreadCount);
+        self::assertTrue(new Appearance()->applyArray(['tabUnreadCount' => '1'])->tabUnreadCount);
+
+        // Absent from a file written before the setting existed: left as it is.
+        $kept = new Appearance();
+        $kept->tabUnreadCount = false;
+
+        self::assertFalse($kept->applyArray(['accountCorner' => true])->tabUnreadCount);
+    }
+
     public function testEmphasisScalesTheTintAndDrawsTheBarOnlyWhenStrong(): void
     {
         $appearance = new Appearance();
