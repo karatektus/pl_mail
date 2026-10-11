@@ -54,7 +54,7 @@ final class AiPerformancePanelRenderTest extends KernelTestCase
     public function testAnUnreachableHostRendersWithoutTheTelemetry(): void
     {
         $html = $this->render(self::panel([
-            'host' => ['baseUrl' => 'http://10.0.0.5:11434', 'reachable' => false, 'version' => null, 'reason' => 'unreachable'],
+            'host' => ['baseUrl' => 'http://10.0.0.5:11434', 'provider' => 'ollama', 'managesMemory' => true, 'reachable' => false, 'version' => null, 'reason' => 'unreachable'],
         ]));
 
         self::assertStringNotContainsString('<table', $html);
@@ -140,6 +140,29 @@ final class AiPerformancePanelRenderTest extends KernelTestCase
         self::assertStringNotContainsString('NaN', $html);
     }
 
+    /**
+     * An OpenAI-compatible host is never said to have nothing loaded.
+     *
+     * It was not asked — the dialect has no way to ask — so the "in memory"
+     * half of the card is left out altogether, and the chip says the one thing
+     * that is known: it answers. Printed as for Ollama, the card would tell an
+     * operator that the next request has to load a model, about a server that
+     * may have had it loaded for a week.
+     */
+    public function testAHostThatCannotReportItsMemoryIsNotSaidToBeCold(): void
+    {
+        $html = $this->render(self::panel([
+            'host'       => ['baseUrl' => 'https://api.example.test/v1', 'provider' => 'openai', 'managesMemory' => false, 'reachable' => true, 'version' => null, 'reason' => null],
+            'loaded'     => [],
+            'coldLoadMs' => null,
+        ]));
+
+        self::assertStringContainsString('Answering', $html);
+        self::assertStringNotContainsString('No model is loaded', $html);
+        self::assertStringNotContainsString('In memory now', $html);
+        self::assertStringContainsString('<table', $html, 'what the calls cost is still worth showing');
+    }
+
     /** @param array<string, mixed> $panel */
     private function render(array $panel): string
     {
@@ -158,7 +181,7 @@ final class AiPerformancePanelRenderTest extends KernelTestCase
             'configured' => true,
             'ready'      => true,
             'features'   => ['search' => true, 'categorise' => false, 'writing' => true, 'summary' => false],
-            'host'       => ['baseUrl' => 'http://10.0.0.5:11434', 'reachable' => true, 'version' => '0.6.2', 'reason' => null],
+            'host'       => ['baseUrl' => 'http://10.0.0.5:11434', 'provider' => 'ollama', 'managesMemory' => true, 'reachable' => true, 'version' => '0.6.2', 'reason' => null],
             'models'     => [
                 ['role' => 'chat', 'name' => 'qwen2.5:32b', 'installed' => true, 'resident' => true],
                 ['role' => 'embedding', 'name' => 'nomic-embed-text', 'installed' => true, 'resident' => false],

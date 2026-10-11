@@ -275,8 +275,18 @@ final class AccountController extends AbstractController
         $account->smtpPort = (int) ($payload['smtpPort'] ?? 587);
         $account->smtpEncryption = (string) ($payload['smtpEncryption'] ?? 'starttls');
 
-        // Blank password on the edit form means "keep the stored one".
-        if ('' === $account->password && null !== ($payload['accountId'] ?? null)) {
+        // A second password for sending, only when the form says it wants one
+        // — the same flag-then-value the form itself submits. See AccountType.
+        $separateSmtp = true === ($payload['separateSmtpPassword'] ?? false);
+
+        if (true === $separateSmtp) {
+            $account->smtpPassword = (string) ($payload['smtpPassword'] ?? '');
+        }
+
+        // Blank on the edit form means "keep the stored one", for either.
+        $needsStored = '' === $account->password || (true === $separateSmtp && '' === $account->smtpPassword);
+
+        if (true === $needsStored && null !== ($payload['accountId'] ?? null)) {
             $existing = $this->accountRepository->find((int) $payload['accountId']);
 
             if (null === $existing) {
@@ -284,7 +294,14 @@ final class AccountController extends AbstractController
             }
 
             $this->denyAccessUnlessGranted(OwnershipVoter::OWN, $existing);
-            $account->password = $existing->password;
+
+            if ('' === $account->password) {
+                $account->password = $existing->password;
+            }
+
+            if (true === $separateSmtp && '' === $account->smtpPassword) {
+                $account->smtpPassword = $existing->smtpPassword;
+            }
         }
 
         if ('' === $account->username || '' === $account->imapHost) {

@@ -24,7 +24,15 @@ which is what nearly every provider wants.
 but an account that stores cleanly and cannot log in is the failure worth catching now rather than
 at the first sync, so the probe runs again on save and its outcome is remembered on the account.
 
-The first sync starts immediately. After that, plMail holds an IMAP IDLE connection to each
+The first sync starts immediately, and the account's existing mail is then brought in newest
+first: the most recent of the Inbox within a minute or so, the rest of the Inbox after it, then
+Sent, Drafts and your own folders, the archive, and Spam and the bin last. Mail that arrives
+while this runs is not held up by it. A chip beside the search box says **Importing** for as long
+as an account is, and opens a list with how much of each is in and which folder it is on; if nothing
+has moved for a while it says **Waiting to continue**, and an account that cannot be reached is
+listed under **Account health**.
+
+After that, plMail holds an IMAP IDLE connection to each
 mailbox and syncs the moment something changes, with a scheduled sweep every fifteen minutes
 behind it.
 

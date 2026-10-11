@@ -1,4 +1,4 @@
-<!-- translated-from: install/docker.md sha1:6a1b5ac4bb8a1c96bf13c943ef14a18ab8ce0cbf -->
+<!-- translated-from: install/docker.md sha1:77ef18f80d56bea9e0c01c3223e7a745282137ee -->
 # Installation mit Docker Compose
 
 Der unterstützte Weg, von Anfang bis Ende: was du brauchst, was `docker compose up` tatsächlich tut,
@@ -156,7 +156,8 @@ bis zu dreißig Sekunden, wenn er abgestürzt ist.
 | `mercure` | Der Mercure-Hub, 1.x | Live-Aktualisierungen — die Mailliste, die sich von selbst auffrischt |
 | `imap-supervisor` | `app:imap:supervise` | Startet und überwacht je einen `app:imap:idle`-Prozess pro IDLE-fähigem Postfach, damit gewöhnliche IMAP-Mail in dem Moment ankommt, in dem sie eintrifft |
 | `worker-export` | `messenger:consume export` | Alles, was plMail verlässt, und die einzige Warteschlange, auf die jemand wartet. In einem eigenen Prozess, damit ein Versand nie hinter einem Abgleich steht |
-| `worker-ingest` | `messenger:consume ingest` | Mail abholen, und nur das |
+| `worker-ingest` | `messenger:consume ingest` | Mail abholen, die gerade ankommt, und nur das |
+| `worker-backlog` | `messenger:consume ingest_backlog` | Die Vorgeschichte eines Postfachs beim ersten Import, Seite für Seite. In einem eigenen Prozess, damit gerade ankommende Mail nie dahinter steht |
 | `worker-live` | `messenger:consume enrich_live` | Was auf Mail folgt, die gerade eben angekommen ist — Einsortieren, Terminerkennung, Insight-Karten, Lesebestätigungen. Eigener Prozess, damit neue Mail nie hinter einem Import steht |
 | `worker-release` | `messenger:consume release` | Zeigt Mail an, die für den Assistenten zurückgehalten wurde, sobald ihre Wartezeit vorbei ist. Fast immer untätig, und in einem eigenen Prozess, damit nie etwas davor steht |
 | `worker-enrich` | `messenger:consume enrich enrich_backlog` | Dieselbe Arbeit für die aktuelle Mail eines Imports, danach — nur wenn diese Warteschlange leer ist — alte Mail, die der Assistent einsortiert |

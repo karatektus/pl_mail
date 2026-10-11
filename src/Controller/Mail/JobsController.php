@@ -6,6 +6,7 @@ namespace App\Controller\Mail;
 
 use App\Entity\User\User;
 use App\Repository\Job\BackgroundJobRepository;
+use App\Service\Mail\ImportProgress;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
@@ -28,10 +29,11 @@ final class JobsController extends AbstractController
 {
     #[Route('/mail/jobs/indicator', name: 'app_jobs_indicator', methods: ['GET'])]
     #[IsGranted('ROLE_USER')]
-    public function indicator(#[CurrentUser] User $user, BackgroundJobRepository $jobs): Response
+    public function indicator(#[CurrentUser] User $user, BackgroundJobRepository $jobs, ImportProgress $imports): Response
     {
         return $this->render('mail/_jobs_indicator.html.twig', [
-            'jobs' => $jobs->findVisibleForUser($user),
+            'jobs'    => $jobs->findVisibleForUser($user),
+            'imports' => $imports->forUser($user),
         ]);
     }
 }

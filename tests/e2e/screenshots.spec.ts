@@ -1,6 +1,6 @@
 import { test, expect } from "./support/test";
 import { setWhen } from "./support/datetime";
-import { APP_TIMEZONE, TEST_ADMIN, ajaxPost, consoleCommand, login, seed, seedUser } from "./support/config";
+import { APP_TIMEZONE, TEST_DEMO, TEST_DEMO_ADMIN, ajaxPost, consoleCommand, login, seedUser } from "./support/config";
 
 /**
  * Captures the README screenshots against the demo mailbox.
@@ -11,17 +11,18 @@ import { APP_TIMEZONE, TEST_ADMIN, ajaxPost, consoleCommand, login, seed, seedUs
  *
  *   npm run test:e2e:screenshots
  *
- * **It will run against the E2E stack, and it poisons it.** This used to say
- * the suite could not run there at all, which is not true — app:test:seed-demo
- * makes exactly the mailbox it wants — and the truth is worse, because it works
- * and then leaves an account called you@example.com on the shared fixture user.
- * account-scope.spec.ts asserts on the FIRST account in the sidebar, so it
- * fails afterwards with "expected E2E Mailbox, received you@example.com", which
- * looks like a regression in account scoping and is not.
+ * It runs against the E2E stack and leaves the regression suite's users alone.
+ * It did not always: the demo mailbox used to be seeded onto the shared fixture
+ * user, and this paragraph used to tell the reader to delete the account by
+ * hand afterwards. That command removed the account and neither its labels nor
+ * its calendar events, and nobody ran it anyway — so live-counts,
+ * unread-view, bulk-select-all and calendar-narrow-week failed the day after a
+ * retake, looking like four unrelated regressions.
  *
- * Point it at an app of its own, or clear the demo account afterwards:
- *
- *   php bin/console dbal:run-sql "DELETE FROM account WHERE email = 'you@example.com'"
+ * Both describes now sign in as TEST_DEMO and TEST_DEMO_ADMIN, who exist for
+ * these pictures and whom no other spec knows about (see support/config.ts).
+ * What the seed leaves behind stays with them, and is rewritten by the next
+ * retake.
  */
 const OUT = "docs/screenshots";
 
@@ -82,15 +83,26 @@ test.describe("README screenshots", () => {
         'Demo mailbox required — run "npm run test:e2e:screenshots".',
     );
 
+    // Signed out of the worker's own session: the pictures are of somebody
+    // else's mailbox, and the stored login is the shared fixture user's.
+    test.use({ storageState: { cookies: [], origins: [] } });
+
     // The mailbox in the pictures. app:test:seed-demo writes senders, subjects
     // and labels that can be shown without a caption apologising for them —
     // the regression fixtures ("E2E Trash Me") cannot, which is why this suite
     // needed an installation nobody else had.
-    test.beforeAll(() => seed("seed-demo"));
+    test.beforeAll(() => {
+        seedUser({ email: TEST_DEMO.email, password: TEST_DEMO.password });
+        consoleCommand(`app:test:seed-demo --email=${TEST_DEMO.email}`);
+    });
+
+    test.beforeEach(async ({ page }) => {
+        await login(page, TEST_DEMO.email, TEST_DEMO.password);
+    });
 
     /**
      * With the calendar beside the mail, which is how a desktop opens plMail
-     * and what the README's first line promises. The fixture user is kept on
+     * and what the README's first line promises. A seeded user is kept on
      * the mail alone for the regression suite (app:test:seed-user), so this
      * asks for the default back for the one picture and restores the
      * furniture afterwards. The captures after this one are of other things.
@@ -370,12 +382,15 @@ test.describe("README screenshots", () => {
 /**
  * The admin overview, which needs an administrator.
  *
- * Its own describe and its own session, for the reason admin-panels.spec.ts
- * gives: /admin needs ROLE_ADMIN, and granting that to the shared fixture user
- * mid-run deauthenticates every other spec — Symfony treats a token whose roles
- * have changed as stale. Signing in as somebody else is the cheap half of that
- * argument; the expensive half is that this file used to not bother, and shipped
- * a picture of an access-denied page in the README.
+ * Its own describe and its own person: /admin needs ROLE_ADMIN, and the demo
+ * user of the pictures above is deliberately not an administrator. This file
+ * used to not bother, and shipped a picture of an access-denied page in the
+ * README.
+ *
+ * Not TEST_ADMIN either, which is what it borrowed next. admin-panels,
+ * admin-queue, admin-card-insets, list-frame-navigation and integrations all
+ * sign in as that user, and seeding the demo onto them put a mailbox and a
+ * week of events into sessions that were written against none.
  */
 test.describe("README screenshots — admin", () => {
     test.skip(
@@ -386,17 +401,17 @@ test.describe("README screenshots — admin", () => {
     test.use({ storageState: { cookies: [], origins: [] } });
 
     test.beforeAll(() => {
-        seedUser({ email: TEST_ADMIN.email, password: TEST_ADMIN.password, admin: true });
+        seedUser({ email: TEST_DEMO_ADMIN.email, password: TEST_DEMO_ADMIN.password, admin: true });
 
         // The demo mailbox again, for this user. The picture is of the admin
         // screen, but the sidebar beside it is in shot — and a sidebar reading
         // "No accounts yet" next to "No labels yet" says the app is empty,
         // which is not what the page is meant to be showing.
-        consoleCommand(`app:test:seed-demo --email=${TEST_ADMIN.email}`);
+        consoleCommand(`app:test:seed-demo --email=${TEST_DEMO_ADMIN.email}`);
     });
 
     test("admin", async ({ page }) => {
-        await login(page, TEST_ADMIN.email, TEST_ADMIN.password);
+        await login(page, TEST_DEMO_ADMIN.email, TEST_DEMO_ADMIN.password);
 
         await page.goto("/admin");
 

@@ -369,6 +369,11 @@ final readonly class VanishedMessageReconciler
         $mailbox->uidValidity = $uidValidity;
         $mailbox->lastSeenUid = 0;
         $mailbox->sweptAt     = null;
+        // Unplanned, so the re-read is planned like a first one: new mail from
+        // the top at once, the rest a page at a time on the import queue,
+        // instead of the whole folder bottom-up in the job that noticed. Each
+        // row is still re-matched by its Message-ID as its page comes in.
+        $mailbox->importFloorUid = null;
 
         $this->em->flush();
 

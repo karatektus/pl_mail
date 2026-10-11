@@ -416,16 +416,87 @@ Retention is 30 days, swept nightly by `app:monitoring:prune`; `--push-days=N` c
 ## AI
 
 Optional, off by default, and plMail is a complete mail client with it off. Nothing here is switched
-on until you switch it on, and nothing leaves your network: the model runs on a machine you own.
+on until you switch it on. Mail is sent to the model host you enter and nowhere else: with a model on
+a machine you own, nothing leaves your network.
 
-**Model host** is the address of an [Ollama](https://ollama.com) container on your own network,
-including the port — `http://10.0.0.5:11434`. **Token** is only needed if you have put that host
-behind something that asks for one; Ollama itself has no authentication.
+**Provider** is the API the model host speaks. There are two:
+
+| Provider | What it is | What plMail can do with it |
+|---|---|---|
+| **Ollama** | An [Ollama](https://ollama.com) container, usually on your own network | Everything on this page |
+| **OpenAI-compatible** | Anything that answers `/chat/completions` and `/embeddings` in OpenAI's format: llama.cpp, vLLM, LM Studio, LiteLLM, a hosted provider, or Ollama under `/v1` | Writing, summaries, sorting and search. Not the keep-alive fields or **Warm up now** |
+
+The OpenAI format has no way to ask what a host holds in memory, to keep a model loaded, or to load
+one ahead of time. With that provider chosen, the two keep-alive fields and **Warm up now** are put
+away, and the model host card on **Admin → Performance** shows whether the host answers and what the
+calls cost, without the "in memory" half. Their values are kept, so switching back loses nothing.
+
+**If you choose a hosted provider, your mail goes to it.** Sorting sends every arriving message that
+no rule recognised; search sends every message once to index it and every query; writing help and
+summaries send what you ask them about. Hosted providers usually charge per request. plMail never
+falls back to another host and never sends anything to an address you did not enter.
+
+**Model host** is the address. For Ollama that is the container, including the port —
+`http://10.0.0.5:11434`. For an OpenAI-compatible endpoint it is the API root including its version,
+such as `https://api.example.com/v1`; plMail adds `/chat/completions` and the rest to exactly what you
+type. **Token** is the API key of a hosted provider, or only needed if you have put the host behind
+something that asks for one; Ollama itself has no authentication. It is sent as a bearer token
+with every request to that address, and it is stored for that address: change the model host without
+typing a token and the stored one is dropped, so it is never sent to a host it was not issued for.
+Changing the provider counts as changing the address. Redirects are not followed once a token is
+attached, and never for an OpenAI-compatible endpoint: the answer is reported as the status it is.
+
+**Extra headers** are for whatever stands in front of the model and wants more than a token: a
+reverse proxy with basic auth, a zero-trust gateway that takes a client id and a secret, a routing
+or logging gateway with a key of its own, a provider that selects a project by header. Write one per
+line as `Name: value`:
+
+```
+CF-Access-Client-Id: 1a2b3c.access
+CF-Access-Client-Secret: …
+```
+
+They are sent with every request to the model host, for either provider, and stored encrypted. The
+page lists the names of what is stored and never shows a value again. Leaving the box empty keeps
+them; typing anything replaces all of them; **Remove the stored headers** drops them. Like the token,
+they are dropped when the address or the provider changes. An `Authorization` header typed here is
+sent in place of the token, which is how basic auth is written. The headers plMail writes itself,
+`Host`, `Content-Type`, `Content-Length` and the like, are refused. The setup wizard leaves this
+field out; it is on Admin → AI only.
 
 Two models, because the jobs are different. The **writing model** should be instruction-tuned and is
 used for drafting and sorting; the **search model** is an embedding model and is usually much
 smaller. `llama3.1:8b` and `qwen3-embedding:0.6b` are reasonable starting points. Both have to be
 pulled on the host first — plMail never downloads a model.
+
+### Search on a model host of its own
+
+**Search uses a different model host** gives the search model its own provider, address, token and
+extra headers. It is off by default, and while it is off search asks the model host above like
+everything else does.
+
+The two jobs often want different machines. Writing wants the largest model you can run or rent.
+Search wants a small one that is asked constantly: every query, and every message of a mailbox once
+to index it. Two arrangements come up most:
+
+| Writing | Search | Why |
+|---|---|---|
+| A hosted, OpenAI-compatible endpoint | An Ollama at home | Good drafts without owning a large GPU, while the mailbox is indexed on a machine you own and nothing is billed per message |
+| An Ollama at home | Another host | The GPU that writes is not interrupted by indexing |
+
+Each host is sent only its own token and headers. A search host with no token is sent none; it
+never borrows the other host's. **Test** asks both hosts, each for the model that lives on it.
+
+**The index belongs to the model, not to the address.** Moving search to another host that serves
+the same model, under the same name, keeps the existing index. A different model name is a new
+index, as it always has been: start a pass from the card below. If the name is the same but the
+model is not, plMail cannot tell; give it a different name, or the old and new vectors are searched
+together and the results are poor.
+
+The search model's keep-alive is shown when the host search runs on is an Ollama, whichever host
+that is. The model host card on **Admin → Performance** reads the host that writes, and does not
+report on a search model that lives elsewhere. The setup wizard leaves this out; it is on
+Admin → AI only.
 
 ### The search model comes with two settings, and they are not optional
 
@@ -455,7 +526,16 @@ benchmark score for a mailbox that is not all in one language.
 tell you the difference between "nothing answered at that address" and "that host answered but is
 not holding the model you named", which send you to two different places.
 
+For an OpenAI-compatible endpoint, Test reads its model list at `/models`. It separates three more
+answers: the host refused the token, the address answered with something that is not the API (a
+login page, usually), and the address has no model list. The last one most often means the address
+is missing its `/v1`. A few servers have no list and work regardless, so it is a warning and not a
+verdict: save, and try a draft.
+
 ### How long each model stays loaded
+
+This section is about Ollama. An OpenAI-compatible endpoint decides for itself what it keeps loaded,
+and the fields below are not shown for it.
 
 Ollama drops a model out of memory a few minutes after the last request, and reading it back off
 disk is the whole of the wait on the first "Help me write" after a quiet spell — a 20 GB model takes

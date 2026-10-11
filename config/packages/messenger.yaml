@@ -58,6 +58,42 @@ framework:
                     max_retries: 5
                     max_delay: 300000
 
+            # A mailbox being brought in for the first time, a page at a time.
+            #
+            # ITS OWN QUEUE AND ITS OWN WORKER, for the reason `ingest` has one
+            # apart from `export`: who is waiting. `ingest` is mail arriving now
+            # — a push from Gmail, an IDLE notice, somebody pressing Sync. This
+            # is twenty thousand messages from 2019 that nobody is watching
+            # individually. On one queue the second was simply in front of the
+            # first: an account added on Friday put every new mail of every
+            # account behind its history, in arrival order, for as long as the
+            # history took (#42).
+            #
+            # A second transport on worker-ingest would not have done. Messenger
+            # looks at an earlier transport before a later one, but only BETWEEN
+            # messages — a worker inside a page of history cannot hear that new
+            # mail has arrived. Two processes can.
+            #
+            # Everything on it is bounded: one page, then a message asking for
+            # the next. That is what lets several accounts import side by side
+            # (their pages interleave in arrival order, so each gets a usable
+            # Inbox before any gets its archive) and what keeps this worker's
+            # heartbeat fresh while it works.
+            #
+            # Reached by TransportNamesStamp for the Gmail and Graph batches,
+            # which are the same message live or imported and only the code
+            # dispatching them knows which; ImportMailMessage is routed below.
+            ingest_backlog:
+                dsn: '%env(MESSENGER_TRANSPORT_DSN)%'
+                options:
+                    queue_name: ingest_backlog
+                # The ingest ladder: the failures are the same third parties.
+                retry_strategy:
+                    delay: 5000
+                    multiplier: 3
+                    max_retries: 5
+                    max_delay: 300000
+
             # What follows mail arriving, and none of it is fetching.
             #
             # THREE QUEUES (and `release` above them), BECAUSE `ingest` USED TO HOLD ALL OF THIS AND THE
@@ -287,6 +323,8 @@ framework:
             # the cheap one — a point lookup and a flag write, no IMAP at all.
             App\Infrastructure\Messaging\Message\ApplyRemoteFlagsMessage: ingest
             App\Infrastructure\Messaging\Message\SyncAccountMessage: ingest
+            # One page of a mailbox's history, and the request for the next.
+            App\Infrastructure\Messaging\Message\ImportMailMessage: ingest_backlog
             App\Infrastructure\Messaging\Message\SendMessageMessage: export
             App\Infrastructure\Messaging\Message\ApplyImapFlagsMessage: export
             # Onto export with every other outbound push, and that placement is

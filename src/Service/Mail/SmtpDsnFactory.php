@@ -52,7 +52,9 @@ final class SmtpDsnFactory
             '%s://%s:%s@%s:%d',
             $scheme,
             rawurlencode((string) $account->username),
-            rawurlencode((string) $account->password),
+            // The sending password, which is the account's own unless it has
+            // been given a separate one. See Account::$sendingPassword.
+            rawurlencode((string) $account->sendingPassword),
             MailServerHost::forAuthority((string) $account->smtpHost),
             $port,
         );
@@ -64,16 +66,20 @@ final class SmtpDsnFactory
      */
     public function redact(string $text, Account $account): string
     {
-        $password = (string) $account->password;
+        // Both, where there are two: the DSN carries the sending one, and an
+        // IMAP error quoted in the same report may carry the other.
+        foreach (array_unique([(string) $account->sendingPassword, (string) $account->password]) as $password) {
+            if ('' === $password) {
+                continue;
+            }
 
-        if ('' === $password) {
-            return $text;
+            $text = str_replace(
+                [$password, urlencode($password), rawurlencode($password)],
+                '***',
+                $text,
+            );
         }
 
-        return str_replace(
-            [$password, urlencode($password), rawurlencode($password)],
-            '***',
-            $text,
-        );
+        return $text;
     }
 }

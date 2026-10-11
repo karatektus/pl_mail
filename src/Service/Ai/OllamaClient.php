@@ -7,6 +7,7 @@ namespace App\Service\Ai;
 use App\Domain\Ai\KeepAlive;
 use App\Domain\DTO\Ai\AiCallTiming;
 use App\Domain\DTO\Ai\AiChatResult;
+use App\Domain\DTO\Ai\AiConnection;
 use App\Domain\DTO\Ai\AiEmbedResult;
 use App\Domain\DTO\Ai\AiProbe;
 use App\Domain\DTO\Ai\AiWarmUp;
@@ -125,6 +126,41 @@ final readonly class OllamaClient
         private HttpClientInterface $http,
         private LoggerInterface     $logger,
     ) {
+    }
+
+    /**
+     * This client, showing a connection's key on every request it makes.
+     *
+     * Ollama has no authentication of its own. The key is for the reverse proxy
+     * people put in front of it, and until this existed the field in Admin → AI
+     * stored a key that was never sent — so an Ollama behind a proxy answered
+     * 401 to everything and the only fix was to take the proxy away.
+     *
+     * A SECOND CLIENT RATHER THAN AN ARGUMENT ON EVERY METHOD. All seven
+     * requests below are built the same way and the key belongs on all of them,
+     * including the two a caller never sees — the fallback embedding dialect and
+     * the version read behind a probe. Scoping the HTTP client covers those
+     * without each having to remember.
+     *
+     * REDIRECTS ARE NOT FOLLOWED ONCE THERE IS A KEY. A proxy that answers 301
+     * is naming a different address, and the key was typed for this one. The
+     * redirect comes back as the status it is, which the probe reports.
+     *
+     * The same instance when there is nothing to show, so an Ollama on the LAN
+     * — no proxy, no key — is asked exactly as it was before.
+     */
+    public function authorised(AiConnection $connection): self
+    {
+        $headers = $connection->requestHeaders();
+
+        if ([] === $headers) {
+            return $this;
+        }
+
+        return new self(
+            $this->http->withOptions(['headers' => $headers, 'max_redirects' => 0]),
+            $this->logger,
+        );
     }
 
     /**

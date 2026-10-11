@@ -1,4 +1,4 @@
-<!-- translated-from: install/troubleshooting.md sha1:6776a1d8e46bcf99b043bdac37a1154c27c04abb -->
+<!-- translated-from: install/troubleshooting.md sha1:ad52dfe87905d09cdd1f0545fabb06f413d402fa -->
 # Fehlersuche
 
 Was `/healthz` bedeutet, wie du eine hängende von einer leeren Warteschlange unterscheidest, wo die
@@ -60,7 +60,8 @@ Worker-Container:
 | Warteschlange | Prozess | Was darauf liegt |
 |---|---|---|
 | `export` | `worker-export` | Alles, was plMail verlässt — Versand, Flag-Pushes, Gmail-Label-Änderungen, Mail aus dem Notifier. Die einzige Warteschlange, auf die jemand wartet |
-| `ingest` | `worker-ingest` | Mail abholen und sonst nichts: Konto- und Postfachabgleiche, Gmail- und Graph-Nachrichten-Batches, Kalenderabgleiche |
+| `ingest` | `worker-ingest` | Mail abholen, die gerade ankommt, und sonst nichts: Konto- und Postfachabgleiche, Gmail- und Graph-Nachrichten-Batches, Kalenderabgleiche |
+| `ingest_backlog` | `worker-backlog` | Ein erster Import: Seiten aus der Vorgeschichte eines Postfachs, die neuesten zuerst. Lang, solange ein großes Konto hereingeholt wird, und so ist es gedacht — nichts, was gerade ankommt, wartet darauf |
 | `enrich_live` | `worker-live` | Was auf Mail folgt, die gerade eben in einem Konto angekommen ist, dessen erster Import abgeschlossen ist: Einsortieren durch den Assistenten, Terminerkennung, Insight-Karten, Lesebestätigungen. Eigener Prozess, damit neue Mail nie hinter einem Import steht |
 | `release` | `worker-release` | Beendet das Warten für Mail, die für den Assistenten zurückgehalten wird. Fast immer leer; eigener Prozess, damit nie etwas davor steht |
 | `enrich` | `worker-enrich` | Dieselbe Arbeit für aktuelle Mail aus einem Import, dazu die Suchindizierung |

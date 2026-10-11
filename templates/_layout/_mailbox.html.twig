@@ -36,7 +36,15 @@ dozen other reasons while the conversation was open.
    mail--mail-pane is: it is about a mail LIST. It listens on <body> because
    the two ends of a drag — the rows in the list frame and the folders in the
    sidebar, of which there are two copies — have no closer common ancestor. #}
-{% block body_controllers %}core--mercure mail--mail-pane mail--dnd{% endblock %}
+{# `parent()`, and not the base list written out again. Written out, it was
+   one controller short: the base layout mounts `mail--jobs` beside
+   `core--mercure`, this block replaced both names with its own three, and the
+   topbar's background-work indicator was never told to look again on any mail
+   page — which is every page a bulk action is started from. It showed what the
+   server rendered at page load and then sat there, for as long as it existed
+   (#42 is where it was finally noticed). Whatever the base layout mounts, the
+   mailbox mounts too. #}
+{% block body_controllers %}{{ parent() }} mail--mail-pane mail--dnd{% endblock %}
 
 {% block body_values %}
     {# The list to draw beside a message that was opened by its own address.
