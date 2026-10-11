@@ -66,6 +66,25 @@ final class GraphApiClient
     . 'body,bodyPreview,hasAttachments,parentFolderId,internetMessageHeaders';
 
     /**
+     * What is listed about each attachment.
+     *
+     * contentId is declared on microsoft.graph.fileAttachment, not on the base
+     * attachment the collection is typed as, so it has to be asked for with
+     * the cast. Named unqualified the whole $select is rejected:
+     *
+     *   BadRequest: Could not find a property named 'contentId' on type
+     *   'microsoft.graph.attachment'.
+     *
+     * In a $batch that is a 400 on the sub-request, and an attachment listing
+     * that answers 400 is indistinguishable from "no attachments" to the
+     * caller. Every Outlook message with a file on it was stored as having
+     * none until this was cast. contentId is what tells a cid: image from a
+     * file the user attached, so it cannot simply be dropped.
+     */
+    private const string ATTACHMENT_SELECT = 'id,name,contentType,size,isInline,'
+        . 'microsoft.graph.fileAttachment/contentId';
+
+    /**
      * The invite flag, selected through the type it actually belongs to.
      *
      * meetingMessageType is declared on microsoft.graph.eventMessage, not on
@@ -548,7 +567,7 @@ final class GraphApiClient
             $account,
             'GET',
             self::ME . '/messages/' . rawurlencode($messageId) . '/attachments',
-            ['query' => ['$select' => 'id,name,contentType,size,isInline,contentId']],
+            ['query' => ['$select' => self::ATTACHMENT_SELECT]],
         )->toArray();
 
         return array_values($response['value'] ?? []);
@@ -582,7 +601,7 @@ final class GraphApiClient
                     'id'      => (string) $index,
                     'method'  => 'GET',
                     'url'     => '/me/messages/' . rawurlencode($id)
-                        . '/attachments?$select=id,name,contentType,size,isInline,contentId',
+                        . '/attachments?$select=' . self::ATTACHMENT_SELECT,
                     'headers' => ['Prefer' => 'IdType="ImmutableId"'],
                 ];
             }

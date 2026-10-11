@@ -8,6 +8,15 @@ The published image tags: `latest` follows the most recent release below,
 
 ## Unreleased
 
+**Attachments on Outlook and Hotmail mail show up.** A message with a file on it arrived in plMail
+with no attachment at all, no paperclip, nothing to download, for every Outlook.com, Hotmail and
+Microsoft 365 account. The list of a message's attachments was asked of Microsoft in a form it
+rejects, and a refused list was read as "none", silently. The request is fixed, and a message that
+Microsoft says has attachments but whose list does not come back is now logged as a warning
+instead of passing unnoticed. Mail that has already been synced stays as it was stored, without its
+attachments, until it is fetched again; mail that arrives from now on is correct. No migration.
+[#77](https://github.com/karatektus/pl_mail/pull/77), by @Flouss.
+
 **A parcel collected at a relay point now reads as delivered.** The mail that says "Votre colis a
 été retiré" or "… récupéré par son destinataire" named no stage the radar knew, so the card stayed
 "announced" after the parcel was in its recipient's hands. Both now read as **Delivered**; the
