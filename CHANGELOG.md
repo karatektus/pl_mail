@@ -87,6 +87,25 @@ host without typing a token drops the stored one. No migration.
 percent signs of its own placeholder, so a refusal read "HTTP %403%" and the host's reason sat
 between two stray percent signs.
 
+**Deleting mail for good is a choice you make, off until you make it.** Settings → Mail →
+**Disposal** has one switch, **Delete-now buttons**. It decides whether the **Delete forever**
+buttons exist at all: the flame on a row in Spam and the bin, which was always there, and now the
+same button above a ticked selection. **This changes things for anyone who used the row button: it
+is gone until the switch is on.** With it on, a selection in Spam or the bin is deleted for good
+from the toolbar, instead of a trip to the bin and a second deletion there. It asks first, says how
+many, and removes the mail from the mail server too; there is no Undo. It acts on the ticked rows, not on
+**Select all N** across pages. `#` does nothing above a selection there, since the Delete it
+presses is replaced. The server refuses to delete for good while the switch is off, whatever a
+page sends. It is per person and a config backup carries it. No migration.
+[#71](https://github.com/karatektus/pl_mail/pull/71), by @Flouss.
+
+**Delete above a selection in the bin no longer says it deleted what it did not.** Ticking mail in
+the bin and pressing **Delete** took the rows off the list, and they were back on the next load:
+the mail was already in the bin, so there was nothing to trash, and the list reported a change
+anyway. The bin has no **Delete** above a selection now. With the Disposal switch on it has
+**Delete forever** in its place, with the same question and the same count; with it off, **Move to
+inbox** is the way out. `#` does nothing there. No migration.
+
 ## v0.3.3 — 2026-10-11
 
 **The emoji picker is no longer almost empty on an iPhone or in Safari.** Nearly every cell of the
@@ -204,25 +223,6 @@ them off per person. No migration.
 toolbar above a selection has a **Star** button, and `s` presses it; before, `s` did nothing with
 rows ticked. An open conversation has a **Snooze** button in its toolbar, which is what `b` presses
 there.
-
-**Deleting mail for good is a choice you make, off until you make it.** Settings → Mail →
-**Disposal** has one switch, **Delete-now buttons**. It decides whether the **Delete forever**
-buttons exist at all: the flame on a row in Spam and the bin, which was always there, and now the
-same button above a ticked selection. **This changes things for anyone who used the row button: it
-is gone until the switch is on.** With it on, a selection in Spam or the bin is deleted for good
-from the toolbar, instead of a trip to the bin and a second deletion there. It asks first, says how
-many, and removes the mail from the mail server too; there is no Undo. It acts on the ticked rows, not on
-**Select all N** across pages. `#` does nothing above a selection there, since the Delete it
-presses is replaced. The server refuses to delete for good while the switch is off, whatever a
-page sends. It is per person and a config backup carries it. No migration.
-[#56](https://github.com/karatektus/pl_mail/pull/56), by @Flouss.
-
-**Delete above a selection in the bin no longer says it deleted what it did not.** Ticking mail in
-the bin and pressing **Delete** took the rows off the list, and they were back on the next load:
-the mail was already in the bin, so there was nothing to trash, and the list reported a change
-anyway. The bin has no **Delete** above a selection now. With the Disposal switch on it has
-**Delete forever** in its place, with the same question and the same count; with it off, **Move to
-inbox** is the way out. `#` does nothing there. No migration.
 
 **A config backup now carries how each person sorts their mail.** Settings → Categories — rules or
 the assistant, whether that overrules the provider's own categories, and whether the inbox has tabs
