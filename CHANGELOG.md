@@ -52,6 +52,7 @@ opens the calendar full width, the next goes back to the mail. Split is skipped 
 clicking a mail link while the calendar is full width goes back to the mail instead of dropping into
 a split. Off by default, so the button behaves as before until you change it. One column is added to
 the user table; the migration is reversible.
+[#80](https://github.com/karatektus/pl_mail/pull/80), by @Flouss.
 
 **Each inbox tab shows how many conversations in it are unread.** The number is the sidebar's
 Inbox badge split by category, so the tabs add up to it, and it appears on every tab, the one you
