@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Tests\Controller\Auth;
 
+use App\Domain\Enum\Crypto\UserKeyStatus;
+use App\Entity\Crypto\UserKey;
 use App\Entity\User\User;
 use App\Security\PasswordKdf;
 use Doctrine\ORM\EntityManagerInterface;
@@ -105,6 +107,38 @@ final class RequiredPasswordTest extends WebTestCase
         $this->client->request('GET', '/mail/inbox');
 
         self::assertResponseIsSuccessful();
+    }
+
+    /**
+     * A password this person did not choose must not be what their keys open
+     * with: whatever hung off the one somebody else set is locked, not carried
+     * over.
+     */
+    public function testChoosingOneLocksKeysThatHungOffThePasswordSomebodyElseChose(): void
+    {
+        $this->signIn(required: true);
+
+        $userKey = new UserKey($this->user, 'v1.' . base64_encode(random_bytes(12)) . '.' . base64_encode(random_bytes(48)));
+        $this->em->persist($userKey);
+        $this->em->flush();
+
+        $crawler    = $this->client->request('GET', '/password/required');
+        $form       = $crawler->filter('form[name="required_password"]')->form();
+        $salt       = base64_encode(random_bytes(PasswordKdf::SALT_BYTES));
+        $iterations = (int) $form->get('required_password[new][iterations]')->getValue();
+
+        $this->client->request('POST', '/password/required', ['required_password' => [
+            '_token' => $form->get('required_password[_token]')->getValue(),
+            'new'    => [
+                'authHash'   => PasswordKdf::derive(self::CHOSEN, $salt, $iterations),
+                'salt'       => $salt,
+                'iterations' => (string) $iterations,
+            ],
+        ]]);
+
+        $this->em->clear();
+
+        self::assertSame(UserKeyStatus::Locked, $this->em->find(UserKey::class, $userKey->id)?->status);
     }
 
     /** Signing out stays possible: the form is not a trap. */

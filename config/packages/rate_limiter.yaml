@@ -54,6 +54,16 @@ framework:
             limit: 60
             interval: '15 minutes'
 
+        # Opening the keyring with the password while already signed in, in
+        # App\Controller\Crypto\UnlockController. Per user, like the code form
+        # and for its reason: what is being guessed is one account's password,
+        # by somebody at that account's unlocked screen. As tight as the login
+        # form's per-account-and-address limit.
+        keyring_unlock:
+            policy: 'fixed_window'
+            limit: 5
+            interval: '15 minutes'
+
         # The public booking POST. It is the only endpoint on this install that
         # an unauthenticated stranger can use to create database rows AND cause
         # an email to be sent, which is the definition of a spam vector: one

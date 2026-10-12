@@ -8,6 +8,7 @@ use App\Controller\ChecksCsrf;
 use App\Entity\User\User;
 use App\Form\Admin\UserFormType;
 use App\Repository\User\UserRepository;
+use App\Service\Crypto\Keyring;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Knp\Component\Pager\PaginatorInterface;
@@ -69,6 +70,7 @@ final class DefaultController extends AbstractController
         private readonly PaginatorInterface          $paginator,
         private readonly UserRepository              $userRepository,
         private readonly UserPasswordHasherInterface $passwordHasher,
+        private readonly Keyring                     $keyring,
     ) {}
 
     /**
@@ -180,6 +182,11 @@ final class DefaultController extends AbstractController
         // what makes the row unable to authenticate.
         $user->useServerHashedPassword('');
         $user->deletedAt = $now;
+
+        // The keys go with the password. Nobody will sign in as this person to
+        // open them again, and key material is the last thing a removal should
+        // leave behind.
+        $this->keyring->forget($user);
 
         $this->entityManager->flush();
 

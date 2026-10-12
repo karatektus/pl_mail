@@ -2022,6 +2022,91 @@ drafts:
     empty: Keine Entwürfe.
     heading: Entwürfe
 
+encryption:
+    devices:
+        empty: "Noch keine Geräte."
+        heading: "Bekannte Geräte"
+        last_used: "benutzt"
+        remember: "Dieses Gerät merken"
+        remove: "Entfernen"
+        subheading: "Browser, die deine Schlüssel nach einem Passwort-Reset von selbst wieder öffnen können, ohne Recovery-Phrase."
+        this_device: "Dieses Gerät"
+        unavailable: "Dieser Browser kann hier keinen Geräteschlüssel aufbewahren — dafür braucht es HTTPS und Website-Speicher."
+    export:
+        file_name: "plmail-keys.asc"
+        heading: "Schlüssel exportieren"
+        hint: "Alle Privatschlüssel, auch die alten, als eine Datei, die GnuPG, Thunderbird und Proton lesen können."
+        passphrase: "Passphrase für die Datei"
+        submit: "Exportieren"
+    failed: "Das hat nicht geklappt. Lade die Seite neu und versuche es noch einmal."
+    import:
+        done: "%count% Schlüssel importiert."
+        hardware_key: "Die geheimen Teile dieses Schlüssels liegen auf einer Smartcard oder einem Security-Key, die ein Browser nicht benutzen kann."
+        heading: "Schlüssel importieren"
+        hint: "Ein OpenPGP-Privatschlüssel, den du schon benutzt, exportiert aus GnuPG, Thunderbird oder Proton. Er wird zum Schlüssel der Adressen, die er nennt."
+        no_match: "Keiner dieser Schlüssel nennt eine deiner Adressen."
+        not_a_key: "Das ist kein OpenPGP-Privatschlüssel."
+        passphrase: "Passphrase des Schlüssels"
+        submit: "Importieren"
+        wrong_passphrase: "Diese Passphrase öffnet den Schlüssel nicht."
+    keys:
+        advanced: "Schlüssel anzeigen"
+        compromised: "Als kompromittiert markieren"
+        confirm_compromised: "Diesen Schlüssel als kompromittiert markieren? Er wird nicht mehr benutzt, und seine Adressen bekommen einen neuen."
+        confirm_renew: "Einen neuen Schlüssel für diese Adressen erstellen? Der alte bleibt, um Mails zu öffnen, die an ihn gingen."
+        created: "erstellt"
+        expires: "läuft ab"
+        heading: "Schlüssel"
+        locked: "gesperrt — öffne ihn mit deiner Recovery-Phrase"
+        make_primary: "Primär machen"
+        origin:
+            generated: "von plMail erstellt"
+            imported: "importiert"
+        primary: "primär"
+        renew: "Erneuern"
+        status:
+            active: "Aktiv"
+            compromised: "Kompromittiert"
+            obsolete: "Ersetzt"
+        subheading: "Die OpenPGP-Schlüssel deiner Adressen. Bring einen mit, den du schon benutzt, oder nimm deine mit."
+    nag:
+        action: "Einstellungen öffnen"
+        locked_keys: "Einige deiner älteren Schlüssel sind seit dem Passwort-Reset gesperrt."
+        phrase_missing: "Deine Mails können jetzt Ende-zu-Ende verschlüsselt werden. Sichere eine Recovery-Phrase, damit du deine Schlüssel nie verlierst."
+        recovered: "Deine älteren Schlüssel wurden über dieses Gerät wieder geöffnet."
+    phrase:
+        create: "Recovery-Phrase erstellen"
+        download: "Herunterladen"
+        file_intro: "plMail-Recovery-Phrase. Bewahre diese Datei sicher und offline auf. Die Blöcke darunter sind die Widerrufszertifikate deiner Schlüssel."
+        file_name: "plmail-recovery-phrase.txt"
+        heading: "Recovery-Phrase"
+        invalid: "Das sind keine zwölf gültigen Recovery-Wörter. Prüfe sie auf Tippfehler."
+        missing: "Du hast noch keine Recovery-Phrase."
+        opens_nothing: "Diese Phrase öffnet keinen deiner gesperrten Schlüssel."
+        recover_heading: "Ältere Schlüssel öffnen"
+        recover_hint: "Einige deiner Schlüssel wurden gesperrt, als dein Passwort zurückgesetzt wurde. Gib deine Recovery-Phrase ein, um sie wieder zu öffnen."
+        recover_submit: "Mit Recovery-Phrase öffnen"
+        recovered: "%count% Schlüssel wieder geöffnet."
+        recreate: "Neue Recovery-Phrase erstellen"
+        saved: "Deine Recovery-Phrase ist eingerichtet. Erstelle eine neue, falls die alte jemand gesehen haben könnte."
+        shown_once: "Schreib diese Wörter auf oder lade sie jetzt herunter — sie werden nur dieses eine Mal angezeigt. Wer sie hat, kann deine Schlüssel öffnen."
+        subheading: "Zwölf Wörter, die deine Schlüssel öffnen, falls du dein Passwort vergisst. Ohne sie gehen verschlüsselte Mails mit dem Passwort verloren."
+    status:
+        broken: "Deine Schlüssel ließen sich nicht öffnen. Melde dich ab und wieder an; hilft das nicht, findet eine Administratorin den Grund im Log."
+        disabled: "Auf dieser Installation nicht verfügbar."
+        insecure: "Braucht HTTPS. Diese Seite wurde über reines http:// geöffnet, wo der Browser keine eigene Kryptografie anbietet — öffne plMail über seine https://-Adresse."
+        heading: "Ende-zu-Ende-Verschlüsselung"
+        key_count: "Aktive Schlüssel: %keys% · Adressen: %addresses%"
+        loading: "Deine Schlüssel werden geöffnet …"
+        locked: "In diesem Browser gesperrt. Gib dein Passwort ein, um sie zu entsperren."
+        open: "Eingerichtet und in diesem Browser entsperrt."
+        subheading: "Mails, die nur du und die Menschen lesen können, denen du schreibst — nicht dieser Server und nicht dein Mail-Anbieter."
+    unlock:
+        label: "Passwort"
+        rate_limited: "Zu viele Versuche. Warte ein paar Minuten und versuche es dann noch einmal."
+        submit: "Entsperren"
+        wrong_password: "Das ist nicht dein Passwort."
+
 errors:
     page:
         back: Zurück zu deiner Mail
@@ -3723,6 +3808,7 @@ settings:
         appearance: Darstellung
         calendars: Kalender
         disposal: Entsorgen
+        encryption: "Verschlüsselung"
         filters: Filter
         general: Allgemein
         group:

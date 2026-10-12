@@ -1,0 +1,204 @@
+{#
+settings/_encryption.html.twig
+─────────────────────────────────────────────────────────────────────────────
+Settings → Encryption: the keyring of issue #28, as far as a person ever needs
+to see it.
+
+Everything here is drawn and driven by settings--encryption, because nothing
+on it can be decided by the server: whether the keyring is open, which recovery
+copy belongs to this browser, what a key's addresses are — all of that is
+known only once the browser has opened it. The markup is the frame, in Twig so
+its words come from the catalogues; the script fills the parts that depend on
+the keyring and shows the forms that apply.
+
+Four cards, most comfortable first: whether it works, the recovery phrase,
+the devices that can reopen it on their own, and — folded away — the keys
+themselves for whoever wants to import, export or replace one.
+
+Accepts nothing: what it needs is the signed-in user and the routes.
+#}
+{% set button = 'inline-flex items-center gap-2 px-3 h-9 rounded-lg text-sm font-medium bg-raised hover:bg-hover text-ink border border-line transition-colors cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed' %}
+{% set primaryButton = 'inline-flex items-center gap-2 px-3 h-9 rounded-lg text-sm font-medium bg-accent hover:bg-accent-strong text-accent-ink transition-colors cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed' %}
+{% set field = 'w-full px-3 py-2 text-sm rounded-lg border border-field bg-field text-ink placeholder:text-ink-faint focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition-colors' %}
+
+<div data-controller="settings--encryption"
+     data-settings--encryption-state-url-value="{{ path('app_keyring_state') }}"
+     data-settings--encryption-unlock-url-value="{{ path('app_keyring_unlock_current') }}"
+     data-settings--encryption-prelogin-url-value="{{ path('app_login_prelogin') }}"
+     data-settings--encryption-csrf-value="{{ csrf_token('keyring') }}"
+     data-settings--encryption-user-id-value="{{ app.user.id }}"
+     data-settings--encryption-email-value="{{ app.user.email }}"
+     data-settings--encryption-locale-value="{{ app.request.locale }}"
+     data-settings--encryption-messages-value="{{ {
+         statusOpen:        'encryption.status.open'|trans,
+         statusLocked:      'encryption.status.locked'|trans,
+         statusDisabled:    'encryption.status.disabled'|trans,
+         statusInsecure:    'encryption.status.insecure'|trans,
+         statusBroken:      'encryption.status.broken'|trans,
+         statusLoading:     'encryption.status.loading'|trans,
+         keyCount:          'encryption.status.key_count'|trans,
+         phraseSaved:       'encryption.phrase.saved'|trans,
+         phraseMissing:     'encryption.phrase.missing'|trans,
+         phraseCreate:      'encryption.phrase.create'|trans,
+         phraseRecreate:    'encryption.phrase.recreate'|trans,
+         phraseInvalid:     'encryption.phrase.invalid'|trans,
+         phraseOpensNothing:'encryption.phrase.opens_nothing'|trans,
+         phraseRecovered:   'encryption.phrase.recovered'|trans,
+         phraseFileName:    'encryption.phrase.file_name'|trans,
+         phraseFileIntro:   'encryption.phrase.file_intro'|trans,
+         wrongPassword:     'encryption.unlock.wrong_password'|trans,
+         rateLimited:       'encryption.unlock.rate_limited'|trans,
+         devicesEmpty:      'encryption.devices.empty'|trans,
+         thisDevice:        'encryption.devices.this_device'|trans,
+         lastUsed:          'encryption.devices.last_used'|trans,
+         remove:            'encryption.devices.remove'|trans,
+         noDeviceStorage:   'encryption.devices.unavailable'|trans,
+         primary:           'encryption.keys.primary'|trans,
+         makePrimary:       'encryption.keys.make_primary'|trans,
+         renew:             'encryption.keys.renew'|trans,
+         compromised:       'encryption.keys.compromised'|trans,
+         confirmCompromised:'encryption.keys.confirm_compromised'|trans,
+         confirmRenew:      'encryption.keys.confirm_renew'|trans,
+         created:           'encryption.keys.created'|trans,
+         expires:           'encryption.keys.expires'|trans,
+         statusActive:      'encryption.keys.status.active'|trans,
+         statusObsolete:    'encryption.keys.status.obsolete'|trans,
+         statusCompromised: 'encryption.keys.status.compromised'|trans,
+         originGenerated:   'encryption.keys.origin.generated'|trans,
+         originImported:    'encryption.keys.origin.imported'|trans,
+         lockedKey:         'encryption.keys.locked'|trans,
+         importDone:        'encryption.import.done'|trans,
+         importNoMatch:     'encryption.import.no_match'|trans,
+         wrongPassphrase:   'encryption.import.wrong_passphrase'|trans,
+         hardwareKey:       'encryption.import.hardware_key'|trans,
+         notAKey:           'encryption.import.not_a_key'|trans,
+         exportFileName:    'encryption.export.file_name'|trans,
+         failed:            'encryption.failed'|trans,
+     }|json_encode }}">
+
+    {# ── Status ──────────────────────────────────────────────────────────── #}
+    {% embed 'settings/_card.html.twig' with {
+        heading:    'encryption.status.heading'|trans,
+        subheading: 'encryption.status.subheading'|trans,
+        padded:     true,
+        class:      'mb-6',
+    } %}
+        {% block body %}
+            <p class="flex items-start gap-2 text-sm text-ink" data-settings--encryption-target="status" role="status">
+                <i class="fa-solid fa-spinner fa-spin text-ink-faint mt-0.5" aria-hidden="true"></i>
+                {{ 'encryption.status.loading'|trans }}
+            </p>
+
+            <form hidden class="mt-4 max-w-md" data-settings--encryption-target="unlockForm"
+                  data-action="submit->settings--encryption#unlock">
+                <label for="encryption-unlock" class="block text-[11px] text-ink-faint mb-1">{{ 'encryption.unlock.label'|trans }}</label>
+                <div class="flex items-end gap-2">
+                    <input type="password" id="encryption-unlock" required autocomplete="current-password"
+                           data-settings--encryption-target="unlockPassword" class="{{ field }}">
+                    <button type="submit" class="{{ primaryButton }} shrink-0">{{ 'encryption.unlock.submit'|trans }}</button>
+                </div>
+                <p hidden class="mt-2 text-xs text-danger" data-settings--encryption-target="unlockError" role="alert"></p>
+            </form>
+        {% endblock %}
+    {% endembed %}
+
+    {# ── Recovery phrase ─────────────────────────────────────────────────── #}
+    {% embed 'settings/_card.html.twig' with {
+        heading:    'encryption.phrase.heading'|trans,
+        subheading: 'encryption.phrase.subheading'|trans,
+        padded:     true,
+        class:      'mb-6',
+    } %}
+        {% block body %}
+            <div data-settings--encryption-target="openOnly" hidden>
+                <p class="text-sm text-ink mb-3" data-settings--encryption-target="phraseState"></p>
+
+                <button type="button" class="{{ button }}" data-settings--encryption-target="phraseCreate"
+                        data-action="click->settings--encryption#createPhrase"></button>
+
+                <div hidden class="mt-4" data-settings--encryption-target="phraseBox">
+                    <p class="text-[11px] text-ink-muted mb-2">{{ 'encryption.phrase.shown_once'|trans }}</p>
+                    <code data-settings--encryption-target="phraseWords"
+                          class="block rounded-lg bg-zinc-500/10 px-3 py-2.5 text-sm font-mono text-ink select-all leading-relaxed"></code>
+                    <button type="button" class="{{ primaryButton }} mt-3" data-action="click->settings--encryption#downloadPhrase">
+                        <i class="fa-solid fa-download text-[11px]" aria-hidden="true"></i>
+                        {{ 'encryption.phrase.download'|trans }}
+                    </button>
+                </div>
+
+                <form hidden class="mt-6 max-w-md border-t border-line pt-4" data-settings--encryption-target="recoverForm"
+                      data-action="submit->settings--encryption#recover">
+                    <h3 class="text-xs font-semibold text-ink mb-1">{{ 'encryption.phrase.recover_heading'|trans }}</h3>
+                    <p class="text-[11px] text-ink-muted mb-2">{{ 'encryption.phrase.recover_hint'|trans }}</p>
+                    <textarea rows="3" required autocomplete="off" spellcheck="false"
+                              data-settings--encryption-target="recoverWords" class="{{ field }} font-mono"></textarea>
+                    <button type="submit" class="{{ primaryButton }} mt-2">{{ 'encryption.phrase.recover_submit'|trans }}</button>
+                    <p hidden class="mt-2 text-xs" data-settings--encryption-target="recoverResult" role="status"></p>
+                </form>
+            </div>
+        {% endblock %}
+    {% endembed %}
+
+    {# ── Known devices ───────────────────────────────────────────────────── #}
+    {% embed 'settings/_card.html.twig' with {
+        heading:    'encryption.devices.heading'|trans,
+        subheading: 'encryption.devices.subheading'|trans,
+        padded:     true,
+        class:      'mb-6',
+    } %}
+        {% block body %}
+            <div data-settings--encryption-target="openOnly" hidden>
+                <ul class="divide-y divide-line" data-settings--encryption-target="devices"></ul>
+                <button type="button" hidden class="{{ button }} mt-3" data-settings--encryption-target="rememberDevice"
+                        data-action="click->settings--encryption#rememberDevice">
+                    {{ 'encryption.devices.remember'|trans }}
+                </button>
+            </div>
+        {% endblock %}
+    {% endembed %}
+
+    {# ── Keys ────────────────────────────────────────────────────────────── #}
+    {% embed 'settings/_card.html.twig' with {
+        heading:    'encryption.keys.heading'|trans,
+        subheading: 'encryption.keys.subheading'|trans,
+        padded:     true,
+    } %}
+        {% block body %}
+            <div data-settings--encryption-target="openOnly" hidden>
+                <div class="grid gap-6 md:grid-cols-2">
+                    <form data-action="submit->settings--encryption#importKeys">
+                        <h3 class="text-xs font-semibold text-ink mb-1">{{ 'encryption.import.heading'|trans }}</h3>
+                        <p class="text-[11px] text-ink-muted mb-2">{{ 'encryption.import.hint'|trans }}</p>
+                        <input type="file" accept=".asc,.gpg,.key,.txt,application/pgp-keys"
+                               data-settings--encryption-target="importFile"
+                               class="block w-full text-xs text-ink-muted mb-2">
+                        <textarea rows="3" spellcheck="false" placeholder="-----BEGIN PGP PRIVATE KEY BLOCK-----"
+                                  data-settings--encryption-target="importText" class="{{ field }} font-mono text-xs"></textarea>
+                        <label class="block text-[11px] text-ink-faint mt-2 mb-1" for="encryption-import-passphrase">{{ 'encryption.import.passphrase'|trans }}</label>
+                        <input type="password" id="encryption-import-passphrase" autocomplete="off"
+                               data-settings--encryption-target="importPassphrase" class="{{ field }}">
+                        <button type="submit" class="{{ button }} mt-2">{{ 'encryption.import.submit'|trans }}</button>
+                        <p hidden class="mt-2 text-xs" data-settings--encryption-target="importResult" role="status"></p>
+                    </form>
+
+                    <form data-action="submit->settings--encryption#exportKeys">
+                        <h3 class="text-xs font-semibold text-ink mb-1">{{ 'encryption.export.heading'|trans }}</h3>
+                        <p class="text-[11px] text-ink-muted mb-2">{{ 'encryption.export.hint'|trans }}</p>
+                        <label class="block text-[11px] text-ink-faint mb-1" for="encryption-export-passphrase">{{ 'encryption.export.passphrase'|trans }}</label>
+                        <input type="password" id="encryption-export-passphrase" required minlength="8" autocomplete="new-password"
+                               data-settings--encryption-target="exportPassphrase" class="{{ field }}">
+                        <button type="submit" class="{{ button }} mt-2">
+                            <i class="fa-solid fa-download text-[11px]" aria-hidden="true"></i>
+                            {{ 'encryption.export.submit'|trans }}
+                        </button>
+                    </form>
+                </div>
+
+                <details class="mt-6 border-t border-line pt-4">
+                    <summary class="text-xs font-semibold text-ink cursor-pointer">{{ 'encryption.keys.advanced'|trans }}</summary>
+                    <ul class="mt-3 divide-y divide-line" data-settings--encryption-target="keys"></ul>
+                </details>
+            </div>
+        {% endblock %}
+    {% endembed %}
+</div>

@@ -158,6 +158,10 @@ the account          display name, password HASH (never a password — the
                      the provider, tabs on or off), onboarding state
 two-factor           the TOTP secret, its confirmation date, and the unused
                      recovery codes (already SHA-256 digests)
+encryption keys      the keyring, blob for blob: user keys, recovery copies,
+                     address keys and the addresses they serve — all wrapped
+                     under the person's password, so nothing in them opens
+                     without it
 app passwords        name, hint and hash per credential, with lastUsedAt and
                      revokedAt. These are what keeps JMAP clients signed in
 mail accounts        IMAP/SMTP host, port and encryption, username, password,

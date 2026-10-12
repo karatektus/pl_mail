@@ -22,6 +22,9 @@ use App\Repository\Label\LabelRepository;
 use App\Repository\Mail\AccountRepository;
 use App\Repository\Rule\MailRuleRepository;
 use App\Repository\User\ApiTokenRepository;
+use App\Repository\Crypto\AddressKeyRepository;
+use App\Repository\Crypto\UserKeyCopyRepository;
+use App\Repository\Crypto\UserKeyRepository;
 use App\Repository\User\UserRepository;
 use DateTimeInterface;
 use Throwable;
@@ -243,6 +246,9 @@ final readonly class ConfigBackupUsers
         private CalendarRepository          $calendars,
         private CalendarShareLinkRepository $shareLinks,
         private BookingPageRepository       $bookingPages,
+        private UserKeyRepository           $userKeys,
+        private UserKeyCopyRepository       $userKeyCopies,
+        private AddressKeyRepository        $addressKeys,
     ) {
     }
 
@@ -376,6 +382,12 @@ final readonly class ConfigBackupUsers
                 'recoveryCodes' => array_values($user->backupCodes),
             ],
             'appPasswords' => $this->exportAppPasswords($user),
+            // Every blob exactly as stored, and nothing the server could open:
+            // the user keys are wrapped under the person's password, the
+            // address keys under passphrases wrapped under those. So a restore
+            // with the password hash and its salt above opens with the same
+            // password, and the file is no more sensitive for carrying them.
+            'keyring'      => $this->exportKeyring($user),
             'accounts'     => $this->exportAccounts($user),
             'integrations' => $this->exportIntegrations($user),
             'labels'       => $this->exportLabels($user),
@@ -387,6 +399,67 @@ final readonly class ConfigBackupUsers
     }
 
     // ── Private ───────────────────────────────────────────────────────────────
+
+    /**
+     * The keyring, as the browser left it. See exportUser() on why carrying it
+     * costs nothing the password hash beside it does not already.
+     *
+     * @return array{userKeys: list<array<string, mixed>>, addressKeys: list<array<string, mixed>>}
+     */
+    private function exportKeyring(User $user): array
+    {
+        $copies = [];
+
+        foreach ($this->userKeyCopies->findForUser($user) as $copy) {
+            $copies[$copy->userKey->id][] = [
+                'kind'       => $copy->kind->value,
+                'wrapped'    => $copy->wrapped,
+                'label'      => $copy->label,
+                'lastUsedAt' => $copy->lastUsedAt?->format(DateTimeInterface::ATOM),
+                'createdAt'  => $copy->createdAt->format(DateTimeInterface::ATOM),
+            ];
+        }
+
+        $userKeys = [];
+
+        foreach ($this->userKeys->findForUser($user) as $userKey) {
+            $userKeys[] = [
+                'id'        => $userKey->id,
+                'wrapped'   => $userKey->wrapped,
+                'status'    => $userKey->status->value,
+                'lockedAt'  => $userKey->lockedAt?->format(DateTimeInterface::ATOM),
+                'createdAt' => $userKey->createdAt->format(DateTimeInterface::ATOM),
+                'copies'    => $copies[$userKey->id] ?? [],
+            ];
+        }
+
+        $addressKeys = [];
+
+        foreach ($this->addressKeys->findForUser($user) as $key) {
+            $addresses = [];
+
+            foreach ($key->bindings as $binding) {
+                $addresses[] = ['email' => $binding->email, 'primary' => $binding->isPrimary];
+            }
+
+            $addressKeys[] = [
+                'userKeyId'             => $key->userKey->id,
+                'fingerprint'           => $key->fingerprint,
+                'publicKey'             => $key->publicKey,
+                'privateKey'            => $key->privateKey,
+                'token'                 => $key->token,
+                'origin'                => $key->origin->value,
+                'status'                => $key->status->value,
+                'expiresAt'             => $key->expiresAt?->format(DateTimeInterface::ATOM),
+                'revocationCertificate' => $key->revocationCertificate,
+                'firstUsedAt'           => $key->firstUsedAt?->format(DateTimeInterface::ATOM),
+                'createdAt'             => $key->createdAt->format(DateTimeInterface::ATOM),
+                'addresses'             => $addresses,
+            ];
+        }
+
+        return ['userKeys' => $userKeys, 'addressKeys' => $addressKeys];
+    }
 
     /**
      * The app passwords, as hashes.

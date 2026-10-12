@@ -25,6 +25,8 @@
  * diaeresis from another.
  */
 
+import { hkdf } from "./crypto/aead.js";
+
 const encoder = new TextEncoder();
 
 /** 16 bytes, matching PasswordKdf::SALT_BYTES. */
@@ -37,10 +39,32 @@ const SALT_BYTES = 16;
  * @returns {Promise<string>}  the auth hash, base64
  */
 export async function deriveAuthHash(password, salt, iterations) {
+    return (await derivePasswordSecrets(password, salt, iterations)).authHash;
+}
+
+/**
+ * The auth hash, and the key that wraps the person's user key.
+ *
+ *     wrapKey = HKDF-SHA256(masterKey, info = "plmail/user-key-wrap")
+ *
+ * Both from the same master key, and that is the point of this whole file:
+ * the server gets the first and can do nothing with it but check a sign-in;
+ * the second never leaves the browser, and is what opens the keyring — see
+ * crypto/keyring.js.
+ *
+ * @param {string} password
+ * @param {string} salt
+ * @param {number} iterations
+ * @returns {Promise<{authHash: string, wrapKey: Uint8Array}>}
+ */
+export async function derivePasswordSecrets(password, salt, iterations) {
     const secret = encoder.encode(password.normalize("NFC"));
     const masterKey = await pbkdf2(secret, fromBase64(salt), iterations);
 
-    return toBase64(await pbkdf2(masterKey, secret, 1));
+    return {
+        authHash: toBase64(await pbkdf2(masterKey, secret, 1)),
+        wrapKey: await hkdf(masterKey, "plmail/user-key-wrap"),
+    };
 }
 
 /**

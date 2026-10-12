@@ -1,0 +1,710 @@
+import { PURPOSE, hasSubtle, open, randomBytes, seal, toBase64 } from "./aead.js";
+import { deviceKey, deviceLabel } from "./device.js";
+import { newPhrase, phraseKey } from "./recovery_phrase.js";
+import * as session from "./session.js";
+import { derivePasswordSecrets } from "../password_kdf.js";
+
+/**
+ * A person's keyring, opened in their browser.
+ *
+ *     user key   32 random bytes, wrapped under the password-derived wrap key
+ *     address    OpenPGP keys, each locked with a random passphrase ("token")
+ *     keys       that is wrapped under the user key
+ *     copies     the user key wrapped under a recovery phrase or a device key
+ *
+ * Every piece of cryptography happens here; the server stores the wrapped
+ * blobs and enforces the rules a browser cannot be trusted with alone (see
+ * App\Service\Crypto\Keyring). Opened user keys live only in this module's
+ * memory, for as long as the page — Turbo keeps it across navigations, and a
+ * reload opens it again through session.js without asking anything.
+ *
+ * On the main thread rather than in a worker, for now. A module worker does
+ * not see the page's import map, so openpgp and @noble would have to be
+ * passed in by URL, and nothing in this phase is slow enough to block the page
+ * — generating a Curve25519 key takes milliseconds. Decrypting large mail in
+ * phase 3 is when a worker earns its keep.
+ *
+ * One instance per page: keyring() below.
+ */
+
+const encoder = new TextEncoder();
+const decoder = new TextDecoder();
+
+let instance = null;
+
+/**
+ * @param {{stateUrl: string, unlockUrl: string, preloginUrl: string, csrf: string, userId: string|number, email: string}} config
+ * @returns {Keyring}
+ */
+export function keyring(config) {
+    instance ??= new Keyring(config);
+
+    return instance;
+}
+
+export class Keyring {
+    /** @type {object|null} the server's KeyringView */
+    state = null;
+
+    /** @type {"disabled"|"insecure"|"locked"|"open"|"broken"|"unknown"} */
+    status = "unknown";
+
+    #config;
+    #wrapKey = null;
+    /** @type {Map<number, Uint8Array>} opened user keys, by id */
+    #userKeys = new Map();
+    /** @type {Set<number>} device copies this browser can open */
+    #ownDeviceCopies = new Set();
+    /** @type {Promise|null} the one ensure() of this page */
+    #ensuring = null;
+
+    constructor(config) {
+        this.#config = config;
+    }
+
+    // ── Opening ─────────────────────────────────────────────────────────────
+
+    /**
+     * Opens the keyring if the session can, and makes sure it is complete:
+     * a first keyring for an account that has none, the old one reopened from
+     * this device after a password reset, a key for every address. Silent —
+     * this runs on every full page load.
+     *
+     * Once per page, however many callers ask: the boot controller and the
+     * settings page both do, and two that each found no keyring would each
+     * make one.
+     *
+     * @returns {Promise<{status: string, created: boolean, recovered: number}>}
+     */
+    ensure() {
+        this.#ensuring ??= this.#ensure().catch((error) => {
+            this.#ensuring = null;
+
+            throw error;
+        });
+
+        return this.#ensuring;
+    }
+
+    async #ensure() {
+        await this.refresh();
+
+        if (false === this.state.enabled) {
+            return this.#settle("disabled");
+        }
+
+        // Plain http on a LAN address: no WebCrypto, so no device keys, and
+        // openpgp.js leans on it too. A keyring made here would be one the
+        // next HTTPS browser could open — but a half-working one, failing at
+        // whichever step needs WebCrypto first, helps nobody. Signing in still
+        // works there (password_kdf.js falls back); keys wait for HTTPS.
+        if (false === hasSubtle()) {
+            return this.#settle("insecure");
+        }
+
+        this.#wrapKey ??= await session.recall(this.#config.unlockUrl);
+
+        if (null === this.#wrapKey || null === this.state.kdf) {
+            return this.#settle("locked");
+        }
+
+        return this.#afterUnlock();
+    }
+
+    /**
+     * Opens the keyring with the password, for a session the sign-in did not
+     * leave unlocked — a remember-me cookie, the install wizard.
+     *
+     * @param {string} password
+     * @returns {Promise<{status: string, created: boolean, recovered: number}>}
+     */
+    async unlock(password) {
+        const params = await this.#kdfParameters();
+        const { authHash, wrapKey } = await derivePasswordSecrets(password, params.salt, params.iterations);
+        const unlockKey = await session.remember(wrapKey);
+        const response = await this.#post(this.#config.unlockUrl, {
+            authHash,
+            password: true === params.migrate ? password : "",
+            unlockKey,
+        }, false);
+
+        if (false === response.ok) {
+            session.forget();
+
+            throw new Error(429 === response.status ? "rate_limited" : "wrong_password");
+        }
+
+        this.#wrapKey = wrapKey;
+        await this.refresh();
+
+        return this.#afterUnlock();
+    }
+
+    async refresh() {
+        const response = await fetch(this.#config.stateUrl, { headers: { Accept: "application/json" }, cache: "no-store" });
+
+        if (false === response.ok) {
+            throw new Error("keyring_unavailable");
+        }
+
+        this.state = await response.json();
+
+        return this.state;
+    }
+
+    // ── What the settings page asks ─────────────────────────────────────────
+
+    hasPhrase() {
+        return this.#activeUserKeys().some((userKey) => this.state.copies.some((copy) => "phrase" === copy.kind && copy.userKeyId === userKey.id));
+    }
+
+    lockedUserKeys() {
+        return this.state?.userKeys.filter((userKey) => "locked" === userKey.status) ?? [];
+    }
+
+    isOwnDeviceCopy(copyId) {
+        return this.#ownDeviceCopies.has(copyId);
+    }
+
+    rememberedHere() {
+        return this.#activeUserKeys().some((userKey) => this.state.copies.some((copy) => "device" === copy.kind && copy.userKeyId === userKey.id && this.#ownDeviceCopies.has(copy.id)));
+    }
+
+    // ── Recovery ────────────────────────────────────────────────────────────
+
+    /**
+     * Makes a new recovery phrase and stores the keyring wrapped under it,
+     * replacing the old phrase. The words are returned once and kept nowhere.
+     *
+     * @returns {Promise<string>}
+     */
+    async createPhrase() {
+        this.#assertOpen();
+
+        const words = await newPhrase();
+        const key = await phraseKey(words);
+
+        for (const [id, bytes] of this.#userKeys) {
+            await this.#post(this.#url("copies"), { userKeyId: id, kind: "phrase", wrapped: await seal(key, bytes, PURPOSE.phrase) });
+        }
+
+        return words;
+    }
+
+    /**
+     * Opens locked keys with a recovery phrase and wraps them under the
+     * current password, which makes them active again.
+     *
+     * @param {string} words
+     * @returns {Promise<number>} how many keys were reopened; throws "invalid_phrase"
+     */
+    async recoverWithPhrase(words) {
+        this.#assertOpen();
+
+        const key = await phraseKey(words);
+
+        if (null === key) {
+            throw new Error("invalid_phrase");
+        }
+
+        const reopened = await this.#reopenLocked("phrase", () => key);
+
+        if (0 === reopened) {
+            throw new Error("phrase_opens_nothing");
+        }
+
+        return reopened;
+    }
+
+    /**
+     * Keeps this browser as a known device: every open user key wrapped under
+     * a key only this browser holds.
+     */
+    async rememberDevice() {
+        this.#assertOpen();
+
+        const key = await deviceKey(this.#config.userId, true);
+
+        if (null === key) {
+            throw new Error("no_device_storage");
+        }
+
+        for (const [id, bytes] of this.#userKeys) {
+            await this.#post(this.#url("copies"), { userKeyId: id, kind: "device", wrapped: await seal(key, bytes, PURPOSE.device), label: deviceLabel() });
+        }
+
+        await this.#findOwnDeviceCopies();
+    }
+
+    async removeCopy(copyId) {
+        await this.#post(this.#url(`copies/${copyId}/remove`), {});
+        this.#ownDeviceCopies.delete(copyId);
+    }
+
+    // ── Address keys ────────────────────────────────────────────────────────
+
+    /**
+     * An existing OpenPGP private key, bound to whichever of the person's
+     * addresses its user IDs name and made primary for them — the key their
+     * contacts already know.
+     *
+     * @param {string} armored
+     * @param {string} passphrase
+     * @returns {Promise<{imported: number, skipped: number}>}
+     */
+    async importKeys(armored, passphrase) {
+        this.#assertOpen();
+
+        const openpgp = await import("openpgp");
+        let keys;
+
+        try {
+            keys = await openpgp.readPrivateKeys({ armoredKeys: armored });
+        } catch {
+            throw new Error("not_a_private_key");
+        }
+
+        const userKeyId = this.#currentUserKeyId();
+        const prepared = [];
+        let skipped = 0;
+
+        for (const key of keys) {
+            const addresses = key.users
+                .map((user) => user.userID?.email?.toLowerCase() ?? "")
+                .filter((email) => this.state.addresses.includes(email));
+
+            if (0 === addresses.length) {
+                skipped++;
+                continue;
+            }
+
+            let decrypted;
+
+            try {
+                decrypted = key.isDecrypted() ? key : await openpgp.decryptKey({ privateKey: key, passphrase });
+            } catch {
+                throw new Error("wrong_passphrase");
+            }
+
+            if (false === await usable(decrypted)) {
+                throw new Error("hardware_key");
+            }
+
+            prepared.push(await this.#prepare(decrypted, "imported", [...new Set(addresses)].map((email) => ({ email, primary: true })), userKeyId));
+        }
+
+        if (0 < prepared.length) {
+            await this.#post(this.#url("address-keys"), { userKeyId, addressKeys: prepared });
+        }
+
+        return { imported: prepared.length, skipped };
+    }
+
+    /**
+     * Every private key on the keyring — old and replaced ones too, which is
+     * what still opens old mail — with its revocation certificate, as one
+     * armored file GnuPG, Thunderbird and Proton read. Locked with a
+     * passphrase the person chooses here.
+     *
+     * @param {string} passphrase
+     * @returns {Promise<string>}
+     */
+    async exportKeys(passphrase) {
+        this.#assertOpen();
+
+        const openpgp = await import("openpgp");
+        const blocks = [];
+        const exported = [];
+
+        for (const entry of this.state.addressKeys) {
+            const decrypted = await this.#openAddressKey(entry);
+
+            if (null === decrypted) {
+                continue;
+            }
+
+            blocks.push((await openpgp.encryptKey({ privateKey: decrypted, passphrase })).armor());
+            exported.push(entry.id);
+
+            if (null !== entry.revocationCertificate) {
+                blocks.push(entry.revocationCertificate);
+            }
+        }
+
+        // Handed out now, so none of these may be quietly replaced any more —
+        // see AddressKey::$firstUsedAt.
+        if (0 < exported.length) {
+            await this.#post(this.#url("address-keys/used"), { ids: exported });
+        }
+
+        return blocks.join("\n");
+    }
+
+    /**
+     * A new key for the addresses of an old one. The old one stays, marked
+     * obsolete, to decrypt what was sent to it.
+     */
+    async renew(addressKeyId) {
+        this.#assertOpen();
+
+        const entry = this.state.addressKeys.find((key) => key.id === addressKeyId);
+
+        if (undefined === entry) {
+            return;
+        }
+
+        const userKeyId = this.#currentUserKeyId();
+        const addresses = entry.addresses.map(({ email }) => ({ email, primary: true }));
+
+        await this.#post(this.#url("address-keys"), {
+            userKeyId,
+            addressKeys: [await this.#generate(addresses, userKeyId)],
+        });
+    }
+
+    async markCompromised(addressKeyId) {
+        await this.#post(this.#url(`address-keys/${addressKeyId}/compromised`), {});
+        await this.renew(addressKeyId);
+    }
+
+    async makePrimary(addressKeyId, email) {
+        await this.#post(this.#url(`address-keys/${addressKeyId}/primary`), { email });
+    }
+
+    // ── Password changes ────────────────────────────────────────────────────
+
+    /**
+     * Every active user key wrapped under a new password's wrap key, for the
+     * password form to send with the change. Opened with the current password
+     * rather than taken from memory, so a tab that never unlocked can still
+     * change the password without losing a key.
+     *
+     * @returns {Promise<Record<number, string>>}
+     */
+    async rewrapFor(currentPassword, newWrapKey) {
+        await this.refresh();
+
+        const active = this.#activeUserKeys();
+
+        if (0 === active.length || null === this.state.kdf) {
+            return {};
+        }
+
+        const { wrapKey } = await derivePasswordSecrets(currentPassword, this.state.kdf.salt, this.state.kdf.iterations);
+        const rewrapped = {};
+
+        for (const userKey of active) {
+            const bytes = await open(wrapKey, userKey.wrapped, PURPOSE.userKey);
+
+            rewrapped[userKey.id] = await seal(newWrapKey, bytes, PURPOSE.userKey);
+        }
+
+        return rewrapped;
+    }
+
+    // ── Private ─────────────────────────────────────────────────────────────
+
+    async #afterUnlock() {
+        await this.#openUserKeys();
+        await this.#findOwnDeviceCopies();
+
+        let created = false;
+        let recovered = await this.#reopenLocked("device", (copy) => this.#ownDeviceCopies.has(copy.id) ? deviceKey(this.#config.userId) : null);
+
+        if (0 === this.#userKeys.size) {
+            // An active key this password cannot open is not something to
+            // paper over with a new keyring: it means the session holds the
+            // wrong wrap key, and a new keyring would orphan the real one.
+            if (0 < this.#activeUserKeys().length) {
+                return this.#settle("broken");
+            }
+
+            await this.#create();
+            created = true;
+        }
+
+        await this.#addMissingAddressKeys();
+
+        return { ...this.#settle("open"), created, recovered };
+    }
+
+    async #openUserKeys() {
+        this.#userKeys.clear();
+
+        for (const userKey of this.#activeUserKeys()) {
+            try {
+                this.#userKeys.set(userKey.id, await open(this.#wrapKey, userKey.wrapped, PURPOSE.userKey));
+            } catch {
+                // Left out: see #afterUnlock() for what an unopenable active
+                // key means.
+            }
+        }
+    }
+
+    async #findOwnDeviceCopies() {
+        this.#ownDeviceCopies.clear();
+
+        const key = await deviceKey(this.#config.userId);
+
+        if (null === key) {
+            return;
+        }
+
+        for (const copy of this.state.copies.filter((candidate) => "device" === candidate.kind)) {
+            try {
+                await open(key, copy.wrapped, PURPOSE.device);
+                this.#ownDeviceCopies.add(copy.id);
+            } catch {
+                // Another browser's.
+            }
+        }
+    }
+
+    /**
+     * Opens each locked user key with a recovery copy of the given kind and
+     * wraps it under the current password.
+     *
+     * @param {"phrase"|"device"} kind
+     * @param {(copy: object) => (Uint8Array|CryptoKey|null|Promise<Uint8Array|CryptoKey|null>)} keyFor
+     */
+    async #reopenLocked(kind, keyFor) {
+        let reopened = 0;
+
+        for (const userKey of this.lockedUserKeys()) {
+            for (const copy of this.state.copies.filter((candidate) => kind === candidate.kind && candidate.userKeyId === userKey.id)) {
+                const key = await keyFor(copy);
+
+                if (null === key) {
+                    continue;
+                }
+
+                let bytes;
+
+                try {
+                    bytes = await open(key, copy.wrapped, "phrase" === kind ? PURPOSE.phrase : PURPOSE.device);
+                } catch {
+                    continue;
+                }
+
+                await this.#post(this.#url(`user-keys/${userKey.id}/rewrap`), { wrapped: await seal(this.#wrapKey, bytes, PURPOSE.userKey) });
+                await this.#post(this.#url(`copies/${copy.id}/used`), {});
+                this.#userKeys.set(userKey.id, bytes);
+                reopened++;
+                break;
+            }
+        }
+
+        return reopened;
+    }
+
+    /**
+     * The first keyring: a user key, a key for every address, and this
+     * browser as a known device where it can be one.
+     */
+    async #create() {
+        const bytes = randomBytes(32);
+        const wrapped = await seal(this.#wrapKey, bytes, PURPOSE.userKey);
+        const addressKeys = [];
+
+        for (const email of this.state.addresses) {
+            addressKeys.push(await this.#generate([{ email, primary: true }], null, bytes));
+        }
+
+        const device = await deviceKey(this.#config.userId, true);
+
+        await this.#post(this.#url(""), {
+            userKey: wrapped,
+            addressKeys,
+            deviceCopy: null === device ? null : await seal(device, bytes, PURPOSE.device),
+            deviceLabel: null === device ? null : deviceLabel(),
+        });
+
+        const created = this.state.userKeys.find((userKey) => userKey.wrapped === wrapped);
+
+        if (undefined !== created) {
+            this.#userKeys.set(created.id, bytes);
+        }
+
+        await this.#findOwnDeviceCopies();
+    }
+
+    /**
+     * A key for every address that has no active primary one — an alias added
+     * since, or the addresses of a keyring rebuilt after a reset.
+     */
+    async #addMissingAddressKeys() {
+        const covered = new Set();
+
+        for (const entry of this.state.addressKeys) {
+            if ("active" === entry.status && this.#userKeys.has(entry.userKeyId)) {
+                entry.addresses.filter(({ primary }) => primary).forEach(({ email }) => covered.add(email));
+            }
+        }
+
+        const missing = this.state.addresses.filter((email) => false === covered.has(email));
+
+        if (0 === missing.length) {
+            return;
+        }
+
+        const userKeyId = this.#currentUserKeyId();
+        const addressKeys = [];
+
+        for (const email of missing) {
+            addressKeys.push(await this.#generate([{ email, primary: true }], userKeyId));
+        }
+
+        await this.#post(this.#url("address-keys"), { userKeyId, addressKeys });
+    }
+
+    async #generate(addresses, userKeyId, userKeyBytes = null) {
+        const openpgp = await import("openpgp");
+        const token = toBase64(randomBytes(32));
+        const { privateKey, revocationCertificate } = await openpgp.generateKey({
+            userIDs: addresses.map(({ email }) => ({ email })),
+            passphrase: token,
+            format: "object",
+        });
+
+        return this.#describe(privateKey, token, "generated", addresses, userKeyBytes ?? this.#userKeys.get(userKeyId), { revocationCertificate });
+    }
+
+    /**
+     * An existing decrypted key, locked again with a fresh token for the
+     * keyring.
+     */
+    async #prepare(decrypted, origin, addresses, userKeyId) {
+        const openpgp = await import("openpgp");
+        const token = toBase64(randomBytes(32));
+        const locked = await openpgp.encryptKey({ privateKey: decrypted, passphrase: token });
+
+        return this.#describe(locked, token, origin, addresses, this.#userKeys.get(userKeyId), { decrypted });
+    }
+
+    /**
+     * The shape KeyringController takes. A generated key comes with the
+     * revocation certificate openpgp made alongside it; an imported one gets
+     * one made here — a revoked copy of its public half, which is what
+     * importing a revocation does anywhere — where its primary half is present.
+     */
+    async #describe(privateKey, token, origin, addresses, userKeyBytes, { decrypted = null, revocationCertificate = null } = {}) {
+        const openpgp = await import("openpgp");
+        const expiry = await privateKey.getExpirationTime();
+
+        if (null === revocationCertificate && null !== decrypted) {
+            try {
+                revocationCertificate = (await openpgp.revokeKey({ key: decrypted, format: "armored" })).publicKey;
+            } catch {
+                // A key whose primary half lives offline cannot revoke itself
+                // here. GnuPG made a certificate when the key was made; it
+                // lives there.
+            }
+        }
+
+        return {
+            fingerprint: privateKey.getFingerprint(),
+            publicKey: privateKey.toPublic().armor(),
+            privateKey: privateKey.armor(),
+            token: await seal(userKeyBytes, encoder.encode(token), PURPOSE.token),
+            origin,
+            expiresAt: expiry instanceof Date ? expiry.toISOString() : null,
+            revocationCertificate,
+            addresses,
+        };
+    }
+
+    async #openAddressKey(entry) {
+        const userKeyBytes = this.#userKeys.get(entry.userKeyId);
+
+        if (undefined === userKeyBytes) {
+            return null;
+        }
+
+        const openpgp = await import("openpgp");
+        const token = decoder.decode(await open(userKeyBytes, entry.token, PURPOSE.token));
+
+        return openpgp.decryptKey({ privateKey: await openpgp.readPrivateKey({ armoredKey: entry.privateKey }), passphrase: token });
+    }
+
+    async #kdfParameters() {
+        if (null !== this.state?.kdf) {
+            return { ...this.state.kdf, migrate: false };
+        }
+
+        const response = await fetch(this.#config.preloginUrl, {
+            method: "POST",
+            headers: { Accept: "application/json" },
+            body: new URLSearchParams({ email: this.#config.email }),
+        });
+
+        if (false === response.ok) {
+            throw new Error("prelogin_failed");
+        }
+
+        return response.json();
+    }
+
+    #activeUserKeys() {
+        return this.state?.userKeys.filter((userKey) => "active" === userKey.status) ?? [];
+    }
+
+    /** The newest open user key: where new address keys go. */
+    #currentUserKeyId() {
+        return Math.max(...this.#userKeys.keys());
+    }
+
+    #assertOpen() {
+        if ("open" !== this.status || 0 === this.#userKeys.size) {
+            throw new Error("locked");
+        }
+    }
+
+    #settle(status) {
+        this.status = status;
+
+        return { status, created: false, recovered: 0 };
+    }
+
+    #url(path) {
+        return "" === path ? this.#config.stateUrl : `${this.#config.stateUrl}/${path}`;
+    }
+
+    /**
+     * POSTs JSON with the keyring's CSRF token. Every keyring write answers
+     * with the whole keyring, which replaces what this instance holds.
+     */
+    async #post(url, body, expectKeyring = true) {
+        const response = await fetch(url, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Accept: "application/json", "X-CSRF-Token": this.#config.csrf },
+            body: JSON.stringify(body),
+        });
+
+        if (false === expectKeyring) {
+            return response;
+        }
+
+        if (false === response.ok) {
+            throw new Error((await response.json().catch(() => ({}))).error ?? "keyring_refused");
+        }
+
+        this.state = await response.json();
+
+        return response;
+    }
+}
+
+/**
+ * Whether a decrypted key can actually sign and decrypt here — a key whose
+ * secret halves live on a smartcard decrypts "successfully" into stubs.
+ */
+async function usable(key) {
+    try {
+        const signing = await key.getSigningKey();
+        const decrypting = (await key.getDecryptionKeys())[0];
+
+        return false === signing.keyPacket.isDummy() && undefined !== decrypting && false === decrypting.keyPacket.isDummy();
+    } catch {
+        return false;
+    }
+}

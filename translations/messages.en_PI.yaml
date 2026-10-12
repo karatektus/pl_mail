@@ -1901,6 +1901,91 @@ drafts:
     empty: No scrolls in the works.
     heading: Scrolls in the works
 
+encryption:
+    devices:
+        empty: "No spyglasses yet."
+        heading: "Known spyglasses"
+        last_used: "used"
+        remember: "Remember this spyglass"
+        remove: "Cast off"
+        subheading: "Spyglasses that can open yer keys on their own after a secret word be reset, without th' treasure words."
+        this_device: "This spyglass"
+        unavailable: "This spyglass cannot keep a key here — it needs HTTPS an' site storage."
+    export:
+        file_name: "plmail-keys.asc"
+        heading: "Take yer keys ashore"
+        hint: "Every private key, old ones too, as one file GnuPG, Thunderbird an' Proton can read."
+        passphrase: "Passphrase fer th' file"
+        submit: "Take ashore"
+    failed: "That did not work, matey. Reload th' page an' try again."
+    import:
+        done: "%count% keys brought aboard."
+        hardware_key: "Th' secret parts o' this key live on a smartcard or security key, which a spyglass cannot use."
+        heading: "Bring a key aboard"
+        hint: "An OpenPGP private key ye already use, from GnuPG, Thunderbird or Proton. It becomes th' key o' th' addresses it names."
+        no_match: "None o' these keys names one o' yer addresses."
+        not_a_key: "That be no OpenPGP private key."
+        passphrase: "Passphrase o' th' key"
+        submit: "Bring aboard"
+        wrong_passphrase: "That passphrase opens not th' key."
+    keys:
+        advanced: "Show th' keys"
+        compromised: "Mark as plundered"
+        confirm_compromised: "Mark this key as plundered? It'll not be used again, an' its addresses get a new one."
+        confirm_renew: "Forge a new key fer these addresses? Th' old one stays, to open letters sent to it."
+        created: "forged"
+        expires: "expires"
+        heading: "Keys"
+        locked: "locked — open it with yer treasure words"
+        make_primary: "Make primary"
+        origin:
+            generated: "forged by plMail"
+            imported: "brought aboard"
+        primary: "primary"
+        renew: "Forge anew"
+        status:
+            active: "Active"
+            compromised: "Plundered"
+            obsolete: "Replaced"
+        subheading: "Th' OpenPGP keys o' yer addresses. Bring one ye already use, or take yers elsewhere."
+    nag:
+        action: "Open th' settings"
+        locked_keys: "Some o' yer older keys be locked since yer secret word was reset."
+        phrase_missing: "Yer letters can now be sealed end to end. Make treasure words so ye never lose yer keys."
+        recovered: "Yer older keys were opened again from this spyglass."
+    phrase:
+        create: "Make treasure words"
+        download: "Haul it off"
+        file_intro: "plMail treasure words. Bury this file somewhere safe an' offline. Th' blocks below be th' revocation certificates o' yer keys."
+        file_name: "plmail-recovery-phrase.txt"
+        heading: "Treasure words"
+        invalid: "These be not twelve proper treasure words. Check fer slips o' th' quill."
+        missing: "Ye have no treasure words yet."
+        opens_nothing: "These words open none o' yer locked keys."
+        recover_heading: "Open older keys"
+        recover_hint: "Some o' yer keys were locked when yer secret word was reset. Say yer treasure words to open 'em again."
+        recover_submit: "Open with treasure words"
+        recovered: "%count% keys opened again."
+        recreate: "Make new treasure words"
+        saved: "Yer treasure words be set. Make new ones if th' old may have been spied."
+        shown_once: "Write these words down or haul 'em off now — they be shown but once. Whoever holds 'em can open yer keys."
+        subheading: "Twelve words that open yer keys should ye forget yer secret word. Without 'em, sealed letters sink with th' word."
+    status:
+        broken: "Yer keys would not open. Go ashore an' come aboard again; if that fails, th' quartermaster finds th' reason in th' log."
+        disabled: "Not to be had on this ship."
+        insecure: "Needs HTTPS. This page came aboard over plain http://, where th' spyglass offers no cryptography o' its own — come aboard through th' https:// address."
+        heading: "Sealed letters"
+        key_count: "Active keys: %keys% · Addresses: %addresses%"
+        loading: "Openin' yer keys…"
+        locked: "Locked in this spyglass. Say yer secret word to unlock it."
+        open: "Rigged, an' unlocked in this spyglass."
+        subheading: "Letters only ye an' yer correspondents can read — not this ship, not yer mail harbour."
+    unlock:
+        label: "Secret word"
+        rate_limited: "Too many tries. Wait a few minutes an' try again."
+        submit: "Unlock"
+        wrong_password: "That be not yer secret word."
+
 errors:
     page:
         back: Back to yer mail
@@ -3523,6 +3608,7 @@ settings:
         appearance: Look o' the ship
         calendars: Almanacs
         disposal: Disposal
+        encryption: "Sealed letters"
         filters: Sieves
         general: General
         group:

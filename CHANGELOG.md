@@ -8,6 +8,19 @@ The published image tags: `latest` follows the most recent release below,
 
 ## Unreleased
 
+**Your OpenPGP keys are made, kept and recoverable — the second step towards end-to-end
+encryption.** The first time you sign in after the update, your browser makes a key for every
+address you send from and keeps them on the server wrapped under your password, which the server
+never sees; signing in unlocks them for the whole session. Settings → Encryption adds a recovery
+phrase (twelve words, shown once, downloadable together with your keys' revocation certificates),
+known devices that reopen your keys on their own after a password reset, importing a key you already
+use, exporting all of them as one file GnuPG, Thunderbird and Proton read, and renewing or marking a
+key compromised. Changing your password in Settings carries your keys over; `app:user:password`
+locks them until the recovery phrase or a known device opens them again. Configuration backups
+carry the keys. Nothing is encrypted with them yet — reading and sending encrypted mail come next.
+Four tables are added; the migration is reversible, but going back down deletes every key, and
+with it anything that will have been encrypted to them.
+
 **Your password no longer reaches the server.** The login form stretches it in the browser
 (PBKDF2-SHA256, 600 000 rounds, as Bitwarden does) and sends only the result, which the server
 hashes like any password; changing your password in Settings works the same way. It is the

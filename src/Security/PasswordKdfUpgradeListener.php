@@ -5,9 +5,7 @@ declare(strict_types=1);
 namespace App\Security;
 
 use App\Entity\User\User;
-use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
-use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 use Symfony\Component\Security\Http\Authenticator\Passport\Credentials\PasswordCredentials;
 use Symfony\Component\Security\Http\Event\CheckPassportEvent;
 
@@ -38,9 +36,7 @@ use Symfony\Component\Security\Http\Event\CheckPassportEvent;
 final readonly class PasswordKdfUpgradeListener implements EventSubscriberInterface
 {
     public function __construct(
-        private PasswordKdf                 $kdf,
-        private UserPasswordHasherInterface $hasher,
-        private EntityManagerInterface      $entityManager,
+        private PasswordKdfUpgrader $upgrader,
     ) {
     }
 
@@ -71,18 +67,8 @@ final readonly class PasswordKdfUpgradeListener implements EventSubscriberInterf
         }
 
         // Already moved — by another tab, a moment ago — or the browser sent
-        // something that is not an auth hash. Either way the old hash stands
-        // and the next sign-in asks the prelogin again.
-        if (true === $user->hasClientDerivedPassword() || false === $this->kdf->isAuthHash($badge->authHash)) {
-            return;
-        }
-
-        $user->useClientDerivedPassword(
-            $this->hasher->hashPassword($user, $badge->authHash),
-            $this->kdf->placeholderSalt($badge->email),
-            $this->kdf->iterations,
-        );
-
-        $this->entityManager->flush();
+        // something that is not an auth hash: the upgrader leaves it alone,
+        // the old hash stands and the next sign-in asks the prelogin again.
+        $this->upgrader->upgrade($user, $badge->authHash, $badge->email);
     }
 }

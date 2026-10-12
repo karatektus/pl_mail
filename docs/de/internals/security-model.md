@@ -1,4 +1,4 @@
-<!-- translated-from: internals/security-model.md sha1:d9c0b6bab334aa62ea98b7a1b572760942843254 -->
+<!-- translated-from: internals/security-model.md sha1:23681c2ca84fe8ca2cf153b9c94afe774ca9827e -->
 # Sicherheitsmodell
 
 Verschlüsselung ruhender Daten und die Prüfung, die den Start ohne brauchbaren Schlüssel
@@ -217,6 +217,46 @@ vom Anlegeformular der Administration und von `app:user:password` gesetzt (auße
 `--no-change-required`), und `PasswordChangeRequiredListener` hält die Person auf
 `/password/required`, bis sie ein eigenes gewählt hat — nur auf der Firewall `main`, damit
 App-Passwörter weiter synchronisieren.
+
+## Der Schlüsselbund
+
+Phase 2 von Issue #28. Alles Kryptografische passiert im Browser (`assets/crypto/keyring.js`); der
+Server speichert Blobs, die er nicht öffnen kann, und hält die Regeln, die ein veralteter Tab
+brechen könnte (`App\Service\Crypto\Keyring`).
+
+```
+wrapKey         = HKDF-SHA256(masterKey, "plmail/user-key-wrap")      // siehe Abschnitt oben
+User-Key        = 32 Zufallsbytes, per AES-256-GCM unter wrapKey verpackt   // UserKey
+Adress-Key      = OpenPGP-Schlüssel, verschlossen mit einem Zufalls-Token  // AddressKey
+Token           = per AES-256-GCM unter dem User-Key verpackt
+Phrase-Kopie    = User-Key unter HKDF(BIP39-Entropie) verpackt         // UserKeyCopy, Art phrase
+Geräte-Kopie    = User-Key unter einem nicht exportierbaren IndexedDB-Schlüssel  // Art device
+```
+
+Jede Verpackung hat die Form `v1.<iv>.<ciphertext>`, ihr Zweck ist als Associated Data eingebunden
+(`App\Security\Crypto\Wrapped` prüft die Form). Der User-Key ist symmetrisch, wo das Konzept einen
+OpenPGP-Schlüssel skizziert hatte: Er wird nie herausgegeben und verpackt nur Tokens, was AES-GCM
+samt Integrität erledigt.
+
+**Die Sitzung bleibt entsperrt**, indem sie geteilt wird: Bei der Anmeldung verpackt der Browser
+`wrapKey` unter einem zufälligen Entsperr-Schlüssel, legt das Ergebnis in localStorage ab und sendet
+nur den Entsperr-Schlüssel (`unlock_key`), den `SessionUnlock` in der Sitzung hält. Eine spätere
+Seite holt ihn über `GET /keyring/unlock` zurück. Keine Hälfte öffnet allein etwas, und die Hälfte
+des Browsers ist wertlos, sobald die Sitzung endet. Eine Sitzung, die nicht das Anmeldeformular
+geöffnet hat — Angemeldet bleiben, der Installationsassistent —, ist gesperrt, bis `POST
+/keyring/unlock` das Passwort wie eine Anmeldung beweist (gedrosselt durch `keyring_unlock`).
+
+**Regeln, die der Server hält:** ein Schlüsselbund je Person, solange einer aktiv ist; Schlüssel nur
+für Adressen, die der Person gehören; ein primärer Schlüssel je Adresse; ein erzeugter Schlüssel,
+den niemand gesehen hat (`firstUsedAt` null), wird gelöscht statt behalten, wenn ein anderer primär
+wird, außer sein User-Key ist gesperrt; ein Passwortwechsel muss jeden aktiven User-Key neu verpackt
+mitbringen (`PasswordChanger` verweigert ihn sonst, im selben Flush); ein Passwort, das hier niemand
+gewählt hat — `app:user:password`, der erzwungene Wechsel —, sperrt stattdessen jeden Schlüssel. Wer
+entfernt wird, verliert seinen Schlüsselbund.
+
+**Im Haupt-Thread, nicht in einem Worker.** Modul-Worker sehen die Import-Map der Seite nicht, und
+nichts in dieser Phase ist langsam genug, um die Seite zu blockieren. Große Mails zu entschlüsseln
+ist der Punkt, an dem sich ein Worker lohnt.
 
 ## Firewalls
 
@@ -767,6 +807,11 @@ ein einziges Feld, öffnet alle Pfade auf einmal wieder.
 wieder jemand buchen kann.** Die Entität sagt das ausdrücklich: `cancelled_at` später zu ergänzen
 heißt, den Index partiell zu machen — `WHERE cancelled_at IS NULL` —, und das ist der Satz, den
 du dir merken solltest.
+
+**Eine abgebrochene Anfrage ist keine verlorene Sitzung.** `session.js` löscht seine gespeicherte
+Hälfte nur, wenn der Server für den Entsperr-Schlüssel 404 antwortet. Bei jedem Fehlschlag zu
+löschen sperrte den Schlüsselbund aller, die weitergeklickt haben, bevor die erste Seite ihn
+fertig geöffnet hatte — der Browser bricht die Anfrage dann ab.
 
 **Der Prelogin unterscheidet genau eines: ein Konto, das noch nicht umgestellt ist.** Sein
 `migrate: true` ist der einzige Unterschied zwischen einer bekannten und einer unbekannten Adresse,

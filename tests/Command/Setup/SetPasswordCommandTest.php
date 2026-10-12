@@ -8,6 +8,8 @@ use App\Entity\User\User;
 use App\Tests\Command\MailFixtures;
 use DateTimeImmutable;
 use Doctrine\DBAL\Connection;
+use App\Domain\Enum\Crypto\UserKeyStatus;
+use App\Entity\Crypto\UserKey;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Console\Application;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
@@ -64,6 +66,27 @@ final class SetPasswordCommandTest extends KernelTestCase
 
         self::assertSame(Command::SUCCESS, $exit);
         self::assertTrue($this->hasher()->isPasswordValid($user, 'a-long-enough-password'));
+    }
+
+    /**
+     * The keys hang off the password being replaced, which nobody here knows —
+     * so they are locked, not deleted, and the operator is told, because it is
+     * the one effect of the command that reaches past the sign-in.
+     */
+    public function testItLocksTheKeysTheOldPasswordOpenedAndSaysSo(): void
+    {
+        $user    = MailFixtures::user($this->em, 'pwd-keys');
+        $userKey = new UserKey($user, 'v1.' . base64_encode(random_bytes(12)) . '.' . base64_encode(random_bytes(48)));
+
+        $this->em->persist($userKey);
+        $this->em->flush();
+
+        $this->command->execute(['email' => (string) $user->email, '--password' => 'a-long-enough-password']);
+
+        $this->em->refresh($userKey);
+
+        self::assertSame(UserKeyStatus::Locked, $userKey->status);
+        self::assertStringContainsString('encryption keys are locked', $this->command->getDisplay());
     }
 
     /** Typed rather than passed, which is the way an operator actually runs it. */

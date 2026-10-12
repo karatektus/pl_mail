@@ -54,4 +54,11 @@ return [
     '@noble/hashes/pbkdf2' => ['version' => '1.8.0'],
     '@noble/hashes/sha2' => ['version' => '1.8.0'],
     '@noble/hashes/crypto' => ['version' => '1.8.0'],
+    'openpgp' => ['version' => '6.3.2'],
+    '@scure/bip39' => ['version' => '1.6.0'],
+    '@scure/bip39/wordlists/english' => ['version' => '1.6.0'],
+    '@noble/ciphers/aes' => ['version' => '1.3.0'],
+    '@noble/hashes/hkdf' => ['version' => '1.8.0'],
+    '@noble/hashes/utils' => ['version' => '1.8.0'],
+    '@scure/base' => ['version' => '1.2.5'],
 ];

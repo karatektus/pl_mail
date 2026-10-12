@@ -1,0 +1,29 @@
+{#
+crypto/_keyring_boot.html.twig — opens the keyring on every page, quietly.
+
+An empty element carrying crypto--keyring, which opens the person's keyring
+with what the session left behind, makes a first one for an account that has
+none, reopens the old one from this browser after a password reset, and adds a
+key for any address that lacks one — then, at most once per tab, says what is
+still missing (a recovery phrase, keys only a phrase can reopen).
+
+Not on a demo, and not while a password somebody else chose is waiting to be
+replaced: a keyring hung off that password would be one the chooser could open.
+#}
+{% if app.user and not demo.isEnabled and not app.user.passwordChangeRequired %}
+    <div hidden
+         data-controller="crypto--keyring"
+         data-crypto--keyring-state-url-value="{{ path('app_keyring_state') }}"
+         data-crypto--keyring-unlock-url-value="{{ path('app_keyring_unlock_current') }}"
+         data-crypto--keyring-prelogin-url-value="{{ path('app_login_prelogin') }}"
+         data-crypto--keyring-csrf-value="{{ csrf_token('keyring') }}"
+         data-crypto--keyring-user-id-value="{{ app.user.id }}"
+         data-crypto--keyring-email-value="{{ app.user.email }}"
+         data-crypto--keyring-settings-url-value="{{ path('app_settings_index', { section: 'encryption' }) }}"
+         data-crypto--keyring-messages-value="{{ {
+             phraseMissing: 'encryption.nag.phrase_missing'|trans,
+             lockedKeys:    'encryption.nag.locked_keys'|trans,
+             recovered:     'encryption.nag.recovered'|trans,
+             action:        'encryption.nag.action'|trans,
+         }|json_encode }}"></div>
+{% endif %}

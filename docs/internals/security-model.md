@@ -195,6 +195,44 @@ create form and by `app:user:password` (unless `--no-change-required`), and
 `PasswordChangeRequiredListener` keeps the person on `/password/required` until they have chosen
 their own — on the `main` firewall only, so app passwords keep syncing.
 
+## The keyring
+
+Phase 2 of issue #28. Everything cryptographic happens in the browser (`assets/crypto/keyring.js`);
+the server stores blobs it cannot open and holds the rules a stale tab could break
+(`App\Service\Crypto\Keyring`).
+
+```
+wrapKey      = HKDF-SHA256(masterKey, "plmail/user-key-wrap")      // see the section above
+user key     = 32 random bytes, AES-256-GCM-wrapped under wrapKey   // UserKey
+address key  = OpenPGP key, locked with a random token              // AddressKey
+token        = AES-256-GCM-wrapped under the user key
+phrase copy  = user key wrapped under HKDF(BIP39 entropy)           // UserKeyCopy, kind phrase
+device copy  = user key wrapped under a non-extractable IndexedDB key  // kind device
+```
+
+Every wrapping is `v1.<iv>.<ciphertext>` with its purpose bound in as associated data
+(`App\Security\Crypto\Wrapped` checks the shape). The user key is symmetric, where the concept
+sketched an OpenPGP key: it is never handed to anybody and only wraps tokens, which AES-GCM does
+with integrity included.
+
+**The session stays unlocked** by splitting it: at sign-in the browser wraps `wrapKey` under a random
+unlock key, keeps the result in localStorage, and posts only the unlock key (`unlock_key`), which
+`SessionUnlock` keeps in the session. A later page fetches it back from `GET /keyring/unlock`.
+Neither half opens anything alone, and the browser's half is worthless once the session ends. A
+session not opened by the login form — remember-me, the install wizard — is locked until `POST
+/keyring/unlock` proves the password like a sign-in (throttled by `keyring_unlock`).
+
+**Rules the server holds:** one keyring per person while one is active; keys only for addresses
+the person owns; one primary key per address; a generated key nobody has seen (`firstUsedAt` null)
+is deleted rather than kept when another becomes primary, unless its user key is locked; a
+password change must carry every active user key re-wrapped (`PasswordChanger` refuses it
+otherwise, in the same flush); a password nobody here chose — `app:user:password`, the forced
+change — locks every key instead. Removing a person deletes their keyring.
+
+**On the main thread, not in a worker.** Module workers do not see the page's import map, and
+nothing in this phase is slow enough to block the page. Decrypting large mail is when a worker
+earns its keep.
+
 ## Firewalls
 
 `config/packages/security.yaml` declares three: `dev`, `jmap` and `main`.
@@ -693,6 +731,10 @@ path at once.
 **A cancelled-booking flag plus a plain unique index is a slot nobody can ever rebook.** The
 entity says this explicitly: adding `cancelled_at` later means making the index partial —
 `WHERE cancelled_at IS NULL` — and that is the sentence to remember.
+
+**An aborted request is not a lost session.** `session.js` clears its stored half only when the
+server answers 404 for the unlock key. Clearing on any failure locked the keyring of everybody
+who clicked on before the first page had finished opening it — the browser abandons the request.
 
 **The prelogin tells one thing apart: an account that has not moved over yet.** Its `migrate: true`
 is the only difference between a known and an unknown address, and it lasts until that account's

@@ -51,7 +51,12 @@ final class RequiredPasswordController extends AbstractController
         $form->handleRequest($request);
 
         if (true === $form->isSubmitted() && true === $form->isValid()) {
-            $this->passwords->applyFromForm($user, $form->get('new'));
+            // Null: whatever keys hang off the password somebody else chose
+            // are locked rather than carried over. In practice there are
+            // none — an account an administrator made has never had a keyring,
+            // and `app:user:password` locks one on the spot — but a password
+            // this person did not choose must not be what their keys open with.
+            $this->passwords->applyFromForm($user, $form->get('new'), null);
 
             return $this->redirectToRoute('app_default_index');
         }

@@ -127,6 +127,24 @@ final class PasswordKdfLoginTest extends WebTestCase
     }
 
     /**
+     * The sign-in leaves the session's half of an unlocked keyring behind, so
+     * the first page after it can open the keys without asking again.
+     */
+    public function testTheSignInKeepsTheUnlockKeyItWasSent(): void
+    {
+        $this->moveOver();
+
+        $params    = $this->prelogin();
+        $unlockKey = base64_encode(random_bytes(32));
+
+        $this->signIn(authHash: PasswordKdf::derive(self::PASSWORD, $params['salt'], $params['iterations']), unlockKey: $unlockKey);
+        $this->client->request('GET', '/keyring/unlock');
+
+        self::assertResponseIsSuccessful();
+        self::assertSame($unlockKey, json_decode((string) $this->client->getResponse()->getContent(), true)['unlockKey']);
+    }
+
+    /**
      * A browser without JavaScript, or a login page cached from before the
      * update, still gets an account in that has not moved — it just does not
      * move it.
@@ -177,7 +195,7 @@ final class PasswordKdfLoginTest extends WebTestCase
         $this->client->getCookieJar()->clear();
     }
 
-    private function signIn(string $password = '', string $authHash = ''): void
+    private function signIn(string $password = '', string $authHash = '', string $unlockKey = ''): void
     {
         $crawler = $this->client->request('GET', '/login');
 
@@ -191,6 +209,10 @@ final class PasswordKdfLoginTest extends WebTestCase
 
         if ('' !== $authHash) {
             $fields['auth_hash'] = $authHash;
+        }
+
+        if ('' !== $unlockKey) {
+            $fields['unlock_key'] = $unlockKey;
         }
 
         $this->client->followRedirects(true);

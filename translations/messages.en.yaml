@@ -2019,6 +2019,91 @@ drafts:
     empty: No drafts.
     heading: Drafts
 
+encryption:
+    devices:
+        empty: "No devices yet."
+        heading: "Known devices"
+        last_used: "used"
+        remember: "Remember this device"
+        remove: "Remove"
+        subheading: "Browsers that can open your keys on their own after a password reset, without the recovery phrase."
+        this_device: "This device"
+        unavailable: "This browser cannot keep a device key here — it needs HTTPS and site storage."
+    export:
+        file_name: "plmail-keys.asc"
+        heading: "Export your keys"
+        hint: "Every private key, old ones included, as one file GnuPG, Thunderbird and Proton can read."
+        passphrase: "Passphrase for the file"
+        submit: "Export"
+    failed: "That did not work. Reload the page and try again."
+    import:
+        done: "%count% keys imported."
+        hardware_key: "The secret parts of this key live on a smartcard or security key, which a browser cannot use."
+        heading: "Import a key"
+        hint: "An OpenPGP private key you already use, exported from GnuPG, Thunderbird or Proton. It becomes the key of the addresses it names."
+        no_match: "None of these keys names one of your addresses."
+        not_a_key: "That is not an OpenPGP private key."
+        passphrase: "Passphrase of the key"
+        submit: "Import"
+        wrong_passphrase: "That passphrase does not open the key."
+    keys:
+        advanced: "Show keys"
+        compromised: "Mark as compromised"
+        confirm_compromised: "Mark this key as compromised? It will not be used again, and its addresses get a new one."
+        confirm_renew: "Make a new key for these addresses? The old one stays, to open mail sent to it."
+        created: "created"
+        expires: "expires"
+        heading: "Keys"
+        locked: "locked — open it with your recovery phrase"
+        make_primary: "Make primary"
+        origin:
+            generated: "made by plMail"
+            imported: "imported"
+        primary: "primary"
+        renew: "Renew"
+        status:
+            active: "Active"
+            compromised: "Compromised"
+            obsolete: "Replaced"
+        subheading: "The OpenPGP keys of your addresses. Bring one you already use, or take yours elsewhere."
+    nag:
+        action: "Open settings"
+        locked_keys: "Some of your older keys are locked since your password was reset."
+        phrase_missing: "Your mail can now be end-to-end encrypted. Save a recovery phrase so you never lose your keys."
+        recovered: "Your older keys were opened again from this device."
+    phrase:
+        create: "Create recovery phrase"
+        download: "Download"
+        file_intro: "plMail recovery phrase. Keep this file somewhere safe and offline. The blocks below it are the revocation certificates of your keys."
+        file_name: "plmail-recovery-phrase.txt"
+        heading: "Recovery phrase"
+        invalid: "These are not twelve valid recovery words. Check for typos."
+        missing: "You have no recovery phrase yet."
+        opens_nothing: "This phrase does not open any of your locked keys."
+        recover_heading: "Open older keys"
+        recover_hint: "Some of your keys were locked when your password was reset. Enter your recovery phrase to open them again."
+        recover_submit: "Open with recovery phrase"
+        recovered: "%count% keys opened again."
+        recreate: "Create a new recovery phrase"
+        saved: "Your recovery phrase is set up. Make a new one if the old one may have been seen."
+        shown_once: "Write these words down or download them now — they are shown only once. Anyone who has them can open your keys."
+        subheading: "Twelve words that open your keys if you ever forget your password. Without them, encrypted mail is lost with the password."
+    status:
+        broken: "Your keys could not be opened. Sign out and in again; if that does not help, an administrator finds the reason in the log."
+        disabled: "Not available on this installation."
+        insecure: "Needs HTTPS. This page was opened over plain http://, where the browser offers no cryptography of its own — open plMail through its https:// address."
+        heading: "End-to-end encryption"
+        key_count: "Active keys: %keys% · Addresses: %addresses%"
+        loading: "Opening your keys…"
+        locked: "Locked in this browser. Enter your password to unlock it."
+        open: "Set up, and unlocked in this browser."
+        subheading: "Mail only you and the people you write to can read — not this server, not your mail provider."
+    unlock:
+        label: "Password"
+        rate_limited: "Too many attempts. Wait a few minutes and try again."
+        submit: "Unlock"
+        wrong_password: "That is not your password."
+
 errors:
     page:
         back: Back to your mail
@@ -3710,6 +3795,7 @@ settings:
         appearance: Appearance
         calendars: Calendars
         disposal: Disposal
+        encryption: "Encryption"
         filters: Filters
         general: General
         group:

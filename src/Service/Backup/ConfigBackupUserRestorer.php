@@ -5,12 +5,19 @@ declare(strict_types=1);
 namespace App\Service\Backup;
 
 use App\Domain\Enum\Account\EmailAliasSource;
+use App\Domain\Enum\Crypto\AddressKeyOrigin;
+use App\Domain\Enum\Crypto\AddressKeyStatus;
+use App\Domain\Enum\Crypto\UserKeyCopyKind;
+use App\Domain\Enum\Crypto\UserKeyStatus;
 use App\Domain\Enum\Account\EmailAliasStatus;
 use App\Domain\Enum\Calendar\CalendarRole;
 use App\Domain\Enum\Calendar\ShareWindow;
 use App\Domain\Enum\Integration\Provider;
 use App\Domain\Enum\Mail\LabelRole;
 use App\Entity\Calendar\BookingPage;
+use App\Entity\Crypto\AddressKey;
+use App\Entity\Crypto\UserKey;
+use App\Entity\Crypto\UserKeyCopy;
 use App\Entity\Calendar\Calendar;
 use App\Entity\Calendar\CalendarShareLink;
 use App\Entity\Integration\Integration;
@@ -182,6 +189,7 @@ final readonly class ConfigBackupUserRestorer
         $calendars    = $this->createCalendars($user, $this->rows($document, 'calendars'), $accounts, $integrations);
 
         $this->createAppPasswords($user, $this->rows($document, 'appPasswords'));
+        $this->createKeyring($user, $this->map($document, 'keyring'));
         $this->createShareLinks($user, $this->rows($document, 'shareLinks'), $calendars);
         $this->createBookingPages($user, $this->rows($document, 'bookingPages'), $calendars);
 
@@ -521,6 +529,100 @@ final readonly class ConfigBackupUserRestorer
         }
 
         return $created;
+    }
+
+    /**
+     * The keyring, blob for blob. Absent from every document written before it
+     * existed, which restores as an account without one — what it was.
+     *
+     * A row the restorer cannot place (an unknown status, an address key whose
+     * user key is not in the file) is left out rather than guessed at: an
+     * address key under the wrong user key opens with nothing.
+     *
+     * @param array<string, mixed> $keyring
+     */
+    private function createKeyring(User $user, array $keyring): void
+    {
+        $userKeys = [];
+
+        foreach ($this->rows($keyring, 'userKeys') as $row) {
+            $wrapped = $this->text($row, 'wrapped');
+            $status  = UserKeyStatus::tryFrom((string) $this->text($row, 'status'));
+
+            if (null === $wrapped || null === $status) {
+                continue;
+            }
+
+            $userKey = UserKey::restore($user, $wrapped, $status, $this->moment($row, 'lockedAt'));
+
+            if (null !== $createdAt = $this->moment($row, 'createdAt')) {
+                $userKey->restoreCreatedAt($createdAt);
+            }
+
+            $this->entityManager->persist($userKey);
+            $userKeys[$this->number($row, 'id') ?? 0] = $userKey;
+
+            foreach ($this->rows($row, 'copies') as $copyRow) {
+                $kind        = UserKeyCopyKind::tryFrom((string) $this->text($copyRow, 'kind'));
+                $copyWrapped = $this->text($copyRow, 'wrapped');
+
+                if (null === $kind || null === $copyWrapped) {
+                    continue;
+                }
+
+                $copy             = new UserKeyCopy($userKey, $kind, $copyWrapped, $this->text($copyRow, 'label'));
+                $copy->lastUsedAt = $this->moment($copyRow, 'lastUsedAt');
+
+                if (null !== $copyCreatedAt = $this->moment($copyRow, 'createdAt')) {
+                    $copy->restoreCreatedAt($copyCreatedAt);
+                }
+
+                $this->entityManager->persist($copy);
+            }
+        }
+
+        foreach ($this->rows($keyring, 'addressKeys') as $row) {
+            $userKey     = $userKeys[$this->number($row, 'userKeyId') ?? 0] ?? null;
+            $origin      = AddressKeyOrigin::tryFrom((string) $this->text($row, 'origin'));
+            $status      = AddressKeyStatus::tryFrom((string) $this->text($row, 'status'));
+            $fingerprint = $this->text($row, 'fingerprint');
+            $publicKey   = $this->text($row, 'publicKey');
+            $privateKey  = $this->text($row, 'privateKey');
+            $token       = $this->text($row, 'token');
+
+            if (null === $userKey || null === $origin || null === $status || null === $fingerprint
+                || null === $publicKey || null === $privateKey || null === $token) {
+                continue;
+            }
+
+            $key = new AddressKey(
+                $user,
+                $userKey,
+                $fingerprint,
+                $publicKey,
+                $privateKey,
+                $token,
+                $origin,
+                $this->moment($row, 'expiresAt'),
+                $this->text($row, 'revocationCertificate'),
+            );
+            $key->restoreStatus($status);
+            $key->firstUsedAt = $this->moment($row, 'firstUsedAt');
+
+            if (null !== $createdAt = $this->moment($row, 'createdAt')) {
+                $key->restoreCreatedAt($createdAt);
+            }
+
+            foreach ($this->rows($row, 'addresses') as $binding) {
+                $email = $this->text($binding, 'email');
+
+                if (null !== $email) {
+                    $key->bind($email, true === ($binding['primary'] ?? false));
+                }
+            }
+
+            $this->entityManager->persist($key);
+        }
     }
 
     /**

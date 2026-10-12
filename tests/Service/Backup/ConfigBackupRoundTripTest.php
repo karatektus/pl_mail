@@ -13,6 +13,11 @@ use App\Entity\Ai\AiSettings;
 use App\Entity\Integration\IntegrationProviderConfig;
 use App\Entity\Integration\MailProviderConfig;
 use App\Entity\Mail\Account;
+use App\Entity\Crypto\AddressKey;
+use App\Entity\Crypto\UserKey;
+use App\Entity\Crypto\UserKeyCopy;
+use App\Domain\Enum\Crypto\AddressKeyOrigin;
+use App\Domain\Enum\Crypto\UserKeyCopyKind;
 use App\Entity\Mail\EmailAlias;
 use App\Entity\Monitoring\LogSettings;
 use App\Entity\User\User;
@@ -38,6 +43,11 @@ use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 final class ConfigBackupRoundTripTest extends KernelTestCase
 {
     private const string EMAIL = 'audit@round-trip.test';
+
+    /** Shapes the keyring checks for; nothing ever opens them. */
+    private const string KDF_SALT      = 'c2FsdHNhbHRzYWx0c2FsdA==';
+    private const string WRAPPED_KEY   = 'v1.AAAAAAAAAAAAAAAA.c29tZSB3cmFwcGVkIHVzZXIga2V5IGJ5dGVz';
+    private const string ADDRESS_FPR   = '0123456789abcdef0123456789abcdef01234567';
 
     private const string PASSWORD = 'a long enough backup password';
 
@@ -163,6 +173,23 @@ final class ConfigBackupRoundTripTest extends KernelTestCase
         $this->check('user.categorySorting.overrideProvider', true, $user->categorySorting->overrideProvider);
         $this->check('user.categorySorting.tabs', false, $user->categorySorting->tabs);
         $this->check('user.signature (file)', 'anna-signature.png', $user->signature);
+
+        $this->check('user.kdfSalt', self::KDF_SALT, $user->kdfSalt);
+        $this->check('user.kdfIterations', 600000, $user->kdfIterations);
+
+        // ── The keyring ───────────────────────────────────────────────────
+        $userKeys = $container->get(\App\Repository\Crypto\UserKeyRepository::class)->findForUser($user);
+        self::assertCount(1, $userKeys, 'the user key did not come back');
+        $this->check('userKey.wrapped', self::WRAPPED_KEY, $userKeys[0]->wrapped);
+
+        $copies = $container->get(\App\Repository\Crypto\UserKeyCopyRepository::class)->findForUser($user);
+        self::assertCount(1, $copies, 'the recovery phrase copy did not come back');
+
+        $addressKeys = $container->get(\App\Repository\Crypto\AddressKeyRepository::class)->findForUser($user);
+        self::assertCount(1, $addressKeys, 'the address key did not come back');
+        $this->check('addressKey.fingerprint', self::ADDRESS_FPR, $addressKeys[0]->fingerprint);
+        $this->check('addressKey.userKey', $userKeys[0], $addressKeys[0]->userKey);
+        $this->check('addressKey.addresses', ['anna@work.audit.test'], $addressKeys[0]->addresses());
 
         // ── The user settings bag ─────────────────────────────────────────
         $this->check('setting display.clock', '24h', $user->getSetting(User::SETTING_CLOCK));
@@ -376,7 +403,7 @@ final class ConfigBackupRoundTripTest extends KernelTestCase
         $user->email     = self::EMAIL;
         $user->nameFirst = 'Anna';
         $user->nameLast  = 'Beispiel';
-        $user->password  = self::PASSWORD_HASH;
+        $user->useClientDerivedPassword(self::PASSWORD_HASH, self::KDF_SALT, 600000);
         $user->roles     = [User::ROLE_ADMIN];
         $user->locale    = 'de';
         $user->timezone  = 'Europe/Berlin';
@@ -431,6 +458,26 @@ final class ConfigBackupRoundTripTest extends KernelTestCase
         $account->setSetting(Account::SETTING_READ_RECEIPT_DEFAULT, 'ask');
 
         $this->entityManager->persist($account);
+
+        // The keyring: wrapped blobs the backup must carry byte for byte, or
+        // the restored password opens nothing.
+        $userKey = new UserKey($user, self::WRAPPED_KEY);
+        $this->entityManager->persist($userKey);
+        $this->entityManager->persist(new UserKeyCopy($userKey, UserKeyCopyKind::Phrase, self::WRAPPED_KEY));
+
+        $addressKey = new AddressKey(
+            $user,
+            $userKey,
+            self::ADDRESS_FPR,
+            "-----BEGIN PGP PUBLIC KEY BLOCK-----\n\npublic\n-----END PGP PUBLIC KEY BLOCK-----",
+            "-----BEGIN PGP PRIVATE KEY BLOCK-----\n\nprivate\n-----END PGP PRIVATE KEY BLOCK-----",
+            self::WRAPPED_KEY,
+            AddressKeyOrigin::Generated,
+            null,
+            null,
+        );
+        $addressKey->bind('anna@work.audit.test', true);
+        $this->entityManager->persist($addressKey);
 
         $token = \App\Entity\User\ApiToken::restore($user, 'iPhone', self::TOKEN_HASH, 'ab12cd', null, null);
         $this->entityManager->persist($token);

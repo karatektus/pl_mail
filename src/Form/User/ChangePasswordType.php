@@ -83,6 +83,14 @@ final class ChangePasswordType extends AbstractType
             ->add('new', NewPasswordType::class, [
                 'label'  => false,
                 'mapped' => false,
+            ])
+            // JSON, user key id => that key wrapped under the new password.
+            // Filled by the browser, which is the only side that can open the
+            // keys; PasswordChanger refuses the change if one it could open is
+            // missing. Empty for an account with no keyring.
+            ->add('rewrappedKeys', HiddenType::class, [
+                'mapped' => false,
+                'attr'   => ['data-auth--password-form-target' => 'rewrappedKeys'],
             ]);
     }
 }
