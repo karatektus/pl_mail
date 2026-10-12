@@ -47,9 +47,21 @@ enum CalendarPaneMode: string
      *
      * Wraps, so the control is reachable in one direction only and never has a
      * dead end — three presses always return you to where you were.
+     *
+     * `$direct` is Appearance::$calendarDirect: the switch has two positions
+     * instead of three, the mail and the full-width calendar, and a press goes
+     * to the other one. Split is skipped, not removed — it is still a stored
+     * mode, so a Split somebody already has goes to the mail on the first press
+     * rather than on to the calendar, which keeps "from anywhere the calendar
+     * is showing, one press is the mail" true without a special case in the
+     * controller.
      */
-    public function next(): self
+    public function next(bool $direct = false): self
     {
+        if (true === $direct) {
+            return self::Mail === $this ? self::Calendar : self::Mail;
+        }
+
         return match ($this) {
             self::Mail     => self::Split,
             self::Split    => self::Calendar,
@@ -74,9 +86,9 @@ enum CalendarPaneMode: string
     }
 
     /** Translation key for "what pressing this does next". */
-    public function nextTransKey(): string
+    public function nextTransKey(bool $direct = false): string
     {
-        return 'calendar.pane.mode.' . $this->next()->value;
+        return 'calendar.pane.mode.' . $this->next($direct)->value;
     }
 
     /**

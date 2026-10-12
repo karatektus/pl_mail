@@ -2869,6 +2869,13 @@ settings:
             solid: Einfarbig
             theme: Theme-Standard
             upload: Bild hochladen
+        calendar:
+            calendarDirect: Beim Drücken
+            calendarDirectHint: 'Wechseln geht Mail, Mail neben dem Kalender, Kalender in voller Breite und wieder von vorn. Direkt geht zwischen der Mail und dem Kalender in voller Breite, mit je einem Druck hin und zurück.'
+            cycle: Wechselt durch drei Ansichten
+            direct: Öffnet den Kalender direkt
+            heading: Kalenderschaltfläche
+            subheading: Wie die Kalenderschaltfläche in der Kopfleiste zwischen den Ansichten wechselt.
         density:
             comfortable: Komfortabel
             compact: Kompakt

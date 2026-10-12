@@ -1,4 +1,4 @@
-<!-- translated-from: features/calendar.md sha1:a28933caed23a0f78b04e26e2affeb017f027765 -->
+<!-- translated-from: features/calendar.md sha1:aa7d485af537b037f74f1de217c50ba89ca9dbda -->
 
 # Kalender
 
@@ -28,6 +28,17 @@ schon beim ersten Zeichnen die richtige Breite hat und nicht springt, sobald der
 Auf dem Desktop ist die Fläche von Anfang an offen. Bis du den Schalter bewegst, steht der Kalender
 neben deiner Mail, die beiden sind also schon beim ersten Besuch Seite an Seite. Schließt du ihn,
 merkt sich plMail das.
+
+### Die Kalenderschaltfläche
+
+Standardmäßig ist die Schaltfläche ein Dreifachschalter: Mail, dann der Kalender neben der Mail,
+dann der Kalender in voller Breite, und wieder von vorn. Wenn du meistens nur den Kalender in
+voller Breite willst und nichts dazwischen, macht **Einstellungen → Darstellung →
+Kalenderschaltfläche → Öffnet den Kalender direkt** daraus einen Zweifachschalter. Ein Druck aus
+der Mail öffnet den Kalender in voller Breite, der nächste geht zurück zur Mail. Die geteilte
+Ansicht wird übersprungen, nicht entfernt: Eine, die du schon hast, bleibt bis zum ersten Druck,
+der sie zur Mail schließt, und ein Klick auf einen Mail-Link bei vollbreitem Kalender führt zur
+Mail zurück statt in die geteilte Ansicht.
 
 Unter 1024 Pixeln Breite trägt die Zeile keine Seitenleiste, keine lesbare Nachrichtenliste und
 keinen lesbaren Kalender mehr auf einmal, also nimmt die Fläche die ganze Zeile und die Mail tritt

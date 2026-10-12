@@ -2878,6 +2878,13 @@ settings:
             solid: Solid colour
             theme: Theme default
             upload: Upload image
+        calendar:
+            calendarDirect: When pressed
+            calendarDirectHint: 'Cycling goes mail, mail beside the calendar, the calendar full width, and round again. Directly goes between the mail and the full-width calendar, one press each way.'
+            cycle: Cycles through three views
+            direct: Opens the calendar directly
+            heading: Calendar button
+            subheading: How the calendar button in the top bar moves between views.
         density:
             comfortable: Comfortable
             compact: Compact

@@ -21,7 +21,8 @@ import { Controller } from "@hotwired/stimulus";
  *   split     both, divided by the handle (above lg; below it, like calendar)
  *   calendar  the calendar has the row, the mail is still in the DOM behind it
  *
- * The topbar switch cycles them. The HANDLE also reaches the two ends, which is
+ * The topbar switch cycles them — or, with Appearance::$calendarDirect, goes
+ * between `mail` and `calendar` and skips `split`. The HANDLE also reaches the two ends, which is
  * the point of the rubber band: dragging past the pane's maximum keeps moving,
  * with resistance, and letting go past a threshold puts you in `calendar`;
  * dragging past its minimum the same way puts you in `mail`. Short of the
@@ -57,6 +58,9 @@ export default class extends Controller {
         // Whether this boundary has the three positions at all. Without them
         // the handle is a handle and nothing else.
         modes: { type: Boolean, default: true },
+        // The switch has two positions, the mail and the full-width calendar,
+        // instead of three. Appearance::$calendarDirect. See _nextMode().
+        direct: { type: Boolean, default: false },
         min: { type: Number, default: 320 },
         max: { type: Number, default: 900 },
         // What the mail side is never dragged below — a phone's width, not a
@@ -133,7 +137,7 @@ export default class extends Controller {
         if (null === handoff
             && ("calendar" === mode || ("split" === mode && this._isNarrow()))
             && this._arrivedFromOutsideMail()) {
-            mode = this._isNarrow() ? "mail" : "split";
+            mode = this._demotedMode();
             this._persist({ mode });
         }
 
@@ -209,6 +213,17 @@ export default class extends Controller {
         this.element.querySelectorAll("[data-calendar-toggle]").forEach((trigger) => {
             trigger.classList.remove(...this.constructor.FIRST_PAINT_TOGGLE);
         });
+    }
+
+    /**
+     * Where a mail-bound navigation leaves a calendar that was covering the
+     * mail. Split on a desktop, the mail alone below lg, where there is no
+     * split — and the mail alone when the switch is direct, because split is
+     * the position that setting skips: demoting into it would put somebody
+     * where their own button never goes.
+     */
+    _demotedMode() {
+        return this._isNarrow() || true === this.directValue ? "mail" : "split";
     }
 
     /** Below lg the pane replaces the mail rather than sitting beside it. */
@@ -289,7 +304,7 @@ export default class extends Controller {
             return;
         }
 
-        const mode = this._isNarrow() ? "mail" : "split";
+        const mode = this._demotedMode();
 
         // The stash is for FULL page visits only, where this controller is
         // torn down and the next one must not trust the server's stale answer.
@@ -432,6 +447,15 @@ export default class extends Controller {
     }
 
     _nextMode() {
+        // One press from the mail is the calendar, full width; one press from
+        // anywhere the calendar is showing is the mail. A split that was
+        // stored before the setting was turned on goes to the mail too, so the
+        // press never lands on a position the setting is there to skip.
+        // CalendarPaneMode::next(direct: true) is the server's copy of this.
+        if (true === this.directValue) {
+            return "mail" === this.modeValue ? "calendar" : "mail";
+        }
+
         const modes = this.constructor.MODES;
 
         return modes[(modes.indexOf(this.modeValue) + 1) % modes.length];
@@ -545,7 +569,7 @@ export default class extends Controller {
         // handler never saw, a programmatic frame visit), because the frame
         // loading is the one event no mail navigation can avoid producing.
         if ("inbox-list-frame" === frame?.id && this._calendarCoversMail()) {
-            this._setMode(this._isNarrow() ? "mail" : "split");
+            this._setMode(this._demotedMode());
 
             return;
         }

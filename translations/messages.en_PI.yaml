@@ -2723,6 +2723,13 @@ settings:
             solid: One flat hue
             theme: Theme default
             upload: Hoist an image
+        calendar:
+            calendarDirect: When pressed
+            calendarDirectHint: 'Sailin'' goes mail, mail alongside the calendar, the calendar the full breadth, an'' round again. Straight goes between the mail an'' the full-breadth calendar, one press each way.'
+            cycle: Sails through three views
+            direct: Heads straight fer the calendar
+            heading: Calendar button
+            subheading: How the calendar button up top moves between views.
         density:
             comfortable: Roomy
             compact: Cramped

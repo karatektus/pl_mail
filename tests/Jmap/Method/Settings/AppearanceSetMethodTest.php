@@ -86,6 +86,21 @@ final class AppearanceSetMethodTest extends JmapTestCase
         }
     }
 
+    /** Off until somebody turns it on, and a client can do both. */
+    public function testTheCalendarButtonSettingIsPublishedAndSettable(): void
+    {
+        self::assertFalse($this->read()['calendarDirect']);
+
+        self::assertSame([], (array) $this->update(['calendarDirect' => true])['notUpdated']);
+        self::assertTrue($this->read()['calendarDirect']);
+
+        self::assertSame([], (array) $this->update(['calendarDirect' => false])['notUpdated']);
+        self::assertFalse($this->read()['calendarDirect']);
+
+        self::assertSame('invalidProperties', $this->updateError(['calendarDirect' => 'yes'])['type']);
+        self::assertFalse($this->read()['calendarDirect'], 'a refused write leaves the stored value');
+    }
+
     /** Nulling the optional properties is a real value, not a missing one. */
     public function testTheOptionalColoursClearToNull(): void
     {

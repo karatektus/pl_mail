@@ -44,6 +44,14 @@ A two-line row has no unread dot; like a one-line row it says unread with a bold
 Also fixed: with the two-line preview setting on, a one-line row wrapped its preview anyway. No
 setting; no migration.
 [#62](https://github.com/karatektus/pl_mail/pull/62), by @Flouss.
+**The calendar button can open the full-width calendar in one press.** The button in the top bar
+has always been a three-way switch, mail, then the calendar beside the mail, then the calendar full
+width, which makes the full-width calendar two presses away. Settings → Appearance → Calendar
+button → **Opens the calendar directly** turns it into a two-way switch: one press from the mail
+opens the calendar full width, the next goes back to the mail. Split is skipped by the button, and
+clicking a mail link while the calendar is full width goes back to the mail instead of dropping into
+a split. Off by default, so the button behaves as before until you change it. One column is added to
+the user table; the migration is reversible.
 
 **Each inbox tab shows how many conversations in it are unread.** The number is the sidebar's
 Inbox badge split by category, so the tabs add up to it, and it appears on every tab, the one you

@@ -384,6 +384,12 @@
        from the markup alone. Same for the accented state, which is two utility
        classes the controller adds and removes rather than a new rule.
 
+       **Appearance::$calendarDirect turns it into a two-way switch.** Mail ↔
+       calendar, split skipped: one press from the mail is the full-width
+       calendar. All three icons are still rendered, because a split somebody
+       already has is a position the switch can be in; only where a press
+       leads changes — the label below, and _nextMode() in ui--split.
+
        Below lg the split position looks like the calendar position — the row
        cannot hold both — but the switch still has three stops, because the
        width is not a property of the preference.
@@ -470,7 +476,7 @@
            once, translated, and the controller copies the right one into the
            live label — so the strings exist in the template and not in the
            JavaScript. #}
-        <span class="sr-only" data-calendar-mode-label>{{ paneMode.nextTransKey|trans }}</span>
+        <span class="sr-only" data-calendar-mode-label>{{ paneMode.nextTransKey(app.user.appearance.calendarDirect)|trans }}</span>
         <span hidden>
             {% for candidate in enum('App\\Domain\\Enum\\Calendar\\CalendarPaneMode').cases() %}
                 <span data-calendar-mode-name="{{ candidate.value }}">{{ ('calendar.pane.mode.' ~ candidate.value)|trans }}</span>

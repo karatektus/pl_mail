@@ -1,4 +1,4 @@
-<!-- translated-from: features/appearance.md sha1:43f57642347736db71ec013bef9e22bfb70ee747 -->
+<!-- translated-from: features/appearance.md sha1:db6cf34dd33e65a7d4a5f39fb895f21d9afafcce -->
 
 # Darstellung
 
@@ -209,6 +209,7 @@ wählst — **Kompakt** auf dem Telefon kostet dich also nie Fläche zum Antippe
 | **Text** | Textfarbe sowie **Gedämpft** und **Sehr blass**, oder **Automatisch ableiten**, damit diese beiden aus der Hauptfarbe errechnet werden |
 | **Akzentfarbe** | Die eine Signalfarbe, als Hexwert |
 | **Hintergrund** | **Theme-Standard**, eine einfarbige Fläche, eines von acht mitgelieferten Bildern, oder **Bild hochladen** |
+| **Kalenderschaltfläche** | **Wechselt durch drei Ansichten** (Standard) oder **Öffnet den Kalender direkt** — siehe [die Kalenderschaltfläche](calendar.md#die-kalenderschaltfläche) |
 
 ### Zwei Deckkräfte statt einer
 

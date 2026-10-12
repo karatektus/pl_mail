@@ -26,6 +26,16 @@ up.
 On a desktop the pane starts open. Until you move the switch, the calendar sits beside your mail,
 so the two are side by side from the first visit. Close it and plMail remembers that.
 
+### The calendar button
+
+By default the button is a three-way switch: mail, then the calendar beside the mail, then the
+calendar full width, and round again. If you mostly want the full-width calendar and nothing in
+between, **Settings → Appearance → Calendar button → Opens the calendar directly** turns it into
+a two-way switch. One press from the mail opens the calendar full width; the next press goes back
+to the mail. Split is skipped, not removed: a split you already have stays until the first press,
+which closes it to the mail, and clicking a mail link while the calendar is full width returns to
+the mail rather than to a split.
+
 Below 1024px wide the row cannot hold a sidebar, a readable message list and a readable calendar at
 once, so the pane takes the whole row and the mail steps aside. It is the same pane and the same
 toggle — closing it puts the mail back exactly as it was, with no navigation in between. A phone
