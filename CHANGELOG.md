@@ -8,6 +8,12 @@ The published image tags: `latest` follows the most recent release below,
 
 ## Unreleased
 
+**Happening soon is wider, with Also spotted beside the list.** The panel opened at the narrowest
+dialog width, so a fortnight of bookings pushed the undated cards under "Also spotted" far down the
+scroll. It now opens wide, and on a screen wide enough for it the list and "On your radar" stay on
+the left while "Also spotted" sits to their right. On a phone it stacks as before. No migration.
+[#83](https://github.com/karatektus/pl_mail/pull/83), by @Flouss.
+
 **The calendar no longer reads its times on a synced calendar's clock.** A calendar you subscribe to
 from Google or a CalDAV server arrives with the time zone that account holds for it, and a shared
 one is often set to UTC there. When such a calendar was your default, the whole calendar page was
