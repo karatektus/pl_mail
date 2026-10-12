@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Controller\Settings;
 
 use App\Controller\ChecksCsrf;
+use App\Domain\Enum\Calendar\CalendarSwitchSkip;
 use App\Entity\User\User;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -17,15 +18,9 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
  * Settings → Calendar → Behaviour: how the topbar's calendar button moves
  * between views.
  *
- * Two switches, "skip the split view" and "skip the full-width calendar",
- * that exclude each other. The exclusion lives in the setters on User, not
- * here: this controller records what was posted, and the entity makes sure the
- * button is never left with nowhere to go.
- *
- * Each switch is its own form and posts only its own field. A single form
- * posting both would arrive with the other switch's old value alongside the new
- * one, and nothing server-side could tell which of the two the person had just
- * moved.
+ * One choice of three: every view, or the mail and one of the calendar's two.
+ * It is a CalendarSwitchSkip and is stored as one, so there is no combination
+ * for this controller to refuse.
  */
 #[IsGranted('ROLE_USER')]
 final class CalendarBehaviourController extends AbstractController
@@ -41,13 +36,14 @@ final class CalendarBehaviourController extends AbstractController
         $this->assertCsrf($request, 'settings-calendar-behaviour');
 
         // Read only when posted, like every control on the settings pages: a
-        // form that did not mention a switch must not move it.
-        if (true === $request->request->has('skipSplit')) {
-            $user->calendarSkipSplit = '1' === (string) $request->request->get('skipSplit');
-        }
+        // form that did not mention the choice must not move it. A value that
+        // is not one of the three is not a choice either, and is left out the
+        // same way rather than read as the default — which would quietly undo
+        // what was stored.
+        $skip = CalendarSwitchSkip::tryFrom((string) $request->request->get('skip'));
 
-        if (true === $request->request->has('splitOnly')) {
-            $user->calendarSplitOnly = '1' === (string) $request->request->get('splitOnly');
+        if (null !== $skip) {
+            $user->calendarSwitchSkip = $skip;
         }
 
         $em->flush();

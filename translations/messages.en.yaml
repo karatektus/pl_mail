@@ -3572,13 +3572,12 @@ settings:
         test_ok: 'Connection is working'
         unavailable_heading: 'Not available here'
     calendar_behaviour:
+        button: Calendar button
+        button_hint: 'Which views the button in the top bar steps through. A view it leaves out is not removed: the drag handle still reaches it.'
         heading: Behaviour
-        'off': 'Off'
-        'on': 'On'
-        skip_split: Skip the split view
-        skip_split_hint: 'The button goes between the mail and the calendar full width, one press each way. The calendar beside the mail is skipped, not removed. Turning this on turns the other off.'
-        split_only: Skip the full-width calendar
-        split_only_hint: 'The button goes between the mail and the calendar beside it, one press each way. The calendar full width is skipped, not removed. Turning this on turns the other off.'
+        option_calendar: Split only
+        option_none: All three
+        option_split: Full width only
         subheading: 'How the calendar button in the top bar moves between views.'
     calendars:
         account_hint: Where events found in mail from %address% are filed.

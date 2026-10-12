@@ -1,4 +1,4 @@
-<!-- translated-from: features/calendar.md sha1:809a84fcfbeab0b70106324dcd2f935f347e5a14 -->
+<!-- translated-from: features/calendar.md sha1:63fd901e199bf9661b6416db20166c917fecf33a -->
 
 # Kalender
 
@@ -33,16 +33,16 @@ merkt sich plMail das.
 
 Standardmäßig ist die Schaltfläche ein Dreifachschalter: Mail, dann der Kalender neben der Mail,
 dann der Kalender in voller Breite, und wieder von vorn. **Einstellungen → Kalender → Verhalten**
-hat zwei Schalter, die daraus einen Zweifachschalter machen:
+hat eine Auswahl, **Kalenderschaltfläche**, die daraus einen Zweifachschalter machen kann:
 
-- **Geteilte Ansicht überspringen**: Ein Druck aus der Mail öffnet den Kalender in voller Breite,
-  der nächste geht zurück zur Mail. Ein Klick auf einen Mail-Link bei vollbreitem Kalender führt
-  zur Mail zurück statt in die geteilte Ansicht.
-- **Kalender in voller Breite überspringen**: Ein Druck aus der Mail öffnet den Kalender neben ihr,
-  der nächste geht zurück zur Mail.
+- **Alle drei**: der Dreifachschalter, das ist die Voreinstellung.
+- **Nur volle Breite**: Ein Druck aus der Mail öffnet den Kalender in voller Breite, der nächste
+  geht zurück zur Mail. Ein Klick auf einen Mail-Link bei vollbreitem Kalender führt zur Mail
+  zurück statt in die geteilte Ansicht.
+- **Nur geteilt**: Ein Druck aus der Mail öffnet den Kalender neben ihr, der nächste geht zurück
+  zur Mail.
 
-Die beiden schließen sich aus, denn mit beiden an wüsste die Schaltfläche nicht, wohin: Schaltest du
-einen ein, wird der andere ausgeschaltet. Die übersprungene Position wird nicht entfernt. Eine
+Die Position, die die Schaltfläche auslässt, wird nicht entfernt. Eine
 geteilte Ansicht oder ein vollbreiter Kalender, den du schon hast, bleibt bis zum ersten Druck, der
 ihn zur Mail schließt, und der Ziehgriff erreicht weiterhin beide Enden.
 

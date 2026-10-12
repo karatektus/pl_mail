@@ -29,17 +29,17 @@ so the two are side by side from the first visit. Close it and plMail remembers 
 ### The calendar button
 
 By default the button is a three-way switch: mail, then the calendar beside the mail, then the
-calendar full width, and round again. **Settings → Calendar → Behaviour** has two switches that
-turn it into a two-way one:
+calendar full width, and round again. **Settings → Calendar → Behaviour** has one choice,
+**Calendar button**, that can turn it into a two-way one:
 
-- **Skip the split view**: one press from the mail opens the calendar full width, the next goes
-  back to the mail. Clicking a mail link while the calendar is full width returns to the mail
-  rather than to a split.
-- **Skip the full-width calendar**: one press from the mail opens the calendar beside it, the next
-  goes back to the mail.
+- **All three**: the three-way switch, which is the default.
+- **Full width only**: one press from the mail opens the calendar full width, the next goes back
+  to the mail. Clicking a mail link while the calendar is full width returns to the mail rather
+  than to a split.
+- **Split only**: one press from the mail opens the calendar beside it, the next goes back to the
+  mail.
 
-The two exclude each other, because with both on the button would have nowhere to go: turning one
-on turns the other off. The skipped position is not removed. A split or a full-width calendar you
+The position the button leaves out is not removed. A split or a full-width calendar you
 already have stays until the first press, which closes it to the mail, and the drag handle still
 reaches both ends.
 

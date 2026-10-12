@@ -14,10 +14,10 @@ namespace App\Domain\Enum\Calendar;
  * handle still reaches it, so a switch that skips it has to cope with being
  * found in it (see CalendarPaneMode::next()).
  *
- * One value rather than two booleans because the two settings exclude each
- * other — skipping both would leave the button with nowhere to go — and a
- * single value cannot be in that state. User::$calendarSwitchSkip folds the
- * two stored switches into this.
+ * One value rather than a switch per position, because skipping both would
+ * leave the button with nowhere to go, and a single value cannot be in that
+ * state. It is stored as it is, in User::$calendarSwitchSkip, and the settings
+ * pane offers it as one choice of three.
  */
 enum CalendarSwitchSkip: string
 {

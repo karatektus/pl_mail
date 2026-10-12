@@ -13,12 +13,12 @@ use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\DomCrawler\Crawler;
 
 /**
- * Settings → Calendar → Behaviour: the two calendar-button switches, through
- * the page that carries them.
+ * Settings → Calendar → Behaviour: the calendar button's one choice of three,
+ * through the page that carries it.
  *
- * The entity's exclusion rule is in CalendarSwitchSkipTest; what is pinned
- * here is that the PAGE reaches it — each switch is its own form posting only
- * its own field, and the pane draws what is stored.
+ * How the choice is kept is in CalendarSwitchSkipTest; what is pinned here is
+ * that the PAGE reaches it — one group of three, the stored one checked, and a
+ * post that records exactly what was chosen.
  */
 final class CalendarBehaviourSettingsTest extends WebTestCase
 {
@@ -71,67 +71,73 @@ final class CalendarBehaviourSettingsTest extends WebTestCase
         self::assertSame('page', $link->attr('aria-current'), 'and it is the section that is open');
     }
 
-    public function testBothSwitchesStartOffAndTheButtonStillCycles(): void
+    public function testItIsOneChoiceOfThreeAndStartsOnAllThree(): void
     {
         $crawler = $this->pane();
 
-        self::assertSame('0', $this->checked($crawler, 'skipSplit'));
-        self::assertSame('0', $this->checked($crawler, 'splitOnly'));
+        self::assertSame(
+            ['none', 'split', 'calendar'],
+            $crawler->filter('input[type=radio][name="skip"]')->each(
+                static fn (Crawler $radio): string => (string) $radio->attr('value'),
+            ),
+        );
+        self::assertSame(
+            ['All three', 'Full width only', 'Split only'],
+            $crawler->filter('form:has(input[name="skip"]) label')->each(
+                static fn (Crawler $label): string => trim($label->text()),
+            ),
+            'each option is named for the views it leaves, not for the one it skips',
+        );
+        self::assertSame('none', $this->checked($crawler));
         self::assertSame(CalendarSwitchSkip::None, $this->stored()->calendarSwitchSkip);
     }
 
-    public function testSwitchingSkipSplitOnStoresItAndTheNextPageDrawsIt(): void
+    public function testAChoiceIsStoredAndTheNextPageDrawsIt(): void
     {
-        $this->post('skipSplit', '1');
+        $this->post('split');
 
         self::assertSame(CalendarSwitchSkip::Split, $this->stored()->calendarSwitchSkip);
+        self::assertSame('split', $this->checked($this->pane()));
 
-        $crawler = $this->pane();
-        self::assertSame('1', $this->checked($crawler, 'skipSplit'));
-        self::assertSame('0', $this->checked($crawler, 'splitOnly'), 'the companion: the other one is still off');
-    }
-
-    public function testSwitchingTheOtherOneOnSwitchesTheFirstOff(): void
-    {
-        $this->post('skipSplit', '1');
-        $this->post('splitOnly', '1');
+        // Straight to the other one, with nothing to switch off first.
+        $this->post('calendar');
 
         self::assertSame(CalendarSwitchSkip::Calendar, $this->stored()->calendarSwitchSkip);
-
-        $crawler = $this->pane();
-        self::assertSame('1', $this->checked($crawler, 'splitOnly'));
-        self::assertSame('0', $this->checked($crawler, 'skipSplit'), 'the page shows what the server stored, not what was clicked last');
-
-        $this->post('skipSplit', '1');
-
-        self::assertSame(CalendarSwitchSkip::Split, $this->stored()->calendarSwitchSkip);
+        self::assertSame('calendar', $this->checked($this->pane()));
     }
 
-    public function testSwitchingOneOffLeavesTheOtherAlone(): void
+    public function testChoosingAllThreeAgainPutsTheCycleBack(): void
     {
-        $this->post('splitOnly', '1');
-        $this->post('skipSplit', '0');
-
-        self::assertSame(CalendarSwitchSkip::Calendar, $this->stored()->calendarSwitchSkip);
-
-        $this->post('splitOnly', '0');
+        $this->post('calendar');
+        $this->post('none');
 
         self::assertSame(CalendarSwitchSkip::None, $this->stored()->calendarSwitchSkip);
+        self::assertSame('none', $this->checked($this->pane()));
     }
 
-    /** A form that does not mention a switch must not move it. */
-    public function testAPostThatNamesNeitherSwitchChangesNothing(): void
+    /** A form that does not mention the choice must not move it. */
+    public function testAPostThatDoesNotNameAChoiceChangesNothing(): void
     {
-        $this->post('splitOnly', '1');
+        $this->post('calendar');
 
-        $this->client->request('POST', '/settings/calendar-behaviour', ['_token' => $this->token('skipSplit')]);
+        $this->client->request('POST', '/settings/calendar-behaviour', ['_token' => $this->token()]);
+
+        self::assertSame(CalendarSwitchSkip::Calendar, $this->stored()->calendarSwitchSkip);
+    }
+
+    /** Not read as "none", which would quietly undo what was stored. */
+    public function testAPostNamingSomethingThatIsNotAChoiceChangesNothing(): void
+    {
+        $this->post('calendar');
+
+        $this->client->request('POST', '/settings/calendar-behaviour', ['_token' => $this->token(), 'skip' => 'both']);
 
         self::assertSame(CalendarSwitchSkip::Calendar, $this->stored()->calendarSwitchSkip);
     }
 
     public function testAPostWithoutTheTokenIsRefused(): void
     {
-        $this->client->request('POST', '/settings/calendar-behaviour', ['skipSplit' => '1']);
+        $this->client->request('POST', '/settings/calendar-behaviour', ['skip' => 'split']);
 
         self::assertResponseStatusCodeSame(403);
         self::assertSame(CalendarSwitchSkip::None, $this->stored()->calendarSwitchSkip);
@@ -146,31 +152,31 @@ final class CalendarBehaviourSettingsTest extends WebTestCase
         return $crawler;
     }
 
-    /** The value of the checked radio in the named group — what the pane shows. */
-    private function checked(Crawler $crawler, string $field): string
+    /** The value of the checked radio — what the pane shows. */
+    private function checked(Crawler $crawler): string
     {
-        $checked = $crawler->filter(sprintf('input[type=radio][name="%s"][checked]', $field));
+        $checked = $crawler->filter('input[type=radio][name="skip"][checked]');
 
-        self::assertCount(1, $checked, sprintf('exactly one %s radio is checked', $field));
+        self::assertCount(1, $checked, 'exactly one option is checked');
 
         return (string) $checked->attr('value');
     }
 
-    /** The token the pane's own form for this switch carries. */
-    private function token(string $field): string
+    /** The token the pane's own form carries. */
+    private function token(): string
     {
-        $form = $this->pane()->filter(sprintf('form:has(input[name="%s"])', $field));
+        $form = $this->pane()->filter('form:has(input[name="skip"])');
 
         self::assertCount(1, $form);
 
         return (string) $form->filter('input[name="_token"]')->attr('value');
     }
 
-    private function post(string $field, string $value): void
+    private function post(string $skip): void
     {
         $this->client->request('POST', '/settings/calendar-behaviour', [
-            '_token' => $this->token($field),
-            $field   => $value,
+            '_token' => $this->token(),
+            'skip'   => $skip,
         ]);
 
         self::assertResponseRedirects('/settings?section=calendar-behaviour');

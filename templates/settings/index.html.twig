@@ -430,8 +430,7 @@
                                         } %}
                                             {% block body %}
                                                 {% include 'settings/_calendar_behaviour.html.twig' with {
-                                                    skipSplit: app.user.calendarSkipSplit,
-                                                    splitOnly: app.user.calendarSplitOnly,
+                                                    skip: app.user.calendarSwitchSkip,
                                                 } only %}
                                             {% endblock %}
                                         {% endembed %}

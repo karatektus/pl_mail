@@ -6,89 +6,68 @@ namespace App\Tests\Entity\User;
 
 use App\Domain\Enum\Calendar\CalendarSwitchSkip;
 use App\Entity\User\User;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 /**
- * The two calendar-button switches (Settings → Calendar → Behaviour) and the
- * one answer the rest of the app reads from them.
+ * Which position the calendar button leaves out (Settings → Calendar →
+ * Behaviour), as the settings bag keeps it.
  */
 final class CalendarSwitchSkipTest extends TestCase
 {
-    /** Off for everybody, and nothing stored for the default, like every setting in the bag. */
+    /** None for everybody, and nothing stored for the default, like every setting in the bag. */
     public function testTheButtonCyclesUntilSomebodyChangesIt(): void
     {
         $user = new User();
 
-        self::assertFalse($user->calendarSkipSplit);
-        self::assertFalse($user->calendarSplitOnly);
         self::assertSame(CalendarSwitchSkip::None, $user->calendarSwitchSkip);
-        self::assertNull($user->getSetting(User::SETTING_CALENDAR_SKIP_SPLIT));
-        self::assertNull($user->getSetting(User::SETTING_CALENDAR_SPLIT_ONLY));
+        self::assertNull($user->getSetting(User::SETTING_CALENDAR_SWITCH_SKIP));
     }
 
-    public function testEachSwitchOnIsItsOwnAnswerAndOffStoresNothing(): void
+    public function testAChoiceIsStoredAsItsValueAndReadBack(): void
     {
         $user = new User();
 
-        $user->calendarSkipSplit = true;
+        $user->calendarSwitchSkip = CalendarSwitchSkip::Split;
+        self::assertSame('split', $user->getSetting(User::SETTING_CALENDAR_SWITCH_SKIP));
         self::assertSame(CalendarSwitchSkip::Split, $user->calendarSwitchSkip);
-        self::assertTrue($user->getSetting(User::SETTING_CALENDAR_SKIP_SPLIT));
 
-        $user->calendarSkipSplit = false;
-        self::assertSame(CalendarSwitchSkip::None, $user->calendarSwitchSkip);
-        self::assertNull($user->getSetting(User::SETTING_CALENDAR_SKIP_SPLIT), 'switching off again leaves the default, not a stored false');
-
-        $user->calendarSplitOnly = true;
+        // Straight to the other one: there is no first choice to switch off.
+        $user->calendarSwitchSkip = CalendarSwitchSkip::Calendar;
+        self::assertSame('calendar', $user->getSetting(User::SETTING_CALENDAR_SWITCH_SKIP));
         self::assertSame(CalendarSwitchSkip::Calendar, $user->calendarSwitchSkip);
-        self::assertTrue($user->getSetting(User::SETTING_CALENDAR_SPLIT_ONLY));
-
-        $user->calendarSplitOnly = false;
-        self::assertSame(CalendarSwitchSkip::None, $user->calendarSwitchSkip);
-        self::assertNull($user->getSetting(User::SETTING_CALENDAR_SPLIT_ONLY));
     }
 
-    /** With both on the button would have nowhere to go, so the one switched on last wins. */
-    public function testTurningOneOnTurnsTheOtherOff(): void
+    public function testChoosingAllThreeAgainLeavesTheDefaultRatherThanAStoredNone(): void
     {
-        $user = new User();
+        $user                     = new User();
+        $user->calendarSwitchSkip = CalendarSwitchSkip::Split;
 
-        $user->calendarSkipSplit = true;
-        $user->calendarSplitOnly = true;
+        $user->calendarSwitchSkip = CalendarSwitchSkip::None;
 
-        self::assertTrue($user->calendarSplitOnly);
-        self::assertFalse($user->calendarSkipSplit, 'switching split-only on took skip-split off');
-        self::assertSame(CalendarSwitchSkip::Calendar, $user->calendarSwitchSkip);
-
-        $user->calendarSkipSplit = true;
-
-        self::assertTrue($user->calendarSkipSplit);
-        self::assertFalse($user->calendarSplitOnly, 'and the other way round');
-        self::assertSame(CalendarSwitchSkip::Split, $user->calendarSwitchSkip);
-    }
-
-    /** Turning a switch OFF must not touch the other one. */
-    public function testTurningOneOffLeavesTheOtherAlone(): void
-    {
-        $user                    = new User();
-        $user->calendarSplitOnly = true;
-
-        $user->calendarSkipSplit = false;
-
-        self::assertTrue($user->calendarSplitOnly);
-        self::assertSame(CalendarSwitchSkip::Calendar, $user->calendarSwitchSkip);
+        self::assertNull($user->getSetting(User::SETTING_CALENDAR_SWITCH_SKIP));
+        self::assertSame(CalendarSwitchSkip::None, $user->calendarSwitchSkip);
     }
 
     /**
-     * A bag with both stored — a backup edited by hand — is not a state the
-     * setters can produce, and it reads as the default rather than as a guess
-     * at which of the two was meant.
+     * A bag written some other way — a backup edited by hand — reads as the
+     * default cycle rather than failing the page that asks.
      */
-    public function testBothStoredReadsAsTheDefaultCycle(): void
+    #[DataProvider('unusable')]
+    public function testAStoredValueThatIsNotAChoiceReadsAsTheDefaultCycle(mixed $stored): void
     {
         $user = new User();
-        $user->setSetting(User::SETTING_CALENDAR_SKIP_SPLIT, true);
-        $user->setSetting(User::SETTING_CALENDAR_SPLIT_ONLY, true);
+        $user->setSetting(User::SETTING_CALENDAR_SWITCH_SKIP, $stored);
 
         self::assertSame(CalendarSwitchSkip::None, $user->calendarSwitchSkip);
+    }
+
+    /** @return iterable<string, array{mixed}> */
+    public static function unusable(): iterable
+    {
+        yield 'an unknown name' => ['both'];
+        yield 'a boolean'       => [true];
+        yield 'a number'        => [1];
+        yield 'a list'          => [['split']];
     }
 }

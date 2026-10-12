@@ -226,10 +226,10 @@ test.describe("calendar pane demotion", () => {
  * Settings → Calendar → Behaviour: the switch skips a position, so it has two
  * stops — the mail and one of the calendar's two — instead of three. The
  * server's half (the label, the value on the shell) is in
- * CalendarSwitchRenderTest and the exclusion rule is in
+ * CalendarSwitchRenderTest and how the choice is kept is in
  * CalendarSwitchSkipTest; this is the click.
  *
- * Both settings and the pane mode persist on the per-worker user that every
+ * The setting and the pane mode persist on the per-worker user that every
  * other spec file shares, so each test puts all of them back.
  */
 test.describe("calendar button, skipping a position", () => {
@@ -240,16 +240,15 @@ test.describe("calendar button, skipping a position", () => {
     type Skip = "none" | "split" | "calendar";
 
     /**
-     * Writes both switches in one post, the way the pane's two forms would one
-     * after the other. The token is the pane's own: these forms are not the
-     * `ajax` token's callers.
+     * Writes the choice the way the pane's form would. The token is the pane's
+     * own: this form is not one of the `ajax` token's callers.
      */
     async function setSkip(page: Page, skip: Skip): Promise<void> {
         const html = await (await page.request.get("/settings?section=calendar-behaviour")).text();
         const token = /name="_token" value="([^"]*)"/.exec(html)?.[1] ?? "";
 
         const response = await page.request.post("/settings/calendar-behaviour", {
-            form: { _token: token, skipSplit: "split" === skip ? "1" : "0", splitOnly: "calendar" === skip ? "1" : "0" },
+            form: { _token: token, skip },
         });
 
         expect(response.ok()).toBe(true);
@@ -369,14 +368,15 @@ test.describe("calendar button, skipping a position", () => {
         await expect(shell(page)).toHaveAttribute("data-calendar-mode", "split");
     });
 
-    test("the Behaviour pane switches each one, and turning one on turns the other off", async ({ page }) => {
+    test("the Behaviour pane is one choice of three, and the button follows it", async ({ page }) => {
         await setSkip(page, "none");
         await page.goto("/settings?section=calendar-behaviour");
 
-        const field = (name: string, value: string) => page.locator(`input[name="${name}"][value="${value}"]`);
+        const group = page.getByRole("radiogroup", { name: "Calendar button" });
+        const option = (name: string) => group.getByRole("radio", { name, exact: true });
 
-        await expect(field("skipSplit", "0")).toBeChecked();
-        await expect(field("splitOnly", "0")).toBeChecked();
+        await expect(group.getByRole("radio")).toHaveCount(3);
+        await expect(option("All three")).toBeChecked();
 
         // Submitting redirects back to the pane; wait for the page that comes
         // back, not for the post.
@@ -387,15 +387,16 @@ test.describe("calendar button, skipping a position", () => {
                     response.url().includes("section=calendar-behaviour") &&
                     null !== response.request().redirectedFrom(),
             );
-        const turnOn = async (name: string) => {
+        // The radio itself is sr-only; its label is what a pointer meets.
+        const choose = async (name: string) => {
             const back = saved();
-            await page.locator(`form:has(input[name="${name}"]) label`).filter({ hasText: /^\s*On\s*$/ }).click();
+            await group.locator("label").filter({ hasText: name }).click();
             await back;
         };
 
-        await turnOn("skipSplit");
-        await expect(field("skipSplit", "1")).toBeChecked();
-        await expect(field("splitOnly", "0")).toBeChecked();
+        await choose("Full width only");
+        await expect(option("Full width only")).toBeChecked();
+        await expect(option("All three")).not.toBeChecked();
 
         // The button follows: mail, calendar, mail.
         await storeMode(page, "mail");
@@ -403,11 +404,11 @@ test.describe("calendar button, skipping a position", () => {
         await toggle(page).click();
         await expect(shell(page)).toHaveAttribute("data-calendar-mode", "calendar");
 
-        // The other switch on: this one goes off, as the page shows after saving.
+        // Straight to the other one. Nothing has to be switched off first.
         await page.goto("/settings?section=calendar-behaviour");
-        await turnOn("splitOnly");
-        await expect(field("splitOnly", "1")).toBeChecked();
-        await expect(field("skipSplit", "0")).toBeChecked();
+        await choose("Split only");
+        await expect(option("Split only")).toBeChecked();
+        await expect(option("Full width only")).not.toBeChecked();
 
         await storeMode(page, "mail");
         await page.goto("/mail/inbox");

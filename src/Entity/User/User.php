@@ -1014,67 +1014,38 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
     }
 
     /**
-     * Whether the topbar's calendar button skips the split position, going
-     * between the mail and the calendar full width — Settings → Calendar →
-     * Behaviour. Off unless somebody turns it on: the three-way cycle is what
-     * the button has always done, and a person who has learned it should not
-     * find it moved. Only a stored true is on, so the key is absent for nearly
-     * everybody.
+     * Which position the topbar's calendar button leaves out — Settings →
+     * Calendar → Behaviour. None unless somebody chooses: the three-way cycle
+     * is what the button has always done, and a person who has learned it
+     * should not find it moved.
      *
-     * Exclusive with $calendarSplitOnly: turning one on turns the other off, so
-     * the button always has two stops to go between. The setters are where that
-     * is enforced, so a form, a restore through them and any future writer all
-     * get it; a bag that has both set anyway (a backup edited by hand) is read
-     * as neither, see $calendarSwitchSkip.
+     * One value, the enum's own, and absent for the default like every setting
+     * in the bag. It was two booleans at first, "skip the split" and "skip the
+     * full width", which could both be true and then had to be kept apart by
+     * the setters and read as neither when a backup held both anyway. One value
+     * cannot say "skip both", so none of that is here.
      */
-    public const string SETTING_CALENDAR_SKIP_SPLIT = 'calendar.skip_split';
-
-    /** Virtual, out of the settings bag — see SETTING_CALENDAR_SKIP_SPLIT. */
-    public bool $calendarSkipSplit {
-        get => true === $this->getSetting(self::SETTING_CALENDAR_SKIP_SPLIT, false);
-        set(bool $on) {
-            $this->setSetting(self::SETTING_CALENDAR_SKIP_SPLIT, $on ? true : null);
-
-            if (true === $on) {
-                $this->setSetting(self::SETTING_CALENDAR_SPLIT_ONLY, null);
-            }
-        }
-    }
+    public const string SETTING_CALENDAR_SWITCH_SKIP = 'calendar.switch_skip';
 
     /**
-     * The opposite of $calendarSkipSplit: the button goes between the mail and
-     * the calendar beside it, and skips the calendar full width. Same default,
-     * same exclusivity — Settings → Calendar → Behaviour.
-     */
-    public const string SETTING_CALENDAR_SPLIT_ONLY = 'calendar.split_only';
-
-    /** Virtual, out of the settings bag — see SETTING_CALENDAR_SPLIT_ONLY. */
-    public bool $calendarSplitOnly {
-        get => true === $this->getSetting(self::SETTING_CALENDAR_SPLIT_ONLY, false);
-        set(bool $on) {
-            $this->setSetting(self::SETTING_CALENDAR_SPLIT_ONLY, $on ? true : null);
-
-            if (true === $on) {
-                $this->setSetting(self::SETTING_CALENDAR_SKIP_SPLIT, null);
-            }
-        }
-    }
-
-    /**
-     * What the two switches above add up to, which is all the topbar and
-     * ui--split ever ask.
-     *
-     * Both stored as true is not a state the setters can produce; it can only
-     * arrive in a bag written some other way. Neither wins: the answer is the
-     * default cycle, the one position a person who did not choose is in, rather
-     * than a guess at which of the two they meant last.
+     * Virtual, out of the settings bag — see SETTING_CALENDAR_SWITCH_SKIP.
+     * Anything stored that is not one of the enum's values, a hand-edited
+     * backup say, reads as the default cycle.
      */
     public CalendarSwitchSkip $calendarSwitchSkip {
-        get => match (true) {
-            true === $this->calendarSkipSplit && false === $this->calendarSplitOnly => CalendarSwitchSkip::Split,
-            true === $this->calendarSplitOnly && false === $this->calendarSkipSplit => CalendarSwitchSkip::Calendar,
-            default => CalendarSwitchSkip::None,
-        };
+        get {
+            $stored = $this->getSetting(self::SETTING_CALENDAR_SWITCH_SKIP);
+
+            return true === is_string($stored)
+                ? CalendarSwitchSkip::tryFrom($stored) ?? CalendarSwitchSkip::None
+                : CalendarSwitchSkip::None;
+        }
+        set (CalendarSwitchSkip $skip) {
+            $this->setSetting(
+                self::SETTING_CALENDAR_SWITCH_SKIP,
+                CalendarSwitchSkip::None === $skip ? null : $skip->value,
+            );
+        }
     }
 
     public function getSetting(string $key, mixed $default = null): mixed

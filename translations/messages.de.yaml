@@ -3583,13 +3583,12 @@ settings:
         test_ok: 'Verbindung funktioniert'
         unavailable_heading: 'Hier nicht verfügbar'
     calendar_behaviour:
+        button: Kalenderschaltfläche
+        button_hint: 'Welche Ansichten die Schaltfläche in der Kopfleiste durchläuft. Eine ausgelassene Ansicht wird nicht entfernt: Mit dem Ziehgriff erreichst du sie weiterhin.'
         heading: Verhalten
-        'off': 'Aus'
-        'on': 'An'
-        skip_split: Geteilte Ansicht überspringen
-        skip_split_hint: 'Die Schaltfläche geht zwischen der Mail und dem Kalender in voller Breite hin und her, mit je einem Druck. Der Kalender neben der Mail wird übersprungen, nicht entfernt. Schaltest du dies ein, wird die andere Einstellung ausgeschaltet.'
-        split_only: Kalender in voller Breite überspringen
-        split_only_hint: 'Die Schaltfläche geht zwischen der Mail und dem Kalender neben ihr hin und her, mit je einem Druck. Der Kalender in voller Breite wird übersprungen, nicht entfernt. Schaltest du dies ein, wird die andere Einstellung ausgeschaltet.'
+        option_calendar: Nur geteilt
+        option_none: Alle drei
+        option_split: Nur volle Breite
         subheading: 'Wie die Kalenderschaltfläche in der Kopfleiste zwischen den Ansichten wechselt.'
     calendars:
         account_hint: Hier landen Termine aus E-Mails von %address%.

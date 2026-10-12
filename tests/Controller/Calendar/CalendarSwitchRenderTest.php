@@ -100,9 +100,8 @@ final class CalendarSwitchRenderTest extends WebTestCase
         $user->roles     = [User::ROLE_USER];
         $user->password  = 'x';
 
-        $user->calendarPaneMode = $mode;
-        $user->calendarSkipSplit = CalendarSwitchSkip::Split === $skip;
-        $user->calendarSplitOnly = CalendarSwitchSkip::Calendar === $skip;
+        $user->calendarPaneMode   = $mode;
+        $user->calendarSwitchSkip = $skip;
 
         $this->em->persist($user);
         $this->em->flush();
