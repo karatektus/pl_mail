@@ -8,6 +8,14 @@ The published image tags: `latest` follows the most recent release below,
 
 ## Unreleased
 
+**A Gmail or Microsoft account gets its own colour when you connect it.** Accounts added with a
+password were already given the first colour no other account was wearing; accounts connected
+through Google or Microsoft skipped that step and all kept the first colour, so their dots in the
+sidebar and the corner mark on every message row looked the same. They now take the first free
+colour like any other. Accounts you connected before this keep the colour they have; the swatch on
+the account's row in Settings → Mail accounts changes it. No migration.
+[#60](https://github.com/karatektus/pl_mail/pull/60), by @Flouss.
+
 **The mail list is readable beside an open message.** A row went to a single line once the list was
 about 575px wide, which left the subject around 120px and its preview wrapped next to it ("Facture
 pour Co…") whenever the reading pane was open, or on a large phone. A row now goes to one line only
@@ -272,12 +280,6 @@ the folder could never be swept — withheld the check that lets mail deleted el
 the account. A folder marked `\Noselect` is now created with sync off, and one that already exists
 is switched off on the next folder sync, with nothing to do on your part. It held no mail, so
 nothing is lost. No migration.
-
-**A Gmail or Microsoft account gets its own colour when you connect it.** Accounts added with a
-password were already given the first colour no other account was wearing; accounts connected
-through Google or Microsoft skipped that step and all kept the first colour, so their dots in the
-sidebar and the corner mark on every message row looked the same. They now take the first free
-colour like any other. Accounts you connected before this keep the colour they have. No migration.
 
 ## v0.3.2 — 2026-10-09
 
