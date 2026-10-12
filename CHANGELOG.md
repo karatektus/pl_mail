@@ -20,6 +20,7 @@ locks them until the recovery phrase or a known device opens them again. Configu
 carry the keys. Nothing is encrypted with them yet — reading and sending encrypted mail come next.
 Four tables are added; the migration is reversible, but going back down deletes every key, and
 with it anything that will have been encrypted to them.
+[#85](https://github.com/karatektus/pl_mail/pull/85), by @pmdevelopment.
 
 **Your password no longer reaches the server.** The login form stretches it in the browser
 (PBKDF2-SHA256, 600 000 rounds, as Bitwarden does) and sends only the result, which the server
