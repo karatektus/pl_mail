@@ -199,8 +199,9 @@ test.describe("counters after reading one mail", () => {
      * would pass the read case alone.
      */
     test("the row's own mark-read button moves the badge, and back again", async ({ page }) => {
-        // The row action strip is `hidden @rowwide:flex` — a container query on the
-        // list pane — so it does not exist at all in a narrow window.
+        // Wide, so the row is one line and the action strip sits where this
+        // test has always clicked it. Narrower lists show it too, on hover —
+        // list-row-breakpoint.spec.ts holds that.
         await page.setViewportSize({ width: 1600, height: 900 });
         await page.goto("/mail/inbox");
         await expect(mailRow(page, INBOX_SUBJECTS.read)).toBeVisible();

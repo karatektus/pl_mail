@@ -8,6 +8,19 @@ The published image tags: `latest` follows the most recent release below,
 
 ## Unreleased
 
+**The mail list is readable beside an open message.** A row went to a single line once the list was
+about 575px wide, which left the subject around 120px and its preview wrapped next to it ("Facture
+pour Co…") whenever the reading pane was open, or on a large phone. A row now goes to one line only
+once the list is 75rem (about 1200px) wide. Below that it is two lines — sender and subject, then
+the preview across the whole row — and on a list narrower than about 575px, a phone, the three it
+always was. Not less, because a one-line row in a 65rem list (the list beside the reading pane on a
+2560px screen) still cut real subjects after about 30 characters. Archive, delete, snooze and the
+other row actions appear on hover in two- and three-line rows too, instead of only in one-line rows.
+A two-line row has no unread dot; like a one-line row it says unread with a bold sender and subject.
+Also fixed: with the two-line preview setting on, a one-line row wrapped its preview anyway. No
+setting; no migration.
+[#62](https://github.com/karatektus/pl_mail/pull/62), by @Flouss.
+
 **Each inbox tab shows how many conversations in it are unread.** The number is the sidebar's
 Inbox badge split by category, so the tabs add up to it, and it appears on every tab, the one you
 are on included, and updates in place on sync. Before, an unread conversation in Promotions made

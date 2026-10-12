@@ -964,7 +964,10 @@ test.describe("calendar pane", () => {
      * rendering one-line rows, truncated to nothing.
      */
     test("stacks the mail rows once the pane has taken enough width", async ({ page }) => {
-        await page.setViewportSize({ width: 1440, height: 900 });
+        // 1600, not 1440: one line starts at a 75rem list now, and a 1440px
+        // window gives one just short of that, so the first assertion below
+        // found a row that was never one line to begin with.
+        await page.setViewportSize({ width: 1600, height: 900 });
         await ensurePaneClosed(page);
 
         // The content block is what changes shape: a column when the list is

@@ -5082,7 +5082,7 @@ label:has(> input.sr-only) {
    Where a list row stops being three stacked lines and becomes one.
 
    This was Tailwind's stock `@xl` (36rem), and it was too early: one line has to
-   carry the avatar, a 13rem sender column and a 9rem date/actions column before
+   carry the avatar, a 10rem sender column and a 9rem date/actions column before
    the subject and preview get a single pixel, so a list with the reading pane
    open (about 45rem) left them ~260px between them — "Facture pour Co…" and a
    preview wrapped to two cramped lines. Stacked gives them the full width, and
@@ -5093,8 +5093,16 @@ label:has(> input.sr-only) {
    characters and the preview after ~35. Measured by sweeping the list width
    with long French and English subjects: at 75rem both the subject and a
    usable preview fit; wider only adds preview. `@rowwide:` in
-   _thread_row.html.twig is this token, and the
-   `@container (min-width: 75rem)` rule below must carry the same number.
+   _thread_row.html.twig is this token, and so is the `@container` rule below,
+   which reads it through `theme()` rather than repeating the number.
+
+   Below it the row is not three lines everywhere. From `@xl` (36rem) up to this
+   token it is two — sender and subject on the first, the preview on the second
+   — because three lines in a list 60rem wide spent a line on a sender name
+   with most of the row empty beside it. That band is `@xl:@max-rowwide:` in the
+   row template and needs no rule here: the preview clamp below treats it like
+   the three-line row, which is what it should do, since the preview has a
+   line of its own in both.
 */
 @theme {
     --container-rowwide: 75rem;
@@ -5157,19 +5165,24 @@ label:has(> input.sr-only) {
    same on/off switch without the clamp.
 
    `@container`, matching the row's own `@rowwide` (the 75rem container width
-   declared by --container-rowwide in the "Mail list display" block above,
-   written out by hand because a plain rule can use neither the variant nor the
-   token — change the two together): the
+   declared by --container-rowwide in the "Mail list display" block above). A
+   plain rule cannot use the variant, and a custom property means nothing inside
+   a query, so the number comes through `theme()`, which Tailwind resolves at
+   build time. It was written out by hand once, with a comment asking for the
+   two to be changed together, which is the kind of promise that gets kept
+   until it does not: the
    row switches on the LIST's width, not the viewport's — the list is narrower
    than a phone whenever the calendar pane is docked wide.
 */
 /*
    `:not(.hidden)` is load-bearing, and only on the stacked branch. A scheduled
-   draft's row carries `hidden @rowwide:inline-block` on this very element — the
+   draft's row carries `hidden @xl:inline-block` on this very element — the
    badge saying when it goes has already eaten the line, and what is left of
    the snippet at 393px is two characters and an ellipsis. These rules are
    unlayered and would otherwise beat that `.hidden` and put the fragment back.
-   Wide, where the row shows both, there is nothing to exempt.
+   From `@xl` up, where the row shows both, the element still carries
+   `.hidden`, so it stays out of this rule and its one line is Tailwind's
+   `truncate`.
 */
 [data-row-snippet]:not(.hidden) {
     display: var(--list-preview-display);
@@ -5179,7 +5192,7 @@ label:has(> input.sr-only) {
     overflow: hidden;
 }
 
-@container (min-width: 75rem) {
+@container (min-width: theme(--container-rowwide)) {
     /* `:not(.hidden)` for SPECIFICITY, not for the exemption above: a container
        query adds none, so a bare `[data-row-snippet]` (0,1,0) lost to the
        stacked rule's `[data-row-snippet]:not(.hidden)` (0,2,0) and the

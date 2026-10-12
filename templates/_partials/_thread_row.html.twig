@@ -404,12 +404,31 @@ be a worse regression than the one this feature fixes.
                   aria-hidden="true"><i class="fa-solid fa-check text-xs"></i></span>
         </label>
 
-        {# Content — one line when the list is wide, three when it is not #}
-        <div data-row-layout
-             class="flex-1 min-w-0 flex flex-col @rowwide:flex-row @rowwide:items-center @rowwide:gap-4">
+        {# Content — three shapes, chosen by the LIST's width:
 
-            {# Row 1 (stacked) / sender column (wide) #}
-            <div class="flex items-center justify-between gap-2 @rowwide:justify-start @rowwide:w-40 @rowwide:flex-shrink-0">
+             below `@xl` (36rem)      three lines: sender, subject, preview
+             `@xl` up to `@rowwide`   two lines: sender and subject, then preview
+             `@rowwide` (75rem) up    one line
+
+           The middle one is a grid, because the sender and the subject are not
+           siblings: the subject lives two wrappers down, beside the preview. So
+           both wrappers go `display: contents` in that band and their children
+           become cells of this grid — sender and subject on the first row, the
+           preview spanning the second. The sender column is the 10rem the
+           one-line layout gives it, so subjects line up down the list.
+
+           `@xl:@max-rowwide:` is a range, not a step: nothing here has to be
+           undone again at `@rowwide`. #}
+        <div data-row-layout
+             class="flex-1 min-w-0 flex flex-col
+                    @xl:@max-rowwide:grid @xl:@max-rowwide:grid-cols-[10rem_minmax(0,1fr)] @xl:@max-rowwide:gap-x-4 @xl:@max-rowwide:gap-y-1
+                    @rowwide:flex-row @rowwide:items-center @rowwide:gap-4">
+
+            {# Row 1 (three lines) / first cell of row 1 (two lines) / sender
+               column (one line). `min-w-0` is for the middle one: a grid item
+               will not shrink under its content without it, and a long sender
+               would push the column past its 10rem. #}
+            <div data-row-sender class="min-w-0 flex items-center justify-between gap-2 @rowwide:justify-start @rowwide:w-40 @rowwide:flex-shrink-0">
                 {# Sender and its marker travel together in one group, so the
                    badge sits to the LEFT of the name at both container widths.
                    Hanging it off the outer flex instead would have put it at
@@ -500,9 +519,9 @@ be a worse regression than the one this feature fixes.
                that same position wedges them between a subject and a preview
                that are already competing for one line, so they drop to a line
                of their own underneath. #}
-            <div class="min-w-0 flex-1 flex flex-col">
-                <div class="min-w-0 flex flex-col @rowwide:flex-row @rowwide:items-baseline @rowwide:gap-2">
-                    <span class="truncate text-sm mt-1 @rowwide:mt-0 @rowwide:flex-shrink-0 @rowwide:max-w-[45%]
+            <div class="min-w-0 flex-1 flex flex-col @xl:@max-rowwide:contents">
+                <div class="min-w-0 flex flex-col @xl:@max-rowwide:contents @rowwide:flex-row @rowwide:items-baseline @rowwide:gap-2">
+                    <span data-row-subject class="truncate text-sm mt-1 @xl:@max-rowwide:mt-0 @rowwide:mt-0 @rowwide:flex-shrink-0 @rowwide:max-w-[45%]
                                  {{ unread ? 'font-semibold text-ink' : 'font-normal text-ink-soft' }}">
                         {{ subjectLine }}
                         {% if count > 1 %}
@@ -513,7 +532,9 @@ be a worse regression than the one this feature fixes.
                     {# A little air above the preview when stacked. It separates
                        the subject from the snippet, and the meta column mirrors
                        the same margin so the dot stays level with it. #}
-                    <span class="min-w-0 flex-1 flex items-center gap-1.5 text-sm mt-1.5 @rowwide:mt-0">
+                    {# Two lines: the whole second row, under the sender as
+                       well as the subject. The grid's row gap is the air. #}
+                    <span class="min-w-0 flex-1 flex items-center gap-1.5 text-sm mt-1.5 @xl:@max-rowwide:mt-0 @xl:@max-rowwide:col-span-2 @rowwide:mt-0">
                         {# A draft with a send time on it. Without this the
                            Drafts list is the one place a scheduled message
                            lives and the only place that does not say so — the
@@ -592,15 +613,23 @@ be a worse regression than the one this feature fixes.
                         <span class="@rowwide:hidden contents">
                             {% include '_partials/_thread_labels.html.twig' with { item: item } %}
                         </span>
-                        {# A stacked row has one line for the preview, and a
-                           scheduled draft has already spent most of it saying
-                           when it goes — what is left of the snippet at 393px
-                           is two characters and an ellipsis, which is noise
-                           where the badge is information. Wide, both fit and
-                           both are shown. #}
-                        {# `@rowwide:inline-block`, not `@rowwide:block`, and this is the
+                        {# A three-line row has one short line for the preview,
+                           and a scheduled draft has already spent most of it
+                           saying when it goes — what is left of the snippet at
+                           393px is two characters and an ellipsis, which is
+                           noise where the badge is information. From `@xl` up
+                           both fit and both are shown: the two-line row gives
+                           the preview the whole width, and the one-line row
+                           always had the room.
+
+                           `@xl`, and not `@rowwide` with the rest of the
+                           one-line layout: when the one-line breakpoint moved
+                           to 75rem this went with it, and every Drafts list
+                           between 36rem and 75rem lost the snippet beside the
+                           badge that it had been showing. #}
+                        {# `@xl:inline-block`, not `@xl:block`, and this is the
                            second time this file has paid for it: Tailwind emits
-                           `.hidden` AFTER `.block`, so `hidden @rowwide:block` is
+                           `.hidden` AFTER `.block`, so `hidden @xl:block` is
                            hidden at every width — the container variant does
                            not outrank it. `.inline-block` is emitted after
                            `.hidden` and wins, and a flex item blockifies it
@@ -611,7 +640,7 @@ be a worse regression than the one this feature fixes.
                            `truncate` stays for the one-line default, and
                            app.css releases its white-space only when the
                            setting asks for two. #}
-                        <span data-row-snippet class="truncate text-ink-faint {{ scheduledAt is not null ? 'hidden @rowwide:inline-block' : '' }}">{{ snippet }}</span>
+                        <span data-row-snippet class="truncate text-ink-faint {{ scheduledAt is not null ? 'hidden @xl:inline-block' : '' }}">{{ snippet }}</span>
                     </span>
                 </div>
 
@@ -626,7 +655,7 @@ be a worse regression than the one this feature fixes.
            lines beside it. Wide the row is one line, so this is too.
 
            The hover actions still swap for the date, but only on the date's
-           own row and only where there is a hover to speak of. They used to be
+           own row and only for a pointer that can hover. They used to be
            absolutely positioned over the whole column, which is why nothing
            else could live here. #}
         {# The meta area takes the row's own shape. A stacked row is three
@@ -638,7 +667,13 @@ be a worse regression than the one this feature fixes.
            content's height and distributes, so the time sits on the sender's
            line, the icons on the subject's and the dot on the preview's —
            packing from the top instead left the third item hanging below the
-           last line of text. Wide, the row is one line and so is this. #}
+           last line of text. Wide, the row is one line and so is this.
+
+           The two-line row between them needs nothing of its own here. It is
+           still the column: the unread dot is gone at that width (see the dot
+           below), which leaves the time and the star, and the grid's row gap is
+           the star's own `mt-1`, so the two sit level with the two lines of
+           text. #}
         <div data-row-meta
              class="flex flex-shrink-0 ml-2
                     flex-col items-end self-start
@@ -649,7 +684,8 @@ be a worse regression than the one this feature fixes.
                 {# The paperclip rides with the date: wide, it sits just inboard
                    of it and vanishes with it when the hover actions take the
                    row over. Leaving it outside meant it stayed put underneath
-                   them. Stacked there is no hover, so it simply sits there. #}
+                   them. Stacked it is not here at all — see the copy beside
+                   the star. #}
                 <span class="absolute inset-0 flex items-center justify-end gap-1.5
                              text-xs text-ink-faint whitespace-nowrap
                              group-hover:invisible group-has-[[aria-expanded=true]]:invisible">
@@ -692,7 +728,24 @@ be a worse regression than the one this feature fixes.
                 {# Shown on hover — and for as long as the spam menu hanging off
                    one of these buttons is open. That menu is a descendant, so
                    without the second rule a pointer that strays off the row on
-                   its way to the menu hides the menu it was heading for. #}
+                   its way to the menu hides the menu it was heading for.
+
+                   Below one line as well, since the breakpoint moved to 75rem:
+                   left at `hidden @rowwide:flex`, archive, delete and snooze
+                   would have gone from every list narrower than that, which is
+                   most of them. `[@media(hover:hover)]` rather than a width,
+                   because what the strip needs is a pointer that can hover — it
+                   is only ever shown by `group-hover`, so on a touch screen
+                   it would be markup nothing can reach.
+
+                   Two things differ there, and both are because the strip is
+                   wider than the time it stands in for. `right-0` without a
+                   left edge, so it grows leftwards out of the time's cell instead
+                   of being squeezed into it; and `bg-surface`, because growing
+                   leftwards puts it over the end of the sender or subject,
+                   which would otherwise show through between the buttons. One
+                   line, the column is as wide as the strip (`w-36`) and there
+                   is nothing underneath to cover. #}
                 <div class="hidden [@media(hover:hover)]:flex @rowwide:flex absolute inset-y-0 right-0 items-center justify-end invisible group-hover:visible has-[[aria-expanded=true]]:visible pointer-events-auto gap-1 rounded-lg bg-surface @rowwide:bg-transparent">
                 {% if false == draft and placement == 'normal' %}
                     <button type="button" data-action="click->mail--message-row#archive"
@@ -856,14 +909,17 @@ be a worse regression than the one this feature fixes.
                 </button>
             </div>
 
-            {# Stacked only — a wide row already says "unread" twice over, with
-               a bold sender and a bold subject.
+            {# Three lines only — a wide row already says "unread" twice over,
+               with a bold sender and a bold subject, and a two-line row puts
+               those same two side by side on its first line. It also has no
+               third line for the dot to sit on: the meta column is the time
+               over the star there, level with the two rows of text.
 
                Boxed to the star's width rather than right-aligned on its own:
                the dot is 8px and the star glyph is 14, so aligning their right
                edges puts their centres 3px apart. #}
             {% if unread %}
-                <span class="@rowwide:hidden h-5 mt-1.5 w-3.5 flex items-center justify-center shrink-0" aria-hidden="true">
+                <span class="@xl:hidden h-5 mt-1.5 w-3.5 flex items-center justify-center shrink-0" aria-hidden="true">
                     <span class="w-2 h-2 rounded-full bg-success"></span>
                 </span>
                 {# No |default: a missing key comes back from |trans as the key

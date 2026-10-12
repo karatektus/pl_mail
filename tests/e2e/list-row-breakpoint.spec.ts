@@ -14,6 +14,11 @@ import { INBOX_SUBJECTS, mailRow, seed } from "./support/config";
  * first value and was still too early: a 2560px window with the reading pane
  * open gives a list of ~65rem, where real subjects were cut after ~30 chars.
  *
+ * Under 75rem the row is not one shape either: three lines below 36rem, and
+ * from there up two — sender and subject sharing the first line, the preview on
+ * the second. "Stacked" in the tests below means the property both of those
+ * have and the one-line row does not: the preview is under the subject.
+ *
  * Measured on the LIST's width, not the viewport's: the row is a container
  * query on #message-list. The viewports below are chosen so the list lands on
  * each side of the line (sidebar and gutters take ~250px).
@@ -23,12 +28,19 @@ const SUBJECT = INBOX_SUBJECTS.star;
 
 const geometry = async (page: Page) => {
     const row = mailRow(page, SUBJECT);
-    const subject = row.locator("span.truncate", { hasText: SUBJECT }).first();
+    // The row's own hooks, the same family as `data-row-snippet`, which the
+    // preview-lines setting already hangs on. None of the three is anything a
+    // role or a name could find — they are spans of text in one list item —
+    // and a utility class like `truncate` says how a thing is styled, not
+    // what it is.
+    const sender = row.locator("[data-row-sender]");
+    const subject = row.locator("[data-row-subject]");
     const snippet = row.locator("[data-row-snippet]");
 
     return {
         list: (await page.locator("#message-list").boundingBox())!,
         row: (await row.boundingBox())!,
+        sender: (await sender.boundingBox())!,
         subject: (await subject.boundingBox())!,
         snippet: (await snippet.boundingBox())!,
     };
@@ -45,7 +57,7 @@ test.describe("list row layout around the one-line breakpoint", () => {
         seed("seed-mail");
     });
 
-    test("a list in the middle band is stacked and gives the subject the width", async ({ page }) => {
+    test("a list in the middle band keeps the preview under the subject and gives the subject the width", async ({ page }) => {
         // List ≈ 850px: wider than the old 36rem line, narrower than 75rem.
         await openInbox(page, 1100);
         const g = await geometry(page);
@@ -60,7 +72,35 @@ test.describe("list row layout around the one-line breakpoint", () => {
         expect(g.subject.width).toBeGreaterThan(g.row.width * 0.5);
     });
 
-    test("a list past the first 58rem guess is still stacked", async ({ page }) => {
+    test("between 36rem and 75rem the sender shares the first line with the subject", async ({ page }) => {
+        // The in-between shape: two lines, not three. Sender and subject on the
+        // first, the preview alone on the second and starting back under the
+        // sender, so it has the row's whole width.
+        await openInbox(page, 1100);
+        const g = await geometry(page);
+
+        expect(g.list.width).toBeGreaterThan(36 * 16);
+        expect(g.list.width).toBeLessThan(75 * 16);
+
+        expect(Math.abs(g.sender.y - g.subject.y)).toBeLessThan(4);
+        expect(g.subject.x).toBeGreaterThanOrEqual(g.sender.x + g.sender.width - 2);
+        expect(g.snippet.y).toBeGreaterThan(g.subject.y + g.subject.height - 2);
+        expect(g.snippet.x).toBeLessThan(g.subject.x);
+    });
+
+    test("a list under 36rem keeps all three lines", async ({ page }) => {
+        // A phone. Presence companion for the test above: the two-line shape is
+        // a band, not simply what every list under 75rem now gets.
+        await openInbox(page, 480);
+        const g = await geometry(page);
+
+        expect(g.list.width).toBeLessThan(36 * 16);
+
+        expect(g.subject.y).toBeGreaterThan(g.sender.y + g.sender.height - 2);
+        expect(g.snippet.y).toBeGreaterThan(g.subject.y + g.subject.height - 2);
+    });
+
+    test("a list past the first 58rem guess still keeps the preview under the subject", async ({ page }) => {
         // List ≈ 1050px (~65rem): the width a 2560px window with the reading
         // pane open gives. One line here cut real subjects after ~30
         // characters, which is why 58rem was raised to 75rem.
@@ -87,7 +127,7 @@ test.describe("list row layout around the one-line breakpoint", () => {
         expect(Math.abs(g.snippet.y - g.subject.y)).toBeLessThan(8);
     });
 
-    test("the hover actions are reachable in the stacked band", async ({ page }) => {
+    test("the hover actions are reachable below the one-line breakpoint", async ({ page }) => {
         // They were `hidden @xl:flex`, so moving the breakpoint without moving
         // them would have taken archive, delete and snooze away from every list
         // that is now stacked on a pointer device.
