@@ -2878,13 +2878,6 @@ settings:
             solid: Solid colour
             theme: Theme default
             upload: Upload image
-        calendar:
-            calendarDirect: When pressed
-            calendarDirectHint: 'Cycling goes mail, mail beside the calendar, the calendar full width, and round again. Directly goes between the mail and the full-width calendar, one press each way.'
-            cycle: Cycles through three views
-            direct: Opens the calendar directly
-            heading: Calendar button
-            subheading: How the calendar button in the top bar moves between views.
         density:
             comfortable: Comfortable
             compact: Compact
@@ -3578,6 +3571,15 @@ settings:
         test_failed: 'Connection test failed'
         test_ok: 'Connection is working'
         unavailable_heading: 'Not available here'
+    calendar_behaviour:
+        heading: Behaviour
+        'off': 'Off'
+        'on': 'On'
+        skip_split: Skip the split view
+        skip_split_hint: 'The button goes between the mail and the calendar full width, one press each way. The calendar beside the mail is skipped, not removed. Turning this on turns the other off.'
+        split_only: Skip the full-width calendar
+        split_only_hint: 'The button goes between the mail and the calendar beside it, one press each way. The calendar full width is skipped, not removed. Turning this on turns the other off.'
+        subheading: 'How the calendar button in the top bar moves between views.'
     calendars:
         account_hint: Where events found in mail from %address% are filed.
         caldav:
@@ -3703,6 +3705,7 @@ settings:
         aliases: Aliases
         app_passwords: App passwords
         appearance: Appearance
+        calendar_behaviour: Behaviour
         calendars: Calendars
         disposal: Disposal
         filters: Filters

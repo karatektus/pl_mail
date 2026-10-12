@@ -814,45 +814,6 @@
                 </div>
             </section>
 
-            {# ── Calendar button ───────────────────────────────────────────
-               How the topbar's calendar button moves between the three views.
-               One field, so the radios are UI only and write the hidden input
-               beside them, like the list toggles above — which is why this
-               reuses their handler. No CSS variable: the setting is read by the
-               server (the button's label) and by ui--split, on the next page
-               load, not by anything this pane previews. #}
-            <section>
-                <div class="mb-4">
-                    <h3 class="text-sm font-semibold text-ink">{{ 'settings.appearance.calendar.heading'|trans }}</h3>
-                    <p class="text-xs text-ink-faint mt-0.5">{{ 'settings.appearance.calendar.subheading'|trans }}</p>
-                </div>
-
-                <div>
-                    <span class="block text-xs font-medium text-ink-muted" id="calendar-direct-label">
-                        {{ 'settings.appearance.calendar.calendarDirect'|trans }}
-                    </span>
-                    <span class="block text-[11px] text-ink-faint mt-0.5 mb-1.5">
-                        {{ 'settings.appearance.calendar.calendarDirectHint'|trans }}
-                    </span>
-                    <div class="{{ segGroup }}" role="radiogroup" aria-labelledby="calendar-direct-label">
-                        {% for direct in [false, true] %}
-                            <label class="cursor-pointer">
-                                <input type="radio" name="calendarDirectMode" class="peer sr-only"
-                                       value="{{ direct ? '1' : '0' }}"
-                                       data-toggles="calendarDirect"
-                                       data-action="change->settings--appearance#toggleListOption"
-                                    {{ a.calendarDirect == direct ? 'checked' : '' }}>
-                                <span class="{{ segText }}">
-                                    {{ (direct ? 'settings.appearance.calendar.direct' : 'settings.appearance.calendar.cycle')|trans }}
-                                </span>
-                            </label>
-                        {% endfor %}
-                    </div>
-                    <input type="hidden" data-settings--appearance-field="calendarDirect"
-                           data-toggle-field="calendarDirect" value="{{ a.calendarDirect ? '1' : '0' }}">
-                </div>
-            </section>
-
             {# ── Typography ────────────────────────────────────────────────
                The interface's typeface and size, and NOT the compose window's.
                Those two pickers look alike and are opposites: the compose ones

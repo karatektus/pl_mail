@@ -1,6 +1,5 @@
 import { expect, type Page } from "@playwright/test";
 import { test } from "./support/test";
-import { ajaxPost } from "./support/config";
 
 /**
  * The three-way calendar switch, and the rule that a mail-bound click never
@@ -224,20 +223,36 @@ test.describe("calendar pane demotion", () => {
 });
 
 /**
- * Settings → Appearance → Calendar button, "Opens the calendar directly": the
- * switch is two positions, the mail and the full-width calendar, and split is
- * skipped. The server's half (the label, the value on the shell) is in
- * CalendarSwitchDirectTest; this is the click.
+ * Settings → Calendar → Behaviour: the switch skips a position, so it has two
+ * stops — the mail and one of the calendar's two — instead of three. The
+ * server's half (the label, the value on the shell) is in
+ * CalendarSwitchRenderTest and the exclusion rule is in
+ * CalendarSwitchSkipTest; this is the click.
  *
- * Both the setting and the pane mode persist on the per-worker user that every
- * other spec file shares, so each test puts both back.
+ * Both settings and the pane mode persist on the per-worker user that every
+ * other spec file shares, so each test puts all of them back.
  */
-test.describe("calendar button, direct", () => {
+test.describe("calendar button, skipping a position", () => {
     const shell = (page: Page) => page.locator("[data-controller~='ui--split']");
     const toggle = (page: Page) => page.locator("[data-calendar-toggle]").first();
+    const label = (page: Page) => page.locator("[data-calendar-mode-label]").first();
 
-    async function setDirect(page: Page, direct: boolean): Promise<void> {
-        expect((await ajaxPost(page, "/settings/appearance", { calendarDirect: direct ? "1" : "0" })).ok()).toBe(true);
+    type Skip = "none" | "split" | "calendar";
+
+    /**
+     * Writes both switches in one post, the way the pane's two forms would one
+     * after the other. The token is the pane's own: these forms are not the
+     * `ajax` token's callers.
+     */
+    async function setSkip(page: Page, skip: Skip): Promise<void> {
+        const html = await (await page.request.get("/settings?section=calendar-behaviour")).text();
+        const token = /name="_token" value="([^"]*)"/.exec(html)?.[1] ?? "";
+
+        const response = await page.request.post("/settings/calendar-behaviour", {
+            form: { _token: token, skipSplit: "split" === skip ? "1" : "0", splitOnly: "calendar" === skip ? "1" : "0" },
+        });
+
+        expect(response.ok()).toBe(true);
     }
 
     async function storeMode(page: Page, mode: string): Promise<void> {
@@ -256,30 +271,31 @@ test.describe("calendar button, direct", () => {
     }
 
     test.afterEach(async ({ page }) => {
-        await setDirect(page, false);
+        await setSkip(page, "none");
         await storeMode(page, "mail");
     });
 
-    test("one press opens the full calendar and the next returns to the mail", async ({ page }) => {
-        await setDirect(page, true);
+    test("skip split: one press opens the full calendar and the next returns to the mail", async ({ page }) => {
+        await setSkip(page, "split");
         await storeMode(page, "mail");
         await page.goto("/mail/inbox");
 
         await expect(shell(page)).toHaveAttribute("data-calendar-mode", "mail");
+        await expect(label(page)).toHaveText("Show the calendar full width");
 
         await toggle(page).click();
         await expect(shell(page)).toHaveAttribute("data-calendar-mode", "calendar");
 
         // What a press does next, for a screen reader, follows the setting.
-        await expect(page.locator("[data-calendar-mode-label]").first()).toHaveText("Show the mail");
+        await expect(label(page)).toHaveText("Show the mail");
 
         await toggle(page).click();
         await expect(shell(page)).toHaveAttribute("data-calendar-mode", "mail");
-        await expect(page.locator("[data-calendar-mode-label]").first()).toHaveText("Show the calendar full width");
+        await expect(label(page)).toHaveText("Show the calendar full width");
     });
 
-    test("a split that was stored before the setting went on closes to the mail", async ({ page }) => {
-        await setDirect(page, true);
+    test("skip split: a split that was stored before the setting went on closes to the mail", async ({ page }) => {
+        await setSkip(page, "split");
         await storeMode(page, "split");
         await page.goto("/mail/inbox");
 
@@ -289,9 +305,9 @@ test.describe("calendar button, direct", () => {
         await expect(shell(page)).toHaveAttribute("data-calendar-mode", "mail");
     });
 
-    test("below lg a stored split is drawn as the mail, and one press opens the full calendar", async ({ page }) => {
+    test("skip split: below lg a stored split is drawn as the mail, and one press opens the full calendar", async ({ page }) => {
         await page.setViewportSize({ width: 400, height: 800 });
-        await setDirect(page, true);
+        await setSkip(page, "split");
         await storeMode(page, "split");
         await page.goto("/mail/inbox");
 
@@ -301,8 +317,8 @@ test.describe("calendar button, direct", () => {
         await expect(shell(page)).toHaveAttribute("data-calendar-mode", "calendar");
     });
 
-    test("a mail link demotes the full calendar to the mail, not to a split the button skips", async ({ page }) => {
-        await setDirect(page, true);
+    test("skip split: a mail link demotes the full calendar to the mail, not to a split the button skips", async ({ page }) => {
+        await setSkip(page, "split");
         await storeMode(page, "mail");
         await page.goto("/mail/inbox");
 
@@ -315,39 +331,92 @@ test.describe("calendar button, direct", () => {
         await expect(shell(page)).toHaveAttribute("data-calendar-mode", "mail");
     });
 
-    test("the Appearance pane switches it, and the choice is saved", async ({ page }) => {
-        await setDirect(page, false);
-        await page.goto("/settings?section=appearance");
-
-        const saved = page.waitForResponse(
-            (response) => response.url().endsWith("/settings/appearance") && "POST" === response.request().method(),
-        );
-        await page.locator("label", { hasText: "Opens the calendar directly" }).click();
-        expect((await saved).ok()).toBe(true);
-
+    test("skip calendar: one press opens the split and the next returns to the mail", async ({ page }) => {
+        await setSkip(page, "calendar");
         await storeMode(page, "mail");
         await page.goto("/mail/inbox");
 
+        await expect(shell(page)).toHaveAttribute("data-calendar-mode", "mail");
+        await expect(label(page)).toHaveText("Show the calendar beside the mail");
+
         await toggle(page).click();
-        await expect(shell(page)).toHaveAttribute("data-calendar-mode", "calendar");
+        await expect(shell(page)).toHaveAttribute("data-calendar-mode", "split");
+        await expect(label(page)).toHaveText("Show the mail");
+
         await toggle(page).click();
         await expect(shell(page)).toHaveAttribute("data-calendar-mode", "mail");
+    });
 
-        // And back: the other segment writes the field as well.
-        await page.goto("/settings?section=appearance");
-        const savedOff = page.waitForResponse(
-            (response) => response.url().endsWith("/settings/appearance") && "POST" === response.request().method(),
-        );
-        await page.locator("label", { hasText: "Cycles through three views" }).click();
-        expect((await savedOff).ok()).toBe(true);
+    test("skip calendar: a full-width calendar that was stored before the setting went on closes to the mail", async ({ page }) => {
+        await setSkip(page, "calendar");
+        await storeMode(page, "calendar");
+        await page.goto("/mail/inbox");
 
+        await expect(shell(page)).toHaveAttribute("data-calendar-mode", "calendar");
+
+        await toggle(page).click();
+        await expect(shell(page)).toHaveAttribute("data-calendar-mode", "mail");
+    });
+
+    test("skip calendar: a mail link still demotes the full calendar to the split, the position the button has", async ({ page }) => {
+        await setSkip(page, "calendar");
+        await storeMode(page, "calendar");
+        await page.goto("/mail/inbox");
+
+        await page.getByRole("link", { name: "Starred" }).click();
+
+        await expect(page).toHaveURL(/\/mail\/starred/);
+        await expect(shell(page)).toHaveAttribute("data-calendar-mode", "split");
+    });
+
+    test("the Behaviour pane switches each one, and turning one on turns the other off", async ({ page }) => {
+        await setSkip(page, "none");
+        await page.goto("/settings?section=calendar-behaviour");
+
+        const field = (name: string, value: string) => page.locator(`input[name="${name}"][value="${value}"]`);
+
+        await expect(field("skipSplit", "0")).toBeChecked();
+        await expect(field("splitOnly", "0")).toBeChecked();
+
+        // Submitting redirects back to the pane; wait for the page that comes
+        // back, not for the post.
+        const saved = () =>
+            page.waitForResponse(
+                (response) =>
+                    "GET" === response.request().method() &&
+                    response.url().includes("section=calendar-behaviour") &&
+                    null !== response.request().redirectedFrom(),
+            );
+        const turnOn = async (name: string) => {
+            const back = saved();
+            await page.locator(`form:has(input[name="${name}"]) label`).filter({ hasText: /^\s*On\s*$/ }).click();
+            await back;
+        };
+
+        await turnOn("skipSplit");
+        await expect(field("skipSplit", "1")).toBeChecked();
+        await expect(field("splitOnly", "0")).toBeChecked();
+
+        // The button follows: mail, calendar, mail.
+        await storeMode(page, "mail");
+        await page.goto("/mail/inbox");
+        await toggle(page).click();
+        await expect(shell(page)).toHaveAttribute("data-calendar-mode", "calendar");
+
+        // The other switch on: this one goes off, as the page shows after saving.
+        await page.goto("/settings?section=calendar-behaviour");
+        await turnOn("splitOnly");
+        await expect(field("splitOnly", "1")).toBeChecked();
+        await expect(field("skipSplit", "0")).toBeChecked();
+
+        await storeMode(page, "mail");
         await page.goto("/mail/inbox");
         await toggle(page).click();
         await expect(shell(page)).toHaveAttribute("data-calendar-mode", "split");
     });
 
     test("off, the button still cycles mail, split, calendar, mail", async ({ page }) => {
-        await setDirect(page, false);
+        await setSkip(page, "none");
         await storeMode(page, "mail");
         await page.goto("/mail/inbox");
 

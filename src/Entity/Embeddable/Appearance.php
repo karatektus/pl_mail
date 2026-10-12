@@ -393,25 +393,6 @@ final class Appearance
     #[ORM\Column(type: 'boolean', options: ['default' => true])]
     public bool $tabUnreadCount = true;
 
-    /* ── Navigation ───────────────────────────────────────────────────────── */
-
-    /**
-     * Whether the topbar's calendar button opens the full-width calendar in
-     * one press instead of cycling mail → split → calendar.
-     *
-     * OFF by default: the three-way cycle is what the button has always done,
-     * and a person who has learned it should not find it moved. On makes it a
-     * two-position switch, mail and full-width calendar, and a press goes to the
-     * other one — see CalendarPaneMode::next(). Split is not removed, only
-     * skipped by the button.
-     *
-     * It lives here and not beside User::$calendarPaneMode because that one is
-     * where the switch IS (state), and this is how the switch BEHAVES, which is
-     * what the rest of this class is for.
-     */
-    #[ORM\Column(type: 'boolean', options: ['default' => false])]
-    public bool $calendarDirect = false;
-
     #[ORM\Column(type: 'smallint', options: ['default' => 1])]
     public int $previewLines = 1 {
         set {
@@ -527,7 +508,6 @@ final class Appearance
             'accountCorner' => $this->accountCorner,
             'listAvatars' => $this->listAvatars,
             'tabUnreadCount' => $this->tabUnreadCount,
-            'calendarDirect' => $this->calendarDirect,
             'previewLines' => $this->previewLines,
             'unreadEmphasis' => $this->unreadEmphasis->value,
             'fontFamily' => $this->fontFamily->value,
@@ -650,10 +630,6 @@ final class Appearance
 
         if (true === isset($data['tabUnreadCount'])) {
             $this->tabUnreadCount = self::boolean($data['tabUnreadCount']);
-        }
-
-        if (true === isset($data['calendarDirect'])) {
-            $this->calendarDirect = self::boolean($data['calendarDirect']);
         }
 
         if (true === isset($data['previewLines'])) {

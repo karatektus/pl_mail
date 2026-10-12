@@ -1,4 +1,4 @@
-<!-- translated-from: features/calendar.md sha1:aa7d485af537b037f74f1de217c50ba89ca9dbda -->
+<!-- translated-from: features/calendar.md sha1:809a84fcfbeab0b70106324dcd2f935f347e5a14 -->
 
 # Kalender
 
@@ -32,13 +32,19 @@ merkt sich plMail das.
 ### Die Kalenderschaltfläche
 
 Standardmäßig ist die Schaltfläche ein Dreifachschalter: Mail, dann der Kalender neben der Mail,
-dann der Kalender in voller Breite, und wieder von vorn. Wenn du meistens nur den Kalender in
-voller Breite willst und nichts dazwischen, macht **Einstellungen → Darstellung →
-Kalenderschaltfläche → Öffnet den Kalender direkt** daraus einen Zweifachschalter. Ein Druck aus
-der Mail öffnet den Kalender in voller Breite, der nächste geht zurück zur Mail. Die geteilte
-Ansicht wird übersprungen, nicht entfernt: Eine, die du schon hast, bleibt bis zum ersten Druck,
-der sie zur Mail schließt, und ein Klick auf einen Mail-Link bei vollbreitem Kalender führt zur
-Mail zurück statt in die geteilte Ansicht.
+dann der Kalender in voller Breite, und wieder von vorn. **Einstellungen → Kalender → Verhalten**
+hat zwei Schalter, die daraus einen Zweifachschalter machen:
+
+- **Geteilte Ansicht überspringen**: Ein Druck aus der Mail öffnet den Kalender in voller Breite,
+  der nächste geht zurück zur Mail. Ein Klick auf einen Mail-Link bei vollbreitem Kalender führt
+  zur Mail zurück statt in die geteilte Ansicht.
+- **Kalender in voller Breite überspringen**: Ein Druck aus der Mail öffnet den Kalender neben ihr,
+  der nächste geht zurück zur Mail.
+
+Die beiden schließen sich aus, denn mit beiden an wüsste die Schaltfläche nicht, wohin: Schaltest du
+einen ein, wird der andere ausgeschaltet. Die übersprungene Position wird nicht entfernt. Eine
+geteilte Ansicht oder ein vollbreiter Kalender, den du schon hast, bleibt bis zum ersten Druck, der
+ihn zur Mail schließt, und der Ziehgriff erreicht weiterhin beide Enden.
 
 Unter 1024 Pixeln Breite trägt die Zeile keine Seitenleiste, keine lesbare Nachrichtenliste und
 keinen lesbaren Kalender mehr auf einmal, also nimmt die Fläche die ganze Zeile und die Mail tritt

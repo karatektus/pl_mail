@@ -21,8 +21,8 @@ import { Controller } from "@hotwired/stimulus";
  *   split     both, divided by the handle (above lg; below it, like calendar)
  *   calendar  the calendar has the row, the mail is still in the DOM behind it
  *
- * The topbar switch cycles them — or, with Appearance::$calendarDirect, goes
- * between `mail` and `calendar` and skips `split`. The HANDLE also reaches the two ends, which is
+ * The topbar switch cycles them — or, with User::$calendarSwitchSkip, goes
+ * between `mail` and one of the other two and skips the third. The HANDLE also reaches the two ends, which is
  * the point of the rubber band: dragging past the pane's maximum keeps moving,
  * with resistance, and letting go past a threshold puts you in `calendar`;
  * dragging past its minimum the same way puts you in `mail`. Short of the
@@ -58,9 +58,9 @@ export default class extends Controller {
         // Whether this boundary has the three positions at all. Without them
         // the handle is a handle and nothing else.
         modes: { type: Boolean, default: true },
-        // The switch has two positions, the mail and the full-width calendar,
-        // instead of three. Appearance::$calendarDirect. See _nextMode().
-        direct: { type: Boolean, default: false },
+        // Which position the switch skips: "none" (the three-way cycle),
+        // "split" or "calendar". User::$calendarSwitchSkip. See _nextMode().
+        skip: { type: String, default: "none" },
         min: { type: Number, default: 320 },
         max: { type: Number, default: 900 },
         // What the mail side is never dragged below — a phone's width, not a
@@ -218,12 +218,11 @@ export default class extends Controller {
     /**
      * Where a mail-bound navigation leaves a calendar that was covering the
      * mail. Split on a desktop, the mail alone below lg, where there is no
-     * split — and the mail alone when the switch is direct, because split is
-     * the position that setting skips: demoting into it would put somebody
-     * where their own button never goes.
+     * split — and the mail alone when the switch skips split, because demoting
+     * into it would put somebody where their own button never goes.
      */
     _demotedMode() {
-        return this._isNarrow() || true === this.directValue ? "mail" : "split";
+        return this._isNarrow() || "split" === this.skipValue ? "mail" : "split";
     }
 
     /** Below lg the pane replaces the mail rather than sitting beside it. */
@@ -447,13 +446,19 @@ export default class extends Controller {
     }
 
     _nextMode() {
-        // One press from the mail is the calendar, full width; one press from
-        // anywhere the calendar is showing is the mail. A split that was
-        // stored before the setting was turned on goes to the mail too, so the
-        // press never lands on a position the setting is there to skip.
-        // CalendarPaneMode::next(direct: true) is the server's copy of this.
-        if (true === this.directValue) {
-            return "mail" === this.modeValue ? "calendar" : "mail";
+        // With a position skipped, one press from the mail is the one that is
+        // left, and one press from anywhere else is the mail. The skipped
+        // position can still be the current one (stored before the setting was
+        // turned on, or reached by the handle), and a press from it goes to the
+        // mail rather than on, so a press never lands on a position the
+        // setting is there to skip.
+        // CalendarPaneMode::next($skip) is the server's copy of this.
+        if ("split" === this.skipValue || "calendar" === this.skipValue) {
+            if ("mail" !== this.modeValue) {
+                return "mail";
+            }
+
+            return "split" === this.skipValue ? "calendar" : "split";
         }
 
         const modes = this.constructor.MODES;

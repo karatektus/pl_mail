@@ -2723,13 +2723,6 @@ settings:
             solid: One flat hue
             theme: Theme default
             upload: Hoist an image
-        calendar:
-            calendarDirect: When pressed
-            calendarDirectHint: 'Sailin'' goes mail, mail alongside the calendar, the calendar the full breadth, an'' round again. Straight goes between the mail an'' the full-breadth calendar, one press each way.'
-            cycle: Sails through three views
-            direct: Heads straight fer the calendar
-            heading: Calendar button
-            subheading: How the calendar button up top moves between views.
         density:
             comfortable: Roomy
             compact: Cramped
@@ -3394,6 +3387,15 @@ settings:
         test_failed: 'Soundin'' came back foul'
         test_ok: 'Passage be clear'
         unavailable_heading: 'No passage from here'
+    calendar_behaviour:
+        heading: Behaviour
+        'off': 'Off'
+        'on': 'On'
+        skip_split: Skip the split view
+        skip_split_hint: 'The button goes between the mail an'' the full-breadth calendar, one press each way. The calendar alongside the mail be skipped, not scuttled. Turnin'' this on turns the other off.'
+        split_only: Skip the full-breadth calendar
+        split_only_hint: 'The button goes between the mail an'' the calendar alongside it, one press each way. The full-breadth calendar be skipped, not scuttled. Turnin'' this on turns the other off.'
+        subheading: 'How the calendar button up top moves between views.'
     calendars:
         account_hint: Where reckonin's found in parrots from %address% be filed.
         caldav:
@@ -3516,6 +3518,7 @@ settings:
         aliases: Aliases
         app_passwords: Spare keys
         appearance: Look o' the ship
+        calendar_behaviour: Behaviour
         calendars: Almanacs
         disposal: Disposal
         filters: Sieves

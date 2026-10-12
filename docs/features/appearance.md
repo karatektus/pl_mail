@@ -190,7 +190,6 @@ choosing Compact on a phone never costs you tap-target area.
 | **Text** | Text colour plus **Muted** and **Faint**, or **Auto-derive** to have those two worked out from the main one |
 | **Accent colour** | The single highlight colour, as a hex value |
 | **Background** | **Theme default**, a flat colour, one of eight supplied images, or **Upload image** |
-| **Calendar button** | **Cycles through three views** (the default) or **Opens the calendar directly** — see [the calendar button](calendar.md#the-calendar-button) |
 
 ### Two opacities, not one
 

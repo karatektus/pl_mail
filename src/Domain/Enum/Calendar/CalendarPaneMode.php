@@ -48,24 +48,25 @@ enum CalendarPaneMode: string
      * Wraps, so the control is reachable in one direction only and never has a
      * dead end — three presses always return you to where you were.
      *
-     * `$direct` is Appearance::$calendarDirect: the switch has two positions
-     * instead of three, the mail and the full-width calendar, and a press goes
-     * to the other one. Split is skipped, not removed — it is still a stored
-     * mode, so a Split somebody already has goes to the mail on the first press
-     * rather than on to the calendar, which keeps "from anywhere the calendar
+     * `$skip` is User::$calendarSwitchSkip: the switch has two positions
+     * instead of three, the mail and one of the calendar's two, and a press goes
+     * to the other one. The skipped position is not removed, so it can still be
+     * the stored one — a Split somebody already has when they turn on
+     * "skip split", or a Calendar they dragged to when they skip that — and a
+     * press from there goes to the mail. That keeps "from anywhere the calendar
      * is showing, one press is the mail" true without a special case in the
      * controller.
      */
-    public function next(bool $direct = false): self
+    public function next(CalendarSwitchSkip $skip = CalendarSwitchSkip::None): self
     {
-        if (true === $direct) {
-            return self::Mail === $this ? self::Calendar : self::Mail;
-        }
-
-        return match ($this) {
-            self::Mail     => self::Split,
-            self::Split    => self::Calendar,
-            self::Calendar => self::Mail,
+        return match ($skip) {
+            CalendarSwitchSkip::None => match ($this) {
+                self::Mail     => self::Split,
+                self::Split    => self::Calendar,
+                self::Calendar => self::Mail,
+            },
+            CalendarSwitchSkip::Split    => self::Mail === $this ? self::Calendar : self::Mail,
+            CalendarSwitchSkip::Calendar => self::Mail === $this ? self::Split : self::Mail,
         };
     }
 
@@ -86,9 +87,9 @@ enum CalendarPaneMode: string
     }
 
     /** Translation key for "what pressing this does next". */
-    public function nextTransKey(bool $direct = false): string
+    public function nextTransKey(CalendarSwitchSkip $skip = CalendarSwitchSkip::None): string
     {
-        return 'calendar.pane.mode.' . $this->next($direct)->value;
+        return 'calendar.pane.mode.' . $this->next($skip)->value;
     }
 
     /**

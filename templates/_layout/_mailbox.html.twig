@@ -168,9 +168,10 @@ csrf token. Both measured: see App\Twig\ListFragmentGlobal.
              data-ui--split-min-value="{{ constant('App\\Entity\\User\\User::CALENDAR_PANE_MIN_WIDTH') }}"
              data-ui--split-max-value="{{ constant('App\\Entity\\User\\User::CALENDAR_PANE_MAX_WIDTH') }}"
              data-ui--split-mode-value="{{ app.user.calendarPaneMode.value }}"
-             {# Settings → Appearance → Calendar button. Whether the switch skips
-                split; the label in the topbar is drawn from the same setting. #}
-             data-ui--split-direct-value="{{ app.user.appearance.calendarDirect ? 'true' : 'false' }}"
+             {# Settings → Calendar → Behaviour. Which position the switch skips
+                (none, split or calendar); the label in the topbar is drawn from
+                the same setting. #}
+             data-ui--split-skip-value="{{ app.user.calendarSwitchSkip.value }}"
              {# The attribute drives every layout rule below, and it is rendered
                 as the STORED mode. It used to be rendered as `mail` and
                 corrected by the controller on connect — which painted every
