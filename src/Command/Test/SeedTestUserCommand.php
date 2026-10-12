@@ -7,6 +7,7 @@ namespace App\Command\Test;
 use App\Domain\Enum\Calendar\CalendarPaneMode;
 use App\Entity\User\User;
 use App\Repository\User\UserRepository;
+use App\Security\PasswordKdf;
 use App\Service\Onboarding\OnboardingFlow;
 use DateTimeImmutable;
 use DateTimeInterface;
@@ -43,6 +44,7 @@ final class SeedTestUserCommand extends Command
         private readonly UserRepository              $userRepository,
         private readonly UserPasswordHasherInterface $passwordHasher,
         private readonly OnboardingFlow              $onboardingFlow,
+        private readonly PasswordKdf                 $kdf,
         #[Autowire('%kernel.environment%')]
         private readonly string                      $environment,
     ) {
@@ -55,7 +57,9 @@ final class SeedTestUserCommand extends Command
             ->addOption('email', null, InputOption::VALUE_REQUIRED, 'Override the seeded email')
             ->addOption('password', null, InputOption::VALUE_REQUIRED, 'Override the seeded password')
             ->addOption('admin', null, InputOption::VALUE_NONE, 'Seed with ROLE_ADMIN as well')
-            ->addOption('pending-onboarding', null, InputOption::VALUE_NONE, 'Leave setup unfinished so the wizard opens on first page load');
+            ->addOption('pending-onboarding', null, InputOption::VALUE_NONE, 'Leave setup unfinished so the wizard opens on first page load')
+            ->addOption('stretched', null, InputOption::VALUE_NONE, 'Store the password as an already-moved account would: stretched here, as a browser would')
+            ->addOption('change-required', null, InputOption::VALUE_NONE, 'Flag the password as chosen by somebody else, so the first sign-in asks for a new one');
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
@@ -100,7 +104,26 @@ final class SeedTestUserCommand extends Command
 
         $user->roles = $roles;
 
-        $user->password = $this->passwordHasher->hashPassword($user, $plainPassword);
+        // Server-hashed by default, as an administrator's would be, so every
+        // spec's first sign-in walks the same path a real account's first one
+        // after the update does. `--stretched` stores it as a moved account
+        // holds it, stretched by PasswordKdf::derive() — which is what lets
+        // auth.spec.ts prove a real browser stretches the same way PHP does.
+        if (true === $input->getOption('stretched')) {
+            $salt = base64_encode(random_bytes(PasswordKdf::SALT_BYTES));
+
+            $user->useClientDerivedPassword(
+                $this->passwordHasher->hashPassword($user, PasswordKdf::derive($plainPassword, $salt, $this->kdf->iterations)),
+                $salt,
+                $this->kdf->iterations,
+            );
+        } else {
+            $user->useServerHashedPassword($this->passwordHasher->hashPassword($user, $plainPassword));
+        }
+
+        // Off unless asked for: the stored login the other specs share has to
+        // land on the inbox.
+        $user->passwordChangeRequired = true === $input->getOption('change-required');
 
         // Before the onboarding block, which flushes through OnboardingFlow: a
         // brand-new user has to be managed by then, or that flush writes

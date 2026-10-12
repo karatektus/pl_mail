@@ -1117,7 +1117,7 @@ admin:
             name_first: First name
             name_last: Last name
             password: Initial password
-            password_help: 'Set once, when the account is created. There is no way to change it from here afterwards: a forgotten password is reset from the server console with `app:user:password`.'
+            password_help: 'A one-time password: they choose their own the first time they sign in. A forgotten password is reset from the server console with `app:user:password`.'
         flash:
             deactivated: 'Switched off. They cannot sign in until you switch them back on.'
             demote_last_refused: 'That is the last administrator, so the checkbox was left as it was — promote somebody else first.'
@@ -2251,9 +2251,13 @@ login:
         email: Email address
         forgot_password: Forgot password?
         forgot_password_hint: 'Password recovery runs from the server console: bin/console app:user:2fa-disable and a fresh password set by an administrator.'
+        needs_script: 'Signing in needs JavaScript: your password is protected in the browser before anything is sent.'
         password: Password
+        prelogin_failed: 'Could not reach the server to sign you in. Check your connection and try again.'
+        prelogin_rate_limited: 'Too many sign-in attempts from here. Wait a few minutes and try again.'
         remember_me: Keep me logged in
         submit: Sign in
+        submitting: Signing in…
     page_title: Sign in
     register:
         coming_soon: Registration coming soon.
@@ -2525,6 +2529,14 @@ onboarding:
             lead: The one account worth locking properly. This takes about a minute.
             title: Protect your account
     title: Set up plMail
+
+password_required:
+    explanation: 'Somebody else chose the password you just signed in with. Pick one only you know — plMail will not let you in until you have.'
+    page_title: Choose your password
+    sign_out: Sign out instead
+    submit: Save and continue
+    submitting: Saving…
+    tagline: One more step
 
 profile:
     avatar_current: Current picture
@@ -3784,6 +3796,7 @@ settings:
         remember_me_note: 'Changing your password signs out every remembered browser except this one. That is what makes it worth doing when a device goes missing.'
         subheading: 'What you sign in with. Only you can change it — not even an administrator can set it for you.'
         submit: Change password
+        submitting: Saving…
     reading_pane:
         heading: Reading pane
         hint: 'Off shows the list and the message one at a time. Right puts the message beside the list when the window has room for both — drag the divider between them to choose how much each gets.'

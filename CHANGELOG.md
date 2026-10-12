@@ -8,6 +8,19 @@ The published image tags: `latest` follows the most recent release below,
 
 ## Unreleased
 
+**Your password no longer reaches the server.** The login form stretches it in the browser
+(PBKDF2-SHA256, 600 000 rounds, as Bitwarden does) and sends only the result, which the server
+hashes like any password; changing your password in Settings works the same way. It is the
+groundwork for end-to-end encryption, whose keys the same password will unlock. Nothing to do:
+each account moves over on its next sign-in, which sends the password one last time — and that
+sign-in signs your other browsers out, once, because the stored hash changes. Signing in now needs
+JavaScript, and on an install reached over plain `http://` it takes a second or two. A password an
+administrator chose — on the create form, or with `app:user:password` — now works once: the person
+picks their own straight after signing in (`--no-change-required` for an operator letting
+themselves back in). Three columns are added to the user table; the migration is reversible in the
+schema, but going back down leaves every moved account unable to sign in until
+`app:user:password` resets it.
+
 **Each inbox tab shows how many conversations in it are unread.** The number is the sidebar's
 Inbox badge split by category, so the tabs add up to it, and it appears on every tab, the one you
 are on included, and updates in place on sync. Before, an unread conversation in Promotions made

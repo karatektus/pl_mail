@@ -150,7 +150,9 @@ alone on import — restoring your Firebase key cannot switch somebody's assista
 
 ```
 the account          display name, password HASH (never a password — the
-                     plaintext exists nowhere), admin role, locale, timezone,
+                     plaintext exists nowhere) with the salt and iteration
+                     count the browser stretches it with, whether it is a
+                     one-time password, admin role, locale, timezone,
                      appearance, interface preferences, assistant preferences,
                      category sorting (rules or assistant, whether it overrules
                      the provider, tabs on or off), onboarding state

@@ -6,12 +6,11 @@ namespace App\Controller\Settings;
 
 use App\Entity\User\User;
 use App\Form\Factory\ChangePasswordFormFactory;
+use App\Service\User\PasswordChanger;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
-use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Form\FormView;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\CurrentUser;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
@@ -43,9 +42,8 @@ use Symfony\UX\Turbo\TurboBundle;
 final class PasswordController extends AbstractController
 {
     public function __construct(
-        private readonly ChangePasswordFormFactory   $forms,
-        private readonly UserPasswordHasherInterface $passwordHasher,
-        private readonly EntityManagerInterface      $entityManager,
+        private readonly ChangePasswordFormFactory $forms,
+        private readonly PasswordChanger           $passwords,
     ) {}
 
     #[Route('', name: 'change', methods: ['POST'])]
@@ -54,19 +52,16 @@ final class PasswordController extends AbstractController
         $form = $this->forms->create();
         $form->handleRequest($request);
 
-        // Covers a wrong current password, a mismatch, a password under the
-        // floor and a stale CSRF token alike: all four mean "do not write",
-        // and the form carries the message for whichever it was.
+        // Covers a wrong current password, a browser that sent no auth hash and
+        // a stale CSRF token alike: all three mean "do not write", and the form
+        // carries the message for whichever it was. A mismatch and a password
+        // under the floor never get here — the browser refuses those before it
+        // stretches anything, because it is the only side that sees them.
         if (false === $form->isSubmitted() || false === $form->isValid()) {
             return $this->streamResponse($request, $form->createView(), 'settings.password.flash.refused', 'error');
         }
 
-        $user->password = $this->passwordHasher->hashPassword(
-            $user,
-            (string) $form->get('plainPassword')->getData(),
-        );
-
-        $this->entityManager->flush();
+        $this->passwords->applyFromForm($user, $form->get('new'));
 
         // A fresh, unsubmitted form: the stream replaces the card, and three
         // filled-in password boxes left sitting on screen after a successful

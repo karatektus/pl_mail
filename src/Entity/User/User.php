@@ -121,10 +121,56 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
     #[ORM\Embedded(class: CategorySorting::class, columnPrefix: 'category_')]
     public private(set) CategorySorting $categorySorting;
     /**
-     * The hashed password
+     * The hashed password — of the password itself, or of what the browser
+     * derived from it. $kdfSalt says which; see App\Security\PasswordKdf.
+     *
+     * Still publicly writable, because a rehash to a better algorithm keeps the
+     * scheme and is exactly that: one write. Anything that sets a NEW password
+     * goes through useServerHashedPassword() or useClientDerivedPassword(),
+     * which keep the salt and the iteration count in step with it.
      */
     #[ORM\Column]
     public ?string $password = null;
+
+    /**
+     * The salt the browser stretches this person's password with, base64. Null
+     * means $password is a hash of the password itself.
+     *
+     * Null for everybody whose password was set before the browser started
+     * stretching it, and for anyone whose password was last set by something
+     * with no browser to do that: the install wizard, an administrator
+     * creating them, `app:user:password`, a seed. Their next sign-in through
+     * the form moves them over — see App\Security\PasswordKdfUpgradeListener.
+     *
+     * private(set), with $kdfIterations, so that the pair cannot be changed
+     * without $password, and the three never disagree about which scheme the
+     * row is on. A salt left behind on a server-hashed row would have the
+     * browser stretch a password the stored hash was never made from, and the
+     * account would refuse its own owner.
+     */
+    #[ORM\Column(name: 'kdf_salt', length: 64, nullable: true)]
+    public private(set) ?string $kdfSalt = null;
+
+    /**
+     * PBKDF2 iterations for $kdfSalt — stored per user rather than read from
+     * configuration, so that raising the configured number later does not lock
+     * out everybody whose hash was made with the old one.
+     */
+    #[ORM\Column(name: 'kdf_iterations', nullable: true)]
+    public private(set) ?int $kdfIterations = null;
+
+    /**
+     * The current password was chosen by somebody else, and this person has to
+     * pick their own before plMail lets them do anything.
+     *
+     * Set when an administrator creates the account, and by
+     * `app:user:password`: in both cases a second person knows the password,
+     * and once the keys of issue #28 hang off it, that person could open them.
+     * App\Security\PasswordChangeRequiredListener holds the line; the form is
+     * App\Controller\Auth\RequiredPasswordController.
+     */
+    #[ORM\Column(name: 'password_change_required', options: ['default' => false])]
+    public bool $passwordChangeRequired = false;
 
     /**
      * Nullable: removing a picture is a normal thing to do, and the column has
@@ -353,6 +399,33 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
     public function getPassword(): string
     {
         return $this->password;
+    }
+
+    /**
+     * A new password, hashed from the password itself — set by something that
+     * had the plaintext and no browser to stretch it first.
+     */
+    public function useServerHashedPassword(string $hash): void
+    {
+        $this->password      = $hash;
+        $this->kdfSalt       = null;
+        $this->kdfIterations = null;
+    }
+
+    /**
+     * A new password, hashed from the auth hash a browser derived from it with
+     * this salt and iteration count.
+     */
+    public function useClientDerivedPassword(string $hash, string $salt, int $iterations): void
+    {
+        $this->password      = $hash;
+        $this->kdfSalt       = $salt;
+        $this->kdfIterations = $iterations;
+    }
+
+    public function hasClientDerivedPassword(): bool
+    {
+        return null !== $this->kdfSalt;
     }
 
     /**

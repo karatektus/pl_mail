@@ -122,7 +122,7 @@ Three different answers, and the choice is deliberate each time.
 
 | Secret | Storage | Why |
 |---|---|---|
-| User password | Symfony `auto` hasher (Argon2/bcrypt) | low-entropy, chosen by a human — key stretching is the whole point |
+| User password | stretched in the browser (PBKDF2-SHA256), then the Symfony `auto` hasher (Argon2/bcrypt) over the result | low-entropy, chosen by a human — key stretching is the whole point; see the next section for why it happens twice |
 | App password (`ApiToken`) | SHA-256 of the secret | 32 bytes of CSPRNG; nothing to brute-force |
 | Trusted-device cookie | SHA-256 | 32 bytes of CSPRNG |
 | Share link / booking page token | SHA-256 | 32 bytes of CSPRNG |
@@ -148,6 +148,52 @@ credential is which without being able to reconstruct it.
 `User::$backupCodes` is reindexed on every write —
 `set (array $codes) => array_values($codes)` — because `array_filter()` leaves holes and a
 sparse PHP array encodes as `{"1":"…"}` rather than a list, which comes back the wrong shape.
+
+## Passwords are stretched in the browser
+
+The server never receives a user's password. `assets/password_kdf.js` derives, in the browser,
+
+```
+masterKey = PBKDF2-SHA256(password, kdfSalt, kdfIterations)   // never leaves the browser
+authHash  = PBKDF2-SHA256(masterKey, password, 1)             // what is posted
+```
+
+— the Bitwarden construction — and the server stores the `auto` hasher's hash of `authHash`
+exactly as it would a password. The point is not the login: it is that the end-to-end encryption
+of issue #28 will derive the key that unlocks a user's private keys from `masterKey`, and a server
+that never sees the password cannot derive it. `App\Security\PasswordKdf` is the server's half,
+and carries a PHP `derive()` that the test suite and the console use in place of a browser;
+`PasswordKdfTest` pins it to an independently computed vector, and `tests/e2e/auth.spec.ts` signs a
+real browser into an account whose hash PHP made, so the two cannot drift apart.
+
+**Salt and iterations are per user** (`User::$kdfSalt`, `$kdfIterations`), handed out before a
+sign-in by `POST /login/prelogin`. The count is stored rather than read from configuration so that
+raising `app.password_kdf_iterations` later changes only passwords set from then on. An unknown
+address is answered, not refused, with an HMAC of the address under the kernel secret as its salt
+— deterministic, so asking twice does not reveal it as unknown.
+
+**Accounts move over on their next sign-in.** A null `kdfSalt` means the stored hash is of the
+password itself: every account from before this, and any whose password was last set by something
+with no browser — the install wizard, the admin create form, `app:user:password`, the seeds. For
+those the prelogin answers `migrate: true`, the form posts the password once more beside an auth
+hash stretched with the placeholder salt, and `PasswordKdfUpgradeListener` swaps the hash over
+after the password has been checked. It runs on `CheckPassportEvent`, not `LoginSuccessEvent`,
+because the remember-me cookie is signed over the hash during the latter.
+
+**What a moved account refuses** is the point of all this: its stored hash is of an auth hash, so
+posting the password itself no longer signs it in (`PasswordKdfLoginTest` holds that line). The
+form still accepts a bare `password` for an account that has not moved — a browser without
+JavaScript, or a login page cached across the update — and never moves it on that basis.
+
+**What the server can no longer check** is the new password: its length and the repeat are
+enforced in the browser (`password_form_controller.js`). Bypassing that can only give somebody a
+weak password of their own choosing. The iteration count *is* checked, because a lower one weakens
+the table for whoever steals it, and that is not the person choosing.
+
+**A password somebody else chose works once.** `User::$passwordChangeRequired` is set by the admin
+create form and by `app:user:password` (unless `--no-change-required`), and
+`PasswordChangeRequiredListener` keeps the person on `/password/required` until they have chosen
+their own — on the `main` firewall only, so app passwords keep syncing.
 
 ## Firewalls
 
@@ -647,6 +693,24 @@ path at once.
 **A cancelled-booking flag plus a plain unique index is a slot nobody can ever rebook.** The
 entity says this explicitly: adding `cancelled_at` later means making the index partial —
 `WHERE cancelled_at IS NULL` — and that is the sentence to remember.
+
+**The prelogin tells one thing apart: an account that has not moved over yet.** Its `migrate: true`
+is the only difference between a known and an unknown address, and it lasts until that account's
+next sign-in. The `login_prelogin` limiter bounds walking a list of addresses; it sits above
+`login_ip` so a person mistyping hits the login limit, with its message, first.
+
+**Moving an account over ends its other sessions.** Symfony logs a session out when the stored hash
+it was opened against changes, and the remember-me signature covers it too. Once per account, on the
+first sign-in after the update — the changelog says so.
+
+**`crypto.subtle` does not exist on plain `http://`.** `password_kdf.js` falls back to
+`@noble/hashes` there; without that, nobody on a LAN install reached by IP could sign in. The
+fallback is several times slower, about a second or two at 600 000 iterations.
+
+**Setting `User::$password` directly is for rehashing only.** A new password goes through
+`useServerHashedPassword()` or `useClientDerivedPassword()`, which keep the salt in step. A salt left
+on a row whose hash is of the password itself has the browser stretch a password the hash was never
+made from, and the account refuses its owner.
 
 **Extending the login throttle does not cover the code form**, and extending the code throttle
 does not cover the password form. They are two limiters with two keying strategies for two

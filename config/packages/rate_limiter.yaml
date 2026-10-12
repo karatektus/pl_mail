@@ -42,6 +42,18 @@ framework:
             limit: 20
             interval: '15 minutes'
 
+        # The prelogin, in App\Controller\Auth\PreloginController: the salt
+        # and iteration count a browser needs before it can stretch a password.
+        # Every sign-in asks once, so this sits above login_ip — a household
+        # behind one address mistyping its way through the password limit must
+        # hit that limit first, with its message, rather than this one. What it
+        # bounds is somebody walking a list of addresses to see which answer
+        # `migrate: true`, the one thing the endpoint tells apart.
+        login_prelogin:
+            policy: 'fixed_window'
+            limit: 60
+            interval: '15 minutes'
+
         # The public booking POST. It is the only endpoint on this install that
         # an unauthenticated stranger can use to create database rows AND cause
         # an email to be sent, which is the definition of a spam vector: one

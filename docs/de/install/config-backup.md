@@ -1,4 +1,4 @@
-<!-- translated-from: install/config-backup.md sha1:9b19dac8e3efc0f076350b7bfa6b3915ba0cc396 -->
+<!-- translated-from: install/config-backup.md sha1:65de37f9674e833b0b2d1157415173bf9764c4b7 -->
 # Konfigurationssicherung
 
 Die *Konfiguration* einer Installation ist nicht dasselbe wie ihre *Daten*, und beide gehen auf
@@ -161,7 +161,9 @@ Pro Person:
 
 ```
 das Konto            Anzeigename, Passwort-HASH (nie ein Passwort — den Klartext
-                     gibt es nirgends), Administratorrolle, Sprache, Zeitzone,
+                     gibt es nirgends) mit Salt und Rundenzahl, mit denen der
+                     Browser es streckt, ob es ein Einmal-Passwort ist,
+                     Administratorrolle, Sprache, Zeitzone,
                      Erscheinungsbild, Oberflächen-Einstellungen,
                      Assistenten-Einstellungen, die Kategorien (Regeln oder
                      Assistent, ob das den Anbieter überstimmt, Tabs an oder

@@ -106,6 +106,14 @@ parameters:
     app.enrich_recent_days_default: 30
     app.enrich_recent_days: '%env(default:app.enrich_recent_days_default:int:ENRICH_RECENT_DAYS)%'
 
+    # PBKDF2-SHA256 iterations a browser stretches a newly set password with —
+    # see App\Security\PasswordKdf. 600 000 is OWASP's figure for this
+    # function and Bitwarden's default. Stored with each user's hash, so raising
+    # it changes only passwords set from then on and locks nobody out. Not an
+    # environment variable: it is a security floor, not a tuning knob, and an
+    # install has no reason to lower it.
+    app.password_kdf_iterations: 600000
+
 services:
     # default configuration for services in *this* file
     _defaults:
@@ -348,3 +356,9 @@ services:
         # nothing has to be registered here by hand.
         App\Service\Onboarding\OnboardingStepHandlerInterface:
             tags: ['app.onboarding_step']
+
+# The suite signs in hundreds of times and has no attacker to slow down. The
+# browser and PasswordKdf read this one number, so they still agree.
+when@test:
+    parameters:
+        app.password_kdf_iterations: 1000

@@ -1,4 +1,4 @@
-<!-- translated-from: features/admin.md sha1:bdcf84527dd58c67dc64ef2545d3631a9fce5354 -->
+<!-- translated-from: features/admin.md sha1:4c4f90f1c0e5193b1b24b6095da93cf6aa8b03b6 -->
 
 # Administration
 
@@ -738,8 +738,10 @@ Admin-Sitzung darf kein zweiter Weg in jedes Postfach dieser Installation werden
 
 - **Das Passwort eines bestehenden Benutzers ändern.** Das Feld gibt es beim Anlegen und nicht
   beim Bearbeiten. Wer sich noch nie angemeldet hat, hat keine Mail, sein erstes Passwort zu
-  setzen gibt also nichts preis; es danach zu ändern schon. Ein vergessenes Passwort setzt du
-  mit `app:user:password` auf der Konsole zurück.
+  setzen gibt also nichts preis; es danach zu ändern schon. Und selbst das erste gilt nur
+  einmal: Bei der ersten Anmeldung muss die Person ein eigenes wählen, das von dir getippte ist
+  danach kein Weg mehr hinein. Ein vergessenes Passwort setzt du mit `app:user:password` auf der
+  Konsole zurück; auch das ergibt ein solches Einmal-Passwort.
 - **Jemandem den zweiten Faktor abnehmen.** Das ist `app:user:2fa-disable` auf der Konsole, und
   nur dort.
 - **Die Mail von irgendjemandem lesen.** Nichts in diesem Bereich fasst ein Konto oder eine

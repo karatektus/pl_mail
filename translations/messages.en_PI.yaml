@@ -1038,7 +1038,7 @@ admin:
             name_first: Given name
             name_last: Family name
             password: First secret word
-            password_help: 'Set once, when th'' hand signs on. No changin'' it from here after: a forgotten word be reset at th'' console with `app:user:password`.'
+            password_help: 'A one-time word: th'' hand chooses their own th'' first time they come aboard. A forgotten word be reset at th'' console with `app:user:password`.'
         flash:
             deactivated: 'Clapped in irons. No boardin'' until ye strike them.'
             demote_last_refused: 'That be th'' last quartermaster, so th'' mark stayed as it were — raise another first.'
@@ -2131,9 +2131,13 @@ login:
         email: Parrot address
         forgot_password: Forgot yer secret word?
         forgot_password_hint: 'Only th'' quartermaster can mint ye a new one, from th'' ship''s console.'
+        needs_script: 'Comin'' aboard needs JavaScript: yer secret word be guarded in th'' browser afore aught be sent.'
         password: Secret word
+        prelogin_failed: 'Could not hail th'' ship to bring ye aboard. Check yer line an'' try again.'
+        prelogin_rate_limited: 'Too many tries at th'' gangplank from here. Wait a few minutes an'' try again.'
         remember_me: Keep me aboard
         submit: Come aboard
+        submitting: Comin' aboard…
     page_title: Come aboard
     register:
         coming_soon: Signin' on be comin' soon.
@@ -2385,6 +2389,14 @@ onboarding:
             lead: The one prize worth lockin' proper. Takes about a minute.
             title: Guard yer berth
     title: Rig up plMail
+
+password_required:
+    explanation: 'Another hand chose th'' secret word ye just boarded with. Pick one only ye know — plMail will not let ye further till ye have.'
+    page_title: Choose yer secret word
+    sign_out: Go ashore instead
+    submit: Stow it an' carry on
+    submitting: Stowin'…
+    tagline: One more step
 
 profile:
     avatar_current: Yer likeness at present
@@ -3590,6 +3602,7 @@ settings:
         remember_me_note: 'Changing yer secret word puts every remembered deck ashore but this one. That be why it be worth doing when a spyglass goes missing.'
         subheading: 'What ye board with. Only ye can change it — not even a quartermaster may set it for ye.'
         submit: Change th' secret word
+        submitting: Stowin'…
     reading_pane:
         heading: Spyglass deck
         hint: 'Stowed shows the list an'' the letter one at a time; Starboard lays the letter beside the list when the ship has room for both — drag the rail between ''em to say how much deck each gets.'

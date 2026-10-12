@@ -1131,7 +1131,7 @@ admin:
             name_first: Vorname
             name_last: Nachname
             password: Erstes Passwort
-            password_help: 'Wird einmalig beim Anlegen gesetzt. Danach lässt es sich hier nicht mehr ändern: Ein vergessenes Passwort setzt du auf der Server-Konsole mit `app:user:password` zurück.'
+            password_help: 'Ein Einmal-Passwort: Bei der ersten Anmeldung legt die Person ihr eigenes fest. Ein vergessenes Passwort setzt du auf der Server-Konsole mit `app:user:password` zurück.'
         flash:
             deactivated: 'Abgeschaltet. Eine Anmeldung ist erst wieder möglich, wenn du das Konto einschaltest.'
             demote_last_refused: 'Das ist die letzte Person mit Administratorrechten — das Häkchen blieb, wie es war. Ernenne zuerst jemand anderen.'
@@ -2252,9 +2252,13 @@ login:
         email: E-Mail-Adresse
         forgot_password: Passwort vergessen?
         forgot_password_hint: 'Die Wiederherstellung läuft über die Server-Konsole: bin/console und ein neues Passwort, gesetzt von einer Administratorin oder einem Administrator.'
+        needs_script: 'Die Anmeldung braucht JavaScript: Dein Passwort wird im Browser geschützt, bevor etwas gesendet wird.'
         password: Passwort
+        prelogin_failed: 'Der Server war für die Anmeldung nicht erreichbar. Prüfe deine Verbindung und versuche es noch einmal.'
+        prelogin_rate_limited: 'Zu viele Anmeldeversuche von hier. Warte ein paar Minuten und versuche es dann noch einmal.'
         remember_me: Angemeldet bleiben
         submit: Anmelden
+        submitting: Anmeldung läuft…
     page_title: Anmelden
     register:
         coming_soon: Registrierung folgt in Kürze.
@@ -2511,6 +2515,14 @@ onboarding:
             lead: Das eine Konto, das sich richtig abzuschließen lohnt. Dauert etwa eine Minute.
             title: Konto schützen
     title: plMail einrichten
+
+password_required:
+    explanation: 'Das Passwort, mit dem du dich gerade angemeldet hast, hat jemand anderes festgelegt. Wähle eines, das nur du kennst — vorher lässt dich plMail nicht weiter.'
+    page_title: Eigenes Passwort wählen
+    sign_out: Stattdessen abmelden
+    submit: Speichern und weiter
+    submitting: Wird gespeichert…
+    tagline: Noch ein Schritt
 
 profile:
     avatar_current: Aktuelles Bild
@@ -3801,6 +3813,7 @@ settings:
         remember_me_note: 'Ein Passwortwechsel meldet jeden gemerkten Browser ab, außer diesem. Genau deshalb lohnt er sich, wenn ein Gerät abhandenkommt.'
         subheading: 'Womit du dich anmeldest. Nur du kannst es ändern — nicht einmal die Administration kann es für dich setzen.'
         submit: Passwort ändern
+        submitting: Wird gespeichert…
     reading_pane:
         heading: Lesebereich
         hint: '„Aus“ zeigt Liste und Nachricht nacheinander; „Rechts“ stellt die Nachricht neben die Liste, sobald das Fenster genug Platz für beide hat – am Trenner dazwischen stellst du ein, wie viel jede bekommt.'

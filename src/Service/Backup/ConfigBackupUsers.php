@@ -329,6 +329,17 @@ final readonly class ConfigBackupUsers
             // identical one created by hand.
             'roles'      => array_values($user->roles),
             'password'   => $user->password,
+            // What the browser stretches the password with before it can be
+            // checked against that hash. Without it a restored account whose
+            // hash is of an auth hash could never sign in again: the browser
+            // would stretch with a salt the original never used. Null for an
+            // account still on a hash of the password itself.
+            'passwordKdf' => null === $user->kdfSalt ? null : [
+                'salt'       => $user->kdfSalt,
+                'iterations' => $user->kdfIterations,
+            ],
+            // A one-time password an administrator chose stays one-time.
+            'passwordChangeRequired' => $user->passwordChangeRequired,
             'locale'     => $user->locale,
             'timezone'   => $user->timezone,
             'appearance' => $user->appearance->toArray(),

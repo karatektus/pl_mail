@@ -118,10 +118,15 @@ final class DefaultController extends AbstractController
 
         if (true === $form->isSubmitted() && true === $form->isValid()) {
             if (true === $isNew) {
-                $user->password = $this->passwordHasher->hashPassword(
+                $user->useServerHashedPassword($this->passwordHasher->hashPassword(
                     $user,
                     (string) $form->get('plainPassword')->getData(),
-                );
+                ));
+
+                // The administrator knows this password, so it opens the door
+                // once: the person picks their own before anything else. See
+                // User::$passwordChangeRequired.
+                $user->passwordChangeRequired = true;
             }
 
             $refusal = $this->applyAdminRole($user, true === $form->get('isAdmin')->getData());
@@ -173,7 +178,7 @@ final class DefaultController extends AbstractController
         // Not null: the column is not nullable, and an empty string would be a
         // hash no password can produce — which is the intent, since this is
         // what makes the row unable to authenticate.
-        $user->password = '';
+        $user->useServerHashedPassword('');
         $user->deletedAt = $now;
 
         $this->entityManager->flush();

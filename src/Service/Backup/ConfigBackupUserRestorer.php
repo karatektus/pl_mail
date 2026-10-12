@@ -216,6 +216,19 @@ final readonly class ConfigBackupUserRestorer
         // restored user sign in with the password they already know. The
         // plaintext was never anywhere to carry.
         $user->password = $this->text($document, 'password');
+
+        // Absent from documents written before passwords were stretched in the
+        // browser, and those hashes are all of the password itself — which is
+        // exactly what leaving the salt null says.
+        $kdf        = $this->map($document, 'passwordKdf');
+        $salt       = $this->text($kdf, 'salt');
+        $iterations = $this->number($kdf, 'iterations');
+
+        if (null !== $salt && null !== $iterations && null !== $user->password) {
+            $user->useClientDerivedPassword($user->password, $salt, $iterations);
+        }
+
+        $user->passwordChangeRequired = true === ($document['passwordChangeRequired'] ?? false);
         $user->locale   = $this->text($document, 'locale');
         // The set hook drops an identifier this build does not recognise, which
         // is the right answer for a backup from a host with a newer tzdata.

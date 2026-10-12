@@ -51,4 +51,7 @@ return [
     'color-name' => ['version' => '1.1.4'],
     'simple-swizzle' => ['version' => '0.2.2'],
     'is-arrayish' => ['version' => '0.3.1'],
+    '@noble/hashes/pbkdf2' => ['version' => '1.8.0'],
+    '@noble/hashes/sha2' => ['version' => '1.8.0'],
+    '@noble/hashes/crypto' => ['version' => '1.8.0'],
 ];

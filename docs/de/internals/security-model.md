@@ -1,4 +1,4 @@
-<!-- translated-from: internals/security-model.md sha1:243b84b60c22700f7faa41c30e8676710cd0976f -->
+<!-- translated-from: internals/security-model.md sha1:d9c0b6bab334aa62ea98b7a1b572760942843254 -->
 # Sicherheitsmodell
 
 Verschlüsselung ruhender Daten und die Prüfung, die den Start ohne brauchbaren Schlüssel
@@ -136,7 +136,7 @@ Drei verschiedene Antworten, und die Wahl ist jedes Mal bewusst.
 
 | Geheimnis | Ablage | Warum |
 |---|---|---|
-| Nutzerpasswort | Symfonys `auto`-Hasher (Argon2/bcrypt) | wenig Entropie, von einem Menschen gewählt — Key Stretching ist der ganze Sinn |
+| Nutzerpasswort | im Browser gestreckt (PBKDF2-SHA256), dann Symfonys `auto`-Hasher (Argon2/bcrypt) über das Ergebnis | wenig Entropie, von einem Menschen gewählt — Key Stretching ist der ganze Sinn; warum es zweimal geschieht, steht im nächsten Abschnitt |
 | App-Passwort (`ApiToken`) | SHA-256 des Geheimnisses | 32 Byte aus dem CSPRNG; nichts zum Durchprobieren |
 | Cookie für vertrauenswürdige Geräte | SHA-256 | 32 Byte aus dem CSPRNG |
 | Token für Freigabelink / Buchungsseite | SHA-256 | 32 Byte aus dem CSPRNG |
@@ -165,6 +165,58 @@ rekonstruieren zu können.
 `set (array $codes) => array_values($codes)` —, denn `array_filter()` hinterlässt Lücken, und ein
 lückenhaftes PHP-Array kodiert als `{"1":"…"}` statt als Liste und kommt damit in der falschen
 Form zurück.
+
+## Passwörter werden im Browser gestreckt
+
+Der Server bekommt das Passwort einer Person nie zu sehen. `assets/password_kdf.js` leitet im
+Browser ab
+
+```
+masterKey = PBKDF2-SHA256(passwort, kdfSalt, kdfIterations)   // verlässt den Browser nie
+authHash  = PBKDF2-SHA256(masterKey, passwort, 1)             // wird gesendet
+```
+
+— die Konstruktion von Bitwarden — und der Server speichert den Hash des `auto`-Hashers über
+`authHash`, genau so, wie er es mit einem Passwort täte. Es geht dabei nicht um die Anmeldung: Die
+Ende-zu-Ende-Verschlüsselung aus Issue #28 wird den Schlüssel, der die privaten Schlüssel einer
+Person entsperrt, aus `masterKey` ableiten, und ein Server, der das Passwort nie sieht, kann ihn
+nicht ableiten. `App\Security\PasswordKdf` ist die Hälfte des Servers und bringt ein `derive()` in
+PHP mit, das Testsuite und Konsole statt eines Browsers benutzen; `PasswordKdfTest` heftet es an
+einen unabhängig berechneten Vektor, und `tests/e2e/auth.spec.ts` meldet einen echten Browser an
+einem Konto an, dessen Hash PHP erzeugt hat — so können die beiden nicht auseinanderlaufen.
+
+**Salt und Rundenzahl gelten pro Person** (`User::$kdfSalt`, `$kdfIterations`) und werden vor einer
+Anmeldung von `POST /login/prelogin` ausgegeben. Die Rundenzahl wird gespeichert statt aus der
+Konfiguration gelesen, damit ein späteres Anheben von `app.password_kdf_iterations` nur Passwörter
+betrifft, die danach gesetzt werden. Eine unbekannte Adresse wird beantwortet, nicht abgewiesen,
+mit einem HMAC der Adresse unter dem Kernel-Secret als Salt — deterministisch, damit zweimaliges
+Fragen sie nicht als unbekannt verrät.
+
+**Konten werden bei ihrer nächsten Anmeldung umgestellt.** Ein `kdfSalt` von null bedeutet, dass der
+gespeicherte Hash vom Passwort selbst stammt: jedes Konto von vor dieser Änderung und jedes, dessen
+Passwort zuletzt etwas ohne Browser gesetzt hat — der Installationsassistent, das Anlegeformular der
+Administration, `app:user:password`, die Seeds. Für diese antwortet der Prelogin mit
+`migrate: true`, das Formular schickt das Passwort ein letztes Mal neben einem Auth-Hash, der mit dem
+Platzhalter-Salt gestreckt wurde, und `PasswordKdfUpgradeListener` stellt den Hash um, nachdem das
+Passwort geprüft ist. Er läuft auf `CheckPassportEvent`, nicht auf `LoginSuccessEvent`, weil das
+Angemeldet-bleiben-Cookie während des letzteren über den Hash signiert wird.
+
+**Was ein umgestelltes Konto ablehnt**, ist der Sinn des Ganzen: Sein gespeicherter Hash stammt von
+einem Auth-Hash, also meldet das Passwort selbst es nicht mehr an (`PasswordKdfLoginTest` hält diese
+Linie). Das Formular nimmt ein nacktes `password` weiterhin für ein noch nicht umgestelltes Konto an
+— ein Browser ohne JavaScript oder eine über das Update hinweg zwischengespeicherte Anmeldeseite —
+und stellt es auf diesem Weg nie um.
+
+**Was der Server nicht mehr prüfen kann**, ist das neue Passwort: Länge und Wiederholung prüft der
+Browser (`password_form_controller.js`). Wer das umgeht, kann sich nur selbst ein schwaches Passwort
+geben. Die Rundenzahl *wird* geprüft, denn eine niedrigere schwächt die Tabelle für den, der sie
+stiehlt, und das ist nicht die Person, die wählt.
+
+**Ein Passwort, das jemand anderes gewählt hat, gilt einmal.** `User::$passwordChangeRequired` wird
+vom Anlegeformular der Administration und von `app:user:password` gesetzt (außer mit
+`--no-change-required`), und `PasswordChangeRequiredListener` hält die Person auf
+`/password/required`, bis sie ein eigenes gewählt hat — nur auf der Firewall `main`, damit
+App-Passwörter weiter synchronisieren.
 
 ## Firewalls
 
@@ -715,6 +767,26 @@ ein einziges Feld, öffnet alle Pfade auf einmal wieder.
 wieder jemand buchen kann.** Die Entität sagt das ausdrücklich: `cancelled_at` später zu ergänzen
 heißt, den Index partiell zu machen — `WHERE cancelled_at IS NULL` —, und das ist der Satz, den
 du dir merken solltest.
+
+**Der Prelogin unterscheidet genau eines: ein Konto, das noch nicht umgestellt ist.** Sein
+`migrate: true` ist der einzige Unterschied zwischen einer bekannten und einer unbekannten Adresse,
+und er hält bis zur nächsten Anmeldung dieses Kontos. Der Limiter `login_prelogin` begrenzt das
+Abklappern einer Adressliste; er liegt über `login_ip`, damit jemand, der sich vertippt, zuerst an
+die Anmeldegrenze stößt, mit deren Meldung.
+
+**Die Umstellung eines Kontos beendet seine anderen Sitzungen.** Symfony meldet eine Sitzung ab,
+wenn sich der gespeicherte Hash ändert, mit dem sie geöffnet wurde, und die Signatur des
+Angemeldet-bleiben-Cookies deckt ihn ebenfalls ab. Einmal je Konto, bei der ersten Anmeldung nach
+dem Update — das Changelog sagt es.
+
+**`crypto.subtle` gibt es unter reinem `http://` nicht.** `password_kdf.js` weicht dort auf
+`@noble/hashes` aus; ohne das könnte sich auf einer per IP erreichten LAN-Installation niemand
+anmelden. Der Ausweichweg ist mehrfach langsamer, etwa ein bis zwei Sekunden bei 600 000 Runden.
+
+**`User::$password` direkt zu setzen ist nur fürs Neu-Hashen da.** Ein neues Passwort geht durch
+`useServerHashedPassword()` oder `useClientDerivedPassword()`, die das Salt mitführen. Ein Salt, das
+auf einer Zeile zurückbleibt, deren Hash vom Passwort selbst stammt, lässt den Browser ein Passwort
+strecken, aus dem der Hash nie gemacht wurde, und das Konto weist seine Besitzerin ab.
 
 **Die Anmeldedrosselung zu erweitern deckt das Codeformular nicht ab**, und die Codedrosselung zu
 erweitern deckt das Passwortformular nicht ab. Es sind zwei Limiter mit zwei

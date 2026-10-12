@@ -675,7 +675,9 @@ become a second way into every mailbox on the install:
 
 - **Change an existing user's password.** The field exists on create and not on edit. Someone who
   has not signed in yet has no mail, so setting their initial password discloses nothing; changing
-  it afterwards would. A forgotten password is reset with `app:user:password` on the console.
+  it afterwards would. And even the initial one works only once: the person has to choose their own
+  the first time they sign in, so the one you typed stops being a way in. A forgotten password is
+  reset with `app:user:password` on the console, which makes the same one-time password.
 - **Remove anyone's second factor.** That is `app:user:2fa-disable` on the console, and only there.
 - **Read anyone's mail.** Nothing in this area touches an account or a message.
 

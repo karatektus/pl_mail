@@ -56,7 +56,7 @@ final readonly class DemoProvisioner
         $user->nameFirst = 'Demo';
         $user->nameLast  = 'Besucher';
         $user->roles     = [User::ROLE_USER];
-        $user->password  = $this->passwordHasher->hashPassword($user, DemoMode::PASSWORD);
+        $user->useServerHashedPassword($this->passwordHasher->hashPassword($user, DemoMode::PASSWORD));
 
         // Onboarding is marked done before they ever see a page. The setup
         // wizard opens over a backdrop that swallows every click and asks for
