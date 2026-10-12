@@ -22,7 +22,8 @@ import { Controller } from "@hotwired/stimulus";
  *   calendar  the calendar has the row, the mail is still in the DOM behind it
  *
  * The topbar switch cycles them — or, with User::$calendarSwitchSkip, goes
- * between `mail` and one of the other two and skips the third. The HANDLE also reaches the two ends, which is
+ * between `mail` and one of the other two and skips the third. The HANDLE
+ * also reaches the two ends, which is
  * the point of the rubber band: dragging past the pane's maximum keeps moving,
  * with resistance, and letting go past a threshold puts you in `calendar`;
  * dragging past its minimum the same way puts you in `mail`. Short of the
