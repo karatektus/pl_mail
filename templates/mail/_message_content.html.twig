@@ -41,9 +41,12 @@
                 <p class="text-sm font-medium text-ink">
                     {{ message.fromName ?: message.fromAddress }}
                 </p>
-                <p class="text-xs text-ink-faint">
+                {# As readable as the name above it, and allowed to wrap rather
+                   than truncate: see _thread_message for why. #}
+                <p class="text-sm text-ink break-all">
                     {{ message.fromAddress }}
                 </p>
+                {% include 'mail/_reply_to_elsewhere.html.twig' with { message: message } only %}
                 {# The same header the thread view shows, for the same reason:
                    this view named the sender and nobody else, so who the mail
                    was addressed to was not on the page at all. #}

@@ -2357,6 +2357,8 @@ message:
         read_at: 'Gelesen am %datetime%'
         requested: '%sender% möchte benachrichtigt werden, wenn du diese Nachricht liest.'
         send: 'Bestätigung senden'
+    reply_to:
+        elsewhere: 'Antworten gehen an %address%'
     save_to: 'Speichern in'
     security:
         mismatch:

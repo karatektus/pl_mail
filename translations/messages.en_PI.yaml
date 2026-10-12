@@ -2236,6 +2236,8 @@ message:
         read_at: 'Unfurled at %datetime%'
         requested: '%sender% begs word when ye unfurl this bottle.'
         send: 'Send word back'
+    reply_to:
+        elsewhere: 'Replies sail to %address%'
     save_to: 'Stow to'
     security:
         mismatch:

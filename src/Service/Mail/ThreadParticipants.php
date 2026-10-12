@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Service\Mail;
 
+use App\Domain\DTO\Mail\SenderLabel;
 use App\Domain\DTO\Mail\ThreadRowMessage;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Message;
@@ -43,9 +44,64 @@ final class ThreadParticipants
      */
     public function forMessages(iterable $messages, ?Account $account, string $me = 'me'): array
     {
+        $names = array_map(
+            static fn (SenderLabel $label): string => $label->name,
+            $this->resolve($messages, $account, $me),
+        );
+
+        return $this->elide($this->collapse($names), '…');
+    }
+
+    /**
+     * The same cast as {@see self::forThread()}, each correspondent carrying
+     * the domain their mail really comes from. See SenderLabel for why a row
+     * wants that.
+     *
+     * @return list<SenderLabel> oldest participant first
+     */
+    public function labelsForThread(MessageThread $thread, string $me = 'me'): array
+    {
+        return $this->labelsForMessages($thread->messages, $thread->account, $me);
+    }
+
+    /**
+     * @param iterable<Message|ThreadRowMessage> $messages oldest first
+     *
+     * @return list<SenderLabel>
+     */
+    public function labelsForMessages(iterable $messages, ?Account $account, string $me = 'me'): array
+    {
+        $labels = [];
+
+        foreach ($this->resolve($messages, $account, $me) as $label) {
+            // The domain is part of who somebody is. Collapsing on the name
+            // alone — which forMessages() still does — is what lets a forged
+            // "PayPal" ride in under the real one as a single, honest-looking
+            // name.
+            $labels[$label->name . "\x00" . $label->domain] ??= $label;
+        }
+
+        return $this->elide(array_values($labels), new SenderLabel('…'));
+    }
+
+    /**
+     * Everyone the row should name, before any collapsing: one label per
+     * distinct address, or — for a thread nobody else has written in — the
+     * recipients standing in for them.
+     *
+     * @param iterable<Message|ThreadRowMessage> $messages oldest first
+     *
+     * @return list<SenderLabel>
+     */
+    private function resolve(iterable $messages, ?Account $account, string $me): array
+    {
         $messages = is_array($messages) ? $messages : iterator_to_array($messages, false);
         $owned    = $this->ownedAddresses($account);
-        $names    = $this->senders($messages, $owned, $me);
+        $senders  = $this->senders($messages, $owned, $me);
+        $names    = $this->collapse(array_map(
+            static fn (SenderLabel $label): string => $label->name,
+            $senders,
+        ));
 
         // A thread nobody else has written in — a sent mail, or a draft. Its
         // recipients are the interesting party; falling back to "me" alone
@@ -54,22 +110,22 @@ final class ThreadParticipants
             $recipients = $this->recipients($messages, $owned);
 
             if ([] !== $recipients) {
-                return $this->elide($recipients);
+                return $recipients;
             }
         }
 
-        return $this->elide($names);
+        return $senders;
     }
 
     /**
      * @param array<Message|ThreadRowMessage> $messages
      * @param list<string>                    $owned
      *
-     * @return list<string>
+     * @return list<SenderLabel> one per distinct address, the first sighting wins
      */
     private function senders(array $messages, array $owned, string $me): array
     {
-        $names = [];
+        $labels = [];
 
         foreach ($messages as $message) {
             $address = $this->normalise($message->fromAddress);
@@ -78,21 +134,24 @@ final class ThreadParticipants
                 continue;
             }
 
-            $names[$address] ??= true === in_array($address, $owned, true)
-                ? $me
-                : $this->displayName($message->fromName, $address);
+            $labels[$address] ??= true === in_array($address, $owned, true)
+                ? new SenderLabel($me)
+                : SenderLabel::of($message->fromName, $address);
         }
 
-        return $this->collapse(array_values($names));
+        return array_values($labels);
     }
 
     /**
      * Everyone the newest message was addressed to, the reader excluded.
      *
+     * No domain on any of them: the reader chose these, and a domain beside
+     * somebody they wrote TO answers a question nobody is asking there.
+     *
      * @param array<Message|ThreadRowMessage> $messages
      * @param list<string>                    $owned
      *
-     * @return list<string>
+     * @return list<SenderLabel>
      */
     private function recipients(array $messages, array $owned): array
     {
@@ -102,7 +161,7 @@ final class ThreadParticipants
             return [];
         }
 
-        $names = [];
+        $labels = [];
 
         foreach ($newest->toAddresses ?? [] as $entry) {
             $address = $this->normalise($entry['address'] ?? null);
@@ -111,10 +170,10 @@ final class ThreadParticipants
                 continue;
             }
 
-            $names[$address] ??= $this->displayName($entry['name'] ?? null, $address);
+            $labels[$address] ??= new SenderLabel($this->displayName($entry['name'] ?? null, $address));
         }
 
-        return $this->collapse(array_values($names));
+        return array_values($labels);
     }
 
     /**
@@ -174,17 +233,20 @@ final class ThreadParticipants
      * Long casts collapse to "first … last": the column is one line wide, and
      * the two ends are what identify a conversation.
      *
-     * @param list<string> $names
+     * @template T
      *
-     * @return list<string>
+     * @param list<T> $items
+     * @param T       $gap   what stands in for the middle
+     *
+     * @return list<T>
      */
-    private function elide(array $names): array
+    private function elide(array $items, mixed $gap): array
     {
-        if (count($names) <= self::MAX_NAMES) {
-            return $names;
+        if (count($items) <= self::MAX_NAMES) {
+            return $items;
         }
 
-        return [$names[0], '…', $names[count($names) - 1]];
+        return [$items[0], $gap, $items[count($items) - 1]];
     }
 
     private function displayName(?string $name, string $address): string

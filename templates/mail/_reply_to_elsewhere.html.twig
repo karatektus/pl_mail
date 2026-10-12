@@ -1,0 +1,25 @@
+{#
+Where an answer would go, when that is not the organisation the mail is from.
+
+Printed under the sender in both reading panes, and only when it applies: a
+Reply-To on the same registrable domain as the From address says nothing, and
+neither does a message with no Reply-To at all. See
+MessageRecipientsExtension::replyToElsewhere().
+
+A line of fact rather than a banner, on purpose. Newsletters, ticket systems and
+mailing lists all answer somewhere else, so a warning here would fire on
+ordinary mail — and a warning that fires on ordinary mail trains the click-
+through it exists to stop. The sender-mismatch banner in _message_body is the
+verdict; this tells the reader where "Reply" would actually send their answer.
+
+  message — the Message whose header this is
+#}
+{% set elsewhere = message_reply_to_elsewhere(message) %}
+{% if elsewhere is not empty %}
+    <p class="text-xs text-ink break-all" data-testid="reply-to-elsewhere">
+        <i class="fa-solid fa-reply text-warning mr-1" aria-hidden="true"></i>
+        {{ 'message.reply_to.elsewhere'|trans({
+            '%address%': elsewhere|map(a => a.name ? a.name ~ ' <' ~ a.address ~ '>' : a.address)|join(', '),
+        }) }}
+    </p>
+{% endif %}

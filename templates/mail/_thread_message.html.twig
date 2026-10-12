@@ -140,8 +140,13 @@ Variables:
                 <span class="text-sm font-semibold text-ink truncate">
                     {{ message.fromName ?: message.fromAddress }}
                 </span>
+                {# The address is the one half of this line the sender cannot
+                   choose, so it is as readable as the name beside it: same
+                   size, full ink, and allowed to WRAP — `truncate` cuts the
+                   end, which is the domain, and `text-ink-faint` is the token
+                   for things that are meant to be overlooked. #}
                 {% if message.fromName %}
-                    <span class="text-xs text-ink-faint truncate">&lt;{{ message.fromAddress }}&gt;</span>
+                    <span class="text-sm text-ink break-all">&lt;{{ message.fromAddress }}&gt;</span>
                 {% endif %}
 
                 {# The labels on THIS message, not on the thread. A rule that
@@ -152,6 +157,8 @@ Variables:
                    the list, so a label looks like itself everywhere. #}
                 {% include '_partials/_thread_labels.html.twig' with { item: message } only %}
             </div>
+
+            {% include 'mail/_reply_to_elsewhere.html.twig' with { message: message } only %}
 
             {# The details popover must not toggle the message, so it stops
                the click itself (see message_details#toggle). #}

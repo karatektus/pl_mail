@@ -2374,6 +2374,8 @@ message:
         read_at: 'Read at %datetime%'
         requested: '%sender% asked to be told when you read this message.'
         send: 'Send receipt'
+    reply_to:
+        elsewhere: 'Replies go to %address%'
     save_to: 'Save to'
     security:
         mismatch:
