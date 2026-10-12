@@ -2,22 +2,33 @@ import { test, expect, type Page } from "./support/test";
 import { INBOX_SUBJECTS, mailRow, seed } from "./support/config";
 
 /**
- * Where a list row stops being three stacked lines and becomes one.
+ * Where a list row stops being three stacked lines and puts the sender beside
+ * the subject.
  *
  * The row used to go to one line at Tailwind's stock 36rem, which is a list
  * about 575px wide: with the reading pane open, or on a big phone, the avatar,
  * the sender column and the date column took ~450px of it and the subject was
  * left ~120px — "Facture pour Co…" — with a preview wrapped into two cramped
  * lines beside it. The stacked layout gives both the full width and is the one a
- * phone already gets, so one line now starts at 75rem (`--container-rowwide`
- * in app.css; the `@rowwide:` variant in _thread_row.html.twig). 58rem was the
- * first value and was still too early: a 2560px window with the reading pane
- * open gives a list of ~65rem, where real subjects were cut after ~30 chars.
+ * phone already gets, so the sender moves beside the subject only from 75rem
+ * (`--container-rowwide` in app.css; the `@rowwide:` variant in
+ * _thread_row.html.twig). 58rem was the first value and was still too early: a
+ * 2560px window with the reading pane open gives a list of ~65rem, where real
+ * subjects were cut after ~30 chars.
  *
- * Under 75rem the row is not one shape either: three lines below 36rem, and
- * from there up two — sender and subject sharing the first line, the preview on
- * the second. "Stacked" in the tests below means the property both of those
- * have and the one-line row does not: the preview is under the subject.
+ * Under 75rem the row is three lines at every width: sender, subject, preview.
+ * It was briefly two between 36rem and 75rem, with the sender and the subject
+ * sharing the first line in a fixed 10rem sender column — and that column is
+ * where the name AND the address domain have to fit, so a real sender came out
+ * as "Action …" beside "vtljwipuizwaemm…", at a list 830px wide with most of
+ * the row empty. Three lines give the sender the row's width.
+ *
+ * From 75rem it is two rows: sender and subject side by side, the preview under
+ * the subject. The preview is never beside the subject, at any width — it used
+ * to share a line with it when the list was wide, and a subject and a preview
+ * competing for one line cut both. "Stacked" in the tests below means the
+ * property of the narrow rows: the preview is under the subject, and the
+ * subject under the sender.
  *
  * Measured on the LIST's width, not the viewport's: the row is a container
  * query on #message-list. The viewports below are chosen so the list lands on
@@ -52,7 +63,7 @@ const openInbox = async (page: Page, width: number) => {
     await expect(mailRow(page, SUBJECT)).toBeVisible();
 };
 
-test.describe("list row layout around the one-line breakpoint", () => {
+test.describe("list row layout around the 75rem breakpoint", () => {
     test.beforeAll(() => {
         seed("seed-mail");
     });
@@ -72,25 +83,28 @@ test.describe("list row layout around the one-line breakpoint", () => {
         expect(g.subject.width).toBeGreaterThan(g.row.width * 0.5);
     });
 
-    test("between 36rem and 75rem the sender shares the first line with the subject", async ({ page }) => {
-        // The in-between shape: two lines, not three. Sender and subject on the
-        // first, the preview alone on the second and starting back under the
-        // sender, so it has the row's whole width.
+    test("between 36rem and 75rem the sender has a line to itself, above the subject", async ({ page }) => {
+        // List ≈ 850px, the width where the sender was cut to "Action …" in a
+        // fixed 10rem column beside the subject.
         await openInbox(page, 1100);
         const g = await geometry(page);
 
+        // Presence companion: the list really is in the band under test.
         expect(g.list.width).toBeGreaterThan(36 * 16);
         expect(g.list.width).toBeLessThan(75 * 16);
 
-        expect(Math.abs(g.sender.y - g.subject.y)).toBeLessThan(4);
-        expect(g.subject.x).toBeGreaterThanOrEqual(g.sender.x + g.sender.width - 2);
+        // Three lines: subject under the sender, preview under the subject …
+        expect(g.subject.y).toBeGreaterThan(g.sender.y + g.sender.height - 2);
         expect(g.snippet.y).toBeGreaterThan(g.subject.y + g.subject.height - 2);
-        expect(g.snippet.x).toBeLessThan(g.subject.x);
+        // … and the sender is not held to a column: its cell is most of the
+        // row, so a long name and its domain share it without being clipped.
+        expect(g.sender.width).toBeGreaterThan(g.row.width * 0.5);
     });
 
-    test("a list under 36rem keeps all three lines", async ({ page }) => {
-        // A phone. Presence companion for the test above: the two-line shape is
-        // a band, not simply what every list under 75rem now gets.
+    test("a phone gets the same three lines as the band above", async ({ page }) => {
+        // Presence companion for the test above: below 36rem nothing changes,
+        // so the three-line shape is the whole range under 75rem and not a
+        // band that happens to start at 36rem.
         await openInbox(page, 480);
         const g = await geometry(page);
 
@@ -98,6 +112,23 @@ test.describe("list row layout around the one-line breakpoint", () => {
 
         expect(g.subject.y).toBeGreaterThan(g.sender.y + g.sender.height - 2);
         expect(g.snippet.y).toBeGreaterThan(g.subject.y + g.subject.height - 2);
+        expect(g.sender.width).toBeGreaterThan(g.row.width * 0.5);
+    });
+
+    test("an unread row keeps its dot while the row is stacked, and loses it when the sender moves beside the subject", async ({ page }) => {
+        // The dot belongs to the stacked row: a wide row says "unread" with a
+        // bold sender and subject side by side, so it is dropped there. It was
+        // dropped from 36rem when that band had two lines and no third for it
+        // to sit on, which is not true of a three-line row.
+        await openInbox(page, 1100);
+        const dot = mailRow(page, SUBJECT).locator("[data-row-unread-dot]");
+        await expect(dot).toBeVisible();
+
+        // Presence companion: the same row when wide has the element and
+        // hides it, so the assertion above is not true of a dot that never
+        // renders.
+        await page.setViewportSize({ width: 1600, height: 900 });
+        await expect(dot).toBeHidden();
     });
 
     test("a list past the first 58rem guess still keeps the preview under the subject", async ({ page }) => {
@@ -115,19 +146,22 @@ test.describe("list row layout around the one-line breakpoint", () => {
         expect(g.snippet.y).toBeGreaterThan(g.subject.y + g.subject.height - 2);
     });
 
-    test("a wide list keeps subject and preview on one line", async ({ page }) => {
+    test("a wide list puts the sender beside the subject and the preview on its own row under it", async ({ page }) => {
         // List ≈ 1350px.
         await openInbox(page, 1600);
         const g = await geometry(page);
 
         expect(g.list.width).toBeGreaterThan(75 * 16);
-        // Same line: the preview starts to the right of the subject's end and
-        // within a line's height of its top.
-        expect(g.snippet.x).toBeGreaterThanOrEqual(g.subject.x + g.subject.width - 2);
-        expect(Math.abs(g.snippet.y - g.subject.y)).toBeLessThan(8);
+        // Sender and subject share the first row, in that order …
+        expect(Math.abs(g.sender.y - g.subject.y)).toBeLessThan(8);
+        expect(g.subject.x).toBeGreaterThanOrEqual(g.sender.x + g.sender.width - 2);
+        // … and the preview is NOT beside the subject: it is a row of its own,
+        // starting under the subject rather than under the sender.
+        expect(g.snippet.y).toBeGreaterThan(g.subject.y + g.subject.height - 2);
+        expect(Math.abs(g.snippet.x - g.subject.x)).toBeLessThan(4);
     });
 
-    test("the hover actions are reachable below the one-line breakpoint", async ({ page }) => {
+    test("the hover actions are reachable below the wide breakpoint", async ({ page }) => {
         // They were `hidden @xl:flex`, so moving the breakpoint without moving
         // them would have taken archive, delete and snooze away from every list
         // that is now stacked on a pointer device.
@@ -139,7 +173,7 @@ test.describe("list row layout around the one-line breakpoint", () => {
         await expect(row.getByRole("button", { name: "Delete" })).toBeVisible();
     });
 
-    test("the two-line preview setting stays out of the one-line layout", async ({ page }) => {
+    test("the two-line preview setting still clamps a wide row's preview to one line", async ({ page }) => {
         await openInbox(page, 1600);
 
         // What AppearanceRenderer writes on <html> for previewLines = 2, set

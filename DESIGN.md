@@ -582,8 +582,8 @@ at the right. It has three positions (mail, split, calendar), and the split need
 - **Below 768px** the sidebar becomes a drawer, compose goes full-screen, and search collapses to an
   icon that opens a full-width row under the top bar.
 - **Container queries, not viewport queries,** for anything inside a pane. A mail row switches
-  between three lines, two and one on the *list's* width (`@xl`, 36rem, and `@rowwide`, 75rem),
-  because a docked calendar can make the list narrower than a phone.
+  between three lines and two on the *list's* width (`@rowwide`, 75rem), because a docked calendar
+  can make the list narrower than a phone.
 - **Nothing scrolls the page sideways.** Panes scroll their own overflow. The shell uses `dvh` and
   honours safe-area insets.
 - **Design at German length, at 320px wide, and at text scale 1.25.**
@@ -704,9 +704,11 @@ The row is the product. Keep it quiet.
 
 - A **36px avatar disc** that doubles as the checkbox. It turns into an accent disc with a tick on
   hover or when checked.
-- **Sender, subject, snippet, chips, time.** In a wide list they share one line, subject and snippet
-  together. In a middling one sender and subject share the first line and the snippet takes the
-  second. In a narrow one they stack. Below one line the snippet clamps to the user's 0–2 lines.
+- **Sender, subject, snippet, chips, time.** The snippet is on a row of its own at every width, and
+  never beside the subject. In a wide list the sender sits beside the subject on the first row. In a
+  narrower one they stack too: sender, subject, snippet, each on its own line, so a long name and
+  its domain are never squeezed into a column. In a stacked row the snippet clamps to the user's
+  0–2 lines.
 - **The row** is `flex items-center gap-3 pl-3 pr-4 list-row-y`. Its padding comes from the density
   variable, never `py-*`.
 - **Unread:** sender and subject `font-semibold text-ink`, plus a faint white wash (`row-unread`,

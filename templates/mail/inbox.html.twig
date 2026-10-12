@@ -130,10 +130,9 @@
        phone-sized card, and `min-w-0` on each tab let them all shrink until
        the labels ran under the next tab's icon. So a tab keeps its own width
        (`shrink-0`) and the row overflows sideways — inside the nav, never the
-       page. Padding tightens below the list's `@xl` (36rem), which is
-       also where the rows go from three lines to two — one line comes
-       later, at `@rowwide` — because the card can be narrow on a wide
-       viewport too.
+       page. Padding tightens below the list's `@xl` (36rem), because the
+       card can be narrow on a wide viewport too. The rows stay three lines
+       up to `@rowwide` (75rem), where they go to one.
 
        `pb-px -mb-px` on the nav is what the tabs' own `-mb-px` used to do
        against the wrapper's hairline: an overflow container clips whatever

@@ -102,8 +102,8 @@ final readonly class AppearanceRenderer
             // beats three layers of var() guesswork in the stylesheet.
             //
             // The `-wide` one is the same switch minus the clamp: a wide row
-            // puts the subject and the preview on ONE line by design, so two
-            // lines is a stacked-row answer only. See app.css.
+            // keeps the preview to ONE line under the subject, so two lines is
+            // a stacked-row answer only. See app.css.
             '--list-preview-display' => match ($appearance->previewLines) {
                 0 => 'none',
                 1 => 'block',

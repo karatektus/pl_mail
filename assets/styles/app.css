@@ -5079,7 +5079,8 @@ label:has(> input.sr-only) {
    copy of them that could drift. */
 
 /*
-   Where a list row stops being three stacked lines and becomes one.
+   Where a list row stops being three stacked lines and puts the sender beside
+   the subject.
 
    This was Tailwind's stock `@xl` (36rem), and it was too early: one line has to
    carry the avatar, a 10rem sender column and a 9rem date/actions column before
@@ -5096,13 +5097,12 @@ label:has(> input.sr-only) {
    _thread_row.html.twig is this token, and so is the `@container` rule below,
    which reads it through `theme()` rather than repeating the number.
 
-   Below it the row is not three lines everywhere. From `@xl` (36rem) up to this
-   token it is two — sender and subject on the first, the preview on the second
-   — because three lines in a list 60rem wide spent a line on a sender name
-   with most of the row empty beside it. That band is `@xl:@max-rowwide:` in the
-   row template and needs no rule here: the preview clamp below treats it like
-   the three-line row, which is what it should do, since the preview has a
-   line of its own in both.
+   Below it the row is three lines at every width. There was a two-line shape
+   from `@xl` (36rem) up to this token, with sender and subject sharing the
+   first line in a fixed 10rem sender column, and it was taken out again: that
+   column has to hold the name AND the address domain, and in a list 830px wide
+   with most of the row empty a real sender came out as "Action …" beside
+   "vtljwipuizwaemm…". Three lines give the sender the whole row.
 */
 @theme {
     --container-rowwide: 75rem;
@@ -5159,10 +5159,13 @@ label:has(> input.sr-only) {
    The preview line, and how many of it there are.
 
    Stacked, the row has room for a second line and the clamp engages. Wide, it
-   does not: the subject and the preview share one line by design, and a second
-   preview line there pushes the subject onto a row of its own, which is the
-   arrangement the wide layout exists to avoid. So the wide branch takes the
-   same on/off switch without the clamp.
+   does not: the preview is one line under the subject, and the wide row is
+   two rows tall by design. This used to be forced, because the preview shared
+   the subject's line and a second preview line pushed the subject onto a row
+   of its own. It no longer is: the preview has a row to itself at every width,
+   so "wide is one line" is now a choice, and the one thing here that a
+   two-line preview setting does not reach. So the wide branch takes the same
+   on/off switch without the clamp.
 
    `@container`, matching the row's own `@rowwide` (the 75rem container width
    declared by --container-rowwide in the "Mail list display" block above). A

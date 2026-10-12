@@ -404,30 +404,29 @@ be a worse regression than the one this feature fixes.
                   aria-hidden="true"><i class="fa-solid fa-check text-xs"></i></span>
         </label>
 
-        {# Content — three shapes, chosen by the LIST's width:
+        {# Content — two shapes, chosen by the LIST's width:
 
-             below `@xl` (36rem)      three lines: sender, subject, preview
-             `@xl` up to `@rowwide`   two lines: sender and subject, then preview
-             `@rowwide` (75rem) up    one line
+             below `@rowwide` (75rem)   three lines: sender, subject, preview
+             `@rowwide` up              two: sender beside subject, preview under
 
-           The middle one is a grid, because the sender and the subject are not
-           siblings: the subject lives two wrappers down, beside the preview. So
-           both wrappers go `display: contents` in that band and their children
-           become cells of this grid — sender and subject on the first row, the
-           preview spanning the second. The sender column is the 10rem the
-           one-line layout gives it, so subjects line up down the list.
+           The preview is on a row of its own at every width. Beside the
+           subject, as it used to be when the list was wide, the two competed
+           for one line and cut each other.
 
-           `@xl:@max-rowwide:` is a range, not a step: nothing here has to be
-           undone again at `@rowwide`. #}
+           There was a two-line shape between them, from 36rem, with the sender
+           and the subject sharing the first line in a fixed 10rem sender
+           column. That column has to hold the name AND the address domain, so a
+           real sender was cut to "Action …" beside "vtljwipuizwaemm…" in a
+           list 830px wide with most of the row empty. Three lines give the
+           sender the whole row; the sender goes beside the subject only when
+           there is room for a sender column and a useful subject, which is
+           what 75rem is. `items-start`, because the content column is two rows
+           tall and the sender belongs level with the subject on the first. #}
         <div data-row-layout
              class="flex-1 min-w-0 flex flex-col
-                    @xl:@max-rowwide:grid @xl:@max-rowwide:grid-cols-[10rem_minmax(0,1fr)] @xl:@max-rowwide:gap-x-4 @xl:@max-rowwide:gap-y-1
-                    @rowwide:flex-row @rowwide:items-center @rowwide:gap-4">
+                    @rowwide:flex-row @rowwide:items-start @rowwide:gap-4">
 
-            {# Row 1 (three lines) / first cell of row 1 (two lines) / sender
-               column (one line). `min-w-0` is for the middle one: a grid item
-               will not shrink under its content without it, and a long sender
-               would push the column past its 10rem. #}
+            {# Row 1 (stacked) / sender column (wide). #}
             <div data-row-sender class="min-w-0 flex items-center justify-between gap-2 @rowwide:justify-start @rowwide:w-40 @rowwide:flex-shrink-0">
                 {# Sender and its marker travel together in one group, so the
                    badge sits to the LEFT of the name at both container widths.
@@ -508,20 +507,14 @@ be a worse regression than the one this feature fixes.
 
             {# The rest of the row: subject, snippet, labels.
 
-               Where the labels go differs by width, so the partial is included
-               twice and each copy is shown at one of them. It renders no
-               interactive element, so there is nothing to duplicate that a
-               screen reader or a click could reach twice — the hidden copy is
-               display:none and out of the tree entirely.
-
-               Stacked they ride in front of the snippet, which is what the
-               reference does and what reads well on three short lines. Wide,
-               that same position wedges them between a subject and a preview
-               that are already competing for one line, so they drop to a line
-               of their own underneath. #}
-            <div class="min-w-0 flex-1 flex flex-col @xl:@max-rowwide:contents">
-                <div class="min-w-0 flex flex-col @xl:@max-rowwide:contents @rowwide:flex-row @rowwide:items-baseline @rowwide:gap-2">
-                    <span data-row-subject class="truncate text-sm mt-1 @xl:@max-rowwide:mt-0 @rowwide:mt-0 @rowwide:flex-shrink-0 @rowwide:max-w-[45%]
+               The labels ride in front of the snippet, at every width, which is
+               what the reference does. They used to drop to a line of their own
+               when the list was wide, because in front of a snippet that shared
+               the subject's line they wedged between the two. The snippet has
+               a row of its own now, so there is nothing to wedge between. #}
+            <div class="min-w-0 flex-1 flex flex-col">
+                <div class="min-w-0 flex flex-col">
+                    <span data-row-subject class="truncate text-sm mt-1 @rowwide:mt-0
                                  {{ unread ? 'font-semibold text-ink' : 'font-normal text-ink-soft' }}">
                         {{ subjectLine }}
                         {% if count > 1 %}
@@ -532,9 +525,7 @@ be a worse regression than the one this feature fixes.
                     {# A little air above the preview when stacked. It separates
                        the subject from the snippet, and the meta column mirrors
                        the same margin so the dot stays level with it. #}
-                    {# Two lines: the whole second row, under the sender as
-                       well as the subject. The grid's row gap is the air. #}
-                    <span class="min-w-0 flex-1 flex items-center gap-1.5 text-sm mt-1.5 @xl:@max-rowwide:mt-0 @xl:@max-rowwide:col-span-2 @rowwide:mt-0">
+                    <span class="min-w-0 flex-1 flex items-center gap-1.5 text-sm mt-1.5">
                         {# A draft with a send time on it. Without this the
                            Drafts list is the one place a scheduled message
                            lives and the only place that does not say so — the
@@ -610,7 +601,7 @@ be a worse regression than the one this feature fixes.
                                 </button>
                             </span>
                         {% endif %}
-                        <span class="@rowwide:hidden contents">
+                        <span class="contents">
                             {% include '_partials/_thread_labels.html.twig' with { item: item } %}
                         </span>
                         {# A three-line row has one short line for the preview,
@@ -618,12 +609,12 @@ be a worse regression than the one this feature fixes.
                            saying when it goes — what is left of the snippet at
                            393px is two characters and an ellipsis, which is
                            noise where the badge is information. From `@xl` up
-                           both fit and both are shown: the two-line row gives
-                           the preview the whole width, and the one-line row
-                           always had the room.
+                           both fit and both are shown: a stacked row's third
+                           line is the whole width of a list at least 36rem
+                           wide, and a wide row's preview row is wider still.
 
                            `@xl`, and not `@rowwide` with the rest of the
-                           one-line layout: when the one-line breakpoint moved
+                           wide layout: when that breakpoint moved
                            to 75rem this went with it, and every Drafts list
                            between 36rem and 75rem lost the snippet beside the
                            badge that it had been showing. #}
@@ -643,42 +634,36 @@ be a worse regression than the one this feature fixes.
                         <span data-row-snippet class="truncate text-ink-faint {{ scheduledAt is not null ? 'hidden @xl:inline-block' : '' }}">{{ snippet }}</span>
                     </span>
                 </div>
-
-                <div class="hidden @rowwide:flex items-center mt-1">
-                    {% include '_partials/_thread_labels.html.twig' with { item: item } %}
-                </div>
             </div>
         </div>
 
         {# Meta column. Stacked it is three rows — time, then the paperclip and
            the star, then the unread dot — mirroring the content's three text
-           lines beside it. Wide the row is one line, so this is too.
+           lines beside it. Wide the row is two rows, and the date and the icons
+           take the first.
 
            The hover actions still swap for the date, but only on the date's
            own row and only for a pointer that can hover. They used to be
            absolutely positioned over the whole column, which is why nothing
            else could live here. #}
         {# The meta area takes the row's own shape. A stacked row is three
-           lines tall and a vertical stack sits beside it; a wide row is one
-           line, where the same stack has to spread out and leaves the date
-           floating over a lone star with air between them. So: column when
-           narrow, single line when wide. #}
+           lines tall and a vertical stack sits beside it; a wide row puts the
+           sender beside the subject, so the date and the icons share that
+           first line, where the same stack would leave the date floating over
+           a lone star with air between them. So: column when narrow, single
+           line when wide. #}
         {# The meta area takes the row's own shape. Stacked, it stretches to the
            content's height and distributes, so the time sits on the sender's
            line, the icons on the subject's and the dot on the preview's —
            packing from the top instead left the third item hanging below the
-           last line of text. Wide, the row is one line and so is this.
-
-           The two-line row between them needs nothing of its own here. It is
-           still the column: the unread dot is gone at that width (see the dot
-           below), which leaves the time and the star, and the grid's row gap is
-           the star's own `mt-1`, so the two sit level with the two lines of
-           text. #}
+           last line of text. Wide, the date and the icons share one line, level
+           with the sender and the subject; the preview's row has nothing in
+           this column. #}
         <div data-row-meta
              class="flex flex-shrink-0 ml-2
                     flex-col items-end self-start
                     @rowwide:flex-row-reverse @rowwide:items-center @rowwide:justify-end @rowwide:gap-2
-                    @rowwide:self-center @rowwide:w-36">
+                    @rowwide:w-36">
 
             <div class="relative flex items-center justify-end w-full h-5 @rowwide:h-6 @rowwide:w-auto @rowwide:flex-1">
                 {# The paperclip rides with the date: wide, it sits just inboard
@@ -730,7 +715,7 @@ be a worse regression than the one this feature fixes.
                    without the second rule a pointer that strays off the row on
                    its way to the menu hides the menu it was heading for.
 
-                   Below one line as well, since the breakpoint moved to 75rem:
+                   Below the wide layout as well, since the breakpoint moved to 75rem:
                    left at `hidden @rowwide:flex`, archive, delete and snooze
                    would have gone from every list narrower than that, which is
                    most of them. `[@media(hover:hover)]` rather than a width,
@@ -914,17 +899,18 @@ be a worse regression than the one this feature fixes.
                 </button>
             </div>
 
-            {# Three lines only — a wide row already says "unread" twice over,
-               with a bold sender and a bold subject, and a two-line row puts
-               those same two side by side on its first line. It also has no
-               third line for the dot to sit on: the meta column is the time
-               over the star there, level with the two rows of text.
+            {# Stacked only — a wide row already says "unread" twice over, with
+               a bold sender and a bold subject.
+
+               `data-row-unread-dot` is the hook list-row-breakpoint.spec.ts
+               finds it by: it is the one thing in this row that differs
+               between the stacked and the wide shape and has no text.
 
                Boxed to the star's width rather than right-aligned on its own:
                the dot is 8px and the star glyph is 14, so aligning their right
                edges puts their centres 3px apart. #}
             {% if unread %}
-                <span class="@xl:hidden h-5 mt-1.5 w-3.5 flex items-center justify-center shrink-0" aria-hidden="true">
+                <span data-row-unread-dot class="@rowwide:hidden h-5 mt-1.5 w-3.5 flex items-center justify-center shrink-0" aria-hidden="true">
                     <span class="w-2 h-2 rounded-full bg-success"></span>
                 </span>
                 {# No |default: a missing key comes back from |trans as the key

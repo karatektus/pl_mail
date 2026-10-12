@@ -8,6 +8,18 @@ The published image tags: `latest` follows the most recent release below,
 
 ## Unreleased
 
+**A sender is no longer cut to a few letters in a list that is not full width.** Between about
+575px and 1200px a row had two lines, with the sender and the subject sharing the first, and the
+sender got a fixed 10rem column to hold the name and the address domain together. With the reading
+pane open that read "Action …" beside "vtljwipuizwaemm…" while most of the row sat empty. A row is
+now three lines — sender, subject, preview — at every list width under 1200px, as it already was on
+a phone, so the name and the domain have the whole row. From 1200px the sender sits beside the
+subject, and the preview is on a row of its own under the subject instead of sharing its line, so
+a message's preview is on its own row at every width. The label chips ride in front of the preview
+at every width. The unread dot is back on the rows between 575px and 1200px. No setting; no
+migration.
+[#88](https://github.com/karatektus/pl_mail/pull/88), by @Flouss.
+
 **The tab icon is the one you picked, in Firefox too.** Settings → Appearance → Logo changed the
 icon in the app but not in the tab, which kept showing the wax seal. Every page also linked a
 fixed 192px wax-seal PNG as a second tab icon, and Firefox prefers that to the SVG for a tab. The
@@ -40,14 +52,14 @@ the account's row in Settings → Mail accounts changes it. No migration.
 
 **The mail list is readable beside an open message.** A row went to a single line once the list was
 about 575px wide, which left the subject around 120px and its preview wrapped next to it ("Facture
-pour Co…") whenever the reading pane was open, or on a large phone. A row now goes to one line only
-once the list is 75rem (about 1200px) wide. Below that it is two lines — sender and subject, then
-the preview across the whole row — and on a list narrower than about 575px, a phone, the three it
-always was. Not less, because a one-line row in a 65rem list (the list beside the reading pane on a
-2560px screen) still cut real subjects after about 30 characters. Archive, delete, snooze and the
-other row actions appear on hover in two- and three-line rows too, instead of only in one-line rows.
-A two-line row has no unread dot; like a one-line row it says unread with a bold sender and subject.
-Also fixed: with the two-line preview setting on, a one-line row wrapped its preview anyway. No
+pour Co…") whenever the reading pane was open, or on a large phone. A row now puts the sender beside
+the subject only once the list is 75rem (about 1200px) wide. Below that it is three lines — sender,
+subject, then the preview (a stretch of this was briefly two lines, and a wide row briefly kept the
+preview on the subject's line; see the entry above). Not less, because a one-line row in a 65rem
+list (the list beside the reading pane on a 2560px screen) still cut real subjects after about 30
+characters. Archive, delete, snooze and the other row actions appear on hover in three-line rows
+too, instead of only in wide rows.
+Also fixed: with the two-line preview setting on, a wide row wrapped its preview anyway. No
 setting; no migration.
 [#62](https://github.com/karatektus/pl_mail/pull/62), by @Flouss.
 **The calendar button can skip a view.** The button in the top bar has always been a three-way
