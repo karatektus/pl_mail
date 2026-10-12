@@ -20,6 +20,7 @@ picks their own straight after signing in (`--no-change-required` for an operato
 themselves back in). Three columns are added to the user table; the migration is reversible in the
 schema, but going back down leaves every moved account unable to sign in until
 `app:user:password` resets it.
+[#84](https://github.com/karatektus/pl_mail/pull/84), by @pmdevelopment.
 
 **Each inbox tab shows how many conversations in it are unread.** The number is the sidebar's
 Inbox badge split by category, so the tabs add up to it, and it appears on every tab, the one you
