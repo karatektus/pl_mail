@@ -23,6 +23,7 @@ use App\Repository\Mail\AccountRepository;
 use App\Repository\Rule\MailRuleRepository;
 use App\Repository\User\ApiTokenRepository;
 use App\Repository\Crypto\AddressKeyRepository;
+use App\Repository\Crypto\ContactKeyRepository;
 use App\Repository\Crypto\UserKeyCopyRepository;
 use App\Repository\Crypto\UserKeyRepository;
 use App\Repository\User\UserRepository;
@@ -249,6 +250,7 @@ final readonly class ConfigBackupUsers
         private UserKeyRepository           $userKeys,
         private UserKeyCopyRepository       $userKeyCopies,
         private AddressKeyRepository        $addressKeys,
+        private ContactKeyRepository        $contactKeys,
     ) {
     }
 
@@ -388,6 +390,11 @@ final readonly class ConfigBackupUsers
             // with the password hash and its salt above opens with the same
             // password, and the file is no more sensitive for carrying them.
             'keyring'      => $this->exportKeyring($user),
+            // Public keys, which are no secret — but which keys a person
+            // pinned and which changed keys they turned down are decisions,
+            // and losing them would silently reset every contact to
+            // "unconfirmed".
+            'contactKeys'  => $this->exportContactKeys($user),
             'accounts'     => $this->exportAccounts($user),
             'integrations' => $this->exportIntegrations($user),
             'labels'       => $this->exportLabels($user),
@@ -459,6 +466,35 @@ final readonly class ConfigBackupUsers
         }
 
         return ['userKeys' => $userKeys, 'addressKeys' => $addressKeys];
+    }
+
+    /**
+     * Contacts' keys, row for row, preferences and pins included.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function exportContactKeys(User $user): array
+    {
+        $rows = [];
+
+        foreach ($this->contactKeys->findForUser($user) as $key) {
+            $rows[] = [
+                'email'       => $key->email,
+                'fingerprint' => $key->fingerprint,
+                'publicKey'   => $key->publicKey,
+                'origin'      => $key->origin->value,
+                'status'      => $key->status->value,
+                'pinned'      => $key->pinned,
+                'expiresAt'   => $key->expiresAt?->format(DateTimeInterface::ATOM),
+                'firstSeenAt' => $key->firstSeenAt->format(DateTimeInterface::ATOM),
+                'lastSeenAt'  => $key->lastSeenAt->format(DateTimeInterface::ATOM),
+                'encrypt'     => $key->encrypt->value,
+                'sign'        => $key->sign->value,
+                'scheme'      => $key->scheme->value,
+            ];
+        }
+
+        return $rows;
     }
 
     /**

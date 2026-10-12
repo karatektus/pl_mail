@@ -30,9 +30,11 @@ const BLANK = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAA
 /**
  * @param {Uint8Array} raw  the message as it arrived
  * @param {import("./keyring.js").Keyring} ring  an open keyring
+ * @param {{fingerprint: string, publicKey: string, status: string, pinned: boolean}[]} contactKeys
+ *        the keys the person holds for the sender (ContactKeyController::sender)
  * @returns {Promise<{html: ?string, text: ?string, attachments: object[], signature: ?{state: string, signer: ?string}}>}
  */
-export async function openEncrypted(raw, ring) {
+export async function openEncrypted(raw, ring, contactKeys = []) {
     const [openpgp, { default: PostalMime }] = await Promise.all([import("openpgp"), import("postal-mime")]);
 
     const outer = await PostalMime.parse(raw);
@@ -43,19 +45,20 @@ export async function openEncrypted(raw, ring) {
     }
 
     let decrypted;
+    const verificationKeys = await ring.verificationKeys(contactKeys);
 
     try {
         decrypted = await openpgp.decrypt({
             message: await openpgp.readMessage({ armoredMessage: armored }),
             decryptionKeys: await ring.decryptionKeys(),
-            verificationKeys: await ring.verificationKeys(),
+            verificationKeys,
             format: "binary",
         });
     } catch {
         throw new Error("no_key");
     }
 
-    const signature = await signatureOf(decrypted.signatures);
+    const signature = await signatureOf(decrypted.signatures, verificationKeys, ring.ownFingerprints(), contactKeys);
 
     if (true === inline) {
         return { html: null, text: decoder.decode(decrypted.data), attachments: [], signature };
@@ -100,25 +103,47 @@ function findCiphertext(outer) {
 }
 
 /**
- * What the first signature in the message said, checked against the person's
- * own keys — the only ones plMail can vouch for yet.
+ * What the first signature in the message said, by the rules the server
+ * applies to signed mail (App\Service\Crypto\SignatureVerifier): the person's
+ * own key or a pinned contact key is valid, the sender's unpinned key is
+ * untrusted, and any other key of theirs — a changed one, or one plMail does
+ * not have while it knows another — is key_changed.
  */
-async function signatureOf(signatures) {
+async function signatureOf(signatures, keys, own, contactKeys) {
     const first = (signatures ?? [])[0];
 
     if (undefined === first) {
         return null;
     }
 
-    const signer = first.keyID?.toHex?.() ?? null;
+    const keyID = first.keyID?.toHex?.() ?? null;
+    const known = contactKeys.find((key) => "current" === key.status) ?? null;
 
     try {
         await first.verified;
-
-        return { state: "valid", signer };
     } catch (error) {
-        return { state: /could not find signing key/i.test(String(error?.message)) ? "unknown_key" : "invalid", signer };
+        if (false === /could not find signing key/i.test(String(error?.message))) {
+            return { state: "invalid", signer: keyID };
+        }
+
+        return { state: null === known ? "unknown_key" : "key_changed", signer: keyID };
     }
+
+    // Which key signed, by its primary fingerprint: a key usually signs with
+    // a subkey, and the fingerprint is what a person compares.
+    const signerKey = keys.find((key) => key.getKeyIDs().some((id) => id.toHex() === keyID)) ?? null;
+    const fingerprint = signerKey?.getFingerprint().toLowerCase() ?? null;
+    const signer = fingerprint ?? keyID;
+
+    if (null !== fingerprint && own.includes(fingerprint)) {
+        return { state: "valid", signer };
+    }
+
+    if (null !== known && fingerprint === known.fingerprint) {
+        return { state: true === known.pinned ? "valid" : "untrusted", signer };
+    }
+
+    return { state: "key_changed", signer };
 }
 
 function isSignaturePart(part) {

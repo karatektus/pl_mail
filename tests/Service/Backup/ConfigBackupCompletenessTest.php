@@ -15,6 +15,7 @@ use App\Repository\Mail\AccountRepository;
 use App\Repository\Rule\MailRuleRepository;
 use App\Repository\User\ApiTokenRepository;
 use App\Repository\Crypto\AddressKeyRepository;
+use App\Repository\Crypto\ContactKeyRepository;
 use App\Repository\Crypto\UserKeyCopyRepository;
 use App\Repository\Crypto\UserKeyRepository;
 use App\Repository\User\UserRepository;
@@ -119,6 +120,7 @@ final class ConfigBackupCompletenessTest extends TestCase
             self::createStub(UserKeyRepository::class),
             self::createStub(UserKeyCopyRepository::class),
             self::createStub(AddressKeyRepository::class),
+            self::createStub(ContactKeyRepository::class),
         )->exportUser(new User());
 
         $embedded = array_filter(

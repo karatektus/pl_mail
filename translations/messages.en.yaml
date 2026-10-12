@@ -1914,6 +1914,66 @@ compose:
         search: 'Find a template'
         untitled: 'Untitled template'
 
+contact_keys:
+    heading: "Contacts' keys"
+    subheading: "The public keys plMail checks your contacts' signatures with — and will encrypt to once plMail sends encrypted mail."
+    loading: "Loading contacts' keys…"
+    empty: "No keys yet. plMail picks them up from signed mail; you can also look one up or import it above."
+    verified: "Verified"
+    first_seen: "first seen %date%"
+    last_seen: "last seen %date%"
+    expires: "expires %date%"
+    origin:
+        attached: "Attached to a message"
+        autocrypt: "From a message's Autocrypt header"
+        manual: "Imported by you"
+        wkd: "From the domain's key directory (WKD)"
+    pin: "Mark as verified"
+    unpin: "Remove the checkmark"
+    accept: "Use this key instead"
+    remove: "Remove"
+    confirm_remove: "Remove this key? Signatures made with it cannot be checked until plMail finds it again."
+    changed_warning: "A different key turned up for this address. It may be your contact's new key — or somebody posing as them. plMail keeps using the known key until you compare this fingerprint with your contact and accept it."
+    pinned: "Marked as verified."
+    accepted: "This key is now the one used for the address."
+    removed: "Key removed."
+    preferences_saved: "Saved."
+    not_found: "That key is no longer there."
+    signer_unknown: "plMail does not have the key that made this signature. Look it up or import it first."
+    import:
+        heading: "Import a key"
+        hint: "Paste a public key block or choose a file. The key is kept for every address it names."
+        file: "Key file"
+        paste: "Public key"
+        submit: "Add key"
+        done: "Imported. Addresses with this key: %count%."
+        changed: "Imported — but %count% of the addresses already had a different key. Compare the fingerprints below before you accept the new one."
+        unusable: "Nothing usable in that key: it is revoked, expired, or names no address."
+        not_a_key: "That is not an OpenPGP public key."
+        private_key: "That is a private key. Only import your contacts' public keys here — your own keys belong in the keyring above."
+    lookup:
+        heading: "Look up a key"
+        hint: "Asks the address's own domain for its key (Web Key Directory). The request goes through this server."
+        email: "Email address"
+        submit: "Look up"
+        found: "Found a key, and kept it."
+        changed: "Found a key — but it differs from the one plMail knows for this address. Compare the fingerprints before you accept it."
+        nothing: "The domain publishes no usable key for this address."
+        invalid_address: "That address cannot be looked up."
+        rate_limited: "Too many lookups in a row. Try again in a few minutes."
+    preferences:
+        heading: "Preferences for this recipient"
+        hint: "Used when plMail sends encrypted mail."
+        encrypt: "Encrypt"
+        sign: "Sign"
+        scheme: "Format"
+        save: "Save"
+        policy:
+            always: "Always"
+            auto: "Automatically"
+            never: "Never"
+        scheme_pgp-inline: "Inline PGP"
+        scheme_pgp-mime: "PGP/MIME"
 demo:
     bar:
         title: Demo
@@ -2370,21 +2430,31 @@ message:
         failed_for: 'Not delivered to %recipient%.'
         reported_at: 'Reported %datetime%'
     crypto:
+        action:
+            accept: "Use the new key"
+            lookup: "Look up the key"
+            manage: "Contacts' keys"
+            trust: "Trust this key"
+        compare_hint: "Compare the fingerprint with the sender — by phone, in person — before you trust it."
+        key_changed_hint: "It may be the sender's new key, or somebody posing as them. Compare the fingerprint with the sender before you use it."
         decrypting: "Decrypting…"
         encrypted: "End-to-end encrypted"
         encrypted_smime: "Encrypted with S/MIME"
         failed: "This message could not be decrypted."
         inner:
             invalid: "The signature inside does not match"
+            key_changed: "Signed with key %signer% — not the key plMail knows for this sender"
             unchecked: "Signed inside the encryption; the signature has not been checked"
             unknown_key: "Signed with key %signer%, which plMail does not know yet"
-            valid: "Signed with your own key"
+            untrusted: "Signed inside the encryption — intact, but nobody has confirmed the key %signer%"
+            valid: "Signed inside the encryption, with your own key or one you verified"
         locked: "Your keys are locked in this browser."
         no_key: "This message was encrypted to a key you do not have here."
         no_source: "The original of this message is not available, so it cannot be decrypted."
         open_settings: "Unlock them"
         signed:
             invalid: "The signature does not match — this message was changed or is not from the sender"
+            key_changed: "Signed with a different key than the one plMail knows for this sender"
             pending: "Signed — checking the signature…"
             unknown_key: "Signed with a key plMail does not know yet"
             untrusted: "Signed — the message is intact, but nothing confirms who signed it"

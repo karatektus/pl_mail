@@ -427,15 +427,25 @@ export class Keyring {
     }
 
     /**
-     * The public halves of the person's own keys — the only keys plMail can
-     * vouch for until contacts' keys arrive (phase 4 of issue #28).
+     * The public halves of the person's own keys, and the keys they hold for
+     * a sender (ContactKeyController::sender) — what a signature inside an
+     * encrypted message is checked against. A contact's key that will not
+     * read is left out rather than failing the whole check.
      *
+     * @param {{publicKey: string}[]} contactKeys
      * @returns {Promise<object[]>} openpgp PublicKey objects
      */
-    async verificationKeys() {
+    async verificationKeys(contactKeys = []) {
         const openpgp = await import("openpgp");
+        const armored = [...(this.state?.addressKeys ?? []), ...contactKeys].map((entry) => entry.publicKey);
+        const keys = await Promise.all(armored.map((armoredKey) => openpgp.readKey({ armoredKey }).catch(() => null)));
 
-        return Promise.all((this.state?.addressKeys ?? []).map((entry) => openpgp.readKey({ armoredKey: entry.publicKey })));
+        return keys.filter((key) => null !== key);
+    }
+
+    /** Lower-case primary fingerprints of the person's own keys. */
+    ownFingerprints() {
+        return (this.state?.addressKeys ?? []).map((entry) => String(entry.fingerprint).toLowerCase());
     }
 
     // ── Password changes ────────────────────────────────────────────────────

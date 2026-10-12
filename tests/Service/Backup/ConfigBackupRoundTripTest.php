@@ -48,6 +48,7 @@ final class ConfigBackupRoundTripTest extends KernelTestCase
     private const string KDF_SALT      = 'c2FsdHNhbHRzYWx0c2FsdA==';
     private const string WRAPPED_KEY   = 'v1.AAAAAAAAAAAAAAAA.c29tZSB3cmFwcGVkIHVzZXIga2V5IGJ5dGVz';
     private const string ADDRESS_FPR   = '0123456789abcdef0123456789abcdef01234567';
+    private const string CONTACT_FPR   = 'fedcba9876543210fedcba9876543210fedcba98';
 
     private const string PASSWORD = 'a long enough backup password';
 
@@ -190,6 +191,15 @@ final class ConfigBackupRoundTripTest extends KernelTestCase
         $this->check('addressKey.fingerprint', self::ADDRESS_FPR, $addressKeys[0]->fingerprint);
         $this->check('addressKey.userKey', $userKeys[0], $addressKeys[0]->userKey);
         $this->check('addressKey.addresses', ['anna@work.audit.test'], $addressKeys[0]->addresses());
+
+        // ── Contacts' keys ────────────────────────────────────────────────
+        $contactKeys = $container->get(\App\Repository\Crypto\ContactKeyRepository::class)->findForUser($user);
+        self::assertCount(2, $contactKeys, 'the contact keys did not come back');
+        $this->check('contactKey.fingerprint', self::CONTACT_FPR, $contactKeys[0]->fingerprint);
+        $this->check('contactKey.pinned', true, $contactKeys[0]->pinned);
+        $this->check('contactKey.encrypt', \App\Domain\Enum\Crypto\RecipientPolicy::Always, $contactKeys[0]->encrypt);
+        $this->check('contactKey.scheme', \App\Domain\Enum\Crypto\PgpScheme::Inline, $contactKeys[0]->scheme);
+        $this->check('contactKey (changed).status', \App\Domain\Enum\Crypto\ContactKeyStatus::Changed, $contactKeys[1]->status);
 
         // ── The user settings bag ─────────────────────────────────────────
         $this->check('setting display.clock', '24h', $user->getSetting(User::SETTING_CLOCK));
@@ -478,6 +488,15 @@ final class ConfigBackupRoundTripTest extends KernelTestCase
         );
         $addressKey->bind('anna@work.audit.test', true);
         $this->entityManager->persist($addressKey);
+
+        // A contact's key she pinned, with her preferences for him, and a
+        // changed one she has not decided about: decisions, which must travel.
+        $contactKey = new \App\Entity\Crypto\ContactKey($user, 'ben@elsewhere.test', self::CONTACT_FPR, "-----BEGIN PGP PUBLIC KEY BLOCK-----\n\nben\n-----END PGP PUBLIC KEY BLOCK-----", \App\Domain\Enum\Crypto\ContactKeyOrigin::Wkd, \App\Domain\Enum\Crypto\ContactKeyStatus::Current, null, new \DateTimeImmutable('2026-01-02 03:04:05'));
+        $contactKey->pin();
+        $contactKey->encrypt = \App\Domain\Enum\Crypto\RecipientPolicy::Always;
+        $contactKey->scheme  = \App\Domain\Enum\Crypto\PgpScheme::Inline;
+        $this->entityManager->persist($contactKey);
+        $this->entityManager->persist(new \App\Entity\Crypto\ContactKey($user, 'ben@elsewhere.test', str_repeat('e', 40), "-----BEGIN PGP PUBLIC KEY BLOCK-----\n\nnew\n-----END PGP PUBLIC KEY BLOCK-----", \App\Domain\Enum\Crypto\ContactKeyOrigin::Autocrypt, \App\Domain\Enum\Crypto\ContactKeyStatus::Changed, null, new \DateTimeImmutable()));
 
         $token = \App\Entity\User\ApiToken::restore($user, 'iPhone', self::TOKEN_HASH, 'ab12cd', null, null);
         $this->entityManager->persist($token);

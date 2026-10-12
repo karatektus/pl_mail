@@ -7,6 +7,10 @@ namespace App\Service\Backup;
 use App\Domain\Enum\Account\EmailAliasSource;
 use App\Domain\Enum\Crypto\AddressKeyOrigin;
 use App\Domain\Enum\Crypto\AddressKeyStatus;
+use App\Domain\Enum\Crypto\ContactKeyOrigin;
+use App\Domain\Enum\Crypto\ContactKeyStatus;
+use App\Domain\Enum\Crypto\PgpScheme;
+use App\Domain\Enum\Crypto\RecipientPolicy;
 use App\Domain\Enum\Crypto\UserKeyCopyKind;
 use App\Domain\Enum\Crypto\UserKeyStatus;
 use App\Domain\Enum\Account\EmailAliasStatus;
@@ -16,6 +20,7 @@ use App\Domain\Enum\Integration\Provider;
 use App\Domain\Enum\Mail\LabelRole;
 use App\Entity\Calendar\BookingPage;
 use App\Entity\Crypto\AddressKey;
+use App\Entity\Crypto\ContactKey;
 use App\Entity\Crypto\UserKey;
 use App\Entity\Crypto\UserKeyCopy;
 use App\Entity\Calendar\Calendar;
@@ -190,6 +195,7 @@ final readonly class ConfigBackupUserRestorer
 
         $this->createAppPasswords($user, $this->rows($document, 'appPasswords'));
         $this->createKeyring($user, $this->map($document, 'keyring'));
+        $this->createContactKeys($user, $this->rows($document, 'contactKeys'));
         $this->createShareLinks($user, $this->rows($document, 'shareLinks'), $calendars);
         $this->createBookingPages($user, $this->rows($document, 'bookingPages'), $calendars);
 
@@ -619,6 +625,59 @@ final readonly class ConfigBackupUserRestorer
                 if (null !== $email) {
                     $key->bind($email, true === ($binding['primary'] ?? false));
                 }
+            }
+
+            $this->entityManager->persist($key);
+        }
+    }
+
+    /**
+     * Contacts' keys. Absent from documents written before they existed,
+     * which restores as a person with none — what they had.
+     *
+     * A second Current row for one address is restored as Changed rather
+     * than dropped or allowed to break the unique index: a hand-edited file
+     * can say anything, and "the person decides" is the safe reading.
+     *
+     * @param list<array<string, mixed>> $rows
+     */
+    private function createContactKeys(User $user, array $rows): void
+    {
+        $current = [];
+        $seen    = [];
+
+        foreach ($rows as $row) {
+            $email       = $this->text($row, 'email');
+            $fingerprint = $this->text($row, 'fingerprint');
+            $publicKey   = $this->text($row, 'publicKey');
+            $origin      = ContactKeyOrigin::tryFrom((string) $this->text($row, 'origin'));
+            $status      = ContactKeyStatus::tryFrom((string) $this->text($row, 'status'));
+            $firstSeenAt = $this->moment($row, 'firstSeenAt') ?? new DateTimeImmutable();
+
+            if (null === $email || null === $fingerprint || null === $publicKey || null === $origin || null === $status) {
+                continue;
+            }
+
+            $email = strtolower($email);
+
+            if (true === isset($seen[$email . ' ' . strtolower($fingerprint)])) {
+                continue;
+            }
+
+            if (ContactKeyStatus::Current === $status && true === isset($current[$email])) {
+                $status = ContactKeyStatus::Changed;
+            }
+
+            $key = new ContactKey($user, $email, $fingerprint, $publicKey, $origin, $status, $this->moment($row, 'expiresAt'), $firstSeenAt);
+            $key->restoreState(true === ($row['pinned'] ?? false), $firstSeenAt, $this->moment($row, 'lastSeenAt') ?? $firstSeenAt);
+            $key->encrypt = RecipientPolicy::tryFrom((string) $this->text($row, 'encrypt')) ?? RecipientPolicy::Auto;
+            $key->sign    = RecipientPolicy::tryFrom((string) $this->text($row, 'sign')) ?? RecipientPolicy::Auto;
+            $key->scheme  = PgpScheme::tryFrom((string) $this->text($row, 'scheme')) ?? PgpScheme::Mime;
+
+            $seen[$email . ' ' . strtolower($fingerprint)] = true;
+
+            if (ContactKeyStatus::Current === $status) {
+                $current[$email] = true;
             }
 
             $this->entityManager->persist($key);

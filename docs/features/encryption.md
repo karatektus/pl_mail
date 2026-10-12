@@ -2,8 +2,8 @@
 
 plMail is building end-to-end encryption with OpenPGP: mail that only you and the people you write
 to can read — not the plMail server, not your mail provider. This page covers what is there today:
-your keys, how they are kept and how you get them back, and reading encrypted and signed mail.
-Sending encrypted mail follows in a later release.
+your keys, how they are kept and how you get them back, reading encrypted and signed mail, and the
+keys of the people you write to. Sending encrypted mail follows in a later release.
 
 Everything here lives under **Settings → Encryption**.
 
@@ -95,15 +95,54 @@ PGP/MIME or an armored block in plain text.
 **Signed mail** shows what checking the signature found:
 
 - *Signed, and the signature checks out* — it is intact, and the key or certificate is one plMail
-  can vouch for: a certificate from a known authority, or your own key.
-- *The message is intact, but nothing confirms who signed it* — a self-signed certificate, or a key
-  that came with the message itself.
-- *Signed with a key plMail does not know yet* — the fingerprint is shown, so you can compare it with
-  the sender. Keys of the people you write to arrive in a later release.
+  can vouch for: a certificate from a known authority, your own key, or a contact's key you marked
+  as verified.
+- *The message is intact, but nothing confirms who signed it* — a self-signed certificate, or a
+  contact's key nobody has confirmed yet. The banner offers **Trust this key**: compare the
+  fingerprint it shows with the sender first.
+- *Signed with a key plMail does not know yet* — the fingerprint is shown, and the banner offers
+  **Look up the key** in the sender's domain (see below).
+- *Signed with a different key than the one plMail knows for this sender* — your contact may have a
+  new key, or somebody may be posing as them. The banner offers **Use the new key**; do that only
+  once the sender has told you, another way, that the fingerprint is theirs.
 - *The signature does not match* — the message was changed after it was signed, or it was signed by
   somebody other than the sender. Treat it as you would any message that might be forged.
 
+The same holds for a signature inside an encrypted message, which your browser checks after
+decrypting it.
+
 The signature file itself (`signature.asc`, `smime.p7s`) is no longer shown as an attachment.
+
+## Contacts' keys
+
+**Settings → Encryption → Contacts' keys** lists the public keys plMail holds for the people you
+write to: the address, the fingerprint in groups of four, where the key came from, and a checkmark
+for the ones you verified. plMail uses them to check those people's signatures, and will encrypt to
+them once it sends encrypted mail.
+
+They come from three places, and you do not have to do anything for the first two:
+
+- **Mail you receive.** A key in a message's `Autocrypt:` header, or attached to it as a key file,
+  is kept for the sender — only for the sender, and only a key that names the sender's address.
+- **The sender's domain**, through its Web Key Directory (WKD). **Look up a key** asks for one by
+  address; the banner of a signature from an unknown key asks for the sender's. The request goes
+  out from the plMail server, not from your browser.
+- **An import** — paste a public key block or choose a file. The key is kept for every address it
+  names.
+
+plMail trusts the **first** key it finds for an address. If a **different** key turns up later — in
+a message, from WKD, or in an import — it is listed under the known one with a warning, and plMail
+keeps using the known key until you decide. A new key from a contact who lost the old one and a key
+from somebody posing as them look exactly alike; only the contact can tell you which it is. Ask them
+for the fingerprint, by phone or in person, and then **Use this key instead** — or remove it.
+
+**Mark as verified** says you compared the fingerprint with the contact. It is what turns their
+signatures from *intact, but nothing confirms who signed it* into *the signature checks out*, and
+it shows a checkmark. Nobody else's word counts: there is no web of trust.
+
+Keys that are revoked or expired, or that do not name the address, are not kept. Each key also has
+**Preferences for this recipient** — encrypt, sign, PGP/MIME or inline — which take effect once
+plMail sends encrypted mail.
 
 ## Things that bite
 
@@ -137,6 +176,22 @@ arrived earlier keeps showing what it showed then until it is synced anew.
 
 **Printing an encrypted message prints no body.** The print view is drawn by the server, which does
 not have one.
+
+**A changed key is never used until you say so — even one you imported yourself.** The warning is
+the point: it is the moment to ask the contact, not to click it away.
+
+**Accepting a changed key removes the old one.** Signatures made with the old key then read as made
+by *a different key*. Their earlier mail keeps the verdict it had, apart from the most recent two
+hundred signed messages from that sender, which are checked again.
+
+**Mail that arrived before this update brought no keys.** Keys are collected from mail as it
+arrives. For a contact whose key you want now, look it up or import it.
+
+**A lookup tells the contact's domain that someone asked.** It does not tell them who: the request
+comes from the plMail server. Answers are remembered for a day (an hour when there was none), and
+each person may make thirty lookups in ten minutes.
+
+**keys.openpgp.org is not asked.** Only the contact's own domain is, through WKD.
 
 **Changing your password in Settings carries your keys over.** Changing it any other way — an
 administrator, `app:user:password` — locks them, and the recovery phrase or a known device opens

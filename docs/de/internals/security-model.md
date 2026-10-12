@@ -1,4 +1,4 @@
-<!-- translated-from: internals/security-model.md sha1:d8c1c9db8e5128d4155352f0de88fb2108c9a959 -->
+<!-- translated-from: internals/security-model.md sha1:f2c6b65938befe724c194cff7575fd5c317e1934 -->
 # Sicherheitsmodell
 
 Verschlüsselung ruhender Daten und die Prüfung, die den Start ohne brauchbaren Schlüssel
@@ -272,8 +272,9 @@ Verschlüsselte Arten bekommen einen leeren Body; Teile, die nur Hülle sind (`s
 Signierte Mails werden nach dem Commit auf dem Transport `enrich` geprüft (`VerifySignatureMessage`):
 S/MIME mit OpenSSL, zuerst gegen die Zertifizierungsstellen des Systems (Valid), dann mit
 `PKCS7_NOVERIFY` (Untrusted); PGP mit ext-gnupg in einem GnuPG-Verzeichnis, das für eine Prüfung
-angelegt und danach gelöscht wird, gegen die eigenen Adress-Keys der Person (Valid) und einen
-Autocrypt-Schlüssel in der Nachricht (Untrusted). Eine Signatur von einer anderen Adresse als `From`
+angelegt und danach gelöscht wird (`GnupgHome`), gegen die eigenen Adress-Keys der Person (Valid),
+ihre Schlüssel für den Absender (siehe unten) und einen Autocrypt-Schlüssel in der Nachricht, dessen
+`addr=` gleich `From` ist. Eine Signatur von einer anderen Adresse als `From`
 ist in beiden Fällen Invalid. `PgpMimeSplitter` holt die signierten Bytes von Hand aus der
 Rohquelle, weil jeder MIME-Parser etwas Dekodiertes zurückgibt.
 
@@ -284,6 +285,60 @@ Sandbox-Frame, gebaut aus demselben Dokument (`mail/_frame_document.html.twig`, 
 Platzhalter `<!--plmail:body-->`), sodass CSP und per Hash erlaubtes Frame-Skript Byte für Byte die
 des Servers sind. Externe Bilder werden ersetzt, nicht über den Proxy geladen: der Proxy würde die
 URLs erfahren, die der Absender verschlüsselt hat.
+
+## Schlüssel der Kontakte und Schlüsselsuche
+
+Phase 4 von Issue #28. `ContactKey` ist eine Zeile pro Person, Adresse und Schlüssel; `ContactKeys`
+schreibt als Einziges hinein und hält die Vertrauensregel, **Trust on First Use**:
+
+- Der erste verwendbare Schlüssel für eine Adresse ist `current`. Jeder andere danach ist `changed`
+  und wird für nichts verwendet, bis die Person ihn akzeptiert — nicht, wenn er per Mail kommt, nicht
+  über WKD, nicht aus einem Import. Ein partieller Unique-Index (`uniq_contact_key_current`,
+  `WHERE status = 'current'`) ist der Schutz, wenn zwei Worker gleichzeitig Schlüssel übernehmen; das
+  Lesen-dann-Schreiben in PHP ist es nicht.
+- Eine Adresse mit irgendwelchen Schlüsseln — etwa einem entfernten `current` neben einem wartenden
+  `changed` — bekommt durch Ankunft keinen neuen `current`. Die Entscheidung bleibt bei der Person.
+- `pinned` ist das Wort der Person, dass sie den Fingerprint verglichen hat. Es gibt kein Web of
+  Trust: Beglaubigungen auf einem Schlüssel zählen nichts.
+- Was ein verwendbarer Schlüssel ist, entscheidet gpg (`PublicKeyReader`, in einem Wegwerf-
+  Verzeichnis): eine User-ID für die Adresse mit gültiger Selbstsignatur, nicht widerrufen, nicht
+  abgelaufen. Privates Schlüsselmaterial wird abgewiesen, bevor gpg es sieht.
+
+`SignatureVerifier` importiert die eigenen Schlüssel der Person, jeden Schlüssel, den sie für `From`
+hat, und den Autocrypt-Schlüssel der Nachricht. Eigener Schlüssel oder gepinnter `current`: Valid.
+Ungepinnter `current`: Untrusted. Ein `changed`-Schlüssel, ein Autocrypt-Schlüssel, während die
+Adresse schon Schlüssel hat, oder ein fehlender Schlüssel, während sie einen `current` hat:
+**KeyChanged**. Der Browser wendet dieselbe Tabelle auf eine Signatur in verschlüsselter Mail an
+(`assets/crypto/message.js`, mit den Schlüsseln von `GET /contact-keys/sender`). Jede Änderung an den
+Schlüsseln eines Absenders reiht `VerifySignatureMessage` für seine neuesten zweihundert
+PGP-signierten Nachrichten ein (`SignatureRecheck`); die Aktionen im Banner prüfen die geöffnete
+Nachricht sofort.
+
+**Aus eingehender Mail übernommen** von `CollectContactKeysStep` → `CollectContactKeysMessage` auf
+`enrich`: der Autocrypt-Header nur, wenn `addr=` gleich `From` ist (und nur, wenn er der einzige
+gültige Header ist, ohne unbekanntes kritisches Attribut), angehängte Schlüssel aus der Rohquelle
+nur mit einer User-ID für `From`, nie für Mail von den eigenen Adressen der Person. Eine Nachricht
+kann jedermanns Schlüssel tragen; dass der Absender für seinen eigenen bürgt, ist die einzige
+Aussage, die sie machen kann.
+
+**WKD über den Server** (`WkdLookup`), weil die Seite nur mit ihrem eigenen Ursprung sprechen darf.
+Das ist ein Endpunkt, der URLs abruft, die aus Benutzereingaben abgeleitet sind, also:
+
+- Die URL wird gebaut, nie übernommen: `https://openpgpkey.<domain>/.well-known/openpgpkey/<domain>/hu/<z-base-32 des SHA-1 des kleingeschriebenen lokalen Teils>?l=<lokaler Teil>`,
+  danach `https://<domain>/.well-known/openpgpkey/hu/…`. Die Domain muss ein IDNA-kodierter DNS-Name
+  mit mindestens zwei Labels sein — kein IP-Literal, kein Port, kein Pfad, kein nackter
+  Container-Name.
+- Der Host wird zuerst aufgelöst; ist unter seinen A- und AAAA-Einträgen eine private oder
+  reservierte Adresse, wird nichts gefragt. Die geprüfte Adresse wird festgehalten (`resolve`), und
+  `NoPrivateNetworkHttpClient` prüft die Adresse, mit der tatsächlich verbunden wird.
+- Keine Weiterleitungen (`max_redirects: 0`), 4 Sekunden Timeout und 8 Sekunden Obergrenze, und ein
+  Limit von 256 KiB, das schon während des Empfangs greift.
+- Antworten werden in `cache.app` gemerkt, einen Tag bei einem Treffer und eine Stunde ohne, und nur
+  Suchen, die hinausgehen, zählen gegen den Limiter `wkd_lookup` pro Person (30 in 10 Minuten).
+- Nur Schlüssel mit einer User-ID für die gefragte Adresse werden behalten.
+
+keys.openpgp.org (VKS) wird nicht gefragt; das Konzept lässt das als optionale Instanz-Einstellung
+offen.
 
 ## Firewalls
 
@@ -847,6 +902,23 @@ ist eine erzeugte Spalte, also hat das INSERT mit dem Chiffrat-Body es schon ind
 **Wer `_frame_document.html.twig` ändert, ändert beide Wege, und genau so soll es sein.** Das
 Frame-Skript ist über den Hash seines genauen Texts erlaubt; eine zweite Kopie des Dokuments in
 JavaScript liefe nicht mehr, sobald sich eine der beiden ändert.
+
+**Ein geänderter Schlüssel, der auf einem anderen Weg als `ContactKeys::accept()` zu `current` wird,
+hebelt TOFU aus.** Der partielle Index verhindert zwei `current`-Zeilen, nicht einen Schreibvorgang,
+der den bekannten Schlüssel vorher herabstuft. Jeder Schreiber geht über `ContactKeys`.
+
+**Ein Autocrypt-Header wird nur gelesen, wenn `addr=` gleich `From` ist.** Phase 3 las jeden; ein
+Header, der jemand anderen nennt, würde jetzt beim ersten Mal einen Schlüssel für diese Person
+unterschieben.
+
+**WKD-URLs werden aus einer geprüften Domain gebaut, nie aus der Eingabe.** Ein Such-Endpunkt, der
+eine URL nähme, oder eine Domain mit Port oder Pfad darin, wäre eine SSRF-Lücke, egal wie gut der
+Client darunter Adressen prüft.
+
+**`MockHttpClient` folgt keiner Weiterleitung, egal was man ihm sagt**, und
+`NoPrivateNetworkHttpClient` folgt ihnen selbst, nie der Client darunter. Ein Test kann nicht zeigen,
+dass `max_redirects: 0` wirkt; die Option in `WkdLookup::fetch()` ist der Schutz, und dort steht,
+warum.
 
 **Der Prelogin unterscheidet genau eines: ein Konto, das noch nicht umgestellt ist.** Sein
 `migrate: true` ist der einzige Unterschied zwischen einer bekannten und einer unbekannten Adresse,

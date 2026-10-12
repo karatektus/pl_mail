@@ -7,12 +7,11 @@ namespace App\Service\Crypto;
 use App\Domain\Enum\Crypto\MessageCrypto;
 use App\Domain\Enum\Crypto\SignatureState;
 use App\Entity\Mail\Message;
+use App\Entity\Crypto\ContactKey;
 use App\Repository\Crypto\AddressKeyRepository;
+use App\Repository\Crypto\ContactKeyRepository;
 use App\Service\Mail\RawMessageResolver;
-use FilesystemIterator;
 use Psr\Log\LoggerInterface;
-use RecursiveDirectoryIterator;
-use RecursiveIteratorIterator;
 use Throwable;
 
 /**
@@ -33,11 +32,19 @@ use Throwable;
  * removed after it. One home per check rather than a shared keyring: workers
  * run side by side and the container under any uid, and the keys to check
  * against are whatever the database says now, not what a keyring remembers.
- * Until contacts' keys exist (phase 4 of issue #28) there are two sources: the
- * person's own address keys — a message they sent themselves is Valid — and an
- * Autocrypt header in the message itself, which proves the message is intact
- * but not who wrote it, and is Untrusted. Without either, UnknownKey, with the
- * signing key's fingerprint as the signer so it can be compared by hand.
+ * Three sources of keys go in:
+ *
+ *   - the person's own address keys: a message they sent themselves is Valid;
+ *   - the keys they hold for the sender's address (ContactKey): a pinned one
+ *     makes the signature Valid, an unpinned Current one Untrusted — intact,
+ *     but nobody confirmed the key — and a Changed one, or any key other than
+ *     the Current one, KeyChanged;
+ *   - an Autocrypt header in the message itself, which proves the message is
+ *     intact but not who wrote it: Untrusted, or KeyChanged when the sender
+ *     already has a different key.
+ *
+ * Without any of them, UnknownKey, with the signing key's fingerprint as the
+ * signer so it can be compared by hand and looked up.
  *
  * A signature naming somebody other than the sender is Invalid in both cases:
  * a valid signature from the wrong person is the forgery worth catching.
@@ -47,6 +54,7 @@ final readonly class SignatureVerifier
     public function __construct(
         private RawMessageResolver   $raw,
         private AddressKeyRepository $addressKeys,
+        private ContactKeyRepository $contactKeys,
         private LoggerInterface      $logger,
     ) {
     }
@@ -188,23 +196,25 @@ final readonly class SignatureVerifier
      */
     private function pgp(Message $message, callable $check): ?array
     {
-        if (false === class_exists(\gnupg::class)) {
+        if (false === GnupgHome::available()) {
             $this->logger->notice('ext-gnupg is not installed; PGP signatures stay unchecked.');
 
             return null;
         }
 
-        $home = sys_get_temp_dir() . '/plmail-gnupg-' . bin2hex(random_bytes(8));
-        mkdir($home, 0700);
+        $from      = strtolower(trim((string) $message->fromAddress));
+        $own       = $this->ownKeys($message);
+        $contacts  = $this->contactKeys->findForAddress($message->account->usr, $from);
+        $autocrypt = Autocrypt::keyFor($message->headers ?? [], $from);
 
-        try {
-            $gpg = new \gnupg(['home_dir' => $home]);
-            $gpg->seterrormode(\gnupg::ERROR_SILENT);
+        return GnupgHome::with(static function (\gnupg $gpg) use ($check, $from, $own, $contacts, $autocrypt): ?array {
+            $keys = [
+                ...array_keys($own),
+                ...array_map(static fn (ContactKey $key): string => $key->publicKey, $contacts),
+                ...(null === $autocrypt ? [] : [$autocrypt]),
+            ];
 
-            $own       = $this->ownKeys($message);
-            $autocrypt = self::autocryptKey($message);
-
-            foreach ([...array_keys($own), ...(null === $autocrypt ? [] : [$autocrypt])] as $key) {
+            foreach ($keys as $key) {
                 $gpg->import($key);
             }
 
@@ -217,12 +227,19 @@ final readonly class SignatureVerifier
             $signature   = $signatures[0];
             $fingerprint = strtolower((string) ($signature['fingerprint'] ?? ''));
             $summary     = (int) ($signature['summary'] ?? 0);
+            $current     = self::currentKey($contacts);
 
             if (0 !== ($summary & \GNUPG_SIGSUM_KEY_MISSING)) {
-                return ['state' => SignatureState::UnknownKey, 'signer' => '' === $fingerprint ? null : $fingerprint];
+                // None of the keys plMail has. When the sender has a known
+                // key, that alone is the news: whoever signed this, it was not
+                // with the key plMail knows for them.
+                return [
+                    'state'  => null === $current ? SignatureState::UnknownKey : SignatureState::KeyChanged,
+                    'signer' => '' === $fingerprint ? null : $fingerprint,
+                ];
             }
 
-            if (0 !== (int) ($signature['status'] ?? 1) || 0 !== ($summary & \GNUPG_SIGSUM_RED)) {
+            if (0 !== (int) ($signature['status'] ?? 1) || 0 !== ($summary & (\GNUPG_SIGSUM_RED | \GNUPG_SIGSUM_KEY_REVOKED))) {
                 return ['state' => SignatureState::Invalid, 'signer' => '' === $fingerprint ? null : $fingerprint];
             }
 
@@ -237,17 +254,50 @@ final readonly class SignatureVerifier
                 (array) ($signerKey['uids'] ?? []),
             );
 
-            if (false === in_array(strtolower((string) $message->fromAddress), $addresses, true)) {
+            if (false === in_array($from, $addresses, true)) {
                 return ['state' => SignatureState::Invalid, 'signer' => $primary];
             }
 
-            return [
-                'state'  => true === in_array($primary, array_values($own), true) ? SignatureState::Valid : SignatureState::Untrusted,
-                'signer' => $primary,
-            ];
-        } finally {
-            self::removeTree($home);
+            return ['state' => self::trust($primary, $own, $contacts, $current), 'signer' => $primary];
+        });
+    }
+
+    /**
+     * How far a good signature by $primary, with a user ID for the sender, is
+     * to be believed.
+     *
+     * @param array<string, string> $own
+     * @param list<ContactKey>      $contacts
+     */
+    private static function trust(string $primary, array $own, array $contacts, ?ContactKey $current): SignatureState
+    {
+        if (true === in_array($primary, array_values($own), true)) {
+            return SignatureState::Valid;
         }
+
+        if (null !== $current && $primary === $current->fingerprint) {
+            return true === $current->pinned ? SignatureState::Valid : SignatureState::Untrusted;
+        }
+
+        // A Changed key, or the Autocrypt key of a message from a sender
+        // plMail already holds another key for, is a key other than the known
+        // one. Only with no key at all for the address is a key from the
+        // message itself merely unconfirmed.
+        return [] === $contacts ? SignatureState::Untrusted : SignatureState::KeyChanged;
+    }
+
+    /**
+     * @param list<ContactKey> $contacts
+     */
+    private static function currentKey(array $contacts): ?ContactKey
+    {
+        foreach ($contacts as $key) {
+            if (true === $key->isCurrent()) {
+                return $key;
+            }
+        }
+
+        return null;
     }
 
     /**
@@ -267,39 +317,4 @@ final readonly class SignatureVerifier
         return $keys;
     }
 
-    /**
-     * The key an Autocrypt header carries (RFC-style `keydata=` base64), as
-     * binary OpenPGP that gpg imports as it is.
-     */
-    private static function autocryptKey(Message $message): ?string
-    {
-        $header = $message->headers['autocrypt'] ?? null;
-        $value  = is_array($header) ? (string) ($header[0] ?? '') : (string) $header;
-
-        if (1 !== preg_match('/keydata=([A-Za-z0-9+\/=\s]+)/', $value, $match)) {
-            return null;
-        }
-
-        $bytes = base64_decode((string) preg_replace('/\s+/', '', $match[1]), true);
-
-        return false === $bytes || '' === $bytes ? null : $bytes;
-    }
-
-    private static function removeTree(string $path): void
-    {
-        if (false === is_dir($path)) {
-            return;
-        }
-
-        $entries = new RecursiveIteratorIterator(
-            new RecursiveDirectoryIterator($path, FilesystemIterator::SKIP_DOTS),
-            RecursiveIteratorIterator::CHILD_FIRST,
-        );
-
-        foreach ($entries as $entry) {
-            true === $entry->isDir() && false === $entry->isLink() ? @rmdir($entry->getPathname()) : @unlink($entry->getPathname());
-        }
-
-        @rmdir($path);
-    }
 }

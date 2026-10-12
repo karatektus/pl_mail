@@ -14,25 +14,30 @@ import { openEncrypted } from "../../crypto/message.js";
  *
  * Values:
  *   rawUrl     — the message's byte-exact source (MessageSourceController::raw)
+ *   senderKeysUrl — the keys the person holds for the sender
+ *                (ContactKeyController::sender), for the signature inside
  *   document   — the frame document, with `<!--plmail:body-->` where the body goes
  *   keyring    — the keyring's config: stateUrl, unlockUrl, preloginUrl, csrf, userId, email
  *   settingsUrl — Settings → Encryption, for a locked keyring
  *   messages   — translated: decrypting, locked, noKey, noSource, failed,
- *                signature.{valid, invalid, unknown_key, unchecked}
+ *                signature.{valid, invalid, unknown_key, untrusted, key_changed, unchecked}
  *
  * Targets:
  *   status       — what is happening, or what went wrong
  *   signature    — the line in the banner that says what the signature said
+ *   signatureActions — the banner's lookup button and settings link, shown
+ *                  for a signature plMail cannot vouch for
  *   frameHost    — the mail--message-frame wrapper, hidden until there is HTML
  *   frame        — its iframe
  *   text         — a <pre> for a plain-text message
  *   attachments  — where the decrypted attachments are listed
  */
 export default class extends Controller {
-    static targets = ["status", "signature", "frameHost", "frame", "text", "attachments"];
+    static targets = ["status", "signature", "signatureActions", "frameHost", "frame", "text", "attachments"];
 
     static values = {
         rawUrl: String,
+        senderKeysUrl: String,
         document: String,
         keyring: Object,
         settingsUrl: String,
@@ -52,6 +57,39 @@ export default class extends Controller {
         });
 
         this.#observer.observe(this.element);
+    }
+
+    /**
+     * The banner's "look up the key" for a signature inside the encryption:
+     * asks the server (ContactKeyController::messageLookup) as JSON, and on
+     * an answer opens the message again, so the signature is checked against
+     * the keys as they now stand. The decrypted result is not kept, so
+     * opening again is the honest way to get there.
+     */
+    async lookUp(event) {
+        event.preventDefault();
+
+        const form = event.currentTarget;
+        const button = form.querySelector("button");
+
+        button.disabled = true;
+
+        const response = await fetch(form.action, {
+            method: "POST",
+            headers: { Accept: "application/json" },
+            body: new FormData(form),
+        }).catch(() => null);
+
+        button.disabled = false;
+
+        const answer = null === response ? null : await response.json().catch(() => null);
+
+        if (null !== answer && true === answer.ok) {
+            this.#opened = false;
+            this.#urls.forEach((url) => URL.revokeObjectURL(url));
+            this.#urls = [];
+            await this.#open();
+        }
     }
 
     disconnect() {
@@ -96,7 +134,7 @@ export default class extends Controller {
         let opened;
 
         try {
-            opened = await openEncrypted(new Uint8Array(await response.arrayBuffer()), ring);
+            opened = await openEncrypted(new Uint8Array(await response.arrayBuffer()), ring, await this.#senderKeys());
         } catch (error) {
             this.#say("no_key" === error?.message ? this.messagesValue.noKey : this.messagesValue.failed, true);
 
@@ -114,6 +152,21 @@ export default class extends Controller {
             this.textTarget.textContent = opened.text ?? "";
             this.textTarget.hidden = false;
         }
+    }
+
+    /**
+     * The sender's keys, or none when they cannot be fetched — the signature
+     * is then checked against the person's own keys alone, which only ever
+     * says less, never something false.
+     */
+    async #senderKeys() {
+        if (false === this.hasSenderKeysUrlValue || "" === this.senderKeysUrlValue) {
+            return [];
+        }
+
+        const response = await fetch(this.senderKeysUrlValue, { headers: { Accept: "application/json" }, cache: "no-store" }).catch(() => null);
+
+        return null === response || false === response.ok ? [] : response.json().catch(() => []);
     }
 
     #say(message, isProblem, link = null) {
@@ -140,6 +193,10 @@ export default class extends Controller {
 
         this.signatureTarget.textContent = text.replace("%signer%", formatSigner(signature.signer));
         this.signatureTarget.hidden = "" === text;
+
+        if (true === this.hasSignatureActionsTarget) {
+            this.signatureActionsTarget.hidden = false === ["unknown_key", "untrusted", "key_changed"].includes(signature.state);
+        }
     }
 
     /**

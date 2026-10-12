@@ -11,7 +11,9 @@ use App\Entity\Mail\Message;
 use App\Entity\Mail\MessageThread;
 use App\Repository\Mail\AccountRepository;
 use App\Repository\User\UserRepository;
+use App\Service\Crypto\ContactKeyCollector;
 use App\Service\Crypto\MessageCryptoDetector;
+use App\Service\Crypto\SignatureVerifier;
 use App\Service\Label\LabelResolver;
 use App\Service\Mail\RawMessageResolver;
 use DateTimeImmutable;
@@ -31,7 +33,11 @@ use Symfony\Component\DependencyInjection\Attribute\Autowire;
  *
  * The message is classified the way ingest classifies it
  * (MessageCryptoDetector) and its raw source stored the way ingest stores it,
- * so the reading pane meets it exactly as it would meet synced mail. Base64 on
+ * so the reading pane meets it exactly as it would meet synced mail. What the
+ * enrich workers would do next — keep the sender's Autocrypt key
+ * (ContactKeyCollector), check a signature (SignatureVerifier) — happens here,
+ * right away: the test stack runs no enrich worker (compose.test.yaml), and a
+ * spec about signatures needs the verdict on the page. Base64 on
  * the command line rather than a file: the spec runs outside the container
  * and a few kilobytes of armor fit an argument easily.
  *
@@ -52,6 +58,8 @@ final class SeedCryptoMailCommand extends Command
         private readonly LabelResolver          $labels,
         private readonly MessageCryptoDetector  $detector,
         private readonly RawMessageResolver     $raw,
+        private readonly ContactKeyCollector    $collector,
+        private readonly SignatureVerifier      $verifier,
         private readonly EntityManagerInterface $entityManager,
         #[Autowire('%kernel.environment%')]
         private readonly string                 $environment,
@@ -99,7 +107,10 @@ final class SeedCryptoMailCommand extends Command
         $message->fromName       = 'E2E Sender';
         $message->fromAddress    = 'sender@e2e.test';
         $message->toAddresses    = [['name' => 'E2E Tester', 'address' => self::SEED_ACCOUNT_USERNAME]];
-        $message->headers        = ['content-type' => self::contentType($headers)];
+        $message->headers        = array_filter([
+            'content-type' => self::contentType($headers),
+            'autocrypt'    => self::header($headers, 'autocrypt'),
+        ]);
         $message->receivedAt     = $now;
         $message->sentAt         = $now;
         $message->hasAttachments = false;
@@ -131,6 +142,18 @@ final class SeedCryptoMailCommand extends Command
         $this->raw->store($message, $raw);
         $this->entityManager->flush();
 
+        if (null !== $message->crypto && false === $message->crypto->isEncrypted()) {
+            $this->collector->collect($message);
+
+            $result = $this->verifier->verify($message);
+
+            if (null !== $result) {
+                $message->signatureState = $result['state'];
+                $message->signer         = $result['signer'];
+                $this->entityManager->flush();
+            }
+        }
+
         $io->success(sprintf('Delivered "%s" (%s).', $subject, $message->crypto->value ?? 'plain'));
 
         return Command::SUCCESS;
@@ -142,6 +165,14 @@ final class SeedCryptoMailCommand extends Command
         $unfolded = (string) preg_replace("/\r\n[ \t]+/", ' ', $headers);
 
         return 1 === preg_match('/^content-type:\s*(.+)$/im', $unfolded, $match) ? trim($match[1]) : 'text/plain';
+    }
+
+    /** One header, unfolded, or null. */
+    private static function header(string $headers, string $name): ?string
+    {
+        $unfolded = (string) preg_replace("/\r\n[ \t]+/", ' ', $headers);
+
+        return 1 === preg_match('/^' . preg_quote($name, '/') . ':\s*(.+)$/im', $unfolded, $match) ? trim($match[1]) : null;
     }
 
     /** For inline PGP: the body of a single-part text message. */

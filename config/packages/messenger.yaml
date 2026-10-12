@@ -345,6 +345,9 @@ framework:
             # worst, then OpenSSL or GnuPG. Per message and soon after it
             # arrives, which is what `enrich` is for.
             App\Infrastructure\Messaging\Message\VerifySignatureMessage: enrich
+            # Reading the sender's key out of a message — its Autocrypt header,
+            # an attached key — for the same reasons, beside the check it feeds.
+            App\Infrastructure\Messaging\Message\CollectContactKeysMessage: enrich
             App\Infrastructure\Messaging\Message\SyncGmailMessageBatchMessage: ingest
             App\Infrastructure\Messaging\Message\SyncGraphMessageBatchMessage: ingest
             App\Infrastructure\Messaging\Message\ApplyGraphChangesMessage: export

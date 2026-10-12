@@ -1,12 +1,12 @@
-<!-- translated-from: features/encryption.md sha1:c88dd362364636551eb58022e2143303a4938c4e -->
+<!-- translated-from: features/encryption.md sha1:f08060f82996e652cb66bddd57dc5d10f46d9b99 -->
 
 # Verschlüsselung
 
 plMail baut Ende-zu-Ende-Verschlüsselung mit OpenPGP: Mails, die nur du und die Menschen lesen
 können, denen du schreibst — nicht der plMail-Server und nicht dein Mail-Anbieter. Diese Seite
 beschreibt, was es heute schon gibt: deine Schlüssel, wie sie aufbewahrt werden und wie du sie
-zurückbekommst, und das Lesen verschlüsselter und signierter Mails. Verschlüsselt senden folgt in
-einer späteren Version.
+zurückbekommst, das Lesen verschlüsselter und signierter Mails und die Schlüssel der Menschen, denen
+du schreibst. Verschlüsselt senden folgt in einer späteren Version.
 
 Alles hier liegt unter **Einstellungen → Verschlüsselung**.
 
@@ -102,16 +102,60 @@ Nachricht*. Das gilt für OpenPGP, egal ob als PGP/MIME oder als Block im reinen
 **Signierte Mails** zeigen, was die Prüfung der Signatur ergeben hat:
 
 - *Signiert, und die Signatur stimmt* — unverändert, und der Schlüssel oder das Zertifikat ist eines,
-  für das plMail bürgen kann: ein Zertifikat einer bekannten Stelle oder dein eigener Schlüssel.
+  für das plMail bürgen kann: ein Zertifikat einer bekannten Stelle, dein eigener Schlüssel oder der
+  Schlüssel eines Kontakts, den du als verifiziert markiert hast.
 - *Die Nachricht ist unverändert, aber nichts bestätigt, wer signiert hat* — ein selbst
-  ausgestelltes Zertifikat oder ein Schlüssel, der mit der Nachricht selbst kam.
-- *Mit einem Schlüssel signiert, den plMail noch nicht kennt* — der Fingerprint wird angezeigt,
-  damit du ihn mit dem Absender vergleichen kannst. Die Schlüssel deiner Kontakte kommen in einer
-  späteren Version.
+  ausgestelltes Zertifikat oder der Schlüssel eines Kontakts, den noch niemand bestätigt hat. Das
+  Banner bietet **Diesem Schlüssel vertrauen** an: Vergleiche vorher den angezeigten Fingerprint mit
+  dem Absender.
+- *Mit einem Schlüssel signiert, den plMail noch nicht kennt* — der Fingerprint wird angezeigt, und
+  das Banner bietet **Schlüssel suchen** in der Domain des Absenders an (siehe unten).
+- *Mit einem anderen Schlüssel signiert als dem, den plMail für diesen Absender kennt* — dein Kontakt
+  hat vielleicht einen neuen Schlüssel, oder jemand gibt sich als er aus. Das Banner bietet **Neuen
+  Schlüssel verwenden** an; tu das erst, wenn der Absender dir auf anderem Weg bestätigt hat, dass
+  der Fingerprint seiner ist.
 - *Die Signatur passt nicht* — die Nachricht wurde nach dem Signieren verändert, oder jemand anderes
   als der Absender hat sie signiert. Behandle sie wie jede Nachricht, die gefälscht sein könnte.
 
+Dasselbe gilt für eine Signatur in einer verschlüsselten Nachricht, die dein Browser nach dem
+Entschlüsseln prüft.
+
 Die Signaturdatei selbst (`signature.asc`, `smime.p7s`) erscheint nicht mehr als Anhang.
+
+## Schlüssel deiner Kontakte
+
+**Einstellungen → Verschlüsselung → Schlüssel deiner Kontakte** listet die öffentlichen Schlüssel,
+die plMail für die Menschen hat, denen du schreibst: die Adresse, den Fingerprint in Vierergruppen,
+woher der Schlüssel kam, und ein Häkchen bei denen, die du verifiziert hast. plMail prüft damit die
+Signaturen dieser Menschen und verschlüsselt an sie, sobald es verschlüsselt senden kann.
+
+Sie kommen aus drei Quellen, und für die ersten beiden musst du nichts tun:
+
+- **Mails, die du bekommst.** Ein Schlüssel im `Autocrypt:`-Header einer Nachricht oder als
+  angehängte Schlüsseldatei wird für den Absender gespeichert — nur für den Absender, und nur ein
+  Schlüssel, der dessen Adresse nennt.
+- **Die Domain des Absenders**, über ihr Web Key Directory (WKD). **Schlüssel suchen** fragt nach
+  einer Adresse; das Banner einer Signatur mit unbekanntem Schlüssel fragt nach der des Absenders.
+  Die Anfrage geht vom plMail-Server aus, nicht von deinem Browser.
+- **Ein Import** — füge einen öffentlichen Schlüsselblock ein oder wähle eine Datei. Der Schlüssel
+  wird für jede Adresse gespeichert, die er nennt.
+
+plMail vertraut dem **ersten** Schlüssel, den es für eine Adresse findet. Taucht später ein
+**anderer** auf — in einer Nachricht, über WKD oder in einem Import —, steht er mit einer Warnung
+unter dem bekannten, und plMail verwendet weiter den bekannten Schlüssel, bis du entscheidest. Ein
+neuer Schlüssel eines Kontakts, der den alten verloren hat, und der Schlüssel von jemandem, der sich
+als dieser ausgibt, sehen genau gleich aus; nur der Kontakt kann dir sagen, was es ist. Frag ihn nach
+dem Fingerprint, am Telefon oder persönlich, und wähle dann **Diesen Schlüssel verwenden** — oder
+entferne ihn.
+
+**Als verifiziert markieren** heißt, dass du den Fingerprint mit dem Kontakt verglichen hast. Erst
+das macht aus seinen Signaturen statt *unverändert, aber nichts bestätigt, wer signiert hat* ein
+*die Signatur stimmt*, und es zeigt ein Häkchen. Niemand sonst kann das bezeugen: Es gibt kein Web of
+Trust.
+
+Widerrufene oder abgelaufene Schlüssel und solche, die die Adresse nicht nennen, werden nicht
+gespeichert. Jeder Schlüssel hat außerdem **Einstellungen für diesen Empfänger** — verschlüsseln,
+signieren, PGP/MIME oder Inline —, die gelten, sobald plMail verschlüsselt sendet.
 
 ## Fallstricke
 
@@ -149,6 +193,25 @@ sie neu synchronisiert wird.
 
 **Eine verschlüsselte Nachricht zu drucken, druckt keinen Text.** Die Druckansicht zeichnet der
 Server, und der hat keinen.
+
+**Ein geänderter Schlüssel wird nie verwendet, bevor du es sagst — auch keiner, den du selbst
+importiert hast.** Die Warnung ist der Sinn der Sache: Das ist der Moment, den Kontakt zu fragen,
+nicht sie wegzuklicken.
+
+**Wer einen geänderten Schlüssel akzeptiert, entfernt den alten.** Mit dem alten Schlüssel
+erstellte Signaturen gelten dann als mit *einem anderen Schlüssel* signiert. Ältere Mails behalten
+ihr Ergebnis, außer den letzten zweihundert signierten Nachrichten dieses Absenders, die neu geprüft
+werden.
+
+**Mails von vor diesem Update haben keine Schlüssel mitgebracht.** Schlüssel werden aus Mails
+übernommen, wenn sie ankommen. Für einen Kontakt, dessen Schlüssel du jetzt brauchst, such ihn oder
+importiere ihn.
+
+**Eine Suche verrät der Domain des Kontakts, dass jemand gefragt hat.** Nicht, wer: Die Anfrage kommt
+vom plMail-Server. Antworten werden einen Tag lang gemerkt (eine Stunde, wenn es keine gab), und jede
+Person kann dreißig Suchen in zehn Minuten stellen.
+
+**keys.openpgp.org wird nicht gefragt.** Nur die eigene Domain des Kontakts, über WKD.
 
 **Dein Passwort in den Einstellungen zu ändern, nimmt deine Schlüssel mit.** Jede andere Änderung —
 durch eine Administratorin, mit `app:user:password` — sperrt sie, und die Recovery-Phrase oder ein

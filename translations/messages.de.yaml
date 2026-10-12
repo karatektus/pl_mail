@@ -1917,6 +1917,66 @@ compose:
         search: 'Vorlage suchen'
         untitled: 'Unbenannte Vorlage'
 
+contact_keys:
+    heading: "Schlüssel deiner Kontakte"
+    subheading: "Die öffentlichen Schlüssel, mit denen plMail die Signaturen deiner Kontakte prüft — und an die es verschlüsselt, sobald plMail verschlüsselt senden kann."
+    loading: "Schlüssel der Kontakte werden geladen…"
+    empty: "Noch keine Schlüssel. plMail übernimmt sie aus signierten Mails; du kannst oben auch einen suchen oder importieren."
+    verified: "Verifiziert"
+    first_seen: "zuerst gesehen %date%"
+    last_seen: "zuletzt gesehen %date%"
+    expires: "läuft ab %date%"
+    origin:
+        attached: "An einer Mail angehängt"
+        autocrypt: "Aus dem Autocrypt-Header einer Mail"
+        manual: "Von dir importiert"
+        wkd: "Aus dem Schlüsselverzeichnis der Domain (WKD)"
+    pin: "Als verifiziert markieren"
+    unpin: "Häkchen entfernen"
+    accept: "Diesen Schlüssel verwenden"
+    remove: "Entfernen"
+    confirm_remove: "Diesen Schlüssel entfernen? Damit erstellte Signaturen lassen sich nicht mehr prüfen, bis plMail ihn wieder findet."
+    changed_warning: "Für diese Adresse ist ein anderer Schlüssel aufgetaucht. Das kann der neue Schlüssel deines Kontakts sein — oder jemand, der sich als dieser ausgibt. plMail verwendet weiter den bekannten Schlüssel, bis du diesen Fingerprint mit deinem Kontakt vergleichst und ihn akzeptierst."
+    pinned: "Als verifiziert markiert."
+    accepted: "Dieser Schlüssel wird jetzt für die Adresse verwendet."
+    removed: "Schlüssel entfernt."
+    preferences_saved: "Gespeichert."
+    not_found: "Diesen Schlüssel gibt es nicht mehr."
+    signer_unknown: "plMail hat den Schlüssel nicht, mit dem signiert wurde. Suche oder importiere ihn zuerst."
+    import:
+        heading: "Schlüssel importieren"
+        hint: "Füge einen öffentlichen Schlüsselblock ein oder wähle eine Datei. Der Schlüssel wird für jede Adresse gespeichert, die er nennt."
+        file: "Schlüsseldatei"
+        paste: "Öffentlicher Schlüssel"
+        submit: "Schlüssel hinzufügen"
+        done: "Importiert. Adressen mit diesem Schlüssel: %count%."
+        changed: "Importiert — aber %count% der Adressen hatten schon einen anderen Schlüssel. Vergleiche die Fingerprints unten, bevor du den neuen akzeptierst."
+        unusable: "Der Schlüssel ist nicht verwendbar: widerrufen, abgelaufen oder ohne Adresse."
+        not_a_key: "Das ist kein öffentlicher OpenPGP-Schlüssel."
+        private_key: "Das ist ein privater Schlüssel. Importiere hier nur öffentliche Schlüssel deiner Kontakte — deine eigenen Schlüssel gehören in den Schlüsselbund oben."
+    lookup:
+        heading: "Schlüssel suchen"
+        hint: "Fragt die Domain der Adresse nach ihrem Schlüssel (Web Key Directory). Die Anfrage läuft über diesen Server."
+        email: "E-Mail-Adresse"
+        submit: "Suchen"
+        found: "Schlüssel gefunden und gespeichert."
+        changed: "Schlüssel gefunden — aber er weicht von dem ab, den plMail für diese Adresse kennt. Vergleiche die Fingerprints, bevor du ihn akzeptierst."
+        nothing: "Die Domain veröffentlicht keinen verwendbaren Schlüssel für diese Adresse."
+        invalid_address: "Diese Adresse lässt sich nicht nachschlagen."
+        rate_limited: "Zu viele Suchen hintereinander. Versuch es in ein paar Minuten noch einmal."
+    preferences:
+        heading: "Einstellungen für diesen Empfänger"
+        hint: "Gilt, wenn plMail verschlüsselte Mails sendet."
+        encrypt: "Verschlüsseln"
+        sign: "Signieren"
+        scheme: "Format"
+        save: "Speichern"
+        policy:
+            always: "Immer"
+            auto: "Automatisch"
+            never: "Nie"
+        scheme_pgp-inline: "Inline-PGP"
+        scheme_pgp-mime: "PGP/MIME"
 demo:
     bar:
         title: Demo
@@ -2371,21 +2431,31 @@ message:
         failed_for: 'Nicht zugestellt an %recipient%.'
         reported_at: 'Gemeldet %datetime%'
     crypto:
+        action:
+            accept: "Neuen Schlüssel verwenden"
+            lookup: "Schlüssel suchen"
+            manage: "Schlüssel der Kontakte"
+            trust: "Diesem Schlüssel vertrauen"
+        compare_hint: "Vergleiche den Fingerprint mit dem Absender — am Telefon, persönlich —, bevor du ihm vertraust."
+        key_changed_hint: "Das kann der neue Schlüssel des Absenders sein oder jemand, der sich als dieser ausgibt. Vergleiche den Fingerprint mit dem Absender, bevor du ihn verwendest."
         decrypting: "Wird entschlüsselt …"
         encrypted: "Ende-zu-Ende verschlüsselt"
         encrypted_smime: "Mit S/MIME verschlüsselt"
         failed: "Diese Nachricht ließ sich nicht entschlüsseln."
         inner:
             invalid: "Die Signatur in der Nachricht passt nicht"
+            key_changed: "Signiert mit dem Schlüssel %signer% — nicht dem, den plMail für diesen Absender kennt"
             unchecked: "In der Verschlüsselung signiert; die Signatur wurde nicht geprüft"
             unknown_key: "Mit dem Schlüssel %signer% signiert, den plMail noch nicht kennt"
-            valid: "Mit deinem eigenen Schlüssel signiert"
+            untrusted: "Innerhalb der Verschlüsselung signiert — unverändert, aber niemand hat den Schlüssel %signer% bestätigt"
+            valid: "Innerhalb der Verschlüsselung signiert, mit deinem eigenen oder einem verifizierten Schlüssel"
         locked: "Deine Schlüssel sind in diesem Browser gesperrt."
         no_key: "Diese Nachricht wurde für einen Schlüssel verschlüsselt, den du hier nicht hast."
         no_source: "Das Original dieser Nachricht ist nicht verfügbar, darum lässt sie sich nicht entschlüsseln."
         open_settings: "Entsperren"
         signed:
             invalid: "Die Signatur passt nicht — die Nachricht wurde verändert oder stammt nicht vom Absender"
+            key_changed: "Mit einem anderen Schlüssel signiert als dem, den plMail für diesen Absender kennt"
             pending: "Signiert — die Signatur wird geprüft …"
             unknown_key: "Mit einem Schlüssel signiert, den plMail noch nicht kennt"
             untrusted: "Signiert — die Nachricht ist unverändert, aber nichts bestätigt, wer signiert hat"

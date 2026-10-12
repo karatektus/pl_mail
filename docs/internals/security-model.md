@@ -246,8 +246,9 @@ attachments.
 
 Signed mail is checked after the commit, on the `enrich` transport (`VerifySignatureMessage`):
 S/MIME by OpenSSL, first against the system CAs (Valid) and then with `PKCS7_NOVERIFY` (Untrusted);
-PGP by ext-gnupg in a GnuPG home made for one check and deleted after it, against the person's own
-address keys (Valid) and an Autocrypt key in the message (Untrusted). A signature by an address
+PGP by ext-gnupg in a GnuPG home made for one check and deleted after it (`GnupgHome`), against the
+person's own address keys (Valid), their keys for the sender (see below) and an Autocrypt key in the
+message whose `addr=` is `From`. A signature by an address
 other than `From` is Invalid either way. `PgpMimeSplitter` takes the signed bytes out of the raw
 source by hand, because every MIME parser hands back something decoded.
 
@@ -257,6 +258,54 @@ inner entity, DOMPurify for the HTML. The result goes into the same sandboxed fr
 same document (`mail/_frame_document.html.twig`, rendered with a `<!--plmail:body-->` placeholder),
 so its CSP and the hash-allowed frame script are byte for byte the server's. Remote images are
 replaced, not proxied: the proxy would learn the URLs the sender encrypted.
+
+## Contacts' keys and key discovery
+
+Phase 4 of issue #28. `ContactKey` is one row per person, address and key; `ContactKeys` is its only
+writer and holds the trust rule, **trust on first use**:
+
+- The first usable key for an address is `current`. Every different key after it is `changed` and
+  is used for nothing until the person accepts it — not when it arrives in mail, not from WKD, not
+  from an import. A partial unique index (`uniq_contact_key_current`, `WHERE status = 'current'`) is
+  the guard when two workers collect keys at once; the read-then-write in PHP is not.
+- An address with any keys at all — say a removed `current` beside a waiting `changed` — gets no new
+  `current` by arrival. The decision stays the person's.
+- `pinned` is the person's word that they compared the fingerprint. There is no web of trust:
+  certifications on a key count for nothing.
+- What counts as a usable key is gpg's verdict (`PublicKeyReader`, in a throwaway home): a user ID
+  for the address with a valid self-signature, not revoked, not expired. Private key material is
+  refused before gpg sees it.
+
+`SignatureVerifier` imports the person's own keys, every key they hold for `From`, and the message's
+Autocrypt key. Own key or pinned `current`: Valid. Unpinned `current`: Untrusted. A `changed` key, an
+Autocrypt key while the address already has keys, or a missing key while it has a `current` one:
+**KeyChanged**. The browser applies the same table to a signature inside encrypted mail
+(`assets/crypto/message.js`, with the keys from `GET /contact-keys/sender`). Every change to a
+sender's keys queues `VerifySignatureMessage` for their newest two hundred PGP-signed messages
+(`SignatureRecheck`); the banner actions check the open message on the spot.
+
+**Collected from incoming mail** by `CollectContactKeysStep` → `CollectContactKeysMessage` on
+`enrich`: the Autocrypt header only when `addr=` is `From` (and only when it is the one valid
+header, with no unknown critical attribute), attached keys from the raw source only with a user ID
+for `From`, never for mail from the person's own addresses. A message can carry anybody's key; the
+sender vouching for their own is the only claim it can make.
+
+**WKD through the server** (`WkdLookup`), because the page may only connect to its own origin. It is
+an endpoint that fetches URLs derived from user input, so:
+
+- The URL is built, never taken: `https://openpgpkey.<domain>/.well-known/openpgpkey/<domain>/hu/<z-base-32 SHA-1 of the lower-cased local part>?l=<local>`,
+  then `https://<domain>/.well-known/openpgpkey/hu/…`. The domain must be an IDNA-encoded DNS name
+  of two labels or more — no IP literal, no port, no path, no bare container name.
+- The host is resolved first; any private or reserved address among its A and AAAA records and
+  nothing is asked. The checked address is pinned (`resolve`) and `NoPrivateNetworkHttpClient` checks
+  the address actually connected to.
+- No redirects (`max_redirects: 0`), a 4-second timeout and 8-second ceiling, and a 256 KiB limit
+  enforced while the body streams.
+- Answers are cached in `cache.app`, a day when found and an hour when not, and only lookups that go
+  out count against the per-person `wkd_lookup` limiter (30 in 10 minutes).
+- Only keys with a user ID for the address asked about are kept.
+
+keys.openpgp.org (VKS) is not asked; the concept leaves it as an optional instance setting.
 
 ## Firewalls
 
@@ -768,6 +817,21 @@ builders, before `persist()`.
 **Editing `_frame_document.html.twig` changes both paths, and that is the point.** The frame script
 is allowed by the hash of its exact text; a second copy of the document in JavaScript would stop
 running the day either changed.
+
+**A changed key that becomes `current` by any path but `ContactKeys::accept()` undoes TOFU.** The
+partial index stops two `current` rows, not a write that demotes the known key first. Every writer
+goes through `ContactKeys`.
+
+**An Autocrypt header is read only when `addr=` is `From`.** Phase 3 read any; a header naming
+somebody else would now plant a key for them on first use.
+
+**WKD URLs are built from a validated domain, never from the input.** A lookup endpoint that took a
+URL, or a domain with a port or path in it, is an SSRF hole however well the client below it checks
+addresses.
+
+**`MockHttpClient` follows no redirects whatever it is told**, and `NoPrivateNetworkHttpClient`
+follows them itself, never the client beneath. A test cannot show `max_redirects: 0` working; the
+option in `WkdLookup::fetch()` is the guard, and it says why.
 
 **The prelogin tells one thing apart: an account that has not moved over yet.** Its `migrate: true`
 is the only difference between a known and an unknown address, and it lasts until that account's

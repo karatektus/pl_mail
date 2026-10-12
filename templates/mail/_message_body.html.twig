@@ -123,6 +123,7 @@ Variables:
         {% set frameDocument %}{% include 'mail/_frame_document.html.twig' with { render: render, body: '<!--plmail:body-->' } only %}{% endset %}
         <div data-controller="mail--encrypted-message"
              data-mail--encrypted-message-raw-url-value="{{ path('app_mail_message_raw', { id: message.id }) }}"
+             data-mail--encrypted-message-sender-keys-url-value="{{ path('app_contact_keys_sender', { email: message.fromAddress }) }}"
              data-mail--encrypted-message-document-value="{{ frameDocument|e('html') }}"
              data-mail--encrypted-message-settings-url-value="{{ path('app_settings_index', { section: 'encryption' }) }}"
              data-mail--encrypted-message-keyring-value="{{ {
@@ -144,6 +145,8 @@ Variables:
                      valid:       'message.crypto.inner.valid'|trans,
                      invalid:     'message.crypto.inner.invalid'|trans,
                      unknown_key: 'message.crypto.inner.unknown_key'|trans,
+                     untrusted:   'message.crypto.inner.untrusted'|trans,
+                     key_changed: 'message.crypto.inner.key_changed'|trans,
                      unchecked:   'message.crypto.inner.unchecked'|trans,
                  },
              }|json_encode }}">

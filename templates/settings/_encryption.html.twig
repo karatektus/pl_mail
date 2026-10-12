@@ -13,7 +13,9 @@ the keyring and shows the forms that apply.
 
 Four cards, most comfortable first: whether it works, the recovery phrase,
 the devices that can reopen it on their own, and — folded away — the keys
-themselves for whoever wants to import, export or replace one.
+themselves for whoever wants to import, export or replace one. A fifth lists
+contacts' keys, which is a different thing — other people's public keys, no
+keyring involved — and is the server's own frame (settings/_contact_keys).
 
 Accepts nothing: what it needs is the signed-in user and the routes.
 #}
@@ -162,6 +164,7 @@ Accepts nothing: what it needs is the signed-in user and the routes.
         heading:    'encryption.keys.heading'|trans,
         subheading: 'encryption.keys.subheading'|trans,
         padded:     true,
+        class:      'mb-6',
     } %}
         {% block body %}
             <div data-settings--encryption-target="openOnly" hidden>
@@ -199,6 +202,24 @@ Accepts nothing: what it needs is the signed-in user and the routes.
                     <ul class="mt-3 divide-y divide-line" data-settings--encryption-target="keys"></ul>
                 </details>
             </div>
+        {% endblock %}
+    {% endembed %}
+
+    {# ── Contacts' keys ──────────────────────────────────────────────────── #}
+    {# Not behind openOnly: public keys, which the server shows without the
+       keyring — see settings/_contact_keys. Its own request, so the four
+       cards above do not wait on it; not loading="lazy", because the card is
+       a link target from the reading banner, and a lazy frame below the fold
+       had nothing in it to scroll to. #}
+    {% embed 'settings/_card.html.twig' with {
+        heading:    'contact_keys.heading'|trans,
+        subheading: 'contact_keys.subheading'|trans,
+        padded:     true,
+    } %}
+        {% block body %}
+            <turbo-frame id="contact-keys" src="{{ path('app_contact_keys_index') }}">
+                <p class="text-sm text-ink-muted">{{ 'contact_keys.loading'|trans }}</p>
+            </turbo-frame>
         {% endblock %}
     {% endembed %}
 </div>

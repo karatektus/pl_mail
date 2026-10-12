@@ -64,6 +64,18 @@ framework:
             limit: 5
             interval: '15 minutes'
 
+        # WKD lookups that actually leave the server, in
+        # App\Service\Crypto\WkdLookup — answers from its cache are not
+        # counted. Per user: the server makes these requests on a person's
+        # behalf, and without a bound one signed-in account could use it to
+        # make the server knock on two domains' doors as fast as it can type.
+        # Thirty in ten minutes is far above a person working through their
+        # contacts by hand.
+        wkd_lookup:
+            policy: 'sliding_window'
+            limit: 30
+            interval: '10 minutes'
+
         # The public booking POST. It is the only endpoint on this install that
         # an unauthenticated stranger can use to create database rows AND cause
         # an email to be sent, which is the definition of a spam vector: one

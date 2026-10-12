@@ -8,6 +8,21 @@ The published image tags: `latest` follows the most recent release below,
 
 ## Unreleased
 
+**plMail keeps your contacts' keys, and tells you when one changes — the fourth step towards
+end-to-end encryption.** Signed mail used to end at *signed with a key plMail does not know yet*.
+Now the key comes from the mail itself (an Autocrypt header or an attached key, for the sender
+only), from the sender's own domain through its Web Key Directory — asked by the server, so your
+browser never contacts it — or from an import in the new Settings → Encryption → Contacts' keys.
+The first key for an address is trusted; a different one turning up later is listed with a warning
+in that list and in the message banner, and is not used until you accept it. Marking a key as
+verified, after comparing its fingerprint with the contact, is what makes their signatures read as
+checked; the banner offers looking a key up, trusting it, or taking a changed one. Signatures inside
+encrypted mail are checked against the same keys. Each contact also gets preferences (encrypt,
+sign, PGP/MIME or inline) for when sending arrives. Configuration backups carry the keys and your
+decisions about them. One table is added; the migration is reversible, and going back down drops
+the collected keys and pins. Mail that arrived before the update is not searched for keys.
+[#84](https://github.com/karatektus/pl_mail/pull/84), by @pmdevelopment.
+
 **Encrypted and signed mail is recognised, checked and readable — the third step towards
 end-to-end encryption.** An OpenPGP-encrypted message, PGP/MIME or inline, now opens in your
 browser with the keys plMail made for you, attachments included; the server keeps no readable copy,

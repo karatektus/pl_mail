@@ -5,15 +5,20 @@ declare(strict_types=1);
 namespace App\Tests\Service\Crypto;
 
 use App\Domain\Enum\Crypto\AddressKeyOrigin;
+use App\Domain\Enum\Crypto\ContactKeyOrigin;
+use App\Domain\Enum\Crypto\ContactKeyStatus;
 use App\Domain\Enum\Crypto\MessageCrypto;
 use App\Domain\Enum\Crypto\SignatureState;
 use App\Entity\Crypto\AddressKey;
+use App\Entity\Crypto\ContactKey;
 use App\Entity\Crypto\UserKey;
 use App\Entity\Mail\Account;
 use App\Entity\Mail\Message;
 use App\Service\Crypto\SignatureVerifier;
 use App\Service\Mail\RawMessageResolver;
 use App\Tests\Command\MailFixtures;
+use App\Tests\Support\Crypto\Gpg;
+use DateTimeImmutable;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
@@ -27,7 +32,9 @@ use Symfony\Component\Process\Process;
  * ingest path fills. The claims worth a test are the ones a lenient checker
  * gets wrong: a self-signed certificate is not "valid", a message changed after
  * signing is not "untrusted", and a perfectly good signature by somebody other
- * than the sender is the forgery to flag.
+ * than the sender is the forgery to flag. With contacts' keys: only a pinned
+ * one makes a signature Valid, and a key other than the known one for the
+ * sender is said to be exactly that.
  */
 final class SignatureVerifierTest extends KernelTestCase
 {
@@ -123,19 +130,109 @@ final class SignatureVerifierTest extends KernelTestCase
         );
     }
 
+    // ── Contacts' keys ────────────────────────────────────────────────────────
+
+    /** Intact, and the key is the sender's known one — but nobody confirmed it. */
+    public function testASignatureByTheSendersUnpinnedContactKeyIsUntrusted(): void
+    {
+        $key = new Gpg(self::SIGNER);
+        $this->knowContactKey($key);
+
+        $result = $this->verify($key->signedMessage('Hello.'), MessageCrypto::PgpSigned, self::SIGNER);
+
+        self::assertSame(SignatureState::Untrusted, $result['state'] ?? null);
+        self::assertSame($key->fingerprint, $result['signer'] ?? null);
+    }
+
+    public function testASignatureByAPinnedContactKeyIsValid(): void
+    {
+        $key = new Gpg(self::SIGNER);
+        $this->knowContactKey($key, pinned: true);
+
+        self::assertSame(SignatureState::Valid, $this->verify($key->signedMessage('Hello.'), MessageCrypto::PgpSigned, self::SIGNER)['state'] ?? null);
+    }
+
+    /**
+     * plMail knows a key for the sender, and this was signed with another one
+     * it does not have: whoever signed, it was not with the known key.
+     */
+    public function testASignatureByAMissingKeyWhileTheSenderHasAKnownOneSaysTheKeyChanged(): void
+    {
+        $known  = new Gpg(self::SIGNER);
+        $signer = new Gpg(self::SIGNER);
+        $this->knowContactKey($known, pinned: true);
+
+        $result = $this->verify($signer->signedMessage('Hello.'), MessageCrypto::PgpSigned, self::SIGNER);
+
+        self::assertSame(SignatureState::KeyChanged, $result['state'] ?? null);
+    }
+
+    /** A new key in the message's own Autocrypt header is news, not a pass. */
+    public function testAnAutocryptKeyOtherThanTheKnownOneSaysTheKeyChanged(): void
+    {
+        $known  = new Gpg(self::SIGNER);
+        $signer = new Gpg(self::SIGNER);
+        $this->knowContactKey($known);
+
+        $raw    = $signer->signedMessage('Hello.');
+        $result = $this->verify($raw, MessageCrypto::PgpSigned, self::SIGNER, autocryptKey: $signer->binary);
+
+        self::assertSame(SignatureState::KeyChanged, $result['state'] ?? null);
+        self::assertSame($signer->fingerprint, $result['signer'] ?? null);
+    }
+
+    public function testAChangedKeyWaitingForADecisionSaysTheKeyChanged(): void
+    {
+        $known  = new Gpg(self::SIGNER);
+        $signer = new Gpg(self::SIGNER);
+        $this->knowContactKey($known);
+        $this->knowContactKey($signer, status: ContactKeyStatus::Changed);
+
+        self::assertSame(SignatureState::KeyChanged, $this->verify($signer->signedMessage('Hello.'), MessageCrypto::PgpSigned, self::SIGNER)['state'] ?? null);
+    }
+
+    /** An Autocrypt header naming another address plants nothing. */
+    public function testAnAutocryptHeaderForAnotherAddressIsNotUsed(): void
+    {
+        $signer = new Gpg(self::SIGNER);
+        $raw    = $signer->signedMessage('Hello.');
+
+        $message = MailFixtures::message($this->em, $this->account);
+        $message->fromAddress = self::SIGNER;
+        $message->crypto      = MessageCrypto::PgpSigned;
+        $message->headers     = ['autocrypt' => 'addr=other@example.test; keydata=' . base64_encode($signer->binary)];
+        static::getContainer()->get(RawMessageResolver::class)->store($message, $raw);
+        $this->em->flush();
+
+        self::assertSame(SignatureState::UnknownKey, static::getContainer()->get(SignatureVerifier::class)->verify($message)['state'] ?? null);
+    }
+
     // ── Fixtures ──────────────────────────────────────────────────────────────
+
+    private function knowContactKey(Gpg $key, bool $pinned = false, ContactKeyStatus $status = ContactKeyStatus::Current): void
+    {
+        $row = new ContactKey($this->account->usr, self::SIGNER, $key->fingerprint, $key->armored, ContactKeyOrigin::Manual, $status, null, new DateTimeImmutable());
+
+        if (true === $pinned) {
+            $row->pin();
+        }
+
+        $this->em->persist($row);
+        $this->em->flush();
+    }
 
     /**
      * @return array{state: SignatureState, signer: ?string}|null
      */
-    private function verify(string $raw, MessageCrypto $crypto, string $from, bool $autocrypt = false): ?array
+    private function verify(string $raw, MessageCrypto $crypto, string $from, bool $autocrypt = false, ?string $autocryptKey = null): ?array
     {
         $message = MailFixtures::message($this->em, $this->account);
         $message->fromAddress = $from;
         $message->crypto      = $crypto;
+        $autocryptKey       ??= true === $autocrypt ? $this->exportedKey : null;
 
-        if (true === $autocrypt && null !== $this->exportedKey) {
-            $message->headers = ['autocrypt' => 'addr=' . self::SIGNER . '; keydata=' . base64_encode($this->exportedKey)];
+        if (null !== $autocryptKey) {
+            $message->headers = ['autocrypt' => 'addr=' . self::SIGNER . '; keydata=' . base64_encode($autocryptKey)];
         }
 
         static::getContainer()->get(RawMessageResolver::class)->store($message, $raw);
