@@ -5,7 +5,8 @@ An empty element carrying crypto--keyring, which opens the person's keyring
 with what the session left behind, makes a first one for an account that has
 none, reopens the old one from this browser after a password reset, and adds a
 key for any address that lacks one — then, at most once per tab, says what is
-still missing (a recovery phrase, keys only a phrase can reopen).
+changed under the person: keys reopened from this browser, or old keys only a
+phrase can reopen. A missing phrase is said on Settings → Encryption instead.
 
 Not on a demo, and not while a password somebody else chose is waiting to be
 replaced: a keyring hung off that password would be one the chooser could open.
@@ -21,7 +22,6 @@ replaced: a keyring hung off that password would be one the chooser could open.
          data-crypto--keyring-email-value="{{ app.user.email }}"
          data-crypto--keyring-settings-url-value="{{ path('app_settings_index', { section: 'encryption' }) }}"
          data-crypto--keyring-messages-value="{{ {
-             phraseMissing: 'encryption.nag.phrase_missing'|trans,
              lockedKeys:    'encryption.nag.locked_keys'|trans,
              recovered:     'encryption.nag.recovered'|trans,
              action:        'encryption.nag.action'|trans,

@@ -1951,7 +1951,6 @@ encryption:
     nag:
         action: "Open th' settings"
         locked_keys: "Some o' yer older keys be locked since yer secret word was reset."
-        phrase_missing: "Yer letters can now be sealed end to end. Make treasure words so ye never lose yer keys."
         recovered: "Yer older keys were opened again from this spyglass."
     phrase:
         create: "Make treasure words"

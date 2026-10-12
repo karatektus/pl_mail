@@ -18,7 +18,7 @@ import { showToast } from "../../toast.js";
  * Values:
  *   stateUrl, unlockUrl, preloginUrl, csrf, userId, email  — the keyring's config
  *   settingsUrl    — Settings → Encryption, where the nags point
- *   messages       — translated: phraseMissing, lockedKeys, recovered, action
+ *   messages       — translated: lockedKeys, recovered, action
  */
 let booted = false;
 
@@ -91,12 +91,15 @@ export default class extends Controller {
             return;
         }
 
+        // Only what changed under the person: keys reopened, or keys waiting
+        // for the phrase. A missing phrase is not news on every first page
+        // load — it shared the toast stack with whatever the person had just
+        // done (a send's undo, say) — so it is said where it can be acted on,
+        // on Settings → Encryption, and nowhere else.
         if (0 < result.recovered) {
             this.#nag(this.messagesValue.recovered, "success", false);
         } else if (0 < ring.lockedUserKeys().length) {
             this.#nag(this.messagesValue.lockedKeys, "info", true);
-        } else if (false === ring.hasPhrase()) {
-            this.#nag(this.messagesValue.phraseMissing, "info", true);
         }
     }
 

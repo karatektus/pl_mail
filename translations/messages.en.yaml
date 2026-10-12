@@ -2069,7 +2069,6 @@ encryption:
     nag:
         action: "Open settings"
         locked_keys: "Some of your older keys are locked since your password was reset."
-        phrase_missing: "Your mail can now be end-to-end encrypted. Save a recovery phrase so you never lose your keys."
         recovered: "Your older keys were opened again from this device."
     phrase:
         create: "Create recovery phrase"

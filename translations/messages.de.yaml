@@ -2072,7 +2072,6 @@ encryption:
     nag:
         action: "Einstellungen öffnen"
         locked_keys: "Einige deiner älteren Schlüssel sind seit dem Passwort-Reset gesperrt."
-        phrase_missing: "Deine Mails können jetzt Ende-zu-Ende verschlüsselt werden. Sichere eine Recovery-Phrase, damit du deine Schlüssel nie verlierst."
         recovered: "Deine älteren Schlüssel wurden über dieses Gerät wieder geöffnet."
     phrase:
         create: "Recovery-Phrase erstellen"

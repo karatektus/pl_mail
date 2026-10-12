@@ -38,6 +38,7 @@ let instance = null;
  */
 export function keyring(config) {
     instance ??= new Keyring(config);
+    instance.configure(config);
 
     return instance;
 }
@@ -59,7 +60,22 @@ export class Keyring {
     #ensuring = null;
 
     constructor(config) {
-        this.#config = config;
+        this.#config = { ...config };
+    }
+
+    /**
+     * Fills in what an earlier caller did not know. The password form asks
+     * for the keyring with only the URLs it needs, and on a settings page it
+     * connects before the boot controller does — whose config, with the user
+     * id and address the keyring needs to make a first one, would otherwise
+     * have been thrown away by the singleton.
+     */
+    configure(config) {
+        for (const [name, value] of Object.entries(config)) {
+            if (undefined !== value && null !== value && "" !== value) {
+                this.#config[name] ??= value;
+            }
+        }
     }
 
     // ── Opening ─────────────────────────────────────────────────────────────
@@ -382,6 +398,11 @@ export class Keyring {
      * @returns {Promise<Record<number, string>>}
      */
     async rewrapFor(currentPassword, newWrapKey) {
+        // The page's own ensure() first: right after a first sign-in it may
+        // still be making the keyring, and a change sent before that lands
+        // would carry no key to re-wrap — which the server, seeing one appear
+        // a moment later, would rightly refuse.
+        await this.ensure().catch(() => undefined);
         await this.refresh();
 
         const active = this.#activeUserKeys();
