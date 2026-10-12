@@ -8,6 +8,12 @@ The published image tags: `latest` follows the most recent release below,
 
 ## Unreleased
 
+**The envelope on a row's read button shows what pressing it does.** On an unread row, "Mark as
+read" wore the closed envelope, while the same action above a selection wears the open one — which
+looked like a Promotions problem only because that is where mail is unread. A row's button now
+matches the toolbar: open envelope to mark read, closed envelope to mark unread. No migration.
+[#61](https://github.com/karatektus/pl_mail/pull/61), by @Flouss.
+
 **A Gmail or Microsoft account gets its own colour when you connect it.** Accounts added with a
 password were already given the first colour no other account was wearing; accounts connected
 through Google or Microsoft skipped that step and all kept the first colour, so their dots in the
@@ -280,11 +286,6 @@ the folder could never be swept — withheld the check that lets mail deleted el
 the account. A folder marked `\Noselect` is now created with sync off, and one that already exists
 is switched off on the next folder sync, with nothing to do on your part. It held no mail, so
 nothing is lost. No migration.
-
-**The envelope on a row's read button shows what pressing it does.** On an unread row, "Mark as
-read" wore the closed envelope, while the same action above a selection wears the open one — which
-looked like a Promotions problem only because that is where mail is unread. A row's button now
-matches the toolbar: open envelope to mark read, closed envelope to mark unread. No migration.
 
 ## v0.3.2 — 2026-10-09
 
