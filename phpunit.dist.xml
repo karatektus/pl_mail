@@ -53,5 +53,8 @@
     </source>
 
     <extensions>
+        <!-- The streaming controllers call set_time_limit(), and in one
+             PHPUnit process that limit outlives their test. See the class. -->
+        <bootstrap class="App\Tests\Support\PhpUnit\ResetTimeLimitExtension"/>
     </extensions>
 </phpunit>
