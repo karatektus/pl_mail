@@ -233,6 +233,31 @@ change — locks every key instead. Removing a person deletes their keyring.
 nothing in this phase is slow enough to block the page. Decrypting large mail is when a worker
 earns its keep.
 
+## Reading encrypted and signed mail
+
+Phase 3 of issue #28. `MessageCryptoDetector` classifies every message in each provider's builder,
+**before the row is first written** — `search_vector` is generated from `body_text` on insert, so a
+body blanked any later would already be indexed. It reads the top-level Content-Type and its
+`protocol=` / `smime-type=` parameters (parsed by hand: webklex's extension attributes are
+first-come across every header and turn `-` into `_`), falls back to the attachment list only for
+Graph, and to armor at the start of a line in the body. Encrypted kinds get an empty body; the
+parts that are only wrapping (`signature.asc`, `smime.p7s`, the ciphertext) are not stored as
+attachments.
+
+Signed mail is checked after the commit, on the `enrich` transport (`VerifySignatureMessage`):
+S/MIME by OpenSSL, first against the system CAs (Valid) and then with `PKCS7_NOVERIFY` (Untrusted);
+PGP by ext-gnupg in a GnuPG home made for one check and deleted after it, against the person's own
+address keys (Valid) and an Autocrypt key in the message (Untrusted). A signature by an address
+other than `From` is Invalid either way. `PgpMimeSplitter` takes the signed bytes out of the raw
+source by hand, because every MIME parser hands back something decoded.
+
+Encrypted PGP mail is opened in the browser (`assets/crypto/message.js`): the byte-exact raw source
+from `GET /mail/message/{id}/raw`, openpgp.js with the keyring's address keys, postal-mime for the
+inner entity, DOMPurify for the HTML. The result goes into the same sandboxed frame, built from the
+same document (`mail/_frame_document.html.twig`, rendered with a `<!--plmail:body-->` placeholder),
+so its CSP and the hash-allowed frame script are byte for byte the server's. Remote images are
+replaced, not proxied: the proxy would learn the URLs the sender encrypted.
+
 ## Firewalls
 
 `config/packages/security.yaml` declares three: `dev`, `jmap` and `main`.
@@ -735,6 +760,14 @@ entity says this explicitly: adding `cancelled_at` later means making the index 
 **An aborted request is not a lost session.** `session.js` clears its stored half only when the
 server answers 404 for the unlock key. Clearing on any failure locked the keyring of everybody
 who clicked on before the first page had finished opening it — the browser abandons the request.
+
+**A crypto kind set after the first flush is too late.** `search_vector` is a generated column, so
+the INSERT that wrote a ciphertext body indexed it. Keep `MessageCryptoDetector::seal()` in the
+builders, before `persist()`.
+
+**Editing `_frame_document.html.twig` changes both paths, and that is the point.** The frame script
+is allowed by the hash of its exact text; a second copy of the document in JavaScript would stop
+running the day either changed.
 
 **The prelogin tells one thing apart: an account that has not moved over yet.** Its `migrate: true`
 is the only difference between a known and an unknown address, and it lasts until that account's

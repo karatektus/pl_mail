@@ -1,11 +1,12 @@
-<!-- translated-from: features/encryption.md sha1:c12805c61e21916d34811f9531ae1b6fb1f3a640 -->
+<!-- translated-from: features/encryption.md sha1:c88dd362364636551eb58022e2143303a4938c4e -->
 
 # Verschlüsselung
 
 plMail baut Ende-zu-Ende-Verschlüsselung mit OpenPGP: Mails, die nur du und die Menschen lesen
 können, denen du schreibst — nicht der plMail-Server und nicht dein Mail-Anbieter. Diese Seite
 beschreibt, was es heute schon gibt: deine Schlüssel, wie sie aufbewahrt werden und wie du sie
-zurückbekommst. Verschlüsselte Mails lesen und senden folgt in den nächsten Versionen.
+zurückbekommst, und das Lesen verschlüsselter und signierter Mails. Verschlüsselt senden folgt in
+einer späteren Version.
 
 Alles hier liegt unter **Einstellungen → Verschlüsselung**.
 
@@ -90,6 +91,28 @@ Von plMail erstellte Schlüssel laufen nicht ab — wie bei Proton. Unter **Schl
   wird nicht mehr benutzt, und seine Adressen bekommen einen neuen.
 - **Primär machen** wählt aus, welchen von mehreren Schlüsseln eine Adresse benutzt.
 
+## Verschlüsselte und signierte Mails lesen
+
+**Verschlüsselte Mails** zeigen ein grünes Schloss und *Ende-zu-Ende verschlüsselt* darüber. plMail
+bewahrt auf dem Server keine lesbare Kopie davon auf: Dein Browser holt die Nachricht so, wie sie
+angekommen ist, entschlüsselt sie mit deinen Schlüsseln und zeigt sie wie jede andere Mail an —
+samt Anhängen, die direkt aus dem Browser heruntergeladen werden. In der Liste steht *Verschlüsselte
+Nachricht*. Das gilt für OpenPGP, egal ob als PGP/MIME oder als Block im reinen Text.
+
+**Signierte Mails** zeigen, was die Prüfung der Signatur ergeben hat:
+
+- *Signiert, und die Signatur stimmt* — unverändert, und der Schlüssel oder das Zertifikat ist eines,
+  für das plMail bürgen kann: ein Zertifikat einer bekannten Stelle oder dein eigener Schlüssel.
+- *Die Nachricht ist unverändert, aber nichts bestätigt, wer signiert hat* — ein selbst
+  ausgestelltes Zertifikat oder ein Schlüssel, der mit der Nachricht selbst kam.
+- *Mit einem Schlüssel signiert, den plMail noch nicht kennt* — der Fingerprint wird angezeigt,
+  damit du ihn mit dem Absender vergleichen kannst. Die Schlüssel deiner Kontakte kommen in einer
+  späteren Version.
+- *Die Signatur passt nicht* — die Nachricht wurde nach dem Signieren verändert, oder jemand anderes
+  als der Absender hat sie signiert. Behandle sie wie jede Nachricht, die gefälscht sein könnte.
+
+Die Signaturdatei selbst (`signature.asc`, `smime.p7s`) erscheint nicht mehr als Anhang.
+
 ## Fallstricke
 
 **Ohne Recovery-Phrase oder bekanntes Gerät verliert ein vergessenes Passwort deine Schlüssel.**
@@ -107,6 +130,25 @@ alle da; nur deine Schlüssel warten einmal auf dein Passwort.
 bietet der Browser keine eigene Kryptografie an, also werden dort keine Schlüssel erstellt oder
 geöffnet, und Einstellungen → Verschlüsselung sagt das. Anmelden funktioniert trotzdem. Öffne
 plMail über seine `https://`-Adresse (oder `localhost`).
+
+**Verschlüsselte Mails werden nicht durchsucht.** plMail bewahrt ihren Text nie auf, also sehen
+Suche, Filter auf den Nachrichtentext, Zusammenfassungen und der Assistent nur Absender und Betreff.
+Genau darum geht es.
+
+**Externe Bilder in verschlüsselten Mails bleiben gesperrt, ohne Knopf zum Anzeigen.** Sie
+anzuzeigen hieße, dem Server die Adressen mitzuteilen, die der Absender verschlüsselt hat. Bilder,
+die in der Nachricht selbst stecken, werden angezeigt.
+
+**S/MIME-verschlüsselte Mails lassen sich noch nicht lesen.** Sie werden erkannt und markiert, aber
+zum Lesen braucht es ein eigenes S/MIME-Zertifikat in plMail, und das kommt später. Signierte
+S/MIME-Mails werden wie oben geprüft.
+
+**Mails, die vor diesem Update synchronisiert wurden, werden nicht erneut angesehen.** Eine
+verschlüsselte oder signierte Nachricht, die früher ankam, zeigt weiter, was sie damals zeigte, bis
+sie neu synchronisiert wird.
+
+**Eine verschlüsselte Nachricht zu drucken, druckt keinen Text.** Die Druckansicht zeichnet der
+Server, und der hat keinen.
 
 **Dein Passwort in den Einstellungen zu ändern, nimmt deine Schlüssel mit.** Jede andere Änderung —
 durch eine Administratorin, mit `app:user:password` — sperrt sie, und die Recovery-Phrase oder ein

@@ -56,6 +56,8 @@ export class Keyring {
     #userKeys = new Map();
     /** @type {Set<number>} device copies this browser can open */
     #ownDeviceCopies = new Set();
+    /** @type {Map<number, object>} decrypted openpgp private keys, by address key id */
+    #openedAddressKeys = new Map();
     /** @type {Promise|null} the one ensure() of this page */
     #ensuring = null;
 
@@ -385,6 +387,55 @@ export class Keyring {
 
     async makePrimary(addressKeyId, email) {
         await this.#post(this.#url(`address-keys/${addressKeyId}/primary`), { email });
+    }
+
+    // ── Reading mail ────────────────────────────────────────────────────────
+
+    /**
+     * Every address key this browser can open, decrypted — old and replaced
+     * ones too, since mail sent to them is still mail. Kept in memory once
+     * opened: opening is a passphrase derivation per key, and a thread of
+     * encrypted messages would pay it once per message otherwise.
+     *
+     * @returns {Promise<object[]>} openpgp PrivateKey objects
+     */
+    async decryptionKeys() {
+        this.#assertOpen();
+
+        const keys = [];
+
+        for (const entry of this.state.addressKeys) {
+            if (false === this.#openedAddressKeys.has(entry.id)) {
+                try {
+                    const opened = await this.#openAddressKey(entry);
+
+                    if (null !== opened) {
+                        this.#openedAddressKeys.set(entry.id, opened);
+                    }
+                } catch {
+                    // A key that will not open is skipped, not fatal: the
+                    // message may well be encrypted to one of the others.
+                }
+            }
+
+            if (true === this.#openedAddressKeys.has(entry.id)) {
+                keys.push(this.#openedAddressKeys.get(entry.id));
+            }
+        }
+
+        return keys;
+    }
+
+    /**
+     * The public halves of the person's own keys — the only keys plMail can
+     * vouch for until contacts' keys arrive (phase 4 of issue #28).
+     *
+     * @returns {Promise<object[]>} openpgp PublicKey objects
+     */
+    async verificationKeys() {
+        const openpgp = await import("openpgp");
+
+        return Promise.all((this.state?.addressKeys ?? []).map((entry) => openpgp.readKey({ armoredKey: entry.publicKey })));
     }
 
     // ── Password changes ────────────────────────────────────────────────────

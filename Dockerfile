@@ -83,6 +83,11 @@ RUN set -eux; \
         # Attachment previews only — see AttachmentThumbnailer, which degrades
         # to the paperclip icon where this is missing.
         gd \
+        # PGP signatures, checked on the server — see SignatureVerifier, which
+        # leaves them unchecked where this is missing. Pulls in libgpgme, and
+        # through it the gpg binary that is installed above for the PGDG key
+        # anyway; that apt line is now load-bearing for this too.
+        gnupg \
 	;
 
 # https://getcomposer.org/doc/03-cli.md#composer-allow-superuser

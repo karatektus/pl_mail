@@ -1,4 +1,4 @@
-<!-- translated-from: internals/security-model.md sha1:23681c2ca84fe8ca2cf153b9c94afe774ca9827e -->
+<!-- translated-from: internals/security-model.md sha1:d8c1c9db8e5128d4155352f0de88fb2108c9a959 -->
 # Sicherheitsmodell
 
 Verschlüsselung ruhender Daten und die Prüfung, die den Start ohne brauchbaren Schlüssel
@@ -257,6 +257,33 @@ entfernt wird, verliert seinen Schlüsselbund.
 **Im Haupt-Thread, nicht in einem Worker.** Modul-Worker sehen die Import-Map der Seite nicht, und
 nichts in dieser Phase ist langsam genug, um die Seite zu blockieren. Große Mails zu entschlüsseln
 ist der Punkt, an dem sich ein Worker lohnt.
+
+## Verschlüsselte und signierte Mails lesen
+
+Phase 3 von Issue #28. `MessageCryptoDetector` ordnet jede Nachricht im Builder des jeweiligen
+Anbieters ein, **bevor die Zeile zum ersten Mal geschrieben wird** — `search_vector` wird beim
+INSERT aus `body_text` erzeugt, ein später geleerter Body wäre also schon im Index. Er liest den
+obersten Content-Type mit seinen Parametern `protocol=` / `smime-type=` (von Hand geparst: die
+Erweiterungsattribute von webklex nimmt der erste Header, der sie setzt, und sie machen aus `-` ein
+`_`), weicht nur für Graph auf die Anhangsliste aus und auf Armor am Zeilenanfang im Body.
+Verschlüsselte Arten bekommen einen leeren Body; Teile, die nur Hülle sind (`signature.asc`,
+`smime.p7s`, das Chiffrat), werden nicht als Anhänge gespeichert.
+
+Signierte Mails werden nach dem Commit auf dem Transport `enrich` geprüft (`VerifySignatureMessage`):
+S/MIME mit OpenSSL, zuerst gegen die Zertifizierungsstellen des Systems (Valid), dann mit
+`PKCS7_NOVERIFY` (Untrusted); PGP mit ext-gnupg in einem GnuPG-Verzeichnis, das für eine Prüfung
+angelegt und danach gelöscht wird, gegen die eigenen Adress-Keys der Person (Valid) und einen
+Autocrypt-Schlüssel in der Nachricht (Untrusted). Eine Signatur von einer anderen Adresse als `From`
+ist in beiden Fällen Invalid. `PgpMimeSplitter` holt die signierten Bytes von Hand aus der
+Rohquelle, weil jeder MIME-Parser etwas Dekodiertes zurückgibt.
+
+Verschlüsselte PGP-Mails werden im Browser geöffnet (`assets/crypto/message.js`): die byte-genaue
+Rohquelle von `GET /mail/message/{id}/raw`, openpgp.js mit den Adress-Keys des Schlüsselbunds,
+postal-mime für den inneren Teil, DOMPurify für das HTML. Das Ergebnis kommt in denselben
+Sandbox-Frame, gebaut aus demselben Dokument (`mail/_frame_document.html.twig`, gerendert mit dem
+Platzhalter `<!--plmail:body-->`), sodass CSP und per Hash erlaubtes Frame-Skript Byte für Byte die
+des Servers sind. Externe Bilder werden ersetzt, nicht über den Proxy geladen: der Proxy würde die
+URLs erfahren, die der Absender verschlüsselt hat.
 
 ## Firewalls
 
@@ -812,6 +839,14 @@ du dir merken solltest.
 Hälfte nur, wenn der Server für den Entsperr-Schlüssel 404 antwortet. Bei jedem Fehlschlag zu
 löschen sperrte den Schlüsselbund aller, die weitergeklickt haben, bevor die erste Seite ihn
 fertig geöffnet hatte — der Browser bricht die Anfrage dann ab.
+
+**Eine Krypto-Art, die erst nach dem ersten Flush gesetzt wird, kommt zu spät.** `search_vector`
+ist eine erzeugte Spalte, also hat das INSERT mit dem Chiffrat-Body es schon indexiert.
+`MessageCryptoDetector::seal()` gehört in die Builder, vor `persist()`.
+
+**Wer `_frame_document.html.twig` ändert, ändert beide Wege, und genau so soll es sein.** Das
+Frame-Skript ist über den Hash seines genauen Texts erlaubt; eine zweite Kopie des Dokuments in
+JavaScript liefe nicht mehr, sobald sich eine der beiden ändert.
 
 **Der Prelogin unterscheidet genau eines: ein Konto, das noch nicht umgestellt ist.** Sein
 `migrate: true` ist der einzige Unterschied zwischen einer bekannten und einer unbekannten Adresse,

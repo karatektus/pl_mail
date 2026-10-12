@@ -2,8 +2,8 @@
 
 plMail is building end-to-end encryption with OpenPGP: mail that only you and the people you write
 to can read — not the plMail server, not your mail provider. This page covers what is there today:
-your keys, how they are kept, and how you get them back. Reading and sending encrypted mail follow
-in the next releases.
+your keys, how they are kept and how you get them back, and reading encrypted and signed mail.
+Sending encrypted mail follows in a later release.
 
 Everything here lives under **Settings → Encryption**.
 
@@ -84,6 +84,27 @@ Keys made by plMail do not expire — as with Proton. Under **Show keys**:
   addresses get a new one.
 - **Make primary** chooses which of several keys an address uses.
 
+## Reading encrypted and signed mail
+
+**Encrypted mail** shows a green lock and *End-to-end encrypted* above it. plMail keeps no readable
+copy of it on the server: your browser fetches the message as it arrived, decrypts it with your
+keys, and shows it like any other mail — attachments included, which download straight from the
+browser. In the list it reads *Encrypted message*. This works for OpenPGP, whether the message is
+PGP/MIME or an armored block in plain text.
+
+**Signed mail** shows what checking the signature found:
+
+- *Signed, and the signature checks out* — it is intact, and the key or certificate is one plMail
+  can vouch for: a certificate from a known authority, or your own key.
+- *The message is intact, but nothing confirms who signed it* — a self-signed certificate, or a key
+  that came with the message itself.
+- *Signed with a key plMail does not know yet* — the fingerprint is shown, so you can compare it with
+  the sender. Keys of the people you write to arrive in a later release.
+- *The signature does not match* — the message was changed after it was signed, or it was signed by
+  somebody other than the sender. Treat it as you would any message that might be forged.
+
+The signature file itself (`signature.asc`, `smime.p7s`) is no longer shown as an attachment.
+
 ## Things that bite
 
 **Without the recovery phrase or a known device, a forgotten password loses your keys.** Nobody can
@@ -100,6 +121,22 @@ wait for your password, once.
 **Encryption needs HTTPS.** On a plain `http://` address — a LAN IP, say — the browser offers no
 cryptography of its own, so no keys are made or opened there, and Settings → Encryption says so.
 Signing in still works. Open plMail through its `https://` address (or `localhost`).
+
+**Encrypted mail is not searched.** plMail never keeps its text, so search, filters on the message
+text, summaries and the assistant all see only the sender and subject. That is the point.
+
+**Remote images in encrypted mail stay blocked, with no button to show them.** Showing them would
+mean telling the server the addresses the sender encrypted. Images sent inside the message are
+shown.
+
+**S/MIME-encrypted mail cannot be read yet.** It is recognised and marked, but reading it needs an
+S/MIME certificate of your own in plMail, which comes later. Signed S/MIME mail is checked as above.
+
+**Mail synced before this update is not looked at again.** An encrypted or signed message that
+arrived earlier keeps showing what it showed then until it is synced anew.
+
+**Printing an encrypted message prints no body.** The print view is drawn by the server, which does
+not have one.
 
 **Changing your password in Settings carries your keys over.** Changing it any other way — an
 administrator, `app:user:password` — locks them, and the recovery phrase or a known device opens

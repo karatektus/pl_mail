@@ -8,6 +8,18 @@ The published image tags: `latest` follows the most recent release below,
 
 ## Unreleased
 
+**Encrypted and signed mail is recognised, checked and readable — the third step towards
+end-to-end encryption.** An OpenPGP-encrypted message, PGP/MIME or inline, now opens in your
+browser with the keys plMail made for you, attachments included; the server keeps no readable copy,
+so it is left out of search, filters on the text, summaries and the assistant, and the list shows
+*Encrypted message*. Signed mail says what its signature is worth — checked, intact but unconfirmed,
+from an unknown key, or not matching — with S/MIME checked against the usual certificate
+authorities. Signature files no longer appear as attachments. Remote images in decrypted mail stay
+blocked; S/MIME-encrypted mail is recognised but not yet readable. The image gains the PHP `gnupg`
+extension. Three columns are added to the message table; the migration is reversible. Mail synced
+before the update is not re-examined.
+[#84](https://github.com/karatektus/pl_mail/pull/84), by @pmdevelopment.
+
 **Your OpenPGP keys are made, kept and recoverable — the second step towards end-to-end
 encryption.** The first time you sign in after the update, your browser makes a key for every
 address you send from and keeps them on the server wrapped under your password, which the server

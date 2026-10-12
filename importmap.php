@@ -61,4 +61,6 @@ return [
     '@noble/hashes/hkdf' => ['version' => '1.8.0'],
     '@noble/hashes/utils' => ['version' => '1.8.0'],
     '@scure/base' => ['version' => '1.2.5'],
+    'postal-mime' => ['version' => '2.7.6'],
+    'dompurify' => ['version' => '3.4.16'],
 ];

@@ -38,4 +38,7 @@ declare module "/pdfjs/*" {
  */
 declare module "openpgp" {
     export function generateKey(options: Record<string, unknown>): Promise<{ privateKey: string; publicKey: string }>;
+    export function readKey(options: { armoredKey: string }): Promise<unknown>;
+    export function createMessage(options: { text: string }): Promise<unknown>;
+    export function encrypt(options: Record<string, unknown>): Promise<string>;
 }

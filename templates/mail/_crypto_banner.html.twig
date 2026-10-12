@@ -1,0 +1,46 @@
+{#
+mail/_crypto_banner.html.twig
+─────────────────────────────────────────────────────────────────────────────
+What a message's OpenPGP or S/MIME wrapping says, above the body.
+
+Outside the frame for the reason every warning is (see _message_body): a lock
+the mail could draw for itself would be worth nothing. Three symbols and no
+more — encrypted, verified, a problem — each with one sentence; the details
+(who signed, with which key) are the second line.
+
+For an encrypted message the signature is inside the ciphertext, so the
+browser fills that line in once it has decrypted (`signature` target of
+mail--encrypted-message). For a signed one the server checked it in the
+background (SignatureVerifier) and the state is on the row; null means the
+check has not run yet.
+
+Variables:
+  message  Message, with crypto set
+#}
+{% set crypto = message.crypto %}
+{% set state = message.signatureState ? message.signatureState.value : null %}
+{% set encrypted = crypto.encrypted %}
+{% set tone = encrypted or state == 'valid' ? 'secure' : (state == 'invalid' ? 'danger' : 'neutral') %}
+{% set signer = message.signer ? (message.signer matches '/^[0-9a-f]+$/' ? message.signer|upper|split('', 4)|join(' ') : message.signer) : '' %}
+
+<div class="flex items-start gap-3 rounded-lg border px-3 py-2.5 mb-3
+            {{ tone == 'secure' ? 'border-emerald-500/40 bg-emerald-500/10' : (tone == 'danger' ? 'border-danger/40 bg-danger/10' : 'border-line bg-raised') }}"
+     data-testid="crypto-banner">
+    <i class="fa-solid {{ encrypted ? 'fa-lock' : (state == 'invalid' ? 'fa-triangle-exclamation' : (state == 'valid' ? 'fa-circle-check' : 'fa-signature')) }}
+              {{ tone == 'secure' ? 'text-emerald-600' : (tone == 'danger' ? 'text-danger' : 'text-ink-faint') }} mt-0.5 flex-shrink-0"
+       aria-hidden="true"></i>
+    <div class="min-w-0">
+        <p class="text-sm font-semibold {{ tone == 'danger' ? 'text-danger' : 'text-ink' }}">
+            {% if encrypted %}
+                {{ (crypto.pgp ? 'message.crypto.encrypted' : 'message.crypto.encrypted_smime')|trans }}
+            {% else %}
+                {{ ('message.crypto.signed.' ~ (state ?? 'pending'))|trans }}
+            {% endif %}
+        </p>
+        {% if encrypted %}
+            <p class="text-xs text-ink-muted break-words" data-mail--encrypted-message-target="signature" hidden></p>
+        {% elseif signer %}
+            <p class="text-xs text-ink-muted break-words">{{ 'message.crypto.signer'|trans({ '%signer%': signer }) }}</p>
+        {% endif %}
+    </div>
+</div>

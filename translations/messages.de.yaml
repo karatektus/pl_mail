@@ -2370,6 +2370,29 @@ message:
         failed: 'Diese Nachricht wurde nicht zugestellt.'
         failed_for: 'Nicht zugestellt an %recipient%.'
         reported_at: 'Gemeldet %datetime%'
+    crypto:
+        decrypting: "Wird entschlüsselt …"
+        encrypted: "Ende-zu-Ende verschlüsselt"
+        encrypted_smime: "Mit S/MIME verschlüsselt"
+        failed: "Diese Nachricht ließ sich nicht entschlüsseln."
+        inner:
+            invalid: "Die Signatur in der Nachricht passt nicht"
+            unchecked: "In der Verschlüsselung signiert; die Signatur wurde nicht geprüft"
+            unknown_key: "Mit dem Schlüssel %signer% signiert, den plMail noch nicht kennt"
+            valid: "Mit deinem eigenen Schlüssel signiert"
+        locked: "Deine Schlüssel sind in diesem Browser gesperrt."
+        no_key: "Diese Nachricht wurde für einen Schlüssel verschlüsselt, den du hier nicht hast."
+        no_source: "Das Original dieser Nachricht ist nicht verfügbar, darum lässt sie sich nicht entschlüsseln."
+        open_settings: "Entsperren"
+        signed:
+            invalid: "Die Signatur passt nicht — die Nachricht wurde verändert oder stammt nicht vom Absender"
+            pending: "Signiert — die Signatur wird geprüft …"
+            unknown_key: "Mit einem Schlüssel signiert, den plMail noch nicht kennt"
+            untrusted: "Signiert — die Nachricht ist unverändert, aber nichts bestätigt, wer signiert hat"
+            valid: "Signiert, und die Signatur stimmt"
+        signer: "Signiert von %signer%"
+        smime_unreadable: "S/MIME-verschlüsselte Mails lassen sich in plMail noch nicht lesen. Öffne sie in einem Mailprogramm, das dein S/MIME-Zertifikat hat."
+        snippet: "Verschlüsselte Nachricht"
     details:
         categorised:
             ai: 'ein Sprachmodell, weil keine Regel gegriffen hat: '

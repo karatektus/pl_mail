@@ -2,6 +2,8 @@
 
 namespace App\Entity\Mail;
 
+use App\Domain\Enum\Crypto\MessageCrypto;
+use App\Domain\Enum\Crypto\SignatureState;
 use App\Domain\Enum\Mail\ArrivalPlace;
 use App\Domain\Enum\Mail\MessageCategory;
 use App\Domain\Enum\Mail\MessageFlag;
@@ -225,6 +227,32 @@ class Message extends MessageModel
 
     #[ORM\Column(type: Types::TEXT, nullable: true)]
     public ?string $bodyHtmlSafe = null;
+
+    /**
+     * The OpenPGP or S/MIME wrapping the message arrived in, or null for plain
+     * mail. Set by each provider's builder before the row is first written —
+     * an encrypted message's body is blanked there, because search_vector is
+     * generated from body_text on insert and would otherwise index ciphertext.
+     * See App\Service\Crypto\MessageCryptoDetector.
+     */
+    #[ORM\Column(length: 32, nullable: true, enumType: MessageCrypto::class)]
+    public ?MessageCrypto $crypto = null;
+
+    /**
+     * What checking the signature found, once it has been checked; null for an
+     * unsigned message and for one whose check has not run yet. Checked in the
+     * background after ingest — see App\Service\Crypto\SignatureVerifier.
+     */
+    #[ORM\Column(name: 'signature_state', length: 16, nullable: true, enumType: SignatureState::class)]
+    public ?SignatureState $signatureState = null;
+
+    /**
+     * Who signed it, as the signature itself says: the address on an S/MIME
+     * certificate, the fingerprint (or key id, when that is all there is) of
+     * a PGP key. What the page shows next to the lock.
+     */
+    #[ORM\Column(length: 255, nullable: true)]
+    public ?string $signer = null;
 
     /**
      * @var Collection<int, MessagePart>

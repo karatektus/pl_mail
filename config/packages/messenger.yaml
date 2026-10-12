@@ -341,6 +341,10 @@ framework:
             # than a retry on the worker.
             App\Infrastructure\Messaging\Message\ApplyGmailLabelsMessage: export
             App\Infrastructure\Messaging\Message\HarvestContactsMessage: maintenance
+            # A signed message's check: a raw fetch from Gmail or Microsoft at
+            # worst, then OpenSSL or GnuPG. Per message and soon after it
+            # arrives, which is what `enrich` is for.
+            App\Infrastructure\Messaging\Message\VerifySignatureMessage: enrich
             App\Infrastructure\Messaging\Message\SyncGmailMessageBatchMessage: ingest
             App\Infrastructure\Messaging\Message\SyncGraphMessageBatchMessage: ingest
             App\Infrastructure\Messaging\Message\ApplyGraphChangesMessage: export

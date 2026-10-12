@@ -2,6 +2,7 @@
 
 namespace App\Repository\Mail;
 
+use App\Domain\Enum\Crypto\MessageCrypto;
 use App\Domain\Enum\Mail\LabelRole;
 use App\Domain\Enum\Mail\MailboxSpecialUse;
 use App\Domain\Helper\CalendarAttachment;
@@ -2473,7 +2474,7 @@ class MessageRepository extends ServiceEntityRepository
      *
      * @param list<int> $ids
      *
-     * @return array<int, array{bodyHtmlSafe: ?string, bodyText: ?string}>
+     * @return array<int, array{bodyHtmlSafe: ?string, bodyText: ?string, crypto: ?MessageCrypto}>
      */
     public function findSnippetBodies(array $ids): array
     {
@@ -2481,9 +2482,9 @@ class MessageRepository extends ServiceEntityRepository
             return [];
         }
 
-        /** @var list<array{id: int|string, bodyHtmlSafe: ?string, bodyText: ?string}> $rows */
+        /** @var list<array{id: int|string, bodyHtmlSafe: ?string, bodyText: ?string, crypto: ?MessageCrypto}> $rows */
         $rows = $this->createQueryBuilder('m')
-            ->select('m.id', 'm.bodyHtmlSafe', 'm.bodyText')
+            ->select('m.id', 'm.bodyHtmlSafe', 'm.bodyText', 'm.crypto')
             ->where('m.id IN (:ids)')
             ->setParameter('ids', $ids)
             ->getQuery()
@@ -2492,7 +2493,7 @@ class MessageRepository extends ServiceEntityRepository
         $bodies = [];
 
         foreach ($rows as $row) {
-            $bodies[(int) $row['id']] = ['bodyHtmlSafe' => $row['bodyHtmlSafe'], 'bodyText' => $row['bodyText']];
+            $bodies[(int) $row['id']] = ['bodyHtmlSafe' => $row['bodyHtmlSafe'], 'bodyText' => $row['bodyText'], 'crypto' => $row['crypto']];
         }
 
         return $bodies;

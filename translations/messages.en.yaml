@@ -2369,6 +2369,29 @@ message:
         failed: 'This message was not delivered.'
         failed_for: 'Not delivered to %recipient%.'
         reported_at: 'Reported %datetime%'
+    crypto:
+        decrypting: "Decrypting…"
+        encrypted: "End-to-end encrypted"
+        encrypted_smime: "Encrypted with S/MIME"
+        failed: "This message could not be decrypted."
+        inner:
+            invalid: "The signature inside does not match"
+            unchecked: "Signed inside the encryption; the signature has not been checked"
+            unknown_key: "Signed with key %signer%, which plMail does not know yet"
+            valid: "Signed with your own key"
+        locked: "Your keys are locked in this browser."
+        no_key: "This message was encrypted to a key you do not have here."
+        no_source: "The original of this message is not available, so it cannot be decrypted."
+        open_settings: "Unlock them"
+        signed:
+            invalid: "The signature does not match — this message was changed or is not from the sender"
+            pending: "Signed — checking the signature…"
+            unknown_key: "Signed with a key plMail does not know yet"
+            untrusted: "Signed — the message is intact, but nothing confirms who signed it"
+            valid: "Signed, and the signature checks out"
+        signer: "Signed by %signer%"
+        smime_unreadable: "S/MIME-encrypted mail cannot be read in plMail yet. Open it in a mail program that holds your S/MIME certificate."
+        snippet: "Encrypted message"
     details:
         categorised:
             ai: 'a language model, because no rule recognised it: '
