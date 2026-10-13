@@ -45,9 +45,14 @@ class ContactCard
     #[ORM\Column]
     public private(set) ?int $id = null;
 
+    /**
+     * Fixed at construction. Moving a card to another book is a delete in one
+     * server collection and a create in another, not a reassignment — see
+     * ContactCardType.
+     */
     #[ORM\ManyToOne]
     #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
-    public AddressBook $addressBook;
+    public private(set) AddressBook $addressBook;
 
     /**
      * The vCard UID. RFC 6352 §5.1 makes it unique within an address book, and
