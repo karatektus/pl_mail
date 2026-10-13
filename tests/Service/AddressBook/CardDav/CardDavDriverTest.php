@@ -10,6 +10,7 @@ use App\Domain\Exception\IntegrationException;
 use App\Entity\AddressBook\ContactCard;
 use App\Tests\Service\Calendar\Sync\CalDav\CalDavFixture;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\HttpClient\Response\MockResponse;
 
 /**
  * The CardDAV driver against a scripted server: discovery, both ways of
@@ -123,6 +124,49 @@ final class CardDavDriverTest extends TestCase
         self::assertStringContainsString('addressbook-multiget', $fixture->body(2));
         self::assertStringContainsString('grace.vcf', $fixture->body(2));
         self::assertStringNotContainsString('ada.vcf', $fixture->body(2), 'only the missing body is fetched');
+    }
+
+    /**
+     * RFC 6578 §3.6: a truncated report marks the collection's own href 507
+     * and hands out a token to resume from. Every page is followed, and the
+     * whole is still the full listing the first request asked for.
+     */
+    public function testATruncatedReportIsFollowedToTheEnd(): void
+    {
+        $fixture = new CardDavFixture(
+            CardDavFixture::collection('/dav/addressbooks/alice/contacts/', syncCollection: true),
+            self::truncatedPage('ada', 'page-1'),
+            CardDavFixture::report([
+                '/dav/addressbooks/alice/contacts/grace.vcf' => ['etag' => '"2"', 'vcard' => CardDavFixture::vcard('grace', 'Grace', 'grace@example.com')],
+            ], 'token-final'),
+        );
+
+        $changes = $fixture->driver->pull(CardDavFixture::book(self::BOOK), null);
+
+        self::assertTrue($changes->isFullListing);
+        self::assertSame('token-final', $changes->syncToken);
+        self::assertCount(2, $changes->cards);
+        self::assertStringContainsString('<d:sync-token>page-1</d:sync-token>', $fixture->body(2));
+    }
+
+    /**
+     * Truncated with no token to resume from is a partial answer. Reported as
+     * a full listing, it made the sync delete every local card past the first
+     * page — on every pull, for as long as the server kept stopping at the
+     * same place, since the stored token stayed null.
+     */
+    public function testATruncatedReportThatCannotBeContinuedIsNotAFullListing(): void
+    {
+        $fixture = new CardDavFixture(
+            CardDavFixture::collection('/dav/addressbooks/alice/contacts/', syncCollection: true),
+            self::truncatedPage('ada', null),
+        );
+
+        $changes = $fixture->driver->pull(CardDavFixture::book(self::BOOK), null);
+
+        self::assertFalse($changes->isFullListing);
+        self::assertCount(1, $changes->cards);
+        self::assertSame(2, $fixture->requestCount(), 'and it does not ask for the same page again');
     }
 
     public function testADeltaReportsDeletionsAndIsNotAFullListing(): void
@@ -277,5 +321,26 @@ final class CardDavDriverTest extends TestCase
               </d:response>
             </d:multistatus>
             XML;
+    }
+
+    /**
+     * One page of a sync report the server cut short: a card, the 507 on the
+     * collection's own href, and the token to resume from (if any).
+     */
+    private static function truncatedPage(string $uid, ?string $token): MockResponse
+    {
+        return CalDavFixture::multistatus(sprintf(
+            '<?xml version="1.0" encoding="utf-8"?>'
+            . '<d:multistatus xmlns:d="DAV:" xmlns:card="urn:ietf:params:xml:ns:carddav">'
+            . '<d:response><d:href>/dav/addressbooks/alice/contacts/%1$s.vcf</d:href><d:propstat><d:prop>'
+            . '<d:getetag>"1"</d:getetag><card:address-data>%2$s</card:address-data>'
+            . '</d:prop><d:status>HTTP/1.1 200 OK</d:status></d:propstat></d:response>'
+            . '<d:response><d:href>/dav/addressbooks/alice/contacts/</d:href><d:status>HTTP/1.1 507 Insufficient Storage</d:status></d:response>'
+            . '%3$s'
+            . '</d:multistatus>',
+            $uid,
+            htmlspecialchars(CardDavFixture::vcard($uid, ucfirst($uid), $uid . '@example.com'), ENT_XML1),
+            null === $token ? '' : sprintf('<d:sync-token>%s</d:sync-token>', $token),
+        ));
     }
 }

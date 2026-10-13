@@ -239,8 +239,21 @@ final readonly class CardDavDriver implements VerifiableDriverInterface
                 $cards[] = $card;
             }
 
-            if (false === $this->isTruncated($resources) || null === $nextToken || $nextToken === $token) {
+            if (false === $this->isTruncated($resources)) {
                 return AddressBookChangeSet::of($cards, $nextToken ?? $token, null === $syncToken);
+            }
+
+            // Truncated, and the token has to move for the next page to be a
+            // different one. A server that cuts the answer short without
+            // issuing one has given no way to continue — and what arrived is
+            // a part, so it is not a full listing even when it was asked for
+            // as one, for the reason the page-cap exit below gives.
+            if (null === $nextToken || $nextToken === $token) {
+                $this->logger->warning('CardDav: a truncated sync report gave no token to continue from', [
+                    'collection' => $collection,
+                ]);
+
+                return AddressBookChangeSet::of($cards, $nextToken ?? $token, false);
             }
 
             $token = $nextToken;
