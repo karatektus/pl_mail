@@ -158,11 +158,11 @@ final class KeysCapabilityTest extends JmapTestCase
         self::assertSame('plain', $message->outgoingSeal['kind'] ?? null);
         self::assertSame($body, self::getContainer()->get(SealedMessageStorage::class)->read((int) $message->id, SealedMessageStorage::OUTGOING));
 
-        $sent = [];
-        self::getContainer()->set(MailSenderRegistry::class, new MailSenderRegistry([$this->recorder($sent)]));
+        $recorder = $this->recorder();
+        self::getContainer()->set(MailSenderRegistry::class, new MailSenderRegistry([$recorder]));
         self::assertTrue(self::getContainer()->get(MessageSendService::class)->send($message));
 
-        self::assertStringContainsString($body, $sent[0]->toString());
+        self::assertStringContainsString($body, $recorder->sent[0]->toString());
     }
 
     public function testAnEncryptedDraftMustNameTheRecipientsCurrentKeys(): void
@@ -244,15 +244,15 @@ final class KeysCapabilityTest extends JmapTestCase
     }
 
     /**
-     * @param list<Email> $sent
+     * A sender that keeps what it is handed, in `sent`.
+     *
+     * @return MailSenderInterface&object{sent: list<Email>}
      */
-    private function recorder(array &$sent): MailSenderInterface
+    private function recorder(): MailSenderInterface
     {
-        return new class ($sent) implements MailSenderInterface {
-            /** @param list<Email> $sent */
-            public function __construct(private array &$sent)
-            {
-            }
+        return new class () implements MailSenderInterface {
+            /** @var list<Email> */
+            public array $sent = [];
 
             public function supports(Account $account): bool
             {
