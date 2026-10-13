@@ -38,7 +38,7 @@ declare module "/pdfjs/*" {
  */
 declare module "openpgp" {
     export function generateKey(options: Record<string, unknown>): Promise<{ privateKey: string; publicKey: string }>;
-    export function readKey(options: { armoredKey: string }): Promise<{ write(): Uint8Array; getFingerprint(): string }>;
+    export function readKey(options: { armoredKey: string } | { binaryKey: Uint8Array }): Promise<{ write(): Uint8Array; getFingerprint(): string }>;
     export function readPrivateKey(options: { armoredKey: string }): Promise<unknown>;
     export function createMessage(options: { text: string } | { binary: Uint8Array }): Promise<unknown>;
     export function encrypt(options: Record<string, unknown>): Promise<string>;

@@ -2154,6 +2154,31 @@ encryption:
         protect_subject:
             label: Betreff verschlüsseln
             hint: "Der Betreff einer verschlüsselten Nachricht reist innerhalb der Verschlüsselung, außen steht nur „...“. Thunderbird und andere zeigen den echten Betreff; ein Programm, das das nicht kann, zeigt „...“."
+    wkd:
+        heading: Web Key Directory
+        subheading: "Dein öffentlicher Schlüssel, veröffentlicht unter den eigenen Domains dieser Installation, damit Thunderbird, Proton und GnuPG ihn über deine Adresse finden."
+        disabled: "Diese Installation veröffentlicht keine Schlüssel. Ein Admin kann das einschalten."
+        no_addresses: "Keine deiner Adressen liegt auf einer Domain, für die diese Installation Schlüssel veröffentlicht (%domains%)."
+        publish: "Schlüssel für %email% veröffentlichen"
+        url_advanced: "Erweiterte Methode (Subdomain openpgpkey)"
+        url_direct: "Direkte Methode"
+        state:
+            published: "Veröffentlicht. Wer die Adresse kennt, kann deinen öffentlichen Schlüssel abrufen."
+            switched_off: "Nicht veröffentlicht — du hast es ausgeschaltet."
+            no_key: "Noch nichts zu veröffentlichen: Diese Adresse hat keinen aktiven Schlüssel."
+            not_sign_in_address: "Nicht veröffentlicht: plMail veröffentlicht nur die Adresse, mit der du dich anmeldest und die dir ein Admin gegeben hat."
+        check:
+            button: "Von außen prüfen"
+            current: "Dein aktueller Schlüssel für %email% wurde gefunden."
+            outdated: "Für %email% wurde ein Schlüssel gefunden, aber nicht dein aktueller. Vielleicht antwortet ein anderer Server für die Domain, oder ein Cache hält noch den alten Schlüssel."
+            missing: "Für %email% wurde kein Schlüssel gefunden. Vielleicht zeigt die Domain noch nicht auf plMail — sieh in die Hinweise zur Einrichtung oder frag deinen Admin."
+        setup:
+            heading: "Domain einrichten (Admins)"
+            enable: "Trag die Domains in die Umgebungsvariable APP_WKD_DOMAINS ein und starte plMail neu:"
+            domains: "Schlüssel werden veröffentlicht für: %domains%. Jede Domain braucht einen dieser beiden Wege zu plMail."
+            advanced: "Erweiterte Methode, bevorzugt: ein DNS-Eintrag für openpgpkey.%domain%, der auf %host% zeigt, und ein TLS-Zertifikat für diesen Namen auf dem plMail-Server."
+            direct: "Direkte Methode: Die Website unter %domain% leitet alles unter /.well-known/openpgpkey/ an plMail weiter und reicht den Host-Header durch."
+            check: "Danach prüfst du deine eigene Adresse mit „Von außen prüfen“. Die Prüfung läuft von diesem Server aus; eine Domain, die hier auf eine private Adresse auflöst, gilt deshalb als nicht gefunden, auch wenn sie von außen funktioniert."
     devices:
         empty: "Noch keine Geräte."
         heading: "Bekannte Geräte"

@@ -1,4 +1,4 @@
-<!-- translated-from: features/encryption.md sha1:2bf62ca8357454ec261639d0dd8fe35388edd66e -->
+<!-- translated-from: features/encryption.md sha1:d2ed83ce2c787a6c8a4da44d27660502881ed480 -->
 
 # Verschlüsselung
 
@@ -235,6 +235,53 @@ und keiner der anderen Empfänger einen OpenPGP-Schlüssel: Jedes Mailprogramm p
 S/MIME-Signatur, während eine OpenPGP-Signatur für die meisten nur eine Datei namens `signature.asc`
 ist. Wann überhaupt signiert wird, regelt weiterhin das oben Gesagte.
 
+## Deinen Schlüssel veröffentlichen (Web Key Directory)
+
+Thunderbird, Proton, GnuPG (`gpg --locate-keys`) und andere plMail-Installationen suchen einen
+Schlüssel bei der Domain der Adresse selbst, über ihr Web Key Directory (WKD) — dieselbe Suche, die
+plMail für die Schlüssel deiner Kontakte macht. plMail beantwortet diese Suche für die eigenen
+Domains der Installation, damit Menschen, die dir schreiben, deinen Schlüssel finden, ohne dass du
+ihn erst schicken musst.
+
+**Einstellungen → Verschlüsselung → Web Key Directory** listet deine Adressen auf diesen Domains:
+
+- **Veröffentlicht** heißt, dein aktueller Schlüssel für die Adresse wird ausgeliefert: der aktive —
+  bei mehreren der primäre —, also der, mit dem du signierst. Ein erneuerter Schlüssel wird ab dem
+  Moment ausgeliefert, in dem er entsteht; ein ersetzter, widerrufener oder abgelaufener nicht mehr.
+  Er geht nur mit der Benutzer-ID dieser Adresse hinaus, auch wenn der Schlüssel noch andere Adressen
+  nennt.
+- **An / Aus** — standardmäßig an, sobald ein Admin die Domain eingeschaltet hat. Aus nimmt den
+  Schlüssel sofort heraus; wer dann fragt, bekommt dasselbe „hier ist nichts“ wie für eine Adresse,
+  die es nicht gibt.
+- Die beiden URLs, die ein Mailprogramm abfragt, und **Von außen prüfen**: Das sucht deine Adresse
+  so, wie es alle anderen tun würden — über den Server, wie die Schlüsselsuche für Kontakte — und
+  sagt, ob der gefundene Schlüssel dein aktueller ist.
+
+Veröffentlicht wird nur die Adresse, **mit der du dich anmeldest**. Deine anderen Adressen — Aliase,
+weitere Konten — stehen mit diesem Grund in der Liste: Sie sind, was eingetippt wurde, und plMail
+kann nicht dafür bürgen, dass sie dir gehören. Die Anmeldeadresse ist die, die dir ein Admin gegeben
+hat.
+
+### Einrichten
+
+Für Admins:
+
+1. Trag die Domains kommagetrennt in `APP_WKD_DOMAINS` ein (`example.org,example.net`) und starte
+   neu. Leer, der Standard, veröffentlicht nichts. Trag nur die eigenen Domains der Installation ein
+   — nie eine wie `gmail.com`, weil jemand dort eine Adresse hat.
+2. Mach jede Domain auf einem von zwei Wegen für plMail erreichbar:
+   - **Erweiterte Methode**, bevorzugt: ein DNS-Eintrag für `openpgpkey.<domain>`, der auf den Host
+     von plMail zeigt, und ein TLS-Zertifikat für diesen Namen auf dem plMail-Server. Mit dem
+     mitgelieferten Caddy nimmst du den Namen in `SERVER_NAME` auf
+     (`mail.example.org, openpgpkey.example.org`), dann holt er das Zertifikat. Clients fragen
+     `https://openpgpkey.<domain>/.well-known/openpgpkey/<domain>/hu/…`.
+   - **Direkte Methode**: Die eigene Website der Domain leitet alles unter
+     `https://<domain>/.well-known/openpgpkey/` an plMail weiter — ein Reverse-Proxy, der den
+     `Host`-Header durchreicht. Ist nur eine Domain eingetragen, funktioniert auch eine Weiterleitung,
+     die den Host nicht durchreicht.
+3. Nutze **Von außen prüfen** mit deiner eigenen Adresse. Admins sehen diese Schritte auch auf der
+   Karte, ausgefüllt mit den Domains und dem Host der Installation.
+
 ## Auf dem Handy
 
 Wenn du die plMail-App koppelst (Einstellungen → App-Passwörter → **Gerät koppeln**), kommen deine
@@ -322,6 +369,29 @@ den Kontakt, dir zuerst eine signierte Nachricht zu schicken.
 
 **Ein Zertifikat einer eigenen Zertifizierungsstelle gilt als selbst signiert,** es sei denn, die
 Administration fügt diese Stelle hinzu (`SMIME_CA_FILE`, siehe die Konfigurationsreferenz).
+
+**Einen Schlüssel zu veröffentlichen braucht die eingetragene Domain und DNS oder eine
+Weiterleitung.** Ohne `APP_WKD_DOMAINS` wird nichts veröffentlicht, und die Karte sagt das. Mit der
+Variable, aber ohne `openpgpkey.<domain>` (mit gültigem TLS-Zertifikat für diesen Namen) oder eine
+Weiterleitung von der Website finden Mailprogramme einfach nichts; **Von außen prüfen** meldet *Kein
+Schlüssel gefunden*.
+
+**Die Prüfung läuft vom plMail-Server aus.** Eine Domain, die dort auf eine private Adresse auflöst —
+Split-Horizon-DNS, eine Installation im LAN —, gilt als nicht gefunden, auch wenn sie von außen
+funktioniert, denn plMail fragt nie private Adressen.
+
+**Eine veröffentlichte Adresse lässt sich als existierend bestätigen.** Wer eine Adresse errät oder
+kennt, kann das Verzeichnis fragen und erfährt, dass sie einen Schlüssel hat. Ausgeschaltete und
+nicht existierende Adressen bekommen dieselbe Antwort, und massenhaftes Raten wird gebremst — aber
+wenn eine Adresse unbekannt bleiben muss, schalte sie aus.
+
+**Nur die Anmeldeadresse wird veröffentlicht.** Ein Alias oder die Adresse eines zweiten Kontos
+nicht, auch nicht auf einer veröffentlichten Domain, weil plMail nicht erkennen kann, ob sie wirklich
+dir gehört.
+
+**Mailprogramme und Caches behalten einen Schlüssel eine Weile.** Das Verzeichnis liefert einen
+erneuerten Schlüssel sofort aus, aber das Programm eines Kontakts nutzt vielleicht weiter den, den es
+vorher geholt hat, und ein Cache unterwegs kann ihn bis zu zehn Minuten halten.
 
 **Mails, die vor diesem Update synchronisiert wurden, werden nicht erneut angesehen.** Eine
 verschlüsselte oder signierte Nachricht, die früher ankam, zeigt weiter, was sie damals zeigte, bis

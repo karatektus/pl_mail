@@ -76,6 +76,21 @@ framework:
             limit: 30
             interval: '10 minutes'
 
+        # The public Web Key Directory, in App\Controller\Crypto\WkdController.
+        # Anybody may ask it, and every answer says whether an address on this
+        # installation has a published key — which, asked about a list of
+        # likely names, is a list of the addresses that exist. A limit does not
+        # stop that, it slows it: three hundred an hour per IP is far above
+        # what a mail program asks (two or four requests per address it
+        # writes to, and it remembers the answer) and far below what a script
+        # walking a dictionary of names would like. Keyed per IP for
+        # booking_attempt's reason: there is no account on the caller's side.
+        # Fixed window for the same reason as there, too.
+        wkd_serve:
+            policy: 'fixed_window'
+            limit: 300
+            interval: '1 hour'
+
         # The public booking POST. It is the only endpoint on this install that
         # an unauthenticated stranger can use to create database rows AND cause
         # an email to be sent, which is the definition of a spam vector: one

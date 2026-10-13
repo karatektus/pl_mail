@@ -862,7 +862,8 @@ statement that creates the need for it.
   `ContactKey/lookup`, `DecryptedMail/pending`, `DecryptedMail/store`, and the
   Email properties `cryptoType`, `encrypted`, `signatureState`, `signer`,
   `decryptedOnServer`, `sealedDraft`. `Keyring/get` carries the person's S/MIME
-  certificates (`smimeCertificates`) and `ContactKey/lookup` each recipient's
+  certificates (`smimeCertificates`) and which of their addresses the Web Key
+  Directory publishes (`wkd`), and `ContactKey/lookup` each recipient's
   (`smime`). See docs/CLIENT_DEVELOPMENT.md.
 - Not implemented: `Email/copy|parse`, `VacationResponse/*`, `Blob/copy`.
 

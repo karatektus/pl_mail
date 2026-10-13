@@ -2033,6 +2033,31 @@ encryption:
         protect_subject:
             label: Cipher the subject line too
             hint: "The subject of a ciphered letter sails inside the cipher, an' the outside says only “...”. Thunderbird an' the like show the real one; others show “...”."
+    wkd:
+        heading: Web Key Directory
+        subheading: "Yer public key, hoisted under this ship's own harbours, so Thunderbird, Proton an' GnuPG find it by yer address."
+        disabled: "This ship hoists no keys. The captain can change that."
+        no_addresses: "None o' yer addresses lies in a harbour this ship hoists keys fer (%domains%)."
+        publish: "Hoist the key fer %email%"
+        url_advanced: "Advanced way (openpgpkey subdomain)"
+        url_direct: "Direct way"
+        state:
+            published: "Hoisted. Any hand who knows the address can fetch yer public key."
+            switched_off: "Not hoisted — ye struck it yerself."
+            no_key: "Nothin' to hoist yet: this address has no active key."
+            not_sign_in_address: "Not hoisted: plMail hoists only the address ye board with, the one the captain gave ye."
+        check:
+            button: "Check from outside"
+            current: "Found yer current key fer %email%."
+            outdated: "Found a key fer %email%, but not yer current one. Another ship may be answerin' fer the harbour, or a cache still holds the old key."
+            missing: "No key found fer %email%. The harbour may not point to plMail yet — see the setup notes, or ask the captain."
+        setup:
+            heading: "Rigging the harbour (captains)"
+            enable: "Name the harbours in the APP_WKD_DOMAINS environment variable an' restart plMail:"
+            domains: "Keys be hoisted fer: %domains%. Each harbour needs one o' these two ways to reach plMail."
+            advanced: "Advanced way, preferred: a DNS record fer openpgpkey.%domain% pointin' to %host%, an' a TLS certificate fer that name on plMail's ship."
+            direct: "Direct way: the website at %domain% forwards everythin' under /.well-known/openpgpkey/ to plMail, passin' the Host header on."
+            check: "Then use “Check from outside” on yer own address. The check sails from this ship, so a harbour that resolves to a private address here be reported missin' even if it works from outside."
     devices:
         empty: "No spyglasses yet."
         heading: "Known spyglasses"

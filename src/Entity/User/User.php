@@ -1166,6 +1166,34 @@ class User extends UserEntityModel implements UserInterface, PasswordAuthenticat
         }
     }
 
+    /**
+     * The addresses whose key the person does not want in plMail's Web Key
+     * Directory (WkdDirectory). A list of the ones switched OFF rather than of
+     * the ones switched on, so that publishing is the default the day an
+     * administrator enables the domain, and so an address that becomes the
+     * person's later starts published like the rest. Absent when empty.
+     */
+    public const string SETTING_CRYPTO_WKD_UNPUBLISHED = 'crypto.wkd_unpublished';
+
+    /**
+     * Virtual, out of the settings bag — see SETTING_CRYPTO_WKD_UNPUBLISHED.
+     * Lower-cased and de-duplicated on the way in, so a comparison against a
+     * binding's address never depends on how somebody typed it.
+     *
+     * @var list<string>
+     */
+    public array $wkdUnpublished {
+        get {
+            $addresses = $this->getSetting(self::SETTING_CRYPTO_WKD_UNPUBLISHED, []);
+
+            return true === is_array($addresses) ? array_values(array_filter($addresses, 'is_string')) : [];
+        }
+        set(array $addresses) {
+            $addresses = array_values(array_unique(array_map(static fn (string $address): string => strtolower(trim($address)), $addresses)));
+            $this->setSetting(self::SETTING_CRYPTO_WKD_UNPUBLISHED, [] === $addresses ? null : $addresses);
+        }
+    }
+
     public function getSetting(string $key, mixed $default = null): mixed
     {
         if (true === array_key_exists($key, $this->settings)) {

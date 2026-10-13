@@ -212,6 +212,49 @@ instead of OpenPGP when you have a certificate for the From address and none of 
 has an OpenPGP key: every mail program checks an S/MIME signature, where an OpenPGP one is a file
 named `signature.asc` to most of them. The rules for when to sign at all are the same as above.
 
+## Publishing your key (Web Key Directory)
+
+Thunderbird, Proton, GnuPG (`gpg --locate-keys`) and other plMail installations look for a key at
+the address's own domain, through its Web Key Directory (WKD) — the same lookup plMail makes for
+contacts' keys. plMail answers that lookup for the installation's own domains, so people who write
+to you find your key without you sending it first.
+
+**Settings → Encryption → Web Key Directory** lists your addresses on those domains:
+
+- **Published** means your current key for the address is handed out: the active one — the primary
+  one where there are several — which is the key you sign with. A renewed key is served from the
+  moment it is made; a replaced, revoked or expired one no longer is. It goes out with only that
+  address's user ID on it, even if the key names other addresses too.
+- **On / Off** — on by default once an administrator has enabled the domain. Off takes the key out
+  straight away; anybody asking then gets the same "nothing here" as for an address that does not
+  exist.
+- The two URLs a mail program asks, and **Check from outside**, which looks your address up the
+  way anybody else would — through the server, like the contact-key lookup — and says whether the
+  key it found is your current one.
+
+Only the address **you sign in with** is published. Your other addresses — aliases, further
+accounts — are listed with that reason: they are whatever was typed in, and plMail cannot vouch
+that they are yours. The sign-in address is the one an administrator gave you.
+
+### Setting it up
+
+For administrators:
+
+1. Name the domains in `APP_WKD_DOMAINS`, comma-separated (`example.org,example.net`), and restart.
+   Empty, the default, publishes nothing. List only the installation's own domains — never one like
+   `gmail.com` because somebody has an address there.
+2. Make each domain reach plMail, one of two ways:
+   - **Advanced method**, preferred: a DNS record for `openpgpkey.<domain>` pointing to plMail's
+     host, and a TLS certificate for that name on plMail's server. With the bundled Caddy, add the
+     name to `SERVER_NAME` (`mail.example.org, openpgpkey.example.org`) and it fetches the
+     certificate. Clients ask `https://openpgpkey.<domain>/.well-known/openpgpkey/<domain>/hu/…`.
+   - **Direct method**: the domain's own website forwards everything under
+     `https://<domain>/.well-known/openpgpkey/` to plMail — a reverse proxy that passes the `Host`
+     header on. With a single domain configured, a forward that does not pass the host on works
+     too.
+3. Use **Check from outside** on your own address. Administrators see these steps on the card as
+   well, filled in for the installation's domains and host.
+
 ## On your phone
 
 Pairing the plMail app (Settings → App passwords → **Pair a device**) brings your keys along when
@@ -292,6 +335,27 @@ to send you a signed message first.
 
 **A certificate from a private certificate authority counts as self-signed,** unless the
 administrator adds that authority (`SMIME_CA_FILE`, see the configuration reference).
+
+**Publishing a key needs the domain configured, and DNS or a forward.** Without `APP_WKD_DOMAINS`
+nothing is published, and the card says so. With it but without `openpgpkey.<domain>` (with a valid
+TLS certificate for that name) or a forward from the website, mail programs simply find nothing;
+**Check from outside** says *No key found*.
+
+**The check runs from the plMail server.** A domain that resolves to a private address there — a
+split-horizon DNS, a LAN install — is reported missing even when it works from outside, because
+plMail never asks private addresses.
+
+**A published address can be confirmed to exist.** Anybody who guesses or knows an address can ask
+the directory and learn that it has a key. Addresses that are switched off or do not exist get the
+same answer, and guessing in bulk is slowed down — but if an address must stay unknown, switch it
+off.
+
+**Only the sign-in address is published.** An alias or a second account's address is not, even on
+a published domain, because plMail cannot tell whether it is really yours.
+
+**Mail programs and caches keep a key a while.** The directory serves a renewed key at once, but a
+contact's program may go on using the one it fetched before, and a cache on the way may hold it for
+up to ten minutes.
 
 **Mail synced before this update is not looked at again.** An encrypted or signed message that
 arrived earlier keeps showing what it showed then until it is synced anew.

@@ -1213,6 +1213,13 @@ S/MIME import is refused with `forbidden` unless that is the person's active, un
 for the From address. Encrypt with AES-256-CBC and RSA PKCS#1 v1.5 key transport, recipients
 named by issuer and serial number, and sign with SHA-256 — what Outlook and Thunderbird read.
 
+**Web Key Directory.** `Keyring/get` also returns `wkd: [{email, state, published, fingerprint,
+urls: {advanced, direct}}]` — the person's addresses on the domains the installation publishes keys
+for, and what its Web Key Directory does for each. `state` is `published`, `switched_off`, `no_key`
+or `not_sign_in_address` (only the sign-in address is ever published); `fingerprint` is the key
+that is or would be served. Empty when the installation publishes no keys. Switching publishing is
+the web app's (Settings → Encryption); there is no JMAP method for it.
+
 **Encrypted subjects (RFC 9788).** The web app puts `Subject`, `From`, `To` and `Cc` inside the
 encrypted entity, marked `protected-headers="v1"`, and sends `...` as the outer subject. Read the
 inner `Subject` after decrypting and show it instead of an outer `...` (or `[...]`); fill a reply's

@@ -1,4 +1,4 @@
-<!-- translated-from: internals/security-model.md sha1:ddc2042eb3f97fc80d182c2f4df07c07f077e0a4 -->
+<!-- translated-from: internals/security-model.md sha1:41247c6e2741a6f5dc2548db36cad27d25b1e043 -->
 # Sicherheitsmodell
 
 Verschlüsselung ruhender Daten und die Prüfung, die den Start ohne brauchbaren Schlüssel
@@ -486,6 +486,50 @@ behält seine Content-*-Header und seinen Body als ausgehende Entität — der W
 aus Phase 5 —, und ein verschlüsselter nennt die Fingerprints, an die er verschlüsselt ist, geprüft
 von `SealGuard` beim Import und beim Senden.
 
+## Schlüssel veröffentlichen: das Web Key Directory
+
+Phase 6d von Issue #28. `WkdController` beantwortet die beiden Formen des Entwurfs —
+`/.well-known/openpgpkey/<domain>/hu/<hash>` (erweitert) und `/.well-known/openpgpkey/hu/<hash>`
+(direkt, Domain aus dem `Host`-Header) — und beide `policy`-Dateien. `WkdDirectory` entscheidet; es
+ist die andere Seite von `WkdLookup` und teilt dessen Hash (`WkdLookup::hash()`) und Domain-Form
+(`WkdLookup::domain()`), damit das Ausgelieferte unter dem Namen liegt, den jeder Client berechnet.
+
+**Öffentlich, ohne Session.** Das Präfix hat eine eigene Firewall mit `security: false`, wie
+`/branding/`: kein Token, keine Session, kein CSRF, keine Weiterleitung zur Anmeldung. Nichts, was ein
+Aufrufer schickt, wird geschrieben; der eine Schreibvorgang ist `AddressKey::$firstUsedAt`, wenn ein
+Schlüssel zum ersten Mal ausgeliefert wird, damit er nicht mehr als ungesehen gelöscht werden kann.
+
+**Drei Ebenen entscheiden, jede kann nur Nein sagen:**
+
+- **Die Domains der Installation** (`APP_WKD_DOMAINS`, standardmäßig leer). Nie „jede Domain, auf der
+  jemand eine Adresse hat“: Wer hier ein Gmail-Konto hat, gibt plMail kein Mitspracherecht über
+  `gmail.com`.
+- **Nur die Anmeldeadresse.** `User::$email` ist eindeutig und von einem Admin gesetzt. Jede andere
+  Adresse ist die Behauptung der Person selbst — ein manueller Alias, die eingetippte Adresse eines
+  IMAP-Kontos und sogar dessen Server —, und sie zu veröffentlichen ließe jeden mit einem Konto einen
+  Schlüssel unter die Adresse eines anderen legen.
+- **Der Schalter der Person** (`User::$wkdUnpublished`, im Konfigurations-Backup).
+
+**Der Schlüssel** ist der von `SendingKey`: aktiv, der primäre für die Adresse, nicht abgelaufen. Ein
+ersetzter, widerrufener oder abgelaufener Schlüssel wird sofort nicht mehr ausgeliefert.
+`WkdKeyExport` reduziert ihn mit dem gpg-Programm in einem Wegwerf-Home (`--export-options
+export-minimal --export-filter keep-uid=uid =~ <adresse>`), liest das Ergebnis mit `PublicKeyReader`
+zurück und liefert es nur aus, wenn gpg es für diese Adresse noch annimmt; das Ergebnis wird nach
+Armor und Adresse gecacht.
+
+**Keine Aufzählung über die eine Tatsache hinaus.** Ein unbekannter Hash, eine ausgeschaltete
+Adresse, eine Adresse ohne Schlüssel, ein Alias, eine nicht bediente Domain, das ausgeschaltete
+Verzeichnis: ein 404, dieselben Header, leerer Body. Der Hinweis `?l=` wird ignoriert — nur der Hash
+findet eine Adresse, also holt ein Hinweis auf jemand anderen nichts von dieser Person. Nicht
+verbergen lässt sich, dass eine veröffentlichte Adresse einen Schlüssel hat; der Limiter `wkd_serve`
+(300 pro Stunde und IP) bremst das Abarbeiten einer Namensliste.
+
+**Die Prüfung in den Einstellungen** (`POST /settings/encryption/wkd/check`) geht durch `WkdLookup`
+mit allen seinen Regeln — nur HTTPS, keine Weiterleitungen, keine privaten Adressen, das Limit pro
+Person — an seinem Cache vorbei. Beide Aktionen in den Einstellungen nehmen eine Adresse aus dem
+Formular, und beide lehnen eine ab (404), die nicht die eigene der Person auf einer bedienten Domain
+ist.
+
 ## Firewalls
 
 `config/packages/security.yaml` deklariert drei: `dev`, `jmap` und `main`.
@@ -540,6 +584,10 @@ Die `access_control`-Liste in `security.yaml` ist regelweise kommentiert, denn j
 | `/book/…` | ebenso | das Token im Pfad, plus ein Rate Limiter auf dem POST |
 | `/install` | es legt die erste Administratorin an, kann also keine voraussetzen | `InstallGuard` |
 | `/2fa` | das Passwort ist da, der zweite Faktor nicht | `IS_AUTHENTICATED_2FA_IN_PROGRESS` |
+
+Das Web Key Directory (`/.well-known/openpgpkey/`) steht nicht in der Liste: Wie `/branding/` hat es
+eine eigene Firewall mit `security: false`, weil seine Antworten für alle gleich sind und keine Session
+berühren dürfen. Was es antwortet, steht unter [Schlüssel veröffentlichen](#schlüssel-veröffentlichen-das-web-key-directory).
 
 `/healthz` antwortet mit Urteilen und sonst nichts — keine Zahlen, keine Adressen, keine Version
 —, denn wer den Port erreichen kann, kann es lesen. Es liefert nur dann 503, wenn die Datenbank
@@ -1097,6 +1145,15 @@ unterschieben.
 **WKD-URLs werden aus einer geprüften Domain gebaut, nie aus der Eingabe.** Ein Such-Endpunkt, der
 eine URL nähme, oder eine Domain mit Port oder Pfad darin, wäre eine SSRF-Lücke, egal wie gut der
 Client darunter Adressen prüft.
+
+**Ein WKD-Fehlschlag muss eine einzige Antwort bleiben.** Jeder neue Grund für „hier ist kein
+Schlüssel“ geht über `WkdDirectory::find()`, das null liefert, und das eine 404 des Controllers —
+nicht über eine Exception, eine Weiterleitung oder eine Meldung, die die Gründe unterscheidbar machen
+würden.
+
+**gpgs Filter-Eigenschaft `mail` trifft in `keep-uid` nichts** (gpg 2.4). `WkdKeyExport` filtert
+stattdessen auf `uid`; zurückgeändert ginge jeder Schlüssel ohne Benutzer-ID hinaus, und die
+Rückprüfung würde nichts veröffentlichen.
 
 **`MockHttpClient` folgt keiner Weiterleitung, egal was man ihm sagt**, und
 `NoPrivateNetworkHttpClient` folgt ihnen selbst, nie der Client darunter. Ein Test kann nicht zeigen,

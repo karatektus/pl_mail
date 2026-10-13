@@ -442,6 +442,46 @@ can pair anyway; the keys add nothing a pairing did not already give.
 headers and body as the outgoing entity — the web composer's path from phase 5 — and an encrypted
 one names the fingerprints it was encrypted to, checked by `SealGuard` at import and at sending.
 
+## Publishing keys: the Web Key Directory
+
+Phase 6d of issue #28. `WkdController` answers the draft's two shapes —
+`/.well-known/openpgpkey/<domain>/hu/<hash>` (advanced) and `/.well-known/openpgpkey/hu/<hash>`
+(direct, domain from the `Host` header) — and both `policy` files. `WkdDirectory` decides; it is the
+other side of `WkdLookup`, and shares its hash (`WkdLookup::hash()`) and domain shape
+(`WkdLookup::domain()`), so what is served is found under the name every client computes.
+
+**Public, with no session.** The prefix has a firewall of its own with `security: false`, like
+`/branding/`: no token, no session, no CSRF, no login redirect. Nothing a caller sends is written;
+the one write is `AddressKey::$firstUsedAt` the first time a key is handed out, so it can no longer
+be deleted as unseen.
+
+**Three layers decide, each able only to say no:**
+
+- **The installation's domains** (`APP_WKD_DOMAINS`, empty by default). Never "every domain somebody
+  has an address on": a person with a Gmail account here gives plMail no say over `gmail.com`.
+- **Only the sign-in address.** `User::$email` is unique and set by an administrator. Every other
+  address is the person's own claim — a manual alias, an IMAP account's typed address and even its
+  server — and publishing those would let anybody with an account put a key under somebody else's
+  address.
+- **The person's switch** (`User::$wkdUnpublished`, in the config backup).
+
+**The key** is `SendingKey`'s: active, the primary one for the address, unexpired. A replaced,
+revoked or expired key stops being served at once. `WkdKeyExport` reduces it with the gpg binary in
+a throwaway home (`--export-options export-minimal --export-filter keep-uid=uid =~ <addr>`), reads
+the result back with `PublicKeyReader`, and serves it only if gpg still accepts it for that address;
+the result is cached by armor and address.
+
+**No enumeration beyond the one fact.** An unknown hash, a switched-off address, an address without
+a key, an alias, a domain not served, the directory switched off: one 404, same headers, empty
+body. The `?l=` hint is ignored — only the hash finds an address, so a hint naming somebody else
+fetches nothing of theirs. What cannot be hidden is that a published address has a key; the
+`wkd_serve` limiter (300 an hour per IP) slows walking a list of names.
+
+**The settings check** (`POST /settings/encryption/wkd/check`) goes through `WkdLookup` with every
+rule it has — HTTPS only, no redirects, no private addresses, the per-person limit — past its cache.
+Both settings actions take an address from the form, and both refuse (404) one that is not the
+person's own on a served domain.
+
 ## Firewalls
 
 `config/packages/security.yaml` declares three: `dev`, `jmap` and `main`.
@@ -493,6 +533,10 @@ entry is a decision:
 | `/book/…` | same | the token in the path, plus a rate limiter on the POST |
 | `/install` | it creates the first administrator, so it cannot require one | `InstallGuard` |
 | `/2fa` | the password is in and the second factor is not | `IS_AUTHENTICATED_2FA_IN_PROGRESS` |
+
+The Web Key Directory (`/.well-known/openpgpkey/`) is not in the list: like `/branding/` it has a
+firewall of its own with `security: false`, because its answers are the same for everybody and must
+not touch a session. What it answers is in [Publishing keys](#publishing-keys-the-web-key-directory).
 
 `/healthz` answers verdicts and nothing else — no counts, no addresses, no version — because
 anyone who can reach the port can read it. It returns 503 only when the database is down,
@@ -994,6 +1038,14 @@ somebody else would now plant a key for them on first use.
 **WKD URLs are built from a validated domain, never from the input.** A lookup endpoint that took a
 URL, or a domain with a port or path in it, is an SSRF hole however well the client below it checks
 addresses.
+
+**A WKD miss must stay one response.** Any new reason for "no key here" goes through
+`WkdDirectory::find()` returning null and the controller's single 404 — not an exception, a
+redirect or a message, each of which would tell the reasons apart.
+
+**gpg's `mail` filter property matches nothing in `keep-uid`** (gpg 2.4). `WkdKeyExport` filters
+on `uid` instead; changed back, every key would go out without a user ID and the read-back check
+would publish nothing.
 
 **`MockHttpClient` follows no redirects whatever it is told**, and `NoPrivateNetworkHttpClient`
 follows them itself, never the client beneath. A test cannot show `max_redirects: 0` working; the

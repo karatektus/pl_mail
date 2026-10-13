@@ -1,4 +1,4 @@
-<!-- translated-from: CLIENT_DEVELOPMENT.md sha1:d005a842c23edbd9dbf5eaaf52cde926a803c5c3 -->
+<!-- translated-from: CLIENT_DEVELOPMENT.md sha1:13ea7826ef0d39b61c224f244313de7c1f20999f -->
 # Einen Client für plMail bauen
 
 Alles, was eine Entwicklerin (oder ein Agent) braucht, um einen *neuen* plMail-Client zu schreiben
@@ -1330,6 +1330,14 @@ S/MIME-Import wird mit `forbidden` abgelehnt, wenn das nicht das aktive, nicht a
 der Person für die Absenderadresse ist. Verschlüssele mit AES-256-CBC und RSA-Schlüsseltransport mit
 PKCS#1 v1.5, Empfänger über Aussteller und Seriennummer, und signiere mit SHA-256 — so lesen es
 Outlook und Thunderbird.
+
+**Web Key Directory.** `Keyring/get` liefert außerdem `wkd: [{email, state, published, fingerprint,
+urls: {advanced, direct}}]` — die Adressen der Person auf den Domains, für die die Installation
+Schlüssel veröffentlicht, und was ihr Web Key Directory für jede tut. `state` ist `published`,
+`switched_off`, `no_key` oder `not_sign_in_address` (veröffentlicht wird immer nur die
+Anmeldeadresse); `fingerprint` ist der Schlüssel, der ausgeliefert wird oder würde. Leer, wenn die
+Installation keine Schlüssel veröffentlicht. Das Veröffentlichen schaltet die Web-App um
+(Einstellungen → Verschlüsselung); eine JMAP-Methode dafür gibt es nicht.
 
 **Verschlüsselte Betreffs (RFC 9788). Die Web-App legt `Subject`, `From`, `To` und `Cc` in die
 verschlüsselte Entität, markiert mit `protected-headers="v1"`, und schickt außen `...` als Betreff.

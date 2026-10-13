@@ -8,6 +8,17 @@ The published image tags: `latest` follows the most recent release below,
 
 ## Unreleased
 
+**Your key, findable by your address — phase 6d of end-to-end encryption.** plMail can publish
+people's OpenPGP keys through the Web Key Directory, so Thunderbird, Proton, GnuPG
+(`gpg --locate-keys`) and other plMail installations find them on their own. Off until an
+administrator names the installation's own domains in `APP_WKD_DOMAINS` and points
+`openpgpkey.<domain>` (or the website's `/.well-known/openpgpkey/`) at plMail; then each person's
+current key for their sign-in address is published — only that address, and only that address's
+user ID — unless they switch it off under Settings → Encryption → *Web Key Directory*, where a
+**Check from outside** button confirms what the world sees. Every address without a published key
+gets the same answer, and lookups are rate-limited per IP. No database change.
+[#84](https://github.com/karatektus/pl_mail/pull/84), by @pmdevelopment.
+
 **S/MIME, beside OpenPGP — phase 6c of end-to-end encryption.** Import your S/MIME certificate (a
 `.p12` or `.pfx` file) under Settings → Encryption: it is opened in your browser, and its private key
 is kept on the server only locked under your keys, like your OpenPGP keys; you can export it again or

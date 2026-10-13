@@ -99,7 +99,7 @@ final readonly class WkdLookup
             return null;
         }
 
-        $hash  = self::zbase32(sha1(strtolower($local), true));
+        $hash  = self::hash($local);
         $query = '?l=' . rawurlencode($local);
 
         return [
@@ -109,17 +109,59 @@ final readonly class WkdLookup
     }
 
     /**
+     * The name a local part goes by in a Web Key Directory: the Z-Base-32 of
+     * the SHA-1 of the local part, lower-cased (ASCII only, as the draft
+     * says — which is what strtolower() does since PHP 8.2). Public because
+     * plMail's own directory (WkdDirectory) has to find an address by the
+     * same name, and two copies of this are two chances to disagree.
+     */
+    public static function hash(string $local): string
+    {
+        return self::zbase32(sha1(strtolower($local), true));
+    }
+
+    /**
+     * Lower-case, IDNA-encoded, and shaped like a public DNS name with at
+     * least two labels — not an IP literal, not `localhost`, not a bare
+     * container name. Public for WkdDirectory, which holds the installation's
+     * own domains to the same shape before it serves anything under them.
+     */
+    public static function domain(string $domain): ?string
+    {
+        $domain = strtolower(trim($domain));
+        $ascii  = '' === $domain ? false : idn_to_ascii($domain, IDNA_DEFAULT, INTL_IDNA_VARIANT_UTS46);
+
+        if (false === $ascii || 253 < strlen($ascii)) {
+            return null;
+        }
+
+        if (1 !== preg_match('/^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z](?:[a-z0-9-]{0,61}[a-z0-9])?$/', $ascii)) {
+            return null;
+        }
+
+        return $ascii;
+    }
+
+    /**
      * The usable keys the address's domain publishes for it, if any.
+     *
+     * @param bool $fresh ask again even if an answer is cached — for a person
+     *                    checking their own address a minute after switching
+     *                    it on, to whom yesterday's "not found" is no answer
      *
      * @return list<PublicKeyInfo>
      */
-    public function find(User $user, string $email): array
+    public function find(User $user, string $email, bool $fresh = false): array
     {
         $email = strtolower(trim($email));
         $urls  = self::urls($email);
 
         if (null === $urls || false === filter_var($email, FILTER_VALIDATE_EMAIL)) {
             throw new ContactKeyRefused('contact_keys.lookup.invalid_address');
+        }
+
+        if (true === $fresh) {
+            $this->cache->delete('wkd.' . sha1($email));
         }
 
         $cached = $this->cache->get('wkd.' . sha1($email), function (ItemInterface $item) use ($user, $urls): string {
@@ -200,27 +242,6 @@ final readonly class WkdLookup
         }
 
         return '' === $body || self::MAX_BYTES < strlen($body) ? null : $body;
-    }
-
-    /**
-     * Lower-case, IDNA-encoded, and shaped like a public DNS name with at
-     * least two labels — not an IP literal, not `localhost`, not a bare
-     * container name.
-     */
-    private static function domain(string $domain): ?string
-    {
-        $domain = strtolower(trim($domain));
-        $ascii  = '' === $domain ? false : idn_to_ascii($domain, IDNA_DEFAULT, INTL_IDNA_VARIANT_UTS46);
-
-        if (false === $ascii || 253 < strlen($ascii)) {
-            return null;
-        }
-
-        if (1 !== preg_match('/^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z](?:[a-z0-9-]{0,61}[a-z0-9])?$/', $ascii)) {
-            return null;
-        }
-
-        return $ascii;
     }
 
     private static function zbase32(string $bytes): string

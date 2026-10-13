@@ -40,14 +40,32 @@ final class GnupgHome
      */
     public static function with(Closure $work): mixed
     {
-        $home = sys_get_temp_dir() . '/plmail-gnupg-' . bin2hex(random_bytes(8));
-        mkdir($home, 0700);
-
-        try {
+        return self::directory(static function (string $home) use ($work): mixed {
             $gpg = new \gnupg(['home_dir' => $home]);
             $gpg->seterrormode(\gnupg::ERROR_SILENT);
 
             return $work($gpg);
+        });
+    }
+
+    /**
+     * Runs $work with the path of a fresh home, for what only the gpg binary
+     * can do — an export filter (WkdKeyExport) has no gpgme call behind it,
+     * so the extension cannot ask for one. Removed afterwards like the other.
+     *
+     * @template T
+     *
+     * @param Closure(string): T $work
+     *
+     * @return T
+     */
+    public static function directory(Closure $work): mixed
+    {
+        $home = sys_get_temp_dir() . '/plmail-gnupg-' . bin2hex(random_bytes(8));
+        mkdir($home, 0700);
+
+        try {
+            return $work($home);
         } finally {
             self::removeTree($home);
         }

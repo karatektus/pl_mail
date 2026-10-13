@@ -65,6 +65,19 @@ security:
             pattern: ^/branding/
             security: false
 
+        # The Web Key Directory: people's public OpenPGP keys, for mail
+        # programs to find by address. Outside security for the reasons
+        # `branding` gives — the caller is a mail program with no session, an
+        # answer is the same for everybody and should be cacheable as such,
+        # and a request that read the session would be rewritten to private.
+        # With no firewall there is also no login redirect to answer a miss
+        # with: every miss is the controller's own uniform 404. Anchored to the
+        # directory's own prefix and nothing wider. See
+        # App\Controller\Crypto\WkdController.
+        wkd:
+            pattern: ^/\.well-known/openpgpkey/
+            security: false
+
         main:
             lazy: true
             provider: app_user_provider

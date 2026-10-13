@@ -19,6 +19,8 @@ PKCS#12 file is opened in the browser and its key wrapped there, so this card
 is the script's as well. A fifth lists
 contacts' keys, which is a different thing — other people's public keys, no
 keyring involved — and is the server's own frame (settings/_contact_keys).
+After the sending switches comes the Web Key Directory (settings/_wkd), also
+the server's: which of the person's keys plMail publishes for others to find.
 
 Accepts nothing: what it needs is the signed-in user and the routes.
 #}
@@ -304,6 +306,20 @@ Accepts nothing: what it needs is the signed-in user and the routes.
     } %}
         {% block body %}
             {{ include('settings/_encryption_sending.html.twig', { user: app.user }) }}
+        {% endblock %}
+    {% endembed %}
+
+    {# ── Web Key Directory ───────────────────────────────────────────────── #}
+    {# Phase 6d of #28: the person's key, published under the installation's
+       own domains for mail programs to find. See WkdDirectory. #}
+    {% embed 'settings/_card.html.twig' with {
+        heading:    'encryption.wkd.heading'|trans,
+        subheading: 'encryption.wkd.subheading'|trans,
+        padded:     true,
+        class:      'mt-6',
+    } %}
+        {% block body %}
+            {{ include('settings/_wkd.html.twig') }}
         {% endblock %}
     {% endembed %}
 </div>

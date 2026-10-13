@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Service\Crypto;
 
+use App\Domain\DTO\Crypto\WkdEntry;
 use App\Entity\Crypto\AddressKey;
 use App\Entity\Crypto\AddressKeyBinding;
 use App\Entity\Crypto\SmimeCertificate;
@@ -35,6 +36,7 @@ final readonly class KeyringView
         private UserKeyCopyRepository      $copies,
         private AddressKeyRepository       $addressKeys,
         private SmimeCertificateRepository $smimeCertificates,
+        private WkdDirectory               $wkd,
         private DemoMode                   $demoMode,
     ) {
     }
@@ -56,6 +58,10 @@ final readonly class KeyringView
             'copies'            => array_map($this->copy(...), $this->copies->findForUser($user)),
             'addressKeys'       => array_map($this->addressKey(...), $this->addressKeys->findForUser($user)),
             'smimeCertificates' => array_map($this->smimeCertificate(...), $this->smimeCertificates->findForUser($user)),
+            // Which of the person's addresses plMail's Web Key Directory
+            // publishes, so an app can say so beside the key without asking
+            // the directory from outside. Public facts, unlike the rest.
+            'wkd'               => array_map($this->wkdEntry(...), $this->wkd->entriesFor($user)),
         ];
     }
 
@@ -104,6 +110,18 @@ final readonly class KeyringView
                 static fn (AddressKeyBinding $binding): array => ['email' => $binding->email, 'primary' => $binding->isPrimary],
                 $key->bindings->toArray(),
             )),
+        ];
+    }
+
+    /** @return array<string, mixed> */
+    private function wkdEntry(WkdEntry $entry): array
+    {
+        return [
+            'email'       => $entry->email,
+            'state'       => $entry->state->value,
+            'published'   => $entry->state->isPublished(),
+            'fingerprint' => $entry->fingerprint,
+            'urls'        => $entry->urls,
         ];
     }
 

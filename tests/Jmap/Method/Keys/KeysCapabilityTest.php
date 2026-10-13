@@ -71,6 +71,9 @@ final class KeysCapabilityTest extends JmapTestCase
         // S/MIME certificates ride along, their keys wrapped under the user
         // key (`plmail/smime-key`); none here.
         self::assertSame([], $result['list'][0]['smimeCertificates']);
+        // Which addresses plMail's Web Key Directory publishes; none, since
+        // example.test is not a domain the test installation serves.
+        self::assertSame([], $result['list'][0]['wkd']);
 
         $this->expectException(MethodException::class);
         $this->method(KeyringGetMethod::class)->handle(['accountId' => $this->accountId()], $this->context());
