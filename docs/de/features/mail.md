@@ -1,4 +1,4 @@
-<!-- translated-from: features/mail.md sha1:67b571d4a50a1049c41b7464aed9dc9cc8a1c874 -->
+<!-- translated-from: features/mail.md sha1:54a2b58ee7445e66da90acab85ddf45c8056550d -->
 
 # Mail
 
@@ -317,7 +317,8 @@ trägt den Moment, an dem der Code laut Mail nicht mehr gilt — "gültig für 1
 09:30" —, und verschwindet damit vom Radar, wenn er tot ist, statt dort weiter benutzbar
 auszusehen. Nennt die Mail keine Gültigkeit, trägt die Karte gar keine Zeit: Zehn Minuten zu raten
 würde entweder einen Code zurückziehen, der noch geht, oder schlimmer, einen toten frisch
-aussehen lassen.
+aussehen lassen. Das Radar zeigt so einen Code trotzdem, aber nur fünfzehn Minuten nach Eingang der
+Mail; die Karte über der Mail selbst behält ihn.
 
 ### Eine Mail melden, die das Radar übersehen hat
 
@@ -1200,5 +1201,7 @@ die du nicht selbst betreibst, melde die Mail, deren Form erkannt werden soll �
 Inhalt du lieber behältst.
 
 **Ein Einmalcode ohne genannte Gültigkeit bekommt keinen Ablauf.** Die Karte zeigt den Code und
-keine Zeit, und sie bleibt, bis du sie ausblendest. plMail erfindet keine zehn Minuten, also kann
-die Karte dir nicht sagen, ob der Code noch geht — das kann nur die Mail, aus der er stammt.
+keine Zeit. Auf dem Radar wird sie fünfzehn Minuten nach Eingang der Mail angeboten und verschwindet
+dann, damit ein Code von letzter Woche nicht lesbar dort stehen bleibt; die Karte über der Mail
+selbst behält ihn. plMail erfindet keine zehn Minuten, also kann die Karte dir nicht sagen, ob der
+Code noch geht — das kann nur die Mail, aus der er stammt.

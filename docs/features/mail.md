@@ -287,7 +287,8 @@ One-time codes are the one source with an expiry rather than an occurrence. A co
 the moment the mail says the code stops working — "valid for 10 minutes", "gültig bis 09:30" — so
 it drops off the radar when it goes dead instead of sitting there looking usable. When the mail
 states no lifetime, the card carries no time at all: guessing ten minutes would either retire a
-code that still works or, worse, keep a dead one looking fresh.
+code that still works or, worse, keep a dead one looking fresh. The radar still offers such a code,
+but only for fifteen minutes after its mail arrived; the card above the mail itself keeps it.
 
 ### Reporting a mail the radar missed
 
@@ -1085,6 +1086,8 @@ administrator can read and download it. That is what makes a new extractor writa
 the dialog says so before you send. On an installation you do not run yourself, report the mail
 whose shape you want recognised — not one whose contents you would rather keep.
 
-**A one-time code with no stated lifetime gets no expiry.** The card shows the code and no time,
-and it stays until you dismiss it. plMail will not invent ten minutes, so the card cannot tell you
-whether the code still works — the mail it came from is the only thing that can.
+**A one-time code with no stated lifetime gets no expiry.** The card shows the code and no time. On
+the radar it is offered for fifteen minutes after its mail arrived and then goes, so a code from
+last week is not left there readable; the card above the mail itself keeps it. plMail will not
+invent ten minutes, so the card cannot tell you whether the code still works — the mail it came
+from is the only thing that can.

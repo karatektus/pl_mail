@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Repository\Insight;
 
 use App\Domain\Enum\Insight\InsightKind;
+use App\Domain\Enum\Mail\LabelRole;
 use App\Entity\Insight\MailInsight;
 use App\Entity\Mail\Message;
 use App\Repository\Insight\MailInsightRepository;
@@ -52,7 +53,7 @@ final class MailInsightRepositoryTest extends KernelTestCase
 
         $this->user = $this->seedUser();
         $this->account = $this->seedAccount();
-        $this->inbox = $this->seedLabel('Inbox', \App\Domain\Enum\Mail\LabelRole::Inbox);
+        $this->inbox = $this->seedLabel('Inbox', LabelRole::Inbox);
     }
 
     protected function tearDown(): void
@@ -100,6 +101,34 @@ final class MailInsightRepositoryTest extends KernelTestCase
         $this->card('github:gone-old#2', mail: null, created: '2026-09-01 08:00:00');
 
         self::assertSame(['stub:github:gone-recent#1'], $this->dedupeKeys($this->recent()));
+    }
+
+    /**
+     * A code is worth minutes. When its mail says how many, the card has a date
+     * and drops off the radar when it passes (OtpExtractor::expiresAt); when it
+     * says nothing the card is undated, and the week every other undated card
+     * gets would leave a dead code on the page, with the code readable on it,
+     * for seven days. It is offered for fifteen minutes of its MAIL instead.
+     *
+     * Hand-derived with NOW 12:00:00: the cut-off is 12:00:00 less fifteen
+     * minutes, 11:45:00, and a card exactly on it is still offered.
+     */
+    public function testACodeThatStatesNoExpiryIsOfferedForFifteenMinutesOfItsMail(): void
+    {
+        $otp = InsightKind::Otp;
+
+        $this->card('otp:on-the-edge', mail: '2026-10-13 11:45:00', created: '2026-10-13 11:45:05', kind: $otp);
+        $this->card('otp:a-second-late', mail: '2026-10-13 11:44:59', created: '2026-10-13 11:45:05', kind: $otp);
+        // Created a minute ago by a backfill, from a mail of this morning: its
+        // row is recent and its mail is not, and the mail is what counts.
+        $this->card('otp:backfilled', mail: '2026-10-13 09:00:00', created: '2026-10-13 11:59:00', kind: $otp);
+        // The companion: another undated kind keeps its week, three days old.
+        $this->card('github:three-days#7', mail: '2026-10-10 12:00:00', created: '2026-10-13 11:00:00');
+
+        self::assertSame(
+            ['stub:otp:on-the-edge', 'stub:github:three-days#7'],
+            $this->dedupeKeys($this->recent()),
+        );
     }
 
     /**
