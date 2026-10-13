@@ -33,6 +33,8 @@ final class RememberMeSignOutTest extends WebTestCase
 
     private Connection $connection;
 
+    private int $userId;
+
     protected function tearDown(): void
     {
         if (true === isset($this->connection) && true === $this->connection->isTransactionActive()) {
@@ -71,6 +73,30 @@ final class RememberMeSignOutTest extends WebTestCase
         self::assertStringContainsString('/login', (string) $client->getResponse()->headers->get('Location'));
     }
 
+    /**
+     * The other way a token ends, and the one a missing laptop needs: the
+     * cookie is bound to the password it was issued under.
+     */
+    public function testAChangedPasswordEndsTheCookieToo(): void
+    {
+        $client = $this->boot();
+        $cookie = $this->signIn($client);
+
+        // Read back rather than reused: the requests above cleared the entity
+        // manager, and a flush on the detached user would change nothing.
+        $em   = static::getContainer()->get(EntityManagerInterface::class);
+        $user = $em->find(User::class, $this->userId);
+        self::assertNotNull($user);
+        $user->password = static::getContainer()->get(UserPasswordHasherInterface::class)->hashPassword($user, 'another-password-altogether');
+        $em->flush();
+
+        $this->onlyWith($client, $cookie);
+        $client->request('GET', '/settings');
+
+        self::assertResponseRedirects();
+        self::assertStringContainsString('/login', (string) $client->getResponse()->headers->get('Location'));
+    }
+
     private function boot(): KernelBrowser
     {
         $client = static::createClient();
@@ -94,6 +120,7 @@ final class RememberMeSignOutTest extends WebTestCase
         $user->password  = static::getContainer()->get(UserPasswordHasherInterface::class)->hashPassword($user, self::PASSWORD);
         $em->persist($user);
         $em->flush();
+        $this->userId = (int) $user->id;
 
         $form = $client->request('GET', '/login')->filter('form')->form([
             'email'    => $user->email,

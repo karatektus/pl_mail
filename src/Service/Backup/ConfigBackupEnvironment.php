@@ -84,23 +84,29 @@ final readonly class ConfigBackupEnvironment
         'APP_ENCRYPTION_KEY',
         // APP_SECRET is deliberately NOT here, and unlike the names below it
         // left for what it does rather than for where it lives. Take the
-        // inventory of what this codebase actually derives from kernel.secret:
-        // remember-me is the signature-based handler, so the cookie is signed
-        // with it; sessions and CSRF tokens are bound to a session that does
+        // inventory of what this codebase actually derived from kernel.secret
+        // when this was decided: remember-me was the signature-based handler,
+        // so the cookie was signed with it; sessions and CSRF tokens are bound to a session that does
         // not survive a restore anyway; JMAP's tokens are signed with the JWT
         // pems, whose CONTENTS travel separately; URI signing and uuid47 are
         // not used. Nothing stored on disk or in the database is encrypted
         // under it — that is APP_ENCRYPTION_KEY's job, and it does travel.
         //
-        // So restoring it has exactly one observable effect, and it is not a
-        // good one: a REMEMBERME cookie minted by the source install keeps
+        // So restoring it had exactly one observable effect, and it was not a
+        // good one: a REMEMBERME cookie minted by the source install kept
         // verifying against the target. Both halves of that check travel in a
-        // v2 backup — the signature is over the app secret and the user's
+        // v2 backup — the signature was over the app secret and the user's
         // password hash — so a browser that was signed in to the machine the
-        // backup came from is signed in to the machine it was restored onto,
-        // without anybody deciding that. Two stacks on one host make it
+        // backup came from was signed in to the machine it was restored onto,
+        // without anybody deciding that. Two stacks on one host made it
         // concrete: cookies are not scoped by port, so localhost:80 and
-        // localhost:8002 hand each other's browsers straight through.
+        // localhost:8002 handed each other's browsers straight through.
+        //
+        // Remember-me has since moved to tokens kept on the server
+        // (`rememberme_token`, see security.yaml), which a backup does not
+        // carry, so a restored secret would no longer even do that. It is left
+        // protecting nothing a restore could want — one more reason for it to
+        // stay out, not a reason to bring it back.
         //
         // The target's own secret stays. A fresh install mints one at first
         // boot and nothing it protects is older than that install, so there is

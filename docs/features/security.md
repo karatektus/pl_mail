@@ -88,9 +88,10 @@ whatever the address: twenty failures in fifteen minutes, so guessing from many 
 still stops. That one can be spent by somebody else, which is why it is set well above anything a
 person mistyping reaches.
 
-**Keep me logged in** issues a cookie lasting 60 days. It is signature-based rather than stored,
-which means changing your password invalidates every one that was issued. It does **not** walk past
-the second factor: a remembered session is still challenged for a code.
+**Keep me logged in** issues a cookie lasting 60 days. What it names is kept on the server, one
+entry per device: signing out ends this device's, and changing your password ends every one that
+was issued. It does **not** walk past the second factor: a remembered session is still challenged
+for a code.
 
 There is no session list and no "sign out everywhere" button. What plMail can withdraw is a
 remembered device, an app password, or — by changing the password — every remember-me cookie at
@@ -112,7 +113,7 @@ take the account rather than merely read it. It is the same reason turning two-f
 off asks for a code even though you are already signed in.
 
 Changing your password ends every **Keep me logged in** cookie you were issued, everywhere, because
-those are signed with the password hash rather than stored. The browser you are sitting at keeps its
+each one is bound to the password it was issued under. The browser you are sitting at keeps its
 session. That makes a password change the closest thing plMail has to "sign out everywhere", and it
 is the right move when a device goes missing.
 

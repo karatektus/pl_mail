@@ -1,4 +1,4 @@
-<!-- translated-from: install/config-backup.md sha1:9b19dac8e3efc0f076350b7bfa6b3915ba0cc396 -->
+<!-- translated-from: install/config-backup.md sha1:2a6b435d9bbef93bbc4e3a0af95f145a9a02f95e -->
 # Konfigurationssicherung
 
 Die *Konfiguration* einer Installation ist nicht dasselbe wie ihre *Daten*, und beide gehen auf
@@ -444,8 +444,8 @@ Jeder andere Name hat den Export verlassen, weil er die Maschine beschreibt. Die
 gegangen wegen dem, was eine wiederhergestellte Kopie *tut*.
 
 Man nehme die Bestandsaufnahme dessen, was plMail tatsächlich aus `APP_SECRET` ableitet.
-„Angemeldet bleiben“ nutzt Symfonys signaturbasierten Handler, das Sechzig-Tage-Cookie ist also
-damit signiert. Sitzungen und CSRF-Token hängen an einer Sitzung, die eine Wiederherstellung
+„Angemeldet bleiben“ nutzte Symfonys signaturbasierten Handler, als das entschieden wurde, das
+Sechzig-Tage-Cookie war also damit signiert. Sitzungen und CSRF-Token hängen an einer Sitzung, die eine Wiederherstellung
 ohnehin nicht überlebt. JMAP-Token werden mit dem JWT-Schlüsselpaar signiert, dessen Inhalt separat
 mitreist. URI-Signierung und uuid47 werden nicht verwendet. Nichts auf der Platte und nichts in der
 Datenbank ist damit verschlüsselt — das ist die Aufgabe von `APP_ENCRYPTION_KEY`, und der reist mit.
@@ -457,6 +457,12 @@ Signatur deckt das App-Secret und den Passwort-Hash des Benutzers ab, und Benutz
 angemeldet, ohne dass das jemand entschieden hätte. Zwei Stacks auf einem Host machen das konkret,
 denn Cookies sind nicht nach Port getrennt: `localhost:80` und `localhost:8002` würden sich
 gegenseitig die Browser durchreichen.
+
+„Angemeldet bleiben“ hängt inzwischen nicht mehr daran: Seine Tokens sind jetzt Zeilen auf dem
+Server (`rememberme_token`), und eine Sicherung nimmt sie nicht mit, ein Cookie der
+Quell-Installation nennt also eine Zeile, die das Ziel nicht hat. Damit schützt `APP_SECRET` nichts
+mehr, was eine Wiederherstellung brauchen könnte — ein Grund mehr, ihn zurückzulassen, und keiner,
+ihn wieder mitzunehmen.
 
 Das Ziel behält das Secret, das es beim ersten Start erzeugt hat. Nichts, was es schützt, ist älter
 als diese Installation, es gibt für die Kopie aus der Sicherung also nichts aufzuschließen außer

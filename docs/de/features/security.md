@@ -1,4 +1,4 @@
-<!-- translated-from: features/security.md sha1:ab74a7237345f08d46c12179468fa91366bb0894 -->
+<!-- translated-from: features/security.md sha1:fd6e241cab9a90d68cf70059a1a4d27bdd9558b8 -->
 
 # Sicherheit
 
@@ -101,10 +101,10 @@ dritte Grenze zählt je Konto, egal von welcher Adresse: zwanzig Fehlversuche in
 damit auch das Raten von vielen Adressen zugleich aufhört. Die kann auch jemand anderes für dich
 aufbrauchen, deshalb liegt sie weit über dem, was du beim Vertippen je erreichst.
 
-**Angemeldet bleiben** stellt ein Cookie mit 60 Tagen Lebensdauer aus. Es beruht auf einer
-Signatur und ist nicht gespeichert, was bedeutet, dass eine Passwortänderung jedes ausgestellte
-entwertet. Es geht **nicht** am zweiten Faktor vorbei: Eine gemerkte Sitzung wird trotzdem nach
-einem Code gefragt.
+**Angemeldet bleiben** stellt ein Cookie mit 60 Tagen Lebensdauer aus. Worauf es verweist, liegt
+auf dem Server, ein Eintrag pro Gerät: Abmelden beendet den dieses Geräts, und eine
+Passwortänderung beendet jeden, der je ausgestellt wurde. Es geht **nicht** am zweiten Faktor
+vorbei: Eine gemerkte Sitzung wird trotzdem nach einem Code gefragt.
 
 Es gibt keine Sitzungsliste und keinen Knopf „überall abmelden“. Was plMail zurücknehmen kann,
 ist ein gemerktes Gerät, ein App-Passwort oder — durch eine Passwortänderung — jedes
@@ -128,9 +128,10 @@ könnte jemand im Vorbeigehen das Konto übernehmen, statt es nur zu lesen. Aus 
 das Abschalten der Zwei-Faktor-Authentifizierung nach einem Code, obwohl du längst angemeldet bist.
 
 Eine Passwortänderung beendet überall jedes **Angemeldet bleiben**-Cookie, das je für dich
-ausgestellt wurde, denn die sind mit dem Passwort-Hash signiert und nicht gespeichert. Der Browser,
-an dem du gerade sitzt, behält seine Sitzung. Damit ist eine Passwortänderung das, was plMail einem
-„überall abmelden“ am nächsten kommt, und der richtige Zug, wenn ein Gerät abhandenkommt.
+ausgestellt wurde, denn jedes ist an das Passwort gebunden, unter dem es ausgestellt wurde. Der
+Browser, an dem du gerade sitzt, behält seine Sitzung. Damit ist eine Passwortänderung das, was
+plMail einem „überall abmelden“ am nächsten kommt, und der richtige Zug, wenn ein Gerät
+abhandenkommt.
 
 **Niemand sonst kann das für dich tun.** Das Benutzerformular einer Administratorin hat für ein
 bestehendes Konto absichtlich kein Passwortfeld — siehe [Administration](admin.md#benutzer). Wenn du

@@ -411,9 +411,9 @@ it belongs in the compose file you copy across, not in this file.
 Every other name left the export because it describes the machine. This one left because of what a
 restored copy would *do*.
 
-Take the inventory of what plMail actually derives from `APP_SECRET`. Remember-me uses Symfony's
-signature-based handler, so the sixty-day cookie is signed with it. Sessions and CSRF tokens are
-bound to a session, which does not survive a restore in any case. JMAP's tokens are signed with the
+Take the inventory of what plMail actually derives from `APP_SECRET`. Remember-me used Symfony's
+signature-based handler when this was decided, so the sixty-day cookie was signed with it. Sessions
+and CSRF tokens are bound to a session, which does not survive a restore in any case. JMAP's tokens are signed with the
 JWT keypair, whose contents travel separately. URI signing and uuid47 are not used. Nothing on disk
 and nothing in the database is encrypted under it — that is `APP_ENCRYPTION_KEY`'s job, and that
 one does travel.
@@ -424,6 +424,11 @@ app secret and the user's password hash, and users now travel — so a browser t
 the machine the backup came from was signed in to the machine it was restored onto, without anybody
 deciding that. Two stacks on one host make it concrete, because cookies are not scoped by port:
 `localhost:80` and `localhost:8002` would hand each other's browsers straight through.
+
+Remember-me no longer depends on it: its tokens are rows on the server now (`rememberme_token`),
+and a backup does not carry them, so a cookie from the source install names a row the target does
+not have. That leaves `APP_SECRET` protecting nothing a restore could want, which is one more reason
+for it to stay behind rather than a reason to bring it back.
 
 The target keeps the secret it generated at first boot. Nothing it protects is older than that
 install, so there is nothing for the backup's copy to unlock but somebody else's cookies. An old
