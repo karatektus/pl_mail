@@ -40,9 +40,15 @@ use Symfony\Component\Security\Core\User\UserInterface;
  * offered — typing "ada" should offer Ada's work and home addresses both;
  * when only an address matched, only that address is.
  *
- * Taking the top $limit of each side and merging is exact rather than an
- * approximation: each side is already in the merged order within itself, so
- * nothing past either side's limit could have made the merged top $limit.
+ * Each side is asked for its own top $limit and the two are merged, which is
+ * one bounded query each per keystroke rather than a join of the harvest
+ * against every card. It is exact for what matters most — the harvest side is
+ * already in the merged order, so no frequently-mailed address is lost — and
+ * close for the rest: the cards come back in name order, so a card past the
+ * first $limit matches can be missed even when the harvest knows its address,
+ * if the harvest's own match on that query did not find it. Only cards that
+ * carry an address are asked for (ContactCardRepository::findForAutocomplete),
+ * or number-only cards would use up the limit and offer nothing.
  */
 final readonly class ContactSuggester
 {
@@ -72,7 +78,7 @@ final readonly class ContactSuggester
 
         $needle = mb_strtolower($query);
 
-        foreach ($this->cards->search($user, $query, $limit) as $card) {
+        foreach ($this->cards->findForAutocomplete($user, $query, $limit) as $card) {
             foreach ($this->matchingEmails($card, $needle) as $email) {
                 $known = $byEmail[$email] ?? null;
 

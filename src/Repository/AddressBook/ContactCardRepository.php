@@ -8,6 +8,7 @@ use App\Domain\Enum\Calendar\SyncState;
 use App\Entity\AddressBook\AddressBook;
 use App\Entity\AddressBook\ContactCard;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
+use Doctrine\ORM\QueryBuilder;
 use Doctrine\Persistence\ManagerRegistry;
 use Symfony\Component\Security\Core\User\UserInterface;
 
@@ -25,37 +26,34 @@ class ContactCardRepository extends ServiceEntityRepository
      * The cards a person can see: every book of theirs, minus what they have
      * deleted here and the server has not yet been told about.
      *
-     * QueryBuilder for the join to the book's owner and the case-folded
-     * substring match, neither of which findBy() can state.
+     * @return list<ContactCard>
+     */
+    public function search(UserInterface $user, string $query = '', int $limit = 200): array
+    {
+        return $this->visibleTo($user, $query, $limit)->getQuery()->getResult();
+    }
+
+    /**
+     * The cards the recipient autocomplete may draw from: search() narrowed
+     * to cards that carry an address.
+     *
+     * Narrowed in SQL rather than after the LIMIT. A book synced from a phone
+     * is full of number-only cards, and those sort among the rest by name: a
+     * query whose first $limit matches were all number-only would offer no
+     * address-book contact at all, however many further down had an address.
+     * searchText holds every address on the card (see ContactCard::fill()),
+     * so a card with one contains an `@` — the one test on that column that
+     * needs neither a jsonb operator DQL lacks nor a column of its own.
      *
      * @return list<ContactCard>
      */
-    public function search(UserInterface $user, string $query = '', int $limit = 200, ?AddressBook $book = null): array
+    public function findForAutocomplete(UserInterface $user, string $query, int $limit): array
     {
-        $builder = $this->createQueryBuilder('card')
-            ->innerJoin('card.addressBook', 'book')
-            ->addSelect('book')
-            ->where('book.usr = :user')
-            ->andWhere('card.syncState != :deleted')
-            ->setParameter('user', $user)
-            ->setParameter('deleted', SyncState::PendingDelete)
-            ->orderBy('LOWER(card.fullName)', 'ASC')
-            ->addOrderBy('card.id', 'ASC')
-            ->setMaxResults($limit);
-
-        $query = mb_strtolower(trim($query));
-
-        if ('' !== $query) {
-            $builder
-                ->andWhere('card.searchText LIKE :contains')
-                ->setParameter('contains', '%' . addcslashes($query, '%_\\') . '%');
-        }
-
-        if (null !== $book) {
-            $builder->andWhere('card.addressBook = :book')->setParameter('book', $book);
-        }
-
-        return $builder->getQuery()->getResult();
+        return $this->visibleTo($user, $query, $limit)
+            ->andWhere('card.searchText LIKE :hasAddress')
+            ->setParameter('hasAddress', '%@%')
+            ->getQuery()
+            ->getResult();
     }
 
     /**
@@ -92,5 +90,33 @@ class ContactCardRepository extends ServiceEntityRepository
         }
 
         return ['byHref' => $byHref, 'byUid' => $byUid];
+    }
+
+    /**
+     * QueryBuilder for the join to the book's owner and the case-folded
+     * substring match, neither of which findBy() can state.
+     */
+    private function visibleTo(UserInterface $user, string $query, int $limit): QueryBuilder
+    {
+        $builder = $this->createQueryBuilder('card')
+            ->innerJoin('card.addressBook', 'book')
+            ->addSelect('book')
+            ->where('book.usr = :user')
+            ->andWhere('card.syncState != :deleted')
+            ->setParameter('user', $user)
+            ->setParameter('deleted', SyncState::PendingDelete)
+            ->orderBy('LOWER(card.fullName)', 'ASC')
+            ->addOrderBy('card.id', 'ASC')
+            ->setMaxResults($limit);
+
+        $query = mb_strtolower(trim($query));
+
+        if ('' !== $query) {
+            $builder
+                ->andWhere('card.searchText LIKE :contains')
+                ->setParameter('contains', '%' . addcslashes($query, '%_\\') . '%');
+        }
+
+        return $builder;
     }
 }

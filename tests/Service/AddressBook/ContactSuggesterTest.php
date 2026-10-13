@@ -185,13 +185,13 @@ final class ContactSuggesterTest extends TestCase
             {
             }
 
-            public function search(UserInterface $user, string $query = '', int $limit = 200, ?AddressBook $book = null): array
+            public function findForAutocomplete(UserInterface $user, string $query, int $limit): array
             {
                 $q = mb_strtolower(trim($query));
 
                 return array_slice(array_values(array_filter(
                     $this->cards,
-                    static fn (ContactCard $c): bool => str_contains($c->searchText, $q),
+                    static fn (ContactCard $c): bool => str_contains($c->searchText, $q) && str_contains($c->searchText, '@'),
                 )), 0, $limit);
             }
         };
