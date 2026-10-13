@@ -1,4 +1,4 @@
-<!-- translated-from: providers/carddav.md sha1:9d8b22a384e0dd64657f3549b0b7bf443c7448d4 -->
+<!-- translated-from: providers/carddav.md sha1:a06fc9c179ee639b2313645719eb019dbdeed91d -->
 # CardDAV
 
 CardDAV ist das Standardprotokoll für Adressbücher auf einem Server, und plMail spricht es mit jedem
@@ -68,6 +68,13 @@ dem zuletzt gesehenen ETag. Hat sich die Karte zwischendurch auf dem Server geä
 Version des Servers: Das Adressbuch wird neu gelesen, und die hier gemachte Änderung wird verworfen,
 mit einer Warnung im Log, die den Kontakt nennt. Zwei Versionen einer vCard Feld für Feld
 zusammenzuführen ist eine eigene Funktion, und wer sie falsch macht, beschädigt ein Adressbuch.
+
+Eine Karte, die der Server rundweg ablehnt (`403`, meist aus einem Adressbuch, das nicht gesagt hat,
+dass es schreibgeschützt ist), wird genauso behandelt: Die Kopie des Servers bleibt, die abgelehnte
+Änderung landet im Log, und eine einzelne Karte kann den Rest des Adressbuchs nicht am Synchronisieren
+hindern. Jeder andere Fehler — der Server nicht erreichbar, sein Speicher voll oder das Passwort
+abgelehnt — lässt die Änderung ausstehend, und sie wird bei einer späteren Synchronisierung erneut
+gesendet.
 
 **Was plMail nicht anzeigt, rührt es nicht an.** Die Kontakte-Seite bearbeitet Name,
 E-Mail-Adressen, Telefonnummern, Organisation und Notiz. Eine Karte trägt viel mehr — ein Foto,

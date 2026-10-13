@@ -62,6 +62,11 @@ the server in the meantime, the server's version wins: the address book is read 
 made here is dropped, with a warning in the log naming the contact. Merging two versions of a vCard
 field by field is a feature of its own, and getting it wrong corrupts an address book.
 
+A card the server refuses outright (`403`, usually from a book that did not say it was read-only) is
+handled the same way: the server's copy is kept and the refused edit is logged, so one card cannot
+stop the rest of the book from syncing. Any other failure — the server unreachable, out of space, or
+rejecting the password — keeps the edit pending, and it is sent again on a later sync.
+
 **What plMail does not show, it does not touch.** The Contacts page edits the name, email
 addresses, phone numbers, organisation and note. A card carries much more — a photo, a birthday,
 postal addresses, properties a phone uses to link it to an app — and all of it is kept: the edit is
