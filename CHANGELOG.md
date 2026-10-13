@@ -141,6 +141,13 @@ import line in the background-work indicator now shows the quota, roughly how mu
 use, how many messages a minute are coming in, how long the rest of the import takes, and says
 so when Google has paused it. No
 migration. [#90](https://github.com/karatektus/pl_mail/issues/90), reported by @karamanliev.
+**A card made from old mail looked like new mail on Happening soon.** The cards without a date of
+their own — GitHub activity, mostly — are listed for the last seven days, measured from when the
+card was created. That equals the mail's age only while cards are made as mail arrives:
+`app:backfill insights`, or an import, creates them from old mail now, so a month-old notification
+took a place among the newest twenty for a week. The window and the order now follow the date of
+the card's mail, and the card's own date only when its mail was deleted. No migration.
+
 **Reading old mail again could turn a parcel's card back to its first status.** A card keeps the
 newest statement of its series, but "newest" meant the last mail read, not the latest dated.
 `app:backfill insights` reads by the order mail was stored, which for an Outlook import is

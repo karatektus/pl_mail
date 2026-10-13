@@ -85,8 +85,19 @@ class MailInsightRepository extends ServiceEntityRepository
 
     /**
      * The undated family — GitHub activity and whatever joins it. Recency is
-     * the only timeline these have, so the window is on createdAt and the
-     * newest speak first.
+     * the only timeline these have, so the window is on how recent the card's
+     * MAIL is, and the newest speak first.
+     *
+     * The mail's receivedAt and not the row's createdAt, which says when the
+     * harvester ran. The two agree while the harvester runs as mail arrives and
+     * part company the moment it re-reads old mail: the insights backfill
+     * creates its cards now, so a month-old notification would otherwise be a
+     * card of the last minute and sit among the newest twenty for a week. The
+     * card links the NEWEST mail of its series (see InsightHarvester), so this
+     * is the date of the latest word on the thing.
+     *
+     * A card whose mail was deleted has no link left (SET NULL) and falls back
+     * to its row's date — the only date it has.
      *
      * @return list<MailInsight>
      */
@@ -98,12 +109,14 @@ class MailInsightRepository extends ServiceEntityRepository
     ): array {
         return $this->createQueryBuilder('i')
             ->join('i.account', 'a')
+            ->leftJoin('i.message', 'm')
+            ->addSelect('COALESCE(m.receivedAt, i.createdAt) AS HIDDEN seenAt')
             ->where('a.usr = :user')
             ->andWhere('a.isActive = true')
             ->andWhere('i.dismissedAt IS NULL')
             ->andWhere('i.happensAt IS NULL')
-            ->andWhere('i.createdAt >= :from')
-            ->orderBy('i.createdAt', 'DESC')
+            ->andWhere('COALESCE(m.receivedAt, i.createdAt) >= :from')
+            ->orderBy('seenAt', 'DESC')
             // Same reason, and likelier still: these are written by the
             // harvester as it walks a batch of mail, so a run that reads twenty
             // notifications stamps them all within the same second.
