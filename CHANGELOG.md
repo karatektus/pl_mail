@@ -8,6 +8,11 @@ The published image tags: `latest` follows the most recent release below,
 
 ## Unreleased
 
+**The PHP `gnupg` extension is now required.** plMail checks PGP signatures with it; the Docker
+image has carried it since the encryption work began, and `composer install` now insists on it, so
+an installation outside Docker needs it too (PECL `gnupg`, with `libgpgme`).
+[#84](https://github.com/karatektus/pl_mail/pull/84), by @pmdevelopment.
+
 **The plMail app can read and send encrypted mail — the server side, phase 6a of end-to-end
 encryption.** Pairing a device now brings your keys along when your browser has them open: they
 travel sealed, and the key that opens them is only in the QR code, which your browser draws itself.
