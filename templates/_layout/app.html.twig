@@ -90,8 +90,13 @@
     <meta name="title-count-key" content="{% block title_count_key %}{% endblock %}">
     {% include '_partials/_favicon.html.twig' %}
     {# PWA: iOS only offers Web Push to apps added to the Home Screen, and it
-       needs the apple-touch-icon specifically — it ignores the manifest icons. #}
-    <link rel="manifest" href="/manifest.webmanifest">
+       needs the apple-touch-icon specifically — it ignores the manifest icons.
+
+       The manifest is a route with the choice in its URL, like the tab icon
+       (see BrandingController::manifest()): the installed app's icon is the
+       one picked in Settings → Appearance. The apple-touch-icon cannot follow
+       yet — iOS takes only a PNG, and nothing here draws a PNG per choice. #}
+    <link rel="manifest" href="{{ logo_manifest_url(appearance().effectiveLogoMotif, appearance().effectiveLogoPaint) }}">
     <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
     {# The token the fetch-based endpoints check. Stimulus controllers that
        build their own request body cannot carry a form field, so they read this

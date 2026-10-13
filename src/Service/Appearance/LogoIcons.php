@@ -62,6 +62,9 @@ final class LogoIcons
         'templates/branding/*.svg.twig',
         'templates/branding/motif/*.svg.twig',
         'templates/_partials/_logo_mark.html.twig',
+        // Not a drawing, but the manifest route serves it and promises its URL
+        // is immutable, so an edit to it must move the URL like one.
+        'public/manifest.webmanifest',
     ];
 
     /** @var list<class-string> */
@@ -92,6 +95,18 @@ final class LogoIcons
     public function faviconUrl(LogoMotif $motif, ?LogoStyle $paint = null): string
     {
         return $this->generate('app_branding_favicon', $motif, $paint);
+    }
+
+    /**
+     * The install manifest for one choice: what a browser reads to put the app
+     * on a home screen or in a launcher, with the choice's tile as its icon.
+     *
+     * Same rule as the tab icon. A manifest is fetched without credentials, so
+     * the URL has to carry the choice.
+     */
+    public function manifestUrl(LogoMotif $motif, ?LogoStyle $paint = null): string
+    {
+        return $this->generate('app_branding_manifest', $motif, $paint);
     }
 
     /**

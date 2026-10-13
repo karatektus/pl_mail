@@ -65,9 +65,9 @@ final class BrandingFaviconTest extends WebTestCase
      * declared size, then answers "which icon for a 16px tab" with the smallest
      * one that is big enough, so a 192px PNG always beat the SVG. The PNG is a
      * static file and wears the product default, so every account saw the wax
-     * seal in its tabs whatever it had chosen. The home-screen and install
-     * icons keep their PNGs (apple-touch-icon, the manifest); only the tab
-     * icon must not have a second candidate.
+     * seal in its tabs whatever it had chosen. Only the tab icon must not have
+     * a second candidate; the install manifest has its own test
+     * (BrandingManifestTest) and iOS's apple-touch-icon keeps its PNG.
      */
     public function testNoRasterTabIconCompetesWithTheChosenOne(): void
     {

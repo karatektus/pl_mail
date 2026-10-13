@@ -9,6 +9,7 @@ use App\Domain\Enum\Theme\LogoStyle;
 use App\Infrastructure\Routing\LogoPaintRequirement;
 use App\Service\Appearance\LogoIcons;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
@@ -16,7 +17,8 @@ use Symfony\Component\Routing\Requirement\EnumRequirement;
 
 /**
  * The logo, drawn three ways: as the icon tile, as the tab icon, and as the
- * top bar wears it.
+ * top bar wears it. Beside them, the install manifest that names the tile as
+ * the app's icon.
  *
  * plMail's logo has three hundred and thirty faces (Settings → Appearance →
  * Logo: ten icons, each in its own design or thirty-two colourways), and every
@@ -33,7 +35,7 @@ use Symfony\Component\Routing\Requirement\EnumRequirement;
  * already fetched correctly (the one the page loaded with). Drawn from the URL,
  * there is nothing for the save to race.
  *
- * All three are public and, at the current drawing version, immutable. See
+ * All four are public and, at the current drawing version, immutable. See
  * serve() for why that is safe.
  */
 final class BrandingController extends AbstractController
@@ -55,6 +57,8 @@ final class BrandingController extends AbstractController
 
     public function __construct(
         private readonly LogoIcons $icons,
+        #[Autowire('%kernel.project_dir%')]
+        private readonly string    $projectDir,
     ) {}
 
     /**
@@ -104,6 +108,41 @@ final class BrandingController extends AbstractController
     }
 
     /**
+     * The install manifest: public/manifest.webmanifest with the choice's tile
+     * for its icon.
+     *
+     * Everything but the icons is read from that file, so the app's name, start
+     * page and colours have one home, and the file stays what an installer that
+     * never loaded a page would find.
+     *
+     * The icon is the one SVG tile and nothing beside it. The static file
+     * listed three PNGs of the wax seal, and a launcher chooses among a
+     * manifest's icons the way Firefox chooses a tab icon (see
+     * _favicon.html.twig): a second candidate that is the same for everyone
+     * wins for someone. An SVG has no size, so `any`.
+     *
+     * iOS does not read this for its home-screen icon; it wants a PNG
+     * `apple-touch-icon`, which has no per-choice route (see app.html.twig).
+     */
+    #[Route(
+        '/branding/manifest/{motif}/{paint}.webmanifest',
+        name: 'app_branding_manifest',
+        requirements: ['motif' => new EnumRequirement(LogoMotif::class), 'paint' => new LogoPaintRequirement()],
+        methods: ['GET'],
+    )]
+    public function manifest(Request $request, LogoMotif $motif, string $paint): Response
+    {
+        $style = LogoStyle::tryFrom($paint);
+
+        return $this->serve(
+            $request,
+            'manifest.' . LogoIcons::choice($motif, $style),
+            fn (): string => $this->manifestJson($motif, $style),
+            'application/manifest+json',
+        );
+    }
+
+    /**
      * The logo as the app's own chrome wears it: the top bar's.
      *
      * The glyph bare, with no tile, on the 48 grid the pl mark is drawn on,
@@ -147,11 +186,11 @@ final class BrandingController extends AbstractController
      *
      * @param \Closure(): string $draw
      */
-    private function serve(Request $request, string $choice, \Closure $draw): Response
+    private function serve(Request $request, string $choice, \Closure $draw, string $type = 'image/svg+xml'): Response
     {
         $version = $this->icons->version();
 
-        $response = new Response(headers: ['Content-Type' => 'image/svg+xml']);
+        $response = new Response(headers: ['Content-Type' => $type]);
         $response->setPublic();
         $response->setEtag($choice . '.' . $version);
 
@@ -169,6 +208,25 @@ final class BrandingController extends AbstractController
         $response->setContent($draw());
 
         return $response;
+    }
+
+    private function manifestJson(LogoMotif $motif, ?LogoStyle $paint): string
+    {
+        /** @var array<string, mixed> $manifest */
+        $manifest = json_decode(
+            (string) file_get_contents($this->projectDir . '/public/manifest.webmanifest'),
+            true,
+            flags: JSON_THROW_ON_ERROR,
+        );
+
+        $manifest['icons'] = [[
+            'src'     => $this->icons->url($motif, $paint),
+            'sizes'   => 'any',
+            'type'    => 'image/svg+xml',
+            'purpose' => 'any',
+        ]];
+
+        return json_encode($manifest, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT);
     }
 
     /** One tile: the glyph on its ground, clipped to the rounded square. */

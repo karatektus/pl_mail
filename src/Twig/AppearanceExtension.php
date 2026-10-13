@@ -49,6 +49,7 @@ final class AppearanceExtension extends AbstractExtension
             new TwigFunction('background_solid_css', $this->backgrounds->solid(...)),
             new TwigFunction('logo_icon_url', $this->logoIcons->url(...)),
             new TwigFunction('logo_favicon_url', $this->logoIcons->faviconUrl(...)),
+            new TwigFunction('logo_manifest_url', $this->logoIcons->manifestUrl(...)),
             new TwigFunction('logo_url', $this->logoIcons->logoUrl(...)),
         ];
     }

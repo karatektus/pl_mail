@@ -6,6 +6,15 @@ so anything that changes the schema irreversibly is called out explicitly.
 The published image tags: `latest` follows the most recent release below,
 `main` follows the tip of the default branch, and `sha-…` pins one commit.
 
+## Unreleased
+
+**The installed app has the icon you picked.** The tab icon followed Settings → Appearance →
+Logo, but an app installed to the desktop or an Android home screen kept the wax seal, because
+its icon came from one fixed file. The install manifest now names your choice's icon, and a new
+pick reaches it before you reload. Reinstall (or let the browser refresh the app) to see it.
+iPhone and iPad are unchanged: iOS only takes a PNG for its home-screen icon, and plMail does
+not draw one per choice yet. No migration.
+
 ## v0.3.4 — 2026-10-13
 
 **A Gmail import no longer runs into Google's quota and stays there.** Google lowered the
