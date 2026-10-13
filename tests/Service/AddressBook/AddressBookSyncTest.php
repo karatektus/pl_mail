@@ -227,6 +227,30 @@ final class AddressBookSyncTest extends TestCase
         self::assertSame(['grace'], array_map(static fn (ContactCard $c): string => $c->uid, $this->cards), 'and, being a full listing, it can delete');
     }
 
+    /**
+     * A server that moves a card deletes the old href and creates a new one
+     * with the same UID, and a delta may list the two in either order. The
+     * row must end up at the new href in both — not removed because the
+     * deletion of its old address was read after it had moved.
+     */
+    public function testAMovedCardKeepsItsRowWhicheverOrderTheDeltaListsIt(): void
+    {
+        $moved = CardDavFixture::vcard('ada', 'Ada Lovelace', 'ada@example.com');
+
+        foreach ([
+            'deletion first'  => ['/dav/addressbooks/alice/contacts/ada.vcf' => null, '/dav/addressbooks/alice/contacts/moved/ada.vcf' => ['etag' => '"2"', 'vcard' => $moved]],
+            'deletion second' => ['/dav/addressbooks/alice/contacts/moved/ada.vcf' => ['etag' => '"2"', 'vcard' => $moved], '/dav/addressbooks/alice/contacts/ada.vcf' => null],
+        ] as $order => $members) {
+            $this->cards = [];
+            $card        = $this->card('ada', 'Ada Lovelace', etag: '"1"');
+
+            $this->sync($this->server(CardDavFixture::report($members, 'token-2'), syncToken: 'token-1'));
+
+            self::assertSame([$card], $this->cards, $order);
+            self::assertSame(self::BOOK . 'moved/ada.vcf', $card->href, $order);
+        }
+    }
+
     public function testAPermanentFailureIsRecordedOnTheBookForTheSettingsList(): void
     {
         $fixture = new CardDavFixture(CalDavFixture::status(401));

@@ -197,6 +197,13 @@ final readonly class AddressBookSync
      * would otherwise have its new row inserted while the old one still holds
      * the UID, and the unique key would fail the whole sync. Deferring lets the
      * incoming card adopt the row that was about to go instead.
+     *
+     * The two maps are kept current as rows are adopted and created, not
+     * read once. A report lists the move in either order, and with the old
+     * href still pointing at an adopted row, a deletion reported *after* the
+     * re-creation would doom the row that had just taken the new href — the
+     * contact would vanish here while it still exists on the server, until
+     * the next full listing.
      */
     private function apply(AddressBook $book, AddressBookChangeSet $changes): int
     {
@@ -243,10 +250,16 @@ final readonly class AddressBookSync
             if (null === $local) {
                 $local = new ContactCard($book, $fields->uid);
                 $this->em->persist($local);
-                $byUid[$fields->uid] = $local;
+                $byUid[$local->uid] = $local;
             }
 
             unset($doomed[spl_object_id($local)]);
+
+            if (null !== $local->href && $local->href !== $remote->href) {
+                unset($byHref[$local->href]);
+            }
+
+            $byHref[$remote->href] = $local;
 
             $local->href  = $remote->href;
             $local->etag  = $remote->etag;
