@@ -212,6 +212,7 @@ in before, with logs and orphaned blobs growing without bound.
 |---|---|---|
 | `*/15 * * * *` | `app:mail:sync` | Neither Gmail push nor Graph subscriptions guarantee delivery and IDLE connections drop; polling is the backstop |
 | `7-59/15 * * * *` | `app:calendar:sync --stale` | The mechanism for CalDAV and ICS feeds, the backstop for Google and Graph. Offset off the quarter hour so it does not stack on the mail sweep — they share one worker |
+| `11-59/15 * * * *` | `app:contacts:sync --stale` | CardDAV address books have no push at all, so this is the only way changes made on a phone arrive. Offset off both sweeps above for the same shared-worker reason |
 | `20 * * * *` | `app:calendar:push` | Hourly, not because anything expires that fast, but because registration fails for *deployment* reasons that have nothing to do with the click that connected the calendar |
 | `* * * * *` | `app:mail:wake-snoozed` | A minute is the unit people pick a wake time in |
 | `* * * * *` | `app:calendar:alerts` | Same argument, plus the interval is the bound on how late a reminder can be |
