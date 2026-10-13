@@ -199,6 +199,34 @@ final class AddressBookSyncTest extends TestCase
         self::assertSame(self::BOOK . 'local-only.vcf', $local->href);
     }
 
+    /**
+     * The `valid-sync-token` precondition arrives as an exception rather than
+     * as the driver's resync outcome. Let through, it failed the sync with the
+     * dead token still stored, and every retry presented the same token to
+     * the same refusal.
+     */
+    public function testADeadSyncTokenIsDroppedAndTheBookReadFromScratch(): void
+    {
+        $this->card('ada', 'Ada Lovelace', etag: '"1"');
+        $this->book->syncToken = 'expired';
+
+        $fixture = new CardDavFixture(
+            CardDavFixture::collection('/dav/addressbooks/alice/contacts/', syncCollection: true),
+            CalDavFixture::deadSyncToken(403),
+            CardDavFixture::collection('/dav/addressbooks/alice/contacts/', syncCollection: true),
+            CardDavFixture::report([
+                '/dav/addressbooks/alice/contacts/grace.vcf' => ['etag' => '"2"', 'vcard' => CardDavFixture::vcard('grace', 'Grace Hopper', 'grace@example.com')],
+            ], 'token-fresh'),
+        );
+
+        $this->syncWith($fixture);
+
+        self::assertStringContainsString('<d:sync-token></d:sync-token>', $fixture->body(3), 'the second report starts from scratch');
+        self::assertSame('token-fresh', $this->book->syncToken);
+        self::assertTrue($this->book->isHealthy());
+        self::assertSame(['grace'], array_map(static fn (ContactCard $c): string => $c->uid, $this->cards), 'and, being a full listing, it can delete');
+    }
+
     public function testAPermanentFailureIsRecordedOnTheBookForTheSettingsList(): void
     {
         $fixture = new CardDavFixture(CalDavFixture::status(401));

@@ -146,7 +146,7 @@ final readonly class AddressBookSync
      */
     private function pull(AddressBook $book): int
     {
-        $changes = $this->driver->pull($book, $book->syncToken);
+        $changes = $this->pullOnce($book, $book->syncToken);
 
         if (true === $changes->resyncRequired) {
             $book->syncToken = null;
@@ -158,6 +158,36 @@ final readonly class AddressBookSync
         $book->syncToken = $changes->syncToken;
 
         return $touched;
+    }
+
+    /**
+     * A dead token arrives two ways — as the driver's resyncRequired outcome
+     * (a moved ctag) or as an exception (the `valid-sync-token` precondition,
+     * a 507 on the report) — and both mean the same thing: read everything
+     * again. Normalised here, as CalendarSyncService::pullOnce() does, so the
+     * token is actually dropped. Let through, the exception failed the sync
+     * with the dead token still stored, and every retry presented it again.
+     *
+     * Only for a pull that sent a token. Asked from scratch, the server has no
+     * position of ours to reject, and the failure is reported as itself.
+     *
+     * @throws CalendarSyncException
+     */
+    private function pullOnce(AddressBook $book, ?string $syncToken): AddressBookChangeSet
+    {
+        try {
+            return $this->driver->pull($book, $syncToken);
+        } catch (CalendarResyncRequiredException $e) {
+            if (null === $syncToken) {
+                throw $e;
+            }
+
+            $this->logger->info('CardDav: sync position expired, reading the address book from scratch', [
+                'addressBook' => $book->id,
+            ]);
+
+            return AddressBookChangeSet::resyncRequired();
+        }
     }
 
     /**
