@@ -8,6 +8,12 @@ The published image tags: `latest` follows the most recent release below,
 
 ## Unreleased
 
+**Signing out holds.** A page's background requests that were still on their way when you pressed
+Sign out could sign you straight back in through "Keep me signed in". Its tokens are now kept on
+the server, one per device, and signing out deletes this device's; other devices stay signed in.
+Everybody who relied on "Keep me signed in" is asked to sign in once more after the update. One
+table is added; the migration is reversible.
+
 **An address can send under its own name.** Settings → Aliases has a sender name field under each
 address; left empty, the address sends under the account's name as before. The name was already
 shown in the From selector for an alias that had one (a phone app could set it), but the mail

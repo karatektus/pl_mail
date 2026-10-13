@@ -178,8 +178,11 @@ clients poll constantly and every JMAP call would otherwise issue a write.
 password across many accounts, looser so a household behind one NAT address cannot lock itself
 out; and 20 per username whatever the address, so guesses spread across many addresses still
 hit a ceiling. Symfony's default has only the first two — this page used to call that "per
-username", which it is not. Remember-me is signature-based with a 60-day lifetime: no storage, and changing
-the password invalidates every cookie issued for it.
+username", which it is not. Remember-me keeps its tokens on the server (`rememberme_token`, Symfony's
+DoctrineTokenProvider), one row per device, with a 60-day lifetime. Signing out deletes this
+device's row, so a cookie on a request that set off before the sign-out and arrives after it opens
+nothing — the page's own background requests used to sign the person straight back in with a
+signature-only cookie. Changing the password still ends every one of them.
 
 ### Access control, and the endpoints that cannot hold a session
 
